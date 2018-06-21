@@ -1,14 +1,10 @@
 language: python
 python:
   - "3.5"
+cache: pip
 before_install:
   - sudo apt-get install -y libmpich-dev
-  - git clone https://github.com/pytorch/pytorch.git
-  - cd pytorch
-  - git submodule -q update --init
-  - pip install pyyaml -q
-  - travis_wait 32 pip install . -q
-  - cd -
+  - if [[ $(pip freeze | grep torch) ]]; then git clone https://github.com/pytorch/pytorch.git; cd pytorch; git submodule -q update --init; pip install pyyaml -q; travis_wait 32 pip install . -q; cd -; fi
 install:
   - pip install -r requirements.txt
   - pip install .
