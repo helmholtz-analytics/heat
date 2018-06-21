@@ -4,7 +4,7 @@ python:
 cache: pip
 before_install:
   - sudo apt-get install -y libmpich-dev
-  - ./install-torch.sh
+  - travis_wait 32 ./install-torch.sh
 install:
   - pip install -r requirements.txt
   - pip install .

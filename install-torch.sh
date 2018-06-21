@@ -6,7 +6,7 @@ if [[ ! $(pip freeze | grep torch) ]]; then
     cd pytorch
     git submodule -q update --init
     pip install pyyaml -q
-    travis_wait 32 pip install . -q
+    pip install . -q
     cd -
 else
     echo "PyTorch already installed"
