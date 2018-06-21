@@ -9,5 +9,5 @@ install:
   - pip install -r requirements.txt
   - pip install .
 script:
-  - mpirun --display-map python -m heat.core.tests.test_tensor
-  - mpirun --display-map python -m heat.ml.cluster.tests.test_kmeans
+  - mpirun python -m heat.core.tests.test_tensor
+  - mpirun python -m heat.ml.cluster.tests.test_kmeans
