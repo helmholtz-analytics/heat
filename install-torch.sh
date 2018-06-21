@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [[ $(pip freeze | grep torch) ]]; then
     git clone https://github.com/pytorch/pytorch.git
