@@ -1,3 +1,14 @@
 language: python
 python:
   - "3.5"
+before_install:
+  - sudo apt-get install -y libmpich-dev
+  - git clone https://github.com/pytorch/pytorch.git
+  - cd pytorch
+  - git submodule update --init
+  - pip install pyyaml
+  - pip install .
+  - cd -
+install:
+  - pip install -r requirements.txt
+  - pip install .

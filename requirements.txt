@@ -1,5 +1,2 @@
-numpy==1.14.5
-Pillow==5.1.0
-pkg-resources==0.0.0
-six==1.11.0
 torch==0.4.0
+h5py==2.8.0
