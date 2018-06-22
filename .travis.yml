@@ -1,7 +1,9 @@
 language: python
 python:
   - "3.5"
-cache: pip
+cache:
+  directories:
+  - $HOME/virtualenv/python3.5/lib/python3.5/site-packages
 before_install:
   - sudo apt-get install -y libmpich-dev
   - travis_wait 32 ./install-torch.sh
