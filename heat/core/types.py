@@ -41,6 +41,8 @@ class generic(metaclass=abc.ABCMeta):
 
 class bool(generic):
     pass
+
+
 bool_ = bool
 
 
@@ -56,66 +58,93 @@ class signedinteger(integer):
     pass
 
 
-class byte(signedinteger):
+class int8(signedinteger):
     pass
 
 
-class short(signedinteger):
+byte = int8
+
+
+class int16(signedinteger):
     pass
 
 
-class int(signedinteger):
-    pass
-int_ = int
+short = int16
 
 
-class long(signedinteger):
+class int32(signedinteger):
     pass
 
 
-class longlong(signedinteger):
+int = int32
+int_ = int32
+
+
+class int64(signedinteger):
     pass
+
+
+long = int64
+longlong = int64
 
 
 class unsignedinteger(integer):
     pass
 
 
-class ubyte(unsignedinteger):
+class uint8(unsignedinteger):
     pass
 
 
-class ushort(unsignedinteger):
+ubyte = uint8
+
+
+class uint16(unsignedinteger):
     pass
 
 
-class uint(unsignedinteger):
+ushort = uint16
+
+
+class uint32(unsignedinteger):
     pass
 
 
-class ulong(unsignedinteger):
+uint = uint32
+
+
+class uint64(unsignedinteger):
     pass
 
 
-class ulonglong(unsignedinteger):
-    pass
+ulong = uint64
+ulonglong = uint64
 
 
 class floating(number):
     pass
 
 
-class half(floating):
+class float16(floating):
     pass
 
 
-class float(floating):
-    pass
-float_ = float
+half = float16
 
 
-class double(floating):
+class float32(floating):
     pass
+
+
+float = float32
+float_ = float32
+
+
+class float64(floating):
+    pass
+
+
+double = float64
 
 
 class flexible(generic):
