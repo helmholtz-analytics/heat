@@ -1,5 +1,6 @@
 import setuptools
 from distutils.core import setup
+
 setup(
     name='heat',
     packages=['heat'],
@@ -9,7 +10,9 @@ setup(
     author_email='martin.siggel@dlr.de',
     url='https://github.com/helmholtz-analytics/heat',
     #  download_url = 'https://github.com/helmholtz-analytics/heat/archive/0.1.tar.gz', # TBD
-    keywords=['data', 'analytics', 'tensors',
-              'distributed', 'gpu'],  # arbitrary keywords
+    keywords=['data', 'analytics', 'tensors', 'distributed', 'gpu'],
     classifiers=[],
+    install_requires=[
+        'torch'
+    ]
 )
