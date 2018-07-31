@@ -1,17 +1,19 @@
+import os
+import unittest
 
 import heat as ht
 
-from numpy.testing import assert_equal
 
-import os
-current_path = os.path.dirname(os.path.abspath(__file__))
+class TestKMeans(unittest.TestCase):
+    def test_fit_iris(self):
+        # get some test data
+        iris = ht.loadh5(os.path.join(os.getcwd(), 'heat/datasets/data/iris.h5'), 'data')
 
+        # fit the clusters
+        k = 3
+        kmeans = ht.ml.cluster.KMeans(n_clusters=k)
+        centroids = kmeans.fit(iris)
 
-def test_kmeans():
-    array = ht.tensor()
-    array.load(os.path.join(current_path, "../../../datasets/data/iris.h5"), "data")
-
-    kmeans = ht.ml.cluster.KMeans(n_clusters=3, max_iter=1000, tol=1e-4)
-    mean, std, normalized_data = kmeans.standardize(array)
-    centroids = kmeans.fit(normalized_data)
-    # TODO: .all operator needed
+        # check whether the results are correct
+        self.assertIsInstance(centroids, ht.tensor)
+        self.assertEqual(centroids.shape, (1, iris.shape[1], 3))
