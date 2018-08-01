@@ -5,11 +5,10 @@ cache:
   directories:
   - $HOME/virtualenv/python3.5/lib/python3.5/site-packages
 before_install:
-  - sudo apt-get install -y libmpich-dev
+  - sudo apt-get install -y libmpich-dev libhdf5-mpich-dev
   - travis_wait 32 ./install-torch.sh
 install:
-  - pip install -r requirements.txt
-  - pip install .
+  - pip install -e .[hdf5] .
 script:
-  - mpirun python -m heat.core.tests.test_tensor
-  - mpirun python -m heat.ml.cluster.tests.test_kmeans
+  - mpirun python -m unittest
+
