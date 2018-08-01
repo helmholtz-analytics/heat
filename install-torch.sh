@@ -3,7 +3,7 @@
 #if [[ ! $(pip freeze | grep torch) ]]; then
     pip uninstall torch
     echo "Installing PyTorch from source"
-    git clone --recursive https://github.com/pytorch/pytorch.git
+    git clone --branch v0.4.1 --recursive https://github.com/pytorch/pytorch.git
     cd pytorch
     pip install pyyaml typing
     pip install .
