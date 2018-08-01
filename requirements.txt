@@ -1,0 +1,2 @@
+#torch==0.4.0 # torch should be built from the sources to support MPI
+h5py==2.8.0
