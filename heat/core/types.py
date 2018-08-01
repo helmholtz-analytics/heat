@@ -82,7 +82,7 @@ class generic(metaclass=abc.ABCMeta):
         return tensor.tensor(array, tuple(array.shape), split=None, comm=NoneCommunicator())
 
     @classmethod
-    @abc.abstractclassmethod
+    @abc.abstractmethod
     def torch_type(cls):
         pass
 

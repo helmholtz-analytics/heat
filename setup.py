@@ -12,10 +12,10 @@ setup(
     keywords=['data', 'analytics', 'tensors', 'distributed', 'gpu'],
     classifiers=[],
     install_requires=[
-        'numpy',
-        'torch'
+        'numpy>=1.13.0',
+        'torch>=0.4.0'
     ],
-    extras_require=[
-        'h5py'
-    ]
+    extras_require={
+        'hdf5': ['h5py>=2.8.0']
+    }
 )

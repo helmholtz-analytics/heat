@@ -30,11 +30,11 @@ class TestTypes(unittest.TestCase):
             [3, 2, 1],
             [4, 5, 6]
         ]
-        complex_value = heat_type(ground_truth)
-        self.assertIsInstance(complex_value, ht.tensor)
-        self.assertEqual(complex_value.shape, (2, 3,))
-        self.assertEqual((complex_value._tensor__array == torch.tensor(ground_truth, dtype=torch_type)).all().item(), 1)
-        self.assertEqual(complex_value._tensor__array.dtype, torch_type)
+        elaborate_value = heat_type(ground_truth)
+        self.assertIsInstance(elaborate_value, ht.tensor)
+        self.assertEqual(elaborate_value.shape, (2, 3,))
+        self.assertEqual((elaborate_value._tensor__array == torch.tensor(ground_truth, dtype=torch_type)).all().item(), 1)
+        self.assertEqual(elaborate_value._tensor__array.dtype, torch_type)
 
         # check exception when there is more than one parameter
         with self.assertRaises(TypeError):

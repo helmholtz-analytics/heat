@@ -16,4 +16,4 @@ class TestKMeans(unittest.TestCase):
 
         # check whether the results are correct
         self.assertIsInstance(centroids, ht.tensor)
-        self.assertEqual(centroids.shape, (1, iris.shape[1], 3))
+        self.assertEqual(centroids.shape, (1, iris.shape[1], k))
