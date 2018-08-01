@@ -11,4 +11,3 @@ install:
   - pip install -e .[hdf5] .
 script:
   - mpirun python -m unittest
-

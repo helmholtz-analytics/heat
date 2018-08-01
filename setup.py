@@ -13,7 +13,7 @@ setup(
     classifiers=[],
     install_requires=[
         'numpy>=1.13.0',
-        'torch>=0.4.0'
+        # 'torch>=0.4.0'
     ],
     extras_require={
         'hdf5': ['h5py>=2.8.0']
