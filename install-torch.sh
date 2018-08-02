@@ -2,11 +2,10 @@
 
 if [[ ! $(pip freeze | grep torch) ]]; then
     echo "Installing PyTorch from source"
-    git clone https://github.com/pytorch/pytorch.git
+    git clone --branch v0.4.1 --recursive https://github.com/pytorch/pytorch.git
     cd pytorch
-    git submodule -q update --init
-    pip install pyyaml -q
-    pip install . -q
+    pip install pyyaml typing
+    pip install .
     cd -
 else
     echo "PyTorch already installed"

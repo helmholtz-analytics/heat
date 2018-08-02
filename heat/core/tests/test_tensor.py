@@ -1,18 +1,29 @@
+import torch
+import unittest
 
 import heat as ht
 
-from numpy.testing import assert_equal
 
-import os
-current_path = os.path.dirname(os.path.abspath(__file__))
+class TestTensor(unittest.TestCase):
+    def test_astype(self):
+        data = ht.float32([
+            [1, 2, 3],
+            [4, 5, 6]
+        ])
 
+        # check starting invariant
+        self.assertEqual(data.dtype, ht.float32)
 
-def test_load_tensor():
-    array = ht.tensor()
-    array.load(os.path.join(current_path, "../../datasets/data/iris.h5"), "data")
+        # check the copy case for uint8
+        as_uint8 = data.astype(ht.uint8)
+        self.assertIsInstance(as_uint8, ht.tensor)
+        self.assertEqual(as_uint8.dtype, ht.uint8)
+        self.assertEqual(as_uint8._tensor__array.dtype, torch.uint8)
+        self.assertIsNot(as_uint8, data)
 
-
-def test_tensor_gshape():
-    array = ht.tensor()
-    array.load(os.path.join(current_path, "../../datasets/data/iris.h5"), "data")
-    assert_equal(True, array.gshape == (150, 4))
+        # check the copy case for uint8
+        as_float64 = data.astype(ht.float64, copy=False)
+        self.assertIsInstance(as_float64, ht.tensor)
+        self.assertEqual(as_float64.dtype, ht.float64)
+        self.assertEqual(as_float64._tensor__array.dtype, torch.float64)
+        self.assertIs(as_float64, data)
