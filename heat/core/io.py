@@ -52,6 +52,6 @@ else:
         with h5py.File(path, 'r') as handle:
             data = handle[dataset]
             gshape = tuple(data.shape)
-            indices = comm.chunk(gshape, split)
+            _, _, indices = comm.chunk(gshape, split)
 
             return tensor(torch.tensor(data[indices], dtype=torch_type), gshape, split, comm)

@@ -1,8 +1,9 @@
 from copy import copy as _copy
 import operator
 import numpy as np
+import torch
 
-from .communicator import mpi, NoneCommunicator
+from .communicator import mpi, MPICommunicator, NoneCommunicator
 from .stride_tricks import *
 from . import types
 
@@ -214,3 +215,103 @@ class tensor:
             self.__array.__setitem__(key, value.__array)
         else:
             raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
+
+
+def __factory(shape, dtype, split, local_factory):
+    """
+    Abstracted factory function for the HeAT
+
+    Parameters
+    ----------
+    shape : int or sequence of ints
+        Desired shape of the output array, e.g. 1 or (1, 2, 3,).
+    dtype : ht.dtype
+        The desired HeAT data type for the array, defaults to ht.float32.
+    split : int
+        The axis along which the array is split and distributed.
+    local_factory : function
+        Function that creates the local PyTorch tensor for the HeAT tensor.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of ones with given shape, data type and node distribution.
+    """
+    # clean the user input
+    shape = sanitize_shape(shape)
+    dtype = types.as_torch_type(dtype)
+    split = sanitize_axis(shape, split)
+
+    # chunk the shape if necessary
+    comm = MPICommunicator() if split is not None else NoneCommunicator()
+    _, local_shape, _ = comm.chunk(shape, split)
+
+    return tensor(local_factory(local_shape, dtype=dtype), shape, split, comm)
+
+
+def ones(shape, dtype=types.float32, split=None):
+    """
+    Returns a new array of given shape and data type filled with one values. May be allocated split up across multiple
+    nodes along the specified axis.
+
+    Parameters
+    ----------
+    shape : int or sequence of ints
+        Desired shape of the output array, e.g. 1 or (1, 2, 3,).
+    dtype : ht.dtype
+        The desired HeAT data type for the array, defaults to ht.float32.
+    split : int, optional
+        The axis along which the array is split and distributed.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of ones with given shape, data type and node distribution.
+
+    Examples
+    --------
+    >>> ht.ones(3)
+    tensor([1., 1., 1.])
+
+    >>> ht.ones(3, dtype=ht.int)
+    tensor([1, 1, 1])
+
+    >>> ht.ones((2, 3,))
+    tensor([[1., 1., 1.],
+            [1., 1., 1.]])
+    """
+    return __factory(shape, dtype, split, torch.ones)
+
+
+def zeros(shape, dtype=types.float32, split=None):
+    """
+    Returns a new array of given shape and data type filled with zero values. May be allocated split up across multiple
+    nodes along the specified axis.
+
+    Parameters
+    ----------
+    shape : int or sequence of ints
+        Desired shape of the output array, e.g. 1 or (1, 2, 3,).
+    dtype : ht.dtype
+        The desired HeAT data type for the array, defaults to ht.float32.
+    split : int, optional
+        The axis along which the array is split and distributed.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of zeros with given shape, data type and node distribution.
+
+    Examples
+    --------
+    >>> ht.zeros(3)
+    tensor([0., 0., 0.])
+
+    >>> ht.zeros(3, dtype=ht.int)
+    tensor([0, 0, 0])
+
+    >>> ht.zeros((2, 3,))
+    tensor([[0., 0., 0.],
+            [0., 0., 0.]])
+    """
+    return __factory(shape, dtype, split, torch.zeros)
