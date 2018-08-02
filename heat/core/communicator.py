@@ -13,9 +13,7 @@ initialize_mpi()
 
 
 # we explicitly only export mpi here, Communicators are still usable, but not visible
-__all__ = [
-    'mpi'
-]
+__all__ = []
 
 
 class Communicator(metaclass=abc.ABCMeta):
