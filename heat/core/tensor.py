@@ -219,7 +219,7 @@ class tensor:
 
 def __factory(shape, dtype, split, local_factory):
     """
-    Abstracted factory function for the HeAT
+    Abstracted factory function for HeAT tensor initialization.
 
     Parameters
     ----------
@@ -315,3 +315,130 @@ def zeros(shape, dtype=types.float32, split=None):
             [0., 0., 0.]])
     """
     return __factory(shape, dtype, split, torch.zeros)
+
+
+def __factory_like(a, dtype, split, factory):
+    """
+    Abstracted '...-like' factory function for HeAT tensor initialization
+
+    Parameters
+    ----------
+    a : object
+        The shape and data-type of 'a' define these same attributes of the returned array.
+    dtype : ht.dtype
+        The desired HeAT data type for the array, defaults to ht.float32.
+    split : int
+        The axis along which the array is split and distributed.
+    factory : function
+        Function that creates a HeAT tensor.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of ones with given shape, data type and node distribution that is like a
+    """
+    # determine the global shape of the object to create
+    # attempt in this order: shape property, length of object or default shape (1,)
+    try:
+        shape = a.shape
+    except AttributeError:
+        try:
+            shape = (len(a),)
+        except TypeError:
+            shape = (1,)
+
+    # infer the data type
+    # inference follows rules in this order: user provided, dtype property, type(obj), type(obj[0]), default ht.float32
+    if dtype is None:
+        try:
+            dtype = a.dtype
+        except AttributeError:
+            try:
+                # we actually do not need the PyTorch type, we just check whether the conversion succeeds
+                dtype = type(a)
+                _ = types.as_torch_type(dtype)
+
+            except TypeError:
+                try:
+                    # ... yet again
+                    dtype = type(a[0])
+                    _ = types.as_torch_type(dtype)
+
+                except (IndexError, TypeError,):
+                    dtype = types.float32
+
+    # infer split axis
+    if split is None:
+        try:
+            split = a.split if not isinstance(a, str) else None
+        except AttributeError:
+            # do not split at all
+            pass
+
+    return factory(shape, dtype, split)
+
+
+def ones_like(a, dtype=None, split=None):
+    """
+    Returns a new array filled with ones with the same type, shape and data distribution of given object. Data type and
+    data distribution strategy can be explicitly overriden.
+
+    Parameters
+    ----------
+    a : object
+        The shape and data-type of 'a' define these same attributes of the returned array.
+    dtype : ht.dtype, optional
+        Overrides the data type of the result.
+    split : int, optional
+        Overrides the split axis of the result.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of ones with the same shape, type and split axis as 'a' unless overriden.
+
+    Examples
+    --------
+    >>> x = ht.zeros((2, 3,))
+    >>> x
+    tensor([[0., 0., 0.],
+            [0., 0., 0.]])
+
+    >>> ht.ones_like(a)
+    tensor([[1., 1., 1.],
+            [1., 1., 1.]])
+    """
+    return __factory_like(a, dtype, split, ones)
+
+
+def zeros_like(a, dtype=None, split=None):
+    """
+    Returns a new array filled with zeros with the same type, shape and data distribution of given object. Data type and
+    data distribution strategy can be explicitly overriden.
+
+    Parameters
+    ----------
+    a : object
+        The shape and data-type of 'a' define these same attributes of the returned array.
+    dtype : ht.dtype, optional
+        Overrides the data type of the result.
+    split : int, optional
+        Overrides the split axis of the result.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of zeros with the same shape, type and split axis as 'a' unless overriden.
+
+    Examples
+    --------
+    >>> x = ht.ones((2, 3,))
+    >>> x
+    tensor([[1., 1., 1.],
+            [1., 1., 1.]])
+
+    >>> ht.zeros_like(a)
+    tensor([[0., 0., 0.],
+            [0., 0., 0.]])
+    """
+    return __factory_like(a, dtype, split, zeros)

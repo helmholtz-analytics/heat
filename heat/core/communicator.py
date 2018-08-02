@@ -12,7 +12,6 @@ def initialize_mpi():
 initialize_mpi()
 
 
-# we explicitly only export mpi here, Communicators are still usable, but not visible
 __all__ = []
 
 
