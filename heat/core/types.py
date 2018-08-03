@@ -280,12 +280,13 @@ def heat_type_of(obj):
     except (AttributeError, TypeError,):
         pass
 
-    # attempt
+    # attempt type of object itself
     try:
         return canonical_heat_type(type(obj))
     except TypeError:
         pass
 
+    # last resort, type of the object at first position
     try:
         return canonical_heat_type(type(obj[0]))
     except (KeyError, IndexError, TypeError,):

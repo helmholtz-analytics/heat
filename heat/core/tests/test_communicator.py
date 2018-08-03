@@ -45,7 +45,7 @@ class TestCommunicator(unittest.TestCase):
         offset, lshape, chunks = comm.chunk(self.data.shape, split=0)
         self.assertIsInstance(offset, int)
         self.assertGreaterEqual(offset, 0)
-        self.assertLess(offset, self.data.shape[0])
+        self.assertLessEqual(offset, self.data.shape[0])
 
         self.assertIsInstance(lshape, tuple)
         self.assertEqual(len(lshape), len(self.data.shape))

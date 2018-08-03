@@ -26,7 +26,10 @@ class tensor:
 
     @property
     def lshape(self):
-        return tuple(self.__array.shape)
+        if len(self.__array.shape) == len(self.__gshape):
+            return tuple(self.__array.shape)
+        # edge case when the local data tensor receives no elements after chunking
+        return self.__gshape[:self.__split] + (0,) + self.__gshape[self.split + 1:]
 
     @property
     def shape(self):
@@ -255,6 +258,76 @@ def __factory(shape, dtype, split, local_factory):
     return tensor(local_factory(local_shape, dtype=dtype.torch_type()), shape, dtype, split, comm)
 
 
+def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None):
+    """
+    Returns num evenly spaced samples, calculated over the interval [start, stop]. The endpoint of the interval can
+    optionally be excluded.
+
+    Parameters
+    ----------
+    start: scalar, scalar-convertible
+        The starting value of the sample interval, maybe a sequence if convertible to scalar
+    end: scalar, scalar-convertible
+        The end value of the sample interval, unless is set to False. In that case, the sequence consists of all but the
+        last of num + 1 evenly spaced samples, so that stop is excluded. Note that the step size changes when endpoint
+        is False.
+    num: int, optional
+        Number of samples to generate, defaults to 50. Must be non-negative.
+    endpoint: bool, optional
+        If True, stop is the last sample, otherwise, it is not included. Defaults to True.
+    retstep: bool, optional
+        If True, return (samples, step), where step is the spacing between samples.
+    dtype: dtype, optional
+        The type of the output array.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+
+    Returns
+    -------
+    samples: ht.tensor
+        There are num equally spaced samples in the closed interval [start, stop] or the half-open interval
+        [start, stop) (depending on whether endpoint is True or False).
+    step: float, optional
+        Size of spacing between samples, only returned if retstep is True.
+
+    Examples
+    --------
+    >>> np.linspace(2.0, 3.0, num=5)
+    tensor([ 2.  ,  2.25,  2.5 ,  2.75,  3.  ])
+    >>> np.linspace(2.0, 3.0, num=5, endpoint=False)
+    tensor([ 2. ,  2.2,  2.4,  2.6,  2.8])
+    >>> np.linspace(2.0, 3.0, num=5, retstep=True)
+    (array([ 2.  ,  2.25,  2.5 ,  2.75,  3.  ]), 0.25)
+    """
+    # sanitize input parameters
+    start = float(start)
+    stop = float(stop)
+    num = int(num)
+    if num <= 0:
+        raise ValueError('number of samples \'num\' must be non-negative integer, but was {}'.format(num))
+    step = (stop - start) / max(1, num - 1 if endpoint else num)
+
+    # infer local and global shapes
+    gshape = (num,)
+    split = sanitize_axis(gshape, split)
+    comm = MPICommunicator() if split is not None else NoneCommunicator()
+    offset, lshape, _ = comm.chunk(gshape, split)
+
+    # compose the local tensor
+    start += offset * step
+    stop = start + lshape[0] * step - step
+    data = torch.linspace(start, stop, lshape[0])
+    if dtype is not None:
+        data = data.type(types.canonical_heat_type(dtype).torch_type())
+
+    # construct the resulting global tensor
+    ht_tensor = tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
+
+    if retstep:
+        return ht_tensor, step
+    return ht_tensor
+
+
 def ones(shape, dtype=types.float32, split=None):
     """
     Returns a new array of given shape and data type filled with one values. May be allocated split up across multiple
@@ -266,8 +339,8 @@ def ones(shape, dtype=types.float32, split=None):
         Desired shape of the output array, e.g. 1 or (1, 2, 3,).
     dtype : ht.dtype
         The desired HeAT data type for the array, defaults to ht.float32.
-    split : int, optional
-        The axis along which the array is split and distributed.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
 
     Returns
     -------
@@ -300,8 +373,8 @@ def zeros(shape, dtype=types.float32, split=None):
         Desired shape of the output array, e.g. 1 or (1, 2, 3,).
     dtype : ht.dtype
         The desired HeAT data type for the array, defaults to ht.float32.
-    split : int, optional
-        The axis along which the array is split and distributed.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
 
     Returns
     -------
@@ -333,8 +406,8 @@ def __factory_like(a, dtype, split, factory):
         The shape and data-type of 'a' define these same attributes of the returned array.
     dtype : ht.dtype
         The desired HeAT data type for the array, defaults to ht.float32.
-    split : int
-        The axis along which the array is split and distributed.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
     factory : function
         Function that creates a HeAT tensor.
 
@@ -382,8 +455,8 @@ def ones_like(a, dtype=None, split=None):
         The shape and data-type of 'a' define these same attributes of the returned array.
     dtype : ht.dtype, optional
         Overrides the data type of the result.
-    split : int, optional
-        Overrides the split axis of the result.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
 
     Returns
     -------
@@ -415,8 +488,8 @@ def zeros_like(a, dtype=None, split=None):
         The shape and data-type of 'a' define these same attributes of the returned array.
     dtype : ht.dtype, optional
         Overrides the data type of the result.
-    split : int, optional
-        Overrides the split axis of the result.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
 
     Returns
     -------
