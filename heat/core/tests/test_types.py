@@ -1,5 +1,6 @@
-import torch
+import numpy as np
 import unittest
+import torch
 
 import heat as ht
 
@@ -93,3 +94,85 @@ class TestTypes(unittest.TestCase):
 
     def test_flexible(self):
         self.assert_non_instantiable_heat_type(ht.flexible)
+
+
+class TestTypeConversion(unittest.TestCase):
+    def test_can_cast(self):
+        zeros_array = np.zeros((3,), dtype=np.int16)
+
+        # casting - 'no'
+        self.assertTrue(ht.can_cast(ht.uint8, ht.uint8, casting='no'))
+        self.assertFalse(ht.can_cast(ht.uint8, ht.int16, casting='no'))
+        self.assertFalse(ht.can_cast(ht.uint8, ht.int8, casting='no'))
+        self.assertFalse(ht.can_cast(ht.float64, ht.bool, casting='no'))
+        self.assertTrue(ht.can_cast(1.0, ht.float32, casting='no'))
+        self.assertFalse(ht.can_cast(zeros_array, ht.float32, casting='no'))
+
+        # casting - 'safe'
+        self.assertTrue(ht.can_cast(ht.uint8, ht.uint8, casting='safe'))
+        self.assertTrue(ht.can_cast(ht.uint8, ht.int16, casting='safe'))
+        self.assertFalse(ht.can_cast(ht.uint8, ht.int8, casting='safe'))
+        self.assertFalse(ht.can_cast(ht.float64, ht.bool, casting='safe'))
+        self.assertTrue(ht.can_cast(1.0, ht.float32, casting='safe'))
+        self.assertTrue(ht.can_cast(zeros_array, ht.float32, casting='safe'))
+
+        # casting - 'same_kind'
+        self.assertTrue(ht.can_cast(ht.uint8, ht.uint8, casting='same_kind'))
+        self.assertTrue(ht.can_cast(ht.uint8, ht.int16, casting='same_kind'))
+        self.assertTrue(ht.can_cast(ht.uint8, ht.int8, casting='same_kind'))
+        self.assertFalse(ht.can_cast(ht.float64, ht.bool, casting='same_kind'))
+        self.assertTrue(ht.can_cast(1.0, ht.float32, casting='same_kind'))
+        self.assertTrue(ht.can_cast(zeros_array, ht.float32, casting='same_kind'))
+
+        # casting - 'unsafe'
+        self.assertTrue(ht.can_cast(ht.uint8, ht.uint8, casting='unsafe'))
+        self.assertTrue(ht.can_cast(ht.uint8, ht.int16, casting='unsafe'))
+        self.assertTrue(ht.can_cast(ht.uint8, ht.int8, casting='unsafe'))
+        self.assertTrue(ht.can_cast(ht.float64, ht.bool, casting='unsafe'))
+        self.assertTrue(ht.can_cast(1.0, ht.float32, casting='unsafe'))
+        self.assertTrue(ht.can_cast(zeros_array, ht.float32, casting='unsafe'))
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.can_cast(ht.uint8, ht.uint8, casting=1)
+        with self.assertRaises(ValueError):
+            ht.can_cast(ht.uint8, ht.uint8, casting='hello world')
+        with self.assertRaises(TypeError):
+            ht.can_cast({}, ht.uint8, casting='unsafe')
+        with self.assertRaises(TypeError):
+            ht.can_cast(ht.uint8, {}, casting='unsafe')
+
+    def test_canonical_heat_type(self):
+        self.assertEqual(ht.core.types.canonical_heat_type(ht.float32), ht.float32)
+        self.assertEqual(ht.core.types.canonical_heat_type('?'), ht.bool)
+        self.assertEqual(ht.core.types.canonical_heat_type(int), ht.int32)
+        self.assertEqual(ht.core.types.canonical_heat_type('u1'), ht.uint8)
+        self.assertEqual(ht.core.types.canonical_heat_type(np.int8), ht.int8)
+        self.assertEqual(ht.core.types.canonical_heat_type(torch.short), ht.int16)
+
+        with self.assertRaises(TypeError):
+            ht.core.types.canonical_heat_type({})
+        with self.assertRaises(TypeError):
+            ht.core.types.canonical_heat_type(object)
+        with self.assertRaises(TypeError):
+            ht.core.types.canonical_heat_type(1)
+        with self.assertRaises(TypeError):
+            ht.core.types.canonical_heat_type('i7')
+
+    def test_heat_type_of(self):
+        ht_tensor = ht.zeros((1,), dtype=ht.bool)
+        self.assertEqual(ht.core.types.heat_type_of(ht_tensor), ht.bool)
+
+        np_array = np.ones((3,), dtype=np.int32)
+        self.assertEqual(ht.core.types.heat_type_of(np_array), ht.int32)
+
+        scalar = 2.0
+        self.assertEqual(ht.core.types.heat_type_of(scalar), ht.float32)
+
+        iterable = [3, 'hello world']
+        self.assertEqual(ht.core.types.heat_type_of(iterable), ht.int32)
+
+        with self.assertRaises(TypeError):
+            ht.core.types.heat_type_of({})
+        with self.assertRaises(TypeError):
+            ht.core.types.heat_type_of(object)

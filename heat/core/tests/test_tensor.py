@@ -46,7 +46,7 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(simple_ones_uint.shape,  (5,))
         self.assertEqual(simple_ones_uint.lshape, (5,))
         self.assertEqual(simple_ones_uint.split,  None)
-        self.assertEqual(simple_ones_uint.dtype,  ht.uint8)
+        self.assertEqual(simple_ones_uint.dtype,  ht.bool)
         self.assertEqual((simple_ones_uint._tensor__array == 1).all().item(), 1)
 
         # multi-dimensional
@@ -92,7 +92,7 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(simple_zeros_uint.shape,  (5,))
         self.assertEqual(simple_zeros_uint.lshape, (5,))
         self.assertEqual(simple_zeros_uint.split,  None)
-        self.assertEqual(simple_zeros_uint.dtype,  ht.uint8)
+        self.assertEqual(simple_zeros_uint.dtype,  ht.bool)
         self.assertEqual((simple_zeros_uint._tensor__array == 0).all().item(), 1)
 
         # multi-dimensional
