@@ -45,13 +45,13 @@ else:
             raise TypeError('split must be None or int, not {}'.format(type(split)))
 
         # infer the type and communicator for the loaded array
-        torch_type = types.as_torch_type(dtype)
+        dtype = types.canonical_heat_type(dtype)
         comm = MPICommunicator(group) if split is not None else NoneCommunicator()
 
         # actually load the data from the HDF5 file
         with h5py.File(path, 'r') as handle:
             data = handle[dataset]
             gshape = tuple(data.shape)
-            indices = comm.chunk(gshape, split)
+            _, _, indices = comm.chunk(gshape, split)
 
-            return tensor(torch.tensor(data[indices], dtype=torch_type), gshape, split, comm)
+            return tensor(torch.tensor(data[indices], dtype=dtype.torch_type()), gshape, dtype, split, comm)
