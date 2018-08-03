@@ -21,6 +21,7 @@ generic
 
 import abc
 import builtins
+import collections
 import numpy as np
 import torch
 
@@ -52,7 +53,8 @@ __all__ = [
     'float64',
     'double',
     'flexible',
-    'can_cast'
+    'can_cast',
+    'promote_types'
 ]
 
 
@@ -291,16 +293,16 @@ def heat_type_of(obj):
 
 
 # type code assignment
-__type_codes = {
-    bool:    0,
-    uint8:   1,
-    int8:    2,
-    int16:   3,
-    int32:   4,
-    int64:   5,
-    float32: 6,
-    float64: 7,
-}
+__type_codes = collections.OrderedDict([
+    (bool,    0),
+    (uint8,   1),
+    (int8,    2),
+    (int16,   3),
+    (int32,   4),
+    (int64,   5),
+    (float32, 6),
+    (float64, 7),
+])
 
 # safe cast table
 __safe_cast = [
@@ -342,10 +344,15 @@ def can_cast(from_, to, casting='safe'):
     Parameters
     ----------
     from_ : scalar, tensor, type, str, ht.dtype
-        A description for the type. It may be a a Python builtin type, string or an HeAT type already.
-        In the three former cases the according mapped type is looked up, in the latter the type is simply returned.
+        Scalar, data type or type specifier to cast from.
     to : type, str, ht.dtype
-    casting: str, optional
+        Target type to cast to.
+    casting: str {'no', 'safe', 'same_kind', 'unsafe'}, optional
+        Controls the way the cast is evaluated
+            * 'no' the types may not be cast, i.e. they need to be identical
+            * 'safe' allows only casts that can preserve values with complete precision
+            * 'same_kind' safe casts are possible and down_casts within the same type family, e.g. int32 -> int8
+            * 'unsafe' means any conversion can be performed, i.e. this casting is always possible
 
     Returns
     -------
@@ -358,6 +365,33 @@ def can_cast(from_, to, casting='safe'):
         If the types are not understood or casting is not a string
     ValueError
         If the casting rule is not understood
+
+    Examples
+    --------
+    Basic examples with types
+
+    >>> ht.can_cast(ht.int32, ht.int64)
+    True
+    >>> ht.can_cast(ht.int64, ht.float64)
+    True
+    >>> ht.can_cast(ht.int16, ht.int8)
+    False
+
+    The usage of scalars is also possible
+    >>> ht.can_cast(1, ht.float64)
+    True
+    >>> ht.can_cast(2.0e200, 'u1')
+    False
+
+    can_cast supports different casting rules
+    >>> ht.can_cast('i8', 'i4', 'no')
+    False
+    >>> ht.can_cast('i8', 'i4', 'safe')
+    False
+    >>> ht.can_cast('i8', 'i4', 'same_kind')
+    True
+    >>> ht.can_cast('i8', 'i4', 'unsafe')
+    True
     """
     if not isinstance(casting, str):
         raise TypeError('expected string, found {}'.format(type(casting)))
@@ -384,6 +418,48 @@ def can_cast(from_, to, casting='safe'):
     if casting == 'safe':
         return can_safe_cast
     return can_safe_cast or __same_kind[typecode_from][typecode_to]
+
+
+# compute possible type promotions dynamically
+__type_promotions = [[None] * len(row) for row in __same_kind]
+for i, operand_a in enumerate(__type_codes.keys()):
+    for j, operand_b in enumerate(__type_codes.keys()):
+        for target in __type_codes.keys():
+            if can_cast(operand_a, target) and can_cast(operand_b, target):
+                __type_promotions[i][j] = target
+                break
+
+
+def promote_types(type1, type2):
+    """
+    Returns the data type with the smallest size and smallest scalar kind to which both type1 and type2 may be safely
+    cast. This function is symmetric.
+
+    Parameters
+    ----------
+    type1 : type, str, ht.dtype
+        type of first operand
+    type2 : type, str, ht.dtype
+        type of second operand
+
+    Returns
+    -------
+    out : ht.dtype
+        The promoted data type.
+
+    Examples
+    --------
+    >>> ht.promote_types(ht.uint8, ht.uint8)
+    ht.uint8
+    >>> ht.promote_types(ht.int8, ht.uint8)
+    ht.int16
+    >>> ht.promote_types('i8', 'f4')
+    ht.float64
+    """
+    typecode_type1 = __type_codes[canonical_heat_type(type1)]
+    typecode_type2 = __type_codes[canonical_heat_type(type2)]
+
+    return __type_promotions[typecode_type1][typecode_type2]
 
 
 # tensor is imported at the very end to break circular dependency
