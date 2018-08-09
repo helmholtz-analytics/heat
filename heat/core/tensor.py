@@ -208,7 +208,7 @@ class tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        return tensor(self.__array[key], self.shape, self.split, _copy(self.__comm))
+        return tensor(self.__array[key], self.__gshape, self.__dtype, self.__split, _copy(self.__comm))
 
     def __setitem__(self, key, value):
         # TODO: document me
