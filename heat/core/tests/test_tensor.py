@@ -90,6 +90,92 @@ class TestTensorFactories(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.linspace(-5, 3, num=0)
 
+    def test_arange(self):
+        # testing one positional integer argument 
+        one_arg_arange_int = ht.arange(10)
+        self.assertIsInstance(one_arg_arange_int, ht.tensor)
+        self.assertEqual(one_arg_arange_int.shape, (10,))
+        self.assertLessEqual(one_arg_arange_int.lshape[0], 10)
+        self.assertEqual(one_arg_arange_int.dtype, ht.int32)
+        self.assertEqual(one_arg_arange_int._tensor__array.dtype, torch.int32)
+        self.assertEqual(one_arg_arange_int.split, None)
+        self.assertEqual(one_arg_arange_int._tensor__array[0].item(), 0)
+        self.assertEqual(one_arg_arange_int._tensor__array[9].item(), 9)
+        
+        # testing one positional float argument 
+        one_arg_arange_int = ht.arange(10.)
+        self.assertIsInstance(one_arg_arange_int, ht.tensor)
+        self.assertEqual(one_arg_arange_int.shape, (10,))
+        self.assertLessEqual(one_arg_arange_int.lshape[0], 10)
+        self.assertEqual(one_arg_arange_int.dtype, ht.int32)
+        self.assertEqual(one_arg_arange_int._tensor__array.dtype, torch.int32)
+        self.assertEqual(one_arg_arange_int.split, None)
+        self.assertEqual(one_arg_arange_int._tensor__array[0].item(), 0.)
+        self.assertEqual(one_arg_arange_int._tensor__array[9].item(), 9.)
+
+        # testing two positional integer arguments 
+        one_arg_arange_int = ht.arange(0, 10)
+        self.assertIsInstance(one_arg_arange_int, ht.tensor)
+        self.assertEqual(one_arg_arange_int.shape, (10,))
+        self.assertLessEqual(one_arg_arange_int.lshape[0], 10)
+        self.assertEqual(one_arg_arange_int.dtype, ht.int32)
+        self.assertEqual(one_arg_arange_int._tensor__array.dtype, torch.int32)
+        self.assertEqual(one_arg_arange_int.split, None)
+        self.assertEqual(one_arg_arange_int._tensor__array[0].item(), 0)
+        self.assertEqual(one_arg_arange_int._tensor__array[9].item(), 9)
+
+        # testing two positional float arguments
+        one_arg_arange_int = ht.arange(0., 10)
+        self.assertIsInstance(one_arg_arange_int, ht.tensor)
+        self.assertEqual(one_arg_arange_int.shape, (10,))
+        self.assertLessEqual(one_arg_arange_int.lshape[0], 10)
+        self.assertEqual(one_arg_arange_int.dtype, ht.float32)
+        self.assertEqual(one_arg_arange_int._tensor__array.dtype, torch.float32)
+        self.assertEqual(one_arg_arange_int.split, None)
+        self.assertEqual(one_arg_arange_int._tensor__array[0].item(), 0.)
+        self.assertEqual(one_arg_arange_int._tensor__array[9].item(), 9.)
+
+        # testing three positional integer arguments
+        one_arg_arange_int = ht.arange(0, 10, 2)
+        self.assertIsInstance(one_arg_arange_int, ht.tensor)
+        self.assertEqual(one_arg_arange_int.shape, (5,))
+        self.assertLessEqual(one_arg_arange_int.lshape[0], 5)
+        self.assertEqual(one_arg_arange_int.dtype, ht.int32)
+        self.assertEqual(one_arg_arange_int._tensor__array.dtype, torch.int32)
+        self.assertEqual(one_arg_arange_int.split, None)
+        self.assertEqual(one_arg_arange_int._tensor__array[0].item(), 0)
+        self.assertEqual(one_arg_arange_int._tensor__array[4].item(), 8)
+        
+        # testing three positional float arguments
+        one_arg_arange_int = ht.arange(0, 10, 2.)
+        self.assertIsInstance(one_arg_arange_int, ht.tensor)
+        self.assertEqual(one_arg_arange_int.shape, (5,))
+        self.assertLessEqual(one_arg_arange_int.lshape[0], 5)
+        self.assertEqual(one_arg_arange_int.dtype, ht.float32)
+        self.assertEqual(one_arg_arange_int._tensor__array.dtype, torch.float32)
+        self.assertEqual(one_arg_arange_int.split, None)
+        self.assertEqual(one_arg_arange_int._tensor__array[0].item(), 0.)
+        self.assertEqual(one_arg_arange_int._tensor__array[4].item(), 8.)
+
+        # testing splitting
+        one_arg_arange_int = ht.arange(0, 10, 2., split=0)
+        self.assertIsInstance(one_arg_arange_int, ht.tensor)
+        self.assertEqual(one_arg_arange_int.shape, (5,))
+        self.assertLessEqual(one_arg_arange_int.lshape[0], 5)
+        self.assertEqual(one_arg_arange_int.dtype, ht.float32)
+        self.assertEqual(one_arg_arange_int._tensor__array.dtype, torch.float32)
+        self.assertEqual(one_arg_arange_int.split, 0)
+        self.assertEqual(one_arg_arange_int._tensor__array[0].item(), 0.)
+        self.assertEqual(one_arg_arange_int._tensor__array[4].item(), 8.)
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            ht.arange(-5, 3, split=1)
+        with self.assertRaises(TypeError):
+            ht.arange()
+        with self.assertRaises(TypeError):
+            ht.arange(1, 2, 3, 4)
+
     def test_ones(self):
         # scalar input
         simple_ones_float = ht.ones(3)
