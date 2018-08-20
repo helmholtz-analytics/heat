@@ -12,7 +12,6 @@ def initialize_mpi():
 initialize_mpi()
 
 
-# we explicitly only export mpi here, Communicators are still usable, but not visible
 __all__ = []
 
 
@@ -41,7 +40,11 @@ class Communicator(metaclass=abc.ABCMeta):
 
         Returns
         -------
-        out : tuple of slices
+        offset : int
+            the offset in the split dimension
+        local_shape : tuple of ints
+            the resulting local shape if the global input shape is chunked on the split axis
+        slices : tuple of slices
             the chunk slices with respect to the given shape
         """
         pass
@@ -58,7 +61,7 @@ class NoneCommunicator(Communicator):
     def chunk(self, shape, split):
         # ensure the split axis is valid, we actually do not need it
         _ = sanitize_axis(shape, split)
-        return tuple(slice(0, end) for end in shape)
+        return 0, shape, tuple(slice(0, end) for end in shape)
 
 
 class MPICommunicator(Communicator):
@@ -75,6 +78,7 @@ class MPICommunicator(Communicator):
         if split is None:
             return NoneCommunicator.chunk(shape, split)
 
+        dims = len(shape)
         split = sanitize_axis(shape, split)
         size = shape[split]
         chunk = size // self.size
@@ -87,4 +91,6 @@ class MPICommunicator(Communicator):
             start = self.rank * chunk + remainder
         end = start + chunk
 
-        return tuple(slice(0, shape[i]) if i != split else slice(start, end) for i in range(len(shape)))
+        return start, \
+            tuple(shape[i] if i != split else end - start for i in range(dims)), \
+            tuple(slice(0, shape[i]) if i != split else slice(start, end) for i in range(dims))

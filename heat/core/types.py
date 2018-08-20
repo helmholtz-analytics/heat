@@ -3,19 +3,19 @@ types: Defines the basic heat data types in the hierarchy as shown below. Design
 
 As part of the type-hierarchy: xx -- is bit-width
 generic
- +-> bool, bool_                            (kind=?)
+ +-> bool, bool_                                (kind=?)
  +-> number
  |   +-> integer
- |   |   +-> signedinteger     (intxx)      (kind=b, i)
+ |   |   +-> signedinteger         (intxx)      (kind=b, i)
  |   |   |     int8, byte
  |   |   |     int16, short
  |   |   |     int32, int
  |   |   |     int64, long
- |   |   \\-> unsignedinteger  (uintxx)     (kind=B, u)
+ |   |   \\-> unsignedinteger      (uintxx)     (kind=B, u)
  |   |         uint8, ubyte
- |   \\-> floating             (floatxx)    (kind=f)
+ |   \\-> floating                 (floatxx)    (kind=f)
  |         float32, float, float_
- |         float64, double     (double)
+ |         float64, double         (double)
  \\-> flexible (currently unused, placeholder for characters)
 """
 
@@ -24,7 +24,6 @@ import builtins
 import torch
 
 from .communicator import NoneCommunicator
-from . import tensor
 
 
 __all__ = [
@@ -255,3 +254,7 @@ def as_heat_type(torch_type):
         return __inverse_type_mappings[torch_type]
     except KeyError:
         raise TypeError('data type {} is not understood'.format(torch_type))
+
+
+# tensor is imported at the very end to break circular dependency
+from . import tensor
