@@ -8,7 +8,7 @@ HeAT is a distributed tensor framework for high performance data analytics.
 Project Status
 --------------
 
-[![Build Status](https://travis-ci.com/helmholtz-analytics/heat.svg?branch=master)](https://travis-ci.org/helmholtz-analytics/heat)
+[![Build Status](https://travis-ci.com/helmholtz-analytics/heat.svg?branch=master)](https://travis-ci.com/helmholtz-analytics/heat)
 
 Goals
 -----
