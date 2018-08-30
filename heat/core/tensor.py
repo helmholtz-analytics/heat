@@ -327,6 +327,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
         return ht_tensor, step
     return ht_tensor
 
+
 def arange(*args, dtype=None, split=None):
     """
     Return evenly spaced values within a given interval.
@@ -394,31 +395,25 @@ def arange(*args, dtype=None, split=None):
     if num_of_param == 1:
         if dtype is None:
             # use int32 as default instead of int64 used in numpy
-            dtype = torch.int32 
+            dtype = types.int32
         start = 0
         stop = int(np.ceil(args[0]))
         step = 1
         num = stop
     elif num_of_param == 2:
         if dtype is None:
-            if all_ints:
-                dtype = torch.int32
-            else:
-                dtype = torch.float32 
+            dtype = types.int32 if all_ints else types.float32
         start = args[0]
         stop = args[1]
         step = 1
         num = int(np.ceil(stop - start))      
     elif num_of_param == 3:
         if dtype is None:
-            if all_ints:
-                dtype = torch.int32
-            else:
-                dtype = torch.float32 
+            dtype = types.int32 if all_ints else types.float32
         start = args[0]
         stop = args[1]
         step = args[2]
-        num = int(np.ceil((stop - start)/step))   
+        num = int(np.ceil((stop - start) / step))
     else: 
         raise TypeError('function takes minimum one and at most 3 positional arguments ({} given)'.format(num_of_param))
    
@@ -433,6 +428,7 @@ def arange(*args, dtype=None, split=None):
     data = torch.arange(start, stop, step, dtype=types.canonical_heat_type(dtype).torch_type())
 
     return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
+
 
 def ones(shape, dtype=types.float32, split=None):
     """
