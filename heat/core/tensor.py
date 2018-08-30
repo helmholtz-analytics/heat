@@ -9,16 +9,15 @@ from . import types
 
 
 class tensor:
-    def __init__(self, array, gshape, dtype, split, comm):
+    def __init__(self, array, gshape, split, comm):
         self.__array = array
         self.__gshape = gshape
-        self.__dtype = dtype
         self.__split = split
         self.__comm = comm
 
     @property
     def dtype(self):
-        return self.__dtype
+        return types.as_heat_type(self.__array.dtype)
 
     @property
     def gshape(self):
@@ -57,14 +56,11 @@ class tensor:
             casted_tensor is a new tensor of the same shape but with given type of this tensor. If copy is True, the
             same tensor is returned instead.
         """
-        dtype = types.canonical_heat_type(dtype)
-        casted_array = self.__array.type(dtype.torch_type())
+        casted_array = self.__array.type(types.as_torch_type(dtype))
         if copy:
-            return tensor(casted_array, self.shape, dtype, self.split, _copy(self.__comm))
+            return tensor(casted_array, self.shape, self.split, _copy(self.__comm))
 
         self.__array = casted_array
-        self.__dtype = dtype
-
         return self
 
     def __reduce_op(self, partial, op, axis):
@@ -72,14 +68,13 @@ class tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        # TODO: implement type promotion
         if self.__comm.is_distributed() and (axis is None or axis == self.__split):
             mpi.all_reduce(partial, op, self.__comm.group)
-            return tensor(partial, partial.shape, self.dtype, split=None, comm=NoneCommunicator())
+            return tensor(partial, partial.shape, split=None, comm=NoneCommunicator())
 
         # TODO: verify if this works for negative split axis
         output_shape = self.gshape[:axis] + (1,) + self.gshape[axis + 1:]
-        return tensor(partial, output_shape, self.dtype, self.split, comm=_copy(self.__comm))
+        return tensor(partial, output_shape, self.split, comm=_copy(self.__comm))
 
     def argmin(self, axis):
         # TODO: document me
@@ -114,14 +109,14 @@ class tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        return tensor(self.__array.clamp(a_min, a_max), self.shape, self.dtype, self.split, _copy(self.__comm))
+        return tensor(self.__array.clamp(a_min, a_max), self.shape, self.split, _copy(self.__comm))
 
     def copy(self):
         # TODO: document me
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        return tensor(self.__array.clone(), self.shape, self.dtype, self.split, _copy(self.__comm))
+        return tensor(self.__array.clone(), self.shape, self.split, _copy(self.__comm))
 
     def expand_dims(self, axis):
         # TODO: document me
@@ -132,7 +127,6 @@ class tensor:
         return tensor(
             self.__array.unsqueeze(dim=axis),
             self.shape[:axis] + (1,) + self.shape[axis:],
-            self.dtype,
             self.split if self.split is None or self.split < axis else self.split + 1,
             _copy(self.__comm)
         )
@@ -144,7 +138,7 @@ class tensor:
         # TODO: make me more numpy API complete
         # TODO: ... including the actual binops
         if np.isscalar(other):
-            return tensor(op(self.__array, other), self.shape, self.dtype, self.split, _copy(self.__comm))
+            return tensor(op(self.__array, other), self.shape, self.split, _copy(self.__comm))
 
         elif isinstance(other, tensor):
             output_shape = broadcast_shape(self.shape, other.shape)
@@ -154,7 +148,7 @@ class tensor:
                 other = other.astype(self.dtype)
 
             if other.split is None or other.split == self.split:
-                return tensor(op(self.__array, other.__array), output_shape, self.dtype, self.split, _copy(self.__comm))
+                return tensor(op(self.__array, other.__array), output_shape, self.split, _copy(self.__comm))
             else:
                 raise NotImplementedError('Not implemented for other splittings')
         else:
@@ -248,14 +242,14 @@ def __factory(shape, dtype, split, local_factory):
     """
     # clean the user input
     shape = sanitize_shape(shape)
-    dtype = types.canonical_heat_type(dtype)
+    dtype = types.as_torch_type(dtype)
     split = sanitize_axis(shape, split)
 
     # chunk the shape if necessary
     comm = MPICommunicator() if split is not None else NoneCommunicator()
     _, local_shape, _ = comm.chunk(shape, split)
 
-    return tensor(local_factory(local_shape, dtype=dtype.torch_type()), shape, dtype, split, comm)
+    return tensor(local_factory(local_shape, dtype=dtype), shape, split, comm)
 
 
 def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None):
@@ -528,12 +522,25 @@ def __factory_like(a, dtype, split, factory):
         except TypeError:
             shape = (1,)
 
-    # infer the data type, otherwise default to float32
+    # infer the data type
+    # inference follows rules in this order: user provided, dtype property, type(obj), type(obj[0]), default ht.float32
     if dtype is None:
         try:
-            dtype = types.heat_type_of(a)
-        except TypeError:
-            dtype = types.float32
+            dtype = a.dtype
+        except AttributeError:
+            try:
+                # we actually do not need the PyTorch type, we just check whether the conversion succeeds
+                dtype = type(a)
+                _ = types.as_torch_type(dtype)
+
+            except TypeError:
+                try:
+                    # ... yet again
+                    dtype = type(a[0])
+                    _ = types.as_torch_type(dtype)
+
+                except (IndexError, TypeError,):
+                    dtype = types.float32
 
     # infer split axis
     if split is None:
