@@ -208,7 +208,7 @@ class tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        return tensor(self.__array[key], self.__gshape, self.__dtype, self.__split, _copy(self.__comm))
+        return tensor(self.__array[key], self.shape, self.split, _copy(self.__comm))
 
     def __setitem__(self, key, value):
         # TODO: document me
@@ -224,6 +224,108 @@ class tensor:
             self.__array.__setitem__(key, value.__array)
         else:
             raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
+
+
+def arange(*args, dtype=None, split=None):
+    """
+    Return evenly spaced values within a given interval.
+
+    Values are generated within the half-open interval ``[start, stop)``
+    (in other words, the interval including `start` but excluding `stop`).
+    For integer arguments the function is equivalent to the Python built-in
+    `range <http://docs.python.org/lib/built-in-funcs.html>`_ function,
+    but returns an ndarray rather than a list.
+
+    When using a non-integer step, such as 0.1, the results will often not
+    be consistent.  It is better to use ``linspace`` for these cases.
+
+    Parameters
+    ----------
+    start : number, optional
+        Start of interval.  The interval includes this value.  The default
+        start value is 0.
+    stop : number
+        End of interval.  The interval does not include this value, except
+        in some cases where `step` is not an integer and floating point
+        round-off affects the length of `out`.
+    step : number, optional
+        Spacing between values.  For any output `out`, this is the distance
+        between two adjacent values, ``out[i+1] - out[i]``.  The default
+        step size is 1.  If `step` is specified as a position argument,
+        `start` must also be given.
+    dtype : dtype
+        The type of the output array.  If `dtype` is not given, infer the data
+        type from the other input arguments.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+
+    Returns
+    -------
+    arange : 1D heat tensor
+        1D heat tensor of evenly spaced values.
+
+        For floating point arguments, the length of the result is
+        ``ceil((stop - start)/step)``.  Because of floating point overflow,
+        this rule may result in the last element of `out` being greater
+        than `stop`.
+
+    See Also
+    --------
+    linspace : Evenly spaced numbers with careful handling of endpoints.
+
+    Examples
+    --------
+    >>> ht.arange(3)
+    tensor([0, 1, 2])
+    >>> ht.arange(3.0)
+    tensor([ 0.,  1.,  2.])
+    >>> ht.arange(3,7)
+    tensor([3, 4, 5, 6])
+    >>> ht.arange(3,7,2)
+    tensor([3, 5])
+    """
+    num_of_param = len(args)
+
+    # check if all positional arguments are integers
+    all_ints = all([isinstance(_, int) for _ in args])
+
+    # set start, stop, step, num according to *args
+    if num_of_param == 1:
+        if dtype is None:
+            # use int32 as default instead of int64 used in numpy
+            dtype = types.int32
+        start = 0
+        stop = int(np.ceil(args[0]))
+        step = 1
+        num = stop
+    elif num_of_param == 2:
+        if dtype is None:
+            dtype = types.int32 if all_ints else types.float32
+        start = args[0]
+        stop = args[1]
+        step = 1
+        num = int(np.ceil(stop - start))
+    elif num_of_param == 3:
+        if dtype is None:
+            dtype = types.int32 if all_ints else types.float32
+        start = args[0]
+        stop = args[1]
+        step = args[2]
+        num = int(np.ceil((stop - start) / step))
+    else:
+        raise TypeError('function takes minimum one and at most 3 positional arguments ({} given)'.format(num_of_param))
+
+    gshape = (num,)
+    split = sanitize_axis(gshape, split)
+    comm = MPICommunicator() if split is not None else NoneCommunicator()
+    offset, lshape, _ = comm.chunk(gshape, split)
+
+    # compose the local tensor
+    start += offset * step
+    stop = start + lshape[0] * step
+    data = torch.arange(start, stop, step, dtype=types.canonical_heat_type(dtype).torch_type())
+
+    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
 
 
 def __factory(shape, dtype, split, local_factory):
@@ -326,108 +428,6 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
     if retstep:
         return ht_tensor, step
     return ht_tensor
-
-
-def arange(*args, dtype=None, split=None):
-    """
-    Return evenly spaced values within a given interval.
-
-    Values are generated within the half-open interval ``[start, stop)``
-    (in other words, the interval including `start` but excluding `stop`).
-    For integer arguments the function is equivalent to the Python built-in
-    `range <http://docs.python.org/lib/built-in-funcs.html>`_ function,
-    but returns an ndarray rather than a list.
-
-    When using a non-integer step, such as 0.1, the results will often not
-    be consistent.  It is better to use ``linspace`` for these cases.
-
-    Parameters
-    ----------
-    start : number, optional
-        Start of interval.  The interval includes this value.  The default
-        start value is 0.
-    stop : number
-        End of interval.  The interval does not include this value, except
-        in some cases where `step` is not an integer and floating point
-        round-off affects the length of `out`.
-    step : number, optional
-        Spacing between values.  For any output `out`, this is the distance
-        between two adjacent values, ``out[i+1] - out[i]``.  The default
-        step size is 1.  If `step` is specified as a position argument,
-        `start` must also be given.
-    dtype : dtype
-        The type of the output array.  If `dtype` is not given, infer the data
-        type from the other input arguments.
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-
-    Returns
-    -------
-    arange : 1D heat tensor
-        1D heat tensor of evenly spaced values.
-
-        For floating point arguments, the length of the result is
-        ``ceil((stop - start)/step)``.  Because of floating point overflow,
-        this rule may result in the last element of `out` being greater
-        than `stop`.
-
-    See Also
-    --------
-    linspace : Evenly spaced numbers with careful handling of endpoints.
-
-    Examples
-    --------
-    >>> ht.arange(3)
-    tensor([0, 1, 2])
-    >>> ht.arange(3.0)
-    tensor([ 0.,  1.,  2.])
-    >>> ht.arange(3,7)
-    tensor([3, 4, 5, 6])
-    >>> ht.arange(3,7,2)
-    tensor([3, 5])
-    """
-    num_of_param = len(args)
-    
-    # check if all positional arguments are integers 
-    all_ints = all([isinstance(_, int) for _ in args])
-
-    # set start, stop, step, num according to *args
-    if num_of_param == 1:
-        if dtype is None:
-            # use int32 as default instead of int64 used in numpy
-            dtype = types.int32
-        start = 0
-        stop = int(np.ceil(args[0]))
-        step = 1
-        num = stop
-    elif num_of_param == 2:
-        if dtype is None:
-            dtype = types.int32 if all_ints else types.float32
-        start = args[0]
-        stop = args[1]
-        step = 1
-        num = int(np.ceil(stop - start))      
-    elif num_of_param == 3:
-        if dtype is None:
-            dtype = types.int32 if all_ints else types.float32
-        start = args[0]
-        stop = args[1]
-        step = args[2]
-        num = int(np.ceil((stop - start) / step))
-    else: 
-        raise TypeError('function takes minimum one and at most 3 positional arguments ({} given)'.format(num_of_param))
-   
-    gshape = (num,)
-    split = sanitize_axis(gshape, split)
-    comm = MPICommunicator() if split is not None else NoneCommunicator()
-    offset, lshape, _ = comm.chunk(gshape, split)
-
-    # compose the local tensor
-    start += offset * step
-    stop = start + lshape[0] * step
-    data = torch.arange(start, stop, step, dtype=types.canonical_heat_type(dtype).torch_type())
-
-    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
 
 
 def ones(shape, dtype=types.float32, split=None):
