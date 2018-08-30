@@ -6,6 +6,7 @@ import torch
 from .communicator import mpi, MPICommunicator, NoneCommunicator
 from .stride_tricks import *
 from . import types
+from . import operations
 
 
 class tensor:
@@ -224,6 +225,24 @@ class tensor:
             self.__array.__setitem__(key, value.__array)
         else:
             raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
+
+    def sqrt(self, out=None):
+        """
+        Return the non-negative square-root of the tensor element-wise.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh array is allocated.
+
+        Returns
+        -------
+        square_roots : ht.tensor
+            A tensor of the same shape as x, containing the positive square-root of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+        """
+        return operations.sqrt(self, out)
 
 
 def arange(*args, dtype=None, split=None):
