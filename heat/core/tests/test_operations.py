@@ -5,6 +5,42 @@ import heat as ht
 
 
 class TestOperations(unittest.TestCase):
+    def test_log(self):
+        elements = 5
+        comparison = torch.arange(elements, dtype=torch.float64).log()
+
+        # square roots of float32
+        float32_tensor = ht.arange(elements, dtype=ht.float32)
+        float32_log = ht.log(float32_tensor)
+        self.assertIsInstance(float32_log, ht.tensor)
+        self.assertEqual(float32_log.dtype, ht.float32)
+        self.assertEqual(float32_log.dtype, ht.float32)
+        self.assertTrue((float32_log._tensor__array == comparison.type(torch.float32)).all())
+
+        # square roots of float64
+        float64_tensor = ht.arange(elements, dtype=ht.float64)
+        float64_log = ht.log(float64_tensor)
+        self.assertIsInstance(float64_log, ht.tensor)
+        self.assertEqual(float64_log.dtype, ht.float64)
+        self.assertEqual(float64_log.dtype, ht.float64)
+        self.assertTrue((float64_log._tensor__array == comparison).all())
+
+        # square roots of ints, automatic conversion to intermediate floats
+        int32_tensor = ht.arange(elements, dtype=ht.int32)
+        int32_log = ht.log(int32_tensor)
+        self.assertIsInstance(int32_log, ht.tensor)
+        self.assertEqual(int32_log.dtype, ht.float64)
+        self.assertEqual(int32_log.dtype, ht.float64)
+        self.assertTrue((int32_log._tensor__array == comparison).all())
+
+        # square roots of longs, automatic conversion to intermediate floats
+        int64_tensor = ht.arange(elements, dtype=ht.int64)
+        int64_log = ht.log(int64_tensor)
+        self.assertIsInstance(int64_log, ht.tensor)
+        self.assertEqual(int64_log.dtype, ht.float64)
+        self.assertEqual(int64_log.dtype, ht.float64)
+        self.assertTrue((int64_log._tensor__array == comparison).all())
+
     def test_sqrt(self):
         elements = 5
         comparison = torch.arange(elements, dtype=torch.float64).sqrt()
@@ -40,6 +76,12 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(int64_sqrt.dtype, ht.float64)
         self.assertEqual(int64_sqrt.dtype, ht.float64)
         self.assertTrue((int64_sqrt._tensor__array == comparison).all())
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.log([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.log('hello world')
 
     def test_sqrt_method(self):
         elements = 20

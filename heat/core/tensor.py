@@ -138,6 +138,57 @@ class tensor:
             _copy(self.__comm)
         )
 
+    def log(self, out=None):
+        """
+        Natural logarithm, element-wise.
+
+        The natural logarithm log is the inverse of the exponential function, so that log(exp(x)) = x. The natural
+        logarithm is logarithm in base e.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        logarithms : ht.tensor
+            A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
+
+        Examples
+        --------
+        >>> ht.log(ht.arange(5))
+        tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
+        """
+        return operations.log(self, out)
+
+    def sqrt(self, out=None):
+        """
+        Return the non-negative square-root of the tensor element-wise.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        square_roots : ht.tensor
+            A tensor of the same shape as x, containing the positive square-root of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+
+        Examples
+        --------
+        >>> ht.sqrt(ht.arange(5))
+        tensor([0.0000, 1.0000, 1.4142, 1.7321, 2.0000])
+        >>> ht.sqrt(ht.arange(-5, 0))
+        tensor([nan, nan, nan, nan, nan])
+        """
+        return operations.sqrt(self, out)
+
     def __binop(self, op, other):
         # TODO: document me
         # TODO: test me
@@ -225,24 +276,6 @@ class tensor:
             self.__array.__setitem__(key, value.__array)
         else:
             raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
-
-    def sqrt(self, out=None):
-        """
-        Return the non-negative square-root of the tensor element-wise.
-
-        Parameters
-        ----------
-        out : ht.tensor or None, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to None, a fresh array is allocated.
-
-        Returns
-        -------
-        square_roots : ht.tensor
-            A tensor of the same shape as x, containing the positive square-root of each element in this tensor.
-            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
-        """
-        return operations.sqrt(self, out)
 
 
 def arange(*args, dtype=None, split=None):

@@ -5,8 +5,38 @@ from . import types
 from . import tensor
 
 __all__ = [
+    'log',
     'sqrt'
 ]
+
+
+def log(x, out=None):
+    """
+    Natural logarithm, element-wise.
+
+    The natural logarithm log is the inverse of the exponential function, so that log(exp(x)) = x. The natural
+    logarithm is logarithm in base e.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        The value for which to compute the square-roots.
+    out : ht.tensor or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    logarithms : ht.tensor
+        A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
+        Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
+
+    Examples
+    --------
+    >>> ht.log(ht.arange(5))
+    tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
+    """
+    return __local_operation(torch.log, x, out)
 
 
 def sqrt(x, out=None):
@@ -26,6 +56,13 @@ def sqrt(x, out=None):
     square_roots : ht.tensor
         A tensor of the same shape as x, containing the positive square-root of each element in x. Negative input
         elements are returned as nan. If out was provided, square_roots is a reference to it.
+
+    Examples
+    --------
+    >>> ht.sqrt(ht.arange(5))
+    tensor([0.0000, 1.0000, 1.4142, 1.7321, 2.0000])
+    >>> ht.sqrt(ht.arange(-5, 0))
+    tensor([nan, nan, nan, nan, nan])
     """
     return __local_operation(torch.sqrt, x, out)
 
@@ -50,6 +87,11 @@ def __local_operation(operation, x, out):
     result : ht.tensor
         A tensor of the same shape as x, containing the result of 'operation' for each element in x. If out was
         provided, result is a reference to it.
+
+    Raises
+    -------
+    TypeError
+        If the input is not a tensor or the output is not a tensor or None.
     """
     # perform sanitation
     if not isinstance(x, tensor.tensor):
@@ -72,9 +114,9 @@ def __local_operation(operation, x, out):
             x._tensor__comm
         )
 
-    # output buffer writing requires a bite more work
+    # output buffer writing requires a bit more work
     # we need to determine whether the operands are broadcastable and the multiple of the broadcasting
-    # reason: manually repetition for each dimension as PyTorch does not conform to numpy's semantic
+    # reason: manually repetition for each dimension as PyTorch does not conform to numpy's broadcast semantic
     # PyTorch always recreates the input shape and ignores broadcasting/too large buffers
     broadcast_shape = stride_tricks.broadcast_shape(x.lshape, out.lshape)
     padded_shape = (1,) * (len(broadcast_shape) - len(x.lshape)) + x.lshape
