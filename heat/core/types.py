@@ -219,7 +219,7 @@ __type_mappings = {
 
 def canonical_heat_type(a_type):
     """
-    Canonizes the builtin Python type, type string or HeAT type into a canonical HeAT type.
+    Canonicalize the builtin Python type, type string or HeAT type into a canonical HeAT type.
 
     Parameters
     ----------
