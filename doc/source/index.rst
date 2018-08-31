@@ -18,7 +18,6 @@ Contents:
 
    introduction
    installation
-   reference
 
 Indices and tables
 ==================
