@@ -73,6 +73,12 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(int64_sqrt.dtype, ht.float64)
         self.assertTrue((int64_sqrt._tensor__array == comparison).all())
 
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.sqrt([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.sqrt('hello world')
+
     def test_sqrt_method(self):
         elements = 20
         comparison = torch.arange(elements, dtype=torch.float64).sqrt()
@@ -126,3 +132,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(float32_sqrt._tensor__array.shape, output_shape)
         for row in range(output_shape[0]):
             self.assertTrue((float32_sqrt._tensor__array[row] == comparison).all())
+
+        # exception
+        with self.assertRaises(TypeError):
+            ht.sqrt(number_range, 'hello world')
