@@ -1,5 +1,5 @@
-import torch
 import unittest
+import torch
 
 import heat as ht
 
@@ -48,40 +48,44 @@ class TestOperations(unittest.TestCase):
             ht.exp('hello world')
 
     def test_log(self):
-        elements = 5
-        comparison = torch.arange(elements, dtype=torch.float64).log()
+        elements = 15
+        comparison = torch.arange(1, elements, dtype=torch.float64).log()
 
         # logarithm of float32
-        float32_tensor = ht.arange(elements, dtype=ht.float32)
+        float32_tensor = ht.arange(1, elements, dtype=ht.float32)
         float32_log = ht.log(float32_tensor)
         self.assertIsInstance(float32_log, ht.tensor)
         self.assertEqual(float32_log.dtype, ht.float32)
         self.assertEqual(float32_log.dtype, ht.float32)
-        self.assertTrue((float32_log._tensor__array == comparison.type(torch.float32)).all())
+        in_range = (float32_log._tensor__array - comparison.type(torch.float32)) < 1e-6
+        self.assertTrue(in_range.all())
 
         # logarithm of float64
-        float64_tensor = ht.arange(elements, dtype=ht.float64)
+        float64_tensor = ht.arange(1, elements, dtype=ht.float64)
         float64_log = ht.log(float64_tensor)
         self.assertIsInstance(float64_log, ht.tensor)
         self.assertEqual(float64_log.dtype, ht.float64)
         self.assertEqual(float64_log.dtype, ht.float64)
-        self.assertTrue((float64_log._tensor__array == comparison).all())
+        in_range = (float64_log._tensor__array - comparison) < 1e-6
+        self.assertTrue(in_range.all())
 
         # logarithm of ints, automatic conversion to intermediate floats
-        int32_tensor = ht.arange(elements, dtype=ht.int32)
+        int32_tensor = ht.arange(1, elements, dtype=ht.int32)
         int32_log = ht.log(int32_tensor)
         self.assertIsInstance(int32_log, ht.tensor)
         self.assertEqual(int32_log.dtype, ht.float64)
         self.assertEqual(int32_log.dtype, ht.float64)
-        self.assertTrue((int32_log._tensor__array == comparison).all())
+        in_range = (int32_log._tensor__array - comparison) < 1e-6
+        self.assertTrue(in_range.all())
 
         # logarithm of longs, automatic conversion to intermediate floats
-        int64_tensor = ht.arange(elements, dtype=ht.int64)
+        int64_tensor = ht.arange(1, elements, dtype=ht.int64)
         int64_log = ht.log(int64_tensor)
         self.assertIsInstance(int64_log, ht.tensor)
         self.assertEqual(int64_log.dtype, ht.float64)
         self.assertEqual(int64_log.dtype, ht.float64)
-        self.assertTrue((int64_log._tensor__array == comparison).all())
+        in_range = (int64_log._tensor__array - comparison) < 1e-6
+        self.assertTrue(in_range.all())
 
         # check exceptions
         with self.assertRaises(TypeError):
@@ -89,8 +93,55 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.log('hello world')
 
+    def test_sin(self):
+        # base elements
+        elements = 30
+        comparison = torch.arange(elements, dtype=torch.float64).sin()
+
+        # sine of float32
+        float32_tensor = ht.arange(elements, dtype=ht.float32)
+        float32_sin = ht.sin(float32_tensor)
+        self.assertIsInstance(float32_sin, ht.tensor)
+        self.assertEqual(float32_sin.dtype, ht.float32)
+        self.assertEqual(float32_sin.dtype, ht.float32)
+        in_range = (float32_sin._tensor__array - comparison.type(torch.float32)) < 1e-6
+        self.assertTrue(in_range.all())
+
+        # sine of float64
+        float64_tensor = ht.arange(elements, dtype=ht.float64)
+        float64_sin = ht.sin(float64_tensor)
+        self.assertIsInstance(float64_sin, ht.tensor)
+        self.assertEqual(float64_sin.dtype, ht.float64)
+        self.assertEqual(float64_sin.dtype, ht.float64)
+        in_range = (float64_sin._tensor__array - comparison) < 1e-6
+        self.assertTrue(in_range.all())
+
+        # logarithm of ints, automatic conversion to intermediate floats
+        int32_tensor = ht.arange(elements, dtype=ht.int32)
+        int32_sin = ht.sin(int32_tensor)
+        self.assertIsInstance(int32_sin, ht.tensor)
+        self.assertEqual(int32_sin.dtype, ht.float64)
+        self.assertEqual(int32_sin.dtype, ht.float64)
+        in_range = (int32_sin._tensor__array - comparison) < 1e-6
+        self.assertTrue(in_range.all())
+
+        # logathm of longs, automatic conversion to intermediate floats
+        int64_tensor = ht.arange(elements, dtype=ht.int64)
+        int64_sin = ht.sin(int64_tensor)
+        self.assertIsInstance(int64_sin, ht.tensor)
+        self.assertEqual(int64_sin.dtype, ht.float64)
+        self.assertEqual(int64_sin.dtype, ht.float64)
+        in_range = (int64_sin._tensor__array - comparison) < 1e-6
+        self.assertTrue(in_range.all())
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.sin([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.sin('hello world')
+
     def test_sqrt(self):
-        elements = 5
+        elements = 20
         comparison = torch.arange(elements, dtype=torch.float64).sqrt()
 
         # square roots of float32
@@ -125,8 +176,14 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(int64_sqrt.dtype, ht.float64)
         self.assertTrue((int64_sqrt._tensor__array == comparison).all())
 
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.sqrt([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.sqrt('hello world')
+
     def test_sqrt_method(self):
-        elements = 20
+        elements = 25
         comparison = torch.arange(elements, dtype=torch.float64).sqrt()
 
         # square roots of float32
@@ -163,40 +220,8 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.sqrt('hello world')
 
-    def test_sqrt_method(self):
-        elements = 20
-        comparison = torch.arange(elements, dtype=torch.float64).sqrt()
-
-        # square roots of float32
-        float32_sqrt = ht.arange(elements, dtype=ht.float32).sqrt()
-        self.assertIsInstance(float32_sqrt, ht.tensor)
-        self.assertEqual(float32_sqrt.dtype, ht.float32)
-        self.assertEqual(float32_sqrt.dtype, ht.float32)
-        self.assertTrue((float32_sqrt._tensor__array == comparison.type(torch.float32)).all())
-
-        # square roots of float64
-        float64_sqrt = ht.arange(elements, dtype=ht.float64).sqrt()
-        self.assertIsInstance(float64_sqrt, ht.tensor)
-        self.assertEqual(float64_sqrt.dtype, ht.float64)
-        self.assertEqual(float64_sqrt.dtype, ht.float64)
-        self.assertTrue((float64_sqrt._tensor__array == comparison).all())
-
-        # square roots of ints, automatic conversion to intermediate floats
-        int32_sqrt = ht.arange(elements, dtype=ht.int32).sqrt()
-        self.assertIsInstance(int32_sqrt, ht.tensor)
-        self.assertEqual(int32_sqrt.dtype, ht.float64)
-        self.assertEqual(int32_sqrt.dtype, ht.float64)
-        self.assertTrue((int32_sqrt._tensor__array == comparison).all())
-
-        # square roots of longs, automatic conversion to intermediate floats
-        int64_sqrt = ht.arange(elements, dtype=ht.int64).sqrt()
-        self.assertIsInstance(int64_sqrt, ht.tensor)
-        self.assertEqual(int64_sqrt.dtype, ht.float64)
-        self.assertEqual(int64_sqrt.dtype, ht.float64)
-        self.assertTrue((int64_sqrt._tensor__array == comparison).all())
-
     def test_sqrt_out_of_place(self):
-        elements = 20
+        elements = 30
         output_shape = (3, elements)
         number_range = ht.arange(elements, dtype=ht.float32)
         output_buffer = ht.zeros(output_shape, dtype=ht.float32)
