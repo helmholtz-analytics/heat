@@ -138,6 +138,29 @@ class tensor:
             _copy(self.__comm)
         )
 
+    def exp(self, out=None):
+        """
+        Calculate the exponential of all elements in the input array.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        exponentials : ht.tensor
+            A tensor of the same shape as x, containing the positive exponentials of each element in this tensor. If out
+            was provided, logarithms is a reference to it.
+
+        Examples
+        --------
+        >>> ht.arange(5).exp()
+        tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
+        """
+        return operations.exp(self, out)
+
     def log(self, out=None):
         """
         Natural logarithm, element-wise.
@@ -159,7 +182,7 @@ class tensor:
 
         Examples
         --------
-        >>> ht.log(ht.arange(5))
+        >>> ht.arange(5).log()
         tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
         """
         return operations.log(self, out)
@@ -182,9 +205,9 @@ class tensor:
 
         Examples
         --------
-        >>> ht.sqrt(ht.arange(5))
+        >>> ht.arange(5).sqrt()
         tensor([0.0000, 1.0000, 1.4142, 1.7321, 2.0000])
-        >>> ht.sqrt(ht.arange(-5, 0))
+        >>> ht.arange(-5, 0).sqrt()
         tensor([nan, nan, nan, nan, nan])
         """
         return operations.sqrt(self, out)

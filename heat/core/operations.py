@@ -5,9 +5,36 @@ from . import types
 from . import tensor
 
 __all__ = [
+    'exp',
     'log',
     'sqrt'
 ]
+
+
+def exp(x, out=None):
+    """
+    Calculate the exponential of all elements in the input array.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        The value for which to compute the exponential.
+    out : ht.tensor or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    exponentials : ht.tensor
+        A tensor of the same shape as x, containing the positive exponentials of each element in this tensor. If out
+        was provided, logarithms is a reference to it.
+
+    Examples
+    --------
+    >>> ht.exp(ht.arange(5))
+    tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
+    """
+    return __local_operation(torch.exp, x, out)
 
 
 def log(x, out=None):
@@ -20,7 +47,7 @@ def log(x, out=None):
     Parameters
     ----------
     x : ht.tensor
-        The value for which to compute the square-roots.
+        The value for which to compute the logarithm.
     out : ht.tensor or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
