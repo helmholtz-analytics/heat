@@ -47,6 +47,32 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.exp('hello world')
 
+    def test_floor(self):
+        start, end, step = -5.0, 5.0, 1.4
+        comparison = torch.arange(start, end, step, dtype=torch.float64).floor()
+
+        # exponential of float32
+        float32_tensor = ht.arange(start, end, step, dtype=ht.float32)
+        float32_floor = float32_tensor.floor()
+        self.assertIsInstance(float32_floor, ht.tensor)
+        self.assertEqual(float32_floor.dtype, ht.float32)
+        self.assertEqual(float32_floor.dtype, ht.float32)
+        self.assertTrue((float32_floor._tensor__array == comparison.type(torch.float32)).all())
+
+        # exponential of float64
+        float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
+        float64_floor = float64_tensor.floor()
+        self.assertIsInstance(float64_floor, ht.tensor)
+        self.assertEqual(float64_floor.dtype, ht.float64)
+        self.assertEqual(float64_floor.dtype, ht.float64)
+        self.assertTrue((float64_floor._tensor__array == comparison).all())
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.floor([0, 1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.floor(object())
+
     def test_log(self):
         elements = 15
         comparison = torch.arange(1, elements, dtype=torch.float64).log()

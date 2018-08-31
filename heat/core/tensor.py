@@ -161,6 +161,31 @@ class tensor:
         """
         return operations.exp(self, out)
 
+    def floor(self, out=None):
+        """
+        Return the floor of the input, element-wise.
+
+        The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lfloor x \rfloor.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        floored : ht.tensor
+            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
+            provided, logarithms is a reference to it.
+
+        Examples
+        --------
+        >>> ht.floor(ht.arange(-2.0, 2.0, 0.4))
+        tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
+        """
+        return operations.floor(self, out)
+
     def log(self, out=None):
         """
         Natural logarithm, element-wise.
@@ -324,6 +349,86 @@ class tensor:
             raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
 
 
+def __factory(shape, dtype, split, local_factory):
+    """
+    Abstracted factory function for HeAT tensor initialization.
+
+    Parameters
+    ----------
+    shape : int or sequence of ints
+        Desired shape of the output array, e.g. 1 or (1, 2, 3,).
+    dtype : ht.dtype
+        The desired HeAT data type for the array, defaults to ht.float32.
+    split : int
+        The axis along which the array is split and distributed.
+    local_factory : function
+        Function that creates the local PyTorch tensor for the HeAT tensor.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of ones with given shape, data type and node distribution.
+    """
+    # clean the user input
+    shape = sanitize_shape(shape)
+    dtype = types.canonical_heat_type(dtype)
+    split = sanitize_axis(shape, split)
+
+    # chunk the shape if necessary
+    comm = MPICommunicator() if split is not None else NoneCommunicator()
+    _, local_shape, _ = comm.chunk(shape, split)
+
+    return tensor(local_factory(local_shape, dtype=dtype.torch_type()), shape, dtype, split, comm)
+
+
+def __factory_like(a, dtype, split, factory):
+    """
+    Abstracted '...-like' factory function for HeAT tensor initialization
+
+    Parameters
+    ----------
+    a : object
+        The shape and data-type of 'a' define these same attributes of the returned array.
+    dtype : ht.dtype
+        The desired HeAT data type for the array, defaults to ht.float32.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+    factory : function
+        Function that creates a HeAT tensor.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of ones with given shape, data type and node distribution that is like a
+    """
+    # determine the global shape of the object to create
+    # attempt in this order: shape property, length of object or default shape (1,)
+    try:
+        shape = a.shape
+    except AttributeError:
+        try:
+            shape = (len(a),)
+        except TypeError:
+            shape = (1,)
+
+    # infer the data type, otherwise default to float32
+    if dtype is None:
+        try:
+            dtype = types.heat_type_of(a)
+        except TypeError:
+            dtype = types.float32
+
+    # infer split axis
+    if split is None:
+        try:
+            split = a.split if not isinstance(a, str) else None
+        except AttributeError:
+            # do not split at all
+            pass
+
+    return factory(shape, dtype, split)
+
+
 def arange(*args, dtype=None, split=None):
     """
     Return evenly spaced values within a given interval.
@@ -424,38 +529,6 @@ def arange(*args, dtype=None, split=None):
     data = torch.arange(start, stop, step, dtype=types.canonical_heat_type(dtype).torch_type())
 
     return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
-
-
-def __factory(shape, dtype, split, local_factory):
-    """
-    Abstracted factory function for HeAT tensor initialization.
-
-    Parameters
-    ----------
-    shape : int or sequence of ints
-        Desired shape of the output array, e.g. 1 or (1, 2, 3,).
-    dtype : ht.dtype
-        The desired HeAT data type for the array, defaults to ht.float32.
-    split : int
-        The axis along which the array is split and distributed.
-    local_factory : function
-        Function that creates the local PyTorch tensor for the HeAT tensor.
-
-    Returns
-    -------
-    out : ht.tensor
-        Array of ones with given shape, data type and node distribution.
-    """
-    # clean the user input
-    shape = sanitize_shape(shape)
-    dtype = types.canonical_heat_type(dtype)
-    split = sanitize_axis(shape, split)
-
-    # chunk the shape if necessary
-    comm = MPICommunicator() if split is not None else NoneCommunicator()
-    _, local_shape, _ = comm.chunk(shape, split)
-
-    return tensor(local_factory(local_shape, dtype=dtype.torch_type()), shape, dtype, split, comm)
 
 
 def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None):
@@ -562,6 +635,39 @@ def ones(shape, dtype=types.float32, split=None):
     return __factory(shape, dtype, split, torch.ones)
 
 
+def ones_like(a, dtype=None, split=None):
+    """
+    Returns a new array filled with ones with the same type, shape and data distribution of given object. Data type and
+    data distribution strategy can be explicitly overriden.
+
+    Parameters
+    ----------
+    a : object
+        The shape and data-type of 'a' define these same attributes of the returned array.
+    dtype : ht.dtype, optional
+        Overrides the data type of the result.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of ones with the same shape, type and split axis as 'a' unless overriden.
+
+    Examples
+    --------
+    >>> x = ht.zeros((2, 3,))
+    >>> x
+    tensor([[0., 0., 0.],
+            [0., 0., 0.]])
+
+    >>> ht.ones_like(a)
+    tensor([[1., 1., 1.],
+            [1., 1., 1.]])
+    """
+    return __factory_like(a, dtype, split, ones)
+
+
 def zeros(shape, dtype=types.float32, split=None):
     """
     Returns a new array of given shape and data type filled with zero values. May be allocated split up across multiple
@@ -594,87 +700,6 @@ def zeros(shape, dtype=types.float32, split=None):
             [0., 0., 0.]])
     """
     return __factory(shape, dtype, split, torch.zeros)
-
-
-def __factory_like(a, dtype, split, factory):
-    """
-    Abstracted '...-like' factory function for HeAT tensor initialization
-
-    Parameters
-    ----------
-    a : object
-        The shape and data-type of 'a' define these same attributes of the returned array.
-    dtype : ht.dtype
-        The desired HeAT data type for the array, defaults to ht.float32.
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-    factory : function
-        Function that creates a HeAT tensor.
-
-    Returns
-    -------
-    out : ht.tensor
-        Array of ones with given shape, data type and node distribution that is like a
-    """
-    # determine the global shape of the object to create
-    # attempt in this order: shape property, length of object or default shape (1,)
-    try:
-        shape = a.shape
-    except AttributeError:
-        try:
-            shape = (len(a),)
-        except TypeError:
-            shape = (1,)
-
-    # infer the data type, otherwise default to float32
-    if dtype is None:
-        try:
-            dtype = types.heat_type_of(a)
-        except TypeError:
-            dtype = types.float32
-
-    # infer split axis
-    if split is None:
-        try:
-            split = a.split if not isinstance(a, str) else None
-        except AttributeError:
-            # do not split at all
-            pass
-
-    return factory(shape, dtype, split)
-
-
-def ones_like(a, dtype=None, split=None):
-    """
-    Returns a new array filled with ones with the same type, shape and data distribution of given object. Data type and
-    data distribution strategy can be explicitly overriden.
-
-    Parameters
-    ----------
-    a : object
-        The shape and data-type of 'a' define these same attributes of the returned array.
-    dtype : ht.dtype, optional
-        Overrides the data type of the result.
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-
-    Returns
-    -------
-    out : ht.tensor
-        Array of ones with the same shape, type and split axis as 'a' unless overriden.
-
-    Examples
-    --------
-    >>> x = ht.zeros((2, 3,))
-    >>> x
-    tensor([[0., 0., 0.],
-            [0., 0., 0.]])
-
-    >>> ht.ones_like(a)
-    tensor([[1., 1., 1.],
-            [1., 1., 1.]])
-    """
-    return __factory_like(a, dtype, split, ones)
 
 
 def zeros_like(a, dtype=None, split=None):

@@ -6,6 +6,7 @@ from . import tensor
 
 __all__ = [
     'exp',
+    'floor',
     'log',
     'sin',
     'sqrt'
@@ -36,6 +37,34 @@ def exp(x, out=None):
     tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
     """
     return __local_operation(torch.exp, x, out)
+
+
+def floor(x, out=None):
+    """
+    Return the floor of the input, element-wise.
+
+    The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lfloor x \rfloor.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        The value for which to compute the floored values.
+    out : ht.tensor or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    floored : ht.tensor
+        A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
+        provided, logarithms is a reference to it.
+
+    Examples
+    --------
+    >>> ht.floor(ht.arange(-2.0, 2.0, 0.4))
+    tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
+    """
+    return __local_operation(torch.floor, x, out)
 
 
 def log(x, out=None):
