@@ -4,6 +4,7 @@ HeAT - Helmholtz Analytics Toolkit
 HeAT is a distributed tensor framework for high performance data analytics.
 
 [![Build Status](https://travis-ci.org/helmholtz-analytics/heat.svg?branch=master)](https://travis-ci.org/helmholtz-analytics/heat)
+[![Documentation Status](https://readthedocs.org/projects/heat/badge/?version=latest)](https://heat.readthedocs.io/en/latest/?badge=latest)
 
 Acknowledgements
 ----------------
