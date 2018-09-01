@@ -30,6 +30,174 @@ class TestTensor(unittest.TestCase):
 
 
 class TestTensorFactories(unittest.TestCase):
+    def test_linspace(self):
+        # simple linear space
+        ascending = ht.linspace(-3, 5)
+        self.assertIsInstance(ascending, ht.tensor)
+        self.assertEqual(ascending.shape, (50,))
+        self.assertLessEqual(ascending.lshape[0], 50)
+        self.assertEqual(ascending.dtype, ht.float32)
+        self.assertEqual(ascending._tensor__array.dtype, torch.float32)
+        self.assertEqual(ascending.split, None)
+
+        # simple inverse linear space
+        descending = ht.linspace(-5, 3, num=100)
+        self.assertIsInstance(descending, ht.tensor)
+        self.assertEqual(descending.shape, (100,))
+        self.assertLessEqual(descending.lshape[0], 100)
+        self.assertEqual(descending.dtype, ht.float32)
+        self.assertEqual(descending._tensor__array.dtype, torch.float32)
+        self.assertEqual(descending.split, None)
+
+        # split linear space
+        split = ht.linspace(-5, 3, num=70, split=0)
+        self.assertIsInstance(split, ht.tensor)
+        self.assertEqual(split.shape, (70,))
+        self.assertLessEqual(split.lshape[0], 70)
+        self.assertEqual(split.dtype, ht.float32)
+        self.assertEqual(split._tensor__array.dtype, torch.float32)
+        self.assertEqual(split.split, 0)
+
+        # with casted type
+        casted = ht.linspace(-5, 3, num=70, dtype=ht.uint8, split=0)
+        self.assertIsInstance(casted, ht.tensor)
+        self.assertEqual(casted.shape, (70,))
+        self.assertLessEqual(casted.lshape[0], 70)
+        self.assertEqual(casted.dtype, ht.uint8)
+        self.assertEqual(casted._tensor__array.dtype, torch.uint8)
+        self.assertEqual(casted.split, 0)
+
+        # retstep test
+        result = ht.linspace(-5, 3, num=70, retstep=True, dtype=ht.uint8, split=0)
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+
+        self.assertIsInstance(result[0], ht.tensor)
+        self.assertEqual(result[0].shape, (70,))
+        self.assertLessEqual(result[0].lshape[0], 70)
+        self.assertEqual(result[0].dtype, ht.uint8)
+        self.assertEqual(result[0]._tensor__array.dtype, torch.uint8)
+        self.assertEqual(result[0].split, 0)
+
+        self.assertIsInstance(result[1], float)
+        self.assertEqual(result[1], 0.11594202898550725)
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            ht.linspace(-5, 3, split=1)
+        with self.assertRaises(ValueError):
+            ht.linspace(-5, 3, num=-1)
+        with self.assertRaises(ValueError):
+            ht.linspace(-5, 3, num=0)
+
+    def test_arange(self):
+        # testing one positional integer argument 
+        one_arg_arange_int = ht.arange(10)
+        self.assertIsInstance(one_arg_arange_int, ht.tensor)
+        self.assertEqual(one_arg_arange_int.shape, (10,))
+        self.assertLessEqual(one_arg_arange_int.lshape[0], 10)
+        self.assertEqual(one_arg_arange_int.dtype, ht.int32)
+        self.assertEqual(one_arg_arange_int._tensor__array.dtype, torch.int32)
+        self.assertEqual(one_arg_arange_int.split, None)
+        # make an in direct check for the sequence, compare against the gaussian sum
+        self.assertEqual(one_arg_arange_int.sum(), 45)
+        
+        # testing one positional float argument
+        one_arg_arange_float = ht.arange(10.)
+        self.assertIsInstance(one_arg_arange_float, ht.tensor)
+        self.assertEqual(one_arg_arange_float.shape, (10,))
+        self.assertLessEqual(one_arg_arange_float.lshape[0], 10)
+        self.assertEqual(one_arg_arange_float.dtype, ht.int32)
+        self.assertEqual(one_arg_arange_float._tensor__array.dtype, torch.int32)
+        self.assertEqual(one_arg_arange_float.split, None)
+        # make an in direct check for the sequence, compare against the gaussian sum
+        self.assertEqual(one_arg_arange_float.sum(), 45.0)
+
+        # testing two positional integer arguments
+        two_arg_arange_int = ht.arange(0, 10)
+        self.assertIsInstance(two_arg_arange_int, ht.tensor)
+        self.assertEqual(two_arg_arange_int.shape, (10,))
+        self.assertLessEqual(two_arg_arange_int.lshape[0], 10)
+        self.assertEqual(two_arg_arange_int.dtype, ht.int32)
+        self.assertEqual(two_arg_arange_int._tensor__array.dtype, torch.int32)
+        self.assertEqual(two_arg_arange_int.split, None)
+        # make an in direct check for the sequence, compare against the gaussian sum
+        self.assertEqual(two_arg_arange_int.sum(), 45)
+
+        # testing two positional arguments, one being float
+        two_arg_arange_float = ht.arange(0., 10)
+        self.assertIsInstance(two_arg_arange_float, ht.tensor)
+        self.assertEqual(two_arg_arange_float.shape, (10,))
+        self.assertLessEqual(two_arg_arange_float.lshape[0], 10)
+        self.assertEqual(two_arg_arange_float.dtype, ht.float32)
+        self.assertEqual(two_arg_arange_float._tensor__array.dtype, torch.float32)
+        self.assertEqual(two_arg_arange_float.split, None)
+        # make an in direct check for the sequence, compare against the gaussian sum
+        self.assertEqual(two_arg_arange_float.sum(), 45.0)
+
+        # testing three positional integer arguments
+        three_arg_arange_int = ht.arange(0, 10, 2)
+        self.assertIsInstance(three_arg_arange_int, ht.tensor)
+        self.assertEqual(three_arg_arange_int.shape, (5,))
+        self.assertLessEqual(three_arg_arange_int.lshape[0], 5)
+        self.assertEqual(three_arg_arange_int.dtype, ht.int32)
+        self.assertEqual(three_arg_arange_int._tensor__array.dtype, torch.int32)
+        self.assertEqual(three_arg_arange_int.split, None)
+        # make an in direct check for the sequence, compare against the gaussian sum
+        self.assertEqual(three_arg_arange_int.sum(), 20)
+
+        # testing three positional arguments, one being float
+        three_arg_arange_float = ht.arange(0, 10, 2.)
+        self.assertIsInstance(three_arg_arange_float, ht.tensor)
+        self.assertEqual(three_arg_arange_float.shape, (5,))
+        self.assertLessEqual(three_arg_arange_float.lshape[0], 5)
+        self.assertEqual(three_arg_arange_float.dtype, ht.float32)
+        self.assertEqual(three_arg_arange_float._tensor__array.dtype, torch.float32)
+        self.assertEqual(three_arg_arange_float.split, None)
+        # make an in direct check for the sequence, compare against the gaussian sum
+        self.assertEqual(three_arg_arange_float.sum(), 20.0)
+
+        # testing splitting
+        three_arg_arange_dtype_float32 = ht.arange(0, 10, 2., split=0)
+        self.assertIsInstance(three_arg_arange_dtype_float32, ht.tensor)
+        self.assertEqual(three_arg_arange_dtype_float32.shape, (5,))
+        self.assertLessEqual(three_arg_arange_dtype_float32.lshape[0], 5)
+        self.assertEqual(three_arg_arange_dtype_float32.dtype, ht.float32)
+        self.assertEqual(three_arg_arange_dtype_float32._tensor__array.dtype, torch.float32)
+        self.assertEqual(three_arg_arange_dtype_float32.split, 0)
+        # make an in direct check for the sequence, compare against the gaussian sum
+        self.assertEqual(three_arg_arange_dtype_float32.sum(axis=0), 20.0)
+
+        # testing setting dtype to int16
+        three_arg_arange_dtype_short = ht.arange(0, 10, 2., dtype=torch.int16)
+        self.assertIsInstance(three_arg_arange_dtype_short, ht.tensor)
+        self.assertEqual(three_arg_arange_dtype_short.shape, (5,))
+        self.assertLessEqual(three_arg_arange_dtype_short.lshape[0], 5)
+        self.assertEqual(three_arg_arange_dtype_short.dtype, ht.int16)
+        self.assertEqual(three_arg_arange_dtype_short._tensor__array.dtype, torch.int16)
+        self.assertEqual(three_arg_arange_dtype_short.split, None)
+        # make an in direct check for the sequence, compare against the gaussian sum
+        self.assertEqual(three_arg_arange_dtype_short.sum(axis=0), 20)
+
+        # testing setting dtype to float64
+        three_arg_arange_dtype_float64 = ht.arange(0, 10, 2, dtype=torch.float64)
+        self.assertIsInstance(three_arg_arange_dtype_float64, ht.tensor)
+        self.assertEqual(three_arg_arange_dtype_float64.shape, (5,))
+        self.assertLessEqual(three_arg_arange_dtype_float64.lshape[0], 5)
+        self.assertEqual(three_arg_arange_dtype_float64.dtype, ht.float64)
+        self.assertEqual(three_arg_arange_dtype_float64._tensor__array.dtype, torch.float64)
+        self.assertEqual(three_arg_arange_dtype_float64.split, None)
+        # make an in direct check for the sequence, compare against the gaussian sum
+        self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0), 20.0)
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            ht.arange(-5, 3, split=1)
+        with self.assertRaises(TypeError):
+            ht.arange()
+        with self.assertRaises(TypeError):
+            ht.arange(1, 2, 3, 4)
+
     def test_ones(self):
         # scalar input
         simple_ones_float = ht.ones(3)
@@ -46,7 +214,7 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(simple_ones_uint.shape,  (5,))
         self.assertEqual(simple_ones_uint.lshape, (5,))
         self.assertEqual(simple_ones_uint.split,  None)
-        self.assertEqual(simple_ones_uint.dtype,  ht.uint8)
+        self.assertEqual(simple_ones_uint.dtype,  ht.bool)
         self.assertEqual((simple_ones_uint._tensor__array == 1).all().item(), 1)
 
         # multi-dimensional
@@ -92,7 +260,7 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(simple_zeros_uint.shape,  (5,))
         self.assertEqual(simple_zeros_uint.lshape, (5,))
         self.assertEqual(simple_zeros_uint.split,  None)
-        self.assertEqual(simple_zeros_uint.dtype,  ht.uint8)
+        self.assertEqual(simple_zeros_uint.dtype,  ht.bool)
         self.assertEqual((simple_zeros_uint._tensor__array == 0).all().item(), 1)
 
         # multi-dimensional

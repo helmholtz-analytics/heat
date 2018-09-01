@@ -2,6 +2,7 @@ import torch
 
 from .communicator import NoneCommunicator
 from . import tensor
+from . import types
 
 
 def set_gseed(seed):
@@ -17,4 +18,4 @@ def uniform(low=0.0, high=1.0, size=None):
     if size is None:
         size = (1,)
 
-    return tensor(torch.Tensor(*size).uniform_(low, high), size, None, NoneCommunicator())
+    return tensor(torch.Tensor(*size).uniform_(low, high), size, types.float32, None, NoneCommunicator())
