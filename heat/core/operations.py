@@ -1,3 +1,4 @@
+from copy import copy as _copy
 import torch
 
 from . import stride_tricks
@@ -5,12 +6,48 @@ from . import types
 from . import tensor
 
 __all__ = [
+    'clip',
     'exp',
     'floor',
     'log',
     'sin',
     'sqrt'
 ]
+
+
+def clip(a, a_min, a_max, out=None):
+    """
+    Parameters
+    ----------
+    a : ht.tensor
+        Array containing elements to clip.
+    a_min : scalar or None
+        Minimum value. If None, clipping is not performed on lower interval edge. Not more than one of a_min and
+        a_max may be None.
+    a_max : scalar or None
+        Maximum value. If None, clipping is not performed on upper interval edge. Not more than one of a_min and
+        a_max may be None.
+    out : ht.tensor, optional
+        The results will be placed in this array. It may be the input array for in-place clipping. out must be of
+        the right shape to hold the output. Its type is preserved.
+
+    Returns
+    -------
+    clipped_values : ht.tensor
+        A tensor with the elements of this tensor, but where values < a_min are replaced with a_min, and those >
+        a_max with a_max.
+    """
+    if not isinstance(a, tensor.tensor):
+        raise TypeError('a must be a tensor')
+    if a_min is None and a_max is None:
+        raise ValueError('either a_min or a_max must be set')
+
+    if out is None:
+        return tensor.tensor(a._tensor__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, _copy(a._tensor__comm))
+    if not isinstance(out, tensor.tensor):
+        raise TypeError('out must be a tensor')
+
+    return a._tensor__array.clamp(a_min, a_max, out=out._tensor__array) and out
 
 
 def exp(x, out=None):
@@ -194,7 +231,7 @@ def __local_operation(operation, x, out):
             x.gshape,
             promoted_type,
             x.split,
-            x._tensor__comm
+            _copy(x._tensor__comm)
         )
 
     # output buffer writing requires a bit more work
