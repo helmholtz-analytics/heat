@@ -30,6 +30,19 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.clip(ht.arange(20), 5, 15, out=torch.arange(20))
 
+    def test_copy(self):
+        tensor = ht.ones(5)
+        copied = tensor.copy()
+
+        # test identity inequality and value equality
+        self.assertIsNot(tensor, copied)
+        self.assertIsNot(tensor._tensor__array, copied._tensor__array)
+        self.assertTrue((tensor == copied)._tensor__array.all())
+
+        # test exceptions
+        with self.assertRaises(TypeError):
+            ht.copy('hello world')
+
     def test_exp(self):
         elements = 10
         comparison = torch.arange(elements, dtype=torch.float64).exp()

@@ -7,6 +7,7 @@ from . import tensor
 
 __all__ = [
     'clip',
+    'copy',
     'exp',
     'floor',
     'log',
@@ -48,6 +49,25 @@ def clip(a, a_min, a_max, out=None):
         raise TypeError('out must be a tensor')
 
     return a._tensor__array.clamp(a_min, a_max, out=out._tensor__array) and out
+
+
+def copy(a):
+    """
+    Return an array copy of the given object.
+
+    Parameters
+    ----------
+    a : ht.tensor
+        Input data to be copied.
+
+    Returns
+    -------
+    copied : ht.tensor
+        A copy of the original
+    """
+    if not isinstance(a, tensor.tensor):
+        raise TypeError('input needs to be a tensor')
+    return tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, _copy(a._tensor__comm))
 
 
 def exp(x, out=None):

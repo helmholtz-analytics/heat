@@ -68,6 +68,39 @@ class tensor:
 
         return self
 
+    def clip(self, a_min, a_max, out=None):
+        """
+        Parameters
+        ----------
+        a_min : scalar or None
+            Minimum value. If None, clipping is not performed on lower interval edge. Not more than one of a_min and
+            a_max may be None.
+        a_max : scalar or None
+            Maximum value. If None, clipping is not performed on upper interval edge. Not more than one of a_min and
+            a_max may be None.
+        out : ht.tensor, optional
+            The results will be placed in this array. It may be the input array for in-place clipping. out must be of
+            the right shape to hold the output. Its type is preserved.
+
+        Returns
+        -------
+        clipped_values : ht.tensor
+            A tensor with the elements of this tensor, but where values < a_min are replaced with a_min, and those >
+            a_max with a_max.
+        """
+        return operations.clip(self, a_min, a_max, out)
+
+    def copy(self):
+        """
+        Return an array copy of the given object.
+
+        Returns
+        -------
+        copied : ht.tensor
+            A copy of the original
+        """
+        return operations.copy(self)
+
     def __reduce_op(self, partial, op, axis):
         # TODO: document me
         # TODO: test me
@@ -110,35 +143,6 @@ class tensor:
             return self.__array.sum()
 
         return self.__reduce_op(sum_axis, mpi.reduce_op.SUM, axis)
-
-    def clip(self, a_min, a_max, out=None):
-        """
-        Parameters
-        ----------
-        a_min : scalar or None
-            Minimum value. If None, clipping is not performed on lower interval edge. Not more than one of a_min and
-            a_max may be None.
-        a_max : scalar or None
-            Maximum value. If None, clipping is not performed on upper interval edge. Not more than one of a_min and
-            a_max may be None.
-        out : ht.tensor, optional
-            The results will be placed in this array. It may be the input array for in-place clipping. out must be of
-            the right shape to hold the output. Its type is preserved.
-
-        Returns
-        -------
-        clipped_values : ht.tensor
-            A tensor with the elements of this tensor, but where values < a_min are replaced with a_min, and those >
-            a_max with a_max.
-        """
-        return operations.clip(self, a_min, a_max, out)
-
-    def copy(self):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        return tensor(self.__array.clone(), self.shape, self.dtype, self.split, _copy(self.__comm))
 
     def expand_dims(self, axis):
         # TODO: document me
