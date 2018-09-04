@@ -14,3 +14,10 @@ script:
   - mpirun pytest --cov=heat
 after_success:
   - codecov
+deploy:
+  provider: pypi
+  user: bhagemeier
+  password:
+    secure: jYXgTpuqLjDB4ScljLTeY1LOsc1XeAdzPcG7+WPkDI14ucTvG4szsaxP3RbQXtStGNJYLhENKD9XUlEJOXnWvAsSR/Pk5GRGNGJaD+0G5NB8HwQZvcpAieQz0lfyaanpohFUH3ttowXDMGRz/BaqAYC2KzxIVAib/34WmvG3lR8UpINsRxighYeHhrkapez+44K8LrsBcTI/mEFDLBE44hgg9oDbkg/hs63LGnhM/6Jh4PP4oPatqTVzbDs1rhC/VegAiJC6rRfpXeoEa2kTCR1FckXS+WUrT4CmRgnXyIqnBoaYzT4ep9swd5P07+va8DKEdIXQtaPJovfVJ8cCU/xxLyTtAVAurT4VZWQQRtHPysfuYgEINoaocvbApJl581yR+Q7N9RXWyFwmF0k0kj+eIDtwv1mu5/uPU5VpJVTxxpsMnxKcAOSBHQbDhEEU6S/exK7FbOh3KoEo5Is61+rCwPA2PZK1OYa3kPWHG3kPE83rquv1sP1EmMMrsv03M2fV8KxkNYEZu1dcyTW0+xMqYezUWByClYTAGMqF1KKpkbMbnSAHu7SVJVVdU5w1zMd2wLAJIF/bjtF33ZzRzKfd4ibNtdi8dv6ADl55SoDuEKhirWZdNI9yYQHd3g+2FlgHSxcZfkAoQzuT1S+Rg5E06Fv8v4Fr7Et4EXorP7g=
+  on:
+    tags: true
