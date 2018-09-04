@@ -5,6 +5,37 @@ import heat as ht
 
 
 class TestOperations(unittest.TestCase):
+    def test_abs(self):
+        float32_tensor = ht.arange(-10, 10, dtype=ht.float32, split=0)
+        absolute_values = ht.abs(float32_tensor)
+
+        # basic absolute test
+        self.assertIsInstance(absolute_values, ht.tensor)
+        self.assertEqual(absolute_values.dtype, ht.float32)
+        self.assertEqual(absolute_values.sum(axis=0), 100)
+
+        # check whether output works
+        output_tensor = ht.zeros(20, split=0)
+        self.assertEqual(output_tensor.sum(axis=0), 0)
+        ht.absolute(float32_tensor, out=output_tensor)
+        self.assertEqual(output_tensor.sum(axis=0), 100)
+
+        # dtype parameter
+        int64_tensor = ht.arange(-10, 10, dtype=ht.int64)
+        absolute_values = ht.abs(int64_tensor, dtype=ht.float32)
+        self.assertIsInstance(absolute_values, ht.tensor)
+        self.assertEqual(absolute_values.sum(axis=0), 100)
+        self.assertEqual(absolute_values.dtype, ht.float32)
+        self.assertEqual(absolute_values._tensor__array.dtype, torch.float32)
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.absolute('hello')
+        with self.assertRaises(TypeError):
+            float32_tensor.abs(out=1)
+        with self.assertRaises(TypeError):
+            float32_tensor.absolute(out=float32_tensor, dtype=3.2)
+
     def test_clip(self):
         elements = 20
 

@@ -6,6 +6,8 @@ from . import types
 from . import tensor
 
 __all__ = [
+    'abs',
+    'absolute',
     'clip',
     'copy',
     'exp',
@@ -14,6 +16,43 @@ __all__ = [
     'sin',
     'sqrt'
 ]
+
+
+def abs(x, out=None, dtype=None):
+    """
+    Calculate the absolute value element-wise.
+
+    np.absolute is a shorthand for this function.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        The values for which the compute the absolute value.
+    out : ht.tensor, optional
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+        If not provided or None, a freshly-allocated array is returned.
+    dtype : ht.type, optional
+        Determines the data type of the output array. The values are cast to this type with potential loss of
+        precision.
+
+    Returns
+    -------
+    absolute_values : ht.tensor
+        A tensor containing the absolute value of each element in x.
+    """
+    if dtype is not None and not issubclass(dtype, types.generic):
+        raise TypeError('dtype must be a heat data type')
+
+    absolute_values = __local_operation(torch.abs, x, out)
+    if dtype is not None:
+        absolute_values._tensor__array = absolute_values._tensor__array.type(dtype.torch_type())
+        absolute_values._tensor__dtype = dtype
+
+    return absolute_values
+
+
+def absolute(x, out=None, dtype=None):
+    return abs(x, out, dtype)
 
 
 def clip(a, a_min, a_max, out=None):
