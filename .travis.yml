@@ -9,5 +9,8 @@ before_install:
   - travis_wait 32 ./install-torch.sh
 install:
   - pip install -e .[hdf5] .
+  - pip install codecov pytest pytest-cov
 script:
-  - mpirun python -m unittest
+  - mpirun pytest --cov=heat
+after_success:
+  - codecov
