@@ -7,9 +7,9 @@ cache:
 before_install:
   - sudo apt-get install -y libopenmpi-dev openmpi-bin libhdf5-dev
   - travis_wait 32 ./install-torch.sh
+  - pip install codecov pytest pytest-cov
 install:
   - pip install -e .[hdf5] .
-  - pip install codecov pytest pytest-cov
 script:
   - mpirun pytest --cov=heat
 after_success:
