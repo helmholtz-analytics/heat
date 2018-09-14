@@ -28,6 +28,8 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(as_float64._tensor__array.dtype, torch.float64)
         self.assertIs(as_float64, data)
 
+        #TODO: test max, min
+
 
 class TestTensorFactories(unittest.TestCase):
     def test_linspace(self):
@@ -243,6 +245,54 @@ class TestTensorFactories(unittest.TestCase):
             ht.ones((-1, 3,), dtype=ht.float64)
         with self.assertRaises(TypeError):
             ht.ones((2, 3,), dtype=ht.float64, split='axis')
+
+    def test_randn(self):
+        # scalar input
+        simple_randn_float = ht.randn(3)
+        self.assertIsInstance(simple_randn_float, ht.tensor)
+        self.assertEqual(simple_randn_float.shape,  (3,))
+        self.assertEqual(simple_randn_float.lshape, (3,))
+        self.assertEqual(simple_randn_float.split,  None)
+        self.assertEqual(simple_randn_float.dtype,  ht.float32)
+        #self.assertEqual((simple_randn_float._tensor__array == 1).all().item(), 1)
+
+        # # different data type
+        #TODO: dtype  can only be float for randn
+        # simple_randn_uint = ht.randn(5, dtype=ht.bool)
+        # self.assertIsInstance(simple_ones_uint, ht.tensor)
+        # self.assertEqual(simple_ones_uint.shape,  (5,))
+        # self.assertEqual(simple_ones_uint.lshape, (5,))
+        # self.assertEqual(simple_ones_uint.split,  None)
+        # self.assertEqual(simple_ones_uint.dtype,  ht.bool)
+        # self.assertEqual((simple_ones_uint._tensor__array == 1).all().item(), 1)
+
+        # multi-dimensional
+        elaborate_randn_float = ht.randn(2, 3)
+        self.assertIsInstance(elaborate_randn_float, ht.tensor)
+        self.assertEqual(elaborate_randn_float.shape,  (2, 3))
+        self.assertEqual(elaborate_randn_float.lshape, (2, 3))
+        self.assertEqual(elaborate_randn_float.split,  None)
+        self.assertEqual(elaborate_randn_float.dtype,  ht.float32)
+        #self.assertEqual((elaborate_randn_int._tensor__array == 1).all().item(), 1)
+
+        #TODO: double-check this
+        # split axis
+        elaborate_randn_split = ht.randn(6, 4, dtype=ht.float32, split=0)
+        self.assertIsInstance(elaborate_randn_split, ht.tensor)
+        self.assertEqual(elaborate_randn_split.shape,         (6, 4,))
+        self.assertLessEqual(elaborate_randn_split.lshape[0], 6)
+        self.assertEqual(elaborate_randn_split.lshape[1],     4)
+        self.assertEqual(elaborate_randn_split.split,         0)
+        self.assertEqual(elaborate_randn_split.dtype,         ht.float32)
+        #self.assertEqual((elaborate_randn_split._tensor__array == 1).all().item(), 1)
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.randn('(2, 3,)', dtype=ht.float64)
+        with self.assertRaises(ValueError):
+            ht.randn(-1, 3, dtype=ht.float64)
+        with self.assertRaises(TypeError):
+            ht.randn(2, 3, dtype=ht.float64, split='axis')
 
     def test_zeros(self):
         # scalar input

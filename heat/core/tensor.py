@@ -257,6 +257,7 @@ class tensor:
         """
         return operations.log(self, out)
 
+
     def sin(self, out=None):
         """
         Return the trigonometric sine, element-wise.
@@ -712,6 +713,53 @@ def ones_like(a, dtype=None, split=None):
     """
     return __factory_like(a, dtype, split, ones)
 
+def randn(*args, dtype = torch.float32, split = None):
+    """
+    #based on ht.arange, ht.linspace implementation
+    
+    BASIC FUNCTIONALITY:
+    Returns a tensor filled with random numbers from a normal distribution 
+    with zero mean and variance of one.
+
+    The shape of the tensor is defined by the varargs args.
+    
+    Parameters	
+    ----------
+
+    args (int...) – a set of integers defining the shape of the output tensor.
+    #TODO: out (Tensor, optional) – the output tensor
+
+
+    Examples
+    --------
+    >>> ht.randn(3)
+    tensor([ 0.1921, -0.9635,  0.5047])
+
+    >>> ht.randn(4,4)
+    tensor([[-1.1261,  0.5971,  0.2851,  0.9998],
+            [-1.8548, -1.2574,  0.2391, -0.3302],
+            [ 1.3365, -1.5212,  1.4159, -0.1671],
+            [ 0.1260,  1.2126, -0.0804,  0.0907]])
+    """
+    num_of_param = len(args)
+
+    # check if all positional arguments are integers
+    all_ints = all([isinstance(_, int) for _ in args])
+
+    # define shape of tensor according to args
+    gshape = (args)
+    split = sanitize_axis(gshape, split)
+    comm = MPICommunicator() if split is not None else NoneCommunicator()
+    offset, lshape, _ = comm.chunk(gshape, split)
+
+    #TODO: allow for other torch.randn parameters, i.e.:
+    #* (tuple of ints size, Tensor out, torch.dtype dtype, torch.layout layout, torch.device device, bool requires_grad)
+
+    # compose the local tensor
+    data = torch.randn(args)
+
+    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
+    
 
 def zeros(shape, dtype=types.float32, split=None):
     """
