@@ -3,7 +3,7 @@ import torch
 
 import heat as ht
 
-FLOAT_EPSILON = 1e-6
+FLOAT_EPSILON = 1e-4
 
 
 class TestOperations(unittest.TestCase):
@@ -86,7 +86,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(float32_exp, ht.tensor)
         self.assertEqual(float32_exp.dtype, ht.float32)
         self.assertEqual(float32_exp.dtype, ht.float32)
-        in_range = float32_exp._tensor__array - comparison.type(torch.float32) < FLOAT_EPSILON
+        in_range = (float32_exp._tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # exponential of float64
@@ -95,7 +95,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(float64_exp, ht.tensor)
         self.assertEqual(float64_exp.dtype, ht.float64)
         self.assertEqual(float64_exp.dtype, ht.float64)
-        in_range = float64_exp._tensor__array - comparison < FLOAT_EPSILON
+        in_range = (float64_exp._tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # exponential of ints, automatic conversion to intermediate floats
@@ -104,7 +104,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(int32_exp, ht.tensor)
         self.assertEqual(int32_exp.dtype, ht.float64)
         self.assertEqual(int32_exp.dtype, ht.float64)
-        in_range = int32_exp._tensor__array - comparison < FLOAT_EPSILON
+        in_range = (int32_exp._tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # exponential of longs, automatic conversion to intermediate floats
@@ -113,7 +113,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(int64_exp, ht.tensor)
         self.assertEqual(int64_exp.dtype, ht.float64)
         self.assertEqual(int64_exp.dtype, ht.float64)
-        in_range = int64_exp._tensor__array - comparison < FLOAT_EPSILON
+        in_range = (int64_exp._tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # check exceptions
