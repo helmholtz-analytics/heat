@@ -155,7 +155,7 @@ class tensor:
         # TODO: sanitize input
         # TODO: make me more numpy API complete
         return self.sum(axis) / self.gshape[axis]
-
+       
     def sum(self, axis=None):
         # TODO: document me
         # TODO: test me
@@ -256,6 +256,32 @@ class tensor:
         tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
         """
         return operations.log(self, out)
+
+    def max(self, axis=None):
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        # TODO: make me more numpy API complete
+        # TODO: Return our own tensor
+        if axis is not None:
+            max_axis = self.__array.max(axis, keepdim=True)
+        else:
+            return self.__array.max()
+
+        return self.__reduce_op(max_axis, mpi.reduce_op.MAX, axis)
+       
+    def min(self, axis=None):
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        # TODO: make me more numpy API complete
+        # TODO: Return our own tensor
+        if axis is not None:
+            min_axis = self.__array.min(axis, keepdim=True)
+        else:
+            return self.__array.min()
+
+        return self.__reduce_op(min_axis, mpi.reduce_op.MIN, axis)
 
 
     def sin(self, out=None):
@@ -716,7 +742,6 @@ def ones_like(a, dtype=None, split=None):
 def randn(*args, dtype = torch.float32, split = None):
     """
     #based on ht.arange, ht.linspace implementation
-    
     BASIC FUNCTIONALITY:
     Returns a tensor filled with random numbers from a normal distribution 
     with zero mean and variance of one.
@@ -752,9 +777,13 @@ def randn(*args, dtype = torch.float32, split = None):
     comm = MPICommunicator() if split is not None else NoneCommunicator()
     offset, lshape, _ = comm.chunk(gshape, split)
 
-    #TODO: allow for other torch.randn parameters, i.e.:
-    #* (tuple of ints size, Tensor out, torch.dtype dtype, torch.layout layout, torch.device device, bool requires_grad)
+    #TODO: double-check np.randn/torch.randn overlap
 
+    try:
+        torch.randn(args)
+    except RuntimeError as exception:
+        # re-raise the exception to be consistent with numpy's exception interface
+        raise ValueError(str(exception))
     # compose the local tensor
     data = torch.randn(args)
 
