@@ -22,8 +22,6 @@ def abs(x, out=None, dtype=None):
     """
     Calculate the absolute value element-wise.
 
-    np.absolute is a shorthand for this function.
-
     Parameters
     ----------
     x : ht.tensor
@@ -52,6 +50,27 @@ def abs(x, out=None, dtype=None):
 
 
 def absolute(x, out=None, dtype=None):
+    """
+    Calculate the absolute value element-wise.
+
+    np.abs is a shorthand for this function.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        The values for which the compute the absolute value.
+    out : ht.tensor, optional
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+        If not provided or None, a freshly-allocated array is returned.
+    dtype : ht.type, optional
+        Determines the data type of the output array. The values are cast to this type with potential loss of
+        precision.
+
+    Returns
+    -------
+    absolute_values : ht.tensor
+        A tensor containing the absolute value of each element in x.
+    """
     return abs(x, out, dtype)
 
 
