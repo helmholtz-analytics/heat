@@ -6,6 +6,7 @@ import torch
 from .communicator import mpi, MPICommunicator, NoneCommunicator
 from .stride_tricks import *
 from . import types
+from . import operations
 
 
 class tensor:
@@ -39,6 +40,49 @@ class tensor:
     def split(self):
         return self.__split
 
+    def abs(self, out=None, dtype=None):
+        """
+        Calculate the absolute value element-wise.
+
+        Parameters
+        ----------
+        out : ht.tensor, optional
+            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+            If not provided or None, a freshly-allocated array is returned.
+        dtype : ht.type, optional
+            Determines the data type of the output array. The values are cast to this type with potential loss of
+            precision.
+
+        Returns
+        -------
+        absolute_values : ht.tensor
+            A tensor containing the absolute value of each element in x.
+        """
+        return operations.abs(self, out, dtype)
+
+    def absolute(self, out=None, dtype=None):
+        """
+        Calculate the absolute value element-wise.
+
+        np.abs is a shorthand for this function.
+
+        Parameters
+        ----------
+        out : ht.tensor, optional
+            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+            If not provided or None, a freshly-allocated array is returned.
+        dtype : ht.type, optional
+            Determines the data type of the output array. The values are cast to this type with potential loss of
+            precision.
+
+        Returns
+        -------
+        absolute_values : ht.tensor
+            A tensor containing the absolute value of each element in x.
+        """
+
+        return self.abs(out, dtype)
+
     def astype(self, dtype, copy=True):
         """
         Returns a casted version of this array.
@@ -66,6 +110,39 @@ class tensor:
         self.__dtype = dtype
 
         return self
+
+    def clip(self, a_min, a_max, out=None):
+        """
+        Parameters
+        ----------
+        a_min : scalar or None
+            Minimum value. If None, clipping is not performed on lower interval edge. Not more than one of a_min and
+            a_max may be None.
+        a_max : scalar or None
+            Maximum value. If None, clipping is not performed on upper interval edge. Not more than one of a_min and
+            a_max may be None.
+        out : ht.tensor, optional
+            The results will be placed in this array. It may be the input array for in-place clipping. out must be of
+            the right shape to hold the output. Its type is preserved.
+
+        Returns
+        -------
+        clipped_values : ht.tensor
+            A tensor with the elements of this tensor, but where values < a_min are replaced with a_min, and those >
+            a_max with a_max.
+        """
+        return operations.clip(self, a_min, a_max, out)
+
+    def copy(self):
+        """
+        Return an array copy of the given object.
+
+        Returns
+        -------
+        copied : ht.tensor
+            A copy of the original
+        """
+        return operations.copy(self)
 
     def __reduce_op(self, partial, op, axis):
         # TODO: document me
@@ -96,7 +173,7 @@ class tensor:
         # TODO: sanitize input
         # TODO: make me more numpy API complete
         return self.sum(axis) / self.gshape[axis]
-
+       
     def sum(self, axis=None):
         # TODO: document me
         # TODO: test me
@@ -109,19 +186,6 @@ class tensor:
             return self.__array.sum()
 
         return self.__reduce_op(sum_axis, mpi.reduce_op.SUM, axis)
-
-    def clip(self, a_min, a_max):
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        return tensor(self.__array.clamp(a_min, a_max), self.shape, self.dtype, self.split, _copy(self.__comm))
-
-    def copy(self):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        return tensor(self.__array.clone(), self.shape, self.dtype, self.split, _copy(self.__comm))
 
     def expand_dims(self, axis):
         # TODO: document me
@@ -136,6 +200,155 @@ class tensor:
             self.split if self.split is None or self.split < axis else self.split + 1,
             _copy(self.__comm)
         )
+
+    def exp(self, out=None):
+        """
+        Calculate the exponential of all elements in the input array.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        exponentials : ht.tensor
+            A tensor of the same shape as x, containing the positive exponentials of each element in this tensor. If out
+            was provided, logarithms is a reference to it.
+
+        Examples
+        --------
+        >>> ht.arange(5).exp()
+        tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
+        """
+        return operations.exp(self, out)
+
+    def floor(self, out=None):
+        """
+        Return the floor of the input, element-wise.
+
+        The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lfloor x \rfloor.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        floored : ht.tensor
+            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
+            provided, logarithms is a reference to it.
+
+        Examples
+        --------
+        >>> ht.floor(ht.arange(-2.0, 2.0, 0.4))
+        tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
+        """
+        return operations.floor(self, out)
+
+    def log(self, out=None):
+        """
+        Natural logarithm, element-wise.
+
+        The natural logarithm log is the inverse of the exponential function, so that log(exp(x)) = x. The natural
+        logarithm is logarithm in base e.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        logarithms : ht.tensor
+            A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
+
+        Examples
+        --------
+        >>> ht.arange(5).log()
+        tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
+        """
+        return operations.log(self, out)
+
+    def max(self, axis=None):
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        # TODO: make me more numpy API complete
+        # TODO: Return our own tensor
+        if axis is not None:
+            max_axis = self.__array.max(axis, keepdim=True)
+        else:
+            return self.__array.max()
+
+        return self.__reduce_op(max_axis, mpi.reduce_op.MAX, axis)
+       
+    def min(self, axis=None):
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        # TODO: make me more numpy API complete
+        # TODO: Return our own tensor
+        if axis is not None:
+            min_axis = self.__array.min(axis, keepdim=True)
+        else:
+            return self.__array.min()
+
+        return self.__reduce_op(min_axis, mpi.reduce_op.MIN, axis)
+
+
+    def sin(self, out=None):
+        """
+        Return the trigonometric sine, element-wise.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        sine : ht.tensor
+            A tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+
+        Examples
+        --------
+        >>> ht.arange(-6, 7, 2).sin()
+        tensor([ 0.2794,  0.7568, -0.9093,  0.0000,  0.9093, -0.7568, -0.2794])
+        """
+        return operations.sin(self, out)
+
+    def sqrt(self, out=None):
+        """
+        Return the non-negative square-root of the tensor element-wise.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        square_roots : ht.tensor
+            A tensor of the same shape as x, containing the positive square-root of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+
+        Examples
+        --------
+        >>> ht.arange(5).sqrt()
+        tensor([0.0000, 1.0000, 1.4142, 1.7321, 2.0000])
+        >>> ht.arange(-5, 0).sqrt()
+        tensor([nan, nan, nan, nan, nan])
+        """
+        return operations.sqrt(self, out)
 
     def __binop(self, op, other):
         # TODO: document me
@@ -224,6 +437,86 @@ class tensor:
             self.__array.__setitem__(key, value.__array)
         else:
             raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
+
+
+def __factory(shape, dtype, split, local_factory):
+    """
+    Abstracted factory function for HeAT tensor initialization.
+
+    Parameters
+    ----------
+    shape : int or sequence of ints
+        Desired shape of the output array, e.g. 1 or (1, 2, 3,).
+    dtype : ht.dtype
+        The desired HeAT data type for the array, defaults to ht.float32.
+    split : int
+        The axis along which the array is split and distributed.
+    local_factory : function
+        Function that creates the local PyTorch tensor for the HeAT tensor.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of ones with given shape, data type and node distribution.
+    """
+    # clean the user input
+    shape = sanitize_shape(shape)
+    dtype = types.canonical_heat_type(dtype)
+    split = sanitize_axis(shape, split)
+
+    # chunk the shape if necessary
+    comm = MPICommunicator() if split is not None else NoneCommunicator()
+    _, local_shape, _ = comm.chunk(shape, split)
+
+    return tensor(local_factory(local_shape, dtype=dtype.torch_type()), shape, dtype, split, comm)
+
+
+def __factory_like(a, dtype, split, factory):
+    """
+    Abstracted '...-like' factory function for HeAT tensor initialization
+
+    Parameters
+    ----------
+    a : object
+        The shape and data-type of 'a' define these same attributes of the returned array.
+    dtype : ht.dtype
+        The desired HeAT data type for the array, defaults to ht.float32.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+    factory : function
+        Function that creates a HeAT tensor.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of ones with given shape, data type and node distribution that is like a
+    """
+    # determine the global shape of the object to create
+    # attempt in this order: shape property, length of object or default shape (1,)
+    try:
+        shape = a.shape
+    except AttributeError:
+        try:
+            shape = (len(a),)
+        except TypeError:
+            shape = (1,)
+
+    # infer the data type, otherwise default to float32
+    if dtype is None:
+        try:
+            dtype = types.heat_type_of(a)
+        except TypeError:
+            dtype = types.float32
+
+    # infer split axis
+    if split is None:
+        try:
+            split = a.split if not isinstance(a, str) else None
+        except AttributeError:
+            # do not split at all
+            pass
+
+    return factory(shape, dtype, split)
 
 
 def arange(*args, dtype=None, split=None):
@@ -326,38 +619,6 @@ def arange(*args, dtype=None, split=None):
     data = torch.arange(start, stop, step, dtype=types.canonical_heat_type(dtype).torch_type())
 
     return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
-
-
-def __factory(shape, dtype, split, local_factory):
-    """
-    Abstracted factory function for HeAT tensor initialization.
-
-    Parameters
-    ----------
-    shape : int or sequence of ints
-        Desired shape of the output array, e.g. 1 or (1, 2, 3,).
-    dtype : ht.dtype
-        The desired HeAT data type for the array, defaults to ht.float32.
-    split : int
-        The axis along which the array is split and distributed.
-    local_factory : function
-        Function that creates the local PyTorch tensor for the HeAT tensor.
-
-    Returns
-    -------
-    out : ht.tensor
-        Array of ones with given shape, data type and node distribution.
-    """
-    # clean the user input
-    shape = sanitize_shape(shape)
-    dtype = types.canonical_heat_type(dtype)
-    split = sanitize_axis(shape, split)
-
-    # chunk the shape if necessary
-    comm = MPICommunicator() if split is not None else NoneCommunicator()
-    _, local_shape, _ = comm.chunk(shape, split)
-
-    return tensor(local_factory(local_shape, dtype=dtype.torch_type()), shape, dtype, split, comm)
 
 
 def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None):
@@ -464,6 +725,89 @@ def ones(shape, dtype=types.float32, split=None):
     return __factory(shape, dtype, split, torch.ones)
 
 
+def ones_like(a, dtype=None, split=None):
+    """
+    Returns a new array filled with ones with the same type, shape and data distribution of given object. Data type and
+    data distribution strategy can be explicitly overriden.
+
+    Parameters
+    ----------
+    a : object
+        The shape and data-type of 'a' define these same attributes of the returned array.
+    dtype : ht.dtype, optional
+        Overrides the data type of the result.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of ones with the same shape, type and split axis as 'a' unless overriden.
+
+    Examples
+    --------
+    >>> x = ht.zeros((2, 3,))
+    >>> x
+    tensor([[0., 0., 0.],
+            [0., 0., 0.]])
+
+    >>> ht.ones_like(a)
+    tensor([[1., 1., 1.],
+            [1., 1., 1.]])
+    """
+    return __factory_like(a, dtype, split, ones)
+
+def randn(*args, dtype = torch.float32, split = None):
+    """
+    #based on ht.arange, ht.linspace implementation
+    BASIC FUNCTIONALITY:
+    Returns a tensor filled with random numbers from a normal distribution 
+    with zero mean and variance of one.
+
+    The shape of the tensor is defined by the varargs args.
+    
+    Parameters	
+    ----------
+
+    args (int...) – a set of integers defining the shape of the output tensor.
+    #TODO: out (Tensor, optional) – the output tensor
+
+
+    Examples
+    --------
+    >>> ht.randn(3)
+    tensor([ 0.1921, -0.9635,  0.5047])
+
+    >>> ht.randn(4,4)
+    tensor([[-1.1261,  0.5971,  0.2851,  0.9998],
+            [-1.8548, -1.2574,  0.2391, -0.3302],
+            [ 1.3365, -1.5212,  1.4159, -0.1671],
+            [ 0.1260,  1.2126, -0.0804,  0.0907]])
+    """
+    num_of_param = len(args)
+
+    # check if all positional arguments are integers
+    all_ints = all([isinstance(_, int) for _ in args])
+
+    # define shape of tensor according to args
+    gshape = (args)
+    split = sanitize_axis(gshape, split)
+    comm = MPICommunicator() if split is not None else NoneCommunicator()
+    offset, lshape, _ = comm.chunk(gshape, split)
+
+    #TODO: double-check np.randn/torch.randn overlap
+
+    try:
+        torch.randn(args)
+    except RuntimeError as exception:
+        # re-raise the exception to be consistent with numpy's exception interface
+        raise ValueError(str(exception))
+    # compose the local tensor
+    data = torch.randn(args)
+
+    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
+    
+
 def zeros(shape, dtype=types.float32, split=None):
     """
     Returns a new array of given shape and data type filled with zero values. May be allocated split up across multiple
@@ -496,87 +840,6 @@ def zeros(shape, dtype=types.float32, split=None):
             [0., 0., 0.]])
     """
     return __factory(shape, dtype, split, torch.zeros)
-
-
-def __factory_like(a, dtype, split, factory):
-    """
-    Abstracted '...-like' factory function for HeAT tensor initialization
-
-    Parameters
-    ----------
-    a : object
-        The shape and data-type of 'a' define these same attributes of the returned array.
-    dtype : ht.dtype
-        The desired HeAT data type for the array, defaults to ht.float32.
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-    factory : function
-        Function that creates a HeAT tensor.
-
-    Returns
-    -------
-    out : ht.tensor
-        Array of ones with given shape, data type and node distribution that is like a
-    """
-    # determine the global shape of the object to create
-    # attempt in this order: shape property, length of object or default shape (1,)
-    try:
-        shape = a.shape
-    except AttributeError:
-        try:
-            shape = (len(a),)
-        except TypeError:
-            shape = (1,)
-
-    # infer the data type, otherwise default to float32
-    if dtype is None:
-        try:
-            dtype = types.heat_type_of(a)
-        except TypeError:
-            dtype = types.float32
-
-    # infer split axis
-    if split is None:
-        try:
-            split = a.split if not isinstance(a, str) else None
-        except AttributeError:
-            # do not split at all
-            pass
-
-    return factory(shape, dtype, split)
-
-
-def ones_like(a, dtype=None, split=None):
-    """
-    Returns a new array filled with ones with the same type, shape and data distribution of given object. Data type and
-    data distribution strategy can be explicitly overriden.
-
-    Parameters
-    ----------
-    a : object
-        The shape and data-type of 'a' define these same attributes of the returned array.
-    dtype : ht.dtype, optional
-        Overrides the data type of the result.
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-
-    Returns
-    -------
-    out : ht.tensor
-        Array of ones with the same shape, type and split axis as 'a' unless overriden.
-
-    Examples
-    --------
-    >>> x = ht.zeros((2, 3,))
-    >>> x
-    tensor([[0., 0., 0.],
-            [0., 0., 0.]])
-
-    >>> ht.ones_like(a)
-    tensor([[1., 1., 1.],
-            [1., 1., 1.]])
-    """
-    return __factory_like(a, dtype, split, ones)
 
 
 def zeros_like(a, dtype=None, split=None):
