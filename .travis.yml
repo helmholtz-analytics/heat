@@ -3,7 +3,7 @@ python:
   - "3.5"
 cache:
   directories:
-  - $HOME/virtualenv/python3.5/lib/python3.5/site-packages
+  - $HOME/virtualenv/python3.5/
 before_install:
   - sudo apt-get install -y libopenmpi-dev openmpi-bin libhdf5-dev
   - travis_wait 32 ./install-torch.sh
@@ -13,7 +13,6 @@ install:
 script:
   - mpirun pytest --cov=heat heat/
 after_success:
-  - which codecov
   - codecov
 deploy:
   provider: pypi
