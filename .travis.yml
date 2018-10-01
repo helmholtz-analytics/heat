@@ -13,6 +13,7 @@ install:
 script:
   - mpirun pytest --cov=heat
 after_success:
+  - which codecov
   - codecov
 deploy:
   provider: pypi
