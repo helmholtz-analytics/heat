@@ -300,3 +300,6 @@ tags
 
 
 # End of https://www.gitignore.io/api/vim,cmake,emacs,python,pycharm+all,intellij+all,visualstudiocode
+
+MANIFEST
+travis_wait_*.log
