@@ -225,10 +225,10 @@ class tensor:
         return operations.exp(self, out)
 
     def floor(self, out=None):
-        """
+        r"""
         Return the floor of the input, element-wise.
 
-        The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lfloor x \rfloor.
+        The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as :math:`\lfloor x \rfloor`.
 
         Parameters
         ----------
