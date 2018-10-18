@@ -786,8 +786,13 @@ def randn(*args, dtype = torch.float32, split = None):
     """
     num_of_param = len(args)
 
-    # check if all positional arguments are integers
-    all_ints = all([isinstance(_, int) for _ in args])
+    # check if all positional arguments are integers and greater than zero
+    all_ints = all(isinstance(_, int) for _ in args)
+    if not all_ints:
+        raise TypeError("Only integer-valued dimensions as arguments possible")
+    all_positive = all(_ > 0 for _ in args)
+    if not all_positive:
+        raise ValueError("Not all tensor dimensions are positive")
 
     # define shape of tensor according to args
     gshape = (args)
