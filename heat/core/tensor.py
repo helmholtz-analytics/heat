@@ -18,27 +18,61 @@ class tensor:
         self.__comm = comm
 
     @property
+    def comm(self):
+        return self.__comm
+    
+    @comm.setter
+    def comm(self, comm):
+        self.__comm = comm
+
+    @property
     def dtype(self):
         return self.__dtype
+    
+    @dtype.setter
+    def dtype(self, dtype):
+        self.__dtype = dtype
 
     @property
     def gshape(self):
         return self.__gshape
 
-    @property
-    def lshape(self):
-        if len(self.__array.shape) == len(self.__gshape):
-            return tuple(self.__array.shape)
-        # edge case when the local data tensor receives no elements after chunking
-        return self.__gshape[:self.__split] + (0,) + self.__gshape[self.split + 1:]
+    @gshape.setter
+    def gshape(self, gshape):
+        self.__gshape = gshape
 
     @property
-    def shape(self):
-        return self.__gshape
+    def lshape(self):
+        if len(self.array.shape) == len(self.gshape):
+            return tuple(self.__array.shape)
+        # edge case when the local data tensor receives no elements after chunking
+        return self.gshape[:self.split] + (0,) + self.gshape[self.split + 1:]
+
+    @lshape.setter
+    def lshape(self, lshape):
+        self.__lshape = lshape
 
     @property
     def split(self):
         return self.__split
+
+    @split.setter
+    def split(self, split):
+        self.__split = split
+
+    @property
+    def array(self):
+        return self.__array
+
+    @array.setter
+    def array(self, array):
+        self.__array = array
+
+    @property
+    def shape(self):
+        return self.gshape
+
+
 
     def abs(self, out=None, dtype=None):
         """
