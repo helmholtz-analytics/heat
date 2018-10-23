@@ -472,6 +472,44 @@ class tensor:
         else:
             raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
 
+    def gethalo(self, halo_size):
+        """
+        Fetch halos of size halo_size from neighboring ranks and save them in self.halo_next/self.halo_prev
+        in case they are not alredy stored 
+
+        Parameters
+        ----------
+        halo_size : int 
+            Size of the halo. If halo_size exeeds the size of the HeAT tensor in self.split direction 
+            the whole tensor will be fetched 
+
+        Returns
+        -------
+        
+
+        Examples
+        --------
+        """
+        if self.split is not None and self.halo_size != halo_size:
+            if not isinstance(halo_size, int): 
+                raise TypeError('halo_size needs to be of Python type integer, {} given)'.format(type(halo_size)))
+
+            if halo_size > self.lshape[self.split]:
+                warnings.warn('Your halo is larger than the local data array, '
+                              'only the local data array will be exchanged')
+       
+            self.halo_size = halo_size
+
+            if self.comm.rank != self.comm.size-1:
+                ix = [slice(None, None, None)] * len(self.shape)
+                ix[self.split] = slice(-halo_size, None) 
+                self.halo_next = halo.__send(self.array[ix], self.comm.rank+1)
+
+            if self.comm.rank != 0:
+                ix = [slice(None, None, None)] * len(self.shape)
+                ix[self.split] = slice(0, halo_size)
+                self.halo_prev = halo.__send(self.array[ix], self.comm.rank-1)
+
 
 def __factory(shape, dtype, split, local_factory):
     """
@@ -503,7 +541,6 @@ def __factory(shape, dtype, split, local_factory):
     _, local_shape, _ = comm.chunk(shape, split)
 
     return tensor(local_factory(local_shape, dtype=dtype.torch_type()), shape, dtype, split, comm)
-
 
 def __factory_like(a, dtype, split, factory):
     """
