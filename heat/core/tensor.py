@@ -246,7 +246,7 @@ class tensor:
         if axis is not None:
             sum_axis = self.__array.sum(axis, keepdim=True)
         else:
-            return self.__array.sum()
+            return self.__array.sum() ## something wrong
 
         return self.__reduce_op(sum_axis, mpi.reduce_op.SUM, axis)
 
@@ -1092,7 +1092,7 @@ def convolve(a, v, mode='full'):
     padding_prev, padding_next = a.genpad(padding)
     signal = torch.cat(tuple(_ for _ in (padding_prev, signal, padding_next) if _ is not None))
 
-    # Make signal and filter weight 3D for torch conv1d function        
+    # Make signal and filter weight 3D for Pytorch conv1d function        
     signal.unsqueeze_(0)
     signal.unsqueeze_(0)
 

@@ -416,3 +416,16 @@ class TestTensorFactories(unittest.TestCase):
             ht.zeros_like(ones, dtype='abc')
         with self.assertRaises(TypeError):
             ht.zeros_like(ones, split='axis')
+
+    def test_convolve(self):
+        a = ht.ones(10, split=0)
+        v = ht.arange(3).astype(ht.float)
+        self.assertEqual(ht.convolve(a,v, mode='full').shape[0], 12)
+        self.assertEqual(ht.convolve(a,v, mode='valid').shape[0], 8)
+        self.assertEqual(ht.convolve(a,v, mode='same').shape[0], 10)
+
+        self.assertEqual(ht.convolve(a,v, mode='full').sum(axis=0), 12)
+        self.assertEqual(ht.convolve(a,v, mode='valid').sum(axis=0), 8)
+        self.assertEqual(ht.convolve(a,v, mode='same').sum(axis=0), 10)
+
+
