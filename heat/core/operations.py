@@ -379,8 +379,8 @@ def __reduce_op(x,partial, op, axis):
     
  
     if x._tensor__comm.is_distributed() and (axis is None or axis == x.split):
-        mpi.all_reduce(partial, op, x._tensor__comm.group)
-        return tensor.tensor(partial, partial.shape, x.dtype, split=None, comm=NoneCommunicator())
+        mpi.all_reduce(partial[0], op, x._tensor__comm.group)
+        return tensor.tensor(partial, partial[0].shape, x.dtype, split=None, comm=NoneCommunicator())
 
     # TODO: verify if this works for negative split axis
     output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
