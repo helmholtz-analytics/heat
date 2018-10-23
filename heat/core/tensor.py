@@ -1,16 +1,18 @@
 from copy import copy as _copy
 import operator
 import numpy as np
+import warnings
 import torch
-
+import torch.nn.functional as fc
 from .communicator import mpi, MPICommunicator, NoneCommunicator
 from .stride_tricks import *
 from . import types
 from . import operations
+from . import halo
 
 
 class tensor:
-    def __init__(self, array, gshape, dtype, split, comm):
+    def __init__(self, array, gshape, dtype, split, comm, halo_next=None, halo_prev=None, halo_size=0):
         self.__array = array
         self.__gshape = gshape
         self.__dtype = dtype
@@ -530,12 +532,45 @@ class tensor:
             if self.comm.rank != self.comm.size-1:
                 ix = [slice(None, None, None)] * len(self.shape)
                 ix[self.split] = slice(-halo_size, None) 
-                self.halo_next = halo.__send(self.array[ix], self.comm.rank+1)
+                self.halo_next = halo.send(self.array[ix], self.comm.rank+1)
 
             if self.comm.rank != 0:
                 ix = [slice(None, None, None)] * len(self.shape)
                 ix[self.split] = slice(0, halo_size)
-                self.halo_prev = halo.__send(self.array[ix], self.comm.rank-1)
+                self.halo_prev = halo.send(self.array[ix], self.comm.rank-1)
+
+    def genpad(self, padding):
+        """
+        Generate padding only for local arrays of the first and last rank in case of distributed computing,
+        otherwise padds the begin and end of the global array
+
+        Parameters
+        ----------
+        padding : ht.tensor  
+            
+
+        Returns
+        -------
+        
+
+        """
+  
+        if isinstance(self.comm, MPICommunicator):
+            if self.comm.size > 1:
+                if self.comm.rank == 0:
+                    padding_prev = padding
+                    padding_next = None
+                if self.comm.rank == self.comm.size-1:
+                    padding_prev = None
+                    padding_next = padding
+            else: 
+                padding_prev = padding
+                padding_next = padding
+        else:
+            padding_prev = padding
+            padding_next = padding
+
+        return padding_prev, padding_next
 
 
 def __factory(shape, dtype, split, local_factory):
@@ -1040,7 +1075,7 @@ def convolve(a, v, mode='full'):
     halo_size = (v.shape[0]-1)//2
     a.gethalo(halo_size)
 
-    signal = torch.cat([_ for _ in (a.halo_prev, a.array, a.halo_next) if _ is not None])
+    signal = torch.cat(tuple(_ for _ in (a.halo_prev, a.array, a.halo_next) if _ is not None))
     
     if mode == 'full': 
         padding = torch.zeros(v.shape[0]-1)
@@ -1055,7 +1090,7 @@ def convolve(a, v, mode='full'):
         raise ValueError("Only {'full', 'valid', 'same'} are allowed for mode") 
 
     padding_prev, padding_next = a.genpad(padding)
-    signal = torch.cat([_ for _ in (padding_prev, signal, padding_next) if _ is not None])
+    signal = torch.cat(tuple(_ for _ in (padding_prev, signal, padding_next) if _ is not None))
 
     # Make signal and filter weight 3D for torch conv1d function        
     signal.unsqueeze_(0)
