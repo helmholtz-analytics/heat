@@ -25,7 +25,7 @@ import collections
 import numpy as np
 import torch
 
-from .communicator import NoneCommunicator
+from .communication import MPI_SELF
 
 
 __all__ = [
@@ -82,7 +82,7 @@ class generic(metaclass=abc.ABCMeta):
             # re-raise the exception to be consistent with numpy's exception interface
             raise ValueError(str(exception))
 
-        return tensor.tensor(array, tuple(array.shape), cls, split=None, comm=NoneCommunicator())
+        return tensor.tensor(array, tuple(array.shape), cls, split=None, comm=MPI_SELF)
 
     @classmethod
     @abc.abstractclassmethod

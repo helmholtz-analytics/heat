@@ -13,7 +13,7 @@ class TestCommunicator(unittest.TestCase):
         ], dtype=torch.float32)
 
     def test_none_communicator(self):
-        comm = ht.core.communicator.NoneCommunicator()
+        comm = ht.core.communication.MPI_SELF
 
         with self.assertRaises(ValueError):
             comm.chunk(self.data.shape, split=2)
@@ -34,7 +34,7 @@ class TestCommunicator(unittest.TestCase):
         self.assertEqual(1, (self.data == self.data[chunks]).all().item())
 
     def test_mpi_communicator(self):
-        comm = ht.core.communicator.MPICommunicator()
+        comm = ht.core.communication.MPI_WORLD
         self.assertLess(comm.rank, comm.size)
 
         with self.assertRaises(ValueError):

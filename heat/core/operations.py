@@ -1,4 +1,3 @@
-from copy import copy as _copy
 import torch
 
 from . import stride_tricks
@@ -102,7 +101,7 @@ def clip(a, a_min, a_max, out=None):
         raise ValueError('either a_min or a_max must be set')
 
     if out is None:
-        return tensor.tensor(a._tensor__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, _copy(a._tensor__comm))
+        return tensor.tensor(a._tensor__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, a._tensor__comm)
     if not isinstance(out, tensor.tensor):
         raise TypeError('out must be a tensor')
 
@@ -125,7 +124,7 @@ def copy(a):
     """
     if not isinstance(a, tensor.tensor):
         raise TypeError('input needs to be a tensor')
-    return tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, _copy(a._tensor__comm))
+    return tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, a._tensor__comm)
 
 
 def exp(x, out=None):
@@ -304,13 +303,7 @@ def __local_operation(operation, x, out):
 
     # no defined output tensor, return a freshly created one
     if out is None:
-        return tensor.tensor(
-            operation(x._tensor__array.type(torch_type)),
-            x.gshape,
-            promoted_type,
-            x.split,
-            _copy(x._tensor__comm)
-        )
+        return tensor.tensor(operation(x._tensor__array.type(torch_type)), x.gshape, promoted_type, x.split, x.comm)
 
     # output buffer writing requires a bit more work
     # we need to determine whether the operands are broadcastable and the multiple of the broadcasting

@@ -1,9 +1,8 @@
-from copy import copy as _copy
 import operator
 import numpy as np
 import torch
 
-from .communicator import mpi, MPICommunicator, NoneCommunicator
+from .communication import MPI, MPI_SELF, MPI_WORLD
 from .stride_tricks import *
 from . import types
 from . import operations
@@ -16,6 +15,10 @@ class tensor:
         self.__dtype = dtype
         self.__split = split
         self.__comm = comm
+
+    @property
+    def comm(self):
+        return self.__comm
 
     @property
     def dtype(self):
@@ -104,7 +107,7 @@ class tensor:
         dtype = types.canonical_heat_type(dtype)
         casted_array = self.__array.type(dtype.torch_type())
         if copy:
-            return tensor(casted_array, self.shape, dtype, self.split, _copy(self.__comm))
+            return tensor(casted_array, self.shape, dtype, self.split, self.__comm)
 
         self.__array = casted_array
         self.__dtype = dtype
@@ -151,12 +154,12 @@ class tensor:
         # TODO: make me more numpy API complete
         # TODO: implement type promotion
         if self.__comm.is_distributed() and (axis is None or axis == self.__split):
-            mpi.all_reduce(partial, op, self.__comm.group)
-            return tensor(partial, partial.shape, self.dtype, split=None, comm=NoneCommunicator())
+            self.comm.comm.Allreduce(MPI.IN_PLACE, partial, op)
+            return tensor(partial, partial.shape, self.dtype, split=None, comm=MPI_SELF)
 
         # TODO: verify if this works for negative split axis
         output_shape = self.gshape[:axis] + (1,) + self.gshape[axis + 1:]
-        return tensor(partial, output_shape, self.dtype, self.split, comm=_copy(self.__comm))
+        return tensor(partial, output_shape, self.dtype, self.split, comm=self.__comm)
 
     def argmin(self, axis):
         # TODO: document me
@@ -165,7 +168,7 @@ class tensor:
         # TODO: make me more numpy API complete
         # TODO: Fix me, I am not reduce_op.MIN!
         _, argmin_axis = self.__array.min(dim=axis, keepdim=True)
-        return self.__reduce_op(argmin_axis, mpi.reduce_op.MIN, axis)
+        return self.__reduce_op(argmin_axis, MPI.MIN, axis)
 
     def mean(self, axis):
         # TODO: document me
@@ -185,7 +188,7 @@ class tensor:
         else:
             return self.__array.sum()
 
-        return self.__reduce_op(sum_axis, mpi.reduce_op.SUM, axis)
+        return self.__reduce_op(sum_axis, MPI.SUM, axis)
 
     def expand_dims(self, axis):
         # TODO: document me
@@ -198,7 +201,7 @@ class tensor:
             self.shape[:axis] + (1,) + self.shape[axis:],
             self.dtype,
             self.split if self.split is None or self.split < axis else self.split + 1,
-            _copy(self.__comm)
+            self.__comm
         )
 
     def exp(self, out=None):
@@ -286,7 +289,7 @@ class tensor:
         else:
             return self.__array.max()
 
-        return self.__reduce_op(max_axis, mpi.reduce_op.MAX, axis)
+        return self.__reduce_op(max_axis, MPI.MAX, axis)
        
     def min(self, axis=None):
         # TODO: document me
@@ -299,8 +302,7 @@ class tensor:
         else:
             return self.__array.min()
 
-        return self.__reduce_op(min_axis, mpi.reduce_op.MIN, axis)
-
+        return self.__reduce_op(min_axis, MPI.MIN, axis)
 
     def sin(self, out=None):
         """
@@ -357,7 +359,7 @@ class tensor:
         # TODO: make me more numpy API complete
         # TODO: ... including the actual binops
         if np.isscalar(other):
-            return tensor(op(self.__array, other), self.shape, self.dtype, self.split, _copy(self.__comm))
+            return tensor(op(self.__array, other), self.shape, self.dtype, self.split, self.__comm)
 
         elif isinstance(other, tensor):
             output_shape = broadcast_shape(self.shape, other.shape)
@@ -367,7 +369,7 @@ class tensor:
                 other = other.astype(self.dtype)
 
             if other.split is None or other.split == self.split:
-                return tensor(op(self.__array, other.__array), output_shape, self.dtype, self.split, _copy(self.__comm))
+                return tensor(op(self.__array, other.__array), output_shape, self.dtype, self.split, self.__comm)
             else:
                 raise NotImplementedError('Not implemented for other splittings')
         else:
@@ -421,7 +423,7 @@ class tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        return tensor(self.__array[key], self.shape, self.split, _copy(self.__comm))
+        return tensor(self.__array[key], self.shape, self.split, self.__comm)
 
     def __setitem__(self, key, value):
         # TODO: document me
@@ -465,7 +467,7 @@ def __factory(shape, dtype, split, local_factory):
     split = sanitize_axis(shape, split)
 
     # chunk the shape if necessary
-    comm = MPICommunicator() if split is not None else NoneCommunicator()
+    comm = MPI_WORLD if split is not None else MPI_SELF
     _, local_shape, _ = comm.chunk(shape, split)
 
     return tensor(local_factory(local_shape, dtype=dtype.torch_type()), shape, dtype, split, comm)
@@ -610,7 +612,7 @@ def arange(*args, dtype=None, split=None):
 
     gshape = (num,)
     split = sanitize_axis(gshape, split)
-    comm = MPICommunicator() if split is not None else NoneCommunicator()
+    comm = MPI_WORLD if split is not None else MPI_SELF
     offset, lshape, _ = comm.chunk(gshape, split)
 
     # compose the local tensor
@@ -673,7 +675,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
     # infer local and global shapes
     gshape = (num,)
     split = sanitize_axis(gshape, split)
-    comm = MPICommunicator() if split is not None else NoneCommunicator()
+    comm = MPI_WORLD if split is not None else MPI_SELF
     offset, lshape, _ = comm.chunk(gshape, split)
 
     # compose the local tensor
@@ -792,7 +794,7 @@ def randn(*args, dtype = torch.float32, split = None):
     # define shape of tensor according to args
     gshape = (args)
     split = sanitize_axis(gshape, split)
-    comm = MPICommunicator() if split is not None else NoneCommunicator()
+    comm = MPI_WORLD if split is not None else MPI_SELF
     offset, lshape, _ = comm.chunk(gshape, split)
 
     #TODO: double-check np.randn/torch.randn overlap
