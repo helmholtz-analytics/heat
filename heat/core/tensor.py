@@ -16,6 +16,9 @@ class tensor:
         self.__dtype = dtype
         self.__split = split
         self.__comm = comm
+        self.__halo_next = halo_next
+        self.__halo_prev = halo_prev
+        self.__halo_size = halo_size
 
     @property
     def comm(self):
@@ -67,6 +70,30 @@ class tensor:
     @array.setter
     def array(self, array):
         self.__array = array
+
+    @property
+    def halo_next(self):
+        return self.__halo_next
+
+    @halo_next.setter
+    def halo_next(self, halo_next):
+        self.__halo_next = halo_next
+
+    @property
+    def halo_prev(self):
+        return self.__halo_prev
+
+    @halo_prev.setter
+    def halo_prev(self, halo_prev):
+        self.__halo_prev = halo_prev
+
+    @property
+    def halo_size(self):
+        return self.__halo_size
+
+    @halo_size.setter
+    def halo_size(self, halo_size):
+        self.__halo_size = halo_size
 
     @property
     def shape(self):
