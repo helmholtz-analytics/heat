@@ -976,3 +976,98 @@ def zeros_like(a, dtype=None, split=None):
             [0., 0., 0.]])
     """
     return __factory_like(a, dtype, split, zeros)
+
+def convolve(a, v, mode='full'):
+    """
+    Returns the discrete, linear convolution of two one-dimensional HeAT tensors.
+   
+    Parameters
+    ----------
+    a : (N,) ht.tensor
+        one-dimensional signal HeAT tensor 
+    v : (M,) ht.tensor
+        one-dimensional filter weight HeAT tensor.
+    mode : {'full', 'valid', 'same'}, optional
+        'full':
+          By default, mode is 'full'. This returns the convolution at 
+          each point of overlap, with an output shape of (N+M-1,). At
+          the end-points of the convolution, the signals do not overlap
+          completely, and boundary effects may be seen.
+        'same':
+          Mode 'same' returns output of length 'N'. Boundary
+          effects are still visible.
+        'valid':
+          Mode 'valid' returns output of length 'N-M+1'. The 
+          convolution product is only given for points where the signals 
+          overlap completely. Values outside the signal boundary have no 
+          effect.
+    Returns
+    -------
+    out : ht.tensor
+        Discrete, linear convolution of 'a' and 'v'.
+
+    Note: There is a difference to the numpy convolve function:
+          The inputs are not swapped if v is larger than a 
+          
+    
+    Examples
+    --------
+    Note how the convolution operator flips the second array
+    before "sliding" the two across one another:
+    >>> a = ht.ones(10)
+    >>> v = ht.arange(3).astype(ht.float)
+    >>> ht.convolve(a,v, mode='full')
+    tensor([0., 1., 3., 3., 3., 3., 2.])
+
+    Only return the middle values of the convolution.
+    Contains boundary effects, where zeros are taken
+    into account:
+    >>> ht.convolve(a,v, mode='same')
+    tensor([1., 3., 3., 3., 3.])
+
+    Compute only positions where signal and filter weight
+    completely overlap:
+    >>> ht.convolve(a,v, mode='valid')
+    tensor([3., 3., 3.])
+    """
+    if v.split is not None: 
+        raise TypeError('distributed filter weights are not supported')
+    if len(a.shape) != 1: 
+        raise ValueError("only 1 dimensional input tensors are allowed")   
+    if len(v.shape) != 1: 
+        raise ValueError("only 1 dimensional filter weights are allowed") 
+
+    halo_size = (v.shape[0]-1)//2
+    a.gethalo(halo_size)
+
+    signal = torch.cat([_ for _ in (a.halo_prev, a.array, a.halo_next) if _ is not None])
+    
+    if mode == 'full': 
+        padding = torch.zeros(v.shape[0]-1)
+        gshape = v.shape[0] + a.shape[0] - 1
+    elif mode == 'same':   
+        padding = torch.zeros(halo_size)
+        gshape = a.shape[0]
+    elif mode == 'valid': 
+        padding = None
+        gshape = a.shape[0] - v.shape[0] + 1
+    else:
+        raise ValueError("Only {'full', 'valid', 'same'} are allowed for mode") 
+
+    padding_prev, padding_next = a.genpad(padding)
+    signal = torch.cat([_ for _ in (padding_prev, signal, padding_next) if _ is not None])
+
+    # Make signal and filter weight 3D for torch conv1d function        
+    signal.unsqueeze_(0)
+    signal.unsqueeze_(0)
+
+    # flip filter for convolution 
+    weight = v.array.clone()
+    idx = torch.LongTensor([i for i in range(weight.size(0)-1, -1, -1)])
+    weight = weight.index_select(0, idx)
+    weight.unsqueeze_(0)
+    weight.unsqueeze_(0)
+
+    signal_filtered = fc.conv1d(signal, weight) 
+
+    return tensor(signal_filtered[0, 0, :], (gshape,), signal_filtered.dtype, a.split, _copy(a.comm))
