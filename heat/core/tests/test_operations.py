@@ -194,6 +194,34 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.log('hello world')
 
+    def test_max(self):
+        data = ht.float32([
+            [1, 2, 3],
+            [4, 5, 6],
+            [7, 8, 9],
+            [10, 11, 12]
+        ])
+
+        comparison = torch.Tensor([
+            [1, 2, 3],
+            [4, 5, 6],
+            [7, 8, 9],
+            [10, 11, 12]
+        ])       
+        #check basic equivalence to torch.max()
+        self.assertEqual(data.max(),comparison.max())
+        self.assertTrue((ht.max(data,axis=0)._tensor__array[0] == comparison.max(0)[0]).all())
+        self.assertIsInstance(ht.max(data,axis=1),ht.tensor)
+        
+        #TODO: check combinations of split and axis
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            data.max(axis=1.1)
+        with self.assertRaises(ValueError):
+            ht.max(data,axis=-4)
+
+
     def test_sin(self):
         # base elements
         elements = 30
