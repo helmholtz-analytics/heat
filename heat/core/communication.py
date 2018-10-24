@@ -39,10 +39,10 @@ class Communication(metaclass=abc.ABCMeta):
 
 
 class MPICommunication(Communication):
-    def __init__(self, comm=MPI.COMM_WORLD):
-        self.comm = comm
-        self.rank = comm.Get_rank()
-        self.size = comm.Get_size()
+    def __init__(self, handle=MPI.COMM_WORLD):
+        self.handle = handle
+        self.rank = handle.Get_rank()
+        self.size = handle.Get_size()
 
     def is_distributed(self):
         return self.size <= 1
@@ -90,7 +90,7 @@ class MPICommunication(Communication):
             tuple(slice(0, shape[i]) if i != split else slice(start, end) for i in range(dims))
 
     @staticmethod
-    def as_buffer(self, obj):
+    def as_buffer(obj):
         if isinstance(obj, tensor.tensor):
             obj = obj._tensor__array
 
@@ -112,7 +112,7 @@ class MPICommunication(Communication):
         return wrapped
 
     def __getattr__(self, name):
-        return self.convert_tensors(getattr(self.comm, name))
+        return self.convert_tensors(getattr(self.handle, name))
 
 
 MPI_WORLD = MPICommunication()

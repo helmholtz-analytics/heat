@@ -154,7 +154,7 @@ class tensor:
         # TODO: make me more numpy API complete
         # TODO: implement type promotion
         if self.__comm.is_distributed() and (axis is None or axis == self.__split):
-            self.comm.comm.Allreduce(MPI.IN_PLACE, partial, op)
+            self.comm.handle.Allreduce(MPI.IN_PLACE, partial, op)
             return tensor(partial, partial.shape, self.dtype, split=None, comm=MPI_SELF)
 
         # TODO: verify if this works for negative split axis
