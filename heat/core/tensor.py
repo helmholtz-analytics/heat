@@ -198,19 +198,26 @@ class tensor:
         return self.sum(axis) / self.gshape[axis]
 
     def min(self, axis=None):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: Return our own tensor
+        """"
+        Return the minimum of an array or minimum along an axis.
 
-        if axis is not None:
-            min_axis = self.__array.min(axis, keepdim=True)
-        else:
-            return self.__array.min()
+        Parameters
+        ----------
+        a : ht.tensor
+        Input data.
+        
+        axis : None or int  or #TODO: tuple of ints, optional
+        Axis or axes along which to operate. By default, flattened input is used.   
+        If this is a tuple of ints, the maximum is selected over multiple axes, instead of a single axis or all the axes as before.
 
-        return self.__reduce_op(min_axis, mpi.reduce_op.MIN, axis)
+        #TODO: out : ht.tensor, optional
+        Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
 
+        #TODO: initial : scalar, optional   
+        The minimum value of an output element. Must be present to allow computation on empty slice.
+        """
+        
+        return operations.min(self, axis)
        
     def sum(self, axis=None):
         # TODO: document me
