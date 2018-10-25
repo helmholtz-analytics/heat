@@ -12,7 +12,7 @@ class TestCommunicator(unittest.TestCase):
             [4, 5, 6]
         ], dtype=torch.float32)
 
-    def test_none_communicator(self):
+    def test_self_communicator(self):
         comm = ht.core.communication.MPI_SELF
 
         with self.assertRaises(ValueError):

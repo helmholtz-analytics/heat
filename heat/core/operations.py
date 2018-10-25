@@ -101,7 +101,7 @@ def clip(a, a_min, a_max, out=None):
         raise ValueError('either a_min or a_max must be set')
 
     if out is None:
-        return tensor.tensor(a._tensor__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, a._tensor__comm)
+        return tensor.tensor(a._tensor__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, a.comm)
     if not isinstance(out, tensor.tensor):
         raise TypeError('out must be a tensor')
 
@@ -124,7 +124,7 @@ def copy(a):
     """
     if not isinstance(a, tensor.tensor):
         raise TypeError('input needs to be a tensor')
-    return tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, a._tensor__comm)
+    return tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, a.comm)
 
 
 def exp(x, out=None):

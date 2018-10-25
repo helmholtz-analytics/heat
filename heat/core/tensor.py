@@ -2,7 +2,7 @@ import operator
 import numpy as np
 import torch
 
-from .communication import MPI, MPI_SELF, MPI_WORLD
+from .communication import MPI, MPI_WORLD
 from .stride_tricks import *
 from . import types
 from . import operations
@@ -153,9 +153,9 @@ class tensor:
         # TODO: sanitize input
         # TODO: make me more numpy API complete
         # TODO: implement type promotion
-        if self.__comm.is_distributed() and (axis is None or axis == self.__split):
-            self.comm.handle.Allreduce(MPI.IN_PLACE, partial, op)
-            return tensor(partial, partial.shape, self.dtype, split=None, comm=MPI_SELF)
+        if self.comm.is_distributed() and (axis is None or axis == self.__split):
+            self.comm.Allreduce(MPI.IN_PLACE, partial, op)
+            return tensor(partial, partial.shape, self.dtype, split=None, comm=self.__comm)
 
         # TODO: verify if this works for negative split axis
         output_shape = self.gshape[:axis] + (1,) + self.gshape[axis + 1:]
@@ -441,7 +441,7 @@ class tensor:
             raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
 
 
-def __factory(shape, dtype, split, local_factory):
+def __factory(shape, dtype, split, local_factory, comm):
     """
     Abstracted factory function for HeAT tensor initialization.
 
@@ -455,6 +455,8 @@ def __factory(shape, dtype, split, local_factory):
         The axis along which the array is split and distributed.
     local_factory : function
         Function that creates the local PyTorch tensor for the HeAT tensor.
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
     -------
@@ -467,13 +469,12 @@ def __factory(shape, dtype, split, local_factory):
     split = sanitize_axis(shape, split)
 
     # chunk the shape if necessary
-    comm = MPI_WORLD if split is not None else MPI_SELF
     _, local_shape, _ = comm.chunk(shape, split)
 
     return tensor(local_factory(local_shape, dtype=dtype.torch_type()), shape, dtype, split, comm)
 
 
-def __factory_like(a, dtype, split, factory):
+def __factory_like(a, dtype, split, factory, comm):
     """
     Abstracted '...-like' factory function for HeAT tensor initialization
 
@@ -487,6 +488,8 @@ def __factory_like(a, dtype, split, factory):
         The axis along which the array is split and distributed, defaults to None (no distribution).
     factory : function
         Function that creates a HeAT tensor.
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
     -------
@@ -518,10 +521,10 @@ def __factory_like(a, dtype, split, factory):
             # do not split at all
             pass
 
-    return factory(shape, dtype, split)
+    return factory(shape, dtype, split, comm)
 
 
-def arange(*args, dtype=None, split=None):
+def arange(*args, dtype=None, split=None, comm=MPI_WORLD):
     """
     Return evenly spaced values within a given interval.
 
@@ -553,6 +556,8 @@ def arange(*args, dtype=None, split=None):
         type from the other input arguments.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
     -------
@@ -612,7 +617,6 @@ def arange(*args, dtype=None, split=None):
 
     gshape = (num,)
     split = sanitize_axis(gshape, split)
-    comm = MPI_WORLD if split is not None else MPI_SELF
     offset, lshape, _ = comm.chunk(gshape, split)
 
     # compose the local tensor
@@ -623,7 +627,7 @@ def arange(*args, dtype=None, split=None):
     return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
 
 
-def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None):
+def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None, comm=MPI_WORLD):
     """
     Returns num evenly spaced samples, calculated over the interval [start, stop]. The endpoint of the interval can
     optionally be excluded.
@@ -646,6 +650,8 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
         The type of the output array.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
     -------
@@ -675,7 +681,6 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
     # infer local and global shapes
     gshape = (num,)
     split = sanitize_axis(gshape, split)
-    comm = MPI_WORLD if split is not None else MPI_SELF
     offset, lshape, _ = comm.chunk(gshape, split)
 
     # compose the local tensor
@@ -693,7 +698,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
     return ht_tensor
 
 
-def ones(shape, dtype=types.float32, split=None):
+def ones(shape, dtype=types.float32, split=None, comm=MPI_WORLD):
     """
     Returns a new array of given shape and data type filled with one values. May be allocated split up across multiple
     nodes along the specified axis.
@@ -706,6 +711,8 @@ def ones(shape, dtype=types.float32, split=None):
         The desired HeAT data type for the array, defaults to ht.float32.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
     -------
@@ -724,10 +731,10 @@ def ones(shape, dtype=types.float32, split=None):
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
     """
-    return __factory(shape, dtype, split, torch.ones)
+    return __factory(shape, dtype, split, torch.ones, comm)
 
 
-def ones_like(a, dtype=None, split=None):
+def ones_like(a, dtype=None, split=None, comm=MPI_WORLD):
     """
     Returns a new array filled with ones with the same type, shape and data distribution of given object. Data type and
     data distribution strategy can be explicitly overriden.
@@ -740,6 +747,8 @@ def ones_like(a, dtype=None, split=None):
         Overrides the data type of the result.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
     -------
@@ -757,60 +766,10 @@ def ones_like(a, dtype=None, split=None):
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
     """
-    return __factory_like(a, dtype, split, ones)
-
-def randn(*args, dtype = torch.float32, split = None):
-    """
-    #based on ht.arange, ht.linspace implementation
-    BASIC FUNCTIONALITY:
-    Returns a tensor filled with random numbers from a normal distribution 
-    with zero mean and variance of one.
-
-    The shape of the tensor is defined by the varargs args.
-    
-    Parameters	
-    ----------
-
-    args (int...) – a set of integers defining the shape of the output tensor.
-    #TODO: out (Tensor, optional) – the output tensor
-
-
-    Examples
-    --------
-    >>> ht.randn(3)
-    tensor([ 0.1921, -0.9635,  0.5047])
-
-    >>> ht.randn(4,4)
-    tensor([[-1.1261,  0.5971,  0.2851,  0.9998],
-            [-1.8548, -1.2574,  0.2391, -0.3302],
-            [ 1.3365, -1.5212,  1.4159, -0.1671],
-            [ 0.1260,  1.2126, -0.0804,  0.0907]])
-    """
-    num_of_param = len(args)
-
-    # check if all positional arguments are integers
-    all_ints = all([isinstance(_, int) for _ in args])
-
-    # define shape of tensor according to args
-    gshape = (args)
-    split = sanitize_axis(gshape, split)
-    comm = MPI_WORLD if split is not None else MPI_SELF
-    offset, lshape, _ = comm.chunk(gshape, split)
-
-    #TODO: double-check np.randn/torch.randn overlap
-
-    try:
-        torch.randn(args)
-    except RuntimeError as exception:
-        # re-raise the exception to be consistent with numpy's exception interface
-        raise ValueError(str(exception))
-    # compose the local tensor
-    data = torch.randn(args)
-
-    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
+    return __factory_like(a, dtype, split, ones, comm)
     
 
-def zeros(shape, dtype=types.float32, split=None):
+def zeros(shape, dtype=types.float32, split=None, comm=MPI_WORLD):
     """
     Returns a new array of given shape and data type filled with zero values. May be allocated split up across multiple
     nodes along the specified axis.
@@ -823,6 +782,8 @@ def zeros(shape, dtype=types.float32, split=None):
         The desired HeAT data type for the array, defaults to ht.float32.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
     -------
@@ -841,10 +802,10 @@ def zeros(shape, dtype=types.float32, split=None):
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
     """
-    return __factory(shape, dtype, split, torch.zeros)
+    return __factory(shape, dtype, split, torch.zeros, comm)
 
 
-def zeros_like(a, dtype=None, split=None):
+def zeros_like(a, dtype=None, split=None, comm=MPI_WORLD):
     """
     Returns a new array filled with zeros with the same type, shape and data distribution of given object. Data type and
     data distribution strategy can be explicitly overriden.
@@ -874,4 +835,4 @@ def zeros_like(a, dtype=None, split=None):
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
     """
-    return __factory_like(a, dtype, split, zeros)
+    return __factory_like(a, dtype, split, zeros, comm)

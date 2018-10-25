@@ -45,7 +45,7 @@ class MPICommunication(Communication):
         self.size = handle.Get_size()
 
     def is_distributed(self):
-        return self.size <= 1
+        return self.size > 1
 
     def chunk(self, shape, split):
         """

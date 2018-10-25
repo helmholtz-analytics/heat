@@ -25,7 +25,7 @@ import collections
 import numpy as np
 import torch
 
-from .communication import MPI_SELF
+from .communication import MPI_WORLD
 
 
 __all__ = [
@@ -60,7 +60,7 @@ __all__ = [
 
 class generic(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def __new__(cls, *value):
+    def __new__(cls, *value, comm=MPI_WORLD):
         try:
             torch_type = cls.torch_type()
         except TypeError:
@@ -82,7 +82,7 @@ class generic(metaclass=abc.ABCMeta):
             # re-raise the exception to be consistent with numpy's exception interface
             raise ValueError(str(exception))
 
-        return tensor.tensor(array, tuple(array.shape), cls, split=None, comm=MPI_SELF)
+        return tensor.tensor(array, tuple(array.shape), cls, split=None, comm=comm)
 
     @classmethod
     @abc.abstractclassmethod
