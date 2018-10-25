@@ -180,10 +180,24 @@ class tensor:
         # TODO: sanitize input
         # TODO: make me more numpy API complete
         # TODO: Return our own tensor
+
+
+        if axis is not None:
+            if not isinstance(axis, int):
+                raise ValueError('axis must be of type Python integer or None, {} given'.format(type(axis)))
+            if axis < 0 or axis >= len(self.shape):
+                raise ValueError('axis must be a non-negative integer and smaller then the number of dimensions, {} given'.format(axis))
+ 
         if axis is not None:
             sum_axis = self.__array.sum(axis, keepdim=True)
+            self.__dtype = types.canonical_heat_type(sum_axis.dtype)
         else:
-            return self.__array.sum()
+            if self.__comm.is_distributed():
+                sum_axis = torch.reshape(self.__array.sum(),(1,))
+                self.__dtype = types.canonical_heat_type(sum_axis.dtype)
+            else: 
+                sum_axis = torch.reshape(self.__array.sum(),(1,))
+                return tensor(sum_axis, (1,), types.canonical_heat_type(sum_axis.dtype), self.split, _copy(self.__comm))
 
         return self.__reduce_op(sum_axis, mpi.reduce_op.SUM, axis)
 
