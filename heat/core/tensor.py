@@ -175,22 +175,49 @@ class tensor:
         return self.sum(axis) / self.gshape[axis]
        
     def sum(self, axis=None):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: Return our own tensor
+        #TODO: Allow also  list of axis 
+        """
+        Sum of array elements over a given axis.
 
+        Parameters
+        ----------   
+        axis : None or int, optional
+            Axis along which a sum is performed.  The default, axis=None, will sum
+            all of the elements of the input array. If axis is negative it counts 
+            from the last to the first axis.
+           
+         Returns
+         -------
+         sum_along_axis : ht.tensor
+             An array with the same shape as self.__array except for the specified axis which 
+             becomes one, e.g. a.shape = (1,2,3) => ht.ones((1,2,3)).sum(axis=1).shape = (1,1,3)
+   
+        Examples
+        --------
+        >>> ht.ones(2).sum()
+        tensor([2.])
 
+        >>> ht.ones((3,3)).sum()
+        tensor([9.])
+
+        >>> ht.ones((3,3)).astype(ht.int).sum()
+        tensor([9])
+
+        >>> ht.ones((3,2,1)).sum(axis=-3)
+        tensor([[[3.],
+                 [3.]]])
+        """
         if axis is not None:
             if not isinstance(axis, int):
                 raise ValueError('axis must be of type Python integer or None, {} given'.format(type(axis)))
-            if axis < 0 or axis >= len(self.shape):
-                raise ValueError('axis must be a non-negative integer and smaller then the number of dimensions, {} given'.format(axis))
- 
-        if axis is not None:
+            if axis >= len(self.shape):
+                raise ValueError('axis must be smaller then the number of dimensions, {} given'.format(axis))
+            if axis < 0:
+                axis = len(self.shape) + axis
+        
             sum_axis = self.__array.sum(axis, keepdim=True)
             self.__dtype = types.canonical_heat_type(sum_axis.dtype)
+
         else:
             if self.__comm.is_distributed():
                 sum_axis = torch.reshape(self.__array.sum(),(1,))
