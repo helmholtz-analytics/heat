@@ -208,13 +208,13 @@ class tensor:
                  [3.]]])
         """
         if axis is not None:
-            if not isinstance(axis, int):
-                raise ValueError('axis must be of type Python integer or None, {} given'.format(type(axis)))
-            if axis >= len(self.shape) or axis < -len(self.shape):
-                raise ValueError('Dimension out of range (expected to be in range of {}, but got {})'.format([-len(self.shape), len(self.shape)-1], axis))
-            if axis < 0:
-                axis = len(self.shape) + axis
-        
+            #if not isinstance(axis, int):
+            #    raise ValueError('axis must be of type Python integer or None, {} given'.format(type(axis)))
+            #if axis >= len(self.shape) or axis < -len(self.shape):
+            #    raise ValueError('Dimension out of range (expected to be in range of {}, but got {})'.format([-len(self.shape), len(self.shape)-1], axis))
+            #if axis < 0:
+            #    axis = len(self.shape) + axis
+            axis = sanitize_axis(self.shape, axis)
             sum_axis = self.__array.sum(axis, keepdim=True)
             self.__dtype = types.canonical_heat_type(sum_axis.dtype)
 

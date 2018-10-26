@@ -96,14 +96,13 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2)._tensor__array.dtype, torch.float32)
         self.assertEqual(shape_noaxis_split_axis_neg.sum().split, None)
                
-                
         # exceptions
         with self.assertRaises(ValueError):
-            ht.ones(9).sum(axis=1)
+            ht.ones(array_len).sum(axis=1)
         with self.assertRaises(ValueError):
-            ht.ones(9).sum(axis=-2)
-        with self.assertRaises(ValueError):
-            ht.ones(9).sum(axis='bad_axis_value')
+            ht.ones(array_len).sum(axis=-2)
+        with self.assertRaises(TypeError):
+            ht.ones(array_len).sum(axis='bad_axis_type')
  
 
 class TestTensorFactories(unittest.TestCase):
