@@ -149,7 +149,9 @@ class tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        # TODO: implement type promotion        
+        # TODO: implement type promotion      
+        axis = sanitize_axis(self.shape, axis) # need to further checking!
+  
         if self.__comm.is_distributed() and (axis is None or axis == self.__split):
             mpi.all_reduce(partial, op, self.__comm.group)
             return tensor(partial, partial.shape, types.canonical_heat_type(partial.dtype), split=None, comm=NoneCommunicator())
