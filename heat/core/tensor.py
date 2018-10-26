@@ -149,14 +149,14 @@ class tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        # TODO: implement type promotion
+        # TODO: implement type promotion        
         if self.__comm.is_distributed() and (axis is None or axis == self.__split):
             mpi.all_reduce(partial, op, self.__comm.group)
-            return tensor(partial, partial.shape, self.dtype, split=None, comm=NoneCommunicator())
+            return tensor(partial, partial.shape, types.canonical_heat_type(partial.dtype), split=None, comm=NoneCommunicator())
 
         # TODO: verify if this works for negative split axis
         output_shape = self.gshape[:axis] + (1,) + self.gshape[axis + 1:]
-        return tensor(partial, output_shape, self.dtype, self.split, comm=_copy(self.__comm))
+        return tensor(partial, output_shape, types.canonical_heat_type(partial.dtype), self.split, comm=_copy(self.__comm))
 
     def argmin(self, axis):
         # TODO: document me
@@ -208,24 +208,14 @@ class tensor:
                  [3.]]])
         """
         if axis is not None:
-            #if not isinstance(axis, int):
-            #    raise ValueError('axis must be of type Python integer or None, {} given'.format(type(axis)))
-            #if axis >= len(self.shape) or axis < -len(self.shape):
-            #    raise ValueError('Dimension out of range (expected to be in range of {}, but got {})'.format([-len(self.shape), len(self.shape)-1], axis))
-            #if axis < 0:
-            #    axis = len(self.shape) + axis
             axis = sanitize_axis(self.shape, axis)
             sum_axis = self.__array.sum(axis, keepdim=True)
-            self.__dtype = types.canonical_heat_type(sum_axis.dtype)
-
+  
         else:
-            if self.__comm.is_distributed():
-                sum_axis = torch.reshape(self.__array.sum(),(1,))
-                self.__dtype = types.canonical_heat_type(sum_axis.dtype)
-            else: 
-                sum_axis = torch.reshape(self.__array.sum(),(1,))
+            sum_axis = torch.reshape(self.__array.sum(), (1,))
+            if not self.__comm.is_distributed():
                 return tensor(sum_axis, (1,), types.canonical_heat_type(sum_axis.dtype), self.split, _copy(self.__comm))
-
+            
         return self.__reduce_op(sum_axis, mpi.reduce_op.SUM, axis)
 
     def expand_dims(self, axis):
