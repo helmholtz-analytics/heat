@@ -175,14 +175,14 @@ class tensor:
         return self.sum(axis) / self.gshape[axis]
        
     def sum(self, axis=None):
-        #TODO: Allow also  list of axis 
+        # TODO: Allow also list of axes
         """
         Sum of array elements over a given axis.
 
         Parameters
         ----------   
         axis : None or int, optional
-            Axis along which a sum is performed.  The default, axis=None, will sum
+            Axis along which a sum is performed. The default, axis=None, will sum
             all of the elements of the input array. If axis is negative it counts 
             from the last to the first axis.
            
