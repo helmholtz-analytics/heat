@@ -101,7 +101,7 @@ class TestTensor(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.ones(9).sum(axis=1)
         with self.assertRaises(ValueError):
-            ht.ones(9).sum(axis=2)
+            ht.ones(9).sum(axis=-2)
         with self.assertRaises(ValueError):
             ht.ones(9).sum(axis='bad_axis_value')
  
