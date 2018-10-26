@@ -12,7 +12,7 @@ from . import halo
 
 
 class tensor:
-    def __init__(self, array, gshape, dtype, split, comm, halo_next=None, halo_prev=None, halo_size=0):
+    def __init__(self, array, gshape, dtype, split, comm, halo_next=None, halo_prev=None):
         self.__array = array
         self.__gshape = gshape
         self.__dtype = dtype
@@ -20,7 +20,6 @@ class tensor:
         self.__comm = comm
         self.__halo_next = halo_next
         self.__halo_prev = halo_prev
-        self.__halo_size = halo_size
 
     @property
     def comm(self):
@@ -90,18 +89,8 @@ class tensor:
         self.__halo_prev = halo_prev
 
     @property
-    def halo_size(self):
-        return self.__halo_size
-
-    @halo_size.setter
-    def halo_size(self, halo_size):
-        self.__halo_size = halo_size
-
-    @property
     def shape(self):
         return self.gshape
-
-
 
     def abs(self, out=None, dtype=None):
         """
@@ -246,7 +235,7 @@ class tensor:
         if axis is not None:
             sum_axis = self.__array.sum(axis, keepdim=True)
         else:
-            return self.__array.sum() ## something wrong
+            return self.__array.sum() 
 
         return self.__reduce_op(sum_axis, mpi.reduce_op.SUM, axis)
 
@@ -363,7 +352,6 @@ class tensor:
             return self.__array.min()
 
         return self.__reduce_op(min_axis, mpi.reduce_op.MIN, axis)
-
 
     def sin(self, out=None):
         """
@@ -504,37 +492,47 @@ class tensor:
     def gethalo(self, halo_size):
         """
         Fetch halos of size halo_size from neighboring ranks and save them in self.halo_next/self.halo_prev
-        in case they are not alredy stored 
+        in case they are not already stored. If halo_size differs from the size of already stored halos,
+        the are overwritten. 
 
         Parameters
         ----------
         halo_size : int 
-            Size of the halo. If halo_size exeeds the size of the HeAT tensor in self.split direction 
-            the whole tensor will be fetched 
+            Size of the halo. If halo_size exceeds the size of the HeAT tensor in self.split direction
+            the whole local tensor.array will be fetched 
 
         Returns
         -------
-        
+        None
 
         Examples
         --------
         """
-        if self.split is not None and self.halo_size != halo_size:
+        # ToDO: needs some refactoring
+        update_next = True
+        if self.halo_next is not None:
+            if len(self.halo_next) == halo_size:
+                update_next = False
+       
+        update_prev = True
+        if self.halo_prev is not None:
+            if len(self.halo_prev) == halo_size:
+                update_prev = False
+           
+        if self.split is not None:
             if not isinstance(halo_size, int): 
                 raise TypeError('halo_size needs to be of Python type integer, {} given)'.format(type(halo_size)))
 
-            if halo_size > self.lshape[self.split]:
-                warnings.warn('Your halo is larger than the local data array, '
-                              'only the local data array will be exchanged')
-       
-            self.halo_size = halo_size
+            if halo_size > self.shape[self.split]//self.comm.size:
+                warnings.warn('Your halo is larger than the smallest local data array, only the local data array will be exchanged')
+                halo_size = self.shape[self.split]//self.comm.size
 
-            if self.comm.rank != self.comm.size-1:
+            if self.comm.rank != self.comm.size-1 and update_next:
                 ix = [slice(None, None, None)] * len(self.shape)
                 ix[self.split] = slice(-halo_size, None) 
                 self.halo_next = halo.send(self.array[ix], self.comm.rank+1)
 
-            if self.comm.rank != 0:
+            if self.comm.rank != 0 and update_prev:
                 ix = [slice(None, None, None)] * len(self.shape)
                 ix[self.split] = slice(0, halo_size)
                 self.halo_prev = halo.send(self.array[ix], self.comm.rank-1)
@@ -542,7 +540,7 @@ class tensor:
     def genpad(self, padding):
         """
         Generate padding only for local arrays of the first and last rank in case of distributed computing,
-        otherwise padds the begin and end of the global array
+        otherwise padding is added at begin and end of the global array
 
         Parameters
         ----------
@@ -551,6 +549,7 @@ class tensor:
 
         Returns
         -------
+        
         
 
         """
@@ -1012,6 +1011,7 @@ def zeros_like(a, dtype=None, split=None):
     """
     return __factory_like(a, dtype, split, zeros)
 
+
 def convolve(a, v, mode='full'):
     """
     Returns the discrete, linear convolution of two one-dimensional HeAT tensors.
@@ -1019,9 +1019,9 @@ def convolve(a, v, mode='full'):
     Parameters
     ----------
     a : (N,) ht.tensor
-        one-dimensional signal HeAT tensor 
+        One-dimensional signal HeAT tensor 
     v : (M,) ht.tensor
-        one-dimensional filter weight HeAT tensor.
+        One-dimensional filter weight HeAT tensor.
     mode : {'full', 'valid', 'same'}, optional
         'full':
           By default, mode is 'full'. This returns the convolution at 
@@ -1051,18 +1051,18 @@ def convolve(a, v, mode='full'):
     before "sliding" the two across one another:
     >>> a = ht.ones(10)
     >>> v = ht.arange(3).astype(ht.float)
-    >>> ht.convolve(a,v, mode='full')
+    >>> ht.convolve(a, v, mode='full')
     tensor([0., 1., 3., 3., 3., 3., 2.])
 
     Only return the middle values of the convolution.
     Contains boundary effects, where zeros are taken
     into account:
-    >>> ht.convolve(a,v, mode='same')
+    >>> ht.convolve(a, v, mode='same')
     tensor([1., 3., 3., 3., 3.])
 
     Compute only positions where signal and filter weight
     completely overlap:
-    >>> ht.convolve(a,v, mode='valid')
+    >>> ht.convolve(a, v, mode='valid')
     tensor([3., 3., 3.])
     """
     if v.split is not None: 
@@ -1079,7 +1079,7 @@ def convolve(a, v, mode='full'):
     
     if mode == 'full': 
         padding = torch.zeros(v.shape[0]-1)
-        gshape = v.shape[0] + a.shape[0] - 1
+        gshape = v.shape[0] + a.shape[0]-1
     elif mode == 'same':   
         padding = torch.zeros(halo_size)
         gshape = a.shape[0]

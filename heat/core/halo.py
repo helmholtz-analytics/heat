@@ -4,7 +4,9 @@ from . import types
 from .communicator import mpi
 
 
-def halorize(func):
+
+
+def halorize_local_operation(func):
     """
     A decorator for function "__local_operation" in heat.core.operations.py
     that updates halos after local operations
@@ -50,16 +52,16 @@ def send(a, rank):
     res : torch.tensor
         received halo at destinated mpi rank
     """    
-    # make torch tensor a continuous in memory if fragmented
+    # make torch tensor continuous in memory if fragmented
     a = a.contiguous()
-
+    
     # send halo to process with rank 'rank'
     req = mpi.isend(a, dst=rank)
 
-    # receive halo from process wirh rank 'rank'
+    # receive halo from process with rank 'rank'
     res = torch.zeros(a.size(), dtype=a.dtype)
     rec = mpi.irecv(res, src=rank)
-
+    
     # synchronize
     req.wait()
     rec.wait()

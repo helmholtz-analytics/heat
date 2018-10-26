@@ -4,7 +4,7 @@ import torch
 from . import stride_tricks
 from . import types
 from . import tensor
-from .halo import halorize
+from .halo import halorize_local_operation
 
 __all__ = [
     'abs',
@@ -265,7 +265,7 @@ def sqrt(x, out=None):
     """
     return __local_operation(torch.sqrt, x, out)
 
-@halorize
+@halorize_local_operation
 def __local_operation(operation, x, out):
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
