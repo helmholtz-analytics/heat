@@ -1,4 +1,5 @@
 import os
+import tempfile
 import unittest
 
 import heat as ht
@@ -51,8 +52,24 @@ class TestIO(unittest.TestCase):
             with self.assertRaises(IOError):
                 ht.load_hdf5('iris.h5', dataset='foo')
 
+        def test_save_hdf5(self):
+            data = ht.arange(100)
+            ht.save_hdf5(data, os.path.join(tempfile.gettempdir(), 'test0.h5'), 'data')
+            # ht.save_hdf5(data, os.path.join(os.getcwd(), 'test0.h5'), 'data')
+
+        def test_save_hdf5_exception(self):
+            # dummy data
+            data = ht.arange(1)
+
+            with self.assertRaises(TypeError):
+                ht.save_hdf5(1, os.path.join(tempfile.gettempdir(), 'test.h5'), 'data')
+            with self.assertRaises(TypeError):
+                ht.save_hdf5(data, 1, 'data')
+            with self.assertRaises(TypeError):
+                ht.save_hdf5(data, os.path.join(tempfile.gettempdir(), 'test.h5'), 1)
+
     try:
-        import netCDF4
+        import netCDF4 as nc
     except ImportError:
         # netCDF is optional
         pass
@@ -98,24 +115,41 @@ class TestIO(unittest.TestCase):
                 ht.load_netcdf('iris.nc', variable='foo')
 
     def test_load(self):
-        # default parameters
-        iris = ht.load(os.path.join(os.getcwd(), 'heat/datasets/data/iris.h5'), dataset='data')
-        self.assertIsInstance(iris, ht.tensor)
-        self.assertEqual(iris.shape, (150, 4,))
-        self.assertEqual(iris.dtype, ht.float32)
+        # HDF5
+        try:
+            iris = ht.load(os.path.join(os.getcwd(), 'heat/datasets/data/iris.h5'), dataset='data')
+            self.assertIsInstance(iris, ht.tensor)
+            self.assertEqual(iris.shape, (150, 4,))
+            self.assertEqual(iris.dtype, ht.float32)
+        except ValueError:
+            # HDF5 is optional
+            pass
 
-        # default parameters
-        iris = ht.load(os.path.join(os.getcwd(), 'heat/datasets/data/iris.nc'), variable='data')
-        self.assertIsInstance(iris, ht.tensor)
-        self.assertEqual(iris.shape, (150, 4,))
-        self.assertEqual(iris.dtype, ht.float32)
+        # NetCDF4
+        try:
+            iris = ht.load(os.path.join(os.getcwd(), 'heat/datasets/data/iris.nc'), variable='data')
+            self.assertIsInstance(iris, ht.tensor)
+            self.assertEqual(iris.shape, (150, 4,))
+            self.assertEqual(iris.dtype, ht.float32)
+        except ValueError:
+            # NetCDF4 is optional
+            pass
 
     def test_load_exception(self):
         # correct extension file does not exist
-        with self.assertRaises(IOError):
-            ht.load(os.path.join(os.getcwd(), 'heat/datasets/data/foo.h5'), 'data')
-        with self.assertRaises(IOError):
-            ht.load(os.path.join(os.getcwd(), 'heat/datasets/data/foo.nc'), 'data')
+        try:
+            with self.assertRaises(IOError):
+                ht.load(os.path.join(os.getcwd(), 'heat/datasets/data/foo.h5'), 'data')
+        except ValueError:
+            # HDF5 is optional
+            pass
+
+        try:
+            with self.assertRaises(IOError):
+                ht.load(os.path.join(os.getcwd(), 'heat/datasets/data/foo.nc'), 'data')
+        except ValueError:
+            # netCDF4 is optional
+            pass
 
         # unknown file extension
         with self.assertRaises(ValueError):

@@ -89,11 +89,20 @@ class generic(metaclass=abc.ABCMeta):
     def torch_type(cls):
         pass
 
+    @classmethod
+    @abc.abstractclassmethod
+    def char(cls):
+        pass
+
 
 class bool(generic):
     @classmethod
     def torch_type(cls):
         return torch.uint8
+
+    @classmethod
+    def char(cls):
+        return 'u1'
 
 
 class number(generic):
@@ -113,11 +122,19 @@ class int8(signedinteger):
     def torch_type(cls):
         return torch.int8
 
+    @classmethod
+    def char(cls):
+        return 'i1'
+
 
 class int16(signedinteger):
     @classmethod
     def torch_type(cls):
         return torch.int16
+
+    @classmethod
+    def char(cls):
+        return 'i2'
 
 
 class int32(signedinteger):
@@ -125,11 +142,19 @@ class int32(signedinteger):
     def torch_type(cls):
         return torch.int32
 
+    @classmethod
+    def char(cls):
+        return 'i4'
+
 
 class int64(signedinteger):
     @classmethod
     def torch_type(cls):
         return torch.int64
+
+    @classmethod
+    def char(cls):
+        return 'i8'
 
 
 class unsignedinteger(integer):
@@ -141,6 +166,10 @@ class uint8(unsignedinteger):
     def torch_type(cls):
         return torch.uint8
 
+    @classmethod
+    def char(cls):
+        return 'u1'
+
 
 class floating(number):
     pass
@@ -151,11 +180,19 @@ class float32(floating):
     def torch_type(cls):
         return torch.float32
 
+    @classmethod
+    def char(cls):
+        return 'f4'
+
 
 class float64(floating):
     @classmethod
     def torch_type(cls):
         return torch.float64
+
+    @classmethod
+    def char(cls):
+        return 'f8'
 
 
 class flexible(generic):
