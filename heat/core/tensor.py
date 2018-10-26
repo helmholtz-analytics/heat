@@ -211,7 +211,7 @@ class tensor:
             if not isinstance(axis, int):
                 raise ValueError('axis must be of type Python integer or None, {} given'.format(type(axis)))
             if axis >= len(self.shape) or axis < -len(self.shape):
-                raise ValueError('axis must be smaller then the number of dimensions, {} given'.format(axis))
+                raise ValueError('Dimension out of range (expected to be in range of {}, but got {})'.format([-len(self.shape), len(self.shape)-1], axis))
             if axis < 0:
                 axis = len(self.shape) + axis
         
