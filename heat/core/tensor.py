@@ -149,14 +149,16 @@ class tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        # TODO: implement type promotion
+        # TODO: implement type promotion      
+        axis = sanitize_axis(self.shape, axis) # need to further checking!
+  
         if self.__comm.is_distributed() and (axis is None or axis == self.__split):
             mpi.all_reduce(partial, op, self.__comm.group)
-            return tensor(partial, partial.shape, self.dtype, split=None, comm=NoneCommunicator())
+            return tensor(partial, partial.shape, types.canonical_heat_type(partial.dtype), split=None, comm=NoneCommunicator())
 
         # TODO: verify if this works for negative split axis
         output_shape = self.gshape[:axis] + (1,) + self.gshape[axis + 1:]
-        return tensor(partial, output_shape, self.dtype, self.split, comm=_copy(self.__comm))
+        return tensor(partial, output_shape, types.canonical_heat_type(partial.dtype), self.split, comm=_copy(self.__comm))
 
     def argmin(self, axis):
         # TODO: document me
@@ -175,16 +177,47 @@ class tensor:
         return self.sum(axis) / self.gshape[axis]
        
     def sum(self, axis=None):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: Return our own tensor
-        if axis is not None:
-            sum_axis = self.__array.sum(axis, keepdim=True)
-        else:
-            return self.__array.sum()
+        # TODO: Allow also list of axes
+        """
+        Sum of array elements over a given axis.
 
+        Parameters
+        ----------   
+        axis : None or int, optional
+            Axis along which a sum is performed. The default, axis=None, will sum
+            all of the elements of the input array. If axis is negative it counts 
+            from the last to the first axis.
+           
+         Returns
+         -------
+         sum_along_axis : ht.tensor
+             An array with the same shape as self.__array except for the specified axis which 
+             becomes one, e.g. a.shape = (1,2,3) => ht.ones((1,2,3)).sum(axis=1).shape = (1,1,3)
+   
+        Examples
+        --------
+        >>> ht.ones(2).sum()
+        tensor([2.])
+
+        >>> ht.ones((3,3)).sum()
+        tensor([9.])
+
+        >>> ht.ones((3,3)).astype(ht.int).sum()
+        tensor([9])
+
+        >>> ht.ones((3,2,1)).sum(axis=-3)
+        tensor([[[3.],
+                 [3.]]])
+        """
+        if axis is not None:
+            axis = sanitize_axis(self.shape, axis)
+            sum_axis = self.__array.sum(axis, keepdim=True)
+  
+        else:
+            sum_axis = torch.reshape(self.__array.sum(), (1,))
+            if not self.__comm.is_distributed():
+                return tensor(sum_axis, (1,), types.canonical_heat_type(sum_axis.dtype), self.split, _copy(self.__comm))
+            
         return self.__reduce_op(sum_axis, mpi.reduce_op.SUM, axis)
 
     def expand_dims(self, axis):
