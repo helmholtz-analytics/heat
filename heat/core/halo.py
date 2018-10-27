@@ -4,8 +4,6 @@ from . import types
 from .communicator import mpi
 
 
-
-
 def halorize_local_operation(func):
     """
     A decorator for function "__local_operation" in heat.core.operations.py
@@ -36,6 +34,14 @@ def halorize_local_operation(func):
 
     return wrapper
 
+def check_for_update(halo, halo_size):
+            
+    update_flag = True
+    if halo is not None:
+        if len(halo) == halo_size:
+            update_flag = False
+
+    return update_flag
 
 def send(a, rank):
     """
@@ -54,16 +60,17 @@ def send(a, rank):
     """    
     # make torch tensor continuous in memory if fragmented
     a = a.contiguous()
-    
+    print('rank: ', rank)
     # send halo to process with rank 'rank'
     req = mpi.isend(a, dst=rank)
-
+    #print('rank: ', rank)
     # receive halo from process with rank 'rank'
     res = torch.zeros(a.size(), dtype=a.dtype)
     rec = mpi.irecv(res, src=rank)
-    
+
     # synchronize
     req.wait()
     rec.wait()
+    
 
     return res

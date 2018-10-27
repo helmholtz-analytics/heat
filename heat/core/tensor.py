@@ -508,35 +508,93 @@ class tensor:
         Examples
         --------
         """
-        # ToDO: needs some refactoring
-        update_next = True
-        if self.halo_next is not None:
-            if len(self.halo_next) == halo_size:
-                update_next = False
-       
-        update_prev = True
-        if self.halo_prev is not None:
-            if len(self.halo_prev) == halo_size:
-                update_prev = False
+
            
         if self.split is not None:
             if not isinstance(halo_size, int): 
                 raise TypeError('halo_size needs to be of Python type integer, {} given)'.format(type(halo_size)))
 
-            if halo_size > self.shape[self.split]//self.comm.size:
+            smallest_chunk_size = self.shape[self.split]//self.comm.size
+            
+            if halo_size > smallest_chunk_size:
                 warnings.warn('Your halo is larger than the smallest local data array, only the local data array will be exchanged')
-                halo_size = self.shape[self.split]//self.comm.size
+                halo_size = smallest_chunk_size
+                
+            ix = [slice(None, None, None)] * len(self.shape)
+            ix[self.split] = slice(0, halo_size)
+            a = self.array[ix]
+            a = a.contiguous()
+            
+            res_prev = None
+            
+           
+            if  self.comm.rank != self.comm.size-1: 
+                isend_next = mpi.isend(a, dst=self.comm.rank+1) 
 
-            if self.comm.rank != self.comm.size-1 and update_next:
-                ix = [slice(None, None, None)] * len(self.shape)
-                ix[self.split] = slice(-halo_size, None) 
-                self.halo_next = halo.send(self.array[ix], self.comm.rank+1)
+                res_next = torch.zeros(a.size(), dtype=a.dtype)
+                irecv_next = mpi.irecv(res_next, src=self.comm.rank+1) 
+               
+            if  self.comm.rank != 0:
+                res_prev = torch.zeros(a.size(), dtype=a.dtype)
+                irecv_prev = mpi.irecv(res_prev, src=self.comm.rank-1) 
 
-            if self.comm.rank != 0 and update_prev:
+                isend_prev = mpi.isend(a, dst=self.comm.rank-1)  
+
+            if  self.comm.rank != self.comm.size-1:
+                isend_next.wait()
+                irecv_next.wait()
+
+            if  self.comm.rank != 0:
+                req2.wait()
+                req3.wait()
+
+
+            print(self.comm.rank, res_prev)
+            self.halo_prev = res_prev
+
+
+            
+
+    """
+    def gethaloqqa(self, halo_size):
+        
+           
+        if self.split is not None:
+            if not isinstance(halo_size, int): 
+                raise TypeError('halo_size needs to be of Python type integer, {} given)'.format(type(halo_size)))
+
+            smallest_chunk_size = self.shape[self.split]//self.comm.size
+            
+            if halo_size > smallest_chunk_size:
+                warnings.warn('Your halo is larger than the smallest local data array, only the local data array will be exchanged')
+                halo_size = smallest_chunk_size
+
+            #if self.comm.rank != self.comm.size-1 and halo.check_for_update(self.halo_next, halo_size):
+            #    # print('smallest_chunk_size', smallest_chunk_size, self.comm.rank)
+            #    ix = [slice(None, None, None)] * len(self.shape)
+            #    ix[self.split] = slice(-halo_size, None) 
+            #    self.halo_next = halo.send(self.array[ix], self.comm.rank+1)
+
+            if self.comm.rank != 0 and halo.check_for_update(self.halo_next, halo_size):
+                
                 ix = [slice(None, None, None)] * len(self.shape)
                 ix[self.split] = slice(0, halo_size)
-                self.halo_prev = halo.send(self.array[ix], self.comm.rank-1)
+                a = self.array[ix]
+                a = a.contiguous()
+            
+                req = mpi.isend(a, dst=0)
+                
+                res = torch.zeros(a.size(), dtype=a.dtype)
+                rec = mpi.irecv(res, src=)
+                print('smallest_chunk_size', smallest_chunk_size, self.comm.rank)
 
+                # synchronize
+                req.wait()
+                rec.wait()
+                self.halo_prev = res
+                # self.halo_prev = halo.send(self.array[ix], self.comm.rank-1)
+
+    """
     def genpad(self, padding):
         """
         Generate padding only for local arrays of the first and last rank in case of distributed computing,
@@ -553,7 +611,6 @@ class tensor:
         
 
         """
-  
         if isinstance(self.comm, MPICommunicator):
             if self.comm.size > 1:
                 if self.comm.rank == 0:
@@ -1079,7 +1136,7 @@ def convolve(a, v, mode='full'):
     
     if mode == 'full': 
         padding = torch.zeros(v.shape[0]-1)
-        gshape = v.shape[0] + a.shape[0]-1
+        gshape = v.shape[0] + a.shape[0] - 1
     elif mode == 'same':   
         padding = torch.zeros(halo_size)
         gshape = a.shape[0]
