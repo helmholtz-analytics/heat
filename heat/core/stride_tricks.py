@@ -1,4 +1,5 @@
 import itertools
+import warnings
 
 
 def broadcast_shape(shape_a, shape_b):
@@ -112,3 +113,20 @@ def sanitize_shape(shape):
             raise ValueError('negative dimensions are not allowed')
 
     return shape
+
+
+def sanitize_halo(halo_size, smallest_chunk_size):
+
+    if not isinstance(halo_size, int): 
+        raise TypeError('halo_size needs to be of Python type integer, {} given)'.format(type(halo_size)))
+       
+    if halo_size > smallest_chunk_size:
+        warnings.warn('Your halo is larger than the smallest local data array, only the local data array will be exchanged')
+        halo_size = smallest_chunk_size
+ 
+    return halo_size
+
+
+
+
+

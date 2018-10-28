@@ -43,34 +43,3 @@ def check_for_update(halo, halo_size):
 
     return update_flag
 
-def send(a, rank):
-    """
-
-    Parameters
-    ----------
-    a : torch.tensor
-        halo to be send to node
-    rank : int
-        number of the destinated mpi rank
-
-    Returns
-    -------
-    res : torch.tensor
-        received halo at destinated mpi rank
-    """    
-    # make torch tensor continuous in memory if fragmented
-    a = a.contiguous()
-    print('rank: ', rank)
-    # send halo to process with rank 'rank'
-    req = mpi.isend(a, dst=rank)
-    #print('rank: ', rank)
-    # receive halo from process with rank 'rank'
-    res = torch.zeros(a.size(), dtype=a.dtype)
-    rec = mpi.irecv(res, src=rank)
-
-    # synchronize
-    req.wait()
-    rec.wait()
-    
-
-    return res
