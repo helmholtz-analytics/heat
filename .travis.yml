@@ -6,12 +6,11 @@ cache:
   - $HOME/virtualenv/python3.5/lib/python3.5/site-packages
 before_install:
   - sudo apt-get install -y libopenmpi-dev openmpi-bin libhdf5-dev libnetcdf-dev
-  - travis_wait 32 ./install-torch.sh
   - pip install codecov pytest pytest-cov
 install:
-  - pip install -e .[hdf5] .[netcdf] .
+  - pip install .
 script:
-  - mpirun pytest --cov=heat
+  - mpirun -np 2 pytest --cov=heat
 after_success:
   - codecov
 deploy:
