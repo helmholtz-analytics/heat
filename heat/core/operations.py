@@ -1,6 +1,7 @@
 from copy import copy as _copy
 import torch
 
+from .communicator import mpi, MPICommunicator, NoneCommunicator
 from . import stride_tricks
 from . import types
 from . import tensor
@@ -13,6 +14,8 @@ __all__ = [
     'exp',
     'floor',
     'log',
+    'max',
+    'min',
     'sin',
     'sqrt'
 ]
@@ -210,6 +213,60 @@ def log(x, out=None):
     """
     return __local_operation(torch.log, x, out)
 
+def max(x, axis=None):
+    """"
+    Return the maximum of an array or maximum along an axis.
+
+    Parameters
+    ----------
+    a : ht.tensor
+    Input data.
+        
+    axis : None or int, optional
+    Axis or axes along which to operate. By default, flattened input is used.   
+    
+    #TODO: out : ht.tensor, optional
+    Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
+
+    #TODO: initial : scalar, optional   
+    The minimum value of an output element. Must be present to allow computation on empty slice.
+    """
+    #perform sanitation:
+    axis = stride_tricks.sanitize_axis(x.shape,axis)
+    
+    if axis is not None:        
+        max_axis = x._tensor__array.max(axis, keepdim=True) 
+    else:
+        return x._tensor__array.max()
+
+    return __reduce_op(x, max_axis, mpi.reduce_op.MAX, axis)
+
+def min(x, axis=None):
+    """"
+    Return the minimum of an array or minimum along an axis.
+
+    Parameters
+    ----------
+    a : ht.tensor
+    Input data.
+        
+    axis : None or int
+    Axis or axes along which to operate. By default, flattened input is used.   
+    
+    #TODO: out : ht.tensor, optional
+    Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
+
+    #TODO: initial : scalar, optional   
+    The maximum value of an output element. Must be present to allow computation on empty slice.
+    """
+    #perform sanitation:
+    axis = stride_tricks.sanitize_axis(x.shape,axis)
+    if axis is not None:        
+        min_axis = x._tensor__array.min(axis, keepdim=True) 
+    else:
+        return x._tensor__array.min()
+
+    return __reduce_op(x, min_axis, mpi.reduce_op.MIN, axis)
 
 def sin(x, out=None):
     """
@@ -325,3 +382,24 @@ def __local_operation(operation, x, out):
     casted = x._tensor__array.type(torch_type)
     operation(casted.repeat(multiples) if needs_repetition else casted, out=out._tensor__array)
     return out
+
+def __reduce_op(x,partial, op, axis):
+    # TODO: document me
+    # TODO: test me
+    # TODO: make me more numpy API complete
+          # e.g. allow axis to be a tuple, allow for "initial"
+    # TODO: implement type promotion
+    
+    # perform sanitation
+    if not isinstance(x, tensor.tensor):
+        raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
+    
+    
+    if x._tensor__comm.is_distributed() and (axis is None or axis == x.split):
+        mpi.all_reduce(partial[0], op, x._tensor__comm.group)
+        return tensor.tensor(partial, partial[0].shape, x.dtype, split=None, comm=NoneCommunicator())
+
+    # TODO: verify if this works for negative split axis
+    output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
+    return tensor.tensor(partial, output_shape, x._tensor__dtype, x._tensor__split, comm=_copy(x._tensor__comm))
+
