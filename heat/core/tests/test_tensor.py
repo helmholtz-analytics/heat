@@ -1,10 +1,11 @@
 import torch
 import unittest
-
 import heat as ht
 
 
 class TestTensor(unittest.TestCase):
+
+    
     def test_astype(self):
         data = ht.float32([
             [1, 2, 3],
@@ -27,7 +28,78 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(as_float64.dtype, ht.float64)
         self.assertEqual(as_float64._tensor__array.dtype, torch.float64)
         self.assertIs(as_float64, data)
+    
 
+    def test_gethalo_all(self):
+        
+        def check_halolength(ht_tensor, halo_size):
+            if ht_tensor.comm.is_distributed():
+                if halo_size > ht_tensor.smallest_chunksize():
+                    with self.assertWarns(Warning):
+                        ht_tensor.gethalo_all(halo_size)
+                        self.assertTrue(ht_tensor.halo_prev_length() == ht_tensor.sanitize_halo(halo_size) or 
+                                        ht_tensor.halo_prev_length() is None)
+                else:
+                    ht_tensor.gethalo_all(halo_size)
+                    self.assertTrue(ht_tensor.halo_prev_length() == ht_tensor.sanitize_halo(halo_size) or 
+                                ht_tensor.halo_prev_length() is None)
+            else: 
+                ht_tensor.gethalo_all(halo_size)
+                self.assertTrue(ht_tensor.halo_prev_length() == ht_tensor.sanitize_halo(halo_size) or 
+                            ht_tensor.halo_prev_length() is None)
+       
+
+
+        hsize = 1
+        halo_testlength = ht.ones((7,8,9), split=0)
+        check_halolength(halo_testlength, hsize)
+        hsize = 4
+        halo_testlength = ht.ones((7,8,9), split=0)
+        check_halolength(halo_testlength, hsize)
+        hsize = 8
+        halo_testlength = ht.ones((7,8,9), split=0)
+        check_halolength(halo_testlength, hsize)
+        hsize = 99
+        halo_testlength = ht.ones((7,8,9), split=0)
+        check_halolength(halo_testlength, hsize)
+
+        hsize = 1
+        halo_testlength = ht.ones((7,8,9), split=1)
+        check_halolength(halo_testlength, hsize)
+        hsize = 4
+        halo_testlength = ht.ones((7,8,9), split=1)
+        check_halolength(halo_testlength, hsize)
+        hsize = 8
+        halo_testlength = ht.ones((7,8,9), split=1)
+        check_halolength(halo_testlength, hsize)
+        hsize = 99
+        halo_testlength = ht.ones((7,8,9), split=1)
+        check_halolength(halo_testlength, hsize)
+
+        hsize = 1
+        halo_testlength = ht.ones((7,8,9), split=2)
+        check_halolength(halo_testlength, hsize)
+        hsize = 4
+        halo_testlength = ht.ones((7,8,9), split=2)
+        check_halolength(halo_testlength, hsize)
+        hsize = 8
+        halo_testlength = ht.ones((7,8,9), split=2)
+        check_halolength(halo_testlength, hsize)
+        hsize = 99
+        halo_testlength = ht.ones((7,8,9), split=2)
+        check_halolength(halo_testlength, hsize)
+       
+      
+        # exceptions
+        with self.assertRaises(TypeError):
+            halo_testlength = ht.ones((7,8,9), split=1)
+            halo_testlength.gethalo_all('bad_halosize_value')
+        with self.assertRaises(ValueError):
+            halo_testlength = ht.ones((7,8,9), split=1)
+            halo_testlength.gethalo_all(-2)
+            
+       
+     
 
 class TestTensorFactories(unittest.TestCase):
     def test_linspace(self):
