@@ -47,8 +47,6 @@ class TestTensor(unittest.TestCase):
                 ht_tensor.gethalo_all(halo_size)
                 self.assertTrue(ht_tensor.halo_prev_length() == ht_tensor.sanitize_halo(halo_size) or 
                             ht_tensor.halo_prev_length() is None)
-       
-
 
         hsize = 1
         halo_testlength = ht.ones((7,8,9), split=0)
@@ -88,7 +86,45 @@ class TestTensor(unittest.TestCase):
         hsize = 99
         halo_testlength = ht.ones((7,8,9), split=2)
         check_halolength(halo_testlength, hsize)
-       
+      
+
+        hsize = 1
+        na = ht.ones(6, split=0)
+        na.gethalo_all(hsize)
+        nb = na.exp()
+        if nb.halo_next is not None:
+            self.assertAlmostEqual(nb.halo_next[0].item(), 2.718281745)
+        if nb.halo_prev is not None:
+            self.assertAlmostEqual(nb.halo_prev[0].item(), 2.718281745)
+        nb = na.log()
+        if nb.halo_next is not None:
+            self.assertAlmostEqual(nb.halo_next[0].item(), 0.0)
+        if nb.halo_prev is not None:
+            self.assertAlmostEqual(nb.halo_prev[0].item(), 0.0)
+            
+        na = ht.ones(6, split=0) * 4.
+        na.gethalo_all(hsize)
+        nb = na.sqrt()
+        if nb.halo_next is not None:
+            self.assertAlmostEqual(nb.halo_next[0].item(), 2.)
+        if nb.halo_prev is not None:
+            self.assertAlmostEqual(nb.halo_prev[0].item(), 2.)
+
+        na = ht.ones(6, split=0) * -1.
+        na.gethalo_all(hsize)
+        nb = na.abs()
+        if nb.halo_next is not None:
+            self.assertAlmostEqual(nb.halo_next[0].item(), 1.)
+        if nb.halo_prev is not None:
+            self.assertAlmostEqual(nb.halo_prev[0].item(), 1.)
+
+        na = ht.ones(6, split=0) * 2.
+        na.gethalo_all(hsize)
+        nb = na.sin()
+        if nb.halo_next is not None:
+            self.assertAlmostEqual(nb.halo_next[0].item(), 0.9092974268256)
+        if nb.halo_prev is not None:
+            self.assertAlmostEqual(nb.halo_prev[0].item(), 0.9092974268256)
       
         # exceptions
         with self.assertRaises(TypeError):

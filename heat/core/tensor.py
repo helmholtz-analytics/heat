@@ -199,7 +199,7 @@ class tensor:
             A copy of the original
         """
         return operations.copy(self)
-
+    # ToDO: halorize  __reduce_op like for __local_operation
     def __reduce_op(self, partial, op, axis):
         # TODO: document me
         # TODO: test me

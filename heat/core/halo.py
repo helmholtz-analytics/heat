@@ -34,12 +34,3 @@ def halorize_local_operation(func):
 
     return wrapper
 
-def check_for_update(halo, halo_size):
-            
-    update_flag = True
-    if halo is not None:
-        if len(halo) == halo_size:
-            update_flag = False
-
-    return update_flag
-
