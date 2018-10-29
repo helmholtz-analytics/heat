@@ -216,6 +216,8 @@ class TestOperations(unittest.TestCase):
         #TODO: check combinations of split and axis
 
         # check exceptions
+        with self.assertRaises(NotImplementedError):
+            data.max(axis=(0,1))
         with self.assertRaises(TypeError):
             data.max(axis=1.1)
         with self.assertRaises(ValueError):
@@ -243,6 +245,8 @@ class TestOperations(unittest.TestCase):
         #TODO: check combinations of split and axis
 
         # check exceptions
+        with self.assertRaises(NotImplementedError):
+            data.min(axis=(0,1))
         with self.assertRaises(TypeError):
             data.min(axis=1.1)
         with self.assertRaises(ValueError):

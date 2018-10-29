@@ -177,10 +177,9 @@ class tensor:
         a : ht.tensor
         Input data.
         
-        axis : None or int  or #TODO: tuple of ints, optional
+        axis : None or int  
         Axis or axes along which to operate. By default, flattened input is used.   
-        If this is a tuple of ints, the maximum is selected over multiple axes, instead of a single axis or all the axes as before.
-
+        
         #TODO: out : ht.tensor, optional
         Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
 
@@ -206,15 +205,14 @@ class tensor:
         a : ht.tensor
         Input data.
         
-        axis : None or int  or #TODO: tuple of ints, optional
+        axis : None or int
         Axis or axes along which to operate. By default, flattened input is used.   
-        If this is a tuple of ints, the maximum is selected over multiple axes, instead of a single axis or all the axes as before.
-
+        
         #TODO: out : ht.tensor, optional
         Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
 
         #TODO: initial : scalar, optional   
-        The minimum value of an output element. Must be present to allow computation on empty slice.
+        The maximum value of an output element. Must be present to allow computation on empty slice.
         """
         
         return operations.min(self, axis)

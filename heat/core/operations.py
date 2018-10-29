@@ -222,10 +222,9 @@ def max(x, axis=None):
     a : ht.tensor
     Input data.
         
-    axis : None or int  or #TODO: tuple of ints, optional
+    axis : None or int, optional
     Axis or axes along which to operate. By default, flattened input is used.   
-    If this is a tuple of ints, the maximum is selected over multiple axes, instead of a single axis or all the axes as before.
-
+    
     #TODO: out : ht.tensor, optional
     Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
 
@@ -233,19 +232,9 @@ def max(x, axis=None):
     The minimum value of an output element. Must be present to allow computation on empty slice.
     """
     #perform sanitation:
-    if axis is not None:
-    #axis must be integer:
-        axis_int = isinstance(axis, int)
-        if not axis_int:
-            raise TypeError("Axis must be an integer")
-            # TODO: or a tuple of integers.")                
-        #TODO: axis can be tuple
-
-        #axis must be within bounds:
-        dim = len(x.shape)
-        axis_exists = -dim <= axis < dim
-        if not axis_exists:
-            raise ValueError("Axis is out of bounds for tensor of dimensions "+str(x.shape))    
+    axis = stride_tricks.sanitize_axis(x.shape,axis)
+    
+    if axis is not None:        
         max_axis = x._tensor__array.max(axis, keepdim=True) 
     else:
         return x._tensor__array.max()
@@ -261,30 +250,18 @@ def min(x, axis=None):
     a : ht.tensor
     Input data.
         
-    axis : None or int  or #TODO: tuple of ints, optional
+    axis : None or int
     Axis or axes along which to operate. By default, flattened input is used.   
-    If this is a tuple of ints, the maximum is selected over multiple axes, instead of a single axis or all the axes as before.
-
+    
     #TODO: out : ht.tensor, optional
     Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
 
     #TODO: initial : scalar, optional   
-    The minimum value of an output element. Must be present to allow computation on empty slice.
+    The maximum value of an output element. Must be present to allow computation on empty slice.
     """
     #perform sanitation:
-    if axis is not None:
-    #axis must be integer:
-        axis_int = isinstance(axis, int)
-        if not axis_int:
-            raise TypeError("Axis must be an integer")
-            # TODO: or a tuple of integers.")                
-        #TODO: axis can be tuple
-
-        #axis must be within bounds:
-        dim = len(x.shape)
-        axis_exists = -dim <= axis < dim
-        if not axis_exists:
-            raise ValueError("Axis is out of bounds for tensor of dimensions "+str(x.shape))    
+    axis = stride_tricks.sanitize_axis(x.shape,axis)
+    if axis is not None:        
         min_axis = x._tensor__array.min(axis, keepdim=True) 
     else:
         return x._tensor__array.min()
@@ -417,7 +394,7 @@ def __reduce_op(x,partial, op, axis):
     if not isinstance(x, tensor.tensor):
         raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
     
- 
+    
     if x._tensor__comm.is_distributed() and (axis is None or axis == x.split):
         mpi.all_reduce(partial[0], op, x._tensor__comm.group)
         return tensor.tensor(partial, partial[0].shape, x.dtype, split=None, comm=NoneCommunicator())
