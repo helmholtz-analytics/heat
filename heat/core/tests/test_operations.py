@@ -209,7 +209,6 @@ class TestOperations(unittest.TestCase):
             [10, 11, 12]
         ])       
         #check basic equivalence to torch.max()
-        self.assertEqual(data.max(),comparison.max())
         self.assertTrue((ht.max(data,axis=0)._tensor__array[0] == comparison.max(0)[0]).all())
         self.assertIsInstance(ht.max(data,axis=1),ht.tensor)
         
@@ -237,8 +236,7 @@ class TestOperations(unittest.TestCase):
             [7, 8, 9],
             [10, 11, 12]
         ])       
-        #check basic equivalence to torch.max()
-        self.assertEqual(data.min(),comparison.min())
+        #check basic equivalence to torch.min()
         self.assertTrue((ht.min(data,axis=0)._tensor__array[0] == comparison.min(0)[0]).all())
         self.assertIsInstance(ht.min(data,axis=1),ht.tensor)
         

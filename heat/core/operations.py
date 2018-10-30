@@ -17,6 +17,7 @@ __all__ = [
     'max',
     'min',
     'sin',
+    'sum',
     'sqrt'
 ]
 
@@ -231,15 +232,8 @@ def max(x, axis=None):
     #TODO: initial : scalar, optional   
     The minimum value of an output element. Must be present to allow computation on empty slice.
     """
-    #perform sanitation:
-    axis = stride_tricks.sanitize_axis(x.shape,axis)
-    
-    if axis is not None:        
-        max_axis = x._tensor__array.max(axis, keepdim=True) 
-    else:
-        return x._tensor__array.max()
 
-    return __reduce_op(x, max_axis, mpi.reduce_op.MAX, axis)
+    return __reduce_op(x, x._tensor__array.max, mpi.reduce_op.MAX, axis)
 
 def min(x, axis=None):
     """"
@@ -259,14 +253,8 @@ def min(x, axis=None):
     #TODO: initial : scalar, optional   
     The maximum value of an output element. Must be present to allow computation on empty slice.
     """
-    #perform sanitation:
-    axis = stride_tricks.sanitize_axis(x.shape,axis)
-    if axis is not None:        
-        min_axis = x._tensor__array.min(axis, keepdim=True) 
-    else:
-        return x._tensor__array.min()
 
-    return __reduce_op(x, min_axis, mpi.reduce_op.MIN, axis)
+    return __reduce_op(x, x._tensor__array.min, mpi.reduce_op.MIN, axis)
 
 def sin(x, out=None):
     """
@@ -321,6 +309,13 @@ def sqrt(x, out=None):
     """
     return __local_operation(torch.sqrt, x, out)
 
+def sum(x, axis=None):
+    # TODO: document me
+    # TODO: test me
+    # TODO: make me more numpy API complete
+    # TODO: implement type promotion
+
+    return __reduce_op(x, x._tensor__array.sum, mpi.reduce_op.SUM, axis)
 
 def __local_operation(operation, x, out):
     """
@@ -383,7 +378,7 @@ def __local_operation(operation, x, out):
     operation(casted.repeat(multiples) if needs_repetition else casted, out=out._tensor__array)
     return out
 
-def __reduce_op(x,partial, op, axis):
+def __reduce_op(x,partial_op, op, axis):
     # TODO: document me
     # TODO: test me
     # TODO: make me more numpy API complete
@@ -393,13 +388,19 @@ def __reduce_op(x,partial, op, axis):
     # perform sanitation
     if not isinstance(x, tensor.tensor):
         raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
-    
-    
+    axis = stride_tricks.sanitize_axis(x.shape,axis)
+
+    if axis is None:
+        partial = torch.reshape(partial_op(), (1,))
+        output_shape = partial.shape
+    else:
+        partial = partial_op(axis,keepdim=True)
+        # TODO: verify if this works for negative split axis
+        output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
+
     if x._tensor__comm.is_distributed() and (axis is None or axis == x.split):
         mpi.all_reduce(partial[0], op, x._tensor__comm.group)
         return tensor.tensor(partial, partial[0].shape, x.dtype, split=None, comm=NoneCommunicator())
 
-    # TODO: verify if this works for negative split axis
-    output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
     return tensor.tensor(partial, output_shape, x._tensor__dtype, x._tensor__split, comm=_copy(x._tensor__comm))
 
