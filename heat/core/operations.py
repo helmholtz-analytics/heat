@@ -4,7 +4,7 @@ import torch
 from . import stride_tricks
 from . import types
 from . import tensor
-from .halo import halorize_local_operation
+from .halo import halorize_local_operation, halorize_copy
 
 __all__ = [
     'abs',
@@ -107,7 +107,7 @@ def clip(a, a_min, a_max, out=None):
     if not isinstance(out, tensor.tensor):
         raise TypeError('out must be a tensor')
 
-    return a._tensor__array.clamp(a_min, a_max, out=out._tensor__array) and out
+    return a._tensor__array.clamp(a_min, a_max, out=out._tensor__array) and out # There is something wrong !!!
 
 
 def copy(a):
@@ -126,7 +126,16 @@ def copy(a):
     """
     if not isinstance(a, tensor.tensor):
         raise TypeError('input needs to be a tensor')
-    return tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, _copy(a._tensor__comm))
+
+    res = tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, _copy(a._tensor__comm))
+
+    if a.halo_next is not None:
+        res.halo_next = a.halo_next.clone()
+
+    if a.halo_prev is not None:
+        res.halo_prev = a.halo_prev.clone()
+
+    return res
 
 
 def exp(x, out=None):

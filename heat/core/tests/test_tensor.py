@@ -87,7 +87,7 @@ class TestTensor(unittest.TestCase):
         halo_testlength = ht.ones((7,8,9), split=2)
         check_halolength(halo_testlength, hsize)
       
-
+        # test exp method on halo_next/halo_prev
         hsize = 1
         na = ht.ones(6, split=0)
         na.gethalo_all(hsize)
@@ -101,7 +101,8 @@ class TestTensor(unittest.TestCase):
             self.assertAlmostEqual(nb.halo_next[0].item(), 0.0)
         if nb.halo_prev is not None:
             self.assertAlmostEqual(nb.halo_prev[0].item(), 0.0)
-            
+           
+        # test sqrt method on halo_next/halo_prev 
         na = ht.ones(6, split=0) * 4.
         na.gethalo_all(hsize)
         nb = na.sqrt()
@@ -110,6 +111,7 @@ class TestTensor(unittest.TestCase):
         if nb.halo_prev is not None:
             self.assertAlmostEqual(nb.halo_prev[0].item(), 2.)
 
+        # test abs method on halo_next/halo_prev
         na = ht.ones(6, split=0) * -1.
         na.gethalo_all(hsize)
         nb = na.abs()
@@ -118,13 +120,42 @@ class TestTensor(unittest.TestCase):
         if nb.halo_prev is not None:
             self.assertAlmostEqual(nb.halo_prev[0].item(), 1.)
 
+        # test absolute method on halo_next/halo_prev
+        na = ht.ones(6, split=0) * -1.
+        na.gethalo_all(hsize)
+        nb = na.absolute()
+        if nb.halo_next is not None:
+            self.assertAlmostEqual(nb.halo_next[0].item(), 1.)
+        if nb.halo_prev is not None:
+            self.assertAlmostEqual(nb.halo_prev[0].item(), 1.)
+
+        # test sin method on halo_next/halo_prev
         na = ht.ones(6, split=0) * 2.
         na.gethalo_all(hsize)
         nb = na.sin()
         if nb.halo_next is not None:
-            self.assertAlmostEqual(nb.halo_next[0].item(), 0.9092974268256)
+            self.assertAlmostEqual(nb.halo_next[0].item(), 0.90929742)
         if nb.halo_prev is not None:
-            self.assertAlmostEqual(nb.halo_prev[0].item(), 0.9092974268256)
+            self.assertAlmostEqual(nb.halo_prev[0].item(), 0.90929742)
+
+        # test floor method on halo_next/halo_prev
+        na = ht.ones(6, split=0) * 2.6
+        na.gethalo_all(hsize)
+        nb = na.floor()
+        if nb.halo_next is not None:
+            self.assertAlmostEqual(nb.halo_next[0].item(), 2.)
+        if nb.halo_prev is not None:
+            self.assertAlmostEqual(nb.halo_prev[0].item(), 2.)
+
+        # test floor method on halo_next/halo_prev
+        na = ht.ones(6, split=0) * 5.
+        na.gethalo_all(hsize)
+        nb = na.copy()
+        if nb.halo_next is not None:
+            self.assertAlmostEqual(nb.halo_next[0].item(), 5.)
+        if nb.halo_prev is not None:
+            self.assertAlmostEqual(nb.halo_prev[0].item(), 5.)
+      
       
         # exceptions
         with self.assertRaises(TypeError):

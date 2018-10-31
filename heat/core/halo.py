@@ -4,6 +4,8 @@ from . import types
 from .communicator import mpi
 
 
+# We use decorators to modulize methods and updating halos, later decorators can be integrated in the main code  
+
 def halorize_local_operation(func):
     """
     A decorator for function "__local_operation" in heat.core.operations.py

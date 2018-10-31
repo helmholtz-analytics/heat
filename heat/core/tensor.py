@@ -1277,7 +1277,7 @@ def convolve(a, v, mode='full'):
 
     signal = a.genpad(signal, padding)
 
-    # Make signal and filter weight 3D for Pytorch conv1d function        
+    # make signal and filter weight 3D for Pytorch conv1d function        
     signal.unsqueeze_(0)
     signal.unsqueeze_(0)
 
