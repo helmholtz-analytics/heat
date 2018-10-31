@@ -96,7 +96,7 @@ class tensor:
         return self.gshape
         
 
-    def abs(self, out=None, dtype=None):
+    def abs(self, out=None):
         """
         Calculate the absolute value element-wise.
 
@@ -105,18 +105,15 @@ class tensor:
         out : ht.tensor, optional
             A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
             If not provided or None, a freshly-allocated array is returned.
-        dtype : ht.type, optional
-            Determines the data type of the output array. The values are cast to this type with potential loss of
-            precision.
-
+        
         Returns
         -------
         absolute_values : ht.tensor
             A tensor containing the absolute value of each element in x.
         """
-        return operations.abs(self, out, dtype)
+        return operations.abs(self, out)
 
-    def absolute(self, out=None, dtype=None):
+    def absolute(self, out=None):
         """
         Calculate the absolute value element-wise.
 
@@ -137,7 +134,7 @@ class tensor:
             A tensor containing the absolute value of each element in x.
         """
 
-        return self.abs(out, dtype)
+        return self.abs(out)
 
     def astype(self, dtype, copy=True):
         """

@@ -4,7 +4,7 @@ import torch
 from . import stride_tricks
 from . import types
 from . import tensor
-from .halo import halorize_local_operation, halorize_copy
+from .halo import halorize_local_operation
 
 __all__ = [
     'abs',
@@ -19,7 +19,7 @@ __all__ = [
 ]
 
 
-def abs(x, out=None, dtype=None):
+def abs(x, out=None):
     """
     Calculate the absolute value element-wise.
 
@@ -39,18 +39,10 @@ def abs(x, out=None, dtype=None):
     absolute_values : ht.tensor
         A tensor containing the absolute value of each element in x.
     """
-    if dtype is not None and not issubclass(dtype, types.generic):
-        raise TypeError('dtype must be a heat data type')
-
-    absolute_values = __local_operation(torch.abs, x, out)
-    if dtype is not None:
-        absolute_values._tensor__array = absolute_values._tensor__array.type(dtype.torch_type())
-        absolute_values._tensor__dtype = dtype
-
-    return absolute_values
+    return __local_operation(torch.abs, x, out)
 
 
-def absolute(x, out=None, dtype=None):
+def absolute(x, out=None):
     """
     Calculate the absolute value element-wise.
 
@@ -72,7 +64,7 @@ def absolute(x, out=None, dtype=None):
     absolute_values : ht.tensor
         A tensor containing the absolute value of each element in x.
     """
-    return abs(x, out, dtype)
+    return abs(x, out)
 
 
 def clip(a, a_min, a_max, out=None):
