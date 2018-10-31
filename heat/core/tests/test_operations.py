@@ -194,7 +194,7 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.log('hello world')
 
-    def test_max(self):
+    def test_max(self):    
         data = ht.float32([
             [1, 2, 3],
             [4, 5, 6],
@@ -208,21 +208,57 @@ class TestOperations(unittest.TestCase):
             [7, 8, 9],
             [10, 11, 12]
         ])       
-        #check basic equivalence to torch.max()
+
+        #check basics
         self.assertTrue((ht.max(data,axis=0)._tensor__array[0] == comparison.max(0)[0]).all())
         self.assertIsInstance(ht.max(data,axis=1),ht.tensor)
-        
-        #TODO: check combinations of split and axis
+        self.assertIsInstance(data.max(),ht.tensor)
 
+        #check combinations of split and axis
+        torch.manual_seed(1)
+        random_data = ht.randn(3,3,3)
+        torch.manual_seed(1)
+        random_data_split = ht.randn(3,3,3,split=0)
+        
+        self.assertTrue((ht.max(random_data,axis=0)._tensor__array[0] == random_data_split.max(axis=0)._tensor__array[0]).all())
+        self.assertTrue((ht.max(random_data,axis=1)._tensor__array[0] == random_data_split.max(axis=1)._tensor__array[0]).all())
+        self.assertIsInstance(ht.max(random_data_split,axis=1),ht.tensor)
+        self.assertIsInstance(random_data_split.max(),ht.tensor)
+
+        #check max over all float elements of 3d tensor locally
+        self.assertEqual(random_data.max().shape, (1,))
+        self.assertEqual(random_data.max().lshape, (1,))
+        self.assertEqual(random_data.max().dtype, ht.float32)
+        self.assertEqual(random_data.max()._tensor__array[0].dtype, torch.float32)
+        self.assertEqual(random_data.max().split, None)
+
+        # check max over all float elements of splitted 3d tensor 
+        self.assertIsInstance(random_data_split.max(axis=1), ht.tensor)
+        self.assertEqual(random_data_split.max(axis=1).shape, (3,1,3))
+        self.assertEqual(random_data_split.max(axis=1).dtype, ht.float32)
+        self.assertEqual(random_data_split.max(axis=1)._tensor__array[0].dtype, torch.float32)
+        self.assertEqual(random_data_split.max().split, None)
+
+        # check max over all float elements of splitted 5d tensor with negative axis 
+        random_data_split_neg = ht.randn(1,2,3,4,5, split=0)
+        self.assertIsInstance(random_data_split_neg.max(axis=-2), ht.tensor)
+        self.assertEqual(random_data_split_neg.max(axis=-2).shape, (1,2,3,1,5))
+        self.assertEqual(random_data_split_neg.max(axis=-2).dtype, ht.float32)
+        self.assertEqual(random_data_split_neg.max(axis=-2)._tensor__array[0].dtype, torch.float32)
+        self.assertEqual(random_data_split_neg.max().split, None)
+           
         # check exceptions
         with self.assertRaises(NotImplementedError):
             data.max(axis=(0,1))
         with self.assertRaises(TypeError):
             data.max(axis=1.1)
+        with self.assertRaises(TypeError):
+            data.max(axis='y')
         with self.assertRaises(ValueError):
             ht.max(data,axis=-4)
 
     def test_min(self):
+
         data = ht.float32([
             [1, 2, 3],
             [4, 5, 6],
@@ -236,17 +272,52 @@ class TestOperations(unittest.TestCase):
             [7, 8, 9],
             [10, 11, 12]
         ])       
-        #check basic equivalence to torch.min()
+
+        #check basics
         self.assertTrue((ht.min(data,axis=0)._tensor__array[0] == comparison.min(0)[0]).all())
         self.assertIsInstance(ht.min(data,axis=1),ht.tensor)
-        
-        #TODO: check combinations of split and axis
+        self.assertIsInstance(data.min(),ht.tensor)
 
+        #check combinations of split and axis
+        torch.manual_seed(1)
+        random_data = ht.randn(3,3,3)
+        torch.manual_seed(1)
+        random_data_split = ht.randn(3,3,3,split=0)
+        
+        self.assertTrue((ht.min(random_data,axis=0)._tensor__array[0] == random_data_split.min(axis=0)._tensor__array[0]).all())
+        self.assertTrue((ht.min(random_data,axis=1)._tensor__array[0] == random_data_split.min(axis=1)._tensor__array[0]).all())
+        self.assertIsInstance(ht.min(random_data_split,axis=1),ht.tensor)
+        self.assertIsInstance(random_data_split.min(),ht.tensor)
+
+        #check min over all float elements of 3d tensor locally
+        self.assertEqual(random_data.min().shape, (1,))
+        self.assertEqual(random_data.min().lshape, (1,))
+        self.assertEqual(random_data.min().dtype, ht.float32)
+        self.assertEqual(random_data.min()._tensor__array[0].dtype, torch.float32)
+        self.assertEqual(random_data.min().split, None)
+
+        # check min over all float elements of splitted 3d tensor 
+        self.assertIsInstance(random_data_split.min(axis=1), ht.tensor)
+        self.assertEqual(random_data_split.min(axis=1).shape, (3,1,3))
+        self.assertEqual(random_data_split.min(axis=1).dtype, ht.float32)
+        self.assertEqual(random_data_split.min(axis=1)._tensor__array[0].dtype, torch.float32)
+        self.assertEqual(random_data_split.min().split, None)
+
+        # check min over all float elements of splitted 5d tensor with negative axis 
+        random_data_split_neg = ht.randn(1,2,3,4,5, split=0)
+        self.assertIsInstance(random_data_split_neg.min(axis=-2), ht.tensor)
+        self.assertEqual(random_data_split_neg.min(axis=-2).shape, (1,2,3,1,5))
+        self.assertEqual(random_data_split_neg.min(axis=-2).dtype, ht.float32)
+        self.assertEqual(random_data_split_neg.min(axis=-2)._tensor__array[0].dtype, torch.float32)
+        self.assertEqual(random_data_split_neg.min().split, None)
+           
         # check exceptions
         with self.assertRaises(NotImplementedError):
             data.min(axis=(0,1))
         with self.assertRaises(TypeError):
             data.min(axis=1.1)
+        with self.assertRaises(TypeError):
+            data.min(axis='y')
         with self.assertRaises(ValueError):
             ht.min(data,axis=-4)
 
