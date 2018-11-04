@@ -365,6 +365,8 @@ def load(path, *args, **kwargs):
     >>> ht.load('data.nc', variable='DATA')
     tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
     """
+    if not isinstance(path, str):
+        raise TypeError('Expected path to be str, but was {}'.format(type(path)))
     extension = os.path.splitext(path)[-1].strip().lower()
 
     if supports_hdf5() and extension in __HDF5_EXTENSIONS:
@@ -399,6 +401,8 @@ def save(data, path, *args, **kwargs):
     >>> ht.save(a_range, 'data.h5', 'DATA', mode='a')
     >>> ht.save(a_range, 'data.nc', 'DATA', mode='w')
     """
+    if not isinstance(path, str):
+        raise TypeError('Expected path to be str, but was {}'.format(type(path)))
     extension = os.path.splitext(path)[-1].strip().lower()
 
     if supports_hdf5() and extension in __HDF5_EXTENSIONS:
