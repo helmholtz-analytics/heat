@@ -314,11 +314,10 @@ else:
                     dimension_names.append(name)
 
                 var = handle.createVariable(variable, data.dtype.char(), tuple(dimension_names), **kwargs)
-                # if is_split:
-                #     var[slices] = data._tensor__array
-                # else:
-                #     print(var, data._tensor__array.shape)
-                #     var[:] = data._tensor__array
+                if is_split:
+                    var[slices] = data._tensor__array
+                else:
+                    var[:] = data._tensor__array
 
             # ping next rank if it exists
             if is_split and data.comm.size > 1:
@@ -329,8 +328,8 @@ else:
         elif is_split:
             # wait for the previous rank to finish writing its chunk, then write own part
             data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
-            # with nc.Dataset(path, 'r+') as handle:
-            #     handle[variable][slices] = data._tensor__array
+            with nc.Dataset(path, 'r+') as handle:
+                handle[variable][slices] = data._tensor__array
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
             next_rank = (data.comm.rank + 1) % data.comm.size
