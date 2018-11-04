@@ -3,19 +3,38 @@ import torch
 import warnings
 
 from .communication import MPI, MPI_WORLD
-from . import tensor
 from . import types
 
 __VALID_WRITE_MODES = frozenset(['w', 'a', 'r+'])
+__HDF5_EXTENSIONS = frozenset(['.h5', '.hdf5'])
+__NETCDF_EXTENSIONS = frozenset(['.nc', '.nc4', 'netcdf'])
+__NETCDF_DIM_TEMPLATE = '{}_dim_{}'
+
+__all__ = [
+    'load',
+    'save'
+]
 
 try:
     import h5py
 except ImportError:
     # HDF5 support is optional
-    pass
+    def supports_hdf5():
+        return False
 else:
+    # warn the user about serial hdf5
     if not h5py.get_config().mpi and MPI_WORLD.rank == 0:
         warnings.warn('h5py does not support parallel I/O, falling back to slower serial I/O', ImportWarning)
+
+    # add functions to exports
+    __all__.extend([
+        'load_hdf5',
+        'save_hdf5'
+    ])
+
+    def supports_hdf5():
+        return True
+
 
     def load_hdf5(path, dataset, dtype=types.float32, split=None, comm=MPI_WORLD):
         """
@@ -73,7 +92,8 @@ else:
             gshape = tuple(data.shape)
             _, _, indices = comm.chunk(gshape, split)
 
-            return tensor(torch.tensor(data[indices], dtype=dtype.torch_type()), gshape, dtype, split, comm)
+            return tensor.tensor(torch.tensor(data[indices], dtype=dtype.torch_type()), gshape, dtype, split, comm)
+
 
     def save_hdf5(data, path, dataset, mode='w', **kwargs):
         """
@@ -104,7 +124,7 @@ else:
         >>> a_range = ht.arange(100, split=0)
         >>> ht.save_hdf5(a_range, 'data.h5', dataset='DATA')
         """
-        if not isinstance(data, tensor):
+        if not isinstance(data, tensor.tensor):
             raise TypeError('data must be heat tensor, not {}'.format(type(data)))
         if not isinstance(path, str):
             raise TypeError('path must be str, not {}'.format(type(path)))
@@ -116,28 +136,58 @@ else:
             raise ValueError('mode was {}, not in possible modes {}'.format(mode, __VALID_WRITE_MODES))
 
         # chunk the data, if no split is set maximize parallel I/O and chunk first axis
-        _, _, slices = data.comm.chunk(data.gshape, data.split if data.split is not None else 0)
+        is_split = data.split is not None
+        _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
 
         # attempt to perform parallel I/O if possible
         if h5py.get_config().mpi:
             with h5py.File(path, mode, driver='mpio', comm=data.comm.handle) as handle:
                 dset = handle.create_dataset(dataset, data.shape, **kwargs)
-                dset[slices] = data._tensor__array[slices]
+                dset[slices] = data._tensor__array if is_split else data._tensor__array[slices]
 
-        # otherwise a single rank only write is performed
+        # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
             with h5py.File(path, mode) as handle:
                 dset = handle.create_dataset(dataset, data.shape, **kwargs)
-                dset[...] = data._tensor__array
+                if is_split:
+                    dset[slices] = data._tensor__array
+                else:
+                    dset[...] = data._tensor__array
+
+            # ping next rank if it exists
+            if is_split and data.comm.size > 1:
+                data.comm.Isend([None, 0, MPI.INT], dest=1)
+                data.comm.Recv([None, 0, MPI.INT], source=data.comm.size - 1)
+
+        # no MPI, but split data is more tricky, we have to serialize the writes
+        elif is_split:
+            # wait for the previous rank to finish writing its chunk, then write own part
+            data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
+            with h5py.File(path, 'r+') as handle:
+                handle[dataset][slices] = data._tensor__array
+
+            # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
+            next_rank = (data.comm.rank + 1) % data.comm.size
+            data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
 
 try:
     import netCDF4 as nc
 except ImportError:
-    # netCDF support is optional
-    pass
+    def supports_netcdf():
+        return False
 else:
+    # warn the user about serial netcdf
     if not nc.__has_nc_par__ and MPI_WORLD.rank == 0:
         warnings.warn('netCDF4 does not support parallel I/O, falling back to slower serial I/O', ImportWarning)
+
+    # add functions to visible exports
+    __all__.extend([
+        'load_netcdf',
+        'save_netcdf'
+    ])
+
+    def supports_netcdf():
+        return True
 
     def load_netcdf(path, variable, dtype=types.float32, split=None, comm=MPI_WORLD):
         """
@@ -195,7 +245,8 @@ else:
             gshape = tuple(data.shape)
             _, _, indices = comm.chunk(gshape, split)
 
-            return tensor(torch.tensor(data[indices], dtype=dtype.torch_type()), gshape, dtype, split, comm)
+            return tensor.tensor(torch.tensor(data[indices], dtype=dtype.torch_type()), gshape, dtype, split, comm)
+
 
     def save_netcdf(data, path, variable, mode='w', **kwargs):
         """
@@ -226,7 +277,7 @@ else:
         >>> a_range = ht.arange(100, split=0)
         >>> ht.save_netcdf(a_range, 'data.nc', dataset='DATA')
         """
-        if not isinstance(data, tensor):
+        if not isinstance(data, tensor.tensor):
             raise TypeError('data must be heat tensor, not {}'.format(type(data)))
         if not isinstance(path, str):
             raise TypeError('path must be str, not {}'.format(type(path)))
@@ -238,31 +289,52 @@ else:
             raise ValueError('mode was {}, not in possible modes {}'.format(mode, __VALID_WRITE_MODES))
 
         # chunk the data, if no split is set maximize parallel I/O and chunk first axis
-        _, _, slices = data.comm.chunk(data.gshape, data.split if data.split is not None else 0)
+        is_split = data.split is not None
+        _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
 
         # attempt to perform parallel I/O if possible
         if nc.__has_nc_par__:
             with nc.Dataset(path, mode, parallel=True, comm=data.comm.handle) as handle:
                 dimension_names = []
-                for dimension, elements in data.shape:
-                    name = '{}_dim_{}'.format(variable, dimension)
+                for dimension, elements in enumerate(data.shape):
+                    name = __NETCDF_DIM_TEMPLATE.format(variable, dimension)
                     handle.createDimension(name, elements)
                     dimension_names.append(name)
 
-                var = handle.createVariable(variable, data.dtype.char, dimension_names, **kwargs)
-                var[slices] = data._tensor__array[slices]
+                var = handle.createVariable(variable, data.dtype.char(), dimension_names, **kwargs)
+                var[slices] = data._tensor__array if is_split else data._tensor__array[slices]
 
-        # otherwise a single rank only write is performed
+        # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
             with nc.Dataset(path, mode) as handle:
                 dimension_names = []
-                for dimension, elements in data.shape:
-                    name = '{}_dim_{}'.format(variable, dimension)
+                for dimension, elements in enumerate(data.shape):
+                    name = __NETCDF_DIM_TEMPLATE.format(variable, dimension)
                     handle.createDimension(name, elements)
                     dimension_names.append(name)
 
-                var = handle.createVariable(variable, data.dtype.char, dimension_names, **kwargs)
-                var[...] = data._tensor__array
+                var = handle.createVariable(variable, data.dtype.char(), tuple(dimension_names), **kwargs)
+                # if is_split:
+                #     var[slices] = data._tensor__array
+                # else:
+                #     print(var, data._tensor__array.shape)
+                #     var[:] = data._tensor__array
+
+            # ping next rank if it exists
+            if is_split and data.comm.size > 1:
+                data.comm.Isend([None, 0, MPI.INT], dest=1)
+                data.comm.Recv([None, 0, MPI.INT], source=data.comm.size - 1)
+
+        # no MPI, but data is split, we have to serialize the writes
+        elif is_split:
+            # wait for the previous rank to finish writing its chunk, then write own part
+            data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
+            # with nc.Dataset(path, 'r+') as handle:
+            #     handle[variable][slices] = data._tensor__array
+
+            # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
+            next_rank = (data.comm.rank + 1) % data.comm.size
+            data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
 
 
 def load(path, *args, **kwargs):
@@ -296,9 +368,9 @@ def load(path, *args, **kwargs):
     """
     extension = os.path.splitext(path)[-1].strip().lower()
 
-    if (extension == '.h5' or extension == '.hdf5') and 'load_hdf5' in globals():
+    if supports_hdf5() and extension in __HDF5_EXTENSIONS:
         return load_hdf5(path, *args, **kwargs)
-    elif (extension == '.nc' or extension == '.nc4' or extension == '.netcdf') and 'load_netcdf' in globals():
+    elif supports_netcdf() and extension in __NETCDF_EXTENSIONS:
         return load_netcdf(path, *args, **kwargs)
     else:
         raise ValueError('Unsupported file extension {}'.format(extension))
@@ -330,9 +402,13 @@ def save(data, path, *args, **kwargs):
     """
     extension = os.path.splitext(path)[-1].strip().lower()
 
-    if (extension == '.h5' or extension == '.hdf5') and 'save_hdf5' in globals():
+    if supports_hdf5() and extension in __HDF5_EXTENSIONS:
         save_hdf5(data, path, *args, **kwargs)
-    elif (extension == '.nc' or extension == '.nc4' or extension == '.netcdf') and 'save_netcdf' in globals():
+    elif supports_netcdf() and extension in __NETCDF_EXTENSIONS:
         save_netcdf(data, path, *args, **kwargs)
     else:
         raise ValueError('Unsupported file extension {}'.format(extension))
+
+
+# tensor is imported at the very end to break circular dependency
+from . import tensor

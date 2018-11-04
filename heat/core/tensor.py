@@ -6,6 +6,7 @@ from .communication import MPI, MPI_WORLD
 from .stride_tricks import *
 from . import types
 from . import operations
+from . import io
 
 
 class tensor:
@@ -303,6 +304,90 @@ class tensor:
             return self.__array.min()
 
         return self.__reduce_op(min_axis, MPI.MIN, axis)
+
+    def save(self, path, *args, **kwargs):
+        """
+        Save the tensor's data to disk. Attempts to auto-detect the file format by determining the extension.
+
+        Parameters
+        ----------
+        data : ht.tensor
+            The tensor holding the data to be stored
+        path : str
+            Path to the file to be stored.
+        args/kwargs : list/dict
+            additional options passed to the particular functions.
+
+        Raises
+        -------
+        ValueError
+            If the file extension is not understood or known.
+
+        Examples
+        --------
+        >>> a = ht.arange(100, split=0)
+        >>> a.save('data.h5', 'DATA', mode='a')
+        >>> a.save('data.nc', 'DATA', mode='w')
+        """
+        return io.save(self, path, *args, **kwargs)
+
+    if io.supports_hdf5():
+        def save_hdf5(self, path, dataset, mode='w', **kwargs):
+            """
+            Saves data to an HDF5 file. Attempts to utilize parallel I/O if possible.
+
+            Parameters
+            ----------
+            path : str
+                Path to the HDF5 file to be written.
+            dataset : str
+                Name of the dataset the data is saved to.
+            mode : str, one of 'w', 'a', 'r+'
+                File access mode
+            kwargs : dict
+                additional arguments passed to the created dataset.
+
+            Raises
+            -------
+            TypeError
+                If any of the input parameters are not of correct type.
+            ValueError
+                If the access mode is not understood.
+
+            Examples
+            --------
+            >>> ht.arange(100, split=0).save_hdf5('data.h5', dataset='DATA')
+            """
+            return io.save_hdf5(self, path, dataset, mode, **kwargs)
+
+    if io.supports_netcdf():
+        def save_netcdf(self, path, variable, mode='w', **kwargs):
+            """
+            Saves data to a netCDF4 file. Attempts to utilize parallel I/O if possible.
+
+            Parameters
+            ----------
+            path : str
+                Path to the netCDF4 file to be written.
+            variable : str
+                Name of the variable the data is saved to.
+            mode : str, one of 'w', 'a', 'r+'
+                File access mode
+            kwargs : dict
+                additional arguments passed to the created dataset.
+
+            Raises
+            -------
+            TypeError
+                If any of the input parameters are not of correct type.
+            ValueError
+                If the access mode is not understood.
+
+            Examples
+            --------
+            >>> ht.arange(100, split=0).save_netcdf('data.nc', dataset='DATA')
+            """
+            return io.save_netcdf(self, path, variable, mode, **kwargs)
 
     def sin(self, out=None):
         """
@@ -831,7 +916,7 @@ def zeros_like(a, dtype=None, split=None, comm=MPI_WORLD):
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
 
-    >>> ht.zeros_like(a)
+    >>> ht.zeros_like(x)
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
     """
