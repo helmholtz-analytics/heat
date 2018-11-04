@@ -10,14 +10,13 @@ import heat as ht
 class TestIO(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        if ht.io.supports_hdf5():
-            cls.HDF5_PATH = os.path.join(os.getcwd(), 'heat/datasets/data/iris.h5')
-            cls.HDF5_OUT_PATH = os.path.join(tempfile.gettempdir(), 'test.h5')
-            cls.HDF5_DATASET = 'data'
-        if ht.io.supports_netcdf():
-            cls.NETCDF_PATH = os.path.join(os.getcwd(), 'heat/datasets/data/iris.nc')
-            cls.NETCDF_OUT_PATH = os.path.join(tempfile.gettempdir(), 'test.nc')
-            cls.NETCDF_VARIABLE = 'data'
+        cls.HDF5_PATH = os.path.join(os.getcwd(), 'heat/datasets/data/iris.h5')
+        cls.HDF5_OUT_PATH = os.path.join(tempfile.gettempdir(), 'test.h5')
+        cls.HDF5_DATASET = 'data'
+
+        cls.NETCDF_PATH = os.path.join(os.getcwd(), 'heat/datasets/data/iris.nc')
+        cls.NETCDF_OUT_PATH = os.path.join(tempfile.gettempdir(), 'test.nc')
+        cls.NETCDF_VARIABLE = 'data'
 
         # load comparison data from csv
         csv_path = os.path.join(os.getcwd(), 'heat/datasets/data/iris.csv')
@@ -40,7 +39,7 @@ class TestIO(unittest.TestCase):
             except FileNotFoundError:
                 pass
 
-        # syncrhonize all nodes
+        # synchronize all nodes
         ht.MPI_WORLD.Barrier()
 
     # catch-all loading
@@ -75,7 +74,7 @@ class TestIO(unittest.TestCase):
             self.assertTrue((self.IRIS == iris._tensor__array).all())
         else:
             with self.assertRaises(ValueError):
-                _ = ht.load(os.path.join(self.NETCDF_PATH), variable=self.NETCDF_VARIABLE)
+                _ = ht.load(self.NETCDF_PATH, variable=self.NETCDF_VARIABLE)
 
     def test_load_exception(self):
         # correct extension file does not exist
