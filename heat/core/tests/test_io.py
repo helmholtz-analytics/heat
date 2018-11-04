@@ -77,11 +77,20 @@ class TestIO(unittest.TestCase):
                 _ = ht.load(self.NETCDF_PATH, variable=self.NETCDF_VARIABLE)
 
     def test_load_exception(self):
-        # correct extension file does not exist
-        with self.assertRaises(IOError):
-            ht.load('foo.h5', 'data')
-        with self.assertRaises(IOError):
-            ht.load('foo.nc', 'data')
+        # correct extension, file does not exist
+        if ht.io.supports_hdf5():
+            with self.assertRaises(IOError):
+                ht.load('foo.h5', 'data')
+        else:
+            with self.assertRaises(ValueError):
+                ht.load('foo.h5', 'data')
+
+        if ht.io.supports_netcdf():
+            with self.assertRaises(IOError):
+                ht.load('foo.nc', 'data')
+        else:
+            with self.assertRaises(ValueError):
+                ht.load('foo.nc', 'data')
 
         # unknown file extension
         with self.assertRaises(ValueError):
