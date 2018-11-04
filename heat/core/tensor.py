@@ -87,6 +87,9 @@ class tensor:
 
         return self.abs(out, dtype)
 
+    def argmin(self, axis):
+        return operations.argmin(self, axis)
+
     def astype(self, dtype, copy=True):
         """
         Returns a casted version of this array.
@@ -148,62 +151,53 @@ class tensor:
         """
         return operations.copy(self)
 
-    def __reduce_op(self, partial, op, axis):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: implement type promotion
-        if self.comm.is_distributed() and (axis is None or axis == self.__split):
-            self.comm.Allreduce(MPI.IN_PLACE, partial, op)
-            return tensor(partial, partial.shape, self.dtype, split=None, comm=self.__comm)
+    def max(self, axis=None):
+        """"
+        Return the maximum of an array or maximum along an axis.
 
-        # TODO: verify if this works for negative split axis
-        output_shape = self.gshape[:axis] + (1,) + self.gshape[axis + 1:]
-        return tensor(partial, output_shape, self.dtype, self.split, comm=self.__comm)
+        Parameters
+        ----------
+        a : ht.tensor
+        Input data.
+        
+        axis : None or int  
+        Axis or axes along which to operate. By default, flattened input is used.   
+        
+        #TODO: out : ht.tensor, optional
+        Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
 
-    def argmin(self, axis):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: Fix me, I am not reduce_op.MIN!
-        _, argmin_axis = self.__array.min(dim=axis, keepdim=True)
-        return self.__reduce_op(argmin_axis, MPI.MIN, axis)
+        #TODO: initial : scalar, optional   
+        The minimum value of an output element. Must be present to allow computation on empty slice.
+        """
+        
+        return operations.max(self, axis)
 
     def mean(self, axis):
         # TODO: document me
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        return self.sum(axis) / self.gshape[axis]
-       
-    def sum(self, axis=None):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: Return our own tensor
-        if axis is not None:
-            sum_axis = self.__array.sum(axis, keepdim=True)
-        else:
-            return self.__array.sum()
+        return self.sum(axis) / self.shape[axis]
 
-        return self.__reduce_op(sum_axis, MPI.SUM, axis)
+    def min(self, axis=None):
+        """"
+        Return the minimum of an array or minimum along an axis.
 
-    def expand_dims(self, axis):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: fix negative axis
-        return tensor(
-            self.__array.unsqueeze(dim=axis),
-            self.shape[:axis] + (1,) + self.shape[axis:],
-            self.dtype,
-            self.split if self.split is None or self.split < axis else self.split + 1,
-            self.__comm
-        )
+        Parameters
+        ----------
+        a : ht.tensor
+        Input data.
+        
+        axis : None or int
+        Axis or axes along which to operate. By default, flattened input is used.   
+        
+        #TODO: out : ht.tensor, optional
+        Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
+
+        #TODO: initial : scalar, optional   
+        The maximum value of an output element. Must be present to allow computation on empty slice.
+        """
+        return operations.min(self, axis)
 
     def exp(self, out=None):
         """
@@ -228,11 +222,25 @@ class tensor:
         """
         return operations.exp(self, out)
 
+    def expand_dims(self, axis):
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        # TODO: make me more numpy API complete
+        # TODO: fix negative axis
+        return tensor(
+            self.__array.unsqueeze(dim=axis),
+            self.shape[:axis] + (1,) + self.shape[axis:],
+            self.dtype,
+            self.split if self.split is None or self.split < axis else self.split + 1,
+            self.__comm
+        )
+
     def floor(self, out=None):
-        """
+        r"""
         Return the floor of the input, element-wise.
 
-        The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lfloor x \rfloor.
+        The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as :math:`\lfloor x \rfloor`.
 
         Parameters
         ----------
@@ -278,32 +286,6 @@ class tensor:
         tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
         """
         return operations.log(self, out)
-
-    def max(self, axis=None):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: Return our own tensor
-        if axis is not None:
-            max_axis = self.__array.max(axis, keepdim=True)
-        else:
-            return self.__array.max()
-
-        return self.__reduce_op(max_axis, MPI.MAX, axis)
-       
-    def min(self, axis=None):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: Return our own tensor
-        if axis is not None:
-            min_axis = self.__array.min(axis, keepdim=True)
-        else:
-            return self.__array.min()
-
-        return self.__reduce_op(min_axis, MPI.MIN, axis)
 
     def save(self, path, *args, **kwargs):
         """
@@ -436,6 +418,41 @@ class tensor:
         tensor([nan, nan, nan, nan, nan])
         """
         return operations.sqrt(self, out)
+
+    def sum(self, axis=None):
+        # TODO: Allow also list of axes
+        """
+        Sum of array elements over a given axis.
+
+        Parameters
+        ----------
+        axis : None or int, optional
+            Axis along which a sum is performed. The default, axis=None, will sum
+            all of the elements of the input array. If axis is negative it counts
+            from the last to the first axis.
+
+         Returns
+         -------
+         sum_along_axis : ht.tensor
+             An array with the same shape as self.__array except for the specified axis which
+             becomes one, e.g. a.shape = (1,2,3) => ht.ones((1,2,3)).sum(axis=1).shape = (1,1,3)
+
+        Examples
+        --------
+        >>> ht.ones(2).sum()
+        tensor([2.])
+
+        >>> ht.ones((3,3)).sum()
+        tensor([9.])
+
+        >>> ht.ones((3,3)).astype(ht.int).sum()
+        tensor([9])
+
+        >>> ht.ones((3,2,1)).sum(axis=-3)
+        tensor([[[3.],
+                 [3.]]])
+        """
+        return operations.sum(self, axis)
 
     def __binop(self, op, other):
         # TODO: document me
@@ -852,7 +869,6 @@ def ones_like(a, dtype=None, split=None, comm=MPI_WORLD):
             [1., 1., 1.]])
     """
     return __factory_like(a, dtype, split, ones, comm)
-    
 
 def zeros(shape, dtype=types.float32, split=None, comm=MPI_WORLD):
     """

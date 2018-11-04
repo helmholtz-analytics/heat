@@ -1,5 +1,6 @@
 import torch
 
+from .communication import MPI
 from . import stride_tricks
 from . import types
 from . import tensor
@@ -12,6 +13,8 @@ __all__ = [
     'exp',
     'floor',
     'log',
+    'max',
+    'min',
     'sin',
     'sqrt'
 ]
@@ -71,6 +74,17 @@ def absolute(x, out=None, dtype=None):
         A tensor containing the absolute value of each element in x.
     """
     return abs(x, out, dtype)
+
+
+def argmin(x, axis):
+    # TODO: document me
+    # TODO: test me
+    # TODO: sanitize input
+    # TODO: make me more numpy API complete
+    # TODO: Fix me, I am not reduce_op.MIN!
+    #
+    _, argmin_axis = x._tensor__array.min(dim=axis, keepdim=True)
+    return __reduce_op(x, argmin_axis, MPI.MIN, axis)
 
 
 def clip(a, a_min, a_max, out=None):
@@ -210,6 +224,63 @@ def log(x, out=None):
     return __local_operation(torch.log, x, out)
 
 
+def max(x, axis=None):
+    """"
+    Return the maximum of an array or maximum along an axis.
+
+    Parameters
+    ----------
+    a : ht.tensor
+    Input data.
+        
+    axis : None or int, optional
+    Axis or axes along which to operate. By default, flattened input is used.   
+    
+    #TODO: out : ht.tensor, optional
+    Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
+
+    #TODO: initial : scalar, optional   
+    The minimum value of an output element. Must be present to allow computation on empty slice.
+    """
+    #perform sanitation:
+    axis = stride_tricks.sanitize_axis(x.shape,axis)
+    
+    if axis is not None:        
+        max_axis, _ = x._tensor__array.max(axis, keepdim=True)
+    else:
+        return x._tensor__array.max()
+
+    return __reduce_op(x, max_axis, MPI.MAX, axis)
+
+
+def min(x, axis=None):
+    """"
+    Return the minimum of an array or minimum along an axis.
+
+    Parameters
+    ----------
+    a : ht.tensor
+    Input data.
+        
+    axis : None or int
+    Axis or axes along which to operate. By default, flattened input is used.   
+    
+    #TODO: out : ht.tensor, optional
+    Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
+
+    #TODO: initial : scalar, optional   
+    The maximum value of an output element. Must be present to allow computation on empty slice.
+    """
+    #perform sanitation:
+    axis = stride_tricks.sanitize_axis(x.shape,axis)
+    if axis is not None:        
+        min_axis, _ = x._tensor__array.min(axis, keepdim=True)
+    else:
+        return x._tensor__array.min()
+
+    return __reduce_op(x, min_axis, MPI.MIN, axis)
+
+
 def sin(x, out=None):
     """
     Return the trigonometric sine, element-wise.
@@ -234,6 +305,19 @@ def sin(x, out=None):
     tensor([ 0.2794,  0.7568, -0.9093,  0.0000,  0.9093, -0.7568, -0.2794])
     """
     return __local_operation(torch.sin, x, out)
+
+
+def sum(x, axis=None):
+    # TODO: document me
+    axis = stride_tricks.sanitize_axis(x.shape, axis)
+    if axis is not None:
+        sum_axis = x._tensor__array.sum(axis, keepdim=True)
+    else:
+        sum_axis = torch.reshape(x._tensor__array.sum(), (1,))
+        if not x.comm.is_distributed():
+            return tensor.tensor(sum_axis, (1,), types.canonical_heat_type(sum_axis.dtype), None, x.comm)
+
+    return __reduce_op(x, sum_axis, MPI.SUM, axis)
 
 
 def sqrt(x, out=None):
@@ -318,3 +402,24 @@ def __local_operation(operation, x, out):
     casted = x._tensor__array.type(torch_type)
     operation(casted.repeat(multiples) if needs_repetition else casted, out=out._tensor__array)
     return out
+
+
+def __reduce_op(x, partial, op, axis):
+    # TODO: document me
+    # TODO: test me
+    # TODO: make me more numpy API complete
+    # TODO: e.g. allow axis to be a tuple, allow for "initial"
+    # TODO: implement type promotion
+    # perform sanitation
+    if not isinstance(x, tensor.tensor):
+        raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
+    # no further checking needed, sanitize axis will raise the proper exceptions
+    axis = stride_tricks.sanitize_axis(x.shape, axis)
+
+    if x.comm.is_distributed() and (axis is None or axis == x.split):
+        x.comm.Allreduce(MPI.IN_PLACE, partial, op)
+        return tensor.tensor(partial, partial.shape, types.canonical_heat_type(partial.dtype), split=None, comm=x.comm)
+
+    # TODO: verify if this works for negative split axis
+    output_shape = x.shape[:axis] + (1,) + x.shape[axis + 1:]
+    return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial.dtype), split=None, comm=x.comm)
