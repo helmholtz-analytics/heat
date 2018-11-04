@@ -8,7 +8,7 @@ before_install:
   - sudo apt-get install -y libopenmpi-dev openmpi-bin libhdf5-dev libnetcdf-dev
   - pip install codecov pytest pytest-cov
 install:
-  - pip install .
+  - pip install . -e .[hdf5] .[netcdf]
 script:
   - mpirun -np 2 pytest --cov=heat
 after_success:
