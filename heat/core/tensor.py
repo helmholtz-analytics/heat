@@ -16,7 +16,7 @@ sign = functools.partial(math.copysign, 1)
 
 class tensor:
     def __init__(self, array, gshape, dtype, split, comm, halo_next=None, halo_prev=None):
-        self.__array = array  # One might consider to skip the double underscore and always transfer attributes through setter
+        self.__array = array  # One might consider to skip the double underscore and transfer attributes through setters
         self.__gshape = gshape
         self.__dtype = dtype
         self.__split = split
@@ -94,8 +94,7 @@ class tensor:
     @property
     def shape(self):
         return self.gshape
-        
-
+    
     def abs(self, out=None):
         """
         Calculate the absolute value element-wise.
@@ -196,6 +195,7 @@ class tensor:
             A copy of the original
         """
         return operations.copy(self)
+
     # ToDO: halorize  __reduce_op like for __local_operation
     def __reduce_op(self, partial, op, axis):
         # TODO: document me
@@ -490,169 +490,134 @@ class tensor:
         else:
             raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
 
-
-    def get_haloshape(self, halo_size):
-
-        if self.split is not None and self.comm.is_distributed():
-            ix = list(self.shape)
-            ix[self.split] = self.sanitize_halo(halo_size)
-            return ix
-        else:
-            return None
-
     def __prephalo(self, start, end):
         """
-        
+        Extracts the halo indexed by start, end from self.array in the direction of self.split
 
         Parameters
         ----------
-        halo_size : int 
-            Size of the halo. If halo_size exceeds the size of the HeAT tensor in self.split direction
-            the whole local tensor.array will be fetched 
-
+        start : int 
+            start index of the halo extracted from self.array
+        end : int
+            end index of the halo extracted from self.array
         Returns
         -------
-        None
-
-        Examples
-        --------
+        halo : torch tensor
+            The halo extracted from self.array
         """
+        if not isinstance(start, int) and start is not None:
+            raise TypeError('start needs to be of Python type integer, {} given)'.format(type(start)))
+        if not isinstance(end, int) and end is not None: 
+            raise TypeError('end needs to be of Python type integer, {} given)'.format(type(end)))
+
         ix = [slice(None, None, None)] * len(self.shape)
-        ix[self.split] = slice(start, end)
+        try: 
+            ix[self.split] = slice(start, end)
+        except IndexError:
+            print('Indices out of bound')
 
-        halo = self.array[ix]
-        halo = halo.contiguous()
+        return self.array[ix].contiguous()
 
-        return halo
-
+    def is_distributed(self):
+        """
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        Returns
+        -------
+        
+        """ 
+        return self.comm.size > 1 and self.split is not None
 
     def halo_next_shape(self): 
- 
+        """
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        Returns
+        -------
+        
+        """ 
         if self.halo_next is not None:
             return tuple(self.halo_next.size())
         else:
             return None
  
     def halo_prev_shape(self):  
-
+        """
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        Returns
+        -------
+        
+        """
         if self.halo_prev is not None:
             return tuple(self.halo_prev.size())
         else:
             return None
 
     def halo_prev_length(self): 
+        """
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        Returns
+        -------
+        
+        """
         if self.halo_prev_shape() is not None:
             return self.halo_prev_shape()[self.split]
         else:
             return None 
 
     def halo_next_length(self): 
+        """
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        Returns
+        -------
+        
+        """
         if self.halo_next_shape() is not None:
             return self.halo_next_shape()[self.split]
         else:
             return None 
 
-
-    def clear_halo(self):
-        """
-        
-
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        None
-        """
-        self.halo_next = None
-        self.halo_prev = None 
-
-
-
-
-    def smallest_chunksize(self):
-        """
-        
-
-        Parameters
-        ----------
-        
-        Returns
-        -------
-        None
-        """
-        if self.comm.is_distributed() and self.split is not None:
-            return self.shape[self.split]//self.comm.size
-        else:
-            return 0
-
-
     def sanitize_halo(self, halo_size):
-
-        if not isinstance(halo_size, int): 
-            raise TypeError('halo_size needs to be of Python type integer, {} given)'.format(type(halo_size)))
-
-        if halo_size < 0: 
-            raise ValueError('halo_size needs to be a positive Python integer, {} given)'.format(type(halo_size)))
-
-        if self.split is not None and self.comm.is_distributed():
-            if halo_size > self.smallest_chunksize():
-                warnings.warn('Your halo is larger than the smallest local data array, only the local data array will be exchanged')
-                halo_size = self.smallest_chunksize()
- 
-        return halo_size
-
-    
-    def gethalo(self, halo_size, next = True):
         """
-        Fetch halos of size 'halo_size' either from the next (default bahaviour) or previous neighboring rank
-        and save them in self.halo_next or self.halo_prev in case they are not already stored. 
-        If 'halo_size' differs from the size of already stored halos, the are overwritten. 
+        In case the of a distributed and splitted tensor, the size will reduced 
+        to the smallest chunk if halo_size
 
         Parameters
         ----------
         halo_size : int 
             Size of the halo. If halo_size exceeds the size of the HeAT tensor in self.split direction
-            the whole local tensor.array will be fetched 
+            and the tensor is distributed halo_size will be reduced to the smallest chunk size. 
 
-        next : Bool, optional
-            If true the halo of the next rank will be fetched, if False the halo of the previous rank
         Returns
         -------
-        None
-
-        Examples
-        --------
+        halo_size : int
+            Sanitized halo size 
         """
-        if self.split is not None and self.comm.is_distributed():
-        
-            halo_size = self.sanitize_halo(halo_size)
+        if not isinstance(halo_size, int): 
+            raise TypeError('halo_size needs to be of Python type integer, {} given)'.format(type(halo_size)))
+        if halo_size < 0: 
+            raise ValueError('halo_size needs to be a positive Python integer, {} given)'.format(type(halo_size)))
 
-            res = None
-            if next:
-                halo = self.__prephalo(-halo_size, None) 
-                if  self.comm.rank != self.comm.size-1: 
-                    mpi.send(halo, dst=self.comm.rank+1)
+        if self.is_distributed():
 
-                if  self.comm.rank != 0:
-                    res = torch.zeros(halo.size(), dtype=halo.dtype)
-                    mpi.recv(res, src=self.comm.rank-1)  
+            min_chunksize = self.shape[self.split]//self.comm.size
 
-                self.halo_next = res
+            if halo_size > min_chunksize:
+                warnings.warn('Your halo is larger than the smallest local data array, '
+                              'only the local data array will be exchanged')
+                halo_size = min_chunksize
  
-            else:
-                halo = self.__prephalo(0, halo_size)
-                if  self.comm.rank != self.comm.size-1: 
-                    res = torch.zeros(halo.size(), dtype=halo.dtype)
-                    mpi.recv(res, src=self.comm.rank+1) 
+        return halo_size
 
-                if  self.comm.rank != 0:
-                    mpi.send(halo, dst=self.comm.rank-1)
-
-                self.halo_prev = res            
-           
-    
-    def gethalo_all(self, halo_size):
+    def gethalo(self, halo_size):
         """
         Fetch halos of size 'halo_size' from neighboring ranks and save them in self.halo_next/self.halo_prev
         in case they are not already stored. If 'halo_size' differs from the size of already stored halos,
@@ -668,22 +633,22 @@ class tensor:
         -------
         None
         """
-        if self.split is not None and self.comm.is_distributed():
-            
-            halo_size = self.sanitize_halo(halo_size)
+        halo_size = self.sanitize_halo(halo_size)
 
+        if self.is_distributed() and halo_size > 0:
+            
             a_prev = self.__prephalo(0, halo_size)
             a_next = self.__prephalo(-halo_size, None)
             
             res_prev = None
             res_next = None
            
-            if  self.comm.rank != self.comm.size-1: 
+            if self.comm.rank != self.comm.size-1:
                 mpi.send(a_next, dst=self.comm.rank+1)
                 res_prev = torch.zeros(a_prev.size(), dtype=a_prev.dtype)
                 mpi.recv(res_prev, src=self.comm.rank+1) 
 
-            if  self.comm.rank != 0:
+            if self.comm.rank != 0:
                 mpi.send(a_prev, dst=self.comm.rank-1)
                 res_next = torch.zeros(a_next.size(), dtype=a_next.dtype)
                 mpi.recv(res_next, src=self.comm.rank-1) 
@@ -691,64 +656,45 @@ class tensor:
             self.halo_prev = res_prev
             self.halo_next = res_next
 
-            
-    def genpad(self, signal, padding):
+    def genpad(self, signal, pad_prev, pad_next):
         """
-        Generate padding only for local arrays of the first and last rank in case of distributed computing,
-        otherwise padding is added at begin and end of the global array
+        Generate a zero padding only for local arrays of the first and last rank in case of distributed computing,
+        otherwise zero padding is added at begin and end of the global array
 
         Parameters
         ----------
-        padding : ht.tensor  
+        signal : torch tensor 
+            The data array to which a zero padding is to be added
+        pad_prev : int
+            The length of the left padding area
+        pad_next : int
+            The length of the right padding area
             
-
         Returns
         -------
-        
+        out : torch tensor
+            The padded data array 
         """
-        #ToDo: generalize to ND tensors
-        pad_next = padding
-        pad_prev = padding
+        # ToDo: generalize to ND tensors
+        # set the default padding for non distributed arrays
 
-        if isinstance(self.comm, MPICommunicator):
-            if self.comm.size > 1:
-                 pad_next = None
-                 pad_prev = None
+        if len(signal.shape) != 1:
+            raise ValueError('Signal must be 1D, but is {}-dimensional'.format(len(signal.shape)))
 
-                 if self.comm.rank==0:
-                     pad_next = None
-                     pad_prev = padding
-                     
-                 if self.comm.rank==self.comm.size-1:
-                     pad_next = padding
-                     pad_prev = None
-                     
-        signal = torch.cat(tuple(_ for _ in (pad_prev, signal, pad_next) if _ is not None))
+        # check if more than one rank is involved 
+        if self.is_distributed():
+            pad_next = None
+            pad_prev = None
 
+            # set the padding of the first rank
+            if self.comm.rank == 0:
+                pad_next = None
 
-        return signal
-
-    def item(self):
-        """
-        Extracts scalar Python value from a one element HeAT tensor
-        Parameters
-        ----------
-
-        Returns
-        -------
-        value : python scalar 
-            A single Python scalar stored in the one element HeAT tensor
-
-        Examples
-        --------
-        >>>ht.ones(1).item()
-        1.0
-        """
-        if len(self.shape) == 1 and self.shape[0] == 1:
-            return self.array.item()
-        else: 
-            raise ValueError('Only one element tensors can be converted to Python scalars')
-  
+            # set the padding of the last rank
+            if self.comm.rank == self.comm.size-1:
+                pad_prev = None
+                    
+        return torch.cat(tuple(_ for _ in (pad_prev, signal, pad_next) if _ is not None))
 
 
 def __factory(shape, dtype, split, local_factory):
@@ -781,6 +727,7 @@ def __factory(shape, dtype, split, local_factory):
     _, local_shape, _ = comm.chunk(shape, split)
 
     return tensor(local_factory(local_shape, dtype=dtype.torch_type()), shape, dtype, split, comm)
+
 
 def __factory_like(a, dtype, split, factory):
     """
@@ -1068,6 +1015,7 @@ def ones_like(a, dtype=None, split=None):
     """
     return __factory_like(a, dtype, split, ones)
 
+
 def randn(*args, dtype = torch.float32, split = None):
     """
     #based on ht.arange, ht.linspace implementation
@@ -1215,15 +1163,19 @@ def convolve(a, v, mode='full'):
           convolution product is only given for points where the signals 
           overlap completely. Values outside the signal boundary have no 
           effect.
+
     Returns
     -------
     out : ht.tensor
         Discrete, linear convolution of 'a' and 'v'.
 
-    Note: There is a difference to the numpy convolve function:
-          The inputs are not swapped if v is larger than a 
-          
-    
+    Note : There is  differences to the numpy convolve function:
+        The inputs are not swapped if v is larger than a. The reason is that v needs to be 
+        non-splitted. This should not influence performance. If the filter weight is larger 
+        than fitting into memory, using the FFT for convolution is recommended.
+        Secondly, only float types are allowed in contrast to numpy where also integer types 
+        can be utilized.
+           
     Examples
     --------
     Note how the convolution operator flips the second array
@@ -1244,47 +1196,67 @@ def convolve(a, v, mode='full'):
     >>> ht.convolve(a, v, mode='valid')
     tensor([3., 3., 3.])
     """
+    if not isinstance(a, tensor) or not isinstance(v, tensor):
+        raise TypeError('Signal and filter weight must be of type ht.tensor')
     if v.split is not None: 
-        raise TypeError('distributed filter weights are not supported')
-    if len(a.shape) != 1: 
-        raise ValueError("only 1 dimensional input tensors are allowed")   
-    if len(v.shape) != 1: 
-        raise ValueError("only 1 dimensional filter weights are allowed") 
-
+        raise TypeError('Distributed filter weights are not supported')
+    if len(a.shape) != 1 or len(v.shape) != 1: 
+        raise ValueError("Only 1 dimensional input tensors are allowed")
+    if a.shape[0] <= v.shape[0]: 
+        raise ValueError("Filter size must not be larger than signal size")
+    if not a.dtype.isfloat() or not v.dtype.isfloat():
+        raise TypeError('Only float type tensors are supported')
+    if a.dtype is not v.dtype:
+        raise TypeError('Signal and filter weight must be of same type')
+    
     # compute halo size 
     halo_size = (v.shape[0]-1)//2
 
-    # fetch halos asn store them in a.halo_nest/a.ahlo_prev
-    a.gethalo_all(halo_size)
-      
+    # fetch halos and store them in a.halo_next/a.halo_prev
+    a.gethalo(halo_size)
+
     # apply halos to local array
     signal = torch.cat(tuple(_ for _ in (a.halo_prev, a.array, a.halo_next) if _ is not None))
+
+    # check if a local chunk is smaller than the filter size 
+    if a.is_distributed() and signal.size()[0] < v.shape[0]:
+        raise ValueError("Local chunk size is smaller than filter size, this is not supported yet")
     
     if mode == 'full': 
-        padding = torch.zeros(v.shape[0]-1)
+        pad_prev = pad_next = torch.zeros(v.shape[0]-1, dtype=a.dtype.torch_type())
         gshape = v.shape[0] + a.shape[0] - 1
-    elif mode == 'same':   
-        padding = torch.zeros(halo_size)
+
+    elif mode == 'same':  
+        if v.shape[0] % 2 == 0:
+            pad_prev = torch.zeros(halo_size+1, dtype=a.dtype.torch_type())
+            pad_next = torch.zeros(halo_size, dtype=a.dtype.torch_type())
+        else: 
+            pad_prev = pad_next = torch.zeros(halo_size, dtype=a.dtype.torch_type())
+
         gshape = a.shape[0]
+
     elif mode == 'valid': 
-        padding = None
+        pad_prev = pad_next = None
         gshape = a.shape[0] - v.shape[0] + 1
+
     else:
         raise ValueError("Only {'full', 'valid', 'same'} are allowed for mode") 
 
-    signal = a.genpad(signal, padding)
+    # add padding to the borders according to mode
+    signal = a.genpad(signal, pad_prev, pad_next)
 
     # make signal and filter weight 3D for Pytorch conv1d function        
     signal.unsqueeze_(0)
     signal.unsqueeze_(0)
 
-    # flip filter for convolution 
+    # flip filter for convolution as Pytorch conv1d computes correlations
     weight = v.array.clone()
     idx = torch.LongTensor([i for i in range(weight.size(0)-1, -1, -1)])
     weight = weight.index_select(0, idx)
     weight.unsqueeze_(0)
     weight.unsqueeze_(0)
 
+    # apply torch convolution operator 
     signal_filtered = fc.conv1d(signal, weight) 
 
-    return tensor(signal_filtered[0, 0, :], (gshape,), signal_filtered.dtype, a.split, _copy(a.comm))
+    return tensor(signal_filtered[0, 0, :], (gshape,), signal_filtered.dtype, a.split, a.comm)

@@ -56,7 +56,9 @@ class NoneCommunicator(Communicator):
         return False
 
     def __init__(self):
-        pass
+        self.group = None
+        self.rank = 0
+        self.size = 1
 
     def chunk(self, shape, split):
         # ensure the split axis is valid, we actually do not need it

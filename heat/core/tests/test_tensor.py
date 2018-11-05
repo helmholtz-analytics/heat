@@ -1,11 +1,12 @@
 import torch
 import unittest
 import heat as ht
+import numpy as np
+from ..communicator import MPICommunicator, NoneCommunicator
 
 
 class TestTensor(unittest.TestCase):
 
-    
     def test_astype(self):
         data = ht.float32([
             [1, 2, 3],
@@ -28,69 +29,111 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(as_float64.dtype, ht.float64)
         self.assertEqual(as_float64._tensor__array.dtype, torch.float64)
         self.assertIs(as_float64, data)
-    
 
-    def test_gethalo_all(self):
-        
-        def check_halolength(ht_tensor, halo_size):
-            if ht_tensor.comm.is_distributed():
-                if halo_size > ht_tensor.smallest_chunksize():
-                    with self.assertWarns(Warning):
-                        ht_tensor.gethalo_all(halo_size)
-                        self.assertTrue(ht_tensor.halo_prev_length() == ht_tensor.sanitize_halo(halo_size) or 
-                                        ht_tensor.halo_prev_length() is None)
+    def test_gethalo(self):
+
+        def check_halolength(ht_tensor, halo_size, mode='prev'):
+            ht_tensor.gethalo(halo_size)
+            if mode == 'prev':
+                tmp = ht_tensor.halo_prev_length()
+            elif mode == 'next':
+                tmp = ht_tensor.halo_next_length() 
+   
+            if ht_tensor.is_distributed():
+                if halo_size > ht_tensor.shape[ht_tensor.split]//ht_tensor.comm.size:
+                    with self.assertWarns(Warning):   
+                        halo_size = ht_tensor.sanitize_halo(halo_size) 
+                        self.assertTrue(tmp == halo_size or tmp is None)
                 else:
-                    ht_tensor.gethalo_all(halo_size)
-                    self.assertTrue(ht_tensor.halo_prev_length() == ht_tensor.sanitize_halo(halo_size) or 
-                                ht_tensor.halo_prev_length() is None)
+                    halo_size = ht_tensor.sanitize_halo(halo_size) 
+                    self.assertTrue(tmp == halo_size or tmp is None)
             else: 
-                ht_tensor.gethalo_all(halo_size)
-                self.assertTrue(ht_tensor.halo_prev_length() == ht_tensor.sanitize_halo(halo_size) or 
-                            ht_tensor.halo_prev_length() is None)
-
+                self.assertTrue(tmp == None)
+        
+        # test shape of halo_prev
         hsize = 1
-        halo_testlength = ht.ones((7,8,9), split=0)
+        halo_testlength = ht.ones((7, 8, 9), split=0)
         check_halolength(halo_testlength, hsize)
         hsize = 4
-        halo_testlength = ht.ones((7,8,9), split=0)
+        halo_testlength = ht.ones((7, 8, 9), split=0)
         check_halolength(halo_testlength, hsize)
         hsize = 8
-        halo_testlength = ht.ones((7,8,9), split=0)
+        halo_testlength = ht.ones((7, 8, 9), split=0)
         check_halolength(halo_testlength, hsize)
         hsize = 99
-        halo_testlength = ht.ones((7,8,9), split=0)
+        halo_testlength = ht.ones((7, 8, 9), split=0)
+        check_halolength(halo_testlength, hsize)
+        
+        hsize = 1
+        halo_testlength = ht.ones((7, 8, 9), split=1)
+        check_halolength(halo_testlength, hsize)
+        hsize = 4
+        halo_testlength = ht.ones((7, 8, 9), split=1)
+        check_halolength(halo_testlength, hsize)
+        hsize = 8
+        halo_testlength = ht.ones((7, 8, 9), split=1)
+        check_halolength(halo_testlength, hsize)
+        hsize = 99
+        halo_testlength = ht.ones((7, 8, 9), split=1)
         check_halolength(halo_testlength, hsize)
 
         hsize = 1
-        halo_testlength = ht.ones((7,8,9), split=1)
+        halo_testlength = ht.ones((7, 8, 9), split=2)
         check_halolength(halo_testlength, hsize)
         hsize = 4
-        halo_testlength = ht.ones((7,8,9), split=1)
+        halo_testlength = ht.ones((7, 8, 9), split=2)
         check_halolength(halo_testlength, hsize)
         hsize = 8
-        halo_testlength = ht.ones((7,8,9), split=1)
+        halo_testlength = ht.ones((7, 8, 9), split=2)
         check_halolength(halo_testlength, hsize)
         hsize = 99
-        halo_testlength = ht.ones((7,8,9), split=1)
+        halo_testlength = ht.ones((7, 8, 9), split=2)
         check_halolength(halo_testlength, hsize)
 
+        # test shape of halo_next
         hsize = 1
-        halo_testlength = ht.ones((7,8,9), split=2)
-        check_halolength(halo_testlength, hsize)
+        halo_testlength = ht.ones((7, 8, 9), split=0)
+        check_halolength(halo_testlength, hsize, mode='next')
         hsize = 4
-        halo_testlength = ht.ones((7,8,9), split=2)
-        check_halolength(halo_testlength, hsize)
+        halo_testlength = ht.ones((7, 8, 9), split=0)
+        check_halolength(halo_testlength, hsize, mode='next')
         hsize = 8
-        halo_testlength = ht.ones((7,8,9), split=2)
-        check_halolength(halo_testlength, hsize)
+        halo_testlength = ht.ones((7, 8, 9), split=0)
+        check_halolength(halo_testlength, hsize, mode='next')
         hsize = 99
-        halo_testlength = ht.ones((7,8,9), split=2)
-        check_halolength(halo_testlength, hsize)
-      
+        halo_testlength = ht.ones((7, 8, 9), split=0)
+        check_halolength(halo_testlength, hsize, mode='next')
+
+        hsize = 1
+        halo_testlength = ht.ones((7, 8, 9), split=1)
+        check_halolength(halo_testlength, hsize, mode='next')
+        hsize = 4
+        halo_testlength = ht.ones((7, 8, 9), split=1)
+        check_halolength(halo_testlength, hsize, mode='next')
+        hsize = 8
+        halo_testlength = ht.ones((7, 8, 9), split=1)
+        check_halolength(halo_testlength, hsize, mode='next')
+        hsize = 99
+        halo_testlength = ht.ones((7, 8, 9), split=1)
+        check_halolength(halo_testlength, hsize, mode='next')
+
+        hsize = 1
+        halo_testlength = ht.ones((7, 8, 9), split=2)
+        check_halolength(halo_testlength, hsize, mode='next')
+        hsize = 4
+        halo_testlength = ht.ones((7, 8, 9), split=2)
+        check_halolength(halo_testlength, hsize, mode='next')
+        hsize = 8
+        halo_testlength = ht.ones((7, 8, 9), split=2)
+        check_halolength(halo_testlength, hsize, mode='next')
+        hsize = 99
+        halo_testlength = ht.ones((7, 8, 9), split=2)
+        check_halolength(halo_testlength, hsize, mode='next')
+
         # test exp method on halo_next/halo_prev
         hsize = 1
         na = ht.ones(6, split=0)
-        na.gethalo_all(hsize)
+        na.gethalo(hsize)
         nb = na.exp()
         if nb.halo_next is not None:
             self.assertAlmostEqual(nb.halo_next[0].item(), 2.718281745)
@@ -104,7 +147,7 @@ class TestTensor(unittest.TestCase):
            
         # test sqrt method on halo_next/halo_prev 
         na = ht.ones(6, split=0) * 4.
-        na.gethalo_all(hsize)
+        na.gethalo(hsize)
         nb = na.sqrt()
         if nb.halo_next is not None:
             self.assertAlmostEqual(nb.halo_next[0].item(), 2.)
@@ -113,7 +156,7 @@ class TestTensor(unittest.TestCase):
 
         # test abs method on halo_next/halo_prev
         na = ht.ones(6, split=0) * -1.
-        na.gethalo_all(hsize)
+        na.gethalo(hsize)
         nb = na.abs()
         if nb.halo_next is not None:
             self.assertAlmostEqual(nb.halo_next[0].item(), 1.)
@@ -122,7 +165,7 @@ class TestTensor(unittest.TestCase):
 
         # test absolute method on halo_next/halo_prev
         na = ht.ones(6, split=0) * -1.
-        na.gethalo_all(hsize)
+        na.gethalo(hsize)
         nb = na.absolute()
         if nb.halo_next is not None:
             self.assertAlmostEqual(nb.halo_next[0].item(), 1.)
@@ -131,7 +174,7 @@ class TestTensor(unittest.TestCase):
 
         # test sin method on halo_next/halo_prev
         na = ht.ones(6, split=0) * 2.
-        na.gethalo_all(hsize)
+        na.gethalo(hsize)
         nb = na.sin()
         if nb.halo_next is not None:
             self.assertAlmostEqual(nb.halo_next[0].item(), 0.90929742)
@@ -140,7 +183,7 @@ class TestTensor(unittest.TestCase):
 
         # test floor method on halo_next/halo_prev
         na = ht.ones(6, split=0) * 2.6
-        na.gethalo_all(hsize)
+        na.gethalo(hsize)
         nb = na.floor()
         if nb.halo_next is not None:
             self.assertAlmostEqual(nb.halo_next[0].item(), 2.)
@@ -149,25 +192,88 @@ class TestTensor(unittest.TestCase):
 
         # test floor method on halo_next/halo_prev
         na = ht.ones(6, split=0) * 5.
-        na.gethalo_all(hsize)
+        na.gethalo(hsize)
         nb = na.copy()
         if nb.halo_next is not None:
             self.assertAlmostEqual(nb.halo_next[0].item(), 5.)
         if nb.halo_prev is not None:
             self.assertAlmostEqual(nb.halo_prev[0].item(), 5.)
-      
-      
+        
         # exceptions
-        with self.assertRaises(TypeError):
-            halo_testlength = ht.ones((7,8,9), split=1)
-            halo_testlength.gethalo_all('bad_halosize_value')
-        with self.assertRaises(ValueError):
-            halo_testlength = ht.ones((7,8,9), split=1)
-            halo_testlength.gethalo_all(-2)
-            
-       
-     
+        if halo_testlength.is_distributed():
+            with self.assertRaises(TypeError):
+                halo_testlength = ht.ones((7, 8, 9), split=1)
+                halo_testlength.gethalo('bad_halosize_value')
+            with self.assertRaises(ValueError):
+                halo_testlength = ht.ones((7, 8, 9), split=1)
+                halo_testlength.gethalo(-2)
+        
 
+    def test_convolve(self):
+        
+        signal_size = np.random.randint(3, 50)
+        filter_size = signal_size//2
+
+        np_signal = np.random.randn(signal_size).astype('float32')
+        np_weight = np.random.randn(filter_size).astype('float32')
+        ht_signal = ht.tensor(torch.tensor(np_signal), np_signal.shape, ht.float, None, comm=NoneCommunicator())
+        ht_weight = ht.tensor(torch.tensor(np_weight), np_weight.shape, ht.float, None, comm=NoneCommunicator())
+        diff = ht.convolve(ht_signal, ht_weight, mode='full').array.numpy() -\
+               np.convolve(np_signal, np_weight, mode='full')
+        self.assertAlmostEqual(np.sum(diff**2), 0.)
+        diff = ht.convolve(ht_signal, ht_weight, mode='same').array.numpy() -\
+               np.convolve(np_signal, np_weight, mode='same')
+        self.assertAlmostEqual(np.sum(diff**2), 0.)
+        diff = ht.convolve(ht_signal, ht_weight, mode='valid').array.numpy() -\
+               np.convolve(np_signal, np_weight, mode='valid')
+        self.assertAlmostEqual(np.sum(diff**2), 0.)
+
+        np_signal = np_signal.astype('float64')
+        np_weight = np_weight.astype('float64')
+        ht_signal = ht.tensor(torch.tensor(np_signal), np_signal.shape, ht.double, None, comm=NoneCommunicator())
+        ht_weight = ht.tensor(torch.tensor(np_weight), np_weight.shape, ht.double, None, comm=NoneCommunicator())
+        diff = ht.convolve(ht_signal, ht_weight, mode='full').array.numpy() -\
+               np.convolve(np_signal, np_weight, mode='full')
+        self.assertAlmostEqual(np.sum(diff**2), 0.)
+        diff = ht.convolve(ht_signal, ht_weight, mode='same').array.numpy() -\
+               np.convolve(np_signal, np_weight, mode='same')
+        self.assertAlmostEqual(np.sum(diff**2), 0.)
+        diff = ht.convolve(ht_signal, ht_weight, mode='valid').array.numpy() -\
+               np.convolve(np_signal, np_weight, mode='valid')
+        self.assertAlmostEqual(np.sum(diff**2), 0.)
+        
+        ht_signal = ht.ones(9, split=0)
+        ht_weight = ht.ones(3)
+        if ht_signal.comm.size <= 3:
+            self.assertEqual(ht.convolve(ht_signal, ht_weight, mode='full').shape, (11,))
+            self.assertEqual(ht.convolve(ht_signal, ht_weight, mode='same').shape, (9,))
+            self.assertEqual(ht.convolve(ht_signal, ht_weight, mode='valid').shape, (7,))
+        
+        ht_signal = ht.ones(9, split=0)
+        ht_weight = ht.ones(2)
+        self.assertEqual(ht.convolve(ht_signal, ht_weight, mode='full').shape, (10,))
+        self.assertEqual(ht.convolve(ht_signal, ht_weight, mode='same').shape, (9,))
+        self.assertEqual(ht.convolve(ht_signal, ht_weight, mode='valid').shape, (8,))
+        
+        # exceptions    
+        with self.assertRaises(TypeError):
+            ht.convolve(torch.ones(9), torch.ones(3)) 
+        with self.assertRaises(TypeError):
+            ht.convolve(ht.ones(9, dtype=ht.double), ht.ones(3))
+        with self.assertRaises(ValueError):
+            ht.convolve(ht.ones((9, 9)), ht.ones(3))
+        with self.assertRaises(ValueError):
+            ht.convolve(ht.ones(9), ht.ones((3, 3)))
+        with self.assertRaises(TypeError):
+            ht.convolve(ht.ones(9), ht.ones(3, split=0))
+        with self.assertRaises(ValueError):
+            ht.convolve(ht.ones(9), ht.ones(3), mode='bad_mode_value')
+        ht_tensor = ht.ones(9, split=0)
+        if ht_tensor.is_distributed():
+            with self.assertRaises(TypeError):
+                ht.convolve(ht.ones(9), ht.ones(5, split=0))
+        
+                       
 class TestTensorFactories(unittest.TestCase):
     def test_linspace(self):
         # simple linear space

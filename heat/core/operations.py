@@ -123,7 +123,6 @@ def copy(a):
 
     if a.halo_next is not None:
         res.halo_next = a.halo_next.clone()
-
     if a.halo_prev is not None:
         res.halo_prev = a.halo_prev.clone()
 
