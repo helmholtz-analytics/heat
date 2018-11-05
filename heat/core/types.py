@@ -89,19 +89,47 @@ class generic(metaclass=abc.ABCMeta):
     def torch_type(cls):
         pass
 
+    @abc.abstractmethod
+    def isfloat(self):
+        pass
+
+    @abc.abstractmethod
+    def isinteger(self):
+        pass
+
+    @abc.abstractmethod
+    def isbool(self):
+        pass
+
 
 class bool(generic):
     @classmethod
     def torch_type(cls):
         return torch.uint8
 
+    def isfloat():
+        return False
+
+    def isinteger():
+        return False
+
+    def isbool():
+        return True
+
 
 class number(generic):
     pass
 
 
-class integer(number):
-    pass
+class integer(number):  
+    def isfloat():
+        return False
+
+    def isinteger():
+        return True
+
+    def isbool():
+        return False
 
 
 class signedinteger(integer):
@@ -143,7 +171,14 @@ class uint8(unsignedinteger):
 
 
 class floating(number):
-    pass
+    def isfloat():
+        return True
+
+    def isinteger():
+        return False
+
+    def isbool():
+        return False
 
 
 class float32(floating):
