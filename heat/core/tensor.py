@@ -561,6 +561,17 @@ class tensor:
         """ 
         return self.comm.size > 1 and self.split is not None
 
+    def is_halorized(self):
+        """
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        Returns
+        -------
+        
+        """ 
+        return self.halo_next is not None or self.halo_prev is not None
+
     def halo_next_shape(self): 
         """
         # TODO: document me
@@ -667,7 +678,7 @@ class tensor:
         """
         halo_size = self.sanitize_halo(halo_size)
 
-        if self.is_distributed() and halo_size > 0:
+        if self.is_distributed() and halo_size > 0 and not self.is_halorized():
             
             a_prev = self.__prephalo(0, halo_size)
             a_next = self.__prephalo(-halo_size, None)
