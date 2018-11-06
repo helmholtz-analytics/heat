@@ -121,7 +121,17 @@ def copy(a):
     """
     if not isinstance(a, tensor.tensor):
         raise TypeError('input needs to be a tensor')
-    return tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, _copy(a._tensor__comm))
+
+    res = tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, _copy(a._tensor__comm))
+
+    if a.halo_next is not None:
+        res.halo_next = a.halo_next.clone()
+    if a.halo_prev is not None:
+        res.halo_prev = a.halo_prev.clone()
+
+    return res
+
+    # return tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, _copy(a._tensor__comm))
 
 
 def exp(x, out=None):
