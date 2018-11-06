@@ -131,8 +131,6 @@ def copy(a):
 
     return res
 
-    # return tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, _copy(a._tensor__comm))
-
 
 def exp(x, out=None):
     """
@@ -205,6 +203,7 @@ def log(x, out=None):
     """
     return __local_operation(torch.log, x, out)
 
+
 def max(x, axis=None):
     """"
     Return the maximum of an array or maximum along an axis.
@@ -232,6 +231,7 @@ def max(x, axis=None):
 
     return __reduce_op(x, max_axis, mpi.reduce_op.MAX, axis)
 
+
 def min(x, axis=None):
     """"
     Return the minimum of an array or minimum along an axis.
@@ -257,6 +257,7 @@ def min(x, axis=None):
         return x._tensor__array.min()
 
     return __reduce_op(x, min_axis, mpi.reduce_op.MIN, axis)
+
 
 def sin(x, out=None):
     """
@@ -304,6 +305,7 @@ def sqrt(x, out=None):
     tensor([nan, nan, nan, nan, nan])
     """
     return __local_operation(torch.sqrt, x, out)
+
 
 @halorize_local_operation
 def __local_operation(operation, x, out):
@@ -364,6 +366,7 @@ def __local_operation(operation, x, out):
     operation(casted.repeat(multiples) if needs_repetition else casted, out=out._tensor__array)
     return out
 
+
 def __reduce_op(x,partial, op, axis):
     # TODO: document me
     # TODO: test me
@@ -383,4 +386,4 @@ def __reduce_op(x,partial, op, axis):
     # TODO: verify if this works for negative split axis
     output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
     return tensor.tensor(partial, output_shape, x._tensor__dtype, x._tensor__split, comm=_copy(x._tensor__comm))
-  
+
