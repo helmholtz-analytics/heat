@@ -208,6 +208,7 @@ def max(x, axis=None):
     
     #TODO: out : ht.tensor, optional
     Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
+
     #TODO: initial : scalar, optional   
     The minimum value of an output element. Must be present to allow computation on empty slice.
     """
@@ -234,6 +235,7 @@ def min(x, axis=None):
     
     #TODO: out : ht.tensor, optional
     Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
+
     #TODO: initial : scalar, optional   
     The maximum value of an output element. Must be present to allow computation on empty slice.
     """
@@ -371,3 +373,4 @@ def __reduce_op(x,partial, op, axis):
     # TODO: verify if this works for negative split axis
     output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
     return tensor.tensor(partial, output_shape, x._tensor__dtype, x._tensor__split, comm=_copy(x._tensor__comm))
+  

@@ -59,8 +59,12 @@ def sanitize_axis(shape, axis):
         If the axis cannot be sanitized, i.e. out of bounds.
     """
     #TODO: test me
-    if axis is not None and not isinstance(axis, int):
-        raise TypeError('split axis must be None or int, but was {}'.format(type(axis)))
+    
+    if axis is not None:
+        if isinstance(axis, tuple):
+            raise NotImplementedError('Not implemented for axis: tuple of ints')
+        if not isinstance(axis, int):
+            raise TypeError('split axis must be None or int, but was {}'.format(type(axis)))
 
     if axis is None or 0 <= axis < len(shape):
         return axis

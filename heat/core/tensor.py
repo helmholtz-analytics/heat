@@ -236,6 +236,7 @@ class tensor:
         
         #TODO: out : ht.tensor, optional
         Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
+
         #TODO: initial : scalar, optional   
         The minimum value of an output element. Must be present to allow computation on empty slice.
         """
@@ -252,6 +253,7 @@ class tensor:
     def min(self, axis=None):
         """"
         Return the minimum of an array or minimum along an axis.
+
         Parameters
         ----------
         a : ht.tensor
@@ -262,6 +264,7 @@ class tensor:
         
         #TODO: out : ht.tensor, optional
         Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
+
         #TODO: initial : scalar, optional   
         The maximum value of an output element. Must be present to allow computation on empty slice.
         """
@@ -272,6 +275,7 @@ class tensor:
         # TODO: Allow also list of axes
         """
         Sum of array elements over a given axis.
+        
         Parameters
         ----------   
         axis : None or int, optional
@@ -289,10 +293,13 @@ class tensor:
         --------
         >>> ht.ones(2).sum()
         tensor([2.])
+
         >>> ht.ones((3,3)).sum()
         tensor([9.])
+
         >>> ht.ones((3,3)).astype(ht.int).sum()
         tensor([9])
+
         >>> ht.ones((3,2,1)).sum(axis=-3)
         tensor([[[3.],
                  [3.]]])
