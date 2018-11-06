@@ -217,7 +217,7 @@ def log(x, out=None):
 def max(x, axis=None):
     """"
     Return a tuple containing: 
-        - the maximum of an array or minimum along an axis;
+        - the maximum of an array or maximum along an axis;
         - indices of maxima 
 
     Parameters
