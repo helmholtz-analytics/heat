@@ -252,16 +252,7 @@ class tensor:
         tensor([[[3.],
                  [3.]]])
         """
-        if axis is not None:
-            axis = sanitize_axis(self.shape, axis)
-            sum_axis = self.__array.sum(axis, keepdim=True)
-  
-        else:
-            sum_axis = torch.reshape(self.__array.sum(), (1,))
-            if not self.__comm.is_distributed():
-                return tensor(sum_axis, (1,), types.canonical_heat_type(sum_axis.dtype), self.split, _copy(self.__comm))
-            
-        return self.__reduce_op(sum_axis, mpi.reduce_op.SUM, axis)
+        return operations.sum(self, axis) 
 
     def expand_dims(self, axis):
         # TODO: document me
