@@ -1,6 +1,7 @@
 from copy import copy as _copy
 import torch
 
+from .communicator import mpi, MPICommunicator, NoneCommunicator
 from . import stride_tricks
 from . import types
 from . import tensor
@@ -14,15 +15,16 @@ __all__ = [
     'exp',
     'floor',
     'log',
+    'max',
+    'min',
     'sin',
     'sqrt'
 ]
 
 
-def abs(x, out=None):
+def abs(x, out=None, dtype=None):
     """
     Calculate the absolute value element-wise.
-
     Parameters
     ----------
     x : ht.tensor
@@ -33,21 +35,26 @@ def abs(x, out=None):
     dtype : ht.type, optional
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
-
     Returns
     -------
     absolute_values : ht.tensor
         A tensor containing the absolute value of each element in x.
     """
-    return __local_operation(torch.abs, x, out)
+    if dtype is not None and not issubclass(dtype, types.generic):
+        raise TypeError('dtype must be a heat data type')
+
+    absolute_values = __local_operation(torch.abs, x, out)
+    if dtype is not None:
+        absolute_values._tensor__array = absolute_values._tensor__array.type(dtype.torch_type())
+        absolute_values._tensor__dtype = dtype
+
+    return absolute_values
 
 
-def absolute(x, out=None):
+def absolute(x, out=None, dtype=None):
     """
     Calculate the absolute value element-wise.
-
     np.abs is a shorthand for this function.
-
     Parameters
     ----------
     x : ht.tensor
@@ -58,13 +65,12 @@ def absolute(x, out=None):
     dtype : ht.type, optional
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
-
     Returns
     -------
     absolute_values : ht.tensor
         A tensor containing the absolute value of each element in x.
     """
-    return abs(x, out)
+    return abs(x, out, dtype)
 
 
 def clip(a, a_min, a_max, out=None):
@@ -82,7 +88,6 @@ def clip(a, a_min, a_max, out=None):
     out : ht.tensor, optional
         The results will be placed in this array. It may be the input array for in-place clipping. out must be of
         the right shape to hold the output. Its type is preserved.
-
     Returns
     -------
     clipped_values : ht.tensor
@@ -99,18 +104,16 @@ def clip(a, a_min, a_max, out=None):
     if not isinstance(out, tensor.tensor):
         raise TypeError('out must be a tensor')
 
-    return a._tensor__array.clamp(a_min, a_max, out=out._tensor__array) and out # There is something wrong !!!
+    return a._tensor__array.clamp(a_min, a_max, out=out._tensor__array) and out
 
 
 def copy(a):
     """
     Return an array copy of the given object.
-
     Parameters
     ----------
     a : ht.tensor
         Input data to be copied.
-
     Returns
     -------
     copied : ht.tensor
@@ -118,21 +121,12 @@ def copy(a):
     """
     if not isinstance(a, tensor.tensor):
         raise TypeError('input needs to be a tensor')
-
-    res = tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, _copy(a._tensor__comm))
-
-    if a.halo_next is not None:
-        res.halo_next = a.halo_next.clone()
-    if a.halo_prev is not None:
-        res.halo_prev = a.halo_prev.clone()
-
-    return res
+    return tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, _copy(a._tensor__comm))
 
 
 def exp(x, out=None):
     """
     Calculate the exponential of all elements in the input array.
-
     Parameters
     ----------
     x : ht.tensor
@@ -140,13 +134,11 @@ def exp(x, out=None):
     out : ht.tensor or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
     Returns
     -------
     exponentials : ht.tensor
         A tensor of the same shape as x, containing the positive exponentials of each element in this tensor. If out
         was provided, logarithms is a reference to it.
-
     Examples
     --------
     >>> ht.exp(ht.arange(5))
@@ -158,9 +150,7 @@ def exp(x, out=None):
 def floor(x, out=None):
     """
     Return the floor of the input, element-wise.
-
     The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lfloor x \rfloor.
-
     Parameters
     ----------
     x : ht.tensor
@@ -168,13 +158,11 @@ def floor(x, out=None):
     out : ht.tensor or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
     Returns
     -------
     floored : ht.tensor
         A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
         provided, logarithms is a reference to it.
-
     Examples
     --------
     >>> ht.floor(ht.arange(-2.0, 2.0, 0.4))
@@ -186,10 +174,8 @@ def floor(x, out=None):
 def log(x, out=None):
     """
     Natural logarithm, element-wise.
-
     The natural logarithm log is the inverse of the exponential function, so that log(exp(x)) = x. The natural
     logarithm is logarithm in base e.
-
     Parameters
     ----------
     x : ht.tensor
@@ -197,13 +183,11 @@ def log(x, out=None):
     out : ht.tensor or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
     Returns
     -------
     logarithms : ht.tensor
         A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
         Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
-
     Examples
     --------
     >>> ht.log(ht.arange(5))
@@ -211,11 +195,60 @@ def log(x, out=None):
     """
     return __local_operation(torch.log, x, out)
 
+def max(x, axis=None):
+    """"
+    Return the maximum of an array or maximum along an axis.
+    Parameters
+    ----------
+    a : ht.tensor
+    Input data.
+        
+    axis : None or int, optional
+    Axis or axes along which to operate. By default, flattened input is used.   
+    
+    #TODO: out : ht.tensor, optional
+    Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
+    #TODO: initial : scalar, optional   
+    The minimum value of an output element. Must be present to allow computation on empty slice.
+    """
+    #perform sanitation:
+    axis = stride_tricks.sanitize_axis(x.shape,axis)
+    
+    if axis is not None:        
+        max_axis = x._tensor__array.max(axis, keepdim=True) 
+    else:
+        return x._tensor__array.max()
+
+    return __reduce_op(x, max_axis, mpi.reduce_op.MAX, axis)
+
+def min(x, axis=None):
+    """"
+    Return the minimum of an array or minimum along an axis.
+    Parameters
+    ----------
+    a : ht.tensor
+    Input data.
+        
+    axis : None or int
+    Axis or axes along which to operate. By default, flattened input is used.   
+    
+    #TODO: out : ht.tensor, optional
+    Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
+    #TODO: initial : scalar, optional   
+    The maximum value of an output element. Must be present to allow computation on empty slice.
+    """
+    #perform sanitation:
+    axis = stride_tricks.sanitize_axis(x.shape,axis)
+    if axis is not None:        
+        min_axis = x._tensor__array.min(axis, keepdim=True) 
+    else:
+        return x._tensor__array.min()
+
+    return __reduce_op(x, min_axis, mpi.reduce_op.MIN, axis)
 
 def sin(x, out=None):
     """
     Return the trigonometric sine, element-wise.
-
     Parameters
     ----------
     x : ht.tensor
@@ -223,13 +256,11 @@ def sin(x, out=None):
     out : ht.tensor or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
     Returns
     -------
     sine : ht.tensor
         A tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
         Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
-
     Examples
     --------
     >>> ht.sin(ht.arange(-6, 7, 2))
@@ -241,7 +272,6 @@ def sin(x, out=None):
 def sqrt(x, out=None):
     """
     Return the non-negative square-root of a tensor element-wise.
-
     Parameters
     ----------
     x : ht.tensor
@@ -249,13 +279,11 @@ def sqrt(x, out=None):
     out : ht.tensor or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided or
         set to None, a fresh tensor is allocated.
-
     Returns
     -------
     square_roots : ht.tensor
         A tensor of the same shape as x, containing the positive square-root of each element in x. Negative input
         elements are returned as nan. If out was provided, square_roots is a reference to it.
-
     Examples
     --------
     >>> ht.sqrt(ht.arange(5))
@@ -270,7 +298,6 @@ def __local_operation(operation, x, out):
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
     argument and takes only care of buffer allocation/writing.
-
     Parameters
     ----------
     operation : function
@@ -280,13 +307,11 @@ def __local_operation(operation, x, out):
     out : ht.tensor or None
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided or
         set to None, a fresh tensor is allocated.
-
     Returns
     -------
     result : ht.tensor
         A tensor of the same shape as x, containing the result of 'operation' for each element in x. If out was
         provided, result is a reference to it.
-
     Raises
     -------
     TypeError
@@ -326,3 +351,23 @@ def __local_operation(operation, x, out):
     casted = x._tensor__array.type(torch_type)
     operation(casted.repeat(multiples) if needs_repetition else casted, out=out._tensor__array)
     return out
+
+def __reduce_op(x,partial, op, axis):
+    # TODO: document me
+    # TODO: test me
+    # TODO: make me more numpy API complete
+          # e.g. allow axis to be a tuple, allow for "initial"
+    # TODO: implement type promotion
+    
+    # perform sanitation
+    if not isinstance(x, tensor.tensor):
+        raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
+    
+    
+    if x._tensor__comm.is_distributed() and (axis is None or axis == x.split):
+        mpi.all_reduce(partial[0], op, x._tensor__comm.group)
+        return tensor.tensor(partial, partial[0].shape, x.dtype, split=None, comm=NoneCommunicator())
+
+    # TODO: verify if this works for negative split axis
+    output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
+    return tensor.tensor(partial, output_shape, x._tensor__dtype, x._tensor__split, comm=_copy(x._tensor__comm))
