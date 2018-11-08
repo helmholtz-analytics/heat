@@ -9,6 +9,7 @@ from . import tensor
 __all__ = [
     'abs',
     'absolute',
+    'argmin',
     'clip',
     'copy',
     'exp',
@@ -47,7 +48,8 @@ def abs(x, out=None, dtype=None):
 
     absolute_values = __local_operation(torch.abs, x, out)
     if dtype is not None:
-        absolute_values._tensor__array = absolute_values._tensor__array.type(dtype.torch_type())
+        absolute_values._tensor__array = absolute_values._tensor__array.type(
+            dtype.torch_type())
         absolute_values._tensor__dtype = dtype
 
     return absolute_values
@@ -76,6 +78,60 @@ def absolute(x, out=None, dtype=None):
         A tensor containing the absolute value of each element in x.
     """
     return abs(x, out, dtype)
+
+
+def argmin(x, axis=None):
+    '''
+    Returns the indices of the minimum values along an axis.
+
+    Parameters:
+    ----------
+
+    x : ht.tensor
+    Input array.
+
+    axis : int, optional
+    By default, the index is into the flattened tensor, otherwise along the specified axis.
+
+    #TODO out : array, optional
+    If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
+
+    Returns:	
+    -------
+
+    index_tensor : ht.tensor of ints
+    Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
+
+    Examples:
+    --------
+
+    >>> a = ht.randn(3,3)
+    >>> a
+    tensor([[-1.7297,  0.2541, -0.1044],
+            [ 1.0865, -0.4415,  1.3716],
+            [-0.0827,  1.0215, -2.0176]])
+    >>> ht.argmin(a)
+    tensor([8])
+    >>> ht.argmin(a, axis=0)
+    tensor([[0, 1, 2]])
+    >>> ht.argmin(a, axis=1)
+    tensor([[0],
+            [1],
+            [2]])
+    '''
+
+    if axis is None:
+        # TEMPORARY SOLUTION! TODO: implementation for axis=None, distributed tensor
+        # perform sanitation
+        if not isinstance(x, tensor.tensor):
+            raise TypeError(
+                'expected x to be a ht.tensor, but was {}'.format(type(x)))
+        axis = stride_tricks.sanitize_axis(x.shape, axis)
+        out = torch.reshape(torch.argmin(x._tensor__array), (1,))
+        return tensor.tensor(out, out.shape, types.canonical_heat_type(out.dtype), split=None, comm=_copy(x._tensor__comm))
+
+    out = __reduce_op(x, torch.min, mpi.reduce_op.MIN, axis)._tensor__array[1]
+    return tensor.tensor(out, out.shape, types.canonical_heat_type(out.dtype), x._tensor__split, comm=_copy(x._tensor__comm))
 
 
 def clip(a, a_min, a_max, out=None):
@@ -214,6 +270,7 @@ def log(x, out=None):
     """
     return __local_operation(torch.log, x, out)
 
+
 def max(x, axis=None):
     """"
     Return a tuple containing: 
@@ -224,10 +281,10 @@ def max(x, axis=None):
     ----------
     a : ht.tensor
     Input data.
-        
+
     axis : None or int, optional
     Axis or axes along which to operate. By default, flattened input is used.   
-    
+
     #TODO: out : ht.tensor, optional
     Tuple of two output tensors (max, max_indices). Must be of the same shape and buffer length as the expected output. 
 
@@ -258,6 +315,7 @@ def max(x, axis=None):
 
     return __reduce_op(x, torch.max, mpi.reduce_op.MAX, axis)
 
+
 def min(x, axis=None):
     """"
     Return a tuple containing: 
@@ -268,14 +326,14 @@ def min(x, axis=None):
     ----------
     a : ht.tensor
     Input data.
-        
+
     axis : None or int
     Axis or axes along which to operate. By default, flattened input is used.   
-    
-    
+
+
     #TODO: out : ht.tensor, optional
     Tuple of two output tensors (min, min_indices). Must be of the same shape and buffer length as the expected output. 
-    
+
 
     #TODO: initial : scalar, optional   
     The maximum value of an output element. Must be present to allow computation on empty slice.
@@ -303,6 +361,7 @@ def min(x, axis=None):
     """
 
     return __reduce_op(x, torch.min, mpi.reduce_op.MIN, axis)
+
 
 def sin(x, out=None):
     """
@@ -357,6 +416,7 @@ def sqrt(x, out=None):
     """
     return __local_operation(torch.sqrt, x, out)
 
+
 def sum(x, axis=None):
     """
     Sum of array elements over a given axis.
@@ -370,13 +430,13 @@ def sum(x, axis=None):
         Axis along which a sum is performed. The default, axis=None, will sum
         all of the elements of the input array. If axis is negative it counts 
         from the last to the first axis.
-       
+
     Returns
     -------
     sum_along_axis : ht.tensor
         An array with the same shape as self.__array except for the specified axis which 
         becomes one, e.g. a.shape = (1,2,3) => ht.ones((1,2,3)).sum(axis=1).shape = (1,1,3)
-   
+
     Examples
     --------
     >>> ht.sum(ht.ones(2))
@@ -396,6 +456,7 @@ def sum(x, axis=None):
     # TODO: make me more numpy API complete
 
     return __reduce_op(x, torch.sum, mpi.reduce_op.SUM, axis)
+
 
 def __local_operation(operation, x, out):
     """
@@ -425,9 +486,11 @@ def __local_operation(operation, x, out):
     """
     # perform sanitation
     if not isinstance(x, tensor.tensor):
-        raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
+        raise TypeError(
+            'expected x to be a ht.tensor, but was {}'.format(type(x)))
     if out is not None and not isinstance(out, tensor.tensor):
-        raise TypeError('expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+        raise TypeError(
+            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
 
     # infer the output type of the tensor
     # we need floating point numbers here, due to PyTorch only providing sqrt() implementation for float32/64
@@ -455,8 +518,10 @@ def __local_operation(operation, x, out):
 
     # do an inplace operation into a provided buffer
     casted = x._tensor__array.type(torch_type)
-    operation(casted.repeat(multiples) if needs_repetition else casted, out=out._tensor__array)
+    operation(casted.repeat(multiples)
+              if needs_repetition else casted, out=out._tensor__array)
     return out
+
 
 def __reduce_op(x, partial_op, op, axis):
     # TODO: document me
@@ -464,15 +529,17 @@ def __reduce_op(x, partial_op, op, axis):
     # TODO: make me more numpy API complete
           # e.g. allow axis to be a tuple, allow for "initial"
     # TODO: implement type promotion
-    
+
     # perform sanitation
     if not isinstance(x, tensor.tensor):
-        raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
+        raise TypeError(
+            'expected x to be a ht.tensor, but was {}'.format(type(x)))
     axis = stride_tricks.sanitize_axis(x.shape, axis)
     keepdim = True
 
     if axis is None:
-        partial = torch.reshape(partial_op(torch.as_tensor(x._tensor__array)), (1,))
+        partial = torch.reshape(partial_op(
+            torch.as_tensor(x._tensor__array)), (1,))
         output_shape = partial.shape
     else:
         partial = partial_op(torch.as_tensor(x._tensor__array), axis, keepdim)
@@ -484,4 +551,3 @@ def __reduce_op(x, partial_op, op, axis):
         return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), split=None, comm=NoneCommunicator())
 
     return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), x._tensor__split, comm=_copy(x._tensor__comm))
-

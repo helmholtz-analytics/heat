@@ -38,6 +38,68 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             float32_tensor.absolute(out=float32_tensor, dtype=3.2)
 
+    def test_argmin(self):
+
+        data = ht.float32([
+            [1, 2, 3],
+            [4, 5, 6],
+            [7, 8, 9],
+            [10, 11, 12]
+        ])
+
+        comparison = torch.Tensor([
+            [1, 2, 3],
+            [4, 5, 6],
+            [7, 8, 9],
+            [10, 11, 12]
+        ])       
+
+        #check basics
+        self.assertTrue((ht.argmin(data,axis=0)._tensor__array == comparison.argmin(0)).all())
+        self.assertIsInstance(ht.argmin(data,axis=1),ht.tensor)
+        self.assertIsInstance(data.argmin(),ht.tensor)
+
+        #check combinations of split and axis
+        torch.manual_seed(1)
+        random_data = ht.randn(3,3,3)
+        torch.manual_seed(1)
+        random_data_split = ht.randn(3,3,3,split=0)
+        
+        self.assertTrue((ht.argmin(random_data,axis=0)._tensor__array == random_data_split.argmin(axis=0)._tensor__array).all())
+        self.assertTrue((ht.argmin(random_data,axis=1)._tensor__array == random_data_split.argmin(axis=1)._tensor__array).all())
+        self.assertIsInstance(ht.argmin(random_data_split,axis=1),ht.tensor)    
+        self.assertIsInstance(random_data_split.argmin(),ht.tensor)
+
+        #check min over all float elements of 3d tensor locally
+        self.assertEqual(random_data.argmin().shape, (1,))
+        self.assertEqual(random_data.argmin().lshape, (1,))
+        self.assertEqual(random_data.argmin().dtype, ht.int64)
+        self.assertEqual(random_data.argmin().split, None)
+
+        # check min over all float elements of splitted 3d tensor 
+        self.assertIsInstance(random_data_split.argmin(axis=1), ht.tensor)
+        self.assertEqual(random_data_split.argmin(axis=1).shape, (3,1,3))
+        self.assertEqual(random_data_split.argmin().split, None)
+
+        # check min over all float elements of splitted 5d tensor with negative axis 
+        random_data_split_neg = ht.randn(1,2,3,4,5, split=1)
+        self.assertIsInstance(random_data_split_neg.argmin(axis=-2), ht.tensor)
+        self.assertEqual(random_data_split_neg.argmin(axis=-2).shape, (1,2,3,1,5))
+        self.assertEqual(random_data_split_neg.argmin(axis=-2).dtype, ht.int64) 
+        self.assertEqual(random_data_split_neg.argmin().split, None)    
+           
+        # check exceptions
+        with self.assertRaises(NotImplementedError):
+            data.argmin(axis=(0,1))
+        with self.assertRaises(TypeError):
+            data.argmin(axis=1.1)
+        with self.assertRaises(TypeError):
+            data.argmin(axis='y')
+        with self.assertRaises(ValueError):
+            ht.argmin(data, axis=-4)
+            
+
+
     def test_clip(self):
         elements = 20
 
