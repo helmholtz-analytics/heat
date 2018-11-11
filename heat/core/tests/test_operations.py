@@ -404,3 +404,24 @@ class TestOperations(unittest.TestCase):
         # exception
         with self.assertRaises(TypeError):
             ht.sqrt(number_range, 'hello world')
+
+    def test_tril(self):
+        # local_range = ht.arange((5,))
+        # res = ht.tril(local_range)
+        # print('\n', res)
+        # res = ht.tril(local_range, k= 2)
+        # print('\n', res)
+        # res = ht.tril(local_range, k=-2)
+        # print('\n', res)
+        #
+        # local_range = ht.ones((4, 5,))
+        # res = ht.tril(local_range)
+        # print('\n', res)
+        # res = ht.tril(local_range, k= 2)
+        # print('\n', res)
+        # res = ht.tril(local_range, k=-2)
+        # print('\n', res)
+
+        local_range = ht.ones((4, 5, 3,))
+        res = ht.tril(local_range)
+        print('\n', res)

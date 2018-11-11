@@ -18,6 +18,10 @@ class tensor:
         self.__comm = comm
 
     @property
+    def comm(self):
+        return self.__comm
+
+    @property
     def dtype(self):
         return self.__dtype
 

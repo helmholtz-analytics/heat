@@ -1,4 +1,5 @@
 from copy import copy as _copy
+import itertools
 import torch
 
 from .communicator import mpi, MPICommunicator, NoneCommunicator
@@ -17,7 +18,8 @@ __all__ = [
     'max',
     'min',
     'sin',
-    'sqrt'
+    'sqrt',
+    'tril'
 ]
 
 
@@ -383,11 +385,48 @@ def __local_operation(operation, x, out):
     operation(casted.repeat(multiples) if needs_repetition else casted, out=out._tensor__array)
     return out
 
+
+def tril(m, k=0):
+    if not isinstance(m, tensor.tensor):
+        raise TypeError('Expected m to be a tensor but was {}'.format(type(m)))
+
+    try:
+        k = int(k)
+    except ValueError:
+        raise TypeError('Expected k to be integral, but was {}'.format(type(k)))
+
+    offset, _, _ = m.comm.chunk(m.shape, m.split)
+    dimensions = len(m.shape)
+
+    # manually repeat the input for vectors
+    if dimensions == 1:
+        lower_triangle = m._tensor__array.expand(m.shape[0], -1).tril(k - offset)
+        return tensor.tensor(lower_triangle, (dimensions, dimensions,), m.dtype, m.split, m.comm)
+
+    # modify k to account to tensor split
+    k += offset if m.split != 1 else -offset
+
+    # in case of two dimensions we can just forward the call to torch
+    if dimensions == 2:
+        lower_triangle = m._tensor__array.tril(k)
+        return tensor.tensor(lower_triangle, m.shape, m.dtype, m.split, m.comm)
+
+    # iterate over the dimensions in case of more than two dimensions
+    original = m._tensor__array
+    output = original.clone()
+    ranges = [range(elements) for elements in m.shape[2:]]
+    for partial_index in itertools.product(ranges):
+        index = (None, None,) + partial_index
+        torch.tril(original[index], k, out=output[index])
+
+    return tensor.tensor(output, m.shape, m.dtype, m.split, m.comm)
+
+
 def __reduce_op(x,partial, op, axis):
     # TODO: document me
     # TODO: test me
     # TODO: make me more numpy API complete
-          # e.g. allow axis to be a tuple, allow for "initial"
+    # TODO: e.g. allow axis to be a tuple, allow for "initial"
     # TODO: implement type promotion
     
     # perform sanitation
