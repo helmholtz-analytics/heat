@@ -1,7 +1,6 @@
-from copy import copy as _copy
 import torch
 
-from .communicator import mpi, MPICommunicator, NoneCommunicator
+from .communication import MPI
 from . import stride_tricks
 from . import types
 from . import tensor
@@ -77,6 +76,17 @@ def absolute(x, out=None, dtype=None):
     return abs(x, out, dtype)
 
 
+def argmin(x, axis):
+    # TODO: document me
+    # TODO: test me
+    # TODO: sanitize input
+    # TODO: make me more numpy API complete
+    # TODO: Fix me, I am not reduce_op.MIN!
+    #
+    _, argmin_axis = x._tensor__array.min(dim=axis, keepdim=True)
+    return __reduce_op(x, argmin_axis, MPI.MIN, axis)
+
+
 def clip(a, a_min, a_max, out=None):
     """
     Parameters
@@ -105,7 +115,7 @@ def clip(a, a_min, a_max, out=None):
         raise ValueError('either a_min or a_max must be set')
 
     if out is None:
-        return tensor.tensor(a._tensor__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, _copy(a._tensor__comm))
+        return tensor.tensor(a._tensor__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, a.comm)
     if not isinstance(out, tensor.tensor):
         raise TypeError('out must be a tensor')
 
@@ -128,7 +138,7 @@ def copy(a):
     """
     if not isinstance(a, tensor.tensor):
         raise TypeError('input needs to be a tensor')
-    return tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, _copy(a._tensor__comm))
+    return tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, a.comm)
 
 
 def exp(x, out=None):
@@ -213,6 +223,7 @@ def log(x, out=None):
     """
     return __local_operation(torch.log, x, out)
 
+
 def max(x, axis=None):
     """"
     Return the maximum of an array or maximum along an axis.
@@ -235,11 +246,12 @@ def max(x, axis=None):
     axis = stride_tricks.sanitize_axis(x.shape,axis)
     
     if axis is not None:        
-        max_axis = x._tensor__array.max(axis, keepdim=True) 
+        max_axis, _ = x._tensor__array.max(axis, keepdim=True)
     else:
         return x._tensor__array.max()
 
-    return __reduce_op(x, max_axis, mpi.reduce_op.MAX, axis)
+    return __reduce_op(x, max_axis, MPI.MAX, axis)
+
 
 def min(x, axis=None):
     """"
@@ -262,11 +274,12 @@ def min(x, axis=None):
     #perform sanitation:
     axis = stride_tricks.sanitize_axis(x.shape,axis)
     if axis is not None:        
-        min_axis = x._tensor__array.min(axis, keepdim=True) 
+        min_axis, _ = x._tensor__array.min(axis, keepdim=True)
     else:
         return x._tensor__array.min()
 
-    return __reduce_op(x, min_axis, mpi.reduce_op.MIN, axis)
+    return __reduce_op(x, min_axis, MPI.MIN, axis)
+
 
 def sin(x, out=None):
     """
@@ -292,6 +305,19 @@ def sin(x, out=None):
     tensor([ 0.2794,  0.7568, -0.9093,  0.0000,  0.9093, -0.7568, -0.2794])
     """
     return __local_operation(torch.sin, x, out)
+
+
+def sum(x, axis=None):
+    # TODO: document me
+    axis = stride_tricks.sanitize_axis(x.shape, axis)
+    if axis is not None:
+        sum_axis = x._tensor__array.sum(axis, keepdim=True)
+    else:
+        sum_axis = torch.reshape(x._tensor__array.sum(), (1,))
+        if not x.comm.is_distributed():
+            return tensor.tensor(sum_axis, (1,), types.canonical_heat_type(sum_axis.dtype), None, x.comm)
+
+    return __reduce_op(x, sum_axis, MPI.SUM, axis)
 
 
 def sqrt(x, out=None):
@@ -361,13 +387,7 @@ def __local_operation(operation, x, out):
 
     # no defined output tensor, return a freshly created one
     if out is None:
-        return tensor.tensor(
-            operation(x._tensor__array.type(torch_type)),
-            x.gshape,
-            promoted_type,
-            x.split,
-            _copy(x._tensor__comm)
-        )
+        return tensor.tensor(operation(x._tensor__array.type(torch_type)), x.gshape, promoted_type, x.split, x.comm)
 
     # output buffer writing requires a bit more work
     # we need to determine whether the operands are broadcastable and the multiple of the broadcasting
@@ -383,23 +403,23 @@ def __local_operation(operation, x, out):
     operation(casted.repeat(multiples) if needs_repetition else casted, out=out._tensor__array)
     return out
 
-def __reduce_op(x,partial, op, axis):
+
+def __reduce_op(x, partial, op, axis):
     # TODO: document me
     # TODO: test me
     # TODO: make me more numpy API complete
-          # e.g. allow axis to be a tuple, allow for "initial"
+    # TODO: e.g. allow axis to be a tuple, allow for "initial"
     # TODO: implement type promotion
-    
     # perform sanitation
     if not isinstance(x, tensor.tensor):
         raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
-    
-    
-    if x._tensor__comm.is_distributed() and (axis is None or axis == x.split):
-        mpi.all_reduce(partial[0], op, x._tensor__comm.group)
-        return tensor.tensor(partial, partial[0].shape, x.dtype, split=None, comm=NoneCommunicator())
+    # no further checking needed, sanitize axis will raise the proper exceptions
+    axis = stride_tricks.sanitize_axis(x.shape, axis)
+
+    if x.comm.is_distributed() and (axis is None or axis == x.split):
+        x.comm.Allreduce(MPI.IN_PLACE, partial, op)
+        return tensor.tensor(partial, partial.shape, types.canonical_heat_type(partial.dtype), split=None, comm=x.comm)
 
     # TODO: verify if this works for negative split axis
-    output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
-    return tensor.tensor(partial, output_shape, x._tensor__dtype, x._tensor__split, comm=_copy(x._tensor__comm))
-
+    output_shape = x.shape[:axis] + (1,) + x.shape[axis + 1:]
+    return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial.dtype), split=None, comm=x.comm)

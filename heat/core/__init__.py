@@ -1,4 +1,4 @@
-from .communicator import *
+from .communication import *
 from .types import *
 from .tensor import *
 from .operations import *
