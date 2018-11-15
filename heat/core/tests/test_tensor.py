@@ -56,9 +56,9 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(shape_noaxis_int.sum(axis=0).lshape, (1,))
         self.assertIsInstance(shape_noaxis_int.sum(axis=0), ht.tensor)
         self.assertEqual(shape_noaxis_int.sum(axis=0).dtype, ht.int64)
-        self.assertEqual(shape_noaxis_int.sum()._tensor__array.dtype, torch.int64)
-        self.assertEqual(shape_noaxis_int.sum(), array_len)
-        self.assertEqual(shape_noaxis_int.sum().split, None)
+        self.assertEqual(shape_noaxis_int.sum(axis=0)._tensor__array.dtype, torch.int64)
+        self.assertEqual(shape_noaxis_int.sum(axis=0), array_len)
+        self.assertEqual(shape_noaxis_int.sum(axis=0).split, None)
 
         # check sum over all integer elements of splitted 1d tensor
         shape_noaxis_split_int = ht.ones(array_len, split=0).astype(ht.int)
@@ -89,9 +89,9 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(shape_noaxis_split_axis.sum().split, None)
         
         # check sum over all float elements of splitted 5d tensor with negative axis 
-        shape_noaxis_split_axis_neg = ht.ones((1,2,3,4,5), split=0)
+        shape_noaxis_split_axis_neg = ht.ones((1, 2, 3, 4, 5), split=2)
         self.assertIsInstance(shape_noaxis_split_axis_neg.sum(axis=-2), ht.tensor)
-        self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2).shape, (1,2,3,1,5))
+        self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2).shape, (1, 2, 3, 1, 5))
         self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2).dtype, ht.float32)
         self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2)._tensor__array.dtype, torch.float32)
         self.assertEqual(shape_noaxis_split_axis_neg.sum().split, None)
@@ -319,41 +319,6 @@ class TestTensorFactories(unittest.TestCase):
             ht.ones((-1, 3,), dtype=ht.float64)
         with self.assertRaises(TypeError):
             ht.ones((2, 3,), dtype=ht.float64, split='axis')
-
-    def test_randn(self):
-        # scalar input
-        simple_randn_float = ht.randn(3)
-        self.assertIsInstance(simple_randn_float, ht.tensor)
-        self.assertEqual(simple_randn_float.shape,  (3,))
-        self.assertEqual(simple_randn_float.lshape, (3,))
-        self.assertEqual(simple_randn_float.split,  None)
-        self.assertEqual(simple_randn_float.dtype,  ht.float32)
-
-        # multi-dimensional
-        elaborate_randn_float = ht.randn(2, 3)
-        self.assertIsInstance(elaborate_randn_float, ht.tensor)
-        self.assertEqual(elaborate_randn_float.shape,  (2, 3))
-        self.assertEqual(elaborate_randn_float.lshape, (2, 3))
-        self.assertEqual(elaborate_randn_float.split,  None)
-        self.assertEqual(elaborate_randn_float.dtype,  ht.float32)
-
-        #TODO: double-check this
-        # split axis
-        elaborate_randn_split = ht.randn(6, 4, dtype=ht.float32, split=0)
-        self.assertIsInstance(elaborate_randn_split, ht.tensor)
-        self.assertEqual(elaborate_randn_split.shape,         (6, 4,))
-        self.assertLessEqual(elaborate_randn_split.lshape[0], 6)
-        self.assertEqual(elaborate_randn_split.lshape[1],     4)
-        self.assertEqual(elaborate_randn_split.split,         0)
-        self.assertEqual(elaborate_randn_split.dtype,         ht.float32)
-
-        # exceptions
-        with self.assertRaises(TypeError):
-            ht.randn('(2, 3,)', dtype=ht.float64)
-        with self.assertRaises(ValueError):
-            ht.randn(-1, 3, dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            ht.randn(2, 3, dtype=ht.float64, split='axis')
 
     def test_zeros(self):
         # scalar input

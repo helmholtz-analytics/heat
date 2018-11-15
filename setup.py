@@ -1,6 +1,6 @@
 from distutils.core import setup
 
-with open("README.md", "r") as fh:
+with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 setup(
@@ -22,9 +22,12 @@ setup(
         'Topic :: Scientific/Engineering'
     ],
     install_requires=[
+        'mpi4py>=3.0.0',
         'numpy>=1.13.0',
+        'torch>=0.4.1'
     ],
-    extras_require={
-        'hdf5': ['h5py>=2.8.0']
+    extra_require={
+        'hdf5':  ['h5py>=2.8.0'],
+        'netcdf': ['netCDF4>=1.4.0'],
     }
 )
