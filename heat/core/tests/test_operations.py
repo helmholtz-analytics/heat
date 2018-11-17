@@ -208,7 +208,7 @@ class TestOperations(unittest.TestCase):
             [7, 8, 9],
             [10, 11, 12]
         ])       
-        #check basic equivalence to torch.max()
+        # check basic equivalence to torch.max()
         self.assertEqual(data.max(),comparison.max())
         self.assertTrue((ht.max(data,axis=0)._tensor__array[0] == comparison.max(0)[0]).all())
         self.assertIsInstance(ht.max(data,axis=1),ht.tensor)
@@ -406,22 +406,435 @@ class TestOperations(unittest.TestCase):
             ht.sqrt(number_range, 'hello world')
 
     def test_tril(self):
-        # local_range = ht.arange((5,))
-        # res = ht.tril(local_range)
-        # print('\n', res)
-        # res = ht.tril(local_range, k= 2)
-        # print('\n', res)
-        # res = ht.tril(local_range, k=-2)
-        # print('\n', res)
-        #
-        # local_range = ht.ones((4, 5,))
-        # res = ht.tril(local_range)
-        # print('\n', res)
-        # res = ht.tril(local_range, k= 2)
-        # print('\n', res)
-        # res = ht.tril(local_range, k=-2)
-        # print('\n', res)
+        local_ones = ht.ones((5,))
 
-        local_range = ht.ones((4, 5, 3,))
-        res = ht.tril(local_range)
-        print('\n', res)
+        # 1D case, no offset, data is not split, module-level call
+        result = ht.tril(local_ones)
+        comparison = torch.ones((5, 5,)).tril()
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.lshape, (5, 5,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == comparison).all())
+
+        # 1D case, positive offset, data is not split, module-level call
+        result = ht.tril(local_ones, k=2)
+        comparison = torch.ones((5, 5,)).tril(diagonal=2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.lshape, (5, 5,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == comparison).all())
+
+        # 1D case, negative offset, data is not split, module-level call
+        result = ht.tril(local_ones, k=-2)
+        comparison = torch.ones((5, 5,)).tril(diagonal=-2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.lshape, (5, 5,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == comparison).all())
+
+        local_ones = ht.ones((4, 5,))
+
+        # 2D case, no offset, data is not split, method
+        result = local_ones.tril()
+        comparison = torch.ones((4, 5,)).tril()
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == comparison).all())
+
+        # 2D case, positive offset, data is not split, method
+        result = local_ones.tril(k=2)
+        comparison = torch.ones((4, 5,)).tril(diagonal=2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == comparison).all())
+
+        # 2D case, negative offset, data is not split, method
+        result = local_ones.tril(k=-2)
+        comparison = torch.ones((4, 5,)).tril(diagonal=-2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == comparison).all())
+
+        local_ones = ht.ones((3, 4, 5, 6))
+
+        # 2D+ case, no offset, data is not split, module-level call
+        result = local_ones.tril()
+        comparison = torch.ones((5, 6,)).tril()
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (3, 4, 5, 6,))
+        self.assertEqual(result.lshape, (3, 4, 5, 6,))
+        self.assertEqual(result.split, None)
+        for i in range(3):
+            for j in range(4):
+                self.assertTrue((result._tensor__array[i, j] == comparison).all())
+
+        # 2D+ case, positive offset, data is not split, module-level call
+        result = local_ones.tril(k=2)
+        comparison = torch.ones((5, 6,)).tril(diagonal=2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (3, 4, 5, 6,))
+        self.assertEqual(result.lshape, (3, 4, 5, 6,))
+        self.assertEqual(result.split, None)
+        for i in range(3):
+            for j in range(4):
+                self.assertTrue((result._tensor__array[i, j] == comparison).all())
+
+        # # 2D+ case, negative offset, data is not split, module-level call
+        result = local_ones.tril(k=-2)
+        comparison = torch.ones((5, 6,)).tril(diagonal=-2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (3, 4, 5, 6,))
+        self.assertEqual(result.lshape, (3, 4, 5, 6,))
+        self.assertEqual(result.split, None)
+        for i in range(3):
+            for j in range(4):
+                self.assertTrue((result._tensor__array[i, j] == comparison).all())
+
+        distributed_ones = ht.ones((5,), split=0)
+
+        # 1D case, no offset, data is split, method
+        result = distributed_ones.tril()
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.split, 1)
+        self.assertEqual(result.lshape[0], 5)
+        self.assertLessEqual(result.lshape[1], 5)
+        self.assertTrue(result.sum(), 15)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[-1, 0] == 1)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[0, -1] == 0)
+
+        # 1D case, positive offset, data is split, method
+        result = distributed_ones.tril(k=2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.split, 1)
+        self.assertEqual(result.lshape[0], 5)
+        self.assertLessEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 22)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[-1, 0] == 1)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[0, -1] == 0)
+
+        # 1D case, negative offset, data is split, method
+        result = distributed_ones.tril(k=-2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.split, 1)
+        self.assertEqual(result.lshape[0], 5)
+        self.assertLessEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 6)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[-1, 0] == 1)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[0, -1] == 0)
+
+        distributed_ones = ht.ones((4, 5,), split=0)
+
+        # 2D case, no offset, data is horizontally split, method
+        result = distributed_ones.tril()
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.split, 0)
+        self.assertLessEqual(result.lshape[0], 4)
+        self.assertEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 10)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[0, -1] == 0)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[-1, 0] == 1)
+
+        # 2D case, positive offset, data is horizontally split, method
+        result = distributed_ones.tril(k=2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.split, 0)
+        self.assertLessEqual(result.lshape[0], 4)
+        self.assertEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 17)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[0, -1] == 0)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[-1, 0] == 1)
+
+        # 2D case, negative offset, data is horizontally split, method
+        result = distributed_ones.tril(k=-2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.split, 0)
+        self.assertLessEqual(result.lshape[0], 4)
+        self.assertEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 3)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[0, -1] == 0)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[-1, 0] == 1)
+
+        distributed_ones = ht.ones((4, 5,), split=1)
+
+        # 2D case, no offset, data is vertically split, method
+        result = distributed_ones.tril()
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.split, 1)
+        self.assertEqual(result.lshape[0], 4)
+        self.assertLessEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 10)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[-1, 0] == 1)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[0, -1] == 0)
+
+        # 2D case, positive offset, data is horizontally split, method
+        result = distributed_ones.tril(k=2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.split, 1)
+        self.assertEqual(result.lshape[0], 4)
+        self.assertLessEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 17)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[-1, 0] == 1)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[0, -1] == 0)
+
+        # 2D case, negative offset, data is horizontally split, method
+        result = distributed_ones.tril(k=-2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.split, 1)
+        self.assertEqual(result.lshape[0], 4)
+        self.assertLessEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 3)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[-1, 0] == 1)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[0, -1] == 0)
+
+    def test_triu(self):
+        local_ones = ht.ones((5,))
+
+        # 1D case, no offset, data is not split, module-level call
+        result = ht.triu(local_ones)
+        comparison = torch.ones((5, 5,)).triu()
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.lshape, (5, 5,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == comparison).all())
+
+        # 1D case, positive offset, data is not split, module-level call
+        result = ht.triu(local_ones, k=2)
+        comparison = torch.ones((5, 5,)).triu(diagonal=2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.lshape, (5, 5,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == comparison).all())
+
+        # 1D case, negative offset, data is not split, module-level call
+        result = ht.triu(local_ones, k=-2)
+        comparison = torch.ones((5, 5,)).triu(diagonal=-2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.lshape, (5, 5,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == comparison).all())
+
+        local_ones = ht.ones((4, 5,))
+
+        # 2D case, no offset, data is not split, method
+        result = local_ones.triu()
+        comparison = torch.ones((4, 5,)).triu()
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == comparison).all())
+
+        # 2D case, positive offset, data is not split, method
+        result = local_ones.triu(k=2)
+        comparison = torch.ones((4, 5,)).triu(diagonal=2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == comparison).all())
+
+        # 2D case, negative offset, data is not split, method
+        result = local_ones.triu(k=-2)
+        comparison = torch.ones((4, 5,)).triu(diagonal=-2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == comparison).all())
+
+        local_ones = ht.ones((3, 4, 5, 6))
+
+        # 2D+ case, no offset, data is not split, module-level call
+        result = local_ones.triu()
+        comparison = torch.ones((5, 6,)).triu()
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (3, 4, 5, 6,))
+        self.assertEqual(result.lshape, (3, 4, 5, 6,))
+        self.assertEqual(result.split, None)
+        for i in range(3):
+            for j in range(4):
+                self.assertTrue((result._tensor__array[i, j] == comparison).all())
+
+        # 2D+ case, positive offset, data is not split, module-level call
+        result = local_ones.triu(k=2)
+        comparison = torch.ones((5, 6,)).triu(diagonal=2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (3, 4, 5, 6,))
+        self.assertEqual(result.lshape, (3, 4, 5, 6,))
+        self.assertEqual(result.split, None)
+        for i in range(3):
+            for j in range(4):
+                self.assertTrue((result._tensor__array[i, j] == comparison).all())
+
+        # # 2D+ case, negative offset, data is not split, module-level call
+        result = local_ones.triu(k=-2)
+        comparison = torch.ones((5, 6,)).triu(diagonal=-2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (3, 4, 5, 6,))
+        self.assertEqual(result.lshape, (3, 4, 5, 6,))
+        self.assertEqual(result.split, None)
+        for i in range(3):
+            for j in range(4):
+                self.assertTrue((result._tensor__array[i, j] == comparison).all())
+
+        distributed_ones = ht.ones((5,), split=0)
+
+        # 1D case, no offset, data is split, method
+        result = distributed_ones.triu()
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.split, 1)
+        self.assertEqual(result.lshape[0], 5)
+        self.assertLessEqual(result.lshape[1], 5)
+        self.assertTrue(result.sum(), 15)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[-1, 0] == 0)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[0, -1] == 1)
+
+        # 1D case, positive offset, data is split, method
+        result = distributed_ones.triu(k=2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.split, 1)
+        self.assertEqual(result.lshape[0], 5)
+        self.assertLessEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 6)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[-1, 0] == 0)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[0, -1] == 1)
+
+        # 1D case, negative offset, data is split, method
+        result = distributed_ones.triu(k=-2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.split, 1)
+        self.assertEqual(result.lshape[0], 5)
+        self.assertLessEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 22)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[-1, 0] == 0)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[0, -1] == 1)
+
+        distributed_ones = ht.ones((4, 5,), split=0)
+
+        # 2D case, no offset, data is horizontally split, method
+        result = distributed_ones.triu()
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.split, 0)
+        self.assertLessEqual(result.lshape[0], 4)
+        self.assertEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 14)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[0, -1] == 1)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[-1, 0] == 0)
+
+        # # 2D case, positive offset, data is horizontally split, method
+        result = distributed_ones.triu(k=2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.split, 0)
+        self.assertLessEqual(result.lshape[0], 4)
+        self.assertEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 6)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[0, -1] == 1)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[-1, 0] == 0)
+
+        # # 2D case, negative offset, data is horizontally split, method
+        result = distributed_ones.triu(k=-2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.split, 0)
+        self.assertLessEqual(result.lshape[0], 4)
+        self.assertEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 19)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[0, -1] == 1)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[-1, 0] == 0)
+
+        distributed_ones = ht.ones((4, 5,), split=1)
+
+        # 2D case, no offset, data is vertically split, method
+        result = distributed_ones.triu()
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.split, 1)
+        self.assertEqual(result.lshape[0], 4)
+        self.assertLessEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 14)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[-1, 0] == 0)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[0, -1] == 1)
+
+        # 2D case, positive offset, data is horizontally split, method
+        result = distributed_ones.triu(k=2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.split, 1)
+        self.assertEqual(result.lshape[0], 4)
+        self.assertLessEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 6)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[-1, 0] == 0)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[0, -1] == 1)
+
+        # 2D case, negative offset, data is horizontally split, method
+        result = distributed_ones.triu(k=-2)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.split, 1)
+        self.assertEqual(result.lshape[0], 4)
+        self.assertLessEqual(result.lshape[1], 5)
+        self.assertEqual(result.sum(), 19)
+        if result.comm.rank == 0:
+            self.assertTrue(result._tensor__array[-1, 0] == 0)
+        if result.comm.rank == result.comm.size - 1:
+            self.assertTrue(result._tensor__array[0, -1] == 1)
