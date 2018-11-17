@@ -450,10 +450,13 @@ def __tri_op(m, k, op):
     # manually repeat the input for vectors
     if dimensions == 1:
         triangle = op(m._tensor__array.expand(m.shape[0], -1), k - offset)
-        return tensor.tensor(triangle, (dimensions, dimensions,), m.dtype, m.split, m.comm)
+        return tensor.tensor(triangle, (m.shape[0], m.shape[0],), m.dtype, None if m.split is None else 1, m.comm)
+
+    original = m._tensor__array
+    output = original.clone()
 
     # modify k to account for tensor splits
-    if m.split:
+    if m.split is not None:
         if m.split + 1 == dimensions - 1:
             k += offset
         elif m.split == dimensions - 1:
@@ -461,17 +464,13 @@ def __tri_op(m, k, op):
 
     # in case of two dimensions we can just forward the call to the callable
     if dimensions == 2:
-        triangle = op(m._tensor__array, k)
-        return tensor.tensor(triangle, m.shape, m.dtype, m.split, m.comm)
-
-    # iterate over all but the last two dimensions in case of more than two dimensions to realize 2D broadcasting
-    original = m._tensor__array
-    output = original.clone()
-    ranges = [range(elements) for elements in m.lshape[:-2]]
-
-    for partial_index in itertools.product(*ranges):
-        index = partial_index + __index_base
-        op(original[index], k, out=output[index])
+        op(original, k, out=output)
+    # more than two dimensions: iterate over all but the last two to realize 2D broadcasting
+    else:
+        ranges = [range(elements) for elements in m.lshape[:-2]]
+        for partial_index in itertools.product(*ranges):
+            index = partial_index + __index_base
+            op(original[index], k, out=output[index])
 
     return tensor.tensor(output, m.shape, m.dtype, m.split, m.comm)
 
