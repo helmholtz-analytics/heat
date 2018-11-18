@@ -952,7 +952,7 @@ def zeros(shape, dtype=types.float32, split=None, comm=MPI_WORLD, device=None):
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
     """
-    return __factory(shape, dtype, split, torch.zeros, comm)
+    return __factory(shape, dtype, split, torch.zeros, comm, device)
 
 
 def zeros_like(a, dtype=None, split=None, comm=MPI_WORLD, device=None):
