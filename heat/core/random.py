@@ -15,6 +15,8 @@ def set_gseed(seed):
 def uniform(low=0.0, high=1.0, size=None, comm=MPI_WORLD):
     # TODO: comment me
     # TODO: test me
+    # TODO: make me splitable
+    # TODO: add device capabilities
     if size is None:
         size = (1,)
 
@@ -56,6 +58,7 @@ def randn(*args):
             [ 0.1260,  1.2126, -0.0804,  0.0907]])
     """
     # TODO: make me splitable
+    # TODO: add device capabilities
     # check if all positional arguments are integers
     if not all(isinstance(_, int) for _ in args):
         raise TypeError('dimensions have to be integers')
