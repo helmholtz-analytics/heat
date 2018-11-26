@@ -16,7 +16,8 @@ __all__ = [
     'max',
     'min',
     'sin',
-    'sqrt'
+    'sqrt',
+    'transpose'
 ]
 
 
@@ -348,6 +349,30 @@ def sqrt(x, out=None):
     return __local_operation(torch.sqrt, x, out)
 
 
+def transpose(a, axes=None):
+    """
+    Permute the dimensions of an array.
+
+    Parameters
+    ----------
+    a : array_like
+        Input array.
+    axes : None or list of ints, optional
+        By default, reverse the dimensions, otherwise permute the axes according to the values given.
+
+    Returns
+    -------
+    p : ht.tensor
+        a with its axes permuted.
+    """
+    if not isinstance(a, tensor.tensor):
+        raise TypeError('a must be of type ht.tensor, but was {}'.format(type(a)))
+
+    # sanitize the axis
+    if axes is not None:
+        axes = [stride_tricks.sanitize_axis(a.shape, int(axis)) for axis in axes]
+
+    
 def __local_operation(operation, x, out):
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as

@@ -44,6 +44,10 @@ class tensor:
     def split(self):
         return self.__split
 
+    @property
+    def T(self, axes=None):
+        return operations.transpose(self, axes)
+
     def abs(self, out=None, dtype=None):
         """
         Calculate the absolute value element-wise.
@@ -453,6 +457,22 @@ class tensor:
                  [3.]]])
         """
         return operations.sum(self, axis)
+
+    def transpose(self, axes=None):
+        """
+        Permute the dimensions of an array.
+
+        Parameters
+        ----------
+        axes : None or list of ints, optional
+            By default, reverse the dimensions, otherwise permute the axes according to the values given.
+
+        Returns
+        -------
+        p : ht.tensor
+            a with its axes permuted.
+        """
+        return operations.transpose(self, axes)
 
     def __binop(self, op, other):
         # TODO: document me
