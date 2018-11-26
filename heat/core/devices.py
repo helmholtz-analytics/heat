@@ -34,6 +34,18 @@ __device_mapping = {
 }
 
 
+def get_default_device():
+    """
+    Retrieves the currently globally set default device.
+
+    Returns
+    -------
+    defaults device : str
+        The default device
+    """
+    return __default_device
+
+
 def sanitize_device(device):
     """
     Sanitizes a device identifier, i.e. checks whether it is of correct type, string content and normalizes the
