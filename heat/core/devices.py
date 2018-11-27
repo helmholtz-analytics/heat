@@ -12,7 +12,7 @@ def cpu_index():
     cpu_index : int
         The CPU index
     """
-    return 'cpu:0'
+    return 'cpu'
 
 
 def gpu_index():
@@ -24,7 +24,7 @@ def gpu_index():
     gpu_index : int
         The GPU index
     """
-    return 'cuda:%d'.format(MPI_WORLD.rank % torch.cuda.device_count())
+    return 'cuda:{}'.format(MPI_WORLD.rank % torch.cuda.device_count())
 
 
 __default_device = 'cpu'
