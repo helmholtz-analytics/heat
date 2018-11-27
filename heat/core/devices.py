@@ -15,23 +15,25 @@ def cpu_index():
     return 'cpu'
 
 
-def gpu_index():
-    """
-    Retrieves the index of the GPU to be used for this MPI process.
-
-    Returns
-    -------
-    gpu_index : int
-        The GPU index
-    """
-    return 'cuda:{}'.format(MPI_WORLD.rank % torch.cuda.device_count())
-
-
 __default_device = 'cpu'
 __device_mapping = {
-    'cpu': cpu_index,
-    'gpu': gpu_index
+    'cpu': cpu_index
 }
+
+# add gpu support if available
+if torch.cuda.device_count() > 0:
+    def gpu_index():
+        """
+        Retrieves the index of the GPU to be used for this MPI process.
+
+        Returns
+        -------
+        gpu_index : int
+            The GPU index
+        """
+        return 'cuda:{}'.format(MPI_WORLD.rank % torch.cuda.device_count())
+
+    __device_mapping['gpu'] = gpu_index
 
 
 def get_default_device():

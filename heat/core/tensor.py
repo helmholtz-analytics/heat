@@ -271,7 +271,8 @@ class tensor:
         r"""
         Return the floor of the input, element-wise.
 
-        The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as :math:`\lfloor x \rfloor`.
+        The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as :math:`\lfloor x
+        \rfloor`.
 
         Parameters
         ----------
@@ -666,32 +667,25 @@ def arange(*args, dtype=None, split=None, comm=MPI_WORLD, device=None):
     """
     Return evenly spaced values within a given interval.
 
-    Values are generated within the half-open interval ``[start, stop)``
-    (in other words, the interval including `start` but excluding `stop`).
-    For integer arguments the function is equivalent to the Python built-in
-    `range <http://docs.python.org/lib/built-in-funcs.html>`_ function,
-    but returns a tensor rather than a list.
+    Values are generated within the half-open interval ``[start, stop)`` (in other words, the interval including `start`
+    but excluding `stop`). For integer arguments the function is equivalent to the Python built-in `range
+    <http://docs.python.org/lib/built-in-funcs.html>`_ function, but returns a tensor rather than a list.
 
-    When using a non-integer step, such as 0.1, the results will often not
-    be consistent.  It is better to use ``linspace`` for these cases.
+    When using a non-integer step, such as 0.1, the results will often not be consistent. It is better to use
+    ``linspace`` for these cases.
 
     Parameters
     ----------
     start : number, optional
-        Start of interval.  The interval includes this value.  The default
-        start value is 0.
+        Start of interval.  The interval includes this value.  The default start value is 0.
     stop : number
-        End of interval.  The interval does not include this value, except
-        in some cases where `step` is not an integer and floating point
-        round-off affects the length of `out`.
+        End of interval.  The interval does not include this value, except in some cases where `step` is not an integer
+        and floating point round-off affects the length of `out`.
     step : number, optional
-        Spacing between values.  For any output `out`, this is the distance
-        between two adjacent values, ``out[i+1] - out[i]``.  The default
-        step size is 1.  If `step` is specified as a position argument,
-        `start` must also be given.
+        Spacing between values.  For any output `out`, this is the distance between two adjacent values, ``out[i+1] -
+        out[i]``. The default step size is 1. If `step` is specified as a position argument, `start` must also be given.
     dtype : dtype
-        The type of the output array.  If `dtype` is not given, infer the data
-        type from the other input arguments.
+        The type of the output array.  If `dtype` is not given, infer the data type from the other input arguments.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
     comm: Communication, optional
@@ -704,10 +698,8 @@ def arange(*args, dtype=None, split=None, comm=MPI_WORLD, device=None):
     arange : 1D heat tensor
         1D heat tensor of evenly spaced values.
 
-        For floating point arguments, the length of the result is
-        ``ceil((stop - start)/step)``.  Because of floating point overflow,
-        this rule may result in the last element of `out` being greater
-        than `stop`.
+        For floating point arguments, the length of the result is ``ceil((stop - start)/step)``. Because of floating
+        point overflow, this rule may result in the last element of `out` being greater than `stop`.
 
     See Also
     --------
@@ -719,9 +711,9 @@ def arange(*args, dtype=None, split=None, comm=MPI_WORLD, device=None):
     tensor([0, 1, 2])
     >>> ht.arange(3.0)
     tensor([ 0.,  1.,  2.])
-    >>> ht.arange(3,7)
+    >>> ht.arange(3, 7)
     tensor([3, 4, 5, 6])
-    >>> ht.arange(3,7,2)
+    >>> ht.arange(3, 7, 2)
     tensor([3, 5])
     """
     num_of_param = len(args)
