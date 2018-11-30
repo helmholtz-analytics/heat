@@ -5,7 +5,8 @@ with open('README.md', 'r') as fh:
 
 setup(
     name='heat',
-    packages=['heat'],
+    packages=['heat', 'heat.core', 'heat.ml', 'heat.ml.cluster'],
+    data_files=['README.md', 'LICENSE'],
     version='0.0.1',
     description='A framework for high performance data analytics and machine learning.',
     long_description=long_description,
