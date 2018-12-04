@@ -474,6 +474,50 @@ class tensor:
         """
         return operations.transpose(self, axes)
 
+    def tril(self, k=0):
+        """
+        Returns the lower triangular part of the tensor, the other elements of the result tensor are set to 0.
+
+        The lower triangular part of the tensor is defined as the elements on and below the diagonal.
+
+        The argument k controls which diagonal to consider. If k=0, all elements on and below the main diagonal are
+        retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
+        value excludes just as many diagonals below the main diagonal.
+
+        Parameters
+        ----------
+        k : int, optional
+            Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
+
+        Returns
+        -------
+        lower_triangle : ht.tensor
+            Lower triangle of the input tensor.
+        """
+        return operations.tril(self, k)
+
+    def triu(self, k=0):
+        """
+        Returns the upper triangular part of the tensor, the other elements of the result tensor are set to 0.
+
+        The upper triangular part of the tensor is defined as the elements on and below the diagonal.
+
+        The argument k controls which diagonal to consider. If k=0, all elements on and below the main diagonal are
+        retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
+        value excludes just as many diagonals below the main diagonal.
+
+        Parameters
+        ----------
+        k : int, optional
+            Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
+
+        Returns
+        -------
+        upper_triangle : ht.tensor
+            Upper triangle of the input tensor.
+        """
+        return operations.triu(self, k)
+
     def __binop(self, op, other):
         # TODO: document me
         # TODO: test me
@@ -889,6 +933,7 @@ def ones_like(a, dtype=None, split=None, comm=MPI_WORLD):
             [1., 1., 1.]])
     """
     return __factory_like(a, dtype, split, ones, comm)
+
 
 def zeros(shape, dtype=types.float32, split=None, comm=MPI_WORLD):
     """
