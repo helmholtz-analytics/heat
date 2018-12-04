@@ -471,6 +471,26 @@ class tensor:
         -------
         p : ht.tensor
             a with its axes permuted.
+
+        Examples
+        --------
+        >>> a = ht.array([[1, 2], [3, 4]])
+        >>> a
+        tensor([[1, 2],
+                [3, 4]])
+        >>> a.transpose()
+        tensor([[1, 3],
+                [2, 4]])
+        >>> a.transpose((1, 0))
+        tensor([[1, 3],
+                [2, 4]])
+        >>> a.transpose(1, 0)
+        tensor([[1, 3],
+                [2, 4]])
+                
+        >>> x = ht.ones((1, 2, 3))
+        >>> ht.transpose(x, (1, 0, 2)).shape
+        (2, 1, 3)
         """
         return operations.transpose(self, axes)
 

@@ -368,12 +368,42 @@ def transpose(a, axes=None):
     p : ht.tensor
         a with its axes permuted.
     """
+    # type check the input tensor
     if not isinstance(a, tensor.tensor):
         raise TypeError('a must be of type ht.tensor, but was {}'.format(type(a)))
 
-    # sanitize the axis
-    if axes is not None:
-        axes = [stride_tricks.sanitize_axis(a.shape, int(axis)) for axis in axes]
+    # set default value for axes permutations
+    dimensions = len(a.shape)
+    if axes is None:
+        axes = tuple(range(dimensions, -1, -1))
+    # if given, sanitize the input
+    else:
+        try:
+            # convert to a list to allow index access
+            axes = list(axes)
+        except TypeError:
+            # in order to trigger the ValueError in the next condition
+            dimensions = -1
+
+        if len(axes) != dimensions:
+            raise ValueError('axes do not match tensor shape')
+        for index, axis in enumerate(axes):
+            if not isinstance(axis, int):
+                raise TypeError('axis must be an integer, but was {}'.format(type(axis)))
+            elif axis < 0:
+                axes[index] = axis + dimensions
+
+    # infer the new split axis, it is the position of the split axis within the new axes permutation
+    try:
+        transposed_split = axes.index(a.split)
+    except ValueError:
+        raise ValueError('axes do not match tensor shape')
+
+    # try to rearrange the tensor and return a copy, if not possible re-raise any torch exception as ValueError
+    try:
+        return tensor.tensor(a.permute(*axes), a.shape, a.dtype, transposed_split, a.comm)
+    except RuntimeError as exception:
+        raise ValueError(str(exception))
 
 
 # statically allocated index slices for non-iterable dimensions in triangular operations
