@@ -375,15 +375,14 @@ def transpose(a, axes=None):
     # set default value for axes permutations
     dimensions = len(a.shape)
     if axes is None:
-        axes = tuple(range(dimensions, -1, -1))
+        axes = tuple(reversed(range(dimensions)))
     # if given, sanitize the input
     else:
         try:
             # convert to a list to allow index access
             axes = list(axes)
         except TypeError:
-            # in order to trigger the ValueError in the next condition
-            dimensions = -1
+            raise ValueError('axes must be an iterable containing ints')
 
         if len(axes) != dimensions:
             raise ValueError('axes do not match tensor shape')
@@ -395,13 +394,17 @@ def transpose(a, axes=None):
 
     # infer the new split axis, it is the position of the split axis within the new axes permutation
     try:
-        transposed_split = axes.index(a.split)
+        transposed_split = axes.index(a.split) if a.split is not None else None
     except ValueError:
         raise ValueError('axes do not match tensor shape')
 
-    # try to rearrange the tensor and return a copy, if not possible re-raise any torch exception as ValueError
+    # try to rearrange the tensor and return a new transposed variant
     try:
-        return tensor.tensor(a.permute(*axes), a.shape, a.dtype, transposed_split, a.comm)
+        transposed_data = a._tensor__array.permute(*axes)
+        transposed_shape = tuple(a.shape[axis] for axis in axes)
+
+        return tensor.tensor(transposed_data, transposed_shape, a.dtype, transposed_split, a.comm)
+    # if not possible re- raise any torch exception as ValueError
     except RuntimeError as exception:
         raise ValueError(str(exception))
 
