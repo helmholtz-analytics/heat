@@ -54,3 +54,6 @@ class TestCommunicator(unittest.TestCase):
 
         self.assertIsInstance(chunks, tuple)
         self.assertEqual(len(chunks), len(self.data.shape))
+
+    def test_cuda_aware_mpi(self):
+        self.assertTrue(hasattr(ht.communication, 'CUDA_AWARE_MPI'))
