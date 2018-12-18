@@ -274,7 +274,7 @@ def min(x, axis=None):
     #TODO: initial : scalar, optional   
     The maximum value of an output element. Must be present to allow computation on empty slice.
     """
-    #perform sanitation:
+    # perform sanitation:
     axis = stride_tricks.sanitize_axis(x.shape,axis)
     if axis is not None:        
         min_axis, _ = x._tensor__array.min(axis, keepdim=True)
@@ -313,6 +313,7 @@ def sin(x, out=None):
 def sum(x, axis=None):
     # TODO: document me
     axis = stride_tricks.sanitize_axis(x.shape, axis)
+
     if axis is not None:
         sum_axis = x._tensor__array.sum(axis, keepdim=True)
     else:

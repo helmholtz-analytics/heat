@@ -122,7 +122,7 @@ class MPICommunication(Communication):
             tuple(slice(0, shape[i]) if i != split else slice(start, end) for i in range(dims))
 
     @classmethod
-    def get_type_and_size(cls, obj):
+    def mpi_type_and_elements_of(cls, obj):
         """
         Determines the MPI data type and number of respective elements for the given tensor. In case the tensor is
         contiguous in memory, a native MPI data type can be used. Otherwise, a derived data type is automatically
@@ -151,14 +151,35 @@ class MPICommunication(Communication):
         shape = obj.shape[1:]
         strides = [1] * len(shape)
         strides[0] = obj.stride()[-1]
-        offsets = [obj.element_size() * stride for stride in obj.strides()[:-1]]
+        offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
 
         # chain the types based on the
-        for i in range(len(shape), -1, -1):
+        for i in range(len(shape) - 1, -1, -1):
             mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
             mpi_type.Commit()
 
         return mpi_type, elements
+
+    @classmethod
+    def as_mpi_memory(cls, obj):
+        """
+        Converts the passed Torch tensor into an MPI compatible memory view.
+
+        Parameters
+        ----------
+        obj : torch.Tensor
+            The tensor to be converted into a MPI memory view.
+
+        Returns
+        -------
+        mpi_memory : MPI.memory
+            The MPI memory objects of the passed tensor.
+        """
+        # in case of GPUs, the memory has to be copied to host memory if CUDA-aware MPI is not supported
+        pointer = obj.data_ptr() if CUDA_AWARE_MPI else obj.cpu().data_ptr()
+        pointer += obj.storage_offset()
+
+        return MPI.memory.fromaddress(pointer, 0)
 
     @classmethod
     def as_buffer(cls, obj):
@@ -185,47 +206,123 @@ class MPICommunication(Communication):
 
         # ensure that the underlying memory is contiguous
         # may be improved by constructing an appropriate MPI derived data type?
-        mpi_type, elements = cls.get_type_and_size(obj)
+        mpi_type, elements = cls.mpi_type_and_elements_of(obj)
 
-        # prepare the memory pointer
-        # in case of GPUs, the memory has to be copied to host memory if cuda aware MPI is not supported
-        pointer = obj.data_ptr() if CUDA_AWARE_MPI else obj.cpu().data_ptr()
-        pointer += obj.storage_offset()
+        return [cls.as_mpi_memory(obj), elements, mpi_type]
 
-        return [MPI.memory.fromaddress(pointer, 0), elements, mpi_type]
+    def __recv(self, func, buf, source, tag, status):
+        if isinstance(buf, tensor.tensor):
+            buf = buf._tensor__array
+        if isinstance(buf, torch.Tensor):
+            buf = self.as_buffer(buf)
 
-    def convert_tensors(self, a_callable):
-        """
-        Constructs a decorator function for a given callable. The decorator ensures, that all the positional and keyword
-        arguments to the passed callable are converted from HeAT or torch tensor to a buffer before invocation.
+        return func(buf, source, tag, status)
 
-        Parameters
-        ----------
-        a_callable : callable
-            The callable to be decorated.
+    def Irecv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=None):
+        return self.__recv(self.handle.Irecv, buf, source, tag, status)
+    Irecv.__doc__ = MPI.Comm.Irecv.__doc__
 
-        Returns
-        -------
-        wrapped : function
-            The decorated callable.
+    def Recv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=None):
+        return self.__recv(self.handle.Recv, buf, source, tag, status)
+    Recv.__doc__ = MPI.Comm.Recv.__doc__
 
-        See Also
-        --------
-        as_buffer
-        """
-        def wrapped(*args, **kwargs):
-            args = list(args)
-            for index, arg in enumerate(args):
-                args[index] = self.as_buffer(arg)
-            for key, arg in kwargs.items():
-                kwargs[key] = self.as_buffer(arg)
+    def __send(self, func, buf, dest, tag):
+        if isinstance(buf, tensor.tensor):
+            buf = buf._tensor__array
+        if isinstance(buf, torch.Tensor):
+            buf = self.as_buffer(buf)
 
-            return a_callable(*args, **kwargs)
+        return func(buf, dest, tag)
 
-        return wrapped
+    def Bsend(self, buf, dest, tag=0):
+        return self.__send(self.handle.Bsend, buf, dest, tag)
+    Bsend.__doc__ = MPI.Comm.Bsend.__doc__
 
-    def __getattr__(self, name):
-        return self.convert_tensors(getattr(self.handle, name))
+    def Ibsend(self, buf, dest, tag=0):
+        return self.__send(self.handle.Ibsend, buf, dest, tag)
+    Ibsend.__doc__ = MPI.Comm.Ibsend.__doc__
+
+    def Irsend(self, buf, dest, tag=0):
+        return self.__send(self.handle.Irsend, buf, dest, tag)
+    Irsend.__doc__ = MPI.Comm.Irsend.__doc__
+
+    def Isend(self, buf, dest, tag=0):
+        return self.__send(self.handle.Isend, buf, dest, tag)
+    Isend.__doc__ = MPI.Comm.Isend.__doc__
+
+    def Issend(self, buf, dest, tag=0):
+        return self.__send(self.handle.Issend, buf, dest, tag)
+    Issend.__doc__ = MPI.Comm.Issend.__doc__
+
+    def Rsend(self, buf, dest, tag=0):
+        return self.__send(self.handle.Rsend, buf, dest, tag)
+    Rsend.__doc__ = MPI.Comm.Rsend.__doc__
+
+    def Ssend(self, buf, dest, tag=0):
+        return self.__send(self.handle.Ssend, buf, dest, tag)
+    Ssend.__doc__ = MPI.Comm.Ssend.__doc__
+
+    def Send(self, buf, dest, tag=0):
+        return self.__send(self.handle.Send, buf, dest, tag)
+    Send.__doc__ = MPI.Comm.Send.__doc__
+
+    def __collective_single_type(self, func, sendbuf, recvbuf, *args, **kwargs):
+        # unpack the receive buffer if it is a HeAT tensor
+        if isinstance(recvbuf, tensor.tensor):
+            recvbuf = recvbuf._tensor__array
+        # unpack the send buffer if it is a HeAT tensor
+        if isinstance(sendbuf, tensor.tensor):
+            sendbuf = sendbuf._tensor__array
+
+        # determine whether the buffers are torch tensors
+        sendbuf_is_torch = isinstance(sendbuf, torch.Tensor)
+        recvbuf_is_torch = isinstance(recvbuf, torch.Tensor)
+
+        # harmonize the input and output buffers
+        # MPI requires send and receive buffers to be of same type and length. If the torch tensors are either not both
+        # contiguous or differently strided, they have to be made matching (if possible) first.
+        if sendbuf_is_torch and recvbuf_is_torch:
+            # nothing matches, the buffers have to be made contiguous
+            dummy = recvbuf.contiguous()  # make a contiguous copy and reassign the storage, old will be collected
+            recvbuf.set_(dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride())
+            recvbuf = self.as_buffer(recvbuf)
+
+            # convert the send buffer to a pointer, number of elements and type are identical to the receive buffer
+            dummy = sendbuf.contiguous()
+            sendbuf.set_(dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride())
+            sendbuf = [self.as_mpi_memory(sendbuf), recvbuf[1], recvbuf[2]]
+
+        elif sendbuf_is_torch:
+            sendbuf = self.as_buffer(sendbuf)
+        elif recvbuf_is_torch:
+            recvbuf = self.as_buffer(recvbuf)
+
+        # perform the actual reduction operation
+        return func(sendbuf, recvbuf, *args, **kwargs)
+
+    def Exscan(self, sendbuf, recvbuf, op=MPI.SUM):
+        return self.__collective_single_type(self.handle.Exscan, sendbuf, recvbuf, op)
+    Exscan.__doc__ = MPI.COMM_WORLD.Exscan.__doc__
+
+    def Iexscan(self, sendbuf, recvbuf, op=MPI.SUM):
+        return self.__collective_single_type(self.handle.Iexscan, sendbuf, recvbuf, op)
+    Iexscan.__doc__ = MPI.COMM_WORLD.Iexscan.__doc__
+
+    def Iscan(self, sendbuf, recvbuf, op=MPI.SUM):
+        return self.__collective_single_type(self.handle.Iscan, sendbuf, recvbuf, op)
+    Iscan.__doc__ = MPI.COMM_WORLD.Iscan.__doc__
+
+    def Ireduce(self, sendbuf, recvbuf, op=MPI.SUM, root=0):
+        return self.__collective_single_type(self.handle.Ireduce, sendbuf, recvbuf, op, root)
+    Ireduce.__doc__ = MPI.Comm.Ireduce.__doc__
+
+    def Reduce(self, sendbuf, recvbuf, op=MPI.SUM, root=0):
+        return self.__collective_single_type(self.handle.Reduce, sendbuf, recvbuf, op, root)
+    Reduce.__doc__ = MPI.Comm.Reduce.__doc__
+
+    def Scan(self, sendbuf, recvbuf, op=MPI.SUM):
+        return self.__collective_single_type(self.handle.Scan, sendbuf, recvbuf, op)
+    Scan.__doc__ = MPI.COMM_WORLD.Scan.__doc__
 
 
 MPI_WORLD = MPICommunication()

@@ -29,6 +29,7 @@ class TestTensor(unittest.TestCase):
         self.assertIs(as_float64, data)
 
     def test_sum(self):
+        """
         array_len = 9 
         # check sum over all float elements of 1d tensor locally 
         shape_noaxis = ht.ones(array_len)
@@ -79,22 +80,27 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(shape_noaxis.sum()._tensor__array.dtype, torch.float32)
         self.assertAlmostEqual(shape_noaxis.sum(), 27., places=7, msg=None, delta=None)
         self.assertEqual(shape_noaxis.sum().split, None)
+        """
     
-        # check sum over all float elements of splitted 3d tensor 
-        shape_noaxis_split_axis = ht.ones((3,3,3), split=0)
-        self.assertIsInstance(shape_noaxis_split_axis.sum(axis=1), ht.tensor)
-        self.assertEqual(shape_noaxis.sum(axis=1).shape, (3,1,3))
-        self.assertEqual(shape_noaxis_split_axis.sum(axis=1).dtype, ht.float32)
-        self.assertEqual(shape_noaxis_split_axis.sum(axis=1)._tensor__array.dtype, torch.float32)
-        self.assertEqual(shape_noaxis_split_axis.sum().split, None)
-        
-        # check sum over all float elements of splitted 5d tensor with negative axis 
+        # check sum over all float elements of split 3d tensor
+        shape_noaxis_split_axis = ht.ones((3, 3, 3), split=0)
+        shape_noaxis_split_axis_summed = shape_noaxis_split_axis.sum(axis=1)
+
+        self.assertIsInstance(shape_noaxis_split_axis_summed, ht.tensor)
+        self.assertEqual(shape_noaxis_split_axis_summed.shape, (3, 1, 3))
+        self.assertEqual(shape_noaxis_split_axis_summed.dtype, ht.float32)
+        self.assertEqual(shape_noaxis_split_axis_summed._tensor__array.dtype, torch.float32)
+        self.assertEqual(shape_noaxis_split_axis_summed.split, None)
+
+        """
+        # check sum over all float elements of split 5d tensor with negative axis
         shape_noaxis_split_axis_neg = ht.ones((1, 2, 3, 4, 5), split=2)
-        self.assertIsInstance(shape_noaxis_split_axis_neg.sum(axis=-2), ht.tensor)
-        self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2).shape, (1, 2, 3, 1, 5))
-        self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2).dtype, ht.float32)
-        self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2)._tensor__array.dtype, torch.float32)
-        self.assertEqual(shape_noaxis_split_axis_neg.sum().split, None)
+        shape_noaxis_split_axis_neg_summed = shape_noaxis_split_axis_neg.sum(axis=-2)
+        self.assertIsInstance(shape_noaxis_split_axis_neg_summed, ht.tensor)
+        self.assertEqual(shape_noaxis_split_axis_neg_summed.shape, (1, 2, 3, 1, 5))
+        self.assertEqual(shape_noaxis_split_axis_neg_summed.dtype, ht.float32)
+        self.assertEqual(shape_noaxis_split_axis_neg_summed._tensor__array.dtype, torch.float32)
+        self.assertEqual(shape_noaxis_split_axis_neg_summed.split, None)
                
         # exceptions
         with self.assertRaises(ValueError):
@@ -103,6 +109,7 @@ class TestTensor(unittest.TestCase):
             ht.ones(array_len).sum(axis=-2)
         with self.assertRaises(TypeError):
             ht.ones(array_len).sum(axis='bad_axis_type')
+        """
  
 
 class TestTensorFactories(unittest.TestCase):
@@ -320,52 +327,6 @@ class TestTensorFactories(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.ones((2, 3,), dtype=ht.float64, split='axis')
 
-    def test_zeros(self):
-        # scalar input
-        simple_zeros_float = ht.zeros(3)
-        self.assertIsInstance(simple_zeros_float, ht.tensor)
-        self.assertEqual(simple_zeros_float.shape,  (3,))
-        self.assertEqual(simple_zeros_float.lshape, (3,))
-        self.assertEqual(simple_zeros_float.split,  None)
-        self.assertEqual(simple_zeros_float.dtype,  ht.float32)
-        self.assertEqual((simple_zeros_float._tensor__array == 0).all().item(), 1)
-
-        # different data type
-        simple_zeros_uint = ht.zeros(5, dtype=ht.bool)
-        self.assertIsInstance(simple_zeros_uint, ht.tensor)
-        self.assertEqual(simple_zeros_uint.shape,  (5,))
-        self.assertEqual(simple_zeros_uint.lshape, (5,))
-        self.assertEqual(simple_zeros_uint.split,  None)
-        self.assertEqual(simple_zeros_uint.dtype,  ht.bool)
-        self.assertEqual((simple_zeros_uint._tensor__array == 0).all().item(), 1)
-
-        # multi-dimensional
-        elaborate_zeros_int = ht.zeros((2, 3,), dtype=ht.int32)
-        self.assertIsInstance(elaborate_zeros_int, ht.tensor)
-        self.assertEqual(elaborate_zeros_int.shape,  (2, 3,))
-        self.assertEqual(elaborate_zeros_int.lshape, (2, 3,))
-        self.assertEqual(elaborate_zeros_int.split,  None)
-        self.assertEqual(elaborate_zeros_int.dtype,  ht.int32)
-        self.assertEqual((elaborate_zeros_int._tensor__array == 0).all().item(), 1)
-
-        # split axis
-        elaborate_zeros_split = ht.zeros((6, 4,), dtype=ht.int32, split=0)
-        self.assertIsInstance(elaborate_zeros_split, ht.tensor)
-        self.assertEqual(elaborate_zeros_split.shape,         (6, 4,))
-        self.assertLessEqual(elaborate_zeros_split.lshape[0], 6)
-        self.assertEqual(elaborate_zeros_split.lshape[1],     4)
-        self.assertEqual(elaborate_zeros_split.split,         0)
-        self.assertEqual(elaborate_zeros_split.dtype,         ht.int32)
-        self.assertEqual((elaborate_zeros_split._tensor__array == 0).all().item(), 1)
-
-        # exceptions
-        with self.assertRaises(TypeError):
-            ht.zeros('(2, 3,)', dtype=ht.float64)
-        with self.assertRaises(ValueError):
-            ht.zeros((-1, 3,), dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            ht.zeros((2, 3,), dtype=ht.float64, split='axis')
-
     def test_ones_like(self):
         # scalar
         like_int = ht.ones_like(3)
@@ -411,6 +372,52 @@ class TestTensorFactories(unittest.TestCase):
             ht.ones_like(zeros, dtype='abc')
         with self.assertRaises(TypeError):
             ht.ones_like(zeros, split='axis')
+
+    def test_zeros(self):
+        # scalar input
+        simple_zeros_float = ht.zeros(3)
+        self.assertIsInstance(simple_zeros_float, ht.tensor)
+        self.assertEqual(simple_zeros_float.shape,  (3,))
+        self.assertEqual(simple_zeros_float.lshape, (3,))
+        self.assertEqual(simple_zeros_float.split,  None)
+        self.assertEqual(simple_zeros_float.dtype,  ht.float32)
+        self.assertEqual((simple_zeros_float._tensor__array == 0).all().item(), 1)
+
+        # different data type
+        simple_zeros_uint = ht.zeros(5, dtype=ht.bool)
+        self.assertIsInstance(simple_zeros_uint, ht.tensor)
+        self.assertEqual(simple_zeros_uint.shape,  (5,))
+        self.assertEqual(simple_zeros_uint.lshape, (5,))
+        self.assertEqual(simple_zeros_uint.split,  None)
+        self.assertEqual(simple_zeros_uint.dtype,  ht.bool)
+        self.assertEqual((simple_zeros_uint._tensor__array == 0).all().item(), 1)
+
+        # multi-dimensional
+        elaborate_zeros_int = ht.zeros((2, 3,), dtype=ht.int32)
+        self.assertIsInstance(elaborate_zeros_int, ht.tensor)
+        self.assertEqual(elaborate_zeros_int.shape,  (2, 3,))
+        self.assertEqual(elaborate_zeros_int.lshape, (2, 3,))
+        self.assertEqual(elaborate_zeros_int.split,  None)
+        self.assertEqual(elaborate_zeros_int.dtype,  ht.int32)
+        self.assertEqual((elaborate_zeros_int._tensor__array == 0).all().item(), 1)
+
+        # split axis
+        elaborate_zeros_split = ht.zeros((6, 4,), dtype=ht.int32, split=0)
+        self.assertIsInstance(elaborate_zeros_split, ht.tensor)
+        self.assertEqual(elaborate_zeros_split.shape,         (6, 4,))
+        self.assertLessEqual(elaborate_zeros_split.lshape[0], 6)
+        self.assertEqual(elaborate_zeros_split.lshape[1],     4)
+        self.assertEqual(elaborate_zeros_split.split,         0)
+        self.assertEqual(elaborate_zeros_split.dtype,         ht.int32)
+        self.assertEqual((elaborate_zeros_split._tensor__array == 0).all().item(), 1)
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.zeros('(2, 3,)', dtype=ht.float64)
+        with self.assertRaises(ValueError):
+            ht.zeros((-1, 3,), dtype=ht.float64)
+        with self.assertRaises(TypeError):
+            ht.zeros((2, 3,), dtype=ht.float64, split='axis')
 
     def test_zeros_like(self):
         # scalar
