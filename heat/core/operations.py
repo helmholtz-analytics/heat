@@ -1,3 +1,4 @@
+import itertools
 import torch
 
 from .communication import MPI
@@ -8,6 +9,7 @@ from . import tensor
 __all__ = [
     'abs',
     'absolute',
+    'argmin',
     'clip',
     'copy',
     'exp',
@@ -16,7 +18,10 @@ __all__ = [
     'max',
     'min',
     'sin',
-    'sqrt'
+    'sqrt',
+    'sum',
+    'tril',
+    'triu'
 ]
 
 
@@ -45,7 +50,8 @@ def abs(x, out=None, dtype=None):
 
     absolute_values = __local_operation(torch.abs, x, out)
     if dtype is not None:
-        absolute_values._tensor__array = absolute_values._tensor__array.type(dtype.torch_type())
+        absolute_values._tensor__array = absolute_values._tensor__array.type(
+            dtype.torch_type())
         absolute_values._tensor__dtype = dtype
 
     return absolute_values
@@ -76,15 +82,58 @@ def absolute(x, out=None, dtype=None):
     return abs(x, out, dtype)
 
 
-def argmin(x, axis):
-    # TODO: document me
-    # TODO: test me
-    # TODO: sanitize input
-    # TODO: make me more numpy API complete
-    # TODO: Fix me, I am not reduce_op.MIN!
-    #
-    _, argmin_axis = x._tensor__array.min(dim=axis, keepdim=True)
-    return __reduce_op(x, argmin_axis, MPI.MIN, axis)
+def argmin(x, axis=None):
+    '''
+    Returns the indices of the minimum values along an axis.
+
+    Parameters:
+    ----------
+
+    x : ht.tensor
+    Input array.
+
+    axis : int, optional
+    By default, the index is into the flattened tensor, otherwise along the specified axis.
+
+    # TODO out : array, optional
+    If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
+
+    Returns:
+    -------
+
+    index_tensor : ht.tensor of ints
+    Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
+
+    Examples:
+    --------
+
+    >>> a = ht.randn(3,3)
+    >>> a
+    tensor([[-1.7297,  0.2541, -0.1044],
+            [ 1.0865, -0.4415,  1.3716],
+            [-0.0827,  1.0215, -2.0176]])
+    >>> ht.argmin(a)
+    tensor([8])
+    >>> ht.argmin(a, axis=0)
+    tensor([[0, 1, 2]])
+    >>> ht.argmin(a, axis=1)
+    tensor([[0],
+            [1],
+            [2]])
+    '''
+
+    if axis is None:
+        # TEMPORARY SOLUTION! TODO: implementation for axis=None, distributed tensor
+        # perform sanitation
+        if not isinstance(x, tensor.tensor):
+            raise TypeError(
+                'expected x to be a ht.tensor, but was {}'.format(type(x)))
+        axis = stride_tricks.sanitize_axis(x.shape, axis)
+        out = torch.reshape(torch.argmin(x._tensor__array), (1,))
+        return tensor.tensor(out, out.shape, types.canonical_heat_type(out.dtype), split=None, comm=x.comm)
+
+    out = __reduce_op(x, torch.min, MPI.MIN, axis)._tensor__array[1]
+    return tensor.tensor(out, out.shape, types.canonical_heat_type(out.dtype), x._tensor__split, comm=x.comm)
 
 
 def clip(a, a_min, a_max, out=None):
@@ -226,59 +275,92 @@ def log(x, out=None):
 
 def max(x, axis=None):
     """"
-    Return the maximum of an array or maximum along an axis.
+    Return a tuple containing:
+        - the maximum of an array or maximum along an axis;
+        - indices of maxima
 
     Parameters
     ----------
     a : ht.tensor
     Input data.
-        
+
     axis : None or int, optional
-    Axis or axes along which to operate. By default, flattened input is used.   
-    
-    #TODO: out : ht.tensor, optional
-    Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
+    Axis or axes along which to operate. By default, flattened input is used.
 
-    #TODO: initial : scalar, optional   
+    # TODO: out : ht.tensor, optional
+    Tuple of two output tensors (max, max_indices). Must be of the same shape and buffer length as the expected output.
+
+    # TODO: initial : scalar, optional
     The minimum value of an output element. Must be present to allow computation on empty slice.
-    """
-    #perform sanitation:
-    axis = stride_tricks.sanitize_axis(x.shape,axis)
-    
-    if axis is not None:        
-        max_axis, _ = x._tensor__array.max(axis, keepdim=True)
-    else:
-        return x._tensor__array.max()
 
-    return __reduce_op(x, max_axis, MPI.MAX, axis)
+        Examples
+    --------
+    >>> a = ht.float32([
+            [1, 2, 3],
+            [4, 5, 6],
+            [7, 8, 9],
+            [10, 11, 12]
+        ])
+    >>> ht.max(a)
+    tensor([12.])
+    >>> ht.min(a, axis=0)
+    (tensor([[10., 11., 12.]]), tensor([[3, 3, 3]]))
+    >>> ht.min(a, axis=1)
+    (tensor([[ 3.],
+        [ 6.],
+        [ 9.],
+        [12.]]), tensor([[2],
+        [2],
+        [2],
+        [2]]))
+    """
+    return __reduce_op(x, torch.max, MPI.MAX, axis)
 
 
 def min(x, axis=None):
     """"
-    Return the minimum of an array or minimum along an axis.
+    Return a tuple containing:
+        - the minimum of an array or minimum along an axis;
+        - indices of minima
 
     Parameters
     ----------
     a : ht.tensor
     Input data.
-        
+
     axis : None or int
-    Axis or axes along which to operate. By default, flattened input is used.   
-    
-    #TODO: out : ht.tensor, optional
-    Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
+    Axis or axes along which to operate. By default, flattened input is used.
 
-    #TODO: initial : scalar, optional   
+
+    # TODO: out : ht.tensor, optional
+    Tuple of two output tensors (min, min_indices). Must be of the same shape and buffer length as the expected output.
+
+
+    # TODO: initial : scalar, optional
     The maximum value of an output element. Must be present to allow computation on empty slice.
-    """
-    #perform sanitation:
-    axis = stride_tricks.sanitize_axis(x.shape,axis)
-    if axis is not None:        
-        min_axis, _ = x._tensor__array.min(axis, keepdim=True)
-    else:
-        return x._tensor__array.min()
 
-    return __reduce_op(x, min_axis, MPI.MIN, axis)
+    Examples
+    --------
+    >>> a = ht.float32([
+            [1, 2, 3],
+            [4, 5, 6],
+            [7, 8, 9],
+            [10, 11, 12]
+        ])
+    >>> ht.min(a)
+    tensor([1.])
+    >>> ht.min(a, axis=0)
+    (tensor([[1., 2., 3.]]), tensor([[0, 0, 0]]))
+    >>> ht.min(a, axis=1)
+    (tensor([[ 1.],
+        [ 4.],
+        [ 7.],
+        [10.]]), tensor([[0],
+        [0],
+        [0],
+        [0]]))
+    """
+    return __reduce_op(x, torch.min, MPI.MIN, axis)
 
 
 def sin(x, out=None):
@@ -307,17 +389,17 @@ def sin(x, out=None):
     return __local_operation(torch.sin, x, out)
 
 
-def sum(x, axis=None):
-    # TODO: document me
-    axis = stride_tricks.sanitize_axis(x.shape, axis)
-    if axis is not None:
-        sum_axis = x._tensor__array.sum(axis, keepdim=True)
-    else:
-        sum_axis = torch.reshape(x._tensor__array.sum(), (1,))
-        if not x.comm.is_distributed():
-            return tensor.tensor(sum_axis, (1,), types.canonical_heat_type(sum_axis.dtype), None, x.comm)
+# def sum(x, axis=None):
+#     # TODO: document me
+#     axis = stride_tricks.sanitize_axis(x.shape, axis)
+#     if axis is not None:
+#         sum_axis = x._tensor__array.sum(axis, keepdim=True)
+#     else:
+#         sum_axis = torch.reshape(x._tensor__array.sum(), (1,))
+#         if not x.comm.is_distributed():
+#             return tensor.tensor(sum_axis, (1,), types.canonical_heat_type(sum_axis.dtype), None, x.comm)
 
-    return __reduce_op(x, sum_axis, MPI.SUM, axis)
+#     return __reduce_op(x, sum_axis, MPI.SUM, axis)
 
 
 def sqrt(x, out=None):
@@ -348,6 +430,47 @@ def sqrt(x, out=None):
     return __local_operation(torch.sqrt, x, out)
 
 
+def sum(x, axis=None):
+    """
+    Sum of array elements over a given axis.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        Input data.
+
+    axis : None or int, optional
+        Axis along which a sum is performed. The default, axis=None, will sum
+        all of the elements of the input array. If axis is negative it counts 
+        from the last to the first axis.
+
+    Returns
+    -------
+    sum_along_axis : ht.tensor
+        An array with the same shape as self.__array except for the specified axis which 
+        becomes one, e.g. a.shape = (1,2,3) => ht.ones((1,2,3)).sum(axis=1).shape = (1,1,3)
+
+    Examples
+    --------
+    >>> ht.sum(ht.ones(2))
+    tensor([2.])
+
+    >>> ht.sum(ht.ones((3,3)))
+    tensor([9.])
+
+    >>> ht.sum(ht.ones((3,3)).astype(ht.int))
+    tensor([9])
+
+    >>> ht.sum(ht.ones((3,2,1)), axis=-3)
+    tensor([[[3.],
+            [3.]]])
+    """
+
+    # TODO: make me more numpy API complete
+
+    return __reduce_op(x, torch.sum, MPI.SUM, axis)
+
+
 def __local_operation(operation, x, out):
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
@@ -376,9 +499,11 @@ def __local_operation(operation, x, out):
     """
     # perform sanitation
     if not isinstance(x, tensor.tensor):
-        raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
+        raise TypeError(
+            'expected x to be a ht.tensor, but was {}'.format(type(x)))
     if out is not None and not isinstance(out, tensor.tensor):
-        raise TypeError('expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+        raise TypeError(
+            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
 
     # infer the output type of the tensor
     # we need floating point numbers here, due to PyTorch only providing sqrt() implementation for float32/64
@@ -400,26 +525,154 @@ def __local_operation(operation, x, out):
 
     # do an inplace operation into a provided buffer
     casted = x._tensor__array.type(torch_type)
-    operation(casted.repeat(multiples) if needs_repetition else casted, out=out._tensor__array)
+    operation(casted.repeat(multiples)
+              if needs_repetition else casted, out=out._tensor__array)
     return out
 
 
-def __reduce_op(x, partial, op, axis):
+# statically allocated index slices for non-iterable dimensions in triangular operations
+__index_base = (slice(None), slice(None),)
+
+
+def __tri_op(m, k, op):
+    """
+    Generic implementation of triangle operations on tensors. It takes care of input sanitation and non-standard
+    broadcast behavior of the 2D triangle-operators.
+
+    Parameters
+    ----------
+    m : ht.tensor
+        Input tensor for which to compute the triangle operator.
+    k : int, optional
+        Diagonal above which to apply the triangle operator, k<0 is below and k>0 is above.
+    op : callable
+        Implementation of the triangle operator.
+
+    Returns
+    -------
+    triangle_tensor : ht.tensor
+        Tensor with the applied triangle operation
+
+    Raises
+    ------
+    TypeError
+        If the input is not a tensor or the diagonal offset cannot be converted to an integral value.
+    """
+    if not isinstance(m, tensor.tensor):
+        raise TypeError('Expected m to be a tensor but was {}'.format(type(m)))
+
+    try:
+        k = int(k)
+    except ValueError:
+        raise TypeError(
+            'Expected k to be integral, but was {}'.format(type(k)))
+
+    # chunk the global shape of the tensor to obtain the offset compared to the other ranks
+    offset, _, _ = m.comm.chunk(m.shape, m.split)
+    dimensions = len(m.shape)
+
+    # manually repeat the input for vectors
+    if dimensions == 1:
+        triangle = op(m._tensor__array.expand(m.shape[0], -1), k - offset)
+        return tensor.tensor(triangle, (m.shape[0], m.shape[0],), m.dtype, None if m.split is None else 1, m.comm)
+
+    original = m._tensor__array
+    output = original.clone()
+
+    # modify k to account for tensor splits
+    if m.split is not None:
+        if m.split + 1 == dimensions - 1:
+            k += offset
+        elif m.split == dimensions - 1:
+            k -= offset
+
+    # in case of two dimensions we can just forward the call to the callable
+    if dimensions == 2:
+        op(original, k, out=output)
+    # more than two dimensions: iterate over all but the last two to realize 2D broadcasting
+    else:
+        ranges = [range(elements) for elements in m.lshape[:-2]]
+        for partial_index in itertools.product(*ranges):
+            index = partial_index + __index_base
+            op(original[index], k, out=output[index])
+
+    return tensor.tensor(output, m.shape, m.dtype, m.split, m.comm)
+
+
+def tril(m, k=0):
+    """
+    Returns the lower triangular part of the tensor, the other elements of the result tensor are set to 0.
+
+    The lower triangular part of the tensor is defined as the elements on and below the diagonal.
+
+    The argument k controls which diagonal to consider. If k=0, all elements on and below the main diagonal are
+    retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
+    value excludes just as many diagonals below the main diagonal.
+
+    Parameters
+    ----------
+    m : ht.tensor
+        Input tensor for which to compute the lower triangle.
+    k : int, optional
+        Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
+
+    Returns
+    -------
+    lower_triangle : ht.tensor
+        Lower triangle of the input tensor.
+    """
+    return __tri_op(m, k, torch.tril)
+
+
+def triu(m, k=0):
+    """
+    Returns the upper triangular part of the tensor, the other elements of the result tensor are set to 0.
+
+    The upper triangular part of the tensor is defined as the elements on and below the diagonal.
+
+    The argument k controls which diagonal to consider. If k=0, all elements on and below the main diagonal are
+    retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
+    value excludes just as many diagonals below the main diagonal.
+
+    Parameters
+    ----------
+    m : ht.tensor
+        Input tensor for which to compute the upper triangle.
+    k : int, optional
+        Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
+
+    Returns
+    -------
+    upper_triangle : ht.tensor
+        Upper triangle of the input tensor.
+    """
+    return __tri_op(m, k, torch.triu)
+
+
+def __reduce_op(x, partial_op, op, axis):
     # TODO: document me
     # TODO: test me
     # TODO: make me more numpy API complete
     # TODO: e.g. allow axis to be a tuple, allow for "initial"
     # TODO: implement type promotion
+
     # perform sanitation
     if not isinstance(x, tensor.tensor):
-        raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
+        raise TypeError(
+            'expected x to be a ht.tensor, but was {}'.format(type(x)))
     # no further checking needed, sanitize axis will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape, axis)
 
-    if x.comm.is_distributed() and (axis is None or axis == x.split):
-        x.comm.Allreduce(MPI.IN_PLACE, partial, op)
-        return tensor.tensor(partial, partial.shape, types.canonical_heat_type(partial.dtype), split=None, comm=x.comm)
+    if axis is None:
+        partial = torch.reshape(partial_op(x._tensor__array), (1,))
+        output_shape = partial.shape
+    else:
+        partial = partial_op(x._tensor__array, axis, keepdim=True)
+        # TODO: verify if this works for negative split axis
+        output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
 
-    # TODO: verify if this works for negative split axis
-    output_shape = x.shape[:axis] + (1,) + x.shape[axis + 1:]
-    return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial.dtype), split=None, comm=x.comm)
+    if x.comm.is_distributed() and (axis is None or axis == x.split):
+        x.comm.Allreduce(MPI.IN_PLACE, partial[0], op)
+        return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), split=None, comm=x.comm)
+
+    return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), split=None, comm=x.comm)
