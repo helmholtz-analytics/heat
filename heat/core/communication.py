@@ -1,9 +1,23 @@
 from mpi4py import MPI
 
 import abc
+import subprocess
 import torch
 
 from .stride_tricks import sanitize_axis
+
+# check whether OpenMPI support CUDA-aware MPI
+try:
+    buffer = subprocess.check_output(['mpirun', '--help'])
+
+    # OpenMPI
+    if buffer.startswith(b'mpirun (Open MPI)'):
+        buffer = subprocess.check_output(['ompi_info', '--parsable', '--all'])
+        CUDA_AWARE_MPI = b'mpi_built_with_cuda_support:value:true' in buffer
+    else:
+        CUDA_AWARE_MPI = False
+except FileNotFoundError:
+    CUDA_AWARE_MPI = False
 
 
 class Communication(metaclass=abc.ABCMeta):
@@ -94,11 +108,12 @@ class MPICommunication(Communication):
     def as_buffer(obj):
         if isinstance(obj, tensor.tensor):
             obj = obj._tensor__array
-
         if not isinstance(obj, torch.Tensor):
             return obj
 
-        return MPI.memory.fromaddress(obj.cpu().data_ptr(), obj.element_size() * torch.numel(obj))
+        pointer = obj.data_ptr() if CUDA_AWARE_MPI else obj.cpu().data_ptr()
+
+        return MPI.memory.fromaddress(pointer, obj.element_size() * torch.numel(obj))
 
     def convert_tensors(self, a_callable):
         def wrapped(*args, **kwargs):
