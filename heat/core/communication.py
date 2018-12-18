@@ -266,6 +266,24 @@ class MPICommunication(Communication):
         return self.__send(self.handle.Send, buf, dest, tag)
     Send.__doc__ = MPI.Comm.Send.__doc__
 
+    def __broadcast(self, func, buf, root):
+        # unpack the buffer if it is a HeAT tensor
+        if isinstance(buf, tensor.tensor):
+            buf = buf._tensor__array
+        # convert torch tensors to MPI memory buffers
+        if isinstance(buf, torch.Tensor):
+            buf = self.as_buffer(buf)
+
+        return func(buf, root)
+
+    def Bcast(self, buf, root=0):
+        return self.__broadcast(self.handle.Bcast, buf, root)
+    Bcast.__doc__ = MPI.Comm.Bcast.__doc__
+
+    def Ibcast(self, buf, root=0):
+        return self.__broadcast(self.handle.Ibcast, buf, root)
+    Ibcast.__doc__ = MPI.Comm.Ibcast.__doc__
+
     def __collective_single_type(self, func, sendbuf, recvbuf, *args, **kwargs):
         # unpack the receive buffer if it is a HeAT tensor
         if isinstance(recvbuf, tensor.tensor):
@@ -282,15 +300,15 @@ class MPICommunication(Communication):
         # MPI requires send and receive buffers to be of same type and length. If the torch tensors are either not both
         # contiguous or differently strided, they have to be made matching (if possible) first.
         if sendbuf_is_torch and recvbuf_is_torch:
-            # nothing matches, the buffers have to be made contiguous
-            dummy = recvbuf.contiguous()  # make a contiguous copy and reassign the storage, old will be collected
-            recvbuf.set_(dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride())
-            recvbuf = self.as_buffer(recvbuf)
-
             # convert the send buffer to a pointer, number of elements and type are identical to the receive buffer
-            dummy = sendbuf.contiguous()
+            dummy = sendbuf.contiguous()  # make a contiguous copy and reassign the storage, old will be collected
             sendbuf.set_(dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride())
-            sendbuf = [self.as_mpi_memory(sendbuf), recvbuf[1], recvbuf[2]]
+            sendbuf = self.as_buffer(sendbuf)
+
+            # nothing matches, the buffers have to be made contiguous
+            dummy = recvbuf.contiguous()
+            recvbuf.set_(dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride())
+            recvbuf = [self.as_mpi_memory(recvbuf), sendbuf[1], sendbuf[2]]
 
         elif sendbuf_is_torch:
             sendbuf = self.as_buffer(sendbuf)
