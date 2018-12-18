@@ -28,82 +28,6 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(as_float64._tensor__array.dtype, torch.float64)
         self.assertIs(as_float64, data)
 
-    def test_sum(self):
-        array_len = 9 
-        # check sum over all float elements of 1d tensor locally 
-        shape_noaxis = ht.ones(array_len)
-        self.assertEqual(shape_noaxis.sum().shape, (1,))
-        self.assertEqual(shape_noaxis.sum().lshape, (1,))
-        self.assertIsInstance(shape_noaxis.sum(), ht.tensor)
-        self.assertEqual(shape_noaxis.sum().dtype, ht.float32)
-        self.assertEqual(shape_noaxis._tensor__array.dtype, torch.float32)
-        self.assertAlmostEqual(shape_noaxis.sum(), float(array_len), places=7, msg=None, delta=None)
-        self.assertEqual(shape_noaxis.sum().split, None)
-
-        # check sum over all float elements of splitted 1d tensor 
-        shape_noaxis_split = ht.ones(array_len, split=0)
-        self.assertEqual(shape_noaxis_split.sum().shape, (1,))
-        self.assertEqual(shape_noaxis_split.sum().lshape, (1,))
-        self.assertIsInstance(shape_noaxis_split.sum(), ht.tensor)
-        self.assertEqual(shape_noaxis_split.sum().dtype, ht.float32)
-        self.assertEqual(shape_noaxis_split._tensor__array.dtype, torch.float32)
-        self.assertAlmostEqual(shape_noaxis_split.sum(), float(array_len), places=7, msg=None, delta=None)
-        self.assertEqual(shape_noaxis_split.sum().split, None)
-       
-        # check sum over all integer elements of 1d tensor locally 
-        shape_noaxis_int = ht.ones(array_len).astype(ht.int)
-        self.assertEqual(shape_noaxis_int.sum(axis=0).shape, (1,))
-        self.assertEqual(shape_noaxis_int.sum(axis=0).lshape, (1,))
-        self.assertIsInstance(shape_noaxis_int.sum(axis=0), ht.tensor)
-        self.assertEqual(shape_noaxis_int.sum(axis=0).dtype, ht.int64)
-        self.assertEqual(shape_noaxis_int.sum(axis=0)._tensor__array.dtype, torch.int64)
-        self.assertEqual(shape_noaxis_int.sum(axis=0), array_len)
-        self.assertEqual(shape_noaxis_int.sum(axis=0).split, None)
-
-        # check sum over all integer elements of splitted 1d tensor
-        shape_noaxis_split_int = ht.ones(array_len, split=0).astype(ht.int)
-        self.assertEqual(shape_noaxis_split_int.sum().shape, (1,))
-        self.assertEqual(shape_noaxis_split_int.sum().lshape, (1,))
-        self.assertIsInstance(shape_noaxis_split_int.sum(), ht.tensor)
-        self.assertEqual(shape_noaxis_split_int.sum().dtype, ht.int64)
-        self.assertEqual(shape_noaxis_split_int.sum()._tensor__array.dtype, torch.int64)
-        self.assertEqual(shape_noaxis_split_int.sum(), array_len)
-        self.assertEqual(shape_noaxis_split_int.sum().split, None)
-
-        # check sum over all float elements of 3d tensor locally 
-        shape_noaxis = ht.ones((3,3,3))
-        self.assertEqual(shape_noaxis.sum().shape, (1,))
-        self.assertEqual(shape_noaxis.sum().lshape, (1,))
-        self.assertIsInstance(shape_noaxis.sum(), ht.tensor)
-        self.assertEqual(shape_noaxis.sum().dtype, ht.float32)
-        self.assertEqual(shape_noaxis.sum()._tensor__array.dtype, torch.float32)
-        self.assertAlmostEqual(shape_noaxis.sum(), 27., places=7, msg=None, delta=None)
-        self.assertEqual(shape_noaxis.sum().split, None)
-    
-        # check sum over all float elements of splitted 3d tensor 
-        shape_noaxis_split_axis = ht.ones((3,3,3), split=0)
-        self.assertIsInstance(shape_noaxis_split_axis.sum(axis=1), ht.tensor)
-        self.assertEqual(shape_noaxis.sum(axis=1).shape, (3,1,3))
-        self.assertEqual(shape_noaxis_split_axis.sum(axis=1).dtype, ht.float32)
-        self.assertEqual(shape_noaxis_split_axis.sum(axis=1)._tensor__array.dtype, torch.float32)
-        self.assertEqual(shape_noaxis_split_axis.sum().split, None)
-        
-        # check sum over all float elements of splitted 5d tensor with negative axis 
-        shape_noaxis_split_axis_neg = ht.ones((1, 2, 3, 4, 5), split=2)
-        self.assertIsInstance(shape_noaxis_split_axis_neg.sum(axis=-2), ht.tensor)
-        self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2).shape, (1, 2, 3, 1, 5))
-        self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2).dtype, ht.float32)
-        self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2)._tensor__array.dtype, torch.float32)
-        self.assertEqual(shape_noaxis_split_axis_neg.sum().split, None)
-               
-        # exceptions
-        with self.assertRaises(ValueError):
-            ht.ones(array_len).sum(axis=1)
-        with self.assertRaises(ValueError):
-            ht.ones(array_len).sum(axis=-2)
-        with self.assertRaises(TypeError):
-            ht.ones(array_len).sum(axis='bad_axis_type')
- 
 
 class TestTensorFactories(unittest.TestCase):
     def test_linspace(self):
@@ -144,7 +68,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(casted.split, 0)
 
         # retstep test
-        result = ht.linspace(-5, 3, num=70, retstep=True, dtype=ht.uint8, split=0)
+        result = ht.linspace(-5, 3, num=70, retstep=True,
+                             dtype=ht.uint8, split=0)
         self.assertIsInstance(result, tuple)
         self.assertEqual(len(result), 2)
 
@@ -167,7 +92,7 @@ class TestTensorFactories(unittest.TestCase):
             ht.linspace(-5, 3, num=0)
 
     def test_arange(self):
-        # testing one positional integer argument 
+        # testing one positional integer argument
         one_arg_arange_int = ht.arange(10)
         self.assertIsInstance(one_arg_arange_int, ht.tensor)
         self.assertEqual(one_arg_arange_int.shape, (10,))
@@ -177,14 +102,15 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(one_arg_arange_int.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(one_arg_arange_int.sum(), 45)
-        
+
         # testing one positional float argument
         one_arg_arange_float = ht.arange(10.)
         self.assertIsInstance(one_arg_arange_float, ht.tensor)
         self.assertEqual(one_arg_arange_float.shape, (10,))
         self.assertLessEqual(one_arg_arange_float.lshape[0], 10)
         self.assertEqual(one_arg_arange_float.dtype, ht.int32)
-        self.assertEqual(one_arg_arange_float._tensor__array.dtype, torch.int32)
+        self.assertEqual(
+            one_arg_arange_float._tensor__array.dtype, torch.int32)
         self.assertEqual(one_arg_arange_float.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(one_arg_arange_float.sum(), 45.0)
@@ -206,7 +132,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(two_arg_arange_float.shape, (10,))
         self.assertLessEqual(two_arg_arange_float.lshape[0], 10)
         self.assertEqual(two_arg_arange_float.dtype, ht.float32)
-        self.assertEqual(two_arg_arange_float._tensor__array.dtype, torch.float32)
+        self.assertEqual(
+            two_arg_arange_float._tensor__array.dtype, torch.float32)
         self.assertEqual(two_arg_arange_float.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(two_arg_arange_float.sum(), 45.0)
@@ -217,7 +144,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(three_arg_arange_int.shape, (5,))
         self.assertLessEqual(three_arg_arange_int.lshape[0], 5)
         self.assertEqual(three_arg_arange_int.dtype, ht.int32)
-        self.assertEqual(three_arg_arange_int._tensor__array.dtype, torch.int32)
+        self.assertEqual(
+            three_arg_arange_int._tensor__array.dtype, torch.int32)
         self.assertEqual(three_arg_arange_int.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_int.sum(), 20)
@@ -228,7 +156,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(three_arg_arange_float.shape, (5,))
         self.assertLessEqual(three_arg_arange_float.lshape[0], 5)
         self.assertEqual(three_arg_arange_float.dtype, ht.float32)
-        self.assertEqual(three_arg_arange_float._tensor__array.dtype, torch.float32)
+        self.assertEqual(
+            three_arg_arange_float._tensor__array.dtype, torch.float32)
         self.assertEqual(three_arg_arange_float.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_float.sum(), 20.0)
@@ -239,7 +168,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(three_arg_arange_dtype_float32.shape, (5,))
         self.assertLessEqual(three_arg_arange_dtype_float32.lshape[0], 5)
         self.assertEqual(three_arg_arange_dtype_float32.dtype, ht.float32)
-        self.assertEqual(three_arg_arange_dtype_float32._tensor__array.dtype, torch.float32)
+        self.assertEqual(
+            three_arg_arange_dtype_float32._tensor__array.dtype, torch.float32)
         self.assertEqual(three_arg_arange_dtype_float32.split, 0)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_dtype_float32.sum(axis=0), 20.0)
@@ -250,18 +180,21 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(three_arg_arange_dtype_short.shape, (5,))
         self.assertLessEqual(three_arg_arange_dtype_short.lshape[0], 5)
         self.assertEqual(three_arg_arange_dtype_short.dtype, ht.int16)
-        self.assertEqual(three_arg_arange_dtype_short._tensor__array.dtype, torch.int16)
+        self.assertEqual(
+            three_arg_arange_dtype_short._tensor__array.dtype, torch.int16)
         self.assertEqual(three_arg_arange_dtype_short.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_dtype_short.sum(axis=0), 20)
 
         # testing setting dtype to float64
-        three_arg_arange_dtype_float64 = ht.arange(0, 10, 2, dtype=torch.float64)
+        three_arg_arange_dtype_float64 = ht.arange(
+            0, 10, 2, dtype=torch.float64)
         self.assertIsInstance(three_arg_arange_dtype_float64, ht.tensor)
         self.assertEqual(three_arg_arange_dtype_float64.shape, (5,))
         self.assertLessEqual(three_arg_arange_dtype_float64.lshape[0], 5)
         self.assertEqual(three_arg_arange_dtype_float64.dtype, ht.float64)
-        self.assertEqual(three_arg_arange_dtype_float64._tensor__array.dtype, torch.float64)
+        self.assertEqual(
+            three_arg_arange_dtype_float64._tensor__array.dtype, torch.float64)
         self.assertEqual(three_arg_arange_dtype_float64.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0), 20.0)
@@ -282,7 +215,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(simple_ones_float.lshape, (3,))
         self.assertEqual(simple_ones_float.split,  None)
         self.assertEqual(simple_ones_float.dtype,  ht.float32)
-        self.assertEqual((simple_ones_float._tensor__array == 1).all().item(), 1)
+        self.assertEqual(
+            (simple_ones_float._tensor__array == 1).all().item(), 1)
 
         # different data type
         simple_ones_uint = ht.ones(5, dtype=ht.bool)
@@ -291,7 +225,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(simple_ones_uint.lshape, (5,))
         self.assertEqual(simple_ones_uint.split,  None)
         self.assertEqual(simple_ones_uint.dtype,  ht.bool)
-        self.assertEqual((simple_ones_uint._tensor__array == 1).all().item(), 1)
+        self.assertEqual(
+            (simple_ones_uint._tensor__array == 1).all().item(), 1)
 
         # multi-dimensional
         elaborate_ones_int = ht.ones((2, 3,), dtype=ht.int32)
@@ -300,7 +235,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(elaborate_ones_int.lshape, (2, 3,))
         self.assertEqual(elaborate_ones_int.split,  None)
         self.assertEqual(elaborate_ones_int.dtype,  ht.int32)
-        self.assertEqual((elaborate_ones_int._tensor__array == 1).all().item(), 1)
+        self.assertEqual(
+            (elaborate_ones_int._tensor__array == 1).all().item(), 1)
 
         # split axis
         elaborate_ones_split = ht.ones((6, 4,), dtype=ht.int32, split=0)
@@ -310,7 +246,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(elaborate_ones_split.lshape[1],     4)
         self.assertEqual(elaborate_ones_split.split,         0)
         self.assertEqual(elaborate_ones_split.dtype,         ht.int32)
-        self.assertEqual((elaborate_ones_split._tensor__array == 1).all().item(), 1)
+        self.assertEqual(
+            (elaborate_ones_split._tensor__array == 1).all().item(), 1)
 
         # exceptions
         with self.assertRaises(TypeError):
@@ -328,7 +265,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(simple_zeros_float.lshape, (3,))
         self.assertEqual(simple_zeros_float.split,  None)
         self.assertEqual(simple_zeros_float.dtype,  ht.float32)
-        self.assertEqual((simple_zeros_float._tensor__array == 0).all().item(), 1)
+        self.assertEqual(
+            (simple_zeros_float._tensor__array == 0).all().item(), 1)
 
         # different data type
         simple_zeros_uint = ht.zeros(5, dtype=ht.bool)
@@ -337,7 +275,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(simple_zeros_uint.lshape, (5,))
         self.assertEqual(simple_zeros_uint.split,  None)
         self.assertEqual(simple_zeros_uint.dtype,  ht.bool)
-        self.assertEqual((simple_zeros_uint._tensor__array == 0).all().item(), 1)
+        self.assertEqual(
+            (simple_zeros_uint._tensor__array == 0).all().item(), 1)
 
         # multi-dimensional
         elaborate_zeros_int = ht.zeros((2, 3,), dtype=ht.int32)
@@ -346,7 +285,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(elaborate_zeros_int.lshape, (2, 3,))
         self.assertEqual(elaborate_zeros_int.split,  None)
         self.assertEqual(elaborate_zeros_int.dtype,  ht.int32)
-        self.assertEqual((elaborate_zeros_int._tensor__array == 0).all().item(), 1)
+        self.assertEqual(
+            (elaborate_zeros_int._tensor__array == 0).all().item(), 1)
 
         # split axis
         elaborate_zeros_split = ht.zeros((6, 4,), dtype=ht.int32, split=0)
@@ -356,7 +296,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(elaborate_zeros_split.lshape[1],     4)
         self.assertEqual(elaborate_zeros_split.split,         0)
         self.assertEqual(elaborate_zeros_split.dtype,         ht.int32)
-        self.assertEqual((elaborate_zeros_split._tensor__array == 0).all().item(), 1)
+        self.assertEqual(
+            (elaborate_zeros_split._tensor__array == 0).all().item(), 1)
 
         # exceptions
         with self.assertRaises(TypeError):
@@ -404,7 +345,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(like_zeros_split.lshape[1],     3)
         self.assertEqual(like_zeros_split.split,         0)
         self.assertEqual(like_zeros_split.dtype,         ht.uint8)
-        self.assertEqual((like_zeros_split._tensor__array == 1).all().item(), 1)
+        self.assertEqual(
+            (like_zeros_split._tensor__array == 1).all().item(), 1)
 
         # exceptions
         with self.assertRaises(TypeError):

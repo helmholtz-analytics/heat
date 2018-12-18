@@ -155,6 +155,45 @@ class tensor:
         """
         return operations.copy(self)
 
+    def argmin(self, axis=None):
+        '''
+        Returns the indices of the minimum values along an axis.
+
+        Parameters:	
+        ----------
+        x : ht.tensor
+        Input array.
+
+        axis : int, optional
+        By default, the index is into the flattened tensor, otherwise along the specified axis.
+
+        #TODO out : array, optional
+        If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
+
+        Returns:
+        -------	
+
+        index_tensor : ht.tensor of ints
+        Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
+
+        Examples
+        --------
+        >>> a = ht.randn(3,3)
+        >>> a
+        tensor([[-1.7297,  0.2541, -0.1044],
+                [ 1.0865, -0.4415,  1.3716],
+                [-0.0827,  1.0215, -2.0176]])
+        >>> a.argmin()
+        tensor([8])
+        >>> a.argmin(axis=0)
+        tensor([[0, 1, 2]])
+        >>> a.argmin(axis=1)
+        tensor([[0],
+                [1],
+                [2]])
+        '''
+        return operations.argmin(self, axis)
+
     def max(self, axis=None):
         """"
         Return the maximum of an array or maximum along an axis.
@@ -163,17 +202,17 @@ class tensor:
         ----------
         a : ht.tensor
         Input data.
-        
+
         axis : None or int  
         Axis or axes along which to operate. By default, flattened input is used.   
-        
+
         #TODO: out : ht.tensor, optional
         Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
 
         #TODO: initial : scalar, optional   
         The minimum value of an output element. Must be present to allow computation on empty slice.
         """
-        
+
         return operations.max(self, axis)
 
     def mean(self, axis):
@@ -191,17 +230,67 @@ class tensor:
         ----------
         a : ht.tensor
         Input data.
-        
+
         axis : None or int
         Axis or axes along which to operate. By default, flattened input is used.   
-        
+
         #TODO: out : ht.tensor, optional
         Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
 
         #TODO: initial : scalar, optional   
         The maximum value of an output element. Must be present to allow computation on empty slice.
         """
+
         return operations.min(self, axis)
+
+    def sum(self, axis=None):
+        # TODO: Allow also list of axes
+        """
+        Sum of array elements over a given axis.
+
+        Parameters
+        ----------   
+        axis : None or int, optional
+            Axis along which a sum is performed. The default, axis=None, will sum
+            all of the elements of the input array. If axis is negative it counts 
+            from the last to the first axis.
+
+         Returns
+         -------
+         sum_along_axis : ht.tensor
+             An array with the same shape as self.__array except for the specified axis which 
+             becomes one, e.g. a.shape = (1,2,3) => ht.ones((1,2,3)).sum(axis=1).shape = (1,1,3)
+
+        Examples
+        --------
+        >>> ht.ones(2).sum()
+        tensor([2.])
+
+        >>> ht.ones((3,3)).sum()
+        tensor([9.])
+
+        >>> ht.ones((3,3)).astype(ht.int).sum()
+        tensor([9])
+
+        >>> ht.ones((3,2,1)).sum(axis=-3)
+        tensor([[[3.],
+                 [3.]]])
+        """
+        return operations.sum(self, axis)
+
+    def expand_dims(self, axis):
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        # TODO: make me more numpy API complete
+        # TODO: fix negative axis
+        return tensor(
+            self.__array.unsqueeze(dim=axis),
+            self.shape[:axis] + (1,) + self.shape[axis:],
+            self.dtype,
+            self.split if self.split is None or self.split < axis else self.split + 1,
+            _copy(self.__comm)
+        )
 
     def exp(self, out=None):
         """
@@ -557,7 +646,8 @@ class tensor:
             if other.split is None or other.split == self.split:
                 return tensor(op(self.__array, other.__array), output_shape, self.dtype, self.split, self.__comm)
             else:
-                raise NotImplementedError('Not implemented for other splittings')
+                raise NotImplementedError(
+                    'Not implemented for other splittings')
         else:
             raise NotImplementedError('Not implemented for non scalar')
 
@@ -617,14 +707,16 @@ class tensor:
         # TODO: sanitize input
         # TODO: make me more numpy API complete
         if self.__split is not None:
-            raise NotImplementedError('Slicing not supported for __split != None')
+            raise NotImplementedError(
+                'Slicing not supported for __split != None')
 
         if np.isscalar(value):
             self.__array.__setitem__(key, value)
         elif isinstance(value, tensor):
             self.__array.__setitem__(key, value.__array)
         else:
-            raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
+            raise NotImplementedError(
+                'Not implemented for {}'.format(value.__class__.__name__))
 
 
 def __factory(shape, dtype, split, local_factory, comm):
@@ -799,7 +891,8 @@ def arange(*args, dtype=None, split=None, comm=MPI_WORLD):
         step = args[2]
         num = int(np.ceil((stop - start) / step))
     else:
-        raise TypeError('function takes minimum one and at most 3 positional arguments ({} given)'.format(num_of_param))
+        raise TypeError(
+            'function takes minimum one and at most 3 positional arguments ({} given)'.format(num_of_param))
 
     gshape = (num,)
     split = sanitize_axis(gshape, split)
@@ -808,7 +901,8 @@ def arange(*args, dtype=None, split=None, comm=MPI_WORLD):
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step
-    data = torch.arange(start, stop, step, dtype=types.canonical_heat_type(dtype).torch_type())
+    data = torch.arange(start, stop, step,
+                        dtype=types.canonical_heat_type(dtype).torch_type())
 
     return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
 
@@ -861,7 +955,8 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
     stop = float(stop)
     num = int(num)
     if num <= 0:
-        raise ValueError('number of samples \'num\' must be non-negative integer, but was {}'.format(num))
+        raise ValueError(
+            'number of samples \'num\' must be non-negative integer, but was {}'.format(num))
     step = (stop - start) / max(1, num - 1 if endpoint else num)
 
     # infer local and global shapes
@@ -877,7 +972,8 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
         data = data.type(types.canonical_heat_type(dtype).torch_type())
 
     # construct the resulting global tensor
-    ht_tensor = tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
+    ht_tensor = tensor(
+        data, gshape, types.canonical_heat_type(data.dtype), split, comm)
 
     if retstep:
         return ht_tensor, step
