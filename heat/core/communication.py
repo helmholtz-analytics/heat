@@ -318,9 +318,17 @@ class MPICommunication(Communication):
         # perform the actual reduction operation
         return func(sendbuf, recvbuf, *args, **kwargs)
 
+    def Allreduce(self, sendbuf, recvbuf, op=MPI.SUM):
+        return self.__collective_single_type(self.handle.Allreduce, sendbuf, recvbuf, op)
+    Allreduce.__doc__ = MPI.Comm.Allreduce.__doc__
+
     def Exscan(self, sendbuf, recvbuf, op=MPI.SUM):
         return self.__collective_single_type(self.handle.Exscan, sendbuf, recvbuf, op)
     Exscan.__doc__ = MPI.COMM_WORLD.Exscan.__doc__
+
+    def Iallreduce(self, sendbuf, recvbuf, op=MPI.SUM):
+        return self.__collective_single_type(self.handle.Iallreduce, sendbuf, recvbuf, op)
+    Iallreduce.__doc__ = MPI.Comm.Iallreduce.__doc__
 
     def Iexscan(self, sendbuf, recvbuf, op=MPI.SUM):
         return self.__collective_single_type(self.handle.Iexscan, sendbuf, recvbuf, op)
