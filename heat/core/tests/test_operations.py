@@ -537,6 +537,8 @@ class TestOperations(unittest.TestCase):
             ht.sqrt(number_range, 'hello world')
 
     def test_sum(self):
+        #TODO: test sum with output buffer
+        #TODO: test wrong shape of output buffer exception
         array_len = 9 
         # check sum over all float elements of 1d tensor locally 
         shape_noaxis = ht.ones(array_len)

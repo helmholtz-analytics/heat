@@ -132,7 +132,7 @@ def argmin(x, axis=None):
         out = torch.reshape(torch.argmin(x._tensor__array), (1,))
         return tensor.tensor(out, out.shape, types.canonical_heat_type(out.dtype), split=None, comm=x.comm)
 
-    out = __reduce_op(x, torch.min, MPI.MIN, axis)._tensor__array[1]
+    out = __reduce_op(x, torch.min, MPI.MIN, axis, out=None)._tensor__array[1]
     return tensor.tensor(out, out.shape, types.canonical_heat_type(out.dtype), x._tensor__split, comm=x.comm)
 
 
@@ -273,7 +273,7 @@ def log(x, out=None):
     return __local_operation(torch.log, x, out)
 
 
-def max(x, axis=None):
+def max(x, axis=None, out=None):
     """"
     Return a tuple containing:
         - the maximum of an array or maximum along an axis;
@@ -314,10 +314,10 @@ def max(x, axis=None):
         [2],
         [2]]))
     """
-    return __reduce_op(x, torch.max, MPI.MAX, axis)
+    return __reduce_op(x, torch.max, MPI.MAX, axis, out)
 
 
-def min(x, axis=None):
+def min(x, axis=None, out=None):
     """"
     Return a tuple containing:
         - the minimum of an array or minimum along an axis;
@@ -360,7 +360,7 @@ def min(x, axis=None):
         [0],
         [0]]))
     """
-    return __reduce_op(x, torch.min, MPI.MIN, axis)
+    return __reduce_op(x, torch.min, MPI.MIN, axis, out)
 
 
 def sin(x, out=None):
@@ -387,19 +387,6 @@ def sin(x, out=None):
     tensor([ 0.2794,  0.7568, -0.9093,  0.0000,  0.9093, -0.7568, -0.2794])
     """
     return __local_operation(torch.sin, x, out)
-
-
-# def sum(x, axis=None):
-#     # TODO: document me
-#     axis = stride_tricks.sanitize_axis(x.shape, axis)
-#     if axis is not None:
-#         sum_axis = x._tensor__array.sum(axis, keepdim=True)
-#     else:
-#         sum_axis = torch.reshape(x._tensor__array.sum(), (1,))
-#         if not x.comm.is_distributed():
-#             return tensor.tensor(sum_axis, (1,), types.canonical_heat_type(sum_axis.dtype), None, x.comm)
-
-#     return __reduce_op(x, sum_axis, MPI.SUM, axis)
 
 
 def sqrt(x, out=None):
@@ -430,7 +417,7 @@ def sqrt(x, out=None):
     return __local_operation(torch.sqrt, x, out)
 
 
-def sum(x, axis=None):
+def sum(x, axis=None, out=None):
     """
     Sum of array elements over a given axis.
 
@@ -468,7 +455,7 @@ def sum(x, axis=None):
 
     # TODO: make me more numpy API complete
 
-    return __reduce_op(x, torch.sum, MPI.SUM, axis)
+    return __reduce_op(x, torch.sum, MPI.SUM, axis, out)
 
 
 def __local_operation(operation, x, out):
@@ -649,17 +636,20 @@ def triu(m, k=0):
     return __tri_op(m, k, torch.triu)
 
 
-def __reduce_op(x, partial_op, op, axis):
+def __reduce_op(x, partial_op, op, axis, out):
     # TODO: document me
     # TODO: test me
     # TODO: make me more numpy API complete
     # TODO: e.g. allow axis to be a tuple, allow for "initial"
-    # TODO: implement type promotion
 
     # perform sanitation
     if not isinstance(x, tensor.tensor):
         raise TypeError(
             'expected x to be a ht.tensor, but was {}'.format(type(x)))
+    if out is not None and not isinstance(out, tensor.tensor):
+        raise TypeError(
+            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+
     # no further checking needed, sanitize axis will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape, axis)
 
@@ -671,8 +661,20 @@ def __reduce_op(x, partial_op, op, axis):
         # TODO: verify if this works for negative split axis
         output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
 
+    # Check shape of output buffer if any
+    # if out is not None and out._tensor__array.shape is not output_shape:
+    #     raise ValueError('Expecting output buffer of shape {}, got {}'.format(
+    #         output_shape, out._tensor__array.shape))
+
     if x.comm.is_distributed() and (axis is None or axis == x.split):
         x.comm.Allreduce(MPI.IN_PLACE, partial[0], op)
+        if out is not None:
+            out._tensor__array = tensor.tensor(partial, output_shape, types.canonical_heat_type(
+                partial[0].dtype), split=out.split, comm=x.comm)
+            return out
         return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), split=None, comm=x.comm)
-
+    if out is not None:
+        out._tensor__array = tensor.tensor(partial, output_shape, types.canonical_heat_type(
+            partial[0].dtype), split=None, comm=x.comm)
+        return out
     return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), split=None, comm=x.comm)

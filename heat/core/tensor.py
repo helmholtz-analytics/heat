@@ -190,7 +190,7 @@ class tensor:
         '''
         return operations.argmin(self, axis)
 
-    def max(self, axis=None):
+    def max(self, axis=None, out=None):
         """"
         Return the maximum of an array or maximum along an axis.
 
@@ -209,7 +209,7 @@ class tensor:
         The minimum value of an output element. Must be present to allow computation on empty slice.
         """
 
-        return operations.max(self, axis)
+        return operations.max(self, axis, out)
 
     def mean(self, axis):
         # TODO: document me
@@ -218,7 +218,7 @@ class tensor:
         # TODO: make me more numpy API complete
         return self.sum(axis) / self.shape[axis]
 
-    def min(self, axis=None):
+    def min(self, axis=None, out=None):
         """"
         Return the minimum of an array or minimum along an axis.
 
@@ -237,9 +237,9 @@ class tensor:
         The maximum value of an output element. Must be present to allow computation on empty slice.
         """
 
-        return operations.min(self, axis)
+        return operations.min(self, axis, out)
 
-    def sum(self, axis=None):
+    def sum(self, axis=None, out=None):
         # TODO: Allow also list of axes
         """
         Sum of array elements over a given axis.
@@ -272,7 +272,7 @@ class tensor:
         tensor([[[3.],
                  [3.]]])
         """
-        return operations.sum(self, axis)
+        return operations.sum(self, axis, out)
 
     def expand_dims(self, axis):
         # TODO: document me
