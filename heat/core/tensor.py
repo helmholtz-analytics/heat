@@ -239,41 +239,6 @@ class tensor:
 
         return operations.min(self, axis, out)
 
-    def sum(self, axis=None, out=None):
-        # TODO: Allow also list of axes
-        """
-        Sum of array elements over a given axis.
-
-        Parameters
-        ----------   
-        axis : None or int, optional
-            Axis along which a sum is performed. The default, axis=None, will sum
-            all of the elements of the input array. If axis is negative it counts 
-            from the last to the first axis.
-
-         Returns
-         -------
-         sum_along_axis : ht.tensor
-             An array with the same shape as self.__array except for the specified axis which 
-             becomes one, e.g. a.shape = (1,2,3) => ht.ones((1,2,3)).sum(axis=1).shape = (1,1,3)
-
-        Examples
-        --------
-        >>> ht.ones(2).sum()
-        tensor([2.])
-
-        >>> ht.ones((3,3)).sum()
-        tensor([9.])
-
-        >>> ht.ones((3,3)).astype(ht.int).sum()
-        tensor([9])
-
-        >>> ht.ones((3,2,1)).sum(axis=-3)
-        tensor([[[3.],
-                 [3.]]])
-        """
-        return operations.sum(self, axis, out)
-
     def expand_dims(self, axis):
         # TODO: document me
         # TODO: test me
@@ -508,7 +473,7 @@ class tensor:
         """
         return operations.sqrt(self, out)
 
-    def sum(self, axis=None):
+    def sum(self, axis=None, out=None):
         # TODO: Allow also list of axes
         """
         Sum of array elements over a given axis.
@@ -541,7 +506,7 @@ class tensor:
         tensor([[[3.],
                  [3.]]])
         """
-        return operations.sum(self, axis)
+        return operations.sum(self, axis, out)
 
     def tril(self, k=0):
         """
@@ -939,7 +904,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, comm=MPI_WORLD):
     # initialize the array
     if bool(copy) or not isinstance(obj, torch.Tensor):
         try:
-            obj = torch.tensor(obj, dtype=dtype.torch_type() if dtype is not None else None)
+            obj = torch.tensor(obj, dtype=dtype.torch_type()
+                               if dtype is not None else None)
         except RuntimeError:
             raise TypeError('invalid data of type {}'.format(type(obj)))
 
@@ -949,7 +915,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, comm=MPI_WORLD):
 
     # sanitize minimum number of dimensions
     if not isinstance(ndmin, int):
-        raise TypeError('expected ndmin to be int, but was {}'.format(type(ndmin)))
+        raise TypeError(
+            'expected ndmin to be int, but was {}'.format(type(ndmin)))
 
     # reshape the object to encompass additional dimensions
     ndmin -= len(obj.shape)
@@ -961,7 +928,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, comm=MPI_WORLD):
 
     # sanitize communication object
     if not isinstance(comm, Communication):
-        raise TypeError('expected communication object, but got {}'.format(type(comm)))
+        raise TypeError(
+            'expected communication object, but got {}'.format(type(comm)))
 
     # determine the local and the global shape, if not split is given, they are identical
     lshape = np.array(obj.shape)
@@ -993,7 +961,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, comm=MPI_WORLD):
         reduction_buffer = np.array(gshape[split])
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
         if reduction_buffer < 0:
-            raise ValueError('unable to construct tensor, shape of local data chunk does not match')
+            raise ValueError(
+                'unable to construct tensor, shape of local data chunk does not match')
         gshape[split] = reduction_buffer
 
     return tensor(obj, tuple(gshape), dtype, split, comm)

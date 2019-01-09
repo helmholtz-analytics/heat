@@ -655,16 +655,16 @@ def __reduce_op(x, partial_op, op, axis, out):
 
     if axis is None:
         partial = torch.reshape(partial_op(x._tensor__array), (1,))
-        output_shape = partial.shape
+        output_shape = (1,)
     else:
         partial = partial_op(x._tensor__array, axis, keepdim=True)
         # TODO: verify if this works for negative split axis
         output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
 
     # Check shape of output buffer if any
-    # if out is not None and out._tensor__array.shape is not output_shape:
-    #     raise ValueError('Expecting output buffer of shape {}, got {}'.format(
-    #         output_shape, out._tensor__array.shape))
+    if out is not None and out.shape != output_shape:
+        raise ValueError('Expecting output buffer of shape {}, got {}'.format(
+            output_shape, out.shape))
 
     if x.comm.is_distributed() and (axis is None or axis == x.split):
         x.comm.Allreduce(MPI.IN_PLACE, partial[0], op)
