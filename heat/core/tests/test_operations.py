@@ -313,6 +313,22 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(random_data_split_neg.max(axis=-2).dtype, ht.float32)
         self.assertEqual(random_data_split_neg.max(axis=-2)._tensor__array[0].dtype, torch.float32)
         self.assertEqual(random_data_split_neg.max().split, None)
+
+        # check min output to predefined distributed tensor 
+        torch.manual_seed(1)
+        random_nosplit = ht.random.randn(3, 3, 3)
+        torch.manual_seed(1)
+        random_split = ht.random.randn(3, 3, 3, split=0)
+        out_nosplit = ht.zeros((3, 1, 3))
+        out_split = ht.zeros((3, 1, 3), split=2)
+        ht.max(random_nosplit, axis=1, out=out_nosplit)
+        ht.max(random_nosplit, axis=1, out=out_split)
+        self.assertEqual(out_nosplit.split, None)
+        self.assertEqual(out_split.split, 2)       
+        ht.max(random_split, axis=1, out=out_nosplit)
+        ht.max(random_split, axis=1, out=out_split)
+        self.assertEqual(out_nosplit.split, None)
+        self.assertEqual(out_split.split, 2)      
            
         # check exceptions
         with self.assertRaises(NotImplementedError):
@@ -384,6 +400,22 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(random_data_split_neg.min(axis=-2).dtype, ht.float32)
         self.assertEqual(random_data_split_neg.min(axis=-2)._tensor__array[0].dtype, torch.float32)
         self.assertEqual(random_data_split_neg.min().split, None)
+
+        # check min output to predefined distributed tensor 
+        torch.manual_seed(1)
+        random_nosplit = ht.random.randn(3, 3, 3)
+        torch.manual_seed(1)
+        random_split = ht.random.randn(3, 3, 3, split=0)
+        out_nosplit = ht.zeros((3, 1, 3))
+        out_split = ht.zeros((3, 1, 3), split=2)
+        ht.min(random_nosplit, axis=1, out=out_nosplit)
+        ht.min(random_nosplit, axis=1, out=out_split)
+        self.assertEqual(out_nosplit.split, None)
+        self.assertEqual(out_split.split, 2)       
+        ht.min(random_split, axis=1, out=out_nosplit)
+        ht.min(random_split, axis=1, out=out_split)
+        self.assertEqual(out_nosplit.split, None)
+        self.assertEqual(out_split.split, 2)       
            
         # check exceptions
         with self.assertRaises(NotImplementedError):
@@ -631,7 +663,25 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2).dtype, ht.float32)
         self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2)._tensor__array.dtype, torch.float32)
         self.assertEqual(shape_noaxis_split_axis_neg.sum().split, None)
-               
+
+        # check sum output to predefined distributed tensor 
+        torch.manual_seed(1)
+        random_nosplit = ht.random.randn(3, 3, 3)
+        torch.manual_seed(1)
+        random_split = ht.random.randn(3, 3, 3, split=0)
+        out_nosplit = ht.zeros((3, 1, 3))
+        out_split = ht.zeros((3, 1, 3), split=2)
+        ht.sum(random_nosplit, axis=1, out=out_nosplit)
+        ht.sum(random_nosplit, axis=1, out=out_split)
+        self.assertTrue(out_nosplit._tensor__array, out_split._tensor__array)
+        self.assertEqual(out_nosplit.split, None)
+        self.assertEqual(out_split.split, 2)       
+        ht.sum(random_split, axis=1, out=out_nosplit)
+        ht.sum(random_split, axis=1, out=out_split)
+        self.assertTrue(out_nosplit._tensor__array, out_split._tensor__array)
+        self.assertEqual(out_nosplit.split, None)
+        self.assertEqual(out_split.split, 2)       
+              
         # exceptions
         with self.assertRaises(ValueError):
             ht.ones(array_len).sum(axis=1)
