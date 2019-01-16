@@ -9,6 +9,7 @@ from . import tensor
 __all__ = [
     'abs',
     'absolute',
+    'all',
     'argmin',
     'clip',
     'copy',
@@ -80,6 +81,94 @@ def absolute(x, out=None, dtype=None):
         A tensor containing the absolute value of each element in x.
     """
     return abs(x, out, dtype)
+
+
+def all(x, axis=None, out=None):
+    """
+    Test whether all array elements along a given axis evaluate to True.
+
+    Parameters:
+    -----------
+
+    x : ht.tensor
+        Input array or object that can be converted to an array.
+
+    axis : None or int, optional #TODO: tuple of ints
+        Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a 
+        logical AND over all the dimensions of the input array. axis may be negative, in which case it counts 
+        from the last to the first axis.
+
+    out : ht.tensor, optional
+        Alternate output array in which to place the result. It must have the same shape as the expected output 
+        and its type is preserved.
+
+    Returns:	
+    --------
+    all : ht.tensor, bool
+
+    A new boolean or ht.tensor is returned unless out is specified, in which case a reference to out is returned.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> a = ht.random.randn(4,5)
+    >>> a
+    tensor([[ 0.5370, -0.4117, -3.1062,  0.4897, -0.3231],
+            [-0.5005, -1.7746,  0.8515, -0.9494, -0.2238],
+            [-0.0444,  0.3388,  0.6805, -1.3856,  0.5422],
+            [ 0.3184,  0.0185,  0.5256, -1.1653, -0.1665]])
+    >>> x = a<0.5
+    >>> x
+    tensor([[0, 1, 1, 1, 1],
+            [1, 1, 0, 1, 1],
+            [1, 1, 0, 1, 0],
+            [1,1, 0, 1, 1]], dtype=torch.uint8)
+    >>> ht.all(x)
+    tensor([0], dtype=torch.uint8)
+    >>> ht.all(x, axis=0)
+    tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
+    >>> ht.all(x, axis=1)
+    tensor([[0],
+            [0],
+            [0],
+            [0]], dtype=torch.uint8)
+
+    Write out to predefined buffer:
+    >>> out = ht.zeros((1,5))
+    >>> ht.all(x,axis=0,out=out)
+    >>> out
+    tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
+    """
+    # TODO: make me more numpy API complete
+
+    # perform sanitation.
+    # NB. sanitation is carried out twice. TODO: fix that.
+    if out is not None and not isinstance(out, tensor.tensor):
+        raise TypeError(
+            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+    axis = stride_tricks.sanitize_axis(x.shape, axis)
+
+    # calculate shape of output
+    if axis is None:
+        numel = x._tensor__array.numel()
+        output_shape = (1,)
+    else:
+        numel = x.gshape[axis]
+        output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
+
+    # Check shape of specified output buffer, if any
+    if out is not None and out.shape != output_shape:
+        raise ValueError('Expecting output buffer of shape {}, got {}'.format(
+            output_shape, out.shape))
+
+    # Calculation of "sum_of_ones" can be distributed
+    sum_of_ones = __reduce_op((x == 1), torch.sum, MPI.SUM, axis, out=None)
+    if out is not None:
+        out._tensor__array = tensor.tensor((sum_of_ones == numel), output_shape,
+                                           types.canonical_heat_type(sum_of_ones.dtype), split=out.split, comm=x.comm)
+        return out
+    return tensor.tensor((sum_of_ones == numel), output_shape,
+                         types.canonical_heat_type(sum_of_ones.dtype), split=sum_of_ones.split, comm=x.comm)
 
 
 def argmin(x, axis=None):
@@ -661,7 +750,7 @@ def __reduce_op(x, partial_op, op, axis, out):
         # TODO: verify if this works for negative split axis
         output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
 
-    # Check shape of output buffer if any
+    # Check shape of output buffer, if any
     if out is not None and out.shape != output_shape:
         raise ValueError('Expecting output buffer of shape {}, got {}'.format(
             output_shape, out.shape))
@@ -675,6 +764,6 @@ def __reduce_op(x, partial_op, op, axis, out):
         return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), split=None, comm=x.comm)
     if out is not None:
         out._tensor__array = tensor.tensor(partial, output_shape, types.canonical_heat_type(
-            partial[0].dtype), split=None, comm=x.comm)
+            partial[0].dtype), split=out.split, comm=x.comm)
         return out
     return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), split=None, comm=x.comm)
