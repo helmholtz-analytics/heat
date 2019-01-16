@@ -124,11 +124,11 @@ class tensor:
                 [1, 1, 0, 1, 1],
                 [1, 1, 0, 1, 0],
                 [1,1, 0, 1, 1]], dtype=torch.uint8)
-        >>> ht.all(x)
+        >>> x.all()
         tensor([0], dtype=torch.uint8)
-        >>> ht.all(x, axis=0)
+        >>> x.all(axis=0)
         tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
-        >>> ht.all(x, axis=1)
+        >>> x.all(axis=1)
         tensor([[0],
                 [0],
                 [0],
@@ -136,7 +136,7 @@ class tensor:
 
         Write out to predefined buffer:
         >>> out = ht.zeros((1,5))
-        >>> ht.all(x,axis=0,out=out)
+        >>> x.all(axis=0, out=out)
         >>> out
         tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
 
