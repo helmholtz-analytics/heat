@@ -141,12 +141,7 @@ def all(x, axis=None, out=None):
     """
     # TODO: make me more numpy API complete
 
-    # perform sanitation.
-    # NB. sanitation is carried out twice. TODO: fix that.
-    if out is not None and not isinstance(out, tensor.tensor):
-        raise TypeError(
-            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
-    axis = stride_tricks.sanitize_axis(x.shape, axis)
+    sum_of_ones = __reduce_op((x == 1), torch.sum, MPI.SUM, axis, out=None)
 
     # calculate shape of output
     if axis is None:
@@ -156,17 +151,19 @@ def all(x, axis=None, out=None):
         numel = x.gshape[axis]
         output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
 
-    # Check shape of specified output buffer, if any
-    if out is not None and out.shape != output_shape:
-        raise ValueError('Expecting output buffer of shape {}, got {}'.format(
-            output_shape, out.shape))
-
-    # Calculation of "sum_of_ones" can be distributed
-    sum_of_ones = __reduce_op((x == 1), torch.sum, MPI.SUM, axis, out=None)
     if out is not None:
+        # perform sanitation
+        if not isinstance(out, tensor.tensor):
+            raise TypeError(
+                'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+        if out.shape != output_shape:
+            raise ValueError('Expecting output buffer of shape {}, got {}'.format(
+                output_shape, out.shape))
+        # write to "out"
         out._tensor__array = tensor.tensor((sum_of_ones == numel), output_shape,
                                            types.canonical_heat_type(sum_of_ones.dtype), split=out.split, comm=x.comm)
         return out
+    # TODO: distributed calculation of (sum_of_ones == numel)
     return tensor.tensor((sum_of_ones == numel), output_shape,
                          types.canonical_heat_type(sum_of_ones.dtype), split=sum_of_ones.split, comm=x.comm)
 
