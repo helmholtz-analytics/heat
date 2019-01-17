@@ -93,7 +93,7 @@ def all(x, axis=None, out=None):
     x : ht.tensor
         Input array or object that can be converted to an array.
 
-    axis : None or int, optional #TODO: tuple of ints
+    axis : None or int, optional #TODO: tuple of ints, issue #67
         Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a 
         logical AND over all the dimensions of the input array. axis may be negative, in which case it counts 
         from the last to the first axis.
@@ -139,7 +139,7 @@ def all(x, axis=None, out=None):
     >>> out
     tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
     """
-    # TODO: make me more numpy API complete
+    # TODO: make me more numpy API complete. Issue #101
 
     sum_of_ones = __reduce_op((x == 1), torch.sum, MPI.SUM, axis, out=None)
 
@@ -163,7 +163,7 @@ def all(x, axis=None, out=None):
         out._tensor__array = tensor.tensor((sum_of_ones == numel), output_shape,
                                            types.canonical_heat_type(sum_of_ones.dtype), split=out.split, comm=x.comm)
         return out
-    # TODO: distributed calculation of (sum_of_ones == numel)
+    # TODO: distributed calculation of (sum_of_ones == numel) Issue #99
     return tensor.tensor((sum_of_ones == numel), output_shape,
                          types.canonical_heat_type(sum_of_ones.dtype), split=sum_of_ones.split, comm=x.comm)
 
@@ -181,7 +181,7 @@ def argmin(x, axis=None):
     axis : int, optional
     By default, the index is into the flattened tensor, otherwise along the specified axis.
 
-    # TODO out : array, optional
+    # TODO out : ht.tensor, optional. Issue #100
     If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
     Returns:
@@ -209,7 +209,7 @@ def argmin(x, axis=None):
     '''
 
     if axis is None:
-        # TEMPORARY SOLUTION! TODO: implementation for axis=None, distributed tensor
+        # TEMPORARY SOLUTION! TODO: implementation for axis=None, distributed tensor Issue #100
         # perform sanitation
         if not isinstance(x, tensor.tensor):
             raise TypeError(
@@ -373,10 +373,10 @@ def max(x, axis=None, out=None):
     axis : None or int, optional
     Axis or axes along which to operate. By default, flattened input is used.
 
-    # TODO: out : ht.tensor, optional
+    out : ht.tensor, optional
     Tuple of two output tensors (max, max_indices). Must be of the same shape and buffer length as the expected output.
 
-    # TODO: initial : scalar, optional
+    # TODO: initial : scalar, optional Issue #101
     The minimum value of an output element. Must be present to allow computation on empty slice.
 
         Examples
@@ -418,11 +418,11 @@ def min(x, axis=None, out=None):
     Axis or axes along which to operate. By default, flattened input is used.
 
 
-    # TODO: out : ht.tensor, optional
+    out : ht.tensor, optional
     Tuple of two output tensors (min, min_indices). Must be of the same shape and buffer length as the expected output.
 
 
-    # TODO: initial : scalar, optional
+    # TODO: initial : scalar, optional Issue #101
     The maximum value of an output element. Must be present to allow computation on empty slice.
 
     Examples
@@ -539,7 +539,7 @@ def sum(x, axis=None, out=None):
             [3.]]])
     """
 
-    # TODO: make me more numpy API complete
+    # TODO: make me more numpy API complete Issue #101
 
     return __reduce_op(x, torch.sum, MPI.SUM, axis, out)
 
@@ -723,10 +723,7 @@ def triu(m, k=0):
 
 
 def __reduce_op(x, partial_op, op, axis, out):
-    # TODO: document me
-    # TODO: test me
-    # TODO: make me more numpy API complete
-    # TODO: e.g. allow axis to be a tuple, allow for "initial"
+    # TODO: document me Issue #102
 
     # perform sanitation
     if not isinstance(x, tensor.tensor):
@@ -744,7 +741,7 @@ def __reduce_op(x, partial_op, op, axis, out):
         output_shape = (1,)
     else:
         partial = partial_op(x._tensor__array, axis, keepdim=True)
-        # TODO: verify if this works for negative split axis
+        # TODO: verify if this works for negative split axis Issue #103
         output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
 
     # Check shape of output buffer, if any
