@@ -87,6 +87,62 @@ class tensor:
 
         return self.abs(out, dtype)
 
+    def all(self, axis=None, out=None):
+        """
+        Test whether all array elements along a given axis evaluate to True.
+
+        Parameters:
+        -----------
+
+        axis : None or int, optional #TODO: tuple of ints
+            Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a 
+            logical AND over all the dimensions of the input array. axis may be negative, in which case it counts 
+            from the last to the first axis.
+
+        out : ht.tensor, optional
+            Alternate output array in which to place the result. It must have the same shape as the expected output 
+            and its type is preserved.
+
+        Returns:	
+        --------
+        all : ht.tensor, bool
+
+        A new boolean or ht.tensor is returned unless out is specified, in which case a reference to out is returned.
+
+       Examples:
+        ---------
+        >>> import heat as ht
+        >>> a = ht.random.randn(4,5)
+        >>> a
+        tensor([[ 0.5370, -0.4117, -3.1062,  0.4897, -0.3231],
+                [-0.5005, -1.7746,  0.8515, -0.9494, -0.2238],
+                [-0.0444,  0.3388,  0.6805, -1.3856,  0.5422],
+                [ 0.3184,  0.0185,  0.5256, -1.1653, -0.1665]])
+        >>> x = a<0.5
+        >>> x
+        tensor([[0, 1, 1, 1, 1],
+                [1, 1, 0, 1, 1],
+                [1, 1, 0, 1, 0],
+                [1,1, 0, 1, 1]], dtype=torch.uint8)
+        >>> x.all()
+        tensor([0], dtype=torch.uint8)
+        >>> x.all(axis=0)
+        tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
+        >>> x.all(axis=1)
+        tensor([[0],
+                [0],
+                [0],
+                [0]], dtype=torch.uint8)
+
+        Write out to predefined buffer:
+        >>> out = ht.zeros((1,5))
+        >>> x.all(axis=0, out=out)
+        >>> out
+        tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
+
+        """
+        return operations.all(self, axis, out)
+
     def argmin(self, axis):
         return operations.argmin(self, axis)
 
@@ -190,7 +246,7 @@ class tensor:
         '''
         return operations.argmin(self, axis)
 
-    def max(self, axis=None):
+    def max(self, axis=None, out=None):
         """"
         Return the maximum of an array or maximum along an axis.
 
@@ -209,7 +265,7 @@ class tensor:
         The minimum value of an output element. Must be present to allow computation on empty slice.
         """
 
-        return operations.max(self, axis)
+        return operations.max(self, axis, out)
 
     def mean(self, axis):
         # TODO: document me
@@ -218,7 +274,7 @@ class tensor:
         # TODO: make me more numpy API complete
         return self.sum(axis) / self.shape[axis]
 
-    def min(self, axis=None):
+    def min(self, axis=None, out=None):
         """"
         Return the minimum of an array or minimum along an axis.
 
@@ -237,42 +293,7 @@ class tensor:
         The maximum value of an output element. Must be present to allow computation on empty slice.
         """
 
-        return operations.min(self, axis)
-
-    def sum(self, axis=None):
-        # TODO: Allow also list of axes
-        """
-        Sum of array elements over a given axis.
-
-        Parameters
-        ----------   
-        axis : None or int, optional
-            Axis along which a sum is performed. The default, axis=None, will sum
-            all of the elements of the input array. If axis is negative it counts 
-            from the last to the first axis.
-
-         Returns
-         -------
-         sum_along_axis : ht.tensor
-             An array with the same shape as self.__array except for the specified axis which 
-             becomes one, e.g. a.shape = (1,2,3) => ht.ones((1,2,3)).sum(axis=1).shape = (1,1,3)
-
-        Examples
-        --------
-        >>> ht.ones(2).sum()
-        tensor([2.])
-
-        >>> ht.ones((3,3)).sum()
-        tensor([9.])
-
-        >>> ht.ones((3,3)).astype(ht.int).sum()
-        tensor([9])
-
-        >>> ht.ones((3,2,1)).sum(axis=-3)
-        tensor([[[3.],
-                 [3.]]])
-        """
-        return operations.sum(self, axis)
+        return operations.min(self, axis, out)
 
     def expand_dims(self, axis):
         # TODO: document me
@@ -508,7 +529,7 @@ class tensor:
         """
         return operations.sqrt(self, out)
 
-    def sum(self, axis=None):
+    def sum(self, axis=None, out=None):
         # TODO: Allow also list of axes
         """
         Sum of array elements over a given axis.
@@ -541,7 +562,7 @@ class tensor:
         tensor([[[3.],
                  [3.]]])
         """
-        return operations.sum(self, axis)
+        return operations.sum(self, axis, out)
 
     def tril(self, k=0):
         """
@@ -939,7 +960,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, comm=MPI_WORLD):
     # initialize the array
     if bool(copy) or not isinstance(obj, torch.Tensor):
         try:
-            obj = torch.tensor(obj, dtype=dtype.torch_type() if dtype is not None else None)
+            obj = torch.tensor(obj, dtype=dtype.torch_type()
+                               if dtype is not None else None)
         except RuntimeError:
             raise TypeError('invalid data of type {}'.format(type(obj)))
 
@@ -949,7 +971,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, comm=MPI_WORLD):
 
     # sanitize minimum number of dimensions
     if not isinstance(ndmin, int):
-        raise TypeError('expected ndmin to be int, but was {}'.format(type(ndmin)))
+        raise TypeError(
+            'expected ndmin to be int, but was {}'.format(type(ndmin)))
 
     # reshape the object to encompass additional dimensions
     ndmin -= len(obj.shape)
@@ -961,7 +984,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, comm=MPI_WORLD):
 
     # sanitize communication object
     if not isinstance(comm, Communication):
-        raise TypeError('expected communication object, but got {}'.format(type(comm)))
+        raise TypeError(
+            'expected communication object, but got {}'.format(type(comm)))
 
     # determine the local and the global shape, if not split is given, they are identical
     lshape = np.array(obj.shape)
@@ -993,7 +1017,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, comm=MPI_WORLD):
         reduction_buffer = np.array(gshape[split])
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
         if reduction_buffer < 0:
-            raise ValueError('unable to construct tensor, shape of local data chunk does not match')
+            raise ValueError(
+                'unable to construct tensor, shape of local data chunk does not match')
         gshape[split] = reduction_buffer
 
     return tensor(obj, tuple(gshape), dtype, split, comm)

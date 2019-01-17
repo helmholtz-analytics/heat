@@ -166,7 +166,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(b.lshape, (2, 2,))
         self.assertEqual(b.gshape, (2, 2,))
         self.assertEqual(b.split, None)
-        self.assertTrue((b._tensor__array == torch.tensor(tuple_data, dtype=torch.int8)).all())
+        self.assertTrue((b._tensor__array == torch.tensor(
+            tuple_data, dtype=torch.int8)).all())
 
         # basic array function, unsplit data, no copy
         torch_tensor = torch.tensor([6, 5, 4, 3, 2, 1])
@@ -187,7 +188,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(d.lshape, (3, 1, 1))
         self.assertEqual(d.gshape, (3, 1, 1))
         self.assertEqual(d.split, None)
-        self.assertTrue((d._tensor__array == torch.tensor(vector_data).reshape(-1, 1, 1)).all())
+        self.assertTrue((d._tensor__array == torch.tensor(
+            vector_data).reshape(-1, 1, 1)).all())
 
         # distributed array function
         if ht.communication.MPI_WORLD.rank == 0:
@@ -223,7 +225,8 @@ class TestTensorFactories(unittest.TestCase):
         # exception distributed shapes do not fit
         if ht.communication.MPI_WORLD.size > 1:
             if ht.communication.MPI_WORLD.rank == 0:
-                split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0], [0.0, 0.0, 0.0]]
+                split_data = [[4.0, 5.0, 6.0], [
+                    1.0, 2.0, 3.0], [0.0, 0.0, 0.0]]
             else:
                 split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]]
 
@@ -291,7 +294,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(casted.split, 0)
 
         # retstep test
-        result = ht.linspace(-5, 3, num=70, retstep=True, dtype=ht.uint8, split=0)
+        result = ht.linspace(-5, 3, num=70, retstep=True,
+                             dtype=ht.uint8, split=0)
         self.assertIsInstance(result, tuple)
         self.assertEqual(len(result), 2)
 
@@ -418,7 +422,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(simple_zeros_float.lshape, (3,))
         self.assertEqual(simple_zeros_float.split,  None)
         self.assertEqual(simple_zeros_float.dtype,  ht.float32)
-        self.assertEqual((simple_zeros_float._tensor__array == 0).all().item(), 1)
+        self.assertEqual(
+            (simple_zeros_float._tensor__array == 0).all().item(), 1)
 
         # different data type
         simple_zeros_uint = ht.zeros(5, dtype=ht.bool)
@@ -427,7 +432,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(simple_zeros_uint.lshape, (5,))
         self.assertEqual(simple_zeros_uint.split,  None)
         self.assertEqual(simple_zeros_uint.dtype,  ht.bool)
-        self.assertEqual((simple_zeros_uint._tensor__array == 0).all().item(), 1)
+        self.assertEqual(
+            (simple_zeros_uint._tensor__array == 0).all().item(), 1)
 
         # multi-dimensional
         elaborate_zeros_int = ht.zeros((2, 3,), dtype=ht.int32)
@@ -436,7 +442,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(elaborate_zeros_int.lshape, (2, 3,))
         self.assertEqual(elaborate_zeros_int.split,  None)
         self.assertEqual(elaborate_zeros_int.dtype,  ht.int32)
-        self.assertEqual((elaborate_zeros_int._tensor__array == 0).all().item(), 1)
+        self.assertEqual(
+            (elaborate_zeros_int._tensor__array == 0).all().item(), 1)
 
         # split axis
         elaborate_zeros_split = ht.zeros((6, 4,), dtype=ht.int32, split=0)
@@ -446,7 +453,8 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(elaborate_zeros_split.lshape[1],     4)
         self.assertEqual(elaborate_zeros_split.split,         0)
         self.assertEqual(elaborate_zeros_split.dtype,         ht.int32)
-        self.assertEqual((elaborate_zeros_split._tensor__array == 0).all().item(), 1)
+        self.assertEqual(
+            (elaborate_zeros_split._tensor__array == 0).all().item(), 1)
 
         # exceptions
         with self.assertRaises(TypeError):

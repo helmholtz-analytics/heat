@@ -9,6 +9,7 @@ from . import tensor
 __all__ = [
     'abs',
     'absolute',
+    'all',
     'argmin',
     'clip',
     'copy',
@@ -82,6 +83,91 @@ def absolute(x, out=None, dtype=None):
     return abs(x, out, dtype)
 
 
+def all(x, axis=None, out=None):
+    """
+    Test whether all array elements along a given axis evaluate to True.
+
+    Parameters:
+    -----------
+
+    x : ht.tensor
+        Input array or object that can be converted to an array.
+
+    axis : None or int, optional #TODO: tuple of ints, issue #67
+        Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a 
+        logical AND over all the dimensions of the input array. axis may be negative, in which case it counts 
+        from the last to the first axis.
+
+    out : ht.tensor, optional
+        Alternate output array in which to place the result. It must have the same shape as the expected output 
+        and its type is preserved.
+
+    Returns:	
+    --------
+    all : ht.tensor, bool
+
+    A new boolean or ht.tensor is returned unless out is specified, in which case a reference to out is returned.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> a = ht.random.randn(4,5)
+    >>> a
+    tensor([[ 0.5370, -0.4117, -3.1062,  0.4897, -0.3231],
+            [-0.5005, -1.7746,  0.8515, -0.9494, -0.2238],
+            [-0.0444,  0.3388,  0.6805, -1.3856,  0.5422],
+            [ 0.3184,  0.0185,  0.5256, -1.1653, -0.1665]])
+    >>> x = a<0.5
+    >>> x
+    tensor([[0, 1, 1, 1, 1],
+            [1, 1, 0, 1, 1],
+            [1, 1, 0, 1, 0],
+            [1,1, 0, 1, 1]], dtype=torch.uint8)
+    >>> ht.all(x)
+    tensor([0], dtype=torch.uint8)
+    >>> ht.all(x, axis=0)
+    tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
+    >>> ht.all(x, axis=1)
+    tensor([[0],
+            [0],
+            [0],
+            [0]], dtype=torch.uint8)
+
+    Write out to predefined buffer:
+    >>> out = ht.zeros((1,5))
+    >>> ht.all(x,axis=0,out=out)
+    >>> out
+    tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
+    """
+    # TODO: make me more numpy API complete. Issue #101
+
+    sum_of_ones = __reduce_op((x == 1), torch.sum, MPI.SUM, axis, out=None)
+
+    # calculate shape of output
+    if axis is None:
+        numel = x._tensor__array.numel()
+        output_shape = (1,)
+    else:
+        numel = x.gshape[axis]
+        output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
+
+    if out is not None:
+        # perform sanitation
+        if not isinstance(out, tensor.tensor):
+            raise TypeError(
+                'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+        if out.shape != output_shape:
+            raise ValueError('Expecting output buffer of shape {}, got {}'.format(
+                output_shape, out.shape))
+        # write to "out"
+        out._tensor__array = tensor.tensor((sum_of_ones == numel), output_shape,
+                                           types.canonical_heat_type(sum_of_ones.dtype), split=out.split, comm=x.comm)
+        return out
+    # TODO: distributed calculation of (sum_of_ones == numel) Issue #99
+    return tensor.tensor((sum_of_ones == numel), output_shape,
+                         types.canonical_heat_type(sum_of_ones.dtype), split=sum_of_ones.split, comm=x.comm)
+
+
 def argmin(x, axis=None):
     '''
     Returns the indices of the minimum values along an axis.
@@ -95,7 +181,7 @@ def argmin(x, axis=None):
     axis : int, optional
     By default, the index is into the flattened tensor, otherwise along the specified axis.
 
-    # TODO out : array, optional
+    # TODO out : ht.tensor, optional. Issue #100
     If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
     Returns:
@@ -123,7 +209,7 @@ def argmin(x, axis=None):
     '''
 
     if axis is None:
-        # TEMPORARY SOLUTION! TODO: implementation for axis=None, distributed tensor
+        # TEMPORARY SOLUTION! TODO: implementation for axis=None, distributed tensor Issue #100
         # perform sanitation
         if not isinstance(x, tensor.tensor):
             raise TypeError(
@@ -132,7 +218,7 @@ def argmin(x, axis=None):
         out = torch.reshape(torch.argmin(x._tensor__array), (1,))
         return tensor.tensor(out, out.shape, types.canonical_heat_type(out.dtype), split=None, comm=x.comm)
 
-    out = __reduce_op(x, torch.min, MPI.MIN, axis)._tensor__array[1]
+    out = __reduce_op(x, torch.min, MPI.MIN, axis, out=None)._tensor__array[1]
     return tensor.tensor(out, out.shape, types.canonical_heat_type(out.dtype), x._tensor__split, comm=x.comm)
 
 
@@ -273,7 +359,7 @@ def log(x, out=None):
     return __local_operation(torch.log, x, out)
 
 
-def max(x, axis=None):
+def max(x, axis=None, out=None):
     """"
     Return a tuple containing:
         - the maximum of an array or maximum along an axis;
@@ -287,10 +373,10 @@ def max(x, axis=None):
     axis : None or int, optional
     Axis or axes along which to operate. By default, flattened input is used.
 
-    # TODO: out : ht.tensor, optional
+    out : ht.tensor, optional
     Tuple of two output tensors (max, max_indices). Must be of the same shape and buffer length as the expected output.
 
-    # TODO: initial : scalar, optional
+    # TODO: initial : scalar, optional Issue #101
     The minimum value of an output element. Must be present to allow computation on empty slice.
 
         Examples
@@ -314,10 +400,10 @@ def max(x, axis=None):
         [2],
         [2]]))
     """
-    return __reduce_op(x, torch.max, MPI.MAX, axis)
+    return __reduce_op(x, torch.max, MPI.MAX, axis, out)
 
 
-def min(x, axis=None):
+def min(x, axis=None, out=None):
     """"
     Return a tuple containing:
         - the minimum of an array or minimum along an axis;
@@ -332,11 +418,11 @@ def min(x, axis=None):
     Axis or axes along which to operate. By default, flattened input is used.
 
 
-    # TODO: out : ht.tensor, optional
+    out : ht.tensor, optional
     Tuple of two output tensors (min, min_indices). Must be of the same shape and buffer length as the expected output.
 
 
-    # TODO: initial : scalar, optional
+    # TODO: initial : scalar, optional Issue #101
     The maximum value of an output element. Must be present to allow computation on empty slice.
 
     Examples
@@ -360,7 +446,7 @@ def min(x, axis=None):
         [0],
         [0]]))
     """
-    return __reduce_op(x, torch.min, MPI.MIN, axis)
+    return __reduce_op(x, torch.min, MPI.MIN, axis, out)
 
 
 def sin(x, out=None):
@@ -387,19 +473,6 @@ def sin(x, out=None):
     tensor([ 0.2794,  0.7568, -0.9093,  0.0000,  0.9093, -0.7568, -0.2794])
     """
     return __local_operation(torch.sin, x, out)
-
-
-# def sum(x, axis=None):
-#     # TODO: document me
-#     axis = stride_tricks.sanitize_axis(x.shape, axis)
-#     if axis is not None:
-#         sum_axis = x._tensor__array.sum(axis, keepdim=True)
-#     else:
-#         sum_axis = torch.reshape(x._tensor__array.sum(), (1,))
-#         if not x.comm.is_distributed():
-#             return tensor.tensor(sum_axis, (1,), types.canonical_heat_type(sum_axis.dtype), None, x.comm)
-
-#     return __reduce_op(x, sum_axis, MPI.SUM, axis)
 
 
 def sqrt(x, out=None):
@@ -430,7 +503,7 @@ def sqrt(x, out=None):
     return __local_operation(torch.sqrt, x, out)
 
 
-def sum(x, axis=None):
+def sum(x, axis=None, out=None):
     """
     Sum of array elements over a given axis.
 
@@ -466,9 +539,9 @@ def sum(x, axis=None):
             [3.]]])
     """
 
-    # TODO: make me more numpy API complete
+    # TODO: make me more numpy API complete Issue #101
 
-    return __reduce_op(x, torch.sum, MPI.SUM, axis)
+    return __reduce_op(x, torch.sum, MPI.SUM, axis, out)
 
 
 def __local_operation(operation, x, out):
@@ -649,30 +722,42 @@ def triu(m, k=0):
     return __tri_op(m, k, torch.triu)
 
 
-def __reduce_op(x, partial_op, op, axis):
-    # TODO: document me
-    # TODO: test me
-    # TODO: make me more numpy API complete
-    # TODO: e.g. allow axis to be a tuple, allow for "initial"
-    # TODO: implement type promotion
+def __reduce_op(x, partial_op, op, axis, out):
+    # TODO: document me Issue #102
 
     # perform sanitation
     if not isinstance(x, tensor.tensor):
         raise TypeError(
             'expected x to be a ht.tensor, but was {}'.format(type(x)))
+    if out is not None and not isinstance(out, tensor.tensor):
+        raise TypeError(
+            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+
     # no further checking needed, sanitize axis will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape, axis)
 
     if axis is None:
         partial = torch.reshape(partial_op(x._tensor__array), (1,))
-        output_shape = partial.shape
+        output_shape = (1,)
     else:
         partial = partial_op(x._tensor__array, axis, keepdim=True)
-        # TODO: verify if this works for negative split axis
+        # TODO: verify if this works for negative split axis Issue #103
         output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
+
+    # Check shape of output buffer, if any
+    if out is not None and out.shape != output_shape:
+        raise ValueError('Expecting output buffer of shape {}, got {}'.format(
+            output_shape, out.shape))
 
     if x.comm.is_distributed() and (axis is None or axis == x.split):
         x.comm.Allreduce(MPI.IN_PLACE, partial[0], op)
+        if out is not None:
+            out._tensor__array = tensor.tensor(partial, output_shape, types.canonical_heat_type(
+                partial[0].dtype), split=out.split, comm=x.comm)
+            return out
         return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), split=None, comm=x.comm)
-
+    if out is not None:
+        out._tensor__array = tensor.tensor(partial, output_shape, types.canonical_heat_type(
+            partial[0].dtype), split=out.split, comm=x.comm)
+        return out
     return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), split=None, comm=x.comm)
