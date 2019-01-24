@@ -741,7 +741,6 @@ def __reduce_op(x, partial_op, op, axis, out):
         output_shape = (1,)
     else:
         partial = partial_op(x._tensor__array, axis, keepdim=True)
-        # TODO: verify if this works for negative split axis Issue #103
         output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
 
     # Check shape of output buffer, if any
