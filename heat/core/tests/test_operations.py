@@ -797,6 +797,79 @@ class TestOperations(unittest.TestCase):
             ht.ones((4,4)).sum(axis=0, out=out_noaxis)
         with self.assertRaises(TypeError):
             ht.ones(array_len).sum(axis='bad_axis_type')
+            
+    def test_transpose(self):
+        # vector transpose, not distributed
+        vector = ht.arange(10)
+        vector_t = vector.T
+        self.assertIsInstance(vector_t, ht.tensor)
+        self.assertEqual(vector_t.dtype, ht.int32)
+        self.assertEqual(vector_t.split, None)
+        self.assertEqual(vector_t.shape, (10,))
+
+        # simple matrix transpose, not distributed
+        simple_matrix = ht.zeros((2, 4))
+        simple_matrix_t = simple_matrix.transpose()
+        self.assertIsInstance(simple_matrix_t, ht.tensor)
+        self.assertEqual(simple_matrix_t.dtype, ht.float32)
+        self.assertEqual(simple_matrix_t.split, None)
+        self.assertEqual(simple_matrix_t.shape, (4, 2,))
+        self.assertEqual(simple_matrix_t._tensor__array.shape, (4, 2,))
+
+        # 4D array, not distributed, with given axis
+        array_4d = ht.zeros((2, 3, 4, 5))
+        array_4d_t = ht.transpose(array_4d, axes=(-1, 0, 2, 1))
+        self.assertIsInstance(array_4d_t, ht.tensor)
+        self.assertEqual(array_4d_t.dtype, ht.float32)
+        self.assertEqual(array_4d_t.split, None)
+        self.assertEqual(array_4d_t.shape, (5, 2, 4, 3,))
+        self.assertEqual(array_4d_t._tensor__array.shape, (5, 2, 4, 3,))
+
+        # vector transpose, distributed
+        vector_split = ht.arange(10, split=0)
+        vector_split_t = vector_split.T
+        self.assertIsInstance(vector_split_t, ht.tensor)
+        self.assertEqual(vector_split_t.dtype, ht.int32)
+        self.assertEqual(vector_split_t.split, 0)
+        self.assertEqual(vector_split_t.shape, (10,))
+        self.assertLessEqual(vector_split_t.lshape[0], 10)
+
+        # matrix transpose, distributed
+        matrix_split = ht.ones((10, 20,), split=1)
+        matrix_split_t = matrix_split.transpose()
+        self.assertIsInstance(matrix_split_t, ht.tensor)
+        self.assertEqual(matrix_split_t.dtype, ht.float32)
+        self.assertEqual(matrix_split_t.split, 0)
+        self.assertEqual(matrix_split_t.shape, (20, 10,))
+        self.assertLessEqual(matrix_split_t.lshape[0], 20)
+        self.assertEqual(matrix_split_t.lshape[1], 10)
+
+        # 4D array, distributed
+        array_4d_split = ht.ones((3, 4, 5, 6,), split=3)
+        array_4d_split_t = ht.transpose(array_4d_split, axes=(1, 0, 3, 2,))
+        self.assertIsInstance(array_4d_t, ht.tensor)
+        self.assertEqual(array_4d_split_t.dtype, ht.float32)
+        self.assertEqual(array_4d_split_t.split, 2)
+        self.assertEqual(array_4d_split_t.shape, (4, 3, 6, 5,))
+
+        self.assertEqual(array_4d_split_t.lshape[0], 4)
+        self.assertEqual(array_4d_split_t.lshape[1], 3)
+        self.assertLessEqual(array_4d_split_t.lshape[2], 6)
+        self.assertEqual(array_4d_split_t.lshape[3], 5)
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.transpose(1)
+        with self.assertRaises(ValueError):
+            ht.transpose(ht.zeros((2, 3,)), axes=1.0)
+        with self.assertRaises(ValueError):
+            ht.transpose(ht.zeros((2, 3,)), axes=(-1,))
+        with self.assertRaises(TypeError):
+            ht.zeros((2, 3,)).transpose(axes='01')
+        with self.assertRaises(TypeError):
+            ht.zeros((2, 3,)).transpose(axes=(0, 1.0))
+        with self.assertRaises(ValueError):
+            ht.zeros((2, 3,)).transpose(axes=(0, 3))
 
     def test_tril(self):
         local_ones = ht.ones((5,))
