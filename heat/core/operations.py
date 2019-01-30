@@ -873,7 +873,7 @@ def merge_moments(mo1, mo2):
     return out
 
 
-def mean(x, axis=None, dimen=0, continuous_axes=False, merge_axes=False):
+def mean(x, dimen=0):
     '''
     Function for the sum of a tensor
     :param x:       ht tensor       data
@@ -884,63 +884,103 @@ def mean(x, axis=None, dimen=0, continuous_axes=False, merge_axes=False):
         delta = mu2 - mu1
         return mu1 + n2 * (delta / (n1+n2)), n1 + n2
 
-    if dimen:
-        if not isinstance(dimen, int):
-            raise TypeError("Dimension (dimen) must be an int, currently is {}".format(type(dimen)))
+    def reduce_means(dimension=None):
+        if dimension:
+            mu_in = __local_operation(torch.mean, x, out=None, **{'dim': dimension})
+        else:
+            mu_in = __local_operation(torch.mean, x, out=None)
+        n = __local_operation(torch.numel, x, out=None)
+        mu_tot = torch.zeros((x.comm.Get_size(), 2))
+        mu_proc = torch.zeros((x.comm.Get_size(), 2))
+        mu_proc[x.comm.Get_rank()] = torch.Tensor(mu_in, n)
+
+        # send all to an array with the index as the rank
+        # mu_merge = x.comm.Op.Create(merge_means, commute=True)
+        x.comm.allreduce(mu_tot, mu_proc, MPI.SUM)
+        x.comm.barrier()
+
+        rem1 = 0
+        rem2 = 0
+        sz = mu_tot.size()[0]
+        while True:  # this loop will loop pairwise over the whole process and do pairwise updates
+            if sz % 2 != 0:  # test if the length is an odd number
+                if rem1 != 0 and rem2 == 0:
+                    rem2 = sz - 1
+                elif rem1 == 0:
+                    rem1 = sz - 1
+            splt = int(sz / 2)
+            for i in range(splt):
+                mu_tot[i] = merge_means(mu_tot[i][0], mu_tot[i][1], mu_tot[i + splt][0], mu_tot[i + splt][1])
+            if rem1 and rem2:
+                mu_tot[rem1] = merge_means(mu_tot[rem1][0], mu_tot[rem1][1], mu_tot[rem2][0], mu_tot[rem2][1])
+                rem1 = rem2
+                rem2 = 0
+            sz = splt
+            if sz == 1:
+                if rem1:
+                    mu_tot[0] = merge_means(mu_tot[0][0], mu_tot[0][1], mu_tot[rem1][0], mu_tot[rem1][1])
+                return mu_tot[0][0]
+
+    def combine_all_means(target_dimens, dimensions=dimen):
+        # used for the combination of matrices which are split between nodes
+        # DOES NOT MERGE
 
 
-    if axis:
-        if not isinstance(axis, (int, float, list, tuple, torch.Tensor, np.ndarray)):
-            raise TypeError('axis must be either None, int, float, list, tuple, torch.Tensor, or ndarray')
-        if axis >= any(x.shape):
-            raise ValueError('axis {} is out of bounds for shape {}'.format(axis, x.shape))
-    else:
+        # need to merge the two dimensions
+        # n for these two are the numels
+
+        '''
+        1. calc the mean wrt the given dimensions
+        2. get the split direction
+        DIVERGE
+        3a. combine the tensor along the dimension of the split(if split not in dimensions)
+        3b. merge the tensors along the split dimension (split in dimensions)'''
+        pass
+    # ------------------------------------------------------------------------------------------------------------------
+
+    if dimen:  # todo: make a raise if the given axes are greater than any of the given dimensions
+        if not isinstance(dimen, (int, list, tuple)):
+            raise TypeError("Dimension (dimen) must be an int or a list or a tuple, currently is {}".format(type(dimen)))
+
+    if not dimen:
         # case for full matrix calculation
-        mu = __local_operation(torch.mean, x, out=None)
         if not x.comm.is_distributed():
-            return mu
+            return __local_operation(torch.mean, x, out=None)  # case 1 local
+        else:
+            return reduce_means()
 
-    try:
-        axis = tuple(axis)
-        if continuous_axes and axis[0] >= axis[1]:
-            raise ValueError("axis[1] must be > axis[0] for the continuous case")
-        once_flag = False
-    except TypeError:
-        axis = tuple((axis, 1))
-        once_flag = True
+    target_dims = list(x.shape)
+    if isinstance(dimen, int):  # only working with one dimension
+        target_dims[dimen] = 1
+        mu = __local_operation(torch.mean, x, out=None, **{'dim': dimen})
+        if dimen == x.split:
+            # merge in the dimension of the split
+            # todo: rewrite reduce means to handle the element wise reduction needed for the dimensional cases
+            pass
+        else:
+            return combine_all_means(target_dims)
+    else: # multiple dimensions
+        for hold in dimen:
+            target_dims[hold] = 1
+        if x.split() in dimen:
+            # merge in the direction of the split
 
-    mu = __local_operation(torch.mean, x, out=None)
-    n = __local_operation(torch.numel, x, out=None)
-    mu_tot = torch.zeros((x.comm.Get_size(), 2))
-    mu_proc = torch.zeros((x.comm.Get_size(), 2))
-    mu_proc[x.comm.rank] = torch.Tensor(mu, n)
+            pass
+        else: # multiple dimensions which does not include the split dimension
+            # combine along the split axis
+            mu_proc = __local_operation(torch.mean, x, out=None, **{'dim': dimen})
+            mu_tot_long = torch.zeros([x.comm.Get_size()] + list(mu_proc.size()))
+            mu_tot_long[x.comm.Get_rank()] = mu_proc
+            x.comm.allreduce(mu_tot_long, mu_proc, MPI.SUM)
+            x.comm.barrier()
+            out = tensor.zeros(target_dims)
+            for i in range(x.comm.Get_size()):  # put the results back in order (random order by process
+                # iterate over i*2nd dimension
+                pass
 
-    # send all to an array with the index as the rank
-    # mu_merge = x.comm.Op.Create(merge_means, commute=True)
-    x.comm.allreduce(mu_tot, mu_proc, MPI.SUM)
-    x.comm.barrier()
+    # if the dimention is not split then need to combine the matrix in the dimension of the split
+    return __local_operation(torch.mean, x, out=None, **{'dim': dimen})  # this will get the reduced tensor in the dimensions given by dimen
 
-    rem1 = 0
-    rem2 = 0
-    sz = mu_tot.size()[0]
-    while True:  # this loop will loop pairwise over the whole process and do pairwise updates
-        if sz % 2 != 0:  # test if the length is an odd number
-            if rem1 != 0 and rem2 == 0:
-                rem2 = sz - 1
-            elif rem1 == 0:
-                rem1 = sz - 1
-        splt = int(sz / 2)
-        for i in range(splt):
-            mu_tot[i] = merge_means(mu_tot[i][0], mu_tot[i][1], mu_tot[i+splt][0], mu_tot[i+splt][1])
-        if rem1 and rem2:
-            mu_tot[rem1] = merge_means(mu_tot[rem1][0], mu_tot[rem1][1], mu_tot[rem2][0], mu_tot[rem2][1])
-            rem1 = rem2
-            rem2 = 0
-        sz = splt
-        if sz == 1:
-            if rem1:
-                mu_tot[0] = merge_means(mu_tot[0][0], mu_tot[0][1], mu_tot[rem1][0], mu_tot[rem1][1])
-            return mu_tot[0][0]
     # return x.comm.allreduce((mu, n), mu_tot, op=mu_merge)
     # return __reduce_op(x, torch.mean, mu_merge, axis)
 
@@ -960,28 +1000,34 @@ def std(x, axis=None):
 
     # if x.comm.is_distributed():
         # mutliple processes
-    std = __local_operation(torch.std, x, out=None)
+    var = __local_operation(torch.var, x, out=None)
     if not x.comm.is_distributed():
-        return std
+        return var**0.5
     mu = __local_operation(torch.mean, x, out=None)
     n = __local_operation(torch.numel, x, out=None)
-    std_tot = torch.zeros(x.comm.Get_size(), 3)
-    std_proc = torch.zeros(x.comm.Get_size(), 3)
-    std_proc[x.comm.rank] = torch.Tensor(std, mu, n)
+    var_tot = tensor.zeros((x.comm.Get_size(), 3), comm=x.comm)
+    var_proc = tensor.zeros((x.comm.Get_size(), 3))
 
-    def merge_stds(std1, mu1, n1, std2, mu2, n2, datatype):
+    out_tens = tensor.ones((3))
+    out_tens[0] = var
+    out_tens[1] = mu
+    out_tens[2] = n
+    var_proc[x.comm.rank] = out_tens
+
+    def merge_vars(var1, mu1, n1, var2, mu2, n2):
         n = n1 + n2
         delta = mu2 - mu1
         mu_out = mu1 + n2 * (delta / n)
-        return std1 + std2 + (delta ** 2) * (n1 * n2) / n, mu_out, n
+        return (var1*n1 + var2*n2 + (delta ** 2) * (n1+1.) * (n2+1.) / n) / (n+1), mu_out, n
 
     # send all to an array with the index as the rank
     # mu_merge = x.comm.Op.Create(merge_means, commute=True)
-    x.comm.allreduce(std_tot, std_proc, MPI.SUM)
+    x.comm.Allreduce(var_proc, var_tot, op=MPI.SUM)
 
     rem1 = 0
     rem2 = 0
-    sz = std_tot.size()[0]
+    # print(std_tot.shape)
+    sz = var_tot.shape[0]
     while True:  # this loop will loop pairwise over the whole process and do pairwise updates
         if sz % 2 != 0:  # test if the length is an odd number
             if rem1 != 0 and rem2 == 0:
@@ -990,19 +1036,25 @@ def std(x, axis=None):
                 rem1 = sz - 1
         splt = int(sz / 2)
         for i in range(splt):
-            std_tot[i] = merge_stds(std_tot[i][0], std_tot[i][1], std_tot[i][2],
-                                    std_tot[i + splt][0], std_tot[i + splt][1], std_tot[i + splt][2])
+            merged = merge_vars(var_tot[i, 0], var_tot[i, 1], var_tot[i, 2],
+                                       var_tot[i + splt, 0], var_tot[i + splt, 1], var_tot[i + splt, 2])
+            for enum, m in enumerate(merged):
+                var_tot[i, enum] = m
         if rem1 and rem2:
-            std_tot[rem1] = merge_stds(std_tot[rem1][0], std_tot[rem1][1], std_tot[rem1][2],
-                                       std_tot[rem2][0], std_tot[rem2][1], std_tot[rem2][2])
+            merged = merge_vars(var_tot[rem1, 0], var_tot[rem1, 1], var_tot[rem1, 2],
+                                       var_tot[rem2, 0], var_tot[rem2, 1], var_tot[rem2, 2])
+            for enum, m in enumerate(merged):
+                var_tot[rem1, enum] = m
             rem1 = rem2
             rem2 = 0
         sz = splt
         if sz == 1:
             if rem1:
-                std_tot[0] = merge_stds(std_tot[0][0], std_tot[0][1], std_tot[0][2],
-                                        std_tot[rem1][0], std_tot[rem1][1], std_tot[rem1][2])
-            return std_tot[0][0]
+                merged = merge_vars(var_tot[0, 0], var_tot[0, 1], var_tot[0, 2],
+                                        var_tot[rem1, 0], var_tot[rem1, 1], var_tot[rem1, 2])
+                for enum, m in enumerate(merged):
+                    var_tot[0, enum] = m
+            return (var_tot[0, 0])**0.5
     # std_merge = x.comm.Op.Create(merge_stds, commute=True)
     # return __reduce_op(x, torch.std, std_merge, axis)
 
