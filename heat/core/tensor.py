@@ -41,6 +41,10 @@ class tensor:
         return self.__gshape
 
     @property
+    def size(self):
+        return self.__gshape
+
+    @property
     def split(self):
         return self.__split
 
