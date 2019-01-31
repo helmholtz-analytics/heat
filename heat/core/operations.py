@@ -19,6 +19,9 @@ __all__ = [
     'log',
     'max',
     'min',
+    'moments',
+    'mean',
+    'std',
     'sin',
     'sqrt',
     'sum',
@@ -921,21 +924,37 @@ def mean(x, dimen=0):
                     mu_tot[0] = merge_means(mu_tot[0][0], mu_tot[0][1], mu_tot[rem1][0], mu_tot[rem1][1])
                 return mu_tot[0][0]
 
-    def combine_all_means(target_dimens, dimensions=dimen):
+    def combine_all_means(target_dimens):
         # used for the combination of matrices which are split between nodes
         # DOES NOT MERGE
+        mu_proc = __local_operation(torch.mean, x, out=None, **{'dim': dimen})
+        mu_tot = torch.zeros(target_dimens)
+        r = 0
+        for i in range(x.comm.Get_size()):
+            # need to add them together in order
+            if x.comm.rank == i:
+                if x.split == 0:
+                    mu_tot[r] = mu_proc
+                if x.split == 1:
+                    mu_tot[:, r] = mu_proc
+                if x.split == 2:
+                    mu_tot[:, :, r] = mu_proc
+                if x.split == 3:
+                    mu_tot[:, :, :, r] = mu_proc
+                if x.split == 4:
+                    mu_tot[:, :, :, :, r] = mu_proc
+                r = mu_proc.shape[x.split]
+        x.comm.allreduce(mu_tot, mu_proc, MPI.SUM)
+        x.comm.barrier()
+        return mu_tot
 
-
-        # need to merge the two dimensions
-        # n for these two are the numels
-
-        '''
-        1. calc the mean wrt the given dimensions
-        2. get the split direction
-        DIVERGE
-        3a. combine the tensor along the dimension of the split(if split not in dimensions)
-        3b. merge the tensors along the split dimension (split in dimensions)'''
+    def reduce_means_elementwise():
+        # this will do an element-wise update of the resulting means
+        # mu1/mu2 will be the tensor result from the torch.mean command
+        mu_in = __local_operation(torch.mean, x, out=None, **{'dim': dimen})
+        # store the means
         pass
+
     # ------------------------------------------------------------------------------------------------------------------
 
     if dimen:  # todo: make a raise if the given axes are greater than any of the given dimensions
@@ -964,19 +983,10 @@ def mean(x, dimen=0):
             target_dims[hold] = 1
         if x.split() in dimen:
             # merge in the direction of the split
-
             pass
-        else: # multiple dimensions which does not include the split dimension
+        else: # multiple dimensions which does *not* include the split dimension
             # combine along the split axis
-            mu_proc = __local_operation(torch.mean, x, out=None, **{'dim': dimen})
-            mu_tot_long = torch.zeros([x.comm.Get_size()] + list(mu_proc.size()))
-            mu_tot_long[x.comm.Get_rank()] = mu_proc
-            x.comm.allreduce(mu_tot_long, mu_proc, MPI.SUM)
-            x.comm.barrier()
-            out = tensor.zeros(target_dims)
-            for i in range(x.comm.Get_size()):  # put the results back in order (random order by process
-                # iterate over i*2nd dimension
-                pass
+            return combine_all_means(target_dims)
 
     # if the dimention is not split then need to combine the matrix in the dimension of the split
     return __local_operation(torch.mean, x, out=None, **{'dim': dimen})  # this will get the reduced tensor in the dimensions given by dimen
