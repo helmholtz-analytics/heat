@@ -1,6 +1,7 @@
 import operator
 import numpy as np
 import torch
+from functools import reduce
 
 from .communication import MPI, MPI_WORLD
 from .stride_tricks import *
@@ -43,6 +44,10 @@ class tensor:
     @property
     def size(self):
         return self.__gshape
+
+    @property
+    def array_shape(self):
+        return tuple(self.__array.shape)
 
     @property
     def split(self):
@@ -242,6 +247,15 @@ class tensor:
         """
 
         return operations.min(self, axis)
+
+    def numel(self, nodes=False):
+        '''
+        :return: number of elements in the tensor based on its size
+        '''
+        if nodes:
+            return reduce(lambda i, j: i * j, self.lshape)
+        else:
+            return reduce(lambda i, j: i * j, self.array_shape)
 
     def sum(self, axis=None):
         # TODO: Allow also list of axes
@@ -590,6 +604,9 @@ class tensor:
             Upper triangle of the input tensor.
         """
         return operations.triu(self, k)
+
+    def item(self):
+        return self.__array.item()
 
     def __binop(self, op, other):
         # TODO: document me
