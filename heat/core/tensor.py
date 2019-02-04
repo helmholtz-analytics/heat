@@ -152,7 +152,7 @@ class tensor:
         """
         return operations.all(self, axis, out)
 
-    def argmin(self, axis):
+    def argmin(self, axis=None):
         """
         Returns the indices of the minimum values along an axis.
 
@@ -1089,7 +1089,7 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, comm=MPI_WORLD):
     return tensor(obj, tuple(gshape), dtype, split, comm)
 
 
-def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None, comm=MPI_WORLD):
+def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None, comm=MPI_WORLD, device=None):
     """
     Returns num evenly spaced samples, calculated over the interval [start, stop]. The endpoint of the interval can
     optionally be excluded.
