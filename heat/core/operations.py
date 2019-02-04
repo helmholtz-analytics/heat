@@ -549,7 +549,6 @@ def sum(x, axis=None, out=None):
 
     return __reduce_op(x, torch.sum, MPI.SUM, axis, out)
 
-<<<<<<< HEAD
 def moments(x, axis=None, direction=None,  continuous_axes=False, merge_axes=False):
     """
     Find the central moment of a data set
