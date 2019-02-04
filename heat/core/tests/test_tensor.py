@@ -30,67 +30,6 @@ class TestTensor(unittest.TestCase):
 
 
 class TestTensorFactories(unittest.TestCase):
-    def test_linspace(self):
-        # simple linear space
-        ascending = ht.linspace(-3, 5)
-        self.assertIsInstance(ascending, ht.tensor)
-        self.assertEqual(ascending.shape, (50,))
-        self.assertLessEqual(ascending.lshape[0], 50)
-        self.assertEqual(ascending.dtype, ht.float32)
-        self.assertEqual(ascending._tensor__array.dtype, torch.float32)
-        self.assertEqual(ascending.split, None)
-
-        # simple inverse linear space
-        descending = ht.linspace(-5, 3, num=100)
-        self.assertIsInstance(descending, ht.tensor)
-        self.assertEqual(descending.shape, (100,))
-        self.assertLessEqual(descending.lshape[0], 100)
-        self.assertEqual(descending.dtype, ht.float32)
-        self.assertEqual(descending._tensor__array.dtype, torch.float32)
-        self.assertEqual(descending.split, None)
-
-        # split linear space
-        split = ht.linspace(-5, 3, num=70, split=0)
-        self.assertIsInstance(split, ht.tensor)
-        self.assertEqual(split.shape, (70,))
-        self.assertLessEqual(split.lshape[0], 70)
-        self.assertEqual(split.dtype, ht.float32)
-        self.assertEqual(split._tensor__array.dtype, torch.float32)
-        self.assertEqual(split.split, 0)
-
-        # with casted type
-        casted = ht.linspace(-5, 3, num=70, dtype=ht.uint8, split=0)
-        self.assertIsInstance(casted, ht.tensor)
-        self.assertEqual(casted.shape, (70,))
-        self.assertLessEqual(casted.lshape[0], 70)
-        self.assertEqual(casted.dtype, ht.uint8)
-        self.assertEqual(casted._tensor__array.dtype, torch.uint8)
-        self.assertEqual(casted.split, 0)
-
-        # retstep test
-        result = ht.linspace(-5, 3, num=70, retstep=True,
-                             dtype=ht.uint8, split=0)
-        self.assertIsInstance(result, tuple)
-        self.assertEqual(len(result), 2)
-
-        self.assertIsInstance(result[0], ht.tensor)
-        self.assertEqual(result[0].shape, (70,))
-        self.assertLessEqual(result[0].lshape[0], 70)
-        self.assertEqual(result[0].dtype, ht.uint8)
-        self.assertEqual(result[0]._tensor__array.dtype, torch.uint8)
-        self.assertEqual(result[0].split, 0)
-
-        self.assertIsInstance(result[1], float)
-        self.assertEqual(result[1], 0.11594202898550725)
-
-        # exceptions
-        with self.assertRaises(ValueError):
-            ht.linspace(-5, 3, split=1)
-        with self.assertRaises(ValueError):
-            ht.linspace(-5, 3, num=-1)
-        with self.assertRaises(ValueError):
-            ht.linspace(-5, 3, num=0)
-
     def test_arange(self):
         # testing one positional integer argument
         one_arg_arange_int = ht.arange(10)
@@ -207,6 +146,177 @@ class TestTensorFactories(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.arange(1, 2, 3, 4)
 
+    def test_array(self):
+        # basic array function, unsplit data
+        unsplit_data = [[1, 2, 3], [4, 5, 6]]
+        a = ht.array(unsplit_data)
+        self.assertIsInstance(a, ht.tensor)
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertEqual(a.lshape, (2, 3,))
+        self.assertEqual(a.gshape, (2, 3,))
+        self.assertEqual(a.split, None)
+        self.assertTrue((a._tensor__array == torch.tensor(unsplit_data)).all())
+
+        # basic array function, unsplit data, different datatype
+        tuple_data = ((0, 0,), (1, 1,))
+        b = ht.array(tuple_data, dtype=ht.int8)
+        self.assertIsInstance(b, ht.tensor)
+        self.assertEqual(b.dtype, ht.int8)
+        self.assertEqual(b._tensor__array.dtype, torch.int8)
+        self.assertEqual(b.lshape, (2, 2,))
+        self.assertEqual(b.gshape, (2, 2,))
+        self.assertEqual(b.split, None)
+        self.assertTrue((b._tensor__array == torch.tensor(
+            tuple_data, dtype=torch.int8)).all())
+
+        # basic array function, unsplit data, no copy
+        torch_tensor = torch.tensor([6, 5, 4, 3, 2, 1])
+        c = ht.array(torch_tensor, copy=False)
+        self.assertIsInstance(c, ht.tensor)
+        self.assertEqual(c.dtype, ht.int64)
+        self.assertEqual(c.lshape, (6,))
+        self.assertEqual(c.gshape, (6,))
+        self.assertEqual(c.split, None)
+        self.assertIs(c._tensor__array, torch_tensor)
+        self.assertTrue((c._tensor__array == torch.tensor(torch_tensor)).all())
+
+        # basic array function, unsplit data, additional dimensions
+        vector_data = [4.0, 5.0, 6.0]
+        d = ht.array(vector_data, ndmin=3)
+        self.assertIsInstance(d, ht.tensor)
+        self.assertEqual(d.dtype, ht.float32)
+        self.assertEqual(d.lshape, (3, 1, 1))
+        self.assertEqual(d.gshape, (3, 1, 1))
+        self.assertEqual(d.split, None)
+        self.assertTrue((d._tensor__array == torch.tensor(
+            vector_data).reshape(-1, 1, 1)).all())
+
+        # distributed array function
+        if ht.communication.MPI_WORLD.rank == 0:
+            split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0], [0.0, 0.0, 0.0]]
+        else:
+            split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]]
+        e = ht.array(split_data, ndmin=3, split=0)
+
+        self.assertIsInstance(e, ht.tensor)
+        self.assertEqual(e.dtype, ht.float32)
+        if ht.communication.MPI_WORLD.rank == 0:
+            self.assertEqual(e.lshape, (3, 3, 1))
+        else:
+            self.assertEqual(e.lshape, (2, 3, 1))
+        self.assertEqual(e.split, 0)
+        for index, ele in enumerate(e.gshape):
+            if index != e.split:
+                self.assertEqual(ele, e.lshape[index])
+            else:
+                self.assertGreaterEqual(ele, e.lshape[index])
+
+        # exception distributed shapes do not fit
+        if ht.communication.MPI_WORLD.size > 1:
+            if ht.communication.MPI_WORLD.rank == 0:
+                split_data = [4.0, 5.0, 6.0]
+            else:
+                split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]]
+
+            # this will fail as the shapes do not match
+            with self.assertRaises(ValueError):
+                ht.array(split_data, split=0)
+
+        # exception distributed shapes do not fit
+        if ht.communication.MPI_WORLD.size > 1:
+            if ht.communication.MPI_WORLD.rank == 0:
+                split_data = [[4.0, 5.0, 6.0], [
+                    1.0, 2.0, 3.0], [0.0, 0.0, 0.0]]
+            else:
+                split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]]
+
+            # this will fail as the shapes do not match on a specific axis (here: 0)
+            with self.assertRaises(ValueError):
+                ht.array(split_data, split=1)
+
+        # non iterable type
+        with self.assertRaises(TypeError):
+            ht.array(map)
+        # iterable, but unsuitable type
+        with self.assertRaises(TypeError):
+            ht.array('abc')
+        # unknown dtype
+        with self.assertRaises(TypeError):
+            ht.array((4,), dtype='a')
+        # invalid ndmin
+        with self.assertRaises(TypeError):
+            ht.array((4,), ndmin=3.0)
+        # invalid split axis type
+        with self.assertRaises(TypeError):
+            ht.array((4,), split='a')
+        # invalid split axis value
+        with self.assertRaises(ValueError):
+            ht.array((4,), split=3)
+        # invalid communicator
+        with self.assertRaises(TypeError):
+            ht.array((4,), comm={})
+
+    def test_linspace(self):
+        # simple linear space
+        ascending = ht.linspace(-3, 5)
+        self.assertIsInstance(ascending, ht.tensor)
+        self.assertEqual(ascending.shape, (50,))
+        self.assertLessEqual(ascending.lshape[0], 50)
+        self.assertEqual(ascending.dtype, ht.float32)
+        self.assertEqual(ascending._tensor__array.dtype, torch.float32)
+        self.assertEqual(ascending.split, None)
+
+        # simple inverse linear space
+        descending = ht.linspace(-5, 3, num=100)
+        self.assertIsInstance(descending, ht.tensor)
+        self.assertEqual(descending.shape, (100,))
+        self.assertLessEqual(descending.lshape[0], 100)
+        self.assertEqual(descending.dtype, ht.float32)
+        self.assertEqual(descending._tensor__array.dtype, torch.float32)
+        self.assertEqual(descending.split, None)
+
+        # split linear space
+        split = ht.linspace(-5, 3, num=70, split=0)
+        self.assertIsInstance(split, ht.tensor)
+        self.assertEqual(split.shape, (70,))
+        self.assertLessEqual(split.lshape[0], 70)
+        self.assertEqual(split.dtype, ht.float32)
+        self.assertEqual(split._tensor__array.dtype, torch.float32)
+        self.assertEqual(split.split, 0)
+
+        # with casted type
+        casted = ht.linspace(-5, 3, num=70, dtype=ht.uint8, split=0)
+        self.assertIsInstance(casted, ht.tensor)
+        self.assertEqual(casted.shape, (70,))
+        self.assertLessEqual(casted.lshape[0], 70)
+        self.assertEqual(casted.dtype, ht.uint8)
+        self.assertEqual(casted._tensor__array.dtype, torch.uint8)
+        self.assertEqual(casted.split, 0)
+
+        # retstep test
+        result = ht.linspace(-5, 3, num=70, retstep=True,
+                             dtype=ht.uint8, split=0)
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+
+        self.assertIsInstance(result[0], ht.tensor)
+        self.assertEqual(result[0].shape, (70,))
+        self.assertLessEqual(result[0].lshape[0], 70)
+        self.assertEqual(result[0].dtype, ht.uint8)
+        self.assertEqual(result[0]._tensor__array.dtype, torch.uint8)
+        self.assertEqual(result[0].split, 0)
+
+        self.assertIsInstance(result[1], float)
+        self.assertEqual(result[1], 0.11594202898550725)
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            ht.linspace(-5, 3, split=1)
+        with self.assertRaises(ValueError):
+            ht.linspace(-5, 3, num=-1)
+        with self.assertRaises(ValueError):
+            ht.linspace(-5, 3, num=0)
+
     def test_ones(self):
         # scalar input
         simple_ones_float = ht.ones(3)
@@ -257,6 +367,53 @@ class TestTensorFactories(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.ones((2, 3,), dtype=ht.float64, split='axis')
 
+    def test_ones_like(self):
+        # scalar
+        like_int = ht.ones_like(3)
+        self.assertIsInstance(like_int, ht.tensor)
+        self.assertEqual(like_int.shape,  (1,))
+        self.assertEqual(like_int.lshape, (1,))
+        self.assertEqual(like_int.split,  None)
+        self.assertEqual(like_int.dtype,  ht.int32)
+        self.assertEqual((like_int._tensor__array == 1).all().item(), 1)
+
+        # sequence
+        like_str = ht.ones_like('abc')
+        self.assertIsInstance(like_str, ht.tensor)
+        self.assertEqual(like_str.shape,  (3,))
+        self.assertEqual(like_str.lshape, (3,))
+        self.assertEqual(like_str.split,  None)
+        self.assertEqual(like_str.dtype,  ht.float32)
+        self.assertEqual((like_str._tensor__array == 1).all().item(), 1)
+
+        # elaborate tensor
+        zeros = ht.zeros((2, 3,), dtype=ht.uint8)
+        like_zeros = ht.ones_like(zeros)
+        self.assertIsInstance(like_zeros, ht.tensor)
+        self.assertEqual(like_zeros.shape,  (2, 3,))
+        self.assertEqual(like_zeros.lshape, (2, 3,))
+        self.assertEqual(like_zeros.split,  None)
+        self.assertEqual(like_zeros.dtype,  ht.uint8)
+        self.assertEqual((like_zeros._tensor__array == 1).all().item(), 1)
+
+        # elaborate tensor with split
+        zeros_split = ht.zeros((2, 3,), dtype=ht.uint8, split=0)
+        like_zeros_split = ht.ones_like(zeros_split)
+        self.assertIsInstance(like_zeros_split,          ht.tensor)
+        self.assertEqual(like_zeros_split.shape,         (2, 3,))
+        self.assertLessEqual(like_zeros_split.lshape[0], 2)
+        self.assertEqual(like_zeros_split.lshape[1],     3)
+        self.assertEqual(like_zeros_split.split,         0)
+        self.assertEqual(like_zeros_split.dtype,         ht.uint8)
+        self.assertEqual(
+            (like_zeros_split._tensor__array == 1).all().item(), 1)
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.ones_like(zeros, dtype='abc')
+        with self.assertRaises(TypeError):
+            ht.ones_like(zeros, split='axis')
+
     def test_zeros(self):
         # scalar input
         simple_zeros_float = ht.zeros(3)
@@ -306,53 +463,6 @@ class TestTensorFactories(unittest.TestCase):
             ht.zeros((-1, 3,), dtype=ht.float64)
         with self.assertRaises(TypeError):
             ht.zeros((2, 3,), dtype=ht.float64, split='axis')
-
-    def test_ones_like(self):
-        # scalar
-        like_int = ht.ones_like(3)
-        self.assertIsInstance(like_int, ht.tensor)
-        self.assertEqual(like_int.shape,  (1,))
-        self.assertEqual(like_int.lshape, (1,))
-        self.assertEqual(like_int.split,  None)
-        self.assertEqual(like_int.dtype,  ht.int32)
-        self.assertEqual((like_int._tensor__array == 1).all().item(), 1)
-
-        # sequence
-        like_str = ht.ones_like('abc')
-        self.assertIsInstance(like_str, ht.tensor)
-        self.assertEqual(like_str.shape,  (3,))
-        self.assertEqual(like_str.lshape, (3,))
-        self.assertEqual(like_str.split,  None)
-        self.assertEqual(like_str.dtype,  ht.float32)
-        self.assertEqual((like_str._tensor__array == 1).all().item(), 1)
-
-        # elaborate tensor
-        zeros = ht.zeros((2, 3,), dtype=ht.uint8)
-        like_zeros = ht.ones_like(zeros)
-        self.assertIsInstance(like_zeros, ht.tensor)
-        self.assertEqual(like_zeros.shape,  (2, 3,))
-        self.assertEqual(like_zeros.lshape, (2, 3,))
-        self.assertEqual(like_zeros.split,  None)
-        self.assertEqual(like_zeros.dtype,  ht.uint8)
-        self.assertEqual((like_zeros._tensor__array == 1).all().item(), 1)
-
-        # elaborate tensor with split
-        zeros_split = ht.zeros((2, 3,), dtype=ht.uint8, split=0)
-        like_zeros_split = ht.ones_like(zeros_split)
-        self.assertIsInstance(like_zeros_split,          ht.tensor)
-        self.assertEqual(like_zeros_split.shape,         (2, 3,))
-        self.assertLessEqual(like_zeros_split.lshape[0], 2)
-        self.assertEqual(like_zeros_split.lshape[1],     3)
-        self.assertEqual(like_zeros_split.split,         0)
-        self.assertEqual(like_zeros_split.dtype,         ht.uint8)
-        self.assertEqual(
-            (like_zeros_split._tensor__array == 1).all().item(), 1)
-
-        # exceptions
-        with self.assertRaises(TypeError):
-            ht.ones_like(zeros, dtype='abc')
-        with self.assertRaises(TypeError):
-            ht.ones_like(zeros, split='axis')
 
     def test_zeros_like(self):
         # scalar
