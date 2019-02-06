@@ -280,12 +280,35 @@ class tensor:
 
         return operations.max(self, axis, out)
 
-    def mean(self, axis):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        return self.sum(axis) / self.shape[axis]
+    # def mean(self, axis):
+    #     # TODO: document me
+    #     # TODO: test me
+    #     # TODO: sanitize input
+    #     # TODO: make me more numpy API complete
+    #     return self.sum(axis) / self.shape[axis]
+    def mean(self, dimen=None):
+        """
+
+        :param dimen:
+        :return:
+        """
+        return operations.mean(self, dimen)
+
+    def var(self, dimen=None):
+        """
+
+        :param dimen:
+        :return:
+        """
+        return operations.var(self, dimen)
+
+    def std(self, dimen=None):
+        """
+
+        :param dimen:
+        :return:
+        """
+        return operations.std(self, dimen)
 
     def min(self, axis=None, out=None):
         """"
@@ -315,7 +338,11 @@ class tensor:
         if nodes:
             return reduce(lambda i, j: i * j, self.lshape)
         else:
-            return reduce(lambda i, j: i * j, self.array_shape)
+            try:
+                return reduce(lambda i, j: i * j, self.array_shape)
+            except TypeError:
+                # todo: throw a soft warning about taking the number of elements of a single element tensor
+                return 1
 
     def sum(self, axis=None, out=None):
         # TODO: Allow also list of axes
