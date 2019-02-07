@@ -57,14 +57,17 @@ def randn(*args, split=None, comm=MPI_WORLD):
             [ 0.1260,  1.2126, -0.0804,  0.0907]])
     """
     # check if all positional arguments are integers
-    if not all(isinstance(_, int) for _ in args):
+    if not all(isinstance(a, int) for a in args):
         raise TypeError('dimensions have to be integers')
-    if not all(_ > 0 for _ in args):
-        raise ValueError('negative dimension are not allowed')
 
-    gshape = tuple(args) if args else(1,)
+    if isinstance(args, tuple):
+        gshape = args[0]
+    else:
+        if not all(_ > 0 for _ in args):
+            raise ValueError('negative dimension are not allowed')
+        gshape = tuple(args) if args else (1,)
     split = stride_tricks.sanitize_axis(gshape, split)
-    offset, lshape, _ = comm.chunk(gshape, split)
+    _, lshape, _ = comm.chunk(gshape, split)
 
     try:
         data = torch.randn(lshape)
@@ -73,7 +76,4 @@ def randn(*args, split=None, comm=MPI_WORLD):
         raise ValueError(str(exception))
 
     # compose the local tensor
-    # data = torch.randn(args)
-
     return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
-    # return tensor(data, gshape, )
