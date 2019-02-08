@@ -31,6 +31,18 @@ class tensor:
         return self.__gshape
 
     @property
+    def size(self):
+        try:
+            return reduce(lambda i, j: i * j, self.array_shape)
+        except TypeError:
+            # todo: throw a soft warning about taking the number of elements of a single element tensor
+            return 1
+
+    @property
+    def lnumel(self):
+        return reduce(lambda i, j: i * j, self.lshape)
+
+    @property
     def lshape(self):
         if len(self.__array.shape) == len(self.__gshape):
             return tuple(self.__array.shape)
@@ -39,10 +51,6 @@ class tensor:
 
     @property
     def shape(self):
-        return self.__gshape
-
-    @property
-    def size(self):
         return self.__gshape
 
     @property
@@ -286,29 +294,29 @@ class tensor:
     #     # TODO: sanitize input
     #     # TODO: make me more numpy API complete
     #     return self.sum(axis) / self.shape[axis]
-    def mean(self, dimen=None):
+    def mean(self, dimen=None, all_procs=False):
         """
 
         :param dimen:
         :return:
         """
-        return operations.mean(self, dimen)
+        return operations.mean(self, dimen, all_procs)
 
-    def var(self, dimen=None):
+    def var(self, dimen=None, all_procs=False):
         """
 
         :param dimen:
         :return:
         """
-        return operations.var(self, dimen)
+        return operations.var(self, dimen, all_procs)
 
-    def std(self, dimen=None):
+    def std(self, dimen=None, all_procs=False):
         """
 
         :param dimen:
         :return:
         """
-        return operations.std(self, dimen)
+        return operations.std(self, dimen, all_procs)
 
     def min(self, axis=None, out=None):
         """"
@@ -330,19 +338,6 @@ class tensor:
         """
 
         return operations.min(self, axis, out)
-
-    def numel(self, nodes=False):
-        '''
-        :return: number of elements in the tensor based on its size
-        '''
-        if nodes:
-            return reduce(lambda i, j: i * j, self.lshape)
-        else:
-            try:
-                return reduce(lambda i, j: i * j, self.array_shape)
-            except TypeError:
-                # todo: throw a soft warning about taking the number of elements of a single element tensor
-                return 1
 
     def sum(self, axis=None, out=None):
         # TODO: Allow also list of axes
