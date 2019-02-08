@@ -626,7 +626,7 @@ def moments(x, axis=None, dimen=None,  continuous_axes=False, merge_axes=False):
 
         rem1 = 0
         rem2 = 0
-        sz = moms_tot.size[0]
+        sz = moms_tot.shape[0]
         while True:  # this loop will loop pairwise over the whole process and do pairwise updates
             if sz % 2 != 0:  # test if the length is an odd number
                 if rem1 != 0 and rem2 == 0:
@@ -798,7 +798,7 @@ def calc_moments(data, axis=None, dimen=0, continuous_axes=False, merge_axes=Fal
         m4 = 0.
         mu = 0.
 
-        for j in data.view(data.numel()):
+        for j in data.view(data.size):
             n += 1.
             d = j - m1
             d_n = d / n
@@ -849,7 +849,7 @@ def calc_moments(data, axis=None, dimen=0, continuous_axes=False, merge_axes=Fal
         m4 = 0.
         mu = 0.
         length = axis[1] - axis[0] if axis[1] - axis[0] > 0 else 1
-        narr = data.narrow(dimen, axis[0], length).contiguous().view(data.narrow(dimen, axis[0], length).numel())
+        narr = data.narrow(dimen, axis[0], length).contiguous().view(data.narrow(dimen, axis[0], length).size)
         for dat in narr:  # needs to be parrelellized
             n += 1.
             d = dat - m1
@@ -876,7 +876,7 @@ def calc_moments(data, axis=None, dimen=0, continuous_axes=False, merge_axes=Fal
             m3 = 0.
             m4 = 0.
             mu = 0.
-            narr = data.narrow(dimen, a, 1).contiguous().view(data.narrow(dimen, a, 1).numel())
+            narr = data.narrow(dimen, a, 1).contiguous().view(data.narrow(dimen, a, 1).size)
             for dat in narr:  # needs to be parrelellized
 
                 n += 1.
@@ -977,7 +977,7 @@ def merge_means(mu1, n1, mu2, n2):
     return mu1 + n2 * (delta / (n1+n2)), n1 + n2
 
 
-def mean(x, dimen=None):
+def mean(x, dimen=None, all_procs=False):
     '''
     Function for the mean of a tensor
 
@@ -1055,10 +1055,10 @@ def mean(x, dimen=None):
                     rem1 = sz - 1
             splt = int(sz / 2)
             for i in range(splt):  # todo: multithread perfect opp for GPU parrallelizm
-                mu_reshape = __local_operation(torch.reshape, mu_tot[i], out=None, **{'shape': (1, mu_tot[i].numel())})[0]
+                mu_reshape = __local_operation(torch.reshape, mu_tot[i], out=None, **{'shape': (1, mu_tot[i].size)})[0]
                 # print('here', mu_tot[i], len(mu_reshape.lshape))
                 for el1, el2 in zip(mu_reshape,
-                                    __local_operation(torch.reshape, mu_tot[i+splt], out=None, **{'shape': (1, mu_tot[i+splt].numel())})[0]):
+                                    __local_operation(torch.reshape, mu_tot[i+splt], out=None, **{'shape': (1, mu_tot[i+splt].size)})[0]):
                     # print('here', i, mu_reshape, mu_reshape.lshape)
                     # print(n_for_merge[i], merge_means(el1, n_for_merge[i], el2, n_for_merge[i+splt]))
                     try:
@@ -1067,9 +1067,9 @@ def mean(x, dimen=None):
                         mu_reshape, n_for_merge[i] = merge_means(el1, n_for_merge[i], el2, n_for_merge[i + splt])
                 mu_tot[i] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
             if rem1 and rem2:
-                mu_reshape = __local_operation(torch.reshape, mu_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].numel())})[0]
+                mu_reshape = __local_operation(torch.reshape, mu_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].size)})[0]
                 for el1, el2 in zip(mu_reshape,
-                                    __local_operation(torch.reshape, mu_tot[rem2], out=None, **{'shape': (1, mu_tot[rem2].numel())})[0]):
+                                    __local_operation(torch.reshape, mu_tot[rem2], out=None, **{'shape': (1, mu_tot[rem2].size)})[0]):
                     mu_reshape[rem1], n_for_merge[rem1] = merge_means(el1, n_for_merge[rem1], el2, n_for_merge[rem2])
                 mu_tot[rem1] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
 
@@ -1078,9 +1078,9 @@ def mean(x, dimen=None):
             sz = splt
             if sz == 1:
                 if rem1:
-                    mu_reshape = __local_operation(torch.reshape, mu_tot[0], out=None, **{'shape': (1, mu_tot[0].numel())})[0]
+                    mu_reshape = __local_operation(torch.reshape, mu_tot[0], out=None, **{'shape': (1, mu_tot[0].size)})[0]
                     for el1, el2 in zip(mu_reshape,
-                                        __local_operation(torch.reshape, mu_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].numel())})[0]):
+                                        __local_operation(torch.reshape, mu_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].size)})[0]):
                         mu_reshape[0], n_for_merge[0] = merge_means(el1, n_for_merge[0], el2, n_for_merge[rem1])
                     mu_tot[0] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
                 return mu_tot[0]
@@ -1107,7 +1107,7 @@ def mean(x, dimen=None):
 
             rem1 = 0
             rem2 = 0
-            sz = mu_tot.size[0]
+            sz = mu_tot.shape[0]
             while True:  # this loop will loop pairwise over the whole process and do pairwise updates
                 if sz % 2 != 0:  # test if the length is an odd number
                     if rem1 != 0 and rem2 == 0:
@@ -1145,12 +1145,18 @@ def mean(x, dimen=None):
             # print("not split, given sigular dimension", dimen, x.split)
             return __local_operation(torch.mean, x, out=None, **{'dim': dimen})
         if dimen == x.split:
-            # merge in the dimension of the split
             # print('singular dimension == x.split', dimen, x.split)
-            return reduce_means_elementwise(target_dims)
+            out = reduce_means_elementwise(target_dims)
+            if all_procs:
+                return out
+            else:
+                return tensor.tensor(out._tensor__array, out.shape, out.dtype, x.split, x.comm)
         else:
             # print('singular dimension given ({}) not equal to split direction ({})'.format(dimen, x.split))
-            return combine_all_means(target_dims)
+            if all_procs:
+                return combine_all_means(target_dims)
+            else:
+                return __local_operation(torch.mean, x, out=None, **{'dim': dimen})
     else:
         # multiple dimensions
         if x.split is None:
@@ -1160,12 +1166,19 @@ def mean(x, dimen=None):
         if x.split in dimen:
             # print('multiple dimensions, split {} in dimensions given {}'.format(x.split, dimen))
             # merge in the direction of the split
-            return reduce_means_elementwise(target_dims)
+            out = reduce_means_elementwise(target_dims)
+            if all_procs:
+                return out
+            else:
+                return tensor.tensor(out._tensor__array, out.shape, out.dtype, x.split, x.comm)
         else:
             # multiple dimensions which does *not* include the split dimension
             # print("multiple dimensions({}), split({}) *not* in dimensions given".format(dimen, x.split))
             # combine along the split axis
-            return combine_all_means(target_dims)
+            if all_procs:
+                return combine_all_means(target_dims)
+            else:
+                return __local_operation(torch.mean, x, out=None, **{'dim': dimen})
 
 
 def merge_vars(var1, mu1, n1, var2, mu2, n2):
@@ -1179,20 +1192,17 @@ def merge_vars(var1, mu1, n1, var2, mu2, n2):
     :param n2:
     :return:
     '''
-    var1 = var1.item()
-    var2 = var2.item()
-    mu1 = mu1.item()
-    mu2 = mu2.item()
     n1 = n1.item()
     n2 = n2.item()
 
     n = n1 + n2
-    delta = mu2 - mu1
+    delta = mu2.item() - mu1.item()
     mu_out = mu1 + n2 * (delta / n)
+
     return (var1*n1 + var2*n2 + (delta ** 2) * (n1+1.) * (n2+1.) / n) / (n+1), mu_out, n
 
 
-def var(x, dimen=None):
+def var(x, dimen=None, all_procs=False):
     '''
     find the standard deviation of a given dataset (x)
     :param x:
@@ -1220,7 +1230,7 @@ def var(x, dimen=None):
         rem1 = 0
         rem2 = 0
 
-        sz = var_tot.size[0]
+        sz = var_tot.shape[0]
         while True:  # this loop will loop pairwise over the whole process and do pairwise updates
             if sz % 2 != 0:  # test if the length is an odd number
                 if rem1 != 0 and rem2 == 0:
@@ -1257,6 +1267,7 @@ def var(x, dimen=None):
         var_tot = tensor.zeros(target_dimens)
 
         beg = 0
+        score = 0
         if isinstance(dimen, (list, tuple, np.ndarray, tensor.tensor)):
             # multiple dimensions
             score = [True for itt in dimen if itt < x.split].count(True)
@@ -1268,25 +1279,20 @@ def var(x, dimen=None):
             if x.comm.rank == r:
                 end = beg + x.lshape[x.split]
                 if x.split - score == 0:
-                    # print('0', x.split - score)
                     var_tot_hold[beg:end] = var_proc
                 elif x.split - score == 1:
-                    # print('1', x.split - score)
-                    # print(var_tot_hold[:,beg:end].lshape, var_proc.lshape)
                     var_tot_hold[:, beg:end] = var_proc
                 elif x.split - score == 2:
-                    # print(x.split - score)
                     var_tot_hold[:, :, beg:end] = var_proc
                 elif x.split - score == 3:
-                    # print(x.split - score)
                     var_tot_hold[:, :, :, beg:end] = var_proc
                 elif x.split - score == 4:
-                    # print(x.split - score)
                     var_tot_hold[:, :, :, :, beg:end] = var_proc
                 else:
                     # print('else', var_tot_hold[beg:end].lshape, var_proc.lshape)
                     var_tot_hold[beg:end] = var_proc
                 beg = end
+            beg = x.comm.bcast(beg, r)
         x.comm.Allreduce(var_tot_hold, var_tot, MPI.SUM)
         x.comm.barrier()
         return var_tot
@@ -1329,21 +1335,24 @@ def var(x, dimen=None):
                     rem1 = sz - 1
             splt = int(sz / 2)
             for i in range(splt):
-                mu_reshape = __local_operation(torch.reshape, mu_tot[i], out=None, **{'shape': (1, mu_tot[i].numel())})[0]
-                var_reshape = __local_operation(torch.reshape, var_tot[i], out=None, **{'shape': (1, mu_tot[i].numel())})[0]
+                mu_reshape = __local_operation(torch.reshape, mu_tot[i], out=None, **{'shape': (1, mu_tot[i].size)})[0]
+                var_reshape = __local_operation(torch.reshape, var_tot[i], out=None, **{'shape': (1, mu_tot[i].size)})[0]
                 for mu1, var1, mu2, var2 in zip(mu_reshape, var_reshape,
-                                                __local_operation(torch.reshape, mu_tot[i+splt], out=None, **{'shape': (1, mu_tot[i+splt].numel())})[0],
-                                                __local_operation(torch.reshape, var_tot[i+splt], out=None, **{'shape': (1, var_tot[i+splt].numel())})[0]):
-                    var_reshape[i], mu_reshape[i], n_for_merge[i] = merge_vars(var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i+splt])
+                                                __local_operation(torch.reshape, mu_tot[i+splt], out=None, **{'shape': (1, mu_tot[i+splt].size)})[0],
+                                                __local_operation(torch.reshape, var_tot[i+splt], out=None, **{'shape': (1, var_tot[i+splt].size)})[0]):
+                    try:
+                        var_reshape[i], mu_reshape[i], n_for_merge[i] = merge_vars(var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i+splt])
+                    except:
+                        var_reshape, mu_reshape, n_for_merge[i] = merge_vars(var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i + splt])
                 mu_tot[i] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
                 var_tot[i] = __local_operation(torch.reshape, var_reshape, out=None, **{'shape': target_dimens})
 
             if rem1 and rem2:
-                mu_reshape = __local_operation(torch.reshape, mu_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].numel())})[0]
-                var_reshape = __local_operation(torch.reshape, var_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].numel())})[0]
+                mu_reshape = __local_operation(torch.reshape, mu_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].size)})[0]
+                var_reshape = __local_operation(torch.reshape, var_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].size)})[0]
                 for mu1, var1, mu2, var2 in zip(mu_reshape, var_reshape,
-                                                __local_operation(torch.reshape, mu_tot[rem2], out=None, **{'shape': (1, mu_tot[rem2].numel())})[0],
-                                                __local_operation(torch.reshape, var_tot[rem2], out=None, **{'shape': (1, var_tot[rem2].numel())})[0]):
+                                                __local_operation(torch.reshape, mu_tot[rem2], out=None, **{'shape': (1, mu_tot[rem2].size)})[0],
+                                                __local_operation(torch.reshape, var_tot[rem2], out=None, **{'shape': (1, var_tot[rem2].size)})[0]):
                     var_reshape[rem1], mu_reshape[rem1], n_for_merge[rem1] = merge_vars(var1, mu1, n_for_merge[rem1],
                                                                                      var2, mu2, n_for_merge[rem2])
                 mu_tot[rem1] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
@@ -1354,11 +1363,11 @@ def var(x, dimen=None):
             sz = splt
             if sz == 1:
                 if rem1:
-                    mu_reshape = __local_operation(torch.reshape, mu_tot[0], out=None, **{'shape': (1, mu_tot[0].numel())})[0]
-                    var_reshape = __local_operation(torch.reshape, var_tot[0], out=None, **{'shape': (1, mu_tot[0].numel())})[0]
+                    mu_reshape = __local_operation(torch.reshape, mu_tot[0], out=None, **{'shape': (1, mu_tot[0].size)})[0]
+                    var_reshape = __local_operation(torch.reshape, var_tot[0], out=None, **{'shape': (1, mu_tot[0].size)})[0]
                     for mu1, var1, mu2, var2 in zip(mu_reshape, var_reshape,
-                                                    __local_operation(torch.reshape, mu_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].numel())})[0],
-                                                    __local_operation(torch.reshape, var_tot[rem1], out=None, **{'shape': (1, var_tot[rem1].numel())})[0]):
+                                                    __local_operation(torch.reshape, mu_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].size)})[0],
+                                                    __local_operation(torch.reshape, var_tot[rem1], out=None, **{'shape': (1, var_tot[rem1].size)})[0]):
                         var_reshape[0], mu_reshape[0], n_for_merge[0] = merge_vars(var1, mu1, n_for_merge[rem1],
                                                                                    var2, mu2, n_for_merge[rem2])
                     mu_tot[0] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
@@ -1385,28 +1394,38 @@ def var(x, dimen=None):
         # only one dimension given
         target_dims = [target_dims[it] for it in range(len(target_dims)) if it != dimen]
         if dimen == x.split:
-            # merge in the dimension of the split
-            # print('singular dimension == x.split', dimen, x.split)
-            return reduce_vars_elementwise(target_dims)
+            out = reduce_vars_elementwise(target_dims)
+            if all_procs:
+                return out
+            else:
+                return tensor.tensor(out._tensor__array, out.shape, out.dtype, x.split, x.comm)
         else:
-            # print('singular dimension given ({}) not equal to split direction ({})'.format(dimen, x.split))
-            return combine_all_vars(target_dims)
+            if all_procs:
+                print('all procs combine')
+                return combine_all_vars(target_dims)
+            else:
+                return __local_operation(torch.var, x, out=None, **{'dim': dimen})
     else:
         # multiple dimensions
         target_dims = [target_dims[it] for it in range(len(target_dims)) if it not in dimen]
         if x.split in dimen:
-            # print('multiple dimensions, split {} in dimensions given {}'.format(x.split, dimen))
             # merge in the direction of the split
-            return reduce_vars_elementwise(target_dims)
+            out = reduce_vars_elementwise(target_dims)
+            if all_procs:
+                return out
+            else:
+                return tensor.tensor(out._tensor__array, out.shape, out.dtype, x.split, x.comm)
         else:
             # multiple dimensions which does *not* include the split dimension
-            # print("multiple dimensions, split *not* in dimensions given", dimen, x.split)
             # combine along the split axis
-            return combine_all_vars(target_dims)
+            if all_procs:
+                return combine_all_vars(target_dims)
+            else:
+                return __local_operation(torch.var, x, out=None, **{'dim': dimen})
 
 
-def std(x, dim=None):
-    return sqrt(var(x, dim), out=None)
+def std(x, dim=None, all_procs=False):
+    return sqrt(var(x, dim, all_procs), out=None)
 
 
 def transpose(a, axes=None):
