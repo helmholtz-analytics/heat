@@ -1334,42 +1334,54 @@ class TestOperations(unittest.TestCase):
 
         # zeros
         dimensions = []
-        counter = 0
-        for d in [array_0_len, array_1_len, array_2_len, array_3_len, array_4_len, array_5_len]:
+        for d in [array_0_len, array_1_len, array_2_len, array_3_len, array_4_len]:
             dimensions.extend([d, ])
-            # print("dimensions: ", dimensions)
             try:
                 hold = list(range(len(dimensions)))
                 hold.append(None)
             except TypeError:
                 hold = [None, ]
             for i in hold:  # loop over the number of dimensions of the test array
-                # print("split=", i)
                 z = ht.zeros(dimensions, split=i)
                 res = z.mean()
+                total_dims_list = list(z.shape)
                 self.assertEqual(res, 0)
-                counter += 1
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
-                    # print('dimen=', it)
                     res = z.mean(dimen=it)
                     self.assertEqual(res, 0)
-                    counter += 1
+                    self.assertEqual(res.split, z.split)
+                    target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
+                    if all(target_dims) != 0:
+                        self.assertEqual(res.lshape, tuple(target_dims))
+                        self.assertEqual(res.split, z.split)
+                    if i == it:
+                        res = z.mean(dimen=it, all_procs=True)
+                        self.assertEqual(res, 1)
+                        target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
+                        if all(target_dims) != 0:
+                            self.assertEqual(res.lshape, tuple(target_dims))
 
                 loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
                 if len(z.shape) > 2:
                     for r in range(3, len(z.shape)):
                         loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
                 for it in loop_list:  # loop over the different combinations of dimensions for mean
-                    # print("it combi:", it)
                     res = z.mean(dimen=[int(q) for q in it.split(',')])
                     self.assertEqual(res, 0)
-                    counter += 1
-        print(counter)
+                    self.assertEqual(res.split, z.split)
+                    target_dims = [total_dims_list[int(q)] if q not in [int(q) for q in it.split(',')] else 0 for q in range(len(total_dims_list))]
+                    if all(target_dims) != 0:
+                        if i:
+                            self.assertEqual(res.lshape, tuple(target_dims))
+                            self.assertEqual(res.split, z.split)
+                        else:
+                            self.assertEqual(res.shape, tuple(target_dims))
+                            self.assertEqual(res.split, z.split)
 
         # ones
-        # counter = 0
         dimensions = []
-        for d in [array_0_len, array_1_len, array_2_len, array_3_len, array_4_len, array_5_len]:
+
+        for d in [array_0_len, array_1_len, array_2_len, array_3_len, array_4_len]:
             dimensions.extend([d, ])
             # print("dimensions: ", dimensions)
             try:
@@ -1377,17 +1389,27 @@ class TestOperations(unittest.TestCase):
                 hold.append(None)
             except TypeError:
                 hold = [None, ]
-            for i in hold:  # loop over the number of dimensions of the test array
+            for i in hold:  # loop over the number of split dimension of the test array
                 # print("Beginning of dimensions i=", i)
                 z = ht.ones(dimensions, split=i)
                 res = z.mean()
+                total_dims_list = list(z.shape)
                 self.assertEqual(res, 1)
-                # counter += 1
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     # print('it=', it)
                     res = z.mean(dimen=it)
                     self.assertEqual(res, 1)
-                    # counter += 1
+                    self.assertEqual(res.split, z.split)
+                    target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
+                    if all(target_dims) != 0:
+                        self.assertEqual(res.split, z.split)
+                        self.assertEqual(res.lshape, tuple(target_dims))
+                    if i == it:
+                        res = z.mean(dimen=it, all_procs=True)
+                        self.assertEqual(res, 1)
+                        target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
+                        if all(target_dims) != 0:
+                            self.assertEqual(res.lshape, tuple(target_dims))
 
                 loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
                 if len(z.shape) > 2:
@@ -1397,61 +1419,18 @@ class TestOperations(unittest.TestCase):
                     # print("it combi:", it)
                     res = z.mean(dimen=[int(q) for q in it.split(',')])
                     self.assertEqual(res, 1)
-                    # counter += 1
-        # print('ones counter:', counter)
-        #
-        # # # rand
-        # counter = 0
-        # dimensions = []
-        # for d in [array_0_len, array_1_len, array_2_len, array_3_len, array_4_len]:
-        #     dimensions.extend([d, ])
-        #     # print("dimensions: ", dimensions)
-        #     try:
-        #         hold = list(range(len(dimensions)))
-        #         hold.append(None)
-        #     except TypeError:
-        #         hold = [None, ]
-        #     for i in hold:  # loop over the number of dimensions of the test array
-        #         # print("Beginning of dimensions i=", i)
-        #         z = ht.random.randn(dimensions, split=i)
-        #         res = z.mean()
-        #         self.assertEqual(res, 0)
-        #         counter += 1
-        #         for it in range(len(z.shape)):  # loop over the different single dimensions for mean
-        #             # print('it=', it)
-        #             res = z.mean(dimen=it)
-        #             self.assertEqual(res, 0)
-        #             counter += 1
-        #
-        #         loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
-        #         if len(z.shape) > 2:
-        #             for r in range(3, len(z.shape)):
-        #                 loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
-        #         for it in loop_list:  # loop over the different combinations of dimensions for mean
-        #             # print("it combi:", it)
-        #             res = z.mean(dimen=[int(q) for q in it.split(',')])
-        #             self.assertEqual(res, 0)
-        #             counter += 1
-        # print('rand counter:', counter)
+                    self.assertEqual(res.split, z.split)
+                    target_dims = [total_dims_list[int(q)] if q not in [int(q) for q in it.split(',')] else 0 for q in range(len(total_dims_list))]
+                    if all(target_dims) != 0:
+                        if i:
+                            self.assertEqual(res.lshape, tuple(target_dims))
+                            self.assertEqual(res.split, z.split)
+                        else:
+                            self.assertEqual(res.shape, tuple(target_dims))
+                            self.assertEqual(res.split, z.split)
 
     def test_std(self):
         # cases to test:
-        '''
-        zeros, ones, randn
-        1D matrix:
-            local       - full
-            distributed - full
-        2D matrix:
-            local       - full, 1dim (= split and != split)
-            distributed - full, 1dim (= split and != split)
-        3D matrix:
-            local       - full, 1dim (= split and != split), 2dim (inc split and not in split)
-            distributed - full, 1dim (= split and != split), 2dim (inc split and not in split)
-        4D matrix:
-            local       - full, 1dim (= split and != split), 2dim (inc split and not in split), 3dim (inc split and not in split)
-            distributed - full, 1dim (= split and != split), 2dim (inc split and not in split), 3dim (inc split and not in split)
-        5D -> see 3D or 4D
-        '''
 
         array_0_len = 10
         array_1_len = 9
@@ -1473,20 +1452,23 @@ class TestOperations(unittest.TestCase):
                 # print("Beginning of dimensions i=", i)
                 z = ht.zeros(dimensions, split=i)
                 res = z.std()
+                total_dims_list = list(z.shape)
                 self.assertEqual(res, 0)
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     # print('it=', it)
                     res = z.std(dimen=it)
                     self.assertEqual(res, 0)
-
-                # loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
-                # if len(z.shape) > 2:
-                #     for r in range(3, len(z.shape)):
-                #         loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
-                # for it in loop_list:  # loop over the different combinations of dimensions for mean
-                #     # print("it combi:", it)
-                #     res = z.std(dimen=[int(q) for q in it.split(',')])
-                #     self.assertEqual(res, 0)
+                    self.assertEqual(res.split, z.split)
+                    target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
+                    if all(target_dims) != 0:
+                        self.assertEqual(res.lshape, tuple(target_dims))
+                        self.assertEqual(res.split, z.split)
+                    if i == it:
+                        res = z.std(dimen=it, all_procs=True)
+                        self.assertEqual(res, 0)
+                        target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
+                        if all(target_dims) != 0:
+                            self.assertEqual(res.lshape, tuple(target_dims))
 
         # ones
         dimensions = []
@@ -1502,46 +1484,20 @@ class TestOperations(unittest.TestCase):
                 # print("Beginning of dimensions i=", i)
                 z = ht.ones(dimensions, split=i)
                 res = z.std()
+                total_dims_list = list(z.shape)
                 self.assertEqual(res, 0)
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     # print('it=', it)
                     res = z.std(dimen=it)
                     self.assertEqual(res, 0)
-
-                # loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
-                # if len(z.shape) > 2:
-                #     for r in range(3, len(z.shape)):
-                #         loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
-                # for it in loop_list:  # loop over the different combinations of dimensions for mean
-                #     # print("it combi:", it)
-                #     res = z.std(dimen=[int(q) for q in it.split(',')])
-                #     self.assertEqual(res, 1)
-
-        # # rand
-        # dimensions = []
-        # for d in [array_0_len, array_1_len, array_2_len, array_3_len, array_4_len]:
-        #     dimensions.extend([d, ])
-        #     # print("dimensions: ", dimensions)
-        #     try:
-        #         hold = list(range(len(dimensions)))
-        #         hold.append(None)
-        #     except TypeError:
-        #         hold = [None, ]
-        #     for i in hold:  # loop over the number of dimensions of the test array
-        #         # print("Beginning of dimensions i=", i)
-        #         z = ht.random.randn(dimensions, split=i)
-        #         res = z.std()
-        #         self.assertEqual(res, 0)
-        #         for it in range(len(z.shape)):  # loop over the different single dimensions for mean
-        #             # print('it=', it)
-        #             res = z.std(dimen=it)
-        #             self.assertEqual(res, 0)
-
-                # loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
-                # if len(z.shape) > 2:
-                #     for r in range(3, len(z.shape)):
-                #         loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
-                # for it in loop_list:  # loop over the different combinations of dimensions for mean
-                #     # print("it combi:", it)
-                #     res = z.std(dimen=[int(q) for q in it.split(',')])
-                #     self.assertEqual(res, 0)
+                    self.assertEqual(res.split, z.split)
+                    target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
+                    if all(target_dims) != 0:
+                        self.assertEqual(res.lshape, tuple(target_dims))
+                        self.assertEqual(res.split, z.split)
+                    if i == it:
+                        res = z.std(dimen=it, all_procs=True)
+                        self.assertEqual(res, 0)
+                        target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
+                        if all(target_dims) != 0:
+                            self.assertEqual(res.lshape, tuple(target_dims))
