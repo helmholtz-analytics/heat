@@ -153,12 +153,7 @@ def all(x, axis=None, out=None):
 
     if out is not None:
         # perform sanitation
-        if not isinstance(out, tensor.tensor):
-            raise TypeError(
-                'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
-        if out.shape != output_shape:
-            raise ValueError('Expecting output buffer of shape {}, got {}'.format(
-                output_shape, out.shape))
+        out = __sanitize_out(out, output_shape)
         # write to "out"
         out._tensor__array = tensor.tensor((sum_of_ones == numel), output_shape,
                                            types.canonical_heat_type(sum_of_ones.dtype), split=out.split, comm=x.comm)
@@ -168,7 +163,7 @@ def all(x, axis=None, out=None):
                          types.canonical_heat_type(sum_of_ones.dtype), split=sum_of_ones.split, comm=x.comm)
 
 
-def argmin(x, axis=None):
+def argmin(x, axis=None, out=None):
     '''
     Returns the indices of the minimum values along an axis.
 
@@ -181,8 +176,10 @@ def argmin(x, axis=None):
     axis : int, optional
     By default, the index is into the flattened tensor, otherwise along the specified axis.
 
-    # TODO out : ht.tensor, optional. Issue #100
-    If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
+    out : ht.tensor, optional.
+    If provided, the result will be inserted into this tensor. Must be of the same shape 
+    and buffer length as the expected output.
+
 
     Returns:
     -------
@@ -193,33 +190,43 @@ def argmin(x, axis=None):
     Examples:
     --------
 
-    >>> a = ht.randn(3,3)
+    >>> a = ht.random.randn(3,3)
     >>> a
-    tensor([[-1.7297,  0.2541, -0.1044],
-            [ 1.0865, -0.4415,  1.3716],
-            [-0.0827,  1.0215, -2.0176]])
+    tensor([[ 0.2604, -0.2292,  1.2846],
+        [-0.6166,  0.4549, -0.1443],
+        [-1.0306, -1.1125,  0.5686]])
     >>> ht.argmin(a)
-    tensor([8])
+    tensor([7])
     >>> ht.argmin(a, axis=0)
-    tensor([[0, 1, 2]])
+    tensor([[2, 2, 1]])
     >>> ht.argmin(a, axis=1)
-    tensor([[0],
-            [1],
-            [2]])
+    tensor([[1],
+        [0],
+        [1]])
+    >>> out = ht.zeros((1, 3))
+    >>> ht.argmin(a, axis=0, out=out)
+    >>> out
+    tensor([[2, 2, 1]])
+
     '''
-
     if axis is None:
-        # TEMPORARY SOLUTION! TODO: implementation for axis=None, distributed tensor Issue #100
-        # perform sanitation
-        if not isinstance(x, tensor.tensor):
-            raise TypeError(
-                'expected x to be a ht.tensor, but was {}'.format(type(x)))
-        axis = stride_tricks.sanitize_axis(x.shape, axis)
-        out = torch.reshape(torch.argmin(x._tensor__array), (1,))
-        return tensor.tensor(out, out.shape, types.canonical_heat_type(out.dtype), split=None, comm=x.comm)
+        # flatten tensor
+        x_flat = torch.reshape(x._tensor__array, (x._tensor__array.numel(),))
+        # apply torch.min to x_flat with axis=0, keep indices only (second element)
+        result = __reduce_op(tensor.tensor(x_flat, x_flat.shape, types.canonical_heat_type(x.dtype), x.split, x.comm), torch.min, MPI.MIN,
+                             axis=0, out=None)._tensor__array[1]
+    else:
+        # argmin() is the second element of torch.min()
+        result = __reduce_op(x, torch.min, MPI.MIN, axis,
+                             out=None)._tensor__array[1]
 
-    out = __reduce_op(x, torch.min, MPI.MIN, axis, out=None)._tensor__array[1]
-    return tensor.tensor(out, out.shape, types.canonical_heat_type(out.dtype), x._tensor__split, comm=x.comm)
+    if out is not None:
+        out = __sanitize_out(out, result.shape)
+        out._tensor__array = tensor.tensor(
+            result, out.shape, types.canonical_heat_type(result.dtype), split=out.split, comm=x.comm)
+        return out
+
+    return tensor.tensor(result, result.shape, types.canonical_heat_type(result.dtype), split=None, comm=x.comm)
 
 
 def clip(a, a_min, a_max, out=None):
@@ -725,15 +732,12 @@ def triu(m, k=0):
 def __reduce_op(x, partial_op, op, axis, out):
     # TODO: document me Issue #102
 
-    # perform sanitation
+    # perform sanitation of input
     if not isinstance(x, tensor.tensor):
         raise TypeError(
             'expected x to be a ht.tensor, but was {}'.format(type(x)))
-    if out is not None and not isinstance(out, tensor.tensor):
-        raise TypeError(
-            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
 
-    # no further checking needed, sanitize axis will raise the proper exceptions
+    # no further checking needed, sanitize_axis and sanitize_out will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape, axis)
 
     if axis is None:
@@ -741,13 +745,11 @@ def __reduce_op(x, partial_op, op, axis, out):
         output_shape = (1,)
     else:
         partial = partial_op(x._tensor__array, axis, keepdim=True)
-        # TODO: verify if this works for negative split axis Issue #103
         output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
 
-    # Check shape of output buffer, if any
-    if out is not None and out.shape != output_shape:
-        raise ValueError('Expecting output buffer of shape {}, got {}'.format(
-            output_shape, out.shape))
+    # sanitize output buffer, if any
+    if out is not None:
+        out = __sanitize_out(out, output_shape)
 
     if x.comm.is_distributed() and (axis is None or axis == x.split):
         x.comm.Allreduce(MPI.IN_PLACE, partial[0], op)
@@ -756,8 +758,22 @@ def __reduce_op(x, partial_op, op, axis, out):
                 partial[0].dtype), split=out.split, comm=x.comm)
             return out
         return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), split=None, comm=x.comm)
-    if out is not None:
-        out._tensor__array = tensor.tensor(partial, output_shape, types.canonical_heat_type(
-            partial[0].dtype), split=out.split, comm=x.comm)
-        return out
-    return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), split=None, comm=x.comm)
+    else:
+        if out is not None:
+            out._tensor__array = tensor.tensor(partial, output_shape, types.canonical_heat_type(
+                partial[0].dtype), split=out.split, comm=x.comm)
+            return out
+        return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), split=None, comm=x.comm)
+
+
+def __sanitize_out(out, out_shape):
+    """
+    Checks conformity of a predefined output buffer with expected output
+    """
+    if not isinstance(out, tensor.tensor):
+        raise TypeError(
+            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+    if out.shape != out_shape:
+        raise ValueError('Expecting output buffer of shape {}, got {}'.format(
+            out_shape, out.shape))
+    return out

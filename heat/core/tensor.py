@@ -143,8 +143,53 @@ class tensor:
         """
         return operations.all(self, axis, out)
 
-    def argmin(self, axis):
-        return operations.argmin(self, axis)
+    def argmin(self, axis=None, out=None):
+        '''
+        Returns the indices of the minimum values along an axis.
+
+        Parameters:
+        ----------
+
+        x : ht.tensor
+        Input array.
+
+        axis : int, optional
+        By  default, the index is into the flattened tensor, otherwise along the specified axis.
+
+        out : ht.tensor, optional.
+        If provided, the result will be inserted into this tensor. Must be of the same shape 
+        and buffer length as the expected output.
+
+
+        Returns:
+        -------
+
+        index_tensor : ht.tensor of ints
+        Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
+
+        Examples:
+        --------
+
+        >>> a = ht.random.randn(3,3)
+        >>> a
+        tensor([[ 0.2604, -0.2292,  1.2846],
+            [-0.6166,  0.4549, -0.1443],
+            [-1.0306, -1.1125,  0.5686]])
+        >>> a.argmin()
+        tensor([7])
+        >>> a.argmin(axis=0)
+        tensor([[2, 2, 1]])
+        >>> a.argmin(axis=1)
+        tensor([[1],
+            [0],
+            [1]])
+        >>> out = ht.zeros((1, 3))
+        >>> a.argmin(axis=0, out=out)
+        >>> out
+        tensor([[2, 2, 1]])
+        '''
+
+        return operations.argmin(self, axis, out)
 
     def astype(self, dtype, copy=True):
         """
@@ -206,45 +251,6 @@ class tensor:
             A copy of the original
         """
         return operations.copy(self)
-
-    def argmin(self, axis=None):
-        '''
-        Returns the indices of the minimum values along an axis.
-
-        Parameters:	
-        ----------
-        x : ht.tensor
-        Input array.
-
-        axis : int, optional
-        By default, the index is into the flattened tensor, otherwise along the specified axis.
-
-        #TODO out : array, optional
-        If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
-
-        Returns:
-        -------	
-
-        index_tensor : ht.tensor of ints
-        Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
-
-        Examples
-        --------
-        >>> a = ht.randn(3,3)
-        >>> a
-        tensor([[-1.7297,  0.2541, -0.1044],
-                [ 1.0865, -0.4415,  1.3716],
-                [-0.0827,  1.0215, -2.0176]])
-        >>> a.argmin()
-        tensor([8])
-        >>> a.argmin(axis=0)
-        tensor([[0, 1, 2]])
-        >>> a.argmin(axis=1)
-        tensor([[0],
-                [1],
-                [2]])
-        '''
-        return operations.argmin(self, axis)
 
     def max(self, axis=None, out=None):
         """"
