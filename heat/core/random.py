@@ -57,10 +57,12 @@ def randn(*args, split=None, comm=MPI_WORLD):
             [ 0.1260,  1.2126, -0.0804,  0.0907]])
     """
     # check if all positional arguments are integers
-    if not all(isinstance(a, int) for a in args):
-        raise TypeError('dimensions have to be integers')
+    # if isinstance(args, tuple):
+    #     if not all(isinstance())
 
-    if isinstance(args, tuple):
+    if isinstance(args, (tuple, list)):
+        if not all(isinstance(a, int) for a in args[0]):
+            raise TypeError('dimensions have to be a tuple of integers and given before any other *args')
         gshape = args[0]
     else:
         if not all(_ > 0 for _ in args):
