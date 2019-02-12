@@ -30,7 +30,7 @@ def randn(*args, split=None, comm=MPI_WORLD):
 
     Parameters
     ----------
-    d0, d1, …, dn : int, optional
+    d0, d1, …, dn : Tuple of ints, optional
         The dimensions of the returned array, should be all positive.
 
     Returns
@@ -47,19 +47,23 @@ def randn(*args, split=None, comm=MPI_WORLD):
 
     Examples
     --------
-    >>> ht.randn(3)
+    >>> ht.randn((3))
     tensor([ 0.1921, -0.9635,  0.5047])
 
-    >>> ht.randn(4, 4)
+    >>> ht.randn((4, 4))
     tensor([[-1.1261,  0.5971,  0.2851,  0.9998],
             [-1.8548, -1.2574,  0.2391, -0.3302],
             [ 1.3365, -1.5212,  1.4159, -0.1671],
             [ 0.1260,  1.2126, -0.0804,  0.0907]])
+
+    >>> ht.randn((4, 4), split=0)
+    (two processes)
+    tensor([[-1.1261,  0.5971,  0.2851,  0.9998],
+            [-1.8548, -1.2574,  0.2391, -0.3302]])
+    tensor([[ 1.3365, -1.5212,  1.4159, -0.1671],
+            [ 0.1260,  1.2126, -0.0804,  0.0907]])
     """
     # check if all positional arguments are integers
-    # if isinstance(args, tuple):
-    #     if not all(isinstance())
-
     if isinstance(args, (tuple, list)):
         if not all(isinstance(a, int) for a in args[0]):
             raise TypeError('dimensions have to be a tuple of integers and given before any other *args')
@@ -77,5 +81,5 @@ def randn(*args, split=None, comm=MPI_WORLD):
         # re-raise the exception to be consistent with numpy's exception interface
         raise ValueError(str(exception))
 
-    # compose the local tensor
+    # compose the local tensor/s
     return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
