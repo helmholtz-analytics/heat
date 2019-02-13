@@ -30,7 +30,7 @@ def randn(*args, split=None, comm=MPI_WORLD):
 
     Parameters
     ----------
-    d0, d1, …, dn : Tuple of ints, optional
+    d0, d1, …, dn : ints, optional
         The dimensions of the returned array, should be all positive.
 
     Returns
@@ -64,7 +64,7 @@ def randn(*args, split=None, comm=MPI_WORLD):
             [ 0.1260,  1.2126, -0.0804,  0.0907]])
     """
     # check if all positional arguments are integers
-    if not all(isinstance(a, int) for a in args):
+    if not all(isinstance(_, int) for _ in args):
         raise TypeError('dimensions have to be a tuple of integers and given before any other *args')
     if not all(_ > 0 for _ in args):
         raise ValueError('negative dimension are not allowed')
