@@ -65,7 +65,7 @@ def randn(*args, split=None, comm=MPI_WORLD):
     """
     # check if all positional arguments are integers
     if not all(isinstance(_, int) for _ in args):
-        raise TypeError('dimensions have to be a tuple of integers and given before any other *args')
+        raise TypeError('dimensions have to be integers')
     if not all(_ > 0 for _ in args):
         raise ValueError('negative dimension are not allowed')
 
