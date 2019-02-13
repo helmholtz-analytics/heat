@@ -30,7 +30,7 @@ def randn(*args, split=None, comm=MPI_WORLD):
 
     Parameters
     ----------
-    d0, d1, …, dn : int, optional
+    d0, d1, …, dn : ints, optional
         The dimensions of the returned array, should be all positive.
 
     Returns
@@ -55,6 +55,13 @@ def randn(*args, split=None, comm=MPI_WORLD):
             [-1.8548, -1.2574,  0.2391, -0.3302],
             [ 1.3365, -1.5212,  1.4159, -0.1671],
             [ 0.1260,  1.2126, -0.0804,  0.0907]])
+
+    >>> ht.randn(4, 4, split=0)
+    (two processes)
+    tensor([[-1.1261,  0.5971,  0.2851,  0.9998],
+            [-1.8548, -1.2574,  0.2391, -0.3302]])
+    tensor([[ 1.3365, -1.5212,  1.4159, -0.1671],
+            [ 0.1260,  1.2126, -0.0804,  0.0907]])
     """
     # check if all positional arguments are integers
     if not all(isinstance(_, int) for _ in args):
@@ -62,15 +69,15 @@ def randn(*args, split=None, comm=MPI_WORLD):
     if not all(_ > 0 for _ in args):
         raise ValueError('negative dimension are not allowed')
 
-    gshape = tuple(args) if args else(1,)
+    gshape = tuple(args) if args else (1,)
     split = stride_tricks.sanitize_axis(gshape, split)
+    _, lshape, _ = comm.chunk(gshape, split)
+
     try:
-        torch.randn(gshape)
+        data = torch.randn(lshape)
     except RuntimeError as exception:
         # re-raise the exception to be consistent with numpy's exception interface
         raise ValueError(str(exception))
 
-    # compose the local tensor
-    data = torch.randn(args)
-
-    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, MPI_WORLD)
+    # compose the local tensor/s
+    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
