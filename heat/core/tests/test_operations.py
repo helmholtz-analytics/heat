@@ -1349,14 +1349,15 @@ class TestOperations(unittest.TestCase):
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     res = z.mean(dimen=it)
                     self.assertEqual(res, 0)
-                    self.assertEqual(res.split, z.split)
+                    if not isinstance(res, float):
+                        self.assertEqual(res.split, z.split)
                     target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                     if all(target_dims) != 0:
                         self.assertEqual(res.lshape, tuple(target_dims))
                         self.assertEqual(res.split, z.split)
                     if i == it:
                         res = z.mean(dimen=it, all_procs=True)
-                        self.assertEqual(res, 1)
+                        self.assertEqual(res, 0)
                         target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                         if all(target_dims) != 0:
                             self.assertEqual(res.lshape, tuple(target_dims))
@@ -1399,7 +1400,8 @@ class TestOperations(unittest.TestCase):
                     # print('it=', it)
                     res = z.mean(dimen=it)
                     self.assertEqual(res, 1)
-                    self.assertEqual(res.split, z.split)
+                    if not isinstance(res, float):
+                        self.assertEqual(res.split, z.split)
                     target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                     if all(target_dims) != 0:
                         self.assertEqual(res.split, z.split)
@@ -1458,7 +1460,8 @@ class TestOperations(unittest.TestCase):
                     # print('it=', it)
                     res = z.std(dimen=it)
                     self.assertEqual(res, 0)
-                    self.assertEqual(res.split, z.split)
+                    if not isinstance(res, float):
+                        self.assertEqual(res.split, z.split)
                     target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                     if all(target_dims) != 0:
                         self.assertEqual(res.lshape, tuple(target_dims))
@@ -1490,7 +1493,8 @@ class TestOperations(unittest.TestCase):
                     # print('it=', it)
                     res = z.std(dimen=it)
                     self.assertEqual(res, 0)
-                    self.assertEqual(res.split, z.split)
+                    if not isinstance(res, float):
+                        self.assertEqual(res.split, z.split)
                     target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                     if all(target_dims) != 0:
                         self.assertEqual(res.lshape, tuple(target_dims))
