@@ -64,14 +64,12 @@ def randn(*args, split=None, comm=MPI_WORLD):
             [ 0.1260,  1.2126, -0.0804,  0.0907]])
     """
     # check if all positional arguments are integers
-    if isinstance(args, (tuple, list)):
-        if not all(isinstance(a, int) for a in args[0]):
-            raise TypeError('dimensions have to be a tuple of integers and given before any other *args')
-        gshape = args[0]
-    else:
-        if not all(_ > 0 for _ in args):
-            raise ValueError('negative dimension are not allowed')
-        gshape = tuple(args) if args else (1,)
+    if not all(isinstance(a, int) for a in args):
+        raise TypeError('dimensions have to be a tuple of integers and given before any other *args')
+    if not all(_ > 0 for _ in args):
+        raise ValueError('negative dimension are not allowed')
+
+    gshape = tuple(args) if args else (1,)
     split = stride_tricks.sanitize_axis(gshape, split)
     _, lshape, _ = comm.chunk(gshape, split)
 
