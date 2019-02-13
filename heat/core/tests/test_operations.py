@@ -1473,7 +1473,7 @@ class TestOperations(unittest.TestCase):
 
         # ones
         dimensions = []
-        for d in [array_0_len, array_1_len, array_2_len, array_3_len, array_4_len]:
+        for d in [array_0_len, array_1_len, array_2_len]:
             dimensions.extend([d, ])
             # print("dimensions: ", dimensions)
             try:
