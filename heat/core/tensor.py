@@ -39,6 +39,10 @@ class tensor:
             return 1
 
     @property
+    def gnumel(self):
+        return self.size
+
+    @property
     def lnumel(self):
         return reduce(lambda i, j: i * j, self.lshape)
 
@@ -288,35 +292,84 @@ class tensor:
 
         return operations.max(self, axis, out)
 
-    # def mean(self, axis):
-    #     # TODO: document me
-    #     # TODO: test me
-    #     # TODO: sanitize input
-    #     # TODO: make me more numpy API complete
-    #     return self.sum(axis) / self.shape[axis]
     def mean(self, dimen=None, all_procs=False):
         """
+        Calculates and returns the mean of a tensor.
+        If a dimension is given, the mean will be taken in that direction.
 
-        :param dimen:
-        :return:
+        Parameters
+        ----------
+        self : ht.tensor
+            Values for which the mean is calculated for
+        dimen : None, Int, iterable
+                Dimension which the mean is taken in.
+                Default: None -> mean of all data calculated
+        all_procs : Bool
+                    Flag to distribute the data to all processes
+                    If True: will split the result in the same direction as x
+                    Default: False (mean of the whole dataset still calculated but not on every node)
+
+        Returns
+        -------
+        ht.tensor containing the mean/s, if split, then split in the same direction as x.
         """
         return operations.mean(self, dimen, all_procs)
 
-    def var(self, dimen=None, all_procs=False):
+    def var(self, dimen=None, all_procs=False, bessel=True):
         """
+        Calculates and returns the variance of a tensor.
+        If a dimension is given, the variance will be taken in that direction.
 
-        :param dimen:
-        :return:
-        """
-        return operations.var(self, dimen, all_procs)
+        Parameters
+        ----------
+        self : ht.tensor
+            Values for which the mean is calculated for
+        dimen : None, Int
+                Dimension which the mean is taken in.
+                Default: None -> var of all data calculated
+                NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+        all_procs : Bool
+                    Flag to distribute the data to all processes
+                    If True: will split the result in the same direction as x
+                    Default: False (var of the whole dataset still calculated but not available on every node)
+        bessel : Bool
+                 Default: True
+                 use the bessel correction when calculating the varaince/std
+                 toggle between unbiased and biased calculation of the var
 
-    def std(self, dimen=None, all_procs=False):
+        Returns
+        -------
+        ht.tensor containing the var/s, if split, then split in the same direction as x.
         """
+        return operations.var(self, dimen, all_procs, bessel=bessel)
 
-        :param dimen:
-        :return:
+    def std(self, dimen=None, all_procs=False, bessel=True):
         """
-        return operations.std(self, dimen, all_procs)
+        Calculates and returns the standard deviation of a tensor with the bessel correction
+        If a dimension is given, the variance will be taken in that direction.
+
+        Parameters
+        ----------
+        self : ht.tensor
+            Values for which the mean is calculated for
+        dimen : None, Int
+                Dimension which the mean is taken in.
+                Default: None -> var of all data calculated
+                NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+        all_procs : Bool
+                    Flag to distribute the data to all processes
+                    If True: will split the result in the same direction as x
+                    Default: False (var of the whole dataset still calculated but not available on every node)
+        bessel : Bool
+                 Default: True
+                 use the bessel correction when calculating the varaince/std
+                 toggle between unbiased and biased calculation of the std
+
+        Returns
+        -------
+        ht.tensor containing the std/s, if split, then split in the same direction as x.
+        """
+        return operations.std(self, dimen, all_procs, bessel=bessel)
 
     def min(self, axis=None, out=None):
         """"
@@ -724,6 +777,9 @@ class tensor:
         return operations.triu(self, k)
 
     def item(self):
+        """
+        Returns the only element of a 1-element tensor. Mirror of the pytorch command by the same name
+        """
         return self.__array.item()
 
     def __binop(self, op, other):

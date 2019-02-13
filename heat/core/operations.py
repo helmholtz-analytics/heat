@@ -715,11 +715,19 @@ def mean(x, dimen=None, all_procs=False):
                     mu_tot[0] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
                 return mu_tot[0]
     # ------------------------------------------------------------------------------------------------------------------
-    if dimen:  # todo: make a raise if the given axes are greater than any of the given dimensions
-        if not isinstance(dimen, (int, list, tuple, tensor.tensor, torch.Tensor)):
+    if dimen:
+        if isinstance(dimen, (list, tuple, tensor.tensor, torch.Tensor)):
+            if any(d > len(x.shape) for d in dimen):
+                raise ValueError("Dimension (dimen) must be < {}, currently are {}".format(len(x.shape), dimen))
+            if any(d < 0 for d in dimen):
+                dimen = [j % len(x.shape) for j in dimen]
+        elif isinstance(dimen, int):
+            if dimen >= len(x.shape):
+                raise ValueError("Dimension (dimen) must be < {}, currently is {}".format(len(x.shape), dimen))
+            dimen = dimen if dimen > 0 else dimen % len(x.shape)
+        else:
             raise TypeError("Dimension (dimen) must be an int or a list ht.tensor, torch.Tensor, or a tuple, currently is {}".format(type(dimen)))
-
-    if dimen is None:
+    else:
         # case for full matrix calculation
         if not x.comm.is_distributed():
             # if x is not distributed do a torch.mean on x
@@ -846,6 +854,7 @@ def merge_vars(var1, mu1, n1, var2, mu2, n2, bessel=True):
         return (var1*(n1-1) + var2*(n2-1) + (delta ** 2) * n1 * n2 / n) / (n-1), mu1 + n2 * (delta / (n1+n2)), n
     else:
         return (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / n, mu1 + n2 * (delta / (n1 + n2)), n
+
 
 def var(x, dimen=None, all_procs=False, bessel=True):
     """
@@ -1011,12 +1020,20 @@ def var(x, dimen=None, all_procs=False, bessel=True):
                     mu_tot[0] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
                     var_tot[0] = __local_operation(torch.reshape, var_reshape, out=None, **{'shape': target_dimens})
                 return var_tot[0]
-
-    if dimen:  # todo: make a raise if the given axes are greater than any of the given dimensions
-        if not isinstance(dimen, (int)):
-            raise TypeError("Dimension (dimen) must be an int, (torch level, if changed in torch change this raise) currently is {}".format(type(dimen)))
-
-    if dimen is None:
+    # ----------------------------------------------------------------------------------------------------
+    if dimen:
+        if isinstance(dimen, (list, tuple, tensor.tensor, torch.Tensor)):
+            if any(d > len(x.shape) for d in dimen):
+                raise ValueError("Dimension (dimen) must be < {}, currently are {}".format(len(x.shape), dimen))
+            if any(d < 0 for d in dimen):
+                dimen = [j % len(x.shape) for j in dimen]
+        elif isinstance(dimen, int):
+            if dimen >= len(x.shape):
+                raise ValueError("Dimension (dimen) must be < {}, currently is {}".format(len(x.shape), dimen))
+            dimen = dimen if dimen > 0 else dimen % len(x.shape)
+        else:
+            raise TypeError("Dimension (dimen) must be an int or a list ht.tensor, torch.Tensor, or a tuple, currently is {}".format(type(dimen)))
+    else:
         # case for full matrix calculation
         if not x.comm.is_distributed():
             # print('dimension==None, not distributed', dimen, x.split)
@@ -1103,7 +1120,7 @@ def var(x, dimen=None, all_procs=False, bessel=True):
 
 
 def std(x, dimen=None, all_procs=False, bessel=True):
-    """"
+    """
     Calculates and returns the standard deviation of a tensor with the bessel correction
     If a dimension is given, the variance will be taken in that direction.
 
