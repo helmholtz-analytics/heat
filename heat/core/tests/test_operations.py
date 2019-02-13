@@ -1328,13 +1328,11 @@ class TestOperations(unittest.TestCase):
         array_0_len = 10
         array_1_len = 9
         array_2_len = 8
-        array_3_len = 7
-        array_4_len = 6
-        array_5_len = 5
+
 
         # zeros
         dimensions = []
-        for d in [array_0_len, array_1_len, array_2_len, array_3_len, array_4_len]:
+        for d in [array_0_len, array_1_len, array_2_len]:
             dimensions.extend([d, ])
             try:
                 hold = list(range(len(dimensions)))
@@ -1383,7 +1381,7 @@ class TestOperations(unittest.TestCase):
         # ones
         dimensions = []
 
-        for d in [array_0_len, array_1_len, array_2_len, array_3_len, array_4_len]:
+        for d in [array_0_len, array_1_len, array_2_len]:
             dimensions.extend([d, ])
             # print("dimensions: ", dimensions)
             try:
@@ -1439,12 +1437,10 @@ class TestOperations(unittest.TestCase):
         array_0_len = 10
         array_1_len = 9
         array_2_len = 8
-        array_3_len = 7
-        array_4_len = 6
 
         # zeros
         dimensions = []
-        for d in [array_0_len, array_1_len, array_2_len, array_3_len, array_4_len]:
+        for d in [array_0_len, array_1_len, array_2_len]:
             dimensions.extend([d, ])
             # print("dimensions: ", dimensions)
             try:
