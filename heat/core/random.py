@@ -71,13 +71,14 @@ def randn(*args, split=None, comm=MPI_WORLD):
 
     gshape = tuple(args) if args else (1,)
     split = stride_tricks.sanitize_axis(gshape, split)
-    _, lshape, _ = comm.chunk(gshape, split)
-
     try:
-        data = torch.randn(lshape)
+        torch.randn(gshape)
     except RuntimeError as exception:
         # re-raise the exception to be consistent with numpy's exception interface
         raise ValueError(str(exception))
 
-    # compose the local tensor/s
-    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
+    # compose the local tensor
+    data = torch.randn(args)
+
+
+    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, MPI_WORLD)
