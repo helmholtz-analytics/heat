@@ -73,7 +73,7 @@ def sanitize_axis(shape, axis):
         axis += len(shape)
 
     if axis < 0 or axis >= len(shape):
-        raise ValueError('axis axis {} is out of bounds for shape {}'.format(axis, shape))
+        raise ValueError('axis {} is out of bounds for shape {}'.format(axis, shape))
 
     return axis
 

@@ -1,6 +1,7 @@
 import operator
 import numpy as np
 import torch
+from functools import reduce
 
 from .communication import Communication, MPI, MPI_WORLD
 from .stride_tricks import *
@@ -30,6 +31,22 @@ class tensor:
         return self.__gshape
 
     @property
+    def size(self):
+        try:
+            return reduce(lambda i, j: i * j, self.array_shape)
+        except TypeError:
+            # todo: throw a soft warning about taking the number of elements of a single element tensor
+            return 1
+
+    @property
+    def gnumel(self):
+        return self.size
+
+    @property
+    def lnumel(self):
+        return reduce(lambda i, j: i * j, self.lshape)
+
+    @property
     def lshape(self):
         if len(self.__array.shape) == len(self.__gshape):
             return tuple(self.__array.shape)
@@ -39,6 +56,10 @@ class tensor:
     @property
     def shape(self):
         return self.__gshape
+
+    @property
+    def array_shape(self):
+        return tuple(self.__array.shape)
 
     @property
     def split(self):
@@ -271,12 +292,84 @@ class tensor:
 
         return operations.max(self, axis, out)
 
-    def mean(self, axis):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        return self.sum(axis) / self.shape[axis]
+    def mean(self, dimen=None, all_procs=False):
+        """
+        Calculates and returns the mean of a tensor.
+        If a dimension is given, the mean will be taken in that direction.
+
+        Parameters
+        ----------
+        self : ht.tensor
+            Values for which the mean is calculated for
+        dimen : None, Int, iterable
+                Dimension which the mean is taken in.
+                Default: None -> mean of all data calculated
+        all_procs : Bool
+                    Flag to distribute the data to all processes
+                    If True: will split the result in the same direction as x
+                    Default: False (mean of the whole dataset still calculated but not on every node)
+
+        Returns
+        -------
+        ht.tensor containing the mean/s, if split, then split in the same direction as x.
+        """
+        return operations.mean(self, dimen, all_procs)
+
+    def var(self, dimen=None, all_procs=False, bessel=True):
+        """
+        Calculates and returns the variance of a tensor.
+        If a dimension is given, the variance will be taken in that direction.
+
+        Parameters
+        ----------
+        self : ht.tensor
+            Values for which the mean is calculated for
+        dimen : None, Int
+                Dimension which the mean is taken in.
+                Default: None -> var of all data calculated
+                NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+        all_procs : Bool
+                    Flag to distribute the data to all processes
+                    If True: will split the result in the same direction as x
+                    Default: False (var of the whole dataset still calculated but not available on every node)
+        bessel : Bool
+                 Default: True
+                 use the bessel correction when calculating the varaince/std
+                 toggle between unbiased and biased calculation of the var
+
+        Returns
+        -------
+        ht.tensor containing the var/s, if split, then split in the same direction as x.
+        """
+        return operations.var(self, dimen, all_procs, bessel=bessel)
+
+    def std(self, dimen=None, all_procs=False, bessel=True):
+        """
+        Calculates and returns the standard deviation of a tensor with the bessel correction
+        If a dimension is given, the variance will be taken in that direction.
+
+        Parameters
+        ----------
+        self : ht.tensor
+            Values for which the mean is calculated for
+        dimen : None, Int
+                Dimension which the mean is taken in.
+                Default: None -> var of all data calculated
+                NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+        all_procs : Bool
+                    Flag to distribute the data to all processes
+                    If True: will split the result in the same direction as x
+                    Default: False (var of the whole dataset still calculated but not available on every node)
+        bessel : Bool
+                 Default: True
+                 use the bessel correction when calculating the varaince/std
+                 toggle between unbiased and biased calculation of the std
+
+        Returns
+        -------
+        ht.tensor containing the std/s, if split, then split in the same direction as x.
+        """
+        return operations.std(self, dimen, all_procs, bessel=bessel)
 
     def min(self, axis=None, out=None):
         """"
@@ -298,6 +391,41 @@ class tensor:
         """
 
         return operations.min(self, axis, out)
+
+    def sum(self, axis=None, out=None):
+        # TODO: Allow also list of axes
+        """
+        Sum of array elements over a given axis.
+
+        Parameters
+        ----------   
+        axis : None or int, optional
+            Axis along which a sum is performed. The default, axis=None, will sum
+            all of the elements of the input array. If axis is negative it counts 
+            from the last to the first axis.
+
+         Returns
+         -------
+         sum_along_axis : ht.tensor
+             An array with the same shape as self.__array except for the specified axis which 
+             becomes one, e.g. a.shape = (1,2,3) => ht.ones((1,2,3)).sum(axis=1).shape = (1,1,3)
+
+        Examples
+        --------
+        >>> ht.ones(2).sum()
+        tensor([2.])
+
+        >>> ht.ones((3,3)).sum()
+        tensor([9.])
+
+        >>> ht.ones((3,3)).astype(ht.int).sum()
+        tensor([9])
+
+        >>> ht.ones((3,2,1)).sum(axis=-3)
+        tensor([[[3.],
+                 [3.]]])
+        """
+        return operations.sum(self, axis, out)
 
     def expand_dims(self, axis):
         # TODO: document me
@@ -648,6 +776,12 @@ class tensor:
         """
         return operations.triu(self, k)
 
+    def item(self):
+        """
+        Returns the only element of a 1-element tensor. Mirror of the pytorch command by the same name
+        """
+        return self.__array.item()
+
     def __binop(self, op, other):
         # TODO: document me
         # TODO: test me
@@ -720,7 +854,7 @@ class tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        return tensor(self.__array[key], self.shape, self.split, self.__comm)
+        return tensor(self.__array[key], self.shape, self.dtype, self.split, self.__comm)
 
     def __setitem__(self, key, value):
         # TODO: document me
