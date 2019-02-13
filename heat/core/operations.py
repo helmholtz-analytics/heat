@@ -716,17 +716,25 @@ def mean(x, dimen=None, all_procs=False):
                 return mu_tot[0]
     # ------------------------------------------------------------------------------------------------------------------
     if dimen:
-        if isinstance(dimen, (list, tuple, tensor.tensor, torch.Tensor)):
-            if any(d > len(x.shape) for d in dimen):
-                raise ValueError("Dimension (dimen) must be < {}, currently are {}".format(len(x.shape), dimen))
-            if any(d < 0 for d in dimen):
-                dimen = [j % len(x.shape) for j in dimen]
-        elif isinstance(dimen, int):
+        if isinstance(dimen, int):
             if dimen >= len(x.shape):
                 raise ValueError("Dimension (dimen) must be < {}, currently is {}".format(len(x.shape), dimen))
             dimen = dimen if dimen > 0 else dimen % len(x.shape)
         else:
-            raise TypeError("Dimension (dimen) must be an int or a list ht.tensor, torch.Tensor, or a tuple, currently is {}".format(type(dimen)))
+            raise TypeError("Dimension (dimen) must be an int, currently is {}".format(type(dimen)))
+        # todo: travis is failing when a tuple is given for the dimension in the mean although it works in the newest pytorch.
+        #  when the next pytorch  is impelemented then this next part can be exchanged for what is above
+        # if isinstance(dimen, (list, tuple, tensor.tensor, torch.Tensor)):
+        #     if any(d > len(x.shape) for d in dimen):
+        #         raise ValueError("Dimension (dimen) must be < {}, currently are {}".format(len(x.shape), dimen))
+        #     if any(d < 0 for d in dimen):
+        #         dimen = [j % len(x.shape) for j in dimen]
+        # elif isinstance(dimen, int):
+        #     if dimen >= len(x.shape):
+        #         raise ValueError("Dimension (dimen) must be < {}, currently is {}".format(len(x.shape), dimen))
+        #     dimen = dimen if dimen > 0 else dimen % len(x.shape)
+        # else:
+        #     raise TypeError("Dimension (dimen) must be an int or a list ht.tensor, torch.Tensor, or a tuple, currently is {}".format(type(dimen)))
     else:
         # case for full matrix calculation
         if not x.comm.is_distributed():
@@ -1022,17 +1030,17 @@ def var(x, dimen=None, all_procs=False, bessel=True):
                 return var_tot[0]
     # ----------------------------------------------------------------------------------------------------
     if dimen:
-        if isinstance(dimen, (list, tuple, tensor.tensor, torch.Tensor)):
-            if any(d > len(x.shape) for d in dimen):
-                raise ValueError("Dimension (dimen) must be < {}, currently are {}".format(len(x.shape), dimen))
-            if any(d < 0 for d in dimen):
-                dimen = [j % len(x.shape) for j in dimen]
-        elif isinstance(dimen, int):
+        # if isinstance(dimen, (list, tuple, tensor.tensor, torch.Tensor)):
+        #     if any(d > len(x.shape) for d in dimen):
+        #         raise ValueError("Dimension (dimen) must be < {}, currently are {}".format(len(x.shape), dimen))
+        #     if any(d < 0 for d in dimen):
+        #         dimen = [j % len(x.shape) for j in dimen]
+        if isinstance(dimen, int):
             if dimen >= len(x.shape):
                 raise ValueError("Dimension (dimen) must be < {}, currently is {}".format(len(x.shape), dimen))
             dimen = dimen if dimen > 0 else dimen % len(x.shape)
         else:
-            raise TypeError("Dimension (dimen) must be an int or a list ht.tensor, torch.Tensor, or a tuple, currently is {}".format(type(dimen)))
+            raise TypeError("Dimension (dimen) must be an int, currently is {}".format(type(dimen)))
     else:
         # case for full matrix calculation
         if not x.comm.is_distributed():
