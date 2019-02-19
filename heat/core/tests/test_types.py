@@ -83,6 +83,10 @@ class TestTypes(unittest.TestCase):
     def test_floating(self):
         self.assert_non_instantiable_heat_type(ht.floating)
 
+    def test_float16(self):
+        self.assert_is_instantiable_heat_type(ht.float16, torch.float16)
+        self.assert_is_instantiable_heat_type(ht.half, torch.float16)
+
     def test_float32(self):
         self.assert_is_instantiable_heat_type(ht.float32, torch.float32)
         self.assert_is_instantiable_heat_type(ht.float, torch.float32)
@@ -105,6 +109,7 @@ class TestTypeConversion(unittest.TestCase):
         self.assertFalse(ht.can_cast(ht.uint8, ht.int16, casting='no'))
         self.assertFalse(ht.can_cast(ht.uint8, ht.int8, casting='no'))
         self.assertFalse(ht.can_cast(ht.float64, ht.bool, casting='no'))
+        self.assertFalse(ht.can_cast(ht.float64, ht.float16, casting='no'))
         self.assertTrue(ht.can_cast(1.0, ht.float32, casting='no'))
         self.assertFalse(ht.can_cast(zeros_array, ht.float32, casting='no'))
 
@@ -113,6 +118,8 @@ class TestTypeConversion(unittest.TestCase):
         self.assertTrue(ht.can_cast(ht.uint8, ht.int16, casting='safe'))
         self.assertFalse(ht.can_cast(ht.uint8, ht.int8, casting='safe'))
         self.assertFalse(ht.can_cast(ht.float64, ht.bool, casting='safe'))
+        self.assertTrue(ht.can_cast(ht.int8, ht.float16, casting='safe'))
+        self.assertFalse(ht.can_cast(ht.float32, ht.float16, casting='safe'))
         self.assertTrue(ht.can_cast(1.0, ht.float32, casting='safe'))
         self.assertTrue(ht.can_cast(zeros_array, ht.float32, casting='safe'))
 
@@ -121,6 +128,7 @@ class TestTypeConversion(unittest.TestCase):
         self.assertTrue(ht.can_cast(ht.uint8, ht.int16, casting='same_kind'))
         self.assertTrue(ht.can_cast(ht.uint8, ht.int8, casting='same_kind'))
         self.assertFalse(ht.can_cast(ht.float64, ht.bool, casting='same_kind'))
+        self.assertFalse(ht.can_cast(ht.float16, ht.int16, casting='same_kind'))
         self.assertTrue(ht.can_cast(1.0, ht.float32, casting='same_kind'))
         self.assertTrue(ht.can_cast(zeros_array, ht.float32, casting='same_kind'))
 
@@ -181,6 +189,7 @@ class TestTypeConversion(unittest.TestCase):
         self.assertEqual(ht.promote_types(ht.uint8, ht.uint8), ht.uint8)
         self.assertEqual(ht.promote_types(ht.int8, ht.uint8), ht.int16)
         self.assertEqual(ht.promote_types(ht.int32, ht.float32), ht.float64)
+        self.assertEqual(ht.promote_types(ht.float16, ht.float32), ht.float32)
         self.assertEqual(ht.promote_types('f4', ht.float), ht.float32)
         self.assertEqual(ht.promote_types(ht.bool_, '?'), ht.bool)
 

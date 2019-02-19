@@ -354,9 +354,9 @@ __type_codes = collections.OrderedDict([
     (int16,   3),
     (int32,   4),
     (int64,   5),
-    (float32, 6),
-    (float64, 7),
-    (float16, 8),
+    (float16, 6),
+    (float32, 7),
+    (float64, 8),
 ])
 
 # safe cast table
@@ -365,7 +365,7 @@ __safe_cast = [
     [True,  True,  True,  True,  True,  True,  True,    True,   True],  # bool
     [False, True,  False, True,  True,  True,  True,    True,   True],  # uint8
     [False, False, True,  True,  True,  True,  True,    True,   True],  # int8
-    [False, False, False, True,  True,  True,  True,    True,   True],  # int16
+    [False, False, False, True,  True,  True,  False,   True,   True],  # int16
     [False, False, False, False, True,  True,  False,   False,  True],  # int32
     [False, False, False, False, False, True,  False,   False,  True],  # int64
     [False, False, False, False, False, False, True,    True,   True],  # float16
