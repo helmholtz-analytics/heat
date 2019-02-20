@@ -1333,7 +1333,7 @@ class TestOperations(unittest.TestCase):
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     res = ht.mean(z, dimen=it)
                     self.assertEqual(res, 0)
-                    print(i, it, isinstance(res, float))
+                    print(i, it, isinstance(res, float), res.split, z.split)
                     if not isinstance(res, float):
                         self.assertEqual(res.split, z.split)
                     target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
