@@ -570,6 +570,10 @@ def merge_means(mu1, n1, mu2, n2):
     mean of combined set
     number of elements in the combined set
     """
+    if mu1.item() == np.nan:
+        mu1 = 0.0
+    if mu2.item() == np.nan:
+        mu2 = 0.0
     delta = mu2.item() - mu1.item()
     n1 = n1.item()
     n2 = n2.item()
@@ -684,16 +688,16 @@ def mean(x, dimen=None, all_procs=False):
                 elif rem1 == 0:
                     rem1 = sz - 1
             splt = int(sz / 2)
-            for i in range(splt):  # todo: multithread perfect opp for GPU parrallelizm
-                mu_reshape = __local_operation(torch.reshape, mu_tot[i], out=None, **{'shape': (1, mu_tot[i].size)})[0]
+            for sp_it in range(splt):  # todo: multithread perfect opp for GPU parrallelizm
+                mu_reshape = __local_operation(torch.reshape, mu_tot[sp_it], out=None, **{'shape': (1, mu_tot[sp_it].size)})[0]
                 for en, (el1, el2) in enumerate(zip(mu_reshape,
-                                                    __local_operation(torch.reshape, mu_tot[i+splt], out=None, **{'shape': (1, mu_tot[i+splt].size)})[0])):
+                                                    __local_operation(torch.reshape, mu_tot[sp_it+splt], out=None, **{'shape': (1, mu_tot[sp_it+splt].size)})[0])):
                     try:
-                        mu_reshape[en], n = merge_means(el1, n_for_merge[i], el2, n_for_merge[i+splt])
+                        mu_reshape[en], n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it+splt])
                     except IndexError:
-                        mu_reshape, n = merge_means(el1, n_for_merge[i], el2, n_for_merge[i + splt])
-                n_for_merge[i] = n  # todo: need to update the n_for_merge here not previously!!
-                mu_tot[i] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
+                        mu_reshape, n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it + splt])
+                n_for_merge[sp_it] = n  # todo: need to update the n_for_merge here not previously!!
+                mu_tot[sp_it] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
             if rem1 and rem2:
                 mu_reshape = __local_operation(torch.reshape, mu_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].size)})[0]
                 for en, (el1, el2) in enumerate(zip(mu_reshape,
@@ -705,7 +709,7 @@ def mean(x, dimen=None, all_procs=False):
                 rem1 = rem2
                 rem2 = 0
             sz = splt
-            if sz == 1:
+            if sz == 1 or sz == 0:
                 if rem1:
                     mu_reshape = __local_operation(torch.reshape, mu_tot[0], out=None, **{'shape': (1, mu_tot[0].size)})[0]
                     for en, (el1, el2) in enumerate(zip(mu_reshape,
@@ -740,7 +744,7 @@ def mean(x, dimen=None, all_procs=False):
         if not x.comm.is_distributed():
             # if x is not distributed do a torch.mean on x
             # print('dimension==None, not distributed', dimen, x.split)
-            return __local_operation(torch.mean, x, out=None).item()
+            return __local_operation(torch.mean, x, out=None)
         else:
             # if x is distributed and no dimension is given then mean of the whole set
             # print("dimen is None, distributed case", dimen, x.split)
@@ -774,12 +778,12 @@ def mean(x, dimen=None, all_procs=False):
                     rem1 = rem2
                     rem2 = 0
                 sz = splt
-                if sz == 1:
+                if sz == 1 or sz == 0:
                     if rem1:
                         merged = merge_means(mu_tot[0, 0], mu_tot[0, 1], mu_tot[rem1, 0], mu_tot[rem1, 1])
                         for enum, m in enumerate(merged):
                             mu_tot[0, enum] = m
-                    return mu_tot[0][0].item()
+                    return mu_tot[0][0]
 
     if len(x.shape) > 6:
         raise ValueError("mean only implemented for split arrays up to 6 dimensions (failing in combine_all_means)")
@@ -1015,7 +1019,7 @@ def var(x, dimen=None, all_procs=False, bessel=True):
                 rem1 = rem2
                 rem2 = 0
             sz = splt
-            if sz == 1:
+            if sz == 1 or sz == 0:
                 if rem1:
                     mu_reshape = __local_operation(torch.reshape, mu_tot[0], out=None, **{'shape': (1, mu_tot[0].size)})[0]
                     var_reshape = __local_operation(torch.reshape, var_tot[0], out=None, **{'shape': (1, mu_tot[0].size)})[0]
@@ -1083,7 +1087,7 @@ def var(x, dimen=None, all_procs=False, bessel=True):
                     rem1 = rem2
                     rem2 = 0
                 sz = splt
-                if sz == 1:
+                if sz == 1 or sz == 0:
                     if rem1:
                         merged = merge_vars(var_tot[0, 0], var_tot[0, 1], var_tot[0, 2],
                                             var_tot[rem1, 0], var_tot[rem1, 1], var_tot[rem1, 2], bessel)
