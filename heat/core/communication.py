@@ -6,7 +6,7 @@ import torch
 
 from .stride_tricks import sanitize_axis
 
-# check whether OpenMPI support CUDA-aware MPI
+check whether OpenMPI support CUDA-aware MPI
 try:
     buffer = subprocess.check_output(['mpirun', '--help'])
 
@@ -18,7 +18,6 @@ try:
         CUDA_AWARE_MPI = False
 except FileNotFoundError:
     CUDA_AWARE_MPI = False
-
 
 class Communication(metaclass=abc.ABCMeta):
     @staticmethod
@@ -61,6 +60,9 @@ class MPICommunication(Communication):
 
     def is_distributed(self):
         return self.size > 1
+
+    def get_rank(self):
+        return self.handle.Get_rank()
 
     def chunk(self, shape, split):
         """

@@ -720,7 +720,7 @@ class tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        return tensor(self.__array[key], self.shape, self.split, self.__comm)
+        return tensor(self.__array[key], self.shape, self.dtype, self.split, self.__comm)
 
     def __setitem__(self, key, value):
         # TODO: document me

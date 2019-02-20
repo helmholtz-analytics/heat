@@ -171,9 +171,6 @@ class TestOperations(unittest.TestCase):
         random_data = ht.random.randn(3,3,3)
         torch.manual_seed(1)
         random_data_split = ht.random.randn(3,3,3,split=0)
-        # todo: these tests now fail if random_data is split.
-        # self.assertTrue((ht.argmin(random_data,axis=0)._tensor__array == random_data_split.argmin(axis=0)._tensor__array).all())
-        # self.assertTrue((ht.argmin(random_data,axis=1)._tensor__array == random_data_split.argmin(axis=1)._tensor__array).all())
         self.assertIsInstance(ht.argmin(random_data_split,axis=1),ht.tensor)
         self.assertIsInstance(random_data_split.argmin(),ht.tensor)
 
@@ -388,9 +385,6 @@ class TestOperations(unittest.TestCase):
         random_data = ht.random.randn(3,3,3)
         torch.manual_seed(1)
         random_data_split = ht.random.randn(3,3,3,split=0)
-        # todo: these tests now fail if random_data is split.
-        # self.assertTrue((ht.max(random_data,axis=0)._tensor__array[0] == random_data_split.max(axis=0)._tensor__array[0]).all())
-        # self.assertTrue((ht.max(random_data,axis=1)._tensor__array[0] == random_data_split.max(axis=1)._tensor__array[0]).all())
         self.assertIsInstance(ht.max(random_data_split,axis=1),ht.tensor)
         self.assertIsInstance(random_data_split.max(),ht.tensor)
         output = ht.ones((1,))
@@ -475,9 +469,6 @@ class TestOperations(unittest.TestCase):
         random_data = ht.random.randn(3,3,3)
         torch.manual_seed(1)
         random_data_split = ht.random.randn(3,3,3,split=0)
-        # todo: these tests now fail if random_data is split.
-        # self.assertTrue((ht.min(random_data,axis=0)._tensor__array[0] == random_data_split.min(axis=0)._tensor__array[0]).all())
-        # self.assertTrue((ht.min(random_data,axis=1)._tensor__array[0] == random_data_split.min(axis=1)._tensor__array[0]).all())
         self.assertIsInstance(ht.min(random_data_split,axis=1),ht.tensor)
         self.assertIsInstance(random_data_split.min(),ht.tensor)
 

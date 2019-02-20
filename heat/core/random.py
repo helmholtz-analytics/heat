@@ -22,7 +22,7 @@ def uniform(low=0.0, high=1.0, size=None, comm=MPI_WORLD):
     return tensor(torch.Tensor(*size).uniform_(low, high), size, types.float32, None, comm)
 
 
-def randn(*args, split=None, comm=MPI_WORLD):
+def randn(*args, seed=None, split=None, comm=MPI_WORLD):
     """
     Returns a tensor filled with random numbers from a standard normal distribution with zero mean and variance of one.
 
@@ -32,6 +32,9 @@ def randn(*args, split=None, comm=MPI_WORLD):
     ----------
     d0, d1, …, dn : ints, optional
         The dimensions of the returned array, should be all positive.
+
+    split : int, optional
+            axis on which to split the array across processes
 
     Returns
     -------
@@ -72,7 +75,9 @@ def randn(*args, split=None, comm=MPI_WORLD):
     gshape = tuple(args) if args else (1,)
     split = stride_tricks.sanitize_axis(gshape, split)
     _, lshape, _ = comm.chunk(gshape, split)
-
+    if seed:
+        if comm.get_rank() == 0:
+            torch.manual_seed(seed)
     try:
         data = torch.randn(lshape)
     except RuntimeError as exception:
