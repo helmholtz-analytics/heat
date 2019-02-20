@@ -51,7 +51,8 @@ class tensor:
         if len(self.__array.shape) == len(self.__gshape):
             return tuple(self.__array.shape)
         # edge case when the local data tensor receives no elements after chunking
-        return self.__gshape[:self.__split] + (0,) + self.__gshape[self.split + 1:]
+        return self.__array.shape
+        # return self.__gshape[:self.__split] + (0,) + self.__gshape[self.split + 1:]
 
     @property
     def shape(self):
