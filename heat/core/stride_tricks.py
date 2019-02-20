@@ -22,8 +22,22 @@ def broadcast_shape(shape_a, shape_b):
     -------
     ValueError
         If the two shapes cannot be broadcast.
+
+    Examples
+    -------
+    >>> broadcast_shape((5,4),(4,))
+    (5,4)
+
+    >>> broadcast_shape((1,100,1),(10,1,5))
+    (10,100,5)
+
+    >>> broadcast_shape((8,1,6,1),(7,1,5,))
+    (8,7,6,5))
+
+    >>> broadcast_shape((2,1),(8,4,3))
+    ValueError
     """
-    #TODO: test me
+
     it = itertools.zip_longest(shape_a[::-1], shape_b[::-1], fillvalue=1)
     resulting_shape = max(len(shape_a), len(shape_b)) * [None]
     for i, (a, b) in enumerate(it):
@@ -58,9 +72,23 @@ def sanitize_axis(shape, axis):
         if the axis cannot be sanitized, i.e. out of bounds.
     TypeError
         if the the axis is not integral.
+
+    Examples
+    -------
+    >>> sanitize_axis((5,4,4),1)
+    1
+
+    >>> sanitize_axis((5,4,4),-1)
+    2
+
+    >>> sanitize_axis((5, 4), (1,))
+    NotImplementedError
+
+    >>> sanitize_axis((5, 4), 1.0)
+    TypeError
+
     """
-    #TODO: test me
-    
+
     if axis is not None:
         if isinstance(axis, tuple):
             raise NotImplementedError('Not implemented for axis: tuple of ints')
