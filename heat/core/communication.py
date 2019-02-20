@@ -6,7 +6,7 @@ import torch
 
 from .stride_tricks import sanitize_axis
 
-check whether OpenMPI support CUDA-aware MPI
+# check whether OpenMPI support CUDA-aware MPI
 try:
     buffer = subprocess.check_output(['mpirun', '--help'])
 
