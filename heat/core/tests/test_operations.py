@@ -1333,9 +1333,9 @@ class TestOperations(unittest.TestCase):
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     res = ht.mean(z, dimen=it)
                     self.assertEqual(res, 0)
-                    # print(i, it, isinstance(res, float), res.split, z.split)
-                    if res.split and not isinstance(res, float):
-                        self.assertEqual(res.split, z.split)
+                    if not isinstance(res, float):
+                        if res.split:
+                            self.assertEqual(res.split, z.split)
                     target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                     if all(target_dims) != 0:
                         self.assertEqual(res.lshape, tuple(target_dims))
@@ -1386,7 +1386,7 @@ class TestOperations(unittest.TestCase):
                     # print('it=', it)
                     res = z.mean(dimen=it)
                     self.assertEqual(res, 1)
-                    if res.split and not isinstance(res, float):
+                    if not isinstance(res, float) and res.split:
                         self.assertEqual(res.split, z.split)
                     target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                     if all(target_dims) != 0:
@@ -1442,7 +1442,7 @@ class TestOperations(unittest.TestCase):
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     res = z.var(dimen=it)
                     self.assertEqual(res, 0)
-                    if res.split and not isinstance(res, float):
+                    if not isinstance(res, float):
                         self.assertEqual(res.split, z.split)
                     target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                     if all(target_dims) != 0:
@@ -1474,7 +1474,7 @@ class TestOperations(unittest.TestCase):
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     res = z.var(dimen=it)
                     self.assertEqual(res, 0)
-                    if res.split and not isinstance(res, float):
+                    if not isinstance(res, float):
                         self.assertEqual(res.split, z.split)
                     target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                     if all(target_dims) != 0:
