@@ -153,7 +153,10 @@ def all(x, axis=None, out=None):
 
     if out is not None:
         # perform sanitation
-        out = __sanitize_out(out, output_shape)
+        if not isinstance(out, tensor.tensor):
+            raise TypeError(
+                'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+        out = stride_tricks.sanitize_out(out, output_shape)
         # write to "out"
         out._tensor__array = tensor.tensor((sum_of_ones == numel), output_shape,
                                            types.canonical_heat_type(sum_of_ones.dtype), split=out.split, comm=x.comm)
@@ -221,7 +224,10 @@ def argmin(x, axis=None, out=None):
                              out=None)._tensor__array[1]
 
     if out is not None:
-        out = __sanitize_out(out, result.shape)
+        if not isinstance(out, tensor.tensor):
+            raise TypeError(
+                'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+        out = stride_tricks.sanitize_out(out, result.shape)
         out._tensor__array = tensor.tensor(
             result, out.shape, types.canonical_heat_type(result.dtype), split=out.split, comm=x.comm)
         return out
@@ -736,6 +742,9 @@ def __reduce_op(x, partial_op, op, axis, out):
     if not isinstance(x, tensor.tensor):
         raise TypeError(
             'expected x to be a ht.tensor, but was {}'.format(type(x)))
+    if out is not None and not isinstance(out, tensor.tensor):
+        raise TypeError(
+            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
 
     # no further checking needed, sanitize_axis and sanitize_out will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape, axis)
@@ -749,7 +758,7 @@ def __reduce_op(x, partial_op, op, axis, out):
 
     # sanitize output buffer, if any
     if out is not None:
-        out = __sanitize_out(out, output_shape)
+        out = stride_tricks.sanitize_out(out, output_shape)
 
     if x.comm.is_distributed() and (axis is None or axis == x.split):
         x.comm.Allreduce(MPI.IN_PLACE, partial[0], op)
@@ -764,16 +773,3 @@ def __reduce_op(x, partial_op, op, axis, out):
                 partial[0].dtype), split=out.split, comm=x.comm)
             return out
         return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), split=None, comm=x.comm)
-
-
-def __sanitize_out(out, out_shape):
-    """
-    Checks conformity of a predefined output buffer with expected output
-    """
-    if not isinstance(out, tensor.tensor):
-        raise TypeError(
-            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
-    if out.shape != out_shape:
-        raise ValueError('Expecting output buffer of shape {}, got {}'.format(
-            out_shape, out.shape))
-    return out

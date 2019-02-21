@@ -23,14 +23,15 @@ def broadcast_shape(shape_a, shape_b):
     ValueError
         If the two shapes cannot be broadcast.
     """
-    #TODO: test me
+    # TODO: test me
     it = itertools.zip_longest(shape_a[::-1], shape_b[::-1], fillvalue=1)
     resulting_shape = max(len(shape_a), len(shape_b)) * [None]
     for i, (a, b) in enumerate(it):
         if a == 1 or b == 1 or a == b:
             resulting_shape[i] = max(a, b)
         else:
-            raise ValueError('operands could not be broadcast, input shapes {} {}'.format(shape_a, shape_b))
+            raise ValueError(
+                'operands could not be broadcast, input shapes {} {}'.format(shape_a, shape_b))
 
     return tuple(resulting_shape[::-1])
 
@@ -57,13 +58,15 @@ def sanitize_axis(shape, axis):
     ValueError
         If the axis cannot be sanitized, i.e. out of bounds.
     """
-    #TODO: test me
-    
+    # TODO: test me
+
     if axis is not None:
         if isinstance(axis, tuple):
-            raise NotImplementedError('Not implemented for axis: tuple of ints')
+            raise NotImplementedError(
+                'Not implemented for axis: tuple of ints')
         if not isinstance(axis, int):
-            raise TypeError('split axis must be None or int, but was {}'.format(type(axis)))
+            raise TypeError(
+                'split axis must be None or int, but was {}'.format(type(axis)))
 
     if axis is None or 0 <= axis < len(shape):
         return axis
@@ -71,9 +74,39 @@ def sanitize_axis(shape, axis):
         axis += len(shape)
 
     if axis < 0 or axis >= len(shape):
-        raise ValueError('axis axis {} is out of bounds for shape {}'.format(axis, shape))
+        raise ValueError(
+            'axis axis {} is out of bounds for shape {}'.format(axis, shape))
 
     return axis
+
+
+def sanitize_out(out, out_shape):
+    """
+    Checks conformity of a predefined output buffer with actual output.
+
+    Parameters
+    ----------
+    out : ht.tensor
+        predefined output buffer to be sanitized
+    out_shape : tuple of ints
+        calculated shape of output
+
+
+    Returns
+    -------
+    out : ht.tensor
+        sanitized output buffer 
+
+    Raises
+    -------
+    ValueError
+        If the shape of the predefined output buffer does not 
+        match the actual calculated shape.
+    """
+    if out.shape != out_shape:
+        raise ValueError('Expecting output buffer of shape {}, got {}'.format(
+            out_shape, out.shape))
+    return out
 
 
 def sanitize_shape(shape):
@@ -82,12 +115,12 @@ def sanitize_shape(shape):
 
     Parameters
     ----------
-    shape : int or sequence of ints
+    shape: int or sequence of ints
         Shape of an array.
 
     Returns
     -------
-    sane_shape : tuple of ints
+    sane_shape: tuple of ints
         The sanitized shape.
 
     Raises
@@ -99,20 +132,21 @@ def sanitize_shape(shape):
 
     Examples
     --------
-    >>> sanitize_shape(3)
+    >> > sanitize_shape(3)
     (3,)
 
-    >>> sanitize_shape([1, 2, 3])
+    >> > sanitize_shape([1, 2, 3])
     (1, 2, 3,)
 
-    >>> sanitize_shape(1.0)
+    >> > sanitize_shape(1.0)
     TypeError
     """
     shape = (shape,) if not hasattr(shape, '__iter__') else tuple(shape)
 
     for dimension in shape:
         if not isinstance(dimension, int):
-            raise TypeError('expected sequence object with length >= 0 or a single integer')
+            raise TypeError(
+                'expected sequence object with length >= 0 or a single integer')
         if dimension <= 0:
             raise ValueError('negative dimensions are not allowed')
 

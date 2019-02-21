@@ -221,6 +221,9 @@ class TestOperations(unittest.TestCase):
             ht.argmin(data, axis=-4)
         with self.assertRaises(ValueError):
             ht.argmin(data, axis=0, out=out_nosplit)
+        out_no_ht_tensor = torch.zeros((3, 1, 3))
+        with self.assertRaises(TypeError):
+            ht.argmin(random_nosplit, axis=1, out=out_no_ht_tensor)
             
 
 
@@ -465,6 +468,10 @@ class TestOperations(unittest.TestCase):
             ht.max(data,axis=-4)
         with self.assertRaises(ValueError):
             ht.max(data, axis=0, out=output)
+        out_no_ht_tensor = torch.zeros((3, 1, 3))
+        with self.assertRaises(TypeError):
+            ht.max(random_nosplit, axis=1, out=out_no_ht_tensor)
+
 
     def test_min(self):
 
@@ -552,6 +559,10 @@ class TestOperations(unittest.TestCase):
             ht.min(data, axis=-4)
         with self.assertRaises(ValueError):
             ht.min(data, axis=0, out=output)
+        out_no_ht_tensor = torch.zeros((3, 1, 3))
+        with self.assertRaises(TypeError):
+            ht.min(random_nosplit, axis=1, out=out_no_ht_tensor)
+            
 
 
     def test_sin(self):
