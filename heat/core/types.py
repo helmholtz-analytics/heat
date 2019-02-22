@@ -253,6 +253,11 @@ __type_mappings = {
     builtins.float: float32,
 }
 
+__inexact = (
+    #float16,
+    float32,
+    float64
+)
 
 def canonical_heat_type(a_type):
     """
@@ -501,10 +506,24 @@ def promote_types(type1, type2):
 
 class finfo:
 
+    def __new__(cls, dtype):
+        try:
+            dtype = heat_type_of(dtype)
+        except (KeyError, IndexError, TypeError,):
+            # If given type is not heat type
+            pass
+
+        if not dtype in __inexact:
+            raise TypeError('Data type {} not inexact, not supported'.format(dtype))
+
+        obj = object.__new__(cls)._init(dtype)
+        return obj
+
     def _init(self, dtype):
         _torch_finfo = torch.finfo(dtype)
         for word in ['bits', 'eps', 'max', 'tiny']:
             setattr(self, word, getattr(_torch_finfo, word))
+
         self.min=-self.max
 
 
