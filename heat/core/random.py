@@ -4,6 +4,7 @@ from .communication import MPI_WORLD
 from . import devices
 from . import tensor
 from . import types
+from . import stride_tricks
 
 
 def set_gseed(seed):
@@ -27,7 +28,7 @@ def uniform(low=0.0, high=1.0, size=None, device=None, comm=MPI_WORLD):
     return tensor(data, size, types.float32, None, device, comm)
 
 
-def randn(*args, device=None, comm=MPI_WORLD):
+def randn(*args, split=None, device=None, comm=MPI_WORLD):
     """
     Returns a tensor filled with random numbers from a standard normal distribution with zero mean and variance of one.
 
@@ -69,7 +70,9 @@ def randn(*args, device=None, comm=MPI_WORLD):
     if not all(_ > 0 for _ in args):
         raise ValueError('negative dimension are not allowed')
 
-    gshape = tuple(args) if args else (1,)
+    gshape = tuple(args) if args else(1,)
+    split = stride_tricks.sanitize_axis(gshape, split)
+
     try:
         torch.randn(gshape)
     except RuntimeError as exception:
@@ -80,4 +83,4 @@ def randn(*args, device=None, comm=MPI_WORLD):
     device = devices.sanitize_device(device)
     data = torch.randn(args, device=device.torch_device)
 
-    return tensor(data, gshape, types.canonical_heat_type(data.dtype), None, device, comm)
+    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)

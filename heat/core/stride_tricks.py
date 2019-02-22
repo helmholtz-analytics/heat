@@ -55,7 +55,9 @@ def sanitize_axis(shape, axis):
     Raises
     -------
     ValueError
-        If the axis cannot be sanitized, i.e. out of bounds.
+        if the axis cannot be sanitized, i.e. out of bounds.
+    TypeError
+        if the the axis is not integral.
     """
     #TODO: test me
     
@@ -63,7 +65,7 @@ def sanitize_axis(shape, axis):
         if isinstance(axis, tuple):
             raise NotImplementedError('Not implemented for axis: tuple of ints')
         if not isinstance(axis, int):
-            raise TypeError('split axis must be None or int, but was {}'.format(type(axis)))
+            raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
 
     if axis is None or 0 <= axis < len(shape):
         return axis

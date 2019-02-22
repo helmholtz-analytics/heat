@@ -50,6 +50,10 @@ class tensor:
     def split(self):
         return self.__split
 
+    @property
+    def T(self, axes=None):
+        return operations.transpose(self, axes)
+
     def abs(self, out=None, dtype=None):
         """
         Calculate the absolute value element-wise.
@@ -93,7 +97,98 @@ class tensor:
 
         return self.abs(out, dtype)
 
-    def argmin(self, axis):
+    def all(self, axis=None, out=None):
+        """
+        Test whether all array elements along a given axis evaluate to True.
+
+        Parameters:
+        -----------
+
+        axis : None or int, optional #TODO: tuple of ints
+            Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a 
+            logical AND over all the dimensions of the input array. axis may be negative, in which case it counts 
+            from the last to the first axis.
+
+        out : ht.tensor, optional
+            Alternate output array in which to place the result. It must have the same shape as the expected output 
+            and its type is preserved.
+
+        Returns:	
+        --------
+        all : ht.tensor, bool
+
+        A new boolean or ht.tensor is returned unless out is specified, in which case a reference to out is returned.
+
+       Examples:
+        ---------
+        >>> import heat as ht
+        >>> a = ht.random.randn(4,5)
+        >>> a
+        tensor([[ 0.5370, -0.4117, -3.1062,  0.4897, -0.3231],
+                [-0.5005, -1.7746,  0.8515, -0.9494, -0.2238],
+                [-0.0444,  0.3388,  0.6805, -1.3856,  0.5422],
+                [ 0.3184,  0.0185,  0.5256, -1.1653, -0.1665]])
+        >>> x = a<0.5
+        >>> x
+        tensor([[0, 1, 1, 1, 1],
+                [1, 1, 0, 1, 1],
+                [1, 1, 0, 1, 0],
+                [1,1, 0, 1, 1]], dtype=torch.uint8)
+        >>> x.all()
+        tensor([0], dtype=torch.uint8)
+        >>> x.all(axis=0)
+        tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
+        >>> x.all(axis=1)
+        tensor([[0],
+                [0],
+                [0],
+                [0]], dtype=torch.uint8)
+
+        Write out to predefined buffer:
+        >>> out = ht.zeros((1,5))
+        >>> x.all(axis=0, out=out)
+        >>> out
+        tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
+
+        """
+        return operations.all(self, axis, out)
+
+    def argmin(self, axis=None):
+        """
+        Returns the indices of the minimum values along an axis.
+
+        Parameters:	
+        ----------
+        x : ht.tensor
+        Input array.
+
+        axis : int, optional
+        By default, the index is into the flattened tensor, otherwise along the specified axis.
+
+        #TODO out : array, optional
+        If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
+
+        Returns:
+        -------	
+        index_tensor : ht.tensor of ints
+        Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
+
+        Examples
+        --------
+        >>> a = ht.randn(3,3)
+        >>> a
+        tensor([[-1.7297,  0.2541, -0.1044],
+                [ 1.0865, -0.4415,  1.3716],
+                [-0.0827,  1.0215, -2.0176]])
+        >>> a.argmin()
+        tensor([8])
+        >>> a.argmin(axis=0)
+        tensor([[0, 1, 2]])
+        >>> a.argmin(axis=1)
+        tensor([[0],
+                [1],
+                [2]])
+        """
         return operations.argmin(self, axis)
 
     def astype(self, dtype, copy=True):
@@ -184,7 +279,7 @@ class tensor:
             self.__array = self.__array.cuda(devices.gpu_index())
             return self
 
-    def max(self, axis=None):
+    def max(self, axis=None, out=None):
         """"
         Return the maximum of an array or maximum along an axis.
 
@@ -192,18 +287,18 @@ class tensor:
         ----------
         a : ht.tensor
         Input data.
-        
+
         axis : None or int  
         Axis or axes along which to operate. By default, flattened input is used.   
-        
+
         #TODO: out : ht.tensor, optional
         Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
 
         #TODO: initial : scalar, optional   
         The minimum value of an output element. Must be present to allow computation on empty slice.
         """
-        
-        return operations.max(self, axis)
+
+        return operations.max(self, axis, out)
 
     def mean(self, axis):
         # TODO: document me
@@ -212,7 +307,7 @@ class tensor:
         # TODO: make me more numpy API complete
         return self.sum(axis) / self.shape[axis]
 
-    def min(self, axis=None):
+    def min(self, axis=None, out=None):
         """"
         Return the minimum of an array or minimum along an axis.
 
@@ -220,17 +315,31 @@ class tensor:
         ----------
         a : ht.tensor
         Input data.
-        
+
         axis : None or int
         Axis or axes along which to operate. By default, flattened input is used.   
-        
+
         #TODO: out : ht.tensor, optional
         Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
 
         #TODO: initial : scalar, optional   
         The maximum value of an output element. Must be present to allow computation on empty slice.
         """
-        return operations.min(self, axis)
+        return operations.min(self, axis, out)
+
+    def expand_dims(self, axis):
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        # TODO: make me more numpy API complete
+        # TODO: fix negative axis
+        return tensor(
+            self.__array.unsqueeze(dim=axis),
+            self.shape[:axis] + (1,) + self.shape[axis:],
+            self.dtype,
+            self.split if self.split is None or self.split < axis else self.split + 1,
+            _copy(self.__comm)
+        )
 
     def exp(self, out=None):
         """
@@ -454,7 +563,7 @@ class tensor:
         """
         return operations.sqrt(self, out)
 
-    def sum(self, axis=None):
+    def sum(self, axis=None, out=None):
         # TODO: Allow also list of axes
         """
         Sum of array elements over a given axis.
@@ -487,7 +596,87 @@ class tensor:
         tensor([[[3.],
                  [3.]]])
         """
-        return operations.sum(self, axis)
+        return operations.sum(self, axis, out)
+
+    def transpose(self, axes=None):
+        """
+        Permute the dimensions of an array.
+
+        Parameters
+        ----------
+        axes : None or list of ints, optional
+            By default, reverse the dimensions, otherwise permute the axes according to the values given.
+
+        Returns
+        -------
+        p : ht.tensor
+            a with its axes permuted.
+
+        Examples
+        --------
+        >>> a = ht.array([[1, 2], [3, 4]])
+        >>> a
+        tensor([[1, 2],
+                [3, 4]])
+        >>> a.transpose()
+        tensor([[1, 3],
+                [2, 4]])
+        >>> a.transpose((1, 0))
+        tensor([[1, 3],
+                [2, 4]])
+        >>> a.transpose(1, 0)
+        tensor([[1, 3],
+                [2, 4]])
+                
+        >>> x = ht.ones((1, 2, 3))
+        >>> ht.transpose(x, (1, 0, 2)).shape
+        (2, 1, 3)
+        """
+        return operations.transpose(self, axes)
+
+    def tril(self, k=0):
+        """
+        Returns the lower triangular part of the tensor, the other elements of the result tensor are set to 0.
+
+        The lower triangular part of the tensor is defined as the elements on and below the diagonal.
+
+        The argument k controls which diagonal to consider. If k=0, all elements on and below the main diagonal are
+        retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
+        value excludes just as many diagonals below the main diagonal.
+
+        Parameters
+        ----------
+        k : int, optional
+            Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
+
+        Returns
+        -------
+        lower_triangle : ht.tensor
+            Lower triangle of the input tensor.
+        """
+        return operations.tril(self, k)
+
+    def triu(self, k=0):
+        """
+        Returns the upper triangular part of the tensor, the other elements of the result tensor are set to 0.
+
+        The upper triangular part of the tensor is defined as the elements on and below the diagonal.
+
+        The argument k controls which diagonal to consider. If k=0, all elements on and below the main diagonal are
+        retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
+        value excludes just as many diagonals below the main diagonal.
+
+        Parameters
+        ----------
+        k : int, optional
+            Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
+
+        Returns
+        -------
+        upper_triangle : ht.tensor
+            Upper triangle of the input tensor.
+        """
+        return operations.triu(self, k)
 
     def __binop(self, op, other):
         # TODO: document me
@@ -509,7 +698,8 @@ class tensor:
                 result = op(self.__array, other.__array)
                 return tensor(result, output_shape, self.dtype, self.split, self.device, self.comm)
             else:
-                raise NotImplementedError('Not implemented for other splittings')
+                raise NotImplementedError(
+                    'Not implemented for other splittings')
         else:
             raise NotImplementedError('Not implemented for non scalar')
 
@@ -569,14 +759,16 @@ class tensor:
         # TODO: sanitize input
         # TODO: make me more numpy API complete
         if self.__split is not None:
-            raise NotImplementedError('Slicing not supported for __split != None')
+            raise NotImplementedError(
+                'Slicing not supported for __split != None')
 
         if np.isscalar(value):
             self.__array.__setitem__(key, value)
         elif isinstance(value, tensor):
             self.__array.__setitem__(key, value.__array)
         else:
-            raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
+            raise NotImplementedError(
+                'Not implemented for {}'.format(value.__class__.__name__))
 
 
 def __factory(shape, dtype, split, local_factory, device, comm):
@@ -751,7 +943,8 @@ def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
         step = args[2]
         num = int(np.ceil((stop - start) / step))
     else:
-        raise TypeError('function takes minimum one and at most 3 positional arguments ({} given)'.format(num_of_param))
+        raise TypeError(
+            'function takes minimum one and at most 3 positional arguments ({} given)'.format(num_of_param))
 
     gshape = (num,)
     split = sanitize_axis(gshape, split)
@@ -958,7 +1151,8 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
     stop = float(stop)
     num = int(num)
     if num <= 0:
-        raise ValueError('number of samples \'num\' must be non-negative integer, but was {}'.format(num))
+        raise ValueError(
+            'number of samples \'num\' must be non-negative integer, but was {}'.format(num))
     step = (stop - start) / max(1, num - 1 if endpoint else num)
 
     # infer local and global shapes
