@@ -505,7 +505,43 @@ def promote_types(type1, type2):
     return __type_promotions[typecode_type1][typecode_type2]
 
 class finfo:
+    """
+    finfo(dtype)
 
+    Class describing machine limits (bit representation) of floating point types.
+
+    Attributes
+    ----------
+    bits : int
+        The number of bits occupied by the type.
+    eps : float
+        The smallest representable positive number such that
+        ``1.0 + eps != 1.0``.  Type of `eps` is an appropriate floating
+        point type.
+    max : floating point number of the appropriate type
+        The largest representable number.
+    min : floating point number of the appropriate type
+        The smallest representable number, typically ``-max``.
+    tiny : float
+        The smallest positive usable number.  Type of `tiny` is an
+        appropriate floating point type.
+
+    Parameters
+    ----------
+    dtype : ht.dtype
+        Kind of floating point data-type about which to get information.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> info = ht.types.finfo(ht.float32)
+    >>> info.bits
+    32
+
+    >>> info.eps
+    1.1920928955078125e-07
+
+    """
     def __new__(cls, dtype):
         try:
             dtype = heat_type_of(dtype)
