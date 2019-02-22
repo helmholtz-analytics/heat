@@ -499,6 +499,14 @@ def promote_types(type1, type2):
 
     return __type_promotions[typecode_type1][typecode_type2]
 
+class finfo:
+
+    def _init(self, dtype):
+        _torch_finfo = torch.finfo(dtype)
+        for word in ['bits', 'eps', 'max', 'tiny']:
+            setattr(self, word, getattr(_torch_finfo, word))
+        self.min=-self.max
+
 
 # tensor is imported at the very end to break circular dependency
 from . import tensor
