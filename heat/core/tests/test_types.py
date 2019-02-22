@@ -193,18 +193,16 @@ class TestTypeConversion(unittest.TestCase):
 class TestTypeConversion(unittest.TestCase):
     def test_finfo(self):
         info32 = ht.types.finfo(ht.float32)
+        self.assertEqual(info32.bits, 32)
         self.assertEqual(info32.max, (2-2**-23)*2**127)
         self.assertEqual(info32.min, -info32.max)
-        self.assertEqual(info32.bits, 32)
         self.assertEqual(info32.eps, 2**-23)
 
         with self.assertRaises(TypeError):
-            ht.finfo(1)
+            ht.types.finfo(1)
 
         with self.assertRaises(TypeError):
-            ht.finfo(ht.int32)
+            ht.types.finfo(ht.int32)
 
         with self.assertRaises(TypeError):
-            ht.finfo('float16')
-
-
+            ht.types.finfo('float16')

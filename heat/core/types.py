@@ -211,6 +211,11 @@ float = float32
 float_ = float32
 double = float64
 
+_inexact = (
+    # float16,
+    float32,
+    float64,)
+
 # type mappings for type strings and builtins types
 __type_mappings = {
     # type strings
@@ -253,11 +258,6 @@ __type_mappings = {
     builtins.float: float32,
 }
 
-__inexact = (
-    #float16,
-    float32,
-    float64
-)
 
 def canonical_heat_type(a_type):
     """
@@ -513,18 +513,23 @@ class finfo:
             # If given type is not heat type
             pass
 
-        if not dtype in __inexact:
+        if not dtype in _inexact:
             raise TypeError('Data type {} not inexact, not supported'.format(dtype))
 
-        obj = object.__new__(cls)._init(dtype)
-        return obj
+        return super(finfo, cls).__new__(cls)._init(dtype)
+
 
     def _init(self, dtype):
-        _torch_finfo = torch.finfo(dtype)
+        _torch_finfo = torch.finfo(dtype.torch_type())
         for word in ['bits', 'eps', 'max', 'tiny']:
             setattr(self, word, getattr(_torch_finfo, word))
 
         self.min=-self.max
+
+        return self
+
+
+
 
 
 # tensor is imported at the very end to break circular dependency
