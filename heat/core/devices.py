@@ -45,7 +45,7 @@ class Device:
         return self.__device_type
 
     @property
-    def device_type(self):
+    def device_id(self):
         return self.__device_id
 
     @property
@@ -110,18 +110,19 @@ def sanitize_device(device):
 
     Raises
     ------
-    TypeError
+    ValueError
         If the given device id is not recognized
     """
-    device = get_default_device() if device is None else device
+    if device is None:
+        return get_default_device()
 
     if isinstance(device, Device):
         return device
 
     try:
-        return __device_mapping[device.lower()]
-    except (AttributeError, KeyError):
-        raise TypeError('Unknown device, must be one of %s'.format(', '.join(__device_mapping.keys())))
+        return __device_mapping[device.strip().lower()]
+    except (AttributeError, KeyError, TypeError):
+        raise ValueError('Unknown device, must be one of {}'.format(', '.join(__device_mapping.keys())))
 
 
 def set_default_device(device=None):
