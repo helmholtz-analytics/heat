@@ -1,7 +1,6 @@
 import operator
 import numpy as np
 import torch
-from functools import reduce
 
 from .communication import Communication, MPI, MPI_WORLD
 from .stride_tricks import *
@@ -33,7 +32,7 @@ class tensor:
     @property
     def size(self):
         try:
-            return reduce(lambda i, j: i * j, self.array_shape)
+            return np.prod(self.__gshape)
         except TypeError:
             # todo: throw a soft warning about taking the number of elements of a single element tensor
             return 1
@@ -44,23 +43,15 @@ class tensor:
 
     @property
     def lnumel(self):
-        return reduce(lambda i, j: i * j, self.lshape)
+        return np.prod(self.__array.shape)
 
     @property
     def lshape(self):
-        if len(self.__array.shape) == len(self.__gshape):
-            return tuple(self.__array.shape)
-        # edge case when the local data tensor receives no elements after chunking
-        return self.__array.shape
-        # return self.__gshape[:self.__split] + (0,) + self.__gshape[self.split + 1:]
+        return tuple(self.__array.shape)
 
     @property
     def shape(self):
         return self.__gshape
-
-    @property
-    def array_shape(self):
-        return tuple(self.__array.shape)
 
     @property
     def split(self):
@@ -293,7 +284,7 @@ class tensor:
 
         return operations.max(self, axis, out)
 
-    def mean(self, dimen=None, all_procs=False):
+    def mean(self, axis=None):
         """
         Calculates and returns the mean of a tensor.
         If a dimension is given, the mean will be taken in that direction.
@@ -302,7 +293,7 @@ class tensor:
         ----------
         self : ht.tensor
             Values for which the mean is calculated for
-        dimen : None, Int, iterable
+        axis : None, Int, iterable
                 Dimension which the mean is taken in.
                 Default: None -> mean of all data calculated
         all_procs : Bool
@@ -314,9 +305,9 @@ class tensor:
         -------
         ht.tensor containing the mean/s, if split, then split in the same direction as x.
         """
-        return operations.mean(self, dimen, all_procs)
+        return operations.mean(self, axis)
 
-    def var(self, dimen=None, all_procs=False, bessel=True):
+    def var(self, axis=None, bessel=True):
         """
         Calculates and returns the variance of a tensor.
         If a dimension is given, the variance will be taken in that direction.
@@ -325,7 +316,7 @@ class tensor:
         ----------
         self : ht.tensor
             Values for which the mean is calculated for
-        dimen : None, Int
+        axis : None, Int
                 Dimension which the mean is taken in.
                 Default: None -> var of all data calculated
                 NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
@@ -342,9 +333,9 @@ class tensor:
         -------
         ht.tensor containing the var/s, if split, then split in the same direction as x.
         """
-        return operations.var(self, dimen, all_procs, bessel=bessel)
+        return operations.var(self, axis, bessel=bessel)
 
-    def std(self, dimen=None, all_procs=False, bessel=True):
+    def std(self, axis=None, bessel=True):
         """
         Calculates and returns the standard deviation of a tensor with the bessel correction
         If a dimension is given, the variance will be taken in that direction.
@@ -370,7 +361,7 @@ class tensor:
         -------
         ht.tensor containing the std/s, if split, then split in the same direction as x.
         """
-        return operations.std(self, dimen, all_procs, bessel=bessel)
+        return operations.std(self, axis, bessel=bessel)
 
     def min(self, axis=None, out=None):
         """"

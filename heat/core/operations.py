@@ -7,6 +7,7 @@ from .communication import MPI
 from . import stride_tricks
 from . import types
 from . import tensor
+import builtins
 
 __all__ = [
     'abs',
@@ -570,88 +571,31 @@ def merge_means(mu1, n1, mu2, n2):
     mean of combined set
     number of elements in the combined set
     """
-    if mu1.item() == np.nan:
-        mu1 = 0.0
-    if mu2.item() == np.nan:
-        mu2 = 0.0
     delta = mu2.item() - mu1.item()
     n1 = n1.item()
     n2 = n2.item()
-    return mu1 + n2 * (delta / (n1+n2)), n1 + n2
+    return mu1 + n2 * (delta / (n1 + n2)), n1 + n2
 
 
-def mean(x, dimen=None, all_procs=False):
+def mean(x, axis=None):
     """
     Calculates and returns the mean of a tensor.
-    If a dimension is given, the mean will be taken in that direction.
+    If a axis is given, the mean will be taken in that direction.
 
     Parameters
     ----------
     x : ht.tensor
         Values for which the mean is calculated for
-    dimen : None, Int, iterable
-            Dimension which the mean is taken in.
-            Default: None -> mean of all data calculated
-    all_procs : Bool
-                Flag to distribute the data to all processes
-                If True: will split the result in the same direction as x
-                Default: False (mean of the whole dataset still calculated but not on every node)
+    axis : None, Int, iterable
+           axis which the mean is taken in.
+           Default: None -> mean of all data calculated
 
     Returns
     -------
     ht.tensor containing the mean/s, if split, then split in the same direction as x.
     """
 
-    def combine_all_means(target_dimens):
-        """
-        Function to *combine* all the calculated means across the processes.
-        This function will only be used if the all_procs flag is true.
-        This function will operate on x from the mean function.
-
-        Parameters
-        ----------
-        target_dimens : iterable
-                        iterable with the dimensions of the output of the mean function
-
-        Returns
-        -------
-        ht.tensor of the calculated means
-        """
-        mu_proc = __local_operation(torch.mean, x, out=None, **{'dim': dimen})
-        mu_tot_hold = tensor.zeros(target_dimens)
-        mu_tot = tensor.zeros(target_dimens)
-
-        beg = 0
-        if isinstance(dimen, (list, tuple, np.ndarray, tensor.tensor)):
-            # multiple dimensions
-            score = [True for itt in dimen if itt < x.split].count(True)
-        elif isinstance(dimen, (int, float)):
-            # one dimension
-            score = 1 if dimen < x.split else 0
-        for r in range(x.comm.Get_size()):
-            # need to add them together in order
-            if x.comm.rank == r:
-                end = beg + x.lshape[x.split]
-                if x.split - score == 0:
-                    mu_tot_hold[beg:end] = mu_proc
-                elif x.split - score == 1:
-                    mu_tot_hold[:, beg:end] = mu_proc
-                elif x.split - score == 2:
-                    mu_tot_hold[:, :, beg:end] = mu_proc
-                elif x.split - score == 3:
-                    mu_tot_hold[:, :, :, beg:end] = mu_proc
-                elif x.split - score == 4:
-                    mu_tot_hold[:, :, :, :, beg:end] = mu_proc
-                else:
-                    print('else', mu_tot_hold[beg:end].lshape, mu_proc.lshape)
-                    mu_tot_hold[beg:end] = mu_proc
-                beg = end
-            beg = x.comm.bcast(beg, r)
-        x.comm.Allreduce(mu_tot_hold, mu_tot, MPI.SUM)
-        x.comm.barrier()
-        return mu_tot
-
-    def reduce_means_elementwise(target_dimens):
+    def reduce_means_elementwise(output_shape_i):
         """
         Function to combine the calculated means together.
         This does an element-wise update of the calculated means to merge them together using the merge_means function.
@@ -659,18 +603,20 @@ def mean(x, dimen=None, all_procs=False):
 
         Parameters
         ----------
-        target_dimens : iterable
+        output_shape_i : iterable
                         iterable with the dimensions of the output of the mean function
 
         Returns
         -------
         ht.tensor of the calculated means
         """
+        if x.lshape[x.split] != 0:
+            mu = __local_operation(torch.mean, x, out=None, **{'dim': axis})
+        else:
+            mu = tensor.zeros(output_shape_i)
 
-        mu = __local_operation(torch.mean, x, out=None, **{'dim': dimen})
-
-        mu_to_combine = tensor.zeros((x.comm.Get_size(),) + tuple(target_dimens))
-        mu_tot = tensor.zeros((x.comm.Get_size(),) + tuple(target_dimens))
+        mu_to_combine = tensor.zeros((x.comm.Get_size(),) + tuple(output_shape_i))
+        mu_tot = tensor.zeros((x.comm.Get_size(),) + tuple(output_shape_i))
 
         n_for_merge = tensor.zeros(x.comm.Get_size())
         n2 = tensor.zeros(x.comm.Get_size())
@@ -689,73 +635,54 @@ def mean(x, dimen=None, all_procs=False):
                     rem1 = sz - 1
             splt = int(sz / 2)
             for sp_it in range(splt):  # todo: multithread perfect opp for GPU parrallelizm
-                mu_reshape = __local_operation(torch.reshape, mu_tot[sp_it], out=None, **{'shape': (1, mu_tot[sp_it].size)})[0]
+                mu_reshape = __local_operation(torch.reshape, mu_tot[sp_it], out=None, shape=(1, int(mu_tot[sp_it].lnumel)))[0]
                 for en, (el1, el2) in enumerate(zip(mu_reshape,
-                                                    __local_operation(torch.reshape, mu_tot[sp_it+splt], out=None, **{'shape': (1, mu_tot[sp_it+splt].size)})[0])):
+                                                    __local_operation(torch.reshape, mu_tot[sp_it+splt], out=None,
+                                                                      shape=(1, int(mu_tot[sp_it+splt].lnumel)))[0])):
                     try:
                         mu_reshape[en], n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it+splt])
                     except IndexError:
                         mu_reshape, n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it + splt])
                 n_for_merge[sp_it] = n  # todo: need to update the n_for_merge here not previously!!
-                mu_tot[sp_it] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
+                mu_tot[sp_it] = __local_operation(torch.reshape, mu_reshape, out=None, shape=output_shape_i)
             if rem1 and rem2:
-                mu_reshape = __local_operation(torch.reshape, mu_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].size)})[0]
+                mu_reshape = __local_operation(torch.reshape, mu_tot[rem1], out=None, shape=(1, int(mu_tot[rem1].lnumel)))[0]
                 for en, (el1, el2) in enumerate(zip(mu_reshape,
-                                                    __local_operation(torch.reshape, mu_tot[rem2], out=None, **{'shape': (1, mu_tot[rem2].size)})[0])):
+                                                    __local_operation(torch.reshape, mu_tot[rem2], out=None,
+                                                                      shape=(1, int(mu_tot[rem2].lnumel)))[0])):
                     mu_reshape[en], n = merge_means(el1, n_for_merge[rem1], el2, n_for_merge[rem2])
                 n_for_merge[rem2] = n
-                mu_tot[rem2] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
+                mu_tot[rem2] = __local_operation(torch.reshape, mu_reshape, out=None, shape=output_shape_i)
 
                 rem1 = rem2
                 rem2 = 0
             sz = splt
             if sz == 1 or sz == 0:
                 if rem1:
-                    mu_reshape = __local_operation(torch.reshape, mu_tot[0], out=None, **{'shape': (1, mu_tot[0].size)})[0]
+                    mu_reshape = __local_operation(torch.reshape, mu_tot[0], out=None, shape=(1, int(mu_tot[0].lnumel)))[0]
                     for en, (el1, el2) in enumerate(zip(mu_reshape,
-                                                        __local_operation(torch.reshape, mu_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].size)})[0])):
+                                                        __local_operation(torch.reshape, mu_tot[rem1], out=None,
+                                                                          shape=(1, int(mu_tot[rem1].lnumel)))[0])):
                         mu_reshape[en], _ = merge_means(el1, n_for_merge[0], el2, n_for_merge[rem1])
 
-                    mu_tot[0] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
+                    mu_tot[0] = __local_operation(torch.reshape, mu_reshape, out=None, shape=output_shape_i)
                 return mu_tot[0]
     # ------------------------------------------------------------------------------------------------------------------
-    if dimen:
-        if isinstance(dimen, int):
-            if dimen >= len(x.shape):
-                raise ValueError("Dimension (dimen) must be < {}, currently is {}".format(len(x.shape), dimen))
-            dimen = dimen if dimen > 0 else dimen % len(x.shape)
-        else:
-            raise TypeError("Dimension (dimen) must be an int, currently is {}".format(type(dimen)))
-        # todo: travis is failing when a tuple is given for the dimension in the mean although it works in the newest pytorch.
-        #  when the next pytorch  is impelemented then this next part can be exchanged for what is above
-        # if isinstance(dimen, (list, tuple, tensor.tensor, torch.Tensor)):
-        #     if any(d > len(x.shape) for d in dimen):
-        #         raise ValueError("Dimension (dimen) must be < {}, currently are {}".format(len(x.shape), dimen))
-        #     if any(d < 0 for d in dimen):
-        #         dimen = [j % len(x.shape) for j in dimen]
-        # elif isinstance(dimen, int):
-        #     if dimen >= len(x.shape):
-        #         raise ValueError("Dimension (dimen) must be < {}, currently is {}".format(len(x.shape), dimen))
-        #     dimen = dimen if dimen > 0 else dimen % len(x.shape)
-        # else:
-        #     raise TypeError("Dimension (dimen) must be an int or a list ht.tensor, torch.Tensor, or a tuple, currently is {}".format(type(dimen)))
-    else:
-        # case for full matrix calculation
-        if not x.comm.is_distributed():
-            # if x is not distributed do a torch.mean on x
-            # print('dimension==None, not distributed', dimen, x.split)
-            return __local_operation(torch.mean, x, out=None)
-        else:
-            # if x is distributed and no dimension is given then mean of the whole set
-            # print("dimen is None, distributed case", dimen, x.split)
-            mu_in = __local_operation(torch.mean, x, out=None)
+    if axis is None:
+        # full matrix calculation
+        if x.split:
+            # if x is distributed and no axis is given: return mean of the whole set
+            # print("axis is None, distributed case", axis, x.split)
+            if x.lshape[x.split] != 0:
+                mu_in = __local_operation(torch.mean, x, out=None)
+            else:
+                mu_in = 0
             n = x.lnumel
             mu_tot = tensor.zeros((x.comm.Get_size(), 2))
             mu_proc = tensor.zeros((x.comm.Get_size(), 2))
             mu_proc[x.comm.rank][0] = mu_in
-            mu_proc[x.comm.rank][1] = n
+            mu_proc[x.comm.rank][1] = float(n)
             x.comm.Allreduce(mu_proc, mu_tot, MPI.SUM)
-            x.comm.barrier()
 
             rem1 = 0
             rem2 = 0
@@ -784,57 +711,66 @@ def mean(x, dimen=None, all_procs=False):
                         for enum, m in enumerate(merged):
                             mu_tot[0, enum] = m
                     return mu_tot[0][0]
-
-    if len(x.shape) > 6:
-        raise ValueError("mean only implemented for split arrays up to 6 dimensions (failing in combine_all_means)")
-
-    target_dims = list(x.shape)
-    if isinstance(dimen, int):
-        # only one dimension given
-        target_dims = [target_dims[it] for it in range(len(target_dims)) if it != dimen]
-
-        if x.split is None:
-            # print("not split, given sigular dimension", dimen, x.split)
-            return __local_operation(torch.mean, x, out=None, **{'dim': dimen})
-        if dimen == x.split:
-            # print('singular dimension == x.split', dimen, x.split)
-            out = reduce_means_elementwise(target_dims)
-            if all_procs:
-                return out
-            else:
-                return tensor.tensor(out._tensor__array, out.shape, out.dtype, x.split, x.comm)
         else:
-            # print('singular dimension given ({}) not equal to split direction ({})'.format(dimen, x.split))
-            if all_procs:
-                out = combine_all_means(target_dims)
-                return out
-            else:
-                return __local_operation(torch.mean, x, out=None, **{'dim': dimen})
-    elif isinstance(dimen, (tuple, list, tensor.tensor, torch.Tensor, np.ndarray)):
-        # multiple dimensions
-        if x.split is None:
-            # print("not split, given sigular dimension", dimen, x.split)
-            return __local_operation(torch.mean, x, out=None, **{'dim': dimen})
-        target_dims = [target_dims[it] for it in range(len(target_dims)) if it not in dimen]
-        if x.split in dimen:
-            # print('multiple dimensions, split {} in dimensions given {}'.format(x.split, dimen))
-            # merge in the direction of the split
-            out = reduce_means_elementwise(target_dims)
-            if all_procs:
-                return out
-            else:
-                return tensor.tensor(out._tensor__array, out.shape, out.dtype, x.split, x.comm)
-        else:
-            # multiple dimensions which does *not* include the split dimension
-            # print("multiple dimensions({}), split({}) *not* in dimensions given".format(dimen, x.split))
-            # combine along the split axis
-            if all_procs:
-                out = combine_all_means(target_dims)
-                return out
-            else:
-                return __local_operation(torch.mean, x, out=None, **{'dim': dimen})
+            # if x is not distributed do a torch.mean on x
+            # print('axis==None, not distributed', axis, x.split)
+            return __local_operation(torch.mean, x, out=None)
     else:
-        raise TypeError("Dimension must be int, tuple, list, ht.tensor, torch.Tensor, or np.nparray. Currently is {}".format(type(dimen)))
+        # if isinstance(axis, int):
+        #     if axis >= len(x.shape):
+        #         raise ValueError("axis (axis) must be < {}, currently is {}".format(len(x.shape), axis))
+        #     axis = axis if axis > 0 else axis % len(x.shape)
+        # else:
+        #     raise TypeError("axis (axis) must be an int, currently is {}".format(type(axis)))
+        output_shape = list(x.shape)
+        if isinstance(axis, (list, tuple, tensor.tensor, torch.Tensor)):
+            if any([not isinstance(j, int) for j in axis]):
+                raise ValueError("items in axis itterable must be integers, axes: {}".format([type(q) for q in axis]))
+            if any(d > len(x.shape) for d in axis):
+                raise ValueError("axes (axis) must be < {}, currently are {}".format(len(x.shape), axis))
+            if any(d < 0 for d in axis):
+                axis = [j % len(x.shape) for j in axis]
+
+            # multiple dimensions
+            if x.split is None:
+                # print("not split, given sigular axis", axis, x.split)
+                return __local_operation(torch.mean, x, out=None, **{'dim': axis})
+            output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
+            if x.split in axis:
+                # print('multiple dimensions, split {} in dimensions given {}'.format(x.split, axis))
+                # merge in the direction of the split
+                return reduce_means_elementwise(output_shape)
+
+            else:
+                # multiple dimensions which does *not* include the split axis
+                # combine along the split axis
+                try:
+                    return tensor.array(__local_operation(torch.mean, x, out=None, dim=axis), split=x.split, comm=x.comm)
+                except ValueError:
+                    return __local_operation(torch.mean, x, out=None, dim=axis)
+        elif isinstance(axis, int):
+            if axis >= len(x.shape):
+                raise ValueError("axis (axis) must be < {}, currently is {}".format(len(x.shape), axis))
+            axis = axis if axis > 0 else axis % len(x.shape)
+
+            # only one axis given
+            output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
+
+            if x.split is None:
+                # print("not split, given sigular axis", axis, x.split)
+                return __local_operation(torch.mean, x, out=None, **{'dim': axis})
+            if axis == x.split:
+                # print('singular axis == x.split', axis, x.split)
+                return reduce_means_elementwise(output_shape)
+            else:
+                # singular axis given (axis) not equal to split direction (x.split)
+                # local operation followed by array creation to create the full tensor of the means
+                try:
+                    return tensor.array(__local_operation(torch.mean, x, out=None, dim=axis), split=x.split, comm=x.comm)
+                except ValueError:
+                    return __local_operation(torch.mean, x, out=None, dim=axis)
+        else:
+            raise TypeError("axis (axis) must be an int or a list, ht.tensor, torch.Tensor, or tuple, currently is {}".format(type(axis)))
 
 
 def merge_vars(var1, mu1, n1, var2, mu2, n2, bessel=True):
@@ -865,20 +801,20 @@ def merge_vars(var1, mu1, n1, var2, mu2, n2, bessel=True):
     if bessel:
         return (var1*(n1-1) + var2*(n2-1) + (delta ** 2) * n1 * n2 / n) / (n-1), mu1 + n2 * (delta / (n1+n2)), n
     else:
-        return (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / n, mu1 + n2 * (delta / (n1 + n2)), n
+        return (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n, mu1 + n2 * (delta / (n1 + n2)), n
 
 
-def var(x, dimen=None, all_procs=False, bessel=True):
+def var(x, axis=None, bessel=True):
     """
     Calculates and returns the variance of a tensor.
-    If a dimension is given, the variance will be taken in that direction.
+    If a axis is given, the variance will be taken in that direction.
 
     Parameters
     ----------
     x : ht.tensor
         Values for which the mean is calculated for
-    dimen : None, Int
-            Dimension which the mean is taken in.
+    axis : None, Int
+            axis which the mean is taken in.
             Default: None -> var of all data calculated
             NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
     all_procs : Bool
@@ -894,57 +830,11 @@ def var(x, dimen=None, all_procs=False, bessel=True):
     -------
     ht.tensor containing the var/s, if split, then split in the same direction as x.
     """
-    def combine_all_vars(target_dimens):
-        """
-        Function to *combine* all the calculated vars across the processes.
-        This function will only be used if the all_procs flag is true.
-        This function will operate on x from the var function.
 
-        Parameters
-        ----------
-        target_dimens : iterable
-                        iterable with the dimensions of the output of the var function
+    if not isinstance(bessel, bool):
+        raise TypeError("bessel must be a boolean, currently is {}".format(type(bessel)))
 
-        Returns
-        -------
-        ht.tensor of the calculated vars
-        """
-        var_proc = __local_operation(torch.var, x, out=None, **{'dim': dimen})
-        var_tot_hold = tensor.zeros(target_dimens)
-        var_tot = tensor.zeros(target_dimens)
-
-        beg = 0
-        score = 0
-        if isinstance(dimen, (list, tuple, np.ndarray, tensor.tensor)):
-            # multiple dimensions
-            score = [True for itt in dimen if itt < x.split].count(True)
-        elif isinstance(dimen, (int, float)):
-            # one dimension
-            score = 1 if dimen < x.split else 0
-        for r in range(x.comm.Get_size()):
-            # need to add them together in order
-            if x.comm.rank == r:
-                end = beg + x.lshape[x.split]
-                if x.split - score == 0:
-                    var_tot_hold[beg:end] = var_proc
-                elif x.split - score == 1:
-                    var_tot_hold[:, beg:end] = var_proc
-                elif x.split - score == 2:
-                    var_tot_hold[:, :, beg:end] = var_proc
-                elif x.split - score == 3:
-                    var_tot_hold[:, :, :, beg:end] = var_proc
-                elif x.split - score == 4:
-                    var_tot_hold[:, :, :, :, beg:end] = var_proc
-                else:
-                    # print('else', var_tot_hold[beg:end].lshape, var_proc.lshape)
-                    var_tot_hold[beg:end] = var_proc
-                beg = end
-            beg = x.comm.bcast(beg, r)
-        x.comm.Allreduce(var_tot_hold, var_tot, MPI.SUM)
-        x.comm.barrier()
-        return var_tot
-
-    def reduce_vars_elementwise(target_dimens):
+    def reduce_vars_elementwise(output_shape_i):
         """
         Function to combine the calculated vars together.
         This does an element-wise update of the calculated vars to merge them together using the merge_vars function.
@@ -952,7 +842,7 @@ def var(x, dimen=None, all_procs=False, bessel=True):
 
         Parameters
         ----------
-        target_dimens : iterable
+        output_shape_i : iterable
                         iterable with the dimensions of the output of the var function
 
         Returns
@@ -960,13 +850,17 @@ def var(x, dimen=None, all_procs=False, bessel=True):
         ht.tensor of the calculated vars
         """
 
-        mu = __local_operation(torch.mean, x, out=None, **{'dim': dimen})
-        var = __local_operation(torch.var, x, out=None, **{'dim': dimen, 'unbiased': bessel})
+        if x.lshape[x.split] != 0:
+            mu = __local_operation(torch.mean, x, out=None, dim=axis)
+            var = __local_operation(torch.var, x, out=None, dim=axis, unbiased=bessel)
+        else:
+            mu = tensor.zeros(output_shape_i)
+            var = tensor.zeros(output_shape_i)
 
-        mu_to_combine = tensor.zeros((x.comm.Get_size(),) + tuple(target_dimens))
-        mu_tot = tensor.zeros((x.comm.Get_size(),) + tuple(target_dimens))
-        var_to_combine = tensor.zeros((x.comm.Get_size(),) + tuple(target_dimens))
-        var_tot = tensor.zeros((x.comm.Get_size(),) + tuple(target_dimens))
+        mu_to_combine = tensor.zeros((x.comm.Get_size(),) + tuple(output_shape_i))
+        mu_tot = tensor.zeros((x.comm.Get_size(),) + tuple(output_shape_i))
+        var_to_combine = tensor.zeros((x.comm.Get_size(),) + tuple(output_shape_i))
+        var_tot = tensor.zeros((x.comm.Get_size(),) + tuple(output_shape_i))
 
         n_for_merge = tensor.zeros(x.comm.Get_size())
         n2 = tensor.zeros(x.comm.Get_size())
@@ -987,81 +881,69 @@ def var(x, dimen=None, all_procs=False, bessel=True):
                     rem1 = sz - 1
             splt = int(sz / 2)
             for i in range(splt):  # todo: multithread for GPU
-                mu_reshape = __local_operation(torch.reshape, mu_tot[i], out=None, **{'shape': (1, mu_tot[i].size)})[0]
-                var_reshape = __local_operation(torch.reshape, var_tot[i], out=None, **{'shape': (1, mu_tot[i].size)})[0]
+                mu_reshape = __local_operation(torch.reshape, mu_tot[i], out=None, shape=(1, int(mu_tot[i].lnumel)))[0]
+                var_reshape = __local_operation(torch.reshape, var_tot[i], out=None, shape=(1, int(mu_tot[i].lnumel)))[0]
                 for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape, var_reshape,
                                                                 __local_operation(torch.reshape, mu_tot[i+splt], out=None,
-                                                                                  **{'shape': (1, mu_tot[i+splt].size)})[0],
+                                                                                  shape=(1, int(mu_tot[i+splt].lnumel)))[0],
                                                                 __local_operation(torch.reshape, var_tot[i+splt], out=None,
-                                                                                  **{'shape': (1, var_tot[i+splt].size)})[0])):
+                                                                                  shape=(1, int(var_tot[i+splt].lnumel)))[0])):
                     # print(i, en, mu1, var1, mu2, var2)
                     try:
                         var_reshape[en], mu_reshape[en], n = merge_vars(var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i+splt], bessel)
                     except ValueError:
                         var_reshape, mu_reshape, n = merge_vars(var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i + splt], bessel)
                 n_for_merge[i] = n
-                mu_tot[i] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
-                var_tot[i] = __local_operation(torch.reshape, var_reshape, out=None, **{'shape': target_dimens})
+                mu_tot[i] = __local_operation(torch.reshape, mu_reshape, out=None, shape=output_shape_i)
+                var_tot[i] = __local_operation(torch.reshape, var_reshape, out=None, shape=output_shape_i)
 
             if rem1 and rem2:
-                mu_reshape = __local_operation(torch.reshape, mu_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].size)})[0]
-                var_reshape = __local_operation(torch.reshape, var_tot[rem1], out=None, **{'shape': (1, mu_tot[rem1].size)})[0]
+                mu_reshape = __local_operation(torch.reshape, mu_tot[rem1], out=None, shape=(1, int(mu_tot[rem1].lnumel)))[0]
+                var_reshape = __local_operation(torch.reshape, var_tot[rem1], out=None, shape=(1, int(mu_tot[rem1].lnumel)))[0]
                 for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape, var_reshape,
                                                                 __local_operation(torch.reshape, mu_tot[rem2], out=None,
-                                                                                  **{'shape': (1, mu_tot[rem2].size)})[0],
+                                                                                  shape=(1, int(mu_tot[rem2].lnumel)))[0],
                                                                 __local_operation(torch.reshape, var_tot[rem2], out=None,
-                                                                                  **{'shape': (1, var_tot[rem2].size)})[0])):
+                                                                                  shape=(1, int(var_tot[rem2].lnumel)))[0])):
                     var_reshape[en], mu_reshape[en], n = merge_vars(var1, mu1, n_for_merge[rem1], var2, mu2, n_for_merge[rem2], bessel)
                 n_for_merge[rem2] = n
-                mu_tot[rem2] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
-                var_tot[rem2] = __local_operation(torch.reshape, var_reshape, out=None, **{'shape': target_dimens})
+                mu_tot[rem2] = __local_operation(torch.reshape, mu_reshape, out=None, shape=output_shape_i)
+                var_tot[rem2] = __local_operation(torch.reshape, var_reshape, out=None, shape=output_shape_i)
 
                 rem1 = rem2
                 rem2 = 0
             sz = splt
             if sz == 1 or sz == 0:
                 if rem1:
-                    mu_reshape = __local_operation(torch.reshape, mu_tot[0], out=None, **{'shape': (1, mu_tot[0].size)})[0]
-                    var_reshape = __local_operation(torch.reshape, var_tot[0], out=None, **{'shape': (1, mu_tot[0].size)})[0]
+                    mu_reshape = __local_operation(torch.reshape, mu_tot[0], out=None, shape=(1, int(mu_tot[0].lnumel)))[0]
+                    var_reshape = __local_operation(torch.reshape, var_tot[0], out=None, shape=(1, int(mu_tot[0].lnumel)))[0]
                     for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape, var_reshape,
                                                                     __local_operation(torch.reshape, mu_tot[rem1], out=None,
-                                                                                      **{'shape': (1, mu_tot[rem1].size)})[0],
+                                                                                      shape=(1, int(mu_tot[rem1].lnumel)))[0],
                                                                     __local_operation(torch.reshape, var_tot[rem1], out=None,
-                                                                                      **{'shape': (1, var_tot[rem1].size)})[0])):
+                                                                                      shape=(1, int(var_tot[rem1].lnumel)))[0])):
                         var_reshape[en], mu_reshape[en], n = merge_vars(var1, mu1, n_for_merge[0], var2, mu2, n_for_merge[rem1], bessel)
-                    mu_tot[0] = __local_operation(torch.reshape, mu_reshape, out=None, **{'shape': target_dimens})
-                    var_tot[0] = __local_operation(torch.reshape, var_reshape, out=None, **{'shape': target_dimens})
+                    mu_tot[0] = __local_operation(torch.reshape, mu_reshape, out=None, shape=output_shape_i)
+                    var_tot[0] = __local_operation(torch.reshape, var_reshape, out=None, shape=output_shape_i)
                 return var_tot[0]
     # ----------------------------------------------------------------------------------------------------
-    if dimen:
-        # if isinstance(dimen, (list, tuple, tensor.tensor, torch.Tensor)):
-        #     if any(d > len(x.shape) for d in dimen):
-        #         raise ValueError("Dimension (dimen) must be < {}, currently are {}".format(len(x.shape), dimen))
-        #     if any(d < 0 for d in dimen):
-        #         dimen = [j % len(x.shape) for j in dimen]
-        if isinstance(dimen, int):
-            if dimen >= len(x.shape):
-                raise ValueError("Dimension (dimen) must be < {}, currently is {}".format(len(x.shape), dimen))
-            dimen = dimen if dimen > 0 else dimen % len(x.shape)
-        else:
-            raise TypeError("Dimension (dimen) must be an int, currently is {}".format(type(dimen)))
-    else:
-        # case for full matrix calculation
-        if not x.comm.is_distributed():
-            # print('dimension==None, not distributed', dimen, x.split)
-            return __local_operation(torch.var, x, out=None, **{'unbiased': bessel}).item()
-        else:
-            # print("dimen is None, distributed case", dimen, x.split)
-            var_in = __local_operation(torch.var, x, out=None, **{'unbiased': bessel})
-            mu_in = __local_operation(torch.mean, x, out=None)
+    if axis is None:
+        # case for full matrix calculation (axis is None)
+        if x.split:
+            # print("axis is None, distributed case", axis, x.split)
+            if x.lshape[x.split] != 0:
+                mu_in = __local_operation(torch.mean, x, out=None)
+                var_in = __local_operation(torch.var, x, out=None, unbiased=bessel)
+            else:
+                mu_in = 0
+                var_in = 0
             n = x.lnumel
             var_tot = tensor.zeros((x.comm.Get_size(), 3))
             var_proc = tensor.zeros((x.comm.Get_size(), 3))
             var_proc[x.comm.rank][0] = var_in
             var_proc[x.comm.rank][1] = mu_in
-            var_proc[x.comm.rank][2] = n
+            var_proc[x.comm.rank][2] = float(n)
             x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
-            x.comm.barrier()
 
             rem1 = 0
             rem2 = 0
@@ -1094,54 +976,62 @@ def var(x, dimen=None, all_procs=False, bessel=True):
                         for enum, m in enumerate(merged):
                             var_tot[0, enum] = m
                     return var_tot[0][0].item()
-    if x.split is None:
-        return __local_operation(torch.var, x, out=None, **{'dim': dimen, 'unbiased': bessel}) ** 0.5
-    target_dims = list(x.shape)
-    if isinstance(dimen, int):
-        # only one dimension given
-        target_dims = [target_dims[it] for it in range(len(target_dims)) if it != dimen]
-        if dimen == x.split:
-            out = reduce_vars_elementwise(target_dims)
-            if all_procs:
-                return out
-            else:
-                return tensor.tensor(out._tensor__array, out.shape, out.dtype, x.split, x.comm)
         else:
-            if all_procs:
-                print('all procs combine')
-                return combine_all_vars(target_dims)
-            else:
-                return __local_operation(torch.var, x, out=None, **{'dim': dimen, 'unbiased': bessel})
+            # full matrix on one node
+            return __local_operation(torch.var, x, out=None, unbiased=bessel).item()
     else:
-        # multiple dimensions
-        target_dims = [target_dims[it] for it in range(len(target_dims)) if it not in dimen]
-        if x.split in dimen:
-            # merge in the direction of the split
-            out = reduce_vars_elementwise(target_dims)
-            if all_procs:
-                return out
+        # case for mean in one dimension
+        output_shape = list(x.shape)
+        # if isinstance(axis, (list, tuple, tensor.tensor, torch.Tensor)):
+        #     if any(d > len(x.shape) for d in axis):
+        #         raise ValueError("Axis (axis) must be < {}, currently are {}".format(len(x.shape), axis))
+        #     if any(d < 0 for d in axis):
+        #         axis = [j % len(x.shape) for j in axis]
+        if isinstance(axis, int):
+            if axis >= len(x.shape):
+                raise ValueError("axis must be < {}, currently is {}".format(len(x.shape), axis))
+            axis = axis if axis > 0 else axis % len(x.shape)
+            # only one axis given
+            output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
+            if x.split is None:
+                return __local_operation(torch.var, x, out=None, dim=axis, unbiased=bessel)
+            elif axis == x.split:
+                return reduce_vars_elementwise(output_shape)
             else:
-                return tensor.tensor(out._tensor__array, out.shape, out.dtype, x.split, x.comm)
+                try:
+                    return tensor.array(__local_operation(torch.var, x, out=None, dim=axis, unbiased=bessel), split=x.split, comm=x.comm)
+                except ValueError:
+                    return __local_operation(torch.var, x, out=None, dim=axis, unbiased=bessel)
         else:
-            # multiple dimensions which does *not* include the split dimension
-            # combine along the split axis
-            if all_procs:
-                return combine_all_vars(target_dims)
-            else:
-                return __local_operation(torch.var, x, out=None, **{'dim': dimen, 'unbiased': bessel})
+            raise TypeError("Axis (axis) must be an int, currently is {}".format(type(axis)))
+            # TODO: when multi dim support is abalable from pytorch this can be uncommented and the raise above can be changed
+            # # multiple dimensions
+            # output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
+            # if x.split in axis:
+            #     # merge in the direction of the split
+            #     return reduce_vars_elementwise(output_shape)
+            #
+            # else:
+            #     # multiple dimensions which does *not* include the split axis
+            #     # combine along the split axis
+            #     try:
+            #         return tensor.array(__local_operation(torch.var, x, out=None, dim=axis, unbiased=bessel), split=x.split, comm=x.comm)
+            #     except ValueError:
+            #         return __local_operation(torch.var, x, out=None, dim=axis, unbiased=bessel)
 
 
-def std(x, dimen=None, all_procs=False, bessel=True):
+
+def std(x, axis=None, bessel=True):
     """
     Calculates and returns the standard deviation of a tensor with the bessel correction
-    If a dimension is given, the variance will be taken in that direction.
+    If a axis is given, the variance will be taken in that direction.
 
     Parameters
     ----------
     x : ht.tensor
         Values for which the mean is calculated for
-    dimen : None, Int
-            Dimension which the mean is taken in.
+    axis : None, Int
+            axis which the mean is taken in.
             Default: None -> var of all data calculated
             NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
     all_procs : Bool
@@ -1157,10 +1047,10 @@ def std(x, dimen=None, all_procs=False, bessel=True):
     -------
     ht.tensor containing the std/s, if split, then split in the same direction as x.
     """
-    if not dimen:
-        return np.sqrt(var(x, dimen, all_procs, bessel))
+    if not axis:
+        return np.sqrt(var(x, axis, bessel))
     else:
-        return sqrt(var(x, dimen, all_procs, bessel), out=None)
+        return sqrt(var(x, axis, bessel), out=None)
 
 
 def transpose(a, axes=None):

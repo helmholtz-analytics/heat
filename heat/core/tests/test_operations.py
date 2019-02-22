@@ -1312,6 +1312,13 @@ class TestOperations(unittest.TestCase):
         array_1_len = 5
         array_2_len = 5
 
+        x = ht.zeros((2, 3, 4))
+        with self.assertRaises(ValueError):
+            ht.mean(x, axis=10)
+        with self.assertRaises(TypeError):
+            ht.mean(x, axis='01')
+        with self.assertRaises(ValueError):
+            ht.mean(x, axis=(0, '10'))
 
         # zeros
         dimensions = []
@@ -1331,7 +1338,7 @@ class TestOperations(unittest.TestCase):
                 if res != np.nan:
                     self.assertEqual(res, 0)
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
-                    res = ht.mean(z, dimen=it)
+                    res = ht.mean(z, axis=it)
                     self.assertEqual(res, 0)
                     if not isinstance(res, float):
                         if res.split:
@@ -1341,29 +1348,31 @@ class TestOperations(unittest.TestCase):
                         self.assertEqual(res.lshape, tuple(target_dims))
                         self.assertEqual(res.split, z.split)
                     if i == it:
-                        res = z.mean(dimen=it, all_procs=True)
+                        res = z.mean(axis=it)
                         self.assertEqual(res, 0)
                         target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                         if all(target_dims) != 0:
                             self.assertEqual(res.lshape, tuple(target_dims))
 
                 # todo: see comment about dimens in operations. can uncomement this when the required pytorch is updated (travis fail)
-                # loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
-                # if len(z.shape) > 2:
-                #     for r in range(3, len(z.shape)):
-                #         loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
-                # for it in loop_list:  # loop over the different combinations of dimensions for mean
-                #     res = z.mean(dimen=[int(q) for q in it.split(',')])
-                #     self.assertEqual(res, 0)
-                #     self.assertEqual(res.split, z.split)
-                #     target_dims = [total_dims_list[int(q)] if q not in [int(q) for q in it.split(',')] else 0 for q in range(len(total_dims_list))]
-                #     if all(target_dims) != 0:
-                #         if i:
-                #             self.assertEqual(res.lshape, tuple(target_dims))
-                #             self.assertEqual(res.split, z.split)
-                #         else:
-                #             self.assertEqual(res.shape, tuple(target_dims))
-                #             self.assertEqual(res.split, z.split)
+                loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
+                if len(z.shape) > 2:
+                    for r in range(3, len(z.shape)):
+                        loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
+                for it in loop_list:  # loop over the different combinations of dimensions for mean
+                    res = z.mean(axis=[int(q) for q in it.split(',')])
+                    self.assertEqual(res, 0)
+                    if not isinstance(res, float):
+                        if res.split:
+                            self.assertEqual(res.split, z.split)
+                    target_dims = [total_dims_list[int(q)] if q not in [int(q) for q in it.split(',')] else 0 for q in range(len(total_dims_list))]
+                    if all(target_dims) != 0:
+                        if i:
+                            self.assertEqual(res.lshape, tuple(target_dims))
+                            self.assertEqual(res.split, z.split)
+                        else:
+                            self.assertEqual(res.shape, tuple(target_dims))
+                            self.assertEqual(res.split, z.split)
 
         # ones
         dimensions = []
@@ -1384,7 +1393,7 @@ class TestOperations(unittest.TestCase):
                 self.assertEqual(res, 1)
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     # print('it=', it)
-                    res = z.mean(dimen=it)
+                    res = z.mean(axis=it)
                     self.assertEqual(res, 1)
                     if not isinstance(res, float) and res.split:
                         self.assertEqual(res.split, z.split)
@@ -1393,35 +1402,45 @@ class TestOperations(unittest.TestCase):
                         self.assertEqual(res.split, z.split)
                         self.assertEqual(res.lshape, tuple(target_dims))
                     if i == it:
-                        res = z.mean(dimen=it, all_procs=True)
+                        res = z.mean(axis=it)
                         self.assertEqual(res, 1)
                         target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                         if all(target_dims) != 0:
                             self.assertEqual(res.lshape, tuple(target_dims))
 
                 # todo: see comment about dimens in operations. can uncomement this when the required pytorch is updated (travis fail)
-                # loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
-                # if len(z.shape) > 2:
-                #     for r in range(3, len(z.shape)):
-                #         loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
-                # for it in loop_list:  # loop over the different combinations of dimensions for mean
-                #     # print("it combi:", it)
-                #     res = z.mean(dimen=[int(q) for q in it.split(',')])
-                #     self.assertEqual(res, 1)
-                #     self.assertEqual(res.split, z.split)
-                #     target_dims = [total_dims_list[int(q)] if q not in [int(q) for q in it.split(',')] else 0 for q in range(len(total_dims_list))]
-                #     if all(target_dims) != 0:
-                #         if i:
-                #             self.assertEqual(res.lshape, tuple(target_dims))
-                #             self.assertEqual(res.split, z.split)
-                #         else:
-                #             self.assertEqual(res.shape, tuple(target_dims))
-                #             self.assertEqual(res.split, z.split)
+                loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
+                if len(z.shape) > 2:
+                    for r in range(3, len(z.shape)):
+                        loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
+                for it in loop_list:  # loop over the different combinations of dimensions for mean
+                    # print("it combi:", it)
+                    res = z.mean(axis=[int(q) for q in it.split(',')])
+                    self.assertEqual(res, 1)
+                    if not isinstance(res, float) and res.split:
+                        self.assertEqual(res.split, z.split)
+                    target_dims = [total_dims_list[int(q)] if q not in [int(q) for q in it.split(',')] else 0 for q in range(len(total_dims_list))]
+                    if all(target_dims) != 0:
+                        if i:
+                            self.assertEqual(res.lshape, tuple(target_dims))
+                            self.assertEqual(res.split, z.split)
+                        else:
+                            self.assertEqual(res.shape, tuple(target_dims))
+                            self.assertEqual(res.split, z.split)
 
     def test_var(self):
         array_0_len = 10
         array_1_len = 9
         array_2_len = 8
+
+        # test raises
+        x = ht.zeros((2,3,4))
+        with self.assertRaises(TypeError):
+            ht.var(x, axis=0, bessel=1)
+        with self.assertRaises(ValueError):
+            ht.var(x, axis=10)
+        with self.assertRaises(TypeError):
+            ht.var(x, axis='01')
 
         # zeros
         dimensions = []
@@ -1440,16 +1459,16 @@ class TestOperations(unittest.TestCase):
                 total_dims_list = list(z.shape)
                 self.assertEqual(res, 0)
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
-                    res = z.var(dimen=it)
+                    res = z.var(axis=it)
                     self.assertEqual(res, 0)
-                    if not isinstance(res, float):
+                    if not isinstance(res, float) and res.split:
                         self.assertEqual(res.split, z.split)
                     target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                     if all(target_dims) != 0:
                         self.assertEqual(res.lshape, tuple(target_dims))
                         self.assertEqual(res.split, z.split)
                     if i == it:
-                        res = z.var(dimen=it, all_procs=True)
+                        res = z.var(axis=it)
                         self.assertEqual(res, 0)
                         target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                         if all(target_dims) != 0:
@@ -1472,16 +1491,16 @@ class TestOperations(unittest.TestCase):
                 total_dims_list = list(z.shape)
                 self.assertEqual(res, 0)
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
-                    res = z.var(dimen=it)
+                    res = z.var(axis=it)
                     self.assertEqual(res, 0)
-                    if not isinstance(res, float):
+                    if not isinstance(res, float) and res.split:
                         self.assertEqual(res.split, z.split)
                     target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                     if all(target_dims) != 0:
                         self.assertEqual(res.lshape, tuple(target_dims))
                         self.assertEqual(res.split, z.split)
                     if i == it:
-                        res = z.var(dimen=it, all_procs=True)
+                        res = z.var(axis=it)
                         self.assertEqual(res, 0)
                         target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                         if all(target_dims) != 0:
