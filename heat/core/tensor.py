@@ -2,7 +2,7 @@ import operator
 import numpy as np
 import torch
 
-from .communication import MPI_WORLD
+from .communication import Communication, MPI, MPI_WORLD
 from .stride_tricks import *
 from . import types
 from . import devices
@@ -11,11 +11,12 @@ from . import io
 
 
 class tensor:
-    def __init__(self, array, gshape, dtype, split, comm):
+    def __init__(self, array, gshape, dtype, split, device, comm):
         self.__array = array
         self.__gshape = gshape
         self.__dtype = dtype
         self.__split = split
+        self.__device = device
         self.__comm = comm
 
     @property
@@ -24,7 +25,7 @@ class tensor:
 
     @property
     def device(self):
-        return self.__array.device
+        return self.__device
 
     @property
     def dtype(self):
@@ -73,7 +74,7 @@ class tensor:
         """
         Calculate the absolute value element-wise.
 
-        np.abs is a shorthand for this function.
+        ht.abs is a shorthand for this function.
 
         Parameters
         ----------
@@ -116,7 +117,7 @@ class tensor:
         dtype = types.canonical_heat_type(dtype)
         casted_array = self.__array.type(dtype.torch_type())
         if copy:
-            return tensor(casted_array, self.shape, dtype, self.split, self.__comm)
+            return tensor(casted_array, self.shape, dtype, self.split, self.device, self.comm)
 
         self.__array = casted_array
         self.__dtype = dtype
@@ -169,18 +170,19 @@ class tensor:
         self.__array = self.__array.cpu()
         return self
 
-    def gpu(self):
-        """
-        Returns a copy of this object in GPU memory. If this object is already in GPU memory, then no copy is performed
-        and the original object is returned.
+    if torch.cuda.device_count() > 0:
+        def gpu(self):
+            """
+            Returns a copy of this object in GPU memory. If this object is already in GPU memory, then no copy is performed
+            and the original object is returned.
 
-        Returns
-        -------
-        tensor_on_device : ht.tensor
-            A copy of this object on the GPU.
-        """
-        self.__array = self.__array.cuda(devices.gpu_index())
-        return self
+            Returns
+            -------
+            tensor_on_device : ht.tensor
+                A copy of this object on the GPU.
+            """
+            self.__array = self.__array.cuda(devices.gpu_index())
+            return self
 
     def max(self, axis=None):
         """"
@@ -264,7 +266,8 @@ class tensor:
             self.shape[:axis] + (1,) + self.shape[axis:],
             self.dtype,
             self.split if self.split is None or self.split < axis else self.split + 1,
-            self.__comm
+            self.device,
+            self.comm
         )
 
     def floor(self, out=None):
@@ -493,7 +496,7 @@ class tensor:
         # TODO: make me more numpy API complete
         # TODO: ... including the actual binops
         if np.isscalar(other):
-            return tensor(op(self.__array, other), self.shape, self.dtype, self.split, self.__comm)
+            return tensor(op(self.__array, other), self.shape, self.dtype, self.split, self.device, self.comm)
 
         elif isinstance(other, tensor):
             output_shape = broadcast_shape(self.shape, other.shape)
@@ -503,7 +506,8 @@ class tensor:
                 other = other.astype(self.dtype)
 
             if other.split is None or other.split == self.split:
-                return tensor(op(self.__array, other.__array), output_shape, self.dtype, self.split, self.__comm)
+                result = op(self.__array, other.__array)
+                return tensor(result, output_shape, self.dtype, self.split, self.device, self.comm)
             else:
                 raise NotImplementedError('Not implemented for other splittings')
         else:
@@ -557,7 +561,7 @@ class tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        return tensor(self.__array[key], self.shape, self.split, self.__comm)
+        return tensor(self.__array[key], self.shape, self.split, self.device, self.comm)
 
     def __setitem__(self, key, value):
         # TODO: document me
@@ -575,7 +579,7 @@ class tensor:
             raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
 
 
-def __factory(shape, dtype, split, local_factory, comm, device):
+def __factory(shape, dtype, split, local_factory, device, comm):
     """
     Abstracted factory function for HeAT tensor initialization.
 
@@ -589,10 +593,10 @@ def __factory(shape, dtype, split, local_factory, comm, device):
         The axis along which the array is split and distributed.
     local_factory : function
         Function that creates the local PyTorch tensor for the HeAT tensor.
-    comm: Communication, optional
-        Handle to the nodes holding distributed parts or copies of this tensor.
     device : str or None
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
     -------
@@ -607,11 +611,13 @@ def __factory(shape, dtype, split, local_factory, comm, device):
 
     # chunk the shape if necessary
     _, local_shape, _ = comm.chunk(shape, split)
+    # create the torch data using the factory function
+    data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
 
-    return tensor(local_factory(local_shape, dtype=dtype.torch_type(), device=device), shape, dtype, split, comm)
+    return tensor(data, shape, dtype, split, device, comm)
 
 
-def __factory_like(a, dtype, split, factory, comm, device):
+def __factory_like(a, dtype, split, factory, device, comm):
     """
     Abstracted '...-like' factory function for HeAT tensor initialization
 
@@ -625,10 +631,10 @@ def __factory_like(a, dtype, split, factory, comm, device):
         The axis along which the array is split and distributed, defaults to None (no distribution).
     factory : function
         Function that creates a HeAT tensor.
-    comm: Communication, optional
-        Handle to the nodes holding distributed parts or copies of this tensor.
     device : str or None
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
     -------
@@ -660,10 +666,10 @@ def __factory_like(a, dtype, split, factory, comm, device):
             # do not split at all
             pass
 
-    return factory(shape, dtype, split, comm, device)
+    return factory(shape, dtype, split, device, comm)
 
 
-def arange(*args, dtype=None, split=None, comm=MPI_WORLD, device=None):
+def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
     """
     Return evenly spaced values within a given interval.
 
@@ -688,10 +694,10 @@ def arange(*args, dtype=None, split=None, comm=MPI_WORLD, device=None):
         The type of the output array.  If `dtype` is not given, infer the data type from the other input arguments.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
-    comm: Communication, optional
-        Handle to the nodes holding distributed parts or copies of this tensor.
     device : str or None, optional
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
     -------
@@ -755,12 +761,154 @@ def arange(*args, dtype=None, split=None, comm=MPI_WORLD, device=None):
     start += offset * step
     stop = start + lshape[0] * step
     device = devices.sanitize_device(device)
-    data = torch.arange(start, stop, step, dtype=types.canonical_heat_type(dtype).torch_type(), device=device)
+    data = torch.arange(
+        start, stop, step,
+        dtype=types.canonical_heat_type(dtype).torch_type(),
+        device=device.torch_device
+    )
 
-    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
+    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
 
 
-def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None, comm=MPI_WORLD, device=None):
+def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI_WORLD):
+    """
+    Create a tensor.
+
+    Parameters
+    ----------
+    obj : array_like
+        A tensor or array, any object exposing the array interface, an object whose __array__ method returns an array,
+        or any (nested) sequence.
+    dtype : dtype, optional
+        The desired data-type for the array. If not given, then the type will be determined as the minimum type required
+        to hold the objects in the sequence. This argument can only be used to ‘upcast’ the array. For downcasting, use
+        the .astype(t) method.
+    copy : bool, optional
+        If true (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested sequence or
+        if a copy is needed to satisfy any of the other requirements, e.g. dtype.
+    ndmin : int, optional
+        Specifies the minimum number of dimensions that the resulting array should have. Ones will be pre-pended to the
+        shape as needed to meet this requirement.
+    split : None or int, optional
+        The axis along which the array is split and distributed in memory. If not None (default) the shape of the global
+        tensor is automatically inferred.
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed tensor chunks.
+
+    Returns
+    -------
+    out : ht.tensor
+        A tensor object satisfying the specified requirements.
+
+    Raises
+    ------
+
+    Examples
+    --------
+    >>> ht.array([1, 2, 3])
+    tensor([1, 2, 3])
+
+    Upcasting:
+    >>> ht.array([1, 2, 3.0])
+    tensor([ 1.,  2.,  3.])
+
+    More than one dimension:
+    >>> ht.array([[1, 2], [3, 4]])
+    tensor([[1, 2],
+           [3, 4]])
+
+    Minimum dimensions given:
+    >>> ht.array([1, 2, 3], ndmin=2)
+    tensor([[1, 2, 3]])
+
+    Type provided:
+    >>> ht.array([1, 2, 3], dtype=float)
+    tensor([ 1.0, 2.0, 3.0])
+
+    Pre-split data:
+    (0/2) >>> ht.array([1, 2], split=0)
+    (1/2) >>> ht.array([3, 4], split=0)
+    (0/2) tensor([1, 2, 3, 4])
+    (1/2) tensor([1, 2, 3, 4])
+    """
+    # extract the internal tensor in case of a heat tensor
+    if isinstance(obj, tensor):
+        obj = obj._tensor__array
+
+    # sanitize the data type
+    if dtype is not None:
+        dtype = types.canonical_heat_type(dtype)
+
+    # initialize the array
+    if bool(copy) or not isinstance(obj, torch.Tensor):
+        try:
+            obj = torch.tensor(obj, dtype=dtype.torch_type()
+                               if dtype is not None else None)
+        except RuntimeError:
+            raise TypeError('invalid data of type {}'.format(type(obj)))
+
+    # infer dtype from obj if not explicitly given
+    if dtype is None:
+        dtype = types.canonical_heat_type(obj.dtype)
+
+    # sanitize minimum number of dimensions
+    if not isinstance(ndmin, int):
+        raise TypeError(
+            'expected ndmin to be int, but was {}'.format(type(ndmin)))
+
+    # reshape the object to encompass additional dimensions
+    ndmin -= len(obj.shape)
+    if ndmin > 0:
+        obj = obj.reshape(obj.shape + ndmin * (1,))
+
+    # sanitize split axis
+    split = sanitize_axis(obj.shape, split)
+
+    # sanitize communication object
+    if not isinstance(comm, Communication):
+        raise TypeError(
+            'expected communication object, but got {}'.format(type(comm)))
+
+    # determine the local and the global shape, if not split is given, they are identical
+    lshape = np.array(obj.shape)
+    gshape = lshape.copy()
+
+    # check with the neighboring rank whether the local shape would fit into a global shape
+    if split is not None:
+        if comm.rank < comm.size - 1:
+            comm.Isend(lshape, dest=comm.rank + 1)
+        if comm.rank != 0:
+            # look into the message of the neighbor to see whether the shape length fits
+            status = MPI.Status()
+            comm.Probe(source=comm.rank - 1, status=status)
+            length = status.Get_count() // lshape.dtype.itemsize
+
+            # the number of shape elements does not match with the 'left' rank
+            if length != len(lshape):
+                gshape[split] = np.iinfo(gshape.dtype).min
+            else:
+                # check whether the individual shape elements match
+                comm.Recv(gshape, source=comm.rank - 1)
+                for i in range(length):
+                    if i == split:
+                        continue
+                    elif lshape[i] != gshape[i] and lshape[i] - 1 != gshape[i]:
+                        gshape[split] = np.iinfo(gshape.dtype).min
+
+        # sum up the elements along the split dimension
+        reduction_buffer = np.array(gshape[split])
+        comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
+        if reduction_buffer < 0:
+            raise ValueError(
+                'unable to construct tensor, shape of local data chunk does not match')
+        gshape[split] = reduction_buffer
+
+    return tensor(obj, tuple(gshape), dtype, split, device, comm)
+
+
+def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None, device=None, comm=MPI_WORLD):
     """
     Returns num evenly spaced samples, calculated over the interval [start, stop]. The endpoint of the interval can
     optionally be excluded.
@@ -783,10 +931,10 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
         The type of the output array.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
-    device : str or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
 
     Returns
     -------
@@ -798,11 +946,11 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
 
     Examples
     --------
-    >>> np.linspace(2.0, 3.0, num=5)
+    >>> ht.linspace(2.0, 3.0, num=5)
     tensor([ 2.  ,  2.25,  2.5 ,  2.75,  3.  ])
-    >>> np.linspace(2.0, 3.0, num=5, endpoint=False)
+    >>> ht.linspace(2.0, 3.0, num=5, endpoint=False)
     tensor([ 2. ,  2.2,  2.4,  2.6,  2.8])
-    >>> np.linspace(2.0, 3.0, num=5, retstep=True)
+    >>> ht.linspace(2.0, 3.0, num=5, retstep=True)
     (array([ 2.  ,  2.25,  2.5 ,  2.75,  3.  ]), 0.25)
     """
     # sanitize input parameters
@@ -822,19 +970,19 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
     start += offset * step
     stop = start + lshape[0] * step - step
     device = devices.sanitize_device(device)
-    data = torch.linspace(start, stop, lshape[0], device=device)
+    data = torch.linspace(start, stop, lshape[0], device=device.torch_device)
     if dtype is not None:
         data = data.type(types.canonical_heat_type(dtype).torch_type())
 
     # construct the resulting global tensor
-    ht_tensor = tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
+    ht_tensor = tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
 
     if retstep:
         return ht_tensor, step
     return ht_tensor
 
 
-def ones(shape, dtype=types.float32, split=None, comm=MPI_WORLD, device=None):
+def ones(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
     """
     Returns a new array of given shape and data type filled with one values. May be allocated split up across multiple
     nodes along the specified axis.
@@ -847,10 +995,10 @@ def ones(shape, dtype=types.float32, split=None, comm=MPI_WORLD, device=None):
         The desired HeAT data type for the array, defaults to ht.float32.
     split : int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm : Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
-    device : str or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
 
     Returns
     -------
@@ -869,10 +1017,10 @@ def ones(shape, dtype=types.float32, split=None, comm=MPI_WORLD, device=None):
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
     """
-    return __factory(shape, dtype, split, torch.ones, comm, device)
+    return __factory(shape, dtype, split, torch.ones, device, comm)
 
 
-def ones_like(a, dtype=None, split=None, comm=MPI_WORLD, device=None):
+def ones_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
     """
     Returns a new array filled with ones with the same type, shape and data distribution of given object. Data type and
     data distribution strategy can be explicitly overriden.
@@ -885,10 +1033,10 @@ def ones_like(a, dtype=None, split=None, comm=MPI_WORLD, device=None):
         Overrides the data type of the result.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
-    device : str or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
 
     Returns
     -------
@@ -906,10 +1054,10 @@ def ones_like(a, dtype=None, split=None, comm=MPI_WORLD, device=None):
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
     """
-    return __factory_like(a, dtype, split, ones, comm, device)
+    return __factory_like(a, dtype, split, ones, device, comm)
 
 
-def zeros(shape, dtype=types.float32, split=None, comm=MPI_WORLD, device=None):
+def zeros(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
     """
     Returns a new array of given shape and data type filled with zero values. May be allocated split up across multiple
     nodes along the specified axis.
@@ -922,10 +1070,10 @@ def zeros(shape, dtype=types.float32, split=None, comm=MPI_WORLD, device=None):
         The desired HeAT data type for the array, defaults to ht.float32.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
-    device : str or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
 
     Returns
     -------
@@ -944,10 +1092,10 @@ def zeros(shape, dtype=types.float32, split=None, comm=MPI_WORLD, device=None):
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
     """
-    return __factory(shape, dtype, split, torch.zeros, comm, device)
+    return __factory(shape, dtype, split, torch.zeros, device, comm)
 
 
-def zeros_like(a, dtype=None, split=None, comm=MPI_WORLD, device=None):
+def zeros_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
     """
     Returns a new array filled with zeros with the same type, shape and data distribution of given object. Data type and
     data distribution strategy can be explicitly overriden.
@@ -960,8 +1108,10 @@ def zeros_like(a, dtype=None, split=None, comm=MPI_WORLD, device=None):
         Overrides the data type of the result.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
-    device : str or None, optional
+    device : str, ht.Device or None, optional
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
     -------
@@ -979,4 +1129,4 @@ def zeros_like(a, dtype=None, split=None, comm=MPI_WORLD, device=None):
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
     """
-    return __factory_like(a, dtype, split, zeros, comm, device)
+    return __factory_like(a, dtype, split, zeros, device, comm)

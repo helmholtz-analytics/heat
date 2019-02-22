@@ -3,37 +3,82 @@ import torch
 from .communication import MPI_WORLD
 
 
-def cpu_index():
+__all__ = [
+    'cpu',
+    'get_default_device',
+    'sanitize_device',
+    'set_default_device'
+]
+
+
+class Device:
     """
-    Retrieves the index of the CPU to be used for this MPI process.
+    Implements a compute device.
 
-    Returns
-    -------
-    cpu_index : int
-        The CPU index
+    HeAT can run computations on different compute devices or backends. A device describes the device type and id on
+    which said computation should be carried out.
+
+    Parameters
+    ----------
+    device_type : str
+        represents HeAT's device name
+    device_id : int
+        the device id
+    torch_device : str
+        the corresponding PyTorch device type
+
+    Examples
+    --------
+    >>> # array on cpu
+    >>> cpu_array = ht.ones((2, 3), device=ht.cpu)
+    >>> # array on gpu
+    >>> gpu_array = ht.ones((2, 3), device=ht.gpu)
+    device(cpu:0)
     """
-    return 'cpu'
+    def __init__(self, device_type, device_id, torch_device):
+        self.__device_type = device_type
+        self.__device_id = device_id
+        self.__torch_device = torch_device
+
+    @property
+    def device_type(self):
+        return self.__device_type
+
+    @property
+    def device_type(self):
+        return self.__device_id
+
+    @property
+    def torch_device(self):
+        return self.__torch_device
+
+    def __repr__(self):
+        return 'device({})'.format(self.__str__())
+
+    def __str__(self):
+        return '{}:{}'.format(self.device_type, self.device_id)
 
 
-__default_device = 'cpu'
+# create a CPU device singleton
+cpu = Device('cpu', 0, 'cpu:0')
+
+# define the default device to be the CPU
+__default_device = cpu
+# add a device string for the CPU device
 __device_mapping = {
-    'cpu': cpu_index
+    cpu.device_type: cpu
 }
 
 # add gpu support if available
 if torch.cuda.device_count() > 0:
-    def gpu_index():
-        """
-        Retrieves the index of the GPU to be used for this MPI process.
-
-        Returns
-        -------
-        gpu_index : int
-            The GPU index
-        """
-        return 'cuda:{}'.format(MPI_WORLD.rank % torch.cuda.device_count())
-
-    __device_mapping['gpu'] = gpu_index
+    # GPUs are assigned round-robin to the MPI processes
+    gpu_id = MPI_WORLD.rank % torch.cuda.device_count()
+    # create a new GPU device
+    gpu = Device('gpu', gpu_id, 'cuda:{}'.format(gpu_id))
+    # add a GPU device string
+    __device_mapping[gpu.device_type] = gpu
+    # the GPU device should be exported as global symbol
+    __all__.append('gpu')
 
 
 def get_default_device():
@@ -42,51 +87,51 @@ def get_default_device():
 
     Returns
     -------
-    defaults device : str
-        The default device
+    defaults device : Device
+        The currently set default device.
     """
     return __default_device
 
 
 def sanitize_device(device):
     """
-    Sanitizes a device identifier, i.e. checks whether it is of correct type, string content and normalizes the
-    capitalization.
+    Sanitizes a device or device identifier, i.e. checks whether it is already an instance of Device or a string with
+    known device identifier and maps it to a proper Device.
+
+    Parameters
+    ----------
+    device : str, Device or None
+        The device to be sanitized
 
     Returns
     -------
-    device_id : str
-        The sanitized device id
+    sanitized_device : Device
+        The matching Device instance
 
     Raises
     ------
     TypeError
         If the given device id is not recognized
     """
-    if device is None:
-        device = __default_device
+    device = get_default_device() if device is None else device
+
+    if isinstance(device, Device):
+        return device
 
     try:
-        return __device_mapping[device.lower()]()
+        return __device_mapping[device.lower()]
     except (AttributeError, KeyError):
         raise TypeError('Unknown device, must be one of %s'.format(', '.join(__device_mapping.keys())))
 
 
-def use_device(device=None):
+def set_default_device(device=None):
     """
-    Sets the default device to be used globally.
+    Sets the globally used default device.
 
-    Raises
-    ------
-    TypeError
-        If the given device id is not recognized
+    Parameters
+    ----------
+    device : str, Device or None
+        The device to be set
     """
     global __default_device
-    if device is None:
-        return
-
-    try:
-        device = device.lower()
-        __default_device = device in __device_mapping and device
-    except (AttributeError, KeyError):
-        raise TypeError('Unknown device, must be one of %s'.format(', '.join(__device_mapping.keys())))
+    __default_device = sanitize_device(device)

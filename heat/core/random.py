@@ -1,6 +1,7 @@
 import torch
 
 from .communication import MPI_WORLD
+from . import devices
 from . import tensor
 from . import types
 
@@ -12,7 +13,7 @@ def set_gseed(seed):
     torch.manual_seed(seed)
 
 
-def uniform(low=0.0, high=1.0, size=None, comm=MPI_WORLD):
+def uniform(low=0.0, high=1.0, size=None, device=None, comm=MPI_WORLD):
     # TODO: comment me
     # TODO: test me
     # TODO: make me splitable
@@ -20,10 +21,13 @@ def uniform(low=0.0, high=1.0, size=None, comm=MPI_WORLD):
     if size is None:
         size = (1,)
 
-    return tensor(torch.Tensor(*size).uniform_(low, high), size, types.float32, None, comm)
+    device = devices.sanitize_device(device)
+    data = torch.rand(*size, device=device.torch_device) * (high - low) + low
+
+    return tensor(data, size, types.float32, None, device, comm)
 
 
-def randn(*args):
+def randn(*args, device=None, comm=MPI_WORLD):
     """
     Returns a tensor filled with random numbers from a standard normal distribution with zero mean and variance of one.
 
@@ -73,6 +77,7 @@ def randn(*args):
         raise ValueError(str(exception))
 
     # compose the local tensor
-    data = torch.randn(args)
+    device = devices.sanitize_device(device)
+    data = torch.randn(args, device=device.torch_device)
 
-    return tensor(data, gshape, types.canonical_heat_type(data.dtype), None, MPI_WORLD)
+    return tensor(data, gshape, types.canonical_heat_type(data.dtype), None, device, comm)

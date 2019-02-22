@@ -37,7 +37,7 @@ else:
         return True
 
 
-    def load_hdf5(path, dataset, dtype=types.float32, split=None, comm=MPI_WORLD, device=None):
+    def load_hdf5(path, dataset, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
         """
         Loads data from an HDF5 file. The data may be distributed among multiple processing nodes via the split flag.
 
@@ -51,10 +51,10 @@ else:
             Data type of the resulting array; default: ht.float32.
         split : int, optional
             The axis along which the data is distributed among the processing cores.
-        comm : ht.Communication, optional
-            The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
         device : None or str, optional
             The device id on which to place the data, defaults to globally set default device.
+        comm : ht.Communication, optional
+            The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
 
         Returns
         -------
@@ -96,9 +96,9 @@ else:
             data = handle[dataset]
             gshape = tuple(data.shape)
             _, _, indices = comm.chunk(gshape, split)
-            data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device)
+            data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
 
-            return tensor.tensor(data, gshape, dtype, split, comm)
+            return tensor.tensor(data, gshape, dtype, split, device, comm)
 
 
     def save_hdf5(data, path, dataset, mode='w', **kwargs):
@@ -195,7 +195,7 @@ else:
     def supports_netcdf():
         return True
 
-    def load_netcdf(path, variable, dtype=types.float32, split=None, comm=MPI_WORLD, device=None):
+    def load_netcdf(path, variable, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
         """
         Loads data from a NetCDF4 file. The data may be distributed among multiple processing nodes via the split flag.
 
@@ -254,9 +254,9 @@ else:
             data = handle[variable][:]
             gshape = tuple(data.shape)
             _, _, indices = comm.chunk(gshape, split)
-            data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device)
+            data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
 
-            return tensor.tensor(data, gshape, dtype, split, comm)
+            return tensor.tensor(data, gshape, dtype, split, device, comm)
 
 
     def save_netcdf(data, path, variable, mode='w', **kwargs):
