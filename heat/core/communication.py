@@ -339,7 +339,7 @@ class MPICommunication(Communication):
         return self.__collective_single_type(self.handle.Scan, sendbuf, recvbuf, op)
     Scan.__doc__ = MPI.COMM_WORLD.Scan.__doc__
 
-    def Scatter(self, sendbuf, recvbuf, root=0, axis=0):
+    def __scatter(self, func, sendbuf, recvbuf, root, axis):
         # unpack the send buffer if it is a HeAT tensor
         if isinstance(sendbuf, tensor.tensor):
             sendbuf = sendbuf._tensor__array
@@ -357,15 +357,16 @@ class MPICommunication(Communication):
             # keep a reference to the original recvbuf object
             original_recvbuf = recvbuf
             # permute the axis order so that the split axis is the first to be transmitted
-            axis_permutation = list(range(sendbuf.ndimension()))
+            axis_permutation = list(range(recvbuf.ndimension()))
             axis_permutation[0], axis_permutation[axis] = axis, 0
-            sendbuf = sendbuf.permute(*axis_permutation)
             recvbuf = recvbuf.permute(*axis_permutation)
+            if self.rank == root:
+                sendbuf = sendbuf.permute(*axis_permutation)
 
         # perform the scatter operation
         sendbuf = self.as_buffer(sendbuf)
         sendbuf[1] /= self.size
-        exit_code = self.handle.Scatter(sendbuf, self.as_buffer(recvbuf), root=root)
+        exit_code = func(sendbuf, self.as_buffer(recvbuf), root=root)
 
         # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
         if axis != 0:
@@ -376,6 +377,14 @@ class MPICommunication(Communication):
             )
 
         return exit_code
+
+    def Iscatter(self, sendbuf, recvbuf, root=0, axis=0):
+        return self.__scatter(self.handle.Iscatter, sendbuf, recvbuf, root, axis)
+    Iscatter.__doc__ = MPI.Comm.Iscatter.__doc__
+
+    def Scatter(self, sendbuf, recvbuf, root=0, axis=0):
+        return self.__scatter(self.handle.Scatter, sendbuf, recvbuf, root, axis)
+    Scatter.__doc__ = MPI.Comm.Scatter.__doc__
 
     def __getattr__(self, name):
         """
