@@ -1,6 +1,12 @@
 language: python
 python:
   - "3.5"
+cache:
+  directories:
+  - $HOME/virtualenv/python3.5/bin
+  - $HOME/virtualenv/python3.5/lib
+  - $HOME/virtualenv/python3.5/include
+  - $HOME/virtualenv/python3.5/share
 before_install:
   - sudo apt-get install -y libopenmpi-dev openmpi-bin libhdf5-dev libnetcdf-dev
   - pip install codecov pytest pytest-cov
