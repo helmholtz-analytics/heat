@@ -151,6 +151,7 @@ class MPICommunication(Communication):
         shape = obj.shape[1:]
         strides = [1] * len(shape)
         strides[0] = obj.stride()[-1]
+        #strides = obj.stride()[1:]
         offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
 
         # chain the types based on the
@@ -184,12 +185,11 @@ class MPICommunication(Communication):
     @classmethod
     def as_buffer(cls, obj):
         """
-        Converts a passed HeAT or torch tensor into a memory buffer object with associated number of elements and MPI
-        data type.
+        Converts a passed torch tensor into a memory buffer object with associated number of elements and MPI data type.
 
         Parameters
         ----------
-        obj : ht.tensor or torch.Tensor
+        obj : torch.Tensor
             The object to be converted into a buffer representation.
 
         Returns
@@ -197,15 +197,6 @@ class MPICommunication(Communication):
         buffer : list[MPI.memory, int, MPI.Datatype]
             The buffer information of the passed tensor, ready to be passed as MPI send or receive buffer.
         """
-        # unpack heat tensors, only the torch tensor is needed
-        if isinstance(obj, tensor.tensor):
-            obj = obj._tensor__array
-        # non-torch tensors are assumed to support the buffer interface or will not be send
-        if not isinstance(obj, torch.Tensor):
-            return obj
-
-        # ensure that the underlying memory is contiguous
-        # may be improved by constructing an appropriate MPI derived data type?
         mpi_type, elements = cls.mpi_type_and_elements_of(obj)
 
         return [cls.as_mpi_memory(obj), elements, mpi_type]
@@ -213,10 +204,10 @@ class MPICommunication(Communication):
     def __recv(self, func, buf, source, tag, status):
         if isinstance(buf, tensor.tensor):
             buf = buf._tensor__array
-        if isinstance(buf, torch.Tensor):
-            buf = self.as_buffer(buf)
+        if not isinstance(buf, torch.Tensor):
+            raise TypeError('Expected a HeAT or torch tensor, but got {} instead'.format(type(buf)))
 
-        return func(buf, source, tag, status)
+        return func(self.as_buffer(buf), source, tag, status)
 
     def Irecv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=None):
         return self.__recv(self.handle.Irecv, buf, source, tag, status)
@@ -229,10 +220,10 @@ class MPICommunication(Communication):
     def __send(self, func, buf, dest, tag):
         if isinstance(buf, tensor.tensor):
             buf = buf._tensor__array
-        if isinstance(buf, torch.Tensor):
-            buf = self.as_buffer(buf)
+        if not isinstance(buf, torch.Tensor):
+            raise TypeError('Expected a HeAT or torch tensor, but got {} instead'.format(type(buf)))
 
-        return func(buf, dest, tag)
+        return func(self.as_buffer(buf), dest, tag)
 
     def Bsend(self, buf, dest, tag=0):
         return self.__send(self.handle.Bsend, buf, dest, tag)
@@ -271,10 +262,10 @@ class MPICommunication(Communication):
         if isinstance(buf, tensor.tensor):
             buf = buf._tensor__array
         # convert torch tensors to MPI memory buffers
-        if isinstance(buf, torch.Tensor):
-            buf = self.as_buffer(buf)
+        if not isinstance(buf, torch.Tensor):
+            raise TypeError('Expected a HeAT or torch tensor, but got {} instead'.format(type(buf)))
 
-        return func(buf, root)
+        return func(self.as_buffer(buf), root)
 
     def Bcast(self, buf, root=0):
         return self.__broadcast(self.handle.Bcast, buf, root)
@@ -285,35 +276,32 @@ class MPICommunication(Communication):
     Ibcast.__doc__ = MPI.Comm.Ibcast.__doc__
 
     def __collective_single_type(self, func, sendbuf, recvbuf, *args, **kwargs):
-        # unpack the receive buffer if it is a HeAT tensor
-        if isinstance(recvbuf, tensor.tensor):
-            recvbuf = recvbuf._tensor__array
         # unpack the send buffer if it is a HeAT tensor
         if isinstance(sendbuf, tensor.tensor):
             sendbuf = sendbuf._tensor__array
+        # unpack the receive buffer if it is a HeAT tensor
+        if isinstance(recvbuf, tensor.tensor):
+            recvbuf = recvbuf._tensor__array
 
         # determine whether the buffers are torch tensors
-        sendbuf_is_torch = isinstance(sendbuf, torch.Tensor)
-        recvbuf_is_torch = isinstance(recvbuf, torch.Tensor)
+        if not isinstance(sendbuf, torch.Tensor):
+            raise TypeError('Expected a HeAT or torch tensor as sendbuf, but got {} instead'.format(type(sendbuf)))
+        if not isinstance(recvbuf, torch.Tensor):
+            raise TypeError('Expected a HeAT or torch tensor as recvbuf, but got {} instead'.format(type(recvbuf)))
 
         # harmonize the input and output buffers
         # MPI requires send and receive buffers to be of same type and length. If the torch tensors are either not both
         # contiguous or differently strided, they have to be made matching (if possible) first.
-        if sendbuf_is_torch and recvbuf_is_torch:
-            # convert the send buffer to a pointer, number of elements and type are identical to the receive buffer
-            dummy = sendbuf.contiguous()  # make a contiguous copy and reassign the storage, old will be collected
-            sendbuf.set_(dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride())
-            sendbuf = self.as_buffer(sendbuf)
 
-            # nothing matches, the buffers have to be made contiguous
-            dummy = recvbuf.contiguous()
-            recvbuf.set_(dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride())
-            recvbuf = [self.as_mpi_memory(recvbuf), sendbuf[1], sendbuf[2]]
+        # convert the send buffer to a pointer, number of elements and type are identical to the receive buffer
+        dummy = sendbuf.contiguous()  # make a contiguous copy and reassign the storage, old will be collected
+        sendbuf.set_(dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride())
+        sendbuf = self.as_buffer(sendbuf)
 
-        elif sendbuf_is_torch:
-            sendbuf = self.as_buffer(sendbuf)
-        elif recvbuf_is_torch:
-            recvbuf = self.as_buffer(recvbuf)
+        # nothing matches, the buffers have to be made contiguous
+        dummy = recvbuf.contiguous()
+        recvbuf.set_(dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride())
+        recvbuf = [self.as_mpi_memory(recvbuf), sendbuf[1], sendbuf[2]]
 
         # perform the actual reduction operation
         return func(sendbuf, recvbuf, *args, **kwargs)
@@ -325,6 +313,10 @@ class MPICommunication(Communication):
     def Exscan(self, sendbuf, recvbuf, op=MPI.SUM):
         return self.__collective_single_type(self.handle.Exscan, sendbuf, recvbuf, op)
     Exscan.__doc__ = MPI.COMM_WORLD.Exscan.__doc__
+
+    # def Gather(self, sendbuf, recvbuff, root=0):
+    #     return None
+    # Gather.__doc__ = MPI.Comm.Gather.__doc__
 
     def Iallreduce(self, sendbuf, recvbuf, op=MPI.SUM):
         return self.__collective_single_type(self.handle.Iallreduce, sendbuf, recvbuf, op)
@@ -349,6 +341,44 @@ class MPICommunication(Communication):
     def Scan(self, sendbuf, recvbuf, op=MPI.SUM):
         return self.__collective_single_type(self.handle.Scan, sendbuf, recvbuf, op)
     Scan.__doc__ = MPI.COMM_WORLD.Scan.__doc__
+
+    def Scatter(self, sendbuf, recvbuf, root=0, axis=0):
+        # unpack the send buffer if it is a HeAT tensor
+        if isinstance(sendbuf, tensor.tensor):
+            sendbuf = sendbuf._tensor__array
+        # unpack the receive buffer if it is a HeAT tensor
+        if isinstance(recvbuf, tensor.tensor):
+            recvbuf = recvbuf._tensor__array
+
+        # determine whether the buffers are torch tensors
+        if not isinstance(sendbuf, torch.Tensor):
+            raise TypeError('Expected a HeAT or torch tensor as sendbuf, but got {} instead'.format(type(sendbuf)))
+        if not isinstance(recvbuf, torch.Tensor):
+            raise TypeError('Expected a HeAT or torch tensor as recvbuf, but got {} instead'.format(type(recvbuf)))
+
+        if axis != 0:
+            # keep a reference to the original recvbuf object
+            original_recvbuf = recvbuf
+            # permute the axis order so that the split axis is the first to be transmitted
+            axis_permutation = list(range(sendbuf.ndimension()))
+            axis_permutation[0], axis_permutation[axis] = axis, 0
+            sendbuf = sendbuf.permute(*axis_permutation)
+            recvbuf = recvbuf.permute(*axis_permutation)
+
+        # perform the scatter operation
+        sendbuf = self.as_buffer(sendbuf)
+        sendbuf[1] /= self.size
+        exit_code = self.handle.Scatter(sendbuf, self.as_buffer(recvbuf), root=root)
+
+        # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
+        if axis != 0:
+            recvbuf = recvbuf.permute(*axis_permutation)
+            original_recvbuf.set_(
+                recvbuf.storage(), recvbuf.storage_offset(),
+                size=recvbuf.shape, stride=recvbuf.stride()
+            )
+
+        return exit_code
 
 
 MPI_WORLD = MPICommunication()
