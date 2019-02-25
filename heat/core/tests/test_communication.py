@@ -170,5 +170,57 @@ class TestCommunication(unittest.TestCase):
         self.assertFalse(data._tensor__array.is_contiguous())
         self.assertTrue((data._tensor__array == torch.ones((5, 2,), dtype=torch.float32)).all())
 
+    def test_reduce(self):
+        # contiguous data
+        data = ht.ones((10, 2,), dtype=ht.int32)
+        out = ht.zeros_like(data)
+
+        # reduce across all nodes
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(out._tensor__array.is_contiguous())
+        data.comm.Reduce(data, out, op=ht.MPI.SUM, root=0)
+
+        # check the reduction result
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(out._tensor__array.is_contiguous())
+        if data.comm.rank == 0:
+            self.assertTrue((out._tensor__array == data.comm.size).all())
+
+        # non-contiguous data
+        data = ht.ones((10, 2,), dtype=ht.int32).T
+        out = ht.zeros_like(data)
+
+        # reduce across all nodes
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertTrue(out._tensor__array.is_contiguous())
+        data.comm.Reduce(data, out, op=ht.MPI.SUM, root=0)
+
+        # check the reduction result
+        # the data tensor will be contiguous after the reduction
+        # MPI enforces the same data type for send and receive buffer
+        # the reduction implementation takes care of making the internal Torch storage consistent
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(out._tensor__array.is_contiguous())
+        if data.comm.rank == 0:
+            self.assertTrue((out._tensor__array == data.comm.size).all())
+
+        # non-contiguous output
+        data = ht.ones((10, 2,), dtype=ht.int32)
+        out = ht.zeros((2, 10), dtype=ht.int32).T
+
+        # reduce across all nodes
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertFalse(out._tensor__array.is_contiguous())
+        data.comm.Reduce(data, out, op=ht.MPI.SUM, root=0)
+
+        # check the reduction result
+        # the data tensor will be contiguous after the reduction
+        # MPI enforces the same data type for send and receive buffer
+        # the reduction implementation takes care of making the internal Torch storage consistent
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(out._tensor__array.is_contiguous())
+        if data.comm.rank == 0:
+            self.assertTrue((out._tensor__array == data.comm.size).all())
+
     def test_cuda_aware_mpi(self):
         self.assertTrue(hasattr(ht.communication, 'CUDA_AWARE_MPI'))
