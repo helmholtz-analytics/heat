@@ -1429,7 +1429,7 @@ class TestOperations(unittest.TestCase):
         # values for the iris dataset mean measured by libreoffice calc
         ax0 = [5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667]
         for sp in [None, 0, 1]:
-            iris = ht.load('/home/d.coquelin/.git/heat/heat/datasets/data/iris.h5', 'data', split=sp)
+            iris = ht.load('heat/datasets/data/iris.h5', 'data', split=sp)
             self.assertAlmostEqual(ht.mean(iris), 3.46366666666667)
             assert all([a == b for a, b in zip(ht.mean(iris, axis=0), ax0)])
 
@@ -1516,6 +1516,6 @@ class TestOperations(unittest.TestCase):
         # values for the iris dataset var measured by libreoffice calc
         ax0 = [0.68569351230425, 0.188004026845638, 3.11317941834452, 0.582414317673378]
         for sp in [None, 0, 1]:
-            iris = ht.load('/home/d.coquelin/.git/heat/heat/datasets/data/iris.h5', 'data', split=sp)
+            iris = ht.load('heat/datasets/data/iris.h5', 'data', split=sp)
             self.assertAlmostEqual(ht.var(iris, bessel=True), 3.90318519755147, 5)
             assert all([a == b for a, b in zip(ht.var(iris, axis=0, bessel=True), ax0)])
