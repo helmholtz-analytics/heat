@@ -1360,7 +1360,7 @@ class TestOperations(unittest.TestCase):
                     for r in range(3, len(z.shape)):
                         loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
                 for it in loop_list:  # loop over the different combinations of dimensions for mean
-                    res = z.mean(axis=(int(q) for q in it.split(',')))
+                    res = z.mean(axis=tuple([int(q) for q in it.split(',')]))
                     self.assertEqual(res, 0)
                     if not isinstance(res, float):
                         if res.split:
