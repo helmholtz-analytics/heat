@@ -649,14 +649,34 @@ class tensor:
         return operations.triu(self, k)
 
     def __binop(self, op, other):
-        # TODO: document me
+        """
+        Generic wrapper for in-place, element-wise binary operations of the tensor with either another tensor or a scalar.
+        Takes the operation function and the second operand (other) to be involved in the operation as arguments.
+
+        Parameters
+        ----------
+        op : function
+        The operation to be performed. Function that performs operation elements-wise on the involved tensors,
+        e.g. add values from other to self
+
+        other: tensor or scalar
+        The second operand involved in the operation,
+
+        Returns
+        -------
+        result: ht.tensor
+        The transformed tensor after performing operation.
+        """
+
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
         # TODO: ... including the actual binops
+        #if second operand is a scalar, performing the operation is trivial
         if np.isscalar(other):
             return tensor(op(self.__array, other), self.shape, self.dtype, self.split, self.__comm)
 
+        #only other option is if second operand is a tensor
         elif isinstance(other, tensor):
             output_shape = broadcast_shape(self.shape, other.shape)
 
@@ -666,43 +686,214 @@ class tensor:
 
             if other.split is None or other.split == self.split:
                 return tensor(op(self.__array, other.__array), output_shape, self.dtype, self.split, self.__comm)
+
+            # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
             else:
                 raise NotImplementedError(
                     'Not implemented for other splittings')
+
         else:
             raise NotImplementedError('Not implemented for non scalar')
 
     def __add__(self, other):
+        """
+         In-place, element-wise addition of another tensor or a scalar to the tensor.
+         Takes the second operand (scalar or tensor) whose elements are to be added as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) to be added element-wise to the tensor
+
+         Returns
+         -------
+         result: ht.tensor
+         The transformed tensor after performing addition.
+         """
+
         return self.__binop(operator.add, other)
 
     def __sub__(self, other):
+        """
+         In-place, element-wise subtraction of another tensor or a scalar from the tensor.
+         Takes the second operand (scalar or tensor) whose elements are to be subtracted  as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) to be subtracted element-wise from the tensor
+
+         Returns
+         -------
+         result: ht.tensor
+         The transformed tensor after performing subtraction.
+         """
         return self.__binop(operator.sub, other)
 
     def __truediv__(self, other):
+        """
+         In-place, element-wise true division (i.e. result is floating point value rather than rounded int (floor))
+         of the tensor by another tensor or scalar. Takes the second operand (scalar or tensor) by which to divide
+         as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) by which to divide the tensor (element-wise)
+
+         Returns
+         -------
+         result: ht.tensor
+         The transformed tensor after performing division.
+         """
         return self.__binop(operator.truediv, other)
 
     def __mul__(self, other):
+        """
+         In-place, element-wise multiplication (not matrix multiplication) with values from second operand (scalar or tensor)
+         Takes the second operand (scalar or tensor) whose values to multiply to the first tensor as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) to multiply to the tensor (element-wise)
+
+         Returns
+         -------
+         result: ht.tensor
+         The transformed tensor after performing multiplication.
+         """
         return self.__binop(operator.mul, other)
 
     def __pow__(self, other):
+        """
+         In-place, element-wise exponential function with values from second operand (scalar or tensor)
+         Takes the second operand (scalar or tensor) whose values are the exponent to be applied to the first
+         tensor as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) in the exponent (element-wise)
+
+         Returns
+         -------
+         result: ht.tensor
+         The transformed tensor after performing the exponential operation.
+         """
+
         return self.__binop(operator.pow, other)
 
     def __eq__(self, other):
+        """
+         Element-wise rich comparison of equality with values from second operand (scalar or tensor)
+         Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) to which to compare equality
+
+         Returns
+         -------
+         result: ht.tensor
+         Tensor holding true for all elements in which values of self are equal to values of other,
+         false for all other elements
+         """
+
         return self.__binop(operator.eq, other)
 
     def __ne__(self, other):
+        """
+        Element-wise rich comparison of non-equality with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare equality
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding true for all elements in which values of self are equal to values of other,
+        false for all other elements
+        """
+
         return self.__binop(operator.ne, other)
 
     def __lt__(self, other):
+        """
+        Element-wise rich comparison of relation "less than" with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare elements from tensor
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding true for all elements in which values in self are less than values of other (x1 < x2),
+        false for all other elements
+        """
         return self.__binop(operator.lt, other)
 
     def __le__(self, other):
+        """
+        Element-wise rich comparison of relation "less than or equal" with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare elements from tensor
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding true for all elements in which values in self are less than or equal to values of other (x1 <= x2),
+        false for all other elements
+        """
         return self.__binop(operator.le, other)
 
     def __gt__(self, other):
+        """
+        Element-wise rich comparison of relation "greater than" with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare elements from tensor
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding true for all elements in which values in self are greater than values of other (x1 > x2),
+        false for all other elements
+        """
+
         return self.__binop(operator.gt, other)
 
     def __ge__(self, other):
+        """
+        Element-wise rich comparison of relation "greater than or equal" with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare elements from tensor
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding true for all elements in which values in self are greater than or equal to values of other (x1 >= x2),
+        false for all other elements
+        """
+
         return self.__binop(operator.ge, other)
 
     def __str__(self, *args):
