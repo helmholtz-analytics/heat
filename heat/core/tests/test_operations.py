@@ -1354,7 +1354,6 @@ class TestOperations(unittest.TestCase):
                         if all(target_dims) != 0:
                             self.assertEqual(res.lshape, tuple(target_dims))
 
-                # todo: see comment about dimens in operations. can uncomement this when the required pytorch is updated (travis fail)
                 loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
                 if len(z.shape) > 2:
                     for r in range(3, len(z.shape)):
@@ -1408,7 +1407,6 @@ class TestOperations(unittest.TestCase):
                         if all(target_dims) != 0:
                             self.assertEqual(res.lshape, tuple(target_dims))
 
-                # todo: see comment about dimens in operations. can uncomement this when the required pytorch is updated (travis fail)
                 loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
                 if len(z.shape) > 2:
                     for r in range(3, len(z.shape)):
@@ -1427,6 +1425,15 @@ class TestOperations(unittest.TestCase):
                         else:
                             self.assertEqual(res.shape, tuple(target_dims))
                             self.assertEqual(res.split, z.split)
+
+        # values for the iris dataset mean measured by libreoffice calc
+        ax0 = [5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667]
+        for sp in [None, 0, 1]:
+            iris = ht.load('/home/d.coquelin/.git/heat/heat/datasets/data/iris.h5', 'data', split=sp)
+            self.assertAlmostEqual(ht.mean(iris), 3.46366666666667)
+            assert all([a == b for a, b in zip(ht.mean(iris, axis=0), ax0)])
+
+
 
     def test_var(self):
         array_0_len = 10
@@ -1505,3 +1512,10 @@ class TestOperations(unittest.TestCase):
                         target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
                         if all(target_dims) != 0:
                             self.assertEqual(res.lshape, tuple(target_dims))
+
+        # values for the iris dataset var measured by libreoffice calc
+        ax0 = [0.68569351230425, 0.188004026845638, 3.11317941834452, 0.582414317673378]
+        for sp in [None, 0, 1]:
+            iris = ht.load('/home/d.coquelin/.git/heat/heat/datasets/data/iris.h5', 'data', split=sp)
+            self.assertAlmostEqual(ht.var(iris, bessel=True), 3.90318519755147, 5)
+            assert all([a == b for a, b in zip(ht.var(iris, axis=0, bessel=True), ax0)])

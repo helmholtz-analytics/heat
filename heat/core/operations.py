@@ -929,7 +929,7 @@ def var(x, axis=None, bessel=True):
     # ----------------------------------------------------------------------------------------------------
     if axis is None:
         # case for full matrix calculation (axis is None)
-        if x.split:
+        if x.split is not None:
             # print("axis is None, distributed case", axis, x.split)
             if x.lshape[x.split] != 0:
                 mu_in = __local_operation(torch.mean, x, out=None)
@@ -947,7 +947,6 @@ def var(x, axis=None, bessel=True):
 
             rem1 = 0
             rem2 = 0
-
             sz = var_tot.shape[0]
             while True:  # this loop will loop pairwise over the whole process and do pairwise updates
                 if sz % 2 != 0:  # test if the length is an odd number
