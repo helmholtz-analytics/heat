@@ -143,5 +143,32 @@ class TestCommunication(unittest.TestCase):
         self.assertTrue((both_non_contiguous_data._tensor__array == both_non_contiguous_out._tensor__array).all())
         self.assertFalse(both_non_contiguous_out._tensor__array.is_contiguous())
 
+    def test_bcast(self):
+        # contiguous data
+        data = ht.arange(10, dtype=ht.int64)
+        if ht.MPI_WORLD.rank != 0:
+            data = ht.zeros_like(data, dtype=ht.int64)
+
+        # broadcast data to all nodes
+        self.assertTrue(data._tensor__array.is_contiguous())
+        data.comm.Bcast(data, root=0)
+
+        # assert output is equal
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue((data._tensor__array == torch.arange(10)).all())
+
+        # non-contiguous data
+        data = ht.ones((2, 5,), dtype=ht.float32).T
+        if ht.MPI_WORLD.rank != 0:
+            data = ht.zeros((2, 5,), dtype=ht.float32).T
+
+        # broadcast data to all nodes
+        self.assertFalse(data._tensor__array.is_contiguous())
+        data.comm.Bcast(data, root=0)
+
+        # assert output is equal
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertTrue((data._tensor__array == torch.ones((5, 2,), dtype=torch.float32)).all())
+
     def test_cuda_aware_mpi(self):
         self.assertTrue(hasattr(ht.communication, 'CUDA_AWARE_MPI'))

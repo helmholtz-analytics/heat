@@ -315,10 +315,6 @@ class MPICommunication(Communication):
         return self.__collective_single_type(self.handle.Exscan, sendbuf, recvbuf, op)
     Exscan.__doc__ = MPI.COMM_WORLD.Exscan.__doc__
 
-    # def Gather(self, sendbuf, recvbuff, root=0):
-    #     return None
-    # Gather.__doc__ = MPI.Comm.Gather.__doc__
-
     def Iallreduce(self, sendbuf, recvbuf, op=MPI.SUM):
         return self.__collective_single_type(self.handle.Iallreduce, sendbuf, recvbuf, op)
     Iallreduce.__doc__ = MPI.Comm.Iallreduce.__doc__
@@ -380,6 +376,22 @@ class MPICommunication(Communication):
             )
 
         return exit_code
+
+    def __getattr__(self, name):
+        """
+        Default pass-through for the communicator methods.
+
+        Parameters
+        ----------
+        name : str
+            The name of the method to be called.
+
+        Returns
+        -------
+        method : function
+            The handle's method
+        """
+        return getattr(self.handle, name)
 
 
 MPI_WORLD = MPICommunication()
