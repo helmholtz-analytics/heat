@@ -595,6 +595,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(float32_sqrt, ht.tensor)
         self.assertEqual(float32_sqrt.dtype, ht.float32)
         self.assertEqual(float32_sqrt.dtype, ht.float32)
+        print((float32_sqrt._tensor__array == comparison.type(torch.float32)).all())
         self.assertTrue((float32_sqrt._tensor__array == comparison.type(torch.float32)).all())
 
         # square roots of float64
@@ -1516,6 +1517,6 @@ class TestOperations(unittest.TestCase):
         # values for the iris dataset var measured by libreoffice calc
         ax0 = [0.68569351230425, 0.188004026845638, 3.11317941834452, 0.582414317673378]
         for sp in [None, 0, 1]:
-            iris = ht.load('heat/datasets/data/iris.h5', 'data', split=sp)
+            iris = ht.load_hdf5('heat/datasets/data/iris.h5', 'data', split=sp)
             self.assertAlmostEqual(ht.var(iris, bessel=True), 3.90318519755147, 5)
             assert all([a == b for a, b in zip(ht.var(iris, axis=0, bessel=True), ax0)])
