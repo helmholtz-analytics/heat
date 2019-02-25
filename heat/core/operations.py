@@ -611,7 +611,7 @@ def mean(x, axis=None):
         ht.tensor of the calculated means
         """
         if x.lshape[x.split] != 0:
-            mu = __local_operation(torch.mean, x, out=None, **{'dim': axis})
+            mu = __local_operation(torch.mean, x, out=None, dim=axis)
         else:
             mu = tensor.zeros(output_shape_i)
 
@@ -799,7 +799,7 @@ def merge_vars(var1, mu1, n1, var2, mu2, n2, bessel=True):
     n = n1 + n2
     delta = mu2.item() - mu1.item()
     if bessel:
-        return (var1*(n1-1) + var2*(n2-1) + (delta ** 2) * n1 * n2 / n) / (n-1), mu1 + n2 * (delta / (n1+n2)), n
+        return (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1), mu1 + n2 * (delta / (n1 + n2)), n
     else:
         return (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n, mu1 + n2 * (delta / (n1 + n2)), n
 
