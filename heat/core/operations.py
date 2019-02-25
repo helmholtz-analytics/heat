@@ -1,5 +1,8 @@
 import itertools
 import torch
+import numpy as np
+import operator
+
 
 from .communication import MPI
 from . import stride_tricks
@@ -720,7 +723,255 @@ def triu(m, k=0):
     """
     return __tri_op(m, k, torch.triu)
 
-    
+def add(t1, t2):
+    """
+      Element-wise addition of values from two operands, commutative.
+      Takes the first and second operand (scalar or tensor) whose elements are to be added as argument.
+
+      Parameters
+      ----------
+      t1: tensor or scalar
+      The first operand involved in the addition
+
+      t2: tensor or scalar
+      The second operand involved in the addition
+
+
+      Returns
+      -------
+      result: ht.tensor
+      A tensor containing the results of element-wise addition of t1 and t2.
+      """
+    return __binary_op(operator.add, t1, t2)
+
+def sub(t1, t2):
+    """
+      Element-wise subtraction of values of operand t2 from values of operands t1 (i.e t1 - t2), not commutative.
+      Takes the two operands (scalar or tensor) whose elements are to be subtracted (operand 2 from operand 1)
+      as argument.
+
+      Parameters
+      ----------
+      t1: tensor or scalar
+      The first operand from which values are subtracted
+
+      t2: tensor or scalar
+      The second operand whose values are subtracted
+
+
+      Returns
+      -------
+      result: ht.tensor
+      A tensor containing the results of element-wise subtraction of t1 and t2.
+      """
+    return __binary_op(operator.sub, t1, t2)
+
+def div(t1, t2):
+    """
+        Element-wise true division of values of operand t1 by values of operands t2 (i.e t1 / t2), not commutative.
+        Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2)
+        as argument.
+
+        Parameters
+        ----------
+        t1: tensor or scalar
+        The first operand whose values are divided
+
+        t2: tensor or scalar
+        The second operand by whose values is divided
+
+
+        Returns
+        -------
+        result: ht.tensor
+        A tensor containing the results of element-wise true division (i.e. floating point values) of t1 by t2.
+        """
+
+    return __binary_op(operator.truediv, t1, t2)
+
+def mul(t1,t2):
+    """
+      Element-wise multiplication (NOT matrix multiplication) of values from two operands, commutative.
+      Takes the first and second operand (scalar or tensor) whose elements are to be multiplied as argument.
+
+      Parameters
+      ----------
+      t1: tensor or scalar
+      The first operand involved in the multiplication
+
+      t2: tensor or scalar
+      The second operand involved in the multiplication
+
+
+      Returns
+      -------
+      result: ht.tensor
+      A tensor containing the results of element-wise multiplication of t1 and t2.
+      """
+
+    return __binary_op(operator.mul, t1, t2)
+
+def pow(t1,t2):
+    """
+        Element-wise exponential function of values of operand t1 to the power of values of operand t2 (i.e t1 ** t2),
+        not commutative. Takes the two operands (scalar or tensor) whose elements are to be involved in the exponential
+        function(operand 1 to the power of operand 2)
+        as argument.
+
+        Parameters
+        ----------
+        t1: tensor or scalar
+        The first operand whose values represent the base
+
+        t2: tensor or scalar
+        The second operand by whose values represent the exponent
+
+
+        Returns
+        -------
+        result: ht.tensor
+        A tensor containing the results of element-wise exponential function.
+        """
+
+    return __binary_op(operator.pow, t1, t2)
+
+def eq(t1,t2):
+    """
+         Element-wise rich comparison of equality between values from two operands, commutative.
+         Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+
+         Parameters
+         ----------
+         t1: tensor or scalar
+         The first operand involved in the comparison
+
+         t2: tensor or scalar
+         The second operand involved in the comparison
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor holding True for all elements in which values of t1 are equal to values of t2,
+         False for all other elements
+    """
+
+    return __binary_op(operator.eq, t1, t2)
+
+def ne(t1,t2):
+    """
+         Element-wise rich comparison of non-equality between values from two operands, commutative.
+         Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+
+         Parameters
+         ----------
+         t1: tensor or scalar
+         The first operand involved in the comparison
+
+         t2: tensor or scalar
+         The second operand involved in the comparison
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor holding True for all elements in which values of t1 are not equal to values of t2,
+         False for all other elements
+    """
+
+    return __binary_op(operator.ne, t1, t2)
+
+def lt(t1,t2):
+    """
+         Element-wise rich less than comparison between values from operand t1 with respect to values of
+         operand t2 (i.e. t1 < t2), not commutative.
+         Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+
+         Parameters
+         ----------
+         t1: tensor or scalar
+         The first operand to be compared less than second operand
+
+         t2: tensor or scalar
+         The second operand to be compared greater than first operand
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor holding True for all elements in which values of t1 are less than values of t2,
+         False for all other elements
+    """
+
+    return __binary_op(operator.lt, t1, t2)
+
+def le(t1,t2):
+    """
+         Element-wise rich less than or equal comparison between values from operand t1 with respect to values of
+         operand t2 (i.e. t1 <= t2), not commutative.
+         Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+
+         Parameters
+         ----------
+         t1: tensor or scalar
+         The first operand to be compared less than or equal to second operand
+
+         t2: tensor or scalar
+         The second operand to be compared greater than or equal to first operand
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor holding True for all elements in which values of t1 are less than or equal to values of t2,
+         False for all other elements
+    """
+    return __binary_op(operator.le, t1, t2)
+
+def gt(t1,t2):
+    """
+         Element-wise rich greater than comparison between values from operand t1 with respect to values of
+         operand t2 (i.e. t1 > t2), not commutative.
+         Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+
+         Parameters
+         ----------
+         t1: tensor or scalar
+         The first operand to be compared greater than second operand
+
+         t2: tensor or scalar
+         The second operand to be compared less than first operand
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor holding True for all elements in which values of t1 are greater than values of t2,
+         False for all other elements
+    """
+
+    return __binary_op(operator.gt, t1, t2)
+
+def ge(t1,t2):
+    """
+         Element-wise rich greater than or equal comparison between values from operand t1 with respect to values of
+         operand t2 (i.e. t1 >= t2), not commutative.
+         Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+
+         Parameters
+         ----------
+         t1: tensor or scalar
+         The first operand to be compared greater than or equal to second operand
+
+         t2: tensor or scalar
+         The second operand to be compared less than or equal to first operand
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor holding True for all elements in which values of t1 are greater than or equal to values of t2,
+         False for all other elements
+    """
+
+    return __binary_op(operator.ge, t1, t2)
+
+
+
 def __local_operation(operation, x, out):
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
@@ -816,3 +1067,65 @@ def __reduce_op(x, partial_op, op, axis, out):
             partial[0].dtype), split=out.split, comm=x.comm)
         return out
     return tensor.tensor(partial, output_shape, types.canonical_heat_type(partial[0].dtype), split=None, comm=x.comm)
+
+
+def __binary_op(operation, t1, t2):
+    """
+    Generic wrapper for element-wise binary operations of two operands (either can be tensor or scalar).
+    Takes the operation function and the two operands involved in the operation as arguments.
+
+    Parameters
+    ----------
+    operation : function
+    The operation to be performed. Function that performs operation elements-wise on the involved tensors,
+    e.g. add values from other to self
+
+    t1: tensor or scalar
+    The first operand involved in the operation,
+
+    t2: tensor or scalar
+    The second operand involved in the operation,
+
+    Returns
+    -------
+    result: ht.tensor
+    A tensor containing the results of element-wise operation.
+    """
+
+    # TODO: test me
+    # TODO: sanitize input
+    # TODO: make me more numpy API complete
+    # TODO: ... including the actual binops
+
+
+    #if first operand is a scalar, performing the operation is trivial
+    if isinstance(t1, tensor) and np.isscalar(t2):
+        return tensor(operation(t1.__array, t2), t1.shape, t1.dtype, t1.split, t1.__comm)
+
+    # if second operand is a scalar, performing the operation is trivial
+    elif  np.isscalar(t1) and isinstance(t2, tensor):
+        return tensor(operation(t2.__array, t1), t2.shape, t2.dtype, t2.split, t2.__comm)
+
+    #if both operands are a tensors
+    elif isinstance(t1, tensor) and isinstance(t2, tensor):
+        output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+
+        # TODO: implement complex NUMPY rules
+        if t2.dtype != t1.dtype:
+            t2 = t2.astype(t1.dtype)
+
+        if t2.split is None or t2.split == t1.split:
+            return tensor(operation(t1.__array, t2.__array), output_shape, t1.dtype, t1.split, t1.__comm)
+
+        # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
+        else:
+            raise NotImplementedError(
+                'Not implemented for other splittings')
+
+
+    # trivial option, if both operands are a scalars
+    elif np.isscalar(t1) and  np.isscalar(t2):
+        return operation(t1,t2)
+
+    else:
+        raise NotImplementedError('Not implemented for non scalar')

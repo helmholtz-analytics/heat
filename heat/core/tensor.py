@@ -648,52 +648,6 @@ class tensor:
         """
         return operations.triu(self, k)
 
-    def __binop(self, op, other):
-        """
-        Generic wrapper for element-wise binary operations of the tensor with either another tensor or a scalar.
-        Takes the operation function and the second operand (other) to be involved in the operation as arguments.
-
-        Parameters
-        ----------
-        op : function
-        The operation to be performed. Function that performs operation elements-wise on the involved tensors,
-        e.g. add values from other to self
-
-        other: tensor or scalar
-        The second operand involved in the operation,
-
-        Returns
-        -------
-        result: ht.tensor
-        A tensor containing the results of element-wise operation.
-        """
-
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: ... including the actual binops
-        #if second operand is a scalar, performing the operation is trivial
-        if np.isscalar(other):
-            return tensor(op(self.__array, other), self.shape, self.dtype, self.split, self.__comm)
-
-        #only other option is if second operand is a tensor
-        elif isinstance(other, tensor):
-            output_shape = broadcast_shape(self.shape, other.shape)
-
-            # TODO: implement complex NUMPY rules
-            if other.dtype != self.dtype:
-                other = other.astype(self.dtype)
-
-            if other.split is None or other.split == self.split:
-                return tensor(op(self.__array, other.__array), output_shape, self.dtype, self.split, self.__comm)
-
-            # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
-            else:
-                raise NotImplementedError(
-                    'Not implemented for other splittings')
-
-        else:
-            raise NotImplementedError('Not implemented for non scalar')
 
     def __add__(self, other):
         """
@@ -710,8 +664,8 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise addition.
          """
+        return operations.add(self, other)
 
-        return self.__binop(operator.add, other)
 
     def __sub__(self, other):
         """
@@ -728,7 +682,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise subtraction.
          """
-        return self.__binop(operator.sub, other)
+        return operations.sub(self, other)
 
     def __truediv__(self, other):
         """
@@ -746,7 +700,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise division.
          """
-        return self.__binop(operator.truediv, other)
+        return operations.div(self, other)
 
     def __mul__(self, other):
         """
@@ -763,7 +717,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise multiplication.
          """
-        return self.__binop(operator.mul, other)
+        return operations.mul(self, other)
 
     def __pow__(self, other):
         """
@@ -782,7 +736,7 @@ class tensor:
          A tensor containing the results of element-wise exponential operation.
          """
 
-        return self.__binop(operator.pow, other)
+        return operations.pow(self, other)
 
     def __eq__(self, other):
         """
@@ -801,7 +755,7 @@ class tensor:
          false for all other elements
          """
 
-        return self.__binop(operator.eq, other)
+        return operations.eq(self, other)
 
     def __ne__(self, other):
         """
@@ -820,7 +774,7 @@ class tensor:
         false for all other elements
         """
 
-        return self.__binop(operator.ne, other)
+        return operations.ne(self, other)
 
     def __lt__(self, other):
         """
@@ -838,7 +792,7 @@ class tensor:
         Tensor holding true for all elements in which values in self are less than values of other (x1 < x2),
         false for all other elements
         """
-        return self.__binop(operator.lt, other)
+        return operations.lt(self, other)
 
     def __le__(self, other):
         """
@@ -856,7 +810,7 @@ class tensor:
         Tensor holding true for all elements in which values in self are less than or equal to values of other (x1 <= x2),
         false for all other elements
         """
-        return self.__binop(operator.le, other)
+        return operations.le(self, other)
 
     def __gt__(self, other):
         """
@@ -875,7 +829,7 @@ class tensor:
         false for all other elements
         """
 
-        return self.__binop(operator.gt, other)
+        return operations.gt(self, other)
 
     def __ge__(self, other):
         """
@@ -894,7 +848,7 @@ class tensor:
         false for all other elements
         """
 
-        return self.__binop(operator.ge, other)
+        return operations.ge(self, other)
 
     def __str__(self, *args):
         # TODO: document me
