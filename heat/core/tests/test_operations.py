@@ -38,6 +38,174 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             float32_tensor.absolute(out=float32_tensor, dtype=3.2)
 
+    def test_all(self):
+        array_len = 9
+        # check all over all float elements of 1d tensor locally 
+        ones_noaxis = ht.ones(array_len)
+        x = (ones_noaxis == 1)
+        self.assertEqual(x.all().shape, (1,))
+        self.assertEqual(x.all().lshape, (1,))
+        self.assertIsInstance(x.all(), ht.tensor)
+        self.assertEqual(x.all().dtype, ht.int64)
+        self.assertEqual(x.all()._tensor__array.dtype, ht.int64)
+        self.assertEqual(x.all().split, None)
+        out_noaxis = ht.zeros((1,))
+        ht.all(x, out=out_noaxis)
+        self.assertTrue(out_noaxis)
+
+        # check all over all float elements of splitted 1d tensor 
+        ones_noaxis_split = ht.ones(array_len, split=0)
+        self.assertEqual(ones_noaxis_split.all().shape, (1,))
+        self.assertEqual(ones_noaxis_split.all().lshape, (1,))
+        self.assertIsInstance(ones_noaxis_split.all(), ht.tensor)
+        self.assertEqual(ones_noaxis_split.all().dtype, ht.int64)
+        self.assertEqual(ones_noaxis_split._tensor__array.dtype, torch.float32)
+        self.assertEqual(ones_noaxis_split.all().split, None)
+        ht.all(ones_noaxis_split, out=out_noaxis)
+        self.assertTrue(out_noaxis)
+
+        # check all over all integer elements of 1d tensor locally 
+        ones_noaxis_int = ht.ones(array_len).astype(ht.int)
+        self.assertEqual(ones_noaxis_int.all(axis=0).shape, (1,))
+        self.assertEqual(ones_noaxis_int.all(axis=0).lshape, (1,))
+        self.assertIsInstance(ones_noaxis_int.all(axis=0), ht.tensor)
+        self.assertEqual(ones_noaxis_int.all(axis=0).dtype, ht.int64)
+        self.assertEqual(ones_noaxis_int.all()._tensor__array.dtype, ht.int64)
+        self.assertEqual(ones_noaxis_int.all().split, None)
+        ht.sum(ones_noaxis_int, out=out_noaxis)
+        self.assertTrue(out_noaxis)
+
+        # check all over all integer elements of splitted 1d tensor
+        ones_noaxis_split_int = ht.ones(array_len, split=0).astype(ht.int)
+        self.assertEqual(ones_noaxis_split_int.all().shape, (1,))
+        self.assertEqual(ones_noaxis_split_int.all().lshape, (1,))
+        self.assertIsInstance(ones_noaxis_split_int.all(), ht.tensor)
+        self.assertEqual(ones_noaxis_split_int.all().dtype, ht.int64)
+        self.assertEqual(ones_noaxis_split_int.all()._tensor__array.dtype, ht.int64)
+        self.assertEqual(ones_noaxis_split_int.all(), array_len)
+        self.assertEqual(ones_noaxis_split_int.all().split, None)
+        ht.sum(ones_noaxis_split_int, out=out_noaxis)
+        self.assertTrue(out_noaxis)
+
+        # check all over all float elements of 3d tensor locally 
+        ones_noaxis = ht.ones((3,3,3))
+        self.assertEqual(ones_noaxis.all().shape, (1,))
+        self.assertEqual(ones_noaxis.all().lshape, (1,))
+        self.assertIsInstance(ones_noaxis.all(), ht.tensor)
+        self.assertEqual(ones_noaxis.all().dtype, ht.int64)
+        self.assertEqual(ones_noaxis.all()._tensor__array.dtype, ht.int64)
+        self.assertEqual(ones_noaxis.all().split, None)
+        ht.sum(ones_noaxis, out=out_noaxis)
+        self.assertTrue(out_noaxis)
+    
+        # check all over all float elements of splitted 3d tensor 
+        ones_noaxis_split_axis = ht.ones((3,3,3), split=0)
+        self.assertIsInstance(ones_noaxis_split_axis.all(axis=1), ht.tensor)
+        self.assertEqual(ones_noaxis.all(axis=1).shape, (3,1,3))
+        self.assertEqual(ones_noaxis_split_axis.all(axis=1).dtype, ht.int64)
+        self.assertEqual(ones_noaxis_split_axis.all(axis=1)._tensor__array.dtype, ht.int64)
+        self.assertEqual(ones_noaxis_split_axis.all().split, None)
+        ht.sum(ones_noaxis, out=out_noaxis)
+        self.assertTrue(out_noaxis)
+
+        # check all over all float elements of splitted 5d tensor with negative axis 
+        ones_noaxis_split_axis_neg = ht.ones((1,2,3,4,5), split=1)
+        self.assertIsInstance(ones_noaxis_split_axis_neg.all(axis=-2), ht.tensor)
+        self.assertEqual(ones_noaxis_split_axis_neg.all(axis=-2).shape, (1,2,3,1,5))
+        self.assertEqual(ones_noaxis_split_axis_neg.all(axis=-2).dtype, ht.int64)
+        self.assertEqual(ones_noaxis_split_axis_neg.all(axis=-2)._tensor__array.dtype, ht.int64)
+        self.assertEqual(ones_noaxis_split_axis_neg.all().split, None)
+
+        # check all output to predefined distributed tensor 
+        torch.manual_seed(1)
+        random_nosplit = ht.random.randn(3, 3, 3)
+        torch.manual_seed(1)
+        random_split = ht.random.randn(3, 3, 3, split=0)
+        out_nosplit = ht.zeros((3, 1, 3))
+        out_split = ht.zeros((3, 1, 3), split=2)
+        ht.all(random_nosplit, axis=1, out=out_nosplit)
+        ht.all(random_nosplit, axis=1, out=out_split)
+        self.assertTrue(out_nosplit._tensor__array, out_split._tensor__array)
+        self.assertEqual(out_nosplit.split, None)
+        self.assertEqual(out_split.split, 2)       
+        ht.all(random_split, axis=1, out=out_nosplit)
+        ht.all(random_split, axis=1, out=out_split)
+        self.assertTrue(out_nosplit._tensor__array, out_split._tensor__array)
+        self.assertEqual(out_nosplit.split, None)
+        self.assertEqual(out_split.split, 2)       
+              
+        # exceptions
+        with self.assertRaises(ValueError):
+            ht.ones(array_len).all(axis=1)
+        with self.assertRaises(ValueError):
+            ht.ones(array_len).all(axis=-2)
+        with self.assertRaises(ValueError):
+            ht.ones((4,4)).all(axis=0, out=out_noaxis)
+        with self.assertRaises(TypeError):
+            ht.ones(array_len).all(axis='bad_axis_type')
+
+    def test_argmin(self):
+
+        data = ht.float32([
+            [1, 2, 3],
+            [4, 5, 6],
+            [7, 8, 9],
+            [10, 11, 12]
+        ])
+
+        comparison = torch.Tensor([
+            [1, 2, 3],
+            [4, 5, 6],
+            [7, 8, 9],
+            [10, 11, 12]
+        ])       
+
+        #check basics
+        self.assertTrue((ht.argmin(data,axis=0)._tensor__array == comparison.argmin(0)).all())
+        self.assertIsInstance(ht.argmin(data,axis=1),ht.tensor)
+        self.assertIsInstance(data.argmin(),ht.tensor)
+
+        #check combinations of split and axis
+        torch.manual_seed(1)
+        random_data = ht.random.randn(3,3,3)
+        torch.manual_seed(1)
+        random_data_split = ht.random.randn(3,3,3,split=0)
+        
+        self.assertTrue((ht.argmin(random_data,axis=0)._tensor__array == random_data_split.argmin(axis=0)._tensor__array).all())
+        self.assertTrue((ht.argmin(random_data,axis=1)._tensor__array == random_data_split.argmin(axis=1)._tensor__array).all())
+        self.assertIsInstance(ht.argmin(random_data_split,axis=1),ht.tensor)    
+        self.assertIsInstance(random_data_split.argmin(),ht.tensor)
+
+        #check argmin over all float elements of 3d tensor locally
+        self.assertEqual(random_data.argmin().shape, (1,))
+        self.assertEqual(random_data.argmin().lshape, (1,))
+        self.assertEqual(random_data.argmin().dtype, ht.int64)
+        self.assertEqual(random_data.argmin().split, None)
+
+        # check argmin over all float elements of splitted 3d tensor 
+        self.assertIsInstance(random_data_split.argmin(axis=1), ht.tensor)
+        self.assertEqual(random_data_split.argmin(axis=1).shape, (3,1,3))
+        self.assertEqual(random_data_split.argmin().split, None)
+
+        # check argmin over all float elements of splitted 5d tensor with negative axis 
+        random_data_split_neg = ht.random.randn(1,2,3,4,5, split=1)
+        self.assertIsInstance(random_data_split_neg.argmin(axis=-2), ht.tensor)
+        self.assertEqual(random_data_split_neg.argmin(axis=-2).shape, (1,2,3,1,5))
+        self.assertEqual(random_data_split_neg.argmin(axis=-2).dtype, ht.int64) 
+        self.assertEqual(random_data_split_neg.argmin().split, None)    
+           
+        # check exceptions
+        with self.assertRaises(NotImplementedError):
+            data.argmin(axis=(0,1))
+        with self.assertRaises(TypeError):
+            data.argmin(axis=1.1)
+        with self.assertRaises(TypeError):
+            data.argmin(axis='y')
+        with self.assertRaises(ValueError):
+            ht.argmin(data, axis=-4)
+            
+
+
     def test_clip(self):
         elements = 20
 
@@ -194,7 +362,7 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.log('hello world')
 
-    def test_max(self):
+    def test_max(self):    
         data = ht.float32([
             [1, 2, 3],
             [4, 5, 6],
@@ -208,22 +376,80 @@ class TestOperations(unittest.TestCase):
             [7, 8, 9],
             [10, 11, 12]
         ])       
-        # check basic equivalence to torch.max()
-        self.assertEqual(data.max(),comparison.max())
+
+        #check basics
         self.assertTrue((ht.max(data,axis=0)._tensor__array[0] == comparison.max(0)[0]).all())
         self.assertIsInstance(ht.max(data,axis=1),ht.tensor)
-        
-        #TODO: check combinations of split and axis
+        self.assertIsInstance(data.max(),ht.tensor)
 
+        #check combinations of split and axis
+        torch.manual_seed(1)
+        random_data = ht.random.randn(3,3,3)
+        torch.manual_seed(1)
+        random_data_split = ht.random.randn(3,3,3,split=0)
+        
+        self.assertTrue((ht.max(random_data,axis=0)._tensor__array[0] == random_data_split.max(axis=0)._tensor__array[0]).all())
+        self.assertTrue((ht.max(random_data,axis=1)._tensor__array[0] == random_data_split.max(axis=1)._tensor__array[0]).all())
+        self.assertIsInstance(ht.max(random_data_split,axis=1),ht.tensor)
+        self.assertIsInstance(random_data_split.max(),ht.tensor)
+        output = ht.ones((1,))
+        ht.max(random_data_split, out=output)
+        self.assertTrue(output._tensor__array == random_data_split.max())
+
+        #check max over all float elements of 3d tensor locally
+        self.assertEqual(random_data.max().shape, (1,))
+        self.assertEqual(random_data.max().lshape, (1,))
+        self.assertEqual(random_data.max().dtype, ht.float32)
+        self.assertEqual(random_data.max()._tensor__array[0].dtype, torch.float32)
+        self.assertEqual(random_data.max().split, None)
+        ht.max(random_data, out=output)
+        self.assertTrue((output._tensor__array == random_data.max()))
+
+        # check max over all float elements of splitted 3d tensor 
+        self.assertIsInstance(random_data_split.max(axis=1), ht.tensor)
+        self.assertEqual(random_data_split.max(axis=1).shape, (3,1,3))
+        self.assertEqual(random_data_split.max(axis=1).dtype, ht.float32)
+        self.assertEqual(random_data_split.max(axis=1)._tensor__array[0].dtype, torch.float32)
+        self.assertEqual(random_data_split.max().split, None)
+
+        # check max over all float elements of splitted 5d tensor with negative axis 
+        random_data_split_neg = ht.random.randn(1,2,3,4,5, split=1)
+        self.assertIsInstance(random_data_split_neg.max(axis=-2), ht.tensor)
+        self.assertEqual(random_data_split_neg.max(axis=-2).shape, (1,2,3,1,5))
+        self.assertEqual(random_data_split_neg.max(axis=-2).dtype, ht.float32)
+        self.assertEqual(random_data_split_neg.max(axis=-2)._tensor__array[0].dtype, torch.float32)
+        self.assertEqual(random_data_split_neg.max().split, None)
+
+        # check max output to predefined distributed tensor 
+        torch.manual_seed(1)
+        random_nosplit = ht.random.randn(3, 3, 3)
+        torch.manual_seed(1)
+        random_split = ht.random.randn(3, 3, 3, split=0)
+        out_nosplit = ht.zeros((3, 1, 3))
+        out_split = ht.zeros((3, 1, 3), split=2)
+        ht.max(random_nosplit, axis=1, out=out_nosplit)
+        ht.max(random_nosplit, axis=1, out=out_split)
+        self.assertEqual(out_nosplit.split, None)
+        self.assertEqual(out_split.split, 2)       
+        ht.max(random_split, axis=1, out=out_nosplit)
+        ht.max(random_split, axis=1, out=out_split)
+        self.assertEqual(out_nosplit.split, None)
+        self.assertEqual(out_split.split, 2)      
+           
         # check exceptions
         with self.assertRaises(NotImplementedError):
             data.max(axis=(0,1))
         with self.assertRaises(TypeError):
             data.max(axis=1.1)
+        with self.assertRaises(TypeError):
+            data.max(axis='y')
         with self.assertRaises(ValueError):
             ht.max(data,axis=-4)
+        with self.assertRaises(ValueError):
+            ht.max(data, axis=0, out=output)
 
     def test_min(self):
+
         data = ht.float32([
             [1, 2, 3],
             [4, 5, 6],
@@ -237,20 +463,78 @@ class TestOperations(unittest.TestCase):
             [7, 8, 9],
             [10, 11, 12]
         ])       
-        #check basic equivalence to torch.max()
-        self.assertEqual(data.min(),comparison.min())
+
+        #check basics
         self.assertTrue((ht.min(data,axis=0)._tensor__array[0] == comparison.min(0)[0]).all())
         self.assertIsInstance(ht.min(data,axis=1),ht.tensor)
-        
-        #TODO: check combinations of split and axis
+        self.assertIsInstance(data.min(),ht.tensor)
 
+        #check combinations of split and axis
+        torch.manual_seed(1)
+        random_data = ht.random.randn(3,3,3)
+        torch.manual_seed(1)
+        random_data_split = ht.random.randn(3,3,3,split=0)
+        
+        self.assertTrue((ht.min(random_data,axis=0)._tensor__array[0] == random_data_split.min(axis=0)._tensor__array[0]).all())
+        self.assertTrue((ht.min(random_data,axis=1)._tensor__array[0] == random_data_split.min(axis=1)._tensor__array[0]).all())
+        self.assertIsInstance(ht.min(random_data_split,axis=1),ht.tensor)
+        self.assertIsInstance(random_data_split.min(),ht.tensor)
+
+        #check min over all float elements of 3d tensor locally
+        self.assertEqual(random_data.min().shape, (1,))
+        self.assertEqual(random_data.min().lshape, (1,))
+        self.assertEqual(random_data.min().dtype, ht.float32)
+        self.assertEqual(random_data.min()._tensor__array[0].dtype, torch.float32)
+        self.assertEqual(random_data.min().split, None)
+        output = ht.ones((1,))
+        ht.min(random_data, out=output)
+        self.assertTrue(output._tensor__array == random_data.min())
+
+        # check min over all float elements of splitted 3d tensor 
+        self.assertIsInstance(random_data_split.min(axis=1), ht.tensor)
+        self.assertEqual(random_data_split.min(axis=1).shape, (3,1,3))
+        self.assertEqual(random_data_split.min(axis=1).dtype, ht.float32)
+        self.assertEqual(random_data_split.min(axis=1)._tensor__array[0].dtype, torch.float32)
+        self.assertEqual(random_data_split.min().split, None)
+        ht.min(random_data_split, out=output)
+        self.assertTrue((output._tensor__array == random_data_split.min()))
+
+        # check min over all float elements of splitted 5d tensor with negative axis 
+        random_data_split_neg = ht.random.randn(1,2,3,4,5, split=1)
+        self.assertIsInstance(random_data_split_neg.min(axis=-2), ht.tensor)
+        self.assertEqual(random_data_split_neg.min(axis=-2).shape, (1,2,3,1,5))
+        self.assertEqual(random_data_split_neg.min(axis=-2).dtype, ht.float32)
+        self.assertEqual(random_data_split_neg.min(axis=-2)._tensor__array[0].dtype, torch.float32)
+        self.assertEqual(random_data_split_neg.min().split, None)
+
+        # check min output to predefined distributed tensor 
+        torch.manual_seed(1)
+        random_nosplit = ht.random.randn(3, 3, 3)
+        torch.manual_seed(1)
+        random_split = ht.random.randn(3, 3, 3, split=0)
+        out_nosplit = ht.zeros((3, 1, 3))
+        out_split = ht.zeros((3, 1, 3), split=2)
+        ht.min(random_nosplit, axis=1, out=out_nosplit)
+        ht.min(random_nosplit, axis=1, out=out_split)
+        self.assertEqual(out_nosplit.split, None)
+        self.assertEqual(out_split.split, 2)       
+        ht.min(random_split, axis=1, out=out_nosplit)
+        ht.min(random_split, axis=1, out=out_split)
+        self.assertEqual(out_nosplit.split, None)
+        self.assertEqual(out_split.split, 2)       
+           
         # check exceptions
         with self.assertRaises(NotImplementedError):
             data.min(axis=(0,1))
         with self.assertRaises(TypeError):
             data.min(axis=1.1)
+        with self.assertRaises(TypeError):
+            data.min(axis='y')
         with self.assertRaises(ValueError):
-            ht.min(data,axis=-4)
+            ht.min(data, axis=-4)
+        with self.assertRaises(ValueError):
+            ht.min(data, axis=0, out=output)
+
 
     def test_sin(self):
         # base elements
@@ -404,6 +688,188 @@ class TestOperations(unittest.TestCase):
         # exception
         with self.assertRaises(TypeError):
             ht.sqrt(number_range, 'hello world')
+
+    def test_sum(self):
+        array_len = 9 
+        # check sum over all float elements of 1d tensor locally 
+        shape_noaxis = ht.ones(array_len)
+        self.assertEqual(shape_noaxis.sum().shape, (1,))
+        self.assertEqual(shape_noaxis.sum().lshape, (1,))
+        self.assertIsInstance(shape_noaxis.sum(), ht.tensor)
+        self.assertEqual(shape_noaxis.sum().dtype, ht.float32)
+        self.assertEqual(shape_noaxis._tensor__array.dtype, torch.float32)
+        self.assertAlmostEqual(shape_noaxis.sum(), float(array_len), places=7, msg=None, delta=None)
+        self.assertEqual(shape_noaxis.sum().split, None)
+        out_noaxis = ht.ones((1,))
+        ht.sum(shape_noaxis, out=out_noaxis)
+        self.assertTrue(out_noaxis._tensor__array == shape_noaxis.sum())
+
+        # check sum over all float elements of splitted 1d tensor 
+        shape_noaxis_split = ht.ones(array_len, split=0)
+        self.assertEqual(shape_noaxis_split.sum().shape, (1,))
+        self.assertEqual(shape_noaxis_split.sum().lshape, (1,))
+        self.assertIsInstance(shape_noaxis_split.sum(), ht.tensor)
+        self.assertEqual(shape_noaxis_split.sum().dtype, ht.float32)
+        self.assertEqual(shape_noaxis_split.sum()._tensor__array.dtype, torch.float32)
+        self.assertAlmostEqual(shape_noaxis_split.sum(), float(array_len), places=7, msg=None, delta=None)
+        self.assertEqual(shape_noaxis_split.sum().split, None)
+        ht.sum(shape_noaxis_split, out=out_noaxis)
+        self.assertTrue(out_noaxis._tensor__array == shape_noaxis_split.sum())
+       
+        # check sum over all integer elements of 1d tensor locally 
+        shape_noaxis_int = ht.ones(array_len).astype(ht.int)
+        self.assertEqual(shape_noaxis_int.sum(axis=0).shape, (1,))
+        self.assertEqual(shape_noaxis_int.sum(axis=0).lshape, (1,))
+        self.assertIsInstance(shape_noaxis_int.sum(axis=0), ht.tensor)
+        self.assertEqual(shape_noaxis_int.sum(axis=0).dtype, ht.int64)
+        self.assertEqual(shape_noaxis_int.sum()._tensor__array.dtype, torch.int64)
+        self.assertEqual(shape_noaxis_int.sum(), array_len)
+        self.assertEqual(shape_noaxis_int.sum().split, None)
+        ht.sum(shape_noaxis_int, out=out_noaxis)
+        self.assertTrue(out_noaxis._tensor__array == shape_noaxis_int.sum())
+
+        # check sum over all integer elements of splitted 1d tensor
+        shape_noaxis_split_int = ht.ones(array_len, split=0).astype(ht.int)
+        self.assertEqual(shape_noaxis_split_int.sum().shape, (1,))
+        self.assertEqual(shape_noaxis_split_int.sum().lshape, (1,))
+        self.assertIsInstance(shape_noaxis_split_int.sum(), ht.tensor)
+        self.assertEqual(shape_noaxis_split_int.sum().dtype, ht.int64)
+        self.assertEqual(shape_noaxis_split_int.sum()._tensor__array.dtype, torch.int64)
+        self.assertEqual(shape_noaxis_split_int.sum(), array_len)
+        self.assertEqual(shape_noaxis_split_int.sum().split, None)
+        ht.sum(shape_noaxis_split_int, out=out_noaxis)
+        self.assertTrue(out_noaxis._tensor__array == shape_noaxis_split_int.sum())
+
+        # check sum over all float elements of 3d tensor locally 
+        shape_noaxis = ht.ones((3,3,3))
+        self.assertEqual(shape_noaxis.sum().shape, (1,))
+        self.assertEqual(shape_noaxis.sum().lshape, (1,))
+        self.assertIsInstance(shape_noaxis.sum(), ht.tensor)
+        self.assertEqual(shape_noaxis.sum().dtype, ht.float32)
+        self.assertEqual(shape_noaxis.sum()._tensor__array.dtype, torch.float32)
+        self.assertAlmostEqual(shape_noaxis.sum(), 27., places=7, msg=None, delta=None)
+        self.assertEqual(shape_noaxis.sum().split, None)
+        ht.sum(shape_noaxis, out=out_noaxis)
+        self.assertTrue(out_noaxis._tensor__array == shape_noaxis.sum())
+    
+        # check sum over all float elements of splitted 3d tensor 
+        shape_noaxis_split_axis = ht.ones((3,3,3), split=0)
+        self.assertIsInstance(shape_noaxis_split_axis.sum(axis=1), ht.tensor)
+        self.assertEqual(shape_noaxis.sum(axis=1).shape, (3,1,3))
+        self.assertEqual(shape_noaxis_split_axis.sum(axis=1).dtype, ht.float32)
+        self.assertEqual(shape_noaxis_split_axis.sum(axis=1)._tensor__array.dtype, torch.float32)
+        self.assertEqual(shape_noaxis_split_axis.sum().split, None)
+        ht.sum(shape_noaxis, out=out_noaxis)
+        self.assertTrue(out_noaxis._tensor__array == shape_noaxis_split_axis.sum())
+
+        # check sum over all float elements of splitted 5d tensor with negative axis 
+        shape_noaxis_split_axis_neg = ht.ones((1,2,3,4,5), split=1)
+        self.assertIsInstance(shape_noaxis_split_axis_neg.sum(axis=-2), ht.tensor)
+        self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2).shape, (1,2,3,1,5))
+        self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2).dtype, ht.float32)
+        self.assertEqual(shape_noaxis_split_axis_neg.sum(axis=-2)._tensor__array.dtype, torch.float32)
+        self.assertEqual(shape_noaxis_split_axis_neg.sum().split, None)
+
+        # check sum output to predefined distributed tensor 
+        torch.manual_seed(1)
+        random_nosplit = ht.random.randn(3, 3, 3)
+        torch.manual_seed(1)
+        random_split = ht.random.randn(3, 3, 3, split=0)
+        out_nosplit = ht.zeros((3, 1, 3))
+        out_split = ht.zeros((3, 1, 3), split=2)
+        ht.sum(random_nosplit, axis=1, out=out_nosplit)
+        ht.sum(random_nosplit, axis=1, out=out_split)
+        self.assertTrue(out_nosplit._tensor__array, out_split._tensor__array)
+        self.assertEqual(out_nosplit.split, None)
+        self.assertEqual(out_split.split, 2)       
+        ht.sum(random_split, axis=1, out=out_nosplit)
+        ht.sum(random_split, axis=1, out=out_split)
+        self.assertTrue(out_nosplit._tensor__array, out_split._tensor__array)
+        self.assertEqual(out_nosplit.split, None)
+        self.assertEqual(out_split.split, 2)       
+              
+        # exceptions
+        with self.assertRaises(ValueError):
+            ht.ones(array_len).sum(axis=1)
+        with self.assertRaises(ValueError):
+            ht.ones(array_len).sum(axis=-2)
+        with self.assertRaises(ValueError):
+            ht.ones((4,4)).sum(axis=0, out=out_noaxis)
+        with self.assertRaises(TypeError):
+            ht.ones(array_len).sum(axis='bad_axis_type')
+            
+    def test_transpose(self):
+        # vector transpose, not distributed
+        vector = ht.arange(10)
+        vector_t = vector.T
+        self.assertIsInstance(vector_t, ht.tensor)
+        self.assertEqual(vector_t.dtype, ht.int32)
+        self.assertEqual(vector_t.split, None)
+        self.assertEqual(vector_t.shape, (10,))
+
+        # simple matrix transpose, not distributed
+        simple_matrix = ht.zeros((2, 4))
+        simple_matrix_t = simple_matrix.transpose()
+        self.assertIsInstance(simple_matrix_t, ht.tensor)
+        self.assertEqual(simple_matrix_t.dtype, ht.float32)
+        self.assertEqual(simple_matrix_t.split, None)
+        self.assertEqual(simple_matrix_t.shape, (4, 2,))
+        self.assertEqual(simple_matrix_t._tensor__array.shape, (4, 2,))
+
+        # 4D array, not distributed, with given axis
+        array_4d = ht.zeros((2, 3, 4, 5))
+        array_4d_t = ht.transpose(array_4d, axes=(-1, 0, 2, 1))
+        self.assertIsInstance(array_4d_t, ht.tensor)
+        self.assertEqual(array_4d_t.dtype, ht.float32)
+        self.assertEqual(array_4d_t.split, None)
+        self.assertEqual(array_4d_t.shape, (5, 2, 4, 3,))
+        self.assertEqual(array_4d_t._tensor__array.shape, (5, 2, 4, 3,))
+
+        # vector transpose, distributed
+        vector_split = ht.arange(10, split=0)
+        vector_split_t = vector_split.T
+        self.assertIsInstance(vector_split_t, ht.tensor)
+        self.assertEqual(vector_split_t.dtype, ht.int32)
+        self.assertEqual(vector_split_t.split, 0)
+        self.assertEqual(vector_split_t.shape, (10,))
+        self.assertLessEqual(vector_split_t.lshape[0], 10)
+
+        # matrix transpose, distributed
+        matrix_split = ht.ones((10, 20,), split=1)
+        matrix_split_t = matrix_split.transpose()
+        self.assertIsInstance(matrix_split_t, ht.tensor)
+        self.assertEqual(matrix_split_t.dtype, ht.float32)
+        self.assertEqual(matrix_split_t.split, 0)
+        self.assertEqual(matrix_split_t.shape, (20, 10,))
+        self.assertLessEqual(matrix_split_t.lshape[0], 20)
+        self.assertEqual(matrix_split_t.lshape[1], 10)
+
+        # 4D array, distributed
+        array_4d_split = ht.ones((3, 4, 5, 6,), split=3)
+        array_4d_split_t = ht.transpose(array_4d_split, axes=(1, 0, 3, 2,))
+        self.assertIsInstance(array_4d_t, ht.tensor)
+        self.assertEqual(array_4d_split_t.dtype, ht.float32)
+        self.assertEqual(array_4d_split_t.split, 2)
+        self.assertEqual(array_4d_split_t.shape, (4, 3, 6, 5,))
+
+        self.assertEqual(array_4d_split_t.lshape[0], 4)
+        self.assertEqual(array_4d_split_t.lshape[1], 3)
+        self.assertLessEqual(array_4d_split_t.lshape[2], 6)
+        self.assertEqual(array_4d_split_t.lshape[3], 5)
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.transpose(1)
+        with self.assertRaises(ValueError):
+            ht.transpose(ht.zeros((2, 3,)), axes=1.0)
+        with self.assertRaises(ValueError):
+            ht.transpose(ht.zeros((2, 3,)), axes=(-1,))
+        with self.assertRaises(TypeError):
+            ht.zeros((2, 3,)).transpose(axes='01')
+        with self.assertRaises(TypeError):
+            ht.zeros((2, 3,)).transpose(axes=(0, 1.0))
+        with self.assertRaises(ValueError):
+            ht.zeros((2, 3,)).transpose(axes=(0, 3))
 
     def test_tril(self):
         local_ones = ht.ones((5,))
