@@ -650,7 +650,7 @@ class tensor:
 
     def __binop(self, op, other):
         """
-        Generic wrapper for in-place, element-wise binary operations of the tensor with either another tensor or a scalar.
+        Generic wrapper for element-wise binary operations of the tensor with either another tensor or a scalar.
         Takes the operation function and the second operand (other) to be involved in the operation as arguments.
 
         Parameters
@@ -665,7 +665,7 @@ class tensor:
         Returns
         -------
         result: ht.tensor
-        The transformed tensor after performing operation.
+        A tensor containing the results of element-wise operation.
         """
 
         # TODO: test me
@@ -697,7 +697,7 @@ class tensor:
 
     def __add__(self, other):
         """
-         In-place, element-wise addition of another tensor or a scalar to the tensor.
+         Element-wise addition of another tensor or a scalar to the tensor.
          Takes the second operand (scalar or tensor) whose elements are to be added as argument.
 
          Parameters
@@ -708,14 +708,14 @@ class tensor:
          Returns
          -------
          result: ht.tensor
-         The transformed tensor after performing addition.
+         A tensor containing the results of element-wise addition.
          """
 
         return self.__binop(operator.add, other)
 
     def __sub__(self, other):
         """
-         In-place, element-wise subtraction of another tensor or a scalar from the tensor.
+         Element-wise subtraction of another tensor or a scalar from the tensor.
          Takes the second operand (scalar or tensor) whose elements are to be subtracted  as argument.
 
          Parameters
@@ -726,13 +726,13 @@ class tensor:
          Returns
          -------
          result: ht.tensor
-         The transformed tensor after performing subtraction.
+         A tensor containing the results of element-wise subtraction.
          """
         return self.__binop(operator.sub, other)
 
     def __truediv__(self, other):
         """
-         In-place, element-wise true division (i.e. result is floating point value rather than rounded int (floor))
+         Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
          of the tensor by another tensor or scalar. Takes the second operand (scalar or tensor) by which to divide
          as argument.
 
@@ -744,13 +744,13 @@ class tensor:
          Returns
          -------
          result: ht.tensor
-         The transformed tensor after performing division.
+         A tensor containing the results of element-wise division.
          """
         return self.__binop(operator.truediv, other)
 
     def __mul__(self, other):
         """
-         In-place, element-wise multiplication (not matrix multiplication) with values from second operand (scalar or tensor)
+         Element-wise multiplication (not matrix multiplication) with values from second operand (scalar or tensor)
          Takes the second operand (scalar or tensor) whose values to multiply to the first tensor as argument.
 
          Parameters
@@ -761,13 +761,13 @@ class tensor:
          Returns
          -------
          result: ht.tensor
-         The transformed tensor after performing multiplication.
+         A tensor containing the results of element-wise multiplication.
          """
         return self.__binop(operator.mul, other)
 
     def __pow__(self, other):
         """
-         In-place, element-wise exponential function with values from second operand (scalar or tensor)
+         Element-wise exponential function with values from second operand (scalar or tensor)
          Takes the second operand (scalar or tensor) whose values are the exponent to be applied to the first
          tensor as argument.
 
@@ -779,7 +779,7 @@ class tensor:
          Returns
          -------
          result: ht.tensor
-         The transformed tensor after performing the exponential operation.
+         A tensor containing the results of element-wise exponential operation.
          """
 
         return self.__binop(operator.pow, other)
