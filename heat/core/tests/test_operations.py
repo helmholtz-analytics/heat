@@ -1310,19 +1310,44 @@ class TestOperations(unittest.TestCase):
             [1, 2],
             [3, 4]
         ])
-        s = ht.float32(2.0)
+        s = 3.0
         s_int = ht.int16(2)
-        T1= ht.float32([
+        T1 = ht.float32([
             [2, 2],
             [2, 2]
         ])
         v = ht.float32([2, 2])
         v2 = ht.float32([2, 2, 2])
-        Ts=ht.float32((2,2), split=0)
+        Ts = ht.ones((2,2), split=0)
 
         T_r = ht.float32([
             [3, 4],
             [5, 6]
         ])
 
-        self.assertEqual()
+        # Matrix plus scalar
+        self.assertEqual(ht.operations.add(T,s), T_r)
+        # Scalar plus matrix
+        self.assertEqual(ht.operations.add(s,T), T_r)
+        # Matrix plus Matrix
+        self.assertEqual(ht.operations.add(T,T1), T_r)
+        # Matrix plus vector (broadcast shapes)
+        self.assertEqual(ht.operations.add(T,v), T_r)
+        # Matrix plus scalar (different data types)
+        self.assertEqual(ht.operations.add(T,s_int), T_r)
+        # Matrix plus Matrix (second has no split)
+        self.assertEqual(ht.operations.add(Ts,T), ht.float32([[2,3],[3,4]]))
+
+        # Matrix plus vector (not-broadcastable shapes)
+        with self.assertRaises(ValueError):
+            ht.operations.add(T, v2)
+        with self.assertRaises(ValueError):
+            ht.operations.add(v2, T)
+
+        # Matrix plus Matrix (second has different split than first)
+        with self.assertRaises(NotImplementedError):
+            ht.operations.add(T, Ts)
+
+        with self.assertRaises(NotImplementedError):
+            ht.operations.add('T','T1')
+
