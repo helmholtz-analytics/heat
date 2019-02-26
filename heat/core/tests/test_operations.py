@@ -1304,3 +1304,25 @@ class TestOperations(unittest.TestCase):
             self.assertTrue(result._tensor__array[-1, 0] == 0)
         if result.comm.rank == result.comm.size - 1:
             self.assertTrue(result._tensor__array[0, -1] == 1)
+
+    def test_add(self):
+        T = ht.float32([
+            [1, 2],
+            [3, 4]
+        ])
+        s = ht.float32(2.0)
+        s_int = ht.int16(2)
+        T1= ht.float32([
+            [2, 2],
+            [2, 2]
+        ])
+        v = ht.float32([2, 2])
+        v2 = ht.float32([2, 2, 2])
+        Ts=ht.float32((2,2), split=0)
+
+        T_r = ht.float32([
+            [3, 4],
+            [5, 6]
+        ])
+
+        self.assertEqual()

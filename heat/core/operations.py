@@ -26,7 +26,18 @@ __all__ = [
     'sum',
     'transpose',
     'tril',
-    'triu'
+    'triu',
+    'add',
+    'sub',
+    'div',
+    'mul',
+    'pow',
+    'eq',
+    'ne',
+    'lt',
+    'le',
+    'gt',
+    'ge'
 ]
 
 
