@@ -152,7 +152,6 @@ class MPICommunication(Communication):
         shape = obj.shape[1:]
         strides = [1] * len(shape)
         strides[0] = obj.stride()[-1]
-        #strides = obj.stride()[1:]
         offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
 
         # chain the types based on the
@@ -218,7 +217,7 @@ class MPICommunication(Communication):
         return self.__recv(self.handle.Recv, buf, source, tag, status)
     Recv.__doc__ = MPI.Comm.Recv.__doc__
 
-    def __send(self, func, buf, dest, tag):
+    def __send_like(self, func, buf, dest, tag):
         if isinstance(buf, tensor.tensor):
             buf = buf._tensor__array
         if not isinstance(buf, torch.Tensor):
@@ -227,38 +226,38 @@ class MPICommunication(Communication):
         return func(self.as_buffer(buf), dest, tag)
 
     def Bsend(self, buf, dest, tag=0):
-        return self.__send(self.handle.Bsend, buf, dest, tag)
+        return self.__send_like(self.handle.Bsend, buf, dest, tag)
     Bsend.__doc__ = MPI.Comm.Bsend.__doc__
 
     def Ibsend(self, buf, dest, tag=0):
-        return self.__send(self.handle.Ibsend, buf, dest, tag)
+        return self.__send_like(self.handle.Ibsend, buf, dest, tag)
     Ibsend.__doc__ = MPI.Comm.Ibsend.__doc__
 
     def Irsend(self, buf, dest, tag=0):
-        return self.__send(self.handle.Irsend, buf, dest, tag)
+        return self.__send_like(self.handle.Irsend, buf, dest, tag)
     Irsend.__doc__ = MPI.Comm.Irsend.__doc__
 
     def Isend(self, buf, dest, tag=0):
-        return self.__send(self.handle.Isend, buf, dest, tag)
+        return self.__send_like(self.handle.Isend, buf, dest, tag)
     Isend.__doc__ = MPI.Comm.Isend.__doc__
 
     def Issend(self, buf, dest, tag=0):
-        return self.__send(self.handle.Issend, buf, dest, tag)
+        return self.__send_like(self.handle.Issend, buf, dest, tag)
     Issend.__doc__ = MPI.Comm.Issend.__doc__
 
     def Rsend(self, buf, dest, tag=0):
-        return self.__send(self.handle.Rsend, buf, dest, tag)
+        return self.__send_like(self.handle.Rsend, buf, dest, tag)
     Rsend.__doc__ = MPI.Comm.Rsend.__doc__
 
     def Ssend(self, buf, dest, tag=0):
-        return self.__send(self.handle.Ssend, buf, dest, tag)
+        return self.__send_like(self.handle.Ssend, buf, dest, tag)
     Ssend.__doc__ = MPI.Comm.Ssend.__doc__
 
     def Send(self, buf, dest, tag=0):
-        return self.__send(self.handle.Send, buf, dest, tag)
+        return self.__send_like(self.handle.Send, buf, dest, tag)
     Send.__doc__ = MPI.Comm.Send.__doc__
 
-    def __broadcast(self, func, buf, root):
+    def __broadcast_like(self, func, buf, root):
         # unpack the buffer if it is a HeAT tensor
         if isinstance(buf, tensor.tensor):
             buf = buf._tensor__array
@@ -269,14 +268,14 @@ class MPICommunication(Communication):
         return func(self.as_buffer(buf), root)
 
     def Bcast(self, buf, root=0):
-        return self.__broadcast(self.handle.Bcast, buf, root)
+        return self.__broadcast_like(self.handle.Bcast, buf, root)
     Bcast.__doc__ = MPI.Comm.Bcast.__doc__
 
     def Ibcast(self, buf, root=0):
-        return self.__broadcast(self.handle.Ibcast, buf, root)
+        return self.__broadcast_like(self.handle.Ibcast, buf, root)
     Ibcast.__doc__ = MPI.Comm.Ibcast.__doc__
 
-    def __collective_single_type(self, func, sendbuf, recvbuf, *args, **kwargs):
+    def __reduce_like(self, func, sendbuf, recvbuf, *args, **kwargs):
         # unpack the send buffer if it is a HeAT tensor
         if isinstance(sendbuf, tensor.tensor):
             sendbuf = sendbuf._tensor__array
@@ -308,35 +307,35 @@ class MPICommunication(Communication):
         return func(sendbuf, recvbuf, *args, **kwargs)
 
     def Allreduce(self, sendbuf, recvbuf, op=MPI.SUM):
-        return self.__collective_single_type(self.handle.Allreduce, sendbuf, recvbuf, op)
+        return self.__reduce_like(self.handle.Allreduce, sendbuf, recvbuf, op)
     Allreduce.__doc__ = MPI.Comm.Allreduce.__doc__
 
     def Exscan(self, sendbuf, recvbuf, op=MPI.SUM):
-        return self.__collective_single_type(self.handle.Exscan, sendbuf, recvbuf, op)
+        return self.__reduce_like(self.handle.Exscan, sendbuf, recvbuf, op)
     Exscan.__doc__ = MPI.COMM_WORLD.Exscan.__doc__
 
     def Iallreduce(self, sendbuf, recvbuf, op=MPI.SUM):
-        return self.__collective_single_type(self.handle.Iallreduce, sendbuf, recvbuf, op)
+        return self.__reduce_like(self.handle.Iallreduce, sendbuf, recvbuf, op)
     Iallreduce.__doc__ = MPI.Comm.Iallreduce.__doc__
 
     def Iexscan(self, sendbuf, recvbuf, op=MPI.SUM):
-        return self.__collective_single_type(self.handle.Iexscan, sendbuf, recvbuf, op)
+        return self.__reduce_like(self.handle.Iexscan, sendbuf, recvbuf, op)
     Iexscan.__doc__ = MPI.COMM_WORLD.Iexscan.__doc__
 
     def Iscan(self, sendbuf, recvbuf, op=MPI.SUM):
-        return self.__collective_single_type(self.handle.Iscan, sendbuf, recvbuf, op)
+        return self.__reduce_like(self.handle.Iscan, sendbuf, recvbuf, op)
     Iscan.__doc__ = MPI.COMM_WORLD.Iscan.__doc__
 
     def Ireduce(self, sendbuf, recvbuf, op=MPI.SUM, root=0):
-        return self.__collective_single_type(self.handle.Ireduce, sendbuf, recvbuf, op, root)
+        return self.__reduce_like(self.handle.Ireduce, sendbuf, recvbuf, op, root)
     Ireduce.__doc__ = MPI.Comm.Ireduce.__doc__
 
     def Reduce(self, sendbuf, recvbuf, op=MPI.SUM, root=0):
-        return self.__collective_single_type(self.handle.Reduce, sendbuf, recvbuf, op, root)
+        return self.__reduce_like(self.handle.Reduce, sendbuf, recvbuf, op, root)
     Reduce.__doc__ = MPI.Comm.Reduce.__doc__
 
     def Scan(self, sendbuf, recvbuf, op=MPI.SUM):
-        return self.__collective_single_type(self.handle.Scan, sendbuf, recvbuf, op)
+        return self.__reduce_like(self.handle.Scan, sendbuf, recvbuf, op)
     Scan.__doc__ = MPI.COMM_WORLD.Scan.__doc__
 
     def __scatter_like(self, func, sendbuf, recvbuf, axis, send_factor=1, recv_factor=1, **kwargs):
@@ -386,6 +385,12 @@ class MPICommunication(Communication):
         return self.__scatter_like(self.handle.Allgather, sendbuf, recvbuf, axis, recv_factor=self.size)
     Allgather.__doc__ = MPI.Comm.Allgather.__doc__
 
+    def Alltoall(self, sendbuf, recvbuf, axis=0):
+        return self.__scatter_like(
+            self.handle.Alltoall, sendbuf, recvbuf, axis, send_factor=self.size, recv_factor=self.size
+        )
+    Alltoall.__doc__ = MPI.Comm.Alltoall.__doc__
+
     def Gather(self, sendbuf, recvbuf, root=0, axis=0):
         return self.__scatter_like(self.handle.Gather, sendbuf, recvbuf, axis, root=root, recv_factor=self.size)
     Gather.__doc__ = MPI.Comm.Gather.__doc__
@@ -393,6 +398,12 @@ class MPICommunication(Communication):
     def Iallgather(self, sendbuf, recvbuf, axis=0):
         return self.__scatter_like(self.handle.Iallgather, sendbuf, recvbuf, axis, recv_factor=self.size)
     Iallgather.__doc__ = MPI.Comm.Iallgather.__doc__
+
+    def Ialltoall(self, sendbuf, recvbuf, axis=0):
+        return self.__scatter_like(
+            self.handle.Ialltoall, sendbuf, recvbuf, axis, send_factor=self.size, recv_factor=self.size
+        )
+    Ialltoall.__doc__ = MPI.Comm.Ialltoall.__doc__
 
     def Igather(self, sendbuf, recvbuf, root=0, axis=0):
         return self.__scatter_like(self.handle.Igather, sendbuf, recvbuf, axis, root=root, recv_factor=self.size)
