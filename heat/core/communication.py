@@ -339,7 +339,7 @@ class MPICommunication(Communication):
         return self.__collective_single_type(self.handle.Scan, sendbuf, recvbuf, op)
     Scan.__doc__ = MPI.COMM_WORLD.Scan.__doc__
 
-    def __scatter(self, func, sendbuf, recvbuf, root, axis):
+    def __scatter_like(self, func, sendbuf, recvbuf, root, axis, send_factor=1, recv_factor=1):
         # unpack the send buffer if it is a HeAT tensor
         if isinstance(sendbuf, tensor.tensor):
             sendbuf = sendbuf._tensor__array
@@ -364,9 +364,13 @@ class MPICommunication(Communication):
                 sendbuf = sendbuf.permute(*axis_permutation)
 
         # perform the scatter operation
-        sendbuf = self.as_buffer(sendbuf)
-        sendbuf[1] /= self.size
-        exit_code = func(sendbuf, self.as_buffer(recvbuf), root=root)
+        mpi_sendbuf = self.as_buffer(sendbuf)
+        mpi_recvbuf = self.as_buffer(recvbuf)
+
+        mpi_sendbuf[1] /= send_factor
+        mpi_recvbuf[1] /= recv_factor
+
+        exit_code = func(mpi_sendbuf, mpi_recvbuf, root=root)
 
         # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
         if axis != 0:
@@ -378,12 +382,20 @@ class MPICommunication(Communication):
 
         return exit_code
 
+    def Gather(self, sendbuf, recvbuf, root=0, axis=0):
+        return self.__scatter_like(self.handle.Gather, sendbuf, recvbuf, root, axis, recv_factor=self.size)
+    Gather.__doc__ = MPI.Comm.Gather.__doc__
+
+    def Igather(self, sendbuf, recvbuf, root=0, axis=0):
+        return self.__scatter_like(self.handle.Igather, sendbuf, recvbuf, root, axis, recv_factor=self.size)
+    Igather.__doc__ = MPI.Comm.Igather.__doc__
+
     def Iscatter(self, sendbuf, recvbuf, root=0, axis=0):
-        return self.__scatter(self.handle.Iscatter, sendbuf, recvbuf, root, axis)
+        return self.__scatter_like(self.handle.Iscatter, sendbuf, recvbuf, root, axis, send_factor=self.size)
     Iscatter.__doc__ = MPI.Comm.Iscatter.__doc__
 
     def Scatter(self, sendbuf, recvbuf, root=0, axis=0):
-        return self.__scatter(self.handle.Scatter, sendbuf, recvbuf, root, axis)
+        return self.__scatter_like(self.handle.Scatter, sendbuf, recvbuf, root, axis, send_factor=self.size)
     Scatter.__doc__ = MPI.Comm.Scatter.__doc__
 
     def __getattr__(self, name):

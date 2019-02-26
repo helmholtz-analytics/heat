@@ -272,6 +272,67 @@ class TestCommunication(unittest.TestCase):
         self.assertTrue(out._tensor__array.is_contiguous())
         self.assertTrue((out._tensor__array == data.comm.rank).all())
 
+    def test_gather(self):
+        # contiguous data
+        data = ht.ones((1, 5,))
+        output = ht.zeros((ht.MPI_WORLD.size, 5))
+
+        # ensure prior invariants
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        data.comm.Gather(data, output, root=0)
+
+        # check scatter result
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        if data.comm.rank == 0:
+            self.assertTrue((output._tensor__array == torch.ones(ht.MPI_WORLD.size, 5,)).all())
+
+        # contiguous data, different gather axis
+        data = ht.ones((5, 2,))
+        output = ht.zeros((5, 2 * ht.MPI_WORLD.size,))
+
+        # ensure prior invariants
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        data.comm.Gather(data, output, root=0, axis=1)
+
+        # check scatter result
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        if data.comm.rank == 0:
+            self.assertTrue((output._tensor__array == torch.ones(5, 2 * ht.MPI_WORLD.size)).all())
+
+        # non-contiguous data
+        data = ht.ones((3, 5,)).T
+        output = ht.zeros((5, 3 * ht.MPI_WORLD.size))
+
+        # ensure prior invariants
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        data.comm.Gather(data, output, root=0)
+
+        # check scatter result
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        if data.comm.rank == 0:
+            self.assertTrue((output._tensor__array == torch.ones(5, 3 * ht.MPI_WORLD.size,)).all())
+
+        # non-contiguous output, different gather axis
+        data = ht.ones((5, 3,))
+        output = ht.zeros((3 * ht.MPI_WORLD.size, 5,)).T
+
+        # ensure prior invariants
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+        data.comm.Gather(data, output, root=0, axis=1)
+
+        # check scatter result
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+        if data.comm.rank == 0:
+            self.assertTrue((output._tensor__array == torch.ones(5, 3 * ht.MPI_WORLD.size,)).all())
+
     def test_iallreduce(self):
         # contiguous data
         data = ht.ones((10, 2,), dtype=ht.int8)
@@ -404,6 +465,77 @@ class TestCommunication(unittest.TestCase):
         self.assertTrue(data._tensor__array.is_contiguous())
         self.assertTrue(out._tensor__array.is_contiguous())
         self.assertTrue((out._tensor__array == data.comm.rank).all())
+
+    def test_igather(self):
+        # contiguous data
+        data = ht.ones((1, 5,), dtype=ht.float32)
+        output = ht.random.randn(ht.MPI_WORLD.size, 5)
+
+        # ensure prior invariants
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        req = data.comm.Igather(data, output, root=0)
+        req.wait()
+
+        # check scatter result
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        if data.comm.rank == 0:
+            self.assertTrue((output._tensor__array == torch.ones((ht.MPI_WORLD.size, 5,), dtype=torch.float32)).all())
+
+        # contiguous data, different gather axis
+        data = ht.ones((5, 2,), dtype=ht.float32)
+        output = ht.random.randn(5, 2 * ht.MPI_WORLD.size)
+
+        # ensure prior invariants
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        req = data.comm.Igather(data, output, root=0, axis=1)
+        req.wait()
+
+        # check scatter result
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        if data.comm.rank == 0:
+            self.assertTrue(
+                (output._tensor__array == torch.ones((5, 2 * ht.MPI_WORLD.size,), dtype=torch.float32)).all()
+            )
+
+        # non-contiguous data
+        data = ht.ones((3, 5,), dtype=ht.float32).T
+        output = ht.random.randn(5, 3 * ht.MPI_WORLD.size)
+
+        # ensure prior invariants
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        req = data.comm.Igather(data, output, root=0)
+        req.wait()
+
+        # check scatter result
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        if data.comm.rank == 0:
+            self.assertTrue(
+                (output._tensor__array == torch.ones((5, 3 * ht.MPI_WORLD.size,), dtype=torch.float32)).all()
+            )
+
+        # non-contiguous output, different gather axis
+        data = ht.ones((5, 3,), dtype=ht.float32)
+        output = ht.random.randn(3 * ht.MPI_WORLD.size, 5).T
+
+        # ensure prior invariants
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+        req = data.comm.Igather(data, output, root=0, axis=1)
+        req.wait()
+
+        # check scatter result
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+        if data.comm.rank == 0:
+            self.assertTrue(
+                (output._tensor__array == torch.ones((5, 3 * ht.MPI_WORLD.size,), dtype=torch.float32)).all()
+            )
 
     def test_ireduce(self):
         # contiguous data
