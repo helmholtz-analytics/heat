@@ -234,7 +234,6 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.argmin(data, axis=-4)
 
-
     def test_clip(self):
         elements = 20
 
