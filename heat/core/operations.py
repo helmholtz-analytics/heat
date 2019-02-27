@@ -937,10 +937,10 @@ def var(x, axis=None, bessel=True):
                                             var_tot[rem1, 0], var_tot[rem1, 1], var_tot[rem1, 2], bessel)
                         for enum, m in enumerate(merged):
                             var_tot[0, enum] = m
-                    return var_tot[0][0].item()
+                    return var_tot[0][0]
         else:
             # full matrix on one node
-            return __local_operation(torch.var, x, out=None, unbiased=bessel).item()
+            return __local_operation(torch.var, x, out=None, unbiased=bessel)
     else:
         # case for mean in one dimension
         output_shape = list(x.shape)
