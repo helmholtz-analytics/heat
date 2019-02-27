@@ -533,6 +533,11 @@ def merge_means(mu1, n1, mu2, n2):
     -------
     mean of combined set
     number of elements in the combined set
+
+    References
+    ----------
+    [1] J. Bennett, R. Grout, P. Pebay, D. Roe, D. Thompson, Numerically stable, single-pass, parallel statistics algorithms,
+        IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA, USA.
     """
     delta = mu2.item() - mu1.item()
     n1 = n1.item()
@@ -756,6 +761,11 @@ def merge_vars(var1, mu1, n1, var2, mu2, n2, bessel=True):
     -------
     mean of combined set
     number of elements in the combined set
+
+    References
+    ----------
+    [1] J. Bennett, R. Grout, P. Pebay, D. Roe, D. Thompson, Numerically stable, single-pass, parallel statistics algorithms,
+        IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA, USA.
     """
     n1 = n1.item()
     n2 = n2.item()
