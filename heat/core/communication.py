@@ -1,6 +1,7 @@
 from mpi4py import MPI
 
 import abc
+import numpy as np
 import os
 import subprocess
 import torch
@@ -8,14 +9,10 @@ import torch
 from .stride_tricks import sanitize_axis
 
 # check whether OpenMPI support CUDA-aware MPI
-try:
-    # OpenMPI
-    if 'openmpi' in os.environ.get('MPI_SUFFIX', '').lower():
-        buffer = subprocess.check_output(['ompi_info', '--parsable', '--all'])
-        CUDA_AWARE_MPI = b'mpi_built_with_cuda_support:value:true' in buffer
-    else:
-        CUDA_AWARE_MPI = False
-except FileNotFoundError:
+if 'openmpi' in os.environ.get('MPI_SUFFIX', '').lower():
+    buffer = subprocess.check_output(['ompi_info', '--parsable', '--all'])
+    CUDA_AWARE_MPI = b'mpi_built_with_cuda_support:value:true' in buffer
+else:
     CUDA_AWARE_MPI = False
 
 
@@ -201,27 +198,27 @@ class MPICommunication(Communication):
 
         return [cls.as_mpi_memory(obj), elements, mpi_type]
 
-    def __recv(self, func, buf, source, tag, status):
+    def __recv_like(self, func, buf, source, tag, status):
         if isinstance(buf, tensor.tensor):
             buf = buf._tensor__array
         if not isinstance(buf, torch.Tensor):
-            raise TypeError('Expected a HeAT or torch tensor, but got {} instead'.format(type(buf)))
+            return func(buf, source, tag, status)
 
         return func(self.as_buffer(buf), source, tag, status)
 
     def Irecv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=None):
-        return self.__recv(self.handle.Irecv, buf, source, tag, status)
+        return self.__recv_like(self.handle.Irecv, buf, source, tag, status)
     Irecv.__doc__ = MPI.Comm.Irecv.__doc__
 
     def Recv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=None):
-        return self.__recv(self.handle.Recv, buf, source, tag, status)
+        return self.__recv_like(self.handle.Recv, buf, source, tag, status)
     Recv.__doc__ = MPI.Comm.Recv.__doc__
 
     def __send_like(self, func, buf, dest, tag):
         if isinstance(buf, tensor.tensor):
             buf = buf._tensor__array
         if not isinstance(buf, torch.Tensor):
-            raise TypeError('Expected a HeAT or torch tensor, but got {} instead'.format(type(buf)))
+            return func(buf, dest, tag)
 
         return func(self.as_buffer(buf), dest, tag)
 
@@ -263,7 +260,7 @@ class MPICommunication(Communication):
             buf = buf._tensor__array
         # convert torch tensors to MPI memory buffers
         if not isinstance(buf, torch.Tensor):
-            raise TypeError('Expected a HeAT or torch tensor, but got {} instead'.format(type(buf)))
+            return func(buf, root)
 
         return func(self.as_buffer(buf), root)
 
@@ -283,25 +280,22 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, tensor.tensor):
             recvbuf = recvbuf._tensor__array
 
-        # determine whether the buffers are torch tensors
-        if not isinstance(sendbuf, torch.Tensor):
-            raise TypeError('Expected a HeAT or torch tensor as sendbuf, but got {} instead'.format(type(sendbuf)))
-        if not isinstance(recvbuf, torch.Tensor):
-            raise TypeError('Expected a HeAT or torch tensor as recvbuf, but got {} instead'.format(type(recvbuf)))
-
         # harmonize the input and output buffers
         # MPI requires send and receive buffers to be of same type and length. If the torch tensors are either not both
         # contiguous or differently strided, they have to be made matching (if possible) first.
-
-        # convert the send buffer to a pointer, number of elements and type are identical to the receive buffer
-        dummy = sendbuf.contiguous()  # make a contiguous copy and reassign the storage, old will be collected
-        sendbuf.set_(dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride())
-        sendbuf = self.as_buffer(sendbuf)
-
-        # nothing matches, the buffers have to be made contiguous
-        dummy = recvbuf.contiguous()
-        recvbuf.set_(dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride())
-        recvbuf = [self.as_mpi_memory(recvbuf), sendbuf[1], sendbuf[2]]
+        if isinstance(sendbuf, torch.Tensor):
+            # convert the send buffer to a pointer, number of elements and type are identical to the receive buffer
+            dummy = sendbuf.contiguous()  # make a contiguous copy and reassign the storage, old will be collected
+            sendbuf.set_(dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride())
+            sendbuf = self.as_buffer(sendbuf)
+        if isinstance(recvbuf, torch.Tensor):
+            # nothing matches, the buffers have to be made contiguous
+            dummy = recvbuf.contiguous()
+            recvbuf.set_(dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride())
+            if sendbuf is MPI.IN_PLACE:
+                recvbuf = self.as_buffer(recvbuf)
+            else:
+                recvbuf = (self.as_mpi_memory(recvbuf), sendbuf[1], sendbuf[2],)
 
         # perform the actual reduction operation
         return func(sendbuf, recvbuf, *args, **kwargs)
@@ -338,84 +332,131 @@ class MPICommunication(Communication):
         return self.__reduce_like(self.handle.Scan, sendbuf, recvbuf, op)
     Scan.__doc__ = MPI.COMM_WORLD.Scan.__doc__
 
-    def __scatter_like(self, func, sendbuf, recvbuf, axis, send_factor=1, recv_factor=1, **kwargs):
+    def __scatter_like(self, func, sendbuf, recvbuf, send_axis, recv_axis, send_factor=1, recv_factor=1, **kwargs):
+        # align the output buffer in the same way as the input buffer by default
+        if recv_axis is None:
+            recv_axis = send_axis
+
         # unpack the send buffer if it is a HeAT tensor
         if isinstance(sendbuf, tensor.tensor):
             sendbuf = sendbuf._tensor__array
+        if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
+            raise TypeError('sendbuf of type {} does not support send_axis != 0'.format(type(sendbuf)))
+
         # unpack the receive buffer if it is a HeAT tensor
         if isinstance(recvbuf, tensor.tensor):
+            recv_axis = recvbuf.split if recvbuf.split is not None else recv_axis
             recvbuf = recvbuf._tensor__array
+        if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
+            raise TypeError('recvbuf of type {} does not support send_axis != 0'.format(type(recvbuf)))
 
-        # determine whether the buffers are torch tensors
-        if not isinstance(sendbuf, torch.Tensor):
-            raise TypeError('Expected a HeAT or torch tensor as sendbuf, but got {} instead'.format(type(sendbuf)))
-        if not isinstance(recvbuf, torch.Tensor):
-            raise TypeError('Expected a HeAT or torch tensor as recvbuf, but got {} instead'.format(type(recvbuf)))
+        # keep a reference to the original buffer object
+        original_recvbuf = recvbuf
 
-        if axis != 0:
-            # keep a reference to the original recvbuf object
-            original_recvbuf = recvbuf
-            # permute the axis order so that the split axis is the first to be transmitted
-            axis_permutation = list(range(recvbuf.ndimension()))
-            axis_permutation[0], axis_permutation[axis] = axis, 0
-            recvbuf = recvbuf.permute(*axis_permutation)
-            if self.rank == kwargs.get('root', -1):
-                sendbuf = sendbuf.permute(*axis_permutation)
+        # permute the send_axis order so that the split send_axis is the first to be transmitted
+        send_axis_permutation = list(range(recvbuf.ndimension()))
+        send_axis_permutation[0], send_axis_permutation[send_axis] = send_axis, 0
+        if self.rank == kwargs.get('root', -1):
+            sendbuf = sendbuf.permute(*send_axis_permutation)
+
+        recv_axis_permutation = list(range(recvbuf.ndimension()))
+        recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
+        recvbuf = recvbuf.permute(*recv_axis_permutation)
+
+        # prepare buffer objects
+        if sendbuf is not MPI.IN_PLACE:
+            mpi_sendbuf = self.as_buffer(sendbuf)
+            mpi_sendbuf[1] /= send_factor
+
+        if recvbuf is not MPI.IN_PLACE:
+            mpi_recvbuf = self.as_buffer(recvbuf)
+            mpi_recvbuf[1] /= recv_factor
 
         # perform the scatter operation
-        mpi_sendbuf = self.as_buffer(sendbuf)
-        mpi_recvbuf = self.as_buffer(recvbuf)
-
-        mpi_sendbuf[1] /= send_factor
-        mpi_recvbuf[1] /= recv_factor
-
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
 
         # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
-        if axis != 0:
-            recvbuf = recvbuf.permute(*axis_permutation)
-            original_recvbuf.set_(
-                recvbuf.storage(), recvbuf.storage_offset(),
-                size=recvbuf.shape, stride=recvbuf.stride()
-            )
+        if send_axis != 0:
+            recvbuf = recvbuf.permute(*send_axis_permutation)
+            original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
 
         return exit_code
 
-    def Allgather(self, sendbuf, recvbuf, axis=0):
-        return self.__scatter_like(self.handle.Allgather, sendbuf, recvbuf, axis, recv_factor=self.size)
+    def Allgather(self, sendbuf, recvbuf, axis=0, recv_axis=None):
+        return self.__scatter_like(self.handle.Allgather, sendbuf, recvbuf, axis, recv_axis, recv_factor=self.size)
     Allgather.__doc__ = MPI.Comm.Allgather.__doc__
 
-    def Alltoall(self, sendbuf, recvbuf, axis=0):
+    def Alltoall(self, sendbuf, recvbuf, axis=0, recv_axis=None):
         return self.__scatter_like(
-            self.handle.Alltoall, sendbuf, recvbuf, axis, send_factor=self.size, recv_factor=self.size
+            self.handle.Alltoall, sendbuf, recvbuf, axis, recv_axis, send_factor=self.size, recv_factor=self.size
         )
     Alltoall.__doc__ = MPI.Comm.Alltoall.__doc__
 
-    def Gather(self, sendbuf, recvbuf, root=0, axis=0):
-        return self.__scatter_like(self.handle.Gather, sendbuf, recvbuf, axis, root=root, recv_factor=self.size)
+    def Gather(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
+        return self.__scatter_like(
+            self.handle.Gather, sendbuf, recvbuf, axis, recv_axis, root=root, recv_factor=self.size
+        )
     Gather.__doc__ = MPI.Comm.Gather.__doc__
 
-    def Iallgather(self, sendbuf, recvbuf, axis=0):
-        return self.__scatter_like(self.handle.Iallgather, sendbuf, recvbuf, axis, recv_factor=self.size)
+    def Iallgather(self, sendbuf, recvbuf, axis=0, recv_axis=None):
+        return self.__scatter_like(self.handle.Iallgather, sendbuf, recvbuf, axis, recv_axis, recv_factor=self.size)
     Iallgather.__doc__ = MPI.Comm.Iallgather.__doc__
 
-    def Ialltoall(self, sendbuf, recvbuf, axis=0):
+    def Ialltoall(self, sendbuf, recvbuf, axis=0, recv_axis=None):
         return self.__scatter_like(
-            self.handle.Ialltoall, sendbuf, recvbuf, axis, send_factor=self.size, recv_factor=self.size
+            self.handle.Ialltoall, sendbuf, recvbuf, axis, recv_axis, send_factor=self.size, recv_factor=self.size
         )
     Ialltoall.__doc__ = MPI.Comm.Ialltoall.__doc__
 
-    def Igather(self, sendbuf, recvbuf, root=0, axis=0):
-        return self.__scatter_like(self.handle.Igather, sendbuf, recvbuf, axis, root=root, recv_factor=self.size)
+    def Igather(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
+        return self.__scatter_like(
+            self.handle.Igather, sendbuf, recvbuf, axis, recv_axis, root=root, recv_factor=self.size
+        )
     Igather.__doc__ = MPI.Comm.Igather.__doc__
 
-    def Iscatter(self, sendbuf, recvbuf, root=0, axis=0):
-        return self.__scatter_like(self.handle.Iscatter, sendbuf, recvbuf, axis, root=root, send_factor=self.size)
+    def Iscatter(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
+        return self.__scatter_like(
+            self.handle.Iscatter, sendbuf, recvbuf, axis, recv_axis, root=root, send_factor=self.size
+        )
     Iscatter.__doc__ = MPI.Comm.Iscatter.__doc__
 
-    def Scatter(self, sendbuf, recvbuf, root=0, axis=0):
-        return self.__scatter_like(self.handle.Scatter, sendbuf, recvbuf, axis, root=root, send_factor=self.size)
+    def Scatter(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
+        return self.__scatter_like(
+            self.handle.Scatter, sendbuf, recvbuf, axis, recv_axis, root=root, send_factor=self.size
+        )
     Scatter.__doc__ = MPI.Comm.Scatter.__doc__
+
+    def __counts_and_displs(self, shape, axis):
+        """
+        Calculates the item counts and displacements of a shape across all nodes given an axis along which it shall be
+        chunked.
+
+        Parameters
+        ----------
+        shape : tuple of ints
+            The shape for which to calculate the counts and displacements.
+        axis : int
+            The axis along which the chunking is performed.
+
+        Returns
+        -------
+        counts_and_displs : two-tuple of tuple of ints
+            The counts and displacements for all nodes
+        """
+        counts = np.full((self.size,), shape[axis] // self.size)
+        counts[:shape[axis] % self.size] += 1
+
+        displs = np.zeros((self.size,), dtype=counts.dtype)
+        np.cumsum(counts[:-1], out=displs[1:])
+
+        return tuple(counts), tuple(displs)
+
+    def __scatterv_like(self, func, sendbuf, recvbuf, axis, **kwargs):
+        pass
+
+    def Alltoallv(self, sendbuf, recvbuf, axis=0):
+        return self.__scatterv_like(self.handle.Scatterv, sendbuf, recvbuf, axis)
+    Alltoallv.__doc__ = MPI.Comm.Alltoallv.__doc__
 
     def __getattr__(self, name):
         """

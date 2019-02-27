@@ -888,6 +888,12 @@ class TestCommunication(unittest.TestCase):
         self.assertTrue(out._tensor__array.is_contiguous())
         self.assertTrue((out._tensor__array == data.comm.rank + 1).all())
 
+    def test_mpi_in_place(self):
+        data = ht.ones((ht.MPI_WORLD.size, ht.MPI_WORLD.size,), dtype=ht.int32)
+        data.comm.Allreduce(ht.MPI.IN_PLACE, data, op=ht.MPI.SUM)
+
+        self.assertTrue((data._tensor__array == ht.MPI_WORLD.size).all())
+
     def test_scatter(self):
         # contiguous data
         if ht.MPI_WORLD.rank == 0:
@@ -1215,3 +1221,32 @@ class TestCommunication(unittest.TestCase):
         self.assertTrue(data._tensor__array.is_contiguous())
         self.assertFalse(output._tensor__array.is_contiguous())
         self.assertTrue((output._tensor__array == torch.ones(5, 2,)).all())
+
+    def test_scatter_like_axes(self):
+        # input and output are not split
+        data = ht.array([[ht.MPI_WORLD.rank] * ht.MPI_WORLD.size] * ht.MPI_WORLD.size)
+        output = ht.zeros_like(data)
+
+        # main axis send buffer, main axis receive buffer
+        data.comm.Alltoall(data, output, axis=0)
+        comparison = torch.arange(ht.MPI_WORLD.size).reshape(-1, 1).repeat(1, ht.MPI_WORLD.size)
+        self.assertTrue((output._tensor__array == comparison).all())
+
+        # minor axis send buffer, main axis receive buffer
+        data.comm.Alltoall(data, output, axis=1)
+        comparison = torch.arange(ht.MPI_WORLD.size).reshape(1, -1).repeat(ht.MPI_WORLD.size, 1)
+        self.assertTrue((output._tensor__array == comparison).all())
+
+        # main axis send buffer, minor axis receive buffer
+        data = ht.array([[ht.MPI_WORLD.rank] * (2 * ht.MPI_WORLD.size)] * ht.MPI_WORLD.size)
+        output = ht.zeros((2 * ht.MPI_WORLD.size, ht.MPI_WORLD.size), dtype=data.dtype)
+        data.comm.Alltoall(data, output, axis=0, recv_axis=1)
+        comparison = torch.arange(ht.MPI_WORLD.size).reshape(1, -1).repeat(2 * ht.MPI_WORLD.size, 1)
+        self.assertTrue((output._tensor__array == comparison).all())
+
+        # minor axis send buffer, minor axis receive buffer
+        data = ht.array([range(ht.MPI_WORLD.size)] * ht.MPI_WORLD.size)
+        output = ht.zeros((ht.MPI_WORLD.size, ht.MPI_WORLD.size), dtype=data.dtype)
+        data.comm.Alltoall(data, output, axis=1, recv_axis=1)
+        comparison = torch.arange(ht.MPI_WORLD.size).reshape(-1, 1).repeat(1, ht.MPI_WORLD.size)
+        self.assertTrue((output._tensor__array == comparison).all())

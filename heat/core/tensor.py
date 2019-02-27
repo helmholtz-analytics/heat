@@ -1000,8 +1000,7 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, comm=MPI_WORLD):
     # initialize the array
     if bool(copy) or not isinstance(obj, torch.Tensor):
         try:
-            obj = torch.tensor(obj, dtype=dtype.torch_type()
-                               if dtype is not None else None)
+            obj = torch.tensor(obj, dtype=dtype.torch_type() if dtype is not None else None)
         except RuntimeError:
             raise TypeError('invalid data of type {}'.format(type(obj)))
 
@@ -1057,11 +1056,10 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, comm=MPI_WORLD):
         reduction_buffer = np.array(gshape[split])
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
         if reduction_buffer < 0:
-            raise ValueError(
-                'unable to construct tensor, shape of local data chunk does not match')
+            raise ValueError('unable to construct tensor, shape of local data chunk does not match')
         gshape[split] = reduction_buffer
 
-    return tensor(obj, tuple(gshape), dtype, split, comm)
+    return tensor(obj, tuple(int(ele) for ele in gshape), dtype, split, comm)
 
 
 def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None, comm=MPI_WORLD):
