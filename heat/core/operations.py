@@ -184,7 +184,8 @@ def argmin(x, axis=None, out=None):
         # TEMPORARY SOLUTION! TODO: implementation for axis=None, distributed tensor Issue #100
         # perform sanitation
         if not isinstance(x, tensor.tensor):
-            raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
+            raise TypeError(
+                'expected x to be a ht.tensor, but was {}'.format(type(x)))
 
         out = torch.reshape(torch.argmin(x._tensor__array), (1,))
         return tensor.tensor(out, out.shape, types.canonical_heat_type(out.dtype), None, x.device, x.comm)
@@ -507,7 +508,7 @@ def sum(x, axis=None, out=None):
     # TODO: make me more numpy API complete Issue #101
     return __reduce_op(x, torch.sum, MPI.SUM, axis, out)
 
-  
+
 def transpose(a, axes=None):
     """
     Permute the dimensions of an array.
@@ -526,7 +527,8 @@ def transpose(a, axes=None):
     """
     # type check the input tensor
     if not isinstance(a, tensor.tensor):
-        raise TypeError('a must be of type ht.tensor, but was {}'.format(type(a)))
+        raise TypeError(
+            'a must be of type ht.tensor, but was {}'.format(type(a)))
 
     # set default value for axes permutations
     dimensions = len(a.shape)
@@ -544,7 +546,8 @@ def transpose(a, axes=None):
             raise ValueError('axes do not match tensor shape')
         for index, axis in enumerate(axes):
             if not isinstance(axis, int):
-                raise TypeError('axis must be an integer, but was {}'.format(type(axis)))
+                raise TypeError(
+                    'axis must be an integer, but was {}'.format(type(axis)))
             elif axis < 0:
                 axes[index] = axis + dimensions
 
@@ -690,7 +693,7 @@ def triu(m, k=0):
     """
     return __tri_op(m, k, torch.triu)
 
-    
+
 def __local_operation(operation, x, out):
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
@@ -719,9 +722,11 @@ def __local_operation(operation, x, out):
     """
     # perform sanitation
     if not isinstance(x, tensor.tensor):
-        raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
+        raise TypeError(
+            'expected x to be a ht.tensor, but was {}'.format(type(x)))
     if out is not None and not isinstance(out, tensor.tensor):
-        raise TypeError('expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+        raise TypeError(
+            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
 
     # infer the output type of the tensor
     # we need floating point numbers here, due to PyTorch only providing sqrt() implementation for float32/64
@@ -744,7 +749,8 @@ def __local_operation(operation, x, out):
 
     # do an inplace operation into a provided buffer
     casted = x._tensor__array.type(torch_type)
-    operation(casted.repeat(multiples) if needs_repetition else casted, out=out._tensor__array)
+    operation(casted.repeat(multiples)
+              if needs_repetition else casted, out=out._tensor__array)
 
     return out
 
@@ -753,9 +759,11 @@ def __reduce_op(x, partial_op, reduction_op, axis, out):
     # TODO: document me Issue #102
     # perform sanitation
     if not isinstance(x, tensor.tensor):
-        raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
+        raise TypeError(
+            'expected x to be a ht.tensor, but was {}'.format(type(x)))
     if out is not None and not isinstance(out, tensor.tensor):
-        raise TypeError('expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+        raise TypeError(
+            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
 
     # no further checking needed, sanitize axis will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape, axis)
@@ -770,7 +778,8 @@ def __reduce_op(x, partial_op, reduction_op, axis, out):
 
     # Check shape of output buffer, if any
     if out is not None and out.shape != output_shape:
-        raise ValueError('Expecting output buffer of shape {}, got {}'.format(output_shape, out.shape))
+        raise ValueError('Expecting output buffer of shape {}, got {}'.format(
+            output_shape, out.shape))
 
     # perform a reduction operation in case the tensor is distributed across the reduction axis
     if x.split is not None and (axis is None or axis == x.split):
@@ -778,9 +787,13 @@ def __reduce_op(x, partial_op, reduction_op, axis, out):
         if x.comm.is_distributed():
             x.comm.Allreduce(MPI.IN_PLACE, partial[0], reduction_op)
 
+    # if reduction_op is a Boolean operation, then resulting tensor is bool
+    boolean_ops = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
+    tensor_type = bool if reduction_op in boolean_ops else partial[0].dtype
+
     if out is not None:
         out._tensor__array = partial
-        out._tensor__dtype = types.canonical_heat_type(partial.dtype)
+        out._tensor__dtype = types.canonical_heat_type(tensor_type)
         out._tensor__split = split
         out._tensor__device = x.device
         out._tensor__comm = x.comm
@@ -790,7 +803,7 @@ def __reduce_op(x, partial_op, reduction_op, axis, out):
     return tensor.tensor(
         partial,
         output_shape,
-        types.canonical_heat_type(partial[0].dtype),
+        types.canonical_heat_type(tensor_type),
         split=split,
         device=x.device,
         comm=x.comm
