@@ -590,7 +590,7 @@ class TestOperations(unittest.TestCase):
             ht.sin('hello world')
 
     def test_sqrt(self):
-        elements = 20
+        elements = 25
         comparison = torch.arange(elements, dtype=torch.float64).sqrt()
 
         # square roots of float32
