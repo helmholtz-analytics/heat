@@ -649,6 +649,30 @@ class tensor:
         return operations.triu(self, k)
 
 
+    def __binop(self, op, other):
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        # TODO: make me more numpy API complete
+        # TODO: ... including the actual binops
+        if np.isscalar(other):
+            return tensor(op(self.__array, other), self.shape, self.dtype, self.split, self.comm)
+
+        elif isinstance(other, tensor):
+            output_shape = broadcast_shape(self.shape, other.shape)
+
+            # TODO: implement complex NUMPY rules
+            if other.dtype != self.dtype:
+                other = other.astype(self.dtype)
+
+            if other.split is None or other.split == self.split:
+                result = op(self.__array, other.__array)
+                return tensor(result, output_shape, self.dtype, self.split,  self.comm)
+            else:
+                raise NotImplementedError(
+                    'Not implemented for other splittings')
+        else:
+            raise NotImplementedError('Not implemented for non scalar')
 
     def __add__(self, other):
         """
@@ -665,7 +689,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise addition.
          """
-        return operations.add(self.__array, other)
+        return self.__binop(operator.add, other)
 
 
     def __sub__(self, other):
@@ -683,7 +707,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise subtraction.
          """
-        return operations.sub(self.__array, other)
+        return self.__binop(operator.sub, other)
 
     def __truediv__(self, other):
         """
@@ -701,7 +725,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise division.
          """
-        return operations.div(self.__array, other)
+        return self.__binop(operator.truediv, other)
 
     def __mul__(self, other):
         """
@@ -718,7 +742,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise multiplication.
          """
-        return operations.mul(self.__array, other)
+        return self.__binop(operator.mul, other)
 
     def __pow__(self, other):
         """
@@ -737,26 +761,27 @@ class tensor:
          A tensor containing the results of element-wise exponential operation.
          """
 
-        return operations.pow(self.__array, other)
+        return self.__binop(operator.pow, other)
 
     def __eq__(self, other):
         """
-         Element-wise rich comparison of equality with values from second operand (scalar or tensor)
-         Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+        Element-wise rich comparison of equality with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
 
-         Parameters
-         ----------
-         other: tensor or scalar
-         The value(s) to which to compare equality
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare equality
 
-         Returns
-         -------
-         result: ht.tensor
-         Tensor holding true for all elements in which values of self are equal to values of other,
-         false for all other elements
-         """
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding true for all elements in which values of self are equal to values of other,
+        false for all other elements
+        """
 
-        return operations.eq(self.__array, other)
+        return self.__binop(operator.eq, other)
+
 
     def __ne__(self, other):
         """
@@ -775,7 +800,7 @@ class tensor:
         false for all other elements
         """
 
-        return operations.ne(self.__array, other)
+        return self.__binop(operator.ne, other)
 
     def __lt__(self, other):
         """
@@ -793,7 +818,8 @@ class tensor:
         Tensor holding true for all elements in which values in self are less than values of other (x1 < x2),
         false for all other elements
         """
-        return operations.lt(self.__array, other)
+        return self.__binop(operator.lt, other)
+
 
     def __le__(self, other):
         """
@@ -811,7 +837,7 @@ class tensor:
         Tensor holding true for all elements in which values in self are less than or equal to values of other (x1 <= x2),
         false for all other elements
         """
-        return operations.le(self.__array, other)
+        return self.__binop(operator.le, other)
 
     def __gt__(self, other):
         """
@@ -830,7 +856,7 @@ class tensor:
         false for all other elements
         """
 
-        return operations.gt(self.__array, other)
+        return self.__binop(operator.gt, other)
 
     def __ge__(self, other):
         """
@@ -849,7 +875,7 @@ class tensor:
         false for all other elements
         """
 
-        return operations.ge(self, other)
+        return self.__binop(operator.ge, other)
 
     def __str__(self, *args):
         # TODO: document me

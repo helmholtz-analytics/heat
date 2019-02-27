@@ -1,7 +1,6 @@
 import itertools
 import torch
 import numpy as np
-import operator
 
 
 from .communication import MPI
@@ -753,7 +752,7 @@ def add(t1, t2):
       result: ht.tensor
       A tensor containing the results of element-wise addition of t1 and t2.
       """
-    return __binary_op(operator.add, t1, t2)
+    return __binary_op(torch.add, t1, t2)
 
 def sub(t1, t2):
     """
@@ -775,7 +774,7 @@ def sub(t1, t2):
       result: ht.tensor
       A tensor containing the results of element-wise subtraction of t1 and t2.
       """
-    return __binary_op(operator.sub, t1, t2)
+    return __binary_op(torch.sub, t1, t2)
 
 def div(t1, t2):
     """
@@ -798,7 +797,7 @@ def div(t1, t2):
         A tensor containing the results of element-wise true division (i.e. floating point values) of t1 by t2.
         """
 
-    return __binary_op(operator.truediv, t1, t2)
+    return __binary_op(torch.truediv, t1, t2)
 
 def mul(t1,t2):
     """
@@ -820,7 +819,7 @@ def mul(t1,t2):
       A tensor containing the results of element-wise multiplication of t1 and t2.
       """
 
-    return __binary_op(operator.mul, t1, t2)
+    return __binary_op(torch.mul, t1, t2)
 
 def pow(t1,t2):
     """
@@ -844,7 +843,7 @@ def pow(t1,t2):
         A tensor containing the results of element-wise exponential function.
         """
 
-    return __binary_op(operator.pow, t1, t2)
+    return __binary_op(torch.pow, t1, t2)
 
 def eq(t1,t2):
     """
@@ -866,7 +865,7 @@ def eq(t1,t2):
          False for all other elements
     """
 
-    return __binary_op(operator.eq, t1, t2)
+    return __binary_op(torch.eq, t1, t2)
 
 def ne(t1,t2):
     """
@@ -888,7 +887,7 @@ def ne(t1,t2):
          False for all other elements
     """
 
-    return __binary_op(operator.ne, t1, t2)
+    return __binary_op(torch.ne, t1, t2)
 
 def lt(t1,t2):
     """
@@ -911,7 +910,7 @@ def lt(t1,t2):
          False for all other elements
     """
 
-    return __binary_op(operator.lt, t1, t2)
+    return __binary_op(torch.lt, t1, t2)
 
 def le(t1,t2):
     """
@@ -933,7 +932,7 @@ def le(t1,t2):
          A tensor holding True for all elements in which values of t1 are less than or equal to values of t2,
          False for all other elements
     """
-    return __binary_op(operator.le, t1, t2)
+    return __binary_op(torch.le, t1, t2)
 
 def gt(t1,t2):
     """
@@ -956,7 +955,7 @@ def gt(t1,t2):
          False for all other elements
     """
 
-    return __binary_op(operator.gt, t1, t2)
+    return __binary_op(torch.gt, t1, t2)
 
 def ge(t1,t2):
     """
@@ -979,7 +978,7 @@ def ge(t1,t2):
          False for all other elements
     """
 
-    return __binary_op(operator.ge, t1, t2)
+    return __binary_op(torch.ge, t1, t2)
 
 
 
@@ -1111,12 +1110,12 @@ def __binary_op(operation, t1, t2):
 
     #if first operand is a scalar, performing the operation is trivial
     if isinstance(t1, tensor.tensor) and np.isscalar(t2):
-        scalar_type = types.canonical_heat_type(type(t2))
-        return tensor(operation(t1.__array, scalar_type(t2)), t1.shape, t1.dtype, t1.split, t1.comm)
+        result = operation(t1._tensor__array, t2)
+        return tensor.tensor(result, t1.shape, t1.dtype, t1.split, t1.comm)
 
     # if second operand is a scalar, performing the operation is trivial
-    elif  np.isscalar(t1) and isinstance(types.heat_type_of(t2), tensor.tensor):
-        return tensor(operation(t1,t2.__array), t2.shape, t2.dtype, t2.split, t2.comm)
+    elif  np.isscalar(t1) and isinstance(t2, tensor.tensor):
+        return tensor(operation(t1,t2._tensor__array), t2.shape, t2.dtype, t2.split, t2.comm)
 
     #if both operands are a tensors
     elif isinstance(t1, tensor.tensor) and isinstance(t2, tensor.tensor):
