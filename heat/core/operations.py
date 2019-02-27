@@ -1111,11 +1111,12 @@ def __binary_op(operation, t1, t2):
 
     #if first operand is a scalar, performing the operation is trivial
     if isinstance(t1, tensor.tensor) and np.isscalar(t2):
-        return tensor(operation(t1._tensor__array.type(t1.dtype), t2), t1.shape, t1.dtype, t1.split, t1.comm)
+        scalar_type = types.canonical_heat_type(type(t2))
+        return tensor(operation(t1.__array, scalar_type(t2)), t1.shape, t1.dtype, t1.split, t1.comm)
 
     # if second operand is a scalar, performing the operation is trivial
-    elif  np.isscalar(t1) and isinstance(t2, tensor.tensor):
-        return tensor(operation(t1,t2._tensor__array.type(t1.dtype)), t2.shape, t2.dtype, t2.split, t2.comm)
+    elif  np.isscalar(t1) and isinstance(types.heat_type_of(t2), tensor.tensor):
+        return tensor(operation(t1,t2.__array), t2.shape, t2.dtype, t2.split, t2.comm)
 
     #if both operands are a tensors
     elif isinstance(t1, tensor.tensor) and isinstance(t2, tensor.tensor):
@@ -1126,7 +1127,7 @@ def __binary_op(operation, t1, t2):
             t2 = t2.astype(t1.dtype)
 
         if t2.split is None or t2.split == t1.split:
-            return tensor(operation(t1._tensor__array.type(t1.dtype), t2._tensor__array.type(t1.dtype)), output_shape, t1.dtype, t1.split, t1.comm)
+            return tensor(operation(t1._tensor__array, t2._tensor__array), output_shape, t1.dtype, t1.split, t1.comm)
 
         # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
         else:

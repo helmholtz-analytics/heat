@@ -649,6 +649,7 @@ class tensor:
         return operations.triu(self, k)
 
 
+
     def __add__(self, other):
         """
          Element-wise addition of another tensor or a scalar to the tensor.
@@ -664,7 +665,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise addition.
          """
-        return operations.add(self, other)
+        return operations.add(self.__array, other)
 
 
     def __sub__(self, other):
@@ -682,7 +683,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise subtraction.
          """
-        return operations.sub(self, other)
+        return operations.sub(self.__array, other)
 
     def __truediv__(self, other):
         """
@@ -700,7 +701,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise division.
          """
-        return operations.div(self, other)
+        return operations.div(self.__array, other)
 
     def __mul__(self, other):
         """
@@ -717,7 +718,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise multiplication.
          """
-        return operations.mul(self, other)
+        return operations.mul(self.__array, other)
 
     def __pow__(self, other):
         """
@@ -736,7 +737,7 @@ class tensor:
          A tensor containing the results of element-wise exponential operation.
          """
 
-        return operations.pow(self, other)
+        return operations.pow(self.__array, other)
 
     def __eq__(self, other):
         """
@@ -755,7 +756,7 @@ class tensor:
          false for all other elements
          """
 
-        return operations.eq(self, other)
+        return operations.eq(self.__array, other)
 
     def __ne__(self, other):
         """
@@ -774,7 +775,7 @@ class tensor:
         false for all other elements
         """
 
-        return operations.ne(self, other)
+        return operations.ne(self.__array, other)
 
     def __lt__(self, other):
         """
@@ -792,7 +793,7 @@ class tensor:
         Tensor holding true for all elements in which values in self are less than values of other (x1 < x2),
         false for all other elements
         """
-        return operations.lt(self, other)
+        return operations.lt(self.__array, other)
 
     def __le__(self, other):
         """
@@ -810,7 +811,7 @@ class tensor:
         Tensor holding true for all elements in which values in self are less than or equal to values of other (x1 <= x2),
         false for all other elements
         """
-        return operations.le(self, other)
+        return operations.le(self.__array, other)
 
     def __gt__(self, other):
         """
@@ -829,7 +830,7 @@ class tensor:
         false for all other elements
         """
 
-        return operations.gt(self, other)
+        return operations.gt(self.__array, other)
 
     def __ge__(self, other):
         """
