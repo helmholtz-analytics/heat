@@ -767,7 +767,7 @@ def div(t1, t2):
         A tensor containing the results of element-wise true division (i.e. floating point values) of t1 by t2.
         """
 
-    return __binary_op(torch.truediv, t1, t2)
+    return __binary_op(torch.div, t1, t2)
 
 def mul(t1,t2):
     """
@@ -1086,15 +1086,32 @@ def __binary_op(operation, t1, t2):
     # TODO: make me more numpy API complete
     # TODO: ... including the actual binops
 
+    # trivial option, if both operands are a scalars
+    if np.isscalar(t1) and  np.isscalar(t2):
+        try:
+            out = operation(t1, t2)
+        except TypeError:
+            raise TypeError('Only tensors and numeric scalars are supporte, but input was {}'.format(type(t2)))
+
+        return tensor.tensor(out, (1,), out.dtype, None, None, None)
 
     #if first operand is a scalar, performing the operation is trivial
-    if isinstance(t1, tensor.tensor) and np.isscalar(t2):
-        result = operation(t1._tensor__array, t2)
-        return tensor.tensor(result, t1.shape, t1.dtype, t1.split, t1.comm)
+    elif isinstance(t1, tensor.tensor) and np.isscalar(t2):
+        try:
+            result = operation(t1._tensor__array, t2)
+        except TypeError:
+            raise TypeError('Only tensors and numeric scalars are supporte, but input was {}'.format(type(t2)))
+
+        return tensor.tensor(result, t1.shape, t1.dtype, t1.split, t1.device, t1.comm)
 
     # if second operand is a scalar, performing the operation is trivial
     elif  np.isscalar(t1) and isinstance(t2, tensor.tensor):
-        return tensor(operation(t1,t2._tensor__array), t2.shape, t2.dtype, t2.split, t2.comm)
+        try:
+            result = operation(t1, t2._tensor__array)
+        except TypeError:
+            raise TypeError('Only tensors and numeric scalars are supporte, but input was {}'.format(type(t2)))
+
+        return tensor.tensor(result, t2.shape, t2.dtype, t2.split, t2.device, t2.comm)
 
     #if both operands are a tensors
     elif isinstance(t1, tensor.tensor) and isinstance(t2, tensor.tensor):
@@ -1105,17 +1122,14 @@ def __binary_op(operation, t1, t2):
             t2 = t2.astype(t1.dtype)
 
         if t2.split is None or t2.split == t1.split:
-            return tensor(operation(t1._tensor__array, t2._tensor__array), output_shape, t1.dtype, t1.split, t1.comm)
+            result = operation(t1._tensor__array, t2._tensor__array)
+            return tensor.tensor(result, output_shape, t1.dtype, t1.split, t1.device, t1.comm)
 
         # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
         else:
             raise NotImplementedError(
                 'Not implemented for other splittings')
 
-
-    # trivial option, if both operands are a scalars
-    elif np.isscalar(t1) and  np.isscalar(t2):
-        return operation(t1,t2)
 
     else:
         raise NotImplementedError('Not implemented for non scalar')

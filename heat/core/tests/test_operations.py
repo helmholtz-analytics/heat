@@ -5,6 +5,23 @@ import heat as ht
 
 FLOAT_EPSILON = 1e-4
 
+## some definitions of variables for testing binary operations
+T = ht.float32([
+    [1, 2],
+    [3, 4]
+])
+s = 2.0
+s_int = 2
+T1 = ht.float32([
+    [2, 2],
+    [2, 2]
+])
+v = ht.float32([2, 2])
+v2 = ht.float32([2, 2, 2])
+Ts = ht.ones((2, 2),split=0)
+otherType = (2,2)
+
+
 
 class TestOperations(unittest.TestCase):
     def test_abs(self):
@@ -1288,26 +1305,136 @@ class TestOperations(unittest.TestCase):
         if result.comm.rank == result.comm.size - 1:
             self.assertTrue(result._tensor__array[0, -1] == 1)
 
-    def test_add(self):
-        T = ht.float32([
-            [1, 2],
-            [3, 4]
-        ])
-        s = 3.0
-        s_int = ht.int16(2)
-        T1 = ht.float32([
-            [2, 2],
-            [2, 2]
-        ])
-        v = ht.float32([2, 2])
-        v2 = ht.float32([2, 2, 2])
-        Ts = ht.ones((2,2), split=0)
 
+    def test_add(self):
         T_r = ht.float32([
             [3, 4],
             [5, 6]
         ])
 
-        test = ht.add(T, s)
-        print(test)
+        self.assertEqual(ht.add(s, s), ht.float64(4.0))
+        self.assertEqual(ht.add(T, s), T_r)
+        self.assertEqual(ht.add(s, T), T_r)
+        self.assertEqual(ht.add(T, T1), T_r)
+        self.assertEqual(ht.add(T, v), T_r)
+        self.assertEqual(ht.add(T, s_int), T_r)
+        self.assertEqual(ht.add(Ts, T), T_r)
+
+        with self.assertRaises(ValueError):
+            ht.add(T, v2)
+        with self.assertRaises(NotImplementedError):
+            ht.add(T, Ts)
+        with self.assertRaises(NotImplementedError):
+            ht.add(T, otherType)
+        with self.assertRaises(TypeError):
+            ht.add('T', 's')
+
+    def test_sub(self):
+        T_r = ht.float32([
+            [-1, 0],
+            [1, 2]
+        ])
+
+        T_r_minus = ht.float32([
+            [1, 0],
+            [-1, -2]
+        ])
+
+        self.assertEqual(ht.sub(s, s), ht.float64(0.0))
+        self.assertEqual(ht.sub(T, s), T_r)
+        self.assertEqual(ht.sub(s, T), T_r_minus)
+        self.assertEqual(ht.sub(T, T1), T_r)
+        self.assertEqual(ht.sub(T, v), T_r)
+        self.assertEqual(ht.sub(T, s_int), T_r)
+        self.assertEqual(ht.sub(Ts, T), T_r)
+
+        with self.assertRaises(ValueError):
+            ht.sub(T, v2)
+        with self.assertRaises(NotImplementedError):
+            ht.sub(T, Ts)
+        with self.assertRaises(NotImplementedError):
+            ht.sub(T, otherType)
+        with self.assertRaises(TypeError):
+            ht.sub('T', 's')
+
+    def test_mul(self):
+        T_r = ht.float32([
+            [2, 4],
+            [6, 8]
+        ])
+
+        self.assertEqual(ht.mul(s, s), ht.float64(8.0))
+        self.assertEqual(ht.mul(T, s), T_r)
+        self.assertEqual(ht.mul(s, T), T_r)
+        self.assertEqual(ht.mul(T, T1), T_r)
+        self.assertEqual(ht.mul(T, v), T_r)
+        self.assertEqual(ht.mul(T, s_int), T_r)
+        self.assertEqual(ht.mul(Ts, T), T_r)
+
+        with self.assertRaises(ValueError):
+            ht.mul(T, v2)
+        with self.assertRaises(NotImplementedError):
+            ht.mul(T, Ts)
+        with self.assertRaises(NotImplementedError):
+            ht.mul(T, otherType)
+        with self.assertRaises(TypeError):
+            ht.mul('T', 's')
+
+    def test_div(self):
+        T_r = ht.float32([
+            [0.5, 1],
+            [1.5, 2]
+        ])
+
+        T_inv = ht.float32([
+            [2, 1],
+            [2/3, 0.5]
+        ])
+
+        self.assertEqual(ht.div(s, s), ht.float64(1.0))
+        self.assertEqual(ht.div(T, s), T_r)
+        self.assertEqual(ht.div(s, T), T_inv)
+        self.assertEqual(ht.div(T, T1), T_r)
+        self.assertEqual(ht.div(T, v), T_r)
+        self.assertEqual(ht.div(T, s_int), T_r)
+        self.assertEqual(ht.div(Ts, T), T_r)
+
+        with self.assertRaises(ValueError):
+            ht.div(T, v2)
+        with self.assertRaises(NotImplementedError):
+            ht.div(T, Ts)
+        with self.assertRaises(NotImplementedError):
+            ht.div(T, otherType)
+        with self.assertRaises(TypeError):
+            ht.div('T', 's')
+
+    def test_pow(self):
+        T_r = ht.float32([
+            [1, 4],
+            [9, 16]
+        ])
+
+        T_inv = ht.float32([
+            [2, 4],
+            [8, 16]
+        ])
+
+        self.assertEqual(ht.pow(T, s), T_r)
+        self.assertEqual(ht.pow(s, T), T_inv)
+        self.assertEqual(ht.pow(T, T1), T_r)
+        self.assertEqual(ht.pow(T, v), T_r)
+        self.assertEqual(ht.pow(T, s_int), T_r)
+        self.assertEqual(ht.pow(Ts, T), T_r)
+
+        with self.assertRaises(ValueError):
+            ht.pow(T, v2)
+        with self.assertRaises(NotImplementedError):
+            ht.pow(T, Ts)
+        with self.assertRaises(NotImplementedError):
+            ht.pow(T, otherType)
+        with self.assertRaises(TypeError):
+            ht.pow('T', 's')
+        with self.assertRaises(TypeError):
+            ht.pow(s, s_int)
+
 
