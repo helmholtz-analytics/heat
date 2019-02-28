@@ -121,13 +121,13 @@ class MPICommunication(Communication):
 
     def counts_displs_shape(self, obj, axis):
         """
-        Calculates the item counts and displacements for a variable sizes MPI-call (e.g. MPI_Alltoallv). The passed
-        shape is regularly chunk along the given axis and for all nodes.
+        Calculates the item counts, displacements and output shape for a variable sized all-to-all MPI-call (e.g.
+        MPI_Alltoallv). The passed shape is regularly chunk along the given axis and for all nodes.
 
         Parameters
         ----------
-        shape : tuple of ints
-            The shape for which to calculate the counts and displacements.
+        obj : ht.tensor or torch.Tensor
+            The object for which to calculate the chunking.
         axis : int
             The axis along which the chunking is performed.
 
@@ -140,11 +140,6 @@ class MPICommunication(Communication):
         if isinstance(obj, tensor.tensor):
             obj = obj._tensor__array
         shape = obj.shape
-
-        # contiguous memory is transmitted as MPI basic type and need exact element counts
-        # non-contiguous buffers create custom data-type that only require the number of rows/columns/...
-        # this factor determines whether the counts and displacements needs to be scaled or not
-        factor = 1 if not obj.is_contiguous() else np.prod(shape[:axis] + shape[axis + 1:])
 
         # the elements send/received by all nodes
         counts = np.full((self.size,), shape[axis] // self.size)
@@ -159,10 +154,10 @@ class MPICommunication(Communication):
         output_shape = [ele for ele in shape]
         output_shape[axis] = self.size * counts[self.rank]
 
-        return tuple(counts * factor), tuple(displs * factor), tuple(output_shape)
+        return tuple(counts), tuple(displs), tuple(output_shape)
 
     @classmethod
-    def mpi_type_and_elements_of(cls, obj):
+    def mpi_type_and_elements_of(cls, obj, counts, displs):
         """
         Determines the MPI data type and number of respective elements for the given tensor. In case the tensor is
         contiguous in memory, a native MPI data type can be used. Otherwise, a derived data type is automatically
@@ -172,19 +167,27 @@ class MPICommunication(Communication):
         ----------
         obj : ht.tensor or torch.Tensor
             The object for which to construct the MPI data type and number of elements
+        counts : tuple of ints, optional
+            Optional counts arguments for variable MPI-calls (e.g. Alltoallv)
+        displs : tuple of ints, optional
+            Optional displacements arguments for variable MPI-calls (e.g. Alltoallv)
 
         Returns
         -------
         type : MPI.Datatype
             The data type object
-        elements : int
+        elements : int or tuple of ints
             The number of elements of the respective data type
         """
         mpi_type, elements = cls.__mpi_type_mappings[obj.dtype], torch.numel(obj)
 
         # simple case, continuous memory can be transmitted as is
         if obj.is_contiguous():
-            return mpi_type, elements
+            if counts is None:
+                return mpi_type, elements
+            else:
+                factor = np.prod(obj.shape[1:])
+                return mpi_type, (tuple(factor * ele for ele in counts), (tuple(factor * ele for ele in displs)),)
 
         # non-continuous memory, e.g. after a transpose, has to be packed in derived MPI types
         elements = obj.shape[0]
@@ -198,6 +201,8 @@ class MPICommunication(Communication):
             mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
             mpi_type.Commit()
 
+        if counts is not None:
+            return mpi_type, (counts, displs,)
         return mpi_type, elements
 
     @classmethod
@@ -222,7 +227,7 @@ class MPICommunication(Communication):
         return MPI.memory.fromaddress(pointer, 0)
 
     @classmethod
-    def as_buffer(cls, obj):
+    def as_buffer(cls, obj, counts=None, displs=None):
         """
         Converts a passed torch tensor into a memory buffer object with associated number of elements and MPI data type.
 
@@ -230,13 +235,17 @@ class MPICommunication(Communication):
         ----------
         obj : torch.Tensor
             The object to be converted into a buffer representation.
+        counts : tuple of ints, optional
+            Optional counts arguments for variable MPI-calls (e.g. Alltoallv)
+        displs : tuple of ints, optional
+            Optional displacements arguments for variable MPI-calls (e.g. Alltoallv)
 
         Returns
         -------
-        buffer : list[MPI.memory, int, MPI.Datatype]
+        buffer : list[MPI.memory, int, MPI.Datatype] or list[MPI.memory, tuple of int, MPI.Datatype]
             The buffer information of the passed tensor, ready to be passed as MPI send or receive buffer.
         """
-        mpi_type, elements = cls.mpi_type_and_elements_of(obj)
+        mpi_type, elements = cls.mpi_type_and_elements_of(obj, counts, displs)
 
         return [cls.as_mpi_memory(obj), elements, mpi_type]
 
@@ -413,18 +422,14 @@ class MPICommunication(Communication):
 
         # prepare buffer objects
         if sendbuf is not MPI.IN_PLACE:
-            mpi_sendbuf = self.as_buffer(sendbuf)
+            mpi_sendbuf = self.as_buffer(sendbuf, send_counts, send_displs)
             if send_counts is None:
                 mpi_sendbuf[1] //= send_factor
-            else:
-                mpi_sendbuf[1] = (send_counts, send_displs,)
 
         if recvbuf is not MPI.IN_PLACE:
-            mpi_recvbuf = self.as_buffer(recvbuf)
+            mpi_recvbuf = self.as_buffer(recvbuf, recv_counts, recv_displs)
             if recv_counts is None:
                 mpi_recvbuf[1] //= recv_factor
-            else:
-                mpi_recvbuf[1] = (recv_counts, recv_displs,)
 
         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
@@ -439,6 +444,10 @@ class MPICommunication(Communication):
     def Allgather(self, sendbuf, recvbuf, axis=0, recv_axis=None):
         return self.__scatter_like(self.handle.Allgather, sendbuf, recvbuf, axis, recv_axis, recv_factor=self.size)
     Allgather.__doc__ = MPI.Comm.Allgather.__doc__
+
+    def Allgatherv(self, sendbuf, recvbuf, axis=0, recv_axis=None):
+        return self.__scatter_like(self.handle.Allgatherv, sendbuf, recvbuf, axis, recv_axis, recv_factor=self.size)
+    Allgatherv.__doc__ = MPI.Comm.Allgatherv.__doc__
 
     def Alltoall(self, sendbuf, recvbuf, axis=0, recv_axis=None):
         return self.__scatter_like(
@@ -456,9 +465,17 @@ class MPICommunication(Communication):
         )
     Gather.__doc__ = MPI.Comm.Gather.__doc__
 
+    def Gatherv(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
+        return self.__scatter_like(self.handle.Gatherv, sendbuf, recvbuf, axis, recv_axis, root=root)
+    Gatherv.__doc__ = MPI.Comm.Gatherv.__doc__
+
     def Iallgather(self, sendbuf, recvbuf, axis=0, recv_axis=None):
         return self.__scatter_like(self.handle.Iallgather, sendbuf, recvbuf, axis, recv_axis, recv_factor=self.size)
     Iallgather.__doc__ = MPI.Comm.Iallgather.__doc__
+
+    def Iallgatherv(self, sendbuf, recvbuf, axis=0, recv_axis=None):
+        return self.__scatter_like(self.handle.Iallgatherv, sendbuf, recvbuf, axis, recv_axis, recv_factor=self.size)
+    Iallgatherv.__doc__ = MPI.Comm.Iallgatherv.__doc__
 
     def Ialltoall(self, sendbuf, recvbuf, axis=0, recv_axis=None):
         return self.__scatter_like(
@@ -466,11 +483,21 @@ class MPICommunication(Communication):
         )
     Ialltoall.__doc__ = MPI.Comm.Ialltoall.__doc__
 
+    def Ialltoallv(self, sendbuf, recvbuf, axis=0, recv_axis=None):
+        return self.__scatter_like(self.handle.Ialltoallv, sendbuf, recvbuf, axis, recv_axis)
+    Ialltoallv.__doc__ = MPI.Comm.Ialltoallv.__doc__
+
     def Igather(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
         return self.__scatter_like(
             self.handle.Igather, sendbuf, recvbuf, axis, recv_axis, root=root, recv_factor=self.size
         )
     Igather.__doc__ = MPI.Comm.Igather.__doc__
+
+    def Igatherv(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
+        return self.__scatter_like(
+            self.handle.Igatherv, sendbuf, recvbuf, axis, recv_axis, root=root, recv_factor=self.size
+        )
+    Igatherv.__doc__ = MPI.Comm.Igatherv.__doc__
 
     def Iscatter(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
         return self.__scatter_like(
@@ -478,11 +505,23 @@ class MPICommunication(Communication):
         )
     Iscatter.__doc__ = MPI.Comm.Iscatter.__doc__
 
+    def Iscatterv(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
+        return self.__scatter_like(
+            self.handle.Iscatterv, sendbuf, recvbuf, axis, recv_axis, root=root, send_factor=self.size
+        )
+    Iscatterv.__doc__ = MPI.Comm.Iscatterv.__doc__
+
     def Scatter(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
         return self.__scatter_like(
             self.handle.Scatter, sendbuf, recvbuf, axis, recv_axis, root=root, send_factor=self.size
         )
     Scatter.__doc__ = MPI.Comm.Scatter.__doc__
+
+    def Scatterv(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
+        return self.__scatter_like(
+            self.handle.Scatterv, sendbuf, recvbuf, axis, recv_axis, root=root, send_factor=self.size
+        )
+    Scatterv.__doc__ = MPI.Comm.Scatterv.__doc__
 
     def __getattr__(self, name):
         """
