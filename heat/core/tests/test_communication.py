@@ -205,6 +205,83 @@ class TestCommunication(unittest.TestCase):
         self.assertFalse(output._tensor__array.is_contiguous())
         self.assertTrue((output._tensor__array == torch.ones(5, 7 * ht.MPI_WORLD.size,)).all())
 
+    def test_allgatherv(self):
+        # contiguous data buffer, contiguous output buffer
+        data = ht.ones((ht.MPI_WORLD.rank + 1, 10,))
+        output_count = ht.MPI_WORLD.size * (ht.MPI_WORLD.size + 1) // 2
+        output = ht.zeros((output_count, 10,))
+
+        # ensure prior invariants
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+
+        # perform the scatter operation
+        counts = tuple(range(1, ht.MPI_WORLD.size + 1))
+        displs = tuple(np.cumsum(range(ht.MPI_WORLD.size)))
+        data.comm.Allgatherv(data, (output, counts, displs,))
+
+        # check scatter result
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        self.assertTrue((output._tensor__array == torch.ones(output_count, 10,)).all())
+
+        # non-contiguous data buffer, contiguous output buffer
+        data = ht.ones((10, 2 * (ht.MPI_WORLD.rank + 1))).T
+        output_count = ht.MPI_WORLD.size * (ht.MPI_WORLD.size + 1)
+        output = ht.zeros((output_count, 10,))
+
+        # ensure prior invariants
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+
+        # perform the scatter operation
+        counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
+        displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
+        data.comm.Allgatherv(data, (output, counts, displs,))
+
+        # check scatter result
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        self.assertTrue((output._tensor__array == torch.ones(output_count, 10,)).all())
+
+        # contiguous data buffer, non-contiguous output buffer
+        data = ht.ones((2 * (ht.MPI_WORLD.rank + 1), 10,))
+        output_count = ht.MPI_WORLD.size * (ht.MPI_WORLD.size + 1)
+        output = ht.zeros((10, output_count,)).T
+
+        # ensure prior invariants
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+
+        # perform the scatter operation
+        counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
+        displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
+        data.comm.Allgatherv(data, (output, counts, displs,))
+
+        # check scatter result
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+        self.assertTrue((output._tensor__array == torch.ones(output_count, 10,)).all())
+
+        # non-contiguous data buffer, non-contiguous output buffer
+        data = ht.ones((10, 2 * (ht.MPI_WORLD.rank + 1))).T
+        output_count = ht.MPI_WORLD.size * (ht.MPI_WORLD.size + 1)
+        output = ht.zeros((10, output_count,)).T
+
+        # ensure prior invariants
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+
+        # perform the scatter operation
+        counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
+        displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
+        data.comm.Allgatherv(data, (output, counts, displs,))
+
+        # check scatter result
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+        self.assertTrue((output._tensor__array == torch.ones(output_count, 10,)).all())
+
     def test_allreduce(self):
         # contiguous data
         data = ht.ones((10, 2,), dtype=ht.int8)
@@ -688,6 +765,87 @@ class TestCommunication(unittest.TestCase):
         self.assertTrue(data._tensor__array.is_contiguous())
         self.assertFalse(output._tensor__array.is_contiguous())
         self.assertTrue((output._tensor__array == torch.ones(5, 7 * ht.MPI_WORLD.size,)).all())
+
+    def test_iallgatherv(self):
+        # contiguous data buffer, contiguous output buffer
+        data = ht.ones((ht.MPI_WORLD.rank + 1, 10,))
+        output_count = ht.MPI_WORLD.size * (ht.MPI_WORLD.size + 1) // 2
+        output = ht.zeros((output_count, 10,))
+
+        # ensure prior invariants
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+
+        # perform the scatter operation
+        counts = tuple(range(1, ht.MPI_WORLD.size + 1))
+        displs = tuple(np.cumsum(range(ht.MPI_WORLD.size)))
+        req = data.comm.Iallgatherv(data, (output, counts, displs,))
+        req.wait()
+
+        # check scatter result
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        self.assertTrue((output._tensor__array == torch.ones(output_count, 10,)).all())
+
+        # non-contiguous data buffer, contiguous output buffer
+        data = ht.ones((10, 2 * (ht.MPI_WORLD.rank + 1))).T
+        output_count = ht.MPI_WORLD.size * (ht.MPI_WORLD.size + 1)
+        output = ht.zeros((output_count, 10,))
+
+        # ensure prior invariants
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+
+        # perform the scatter operation
+        counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
+        displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
+        req = data.comm.Iallgatherv(data, (output, counts, displs,))
+        req.wait()
+
+        # check scatter result
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        self.assertTrue((output._tensor__array == torch.ones(output_count, 10,)).all())
+
+        # contiguous data buffer, non-contiguous output buffer
+        data = ht.ones((2 * (ht.MPI_WORLD.rank + 1), 10,))
+        output_count = ht.MPI_WORLD.size * (ht.MPI_WORLD.size + 1)
+        output = ht.zeros((10, output_count,)).T
+
+        # ensure prior invariants
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+
+        # perform the scatter operation
+        counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
+        displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
+        req = data.comm.Iallgatherv(data, (output, counts, displs,))
+        req.wait()
+
+        # check scatter result
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+        self.assertTrue((output._tensor__array == torch.ones(output_count, 10,)).all())
+
+        # non-contiguous data buffer, non-contiguous output buffer
+        data = ht.ones((10, 2 * (ht.MPI_WORLD.rank + 1))).T
+        output_count = ht.MPI_WORLD.size * (ht.MPI_WORLD.size + 1)
+        output = ht.zeros((10, output_count,)).T
+
+        # ensure prior invariants
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+
+        # perform the scatter operation
+        counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
+        displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
+        req = data.comm.Iallgatherv(data, (output, counts, displs,))
+        req.wait()
+
+        # check scatter result
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+        self.assertTrue((output._tensor__array == torch.ones(output_count, 10,)).all())
 
     def test_iallreduce(self):
         # contiguous data
