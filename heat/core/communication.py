@@ -119,6 +119,48 @@ class MPICommunication(Communication):
             tuple(shape[i] if i != split else end - start for i in range(dims)), \
             tuple(slice(0, shape[i]) if i != split else slice(start, end) for i in range(dims))
 
+    def counts_displs_shape(self, obj, axis):
+        """
+        Calculates the item counts and displacements for a variable sizes MPI-call (e.g. MPI_Alltoallv). The passed
+        shape is regularly chunk along the given axis and for all nodes.
+
+        Parameters
+        ----------
+        shape : tuple of ints
+            The shape for which to calculate the counts and displacements.
+        axis : int
+            The axis along which the chunking is performed.
+
+        Returns
+        -------
+        counts_and_displs : two-tuple of tuple of ints
+            The counts and displacements for all nodes
+        """
+        # unpack a heat tensor to torch array
+        if isinstance(obj, tensor.tensor):
+            obj = obj._tensor__array
+        shape = obj.shape
+
+        # contiguous memory is transmitted as MPI basic type and need exact element counts
+        # non-contiguous buffers create custom data-type that only require the number of rows/columns/...
+        # this factor determines whether the counts and displacements needs to be scaled or not
+        factor = 1 if not obj.is_contiguous() else np.prod(shape[:axis] + shape[axis + 1:])
+
+        # the elements send/received by all nodes
+        counts = np.full((self.size,), shape[axis] // self.size)
+        counts[:shape[axis] % self.size] += 1
+
+        # the displacements into the buffer
+        displs = np.zeros((self.size,), dtype=counts.dtype)
+        np.cumsum(counts[:-1], out=displs[1:])
+
+        # helper that calculates the output shape for a receiving buffer under the assumption all nodes have an equally
+        # sized input compared to this node
+        output_shape = [ele for ele in shape]
+        output_shape[axis] = self.size * counts[self.rank]
+
+        return tuple(counts * factor), tuple(displs * factor), tuple(output_shape)
+
     @classmethod
     def mpi_type_and_elements_of(cls, obj):
         """
@@ -337,15 +379,21 @@ class MPICommunication(Communication):
         if recv_axis is None:
             recv_axis = send_axis
 
-        # unpack the send buffer if it is a HeAT tensor
+        # dummy allocation for *v calls
+        send_counts, send_displs, recv_counts, recv_displs = None, None, None, None,
+
+        # unpack the send buffer
+        if isinstance(sendbuf, tuple):
+            sendbuf, send_counts, send_displs = sendbuf
         if isinstance(sendbuf, tensor.tensor):
             sendbuf = sendbuf._tensor__array
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError('sendbuf of type {} does not support send_axis != 0'.format(type(sendbuf)))
 
-        # unpack the receive buffer if it is a HeAT tensor
+        # unpack the receive buffer
+        if isinstance(recvbuf, tuple):
+            recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, tensor.tensor):
-            recv_axis = recvbuf.split if recvbuf.split is not None else recv_axis
             recvbuf = recvbuf._tensor__array
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
             raise TypeError('recvbuf of type {} does not support send_axis != 0'.format(type(recvbuf)))
@@ -366,18 +414,24 @@ class MPICommunication(Communication):
         # prepare buffer objects
         if sendbuf is not MPI.IN_PLACE:
             mpi_sendbuf = self.as_buffer(sendbuf)
-            mpi_sendbuf[1] /= send_factor
+            if send_counts is None:
+                mpi_sendbuf[1] //= send_factor
+            else:
+                mpi_sendbuf[1] = (send_counts, send_displs,)
 
         if recvbuf is not MPI.IN_PLACE:
             mpi_recvbuf = self.as_buffer(recvbuf)
-            mpi_recvbuf[1] /= recv_factor
+            if recv_counts is None:
+                mpi_recvbuf[1] //= recv_factor
+            else:
+                mpi_recvbuf[1] = (recv_counts, recv_displs,)
 
         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
 
         # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
-        if send_axis != 0:
-            recvbuf = recvbuf.permute(*send_axis_permutation)
+        if recv_axis != 0:
+            recvbuf = recvbuf.permute(*recv_axis_permutation)
             original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
 
         return exit_code
@@ -391,6 +445,10 @@ class MPICommunication(Communication):
             self.handle.Alltoall, sendbuf, recvbuf, axis, recv_axis, send_factor=self.size, recv_factor=self.size
         )
     Alltoall.__doc__ = MPI.Comm.Alltoall.__doc__
+
+    def Alltoallv(self, sendbuf, recvbuf, axis=0, recv_axis=None):
+        return self.__scatter_like(self.handle.Alltoallv, sendbuf, recvbuf, axis, recv_axis)
+    Alltoallv.__doc__ = MPI.Comm.Alltoallv.__doc__
 
     def Gather(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
         return self.__scatter_like(
@@ -425,38 +483,6 @@ class MPICommunication(Communication):
             self.handle.Scatter, sendbuf, recvbuf, axis, recv_axis, root=root, send_factor=self.size
         )
     Scatter.__doc__ = MPI.Comm.Scatter.__doc__
-
-    def __counts_and_displs(self, shape, axis):
-        """
-        Calculates the item counts and displacements of a shape across all nodes given an axis along which it shall be
-        chunked.
-
-        Parameters
-        ----------
-        shape : tuple of ints
-            The shape for which to calculate the counts and displacements.
-        axis : int
-            The axis along which the chunking is performed.
-
-        Returns
-        -------
-        counts_and_displs : two-tuple of tuple of ints
-            The counts and displacements for all nodes
-        """
-        counts = np.full((self.size,), shape[axis] // self.size)
-        counts[:shape[axis] % self.size] += 1
-
-        displs = np.zeros((self.size,), dtype=counts.dtype)
-        np.cumsum(counts[:-1], out=displs[1:])
-
-        return tuple(counts), tuple(displs)
-
-    def __scatterv_like(self, func, sendbuf, recvbuf, axis, **kwargs):
-        pass
-
-    def Alltoallv(self, sendbuf, recvbuf, axis=0):
-        return self.__scatterv_like(self.handle.Scatterv, sendbuf, recvbuf, axis)
-    Alltoallv.__doc__ = MPI.Comm.Alltoallv.__doc__
 
     def __getattr__(self, name):
         """

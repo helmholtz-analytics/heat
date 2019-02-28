@@ -314,6 +314,101 @@ class TestCommunication(unittest.TestCase):
         comparison = torch.ones((10, 2 * ht.MPI_WORLD.size,), dtype=torch.int64)
         self.assertTrue((output._tensor__array == comparison).all())
 
+    def test_alltoallv(self):
+        # contiguous data buffer
+        data = ht.array([[ht.MPI_WORLD.rank] * 10] * (ht.MPI_WORLD.size + 1))
+        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data, 0)
+
+        # contiguous output buffer
+        output = ht.zeros(output_shape, dtype=ht.int64)
+        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output, 0)
+
+        # ensure prior invariants
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        if ht.MPI_WORLD.size != 1:
+            self.assertNotEqual(data.shape[0] % ht.MPI_WORLD.size, 0)
+        else:
+            self.assertEqual(data.shape[0] % ht.MPI_WORLD.size, 0)
+
+        data.comm.Alltoallv((data, send_counts, send_displs,), (output, recv_counts, recv_displs,))
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        stack_count = output_shape[0] // ht.MPI_WORLD.size * 10
+        comparison = torch.arange(ht.MPI_WORLD.size).reshape(-1, 1).expand(-1, stack_count).reshape(-1, 10)
+        self.assertTrue((output._tensor__array == comparison).all())
+
+        # non-contiguous data buffer
+        data = ht.array([[ht.MPI_WORLD.rank] * (ht.MPI_WORLD.size + 1)] * 10).T
+        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data, 0)
+
+        # contiguous output buffer
+        output = ht.zeros(output_shape, dtype=ht.int64)
+        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output, 0)
+
+        # ensure prior invariants
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        if ht.MPI_WORLD.size != 1:
+            self.assertNotEqual(data.shape[0] % ht.MPI_WORLD.size, 0)
+        else:
+            self.assertEqual(data.shape[0] % ht.MPI_WORLD.size, 0)
+
+        data.comm.Alltoallv((data, send_counts, send_displs,), (output, recv_counts, recv_displs,))
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertTrue(output._tensor__array.is_contiguous())
+        stack_count = output_shape[0] // ht.MPI_WORLD.size * 10
+        comparison = torch.arange(ht.MPI_WORLD.size).reshape(-1, 1).expand(-1, stack_count).reshape(-1, 10)
+        self.assertTrue((output._tensor__array == comparison).all())
+
+        # contiguous data buffer
+        data = ht.array([[ht.MPI_WORLD.rank] * 10] * (ht.MPI_WORLD.size + 1))
+        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data, 0)
+
+        # non-contiguous output buffer
+        output_shape = tuple(reversed(output_shape))
+        output = ht.zeros(output_shape, dtype=ht.int64).T
+        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output, 0)
+
+        # ensure prior invariants
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+        if ht.MPI_WORLD.size != 1:
+            self.assertNotEqual(data.shape[0] % ht.MPI_WORLD.size, 0)
+        else:
+            self.assertEqual(data.shape[0] % ht.MPI_WORLD.size, 0)
+
+        data.comm.Alltoallv((data, send_counts, send_displs,), (output, recv_counts, recv_displs,))
+        self.assertTrue(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+        stack_count = output_shape[1] // ht.MPI_WORLD.size * 10
+        comparison = torch.arange(ht.MPI_WORLD.size).reshape(-1, 1).expand(-1, stack_count).reshape(-1, 10)
+        self.assertTrue((output._tensor__array == comparison).all())
+
+        # non-contiguous data buffer
+        data = ht.array([[ht.MPI_WORLD.rank] * (ht.MPI_WORLD.size + 1)] * 10).T
+        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data, 0)
+
+        # non-contiguous output buffer
+        output_shape = tuple(reversed(output_shape))
+        output = ht.zeros(output_shape, dtype=ht.int64).T
+        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output, 0)
+
+        # ensure prior invariants
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+        if ht.MPI_WORLD.size != 1:
+            self.assertNotEqual(data.shape[0] % ht.MPI_WORLD.size, 0)
+        else:
+            self.assertEqual(data.shape[0] % ht.MPI_WORLD.size, 0)
+
+        data.comm.Alltoallv((data, send_counts, send_displs,), (output, recv_counts, recv_displs,))
+        self.assertFalse(data._tensor__array.is_contiguous())
+        self.assertFalse(output._tensor__array.is_contiguous())
+        stack_count = output_shape[1] // ht.MPI_WORLD.size * 10
+        comparison = torch.arange(ht.MPI_WORLD.size).reshape(-1, 1).expand(-1, stack_count).reshape(-1, 10)
+        self.assertTrue((output._tensor__array == comparison).all())
+
     def test_bcast(self):
         # contiguous data
         data = ht.arange(10, dtype=ht.int64)
