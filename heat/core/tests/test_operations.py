@@ -2,6 +2,7 @@ import unittest
 import torch
 
 import heat as ht
+import numpy as np
 
 FLOAT_EPSILON = 1e-4
 
@@ -18,7 +19,8 @@ T1 = ht.float32([
 ])
 v = ht.float32([2, 2])
 v2 = ht.float32([2, 2, 2])
-Ts = ht.ones((2, 2),split=0)
+T_s = ht.tensor(T1._tensor__array, T1.shape, T1.dtype, 0, None, None)
+Ts = ht.ones((2,2), split=1)
 otherType = (2,2)
 
 
@@ -1312,19 +1314,22 @@ class TestOperations(unittest.TestCase):
             [5, 6]
         ])
 
-        self.assertEqual(ht.add(s, s), ht.float64(4.0))
-        self.assertEqual(ht.add(T, s), T_r)
-        self.assertEqual(ht.add(s, T), T_r)
-        self.assertEqual(ht.add(T, T1), T_r)
-        self.assertEqual(ht.add(T, v), T_r)
-        self.assertEqual(ht.add(T, s_int), T_r)
-        self.assertEqual(ht.add(Ts, T), T_r)
+        self.assertTrue(torch.allclose(ht.add(s, s)._tensor__array, ht.float32([4.0])._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.add(T, s)._tensor__array,T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.add(s, T)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.add(T, T1)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.add(T, v)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.add(T, s_int)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.add(T_s, T)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertFalse(torch.allclose(ht.add(Ts, T)._tensor__array, T_r._tensor__array, 1e-05))
+
+
 
         with self.assertRaises(ValueError):
             ht.add(T, v2)
         with self.assertRaises(NotImplementedError):
-            ht.add(T, Ts)
-        with self.assertRaises(NotImplementedError):
+            ht.add(T, T_s)
+        with self.assertRaises(TypeError):
             ht.add(T, otherType)
         with self.assertRaises(TypeError):
             ht.add('T', 's')
@@ -1340,19 +1345,19 @@ class TestOperations(unittest.TestCase):
             [-1, -2]
         ])
 
-        self.assertEqual(ht.sub(s, s), ht.float64(0.0))
-        self.assertEqual(ht.sub(T, s), T_r)
-        self.assertEqual(ht.sub(s, T), T_r_minus)
-        self.assertEqual(ht.sub(T, T1), T_r)
-        self.assertEqual(ht.sub(T, v), T_r)
-        self.assertEqual(ht.sub(T, s_int), T_r)
-        self.assertEqual(ht.sub(Ts, T), T_r)
+        self.assertTrue(torch.allclose(ht.sub(s, s)._tensor__array, ht.float32([0.0])._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.sub(T, s)._tensor__array,T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.sub(s, T)._tensor__array, T_r_minus._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.sub(T, T1)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.sub(T, v)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.sub(T, s_int)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.sub(T_s, T)._tensor__array, T_r_minus._tensor__array, 1e-05))
 
         with self.assertRaises(ValueError):
             ht.sub(T, v2)
         with self.assertRaises(NotImplementedError):
             ht.sub(T, Ts)
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(TypeError):
             ht.sub(T, otherType)
         with self.assertRaises(TypeError):
             ht.sub('T', 's')
@@ -1363,19 +1368,20 @@ class TestOperations(unittest.TestCase):
             [6, 8]
         ])
 
-        self.assertEqual(ht.mul(s, s), ht.float64(8.0))
-        self.assertEqual(ht.mul(T, s), T_r)
-        self.assertEqual(ht.mul(s, T), T_r)
-        self.assertEqual(ht.mul(T, T1), T_r)
-        self.assertEqual(ht.mul(T, v), T_r)
-        self.assertEqual(ht.mul(T, s_int), T_r)
-        self.assertEqual(ht.mul(Ts, T), T_r)
+        self.assertTrue(torch.allclose(ht.mul(s, s)._tensor__array, ht.float32([4.0])._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.mul(T, s)._tensor__array,T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.mul(s, T)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.mul(T, T1)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.mul(T, v)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.mul(T, s_int)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.mul(T_s, T)._tensor__array, T_r._tensor__array, 1e-05))
+
 
         with self.assertRaises(ValueError):
             ht.mul(T, v2)
         with self.assertRaises(NotImplementedError):
             ht.mul(T, Ts)
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(TypeError):
             ht.mul(T, otherType)
         with self.assertRaises(TypeError):
             ht.mul('T', 's')
@@ -1391,19 +1397,20 @@ class TestOperations(unittest.TestCase):
             [2/3, 0.5]
         ])
 
-        self.assertEqual(ht.div(s, s), ht.float64(1.0))
-        self.assertEqual(ht.div(T, s), T_r)
-        self.assertEqual(ht.div(s, T), T_inv)
-        self.assertEqual(ht.div(T, T1), T_r)
-        self.assertEqual(ht.div(T, v), T_r)
-        self.assertEqual(ht.div(T, s_int), T_r)
-        self.assertEqual(ht.div(Ts, T), T_r)
+        self.assertTrue(torch.allclose(ht.div(s, s)._tensor__array, ht.float32([1.0])._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.div(T, s)._tensor__array,T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.div(s, T)._tensor__array, T_inv._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.div(T, T1)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.div(T, v)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.div(T, s_int)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.div(T_s, T)._tensor__array, T_inv._tensor__array, 1e-05))
+
 
         with self.assertRaises(ValueError):
             ht.div(T, v2)
         with self.assertRaises(NotImplementedError):
             ht.div(T, Ts)
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(TypeError):
             ht.div(T, otherType)
         with self.assertRaises(TypeError):
             ht.div('T', 's')
@@ -1419,22 +1426,98 @@ class TestOperations(unittest.TestCase):
             [8, 16]
         ])
 
-        self.assertEqual(ht.pow(T, s), T_r)
-        self.assertEqual(ht.pow(s, T), T_inv)
-        self.assertEqual(ht.pow(T, T1), T_r)
-        self.assertEqual(ht.pow(T, v), T_r)
-        self.assertEqual(ht.pow(T, s_int), T_r)
-        self.assertEqual(ht.pow(Ts, T), T_r)
+        self.assertTrue(torch.allclose(ht.pow(s, s)._tensor__array, ht.float32([4.0])._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.pow(T, s)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.pow(s, T)._tensor__array, T_inv._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.pow(T, T1)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.pow(T, v)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.pow(T, s_int)._tensor__array, T_r._tensor__array, 1e-05))
+        self.assertTrue(torch.allclose(ht.pow(T_s, T)._tensor__array, T_inv._tensor__array, 1e-05))
 
         with self.assertRaises(ValueError):
             ht.pow(T, v2)
         with self.assertRaises(NotImplementedError):
             ht.pow(T, Ts)
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(TypeError):
             ht.pow(T, otherType)
         with self.assertRaises(TypeError):
             ht.pow('T', 's')
+
+
+    def test_eq(self):
+        T_r = ht.uint8([
+            [0, 1],
+            [0, 0]
+        ])
+
+
+        self.assertEqual(ht.eq(T, s), T_r)
+        self.assertEqual(ht.eq(s, T), T_r)
+        self.assertEqual(ht.eq(T, T1), T_r)
+        self.assertEqual(ht.eq(T, v), T_r)
+        self.assertEqual(ht.eq(T, s_int), T_r)
+        self.assertEqual(ht.eq(Ts, T), T_r)
+
+        with self.assertRaises(ValueError):
+            ht.eq(T, v2)
+        with self.assertRaises(NotImplementedError):
+            ht.eq(T, Ts)
+        with self.assertRaises(NotImplementedError):
+            ht.eq(T, otherType)
         with self.assertRaises(TypeError):
-            ht.pow(s, s_int)
+            ht.eq('T', 's')
+        with self.assertRaises(TypeError):
+            ht.eq(s, s_int)
 
+    def test_ne(self):
+        T_r = ht.uint8([
+            [1, 0],
+            [1, 1]
+        ])
 
+        self.assertEqual(ht.ne(T, s), T_r)
+        self.assertEqual(ht.ne(s, T), T_r)
+        self.assertEqual(ht.ne(T, T1), T_r)
+        self.assertEqual(ht.ne(T, v), T_r)
+        self.assertEqual(ht.ne(T, s_int), T_r)
+        self.assertEqual(ht.ne(Ts, T), T_r)
+
+        with self.assertRaises(ValueError):
+            ht.ne(T, v2)
+        with self.assertRaises(NotImplementedError):
+            ht.ne(T, Ts)
+        with self.assertRaises(NotImplementedError):
+            ht.ne(T, otherType)
+        with self.assertRaises(TypeError):
+            ht.ne('T', 's')
+        with self.assertRaises(TypeError):
+            ht.ne(s, s_int)
+
+    def test_lt(self):
+        T_r = ht.uint8([
+            [1, 0],
+            [0, 0]
+        ])
+
+        T_inv = ht.uint8([
+            [0, 0],
+            [1, 1]
+        ])
+
+        self.assertEqual(ht.lt(T, s), T_r)
+        self.assertEqual(ht.lt(s, T), T_inv)
+        self.assertEqual(ht.lt(T, T1), T_r)
+        self.assertEqual(ht.lt(T, v), T_r)
+        self.assertEqual(ht.lt(T, s_int), T_r)
+        self.assertEqual(ht.lt(Ts, T), T_r)
+
+        with self.assertRaises(ValueError):
+            ht.lt(T, v2)
+        with self.assertRaises(NotImplementedError):
+            ht.lt(T, Ts)
+        with self.assertRaises(NotImplementedError):
+            ht.lt(T, otherType)
+        with self.assertRaises(TypeError):
+            ht.lt('T', 's')
+        with self.assertRaises(TypeError):
+            ht.lt(s, s_int)

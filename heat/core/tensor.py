@@ -719,7 +719,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise addition.
          """
-        return self.__binop(operator.add, other)
+        return operations.add(self, other)
 
 
     def __sub__(self, other):
@@ -737,7 +737,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise subtraction.
          """
-        return self.__binop(operator.sub, other)
+        return operations.sub(self, other)
 
     def __truediv__(self, other):
         """
@@ -755,7 +755,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise division.
          """
-        return self.__binop(operator.truediv, other)
+        return operations.div(self, other)
 
     def __mul__(self, other):
         """
@@ -772,7 +772,7 @@ class tensor:
          result: ht.tensor
          A tensor containing the results of element-wise multiplication.
          """
-        return self.__binop(operator.mul, other)
+        return operations.mul(self, other)
 
     def __pow__(self, other):
         """
@@ -791,7 +791,7 @@ class tensor:
          A tensor containing the results of element-wise exponential operation.
          """
 
-        return self.__binop(operator.pow, other)
+        return operations.pow(self, other)
 
     def __eq__(self, other):
         """
@@ -809,8 +809,7 @@ class tensor:
         Tensor holding true for all elements in which values of self are equal to values of other,
         false for all other elements
         """
-
-        return self.__binop(operator.eq, other)
+        return operations.eq(self, other)
 
 
     def __ne__(self, other):
@@ -830,7 +829,7 @@ class tensor:
         false for all other elements
         """
 
-        return self.__binop(operator.ne, other)
+        return operations.ne(self, other)
 
     def __lt__(self, other):
         """

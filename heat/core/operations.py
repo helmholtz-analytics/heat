@@ -32,6 +32,7 @@ __all__ = [
     'mul',
     'pow',
     'eq',
+    'equal',
     'ne',
     'lt',
     'le',
@@ -835,7 +836,95 @@ def eq(t1,t2):
          False for all other elements
     """
 
-    return __binary_op(torch.eq, t1, t2)
+    return __relational_op(torch.eq, t1, t2)
+
+def equal(t1,t2):
+    """
+         Element-wise rich comparison of equality between values from two operands, commutative.
+         Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+
+         Parameters
+         ----------
+         t1: tensor or scalar
+         The first operand involved in the comparison
+
+         t2: tensor or scalar
+         The second operand involved in the comparison
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor holding True for all elements in which values of t1 are equal to values of t2,
+         False for all other elements
+    """
+    if np.isscalar(t1):
+
+        try:
+            t1 = types.heat_type_of(t1)([t1])
+        except TypeError:
+            raise TypeError('Data type not supported, input was {}'.format(type(t1)))
+
+        if np.isscalar(t2):
+            try:
+                t2 = types.heat_type_of(t2)([t2])
+            except TypeError:
+                raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
+
+            output_shape = (1,)
+            output_split = None
+            output_device = None
+            output_comm = None
+
+        elif isinstance(t2, tensor.tensor):
+            output_shape = t2.shape
+            output_split = t2.split
+            output_device = t2.device
+            output_comm = t2.comm
+
+        else:
+            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+
+
+    elif isinstance(t1, tensor.tensor):
+
+        if np.isscalar(t2):
+            try:
+                t2 = types.heat_type_of(t2)([t2])
+            except TypeError:
+                raise TypeError('Data type not supported, input was {}'.format(type(t2)))
+
+
+
+        elif isinstance(t2, tensor.tensor):
+
+            output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+
+            # TODO: implement complex NUMPY rules
+            if t2.dtype != t1.dtype:
+                t2 = t2.astype(t1.dtype)
+
+            if t2.split is None or t2.split == t1.split:
+                pass
+
+            else:
+                # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
+                raise NotImplementedError('Not implemented for other splittings')
+
+        else:
+            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+
+        output_shape = t1.shape
+        output_split = t1.split
+        output_device = t1.device
+        output_comm = t1.comm
+
+    else:
+        raise NotImplementedError('Not implemented for non scalar')
+
+
+    result = torch.equal(t1._tensor__array, t2._tensor__array)
+
+    return result
 
 def ne(t1,t2):
     """
@@ -857,7 +946,7 @@ def ne(t1,t2):
          False for all other elements
     """
 
-    return __binary_op(torch.ne, t1, t2)
+    return __relational_op(torch.ne, t1, t2)
 
 def lt(t1,t2):
     """
@@ -880,7 +969,7 @@ def lt(t1,t2):
          False for all other elements
     """
 
-    return __binary_op(torch.lt, t1, t2)
+    return __relational_op(torch.lt, t1, t2)
 
 def le(t1,t2):
     """
@@ -902,7 +991,7 @@ def le(t1,t2):
          A tensor holding True for all elements in which values of t1 are less than or equal to values of t2,
          False for all other elements
     """
-    return __binary_op(torch.le, t1, t2)
+    return __relational_op(torch.le, t1, t2)
 
 def gt(t1,t2):
     """
@@ -925,7 +1014,7 @@ def gt(t1,t2):
          False for all other elements
     """
 
-    return __binary_op(torch.gt, t1, t2)
+    return __relational_op(torch.gt, t1, t2)
 
 def ge(t1,t2):
     """
@@ -948,7 +1037,7 @@ def ge(t1,t2):
          False for all other elements
     """
 
-    return __binary_op(torch.ge, t1, t2)
+    return __relational_op(torch.ge, t1, t2)
 
 
 
@@ -1086,50 +1175,270 @@ def __binary_op(operation, t1, t2):
     # TODO: make me more numpy API complete
     # TODO: ... including the actual binops
 
-    # trivial option, if both operands are a scalars
-    if np.isscalar(t1) and  np.isscalar(t2):
+    if np.isscalar(t1):
+
         try:
-            out = operation(t1, t2)
+            t1 = types.heat_type_of(t1)([t1])
         except TypeError:
-            raise TypeError('Only tensors and numeric scalars are supporte, but input was {}'.format(type(t2)))
+            raise TypeError('Data type not supported, input was {}'.format(type(t1)))
 
-        return tensor.tensor(out, (1,), out.dtype, None, None, None)
+        if np.isscalar(t2):
+            try:
+                t2 = types.heat_type_of(t2)([t2])
+            except TypeError:
+                raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
 
-    #if first operand is a scalar, performing the operation is trivial
-    elif isinstance(t1, tensor.tensor) and np.isscalar(t2):
-        try:
-            result = operation(t1._tensor__array, t2)
-        except TypeError:
-            raise TypeError('Only tensors and numeric scalars are supporte, but input was {}'.format(type(t2)))
+            output_shape = (1,)
+            output_split = None
+            output_device = None
+            output_comm = None
 
-        return tensor.tensor(result, t1.shape, t1.dtype, t1.split, t1.device, t1.comm)
+        elif isinstance(t2, tensor.tensor):
+            output_shape = t2.shape
+            output_split = t2.split
+            output_device = t2.device
+            output_comm = t2.comm
 
-    # if second operand is a scalar, performing the operation is trivial
-    elif  np.isscalar(t1) and isinstance(t2, tensor.tensor):
-        try:
-            result = operation(t1, t2._tensor__array)
-        except TypeError:
-            raise TypeError('Only tensors and numeric scalars are supporte, but input was {}'.format(type(t2)))
+        else:
+            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
 
-        return tensor.tensor(result, t2.shape, t2.dtype, t2.split, t2.device, t2.comm)
+        if t1.dtype != t2.dtype:
+            t1 = t1.astype(t2.dtype)
 
-    #if both operands are a tensors
-    elif isinstance(t1, tensor.tensor) and isinstance(t2, tensor.tensor):
-        output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
 
-        # TODO: implement complex NUMPY rules
+    elif isinstance(t1, tensor.tensor):
+
+        if np.isscalar(t2):
+            try:
+                t2 = types.heat_type_of(t2)([t2])
+            except TypeError:
+                raise TypeError('Data type not supported, input was {}'.format(type(t2)))
+
+        elif isinstance(t2, tensor.tensor):
+
+            output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+
+            # TODO: implement complex NUMPY rules
+
+            if t2.split is None or t2.split == t1.split:
+                pass
+
+            else:
+                # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
+                raise NotImplementedError('Not implemented for other splittings')
+
+
+        else:
+            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+
         if t2.dtype != t1.dtype:
             t2 = t2.astype(t1.dtype)
 
-        if t2.split is None or t2.split == t1.split:
-            result = operation(t1._tensor__array, t2._tensor__array)
-            return tensor.tensor(result, output_shape, t1.dtype, t1.split, t1.device, t1.comm)
-
-        # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
-        else:
-            raise NotImplementedError(
-                'Not implemented for other splittings')
+        output_shape = t1.shape
+        output_split = t1.split
+        output_device = t1.device
+        output_comm = t1.comm
 
 
     else:
         raise NotImplementedError('Not implemented for non scalar')
+
+    result = operation(t1._tensor__array, t2._tensor__array)
+
+    return tensor.tensor(result, output_shape, t1.dtype, output_split, output_device, output_comm)
+
+    # # trivial option, if both operands are a scalars
+    # if np.isscalar(t1) and  np.isscalar(t2):
+    #     try:
+    #         out = operation(t1, t2)
+    #     except TypeError:
+    #         raise TypeError('Only tensors and numeric scalars are supporte, but input was {}'.format(type(t2)))
+    #
+    #     return tensor.tensor(out, (1,), out.dtype, None, None, None)
+    #
+    # #if first operand is a scalar, performing the operation is trivial
+    # elif isinstance(t1, tensor.tensor) and np.isscalar(t2):
+    #     try:
+    #         result = operation(t1._tensor__array, t2)
+    #     except TypeError:
+    #         raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+    #
+    #     return tensor.tensor(result, t1.shape, t1.dtype, t1.split, t1.device, t1.comm)
+    #
+    # # if second operand is a scalar, performing the operation is trivial
+    # elif  np.isscalar(t1) and isinstance(t2, tensor.tensor):
+    #     try:
+    #         result = operation(t1, t2._tensor__array)
+    #     except TypeError:
+    #         raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+    #
+    #     return tensor.tensor(result, t2.shape, t2.dtype, t2.split, t2.device, t2.comm)
+    #
+    # #if both operands are a tensors
+    # elif isinstance(t1, tensor.tensor) and isinstance(t2, tensor.tensor):
+    #     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+    #
+    #     # TODO: implement complex NUMPY rules
+    #     if t2.dtype != t1.dtype:
+    #         t2 = t2.astype(t1.dtype)
+    #
+    #     if t2.split is None or t2.split == t1.split:
+    #         result = operation(t1._tensor__array, t2._tensor__array)
+    #         return tensor.tensor(result, output_shape, t1.dtype, t1.split, t1.device, t1.comm)
+    #
+    #     # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
+    #     else:
+    #         raise NotImplementedError(
+    #             'Not implemented for other splittings')
+    #
+    #
+    # else:
+    #     raise NotImplementedError('Not implemented for non scalar')
+
+
+def __relational_op(operation, t1, t2):
+    """
+    Generic wrapper for element-wise relational operations of two operands (either can be tensor or scalar).
+    Takes the operation function and the two operands involved in the operation as arguments.
+
+    Parameters
+    ----------
+    operation : function
+    The operation to be performed. Function that performs operation elements-wise on the involved tensors,
+    e.g. add values from other to self
+
+    t1: tensor or scalar
+    The first operand involved in the operation,
+
+    t2: tensor or scalar
+    The second operand involved in the operation,
+
+    Returns
+    -------
+    result: ht.tensor
+    A tensor containing the results of element-wise operation.
+    """
+
+    # TODO: test me
+    # TODO: sanitize input
+    # TODO: make me more numpy API complete
+    # TODO: ... including the actual binops
+
+    if np.isscalar(t1):
+
+        try:
+            t1 = types.heat_type_of(t1)([t1])
+        except TypeError:
+            raise TypeError('Data type not supported, input was {}'.format(type(t1)))
+
+        if np.isscalar(t2):
+            try:
+                t2 = types.heat_type_of(t2)([t2])
+            except TypeError:
+                raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
+
+            output_shape = (1,)
+            output_split = None
+            output_device = None
+            output_comm = None
+
+        elif isinstance(t2, tensor.tensor):
+            output_shape = t2.shape
+            output_split = t2.split
+            output_device = t2.device
+            output_comm = t2.comm
+
+        else:
+            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+
+
+    elif isinstance(t1, tensor.tensor):
+
+        if np.isscalar(t2):
+            try:
+                t2 = types.heat_type_of(t2)([t2])
+            except TypeError:
+                raise TypeError('Data type not supported, input was {}'.format(type(t2)))
+
+
+
+        elif isinstance(t2, tensor.tensor):
+
+            output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+
+            # TODO: implement complex NUMPY rules
+            if t2.dtype != t1.dtype:
+                t2 = t2.astype(t1.dtype)
+
+            if t2.split is None or t2.split == t1.split:
+                pass
+
+            else:
+                # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
+                raise NotImplementedError('Not implemented for other splittings')
+
+        else:
+            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+
+        output_shape = t1.shape
+        output_split = t1.split
+        output_device = t1.device
+        output_comm = t1.comm
+
+    else:
+        raise NotImplementedError('Not implemented for non scalar')
+
+
+    result = operation(t1._tensor__array, t2._tensor__array)
+
+    return tensor.tensor(result, output_shape, result.dtype, output_split, output_device, output_comm)
+
+
+###########################Old version
+# def __relational_op(operation, t1, t2):
+# # trivial option, if both operands are scalars
+    # if np.isscalar(t1) and  np.isscalar(t2):
+    #     try:
+    #         out = operation(t1, t2)
+    #     except TypeError:
+    #         raise TypeError('Only tensors and numeric scalars are supporte, but input was {}'.format(type(t2)))
+    #
+    #     return tensor.tensor(out, (1,), out.dtype, None, None, None)
+    #
+    # #if first operand is a scalar, performing the operation is trivial
+    # elif isinstance(t1, tensor.tensor) and np.isscalar(t2):
+    #     try:
+    #         result = operation(t1._tensor__array, t2)
+    #     except TypeError:
+    #         raise TypeError('Only tensors and numeric scalars are supporte, but input was {}'.format(type(t2)))
+    #
+    #     return tensor.tensor(result, t1.shape, result.dtype, t1.split, t1.device, t1.comm)
+    #
+    # # if second operand is a scalar, performing the operation is trivial
+    # elif np.isscalar(t1) and isinstance(t2, tensor.tensor):
+    #     try:
+    #         result = operation(t2.dtype([t1])._tensor__array, t2._tensor__array)
+    #     except TypeError:
+    #         raise TypeError('Only tensors and numeric scalars are supporte, but input was {}'.format(type(t2)))
+    #
+    #     return tensor.tensor(result, t2.shape, result.dtype, t2.split, t2.device, t2.comm)
+    #
+    # #if both operands are a tensors
+    # elif isinstance(t1, tensor.tensor) and isinstance(t2, tensor.tensor):
+    #     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+    #
+    #     if t2.dtype != t1.dtype:
+    #         t2 = t2.astype(t1.dtype)
+    #
+    #     if t2.split is None or t2.split == t1.split:
+    #         result = operation(t1._tensor__array, t2._tensor__array)
+    #         return tensor.tensor(result, output_shape, result.dtype, t1.split, t1.device, t1.comm)
+    #
+    #     # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
+    #     else:
+    #         raise NotImplementedError(
+    #             'Not implemented for other splittings')
+    #
+    #
+    # else:
+    #     raise NotImplementedError('Not implemented for non scalar')
