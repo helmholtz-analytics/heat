@@ -809,7 +809,7 @@ class tensor:
         Tensor holding true for all elements in which values of self are equal to values of other,
         false for all other elements
         """
-        return operations.eq(self, other)
+        return self.__binop(operator.eq, other)
 
 
     def __ne__(self, other):
@@ -829,7 +829,7 @@ class tensor:
         false for all other elements
         """
 
-        return operations.ne(self, other)
+        return self.__binop(operator.ne, other)
 
     def __lt__(self, other):
         """
