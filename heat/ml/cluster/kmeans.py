@@ -13,19 +13,19 @@ class KMeans:
         self.random_state = random_state
 
     @staticmethod
-    def initialize_centroids(k, dimensions, seed):
+    def initialize_centroids(k, dimensions, seed, device):
         # TODO: document me
         # TODO: extend me with further initialization methods
         # zero-centered uniform random distribution in [-1, 1]
         ht.random.set_gseed(seed)
-        return ht.random.uniform(low=-1.0, high=1.0, size=(1, dimensions, k))
+        return ht.random.uniform(low=-1.0, high=1.0, size=(1, dimensions, k), device=device)
 
     def fit(self, data):
         # TODO: document me
         data = data.expand_dims(axis=2)
 
         # initialize the centroids randomly
-        centroids = self.initialize_centroids(self.n_clusters, data.shape[1], self.random_state)
+        centroids = self.initialize_centroids(self.n_clusters, data.shape[1], self.random_state, data.device)
         new_centroids = centroids.copy()
 
         for epoch in range(self.max_iter):
