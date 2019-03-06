@@ -781,8 +781,8 @@ class tensor:
         Returns
         -------
         result: ht.tensor
-        Tensor holding true for all elements in which values of self are equal to values of other,
-        false for all other elements
+        Tensor holding 1 for all elements in which values of self are equal to values of other,
+        0 for all other elements
         """
         return operations.eq(self, other)
 
@@ -800,8 +800,8 @@ class tensor:
         Returns
         -------
         result: ht.tensor
-        Tensor holding true for all elements in which values of self are equal to values of other,
-        false for all other elements
+        Tensor holding 1 for all elements in which values of self are equal to values of other,
+        0 for all other elements
         """
 
         return operations.ne(self, other)
@@ -819,8 +819,8 @@ class tensor:
         Returns
         -------
         result: ht.tensor
-        Tensor holding true for all elements in which values in self are less than values of other (x1 < x2),
-        false for all other elements
+        Tensor holding 1 for all elements in which values in self are less than values of other (x1 < x2),
+        0 for all other elements
         """
         return operations.lt(self, other)
 
@@ -838,8 +838,8 @@ class tensor:
         Returns
         -------
         result: ht.tensor
-        Tensor holding true for all elements in which values in self are less than or equal to values of other (x1 <= x2),
-        false for all other elements
+        Tensor holding 1 for all elements in which values in self are less than or equal to values of other (x1 <= x2),
+        0 for all other elements
         """
         return operations.le(self, other)
 
@@ -856,8 +856,8 @@ class tensor:
         Returns
         -------
         result: ht.tensor
-        Tensor holding true for all elements in which values in self are greater than values of other (x1 > x2),
-        false for all other elements
+        Tensor holding 1 for all elements in which values in self are greater than values of other (x1 > x2),
+        0 for all other elements
         """
 
         return operations.gt(self, other)
@@ -875,8 +875,8 @@ class tensor:
         Returns
         -------
         result: ht.tensor
-        Tensor holding true for all elements in which values in self are greater than or equal to values of other (x1 >= x2),
-        false for all other elements
+        Tensor holding 1 for all elements in which values in self are greater than or equal to values of other (x1 >= x2),
+        0 for all other elements
         """
 
         return operations.ge(self, other)

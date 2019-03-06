@@ -832,16 +832,15 @@ def eq(t1,t2):
          Returns
          -------
          result: ht.tensor
-         A tensor holding True for all elements in which values of t1 are equal to values of t2,
-         False for all other elements
+         A uint8-tensor holding 1 for all elements in which values of t1 are equal to values of t2,
+         0 for all other elements
     """
 
     return __binary_op(torch.eq, t1, t2)
 
 def equal(t1,t2):
     """
-         Element-wise rich comparison of equality between values from two operands, commutative.
-         Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+         Overall comparison of equality between two tensors. Returns True if two tensors have the same size and elements, and False otherwise.
 
          Parameters
          ----------
@@ -853,9 +852,9 @@ def equal(t1,t2):
 
          Returns
          -------
-         result: ht.tensor
-         A tensor holding True for all elements in which values of t1 are equal to values of t2,
-         False for all other elements
+         result: bool
+         True if t1 and t2 have the same size and elements, False otherwise
+
     """
     if np.isscalar(t1):
 
@@ -927,8 +926,8 @@ def ne(t1,t2):
          Returns
          -------
          result: ht.tensor
-         A tensor holding True for all elements in which values of t1 are not equal to values of t2,
-         False for all other elements
+         A uint8-tensor holding 1 for all elements in which values of t1 are not equal to values of t2,
+         0 for all other elements
     """
 
     return __binary_op(torch.ne, t1, t2)
@@ -950,8 +949,8 @@ def lt(t1,t2):
          Returns
          -------
          result: ht.tensor
-         A tensor holding True for all elements in which values of t1 are less than values of t2,
-         False for all other elements
+          A uint8-tensor holding 1 for all elements in which values of t1 are less than values of t2,
+         0 for all other elements
     """
 
     return __binary_op(torch.lt, t1, t2)
@@ -973,8 +972,8 @@ def le(t1,t2):
          Returns
          -------
          result: ht.tensor
-         A tensor holding True for all elements in which values of t1 are less than or equal to values of t2,
-         False for all other elements
+         A uint8-tensor holding 1 for all elements in which values of t1 are less than or equal to values of t2,
+         0 for all other elements
     """
     return __binary_op(torch.le, t1, t2)
 
@@ -995,8 +994,8 @@ def gt(t1,t2):
          Returns
          -------
          result: ht.tensor
-         A tensor holding True for all elements in which values of t1 are greater than values of t2,
-         False for all other elements
+         A uint8-tensor holding 1 for all elements in which values of t1 are greater than values of t2,
+         0 for all other elements
     """
 
     return __binary_op(torch.gt, t1, t2)
@@ -1018,8 +1017,8 @@ def ge(t1,t2):
          Returns
          -------
          result: ht.tensor
-         A tensor holding True for all elements in which values of t1 are greater than or equal to values of t2,
-         False for all other elements
+          A uint8-tensor holding 1 for all elements in which values of t1 are greater than or equal tp values of t2,
+         0 for all other elements
     """
 
     return __binary_op(torch.ge, t1, t2)
@@ -1200,8 +1199,6 @@ def __binary_op(operation, t1, t2):
             output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
 
             # TODO: implement complex NUMPY rules
-
-
             if t2.split is None or t2.split == t1.split:
                 pass
 
