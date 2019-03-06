@@ -206,3 +206,18 @@ class TestTypeConversion(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             ht.finfo('float16')
+
+    def test_iinfo(self):
+        info32 = ht.iinfo(ht.int32)
+        self.assertEqual(info32.bits, 32)
+        self.assertEqual(info32.max, 2147483647)
+        self.assertEqual(info32.min, -2147483648)
+
+        with self.assertRaises(TypeError):
+            ht.iinfo(1.0)
+
+        with self.assertRaises(TypeError):
+            ht.iinfo(ht.float64)
+
+        with self.assertRaises(TypeError):
+            ht.iinfo('int16')

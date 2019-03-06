@@ -220,6 +220,13 @@ _inexact = (
     float32,
     float64,)
 
+_exact = (
+    uint8,
+    int8,
+    int16,
+    int32,
+    int64,)
+
 # type mappings for type strings and builtins types
 __type_mappings = {
     # type strings
@@ -565,6 +572,56 @@ class finfo:
             setattr(self, word, getattr(_torch_finfo, word))
 
         self.min=-self.max
+
+        return self
+
+class iinfo:
+    """
+    iinfo(dtype)
+
+    Class describing machine limits (bit representation) of integer types.
+
+    Attributes
+    ----------
+    bits : int
+        The number of bits occupied by the type.
+    max : floating point number of the appropriate type
+        The largest representable number.
+    min : floating point number of the appropriate type
+        The smallest representable number, typically ``-max``.
+
+    Parameters
+    ----------
+    dtype : ht.dtype
+        Kind of floating point data-type about which to get information.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> info = ht.types.finfo(ht.int32)
+    >>> info.bits
+    32
+
+    """
+    def __new__(cls, dtype):
+        try:
+            dtype = heat_type_of(dtype)
+        except (KeyError, IndexError, TypeError,):
+            # If given type is not heat type
+            pass
+
+        if not dtype in _exact:
+            raise TypeError('Data type {} not inexact, not supported'.format(dtype))
+
+        return super(iinfo, cls).__new__(cls)._init(dtype)
+
+
+    def _init(self, dtype):
+        _torch_iinfo = torch.iinfo(dtype.torch_type())
+        for word in ['bits', 'max']:
+            setattr(self, word, getattr(_torch_iinfo, word))
+
+        self.min = -(self.max + 1)
 
         return self
 
