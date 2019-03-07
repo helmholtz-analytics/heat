@@ -1,6 +1,7 @@
 from mpi4py import MPI
 
 import abc
+import os
 import subprocess
 import torch
 
@@ -8,10 +9,8 @@ from .stride_tricks import sanitize_axis
 
 # check whether OpenMPI support CUDA-aware MPI
 try:
-    buffer = subprocess.check_output(['mpirun', '--help'])
-
     # OpenMPI
-    if buffer.startswith(b'mpirun (Open MPI)'):
+    if 'openmpi' in os.environ.get('MPI_SUFFIX', '').lower():
         buffer = subprocess.check_output(['ompi_info', '--parsable', '--all'])
         CUDA_AWARE_MPI = b'mpi_built_with_cuda_support:value:true' in buffer
     else:
