@@ -640,28 +640,28 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(float32_sqrt, ht.tensor)
         self.assertEqual(float32_sqrt.dtype, ht.float32)
         self.assertEqual(float32_sqrt.dtype, ht.float32)
-        self.assertTrue(torch.allclose(float32_sqrt._tensor__array, comparison.type(torch.float32), 1e-05))
+        self.assertTrue(torch.allclose(float32_sqrt._tensor__array, comparison.type(torch.float32), 1e-06))
 
         # square roots of float64
         float64_sqrt = ht.arange(elements, dtype=ht.float64).sqrt()
         self.assertIsInstance(float64_sqrt, ht.tensor)
         self.assertEqual(float64_sqrt.dtype, ht.float64)
         self.assertEqual(float64_sqrt.dtype, ht.float64)
-        self.assertTrue(torch.allclose(float64_sqrt._tensor__array, comparison, 1e-05))
+        self.assertTrue(torch.allclose(float64_sqrt._tensor__array, comparison, 1e-06))
 
         # square roots of ints, automatic conversion to intermediate floats
         int32_sqrt = ht.arange(elements, dtype=ht.int32).sqrt()
         self.assertIsInstance(int32_sqrt, ht.tensor)
         self.assertEqual(int32_sqrt.dtype, ht.float64)
         self.assertEqual(int32_sqrt.dtype, ht.float64)
-        self.assertTrue(torch.allclose(int32_sqrt._tensor__array, comparison, 1e-05))
+        self.assertTrue(torch.allclose(int32_sqrt._tensor__array, comparison, 1e-06))
 
         # square roots of longs, automatic conversion to intermediate floats
         int64_sqrt = ht.arange(elements, dtype=ht.int64).sqrt()
         self.assertIsInstance(int64_sqrt, ht.tensor)
         self.assertEqual(int64_sqrt.dtype, ht.float64)
         self.assertEqual(int64_sqrt.dtype, ht.float64)
-        self.assertTrue(torch.allclose(int64_sqrt._tensor__array, comparison, 1e-05))
+        self.assertTrue(torch.allclose(int64_sqrt._tensor__array, comparison, 1e-06))
 
         # check exceptions
         with self.assertRaises(TypeError):
