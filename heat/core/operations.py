@@ -597,13 +597,13 @@ def mean(x, axis=None):
         sz = x.comm.Get_size()
         rem1 = rem2 = 0
         while True:
-            if sz % 2 != 0:  # test if the length is an odd number
+            if sz % 2 != 0:
                 if rem1 != 0 and rem2 == 0:
                     rem2 = sz - 1
                 elif rem1 == 0:
                     rem1 = sz - 1
             splt = int(sz / 2)
-            for sp_it in range(splt):  # todo: multithread perfect opp for GPU parrallelizm
+            for sp_it in range(splt):  # todo: multithread for GPU parrallelizm
                 mu_reshape = __local_operation(torch.reshape, mu_tot[sp_it], out=None, shape=(1, int(mu_tot[sp_it].lnumel)))[0]
                 for en, (el1, el2) in enumerate(zip(mu_reshape,
                                                     __local_operation(torch.reshape, mu_tot[sp_it+splt], out=None,
@@ -612,7 +612,7 @@ def mean(x, axis=None):
                         mu_reshape[en], n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it+splt])
                     except IndexError:
                         mu_reshape, n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it + splt])
-                n_for_merge[sp_it] = n  # todo: need to update the n_for_merge here not previously!!
+                n_for_merge[sp_it] = n
                 mu_tot[sp_it] = __local_operation(torch.reshape, mu_reshape, out=None, shape=output_shape_i)
             if rem1 and rem2:
                 mu_reshape = __local_operation(torch.reshape, mu_tot[rem1], out=None, shape=(1, int(mu_tot[rem1].lnumel)))[0]
@@ -641,7 +641,6 @@ def mean(x, axis=None):
         # full matrix calculation
         if x.split:
             # if x is distributed and no axis is given: return mean of the whole set
-            # print("axis is None, distributed case", axis, x.split)
             if x.lshape[x.split] != 0:
                 mu_in = __local_operation(torch.mean, x, out=None)
             else:
@@ -657,13 +656,13 @@ def mean(x, axis=None):
             rem2 = 0
             sz = mu_tot.shape[0]
             while True:  # this loop will loop pairwise over the whole process and do pairwise updates
-                if sz % 2 != 0:  # test if the length is an odd number
+                if sz % 2 != 0:
                     if rem1 != 0 and rem2 == 0:
                         rem2 = sz - 1
                     elif rem1 == 0:
                         rem1 = sz - 1
                 splt = int(sz / 2)
-                for i in range(splt):  # todo: make this multithreaded, perfect opportunity for GPU usage but this might be smaller than the gains
+                for i in range(splt):  # todo: make this multithreaded for GPU
                     merged = merge_means(mu_tot[i, 0], mu_tot[i, 1], mu_tot[i + splt, 0], mu_tot[i + splt, 1])
                     for enum, m in enumerate(merged):
                         mu_tot[i, enum] = m
@@ -682,15 +681,8 @@ def mean(x, axis=None):
                     return mu_tot[0][0]
         else:
             # if x is not distributed do a torch.mean on x
-            # print('axis==None, not distributed', axis, x.split)
             return __local_operation(torch.mean, x, out=None)
     else:
-        # if isinstance(axis, int):
-        #     if axis >= len(x.shape):
-        #         raise ValueError("axis (axis) must be < {}, currently is {}".format(len(x.shape), axis))
-        #     axis = axis if axis > 0 else axis % len(x.shape)
-        # else:
-        #     raise TypeError("axis (axis) must be an int, currently is {}".format(type(axis)))
         output_shape = list(x.shape)
         if isinstance(axis, (list, tuple, tensor.tensor, torch.Tensor)):
             if any([not isinstance(j, int) for j in axis]):
@@ -702,11 +694,9 @@ def mean(x, axis=None):
 
             # multiple dimensions
             if x.split is None:
-                # print("not split, given sigular axis", axis, x.split)
                 return __local_operation(torch.mean, x, out=None, **{'dim': axis})
             output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
             if x.split in axis:
-                # print('multiple dimensions, split {} in dimensions given {}'.format(x.split, axis))
                 # merge in the direction of the split
                 return reduce_means_elementwise(output_shape)
 
@@ -726,10 +716,8 @@ def mean(x, axis=None):
             output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
 
             if x.split is None:
-                # print("not split, given sigular axis", axis, x.split)
                 return __local_operation(torch.mean, x, out=None, **{'dim': axis})
             if axis == x.split:
-                # print('singular axis == x.split', axis, x.split)
                 return reduce_means_elementwise(output_shape)
             else:
                 # singular axis given (axis) not equal to split direction (x.split)
@@ -749,14 +737,20 @@ def merge_vars(var1, mu1, n1, var2, mu2, n2, bessel=True):
 
     Parameters
     ----------
+    var1 : 1D ht.tensor or 1D torch.tensor
+           variance
     mu1 : 1D ht.tensor or 1D torch.tensor
           Calculated mean
     n1 : 1D ht.tensor or 1D torch.tensor
          number of elements used to calculate mu1
+    var2 : 1D ht.tensor or 1D torch.tensor
+           variance
     mu2 : 1D ht.tensor or 1D torch.tensor
           Calculated mean
     n2 : 1D ht.tensor or 1D torch.tensor
          number of elements used to calculate mu2
+    bessel : Bool
+             flag for the use of the bessel correction
 
     Returns
     -------
@@ -786,15 +780,11 @@ def var(x, axis=None, bessel=True):
     Parameters
     ----------
     x : ht.tensor
-        Values for which the mean is calculated for
+        Values for which the variance is calculated for
     axis : None, Int
-            axis which the mean is taken in.
-            Default: None -> var of all data calculated
-            NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
-    all_procs : Bool
-                Flag to distribute the data to all processes
-                If True: will split the result in the same direction as x
-                Default: False (var of the whole dataset still calculated but not available on every node)
+           axis which the variance is taken in.
+           Default: None -> var of all data calculated
+           NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
     bessel : Bool
              Default: True
              use the bessel correction when calculating the varaince/std
@@ -804,7 +794,6 @@ def var(x, axis=None, bessel=True):
     -------
     ht.tensor containing the var/s, if split, then split in the same direction as x.
     """
-
     if not isinstance(bessel, bool):
         raise TypeError("bessel must be a boolean, currently is {}".format(type(bessel)))
 
@@ -817,7 +806,7 @@ def var(x, axis=None, bessel=True):
         Parameters
         ----------
         output_shape_i : iterable
-                        iterable with the dimensions of the output of the var function
+                         iterable with the dimensions of the output of the var function
 
         Returns
         -------
@@ -848,7 +837,7 @@ def var(x, axis=None, bessel=True):
         sz = x.comm.Get_size()
         rem1 = rem2 = 0
         while True:
-            if sz % 2 != 0:  # test if the length is an odd number
+            if sz % 2 != 0:
                 if rem1 != 0 and rem2 == 0:
                     rem2 = sz - 1
                 elif rem1 == 0:
@@ -862,7 +851,6 @@ def var(x, axis=None, bessel=True):
                                                                                   shape=(1, int(mu_tot[i+splt].lnumel)))[0],
                                                                 __local_operation(torch.reshape, var_tot[i+splt], out=None,
                                                                                   shape=(1, int(var_tot[i+splt].lnumel)))[0])):
-                    # print(i, en, mu1, var1, mu2, var2)
                     try:
                         var_reshape[en], mu_reshape[en], n = merge_vars(var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i+splt], bessel)
                     except ValueError:
@@ -904,7 +892,6 @@ def var(x, axis=None, bessel=True):
     if axis is None:
         # case for full matrix calculation (axis is None)
         if x.split is not None:
-            # print("axis is None, distributed case", axis, x.split)
             if x.lshape[x.split] != 0:
                 mu_in = __local_operation(torch.mean, x, out=None)
                 var_in = __local_operation(torch.var, x, out=None, unbiased=bessel)
@@ -923,7 +910,7 @@ def var(x, axis=None, bessel=True):
             rem2 = 0
             sz = var_tot.shape[0]
             while True:  # this loop will loop pairwise over the whole process and do pairwise updates
-                if sz % 2 != 0:  # test if the length is an odd number
+                if sz % 2 != 0:
                     if rem1 != 0 and rem2 == 0:
                         rem2 = sz - 1
                     elif rem1 == 0:
@@ -955,11 +942,6 @@ def var(x, axis=None, bessel=True):
     else:
         # case for mean in one dimension
         output_shape = list(x.shape)
-        # if isinstance(axis, (list, tuple, tensor.tensor, torch.Tensor)):
-        #     if any(d > len(x.shape) for d in axis):
-        #         raise ValueError("Axis (axis) must be < {}, currently are {}".format(len(x.shape), axis))
-        #     if any(d < 0 for d in axis):
-        #         axis = [j % len(x.shape) for j in axis]
         if isinstance(axis, int):
             if axis >= len(x.shape):
                 raise ValueError("axis must be < {}, currently is {}".format(len(x.shape), axis))
@@ -976,8 +958,8 @@ def var(x, axis=None, bessel=True):
                 except ValueError:
                     return __local_operation(torch.var, x, out=None, dim=axis, unbiased=bessel)
         else:
-            raise TypeError("Axis (axis) must be an int, currently is {}".format(type(axis)))
-            # TODO: when multi dim support is abalable from pytorch this can be uncommented and the raise above can be changed
+            raise TypeError("Axis (axis) must be an int, currently is {}. Check if multidim var is available in pyTorch".format(type(axis)))
+            # TODO: when multi dim support is available from pytorch this can be uncommented and the raise above can be changed
             # # multiple dimensions
             # output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
             # if x.split in axis:
@@ -993,7 +975,6 @@ def var(x, axis=None, bessel=True):
             #         return __local_operation(torch.var, x, out=None, dim=axis, unbiased=bessel)
 
 
-
 def std(x, axis=None, bessel=True):
     """
     Calculates and returns the standard deviation of a tensor with the bessel correction
@@ -1002,15 +983,11 @@ def std(x, axis=None, bessel=True):
     Parameters
     ----------
     x : ht.tensor
-        Values for which the mean is calculated for
+        Values for which the std is calculated for
     axis : None, Int
             axis which the mean is taken in.
-            Default: None -> var of all data calculated
+            Default: None -> std of all data calculated
             NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
-    all_procs : Bool
-                Flag to distribute the data to all processes
-                If True: will split the result in the same direction as x
-                Default: False (var of the whole dataset still calculated but not available on every node)
     bessel : Bool
              Default: True
              use the bessel correction when calculating the varaince/std
