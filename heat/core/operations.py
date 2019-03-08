@@ -1,13 +1,11 @@
 import itertools
 import torch
-import warnings
 import numpy as np
 
 from .communication import MPI
 from . import stride_tricks
 from . import types
 from . import tensor
-import builtins
 
 __all__ = [
     'abs',
@@ -522,13 +520,13 @@ def merge_means(mu1, n1, mu2, n2):
     Parameters
     ----------
     mu1 : 1D ht.tensor or 1D torch.tensor
-          Calculated mean
+        Calculated mean
     n1 : 1D ht.tensor or 1D torch.tensor
-         number of elements used to calculate mu1
+        number of elements used to calculate mu1
     mu2 : 1D ht.tensor or 1D torch.tensor
-          Calculated mean
+        Calculated mean
     n2 : 1D ht.tensor or 1D torch.tensor
-         number of elements used to calculate mu2
+        number of elements used to calculate mu2
 
     Returns
     -------
@@ -556,8 +554,36 @@ def mean(x, axis=None):
     x : ht.tensor
         Values for which the mean is calculated for
     axis : None, Int, iterable
-           axis which the mean is taken in.
-           Default: None -> mean of all data calculated
+        axis which the mean is taken in.
+        Default: None -> mean of all data calculated
+
+    Examples
+    --------
+    >>> a = ht.random.randn(1,3)
+    >>> a
+    tensor([[-1.2435,  1.1813,  0.3509]])
+    >>> ht.mean(a)
+    tensor(0.0962)
+
+    >>> a = ht.random.randn(4,4)
+    >>> a
+    tensor([[ 0.0518,  0.9550,  0.3755,  0.3564],
+            [ 0.8182,  1.2425,  1.0549, -0.1926],
+            [-0.4997, -1.1940, -0.2812,  0.4060],
+            [-1.5043,  1.4069,  0.7493, -0.9384]])
+    >>> ht.mean(a, 1)
+    tensor([ 0.4347,  0.7307, -0.3922, -0.0716])
+    >>> ht.mean(a, 0)
+    tensor([-0.2835,  0.6026,  0.4746, -0.0921])
+
+    >>> a = ht.random.randn(4,4)
+    >>> a
+    tensor([[ 2.5893,  1.5934, -0.2870, -0.6637],
+            [-0.0344,  0.6412, -0.3619,  0.6516],
+            [ 0.2801,  0.6798,  0.3004,  0.3018],
+            [ 2.0528, -0.1121, -0.8847,  0.8214]])
+    >>> ht.mean(a, (0,1))
+    tensor(0.4730)
 
     Returns
     -------
@@ -573,7 +599,7 @@ def mean(x, axis=None):
         Parameters
         ----------
         output_shape_i : iterable
-                        iterable with the dimensions of the output of the mean function
+            iterable with the dimensions of the output of the mean function
 
         Returns
         -------
@@ -584,58 +610,48 @@ def mean(x, axis=None):
         else:
             mu = tensor.zeros(output_shape_i)
 
-        mu_to_combine = tensor.zeros((x.comm.Get_size(),) + tuple(output_shape_i))
-        mu_tot = tensor.zeros((x.comm.Get_size(),) + tuple(output_shape_i))
-
-        n_for_merge = tensor.zeros(x.comm.Get_size())
-        n2 = tensor.zeros(x.comm.Get_size())
-        mu_to_combine[x.comm.Get_rank()] = mu
-        n2[x.comm.Get_rank()] = x.lshape[x.split]
-        x.comm.Allreduce(mu_to_combine, mu_tot, MPI.SUM)
+        n_for_merge = tensor.zeros(x.comm.size)
+        n2 = tensor.zeros(x.comm.size)
+        n2[x.comm.rank] = x.lshape[x.split]
         x.comm.Allreduce(n2, n_for_merge, MPI.SUM)
 
-        sz = x.comm.Get_size()
-        rem1 = rem2 = 0
+        sz = x.comm.size
+        rem1, rem2 = 0, 0
+
+        mu_reshape = tensor.zeros((x.comm.size, int(np.prod(mu.lshape))))
+        mu_reshape[x.comm.rank] = __local_operation(torch.reshape, mu, out=None, shape=(1, int(mu.lnumel)))
+        mu_reshape_combi = tensor.zeros((x.comm.size, int(np.prod(mu.lshape))))
+        x.comm.Allreduce(mu_reshape, mu_reshape_combi, MPI.SUM)
+
         while True:
             if sz % 2 != 0:
-                if rem1 != 0 and rem2 == 0:
+                if rem1 and not rem2:
                     rem2 = sz - 1
-                elif rem1 == 0:
+                elif not rem1:
                     rem1 = sz - 1
-            splt = int(sz / 2)
+            splt = sz // 2
             for sp_it in range(splt):  # todo: multithread for GPU parrallelizm
-                mu_reshape = __local_operation(torch.reshape, mu_tot[sp_it], out=None, shape=(1, int(mu_tot[sp_it].lnumel)))[0]
-                for en, (el1, el2) in enumerate(zip(mu_reshape,
-                                                    __local_operation(torch.reshape, mu_tot[sp_it+splt], out=None,
-                                                                      shape=(1, int(mu_tot[sp_it+splt].lnumel)))[0])):
+                for en, (el1, el2) in enumerate(zip(mu_reshape_combi[sp_it, :], mu_reshape_combi[sp_it+splt, :])):
                     try:
-                        mu_reshape[en], n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it+splt])
+                        mu_reshape_combi[sp_it, en], n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it+splt])
                     except IndexError:
-                        mu_reshape, n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it + splt])
+                        mu_reshape_combi, n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it + splt])
                 n_for_merge[sp_it] = n
-                mu_tot[sp_it] = __local_operation(torch.reshape, mu_reshape, out=None, shape=output_shape_i)
             if rem1 and rem2:
-                mu_reshape = __local_operation(torch.reshape, mu_tot[rem1], out=None, shape=(1, int(mu_tot[rem1].lnumel)))[0]
-                for en, (el1, el2) in enumerate(zip(mu_reshape,
-                                                    __local_operation(torch.reshape, mu_tot[rem2], out=None,
-                                                                      shape=(1, int(mu_tot[rem2].lnumel)))[0])):
-                    mu_reshape[en], n = merge_means(el1, n_for_merge[rem1], el2, n_for_merge[rem2])
+                for en, (el1, el2) in enumerate(zip(mu_reshape_combi[rem1, :], mu_reshape_combi[rem2, :])):
+                    mu_reshape_combi[rem2, en], n = merge_means(el1, n_for_merge[rem1], el2, n_for_merge[rem2])
                 n_for_merge[rem2] = n
-                mu_tot[rem2] = __local_operation(torch.reshape, mu_reshape, out=None, shape=output_shape_i)
 
                 rem1 = rem2
                 rem2 = 0
             sz = splt
             if sz == 1 or sz == 0:
                 if rem1:
-                    mu_reshape = __local_operation(torch.reshape, mu_tot[0], out=None, shape=(1, int(mu_tot[0].lnumel)))[0]
-                    for en, (el1, el2) in enumerate(zip(mu_reshape,
-                                                        __local_operation(torch.reshape, mu_tot[rem1], out=None,
-                                                                          shape=(1, int(mu_tot[rem1].lnumel)))[0])):
-                        mu_reshape[en], _ = merge_means(el1, n_for_merge[0], el2, n_for_merge[rem1])
+                    for en, (el1, el2) in enumerate(zip(mu_reshape_combi[0, :], mu_reshape_combi[rem1, :])):
+                        mu_reshape_combi[0, en], _ = merge_means(el1, n_for_merge[0], el2, n_for_merge[rem1])
 
-                    mu_tot[0] = __local_operation(torch.reshape, mu_reshape, out=None, shape=output_shape_i)
-                return mu_tot[0]
+                ret = __local_operation(torch.reshape, mu_reshape_combi[0], out=None, shape=output_shape_i)
+                return ret
     # ------------------------------------------------------------------------------------------------------------------
     if axis is None:
         # full matrix calculation
@@ -646,8 +662,8 @@ def mean(x, axis=None):
             else:
                 mu_in = 0
             n = x.lnumel
-            mu_tot = tensor.zeros((x.comm.Get_size(), 2))
-            mu_proc = tensor.zeros((x.comm.Get_size(), 2))
+            mu_tot = tensor.zeros((x.comm.size, 2))
+            mu_proc = tensor.zeros((x.comm.size, 2))
             mu_proc[x.comm.rank][0] = mu_in
             mu_proc[x.comm.rank][1] = float(n)
             x.comm.Allreduce(mu_proc, mu_tot, MPI.SUM)
@@ -657,11 +673,11 @@ def mean(x, axis=None):
             sz = mu_tot.shape[0]
             while True:  # this loop will loop pairwise over the whole process and do pairwise updates
                 if sz % 2 != 0:
-                    if rem1 != 0 and rem2 == 0:
+                    if rem1 and not rem2:
                         rem2 = sz - 1
-                    elif rem1 == 0:
+                    elif not rem1:
                         rem1 = sz - 1
-                splt = int(sz / 2)
+                splt = sz // 2
                 for i in range(splt):  # todo: make this multithreaded for GPU
                     merged = merge_means(mu_tot[i, 0], mu_tot[i, 1], mu_tot[i + splt, 0], mu_tot[i + splt, 1])
                     for enum, m in enumerate(merged):
@@ -738,19 +754,19 @@ def merge_vars(var1, mu1, n1, var2, mu2, n2, bessel=True):
     Parameters
     ----------
     var1 : 1D ht.tensor or 1D torch.tensor
-           variance
+        variance
     mu1 : 1D ht.tensor or 1D torch.tensor
-          Calculated mean
+        Calculated mean
     n1 : 1D ht.tensor or 1D torch.tensor
-         number of elements used to calculate mu1
+        number of elements used to calculate mu1
     var2 : 1D ht.tensor or 1D torch.tensor
-           variance
+        variance
     mu2 : 1D ht.tensor or 1D torch.tensor
-          Calculated mean
+        Calculated mean
     n2 : 1D ht.tensor or 1D torch.tensor
-         number of elements used to calculate mu2
+        number of elements used to calculate mu2
     bessel : Bool
-             flag for the use of the bessel correction
+        flag for the use of the bessel correction
 
     Returns
     -------
@@ -782,13 +798,36 @@ def var(x, axis=None, bessel=True):
     x : ht.tensor
         Values for which the variance is calculated for
     axis : None, Int
-           axis which the variance is taken in.
-           Default: None -> var of all data calculated
-           NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+        axis which the variance is taken in.
+        Default: None -> var of all data calculated
+        NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
     bessel : Bool
-             Default: True
-             use the bessel correction when calculating the varaince/std
-             toggle between unbiased and biased calculation of the std
+        Default: True
+        use the bessel correction when calculating the varaince/std
+        toggle between unbiased and biased calculation of the std
+
+    Examples
+    --------
+    >>> a = ht.random.randn(1,3)
+    >>> a
+    tensor([[-1.9755,  0.3522,  0.4751]])
+    >>> ht.var(a)
+    tensor(1.9065)
+
+    >>> a = ht.random.randn(4,4)
+    >>> a
+    tensor([[-0.8665, -2.6848, -0.0215, -1.7363],
+            [ 0.5886,  0.5712,  0.4582,  0.5323],
+            [ 1.9754,  1.2958,  0.5957,  0.0418],
+            [ 0.8196, -1.2911, -0.2026,  0.6212]])
+    >>> ht.var(a, 1)
+    tensor([1.3092, 0.0034, 0.7061, 0.9217])
+    >>> ht.var(a, 0)
+    tensor([1.3624, 3.2563, 0.1447, 1.2042])
+    >>> ht.var(a, 0, bessel=True)
+    tensor([1.3624, 3.2563, 0.1447, 1.2042])
+    >>> ht.var(a, 0, bessel=False)
+    tensor([1.0218, 2.4422, 0.1085, 0.9032])
 
     Returns
     -------
@@ -820,74 +859,52 @@ def var(x, axis=None, bessel=True):
             mu = tensor.zeros(output_shape_i)
             var = tensor.zeros(output_shape_i)
 
-        mu_to_combine = tensor.zeros((x.comm.Get_size(),) + tuple(output_shape_i))
-        mu_tot = tensor.zeros((x.comm.Get_size(),) + tuple(output_shape_i))
-        var_to_combine = tensor.zeros((x.comm.Get_size(),) + tuple(output_shape_i))
-        var_tot = tensor.zeros((x.comm.Get_size(),) + tuple(output_shape_i))
-
-        n_for_merge = tensor.zeros(x.comm.Get_size())
-        n2 = tensor.zeros(x.comm.Get_size())
-        mu_to_combine[x.comm.Get_rank()] = mu
-        var_to_combine[x.comm.Get_rank()] = var
-        n2[x.comm.Get_rank()] = x.lshape[x.split]
-        x.comm.Allreduce(mu_to_combine, mu_tot, MPI.SUM)
-        x.comm.Allreduce(var_to_combine, var_tot, MPI.SUM)
+        n_for_merge = tensor.zeros(x.comm.size)
+        n2 = tensor.zeros(x.comm.size)
+        n2[x.comm.rank] = x.lshape[x.split]
         x.comm.Allreduce(n2, n_for_merge, MPI.SUM)
 
-        sz = x.comm.Get_size()
-        rem1 = rem2 = 0
+        sz = x.comm.size
+        rem1, rem2 = 0, 0
+
+        mu_reshape = tensor.zeros((x.comm.size, int(np.prod(mu.lshape))))
+        mu_reshape[x.comm.rank] = __local_operation(torch.reshape, mu, out=None, shape=(1, int(mu.lnumel)))
+        mu_reshape_combi = tensor.zeros((x.comm.size, int(np.prod(mu.lshape))))
+        x.comm.Allreduce(mu_reshape, mu_reshape_combi, MPI.SUM)
+
+        var_reshape = tensor.zeros((x.comm.size, int(np.prod(var.lshape))))
+        var_reshape[x.comm.rank] = __local_operation(torch.reshape, var, out=None, shape=(1, int(var.lnumel)))
+        var_reshape_combi = tensor.zeros((x.comm.size, int(np.prod(var.lshape))))
+        x.comm.Allreduce(var_reshape, var_reshape_combi, MPI.SUM)
+
         while True:
             if sz % 2 != 0:
-                if rem1 != 0 and rem2 == 0:
+                if rem1 and not rem2:
                     rem2 = sz - 1
-                elif rem1 == 0:
+                elif not rem1:
                     rem1 = sz - 1
-            splt = int(sz / 2)
+            splt = sz // 2
             for i in range(splt):  # todo: multithread for GPU
-                mu_reshape = __local_operation(torch.reshape, mu_tot[i], out=None, shape=(1, int(mu_tot[i].lnumel)))[0]
-                var_reshape = __local_operation(torch.reshape, var_tot[i], out=None, shape=(1, int(mu_tot[i].lnumel)))[0]
-                for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape, var_reshape,
-                                                                __local_operation(torch.reshape, mu_tot[i+splt], out=None,
-                                                                                  shape=(1, int(mu_tot[i+splt].lnumel)))[0],
-                                                                __local_operation(torch.reshape, var_tot[i+splt], out=None,
-                                                                                  shape=(1, int(var_tot[i+splt].lnumel)))[0])):
+                for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape_combi[i], var_reshape_combi[i], mu_reshape_combi[i + splt], var_reshape_combi[i + splt])):
                     try:
-                        var_reshape[en], mu_reshape[en], n = merge_vars(var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i+splt], bessel)
+                        var_reshape_combi[i, en], mu_reshape_combi[i, en], n = merge_vars(var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i+splt], bessel)
                     except ValueError:
-                        var_reshape, mu_reshape, n = merge_vars(var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i + splt], bessel)
+                        var_reshape_combi, mu_reshape_combi, n = merge_vars(var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i + splt], bessel)
                 n_for_merge[i] = n
-                mu_tot[i] = __local_operation(torch.reshape, mu_reshape, out=None, shape=output_shape_i)
-                var_tot[i] = __local_operation(torch.reshape, var_reshape, out=None, shape=output_shape_i)
-
             if rem1 and rem2:
-                mu_reshape = __local_operation(torch.reshape, mu_tot[rem1], out=None, shape=(1, int(mu_tot[rem1].lnumel)))[0]
-                var_reshape = __local_operation(torch.reshape, var_tot[rem1], out=None, shape=(1, int(mu_tot[rem1].lnumel)))[0]
-                for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape, var_reshape,
-                                                                __local_operation(torch.reshape, mu_tot[rem2], out=None,
-                                                                                  shape=(1, int(mu_tot[rem2].lnumel)))[0],
-                                                                __local_operation(torch.reshape, var_tot[rem2], out=None,
-                                                                                  shape=(1, int(var_tot[rem2].lnumel)))[0])):
-                    var_reshape[en], mu_reshape[en], n = merge_vars(var1, mu1, n_for_merge[rem1], var2, mu2, n_for_merge[rem2], bessel)
+                for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape_combi[rem1], var_reshape_combi[rem1], mu_reshape_combi[rem2], var_reshape_combi[rem2])):
+                    var_reshape_combi[rem2], mu_reshape_combi[rem2], n = merge_vars(var1, mu1, n_for_merge[rem1], var2, mu2, n_for_merge[rem2], bessel)
                 n_for_merge[rem2] = n
-                mu_tot[rem2] = __local_operation(torch.reshape, mu_reshape, out=None, shape=output_shape_i)
-                var_tot[rem2] = __local_operation(torch.reshape, var_reshape, out=None, shape=output_shape_i)
 
                 rem1 = rem2
                 rem2 = 0
             sz = splt
             if sz == 1 or sz == 0:
                 if rem1:
-                    mu_reshape = __local_operation(torch.reshape, mu_tot[0], out=None, shape=(1, int(mu_tot[0].lnumel)))[0]
-                    var_reshape = __local_operation(torch.reshape, var_tot[0], out=None, shape=(1, int(mu_tot[0].lnumel)))[0]
-                    for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape, var_reshape,
-                                                                    __local_operation(torch.reshape, mu_tot[rem1], out=None,
-                                                                                      shape=(1, int(mu_tot[rem1].lnumel)))[0],
-                                                                    __local_operation(torch.reshape, var_tot[rem1], out=None,
-                                                                                      shape=(1, int(var_tot[rem1].lnumel)))[0])):
-                        var_reshape[en], mu_reshape[en], n = merge_vars(var1, mu1, n_for_merge[0], var2, mu2, n_for_merge[rem1], bessel)
-                    mu_tot[0] = __local_operation(torch.reshape, mu_reshape, out=None, shape=output_shape_i)
-                    var_tot[0] = __local_operation(torch.reshape, var_reshape, out=None, shape=output_shape_i)
-                return var_tot[0]
+                    for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape_combi[0], var_reshape_combi[0], mu_reshape_combi[rem1], var_reshape_combi[rem1])):
+                        var_reshape_combi[0], mu_reshape_combi[0], n = merge_vars(var1, mu1, n_for_merge[0], var2, mu2, n_for_merge[rem1], bessel)
+                ret = __local_operation(torch.reshape, var_reshape_combi[0], out=None, shape=output_shape_i)
+                return ret
     # ----------------------------------------------------------------------------------------------------
     if axis is None:
         # case for full matrix calculation (axis is None)
@@ -899,8 +916,8 @@ def var(x, axis=None, bessel=True):
                 mu_in = 0
                 var_in = 0
             n = x.lnumel
-            var_tot = tensor.zeros((x.comm.Get_size(), 3))
-            var_proc = tensor.zeros((x.comm.Get_size(), 3))
+            var_tot = tensor.zeros((x.comm.size, 3))
+            var_proc = tensor.zeros((x.comm.size, 3))
             var_proc[x.comm.rank][0] = var_in
             var_proc[x.comm.rank][1] = mu_in
             var_proc[x.comm.rank][2] = float(n)
@@ -911,11 +928,11 @@ def var(x, axis=None, bessel=True):
             sz = var_tot.shape[0]
             while True:  # this loop will loop pairwise over the whole process and do pairwise updates
                 if sz % 2 != 0:
-                    if rem1 != 0 and rem2 == 0:
+                    if rem1 and not rem2:
                         rem2 = sz - 1
-                    elif rem1 == 0:
+                    elif not rem1:
                         rem1 = sz - 1
-                splt = int(sz / 2)
+                splt = sz // 2
                 for i in range(splt):
                     merged = merge_vars(var_tot[i, 0], var_tot[i, 1], var_tot[i, 2],
                                         var_tot[i + splt, 0], var_tot[i + splt, 1], var_tot[i + splt, 2], bessel)
@@ -985,13 +1002,33 @@ def std(x, axis=None, bessel=True):
     x : ht.tensor
         Values for which the std is calculated for
     axis : None, Int
-            axis which the mean is taken in.
-            Default: None -> std of all data calculated
-            NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+        axis which the mean is taken in.
+        Default: None -> std of all data calculated
+        NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
     bessel : Bool
-             Default: True
-             use the bessel correction when calculating the varaince/std
-             toggle between unbiased and biased calculation of the std
+        Default: True
+        use the bessel correction when calculating the varaince/std
+        toggle between unbiased and biased calculation of the std
+
+    Examples
+    --------
+    >>> a = ht.random.randn(1,3)
+    >>> a
+    tensor([[ 0.3421,  0.5736, -2.2377]])
+    >>> ht.std(a)
+    tensor(1.5606)
+    >>> a = ht.random.randn(4,4)
+    >>> a
+    tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
+            [ 0.2732, -0.0965, -0.1087, -1.3805],
+            [ 0.2647,  0.5998, -0.1635, -0.0848],
+            [ 0.0343,  0.1618, -0.8064, -0.1031]])
+    >>> ht.std(a, 0)
+    tensor([0.6157, 0.2918, 0.8324, 1.1996])
+    >>> ht.std(a, 1)
+    tensor([1.1405, 0.7236, 0.3506, 0.4324])
+    >>> ht.std(a, 1, bessel=False)
+    tensor([0.9877, 0.6267, 0.3037, 0.3745])
 
     Returns
     -------
