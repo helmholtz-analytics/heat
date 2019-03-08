@@ -40,7 +40,6 @@ class tensor:
         try:
             return np.prod(self.__gshape)
         except TypeError:
-            # todo: throw a soft warning about taking the number of elements of a single element tensor
             return 1
 
     @property
