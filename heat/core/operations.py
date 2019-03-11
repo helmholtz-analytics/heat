@@ -568,11 +568,26 @@ def transpose(a, axes=None):
 def matmul(a, b, out=None, out_split=None):
     """
     Matrix multiplication function based of the CRMM method as described in Reference 1. Communication scheme based upon reference [2]
-    :param a:
-    :param b:
-    :param out:
-    :param out_split:
-    :return:
+
+    Parameters
+    ----------
+    a : ht.tensor
+
+    b : ht.tensor
+
+    out : ht.tensor
+        Optional
+        output tensor
+
+    out_split : int
+        Optional
+        split direction of the output tensor if out is None
+        if out is None and out_split is None then the split direction of a is chosen
+
+    Returns
+    -------
+    ht.tensor
+        returns a tensor with the result of a @ b
 
     References
     ----------
@@ -580,7 +595,13 @@ def matmul(a, b, out=None, out_split=None):
         IEEE Transactions on Parallel and Distributed Systems, vol 28, no. 9. 2017.
     [2] S. Ryu and D. Kim, "Parallel Huge Matrix Multiplication on a Cluster with GPGPU Accelerators,"
         2018 IEEE International Parallel and Distributed Processing Symposium Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
+
+    Process:
+    --------
+    1. split a and b into blocks of the respective sizes
+        these blocks must be 
     """
+    pass
 
 # statically allocated index slices for non-iterable dimensions in triangular operations
 __index_base = (slice(None), slice(None),)
