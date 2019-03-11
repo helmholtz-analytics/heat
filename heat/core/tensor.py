@@ -8,6 +8,12 @@ from . import types
 from . import devices
 from . import operations
 from . import io
+from . import constants
+from . import arithmetics
+from . import trigonometrics
+from . import exponential
+from . import rounding
+from . import reductions
 
 
 class tensor:
@@ -84,7 +90,7 @@ class tensor:
         absolute_values : ht.tensor
             A tensor containing the absolute value of each element in x.
         """
-        return operations.abs(self, out, dtype)
+        return rounding.abs(self, out, dtype)
 
     def absolute(self, out=None, dtype=None):
         """
@@ -264,6 +270,29 @@ class tensor:
         """
         return operations.copy(self)
 
+    def cos(self, out=None):
+        """
+        Return the trigonometric cosine, element-wise.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        cosine : ht.tensor
+            A tensor of the same shape as x, containing the trigonometric cosine of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+
+        Examples
+        --------
+        >>> ht.arange(-6, 7, 2).cos()
+        tensor([ 0.9602, -0.6536, -0.4161,  1.0000, -0.4161, -0.6536,  0.9602])
+        """
+        return trigonometrics.cos(self, out)
+
     def cpu(self):
         """
         Returns a copy of this object in main memory. If this object is already in main memory, then no copy is
@@ -357,7 +386,7 @@ class tensor:
         -------
         ht.tensor containing the mean/s, if split, then split in the same direction as x.
         """
-        return operations.mean(self, axis)
+        return reductions.mean(self, axis)
 
     def var(self, axis=None, bessel=True):
         """
@@ -404,7 +433,7 @@ class tensor:
         -------
         ht.tensor containing the var/s, if split, then split in the same direction as x.
         """
-        return operations.var(self, axis, bessel=bessel)
+        return reductions.var(self, axis, bessel=bessel)
 
     def std(self, axis=None, bessel=True):
         """
@@ -448,7 +477,7 @@ class tensor:
         -------
         ht.tensor containing the std/s, if split, then split in the same direction as x.
         """
-        return operations.std(self, axis, bessel=bessel)
+        return reductions.std(self, axis, bessel=bessel)
 
     def min(self, axis=None, out=None):
         """"
@@ -540,7 +569,7 @@ class tensor:
         >>> ht.arange(5).exp()
         tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
         """
-        return operations.exp(self, out)
+        return exponential.exp(self, out)
 
     def expand_dims(self, axis):
         # TODO: document me
@@ -581,7 +610,7 @@ class tensor:
         >>> ht.floor(ht.arange(-2.0, 2.0, 0.4))
         tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
         """
-        return operations.floor(self, out)
+        return rounding.floor(self, out)
 
     def log(self, out=None):
         """
@@ -607,7 +636,7 @@ class tensor:
         >>> ht.arange(5).log()
         tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
         """
-        return operations.log(self, out)
+        return exponential.log(self, out)
 
     def save(self, path, *args, **kwargs):
         """
@@ -714,7 +743,7 @@ class tensor:
         >>> ht.arange(-6, 7, 2).sin()
         tensor([ 0.2794,  0.7568, -0.9093,  0.0000,  0.9093, -0.7568, -0.2794])
         """
-        return operations.sin(self, out)
+        return trigonometrics.sin(self, out)
 
     def sqrt(self, out=None):
         """
@@ -739,7 +768,7 @@ class tensor:
         >>> ht.arange(-5, 0).sqrt()
         tensor([nan, nan, nan, nan, nan])
         """
-        return operations.sqrt(self, out)
+        return exponential.sqrt(self, out)
 
     def sum(self, axis=None, out=None):
         # TODO: Allow also list of axes
@@ -774,7 +803,7 @@ class tensor:
         tensor([[[3.],
                  [3.]]])
         """
-        return operations.sum(self, axis, out)
+        return reductions.sum(self, axis, out)
 
     def transpose(self, axes=None):
         """
