@@ -6,3 +6,9 @@ from .operations import *
 from .io import *
 from . import random
 from .types import finfo, iinfo
+from .reductions import *
+from .exponential import *
+from .trigonometrics import *
+from .rounding import *
+from .arithmetics import *
+from .constants import *
