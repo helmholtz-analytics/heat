@@ -184,7 +184,7 @@ class tensor:
         """
         return operations.all(self, axis, out)
 
-    def allclose(self, other, rtol = 1e-05, atol = 1e-08, equal_nan = False):
+    def allclose(self, other, rtol=1e-05, atol=1e-08, equal_nan=False):
         """
         Test whether self and other are element-wise equal within a tolerance. Returns True if |self - other| <= atol +
         rtol * |other| for all elements, False otherwise.
