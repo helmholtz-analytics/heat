@@ -9,8 +9,6 @@ from . import types
 from . import tensor
 
 __all__ = [
-    'abs',
-    'absolute',
     'add',
     'all',
     'argmin',
@@ -19,83 +17,21 @@ __all__ = [
     'div',
     'eq',
     'equal',
-    'exp',
-    'floor',
     'ge',
     'gt',
     'le',
-    'log',
     'lt',
     'max',
     'min',
     'mul',
     'ne',
     'pow',
-    'sin',
-    'sqrt',
     'sub',
-    'sum',
     'transpose',
     'tril',
     'triu'
 ]
 
-
-def abs(x, out=None, dtype=None):
-    """
-    Calculate the absolute value element-wise.
-
-    Parameters
-    ----------
-    x : ht.tensor
-        The values for which the compute the absolute value.
-    out : ht.tensor, optional
-        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-        If not provided or None, a freshly-allocated array is returned.
-    dtype : ht.type, optional
-        Determines the data type of the output array. The values are cast to this type with potential loss of
-        precision.
-
-    Returns
-    -------
-    absolute_values : ht.tensor
-        A tensor containing the absolute value of each element in x.
-    """
-    if dtype is not None and not issubclass(dtype, types.generic):
-        raise TypeError('dtype must be a heat data type')
-
-    absolute_values = __local_operation(torch.abs, x, out)
-    if dtype is not None:
-        absolute_values._tensor__array = absolute_values._tensor__array.type(
-            dtype.torch_type())
-        absolute_values._tensor__dtype = dtype
-
-    return absolute_values
-
-
-def absolute(x, out=None, dtype=None):
-    """
-    Calculate the absolute value element-wise.
-
-    np.abs is a shorthand for this function.
-
-    Parameters
-    ----------
-    x : ht.tensor
-        The values for which the compute the absolute value.
-    out : ht.tensor, optional
-        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-        If not provided or None, a freshly-allocated array is returned.
-    dtype : ht.type, optional
-        Determines the data type of the output array. The values are cast to this type with potential loss of
-        precision.
-
-    Returns
-    -------
-    absolute_values : ht.tensor
-        A tensor containing the absolute value of each element in x.
-    """
-    return abs(x, out, dtype)
 
 def add(t1, t2):
     """
@@ -136,7 +72,6 @@ def add(t1, t2):
     """
 
     return __binary_op(torch.add, t1, t2)
-
 
 def all(x, axis=None, out=None):
     """
@@ -458,60 +393,6 @@ def equal(t1,t2):
     return result
 
 
-def exp(x, out=None):
-    """
-    Calculate the exponential of all elements in the input array.
-
-    Parameters
-    ----------
-    x : ht.tensor
-        The value for which to compute the exponential.
-    out : ht.tensor or None, optional
-        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    exponentials : ht.tensor
-        A tensor of the same shape as x, containing the positive exponentials of each element in this tensor. If out
-        was provided, logarithms is a reference to it.
-
-    Examples
-    --------
-    >>> ht.exp(ht.arange(5))
-    tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
-    """
-    return __local_operation(torch.exp, x, out)
-
-
-def floor(x, out=None):
-    """
-    Return the floor of the input, element-wise.
-
-    The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lfloor x \rfloor.
-
-    Parameters
-    ----------
-    x : ht.tensor
-        The value for which to compute the floored values.
-    out : ht.tensor or None, optional
-        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    floored : ht.tensor
-        A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
-        provided, logarithms is a reference to it.
-
-    Examples
-    --------
-    >>> ht.floor(ht.arange(-2.0, 2.0, 0.4))
-    tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
-    """
-    return __local_operation(torch.floor, x, out)
-
-
 def ge(t1, t2):
     """
          Element-wise rich greater than or equal comparison between values from operand t1 with respect to values of
@@ -624,35 +505,6 @@ def le(t1,t2):
 
     """
     return __binary_op(torch.le, t1, t2)
-
-
-def log(x, out=None):
-    """
-    Natural logarithm, element-wise.
-
-    The natural logarithm log is the inverse of the exponential function, so that log(exp(x)) = x. The natural
-    logarithm is logarithm in base e.
-
-    Parameters
-    ----------
-    x : ht.tensor
-        The value for which to compute the logarithm.
-    out : ht.tensor or None, optional
-        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    logarithms : ht.tensor
-        A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
-        Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
-
-    Examples
-    --------
-    >>> ht.log(ht.arange(5))
-    tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
-    """
-    return __local_operation(torch.log, x, out)
 
 
 def lt(t1,t2):
@@ -894,60 +746,6 @@ def pow(t1,t2):
     return __binary_op(torch.pow, t1, t2)
 
 
-
-def sin(x, out=None):
-    """
-    Return the trigonometric sine, element-wise.
-
-    Parameters
-    ----------
-    x : ht.tensor
-        The value for which to compute the trigonometric sine.
-    out : ht.tensor or None, optional
-        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    sine : ht.tensor
-        A tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
-        Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
-
-    Examples
-    --------
-    >>> ht.sin(ht.arange(-6, 7, 2))
-    tensor([ 0.2794,  0.7568, -0.9093,  0.0000,  0.9093, -0.7568, -0.2794])
-    """
-    return __local_operation(torch.sin, x, out)
-
-
-def sqrt(x, out=None):
-    """
-    Return the non-negative square-root of a tensor element-wise.
-
-    Parameters
-    ----------
-    x : ht.tensor
-        The value for which to compute the square-roots.
-    out : ht.tensor or None, optional
-        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided or
-        set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    square_roots : ht.tensor
-        A tensor of the same shape as x, containing the positive square-root of each element in x. Negative input
-        elements are returned as nan. If out was provided, square_roots is a reference to it.
-
-    Examples
-    --------
-    >>> ht.sqrt(ht.arange(5))
-    tensor([0.0000, 1.0000, 1.4142, 1.7321, 2.0000])
-    >>> ht.sqrt(ht.arange(-5, 0))
-    tensor([nan, nan, nan, nan, nan])
-    """
-    return __local_operation(torch.sqrt, x, out)
-
 def sub(t1, t2):
     """
       Element-wise subtraction of values of operand t2 from values of operands t1 (i.e t1 - t2), not commutative.
@@ -987,45 +785,6 @@ def sub(t1, t2):
       """
 
     return __binary_op(torch.sub, t1, t2)
-
-
-def sum(x, axis=None, out=None):
-    """
-    Sum of array elements over a given axis.
-
-    Parameters
-    ----------
-    x : ht.tensor
-        Input data.
-
-    axis : None or int, optional
-        Axis along which a sum is performed. The default, axis=None, will sum
-        all of the elements of the input array. If axis is negative it counts 
-        from the last to the first axis.
-
-    Returns
-    -------
-    sum_along_axis : ht.tensor
-        An array with the same shape as self.__array except for the specified axis which 
-        becomes one, e.g. a.shape = (1, 2, 3) => ht.ones((1, 2, 3)).sum(axis=1).shape = (1, 1, 3)
-
-    Examples
-    --------
-    >>> ht.sum(ht.ones(2))
-    tensor([2.])
-
-    >>> ht.sum(ht.ones((3,3)))
-    tensor([9.])
-
-    >>> ht.sum(ht.ones((3,3)).astype(ht.int))
-    tensor([9])
-
-    >>> ht.sum(ht.ones((3,2,1)), axis=-3)
-    tensor([[[3.],
-            [3.]]])
-    """
-    # TODO: make me more numpy API complete Issue #101
-    return __reduce_op(x, torch.sum, MPI.SUM, axis, out)
 
 
 def transpose(a, axes=None):
