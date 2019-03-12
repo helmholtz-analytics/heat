@@ -43,6 +43,11 @@ class tensor:
 
     @property
     def size(self):
+        """
+        Returns
+        -------
+        int: the number of total elements of the tensor
+        """
         try:
             return np.prod(self.__gshape)
         except TypeError:
@@ -50,22 +55,47 @@ class tensor:
 
     @property
     def gnumel(self):
+        """
+        Returns
+        -------
+        int: the number of total elements of the tensor
+        """
         return self.size
 
     @property
     def lnumel(self):
+        """
+        Returns
+        -------
+        int: the number of elements of the tensor on each node
+        """
         return np.prod(self.__array.shape)
 
     @property
     def lshape(self):
+        """
+        Returns
+        -------
+        tuple : the shape of the data on each node
+        """
         return tuple(self.__array.shape)
 
     @property
     def shape(self):
+        """
+        Returns
+        -------
+        tuple : the shape of the tensor as a whole
+        """
         return self.__gshape
 
     @property
     def split(self):
+        """
+        Returns
+        -------
+        int : the axis on which the tensor split
+        """
         return self.__split
 
     @property
