@@ -296,9 +296,22 @@ def matmul(a, b, out=None, out_split=None):
     """
 
     # get the lshape from all nodes of a and b
-    a_lshapes = a.comm.MPI_
-    pass
+    a_lshape_hold = np.zeros((a.comm.size, len(a.gshape)))
+    a_lshape = np.zeros((a.comm.size, len(a.gshape)))
+    a_lshape_hold[a.comm.rank] = a.lshape
+    a.comm.Allreduce(a_lshape_hold, a_lshape, MPI.SUM)
+
+    b_lshape_hold = np.zeros((b.comm.size, len(b.gshape)))
+    b_lshape = np.zeros((b.comm.size, len(b.gshape)))
+    b_lshape_hold[b.comm.rank] = b.lshape
+    b.comm.Allreduce(b_lshape_hold, b_lshape, MPI.SUM)
+
+    print(a.comm.rank, a.lshape, a_lshape, '\nb', b.lshape, b_lshape, '\n')
+
+    
+
 ########################################################################################################################################################
+
 
 # statically allocated index slices for non-iterable dimensions in triangular operations
 __index_base = (slice(None), slice(None),)
@@ -595,9 +608,7 @@ def __binary_op(operation, t1, t2):
         if t1.dtype != t2.dtype:
             t1 = t1.astype(t2.dtype)
 
-
     elif isinstance(t1, tensor.tensor):
-
         if np.isscalar(t2):
             try:
                 t2 = tensor.array([t2])
@@ -627,7 +638,6 @@ def __binary_op(operation, t1, t2):
         output_split = t1.split
         output_device = t1.device
         output_comm = t1.comm
-
 
     else:
         raise NotImplementedError('Not implemented for non scalar')
