@@ -6,38 +6,8 @@ import heat as ht
 FLOAT_EPSILON = 1e-4
 
 
+
 class TestOperations(unittest.TestCase):
-    def test_abs(self):
-        float32_tensor = ht.arange(-10, 10, dtype=ht.float32, split=0)
-        absolute_values = ht.abs(float32_tensor)
-
-        # basic absolute test
-        self.assertIsInstance(absolute_values, ht.tensor)
-        self.assertEqual(absolute_values.dtype, ht.float32)
-        self.assertEqual(absolute_values.sum(axis=0), 100)
-
-        # check whether output works
-        output_tensor = ht.zeros(20, split=0)
-        self.assertEqual(output_tensor.sum(axis=0), 0)
-        ht.absolute(float32_tensor, out=output_tensor)
-        self.assertEqual(output_tensor.sum(axis=0), 100)
-
-        # dtype parameter
-        int64_tensor = ht.arange(-10, 10, dtype=ht.int64)
-        absolute_values = ht.abs(int64_tensor, dtype=ht.float32)
-        self.assertIsInstance(absolute_values, ht.tensor)
-        self.assertEqual(absolute_values.sum(axis=0), 100)
-        self.assertEqual(absolute_values.dtype, ht.float32)
-        self.assertEqual(absolute_values._tensor__array.dtype, torch.float32)
-
-        # exceptions
-        with self.assertRaises(TypeError):
-            ht.absolute('hello')
-        with self.assertRaises(TypeError):
-            float32_tensor.abs(out=1)
-        with self.assertRaises(TypeError):
-            float32_tensor.absolute(out=float32_tensor, dtype=3.2)
-
     def test_all(self):
         array_len = 9
 
@@ -48,7 +18,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(x, ht.tensor)
         self.assertEqual(x.shape, (1,))
         self.assertEqual(x.lshape, (1,))
-        self.assertEqual(x.dtype, ht.uint8)
+        self.assertEqual(x.dtype, ht.bool)
         self.assertEqual(x._tensor__array.dtype, torch.uint8)
         self.assertEqual(x.split, None)
         self.assertEqual(x._tensor__array, 1)
@@ -64,7 +34,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(floats_is_one, ht.tensor)
         self.assertEqual(floats_is_one.shape, (1,))
         self.assertEqual(floats_is_one.lshape, (1,))
-        self.assertEqual(floats_is_one.dtype, ht.uint8)
+        self.assertEqual(floats_is_one.dtype, ht.bool)
         self.assertEqual(floats_is_one._tensor__array.dtype, torch.uint8)
         self.assertEqual(floats_is_one.split, None)
         self.assertEqual(floats_is_one._tensor__array, 1)
@@ -80,7 +50,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(int_is_one, ht.tensor)
         self.assertEqual(int_is_one.shape, (1,))
         self.assertEqual(int_is_one.lshape, (1,))
-        self.assertEqual(int_is_one.dtype, ht.uint8)
+        self.assertEqual(int_is_one.dtype, ht.bool)
         self.assertEqual(int_is_one._tensor__array.dtype, torch.uint8)
         self.assertEqual(int_is_one.split, None)
         self.assertEqual(int_is_one._tensor__array, 1)
@@ -96,7 +66,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(split_int_is_one, ht.tensor)
         self.assertEqual(split_int_is_one.shape, (1,))
         self.assertEqual(split_int_is_one.lshape, (1,))
-        self.assertEqual(split_int_is_one.dtype, ht.uint8)
+        self.assertEqual(split_int_is_one.dtype, ht.bool)
         self.assertEqual(split_int_is_one._tensor__array.dtype, torch.uint8)
         self.assertEqual(split_int_is_one.split, None)
         self.assertEqual(split_int_is_one._tensor__array, 1)
@@ -112,7 +82,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(volume_is_one, ht.tensor)
         self.assertEqual(volume_is_one.shape, (1,))
         self.assertEqual(volume_is_one.lshape, (1,))
-        self.assertEqual(volume_is_one.dtype, ht.uint8)
+        self.assertEqual(volume_is_one.dtype, ht.bool)
         self.assertEqual(volume_is_one._tensor__array.dtype, torch.uint8)
         self.assertEqual(volume_is_one.split, None)
         self.assertEqual(volume_is_one._tensor__array, 1)
@@ -128,7 +98,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(sequence_is_one, ht.tensor)
         self.assertEqual(sequence_is_one.shape, (1,))
         self.assertEqual(sequence_is_one.lshape, (1,))
-        self.assertEqual(sequence_is_one.dtype, ht.uint8)
+        self.assertEqual(sequence_is_one.dtype, ht.bool)
         self.assertEqual(sequence_is_one._tensor__array.dtype, torch.uint8)
         self.assertEqual(sequence_is_one.split, None)
         self.assertEqual(sequence_is_one._tensor__array, 0)
@@ -143,7 +113,7 @@ class TestOperations(unittest.TestCase):
 
         self.assertIsInstance(float_volume_is_one, ht.tensor)
         self.assertEqual(float_volume_is_one.shape, (1, 3, 3))
-        self.assertEqual(float_volume_is_one.all(axis=1).dtype, ht.uint8)
+        self.assertEqual(float_volume_is_one.all(axis=1).dtype, ht.bool)
         self.assertEqual(float_volume_is_one._tensor__array.dtype, torch.uint8)
         self.assertEqual(float_volume_is_one.split, None)
 
@@ -156,7 +126,7 @@ class TestOperations(unittest.TestCase):
 
         self.assertIsInstance(float_5d_is_one, ht.tensor)
         self.assertEqual(float_5d_is_one.shape, (1, 2, 3, 1, 5))
-        self.assertEqual(float_5d_is_one.dtype, ht.uint8)
+        self.assertEqual(float_5d_is_one.dtype, ht.bool)
         self.assertEqual(float_5d_is_one._tensor__array.dtype, torch.uint8)
         self.assertEqual(float_5d_is_one.split, 1)
 
@@ -172,6 +142,18 @@ class TestOperations(unittest.TestCase):
             ht.ones((4, 4)).all(axis=0, out=out_noaxis)
         with self.assertRaises(TypeError):
             ht.ones(array_len).all(axis='bad_axis_type')
+
+    def test_allclose(self):
+        a = ht.float32([[2, 2], [2, 2]])
+        b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]])
+
+        self.assertFalse(ht.allclose(a, b))
+        self.assertTrue(ht.allclose(a, b, atol = 1e-04))
+        self.assertTrue(ht.allclose(a,b, rtol = 1e-04))
+
+        with self.assertRaises(TypeError):
+            ht.allclose(a, (2,2,2,2))
+
 
     def test_argmin(self):
         torch.manual_seed(1)
@@ -270,517 +252,7 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.copy('hello world')
 
-    def test_exp(self):
-        elements = 10
-        comparison = torch.arange(elements, dtype=torch.float64).exp()
 
-        # exponential of float32
-        float32_tensor = ht.arange(elements, dtype=ht.float32)
-        float32_exp = ht.exp(float32_tensor)
-        self.assertIsInstance(float32_exp, ht.tensor)
-        self.assertEqual(float32_exp.dtype, ht.float32)
-        self.assertEqual(float32_exp.dtype, ht.float32)
-        in_range = (float32_exp._tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
-        self.assertTrue(in_range.all())
-
-        # exponential of float64
-        float64_tensor = ht.arange(elements, dtype=ht.float64)
-        float64_exp = ht.exp(float64_tensor)
-        self.assertIsInstance(float64_exp, ht.tensor)
-        self.assertEqual(float64_exp.dtype, ht.float64)
-        self.assertEqual(float64_exp.dtype, ht.float64)
-        in_range = (float64_exp._tensor__array - comparison) < FLOAT_EPSILON
-        self.assertTrue(in_range.all())
-
-        # exponential of ints, automatic conversion to intermediate floats
-        int32_tensor = ht.arange(elements, dtype=ht.int32)
-        int32_exp = ht.exp(int32_tensor)
-        self.assertIsInstance(int32_exp, ht.tensor)
-        self.assertEqual(int32_exp.dtype, ht.float64)
-        self.assertEqual(int32_exp.dtype, ht.float64)
-        in_range = (int32_exp._tensor__array - comparison) < FLOAT_EPSILON
-        self.assertTrue(in_range.all())
-
-        # exponential of longs, automatic conversion to intermediate floats
-        int64_tensor = ht.arange(elements, dtype=ht.int64)
-        int64_exp = ht.exp(int64_tensor)
-        self.assertIsInstance(int64_exp, ht.tensor)
-        self.assertEqual(int64_exp.dtype, ht.float64)
-        self.assertEqual(int64_exp.dtype, ht.float64)
-        in_range = (int64_exp._tensor__array - comparison) < FLOAT_EPSILON
-        self.assertTrue(in_range.all())
-
-        # check exceptions
-        with self.assertRaises(TypeError):
-            ht.exp([1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.exp('hello world')
-
-    def test_floor(self):
-        start, end, step = -5.0, 5.0, 1.4
-        comparison = torch.arange(start, end, step, dtype=torch.float64).floor()
-
-        # exponential of float32
-        float32_tensor = ht.arange(start, end, step, dtype=ht.float32)
-        float32_floor = float32_tensor.floor()
-        self.assertIsInstance(float32_floor, ht.tensor)
-        self.assertEqual(float32_floor.dtype, ht.float32)
-        self.assertEqual(float32_floor.dtype, ht.float32)
-        self.assertTrue((float32_floor._tensor__array == comparison.type(torch.float32)).all())
-
-        # exponential of float64
-        float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
-        float64_floor = float64_tensor.floor()
-        self.assertIsInstance(float64_floor, ht.tensor)
-        self.assertEqual(float64_floor.dtype, ht.float64)
-        self.assertEqual(float64_floor.dtype, ht.float64)
-        self.assertTrue((float64_floor._tensor__array == comparison).all())
-
-        # check exceptions
-        with self.assertRaises(TypeError):
-            ht.floor([0, 1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.floor(object())
-
-    def test_log(self):
-        elements = 15
-        comparison = torch.arange(1, elements, dtype=torch.float64).log()
-
-        # logarithm of float32
-        float32_tensor = ht.arange(1, elements, dtype=ht.float32)
-        float32_log = ht.log(float32_tensor)
-        self.assertIsInstance(float32_log, ht.tensor)
-        self.assertEqual(float32_log.dtype, ht.float32)
-        self.assertEqual(float32_log.dtype, ht.float32)
-        in_range = (float32_log._tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
-        self.assertTrue(in_range.all())
-
-        # logarithm of float64
-        float64_tensor = ht.arange(1, elements, dtype=ht.float64)
-        float64_log = ht.log(float64_tensor)
-        self.assertIsInstance(float64_log, ht.tensor)
-        self.assertEqual(float64_log.dtype, ht.float64)
-        self.assertEqual(float64_log.dtype, ht.float64)
-        in_range = (float64_log._tensor__array - comparison) < FLOAT_EPSILON
-        self.assertTrue(in_range.all())
-
-        # logarithm of ints, automatic conversion to intermediate floats
-        int32_tensor = ht.arange(1, elements, dtype=ht.int32)
-        int32_log = ht.log(int32_tensor)
-        self.assertIsInstance(int32_log, ht.tensor)
-        self.assertEqual(int32_log.dtype, ht.float64)
-        self.assertEqual(int32_log.dtype, ht.float64)
-        in_range = (int32_log._tensor__array - comparison) < FLOAT_EPSILON
-        self.assertTrue(in_range.all())
-
-        # logarithm of longs, automatic conversion to intermediate floats
-        int64_tensor = ht.arange(1, elements, dtype=ht.int64)
-        int64_log = ht.log(int64_tensor)
-        self.assertIsInstance(int64_log, ht.tensor)
-        self.assertEqual(int64_log.dtype, ht.float64)
-        self.assertEqual(int64_log.dtype, ht.float64)
-        in_range = (int64_log._tensor__array - comparison) < FLOAT_EPSILON
-        self.assertTrue(in_range.all())
-
-        # check exceptions
-        with self.assertRaises(TypeError):
-            ht.log([1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.log('hello world')
-
-    def test_max(self):
-        data = [
-            [1,   2,  3],
-            [4,   5,  6],
-            [7,   8,  9],
-            [10, 11, 12]
-        ]
-
-        ht_array = ht.array(data)
-        comparison = torch.tensor(data)
-
-        # check global max
-        maximum = ht.max(ht_array)
-
-        self.assertIsInstance(maximum, ht.tensor)
-        self.assertEqual(maximum.shape, (1,))
-        self.assertEqual(maximum.lshape, (1,))
-        self.assertEqual(maximum.split, None)
-        self.assertEqual(maximum.dtype, ht.int64)
-        self.assertEqual(maximum._tensor__array.dtype, torch.int64)
-        self.assertEqual(maximum, 12)
-
-        # maximum along first axis
-        maximum_vertical = ht.max(ht_array, axis=0)
-
-        self.assertIsInstance(maximum_vertical, ht.tensor)
-        self.assertEqual(maximum_vertical.shape, (1, 3,))
-        self.assertEqual(maximum_vertical.lshape, (1, 3,))
-        self.assertEqual(maximum_vertical.split, None)
-        self.assertEqual(maximum_vertical.dtype, ht.int64)
-        self.assertEqual(maximum_vertical._tensor__array.dtype, torch.int64)
-        self.assertTrue((maximum_vertical._tensor__array == comparison.max(dim=0, keepdim=True)[0]).all())
-
-        # maximum along second axis
-        maximum_horizontal = ht.max(ht_array, axis=1)
-
-        self.assertIsInstance(maximum_horizontal, ht.tensor)
-        self.assertEqual(maximum_horizontal.shape, (4, 1,))
-        self.assertEqual(maximum_horizontal.lshape, (4, 1,))
-        self.assertEqual(maximum_horizontal.split, None)
-        self.assertEqual(maximum_horizontal.dtype, ht.int64)
-        self.assertEqual(maximum_horizontal._tensor__array.dtype, torch.int64)
-        self.assertTrue((maximum_horizontal._tensor__array == comparison.max(dim=1, keepdim=True)[0]).all())
-
-        # check max over all float elements of split 3d tensor, across split axis
-        random_volume = ht.random.randn(3, 3, 3, split=1)
-        maximum_volume = ht.max(random_volume, axis=1)
-
-        self.assertIsInstance(maximum_volume, ht.tensor)
-        self.assertEqual(maximum_volume.shape, (3, 1, 3))
-        self.assertEqual(maximum_volume.lshape, (3, 1, 3))
-        self.assertEqual(maximum_volume.dtype, ht.float32)
-        self.assertEqual(maximum_volume._tensor__array.dtype, torch.float32)
-        self.assertEqual(maximum_volume.split, None)
-
-        # check max over all float elements of split 5d tensor, along split axis
-        random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0)
-        maximum_5d = ht.max(random_5d, axis=1)
-
-        self.assertIsInstance(maximum_5d, ht.tensor)
-        self.assertEqual(maximum_5d.shape, (1, 1, 3, 4, 5))
-        self.assertLessEqual(maximum_5d.lshape[1], 2)
-        self.assertEqual(maximum_5d.dtype, ht.float32)
-        self.assertEqual(maximum_5d._tensor__array.dtype, torch.float32)
-        self.assertEqual(maximum_5d.split, 0)
-
-        # check exceptions
-        with self.assertRaises(NotImplementedError):
-            ht_array.max(axis=(0, 1))
-        with self.assertRaises(TypeError):
-            ht_array.max(axis=1.1)
-        with self.assertRaises(TypeError):
-            ht_array.max(axis='y')
-        with self.assertRaises(ValueError):
-            ht.max(ht_array, axis=-4)
-
-    def test_min(self):
-        data = [
-            [1,   2,  3],
-            [4,   5,  6],
-            [7,   8,  9],
-            [10, 11, 12]
-        ]
-
-        ht_array = ht.array(data)
-        comparison = torch.tensor(data)
-
-        # check global max
-        minimum = ht.min(ht_array)
-
-        self.assertIsInstance(minimum, ht.tensor)
-        self.assertEqual(minimum.shape, (1,))
-        self.assertEqual(minimum.lshape, (1,))
-        self.assertEqual(minimum.split, None)
-        self.assertEqual(minimum.dtype, ht.int64)
-        self.assertEqual(minimum._tensor__array.dtype, torch.int64)
-        self.assertEqual(minimum, 12)
-
-        # maximum along first axis
-        minimum_vertical = ht.min(ht_array, axis=0)
-
-        self.assertIsInstance(minimum_vertical, ht.tensor)
-        self.assertEqual(minimum_vertical.shape, (1, 3,))
-        self.assertEqual(minimum_vertical.lshape, (1, 3,))
-        self.assertEqual(minimum_vertical.split, None)
-        self.assertEqual(minimum_vertical.dtype, ht.int64)
-        self.assertEqual(minimum_vertical._tensor__array.dtype, torch.int64)
-        self.assertTrue((minimum_vertical._tensor__array == comparison.min(dim=0, keepdim=True)[0]).all())
-
-        # maximum along second axis
-        minimum_horizontal = ht.min(ht_array, axis=1)
-
-        self.assertIsInstance(minimum_horizontal, ht.tensor)
-        self.assertEqual(minimum_horizontal.shape, (4, 1,))
-        self.assertEqual(minimum_horizontal.lshape, (4, 1,))
-        self.assertEqual(minimum_horizontal.split, None)
-        self.assertEqual(minimum_horizontal.dtype, ht.int64)
-        self.assertEqual(minimum_horizontal._tensor__array.dtype, torch.int64)
-        self.assertTrue((minimum_horizontal._tensor__array == comparison.min(dim=1, keepdim=True)[0]).all())
-
-        # check max over all float elements of split 3d tensor, across split axis
-        random_volume = ht.random.randn(3, 3, 3, split=1)
-        minimum_volume = ht.min(random_volume, axis=1)
-
-        self.assertIsInstance(minimum_volume, ht.tensor)
-        self.assertEqual(minimum_volume.shape, (3, 1, 3))
-        self.assertEqual(minimum_volume.lshape, (3, 1, 3))
-        self.assertEqual(minimum_volume.dtype, ht.float32)
-        self.assertEqual(minimum_volume._tensor__array.dtype, torch.float32)
-        self.assertEqual(minimum_volume.split, None)
-
-        # check max over all float elements of split 5d tensor, along split axis
-        random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0)
-        minimum_5d = ht.min(random_5d, axis=1)
-
-        self.assertIsInstance(minimum_5d, ht.tensor)
-        self.assertEqual(minimum_5d.shape, (1, 1, 3, 4, 5))
-        self.assertLessEqual(minimum_5d.lshape[1], 2)
-        self.assertEqual(minimum_5d.dtype, ht.float32)
-        self.assertEqual(minimum_5d._tensor__array.dtype, torch.float32)
-        self.assertEqual(minimum_5d.split, 0)
-
-        # check exceptions
-        with self.assertRaises(NotImplementedError):
-            ht_array.min(axis=(0, 1))
-        with self.assertRaises(TypeError):
-            ht_array.min(axis=1.1)
-        with self.assertRaises(TypeError):
-            ht_array.min(axis='y')
-        with self.assertRaises(ValueError):
-            ht.min(ht_array, axis=-4)
-
-    def test_sin(self):
-        # base elements
-        elements = 30
-        comparison = torch.arange(elements, dtype=torch.float64).sin()
-
-        # sine of float32
-        float32_tensor = ht.arange(elements, dtype=ht.float32)
-        float32_sin = ht.sin(float32_tensor)
-        self.assertIsInstance(float32_sin, ht.tensor)
-        self.assertEqual(float32_sin.dtype, ht.float32)
-        self.assertEqual(float32_sin.dtype, ht.float32)
-        in_range = (float32_sin._tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
-        self.assertTrue(in_range.all())
-
-        # sine of float64
-        float64_tensor = ht.arange(elements, dtype=ht.float64)
-        float64_sin = ht.sin(float64_tensor)
-        self.assertIsInstance(float64_sin, ht.tensor)
-        self.assertEqual(float64_sin.dtype, ht.float64)
-        self.assertEqual(float64_sin.dtype, ht.float64)
-        in_range = (float64_sin._tensor__array - comparison) < FLOAT_EPSILON
-        self.assertTrue(in_range.all())
-
-        # logarithm of ints, automatic conversion to intermediate floats
-        int32_tensor = ht.arange(elements, dtype=ht.int32)
-        int32_sin = ht.sin(int32_tensor)
-        self.assertIsInstance(int32_sin, ht.tensor)
-        self.assertEqual(int32_sin.dtype, ht.float64)
-        self.assertEqual(int32_sin.dtype, ht.float64)
-        in_range = (int32_sin._tensor__array - comparison) < FLOAT_EPSILON
-        self.assertTrue(in_range.all())
-
-        # logathm of longs, automatic conversion to intermediate floats
-        int64_tensor = ht.arange(elements, dtype=ht.int64)
-        int64_sin = ht.sin(int64_tensor)
-        self.assertIsInstance(int64_sin, ht.tensor)
-        self.assertEqual(int64_sin.dtype, ht.float64)
-        self.assertEqual(int64_sin.dtype, ht.float64)
-        in_range = (int64_sin._tensor__array - comparison) < FLOAT_EPSILON
-        self.assertTrue(in_range.all())
-
-        # check exceptions
-        with self.assertRaises(TypeError):
-            ht.sin([1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.sin('hello world')
-
-    def test_sqrt(self):
-        elements = 20
-        comparison = torch.arange(elements, dtype=torch.float64).sqrt()
-
-        # square roots of float32
-        float32_tensor = ht.arange(elements, dtype=ht.float32)
-        float32_sqrt = ht.sqrt(float32_tensor)
-        self.assertIsInstance(float32_sqrt, ht.tensor)
-        self.assertEqual(float32_sqrt.dtype, ht.float32)
-        self.assertEqual(float32_sqrt.dtype, ht.float32)
-        self.assertTrue((float32_sqrt._tensor__array == comparison.type(torch.float32)).all())
-
-        # square roots of float64
-        float64_tensor = ht.arange(elements, dtype=ht.float64)
-        float64_sqrt = ht.sqrt(float64_tensor)
-        self.assertIsInstance(float64_sqrt, ht.tensor)
-        self.assertEqual(float64_sqrt.dtype, ht.float64)
-        self.assertEqual(float64_sqrt.dtype, ht.float64)
-        self.assertTrue((float64_sqrt._tensor__array == comparison).all())
-
-        # square roots of ints, automatic conversion to intermediate floats
-        int32_tensor = ht.arange(elements, dtype=ht.int32)
-        int32_sqrt = ht.sqrt(int32_tensor)
-        self.assertIsInstance(int32_sqrt, ht.tensor)
-        self.assertEqual(int32_sqrt.dtype, ht.float64)
-        self.assertEqual(int32_sqrt.dtype, ht.float64)
-        self.assertTrue((int32_sqrt._tensor__array == comparison).all())
-
-        # square roots of longs, automatic conversion to intermediate floats
-        int64_tensor = ht.arange(elements, dtype=ht.int64)
-        int64_sqrt = ht.sqrt(int64_tensor)
-        self.assertIsInstance(int64_sqrt, ht.tensor)
-        self.assertEqual(int64_sqrt.dtype, ht.float64)
-        self.assertEqual(int64_sqrt.dtype, ht.float64)
-        self.assertTrue((int64_sqrt._tensor__array == comparison).all())
-
-        # check exceptions
-        with self.assertRaises(TypeError):
-            ht.sqrt([1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.sqrt('hello world')
-
-    def test_sqrt_method(self):
-        elements = 25
-        comparison = torch.arange(elements, dtype=torch.float64).sqrt()
-
-        # square roots of float32
-        float32_sqrt = ht.arange(elements, dtype=ht.float32).sqrt()
-        self.assertIsInstance(float32_sqrt, ht.tensor)
-        self.assertEqual(float32_sqrt.dtype, ht.float32)
-        self.assertEqual(float32_sqrt.dtype, ht.float32)
-        self.assertTrue((float32_sqrt._tensor__array == comparison.type(torch.float32)).all())
-
-        # square roots of float64
-        float64_sqrt = ht.arange(elements, dtype=ht.float64).sqrt()
-        self.assertIsInstance(float64_sqrt, ht.tensor)
-        self.assertEqual(float64_sqrt.dtype, ht.float64)
-        self.assertEqual(float64_sqrt.dtype, ht.float64)
-        self.assertTrue((float64_sqrt._tensor__array == comparison).all())
-
-        # square roots of ints, automatic conversion to intermediate floats
-        int32_sqrt = ht.arange(elements, dtype=ht.int32).sqrt()
-        self.assertIsInstance(int32_sqrt, ht.tensor)
-        self.assertEqual(int32_sqrt.dtype, ht.float64)
-        self.assertEqual(int32_sqrt.dtype, ht.float64)
-        self.assertTrue((int32_sqrt._tensor__array == comparison).all())
-
-        # square roots of longs, automatic conversion to intermediate floats
-        int64_sqrt = ht.arange(elements, dtype=ht.int64).sqrt()
-        self.assertIsInstance(int64_sqrt, ht.tensor)
-        self.assertEqual(int64_sqrt.dtype, ht.float64)
-        self.assertEqual(int64_sqrt.dtype, ht.float64)
-        self.assertTrue((int64_sqrt._tensor__array == comparison).all())
-
-        # check exceptions
-        with self.assertRaises(TypeError):
-            ht.sqrt([1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.sqrt('hello world')
-
-    def test_sqrt_out_of_place(self):
-        elements = 30
-        output_shape = (3, elements)
-        number_range = ht.arange(elements, dtype=ht.float32)
-        output_buffer = ht.zeros(output_shape, dtype=ht.float32)
-
-        # square roots
-        float32_sqrt = ht.sqrt(number_range, out=output_buffer)
-        comparison = torch.arange(elements, dtype=torch.float32).sqrt()
-
-        # check whether the input range remain unchanged
-        self.assertIsInstance(number_range, ht.tensor)
-        self.assertEqual(number_range.sum(axis=0), 190)  # gaussian sum
-        self.assertEqual(number_range.gshape, (elements,))
-
-        # check whether the output buffer still has the correct shape
-        self.assertIsInstance(float32_sqrt, ht.tensor)
-        self.assertEqual(float32_sqrt.dtype, ht.float32)
-        self.assertEqual(float32_sqrt._tensor__array.shape, output_shape)
-        for row in range(output_shape[0]):
-            self.assertTrue((float32_sqrt._tensor__array[row] == comparison).all())
-
-        # exception
-        with self.assertRaises(TypeError):
-            ht.sqrt(number_range, 'hello world')
-
-    def test_sum(self):
-        array_len = 11
-
-        # check sum over all float elements of 1d tensor locally 
-        shape_noaxis = ht.ones(array_len)
-        no_axis_sum = shape_noaxis.sum()
-
-        self.assertIsInstance(no_axis_sum, ht.tensor)
-        self.assertEqual(no_axis_sum.shape, (1,))
-        self.assertEqual(no_axis_sum.lshape, (1,))
-        self.assertEqual(no_axis_sum.dtype, ht.float32)
-        self.assertEqual(no_axis_sum._tensor__array.dtype, torch.float32)
-        self.assertEqual(no_axis_sum.split, None)
-        self.assertEqual(no_axis_sum._tensor__array, array_len)
-
-        out_noaxis = ht.zeros((1,))
-        ht.sum(shape_noaxis, out=out_noaxis)
-        self.assertTrue(out_noaxis._tensor__array == shape_noaxis._tensor__array.sum())
-
-        # check sum over all float elements of split 1d tensor
-        shape_noaxis_split = ht.arange(array_len, split=0)
-        shape_noaxis_split_sum = shape_noaxis_split.sum()
-
-        self.assertIsInstance(shape_noaxis_split_sum, ht.tensor)
-        self.assertEqual(shape_noaxis_split_sum.shape, (1,))
-        self.assertEqual(shape_noaxis_split_sum.lshape, (1,))
-        self.assertEqual(shape_noaxis_split_sum.dtype, ht.int64)
-        self.assertEqual(shape_noaxis_split_sum._tensor__array.dtype, torch.int64)
-        self.assertEqual(shape_noaxis_split_sum.split, None)
-        self.assertEqual(shape_noaxis_split_sum, 55)
-
-        out_noaxis = ht.zeros((1,))
-        ht.sum(shape_noaxis_split, out=out_noaxis)
-        self.assertEqual(out_noaxis._tensor__array, 55)
-
-        # check sum over all float elements of 3d tensor locally
-        shape_noaxis = ht.ones((3, 3, 3))
-        no_axis_sum = shape_noaxis.sum()
-
-        self.assertIsInstance(no_axis_sum, ht.tensor)
-        self.assertEqual(no_axis_sum.shape, (1,))
-        self.assertEqual(no_axis_sum.lshape, (1,))
-        self.assertEqual(no_axis_sum.dtype, ht.float32)
-        self.assertEqual(no_axis_sum._tensor__array.dtype, torch.float32)
-        self.assertEqual(no_axis_sum.split, None)
-        self.assertEqual(no_axis_sum._tensor__array, 27)
-
-        out_noaxis = ht.zeros((1,))
-        ht.sum(shape_noaxis, out=out_noaxis)
-        self.assertEqual(out_noaxis._tensor__array, 27)
-
-        # check sum over all float elements of split 3d tensor
-        shape_noaxis_split_axis = ht.ones((3, 3, 3), split=0)
-        split_axis_sum = shape_noaxis_split_axis.sum(axis=0)
-
-        self.assertIsInstance(split_axis_sum, ht.tensor)
-        self.assertEqual(split_axis_sum.shape, (1, 3, 3))
-        self.assertEqual(split_axis_sum.dtype, ht.float32)
-        self.assertEqual(split_axis_sum._tensor__array.dtype, torch.float32)
-        self.assertEqual(split_axis_sum.split, None)
-
-        out_noaxis = ht.zeros((1, 3, 3,))
-        ht.sum(shape_noaxis, axis=0, out=out_noaxis)
-        self.assertTrue((out_noaxis._tensor__array == torch.full((1, 3, 3,), 3)).all())
-
-        # check sum over all float elements of splitted 5d tensor with negative axis
-        shape_noaxis_split_axis_neg = ht.ones((1, 2, 3, 4, 5), split=1)
-        shape_noaxis_split_axis_neg_sum = shape_noaxis_split_axis_neg.sum(axis=-2)
-
-        self.assertIsInstance(shape_noaxis_split_axis_neg_sum, ht.tensor)
-        self.assertEqual(shape_noaxis_split_axis_neg_sum.shape, (1, 2, 3, 1, 5))
-        self.assertEqual(shape_noaxis_split_axis_neg_sum.dtype, ht.float32)
-        self.assertEqual(shape_noaxis_split_axis_neg_sum._tensor__array.dtype, torch.float32)
-        self.assertEqual(shape_noaxis_split_axis_neg_sum.split, 1)
-
-        out_noaxis = ht.zeros((1, 2, 3, 1, 5))
-        ht.sum(shape_noaxis_split_axis_neg, axis=-2, out=out_noaxis)
-
-        # exceptions
-        with self.assertRaises(ValueError):
-            ht.ones(array_len).sum(axis=1)
-        with self.assertRaises(ValueError):
-            ht.ones(array_len).sum(axis=-2)
-        with self.assertRaises(ValueError):
-            ht.ones((4, 4)).sum(axis=0, out=out_noaxis)
-        with self.assertRaises(TypeError):
-            ht.ones(array_len).sum(axis='bad_axis_type')
-            
     def test_transpose(self):
         # vector transpose, not distributed
         vector = ht.arange(10)
@@ -1287,3 +759,6 @@ class TestOperations(unittest.TestCase):
             self.assertTrue(result._tensor__array[-1, 0] == 0)
         if result.comm.rank == result.comm.size - 1:
             self.assertTrue(result._tensor__array[0, -1] == 1)
+
+
+
