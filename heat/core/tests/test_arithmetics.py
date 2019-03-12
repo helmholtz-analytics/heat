@@ -111,7 +111,6 @@ class TestOperations(unittest.TestCase):
 
         self.assertTrue(ht.equal(ht.div(s, s), ht.float32([1.0])))
         self.assertTrue(ht.equal(ht.div(T, s),T_r))
-        tmp =ht.div(s, T)
         self.assertTrue(ht.equal(ht.div(s, T), T_inv))
         self.assertTrue(ht.equal(ht.div(T, T1), T_r))
         self.assertTrue(ht.equal(ht.div(T, v), T_r))

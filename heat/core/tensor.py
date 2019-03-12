@@ -329,7 +329,7 @@ class tensor:
         self.__array = self.__array.cpu()
         return self
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         """
          Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
          of the tensor by another tensor or scalar. Takes the second operand (scalar or tensor) by which to divide
