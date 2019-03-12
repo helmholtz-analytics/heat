@@ -365,11 +365,21 @@ def matmul(a, b, out=None, out_split=None):
     1. split a and b into blocks of the respective sizes (M x k and k x N)
         k must be the same in both
         if a common k cannot be found then x rows/columns can be sliced off and saved for later
-            this slice must occur in the 'P' dimension of both matricies
-            if this is 1 then factors are guaranteed
+            this cut must occur in the 'P' dimension of both matricies
+            best way to do this is to either equate all of the
 
+    detailed process:
+    -----------------
+    1. get the lshape of the data on all procs
+
+    possible problems:
+    -> a and b not the same splits
     """
+
+    # get the lshape from all nodes of a and b
+    a_lshapes = a.comm.MPI_
     pass
+########################################################################################################################################################
 
 # statically allocated index slices for non-iterable dimensions in triangular operations
 __index_base = (slice(None), slice(None),)
