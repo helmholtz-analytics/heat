@@ -98,42 +98,38 @@ class tensor:
         absolute_values : ht.tensor
             A tensor containing the absolute value of each element in x.
 
-    """
-
+        """
         return self.abs(out, dtype)
-
 
     def __add__(self, other):
         """
-         Element-wise addition of another tensor or a scalar to the tensor.
-         Takes the second operand (scalar or tensor) whose elements are to be added as argument.
+        Element-wise addition of another tensor or a scalar to the tensor.
+        Takes the second operand (scalar or tensor) whose elements are to be added as argument.
 
-         Parameters
-         ----------
-         other: tensor or scalar
-         The value(s) to be added element-wise to the tensor
+        Parameters
+        ----------
+        other: tensor or scalar
+            The value(s) to be added element-wise to the tensor
 
-         Returns
-         -------
-         result: ht.tensor
-         A tensor containing the results of element-wise addition.
+        Returns
+        -------
+        result: ht.tensor
+            A tensor containing the results of element-wise addition.
 
-         Examples:
-         ---------
-         >>> import heat as ht
-         >>> T1 = ht.float32([[1, 2], [3, 4]])
-         >>> T1.__add__(2.0)
-         tensor([[3., 4.],
-                [5., 6.]])
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2], [3, 4]])
+        >>> T1.__add__(2.0)
+        tensor([[3., 4.],
+            [5., 6.]])
 
-         >>> T2 = ht.float32([[2, 2], [2, 2]])
-         >>> T1.__add__(T2)
-         tensor([[3., 4.],
-                 [5., 6.]])
-
-         """
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__add__(T2)
+        tensor([[3., 4.],
+             [5., 6.]])
+        """
         return arithmetics.add(self, other)
-
 
     def all(self, axis=None, out=None):
         """
@@ -141,7 +137,6 @@ class tensor:
 
         Parameters:
         -----------
-
         axis : None or int, optional #TODO: tuple of ints
             Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a 
             logical AND over all the dimensions of the input array. axis may be negative, in which case it counts 
@@ -154,8 +149,7 @@ class tensor:
         Returns:	
         --------
         all : ht.tensor, bool
-
-        A new boolean or ht.tensor is returned unless out is specified, in which case a reference to out is returned.
+            A new boolean or ht.tensor is returned unless out is specified, in which case a reference to out is returned.
 
        Examples:
         ---------
@@ -166,7 +160,7 @@ class tensor:
                 [-0.5005, -1.7746,  0.8515, -0.9494, -0.2238],
                 [-0.0444,  0.3388,  0.6805, -1.3856,  0.5422],
                 [ 0.3184,  0.0185,  0.5256, -1.1653, -0.1665]])
-        >>> x = a<0.5
+        >>> x = a < 0.5
         >>> x
         tensor([[0, 1, 1, 1, 1],
                 [1, 1, 0, 1, 1],
@@ -187,17 +181,16 @@ class tensor:
         >>> x.all(axis=0, out=out)
         >>> out
         tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
-
         """
         return operations.all(self, axis, out)
 
     def allclose(self, other, rtol = 1e-05, atol = 1e-08, equal_nan = False):
         """
-        Test whether self and other are element-wise equal within a tolerance. Returns True if |self - other| <= atol + rtol * |other| for all elements, False otherwise
+        Test whether self and other are element-wise equal within a tolerance. Returns True if |self - other| <= atol +
+        rtol * |other| for all elements, False otherwise.
 
         Parameters:
         -----------
-
         other : ht.tensor
             Input tensor to compare to
 
@@ -213,7 +206,7 @@ class tensor:
         Returns:
         --------
         allclose : bool
-        True if the two tensors are equal within the given tolerance; False otherwise.
+            True if the two tensors are equal within the given tolerance; False otherwise.
 
         Examples:
         ---------
@@ -226,7 +219,6 @@ class tensor:
         False
         >>> a.allclose(b, atol=1e-04)
         True
-
         """
         return operations.allclose(self, other, rtol, atol, equal_nan)
 
@@ -237,18 +229,16 @@ class tensor:
         Parameters:	
         ----------
         x : ht.tensor
-        Input array.
-
+            Input array.
         axis : int, optional
-        By default, the index is into the flattened tensor, otherwise along the specified axis.
-
+            By default, the index is into the flattened tensor, otherwise along the specified axis.
         #TODO out : array, optional
-        If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
+            If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
         Returns:
         -------	
         index_tensor : ht.tensor of ints
-        Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
+            Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
 
         Examples
         --------
@@ -367,38 +357,37 @@ class tensor:
 
     def __truediv__(self, other):
         """
-         Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
-         of the tensor by another tensor or scalar. Takes the second operand (scalar or tensor) by which to divide
-         as argument.
+        Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
+        of the tensor by another tensor or scalar. Takes the second operand (scalar or tensor) by which to divide
+        as argument.
 
-         Parameters
-         ----------
-         other: tensor or scalar
-         The value(s) by which to divide the tensor (element-wise)
+        Parameters
+        ----------
+        other: tensor or scalar
+            The value(s) by which to divide the tensor (element-wise)
 
-         Returns
-         -------
-         result: ht.tensor
-         A tensor containing the results of element-wise division.
+        Returns
+        -------
+        result: ht.tensor
+            A tensor containing the results of element-wise division.
 
-         Examples:
-         ---------
-         >>> import heat as ht
-         >>> ht.div(2.0, 2.0)
-         tensor([1.])
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> ht.div(2.0, 2.0)
+        tensor([1.])
 
-         >>> T1 = ht.float32([[1, 2],[3, 4]])
-         >>> T2 = ht.float32([[2, 2], [2, 2]])
-         >>> T1.__div__(T2)
-         tensor([[0.5000, 1.0000],
-                 [1.5000, 2.0000]])
+        >>> T1 = ht.float32([[1, 2],[3, 4]])
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__div__(T2)
+        tensor([[0.5000, 1.0000],
+             [1.5000, 2.0000]])
 
-         >>> s = 2.0
-         >>> T1.__div__(s)
-         tensor([[0.5000, 1.0000],
-                 [1.5, 2.0000]])
-
-         """
+        >>> s = 2.0
+        >>> T1.__div__(s)
+        tensor([[0.5000, 1.0000],
+             [1.5, 2.0000]])
+        """
         return arithmetics.div(self, other)
 
     def __eq__(self, other):
@@ -409,13 +398,14 @@ class tensor:
         Parameters
         ----------
         other: tensor or scalar
-        The value(s) to which to compare equality
+            The value(s) to which to compare equality
 
         Returns
         -------
         result: ht.tensor
-        Tensor holding 1 for all elements in which values of self are equal to values of other,
-        0 for all other elements
+            Tensor holding 1 for all elements in which values of self are equal to values of other, 0 for all other
+            elements
+
         Examples:
         ---------
         >>> import heat as ht
@@ -433,19 +423,20 @@ class tensor:
 
     def __ge__(self, other):
         """
-        Element-wise rich comparison of relation "greater than or equal" with values from second operand (scalar or tensor)
+        Element-wise rich comparison of relation "greater than or equal" with values from second operand (scalar or
+        tensor).
         Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
 
         Parameters
         ----------
         other: tensor or scalar
-        The value(s) to which to compare elements from tensor
+            The value(s) to which to compare elements from tensor
 
         Returns
         -------
         result: ht.tensor
-        Tensor holding 1 for all elements in which values in self are greater than or equal to values of other (x1 >= x2),
-        0 for all other elements
+            Tensor holding 1 for all elements in which values in self are greater than or equal to values of other
+            (x1 >= x2), 0 for all other elements
 
         Examples
         -------
@@ -458,17 +449,14 @@ class tensor:
         >>> T1.__ge__(T2)
         tensor([[0, 1],
                 [1, 1]], dtype=torch.uint8)
-
         """
-
         return relations.ge(self, other)
-
 
     if torch.cuda.device_count() > 0:
         def gpu(self):
             """
-            Returns a copy of this object in GPU memory. If this object is already in GPU memory, then no copy is performed
-            and the original object is returned.
+            Returns a copy of this object in GPU memory. If this object is already in GPU memory, then no copy is
+            performed and the original object is returned.
 
             Returns
             -------
@@ -478,7 +466,6 @@ class tensor:
             self.__array = self.__array.cuda(devices.gpu_index())
             return self
 
-
     def __gt__(self, other):
         """
         Element-wise rich comparison of relation "greater than" with values from second operand (scalar or tensor)
@@ -487,13 +474,13 @@ class tensor:
         Parameters
         ----------
         other: tensor or scalar
-        The value(s) to which to compare elements from tensor
+            The value(s) to which to compare elements from tensor
 
         Returns
         -------
         result: ht.tensor
-        Tensor holding 1 for all elements in which values in self are greater than values of other (x1 > x2),
-        0 for all other elements
+            Tensor holding 1 for all elements in which values in self are greater than values of other (x1 > x2),
+            0 for all other elements
 
          Examples
          -------
@@ -509,9 +496,7 @@ class tensor:
                 [1, 1]], dtype=torch.uint8)
 
         """
-
         return relations.gt(self, other)
-
 
     def max(self, axis=None, out=None):
         """"
@@ -520,18 +505,15 @@ class tensor:
         Parameters
         ----------
         a : ht.tensor
-        Input data.
-
+            Input data.
         axis : None or int  
-        Axis or axes along which to operate. By default, flattened input is used.   
-
+            Axis or axes along which to operate. By default, flattened input is used.
         #TODO: out : ht.tensor, optional
-        Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
-
+            Alternative output array in which to place the result. Must be of the same shape and buffer length as the
+            expected output.
         #TODO: initial : scalar, optional   
-        The minimum value of an output element. Must be present to allow computation on empty slice.
+            The minimum value of an output element. Must be present to allow computation on empty slice.
         """
-
         return relations.max(self, axis, out)
 
     def mean(self, axis):
@@ -548,16 +530,14 @@ class tensor:
         Parameters
         ----------
         a : ht.tensor
-        Input data.
-
+            Input data.
         axis : None or int
-        Axis or axes along which to operate. By default, flattened input is used.   
-
+            Axis or axes along which to operate. By default, flattened input is used.
         #TODO: out : ht.tensor, optional
-        Alternative output array in which to place the result. Must be of the same shape and buffer length as the expected output. 
-
+            Alternative output array in which to place the result. Must be of the same shape and buffer length as the
+            expected output.
         #TODO: initial : scalar, optional   
-        The maximum value of an output element. Must be present to allow computation on empty slice.
+            The maximum value of an output element. Must be present to allow computation on empty slice.
         """
         return relations.min(self, axis, out)
 
@@ -639,7 +619,6 @@ class tensor:
         """
         return rounding.floor(self, out)
 
-
     def __le__(self, other):
         """
         Element-wise rich comparison of relation "less than or equal" with values from second operand (scalar or tensor)
@@ -648,13 +627,13 @@ class tensor:
         Parameters
         ----------
         other: tensor or scalar
-        The value(s) to which to compare elements from tensor
+            The value(s) to which to compare elements from tensor
 
         Returns
         -------
         result: ht.tensor
-        Tensor holding 1 for all elements in which values in self are less than or equal to values of other (x1 <= x2),
-        0 for all other elements
+            Tensor holding 1 for all elements in which values in self are less than or equal to values of other
+            (x1 <= x2), 0 for all other elements
 
         Examples
         -------
@@ -706,60 +685,59 @@ class tensor:
         Parameters
         ----------
         other: tensor or scalar
-        The value(s) to which to compare elements from tensor
+            The value(s) to which to compare elements from tensor
 
         Returns
         -------
         result: ht.tensor
-        Tensor holding 1 for all elements in which values in self are less than values of other (x1 < x2),
-        0 for all other elements
+            Tensor holding 1 for all elements in which values in self are less than values of other (x1 < x2), 0 for
+            all other elements
 
         Examples
-       -------
-       >>> import heat as ht
-       >>> T1 = ht.float32([[1, 2],[3, 4]])
-       >>> T1.__lt__(3.0)
-       tensor([[1, 1],
+        -------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2],[3, 4]])
+        >>> T1.__lt__(3.0)
+        tensor([[1, 1],
                [0, 0]], dtype=torch.uint8)
 
-       >>> T2 = ht.float32([[2, 2], [2, 2]])
-       >>> T1.__lt__(T2)
-       tensor([[1, 0],
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__lt__(T2)
+        tensor([[1, 0],
                [0, 0]], dtype=torch.uint8)
 
-       """
+        """
         return relations.lt(self, other)
-
 
     def __mul__(self, other):
         """
-         Element-wise multiplication (not matrix multiplication) with values from second operand (scalar or tensor)
-         Takes the second operand (scalar or tensor) whose values to multiply to the first tensor as argument.
+        Element-wise multiplication (not matrix multiplication) with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) whose values to multiply to the first tensor as argument.
 
-         Parameters
-         ----------
-         other: tensor or scalar
-         The value(s) to multiply to the tensor (element-wise)
+        Parameters
+        ----------
+        other: tensor or scalar
+            The value(s) to multiply to the tensor (element-wise)
 
-         Returns
-         -------
-         result: ht.tensor
-         A tensor containing the results of element-wise multiplication.
+        Returns
+        -------
+        result: ht.tensor
+            A tensor containing the results of element-wise multiplication.
 
-         Examples:
-         ---------
+        Examples:
+        ---------
         >>> import heat as ht
         >>> T1 = ht.float32([[1, 2], [3, 4]])
         >>> T1.__mul__(3.0)
         tensor([[3., 6.],
-                [9., 12.]])
+            [9., 12.]])
 
         >>> T2 = ht.float32([[2, 2], [2, 2]])
         >>> T1.__mul__(T2)
         tensor([[2., 4.],
-                [6., 8.]])
+            [6., 8.]])
 
-         """
+        """
         return arithmetics.mul(self, other)
 
     def __ne__(self, other):
@@ -770,13 +748,13 @@ class tensor:
         Parameters
         ----------
         other: tensor or scalar
-        The value(s) to which to compare equality
+            The value(s) to which to compare equality
 
         Returns
         -------
         result: ht.tensor
-        Tensor holding 1 for all elements in which values of self are equal to values of other,
-        0 for all other elements
+            Tensor holding 1 for all elements in which values of self are equal to values of other, 0 for all other
+            elements
 
         Examples:
         ---------
@@ -792,45 +770,40 @@ class tensor:
                 [1, 1]])
 
         """
-
         return relations.ne(self, other)
-
 
     def __pow__(self, other):
         """
-         Element-wise exponential function with values from second operand (scalar or tensor)
-         Takes the second operand (scalar or tensor) whose values are the exponent to be applied to the first
-         tensor as argument.
+        Element-wise exponential function with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) whose values are the exponent to be applied to the first
+        tensor as argument.
 
-         Parameters
-         ----------
-         other: tensor or scalar
-         The value(s) in the exponent (element-wise)
+        Parameters
+        ----------
+        other: tensor or scalar
+            The value(s) in the exponent (element-wise)
 
-         Returns
-         -------
-         result: ht.tensor
-         A tensor containing the results of element-wise exponential operation.
+        Returns
+        -------
+        result: ht.tensor
+            A tensor containing the results of element-wise exponential operation.
 
-         Examples:
-         ---------
-         >>> import heat as ht
+        Examples:
+        ---------
+        >>> import heat as ht
 
-         >>> T1 = ht.float32([[1, 2], [3, 4]])
-         >>> T1.__pow__(3.0)
-         tensor([[1., 8.],
-                 [27., 64.]])
+        >>> T1 = ht.float32([[1, 2], [3, 4]])
+        >>> T1.__pow__(3.0)
+        tensor([[1., 8.],
+             [27., 64.]])
 
-         >>> T2 = ht.float32([[3, 3], [2, 2]])
-         >>> T1.__pow__(T2)
-         tensor([[1., 8.],
-                 [9., 16.]])
+        >>> T2 = ht.float32([[3, 3], [2, 2]])
+        >>> T1.__pow__(T2)
+        tensor([[1., 8.],
+             [9., 16.]])
 
-         """
-
+        """
         return arithmetics.pow(self, other)
-
-
 
     def save(self, path, *args, **kwargs):
         """
@@ -966,35 +939,34 @@ class tensor:
 
     def __sub__(self, other):
         """
-         Element-wise subtraction of another tensor or a scalar from the tensor.
-         Takes the second operand (scalar or tensor) whose elements are to be subtracted  as argument.
+        Element-wise subtraction of another tensor or a scalar from the tensor.
+        Takes the second operand (scalar or tensor) whose elements are to be subtracted  as argument.
 
-         Parameters
-         ----------
-         other: tensor or scalar
-         The value(s) to be subtracted element-wise from the tensor
+        Parameters
+        ----------
+        other: tensor or scalar
+            The value(s) to be subtracted element-wise from the tensor
 
-         Returns
-         -------
-         result: ht.tensor
-         A tensor containing the results of element-wise subtraction.
+        Returns
+        -------
+        result: ht.tensor
+            A tensor containing the results of element-wise subtraction.
 
-         Examples:
-         ---------
-         >>> import heat as ht
-         >>> T1 = ht.float32([[1, 2], [3, 4]])
-         >>> T1.__sub__(2.0)
-         tensor([[ 1.,  0.],
-                 [-1., -2.]])
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2], [3, 4]])
+        >>> T1.__sub__(2.0)
+        tensor([[ 1.,  0.],
+             [-1., -2.]])
 
-         >>> T2 = ht.float32([[2, 2], [2, 2]])
-         >>> T1.__sub__(T2)
-         tensor([[-1., 0.],
-                 [1., 2.]])
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__sub__(T2)
+        tensor([[-1., 0.],
+             [1., 2.]])
 
-         """
+        """
         return arithmetics.sub(self, other)
-
 
     def sum(self, axis=None, out=None):
         # TODO: Allow also list of axes
@@ -1110,7 +1082,6 @@ class tensor:
             Upper triangle of the input tensor.
         """
         return operations.triu(self, k)
-
 
     def __str__(self, *args):
         # TODO: document me
