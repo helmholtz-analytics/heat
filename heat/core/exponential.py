@@ -14,7 +14,8 @@ __all__ = [
     'exp',
     'log',
     'log2',
-    'sqrt'
+    'sqrt',
+    'exp2'
 ]
 
 
@@ -43,6 +44,33 @@ def exp(x, out=None):
     """
     return local_op(torch.exp, x, out)
 
+
+def exp2(x, out=None):
+    """
+    Calculate the exponential of all elements in the input array.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        The value for which to compute the 2**p.
+    out : ht.tensor or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    exponentials : ht.tensor
+        A tensor of the same shape as x, containing the 2**p of each element p in this tensor. If out
+        was provided, logarithms is a reference to it.
+
+    Examples
+    --------
+    >>> ht.exp2(ht.arange(5))
+    tensor([ 1.,  2.,  4.,  8., 16.], dtype=torch.float64)
+    """
+    def local_exp2(xl, outl=None):
+        return torch.pow(2, xl, out=outl)
+    return local_op(local_exp2, x, out)
 
 def log(x, out=None):
     """
