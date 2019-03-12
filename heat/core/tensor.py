@@ -46,7 +46,7 @@ class tensor:
         """
         Returns
         -------
-        int: the number of total elements of the tensor
+        int: number of total elements of the tensor
         """
         try:
             return np.prod(self.__gshape)
@@ -58,7 +58,7 @@ class tensor:
         """
         Returns
         -------
-        int: the number of total elements of the tensor
+        int: number of total elements of the tensor
         """
         return self.size
 
@@ -67,7 +67,7 @@ class tensor:
         """
         Returns
         -------
-        int: the number of elements of the tensor on each node
+        int: number of elements of the tensor on each node
         """
         return np.prod(self.__array.shape)
 
