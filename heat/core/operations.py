@@ -296,19 +296,26 @@ def matmul(a, b, out=None, out_split=None):
     """
 
     # get the lshape from all nodes of a and b
-    a_lshape_hold = np.zeros((a.comm.size, len(a.gshape)))
-    a_lshape = np.zeros((a.comm.size, len(a.gshape)))
-    a_lshape_hold[a.comm.rank] = a.lshape
+    a_lshape_hold = torch.zeros((a.comm.size, len(a.gshape)))
+    a_lshape = torch.zeros((a.comm.size, len(a.gshape)))
+    a_lshape_hold[a.comm.rank] = torch.Tensor(a.lshape)
     a.comm.Allreduce(a_lshape_hold, a_lshape, MPI.SUM)
 
-    b_lshape_hold = np.zeros((b.comm.size, len(b.gshape)))
-    b_lshape = np.zeros((b.comm.size, len(b.gshape)))
-    b_lshape_hold[b.comm.rank] = b.lshape
+    b_lshape_hold = torch.zeros((b.comm.size, len(b.gshape)))
+    b_lshape = torch.zeros((b.comm.size, len(b.gshape)))
+    b_lshape_hold[b.comm.rank] = torch.Tensor(b.lshape)
     b.comm.Allreduce(b_lshape_hold, b_lshape, MPI.SUM)
 
-    print(a.comm.rank, a.lshape, a_lshape, '\nb', b.lshape, b_lshape, '\n')
+    # print(a.comm.rank, a.lshape, a_lshape, '\nb', b.lshape, b_lshape, '\n')
+    # print(a_lshape[:, -1], b_lshape[:, 0])
+    a_uniq = torch.from_numpy(np.unique(a_lshape[:, -1]))
+    b_uniq = torch.from_numpy(np.unique(a_lshape[:, 0]))
+    print(len(a_uniq), len(b_uniq))
+    if len(a_uniq) > 1:
+        # need to get the process/s with the unique element
 
-    
+    if len(b_uniq) > 1:
+        # need to get the process with the unique element
 
 ########################################################################################################################################################
 
