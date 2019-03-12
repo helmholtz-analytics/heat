@@ -94,15 +94,15 @@ def all(x, axis=None, out=None):
         Input array or object that can be converted to an array.
 
     axis : None or int, optional #TODO: tuple of ints, issue #67
-        Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a 
-        logical AND over all the dimensions of the input array. axis may be negative, in which case it counts 
+        Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a
+        logical AND over all the dimensions of the input array. axis may be negative, in which case it counts
         from the last to the first axis.
 
     out : ht.tensor, optional
-        Alternate output array in which to place the result. It must have the same shape as the expected output 
+        Alternate output array in which to place the result. It must have the same shape as the expected output
         and its type is preserved.
 
-    Returns:	
+    Returns:
     --------
     all : ht.tensor, bool
 
@@ -180,7 +180,7 @@ def argmin(x, axis=None, out=None):
     By default, the index is into the flattened tensor, otherwise along the specified axis.
 
     out : ht.tensor, optional.
-    If provided, the result will be inserted into this tensor. Must be of the same shape 
+    If provided, the result will be inserted into this tensor. Must be of the same shape
     and buffer length as the expected output.
 
 
@@ -212,27 +212,16 @@ def argmin(x, axis=None, out=None):
     tensor([[2, 2, 1]])
 
     '''
+    partial_op = torch.min if x.comm.is_distributed() else torch.argmin
     if axis is None:
         # flatten tensor
-        x_flat = torch.reshape(x._tensor__array, (x._tensor__array.numel(),))
-        # apply torch.min to x_flat with axis=0, keep indices only (second element)
-        result = __reduce_op(tensor.tensor(x_flat, x_flat.shape, types.canonical_heat_type(x.dtype), x.split, x.comm), torch.min, MPI.MIN,
-                             axis=0, out=None)._tensor__array[1]
+        x_flat_torch = torch.reshape(
+            x._tensor__array, (x._tensor__array.numel(),))
+        x_flat = tensor.tensor(x_flat_torch, x_flat_torch.shape,
+                               types.canonical_heat_type(x.dtype), x.split, x.comm)
+        return __reduce_op(x_flat, partial_op, MPI.MINLOC, axis=0, out=out)
     else:
-        # argmin() is the second element of torch.min()
-        result = __reduce_op(x, torch.min, MPI.MIN, axis,
-                             out=None)._tensor__array[1]
-
-    if out is not None:
-        if not isinstance(out, tensor.tensor):
-            raise TypeError(
-                'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
-        out = stride_tricks.sanitize_out(out, result.shape)
-        out._tensor__array = tensor.tensor(
-            result, out.shape, types.canonical_heat_type(result.dtype), split=out.split, comm=x.comm)
-        return out
-
-    return tensor.tensor(result, result.shape, types.canonical_heat_type(result.dtype), split=None, comm=x.comm)
+        return __reduce_op(x, partial_op, MPI.MINLOC, axis, out=out)
 
 
 def clip(a, a_min, a_max, out=None):
@@ -527,13 +516,13 @@ def sum(x, axis=None, out=None):
 
     axis : None or int, optional
         Axis along which a sum is performed. The default, axis=None, will sum
-        all of the elements of the input array. If axis is negative it counts 
+        all of the elements of the input array. If axis is negative it counts
         from the last to the first axis.
 
     Returns
     -------
     sum_along_axis : ht.tensor
-        An array with the same shape as self.__array except for the specified axis which 
+        An array with the same shape as self.__array except for the specified axis which
         becomes one, e.g. a.shape = (1,2,3) => ht.ones((1,2,3)).sum(axis=1).shape = (1,1,3)
 
     Examples
@@ -761,6 +750,16 @@ def __reduce_op(x, partial_op, op, axis, out):
         out = stride_tricks.sanitize_out(out, output_shape)
 
     if x.comm.is_distributed() and (axis is None or axis == x.split):
+        if op in [MPI.MINLOC, MPI.MAXLOC]:  # axis is never None here
+            offset = x.comm.chunk(x.gshape, x.split)[0]
+            partial[1][0] = partial[1][0] + offset
+            total = x.comm.allreduce(partial, op)
+            if out is not None:
+                out._tensor__array = tensor.tensor(total[1], output_shape, types.canonical_heat_type(
+                    total[1].dtype), split=out.split, comm=x.comm)
+                return out
+            return tensor.tensor(total[1], output_shape, types.canonical_heat_type(total[1].dtype), split=None, comm=x.comm)
+
         x.comm.Allreduce(MPI.IN_PLACE, partial[0], op)
         if out is not None:
             out._tensor__array = tensor.tensor(partial, output_shape, types.canonical_heat_type(
