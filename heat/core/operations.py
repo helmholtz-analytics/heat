@@ -9,6 +9,7 @@ from . import tensor
 
 __all__ = [
     'all',
+    'allclose',
     'argmin',
     'clip',
     'copy',
@@ -79,6 +80,55 @@ def all(x, axis=None, out=None):
     # TODO: make me more numpy API complete. Issue #101
     return __reduce_op(x, lambda t, *args, **kwargs: t.byte().all(*args, **kwargs), MPI.LAND, axis, out=out)
 
+
+def allclose(x, y, rtol = 1e-05, atol = 1e-08, equal_nan = False):
+    """
+    Test whether two tensors are element-wise equal within a tolerance. Returns True if |x - y| <= atol + rtol * |y| for all elements of x and y, False otherwise
+
+    Parameters:
+    -----------
+
+    x : ht.tensor
+        First tensor to compare
+
+    y : ht.tensor
+        Second tensor to compare
+
+    atol: float, optional
+        Absolute tolerance. Default is 1e-08
+
+    rtol: float, optional
+        Relative tolerance (with respect to y). Default is 1e-05
+
+    equal_nan: bool, optional
+        Whether to compare NaN’s as equal. If True, NaN’s in a will be considered equal to NaN’s in b in the output array.
+
+    Returns:
+    --------
+    allclose : bool
+    True if the two tensors are equal within the given tolerance; False otherwise.
+
+    Examples:
+    ---------
+    >>> a = ht.float32([[2, 2], [2, 2]])
+    >>> ht.allclose(a,a)
+    True
+
+    >>> b = ht.float32([[2.00005,2.00005],[2.00005,2.00005]])
+    >>> ht.allclose(a,b)
+    False
+    >>> ht.allclose(a,b, atol=1e-04)
+    True
+
+    """
+
+    if not isinstance(x, tensor.tensor):
+        raise TypeError('Expected x to be a ht.tensor, but was {}'.format(type(x)))
+
+    if not isinstance(y, tensor.tensor):
+        raise TypeError('Expected y to be a ht.tensor, but was {}'.format(type(y)))
+
+    return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
 
 def argmin(x, axis=None, out=None):
     """

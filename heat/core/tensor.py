@@ -236,6 +236,45 @@ class tensor:
         """
         return operations.all(self, axis, out)
 
+    def allclose(self, other, rtol = 1e-05, atol = 1e-08, equal_nan = False):
+        """
+        Test whether self and other are element-wise equal within a tolerance. Returns True if |self - other| <= atol + rtol * |other| for all elements, False otherwise
+
+        Parameters:
+        -----------
+
+        other : ht.tensor
+            Input tensor to compare to
+
+        atol: float, optional
+            Absolute tolerance. Default is 1e-08
+
+        rtol: float, optional
+            Relative tolerance (with respect to y). Default is 1e-05
+
+        equal_nan: bool, optional
+            Whether to compare NaN’s as equal. If True, NaN’s in a will be considered equal to NaN’s in b in the output array.
+
+        Returns:
+        --------
+        allclose : bool
+        True if the two tensors are equal within the given tolerance; False otherwise.
+
+        Examples:
+        ---------
+        >>> a = ht.float32([[2, 2], [2, 2]])
+        >>> a.allclose(a)
+        True
+
+        >>> b = ht.float32([[2.00005,2.00005],[2.00005,2.00005]])
+        >>> a.allclose(b)
+        False
+        >>> a.allclose(b, atol=1e-04)
+        True
+
+        """
+        return operations.allclose(self, other, rtol, atol, equal_nan)
+
     def argmin(self, axis=None):
         """
         Returns the indices of the minimum values along an axis.
