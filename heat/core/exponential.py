@@ -67,8 +67,9 @@ def exp2(x, out=None):
     >>> ht.exp2(ht.arange(5))
     tensor([ 1.,  2.,  4.,  8., 16.], dtype=torch.float64)
     """
-    return local_op(np.exp2, x, out)
-
+    def local_exp2(xl, outl=None):
+        return torch.pow(2, xl, out=outl)
+    return local_op(local_exp2, x, out)
 
 def log(x, out=None):
     """
