@@ -10,6 +10,7 @@ from . import operations
 from . import io
 from . import constants
 from . import arithmetics
+from . import relations
 from . import trigonometrics
 from . import exponential
 from . import rounding
@@ -141,9 +142,43 @@ class tensor:
         -------
         absolute_values : ht.tensor
             A tensor containing the absolute value of each element in x.
-        """
+
+    """
 
         return self.abs(out, dtype)
+
+
+    def __add__(self, other):
+        """
+         Element-wise addition of another tensor or a scalar to the tensor.
+         Takes the second operand (scalar or tensor) whose elements are to be added as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) to be added element-wise to the tensor
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor containing the results of element-wise addition.
+
+         Examples:
+         ---------
+         >>> import heat as ht
+         >>> T1 = ht.float32([[1, 2], [3, 4]])
+         >>> T1.__add__(2.0)
+         tensor([[3., 4.],
+                [5., 6.]])
+
+         >>> T2 = ht.float32([[2, 2], [2, 2]])
+         >>> T1.__add__(T2)
+         tensor([[3., 4.],
+                 [5., 6.]])
+
+         """
+        return arithmetics.add(self, other)
+
 
     def all(self, axis=None, out=None):
         """
@@ -336,6 +371,105 @@ class tensor:
         self.__array = self.__array.cpu()
         return self
 
+    def __truediv__(self, other):
+        """
+         Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
+         of the tensor by another tensor or scalar. Takes the second operand (scalar or tensor) by which to divide
+         as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) by which to divide the tensor (element-wise)
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor containing the results of element-wise division.
+
+         Examples:
+         ---------
+         >>> import heat as ht
+         >>> ht.div(2.0, 2.0)
+         tensor([1.])
+
+         >>> T1 = ht.float32([[1, 2],[3, 4]])
+         >>> T2 = ht.float32([[2, 2], [2, 2]])
+         >>> T1.__div__(T2)
+         tensor([[0.5000, 1.0000],
+                 [1.5000, 2.0000]])
+
+         >>> s = 2.0
+         >>> T1.__div__(s)
+         tensor([[0.5000, 1.0000],
+                 [1.5, 2.0000]])
+
+         """
+        return arithmetics.div(self, other)
+
+    def __eq__(self, other):
+        """
+        Element-wise rich comparison of equality with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare equality
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding 1 for all elements in which values of self are equal to values of other,
+        0 for all other elements
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2],[3, 4]])
+        >>> T1.__eq__(3.0)
+        tensor([[0, 0],
+                [1, 0]])
+
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__eq__(T2)
+        tensor([[0, 1],
+                [0, 0]])
+        """
+        return relations.eq(self, other)
+
+    def __ge__(self, other):
+        """
+        Element-wise rich comparison of relation "greater than or equal" with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare elements from tensor
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding 1 for all elements in which values in self are greater than or equal to values of other (x1 >= x2),
+        0 for all other elements
+
+        Examples
+        -------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2],[3, 4]])
+        >>> T1.__ge__(3.0)
+        tensor([[0, 0],
+                [1, 1]], dtype=torch.uint8)
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__ge__(T2)
+        tensor([[0, 1],
+                [1, 1]], dtype=torch.uint8)
+
+        """
+
+        return relations.ge(self, other)
+
+
     if torch.cuda.device_count() > 0:
         def gpu(self):
             """
@@ -349,6 +483,41 @@ class tensor:
             """
             self.__array = self.__array.cuda(devices.gpu_index())
             return self
+
+
+    def __gt__(self, other):
+        """
+        Element-wise rich comparison of relation "greater than" with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare elements from tensor
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding 1 for all elements in which values in self are greater than values of other (x1 > x2),
+        0 for all other elements
+
+         Examples
+         -------
+         >>> import heat as ht
+         >>> T1 = ht.float32([[1, 2],[3, 4]])
+         >>> T1.__gt__(3.0)
+         tensor([[0, 0],
+                 [0, 1]], dtype=torch.uint8)
+
+         >>> T2 = ht.float32([[2, 2], [2, 2]])
+         >>> T1.__gt__(T2)
+         tensor([[0, 0],
+                [1, 1]], dtype=torch.uint8)
+
+        """
+
+        return relations.gt(self, other)
+
 
     def max(self, axis=None, out=None):
         """"
@@ -369,7 +538,7 @@ class tensor:
         The minimum value of an output element. Must be present to allow computation on empty slice.
         """
 
-        return operations.max(self, axis, out)
+        return relations.max(self, axis, out)
 
     def mean(self, axis=None):
         """
@@ -527,7 +696,7 @@ class tensor:
         #TODO: initial : scalar, optional   
         The maximum value of an output element. Must be present to allow computation on empty slice.
         """
-        return operations.min(self, axis, out)
+        return relations.min(self, axis, out)
 
     def sum(self, axis=None, out=None):
         # TODO: Allow also list of axes
@@ -642,6 +811,39 @@ class tensor:
         """
         return rounding.floor(self, out)
 
+
+    def __le__(self, other):
+        """
+        Element-wise rich comparison of relation "less than or equal" with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare elements from tensor
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding 1 for all elements in which values in self are less than or equal to values of other (x1 <= x2),
+        0 for all other elements
+
+        Examples
+        -------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2],[3, 4]])
+        >>> T1.__le__(3.0)
+        tensor([[1, 1],
+                [1, 0]], dtype=torch.uint8)
+
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__le__(T2)
+        tensor([[1, 1],
+                [0, 0]], dtype=torch.uint8)
+
+        """
+        return relations.le(self, other)
+
     def log(self, out=None):
         """
         Natural logarithm, element-wise.
@@ -667,6 +869,140 @@ class tensor:
         tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
         """
         return exponential.log(self, out)
+
+    def __lt__(self, other):
+        """
+        Element-wise rich comparison of relation "less than" with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare elements from tensor
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding 1 for all elements in which values in self are less than values of other (x1 < x2),
+        0 for all other elements
+
+        Examples
+       -------
+       >>> import heat as ht
+       >>> T1 = ht.float32([[1, 2],[3, 4]])
+       >>> T1.__lt__(3.0)
+       tensor([[1, 1],
+               [0, 0]], dtype=torch.uint8)
+
+       >>> T2 = ht.float32([[2, 2], [2, 2]])
+       >>> T1.__lt__(T2)
+       tensor([[1, 0],
+               [0, 0]], dtype=torch.uint8)
+
+       """
+        return relations.lt(self, other)
+
+
+    def __mul__(self, other):
+        """
+         Element-wise multiplication (not matrix multiplication) with values from second operand (scalar or tensor)
+         Takes the second operand (scalar or tensor) whose values to multiply to the first tensor as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) to multiply to the tensor (element-wise)
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor containing the results of element-wise multiplication.
+
+         Examples:
+         ---------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2], [3, 4]])
+        >>> T1.__mul__(3.0)
+        tensor([[3., 6.],
+                [9., 12.]])
+
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__mul__(T2)
+        tensor([[2., 4.],
+                [6., 8.]])
+
+         """
+        return arithmetics.mul(self, other)
+
+    def __ne__(self, other):
+        """
+        Element-wise rich comparison of non-equality with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare equality
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding 1 for all elements in which values of self are equal to values of other,
+        0 for all other elements
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2],[3, 4]])
+        >>> T1.__ne__(3.0)
+        tensor([[1, 1],
+                [0, 1]])
+
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__ne__(T2)
+        tensor([[1, 0],
+                [1, 1]])
+
+        """
+
+        return relations.ne(self, other)
+
+
+    def __pow__(self, other):
+        """
+         Element-wise exponential function with values from second operand (scalar or tensor)
+         Takes the second operand (scalar or tensor) whose values are the exponent to be applied to the first
+         tensor as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) in the exponent (element-wise)
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor containing the results of element-wise exponential operation.
+
+         Examples:
+         ---------
+         >>> import heat as ht
+
+         >>> T1 = ht.float32([[1, 2], [3, 4]])
+         >>> T1.__pow__(3.0)
+         tensor([[1., 8.],
+                 [27., 64.]])
+
+         >>> T2 = ht.float32([[3, 3], [2, 2]])
+         >>> T1.__pow__(T2)
+         tensor([[1., 8.],
+                 [9., 16.]])
+
+         """
+
+        return arithmetics.pow(self, other)
+
+
 
     def save(self, path, *args, **kwargs):
         """
@@ -800,6 +1136,38 @@ class tensor:
         """
         return exponential.sqrt(self, out)
 
+    def __sub__(self, other):
+        """
+         Element-wise subtraction of another tensor or a scalar from the tensor.
+         Takes the second operand (scalar or tensor) whose elements are to be subtracted  as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) to be subtracted element-wise from the tensor
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor containing the results of element-wise subtraction.
+
+         Examples:
+         ---------
+         >>> import heat as ht
+         >>> T1 = ht.float32([[1, 2], [3, 4]])
+         >>> T1.__sub__(2.0)
+         tensor([[ 1.,  0.],
+                 [-1., -2.]])
+
+         >>> T2 = ht.float32([[2, 2], [2, 2]])
+         >>> T1.__sub__(T2)
+         tensor([[-1., 0.],
+                 [1., 2.]])
+
+         """
+        return arithmetics.sub(self, other)
+
+
     def sum(self, axis=None, out=None):
         # TODO: Allow also list of axes
         """
@@ -920,64 +1288,6 @@ class tensor:
         Returns the only element of a 1-element tensor. Mirror of the pytorch command by the same name
         """
         return self.__array.item()
-
-    def __binop(self, op, other):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: ... including the actual binops
-        if np.isscalar(other):
-            return tensor(op(self.__array, other), self.shape, self.dtype, self.split, self.device, self.comm)
-
-        elif isinstance(other, tensor):
-            output_shape = broadcast_shape(self.shape, other.shape)
-
-            # TODO: implement complex NUMPY rules
-            if other.dtype != self.dtype:
-                other = other.astype(self.dtype)
-
-            if other.split is None or other.split == self.split:
-                result = op(self.__array, other.__array)
-                return tensor(result, output_shape, self.dtype, self.split, self.device, self.comm)
-            else:
-                raise NotImplementedError(
-                    'Not implemented for other splittings')
-        else:
-            raise NotImplementedError('Not implemented for non scalar')
-
-    def __add__(self, other):
-        return self.__binop(operator.add, other)
-
-    def __sub__(self, other):
-        return self.__binop(operator.sub, other)
-
-    def __truediv__(self, other):
-        return self.__binop(operator.truediv, other)
-
-    def __mul__(self, other):
-        return self.__binop(operator.mul, other)
-
-    def __pow__(self, other):
-        return self.__binop(operator.pow, other)
-
-    def __eq__(self, other):
-        return self.__binop(operator.eq, other)
-
-    def __ne__(self, other):
-        return self.__binop(operator.ne, other)
-
-    def __lt__(self, other):
-        return self.__binop(operator.lt, other)
-
-    def __le__(self, other):
-        return self.__binop(operator.le, other)
-
-    def __gt__(self, other):
-        return self.__binop(operator.gt, other)
-
-    def __ge__(self, other):
-        return self.__binop(operator.ge, other)
 
     def __str__(self, *args):
         # TODO: document me

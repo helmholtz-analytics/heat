@@ -22,6 +22,7 @@ def abs(x, out=None, dtype=None):
 
     Parameters
     ----------
+
     x : ht.tensor
         The values for which the compute the absolute value.
     out : ht.tensor, optional
