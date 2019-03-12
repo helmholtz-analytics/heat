@@ -483,20 +483,6 @@ def var(x, axis=None, bessel=True):
                     return local_op(torch.var, x, out=None, dim=axis, unbiased=bessel)
         else:
             raise TypeError("Axis (axis) must be an int, currently is {}. Check if multidim var is available in pyTorch".format(type(axis)))
-            # TODO: when multi dim support is available from pytorch this can be uncommented and the raise above can be changed
-            # # multiple dimensions
-            # output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
-            # if x.split in axis:
-            #     # merge in the direction of the split
-            #     return reduce_vars_elementwise(output_shape)
-            #
-            # else:
-            #     # multiple dimensions which does *not* include the split axis
-            #     # combine along the split axis
-            #     try:
-            #         return tensor.array(local_op(torch.var, x, out=None, dim=axis, unbiased=bessel), split=x.split, comm=x.comm)
-            #     except ValueError:
-            #         return local_op(torch.var, x, out=None, dim=axis, unbiased=bessel)
 
 
 def std(x, axis=None, bessel=True):
