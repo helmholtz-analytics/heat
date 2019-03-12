@@ -70,13 +70,13 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(data.split, None)
 
         # assign and entirely new split axis
-        shape = (ht.MPI_WORLD.size + 1, ht.MPI_WORLD.size + 2,)
+        shape = (ht.MPI_WORLD.size + 2, ht.MPI_WORLD.size + 1,)
         data = ht.ones(shape, split=0)
         data.resplit(1)
 
         self.assertIsInstance(data, ht.tensor)
         self.assertEqual(data.shape, shape)
-        self.assertEqual(data.lshape[0], ht.MPI_WORLD.size + 1)
+        self.assertEqual(data.lshape[0], ht.MPI_WORLD.size + 2)
         self.assertTrue(data.lshape[1] == 1 or data.lshape[1] == 2)
         self.assertEqual(data.split, 1)
 
