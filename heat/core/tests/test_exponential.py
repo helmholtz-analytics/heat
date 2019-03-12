@@ -1,6 +1,7 @@
 import unittest
 import torch
 
+import numpy as np
 import heat as ht
 
 FLOAT_EPSILON = 1e-4
@@ -52,6 +53,52 @@ class TestOperations(unittest.TestCase):
             ht.exp([1, 2, 3])
         with self.assertRaises(TypeError):
             ht.exp('hello world')
+
+    def test_exp2(self):
+        elements = 10
+        comparison = np.exp2(torch.arange(elements, dtype=torch.float64))
+
+        # exponential of float32
+        float32_tensor = ht.arange(elements, dtype=ht.float32)
+        float32_exp2 = ht.exp2(float32_tensor)
+        self.assertIsInstance(float32_exp2, ht.tensor)
+        self.assertEqual(float32_exp2.dtype, ht.float32)
+        self.assertEqual(float32_exp2.dtype, ht.float32)
+        in_range = (float32_exp2._tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
+        self.assertTrue(in_range.all())
+
+        # exponential of float64
+        float64_tensor = ht.arange(elements, dtype=ht.float64)
+        float64_exp2 = ht.exp2(float64_tensor)
+        self.assertIsInstance(float64_exp2, ht.tensor)
+        self.assertEqual(float64_exp2.dtype, ht.float64)
+        self.assertEqual(float64_exp2.dtype, ht.float64)
+        in_range = (float64_exp2._tensor__array - comparison) < FLOAT_EPSILON
+        self.assertTrue(in_range.all())
+
+        # exponential of ints, automatic conversion to intermediate floats
+        int32_tensor = ht.arange(elements, dtype=ht.int32)
+        int32_exp2 = ht.exp2(int32_tensor)
+        self.assertIsInstance(int32_exp2, ht.tensor)
+        self.assertEqual(int32_exp2.dtype, ht.float64)
+        self.assertEqual(int32_exp2.dtype, ht.float64)
+        in_range = (int32_exp2._tensor__array - comparison) < FLOAT_EPSILON
+        self.assertTrue(in_range.all())
+
+        # exponential of longs, automatic conversion to intermediate floats
+        int64_tensor = ht.arange(elements, dtype=ht.int64)
+        int64_exp2 = ht.exp2(int64_tensor)
+        self.assertIsInstance(int64_exp2, ht.tensor)
+        self.assertEqual(int64_exp2.dtype, ht.float64)
+        self.assertEqual(int64_exp2.dtype, ht.float64)
+        in_range = (int64_exp2._tensor__array - comparison) < FLOAT_EPSILON
+        self.assertTrue(in_range.all())
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.exp2([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.exp2('hello world')
 
     def test_log(self):
         elements = 15
