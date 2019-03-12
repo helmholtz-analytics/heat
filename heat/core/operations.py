@@ -400,11 +400,9 @@ def __local_operation(operation, x, out):
     """
     # perform sanitation
     if not isinstance(x, tensor.tensor):
-        raise TypeError(
-            'expected x to be a ht.tensor, but was {}'.format(type(x)))
+        raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
     if out is not None and not isinstance(out, tensor.tensor):
-        raise TypeError(
-            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+        raise TypeError('expected out to be None or an ht.tensor, but was {}'.format(type(out)))
 
     # infer the output type of the tensor
     # we need floating point numbers here, due to PyTorch only providing sqrt() implementation for float32/64
@@ -429,7 +427,6 @@ def __local_operation(operation, x, out):
     casted = x._tensor__array.type(torch_type)
     operation(casted.repeat(multiples)
               if needs_repetition else casted, out=out._tensor__array)
-
     return out
 
 
