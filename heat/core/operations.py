@@ -334,8 +334,10 @@ def matmul(a, b, out=None, out_split=None):
     Parameters
     ----------
     a : ht.tensor
+        2 dimensions: L x P
 
     b : ht.tensor
+        2 dimensions: P x Q
 
     out : ht.tensor
         Optional
@@ -360,8 +362,12 @@ def matmul(a, b, out=None, out_split=None):
 
     Process:
     --------
-    1. split a and b into blocks of the respective sizes
-        these blocks must be 
+    1. split a and b into blocks of the respective sizes (M x k and k x N)
+        k must be the same in both
+        if a common k cannot be found then x rows/columns can be sliced off and saved for later
+            this slice must occur in the 'P' dimension of both matricies
+            if this is 1 then factors are guaranteed
+
     """
     pass
 
