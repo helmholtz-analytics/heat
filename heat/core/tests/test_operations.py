@@ -209,7 +209,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.split, 0)
         self.assertTrue((result._tensor__array == torch.tensor([[3], [1], [1], [3]])).all())
 
-        # 3D split tensor, across the axis
+        # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
         data = ht.triu(ht.ones((size, size,), split=0))
 
