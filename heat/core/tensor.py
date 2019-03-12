@@ -1035,11 +1035,14 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
         dtype = types.canonical_heat_type(dtype)
 
     # initialize the array
-    if bool(copy) or not isinstance(obj, torch.Tensor):
-        try:
-            obj = torch.tensor(obj, dtype=dtype.torch_type() if dtype is not None else None)
-        except RuntimeError:
-            raise TypeError('invalid data of type {}'.format(type(obj)))
+    if bool(copy):
+        if isinstance(obj, torch.Tensor):
+            obj = obj.clone().detach()
+        else:
+            try:
+                obj = torch.tensor(obj, dtype=dtype.torch_type() if dtype is not None else None)
+            except RuntimeError:
+                raise TypeError('invalid data of type {}'.format(type(obj)))
 
     # infer dtype from obj if not explicitly given
     if dtype is None:
@@ -1047,8 +1050,7 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
 
     # sanitize minimum number of dimensions
     if not isinstance(ndmin, int):
-        raise TypeError(
-            'expected ndmin to be int, but was {}'.format(type(ndmin)))
+        raise TypeError('expected ndmin to be int, but was {}'.format(type(ndmin)))
 
     # reshape the object to encompass additional dimensions
     ndmin -= len(obj.shape)
@@ -1060,8 +1062,7 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
 
     # sanitize communication object
     if not isinstance(comm, Communication):
-        raise TypeError(
-            'expected communication object, but got {}'.format(type(comm)))
+        raise TypeError('expected communication object, but got {}'.format(type(comm)))
 
     # determine the local and the global shape, if not split is given, they are identical
     lshape = np.array(obj.shape)

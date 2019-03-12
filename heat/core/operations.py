@@ -27,6 +27,30 @@ __all__ = [
 ]
 
 
+def mpi_argmin(a, b, _):
+    # left-hand side operand buffer
+    lhs = torch.empty((0,), dtype=torch.double)
+    lhs.set_(torch.DoubleStorage.from_buffer(a, 'native'))
+
+    # right-hand side operand buffer
+    rhs = torch.empty((0,), dtype=torch.double)
+    rhs.set_(torch.DoubleStorage.from_buffer(b, 'native'))
+
+    # extract the values and minimal indices from the buffers (first half are values, second are indices)
+    values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0],), dim=1)
+    indices = torch.stack((lhs.chunk(2)[1], rhs.chunk(2)[1],), dim=1)
+
+    # determine the minimum value and select the indices accordingly
+    min, min_indices = torch.min(values, dim=1)
+    result = torch.cat((min, indices[torch.arange(values.shape[0]), min_indices],))
+
+    # copy the result over into the right-hand side (=output buffer)
+    rhs.storage().copy_(result.storage())
+
+
+MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
+
+
 def abs(x, out=None, dtype=None):
     """
     Calculate the absolute value element-wise.
@@ -178,20 +202,23 @@ def argmin(x, axis=None, out=None):
             [1],
             [2]])
     """
-    axis = stride_tricks.sanitize_axis(x.shape, axis)
 
-    if axis is None:
-        # TEMPORARY SOLUTION! TODO: implementation for axis=None, distributed tensor Issue #100
-        # perform sanitation
-        if not isinstance(x, tensor.tensor):
-            raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
+    def local_argmin(*args, **kwargs):
+        minimums, indices = torch.min(*args, **kwargs)
+        if kwargs.get('dim', -1) == x.split:
+            offset, _, _ = x.comm.chunk(x.shape, x.split)
+            indices += offset
 
-        out = torch.reshape(torch.argmin(x._tensor__array), (1,))
-        return tensor.tensor(out, out.shape, types.canonical_heat_type(out.dtype), None, x.device, x.comm)
+        return torch.cat([minimums.double(), indices.double()])
 
-    out = __reduce_op(x, torch.min, MPI.MIN, axis, out=None)._tensor__array[1]
+    # perform the global reduction
+    reduced_result = __reduce_op(x, local_argmin, MPI_ARGMIN, axis, out)
 
-    return tensor.tensor(out, out.shape, types.canonical_heat_type(out.dtype), x.split, x.device, x.comm)
+    # correct the tensor
+    reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
+    reduced_result._tensor__dtype = types.int64
+
+    return reduced_result
 
 
 def clip(a, a_min, a_max, out=None):
@@ -439,20 +466,6 @@ def sin(x, out=None):
     tensor([ 0.2794,  0.7568, -0.9093,  0.0000,  0.9093, -0.7568, -0.2794])
     """
     return __local_operation(torch.sin, x, out)
-
-
-def sum(x, axis=None):
-    # TODO: document me
-    axis = stride_tricks.sanitize_axis(x.shape, axis)
-
-    if axis is not None:
-        sum_axis = x._tensor__array.sum(axis, keepdim=True)
-    else:
-        sum_axis = torch.reshape(x._tensor__array.sum(), (1,))
-        if not x.comm.is_distributed():
-            return tensor.tensor(sum_axis, (1,), types.canonical_heat_type(sum_axis.dtype), None, x.comm)
-
-    return __reduce_op(x, sum_axis, MPI.SUM, axis)
 
 
 def sqrt(x, out=None):
@@ -779,7 +792,7 @@ def __reduce_op(x, partial_op, reduction_op, axis, out):
         partial = partial_op(x._tensor__array).reshape((1,))
         output_shape = (1,)
     else:
-        partial = partial_op(x._tensor__array, axis, keepdim=True)
+        partial = partial_op(x._tensor__array, dim=axis, keepdim=True)
         output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
 
     # Check shape of output buffer, if any
@@ -790,7 +803,7 @@ def __reduce_op(x, partial_op, reduction_op, axis, out):
     if x.split is not None and (axis is None or axis == x.split):
         split = None
         if x.comm.is_distributed():
-            x.comm.Allreduce(MPI.IN_PLACE, partial[0], reduction_op)
+            x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
 
     if out is not None:
         out._tensor__array = partial
@@ -804,7 +817,7 @@ def __reduce_op(x, partial_op, reduction_op, axis, out):
     return tensor.tensor(
         partial,
         output_shape,
-        types.canonical_heat_type(partial[0].dtype),
+        types.canonical_heat_type(partial.dtype),
         split=split,
         device=x.device,
         comm=x.comm
