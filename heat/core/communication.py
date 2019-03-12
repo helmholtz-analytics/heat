@@ -119,14 +119,14 @@ class MPICommunication(Communication):
             tuple(shape[i] if i != split else end - start for i in range(dims)), \
             tuple(slice(0, shape[i]) if i != split else slice(start, end) for i in range(dims))
 
-    def counts_displs_shape(self, obj, axis):
+    def counts_displs_shape(self, shape, axis):
         """
         Calculates the item counts, displacements and output shape for a variable sized all-to-all MPI-call (e.g.
         MPI_Alltoallv). The passed shape is regularly chunk along the given axis and for all nodes.
 
         Parameters
         ----------
-        obj : ht.tensor or torch.Tensor
+        shape : tuple(int)
             The object for which to calculate the chunking.
         axis : int
             The axis along which the chunking is performed.
@@ -136,11 +136,6 @@ class MPICommunication(Communication):
         counts_and_displs : two-tuple of tuple of ints
             The counts and displacements for all nodes
         """
-        # unpack a heat tensor to torch array
-        if isinstance(obj, tensor.tensor):
-            obj = obj._tensor__array
-        shape = obj.shape
-
         # the elements send/received by all nodes
         counts = np.full((self.size,), shape[axis] // self.size)
         counts[:shape[axis] % self.size] += 1
@@ -413,7 +408,7 @@ class MPICommunication(Communication):
         # permute the send_axis order so that the split send_axis is the first to be transmitted
         send_axis_permutation = list(range(recvbuf.ndimension()))
         send_axis_permutation[0], send_axis_permutation[send_axis] = send_axis, 0
-        if self.rank == kwargs.get('root', -1):
+        if self.rank == kwargs.get('root', -1) or send_counts is not None:
             sendbuf = sendbuf.permute(*send_axis_permutation)
 
         recv_axis_permutation = list(range(recvbuf.ndimension()))

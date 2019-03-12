@@ -395,11 +395,11 @@ class TestCommunication(unittest.TestCase):
     def test_alltoallv(self):
         # contiguous data buffer
         data = ht.array([[ht.MPI_WORLD.rank] * 10] * (ht.MPI_WORLD.size + 1))
-        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data, 0)
+        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data.lshape, 0)
 
         # contiguous output buffer
         output = ht.zeros(output_shape, dtype=ht.int64)
-        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output, 0)
+        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output.lshape, 0)
 
         # ensure prior invariants
         self.assertTrue(data._tensor__array.is_contiguous())
@@ -418,11 +418,11 @@ class TestCommunication(unittest.TestCase):
 
         # non-contiguous data buffer
         data = ht.array([[ht.MPI_WORLD.rank] * (ht.MPI_WORLD.size + 1)] * 10).T
-        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data, 0)
+        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data.lshape, 0)
 
         # contiguous output buffer
         output = ht.zeros(output_shape, dtype=ht.int64)
-        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output, 0)
+        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output.lshape, 0)
 
         # ensure prior invariants
         self.assertFalse(data._tensor__array.is_contiguous())
@@ -441,12 +441,12 @@ class TestCommunication(unittest.TestCase):
 
         # contiguous data buffer
         data = ht.array([[ht.MPI_WORLD.rank] * 10] * (ht.MPI_WORLD.size + 1))
-        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data, 0)
+        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data.lshape, 0)
 
         # non-contiguous output buffer
         output_shape = tuple(reversed(output_shape))
         output = ht.zeros(output_shape, dtype=ht.int64).T
-        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output, 0)
+        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output.lshape, 0)
 
         # ensure prior invariants
         self.assertTrue(data._tensor__array.is_contiguous())
@@ -465,12 +465,12 @@ class TestCommunication(unittest.TestCase):
 
         # non-contiguous data buffer
         data = ht.array([[ht.MPI_WORLD.rank] * (ht.MPI_WORLD.size + 1)] * 10).T
-        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data, 0)
+        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data.lshape, 0)
 
         # non-contiguous output buffer
         output_shape = tuple(reversed(output_shape))
         output = ht.zeros(output_shape, dtype=ht.int64).T
-        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output, 0)
+        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output.lshape, 0)
 
         # ensure prior invariants
         self.assertFalse(data._tensor__array.is_contiguous())
@@ -967,11 +967,11 @@ class TestCommunication(unittest.TestCase):
     def test_ialltoallv(self):
         # contiguous data buffer
         data = ht.array([[ht.MPI_WORLD.rank] * 10] * (ht.MPI_WORLD.size + 1))
-        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data, 0)
+        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data.lshape, 0)
 
         # contiguous output buffer
         output = ht.zeros(output_shape, dtype=ht.int64)
-        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output, 0)
+        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output.lshape, 0)
 
         # ensure prior invariants
         self.assertTrue(data._tensor__array.is_contiguous())
@@ -992,11 +992,11 @@ class TestCommunication(unittest.TestCase):
 
         # non-contiguous data buffer
         data = ht.array([[ht.MPI_WORLD.rank] * (ht.MPI_WORLD.size + 1)] * 10).T
-        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data, 0)
+        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data.lshape, 0)
 
         # contiguous output buffer
         output = ht.zeros(output_shape, dtype=ht.int64)
-        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output, 0)
+        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output.lshape, 0)
 
         # ensure prior invariants
         self.assertFalse(data._tensor__array.is_contiguous())
@@ -1017,12 +1017,12 @@ class TestCommunication(unittest.TestCase):
 
         # contiguous data buffer
         data = ht.array([[ht.MPI_WORLD.rank] * 10] * (ht.MPI_WORLD.size + 1))
-        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data, 0)
+        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data.lshape, 0)
 
         # non-contiguous output buffer
         output_shape = tuple(reversed(output_shape))
         output = ht.zeros(output_shape, dtype=ht.int64).T
-        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output, 0)
+        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output.lshape, 0)
 
         # ensure prior invariants
         self.assertTrue(data._tensor__array.is_contiguous())
@@ -1043,12 +1043,12 @@ class TestCommunication(unittest.TestCase):
 
         # non-contiguous data buffer
         data = ht.array([[ht.MPI_WORLD.rank] * (ht.MPI_WORLD.size + 1)] * 10).T
-        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data, 0)
+        send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data.lshape, 0)
 
         # non-contiguous output buffer
         output_shape = tuple(reversed(output_shape))
         output = ht.zeros(output_shape, dtype=ht.int64).T
-        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output, 0)
+        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output.lshape, 0)
 
         # ensure prior invariants
         self.assertFalse(data._tensor__array.is_contiguous())
