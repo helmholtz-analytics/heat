@@ -99,6 +99,52 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.log('hello world')
 
+    def test_log10(self):
+        elements = 15
+        comparison = torch.arange(1, elements, dtype=torch.float64).log10()
+
+        # logarithm of float32
+        float32_tensor = ht.arange(1, elements, dtype=ht.float32)
+        float32_log10 = ht.log10(float32_tensor)
+        self.assertIsInstance(float32_log10, ht.tensor)
+        self.assertEqual(float32_log10.dtype, ht.float32)
+        self.assertEqual(float32_log10.dtype, ht.float32)
+        in_range = (float32_log10._tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
+        self.assertTrue(in_range.all())
+
+        # logarithm of float64
+        float64_tensor = ht.arange(1, elements, dtype=ht.float64)
+        float64_log10 = ht.log10(float64_tensor)
+        self.assertIsInstance(float64_log10, ht.tensor)
+        self.assertEqual(float64_log10.dtype, ht.float64)
+        self.assertEqual(float64_log10.dtype, ht.float64)
+        in_range = (float64_log10._tensor__array - comparison) < FLOAT_EPSILON
+        self.assertTrue(in_range.all())
+
+        # logarithm of ints, automatic conversion to intermediate floats
+        int32_tensor = ht.arange(1, elements, dtype=ht.int32)
+        int32_log10 = ht.log10(int32_tensor)
+        self.assertIsInstance(int32_log10, ht.tensor)
+        self.assertEqual(int32_log10.dtype, ht.float64)
+        self.assertEqual(int32_log10.dtype, ht.float64)
+        in_range = (int32_log10._tensor__array - comparison) < FLOAT_EPSILON
+        self.assertTrue(in_range.all())
+
+        # logarithm of longs, automatic conversion to intermediate floats
+        int64_tensor = ht.arange(1, elements, dtype=ht.int64)
+        int64_log10 = ht.log10(int64_tensor)
+        self.assertIsInstance(int64_log10, ht.tensor)
+        self.assertEqual(int64_log10.dtype, ht.float64)
+        self.assertEqual(int64_log10.dtype, ht.float64)
+        in_range = (int64_log10._tensor__array - comparison) < FLOAT_EPSILON
+        self.assertTrue(in_range.all())
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.log10([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.log10('hello world')
+
     def test_sqrt(self):
         elements = 25
         comparison = torch.arange(elements, dtype=torch.float64).sqrt()
