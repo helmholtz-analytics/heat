@@ -10,6 +10,7 @@ from . import operations
 from . import io
 from . import constants
 from . import arithmetics
+from . import relations
 from . import trigonometrics
 from . import exponential
 from . import rounding
@@ -134,7 +135,7 @@ class tensor:
                  [5., 6.]])
 
          """
-        return operations.add(self, other)
+        return arithmetics.add(self, other)
 
 
     def all(self, axis=None, out=None):
@@ -362,7 +363,7 @@ class tensor:
                  [1.5, 2.0000]])
 
          """
-        return operations.div(self, other)
+        return arithmetics.div(self, other)
 
     def __eq__(self, other):
         """
@@ -392,7 +393,7 @@ class tensor:
         tensor([[0, 1],
                 [0, 0]])
         """
-        return operations.eq(self, other)
+        return relations.eq(self, other)
 
     def __ge__(self, other):
         """
@@ -424,7 +425,7 @@ class tensor:
 
         """
 
-        return operations.ge(self, other)
+        return relations.ge(self, other)
 
 
     if torch.cuda.device_count() > 0:
@@ -473,7 +474,7 @@ class tensor:
 
         """
 
-        return operations.gt(self, other)
+        return relations.gt(self, other)
 
 
     def max(self, axis=None, out=None):
@@ -495,7 +496,7 @@ class tensor:
         The minimum value of an output element. Must be present to allow computation on empty slice.
         """
 
-        return operations.max(self, axis, out)
+        return relations.max(self, axis, out)
 
     def mean(self, axis):
         # TODO: document me
@@ -522,7 +523,7 @@ class tensor:
         #TODO: initial : scalar, optional   
         The maximum value of an output element. Must be present to allow computation on empty slice.
         """
-        return operations.min(self, axis, out)
+        return relations.min(self, axis, out)
 
     def expand_dims(self, axis):
         # TODO: document me
@@ -633,7 +634,7 @@ class tensor:
                 [0, 0]], dtype=torch.uint8)
 
         """
-        return operations.le(self, other)
+        return relations.le(self, other)
 
     def log(self, out=None):
         """
@@ -691,7 +692,7 @@ class tensor:
                [0, 0]], dtype=torch.uint8)
 
        """
-        return operations.lt(self, other)
+        return relations.lt(self, other)
 
 
     def __mul__(self, other):
@@ -723,7 +724,7 @@ class tensor:
                 [6., 8.]])
 
          """
-        return operations.mul(self, other)
+        return arithmetics.mul(self, other)
 
     def __ne__(self, other):
         """
@@ -756,7 +757,7 @@ class tensor:
 
         """
 
-        return operations.ne(self, other)
+        return relations.ne(self, other)
 
 
     def __pow__(self, other):
@@ -791,7 +792,7 @@ class tensor:
 
          """
 
-        return operations.pow(self, other)
+        return arithmetics.pow(self, other)
 
 
 
@@ -956,7 +957,7 @@ class tensor:
                  [1., 2.]])
 
          """
-        return operations.sub(self, other)
+        return arithmetics.sub(self, other)
 
 
     def sum(self, axis=None, out=None):

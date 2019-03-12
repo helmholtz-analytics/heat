@@ -11,4 +11,5 @@ from .exponential import *
 from .trigonometrics import *
 from .rounding import *
 from .arithmetics import *
+from .relations import *
 from .constants import *
