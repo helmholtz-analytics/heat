@@ -28,6 +28,13 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(as_float64._tensor__array.dtype, torch.float64)
         self.assertIs(as_float64, data)
 
+    def test_is_distributed(self):
+        data = ht.zeros((5, 5,))
+        self.assertFalse(data.is_distributed())
+
+        data = ht.zeros((4, 4,), split=0)
+        self.assertTrue(data.comm.size > 1 and data.is_distributed() or not data.is_distributed())
+
 
 class TestTensorFactories(unittest.TestCase):
     def test_arange(self):

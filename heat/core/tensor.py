@@ -513,6 +513,17 @@ class tensor:
 
         return relations.gt(self, other)
 
+    def is_distributed(self):
+        """
+        Determines whether the data of this tensor is distributed across multiple processes.
+
+        Returns
+        -------
+        is_distributed : bool
+            Whether the data of the tensor is distributed across multiple processes
+        """
+        return self.split is not None and self.comm.is_distributed()
+
     def max(self, axis=None, out=None):
         """"
         Return the maximum of an array or maximum along an axis.
