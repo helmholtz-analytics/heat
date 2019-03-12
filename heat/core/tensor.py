@@ -5,21 +5,34 @@ import torch
 from .communication import Communication, MPI, MPI_WORLD
 from .stride_tricks import *
 from . import types
+from . import devices
 from . import operations
 from . import io
+from . import constants
+from . import arithmetics
+from . import relations
+from . import trigonometrics
+from . import exponential
+from . import rounding
+from . import reductions
 
 
 class tensor:
-    def __init__(self, array, gshape, dtype, split, comm):
+    def __init__(self, array, gshape, dtype, split, device, comm):
         self.__array = array
         self.__gshape = gshape
         self.__dtype = dtype
         self.__split = split
+        self.__device = device
         self.__comm = comm
 
     @property
     def comm(self):
         return self.__comm
+
+    @property
+    def device(self):
+        return self.__device
 
     @property
     def dtype(self):
@@ -44,6 +57,10 @@ class tensor:
     def split(self):
         return self.__split
 
+    @property
+    def T(self, axes=None):
+        return operations.transpose(self, axes)
+
     def abs(self, out=None, dtype=None):
         """
         Calculate the absolute value element-wise.
@@ -62,13 +79,13 @@ class tensor:
         absolute_values : ht.tensor
             A tensor containing the absolute value of each element in x.
         """
-        return operations.abs(self, out, dtype)
+        return rounding.abs(self, out, dtype)
 
     def absolute(self, out=None, dtype=None):
         """
         Calculate the absolute value element-wise.
 
-        np.abs is a shorthand for this function.
+        ht.abs is a shorthand for this function.
 
         Parameters
         ----------
@@ -83,9 +100,41 @@ class tensor:
         -------
         absolute_values : ht.tensor
             A tensor containing the absolute value of each element in x.
-        """
+
+    """
 
         return self.abs(out, dtype)
+
+    def __add__(self, other):
+        """
+         Element-wise addition of another tensor or a scalar to the tensor.
+         Takes the second operand (scalar or tensor) whose elements are to be added as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) to be added element-wise to the tensor
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor containing the results of element-wise addition.
+
+         Examples:
+         ---------
+         >>> import heat as ht
+         >>> T1 = ht.float32([[1, 2], [3, 4]])
+         >>> T1.__add__(2.0)
+         tensor([[3., 4.],
+                [5., 6.]])
+
+         >>> T2 = ht.float32([[2, 2], [2, 2]])
+         >>> T1.__add__(T2)
+         tensor([[3., 4.],
+                 [5., 6.]])
+
+         """
+        return arithmetics.add(self, other)
 
     def all(self, axis=None, out=None):
         """
@@ -212,7 +261,7 @@ class tensor:
         dtype = types.canonical_heat_type(dtype)
         casted_array = self.__array.type(dtype.torch_type())
         if copy:
-            return tensor(casted_array, self.shape, dtype, self.split, self.__comm)
+            return tensor(casted_array, self.shape, dtype, self.split, self.device, self.comm)
 
         self.__array = casted_array
         self.__dtype = dtype
@@ -252,6 +301,187 @@ class tensor:
         """
         return operations.copy(self)
 
+    def cos(self, out=None):
+        """
+        Return the trigonometric cosine, element-wise.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        cosine : ht.tensor
+            A tensor of the same shape as x, containing the trigonometric cosine of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+
+        Examples
+        --------
+        >>> ht.arange(-6, 7, 2).cos()
+        tensor([ 0.9602, -0.6536, -0.4161,  1.0000, -0.4161, -0.6536,  0.9602])
+        """
+        return trigonometrics.cos(self, out)
+
+    def cpu(self):
+        """
+        Returns a copy of this object in main memory. If this object is already in main memory, then no copy is
+        performed and the original object is returned.
+
+        Returns
+        -------
+        tensor_on_device : ht.tensor
+            A copy of this object on the CPU.
+        """
+        self.__array = self.__array.cpu()
+        return self
+
+    def __truediv__(self, other):
+        """
+         Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
+         of the tensor by another tensor or scalar. Takes the second operand (scalar or tensor) by which to divide
+         as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) by which to divide the tensor (element-wise)
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor containing the results of element-wise division.
+
+         Examples:
+         ---------
+         >>> import heat as ht
+         >>> ht.div(2.0, 2.0)
+         tensor([1.])
+
+         >>> T1 = ht.float32([[1, 2],[3, 4]])
+         >>> T2 = ht.float32([[2, 2], [2, 2]])
+         >>> T1.__div__(T2)
+         tensor([[0.5000, 1.0000],
+                 [1.5000, 2.0000]])
+
+         >>> s = 2.0
+         >>> T1.__div__(s)
+         tensor([[0.5000, 1.0000],
+                 [1.5, 2.0000]])
+
+         """
+        return arithmetics.div(self, other)
+
+    def __eq__(self, other):
+        """
+        Element-wise rich comparison of equality with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare equality
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding 1 for all elements in which values of self are equal to values of other,
+        0 for all other elements
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2],[3, 4]])
+        >>> T1.__eq__(3.0)
+        tensor([[0, 0],
+                [1, 0]])
+
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__eq__(T2)
+        tensor([[0, 1],
+                [0, 0]])
+        """
+        return relations.eq(self, other)
+
+    def __ge__(self, other):
+        """
+        Element-wise rich comparison of relation "greater than or equal" with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare elements from tensor
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding 1 for all elements in which values in self are greater than or equal to values of other (x1 >= x2),
+        0 for all other elements
+
+        Examples
+        -------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2],[3, 4]])
+        >>> T1.__ge__(3.0)
+        tensor([[0, 0],
+                [1, 1]], dtype=torch.uint8)
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__ge__(T2)
+        tensor([[0, 1],
+                [1, 1]], dtype=torch.uint8)
+
+        """
+
+        return relations.ge(self, other)
+
+    if torch.cuda.device_count() > 0:
+        def gpu(self):
+            """
+            Returns a copy of this object in GPU memory. If this object is already in GPU memory, then no copy is performed
+            and the original object is returned.
+
+            Returns
+            -------
+            tensor_on_device : ht.tensor
+                A copy of this object on the GPU.
+            """
+            self.__array = self.__array.cuda(devices.gpu_index())
+            return self
+
+    def __gt__(self, other):
+        """
+        Element-wise rich comparison of relation "greater than" with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare elements from tensor
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding 1 for all elements in which values in self are greater than values of other (x1 > x2),
+        0 for all other elements
+
+         Examples
+         -------
+         >>> import heat as ht
+         >>> T1 = ht.float32([[1, 2],[3, 4]])
+         >>> T1.__gt__(3.0)
+         tensor([[0, 0],
+                 [0, 1]], dtype=torch.uint8)
+
+         >>> T2 = ht.float32([[2, 2], [2, 2]])
+         >>> T1.__gt__(T2)
+         tensor([[0, 0],
+                [1, 1]], dtype=torch.uint8)
+
+        """
+
+        return relations.gt(self, other)
+
     def max(self, axis=None, out=None):
         """"
         Return the maximum of an array or maximum along an axis.
@@ -271,7 +501,7 @@ class tensor:
         The minimum value of an output element. Must be present to allow computation on empty slice.
         """
 
-        return operations.max(self, axis, out)
+        return relations.max(self, axis, out)
 
     def mean(self, axis):
         # TODO: document me
@@ -298,8 +528,7 @@ class tensor:
         #TODO: initial : scalar, optional   
         The maximum value of an output element. Must be present to allow computation on empty slice.
         """
-
-        return operations.min(self, axis, out)
+        return relations.min(self, axis, out)
 
     def expand_dims(self, axis):
         # TODO: document me
@@ -336,7 +565,7 @@ class tensor:
         >>> ht.arange(5).exp()
         tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
         """
-        return operations.exp(self, out)
+        return exponential.exp(self, out)
 
     def expand_dims(self, axis):
         # TODO: document me
@@ -349,14 +578,16 @@ class tensor:
             self.shape[:axis] + (1,) + self.shape[axis:],
             self.dtype,
             self.split if self.split is None or self.split < axis else self.split + 1,
-            self.__comm
+            self.device,
+            self.comm
         )
 
     def floor(self, out=None):
         r"""
         Return the floor of the input, element-wise.
 
-        The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as :math:`\lfloor x \rfloor`.
+        The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as :math:`\lfloor x
+        \rfloor`.
 
         Parameters
         ----------
@@ -375,7 +606,39 @@ class tensor:
         >>> ht.floor(ht.arange(-2.0, 2.0, 0.4))
         tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
         """
-        return operations.floor(self, out)
+        return rounding.floor(self, out)
+
+    def __le__(self, other):
+        """
+        Element-wise rich comparison of relation "less than or equal" with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare elements from tensor
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding 1 for all elements in which values in self are less than or equal to values of other (x1 <= x2),
+        0 for all other elements
+
+        Examples
+        -------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2],[3, 4]])
+        >>> T1.__le__(3.0)
+        tensor([[1, 1],
+                [1, 0]], dtype=torch.uint8)
+
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__le__(T2)
+        tensor([[1, 1],
+                [0, 0]], dtype=torch.uint8)
+
+        """
+        return relations.le(self, other)
 
     def log(self, out=None):
         """
@@ -401,7 +664,137 @@ class tensor:
         >>> ht.arange(5).log()
         tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
         """
-        return operations.log(self, out)
+        return exponential.log(self, out)
+
+    def __lt__(self, other):
+        """
+        Element-wise rich comparison of relation "less than" with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare elements from tensor
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding 1 for all elements in which values in self are less than values of other (x1 < x2),
+        0 for all other elements
+
+        Examples
+       -------
+       >>> import heat as ht
+       >>> T1 = ht.float32([[1, 2],[3, 4]])
+       >>> T1.__lt__(3.0)
+       tensor([[1, 1],
+               [0, 0]], dtype=torch.uint8)
+
+       >>> T2 = ht.float32([[2, 2], [2, 2]])
+       >>> T1.__lt__(T2)
+       tensor([[1, 0],
+               [0, 0]], dtype=torch.uint8)
+
+       """
+        return relations.lt(self, other)
+
+    def __mul__(self, other):
+        """
+         Element-wise multiplication (not matrix multiplication) with values from second operand (scalar or tensor)
+         Takes the second operand (scalar or tensor) whose values to multiply to the first tensor as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) to multiply to the tensor (element-wise)
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor containing the results of element-wise multiplication.
+
+         Examples:
+         ---------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2], [3, 4]])
+        >>> T1.__mul__(3.0)
+        tensor([[3., 6.],
+                [9., 12.]])
+
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__mul__(T2)
+        tensor([[2., 4.],
+                [6., 8.]])
+
+         """
+        return arithmetics.mul(self, other)
+
+    def __ne__(self, other):
+        """
+        Element-wise rich comparison of non-equality with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        The value(s) to which to compare equality
+
+        Returns
+        -------
+        result: ht.tensor
+        Tensor holding 1 for all elements in which values of self are equal to values of other,
+        0 for all other elements
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2],[3, 4]])
+        >>> T1.__ne__(3.0)
+        tensor([[1, 1],
+                [0, 1]])
+
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__ne__(T2)
+        tensor([[1, 0],
+                [1, 1]])
+
+        """
+
+        return relations.ne(self, other)
+
+    def __pow__(self, other):
+        """
+         Element-wise exponential function with values from second operand (scalar or tensor)
+         Takes the second operand (scalar or tensor) whose values are the exponent to be applied to the first
+         tensor as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) in the exponent (element-wise)
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor containing the results of element-wise exponential operation.
+
+         Examples:
+         ---------
+         >>> import heat as ht
+
+         >>> T1 = ht.float32([[1, 2], [3, 4]])
+         >>> T1.__pow__(3.0)
+         tensor([[1., 8.],
+                 [27., 64.]])
+
+         >>> T2 = ht.float32([[3, 3], [2, 2]])
+         >>> T1.__pow__(T2)
+         tensor([[1., 8.],
+                 [9., 16.]])
+
+         """
+
+        return arithmetics.pow(self, other)
 
     def save(self, path, *args, **kwargs):
         """
@@ -508,7 +901,7 @@ class tensor:
         >>> ht.arange(-6, 7, 2).sin()
         tensor([ 0.2794,  0.7568, -0.9093,  0.0000,  0.9093, -0.7568, -0.2794])
         """
-        return operations.sin(self, out)
+        return trigonometrics.sin(self, out)
 
     def sqrt(self, out=None):
         """
@@ -533,7 +926,38 @@ class tensor:
         >>> ht.arange(-5, 0).sqrt()
         tensor([nan, nan, nan, nan, nan])
         """
-        return operations.sqrt(self, out)
+        return exponential.sqrt(self, out)
+
+    def __sub__(self, other):
+        """
+         Element-wise subtraction of another tensor or a scalar from the tensor.
+         Takes the second operand (scalar or tensor) whose elements are to be subtracted  as argument.
+
+         Parameters
+         ----------
+         other: tensor or scalar
+         The value(s) to be subtracted element-wise from the tensor
+
+         Returns
+         -------
+         result: ht.tensor
+         A tensor containing the results of element-wise subtraction.
+
+         Examples:
+         ---------
+         >>> import heat as ht
+         >>> T1 = ht.float32([[1, 2], [3, 4]])
+         >>> T1.__sub__(2.0)
+         tensor([[ 1.,  0.],
+                 [-1., -2.]])
+
+         >>> T2 = ht.float32([[2, 2], [2, 2]])
+         >>> T1.__sub__(T2)
+         tensor([[-1., 0.],
+                 [1., 2.]])
+
+         """
+        return arithmetics.sub(self, other)
 
     def sum(self, axis=None, out=None):
         # TODO: Allow also list of axes
@@ -568,7 +992,43 @@ class tensor:
         tensor([[[3.],
                  [3.]]])
         """
-        return operations.sum(self, axis, out)
+        return reductions.sum(self, axis, out)
+
+    def transpose(self, axes=None):
+        """
+        Permute the dimensions of an array.
+
+        Parameters
+        ----------
+        axes : None or list of ints, optional
+            By default, reverse the dimensions, otherwise permute the axes according to the values given.
+
+        Returns
+        -------
+        p : ht.tensor
+            a with its axes permuted.
+
+        Examples
+        --------
+        >>> a = ht.array([[1, 2], [3, 4]])
+        >>> a
+        tensor([[1, 2],
+                [3, 4]])
+        >>> a.transpose()
+        tensor([[1, 3],
+                [2, 4]])
+        >>> a.transpose((1, 0))
+        tensor([[1, 3],
+                [2, 4]])
+        >>> a.transpose(1, 0)
+        tensor([[1, 3],
+                [2, 4]])
+
+        >>> x = ht.ones((1, 2, 3))
+        >>> ht.transpose(x, (1, 0, 2)).shape
+        (2, 1, 3)
+        """
+        return operations.transpose(self, axes)
 
     def tril(self, k=0):
         """
@@ -614,63 +1074,6 @@ class tensor:
         """
         return operations.triu(self, k)
 
-    def __binop(self, op, other):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: ... including the actual binops
-        if np.isscalar(other):
-            return tensor(op(self.__array, other), self.shape, self.dtype, self.split, self.__comm)
-
-        elif isinstance(other, tensor):
-            output_shape = broadcast_shape(self.shape, other.shape)
-
-            # TODO: implement complex NUMPY rules
-            if other.dtype != self.dtype:
-                other = other.astype(self.dtype)
-
-            if other.split is None or other.split == self.split:
-                return tensor(op(self.__array, other.__array), output_shape, self.dtype, self.split, self.__comm)
-            else:
-                raise NotImplementedError(
-                    'Not implemented for other splittings')
-        else:
-            raise NotImplementedError('Not implemented for non scalar')
-
-    def __add__(self, other):
-        return self.__binop(operator.add, other)
-
-    def __sub__(self, other):
-        return self.__binop(operator.sub, other)
-
-    def __truediv__(self, other):
-        return self.__binop(operator.truediv, other)
-
-    def __mul__(self, other):
-        return self.__binop(operator.mul, other)
-
-    def __pow__(self, other):
-        return self.__binop(operator.pow, other)
-
-    def __eq__(self, other):
-        return self.__binop(operator.eq, other)
-
-    def __ne__(self, other):
-        return self.__binop(operator.ne, other)
-
-    def __lt__(self, other):
-        return self.__binop(operator.lt, other)
-
-    def __le__(self, other):
-        return self.__binop(operator.le, other)
-
-    def __gt__(self, other):
-        return self.__binop(operator.gt, other)
-
-    def __ge__(self, other):
-        return self.__binop(operator.ge, other)
-
     def __str__(self, *args):
         # TODO: document me
         # TODO: generate none-PyTorch str
@@ -686,7 +1089,7 @@ class tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        return tensor(self.__array[key], self.shape, self.split, self.__comm)
+        return tensor(self.__array[key], self.shape, self.split, self.device, self.comm)
 
     def __setitem__(self, key, value):
         # TODO: document me
@@ -706,7 +1109,7 @@ class tensor:
                 'Not implemented for {}'.format(value.__class__.__name__))
 
 
-def __factory(shape, dtype, split, local_factory, comm):
+def __factory(shape, dtype, split, local_factory, device, comm):
     """
     Abstracted factory function for HeAT tensor initialization.
 
@@ -720,6 +1123,8 @@ def __factory(shape, dtype, split, local_factory, comm):
         The axis along which the array is split and distributed.
     local_factory : function
         Function that creates the local PyTorch tensor for the HeAT tensor.
+    device : str or None
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
@@ -732,14 +1137,18 @@ def __factory(shape, dtype, split, local_factory, comm):
     shape = sanitize_shape(shape)
     dtype = types.canonical_heat_type(dtype)
     split = sanitize_axis(shape, split)
+    device = devices.sanitize_device(device)
 
     # chunk the shape if necessary
     _, local_shape, _ = comm.chunk(shape, split)
+    # create the torch data using the factory function
+    data = local_factory(
+        local_shape, dtype=dtype.torch_type(), device=device.torch_device)
 
-    return tensor(local_factory(local_shape, dtype=dtype.torch_type()), shape, dtype, split, comm)
+    return tensor(data, shape, dtype, split, device, comm)
 
 
-def __factory_like(a, dtype, split, factory, comm):
+def __factory_like(a, dtype, split, factory, device, comm):
     """
     Abstracted '...-like' factory function for HeAT tensor initialization
 
@@ -753,6 +1162,8 @@ def __factory_like(a, dtype, split, factory, comm):
         The axis along which the array is split and distributed, defaults to None (no distribution).
     factory : function
         Function that creates a HeAT tensor.
+    device : str or None
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
@@ -786,41 +1197,36 @@ def __factory_like(a, dtype, split, factory, comm):
             # do not split at all
             pass
 
-    return factory(shape, dtype, split, comm)
+    return factory(shape, dtype, split, device, comm)
 
 
-def arange(*args, dtype=None, split=None, comm=MPI_WORLD):
+def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
     """
     Return evenly spaced values within a given interval.
 
-    Values are generated within the half-open interval ``[start, stop)``
-    (in other words, the interval including `start` but excluding `stop`).
-    For integer arguments the function is equivalent to the Python built-in
-    `range <http://docs.python.org/lib/built-in-funcs.html>`_ function,
-    but returns a tensor rather than a list.
+    Values are generated within the half-open interval ``[start, stop)`` (in other words, the interval including `start`
+    but excluding `stop`). For integer arguments the function is equivalent to the Python built-in `range
+    <http://docs.python.org/lib/built-in-funcs.html>`_ function, but returns a tensor rather than a list.
 
-    When using a non-integer step, such as 0.1, the results will often not
-    be consistent.  It is better to use ``linspace`` for these cases.
+    When using a non-integer step, such as 0.1, the results will often not be consistent. It is better to use
+    ``linspace`` for these cases.
 
     Parameters
     ----------
     start : number, optional
-        Start of interval.  The interval includes this value.  The default
-        start value is 0.
+        Start of interval.  The interval includes this value.  The default start value is 0.
     stop : number
-        End of interval.  The interval does not include this value, except
-        in some cases where `step` is not an integer and floating point
-        round-off affects the length of `out`.
+        End of interval.  The interval does not include this value, except in some cases where `step` is not an integer
+        and floating point round-off affects the length of `out`.
     step : number, optional
-        Spacing between values.  For any output `out`, this is the distance
-        between two adjacent values, ``out[i+1] - out[i]``.  The default
-        step size is 1.  If `step` is specified as a position argument,
-        `start` must also be given.
+        Spacing between values.  For any output `out`, this is the distance between two adjacent values, ``out[i+1] -
+        out[i]``. The default step size is 1. If `step` is specified as a position argument, `start` must also be given.
     dtype : dtype
-        The type of the output array.  If `dtype` is not given, infer the data
-        type from the other input arguments.
+        The type of the output array.  If `dtype` is not given, infer the data type from the other input arguments.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
@@ -829,10 +1235,8 @@ def arange(*args, dtype=None, split=None, comm=MPI_WORLD):
     arange : 1D heat tensor
         1D heat tensor of evenly spaced values.
 
-        For floating point arguments, the length of the result is
-        ``ceil((stop - start)/step)``.  Because of floating point overflow,
-        this rule may result in the last element of `out` being greater
-        than `stop`.
+        For floating point arguments, the length of the result is ``ceil((stop - start)/step)``. Because of floating
+        point overflow, this rule may result in the last element of `out` being greater than `stop`.
 
     See Also
     --------
@@ -844,9 +1248,9 @@ def arange(*args, dtype=None, split=None, comm=MPI_WORLD):
     tensor([0, 1, 2])
     >>> ht.arange(3.0)
     tensor([ 0.,  1.,  2.])
-    >>> ht.arange(3,7)
+    >>> ht.arange(3, 7)
     tensor([3, 4, 5, 6])
-    >>> ht.arange(3,7,2)
+    >>> ht.arange(3, 7, 2)
     tensor([3, 5])
     """
     num_of_param = len(args)
@@ -888,13 +1292,17 @@ def arange(*args, dtype=None, split=None, comm=MPI_WORLD):
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step
-    data = torch.arange(start, stop, step,
-                        dtype=types.canonical_heat_type(dtype).torch_type())
+    device = devices.sanitize_device(device)
+    data = torch.arange(
+        start, stop, step,
+        dtype=types.canonical_heat_type(dtype).torch_type(),
+        device=device.torch_device
+    )
 
-    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, comm)
+    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
 
 
-def array(obj, dtype=None, copy=True, ndmin=0, split=None, comm=MPI_WORLD):
+def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI_WORLD):
     """
     Create a tensor.
 
@@ -916,6 +1324,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, comm=MPI_WORLD):
     split : None or int, optional
         The axis along which the array is split and distributed in memory. If not None (default) the shape of the global
         tensor is automatically inferred.
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed tensor chunks.
 
@@ -1027,10 +1437,10 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, comm=MPI_WORLD):
                 'unable to construct tensor, shape of local data chunk does not match')
         gshape[split] = reduction_buffer
 
-    return tensor(obj, tuple(gshape), dtype, split, comm)
+    return tensor(obj, tuple(gshape), dtype, split, device, comm)
 
 
-def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None, comm=MPI_WORLD):
+def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None, device=None, comm=MPI_WORLD):
     """
     Returns num evenly spaced samples, calculated over the interval [start, stop]. The endpoint of the interval can
     optionally be excluded.
@@ -1053,6 +1463,8 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
         The type of the output array.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
@@ -1066,11 +1478,11 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
 
     Examples
     --------
-    >>> np.linspace(2.0, 3.0, num=5)
+    >>> ht.linspace(2.0, 3.0, num=5)
     tensor([ 2.  ,  2.25,  2.5 ,  2.75,  3.  ])
-    >>> np.linspace(2.0, 3.0, num=5, endpoint=False)
+    >>> ht.linspace(2.0, 3.0, num=5, endpoint=False)
     tensor([ 2. ,  2.2,  2.4,  2.6,  2.8])
-    >>> np.linspace(2.0, 3.0, num=5, retstep=True)
+    >>> ht.linspace(2.0, 3.0, num=5, retstep=True)
     (array([ 2.  ,  2.25,  2.5 ,  2.75,  3.  ]), 0.25)
     """
     # sanitize input parameters
@@ -1090,20 +1502,21 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step - step
-    data = torch.linspace(start, stop, lshape[0])
+    device = devices.sanitize_device(device)
+    data = torch.linspace(start, stop, lshape[0], device=device.torch_device)
     if dtype is not None:
         data = data.type(types.canonical_heat_type(dtype).torch_type())
 
     # construct the resulting global tensor
-    ht_tensor = tensor(
-        data, gshape, types.canonical_heat_type(data.dtype), split, comm)
+    ht_tensor = tensor(data, gshape, types.canonical_heat_type(
+        data.dtype), split, device, comm)
 
     if retstep:
         return ht_tensor, step
     return ht_tensor
 
 
-def ones(shape, dtype=types.float32, split=None, comm=MPI_WORLD):
+def ones(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
     """
     Returns a new array of given shape and data type filled with one values. May be allocated split up across multiple
     nodes along the specified axis.
@@ -1114,9 +1527,11 @@ def ones(shape, dtype=types.float32, split=None, comm=MPI_WORLD):
         Desired shape of the output array, e.g. 1 or (1, 2, 3,).
     dtype : ht.dtype
         The desired HeAT data type for the array, defaults to ht.float32.
-    split: int, optional
+    split : int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
-    comm: Communication, optional
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm : Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
@@ -1136,10 +1551,10 @@ def ones(shape, dtype=types.float32, split=None, comm=MPI_WORLD):
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
     """
-    return __factory(shape, dtype, split, torch.ones, comm)
+    return __factory(shape, dtype, split, torch.ones, device, comm)
 
 
-def ones_like(a, dtype=None, split=None, comm=MPI_WORLD):
+def ones_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
     """
     Returns a new array filled with ones with the same type, shape and data distribution of given object. Data type and
     data distribution strategy can be explicitly overriden.
@@ -1152,6 +1567,8 @@ def ones_like(a, dtype=None, split=None, comm=MPI_WORLD):
         Overrides the data type of the result.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
@@ -1171,10 +1588,10 @@ def ones_like(a, dtype=None, split=None, comm=MPI_WORLD):
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
     """
-    return __factory_like(a, dtype, split, ones, comm)
+    return __factory_like(a, dtype, split, ones, device, comm)
 
 
-def zeros(shape, dtype=types.float32, split=None, comm=MPI_WORLD):
+def zeros(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
     """
     Returns a new array of given shape and data type filled with zero values. May be allocated split up across multiple
     nodes along the specified axis.
@@ -1187,6 +1604,8 @@ def zeros(shape, dtype=types.float32, split=None, comm=MPI_WORLD):
         The desired HeAT data type for the array, defaults to ht.float32.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
@@ -1207,10 +1626,10 @@ def zeros(shape, dtype=types.float32, split=None, comm=MPI_WORLD):
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
     """
-    return __factory(shape, dtype, split, torch.zeros, comm)
+    return __factory(shape, dtype, split, torch.zeros, device, comm)
 
 
-def zeros_like(a, dtype=None, split=None, comm=MPI_WORLD):
+def zeros_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
     """
     Returns a new array filled with zeros with the same type, shape and data distribution of given object. Data type and
     data distribution strategy can be explicitly overriden.
@@ -1223,6 +1642,10 @@ def zeros_like(a, dtype=None, split=None, comm=MPI_WORLD):
         Overrides the data type of the result.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
     -------
@@ -1240,4 +1663,4 @@ def zeros_like(a, dtype=None, split=None, comm=MPI_WORLD):
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
     """
-    return __factory_like(a, dtype, split, zeros, comm)
+    return __factory_like(a, dtype, split, zeros, device, comm)

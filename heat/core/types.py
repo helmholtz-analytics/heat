@@ -25,6 +25,7 @@ import collections
 import numpy as np
 import torch
 
+from . import devices
 from .communication import MPI_WORLD
 
 
@@ -60,7 +61,7 @@ __all__ = [
 
 class generic(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def __new__(cls, *value, comm=MPI_WORLD):
+    def __new__(cls, *value, device=None, comm=MPI_WORLD):
         try:
             torch_type = cls.torch_type()
         except TypeError:
@@ -82,7 +83,10 @@ class generic(metaclass=abc.ABCMeta):
             # re-raise the exception to be consistent with numpy's exception interface
             raise ValueError(str(exception))
 
-        return tensor.tensor(array, tuple(array.shape), cls, split=None, comm=comm)
+        # sanitize the input device type
+        device = devices.sanitize_device(device)
+
+        return tensor.tensor(array, tuple(array.shape), cls, split=None, device=device, comm=comm)
 
     @classmethod
     @abc.abstractclassmethod
@@ -210,6 +214,18 @@ long = int64
 float = float32
 float_ = float32
 double = float64
+
+_inexact = (
+    # float16,
+    float32,
+    float64,)
+
+_exact = (
+    uint8,
+    int8,
+    int16,
+    int32,
+    int64,)
 
 # type mappings for type strings and builtins types
 __type_mappings = {
@@ -498,6 +514,116 @@ def promote_types(type1, type2):
     typecode_type2 = __type_codes[canonical_heat_type(type2)]
 
     return __type_promotions[typecode_type1][typecode_type2]
+
+class finfo:
+    """
+    finfo(dtype)
+
+    Class describing machine limits (bit representation) of floating point types.
+
+    Attributes
+    ----------
+    bits : int
+        The number of bits occupied by the type.
+    eps : float
+        The smallest representable positive number such that
+        ``1.0 + eps != 1.0``.  Type of `eps` is an appropriate floating
+        point type.
+    max : floating point number of the appropriate type
+        The largest representable number.
+    min : floating point number of the appropriate type
+        The smallest representable number, typically ``-max``.
+    tiny : float
+        The smallest positive usable number.  Type of `tiny` is an
+        appropriate floating point type.
+
+    Parameters
+    ----------
+    dtype : ht.dtype
+        Kind of floating point data-type about which to get information.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> info = ht.types.finfo(ht.float32)
+    >>> info.bits
+    32
+
+    >>> info.eps
+    1.1920928955078125e-07
+
+    """
+    def __new__(cls, dtype):
+        try:
+            dtype = heat_type_of(dtype)
+        except (KeyError, IndexError, TypeError,):
+            # If given type is not heat type
+            pass
+
+        if not dtype in _inexact:
+            raise TypeError('Data type {} not inexact, not supported'.format(dtype))
+
+        return super(finfo, cls).__new__(cls)._init(dtype)
+
+
+    def _init(self, dtype):
+        _torch_finfo = torch.finfo(dtype.torch_type())
+        for word in ['bits', 'eps', 'max', 'tiny']:
+            setattr(self, word, getattr(_torch_finfo, word))
+
+        self.min=-self.max
+
+        return self
+
+class iinfo:
+    """
+    iinfo(dtype)
+
+    Class describing machine limits (bit representation) of integer types.
+
+    Attributes
+    ----------
+    bits : int
+        The number of bits occupied by the type.
+    max : floating point number of the appropriate type
+        The largest representable number.
+    min : floating point number of the appropriate type
+        The smallest representable number, typically ``-max``.
+
+    Parameters
+    ----------
+    dtype : ht.dtype
+        Kind of floating point data-type about which to get information.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> info = ht.types.finfo(ht.int32)
+    >>> info.bits
+    32
+
+    """
+    def __new__(cls, dtype):
+        try:
+            dtype = heat_type_of(dtype)
+        except (KeyError, IndexError, TypeError,):
+            # If given type is not heat type
+            pass
+
+        if not dtype in _exact:
+            raise TypeError('Data type {} not inexact, not supported'.format(dtype))
+
+        return super(iinfo, cls).__new__(cls)._init(dtype)
+
+
+    def _init(self, dtype):
+        _torch_iinfo = torch.iinfo(dtype.torch_type())
+        for word in ['bits', 'max']:
+            setattr(self, word, getattr(_torch_iinfo, word))
+
+        self.min = -(self.max + 1)
+
+        return self
 
 
 # tensor is imported at the very end to break circular dependency

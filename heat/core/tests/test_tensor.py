@@ -166,8 +166,7 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(b.lshape, (2, 2,))
         self.assertEqual(b.gshape, (2, 2,))
         self.assertEqual(b.split, None)
-        self.assertTrue((b._tensor__array == torch.tensor(
-            tuple_data, dtype=torch.int8)).all())
+        self.assertTrue((b._tensor__array == torch.tensor(tuple_data, dtype=torch.int8)).all())
 
         # basic array function, unsplit data, no copy
         torch_tensor = torch.tensor([6, 5, 4, 3, 2, 1])
@@ -178,7 +177,7 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(c.gshape, (6,))
         self.assertEqual(c.split, None)
         self.assertIs(c._tensor__array, torch_tensor)
-        self.assertTrue((c._tensor__array == torch.tensor(torch_tensor)).all())
+        self.assertTrue((c._tensor__array == torch_tensor).all())
 
         # basic array function, unsplit data, additional dimensions
         vector_data = [4.0, 5.0, 6.0]
@@ -188,8 +187,7 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(d.lshape, (3, 1, 1))
         self.assertEqual(d.gshape, (3, 1, 1))
         self.assertEqual(d.split, None)
-        self.assertTrue((d._tensor__array == torch.tensor(
-            vector_data).reshape(-1, 1, 1)).all())
+        self.assertTrue((d._tensor__array == torch.tensor(vector_data).reshape(-1, 1, 1)).all())
 
         # distributed array function
         if ht.communication.MPI_WORLD.rank == 0:

@@ -189,3 +189,35 @@ class TestTypeConversion(unittest.TestCase):
             ht.promote_types(1, '?')
         with self.assertRaises(TypeError):
             ht.promote_types(ht.float32, 'hello world')
+
+class TestTypeConversion(unittest.TestCase):
+    def test_finfo(self):
+        info32 = ht.finfo(ht.float32)
+        self.assertEqual(info32.bits, 32)
+        self.assertEqual(info32.max, (2-2**-23)*2**127)
+        self.assertEqual(info32.min, -info32.max)
+        self.assertEqual(info32.eps, 2**-23)
+
+        with self.assertRaises(TypeError):
+            ht.finfo(1)
+
+        with self.assertRaises(TypeError):
+            ht.finfo(ht.int32)
+
+        with self.assertRaises(TypeError):
+            ht.finfo('float16')
+
+    def test_iinfo(self):
+        info32 = ht.iinfo(ht.int32)
+        self.assertEqual(info32.bits, 32)
+        self.assertEqual(info32.max, 2147483647)
+        self.assertEqual(info32.min, -2147483648)
+
+        with self.assertRaises(TypeError):
+            ht.iinfo(1.0)
+
+        with self.assertRaises(TypeError):
+            ht.iinfo(ht.float64)
+
+        with self.assertRaises(TypeError):
+            ht.iinfo('int16')
