@@ -13,6 +13,7 @@ from .operations import __reduce_op as reduce_op
 __all__ = [
     'exp',
     'log',
+    'log2',
     'sqrt'
 ]
 
@@ -70,6 +71,32 @@ def log(x, out=None):
     tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
     """
     return local_op(torch.log, x, out)
+
+
+def log2(x, out=None):
+    """
+    log base 2, element-wise.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        The value for which to compute the logarithm.
+    out : ht.tensor or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    logarithms : ht.tensor
+        A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
+        Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
+
+    Examples
+    --------
+    >>> ht.log2(ht.arange(5))
+    tensor([  -inf, 0.0000, 1.0000, 1.5850, 2.0000])
+    """
+    return local_op(torch.log2, x, out)
 
 
 def sqrt(x, out=None):
