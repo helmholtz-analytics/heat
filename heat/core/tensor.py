@@ -147,7 +147,6 @@ class tensor:
 
         return self.abs(out, dtype)
 
-
     def __add__(self, other):
         """
          Element-wise addition of another tensor or a scalar to the tensor.
@@ -178,7 +177,6 @@ class tensor:
 
          """
         return arithmetics.add(self, other)
-
 
     def all(self, axis=None, out=None):
         """
@@ -557,7 +555,6 @@ class tensor:
 
         return relations.gt(self, other)
 
-
     def max(self, axis=None, out=None):
         """"
         Return the maximum of an array or maximum along an axis.
@@ -809,6 +806,29 @@ class tensor:
         """
         return exponential.exp(self, out)
 
+    def exp2(self, out=None):
+        """
+        Calculate the exponential of all elements in the input array.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        exponentials : ht.tensor
+            A tensor of the same shape as x, containing the positive exponentials of each element in this tensor. If out
+            was provided, logarithms is a reference to it.
+
+        Examples
+        --------
+        >>> ht.exp2(ht.arange(5))
+        tensor([ 1.,  2.,  4.,  8., 16.], dtype=torch.float64)
+        """
+        return exponential.exp2(self, out)
+
     def expand_dims(self, axis):
         # TODO: document me
         # TODO: test me
@@ -908,6 +928,56 @@ class tensor:
         tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
         """
         return exponential.log(self, out)
+
+    def log2(self, out=None):
+        """
+        log base 2, element-wise.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            The value for which to compute the logarithm.
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        logarithms : ht.tensor
+            A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
+
+        Examples
+        --------
+        >>> ht.log2(ht.arange(5))
+        tensor([  -inf, 0.0000, 1.0000, 1.5850, 2.0000])
+        """
+        return exponential.log2(self, out)
+
+    def log10(self, out=None):
+        """
+        log base 10, element-wise.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            The value for which to compute the logarithm.
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        logarithms : ht.tensor
+            A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
+
+        Examples
+        --------
+        >>> ht.log10(ht.arange(5))
+        tensor([-inf, 0.0000, 1.0000, 1.5850, 2.0000])
+        """
+        return exponential.log10(self, out)
 
     def __lt__(self, other):
         """
