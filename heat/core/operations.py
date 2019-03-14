@@ -122,7 +122,8 @@ def argmin(x, axis=None, out=None):
     tensor([[2, 2, 1]])
 
     """
-    partial_op = torch.min if x.comm.is_distributed() else torch.argmin
+    partial_op = torch.min if (
+        x.split is not None and x.comm.is_distributed()) else torch.argmin
     inp = x
     if axis is None:
         # flatten tensor
