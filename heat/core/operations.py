@@ -153,7 +153,7 @@ def allclose(x, y, rtol = 1e-05, atol = 1e-08, equal_nan = False):
 
     # perform local allclose
     # no sanitization for shapes of x and y needed, torch.allclose raises relevant errors
-    _local_allclose = torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
+    _local_allclose = (torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan), )
     _result = _local_allclose
 
     if x.comm.is_distributed():
@@ -166,7 +166,7 @@ def allclose(x, y, rtol = 1e-05, atol = 1e-08, equal_nan = False):
 
         else:
             #neither x nor y distributed: Return result from local operation
-            pass
+            return _result[0]
 
     return _result
 
