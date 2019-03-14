@@ -24,5 +24,13 @@ e = Euler = E
 
 
 __all__ = [
-
+    'e',
+    'Euler',
+    'inf',
+    'Inf',
+    'Infty',
+    'Infinity',
+    'nan',
+    'NaN',
+    'pi',
 ]
