@@ -3,6 +3,7 @@ import torch
 import warnings
 
 from .communication import MPI, MPI_WORLD
+from . import devices
 from . import types
 
 __VALID_WRITE_MODES = frozenset(['w', 'a', 'r+'])
@@ -36,7 +37,7 @@ else:
         return True
 
 
-    def load_hdf5(path, dataset, dtype=types.float32, split=None, comm=MPI_WORLD):
+    def load_hdf5(path, dataset, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
         """
         Loads data from an HDF5 file. The data may be distributed among multiple processing nodes via the split flag.
 
@@ -50,8 +51,10 @@ else:
             Data type of the resulting array; default: ht.float32.
         split : int, optional
             The axis along which the data is distributed among the processing cores.
-        group : mpi.group
-            The communicator group to use for the data distribution
+        device : None or str, optional
+            The device id on which to place the data, defaults to globally set default device.
+        comm : ht.Communication, optional
+            The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
 
         Returns
         -------
@@ -85,14 +88,17 @@ else:
 
         # infer the type and communicator for the loaded array
         dtype = types.canonical_heat_type(dtype)
+        # determine the device the data will be placed on
+        device = devices.sanitize_device(device)
 
         # actually load the data from the HDF5 file
         with h5py.File(path, 'r') as handle:
             data = handle[dataset]
             gshape = tuple(data.shape)
             _, _, indices = comm.chunk(gshape, split)
+            data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
 
-            return tensor.tensor(torch.tensor(data[indices], dtype=dtype.torch_type()), gshape, dtype, split, comm)
+            return tensor.tensor(data, gshape, dtype, split, device, comm)
 
 
     def save_hdf5(data, path, dataset, mode='w', **kwargs):
@@ -143,16 +149,16 @@ else:
         if h5py.get_config().mpi:
             with h5py.File(path, mode, driver='mpio', comm=data.comm.handle) as handle:
                 dset = handle.create_dataset(dataset, data.shape, **kwargs)
-                dset[slices] = data._tensor__array if is_split else data._tensor__array[slices]
+                dset[slices] = data._tensor__array.cpu() if is_split else data._tensor__array[slices].cpu()
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
             with h5py.File(path, mode) as handle:
                 dset = handle.create_dataset(dataset, data.shape, **kwargs)
                 if is_split:
-                    dset[slices] = data._tensor__array
+                    dset[slices] = data._tensor__array.cpu()
                 else:
-                    dset[...] = data._tensor__array
+                    dset[...] = data._tensor__array.cpu()
 
             # ping next rank if it exists
             if is_split and data.comm.size > 1:
@@ -164,7 +170,7 @@ else:
             # wait for the previous rank to finish writing its chunk, then write own part
             data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
             with h5py.File(path, 'r+') as handle:
-                handle[dataset][slices] = data._tensor__array
+                handle[dataset][slices] = data._tensor__array.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
             next_rank = (data.comm.rank + 1) % data.comm.size
@@ -189,7 +195,7 @@ else:
     def supports_netcdf():
         return True
 
-    def load_netcdf(path, variable, dtype=types.float32, split=None, comm=MPI_WORLD):
+    def load_netcdf(path, variable, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
         """
         Loads data from a NetCDF4 file. The data may be distributed among multiple processing nodes via the split flag.
 
@@ -205,6 +211,8 @@ else:
             The axis along which the data is distributed among the processing cores.
         comm : ht.Communication, optional
             The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
+        device : None or str, optional
+            The device id on which to place the data, defaults to globally set default device.
 
         Returns
         -------
@@ -238,14 +246,17 @@ else:
 
         # infer the canonical heat datatype
         dtype = types.canonical_heat_type(dtype)
+        # determine the device the data will be placed on
+        device = devices.sanitize_device(device)
 
         # actually load the data
         with nc.Dataset(path, 'r', parallel=nc.__has_nc_par__, comm=comm.handle) as handle:
             data = handle[variable][:]
             gshape = tuple(data.shape)
             _, _, indices = comm.chunk(gshape, split)
+            data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
 
-            return tensor.tensor(torch.tensor(data[indices], dtype=dtype.torch_type()), gshape, dtype, split, comm)
+            return tensor.tensor(data, gshape, dtype, split, device, comm)
 
 
     def save_netcdf(data, path, variable, mode='w', **kwargs):
@@ -302,7 +313,7 @@ else:
                     dimension_names.append(name)
 
                 var = handle.createVariable(variable, data.dtype.char(), dimension_names, **kwargs)
-                var[slices] = data._tensor__array if is_split else data._tensor__array[slices]
+                var[slices] = data._tensor__array.cpu() if is_split else data._tensor__array[slices].cpu()
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
@@ -315,9 +326,9 @@ else:
 
                 var = handle.createVariable(variable, data.dtype.char(), tuple(dimension_names), **kwargs)
                 if is_split:
-                    var[slices] = data._tensor__array
+                    var[slices] = data._tensor__array.cpu()
                 else:
-                    var[:] = data._tensor__array
+                    var[:] = data._tensor__array.cpu()
 
             # ping next rank if it exists
             if is_split and data.comm.size > 1:
@@ -329,7 +340,7 @@ else:
             # wait for the previous rank to finish writing its chunk, then write own part
             data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
             with nc.Dataset(path, 'r+') as handle:
-                handle[variable][slices] = data._tensor__array
+                handle[variable][slices] = data._tensor__array.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
             next_rank = (data.comm.rank + 1) % data.comm.size
