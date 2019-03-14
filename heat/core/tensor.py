@@ -1104,6 +1104,32 @@ class tensor:
         """
         return reductions.sum(self, axis, out)
 
+    def tan(self, out=None):
+        """
+        Compute tangent element-wise.
+
+        Equivalent to ht.sin(x) / ht.cos(x) element-wise.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            The value for which to compute the trigonometric tangent.
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        tangent : ht.tensor
+            A tensor of the same shape as x, containing the trigonometric tangent of each element in this tensor.
+
+        Examples
+        --------
+        >>> ht.arange(-6, 7, 2).tan()
+        tensor([ 0.29100619, -1.15782128,  2.18503986,  0., -2.18503986, 1.15782128, -0.29100619])
+        """
+        return trigonometrics.tan(self, out)
+
     def transpose(self, axes=None):
         """
         Permute the dimensions of an array.
