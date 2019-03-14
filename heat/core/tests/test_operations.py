@@ -143,6 +143,18 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.ones(array_len).all(axis='bad_axis_type')
 
+    def test_allclose(self):
+        a = ht.float32([[2, 2], [2, 2]])
+        b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]])
+
+        self.assertFalse(ht.allclose(a, b))
+        self.assertTrue(ht.allclose(a, b, atol = 1e-04))
+        self.assertTrue(ht.allclose(a,b, rtol = 1e-04))
+
+        with self.assertRaises(TypeError):
+            ht.allclose(a, (2,2,2,2))
+
+
     def test_argmin(self):
         data = ht.float32([
             [1, 2, 3],
