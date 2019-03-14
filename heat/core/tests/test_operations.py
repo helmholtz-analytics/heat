@@ -150,9 +150,13 @@ class TestOperations(unittest.TestCase):
         self.assertFalse(ht.allclose(a, b))
         self.assertTrue(ht.allclose(a, b, atol = 1e-04))
         self.assertTrue(ht.allclose(a,b, rtol = 1e-04))
+        self.assertTrue(ht.allclose(a, 2))
+        self.assertTrue(ht.allclose(a, 2.0))
 
         with self.assertRaises(TypeError):
             ht.allclose(a, (2,2,2,2))
+        with self.assertRaises(TypeError):
+            ht.allclose(a, '?')
 
 
     def test_argmin(self):

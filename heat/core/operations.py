@@ -123,11 +123,29 @@ def allclose(x, y, rtol = 1e-05, atol = 1e-08, equal_nan = False):
 
     """
 
-    if not isinstance(x, tensor.tensor):
-        raise TypeError('Expected x to be a ht.tensor, but was {}'.format(type(x)))
+    if isinstance(x, tensor.tensor):
+        pass
 
-    if not isinstance(y, tensor.tensor):
-        raise TypeError('Expected y to be a ht.tensor, but was {}'.format(type(y)))
+    elif np.isscalar(x):
+        try:
+            x = tensor.array([float(x)])
+        except (ValueError, TypeError,):
+            raise TypeError('Data type not supported, input was {}'.format(type(x)))
+
+    else:
+        raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(x)))
+
+    if isinstance(y, tensor.tensor):
+        pass
+
+    elif np.isscalar(y):
+        try:
+            y = tensor.array([float(y)])
+        except (ValueError, TypeError,):
+            raise TypeError('Data type not supported, input was {}'.format(type(y)))
+
+    else:
+        raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(y)))
 
     if (x.split is not None) and (y.split is not None) and (x.split != y.split):
         # It is NOT possible to perform allclose on tensors with different splits
@@ -149,7 +167,6 @@ def allclose(x, y, rtol = 1e-05, atol = 1e-08, equal_nan = False):
         else:
             #neither x nor y distributed: Return result from local operation
             pass
-
 
     return _result
 
