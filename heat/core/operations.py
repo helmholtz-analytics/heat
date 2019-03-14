@@ -129,7 +129,30 @@ def allclose(x, y, rtol = 1e-05, atol = 1e-08, equal_nan = False):
     if not isinstance(y, tensor.tensor):
         raise TypeError('Expected y to be a ht.tensor, but was {}'.format(type(y)))
 
-    return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
+    if (x.split is not None) and (y.split is not None) and (x.split != y.split):
+        # It is NOT possible to perform allclose on tensors with different splits
+        raise NotImplementedError('Not implemented for different splittings of tensors')
+
+    # perform local allclose
+    # no sanitization for shapes of x and y needed, torch.allclose raises relevant errors
+    _local_allclose = torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
+    _result = _local_allclose
+
+    if x.comm.is_distributed():
+        # Makes no distinction if y is also distributed. IS THAT VALID?
+        x.comm.Allreduce(_local_allclose, _result, MPI.LAND)
+
+    else:
+        if y.comm.is_distributed():
+            y.comm.Allreduce(_local_allclose, _result, MPI.LAND)
+
+        else:
+            #neither x nor y distributed: Return result from local operation
+            pass
+
+
+    return _result
+
 
 def argmin(x, axis=None, out=None):
     """
