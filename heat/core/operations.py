@@ -153,22 +153,21 @@ def allclose(x, y, rtol = 1e-05, atol = 1e-08, equal_nan = False):
 
     # perform local allclose
     # no sanitization for shapes of x and y needed, torch.allclose raises relevant errors
-    _local_allclose = torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
-    _result = _local_allclose
+    _local_allclose = torch.tensor(torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan))
 
     if x.comm.is_distributed():
         # Makes no distinction if y is also distributed. IS THAT VALID?
-        x.comm.Allreduce([_local_allclose, MPI.BOOL], [_result, MPI.BOOL], MPI.LAND)
+        x.comm.Allreduce(MPI.IN_PLACE, _local_allclose, MPI.LAND)
 
     else:
         if y.comm.is_distributed():
-            y.comm.Allreduce([_local_allclose, MPI.BOOL], [_result, MPI.BOOL], MPI.LAND)
+            y.comm.Allreduce(MPI.IN_PLACE, _local_allclose, MPI.LAND)
 
         else:
             #neither x nor y distributed: Return result from local operation
-            return _result
+            pass
 
-    return _result
+    return bool(_local_allclose.item())
 
 
 def argmin(x, axis=None, out=None):
