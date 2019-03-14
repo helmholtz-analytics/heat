@@ -1258,7 +1258,7 @@ def __factory(shape, dtype, split, local_factory, device, comm):
     return tensor(data, shape, dtype, split, device, comm)
 
 
-def __factory_like(a, dtype, split, factory, device, comm):
+def __factory_like(a, dtype, split, factory, device, comm, **kwargs):
     """
     Abstracted '...-like' factory function for HeAT tensor initialization
 
@@ -1307,7 +1307,7 @@ def __factory_like(a, dtype, split, factory, device, comm):
             # do not split at all
             pass
 
-    return factory(shape, dtype, split, device, comm)
+    return factory(shape, dtype=dtype, split=split, device=device, comm=comm, **kwargs)
 
 
 def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
@@ -1548,6 +1548,84 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
         gshape[split] = reduction_buffer
 
     return tensor(obj, tuple(gshape), dtype, split, device, comm)
+
+
+def full(shape, fill_value, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+    """
+    Return a new array of given shape and type, filled with fill_value.
+
+    Parameters
+    ----------
+    shape : int or sequence of ints
+        Shape of the new array, e.g., (2, 3) or 2.
+    fill_value : scalar
+        Fill value.
+    dtype : data-type, optional
+        The desired data-type for the array
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of fill_value with the given shape, dtype and split.
+
+    Examples
+    --------
+    >>> ht.full((2, 2), np.inf)
+    tensor([[ inf,  inf],
+            [ inf,  inf]])
+    >>> ht.full((2, 2), 10)
+    tensor([[10, 10],
+            [10, 10]])
+    """
+    def local_factory(*args, **kwargs):
+        return torch.full(*args, fill_value=fill_value, **kwargs)
+
+    return __factory(shape, dtype, split, local_factory, device, comm)
+
+
+def full_like(a, fill_value, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+    """
+    Return a full array with the same shape and type as a given array.
+
+    Parameters
+    ----------
+    a : object
+        The shape and data-type of 'a' define these same attributes of the returned array.
+    fill_value : scalar
+        Fill value.
+    dtype : ht.dtype, optional
+        Overrides the data type of the result.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of fill_value with the same shape and type as a.
+
+
+    Examples
+    --------
+    >>> x = ht.zeros((2, 3,))
+    >>> x
+    tensor([[0., 0., 0.],
+            [0., 0., 0.]])
+
+    >>> ht.full_like(a, 1.0)
+    tensor([[1., 1., 1.],
+            [1., 1., 1.]])
+    """
+    return __factory_like(a, dtype, split, full, device, comm, fill_value=fill_value)
 
 
 def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None, device=None, comm=MPI_WORLD):
