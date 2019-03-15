@@ -2,7 +2,6 @@ import itertools
 import torch
 import numpy as np
 
-
 from .communication import MPI
 from . import stride_tricks
 from . import types
@@ -16,7 +15,7 @@ __all__ = [
     'copy',
     'transpose',
     'tril',
-    'triu'
+    'triu',
 ]
 
 
@@ -422,7 +421,7 @@ def triu(m, k=0):
     return __tri_op(m, k, torch.triu)
 
 
-def __local_operation(operation, x, out):
+def __local_operation(operation, x, out, **kwargs):
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
     argument and takes only care of buffer allocation/writing.
@@ -461,7 +460,7 @@ def __local_operation(operation, x, out):
 
     # no defined output tensor, return a freshly created one
     if out is None:
-        result = operation(x._tensor__array.type(torch_type))
+        result = operation(x._tensor__array.type(torch_type), **kwargs)
         return tensor.tensor(result, x.gshape, promoted_type, x.split, x.device, x.comm)
 
     # output buffer writing requires a bit more work
@@ -475,8 +474,7 @@ def __local_operation(operation, x, out):
 
     # do an inplace operation into a provided buffer
     casted = x._tensor__array.type(torch_type)
-    operation(casted.repeat(multiples)
-              if needs_repetition else casted, out=out._tensor__array)
+    operation(casted.repeat(multiples) if needs_repetition else casted, out=out._tensor__array, **kwargs)
     return out
 
 

@@ -1,3 +1,5 @@
+from itertools import combinations
+import numpy as np
 import unittest
 import torch
 
@@ -168,7 +170,7 @@ class TestOperations(unittest.TestCase):
             [4, 5, 6],
             [7, 8, 9],
             [10, 11, 12]
-        ])       
+        ])
 
         # check basics
         self.assertTrue((ht.argmin(data, axis=0)._tensor__array == comparison.argmin(0)).all())
@@ -192,18 +194,18 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(random_data.argmin().dtype, ht.int64)
         self.assertEqual(random_data.argmin().split, None)
 
-        # check argmin over all float elements of splitted 3d tensor 
+        # check argmin over all float elements of splitted 3d tensor
         self.assertIsInstance(random_data_split.argmin(axis=1), ht.tensor)
         self.assertEqual(random_data_split.argmin(axis=1).shape, (3, 1, 3))
         self.assertEqual(random_data_split.argmin().split, None)
 
-        # check argmin over all float elements of splitted 5d tensor with negative axis 
+        # check argmin over all float elements of splitted 5d tensor with negative axis
         random_data_split_neg = ht.random.randn(1, 2, 3, 4, 5, split=1)
         self.assertIsInstance(random_data_split_neg.argmin(axis=-2), ht.tensor)
         self.assertEqual(random_data_split_neg.argmin(axis=-2).shape, (1, 2, 3, 1, 5))
         self.assertEqual(random_data_split_neg.argmin(axis=-2).dtype, ht.int64) 
         self.assertEqual(random_data_split_neg.argmin().split, None)    
-           
+
         # check exceptions
         with self.assertRaises(NotImplementedError):
             data.argmin(axis=(0,1))
@@ -251,6 +253,7 @@ class TestOperations(unittest.TestCase):
         # test exceptions
         with self.assertRaises(TypeError):
             ht.copy('hello world')
+
 
 
     def test_transpose(self):
