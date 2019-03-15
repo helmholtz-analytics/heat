@@ -18,6 +18,7 @@ T_s = ht.tensor(T1._tensor__array, T1.shape, T1.dtype, 0, None, None)
 Ts = ht.ones((2, 2), split=1)
 otherType = (2, 2)
 
+
 class TestOperations(unittest.TestCase):
     def test_add(self):
         T_r = ht.float32([

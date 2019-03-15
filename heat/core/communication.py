@@ -146,7 +146,7 @@ class MPICommunication(Communication):
 
         # helper that calculates the output shape for a receiving buffer under the assumption all nodes have an equally
         # sized input compared to this node
-        output_shape = [ele for ele in shape]
+        output_shape = list(shape)
         output_shape[axis] = self.size * counts[self.rank]
 
         return tuple(counts), tuple(displs), tuple(output_shape)

@@ -6,7 +6,6 @@ import heat as ht
 FLOAT_EPSILON = 1e-4
 
 
-
 class TestOperations(unittest.TestCase):
     def test_all(self):
         array_len = 9
@@ -154,7 +153,6 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.allclose(a, (2,2,2,2))
 
-
     def test_argmin(self):
         torch.manual_seed(1)
         data = ht.random.randn(3, 4, 5)
@@ -193,7 +191,7 @@ class TestOperations(unittest.TestCase):
 
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((size, size,), split=0))
+        data = ht.triu(ht.ones((size, size,), split=0), k=1)
 
         result = ht.argmin(data, axis=0)
         self.assertIsInstance(result, ht.tensor)
@@ -202,7 +200,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.shape, (1, size,))
         self.assertEqual(result.lshape, (1, size,))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._tensor__array == size - 1).all())
+        self.assertTrue((result._tensor__array != 0).all())
 
         # check exceptions
         with self.assertRaises(NotImplementedError):
