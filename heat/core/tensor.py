@@ -105,7 +105,6 @@ class tensor:
 
         return self.abs(out, dtype)
 
-
     def __add__(self, other):
         """
          Element-wise addition of another tensor or a scalar to the tensor.
@@ -427,7 +426,6 @@ class tensor:
 
         return relations.ge(self, other)
 
-
     if torch.cuda.device_count() > 0:
         def gpu(self):
             """
@@ -441,7 +439,6 @@ class tensor:
             """
             self.__array = self.__array.cuda(devices.gpu_index())
             return self
-
 
     def __gt__(self, other):
         """
@@ -475,7 +472,6 @@ class tensor:
         """
 
         return relations.gt(self, other)
-
 
     def max(self, axis=None, out=None):
         """"
@@ -603,7 +599,6 @@ class tensor:
         """
         return rounding.floor(self, out)
 
-
     def __le__(self, other):
         """
         Element-wise rich comparison of relation "less than or equal" with values from second operand (scalar or tensor)
@@ -694,7 +689,6 @@ class tensor:
        """
         return relations.lt(self, other)
 
-
     def __mul__(self, other):
         """
          Element-wise multiplication (not matrix multiplication) with values from second operand (scalar or tensor)
@@ -759,7 +753,6 @@ class tensor:
 
         return relations.ne(self, other)
 
-
     def __pow__(self, other):
         """
          Element-wise exponential function with values from second operand (scalar or tensor)
@@ -793,8 +786,6 @@ class tensor:
          """
 
         return arithmetics.pow(self, other)
-
-
 
     def save(self, path, *args, **kwargs):
         """
