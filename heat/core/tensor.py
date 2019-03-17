@@ -734,6 +734,44 @@ class tensor:
         """
         return relations.le(self, other)
 
+    def lloc(self, key):
+        """
+        function to get/set the local item in a tensor
+
+        Parameters
+        ----------
+        key : int, ht.tensor
+
+
+        """
+        return self.__getitem__(key)
+
+    def gloc(self, key):
+        """
+        function to get/set the selected item in a tensor
+        global getter only needed for a distributed system
+
+        Parameters
+        ----------
+        key : int, ht.tensor
+
+        Returns
+        -------
+        ht.tensor with the selected
+
+        """
+        # return tensor(self.__array[key], self.shape, self.split, self.device, self.comm)
+        if self.is_distributed():
+            # get lshape map
+            _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
+            # TODO: need to get the indices from the chunk_slice *or* make a new function in communication to get the chunk sizes
+            chunk_start = chunk_slice[0].start
+            chunk_end = chunk_slice[0].stop
+            if key in range(chunk_start, chunk_end):
+                return self.__getitem__(key=key-chunk_start)
+        else:
+            return self.__getitem__(key)
+
     def log(self, out=None):
         """
         Natural logarithm, element-wise.
@@ -1103,7 +1141,6 @@ class tensor:
          """
         return arithmetics.sub(self, other)
 
-
     def sum(self, axis=None, out=None):
         # TODO: Allow also list of axes
         """
@@ -1245,7 +1282,6 @@ class tensor:
         """
         return operations.triu(self, k)
 
-
     def __str__(self, *args):
         # TODO: document me
         # TODO: generate none-PyTorch str
@@ -1261,24 +1297,63 @@ class tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        return tensor(self.__array[key], self.shape, self.split, self.device, self.comm)
+        if self.is_distributed():
+            # get lshape map
+            _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
+            # TODO: need to get the indices from the chunk_slice *or* make a new function in communication to get the chunk sizes
+            chunk_start = chunk_slice[0].start
+            chunk_end = chunk_slice[0].stop
+            if isinstance(key, int):
+                if key in range(chunk_start, chunk_end):
+                    return tensor(self.__array[key-chunk_start], self.dtype, self.shape, self.split, self.device, self.comm)
+            if isinstance(key, (tuple, list, tensor, torch.Tensor)):
+                if key[self.split] in range(chunk_start, chunk_end):
+                    key = list(key)
+                    key[self.split] = key[self.split] - chunk_start
+                    return tensor(self.__array[tuple(key)], self.dtype, self.shape, self.split, self.device, self.comm)
+        else:
+            return tensor(self.__array[key], self.dtype, self.shape, self.split, self.device, self.comm)
+        # return tensor(self.__array[key], self.dtype, self.shape, self.split, self.device, self.comm)
 
     def __setitem__(self, key, value):
         # TODO: document me
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        if self.__split is not None:
-            raise NotImplementedError(
-                'Slicing not supported for __split != None')
+        # if self.__split is not None:
+        #     raise NotImplementedError(
+        #         'Slicing not supported for __split != None')
+        if self.is_distributed():
+            # get lshape map
+            _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
+            # TODO: need to get the indices from the chunk_slice *or* make a new function in communication to get the chunk sizes
+            chunk_start = chunk_slice[0].start
+            chunk_end = chunk_slice[0].stop
+            if isinstance(key, int):
+                if key in range(chunk_start, chunk_end):
+                    # return tensor(self.__array[key-chunk_start], self.dtype, self.shape, self.split, self.device, self.comm)
+                    # self.__array.__setitem__(key-chunk_start, value)
+                    self.setter(key-chunk_start, value)
+            if isinstance(key, (tuple, list, tensor, torch.Tensor)):
+                if key[self.split] in range(chunk_start, chunk_end):
+                    key = list(key)
+                    key[self.split] = key[self.split] - chunk_start
+                    self.setter(tuple(key), value)
+                    # self.__array.__setitem__(tuple(key), value.__array)
+                    # return tensor(self.__array[key[self.split]-chunk_start], self.dtype, self.shape, self.split, self.device, self.comm)
+        else:
+            if np.isscalar(value):
+                self.__array.__setitem__(key, value)
+            elif isinstance(value, tensor):
+                self.__array.__setitem__(key, value.__array)
 
+    def setter(self, key, value):
         if np.isscalar(value):
             self.__array.__setitem__(key, value)
         elif isinstance(value, tensor):
             self.__array.__setitem__(key, value.__array)
         else:
-            raise NotImplementedError(
-                'Not implemented for {}'.format(value.__class__.__name__))
+            raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
 
 
 def __factory(shape, dtype, split, local_factory, device, comm):
