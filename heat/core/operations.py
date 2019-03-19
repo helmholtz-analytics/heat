@@ -610,15 +610,22 @@ def __binary_op(operation, t1, t2):
         if np.isscalar(t2):
             try:
                 t2 = tensor.array([t2])
+                output_shape = t1.shape
+                output_split = t1.split
+                output_device = t1.device
+                output_comm = t1.comm
             except (ValueError, TypeError,):
                 raise TypeError('Data type not supported, input was {}'.format(type(t2)))
 
         elif isinstance(t2, tensor.tensor):
-            output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+            
 
             # TODO: implement complex NUMPY rules
             if t2.split is None or t2.split == t1.split:
-                pass
+                output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)         
+                output_split = t1.split
+                output_device = t1.device
+                output_comm = t1.comm
             else:
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
                 # and split=1
@@ -629,10 +636,7 @@ def __binary_op(operation, t1, t2):
         if t2.dtype != t1.dtype:
             t2 = t2.astype(t1.dtype)
 
-        output_shape = t1.shape
-        output_split = t1.split
-        output_device = t1.device
-        output_comm = t1.comm
+
     else:
         raise NotImplementedError('Not implemented for non scalar')
 
