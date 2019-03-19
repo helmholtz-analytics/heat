@@ -35,6 +35,96 @@ class TestTensor(unittest.TestCase):
         data = ht.zeros((4, 4,), split=0)
         self.assertTrue(data.comm.size > 1 and data.is_distributed() or not data.is_distributed())
 
+    def test_lloc(self):
+        # single set
+        a = ht.zeros((13, 5,), split=0)
+        a.lloc[0, 0] = 1
+        self.assertEqual(a._tensor__array[0, 0], 1)
+        self.assertEqual(a.lloc[0, 0].dtype, torch.float32)
+
+        # multiple set
+        a = ht.zeros((13, 5,), split=0)
+        a.lloc[1:3, 1] = 1
+        self.assertTrue(all(a._tensor__array[1:3, 1] == 1))
+        self.assertEqual(a.lloc[1:3, 1].dtype, torch.float32)
+
+        # multple set with specific indexing
+        a = ht.zeros((13, 5,), split=0)
+        a.lloc[3:7:2, 2:5:2] = 1
+        self.assertTrue(torch.all(a._tensor__array[3:7:2, 2:5:2] == 1))
+        self.assertEqual(a.lloc[3:7:2, 2:5:2].dtype, torch.float32)
+
+    def test_setitem_getitem(self):
+        # set and get single value
+        a = ht.zeros((13, 5,), split=0)
+        # set value on one node
+        a[10, 0] = 1
+        if a.comm.rank == 1:
+            self.assertEqual(a[10, 0], 1)
+            self.assertEqual(a[10, 0].dtype, torch.float32)
+        if a.comm.rank == 0:
+            self.assertEqual(a[10, 0], None)
+
+        # slice in 1st dim only on 1 node
+        a = ht.zeros((13, 5,), split=0)
+        a[1:4] = 1
+        if a.comm.rank == 1:
+            self.assertEqual(a[1:4], None)
+        if a.comm.rank == 0:
+            self.assertEqual(a[1:4], 1)
+            self.assertEqual(a[1:4].lshape, (3, 5))
+            self.assertEqual(a[1:4].gshape, (3, 5))
+            self.assertEqual(a[1:4].split, 0)
+            self.assertEqual(a[1:4].dtype, ht.float32)
+
+        # slice in 1st dim only on 1 node w/ singular second dim
+        a = ht.zeros((13, 5,), split=0)
+        a[1:4, 1] = 1
+        if a.comm.rank == 1:
+            self.assertEqual(a[1:4, 1], None)
+        if a.comm.rank == 0:
+            self.assertEqual(a[1:4, 1], 1)
+            self.assertEqual(a[1:4, 1].lshape, (3,))
+            self.assertEqual(a[1:4, 1].gshape, (3,))
+            self.assertEqual(a[1:4, 1].split, 0)
+            self.assertEqual(a[1:4, 1].dtype, ht.float32)
+
+        # slice in 1st dim across both nodes (2 node case) w/ singular second dim
+        a = ht.zeros((13, 5,), split=0)
+        a[1:11, 1] = 1
+        self.assertEqual(a[1:11, 1], 1)
+        self.assertEqual(a[1:11, 1].gshape, (10,))
+        self.assertEqual(a[1:11, 1].split, 0)
+        self.assertEqual(a[1:11, 1].dtype, ht.float32)
+        if a.comm.rank == 1:
+            self.assertEqual(a[1:11, 1].lshape, (4,))
+        if a.comm.rank == 0:
+            self.assertEqual(a[1:11, 1].lshape, (6,))
+
+        # slice in 1st dim across 1 node (2nd) w/ singular second dim
+        a = ht.zeros((13, 5,), split=0)
+        a[8:12, 1] = 1
+        if a.comm.rank == 0:
+            self.assertEqual(a[8:12, 1], None)
+        if a.comm.rank == 1:
+            self.assertEqual(a[8:12, 1], 1)
+            self.assertEqual(a[8:12, 1].lshape, (4,))
+            self.assertEqual(a[8:12, 1].gshape, (4,))
+            self.assertEqual(a[8:12, 1].split, 0)
+            self.assertEqual(a[8:12, 1].dtype, ht.float32)
+
+        # slice in both directions
+        a = ht.zeros((13, 5,), split=0)
+        a[3:13, 2:5:2] = 1
+        self.assertEqual(a[3:13, 2:5:2], 1)
+        self.assertEqual(a[3:13, 2:5:2].gshape, (10, 2))
+        self.assertEqual(a[3:13, 2:5:2].split, 0)
+        self.assertEqual(a[3:13, 2:5:2].dtype, ht.float32)
+        if a.comm.rank == 1:
+            self.assertEqual(a[3:13, 2:5:2].lshape, (6, 2))
+        if a.comm.rank == 0:
+            self.assertEqual(a[3:13, 2:5:2].lshape, (4, 2))
+
 
 class TestTensorFactories(unittest.TestCase):
     def test_arange(self):
@@ -601,7 +691,6 @@ class TestTensorFactories(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.zeros_like(ones, split='axis')
 
-
     def test_empty(self):
         # scalar input
         simple_empty_float = ht.empty(3)
@@ -643,7 +732,6 @@ class TestTensorFactories(unittest.TestCase):
             ht.empty((-1, 3,), dtype=ht.float64)
         with self.assertRaises(TypeError):
             ht.empty((2, 3,), dtype=ht.float64, split='axis')
-
 
     def test_empty_like(self):
         # scalar

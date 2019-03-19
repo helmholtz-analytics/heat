@@ -17,6 +17,17 @@ from . import rounding
 from . import reductions
 
 
+class LocalIndex:
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __getitem__(self, key):
+        return self.obj[key]
+
+    def __setitem__(self, key, value):
+        self.obj[key] = value
+
+
 class tensor:
     def __init__(self, array, gshape, dtype, split, device, comm):
         self.__array = array
@@ -60,6 +71,10 @@ class tensor:
     @property
     def T(self, axes=None):
         return operations.transpose(self, axes)
+
+    @property
+    def lloc(self):
+        return LocalIndex(self.__array)
 
     def abs(self, out=None, dtype=None):
         """
@@ -734,44 +749,6 @@ class tensor:
         """
         return relations.le(self, other)
 
-    def lloc(self, key):
-        """
-        function to get/set the local item in a tensor
-
-        Parameters
-        ----------
-        key : int, ht.tensor
-
-
-        """
-        return self.__getitem__(key)
-
-    def gloc(self, key):
-        """
-        function to get/set the selected item in a tensor
-        global getter only needed for a distributed system
-
-        Parameters
-        ----------
-        key : int, ht.tensor
-
-        Returns
-        -------
-        ht.tensor with the selected
-
-        """
-        # return tensor(self.__array[key], self.shape, self.split, self.device, self.comm)
-        if self.is_distributed():
-            # get lshape map
-            _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
-            # TODO: need to get the indices from the chunk_slice *or* make a new function in communication to get the chunk sizes
-            chunk_start = chunk_slice[0].start
-            chunk_end = chunk_slice[0].stop
-            if key in range(chunk_start, chunk_end):
-                return self.__getitem__(key=key-chunk_start)
-        else:
-            return self.__getitem__(key)
-
     def log(self, out=None):
         """
         Natural logarithm, element-wise.
@@ -1298,22 +1275,61 @@ class tensor:
         # TODO: sanitize input
         # TODO: make me more numpy API complete
         if self.is_distributed():
-            # get lshape map
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
-            # TODO: need to get the indices from the chunk_slice *or* make a new function in communication to get the chunk sizes
             chunk_start = chunk_slice[0].start
             chunk_end = chunk_slice[0].stop
+            chunk_set = set(range(chunk_start, chunk_end))
             if isinstance(key, int):
                 if key in range(chunk_start, chunk_end):
-                    return tensor(self.__array[key-chunk_start], self.dtype, self.shape, self.split, self.device, self.comm)
-            if isinstance(key, (tuple, list, tensor, torch.Tensor)):
-                if key[self.split] in range(chunk_start, chunk_end):
+                    return array(self.__array[key-chunk_start], self.dtype, copy=False, split=self.split, device=self.device, comm=self.comm)
+                else:
+                    return None
+
+            elif isinstance(key, (tuple, list, tensor, torch.Tensor)):
+                if isinstance(key[self.split], slice):
+                    key_set = set(range(key[self.split].start, key[self.split].stop, key[self.split].step if key[self.split].step else 1))
+                    key = list(key)
+                    overlap = list(set(range(key[self.split].start, key[self.split].stop)) & set(range(chunk_start, chunk_end)))
+                    if overlap:
+                        hold = [x - chunk_start for x in overlap]
+                        key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
+                        if key_set.issubset(chunk_set):
+                            return tensor(self.__array[tuple(key)], tuple(self.__array[tuple(key)].shape), self.dtype, self.split, self.device, self.comm)
+                        else:
+                            lout = list(self.__array[tuple(key)].shape)
+                            lout[self.split] = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split], MPI.SUM)
+                            return tensor(self.__array[tuple(key)], tuple(lout), self.dtype, self.split, self.device, self.comm)
+
+                elif key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
                     key[self.split] = key[self.split] - chunk_start
-                    return tensor(self.__array[tuple(key)], self.dtype, self.shape, self.split, self.device, self.comm)
+                    try:
+                        return array(self.__array[tuple(key)], self.dtype, copy=False, split=self.split, device=self.device, comm=self.comm)
+                    except ValueError:  # case of returning just one value
+                        return self.__array[tuple(key)]
+                else:
+                    return None
+
+            elif isinstance(key, slice):
+                key_set = set(range(key.start, key.stop, key.step if key.step else 1))
+                overlap = list(key_set & chunk_set)
+                # print('o', len(overlap), len(range(chunk_start, chunk_end)))
+                if overlap:
+                    hold = [x - chunk_start for x in overlap]
+                    key = slice(min(hold), max(hold) + 1, key.step)
+                    # step = key.step if key.step else 1
+
+                    if key_set.issubset(chunk_set):
+                        # return None
+                        return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
+                    else:
+                        lout = list(self.__array[key].shape)
+                        # return None
+                        lout[self.split] = self.comm.allreduce(tuple(self.__array[key].shape)[self.split], MPI.SUM)
+                        return tensor(self.__array[key], tuple(lout), self.dtype, self.split, self.device, self.comm)
+                        # return array(self.__array[key], self.dtype, copy=False, split=self.split, device=self.device, comm=self.comm)
         else:
-            return tensor(self.__array[key], self.dtype, self.shape, self.split, self.device, self.comm)
-        # return tensor(self.__array[key], self.dtype, self.shape, self.split, self.device, self.comm)
+            return array(self.__array[key], self.dtype, copy=False, split=self.split, device=self.device, comm=self.comm)
 
     def __setitem__(self, key, value):
         # TODO: document me
@@ -1324,28 +1340,35 @@ class tensor:
         #     raise NotImplementedError(
         #         'Slicing not supported for __split != None')
         if self.is_distributed():
-            # get lshape map
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
-            # TODO: need to get the indices from the chunk_slice *or* make a new function in communication to get the chunk sizes
             chunk_start = chunk_slice[0].start
             chunk_end = chunk_slice[0].stop
-            if isinstance(key, int):
+            if isinstance(key, int) and self.split == 0:
                 if key in range(chunk_start, chunk_end):
-                    # return tensor(self.__array[key-chunk_start], self.dtype, self.shape, self.split, self.device, self.comm)
-                    # self.__array.__setitem__(key-chunk_start, value)
                     self.setter(key-chunk_start, value)
-            if isinstance(key, (tuple, list, tensor, torch.Tensor)):
-                if key[self.split] in range(chunk_start, chunk_end):
+
+            elif isinstance(key, (tuple, list, tensor, torch.Tensor)):
+                if isinstance(key[self.split], slice):
+                    key = list(key)
+                    overlap = list(set(range(key[self.split].start, key[self.split].stop)) & set(range(chunk_start, chunk_end)))
+                    if overlap:
+                        hold = [x - chunk_start for x in overlap]
+                        key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
+                        self.setter(tuple(key), value)
+
+                elif key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
                     key[self.split] = key[self.split] - chunk_start
                     self.setter(tuple(key), value)
-                    # self.__array.__setitem__(tuple(key), value.__array)
-                    # return tensor(self.__array[key[self.split]-chunk_start], self.dtype, self.shape, self.split, self.device, self.comm)
+
+            elif isinstance(key, slice):
+                overlap = list(set(range(key.start, key.stop)) & set(range(chunk_start, chunk_end)))
+                if overlap:
+                    hold = [x - chunk_start for x in overlap]
+                    key = slice(min(hold), max(hold) + 1, key.step)
+                    self.setter(key, value)
         else:
-            if np.isscalar(value):
-                self.__array.__setitem__(key, value)
-            elif isinstance(value, tensor):
-                self.__array.__setitem__(key, value.__array)
+            self.setter(key, value)
 
     def setter(self, key, value):
         if np.isscalar(value):
@@ -1551,7 +1574,6 @@ def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
 def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI_WORLD):
     """
     Create a tensor.
-
     Parameters
     ----------
     obj : array_like
@@ -1574,37 +1596,29 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed tensor chunks.
-
     Returns
     -------
     out : ht.tensor
         A tensor object satisfying the specified requirements.
-
     Raises
     ------
-
     Examples
     --------
     >>> ht.array([1, 2, 3])
     tensor([1, 2, 3])
-
     Upcasting:
     >>> ht.array([1, 2, 3.0])
     tensor([ 1.,  2.,  3.])
-
     More than one dimension:
     >>> ht.array([[1, 2], [3, 4]])
     tensor([[1, 2],
            [3, 4]])
-
     Minimum dimensions given:
     >>> ht.array([1, 2, 3], ndmin=2)
     tensor([[1, 2, 3]])
-
     Type provided:
     >>> ht.array([1, 2, 3], dtype=float)
     tensor([ 1.0, 2.0, 3.0])
-
     Pre-split data:
     (0/2) >>> ht.array([1, 2], split=0)
     (1/2) >>> ht.array([3, 4], split=0)
