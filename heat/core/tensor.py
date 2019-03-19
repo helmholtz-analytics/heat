@@ -513,6 +513,17 @@ class tensor:
 
         return relations.gt(self, other)
 
+    def is_distributed(self):
+        """
+        Determines whether the data of this tensor is distributed across multiple processes.
+
+        Returns
+        -------
+        is_distributed : bool
+            Whether the data of the tensor is distributed across multiple processes
+        """
+        return self.split is not None and self.comm.is_distributed()
+
     def max(self, axis=None, out=None):
         """"
         Return the maximum of an array or maximum along an axis.
@@ -636,6 +647,37 @@ class tensor:
             self.comm
         )
 
+    def ceil(self, out=None):
+        r"""
+        Return the ceil of the input, element-wise.
+
+        The ceil of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lceil x \rceil.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        ceiled : ht.tensor
+            A tensor of the same shape as x, containing the ceiled valued of each element in this tensor. If out was
+            provided, ceiled is a reference to it.
+
+        Returns
+        -------
+        ceiled : ht.tensor
+            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
+            provided, ceiled is a reference to it.
+
+        Examples
+        --------
+        >>> ht.arange(-2.0, 2.0, 0.4).ceil()
+        tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
+        """
+        return rounding.ceil(self, out)
+
     def floor(self, out=None):
         r"""
         Return the floor of the input, element-wise.
@@ -653,7 +695,7 @@ class tensor:
         -------
         floored : ht.tensor
             A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
-            provided, logarithms is a reference to it.
+            provided, floored is a reference to it.
 
         Examples
         --------
@@ -1104,6 +1146,32 @@ class tensor:
         """
         return reductions.sum(self, axis, out)
 
+    def tan(self, out=None):
+        """
+        Compute tangent element-wise.
+
+        Equivalent to ht.sin(x) / ht.cos(x) element-wise.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            The value for which to compute the trigonometric tangent.
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        tangent : ht.tensor
+            A tensor of the same shape as x, containing the trigonometric tangent of each element in this tensor.
+
+        Examples
+        --------
+        >>> ht.arange(-6, 7, 2).tan()
+        tensor([ 0.29100619, -1.15782128,  2.18503986,  0., -2.18503986, 1.15782128, -0.29100619])
+        """
+        return trigonometrics.tan(self, out)
+
     def transpose(self, axes=None):
         """
         Permute the dimensions of an array.
@@ -1258,7 +1326,7 @@ def __factory(shape, dtype, split, local_factory, device, comm):
     return tensor(data, shape, dtype, split, device, comm)
 
 
-def __factory_like(a, dtype, split, factory, device, comm):
+def __factory_like(a, dtype, split, factory, device, comm, **kwargs):
     """
     Abstracted '...-like' factory function for HeAT tensor initialization
 
@@ -1307,7 +1375,7 @@ def __factory_like(a, dtype, split, factory, device, comm):
             # do not split at all
             pass
 
-    return factory(shape, dtype, split, device, comm)
+    return factory(shape, dtype=dtype, split=split, device=device, comm=comm, **kwargs)
 
 
 def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
@@ -1486,8 +1554,7 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
     # initialize the array
     if bool(copy) or not isinstance(obj, torch.Tensor):
         try:
-            obj = torch.tensor(obj, dtype=dtype.torch_type()
-                               if dtype is not None else None)
+            obj = torch.tensor(obj, dtype=dtype.torch_type() if dtype is not None else None)
         except RuntimeError:
             raise TypeError('invalid data of type {}'.format(type(obj)))
 
@@ -1548,6 +1615,155 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
         gshape[split] = reduction_buffer
 
     return tensor(obj, tuple(gshape), dtype, split, device, comm)
+
+
+def empty(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+    """
+    Returns a new uninitialized array of given shape and data type. May be allocated split up across multiple
+    nodes along the specified axis.
+
+    Parameters
+    ----------
+    shape : int or sequence of ints
+        Desired shape of the output array, e.g. 1 or (1, 2, 3,).
+    dtype : ht.dtype
+        The desired HeAT data type for the array, defaults to ht.float32.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of zeros with given shape, data type and node distribution.
+
+    Examples
+    --------
+    >>> ht.empty(3)
+    tensor([ 0.0000e+00, -2.0000e+00,  3.3113e+35])
+
+    >>> ht.empty(3, dtype=ht.int)
+    tensor([ 0.0000e+00, -2.0000e+00,  3.3113e+35])
+
+    >>> ht.empty((2, 3,))
+    tensor([[ 0.0000e+00, -2.0000e+00,  3.3113e+35],
+            [ 3.6902e+19,  1.2096e+04,  7.1846e+22]])
+    """
+    return __factory(shape, dtype, split, torch.empty, device, comm)
+
+
+def empty_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
+    """
+    Returns a new uninitialized array with the same type, shape and data distribution of given object. Data type and
+    data distribution strategy can be explicitly overriden.
+
+    Parameters
+    ----------
+    a : object
+        The shape and data-type of 'a' define these same attributes of the returned array.
+        Uninitialized tensor with the same shape, type and split axis as 'a' unless overriden.
+    dtype : ht.dtype, optional
+        Overrides the data type of the result.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
+
+    Examples
+    --------
+    >>> x = ht.ones((2, 3,))
+    >>> x
+    tensor([[1., 1., 1.],
+            [1., 1., 1.]])
+
+    >>> ht.empty_like(x)
+    tensor([[ 0.0000e+00, -2.0000e+00,  3.3113e+35],
+            [ 3.6902e+19,  1.2096e+04,  7.1846e+22]])
+    """
+    return __factory_like(a, dtype, split, empty, device, comm)
+
+
+def full(shape, fill_value, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+    """
+    Return a new array of given shape and type, filled with fill_value.
+
+    Parameters
+    ----------
+    shape : int or sequence of ints
+        Shape of the new array, e.g., (2, 3) or 2.
+    fill_value : scalar
+        Fill value.
+    dtype : data-type, optional
+        The desired data-type for the array
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of fill_value with the given shape, dtype and split.
+
+    Examples
+    --------
+    >>> ht.full((2, 2), np.inf)
+    tensor([[ inf,  inf],
+            [ inf,  inf]])
+    >>> ht.full((2, 2), 10)
+    tensor([[10, 10],
+            [10, 10]])
+    """
+    def local_factory(*args, **kwargs):
+        return torch.full(*args, fill_value=fill_value, **kwargs)
+
+    return __factory(shape, dtype, split, local_factory, device, comm)
+
+
+def full_like(a, fill_value, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+    """
+    Return a full array with the same shape and type as a given array.
+
+    Parameters
+    ----------
+    a : object
+        The shape and data-type of 'a' define these same attributes of the returned array.
+    fill_value : scalar
+        Fill value.
+    dtype : ht.dtype, optional
+        Overrides the data type of the result.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
+
+    Returns
+    -------
+    out : ht.tensor
+        Array of fill_value with the same shape and type as a.
+
+
+    Examples
+    --------
+    >>> x = ht.zeros((2, 3,))
+    >>> x
+    tensor([[0., 0., 0.],
+            [0., 0., 0.]])
+
+    >>> ht.full_like(a, 1.0)
+    tensor([[1., 1., 1.],
+            [1., 1., 1.]])
+    """
+    return __factory_like(a, dtype, split, full, device, comm, fill_value=fill_value)
 
 
 def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None, device=None, comm=MPI_WORLD):
@@ -1773,3 +1989,4 @@ def zeros_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
             [0., 0., 0.]])
     """
     return __factory_like(a, dtype, split, zeros, device, comm)
+

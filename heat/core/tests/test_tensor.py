@@ -28,6 +28,13 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(as_float64._tensor__array.dtype, torch.float64)
         self.assertIs(as_float64, data)
 
+    def test_is_distributed(self):
+        data = ht.zeros((5, 5,))
+        self.assertFalse(data.is_distributed())
+
+        data = ht.zeros((4, 4,), split=0)
+        self.assertTrue(data.comm.size > 1 and data.is_distributed() or not data.is_distributed())
+
 
 class TestTensorFactories(unittest.TestCase):
     def test_arange(self):
@@ -253,6 +260,92 @@ class TestTensorFactories(unittest.TestCase):
         # invalid communicator
         with self.assertRaises(TypeError):
             ht.array((4,), comm={})
+
+    def test_full(self):
+        # simple tensor
+        data = ht.full((10, 2,), 4)
+        self.assertIsInstance(data, ht.tensor)
+        self.assertEqual(data.shape, (10, 2,))
+        self.assertEqual(data.lshape, (10, 2,))
+        self.assertEqual(data.dtype, ht.float32)
+        self.assertEqual(data._tensor__array.dtype, torch.float32)
+        self.assertEqual(data.split, None)
+        self.assertTrue(ht.allclose(data, ht.float32(4.0)))
+
+        # non-standard dtype tensor
+        data = ht.full((10, 2,), 4, dtype=ht.int32)
+        self.assertIsInstance(data, ht.tensor)
+        self.assertEqual(data.shape, (10, 2,))
+        self.assertEqual(data.lshape, (10, 2,))
+        self.assertEqual(data.dtype, ht.int32)
+        self.assertEqual(data._tensor__array.dtype, torch.int32)
+        self.assertEqual(data.split, None)
+        self.assertTrue(ht.allclose(data, ht.int32(4)))
+
+        # split tensor
+        data = ht.full((10, 2,), 4, split=0)
+        self.assertIsInstance(data, ht.tensor)
+        self.assertEqual(data.shape, (10, 2,))
+        self.assertLessEqual(data.lshape[0], 10)
+        self.assertEqual(data.lshape[1], 2)
+        self.assertEqual(data.dtype, ht.float32)
+        self.assertEqual(data._tensor__array.dtype, torch.float32)
+        self.assertEqual(data.split, 0)
+        self.assertTrue(ht.allclose(data, ht.float32(4.0)))
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.full('(2, 3,)', 4, dtype=ht.float64)
+        with self.assertRaises(ValueError):
+            ht.full((-1, 3,), 2, dtype=ht.float64)
+        with self.assertRaises(TypeError):
+            ht.full((2, 3,), dtype=ht.float64, split='axis')
+
+    def test_full_like(self):
+        # scalar
+        like_int = ht.full_like(3, 4)
+        self.assertIsInstance(like_int, ht.tensor)
+        self.assertEqual(like_int.shape,  (1,))
+        self.assertEqual(like_int.lshape, (1,))
+        self.assertEqual(like_int.split,  None)
+        self.assertEqual(like_int.dtype,  ht.float32)
+        self.assertTrue(ht.allclose(like_int, ht.float32(4)))
+
+        # sequence
+        like_str = ht.full_like('abc', 2)
+        self.assertIsInstance(like_str, ht.tensor)
+        self.assertEqual(like_str.shape,  (3,))
+        self.assertEqual(like_str.lshape, (3,))
+        self.assertEqual(like_str.split,  None)
+        self.assertEqual(like_str.dtype,  ht.float32)
+        self.assertTrue(ht.allclose(like_str, ht.float32(2)))
+
+        # elaborate tensor
+        zeros = ht.zeros((2, 3,), dtype=ht.uint8)
+        like_zeros = ht.full_like(zeros, 7)
+        self.assertIsInstance(like_zeros, ht.tensor)
+        self.assertEqual(like_zeros.shape,  (2, 3,))
+        self.assertEqual(like_zeros.lshape, (2, 3,))
+        self.assertEqual(like_zeros.split,  None)
+        self.assertEqual(like_zeros.dtype,  ht.float32)
+        self.assertTrue(ht.allclose(like_zeros, ht.float32(7)))
+
+        # elaborate tensor with split
+        zeros_split = ht.zeros((2, 3,), dtype=ht.uint8, split=0)
+        like_zeros_split = ht.full_like(zeros_split, 6)
+        self.assertIsInstance(like_zeros_split, ht.tensor)
+        self.assertEqual(like_zeros_split.shape, (2, 3,))
+        self.assertLessEqual(like_zeros_split.lshape[0], 2)
+        self.assertEqual(like_zeros_split.lshape[1], 3)
+        self.assertEqual(like_zeros_split.split, 0)
+        self.assertEqual(like_zeros_split.dtype, ht.float32)
+        self.assertTrue(ht.allclose(like_zeros_split, ht.float32(6)))
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.ones_like(zeros, dtype='abc')
+        with self.assertRaises(TypeError):
+            ht.ones_like(zeros, split='axis')
 
     def test_linspace(self):
         # simple linear space
@@ -507,3 +600,89 @@ class TestTensorFactories(unittest.TestCase):
             ht.zeros_like(ones, dtype='abc')
         with self.assertRaises(TypeError):
             ht.zeros_like(ones, split='axis')
+
+
+    def test_empty(self):
+        # scalar input
+        simple_empty_float = ht.empty(3)
+        self.assertIsInstance(simple_empty_float, ht.tensor)
+        self.assertEqual(simple_empty_float.shape,  (3,))
+        self.assertEqual(simple_empty_float.lshape, (3,))
+        self.assertEqual(simple_empty_float.split,  None)
+        self.assertEqual(simple_empty_float.dtype,  ht.float32)
+
+        # different data type
+        simple_empty_uint = ht.empty(5, dtype=ht.bool)
+        self.assertIsInstance(simple_empty_uint, ht.tensor)
+        self.assertEqual(simple_empty_uint.shape,  (5,))
+        self.assertEqual(simple_empty_uint.lshape, (5,))
+        self.assertEqual(simple_empty_uint.split,  None)
+        self.assertEqual(simple_empty_uint.dtype,  ht.bool)
+
+        # multi-dimensional
+        elaborate_empty_int = ht.empty((2, 3,), dtype=ht.int32)
+        self.assertIsInstance(elaborate_empty_int, ht.tensor)
+        self.assertEqual(elaborate_empty_int.shape,  (2, 3,))
+        self.assertEqual(elaborate_empty_int.lshape, (2, 3,))
+        self.assertEqual(elaborate_empty_int.split,  None)
+        self.assertEqual(elaborate_empty_int.dtype,  ht.int32)
+
+        # split axis
+        elaborate_empty_split = ht.empty((6, 4,), dtype=ht.int32, split=0)
+        self.assertIsInstance(elaborate_empty_split, ht.tensor)
+        self.assertEqual(elaborate_empty_split.shape,         (6, 4,))
+        self.assertLessEqual(elaborate_empty_split.lshape[0], 6)
+        self.assertEqual(elaborate_empty_split.lshape[1],     4)
+        self.assertEqual(elaborate_empty_split.split,         0)
+        self.assertEqual(elaborate_empty_split.dtype,         ht.int32)
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.empty('(2, 3,)', dtype=ht.float64)
+        with self.assertRaises(ValueError):
+            ht.empty((-1, 3,), dtype=ht.float64)
+        with self.assertRaises(TypeError):
+            ht.empty((2, 3,), dtype=ht.float64, split='axis')
+
+
+    def test_empty_like(self):
+        # scalar
+        like_int = ht.empty_like(3)
+        self.assertIsInstance(like_int, ht.tensor)
+        self.assertEqual(like_int.shape,  (1,))
+        self.assertEqual(like_int.lshape, (1,))
+        self.assertEqual(like_int.split,  None)
+        self.assertEqual(like_int.dtype,  ht.int32)
+
+        # sequence
+        like_str = ht.empty_like('abc')
+        self.assertIsInstance(like_str, ht.tensor)
+        self.assertEqual(like_str.shape,  (3,))
+        self.assertEqual(like_str.lshape, (3,))
+        self.assertEqual(like_str.split,  None)
+        self.assertEqual(like_str.dtype,  ht.float32)
+
+        # elaborate tensor
+        ones = ht.ones((2, 3,), dtype=ht.uint8)
+        like_ones = ht.empty_like(ones)
+        self.assertIsInstance(like_ones, ht.tensor)
+        self.assertEqual(like_ones.shape,  (2, 3,))
+        self.assertEqual(like_ones.lshape, (2, 3,))
+        self.assertEqual(like_ones.split,  None)
+        self.assertEqual(like_ones.dtype,  ht.uint8)
+
+        # elaborate tensor with split
+        ones_split = ht.ones((2, 3,), dtype=ht.uint8, split=0)
+        like_ones_split = ht.empty_like(ones_split)
+        self.assertIsInstance(like_ones_split,          ht.tensor)
+        self.assertEqual(like_ones_split.shape,         (2, 3,))
+        self.assertLessEqual(like_ones_split.lshape[0], 2)
+        self.assertEqual(like_ones_split.lshape[1],     3)
+        self.assertEqual(like_ones_split.split,         0)
+        self.assertEqual(like_ones_split.dtype,         ht.uint8)
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.empty_like(ones, dtype='abc')
+        with self.assertRaises(TypeError):
+            ht.empty_like(ones, split='axis')
