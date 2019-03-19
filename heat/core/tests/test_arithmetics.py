@@ -25,7 +25,7 @@ class TestOperations(unittest.TestCase):
             [3, 4],
             [5, 6]
         ])
-        """
+        
         self.assertTrue(ht.equal(ht.add(s, s), ht.float32([4.0])))
         self.assertTrue(ht.equal(ht.add(T, s), T_r))
         self.assertTrue(ht.equal(ht.add(s, T), T_r))
@@ -34,7 +34,7 @@ class TestOperations(unittest.TestCase):
         self.assertTrue(ht.equal(ht.add(T, s_int), T_r))
         self.assertTrue(ht.equal(ht.add(T_s, T), T_r))
         self.assertFalse(ht.equal(ht.add(Ts, T), T_r))
-        """
+        
         with self.assertRaises(ValueError):
             ht.add(T, v2)
         with self.assertRaises(NotImplementedError):
