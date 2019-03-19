@@ -128,6 +128,8 @@ def equal(t1, t2):
     else:
         raise NotImplementedError('Not implemented for non scalar')
 
+    
+
     result = torch.equal(t1._tensor__array, t2._tensor__array)
 
     return result
