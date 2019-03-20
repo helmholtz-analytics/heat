@@ -60,9 +60,10 @@ class TestTensor(unittest.TestCase):
         a = ht.zeros((13, 5,), split=0)
         # set value on one node
         a[10, 0] = 1
-        if a.comm.rank == 1:
-            self.assertEqual(a[10, 0], 1)
-            self.assertEqual(a[10, 0].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(a[10, 0], 1)
+                self.assertEqual(a[10, 0].dtype, ht.float32)
 
         # slice in 1st dim only on 1 node
         a = ht.zeros((13, 5,), split=0)
@@ -91,20 +92,24 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(a[1:11, 1].gshape, (10,))
         self.assertEqual(a[1:11, 1].split, 0)
         self.assertEqual(a[1:11, 1].dtype, ht.float32)
-        if a.comm.rank == 1:
-            self.assertEqual(a[1:11, 1].lshape, (4,))
-        if a.comm.rank == 0:
-            self.assertEqual(a[1:11, 1].lshape, (6,))
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(a[1:11, 1].lshape, (4,))
+            if a.comm.rank == 0:
+                self.assertEqual(a[1:11, 1].lshape, (6,))
+        else:
+            self.assertEqual(a[1:11, 1].lshape, (10,))
 
         # slice in 1st dim across 1 node (2nd) w/ singular second dim
         a = ht.zeros((13, 5,), split=0)
         a[8:12, 1] = 1
-        if a.comm.rank == 1:
-            self.assertEqual(a[8:12, 1], 1)
-            self.assertEqual(a[8:12, 1].lshape, (4,))
-            self.assertEqual(a[8:12, 1].gshape, (4,))
-            self.assertEqual(a[8:12, 1].split, 0)
-            self.assertEqual(a[8:12, 1].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(a[8:12, 1], 1)
+                self.assertEqual(a[8:12, 1].lshape, (4,))
+                self.assertEqual(a[8:12, 1].gshape, (4,))
+                self.assertEqual(a[8:12, 1].split, 0)
+                self.assertEqual(a[8:12, 1].dtype, ht.float32)
 
         # slice in both directions
         a = ht.zeros((13, 5,), split=0)
@@ -113,10 +118,11 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(a[3:13, 2:5:2].gshape, (10, 2))
         self.assertEqual(a[3:13, 2:5:2].split, 0)
         self.assertEqual(a[3:13, 2:5:2].dtype, ht.float32)
-        if a.comm.rank == 1:
-            self.assertEqual(a[3:13, 2:5:2].lshape, (6, 2))
-        if a.comm.rank == 0:
-            self.assertEqual(a[3:13, 2:5:2].lshape, (4, 2))
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(a[3:13, 2:5:2].lshape, (6, 2))
+            if a.comm.rank == 0:
+                self.assertEqual(a[3:13, 2:5:2].lshape, (4, 2))
 
         # setting with heat tensor
         a = ht.zeros((4, 5), split=0)
