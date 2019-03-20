@@ -63,14 +63,10 @@ class TestTensor(unittest.TestCase):
         if a.comm.rank == 1:
             self.assertEqual(a[10, 0], 1)
             self.assertEqual(a[10, 0].dtype, ht.float32)
-        if a.comm.rank == 0:
-            self.assertEqual(a[10, 0], None)
 
         # slice in 1st dim only on 1 node
         a = ht.zeros((13, 5,), split=0)
         a[1:4] = 1
-        if a.comm.rank == 1:
-            self.assertEqual(a[1:4], None)
         if a.comm.rank == 0:
             self.assertEqual(a[1:4], 1)
             self.assertEqual(a[1:4].lshape, (3, 5))
@@ -81,8 +77,6 @@ class TestTensor(unittest.TestCase):
         # slice in 1st dim only on 1 node w/ singular second dim
         a = ht.zeros((13, 5,), split=0)
         a[1:4, 1] = 1
-        if a.comm.rank == 1:
-            self.assertEqual(a[1:4, 1], None)
         if a.comm.rank == 0:
             self.assertEqual(a[1:4, 1], 1)
             self.assertEqual(a[1:4, 1].lshape, (3,))
@@ -105,8 +99,6 @@ class TestTensor(unittest.TestCase):
         # slice in 1st dim across 1 node (2nd) w/ singular second dim
         a = ht.zeros((13, 5,), split=0)
         a[8:12, 1] = 1
-        if a.comm.rank == 0:
-            self.assertEqual(a[8:12, 1], None)
         if a.comm.rank == 1:
             self.assertEqual(a[8:12, 1], 1)
             self.assertEqual(a[8:12, 1].lshape, (4,))
