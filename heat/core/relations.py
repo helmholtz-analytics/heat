@@ -95,25 +95,29 @@ def equal(t1, t2):
         try:
             t1 = tensor.array([t1])
         except (TypeError, ValueError,):
-            raise TypeError('Data type not supported, input was {}'.format(type(t1)))
+            raise TypeError(
+                'Data type not supported, input was {}'.format(type(t1)))
 
         if np.isscalar(t2):
             try:
                 t2 = tensor.array([t2])
             except (TypeError, ValueError,):
-                raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
+                raise TypeError(
+                    'Only numeric scalars are supported, but input was {}'.format(type(t2)))
         elif isinstance(t2, tensor.tensor):
             pass
         else:
-            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+            raise TypeError(
+                'Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
 
     elif isinstance(t1, tensor.tensor):
 
         if np.isscalar(t2):
             try:
                 t2 = tensor.array([t2])
-            except (TypeError,ValueError,):
-                raise TypeError('Data type not supported, input was {}'.format(type(t2)))
+            except (TypeError, ValueError,):
+                raise TypeError(
+                    'Data type not supported, input was {}'.format(type(t2)))
         elif isinstance(t2, tensor.tensor):
             # TODO: implement complex NUMPY rules
             if t2.split is None or t2.split == t1.split:
@@ -121,9 +125,11 @@ def equal(t1, t2):
 
             else:
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
-                raise NotImplementedError('Not implemented for other splittings')
+                raise NotImplementedError(
+                    'Not implemented for other splittings')
         else:
-            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+            raise TypeError(
+                'Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
 
     else:
         raise NotImplementedError('Not implemented for non scalar')
@@ -283,7 +289,7 @@ def lt(t1, t2):
     return binary_op(torch.lt, t1, t2)
 
 
-def max(x, axis=None, out=None):
+def max(x, axis=None, keepdim=False, out=None):
     # TODO: initial : scalar, optional Issue #101
     """
     Return the maximum along a given axis.
@@ -322,10 +328,10 @@ def max(x, axis=None, out=None):
             return result[0]
         return result
 
-    return reduce_op(x, local_max, MPI.MAX, axis, out)
+    return reduce_op(x, local_max, MPI.MAX, axis, keepdim, out)
 
 
-def min(x, axis=None, out=None):
+def min(x, axis=None, keepdim=False, out=None):
     # TODO: initial : scalar, optional Issue #101
     """
     Return the minimum along a given axis.
@@ -364,7 +370,7 @@ def min(x, axis=None, out=None):
             return result[0]
         return result
 
-    return reduce_op(x, local_min, MPI.MIN, axis, out)
+    return reduce_op(x, local_min, MPI.MIN, axis, keepdim, out)
 
 
 def ne(t1, t2):

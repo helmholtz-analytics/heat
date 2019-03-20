@@ -35,7 +35,8 @@ def mpi_argmin(a, b, _):
 
     # determine the minimum value and select the indices accordingly
     min, min_indices = torch.min(values, dim=1)
-    result = torch.cat((min, indices[torch.arange(values.shape[0]), min_indices],))
+    result = torch.cat(
+        (min, indices[torch.arange(values.shape[0]), min_indices],))
 
     # copy the result over into the right-hand side (=output buffer)
     rhs.storage().copy_(result.storage())
@@ -44,7 +45,7 @@ def mpi_argmin(a, b, _):
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
-def all(x, axis=None, out=None):
+def all(x, axis=None, keepdim=False, out=None):
     """
     Test whether all array elements along a given axis evaluate to True.
 
@@ -101,7 +102,7 @@ def all(x, axis=None, out=None):
     tensor([[0, 1, 0, 1, 0]], dtype=ht.uint8)
     """
     # TODO: make me more numpy API complete. Issue #101
-    return __reduce_op(x, lambda t, *args, **kwargs: t.byte().all(*args, **kwargs), MPI.LAND, axis, out=out)
+    return __reduce_op(x, lambda t, *args, **kwargs: t.byte().all(*args, **kwargs), MPI.LAND, axis, keepdim, out=out)
 
 
 def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
@@ -146,15 +147,17 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
 
     """
     if not isinstance(x, tensor.tensor):
-        raise TypeError('Expected x to be a ht.tensor, but was {}'.format(type(x)))
+        raise TypeError(
+            'Expected x to be a ht.tensor, but was {}'.format(type(x)))
 
     if not isinstance(y, tensor.tensor):
-        raise TypeError('Expected y to be a ht.tensor, but was {}'.format(type(y)))
+        raise TypeError(
+            'Expected y to be a ht.tensor, but was {}'.format(type(y)))
 
     return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
 
 
-def argmin(x, axis=None, out=None):
+def argmin(x, axis=None, keepdim=False, out=None):
     """
     Returns the indices of the minimum values along an axis.
 
@@ -197,10 +200,12 @@ def argmin(x, axis=None, out=None):
         return torch.cat([minimums.double(), indices.double()])
 
     # perform the global reduction
-    reduced_result = __reduce_op(x, local_argmin, MPI_ARGMIN, axis, out)
+    reduced_result = __reduce_op(
+        x, local_argmin, MPI_ARGMIN, axis, keepdim, out)
 
     # correct the tensor
-    reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
+    reduced_result._tensor__array = reduced_result._tensor__array.chunk(
+        2)[-1].type(torch.int64)
     reduced_result._tensor__dtype = types.int64
 
     return reduced_result
@@ -473,9 +478,11 @@ def __local_operation(operation, x, out):
     """
     # perform sanitation
     if not isinstance(x, tensor.tensor):
-        raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
+        raise TypeError(
+            'expected x to be a ht.tensor, but was {}'.format(type(x)))
     if out is not None and not isinstance(out, tensor.tensor):
-        raise TypeError('expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+        raise TypeError(
+            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
 
     # infer the output type of the tensor
     # we need floating point numbers here, due to PyTorch only providing sqrt() implementation for float32/64
@@ -498,12 +505,13 @@ def __local_operation(operation, x, out):
 
     # do an inplace operation into a provided buffer
     casted = x._tensor__array.type(torch_type)
-    operation(casted.repeat(multiples) if needs_repetition else casted, out=out._tensor__array)
+    operation(casted.repeat(multiples)
+              if needs_repetition else casted, out=out._tensor__array)
 
     return out
 
 
-def __reduce_op(x, partial_op, reduction_op, axis, out):
+def __reduce_op(x, partial_op, reduction_op, axis, keepdim, out):
     # TODO: document me Issue #102
     # perform sanitation
     if not isinstance(x, tensor.tensor):
@@ -519,10 +527,11 @@ def __reduce_op(x, partial_op, reduction_op, axis, out):
 
     if axis is None:
         partial = partial_op(x._tensor__array).reshape((1,))
-        output_shape = (1,)
+        output_shape = (1,) if keepdim else ()
     else:
         partial = partial_op(x._tensor__array, dim=axis, keepdim=True)
-        output_shape = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
+        output_shape = (x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
+                        ) if keepdim else (x.gshape[:axis] + x.gshape[axis + 1:])
 
     # Check shape of output buffer, if any
     if out is not None and out.shape != output_shape:
@@ -584,13 +593,15 @@ def __binary_op(operation, t1, t2):
         try:
             t1 = tensor.array([t1])
         except (ValueError, TypeError,):
-            raise TypeError('Data type not supported, input was {}'.format(type(t1)))
+            raise TypeError(
+                'Data type not supported, input was {}'.format(type(t1)))
 
         if np.isscalar(t2):
             try:
                 t2 = tensor.array([t2])
             except (ValueError, TypeError,):
-                raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
+                raise TypeError(
+                    'Only numeric scalars are supported, but input was {}'.format(type(t2)))
             output_shape = (1,)
             output_split = None
             output_device = None
@@ -601,7 +612,8 @@ def __binary_op(operation, t1, t2):
             output_device = t2.device
             output_comm = t2.comm
         else:
-            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+            raise TypeError(
+                'Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
 
         if t1.dtype != t2.dtype:
             t1 = t1.astype(t2.dtype)
@@ -611,7 +623,8 @@ def __binary_op(operation, t1, t2):
             try:
                 t2 = tensor.array([t2])
             except (ValueError, TypeError,):
-                raise TypeError('Data type not supported, input was {}'.format(type(t2)))
+                raise TypeError(
+                    'Data type not supported, input was {}'.format(type(t2)))
 
         elif isinstance(t2, tensor.tensor):
             output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
@@ -622,9 +635,11 @@ def __binary_op(operation, t1, t2):
             else:
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
                 # and split=1
-                raise NotImplementedError('Not implemented for other splittings')
+                raise NotImplementedError(
+                    'Not implemented for other splittings')
         else:
-            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+            raise TypeError(
+                'Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
 
         if t2.dtype != t1.dtype:
             t2 = t2.astype(t1.dtype)
@@ -639,4 +654,3 @@ def __binary_op(operation, t1, t2):
     result = operation(t1._tensor__array, t2._tensor__array)
 
     return tensor.tensor(result, output_shape, t1.dtype, output_split, output_device, output_comm)
-
