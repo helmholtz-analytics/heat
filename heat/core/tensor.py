@@ -18,6 +18,10 @@ from . import reductions
 
 
 class LocalIndex:
+    """
+    Indexing class for local operations (primarily for lloc function)
+    For docs on __getitem__ and __setitem__ see lloc(self)
+    """
     def __init__(self, obj):
         self.obj = obj
 
@@ -74,6 +78,41 @@ class tensor:
 
     @property
     def lloc(self):
+        """
+        Local item setter and getter. i.e. this function operates on a local level and only on the pytorch tesnors composing the ht tensor
+        This function uses the LocalIndex class
+
+        Parameters
+        ----------
+        key : int, slice, list, tuple
+            indices of the desired data
+
+        value : all types compatible with pytorch tensors
+            optional (if none given then this is a getter function)
+
+        Returns
+        -------
+        (getter) -> ht.tensor with the indices selected at a *local* level
+        (setter) -> nothing
+
+        Examples
+        --------
+        (2 processes)
+        >>> a = ht.zeros((4, 5), split=0)
+        (1/2) tensor([[0., 0., 0., 0., 0.],
+                      [0., 0., 0., 0., 0.]])
+        (2/2) tensor([[0., 0., 0., 0., 0.],
+                      [0., 0., 0., 0., 0.]])
+        >>> a.lloc[1, 0:4]
+        (1/2) tensor([0., 0., 0., 0.])
+        (2/2) tensor([0., 0., 0., 0.])
+        >>> a.lloc[1, 0:4] = torch.arange(1, 5)
+        >>> a
+        (1/2) tensor([[0., 0., 0., 0., 0.],
+                      [1., 2., 3., 4., 0.]])
+        (2/2) tensor([[0., 0., 0., 0., 0.],
+                      [1., 2., 3., 4., 0.]])
+        """
         return LocalIndex(self.__array)
 
     def abs(self, out=None, dtype=None):
@@ -1270,6 +1309,40 @@ class tensor:
         return self.__array.__repr__(*args)
 
     def __getitem__(self, key):
+        """
+        Global getter function for ht.tensors
+
+        Parametes
+        ---------
+        key : int, slice, tuple, list
+            indices to get from the tensor.
+
+        Returns
+        -------
+        result : ht.tensor
+            getter returns a new ht.tensor composed of the elements of the original tensor selected by the indices given.
+            this does *NOT* redistribute or rebalance the resulting tensor. If the selection of values is unbalanced then
+            the resultant tensor is also unbalanced!
+
+        Examples
+        --------
+        (2 processes)
+        >>> a = ht.arange(10, split=0)
+        (1/2) >>> tensor([0, 1, 2, 3, 4], dtype=torch.int32)
+        (2/2) >>> tensor([5, 6, 7, 8, 9], dtype=torch.int32)
+        >>> a[1:6]
+        (1/2) >>> tensor([1, 2, 3, 4], dtype=torch.int32)
+        (2/2) >>> tensor([5], dtype=torch.int32)
+
+        >>> a = ht.zeros((4,5), split=0)
+        (1/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 0., 0., 0., 0.]])
+        (2/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 0., 0., 0., 0.]])
+        >>> a[1:4, 1]
+        (1/2) >>> tensor([0.])
+        (2/2) >>> tensor([0., 0.])
+        """
         # TODO: document me
         # TODO: test me
         # TODO: sanitize input
@@ -1285,7 +1358,7 @@ class tensor:
                 else:
                     return None
 
-            elif isinstance(key, (tuple, list, tensor, torch.Tensor)):
+            elif isinstance(key, (tuple, list)):
                 if isinstance(key[self.split], slice):
                     key_set = set(range(key[self.split].start, key[self.split].stop, key[self.split].step if key[self.split].step else 1))
                     key = list(key)
@@ -1304,7 +1377,7 @@ class tensor:
                     key = list(key)
                     key[self.split] = key[self.split] - chunk_start
                     try:
-                        return array(self.__array[tuple(key)], self.dtype, copy=False, split=self.split, device=self.device, comm=self.comm)
+                        return tensor(self.__array[tuple(key)], tuple(self.__array[tuple(key)].shape), self.dtype, self.split, self.device, self.comm)
                     except ValueError:  # case of returning just one value
                         return self.__array[tuple(key)]
                 else:
@@ -1313,32 +1386,49 @@ class tensor:
             elif isinstance(key, slice):
                 key_set = set(range(key.start, key.stop, key.step if key.step else 1))
                 overlap = list(key_set & chunk_set)
-                # print('o', len(overlap), len(range(chunk_start, chunk_end)))
                 if overlap:
                     hold = [x - chunk_start for x in overlap]
                     key = slice(min(hold), max(hold) + 1, key.step)
-                    # step = key.step if key.step else 1
-
                     if key_set.issubset(chunk_set):
-                        # return None
                         return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
                     else:
                         lout = list(self.__array[key].shape)
-                        # return None
                         lout[self.split] = self.comm.allreduce(tuple(self.__array[key].shape)[self.split], MPI.SUM)
                         return tensor(self.__array[key], tuple(lout), self.dtype, self.split, self.device, self.comm)
-                        # return array(self.__array[key], self.dtype, copy=False, split=self.split, device=self.device, comm=self.comm)
         else:
             return array(self.__array[key], self.dtype, copy=False, split=self.split, device=self.device, comm=self.comm)
 
     def __setitem__(self, key, value):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # if self.__split is not None:
-        #     raise NotImplementedError(
-        #         'Slicing not supported for __split != None')
+        """
+        Global item setter
+
+        Parameters
+        ----------
+        key : int, tuple, list, slice
+            index/indices to be set
+        value: np.scalar, tensor, torch.Tensor
+            value to be set to the specified positions in the ht.tensor (self)
+
+        Returns
+        -------
+        Nothing
+            The specified element/s (key) of self is set with the value
+
+        Examples
+        --------
+        (2 processes)
+        >>> a = ht.zeros((4,5), split=0)
+        (1/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 0., 0., 0., 0.]])
+        (2/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 0., 0., 0., 0.]])
+        >>> a[1:4, 1] = 1
+        >>> a
+        (1/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 1., 0., 0., 0.]])
+        (2/2) >>> tensor([[0., 1., 0., 0., 0.],
+                          [0., 1., 0., 0., 0.]])
+        """
         if self.is_distributed():
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[0].start
@@ -1375,6 +1465,8 @@ class tensor:
             self.__array.__setitem__(key, value)
         elif isinstance(value, tensor):
             self.__array.__setitem__(key, value.__array)
+        elif isinstance(value, torch.Tensor):
+            self.__array.__setitem__(key, value.data)
         else:
             raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
 

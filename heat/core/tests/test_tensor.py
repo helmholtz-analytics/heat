@@ -1,6 +1,7 @@
 import torch
 import unittest
 
+import numpy as np
 import heat as ht
 
 
@@ -61,7 +62,7 @@ class TestTensor(unittest.TestCase):
         a[10, 0] = 1
         if a.comm.rank == 1:
             self.assertEqual(a[10, 0], 1)
-            self.assertEqual(a[10, 0].dtype, torch.float32)
+            self.assertEqual(a[10, 0].dtype, ht.float32)
         if a.comm.rank == 0:
             self.assertEqual(a[10, 0], None)
 
@@ -124,6 +125,20 @@ class TestTensor(unittest.TestCase):
             self.assertEqual(a[3:13, 2:5:2].lshape, (6, 2))
         if a.comm.rank == 0:
             self.assertEqual(a[3:13, 2:5:2].lshape, (4, 2))
+
+        # setting with heat tensor
+        a = ht.zeros((4, 5), split=0)
+        a[1, 0:4] = ht.arange(4)
+        if a.comm.rank == 0:
+            for c, i in enumerate(range(4)):
+                self.assertEqual(a[1, c], i)
+
+        # setting with torch tensor
+        a = ht.zeros((4, 5), split=0)
+        a[1, 0:4] = torch.arange(4)
+        if a.comm.rank == 0:
+            for c, i in enumerate(range(4)):
+                self.assertEqual(a[1, c], i)
 
 
 class TestTensorFactories(unittest.TestCase):
