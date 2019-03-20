@@ -14,7 +14,7 @@ install:
   - pip install . -e .[hdf5] .[netcdf]
 script:
   - mpirun -np 2 pytest
-  - mpirun pytest --cov=heat heat/
+  - mpirun -np 2 pytest --cov=heat heat/
 after_success:
   - codecov
 deploy:

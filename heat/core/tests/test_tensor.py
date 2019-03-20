@@ -91,7 +91,6 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(a[1:11, 1].gshape, (10,))
         self.assertEqual(a[1:11, 1].split, 0)
         self.assertEqual(a[1:11, 1].dtype, ht.float32)
-        print(a[1:11, 1].lshape)
         if a.comm.rank == 1:
             self.assertEqual(a[1:11, 1].lshape, (4,))
         if a.comm.rank == 0:
