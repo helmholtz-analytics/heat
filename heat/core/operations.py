@@ -9,6 +9,7 @@ from . import types
 from . import tensor
 
 __all__ = [
+    'MPI_ARGMIN',
     'all',
     'allclose',
     'argmin',

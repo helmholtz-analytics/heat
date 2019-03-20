@@ -63,7 +63,7 @@ def div(t1, t2):
     Parameters
     ----------
     t1: tensor or scalar
-    T   he first operand whose values are divided
+        The first operand whose values are divided
 
     t2: tensor or scalar
         The second operand by whose values is divided
