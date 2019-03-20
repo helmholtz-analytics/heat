@@ -1354,7 +1354,7 @@ class tensor:
             chunk_set = set(range(chunk_start, chunk_end))
             if isinstance(key, int):
                 if key in range(chunk_start, chunk_end):
-                    return array(self.__array[key-chunk_start], self.dtype, copy=False, split=self.split, device=self.device, comm=self.comm)
+                    return tensor(self.__array[key-chunk_start], tuple(self.__array[key-chunk_start].shape), self.dtype, self.split, self.device, self.comm)
                 else:
                     return None
 
@@ -1396,7 +1396,7 @@ class tensor:
                         lout[self.split] = self.comm.allreduce(tuple(self.__array[key].shape)[self.split], MPI.SUM)
                         return tensor(self.__array[key], tuple(lout), self.dtype, self.split, self.device, self.comm)
         else:
-            return array(self.__array[key], self.dtype, copy=False, split=self.split, device=self.device, comm=self.comm)
+            return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
 
     def __setitem__(self, key, value):
         """
