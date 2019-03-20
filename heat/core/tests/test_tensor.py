@@ -94,6 +94,7 @@ class TestTensor(unittest.TestCase):
         if a.comm.rank == 1:
             self.assertEqual(a[1:11, 1].lshape, (4,))
         if a.comm.rank == 0:
+            print(a[1:11, 1].lshape)
             self.assertEqual(a[1:11, 1].lshape, (6,))
 
         # slice in 1st dim across 1 node (2nd) w/ singular second dim
