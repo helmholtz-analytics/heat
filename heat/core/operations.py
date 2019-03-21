@@ -530,13 +530,13 @@ def __reduce_op(x, partial_op, reduction_op, axis, keepdim, out):
         output_shape = (1,) if keepdim else ()
     else:
         partial = partial_op(x._tensor__array, dim=axis, keepdim=True)
-        output_shape = (x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
-                        ) if keepdim else (x.gshape[:axis] + x.gshape[axis + 1:])
+        shape_keepdim = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
+        shape_losedim = x.gshape[:axis] + x.gshape[axis + 1:]
+        output_shape = shape_keepdim if keepdim else shape_losedim
 
     # Check shape of output buffer, if any
     if out is not None and out.shape != output_shape:
-        raise ValueError('Expecting output buffer of shape {}, got {}'.format(
-            output_shape, out.shape))
+        raise ValueError('Expecting output buffer of shape {}, got {}'.format(output_shape, out.shape))
 
     # perform a reduction operation in case the tensor is distributed across the reduction axis
     if x.split is not None and (axis is None or axis == x.split):
