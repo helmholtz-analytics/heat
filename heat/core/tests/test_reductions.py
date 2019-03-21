@@ -15,14 +15,14 @@ class TestOperations(unittest.TestCase):
         no_axis_sum = shape_noaxis.sum()
 
         self.assertIsInstance(no_axis_sum, ht.tensor)
-        self.assertEqual(no_axis_sum.shape, ())
+        self.assertEqual(no_axis_sum.shape, (1,))
         self.assertEqual(no_axis_sum.lshape, (1,))
         self.assertEqual(no_axis_sum.dtype, ht.float32)
         self.assertEqual(no_axis_sum._tensor__array.dtype, torch.float32)
         self.assertEqual(no_axis_sum.split, None)
         self.assertEqual(no_axis_sum._tensor__array, array_len)
 
-        out_noaxis = ht.zeros(())
+        out_noaxis = ht.zeros((1,))
         ht.sum(shape_noaxis, out=out_noaxis)
         self.assertTrue(out_noaxis._tensor__array ==
                         shape_noaxis._tensor__array.sum())
@@ -32,7 +32,7 @@ class TestOperations(unittest.TestCase):
         shape_noaxis_split_sum = shape_noaxis_split.sum()
 
         self.assertIsInstance(shape_noaxis_split_sum, ht.tensor)
-        self.assertEqual(shape_noaxis_split_sum.shape, ())
+        self.assertEqual(shape_noaxis_split_sum.shape, (1,))
         self.assertEqual(shape_noaxis_split_sum.lshape, (1,))
         self.assertEqual(shape_noaxis_split_sum.dtype, ht.int64)
         self.assertEqual(
@@ -40,7 +40,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(shape_noaxis_split_sum.split, None)
         self.assertEqual(shape_noaxis_split_sum, 55)
 
-        out_noaxis = ht.zeros(())
+        out_noaxis = ht.zeros((1,))
         ht.sum(shape_noaxis_split, out=out_noaxis)
         self.assertEqual(out_noaxis._tensor__array, 55)
 
@@ -49,14 +49,14 @@ class TestOperations(unittest.TestCase):
         no_axis_sum = shape_noaxis.sum()
 
         self.assertIsInstance(no_axis_sum, ht.tensor)
-        self.assertEqual(no_axis_sum.shape, ())
+        self.assertEqual(no_axis_sum.shape, (1,))
         self.assertEqual(no_axis_sum.lshape, (1,))
         self.assertEqual(no_axis_sum.dtype, ht.float32)
         self.assertEqual(no_axis_sum._tensor__array.dtype, torch.float32)
         self.assertEqual(no_axis_sum.split, None)
         self.assertEqual(no_axis_sum._tensor__array, 27)
 
-        out_noaxis = ht.zeros(())
+        out_noaxis = ht.zeros((1,))
         ht.sum(shape_noaxis, out=out_noaxis)
         self.assertEqual(out_noaxis._tensor__array, 27)
 

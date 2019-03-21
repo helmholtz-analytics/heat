@@ -15,14 +15,14 @@ class TestOperations(unittest.TestCase):
         x = (ones_noaxis == 1).all()
 
         self.assertIsInstance(x, ht.tensor)
-        self.assertEqual(x.shape, ())
+        self.assertEqual(x.shape, (1,))
         self.assertEqual(x.lshape, (1,))
         self.assertEqual(x.dtype, ht.bool)
         self.assertEqual(x._tensor__array.dtype, torch.uint8)
         self.assertEqual(x.split, None)
         self.assertEqual(x._tensor__array, 1)
 
-        out_noaxis = ht.zeros(())
+        out_noaxis = ht.zeros((1,))
         ht.all(ones_noaxis, out=out_noaxis)
         self.assertEqual(out_noaxis._tensor__array, 1)
 
@@ -31,14 +31,14 @@ class TestOperations(unittest.TestCase):
         floats_is_one = ones_noaxis_split.all()
 
         self.assertIsInstance(floats_is_one, ht.tensor)
-        self.assertEqual(floats_is_one.shape, ())
+        self.assertEqual(floats_is_one.shape, (1,))
         self.assertEqual(floats_is_one.lshape, (1,))
         self.assertEqual(floats_is_one.dtype, ht.bool)
         self.assertEqual(floats_is_one._tensor__array.dtype, torch.uint8)
         self.assertEqual(floats_is_one.split, None)
         self.assertEqual(floats_is_one._tensor__array, 1)
 
-        out_noaxis = ht.zeros(())
+        out_noaxis = ht.zeros((1,))
         ht.all(ones_noaxis_split, out=out_noaxis)
         self.assertEqual(out_noaxis._tensor__array, 1)
 
@@ -47,14 +47,14 @@ class TestOperations(unittest.TestCase):
         int_is_one = ones_noaxis_int.all()
 
         self.assertIsInstance(int_is_one, ht.tensor)
-        self.assertEqual(int_is_one.shape, ())
+        self.assertEqual(int_is_one.shape, (1,))
         self.assertEqual(int_is_one.lshape, (1,))
         self.assertEqual(int_is_one.dtype, ht.bool)
         self.assertEqual(int_is_one._tensor__array.dtype, torch.uint8)
         self.assertEqual(int_is_one.split, None)
         self.assertEqual(int_is_one._tensor__array, 1)
 
-        out_noaxis = ht.zeros(())
+        out_noaxis = ht.zeros((1,))
         ht.all(ones_noaxis_int, out=out_noaxis)
         self.assertEqual(out_noaxis._tensor__array, 1)
 
@@ -63,14 +63,14 @@ class TestOperations(unittest.TestCase):
         split_int_is_one = ones_noaxis_split_int.all()
 
         self.assertIsInstance(split_int_is_one, ht.tensor)
-        self.assertEqual(split_int_is_one.shape, ())
+        self.assertEqual(split_int_is_one.shape, (1,))
         self.assertEqual(split_int_is_one.lshape, (1,))
         self.assertEqual(split_int_is_one.dtype, ht.bool)
         self.assertEqual(split_int_is_one._tensor__array.dtype, torch.uint8)
         self.assertEqual(split_int_is_one.split, None)
         self.assertEqual(split_int_is_one._tensor__array, 1)
 
-        out_noaxis = ht.zeros(())
+        out_noaxis = ht.zeros((1,))
         ht.all(ones_noaxis_split_int, out=out_noaxis)
         self.assertEqual(out_noaxis._tensor__array, 1)
 
@@ -79,14 +79,14 @@ class TestOperations(unittest.TestCase):
         volume_is_one = ones_noaxis_volume.all()
 
         self.assertIsInstance(volume_is_one, ht.tensor)
-        self.assertEqual(volume_is_one.shape, ())
+        self.assertEqual(volume_is_one.shape, (1,))
         self.assertEqual(volume_is_one.lshape, (1,))
         self.assertEqual(volume_is_one.dtype, ht.bool)
         self.assertEqual(volume_is_one._tensor__array.dtype, torch.uint8)
         self.assertEqual(volume_is_one.split, None)
         self.assertEqual(volume_is_one._tensor__array, 1)
 
-        out_noaxis = ht.zeros(())
+        out_noaxis = ht.zeros((1,))
         ht.all(ones_noaxis_volume, out=out_noaxis)
         self.assertEqual(out_noaxis._tensor__array, 1)
 
@@ -95,14 +95,14 @@ class TestOperations(unittest.TestCase):
         sequence_is_one = sequence.all()
 
         self.assertIsInstance(sequence_is_one, ht.tensor)
-        self.assertEqual(sequence_is_one.shape, ())
+        self.assertEqual(sequence_is_one.shape, (1,))
         self.assertEqual(sequence_is_one.lshape, (1,))
         self.assertEqual(sequence_is_one.dtype, ht.bool)
         self.assertEqual(sequence_is_one._tensor__array.dtype, torch.uint8)
         self.assertEqual(sequence_is_one.split, None)
         self.assertEqual(sequence_is_one._tensor__array, 0)
 
-        out_noaxis = ht.zeros(())
+        out_noaxis = ht.zeros((1,))
         ht.all(sequence, out=out_noaxis)
         self.assertEqual(out_noaxis._tensor__array, 0)
 

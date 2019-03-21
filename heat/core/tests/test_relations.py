@@ -179,7 +179,7 @@ class TestOperations(unittest.TestCase):
         maximum = ht.max(ht_array)
 
         self.assertIsInstance(maximum, ht.tensor)
-        self.assertEqual(maximum.shape, ())
+        self.assertEqual(maximum.shape, (1,))
         self.assertEqual(maximum.lshape, (1,))
         self.assertEqual(maximum.split, None)
         self.assertEqual(maximum.dtype, ht.int64)
@@ -257,7 +257,7 @@ class TestOperations(unittest.TestCase):
         minimum = ht.min(ht_array)
 
         self.assertIsInstance(minimum, ht.tensor)
-        self.assertEqual(minimum.shape, ())
+        self.assertEqual(minimum.shape, (1,))
         self.assertEqual(minimum.lshape, (1,))
         self.assertEqual(minimum.split, None)
         self.assertEqual(minimum.dtype, ht.int64)

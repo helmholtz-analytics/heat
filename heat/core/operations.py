@@ -200,12 +200,10 @@ def argmin(x, axis=None, keepdim=False, out=None):
         return torch.cat([minimums.double(), indices.double()])
 
     # perform the global reduction
-    reduced_result = __reduce_op(
-        x, local_argmin, MPI_ARGMIN, axis, keepdim, out)
+    reduced_result = __reduce_op(x, local_argmin, MPI_ARGMIN, axis, keepdim, out)
 
     # correct the tensor
-    reduced_result._tensor__array = reduced_result._tensor__array.chunk(
-        2)[-1].type(torch.int64)
+    reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
     reduced_result._tensor__dtype = types.int64
 
     return reduced_result
@@ -527,7 +525,7 @@ def __reduce_op(x, partial_op, reduction_op, axis, keepdim, out):
 
     if axis is None:
         partial = partial_op(x._tensor__array).reshape((1,))
-        output_shape = (1,) if keepdim else ()
+        output_shape = (1,)
     else:
         partial = partial_op(x._tensor__array, dim=axis, keepdim=True)
         shape_keepdim = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
