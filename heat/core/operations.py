@@ -331,9 +331,9 @@ def matmul(a, b, out=None, out_split=None):
 
     Process:
     --------
-    1. split a and b into blocks of the respective sizes (M x k and k x N)
-        k must be the same in both
-        if a common k cannot be found then x rows/columns can be sliced off and saved for later
+    1. split a and b into blocks of the respective sizes (M x kB and kB x N)
+        kB must be the same in both
+        if a common kB cannot be found then x rows/columns can be sliced off and saved for later
             this cut must occur in the 'P' dimension of both matricies
             best way to do this is to either equate all of the
 
@@ -344,28 +344,56 @@ def matmul(a, b, out=None, out_split=None):
     possible problems:
     -> a and b not the same splits
     """
+    if a.gshape[-1] != b.gshape[-2]:
+        raise ValueError("If the last dimension of a ({}) is not the same size as the second-to-last dimension of b. ({})".format(a.gshape[-1], b.gshape[-2]))
 
-    # get the lshape from all nodes of a and b
-    a_lshape_hold = torch.zeros((a.comm.size, len(a.gshape)))
-    a_lshape = torch.zeros((a.comm.size, len(a.gshape)))
-    a_lshape_hold[a.comm.rank] = torch.Tensor(a.lshape)
-    a.comm.Allreduce(a_lshape_hold, a_lshape, MPI.SUM)
+    if a.is_distributed() and b.is_distributed():  # else its simple matmul from torch
+        # block sizes dont need to be the same. thy just need the same inner dimmension (kB)
+        kB = 0
+        rem_a, rem_b = [False] * 2
+        if a.split == len(a.gshape)-1 and b.split == len(a.gshape)-2:  # if the split direction is the last dim in a and the first dim in b
+            # the max inner dim (kB) is the min value from the result of the integer division of the last dim of a/world size and the first dim of b/world size
+            kB = min([a.gshape[-1] // a.comm.size, b.gshape[0] // b.comm.size])
+        elif a.split == len(a.gshape)-1:
+            kB = a.gshape[-1] // a.comm.size
+        elif b.split == len(a.gshape)-2:
+            kB = b.gshape[-2] // b.comm.size
+            kB = kB if kB < a.gshape[-1] else a.gshape[-1]
+        else:  # if the split is not in either of these directions then kB can be anything, it just needs to be tuned
+            # what to do here?
+            pass
 
-    b_lshape_hold = torch.zeros((b.comm.size, len(b.gshape)))
-    b_lshape = torch.zeros((b.comm.size, len(b.gshape)))
-    b_lshape_hold[b.comm.rank] = torch.Tensor(b.lshape)
-    b.comm.Allreduce(b_lshape_hold, b_lshape, MPI.SUM)
+        if a.lshape[-1] % kB != 0:
+            rem_a = True
+        if b.lshape[-2] % kB != 0:
+            rem_b = True
 
-    # print(a.comm.rank, a.lshape, a_lshape, '\nb', b.lshape, b_lshape, '\n')
-    # print(a_lshape[:, -1], b_lshape[:, 0])
-    a_uniq = torch.from_numpy(np.unique(a_lshape[:, -1]))
-    b_uniq = torch.from_numpy(np.unique(a_lshape[:, 0]))
-    print(len(a_uniq), len(b_uniq))
-    if len(a_uniq) > 1:
-        # need to get the process/s with the unique element
+        # print(kB, rem_a, rem_b)
 
-    if len(b_uniq) > 1:
-        # need to get the process with the unique element
+        # get the lshape map to determine what needs to be sent where as well as M and N
+        lshape_map = tensor.zeros((a.comm.size, 2, len(a.gshape)))
+        lshape_map_hold = tensor.zeros((a.comm.size, 2, len(a.gshape)))
+        lshape_map_hold[a.comm.rank, 0, :] = torch.Tensor(a.lshape)
+        lshape_map_hold[b.comm.rank, 1, :] = torch.Tensor(b.lshape)
+        a.comm.Allreduce(lshape_map_hold, lshape_map, MPI.SUM)
+
+        print('lshape map:', '\n', lshape_map)
+
+        # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
+        mB = min(lshape_map[:, 0, -2]).item()
+        nB = min(lshape_map[:, 1, -1]).item()
+        # todo: handle the outside dimensional remainders
+        print('mb', mB, 'kB', kB, 'nb', nB)
+
+        # check for remaining dims in the outside dimensions
+        rem_a_out, rem_b_out = False, False
+        if a.lshape[-2] % mB != 0:
+            rem_a_out = True
+        if b.lshape[-1] % nB != 0:
+            rem_b_out = True
+        print('rems', rem_a_out, rem_a, rem_b, rem_b_out)
+        print('block sizes:\n', 'a:', mB, kB, '\nb:', kB, nB)
+
 
 ########################################################################################################################################################
 

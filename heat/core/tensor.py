@@ -522,6 +522,12 @@ class tensor:
         """
         return self.split is not None and self.comm.is_distributed()
 
+    def item(self):
+        """
+        Returns the only element of a 1-element tensor. Mirror of the pytorch command by the same name
+        """
+        return self.__array.item()
+
     def max(self, axis=None, out=None):
         """"
         Return the maximum of an array or maximum along an axis.
@@ -1261,7 +1267,7 @@ class tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        return tensor(self.__array[key], self.shape, self.split, self.device, self.comm)
+        return tensor(self.__array[key], self.dtype, self.shape, self.split, self.device, self.comm)
 
     def __setitem__(self, key, value):
         # TODO: document me
@@ -1276,6 +1282,8 @@ class tensor:
             self.__array.__setitem__(key, value)
         elif isinstance(value, tensor):
             self.__array.__setitem__(key, value.__array)
+        elif isinstance(value, torch.Tensor):
+            self.__array.__setitem__(key, value.data)
         else:
             raise NotImplementedError(
                 'Not implemented for {}'.format(value.__class__.__name__))
