@@ -1343,35 +1343,56 @@ class tensor:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
         if self.is_distributed():
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
-            chunk_start = chunk_slice[0].start
-            chunk_end = chunk_slice[0].stop
+            chunk_start = chunk_slice[self.split].start
+            chunk_end = chunk_slice[self.split].stop
             chunk_set = set(range(chunk_start, chunk_end))
+
             if isinstance(key, int):
-                if key in range(chunk_start, chunk_end):
+                if key in range(chunk_start, chunk_end) and self.split == 0:
                     return tensor(self.__array[key-chunk_start], tuple(self.__array[key-chunk_start].shape), self.dtype, self.split, self.device, self.comm)
+                elif self.split != 0:
+                    _, _, chunk_slice2 = self.comm.chunk(self.shape, self.split)
+                    if key in range(chunk_slice2[0].start, chunk_slice2[0].stop):
+                        lout = self.comm.allreduce(tuple(self.__array[key].shape)[0], MPI.SUM)
+                        return tensor(self.__array[key], (lout, ), self.dtype, self.split, self.device, self.comm)
                 else:
                     return None
 
             elif isinstance(key, (tuple, list)):
                 if isinstance(key[self.split], slice):
-                    key_set = set(range(key[self.split].start, key[self.split].stop, key[self.split].step if key[self.split].step else 1))
+                    key_set = set(range(key[self.split].start if key[self.split].start is not None else 0,
+                                        key[self.split].stop if key[self.split].stop is not None else -1,
+                                        key[self.split].step if key[self.split].step else 1))
                     key = list(key)
-                    overlap = list(set(range(key[self.split].start, key[self.split].stop)) & set(range(chunk_start, chunk_end)))
+                    overlap = list(set(range(key[self.split].start if key[self.split].start is not None else 0,
+                                             key[self.split].stop if key[self.split].stop is not None else -1))
+                                   & set(range(chunk_start, chunk_end)))
+
                     if overlap:
                         hold = [x - chunk_start for x in overlap]
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
-                        if key_set.issubset(chunk_set):
+                        print(key_set, chunk_set)
+                        if key_set.issubset(chunk_set):  # if all the keys are included in the chunk
                             return tensor(self.__array[tuple(key)], tuple(self.__array[tuple(key)].shape), self.dtype, self.split, self.device, self.comm)
                         else:
-                            lout = list(self.__array[tuple(key)].shape)
-                            lout[self.split] = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split], MPI.SUM)
-                            return tensor(self.__array[tuple(key)], tuple(lout), self.dtype, self.split, self.device, self.comm)
+
+                            if len(list(self.__array[tuple(key)].shape)) > 1:
+                                lout = list(self.__array[tuple(key)].shape)
+                                lout[self.split] = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split], MPI.SUM)
+                                return tensor(self.__array[tuple(key)], tuple(lout), self.dtype, self.split, self.device, self.comm)
+                            else:
+                                lout = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[0], MPI.SUM)
+                                return tensor(self.__array[tuple(key)], (lout, ), self.dtype, self.split, self.device, self.comm)
+
+                    if len(list(self.__array[tuple(key)].shape)) > 1:
+                        lout = list(self.__array[tuple(key)].shape)
+                        lout[self.split] = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split], MPI.SUM)
+                        return tensor(self.__array[tuple(key)], tuple(lout), self.dtype, self.split, self.device, self.comm)
+                    else:
+                        lout = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[0], MPI.SUM)
+                        return tensor(self.__array[tuple(key)], (lout,), self.dtype, self.split, self.device, self.comm)
 
                 elif key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
@@ -1383,7 +1404,7 @@ class tensor:
                 else:
                     return None
 
-            elif isinstance(key, slice):
+            elif isinstance(key, slice) and self.split == 0:
                 key_set = set(range(key.start, key.stop, key.step if key.step else 1))
                 overlap = list(key_set & chunk_set)
                 if overlap:
@@ -1393,8 +1414,18 @@ class tensor:
                         return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
                     else:
                         lout = list(self.__array[key].shape)
-                        lout[self.split] = self.comm.allreduce(tuple(self.__array[key].shape)[self.split], MPI.SUM)
+                        if len(lout) > 1:
+                            lout[self.split] = self.comm.allreduce(tuple(self.__array[key].shape)[self.split], MPI.SUM)
+                        else:
+                            lout = self.comm.allreduce(tuple(self.__array[key].shape), MPI.SUM)
                         return tensor(self.__array[key], tuple(lout), self.dtype, self.split, self.device, self.comm)
+            else:
+                lout = list(self.__array[key].shape)
+                if len(lout) > 1:
+                    lout[self.split] = self.comm.allreduce(tuple(self.__array[key].shape)[self.split], MPI.SUM)
+                else:
+                    lout = self.comm.allreduce(tuple(self.__array[key].shape), MPI.SUM)
+                return tensor(self.__array[key], tuple(lout), self.dtype, self.split, self.device, self.comm)
         else:
             return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
 
@@ -1431,8 +1462,9 @@ class tensor:
         """
         if self.is_distributed():
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
-            chunk_start = chunk_slice[0].start
-            chunk_end = chunk_slice[0].stop
+            chunk_start = chunk_slice[self.split].start
+            chunk_end = chunk_slice[self.split].stop
+
             if isinstance(key, int) and self.split == 0:
                 if key in range(chunk_start, chunk_end):
                     self.setter(key-chunk_start, value)
@@ -1440,10 +1472,19 @@ class tensor:
             elif isinstance(key, (tuple, list, tensor, torch.Tensor)):
                 if isinstance(key[self.split], slice):
                     key = list(key)
-                    overlap = list(set(range(key[self.split].start, key[self.split].stop)) & set(range(chunk_start, chunk_end)))
+                    overlap = list(set(range(key[self.split].start if key[self.split].start is not None else 0,
+                                             key[self.split].stop if key[self.split].stop is not None else -1))
+                                   & set(range(chunk_start, chunk_end)))
                     if overlap:
                         hold = [x - chunk_start for x in overlap]
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
+                        try:
+                            self.setter(tuple(key), value[overlap])
+                        except TypeError as te:
+                            if str(te) != "'int' object is not subscriptable":
+                                raise TypeError
+                            self.setter(tuple(key), value)
+                    else:
                         self.setter(tuple(key), value)
 
                 elif key[self.split] in range(chunk_start, chunk_end):
@@ -1451,12 +1492,14 @@ class tensor:
                     key[self.split] = key[self.split] - chunk_start
                     self.setter(tuple(key), value)
 
-            elif isinstance(key, slice):
+            elif isinstance(key, slice) and self.split == 0:
                 overlap = list(set(range(key.start, key.stop)) & set(range(chunk_start, chunk_end)))
                 if overlap:
                     hold = [x - chunk_start for x in overlap]
                     key = slice(min(hold), max(hold) + 1, key.step)
                     self.setter(key, value)
+            else:
+                self.setter(key, value)
         else:
             self.setter(key, value)
 
