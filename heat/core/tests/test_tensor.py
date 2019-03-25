@@ -292,10 +292,10 @@ class TestTensor(unittest.TestCase):
         a = ht.zeros((13, 5, 7), split=2)
         a[3:13, 2:5:2, 1:7:3] = 1
         self.assertEqual(a[3:13, 2:5:2, 1:7:3], 1)
-        self.assertEqual(a[3:13, 2:5:2, 1:7:3].gshape, (10, 4, 1))
         self.assertEqual(a[3:13, 2:5:2, 1:7:3].split, 2)
         self.assertEqual(a[3:13, 2:5:2, 1:7:3].dtype, ht.float32)
         if a.comm.size == 2:
+            self.assertEqual(a[3:13, 2:5:2, 1:7:3].gshape, (10, 4, 1))
             if a.comm.rank == 1:
                 self.assertEqual(a[3:13, 2:5:2, 1:7:3].lshape, (10, 2, 1))
             if a.comm.rank == 0:
