@@ -11,6 +11,7 @@ from . import tensor
 __all__ = [
     'all',
     'allclose',
+    'argmax',
     'argmin',
     'clip',
     'copy',
@@ -18,6 +19,30 @@ __all__ = [
     'tril',
     'triu'
 ]
+
+
+def mpi_argmax(a, b, _):
+    # left-hand side operand buffer
+    lhs = torch.empty((0,), dtype=torch.double)
+    lhs.set_(torch.DoubleStorage.from_buffer(a, 'native'))
+
+    # right-hand side operand buffer
+    rhs = torch.empty((0,), dtype=torch.double)
+    rhs.set_(torch.DoubleStorage.from_buffer(b, 'native'))
+
+    # extract the values and maximum indices from the buffers (first half are values, second are indices)
+    values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0],), dim=1)
+    indices = torch.stack((lhs.chunk(2)[1], rhs.chunk(2)[1],), dim=1)
+
+    # determine the minimum value and select the indices accordingly
+    max, max_indices = torch.max(values, dim=1)
+    result = torch.cat((max, indices[torch.arange(values.shape[0]), max_indices],))
+
+    # copy the result over into the right-hand side (=output buffer)
+    rhs.storage().copy_(result.storage())
+
+
+MPI_ARGMAX = MPI.Op.Create(mpi_argmax, commute=True)
 
 
 def mpi_argmin(a, b, _):
@@ -154,6 +179,65 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
 
 
+def argmax(x, axis=None, out=None):
+    """
+    Returns the indices of the maximum values along an axis.
+
+    Parameters:
+    ----------
+    x : ht.tensor
+        Input array.
+    axis : int, optional
+        By default, the index is into the flattened tensor, otherwise along the specified axis.
+    # TODO out : ht.tensor, optional. Issue #100
+        If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
+
+    Returns:
+    -------
+    index_tensor : ht.tensor of ints
+        Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
+
+    TODO Examples:
+    --------
+    >>> import heat as ht
+    >>> import torch
+    >>> torch.manual_seed(1)
+    >>> a = ht.random.randn(3,3)
+    >>> a
+    tensor([[-0.5631, -0.8923, -0.0583],
+    [-0.1955, -0.9656,  0.4224],
+    [ 0.2673, -0.4212, -0.5107]])
+    >>> ht.argmax(a) TODO: this doesn't work
+    tensor([8])
+    >>> ht.argmax(a, axis=0)
+    tensor([[2, 2, 1]])
+    >>> ht.argmax(a, axis=1)
+    tensor([[2],
+    [2],
+    [0]])
+    """
+    def local_argmax(*args, **kwargs):
+        maxima, indices = torch.max(*args, **kwargs)
+        if kwargs.get('dim', -1) == x.split:
+            offset, _, _ = x.comm.chunk(x.shape, x.split)
+            indices += offset
+
+        return torch.cat([maxima.double(), indices.double()])
+
+    # perform the global reduction
+    reduced_result = __reduce_op(x, local_argmax, MPI_ARGMAX, axis, out)
+
+    # correct the tensor
+    if out:
+        out._tensor__array = out._tensor__array.chunk(2)[-1].type(torch.int64)
+        out._tensor__dtype = types.int64
+        return out
+    reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
+    reduced_result._tensor__dtype = types.int64
+
+    return reduced_result
+
+
 def argmin(x, axis=None, out=None):
     """
     Returns the indices of the minimum values along an axis.
@@ -189,12 +273,12 @@ def argmin(x, axis=None, out=None):
             [2]])
     """
     def local_argmin(*args, **kwargs):
-        minimums, indices = torch.min(*args, **kwargs)
+        minima, indices = torch.min(*args, **kwargs)
         if kwargs.get('dim', -1) == x.split:
             offset, _, _ = x.comm.chunk(x.shape, x.split)
             indices += offset
 
-        return torch.cat([minimums.double(), indices.double()])
+        return torch.cat([minima.double(), indices.double()])
 
     # perform the global reduction
     reduced_result = __reduce_op(x, local_argmin, MPI_ARGMIN, axis, out)
@@ -639,4 +723,3 @@ def __binary_op(operation, t1, t2):
     result = operation(t1._tensor__array, t2._tensor__array)
 
     return tensor.tensor(result, output_shape, t1.dtype, output_split, output_device, output_comm)
-
