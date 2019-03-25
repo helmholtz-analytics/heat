@@ -350,7 +350,7 @@ def matmul(a, b, out=None, out_split=None):
     if a.is_distributed() and b.is_distributed():  # else its simple matmul from torch
         # block sizes dont need to be the same. thy just need the same inner dimmension (kB)
         kB = 0
-        rem_a, rem_b = [False] * 2
+        rem_a, rem_b = [0] * 2
         if a.split == len(a.gshape)-1 and b.split == len(a.gshape)-2:  # if the split direction is the last dim in a and the first dim in b
             # the max inner dim (kB) is the min value from the result of the integer division of the last dim of a/world size and the first dim of b/world size
             kB = min([a.gshape[-1] // a.comm.size, b.gshape[0] // b.comm.size])
@@ -361,12 +361,13 @@ def matmul(a, b, out=None, out_split=None):
             kB = kB if kB < a.gshape[-1] else a.gshape[-1]
         else:  # if the split is not in either of these directions then kB can be anything, it just needs to be tuned
             # what to do here?
+            raise NotImplementedError("need to implement case of split 0 and split 1 for a and b respectively")
             pass
 
         if a.lshape[-1] % kB != 0:
-            rem_a = True
+            rem_a = 1
         if b.lshape[-2] % kB != 0:
-            rem_b = True
+            rem_b = 1
 
         # print(kB, rem_a, rem_b)
 
@@ -377,7 +378,7 @@ def matmul(a, b, out=None, out_split=None):
         lshape_map_hold[b.comm.rank, 1, :] = torch.Tensor(b.lshape)
         a.comm.Allreduce(lshape_map_hold, lshape_map, MPI.SUM)
 
-        print('lshape map:', '\n', lshape_map)
+        # print('lshape map:', '\n', lshape_map)
 
         # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
         mB = min(lshape_map[:, 0, -2]).item()
@@ -386,15 +387,21 @@ def matmul(a, b, out=None, out_split=None):
         print('mb', mB, 'kB', kB, 'nb', nB)
 
         # check for remaining dims in the outside dimensions
-        rem_a_out, rem_b_out = False, False
+        rem_a_out, rem_b_out = 0, 0
         if a.lshape[-2] % mB != 0:
-            rem_a_out = True
+            rem_a_out = 1
         if b.lshape[-1] % nB != 0:
-            rem_b_out = True
-        print('rems', rem_a_out, rem_a, rem_b, rem_b_out)
-        print('block sizes:\n', 'a:', mB, kB, '\nb:', kB, nB)
+            rem_b_out = 1
+        print('rems:', rem_a_out, rem_a, rem_b, rem_b_out)
+        # print('block sizes:', '\n a:', mB, kB, '\n b:', kB, nB)
+        # if there is any rem_a then there are remainders on all processes
 
-
+        # get the flags from all processes
+        rem_map = tensor.zeros((a.comm.size, len(a.gshape) + len(b.gshape)))
+        rem_map_hold = tensor.zeros((a.comm.size, len(a.gshape) + len(b.gshape)))
+        rem_map_hold[a.comm.rank, :] = torch.Tensor([rem_a_out, rem_a, rem_b, rem_b_out])
+        a.comm.Allreduce(rem_map_hold, rem_map, MPI.SUM)
+        print(rem_map)
 ########################################################################################################################################################
 
 

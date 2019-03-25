@@ -29,7 +29,6 @@ class TestOperations(unittest.TestCase):
         self.assertFalse(ht.equal(T, s))
         self.assertFalse(ht.equal(T1, s))
 
-
     def test_eq(self):
         T_r = ht.uint8([
             [0, 1],
@@ -52,7 +51,6 @@ class TestOperations(unittest.TestCase):
             ht.eq(T, otherType)
         with self.assertRaises(TypeError):
             ht.eq('T', 's')
-
 
     def test_ge(self):
         T_r = ht.uint8([
@@ -82,7 +80,6 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.ge('T', 's')
 
-
     def test_gt(self):
         T_r = ht.uint8([
             [0, 0],
@@ -110,8 +107,6 @@ class TestOperations(unittest.TestCase):
             ht.gt(T, otherType)
         with self.assertRaises(TypeError):
             ht.gt('T', 's')
-
-
 
     def test_le(self):
         T_r = ht.uint8([
@@ -168,7 +163,6 @@ class TestOperations(unittest.TestCase):
             ht.lt(T, otherType)
         with self.assertRaises(TypeError):
             ht.lt('T', 's')
-
 
     def test_max(self):
         data = [
