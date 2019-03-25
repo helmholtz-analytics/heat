@@ -1373,14 +1373,14 @@ class tensor:
                     if overlap:
                         hold = [x - chunk_start for x in overlap]
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
-                        print(key_set, chunk_set)
                         if key_set.issubset(chunk_set):  # if all the keys are included in the chunk
                             return tensor(self.__array[tuple(key)], tuple(self.__array[tuple(key)].shape), self.dtype, self.split, self.device, self.comm)
                         else:
 
                             if len(list(self.__array[tuple(key)].shape)) > 1:
                                 lout = list(self.__array[tuple(key)].shape)
-                                lout[self.split] = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split], MPI.SUM)
+                                lout[self.split if self.split < 2 else self.split - 1] = \
+                                    self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split if self.split < 2 else self.split - 1], MPI.SUM)
                                 return tensor(self.__array[tuple(key)], tuple(lout), self.dtype, self.split, self.device, self.comm)
                             else:
                                 lout = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[0], MPI.SUM)
@@ -1388,7 +1388,8 @@ class tensor:
 
                     if len(list(self.__array[tuple(key)].shape)) > 1:
                         lout = list(self.__array[tuple(key)].shape)
-                        lout[self.split] = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split], MPI.SUM)
+                        lout[self.split if self.split < 2 else self.split-1] = \
+                            self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split if self.split < 2 else self.split-1], MPI.SUM)
                         return tensor(self.__array[tuple(key)], tuple(lout), self.dtype, self.split, self.device, self.comm)
                     else:
                         lout = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[0], MPI.SUM)
@@ -1415,7 +1416,8 @@ class tensor:
                     else:
                         lout = list(self.__array[key].shape)
                         if len(lout) > 1:
-                            lout[self.split] = self.comm.allreduce(tuple(self.__array[key].shape)[self.split], MPI.SUM)
+                            lout[self.split if self.split < 2 else self.split - 1] = \
+                                self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split if self.split < 2 else self.split - 1], MPI.SUM)
                         else:
                             lout = self.comm.allreduce(tuple(self.__array[key].shape), MPI.SUM)
                         return tensor(self.__array[key], tuple(lout), self.dtype, self.split, self.device, self.comm)

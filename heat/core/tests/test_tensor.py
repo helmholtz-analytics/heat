@@ -221,20 +221,80 @@ class TestTensor(unittest.TestCase):
         # setting with heat tensor
         a = ht.zeros((4, 5), split=1)
         a[1, 0:4] = ht.arange(4)
-        if a.comm.rank == 0:
-            for c, i in enumerate(range(3)):
-                self.assertEqual(a[1, c], i)
-        if a.comm.rank == 1:
-            self.assertEqual(a[1, 4], 3)
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                for c, i in enumerate(range(3)):
+                    self.assertEqual(a[1, c], i)
+            if a.comm.rank == 1:
+                self.assertEqual(a[1, 4], 3)
 
         # setting with torch tensor
         a = ht.zeros((4, 5), split=1)
         a[1, 0:4] = torch.arange(4)
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                for c, i in enumerate(range(3)):
+                    self.assertEqual(a[1, c], i)
+            if a.comm.rank == 1:
+                self.assertEqual(a[1, 4], 3)
+
+        ####################################################
+        a = ht.zeros((13, 5, 7), split=2)
+        # # set value on one node
+        a[10, :, :] = 1
+        self.assertEqual(a[10, :, :].dtype, ht.float32)
+        self.assertEqual(a[10, :, :].gshape, (5, 7))
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(a[10, :, :].lshape, (5, 4))
+            if a.comm.rank == 1:
+                self.assertEqual(a[10, :, :].lshape, (5, 3))
+
+        a = ht.zeros((13, 5, 8), split=2)
+        # # set value on one node
+        a[10, 0, 0] = 1
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(a[10, 0, 0], 1)
+                self.assertEqual(a[10, 0, 0].dtype, ht.float32)
+
+        # # slice in 1st dim only on 1 node
+        a = ht.zeros((13, 5, 7), split=2)
+        a[1:4] = 1
+        self.assertEqual(a[1:4].gshape, (3, 5, 7))
+        self.assertEqual(a[1:4], 1)
+        self.assertEqual(a[1:4].split, 2)
+        self.assertEqual(a[1:4].dtype, ht.float32)
         if a.comm.rank == 0:
-            for c, i in enumerate(range(3)):
-                self.assertEqual(a[1, c], i)
+            self.assertEqual(a[1:4].lshape, (3, 5, 4))
         if a.comm.rank == 1:
-            self.assertEqual(a[1, 4], 3)
+            self.assertEqual(a[1:4].lshape, (3, 5, 3))
+
+        # slice in 1st dim only on 1 node w/ singular second dim
+        a = ht.zeros((13, 5, 7), split=2)
+        a[1:4, 1, :] = 1
+        if a.comm.size == 0:
+            self.assertEqual(a[1:4, 1, :], 1)
+            self.assertEqual(a[1:4, 1, :].gshape, (3, 7))
+            self.assertEqual(a[1:4, 1, :].split, 2)
+            self.assertEqual(a[1:4, 1, :].dtype, ht.float32)
+            if a.comm.rank == 0:
+                self.assertEqual(a[1:4, 1, :].lshape, (3, 4))
+            if a.comm.rank == 1:
+                self.assertEqual(a[1:4, 1, :].lshape, (3, 3))
+
+        # slice in both directions
+        a = ht.zeros((13, 5, 7), split=2)
+        a[3:13, 2:5:2, 1:7:3] = 1
+        self.assertEqual(a[3:13, 2:5:2, 1:7:3], 1)
+        self.assertEqual(a[3:13, 2:5:2, 1:7:3].gshape, (10, 4, 1))
+        self.assertEqual(a[3:13, 2:5:2, 1:7:3].split, 2)
+        self.assertEqual(a[3:13, 2:5:2, 1:7:3].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(a[3:13, 2:5:2, 1:7:3].lshape, (10, 2, 1))
+            if a.comm.rank == 0:
+                self.assertEqual(a[3:13, 2:5:2, 1:7:3].lshape, (10, 2, 1))
 
 
 class TestTensorFactories(unittest.TestCase):
