@@ -190,6 +190,7 @@ class TestTypeConversion(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.promote_types(ht.float32, 'hello world')
 
+
 class TestTypeConversion(unittest.TestCase):
     def test_finfo(self):
         info32 = ht.finfo(ht.float32)
