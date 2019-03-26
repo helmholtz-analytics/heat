@@ -1380,8 +1380,12 @@ class tensor:
                         else:  # if the keys given ask for data across multiple nodes
                             if len(list(self.__array[tuple(key)].shape)) > 1:  # handles the definition of the lshape
                                 lout = list(self.__array[tuple(key)].shape)
-                                lout[self.split if self.split < 2 else self.split - 1] = \
-                                    self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split if self.split < 2 else self.split - 1], MPI.SUM)
+
+                                lout[self.split if len(tuple(self.__array[tuple(key)].shape)) == len(self.gshape) else self.split - 1] = \
+                                    self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split if len(tuple(self.__array[tuple(key)].shape)
+                                                                                                                ) == len(self.gshape) else self.split - 1],
+                                                        MPI.SUM)
+
                                 return tensor(self.__array[tuple(key)], tuple(lout), self.dtype, self.split, self.device, self.comm)
                             else:
                                 lout = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[0], MPI.SUM)
@@ -1390,8 +1394,11 @@ class tensor:
                     # if there is no overlap then the output is all on one node:
                     if len(list(self.__array[tuple(key)].shape)) > 1:
                         lout = list(self.__array[tuple(key)].shape)
-                        lout[self.split if self.split < 2 else self.split-1] = \
-                            self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split if self.split < 2 else self.split-1], MPI.SUM)
+
+                        lout[self.split if len(tuple(self.__array[tuple(key)].shape)) == len(self.gshape) else self.split - 1] = \
+                            self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split if len(tuple(self.__array[tuple(key)].shape)
+                                                                                                        ) == len(self.gshape) else self.split - 1], MPI.SUM)
+
                         return tensor(self.__array[tuple(key)], tuple(lout), self.dtype, self.split, self.device, self.comm)
                     else:
                         lout = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[0], MPI.SUM)
