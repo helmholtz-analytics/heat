@@ -12,10 +12,9 @@ before_install:
   - pip install codecov pytest pytest-cov
 install:
   - pip install . -e .[hdf5] .[netcdf]
-  - pip list
 script:
   - mpirun -np 2 pytest
-  - mpirun -np 2 pytest --cov=heat heat/
+  - mpirun pytest --cov=heat heat/
 after_success:
   - codecov
 deploy:
