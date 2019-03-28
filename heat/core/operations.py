@@ -402,6 +402,10 @@ def matmul(a, b, out=None, out_split=None):
         rem_map_hold[a.comm.rank, :] = torch.Tensor([rem_a_out, rem_a, rem_b, rem_b_out])
         a.comm.Allreduce(rem_map_hold, rem_map, MPI.SUM)
         print(rem_map)
+
+        # TODO: make index map of where all the data is / tie the indecies of the data to the data (dictionary)
+        # with the index map then the communication can be determined
+        # this index map will also be used as a meta data / dictionary when the data is passed around
 ########################################################################################################################################################
 
 
