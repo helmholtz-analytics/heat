@@ -48,6 +48,49 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.cos('hello world')
 
+    def test_cosh(self):
+        # base elements
+        elements = 30
+        comparison = torch.arange(elements, dtype=torch.float64).cosh()
+
+        # cosine of float32
+        float32_tensor = ht.arange(elements, dtype=ht.float32)
+        float32_cosh = ht.cosh(float32_tensor)
+        self.assertIsInstance(float32_cosh, ht.tensor)
+        self.assertEqual(float32_cosh.dtype, ht.float32)
+        self.assertEqual(float32_cosh.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_cosh._tensor__array.type(torch.double), comparison))
+
+        # coshine of float64
+        float64_tensor = ht.arange(elements, dtype=ht.float64)
+        float64_cosh = ht.cosh(float64_tensor)
+        self.assertIsInstance(float64_cosh, ht.tensor)
+        self.assertEqual(float64_cosh.dtype, ht.float64)
+        self.assertEqual(float64_cosh.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_cosh._tensor__array.type(torch.double), comparison))
+
+        # cosine of ints, automatic conversion to intermediate floats
+        int32_tensor = ht.arange(elements, dtype=ht.int32)
+        int32_cosh = ht.cosh(int32_tensor)
+        self.assertIsInstance(int32_cosh, ht.tensor)
+        self.assertEqual(int32_cosh.dtype, ht.float64)
+        self.assertEqual(int32_cosh.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float32_cosh._tensor__array.type(torch.double), comparison))
+
+        # cosine of longs, automatic conversion to intermediate floats
+        int64_tensor = ht.arange(elements, dtype=ht.int64)
+        int64_cosh = ht.cosh(int64_tensor)
+        self.assertIsInstance(int64_cosh, ht.tensor)
+        self.assertEqual(int64_cosh.dtype, ht.float64)
+        self.assertEqual(int64_cosh.dtype, ht.float64)
+        self.assertTrue(torch.allclose(int64_cosh._tensor__array.type(torch.double), comparison))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.cosh([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.cosh('hello world')
+
     def test_sin(self):
         # base elements
         elements = 30
