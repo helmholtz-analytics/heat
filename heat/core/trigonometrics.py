@@ -5,7 +5,8 @@ from .operations import __local_operation as local_op
 __all__ = [
     'cos',
     'sin',
-    'tan'
+    'tan',
+    'tanh'
 ]
 
 
@@ -86,3 +87,28 @@ def tan(x, out=None):
     tensor([ 0.29100619, -1.15782128,  2.18503986,  0., -2.18503986, 1.15782128, -0.29100619])
     """
     return local_op(torch.tan, x, out)
+
+
+def tanh(x, out=None):
+    """
+    Return the hyperbolic tangent, element-wise.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        The value for which to compute the hyperbolic tangent.
+    out : ht.tensor or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    hyperbolic tangent : ht.tensor
+        A tensor of the same shape as x, containing the hyperbolic tangent of each element in this tensor.
+
+    Examples
+    --------
+    >>> ht.tanh(ht.arange(-6, 7, 2))
+    tensor([-1.0000, -0.9993, -0.9640,  0.0000,  0.9640,  0.9993,  1.0000])
+    """
+    return local_op(torch.tanh, x, out)
