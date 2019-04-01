@@ -20,16 +20,16 @@ def add(t1, t2):
     Parameters
     ----------
     t1: tensor or scalar
-    The first operand involved in the addition
+        The first operand involved in the addition
 
     t2: tensor or scalar
-    The second operand involved in the addition
+        The second operand involved in the addition
 
 
     Returns:
     -------
     result: ht.tensor
-    A tensor containing the results of element-wise addition of t1 and t2.
+        A tensor containing the results of element-wise addition of t1 and t2.
 
     Examples:
     ---------
@@ -61,16 +61,16 @@ def div(t1, t2):
         Parameters
         ----------
         t1: tensor or scalar
-        The first operand whose values are divided
+            The first operand whose values are divided
 
         t2: tensor or scalar
-        The second operand by whose values is divided
+            The second operand by whose values is divided
 
 
         Returns
         -------
         result: ht.tensor
-        A tensor containing the results of element-wise true division (i.e. floating point values) of t1 by t2.
+            A tensor containing the results of element-wise true division (i.e. floating point values) of t1 by t2.
 
 
         Examples:
@@ -101,16 +101,16 @@ def mul(t1,t2):
       Parameters
       ----------
       t1: tensor or scalar
-      The first operand involved in the multiplication
+        The first operand involved in the multiplication
 
       t2: tensor or scalar
-      The second operand involved in the multiplication
+        The second operand involved in the multiplication
 
 
       Returns
       -------
       result: ht.tensor
-      A tensor containing the results of element-wise multiplication of t1 and t2.
+        A tensor containing the results of element-wise multiplication of t1 and t2.
 
      Examples:
      ---------
@@ -143,16 +143,16 @@ def pow(t1,t2):
         Parameters
         ----------
         t1: tensor or scalar
-        The first operand whose values represent the base
+            The first operand whose values represent the base
 
         t2: tensor or scalar
-        The second operand by whose values represent the exponent
+            The second operand by whose values represent the exponent
 
 
         Returns
         -------
         result: ht.tensor
-        A tensor containing the results of element-wise exponential function.
+            A tensor containing the results of element-wise exponential function.
 
         Examples:
         ---------
@@ -184,15 +184,15 @@ def sub(t1, t2):
       Parameters
       ----------
       t1: tensor or scalar
-      The first operand from which values are subtracted
+        The first operand from which values are subtracted
 
       t2: tensor or scalar
-      The second operand whose values are subtracted
+        The second operand whose values are subtracted
 
       Returns
       -------
       result: ht.tensor
-      A tensor containing the results of element-wise subtraction of t1 and t2.
+        A tensor containing the results of element-wise subtraction of t1 and t2.
 
       Examples:
       ---------
