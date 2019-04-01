@@ -353,6 +353,31 @@ class tensor:
         """
         return trigonometrics.cos(self, out)
 
+    def cosh(self, out=None):
+        """
+        Return the hyperbolic cosine, element-wise.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            The value for which to compute the hyperbolic cosine.
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        hyperbolic cosine : ht.tensor
+            A tensor of the same shape as x, containing the hyperbolic cosine of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+
+        Examples
+        --------
+        >>> ht.cosh(ht.arange(-6, 7, 2))
+        tensor([201.7156,  27.3082,   3.7622,   1.0000,   3.7622,  27.3082, 201.7156])
+        """
+        return trigonometrics.cosh(self, out)
+
     def cpu(self):
         """
         Returns a copy of this object in main memory. If this object is already in main memory, then no copy is
