@@ -411,13 +411,13 @@ class tensor:
             Parameters
             ----------
             other: tensor or scalar
-            The second operand by whose values it self to be divided.
+                The second operand by whose values it self to be divided.
 
             Returns
             -------
             result: ht.tensor
-            A tensor containing the remainder of the element-wise division (i.e. floating point values)
-            of self by other.
+                A tensor containing the remainder of the element-wise division (i.e. floating point values)
+                of self by other.
 
             Examples:
             ---------
@@ -455,8 +455,9 @@ class tensor:
         Returns
         -------
         result: ht.tensor
-        Tensor holding 1 for all elements in which values of self are equal to values of other,
+            Tensor holding 1 for all elements in which values of self are equal to values of other,
         0 for all other elements
+
         Examples:
         ---------
         >>> import heat as ht

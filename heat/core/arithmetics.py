@@ -104,15 +104,15 @@ def mod(t1, t2):
         Parameters
         ----------
         t1: tensor or scalar
-        The first operand whose values are divided
+            The first operand whose values are divided
 
         t2: tensor or scalar
-        The second operand by whose values is divided
+            The second operand by whose values is divided
 
         Returns
         -------
         result: ht.tensor
-        A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2.
+            A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2.
 
         Examples:
         ---------
