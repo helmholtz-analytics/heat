@@ -404,22 +404,20 @@ class tensor:
 
     def __mod__(self, other):
         """
-            Element-wise remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
+            Element-wise remainder of values of self by values of operand other (i.e. self % other), not commutative.
             Takes the two operands (scalar or tensor, both may contain floating point number) whose elements are to be
             divided (operand 1 by operand 2) as arguments.
 
             Parameters
             ----------
-            t1: tensor or scalar
-            The first operand whose values are divided
-
-            t2: tensor or scalar
-            The second operand by whose values is divided
+            other: tensor or scalar
+            The second operand by whose values it self to be divided.
 
             Returns
             -------
             result: ht.tensor
-            A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2.
+            A tensor containing the remainder of the element-wise division (i.e. floating point values)
+            of self by other.
 
             Examples:
             ---------
