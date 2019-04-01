@@ -1,5 +1,4 @@
 import unittest
-
 import heat as ht
 
 FLOAT_EPSILON = 1e-4
@@ -124,6 +123,47 @@ class TestOperations(unittest.TestCase):
             ht.div(T, otherType)
         with self.assertRaises(TypeError):
             ht.div('T', 's')
+
+    def test_mod(self):
+        T_r = ht.float32([
+            [1., 0.],
+            [1., 0.]
+        ])
+        T_int = ht.int32([
+            [5, 3],
+            [4, 1]
+        ])
+        T_r_int = ht.int32([
+            [1, 1],
+            [0, 1]
+        ])
+        T_inv = ht.float32([
+            [0.0, 0.0],
+            [2.0, 2.0]
+        ])
+        T_zero = ht.float32([
+            [0.0, 0.0],
+            [0.0, 0.0]
+        ])
+
+        self.assertTrue(ht.equal(ht.mod(s, s), ht.float32([0.0])))
+        self.assertTrue(ht.equal(ht.mod(T, T), T_zero))
+        self.assertTrue(ht.equal(ht.mod(T, s_int), T_r))
+        self.assertTrue(ht.equal(ht.mod(T, T1), T_r))
+        self.assertTrue(ht.equal(ht.mod(T, v), T_r))
+        self.assertTrue(ht.equal(ht.mod(T, s_int), T_r))
+        self.assertTrue(ht.equal(ht.mod(T_int, s_int), T_r_int))
+        self.assertTrue(ht.equal(ht.mod(s, T), T_inv))
+        self.assertTrue(ht.equal(ht.mod(T_s, T), T_inv))
+
+        with self.assertRaises(ValueError):
+            ht.mod(T, v2)
+        with self.assertRaises(NotImplementedError):
+            ht.mod(T, T_s)
+        with self.assertRaises(TypeError):
+            ht.mod(T, otherType)
+        with self.assertRaises(TypeError):
+            ht.mod('T', 's')
 
     def test_pow(self):
         T_r = ht.float32([
