@@ -402,6 +402,48 @@ class tensor:
          """
         return arithmetics.div(self, other)
 
+    def __mod__(self, other):
+        """
+            Element-wise remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
+            Takes the two operands (scalar or tensor, both may contain floating point number) whose elements are to be
+            divided (operand 1 by operand 2) as arguments.
+
+            Parameters
+            ----------
+            t1: tensor or scalar
+            The first operand whose values are divided
+
+            t2: tensor or scalar
+            The second operand by whose values is divided
+
+            Returns
+            -------
+            result: ht.tensor
+            A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2.
+
+            Examples:
+            ---------
+            >>> import heat as ht
+            >>> ht.mod(2.0, 2.0)
+            tensor([0.])
+
+            >>> T1 = ht.float32([[1, 2], [3, 4]])
+            >>> T2 = ht.float32([[2, 2], [2, 2]])
+            >>> ht.mod(T1, T2)
+            tensor([[1., 0.],
+                    [1., 0.]])
+
+            >>> T1 % T2
+            tensor([[1., 0.],
+                    [1., 0.]])
+
+            >>> s = 2.0
+            >>> ht.mod(s, T1)
+            tensor([[0., 0.]
+                    [2., 2.]])
+            """
+        return arithmetics.mod(self, other)
+
     def __eq__(self, other):
         """
         Element-wise rich comparison of equality with values from second operand (scalar or tensor)
