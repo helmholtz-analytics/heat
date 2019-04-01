@@ -1300,12 +1300,15 @@ class tensor:
     >>> 1 + T
     tensor([[2., 3.],
         [4., 5.]])
-        
-        
-    Make sure to uncomment the correct line when a new method of the left hand side operations has been implemented.
     """
     __radd__ = __add__
     __rmul__ = __mul__
+
+    # __rtruediv__ = __truediv__
+    # __rfloordiv__ = __floordiv__
+    # __rmod__ = __mod__
+    # __rpow__ = __pow__
+    # __rsub__ = __sub__
 
 
 def __factory(shape, dtype, split, local_factory, device, comm):

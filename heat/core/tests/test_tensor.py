@@ -1,3 +1,5 @@
+import operator
+
 import torch
 import unittest
 
@@ -686,3 +688,37 @@ class TestTensorFactories(unittest.TestCase):
             ht.empty_like(ones, dtype='abc')
         with self.assertRaises(TypeError):
             ht.empty_like(ones, split='axis')
+
+    def test_right_hand_side_operations(self):
+        """
+        This test ensures that for each arithmetic operation (e.g. +, -, *, ...) that is implemented in the tensor
+        class, it works both ways.
+
+        Examples
+        --------
+        >>> import heat as ht
+        >>> T = ht.float32([[1., 2.], [3., 4.]])
+        >>> assert T * 3 == 3 * T
+        
+        """
+        operators = (
+            ('__add__', operator.add, True),
+            ('__sub__', operator.sub, False),
+            ('__mul__', operator.mul, True),
+            ('__truediv__', operator.truediv, False),
+            ('__floordiv__', operator.floordiv, False),
+            ('__mod__', operator.mod, False),
+            ('__pow__', operator.pow, False)
+        )
+        tensor = ht.float32([[1, 4], [2, 3]])
+        num = 3
+        for (attr, op, commutative) in operators:
+            try:
+                func = tensor.__getattribute__(attr)
+            except AttributeError:
+                continue
+            self.assertTrue(callable(func))
+            res_1 = op(tensor, num)
+            res_2 = op(num, tensor)
+            if commutative:
+                self.assertTrue(ht.equal(res_1, res_2))
