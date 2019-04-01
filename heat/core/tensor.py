@@ -1287,6 +1287,26 @@ class tensor:
             raise NotImplementedError(
                 'Not implemented for {}'.format(value.__class__.__name__))
 
+    """
+    This ensures that commutative arithmetic operations work no matter on which side the heat-tensor is placed.
+    
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T = ht.float32([[1., 2.], [3., 4.,]])
+    >>> T + 1
+    tensor([[2., 3.],
+            [4., 5.]])
+    >>> 1 + T
+    tensor([[2., 3.],
+        [4., 5.]])
+        
+        
+    Make sure to uncomment the correct line when a new method of the left hand side operations has been implemented.
+    """
+    __radd__ = __add__
+    __rmul__ = __mul__
+
 
 def __factory(shape, dtype, split, local_factory, device, comm):
     """
