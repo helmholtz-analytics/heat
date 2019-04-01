@@ -455,9 +455,8 @@ class tensor:
         Returns
         -------
         result: ht.tensor
-            Tensor holding 1 for all elements in which values of self are equal to values of other,
+        Tensor holding 1 for all elements in which values of self are equal to values of other,
         0 for all other elements
-
         Examples:
         ---------
         >>> import heat as ht
