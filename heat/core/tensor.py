@@ -247,8 +247,8 @@ class tensor:
         tensor([[-0.5631, -0.8923, -0.0583],
         [-0.1955, -0.9656,  0.4224],
         [ 0.2673, -0.4212, -0.5107]])
-        >>> a.argmax() TODO: this doesn't work
-        tensor([8])
+        >>> a.argmax()
+        tensor([5])
         >>> a.argmax(axis=0)
         tensor([[2, 2, 1]])
         >>> a.argmax(axis=1)
