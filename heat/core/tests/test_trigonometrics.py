@@ -220,3 +220,46 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.tan('hello world')
 
+    def test_tanh(self):
+        # base elements
+        elements = 30
+        comparison = torch.arange(elements, dtype=torch.float64).tanh()
+
+        # tangent of float32
+        float32_tensor = ht.arange(elements, dtype=ht.float32)
+        float32_tanh = ht.tanh(float32_tensor)
+        self.assertIsInstance(float32_tanh, ht.tensor)
+        self.assertEqual(float32_tanh.dtype, ht.float32)
+        self.assertEqual(float32_tanh.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_tanh._tensor__array.type(torch.double), comparison))
+
+        # tangent of float64
+        float64_tensor = ht.arange(elements, dtype=ht.float64)
+        float64_tanh = ht.tanh(float64_tensor)
+        self.assertIsInstance(float64_tanh, ht.tensor)
+        self.assertEqual(float64_tanh.dtype, ht.float64)
+        self.assertEqual(float64_tanh.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_tanh._tensor__array.type(torch.double), comparison))
+
+        # tangent of ints, automatic conversion to intermediate floats
+        int32_tensor = ht.arange(elements, dtype=ht.int32)
+        int32_tanh = ht.tanh(int32_tensor)
+        self.assertIsInstance(int32_tanh, ht.tensor)
+        self.assertEqual(int32_tanh.dtype, ht.float64)
+        self.assertEqual(int32_tanh.dtype, ht.float64)
+        self.assertTrue(torch.allclose(int32_tanh._tensor__array.type(torch.double), comparison))
+
+        # tangent of longs, automatic conversion to intermediate floats
+        int64_tensor = ht.arange(elements, dtype=ht.int64)
+        int64_tanh = ht.tanh(int64_tensor)
+        self.assertIsInstance(int64_tanh, ht.tensor)
+        self.assertEqual(int64_tanh.dtype, ht.float64)
+        self.assertEqual(int64_tanh.dtype, ht.float64)
+        self.assertTrue(torch.allclose(int64_tanh._tensor__array.type(torch.double), comparison))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.tanh([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.tanh('hello world')
+

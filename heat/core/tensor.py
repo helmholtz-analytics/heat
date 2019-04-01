@@ -1222,6 +1222,30 @@ class tensor:
         """
         return trigonometrics.tan(self, out)
 
+    def tanh(self, out=None):
+        """
+        Return the hyperbolic tangent, element-wise.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            The value for which to compute the hyperbolic tangent.
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        hyperbolic tangent : ht.tensor
+            A tensor of the same shape as x, containing the hyperbolic tangent of each element in this tensor.
+
+        Examples
+        --------
+        >>> ht.tanh(ht.arange(-6, 7, 2))
+        tensor([-1.0000, -0.9993, -0.9640,  0.0000,  0.9640,  0.9993,  1.0000])
+        """
+        return trigonometrics.tanh(self, out)
+
     def transpose(self, axes=None):
         """
         Permute the dimensions of an array.
