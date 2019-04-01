@@ -134,6 +134,49 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.sin('hello world')
 
+    def test_sinh(self):
+        # base elements
+        elements = 30
+        comparison = torch.arange(elements, dtype=torch.float64).sinh()
+
+        # sine of float32
+        float32_tensor = ht.arange(elements, dtype=ht.float32)
+        float32_sinh = ht.sinh(float32_tensor)
+        self.assertIsInstance(float32_sinh, ht.tensor)
+        self.assertEqual(float32_sinh.dtype, ht.float32)
+        self.assertEqual(float32_sinh.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_sinh._tensor__array.type(torch.double), comparison))
+
+        # sine of float64
+        float64_tensor = ht.arange(elements, dtype=ht.float64)
+        float64_sinh = ht.sinh(float64_tensor)
+        self.assertIsInstance(float64_sinh, ht.tensor)
+        self.assertEqual(float64_sinh.dtype, ht.float64)
+        self.assertEqual(float64_sinh.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_sinh._tensor__array.type(torch.double), comparison))
+
+        # sine of ints, automatic conversion to intermediate floats
+        int32_tensor = ht.arange(elements, dtype=ht.int32)
+        int32_sinh = ht.sinh(int32_tensor)
+        self.assertIsInstance(int32_sinh, ht.tensor)
+        self.assertEqual(int32_sinh.dtype, ht.float64)
+        self.assertEqual(int32_sinh.dtype, ht.float64)
+        self.assertTrue(torch.allclose(int32_sinh._tensor__array.type(torch.double), comparison))
+
+        # sine of longs, automatic conversion to intermediate floats
+        int64_tensor = ht.arange(elements, dtype=ht.int64)
+        int64_sinh = ht.sinh(int64_tensor)
+        self.assertIsInstance(int64_sinh, ht.tensor)
+        self.assertEqual(int64_sinh.dtype, ht.float64)
+        self.assertEqual(int64_sinh.dtype, ht.float64)
+        self.assertTrue(torch.allclose(int64_sinh._tensor__array.type(torch.double), comparison))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.sinh([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.sinh('hello world')
+
     def test_tan(self):
         # base elements
         elements = 30

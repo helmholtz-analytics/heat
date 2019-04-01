@@ -1079,6 +1079,31 @@ class tensor:
         """
         return trigonometrics.sin(self, out)
 
+    def sinh(self, out=None):
+        """
+        Return the hyperbolic sine, element-wise.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            The value for which to compute the hyperbolic sine.
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        hyperbolic sine : ht.tensor
+            A tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+
+        Examples
+        --------
+        >>> ht.sinh(ht.arange(-6, 7, 2))
+        tensor([[-201.7132,  -27.2899,   -3.6269,    0.0000,    3.6269,   27.2899,  201.7132])
+        """
+        return trigonometrics.sinh(self, out)
+
     def sqrt(self, out=None):
         """
         Return the non-negative square-root of the tensor element-wise.

@@ -6,6 +6,7 @@ __all__ = [
     'cos',
     'cosh',
     'sin',
+    'sinh',
     'tan'
 ]
 
@@ -86,6 +87,32 @@ def sin(x, out=None):
     tensor([ 0.2794,  0.7568, -0.9093,  0.0000,  0.9093, -0.7568, -0.2794])
     """
     return local_op(torch.sin, x, out)
+
+
+def sinh(x, out=None):
+    """
+    Return the hyperbolic sine, element-wise.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        The value for which to compute the hyperbolic sine.
+    out : ht.tensor or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    hyperbolic sine : ht.tensor
+        A tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
+        Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+
+    Examples
+    --------
+    >>> ht.sinh(ht.arange(-6, 7, 2))
+    tensor([[-201.7132,  -27.2899,   -3.6269,    0.0000,    3.6269,   27.2899,  201.7132])
+    """
+    return local_op(torch.sinh, x, out)
 
 
 def tan(x, out=None):
