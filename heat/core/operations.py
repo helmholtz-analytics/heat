@@ -215,6 +215,10 @@ def argmin(x, axis=None, out=None):
     reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
     reduced_result._tensor__dtype = types.int64
 
+    # set out parameter correctly, i.e. set the storage correctly
+    if out is not None:
+        out._tensor__array.storage().copy_(reduced_result._tensor__array.storage())
+
     return reduced_result
 
 
@@ -538,8 +542,7 @@ def __reduce_op(x, partial_op, reduction_op, axis, out):
 
     # Check shape of output buffer, if any
     if out is not None and out.shape != output_shape:
-        raise ValueError('Expecting output buffer of shape {}, got {}'.format(
-            output_shape, out.shape))
+        raise ValueError('Expecting output buffer of shape {}, got {}'.format(output_shape, out.shape))
 
     # perform a reduction operation in case the tensor is distributed across the reduction axis
     if x.split is not None and (axis is None or axis == x.split):
