@@ -6,6 +6,7 @@ from .operations import __local_operation as local_op
 __all__ = [
     'abs',
     'absolute',
+    'ceil',
     'floor'
 ]
 
@@ -68,6 +69,34 @@ def absolute(x, out=None, dtype=None):
     return abs(x, out, dtype)
 
 
+def ceil(x, out=None):
+    """
+    Return the ceil of the input, element-wise.
+
+    The ceil of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lceil x \rceil.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        The value for which to compute the ceiled values.
+    out : ht.tensor or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    ceiled : ht.tensor
+        A tensor of the same shape as x, containing the ceiled valued of each element in this tensor. If out was
+        provided, ceiled is a reference to it.
+
+    Examples
+    --------
+    >>> ht.ceil(ht.arange(-2.0, 2.0, 0.4))
+    tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
+    """
+    return local_op(torch.ceil, x, out)
+
+
 def floor(x, out=None):
     """
     Return the floor of the input, element-wise.
@@ -86,7 +115,7 @@ def floor(x, out=None):
     -------
     floored : ht.tensor
         A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
-        provided, logarithms is a reference to it.
+        provided, floored is a reference to it.
 
     Examples
     --------
