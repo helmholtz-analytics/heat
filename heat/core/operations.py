@@ -541,19 +541,19 @@ def __binary_op(operation, t1, t2):
     Parameters
     ----------
     operation : function
-    The operation to be performed. Function that performs operation elements-wise on the involved tensors,
-    e.g. add values from other to self
+        The operation to be performed. Function that performs operation elements-wise on the involved tensors,
+        e.g. add values from other to self
 
     t1: tensor or scalar
-    The first operand involved in the operation,
+        The first operand involved in the operation,
 
     t2: tensor or scalar
-    The second operand involved in the operation,
+        The second operand involved in the operation,
 
     Returns
     -------
     result: ht.tensor
-    A tensor containing the results of element-wise operation.
+        A tensor containing the results of element-wise operation.
     """
 
     if np.isscalar(t1):
