@@ -24,15 +24,10 @@ __all__ = [
 
 
 def mpi_argmax(a, b, _):
-    # left-hand side operand buffer
-    lhs = torch.empty((0,), dtype=torch.double)
-    lhs.set_(torch.DoubleStorage.from_buffer(a, 'native'))
+    lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
+    rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
 
-    # right-hand side operand buffer
-    rhs = torch.empty((0,), dtype=torch.double)
-    rhs.set_(torch.DoubleStorage.from_buffer(b, 'native'))
-
-    # extract the values and maximum indices from the buffers (first half are values, second are indices)
+    # extract the values and minimal indices from the buffers (first half are values, second are indices)
     values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0],), dim=1)
     indices = torch.stack((lhs.chunk(2)[1], rhs.chunk(2)[1],), dim=1)
 
@@ -40,8 +35,7 @@ def mpi_argmax(a, b, _):
     max, max_indices = torch.max(values, dim=1)
     result = torch.cat((max, indices[torch.arange(values.shape[0]), max_indices],))
 
-    # copy the result over into the right-hand side (=output buffer)
-    rhs.storage().copy_(result.storage())
+    rhs.copy_(result)
 
 
 MPI_ARGMAX = MPI.Op.Create(mpi_argmax, commute=True)
@@ -203,8 +197,8 @@ def argmax(x, axis=None, out=None):
     tensor([[-0.5631, -0.8923, -0.0583],
     [-0.1955, -0.9656,  0.4224],
     [ 0.2673, -0.4212, -0.5107]])
-    >>> ht.argmax(a) TODO: this doesn't work
-    tensor([8])
+    >>> ht.argmax(a)
+    tensor([5])
     >>> ht.argmax(a, axis=0)
     tensor([[2, 2, 1]])
     >>> ht.argmax(a, axis=1)
@@ -220,8 +214,20 @@ def argmax(x, axis=None, out=None):
 
         return torch.cat([maxima.double(), indices.double()])
 
+    if axis is None:
+        inp = tensor.tensor(
+            torch.reshape(x._tensor__array, (x._tensor__array.numel(),)),
+            (x._tensor__array.numel(),),
+            x.dtype,
+            split=0,
+            device=x.device,
+            comm=x.comm)
+        axis = 0
+    else:
+        inp = x
+
     # perform the global reduction
-    reduced_result = __reduce_op(x, local_argmax, MPI_ARGMAX, axis, out)
+    reduced_result = __reduce_op(inp, local_argmax, MPI_ARGMAX, axis, out)
 
     # correct the tensor
     if out:

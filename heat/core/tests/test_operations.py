@@ -189,6 +189,17 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.split, 0)
         self.assertTrue((result._tensor__array == torch.tensor([[4], [4], [2], [4]])).all())
 
+        # 2D split tensor, no axis
+        data = ht.arange(-10, 10, split=0)
+        result = ht.argmax(data)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.dtype, ht.int64)
+        self.assertEqual(result._tensor__array.dtype, torch.int64)
+        self.assertEqual(result.shape, (1,))
+        self.assertEqual(result.lshape, (1,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == torch.tensor([19])))
+
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
         data = ht.tril(ht.ones((size, size,), split=0), k=-1)
