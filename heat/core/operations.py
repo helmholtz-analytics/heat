@@ -10,6 +10,7 @@ from . import tensor
 
 __all__ = [
     'MPI_ARGMIN',
+
     'all',
     'allclose',
     'argmin',
@@ -22,13 +23,8 @@ __all__ = [
 
 
 def mpi_argmin(a, b, _):
-    # left-hand side operand buffer
-    lhs = torch.empty((0,), dtype=torch.double)
-    lhs.set_(torch.DoubleStorage.from_buffer(a, 'native'))
-
-    # right-hand side operand buffer
-    rhs = torch.empty((0,), dtype=torch.double)
-    rhs.set_(torch.DoubleStorage.from_buffer(b, 'native'))
+    lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
+    rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
 
     # extract the values and minimal indices from the buffers (first half are values, second are indices)
     values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0],), dim=1)
@@ -38,8 +34,7 @@ def mpi_argmin(a, b, _):
     min, min_indices = torch.min(values, dim=1)
     result = torch.cat((min, indices[torch.arange(values.shape[0]), min_indices],))
 
-    # copy the result over into the right-hand side (=output buffer)
-    rhs.storage().copy_(result.storage())
+    rhs.copy_(result)
 
 
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
