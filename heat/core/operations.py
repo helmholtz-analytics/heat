@@ -185,9 +185,25 @@ def argmin(x, axis=None, out=None):
             [2]])
     """
     def local_argmin(*args, **kwargs):
-        minimums, indices = torch.min(*args, **kwargs)
-        if kwargs.get('dim', -1) == x.split:
-            offset, _, _ = x.comm.chunk(x.shape, x.split)
+        axis = kwargs.get('dim', -1)
+        shape = x.shape
+
+        # case where the argmin axis is set to None
+        # argmin will be the flattened index, computed standalone and the actual minimum value obtain separately
+        if len(args) <= 1 and axis < 0:
+            indices = torch.argmin(*args, **kwargs).reshape(1)
+            minimums = args[0].flatten()[indices]
+
+            # artificially flatten the input tensor shape to correct the offset computation
+            axis = x.split
+            shape = [np.prod(shape)]
+        # usual case where indices and minimum values are both returned. Axis is not equal to None
+        else:
+            minimums, indices = torch.min(*args, **kwargs)
+
+        # add offset of data chunks if reduction is computed across split axis
+        if axis == x.split:
+            offset, _, _ = x.comm.chunk(shape, x.split)
             indices += offset
 
         return torch.cat([minimums.double(), indices.double()])
@@ -514,7 +530,7 @@ def __reduce_op(x, partial_op, reduction_op, axis, out):
     split = x.split
 
     if axis is None:
-        partial = partial_op(x._tensor__array).reshape((1,))
+        partial = partial_op(x._tensor__array).reshape(-1)
         output_shape = (1,)
     else:
         partial = partial_op(x._tensor__array, dim=axis, keepdim=True)

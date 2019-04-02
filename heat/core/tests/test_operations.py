@@ -157,6 +157,16 @@ class TestOperations(unittest.TestCase):
         torch.manual_seed(1)
         data = ht.random.randn(3, 4, 5)
 
+        # 3D local tensor, no axis
+        result = ht.argmin(data)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.dtype, ht.int64)
+        self.assertEqual(result._tensor__array.dtype, torch.int64)
+        self.assertEqual(result.shape, (1,))
+        self.assertEqual(result.lshape, (1,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == data._tensor__array.argmin()).all())
+
         # 3D local tensor, major axis
         result = ht.argmin(data, axis=0)
         self.assertIsInstance(result, ht.tensor)
