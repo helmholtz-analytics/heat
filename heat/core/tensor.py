@@ -273,6 +273,45 @@ class tensor:
         """
         return operations.allclose(self, other, rtol, atol, equal_nan)
 
+    def argmax(self, axis=None):
+        """
+        Returns the indices of the minimum values along an axis.
+
+        Parameters:	
+        ----------
+        x : ht.tensor
+            Input array.
+        axis : int, optional
+            By default, the index is into the flattened tensor, otherwise along the specified axis.
+        #TODO out : array, optional
+            If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
+
+        Returns:
+        -------	
+        index_tensor : ht.tensor of ints
+            Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
+
+        Examples:
+        --------
+        >>> import heat as ht
+        >>> import torch
+        >>> torch.manual_seed(1)
+        >>> a = ht.random.randn(3,3)
+        >>> a
+        tensor([[-0.5631, -0.8923, -0.0583],
+        [-0.1955, -0.9656,  0.4224],
+        [ 0.2673, -0.4212, -0.5107]])
+        >>> a.argmax()
+        tensor([5])
+        >>> a.argmax(axis=0)
+        tensor([[2, 2, 1]])
+        >>> a.argmax(axis=1)
+        tensor([[2],
+        [2],
+        [0]])
+        """
+        return operations.argmax(self, axis)
+
     def argmin(self, axis=None):
         """
         Returns the indices of the minimum values along an axis.
@@ -1379,7 +1418,7 @@ class tensor:
         >>> a.transpose(1, 0)
         tensor([[1, 3],
                 [2, 4]])
-                
+
         >>> x = ht.ones((1, 2, 3))
         >>> ht.transpose(x, (1, 0, 2)).shape
         (2, 1, 3)
