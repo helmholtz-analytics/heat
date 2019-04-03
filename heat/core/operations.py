@@ -10,9 +10,11 @@ from . import tensor
 
 __all__ = [
     'MPI_ARGMIN',
+    'MPI_ARGMAX',
 
     'all',
     'allclose',
+    'argmax',
     'argmin',
     'clip',
     'copy',
@@ -20,6 +22,24 @@ __all__ = [
     'tril',
     'triu'
 ]
+
+
+def mpi_argmax(a, b, _):
+    lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
+    rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
+
+    # extract the values and minimal indices from the buffers (first half are values, second are indices)
+    values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0],), dim=1)
+    indices = torch.stack((lhs.chunk(2)[1], rhs.chunk(2)[1],), dim=1)
+
+    # determine the minimum value and select the indices accordingly
+    max, max_indices = torch.max(values, dim=1)
+    result = torch.cat((max, indices[torch.arange(values.shape[0]), max_indices],))
+
+    rhs.copy_(result)
+
+
+MPI_ARGMAX = MPI.Op.Create(mpi_argmax, commute=True)
 
 
 def mpi_argmin(a, b, _):
@@ -153,7 +173,82 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
 
 
-def argmin(x, axis=None, keepdim=False, out=None):
+def argmax(x, axis=None, out=None):
+    """
+    Returns the indices of the maximum values along an axis.
+
+    Parameters:
+    ----------
+    x : ht.tensor
+        Input array.
+    axis : int, optional
+        By default, the index is into the flattened tensor, otherwise along the specified axis.
+    # out : ht.tensor, optional.
+        If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
+
+    Returns:
+    -------
+    index_tensor : ht.tensor of ints
+        Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
+
+    Examples:
+    --------
+    >>> import heat as ht
+    >>> import torch
+    >>> torch.manual_seed(1)
+    >>> a = ht.random.randn(3,3)
+    >>> a
+    tensor([[-0.5631, -0.8923, -0.0583],
+    [-0.1955, -0.9656,  0.4224],
+    [ 0.2673, -0.4212, -0.5107]])
+    >>> ht.argmax(a)
+    tensor([5])
+    >>> ht.argmax(a, axis=0)
+    tensor([[2, 2, 1]])
+    >>> ht.argmax(a, axis=1)
+    tensor([[2],
+    [2],
+    [0]])
+    """
+    def local_argmax(*args, **kwargs):
+        axis = kwargs.get('dim', -1)
+        shape = x.shape
+
+        # case where the argmin axis is set to None
+        # argmin will be the flattened index, computed standalone and the actual minimum value obtain separately
+        if len(args) <= 1 and axis < 0:
+            indices = torch.argmax(*args, **kwargs).reshape(1)
+            maxima = args[0].flatten()[indices]
+
+            # artificially flatten the input tensor shape to correct the offset computation
+            axis = x.split
+            shape = [np.prod(shape)]
+        # usual case where indices and maximum values are both returned. Axis is not equal to None
+        else:
+            maxima, indices = torch.max(*args, **kwargs)
+
+        # add offset of data chunks if reduction is computed across split axis
+        if axis == x.split:
+            offset, _, _ = x.comm.chunk(shape, x.split)
+            indices += offset
+
+        return torch.cat([maxima.double(), indices.double()])
+
+    # perform the global reduction
+    reduced_result = __reduce_op(x, local_argmax, MPI_ARGMAX, axis, out)
+
+    # correct the tensor
+    reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
+    reduced_result._tensor__dtype = types.int64
+
+    # set out parameter correctly, i.e. set the storage correctly
+    if out is not None:
+        out._tensor__array.storage().copy_(reduced_result._tensor__array.storage())
+
+    return reduced_result
+
+
+def argmin(x, axis=None, out=None):
     """
     Returns the indices of the minimum values along an axis.
 
