@@ -177,6 +177,17 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.split, None)
         self.assertTrue((result._tensor__array == data._tensor__array.argmax(-1, keepdim=True)).all())
 
+        # 1D split tensor, no axis
+        data = ht.arange(-10, 10, split=0)
+        result = ht.argmax(data)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.dtype, ht.int64)
+        self.assertEqual(result._tensor__array.dtype, torch.int64)
+        self.assertEqual(result.shape, (1,))
+        self.assertEqual(result.lshape, (1,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == torch.tensor([19])))
+
         # 2D split tensor, along the axis
         torch.manual_seed(1)
         data = ht.array(ht.random.randn(4, 5), split=0)
@@ -188,17 +199,6 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.lshape, (4, 1,))
         self.assertEqual(result.split, 0)
         self.assertTrue((result._tensor__array == torch.tensor([[4], [4], [2], [4]])).all())
-
-        # 2D split tensor, no axis
-        data = ht.arange(-10, 10, split=0)
-        result = ht.argmax(data)
-        self.assertIsInstance(result, ht.tensor)
-        self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._tensor__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (1,))
-        self.assertEqual(result.lshape, (1,))
-        self.assertEqual(result.split, None)
-        self.assertTrue((result._tensor__array == torch.tensor([19])))
 
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
@@ -227,6 +227,16 @@ class TestOperations(unittest.TestCase):
     def test_argmin(self):
         torch.manual_seed(1)
         data = ht.random.randn(3, 4, 5)
+
+        # 3D local tensor, no axis
+        result = ht.argmin(data)
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(result.dtype, ht.int64)
+        self.assertEqual(result._tensor__array.dtype, torch.int64)
+        self.assertEqual(result.shape, (1,))
+        self.assertEqual(result.lshape, (1,))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._tensor__array == data._tensor__array.argmin()).all())
 
         # 3D local tensor, major axis
         result = ht.argmin(data, axis=0)
