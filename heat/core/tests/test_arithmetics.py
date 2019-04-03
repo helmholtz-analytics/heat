@@ -14,9 +14,8 @@ T1 = ht.float32([
 ])
 v = ht.float32([2, 2])
 v2 = ht.float32([2, 2, 2])
-T_s = ht.tensor(T1._tensor__array, T1.shape, T1.dtype, 0, None, None)
-Ts = ht.ones((2, 2), split=1)
-otherType = (2, 2)
+T_s = ht.tensor(T1._tensor__array, T1.shape, T1.dtype, 0, T1.device, T1.comm)
+otherType = (2,2)
 
 
 class TestOperations(unittest.TestCase):
@@ -33,7 +32,6 @@ class TestOperations(unittest.TestCase):
         self.assertTrue(ht.equal(ht.add(T, v), T_r))
         self.assertTrue(ht.equal(ht.add(T, s_int), T_r))
         self.assertTrue(ht.equal(ht.add(T_s, T), T_r))
-        self.assertFalse(ht.equal(ht.add(Ts, T), T_r))
 
         with self.assertRaises(ValueError):
             ht.add(T, v2)
@@ -66,7 +64,7 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.div(T, v2)
         with self.assertRaises(NotImplementedError):
-            ht.div(T, Ts)
+            ht.sub(T, T_s)
         with self.assertRaises(TypeError):
             ht.div(T, otherType)
         with self.assertRaises(TypeError):
@@ -89,7 +87,7 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.mul(T, v2)
         with self.assertRaises(NotImplementedError):
-            ht.mul(T, Ts)
+            ht.mul(T, T_s)
         with self.assertRaises(TypeError):
             ht.mul(T, otherType)
         with self.assertRaises(TypeError):
@@ -117,7 +115,7 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.pow(T, v2)
         with self.assertRaises(NotImplementedError):
-            ht.pow(T, Ts)
+            ht.pow(T, T_s)
         with self.assertRaises(TypeError):
             ht.pow(T, otherType)
         with self.assertRaises(TypeError):
@@ -145,7 +143,7 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.sub(T, v2)
         with self.assertRaises(NotImplementedError):
-            ht.sub(T, Ts)
+            ht.sub(T, T_s)
         with self.assertRaises(TypeError):
             ht.sub(T, otherType)
         with self.assertRaises(TypeError):

@@ -9,6 +9,8 @@ from . import types
 from . import tensor
 
 __all__ = [
+    'MPI_ARGMIN',
+
     'all',
     'allclose',
     'argmin',
@@ -21,13 +23,8 @@ __all__ = [
 
 
 def mpi_argmin(a, b, _):
-    # left-hand side operand buffer
-    lhs = torch.empty((0,), dtype=torch.double)
-    lhs.set_(torch.DoubleStorage.from_buffer(a, 'native'))
-
-    # right-hand side operand buffer
-    rhs = torch.empty((0,), dtype=torch.double)
-    rhs.set_(torch.DoubleStorage.from_buffer(b, 'native'))
+    lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
+    rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
 
     # extract the values and minimal indices from the buffers (first half are values, second are indices)
     values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0],), dim=1)
@@ -38,8 +35,7 @@ def mpi_argmin(a, b, _):
     result = torch.cat(
         (min, indices[torch.arange(values.shape[0]), min_indices],))
 
-    # copy the result over into the right-hand side (=output buffer)
-    rhs.storage().copy_(result.storage())
+    rhs.copy_(result)
 
 
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
@@ -192,9 +188,25 @@ def argmin(x, axis=None, keepdim=False, out=None):
             [2]])
     """
     def local_argmin(*args, **kwargs):
-        minimums, indices = torch.min(*args, **kwargs)
-        if kwargs.get('dim', -1) == x.split:
-            offset, _, _ = x.comm.chunk(x.shape, x.split)
+        axis = kwargs.get('dim', -1)
+        shape = x.shape
+
+        # case where the argmin axis is set to None
+        # argmin will be the flattened index, computed standalone and the actual minimum value obtain separately
+        if len(args) <= 1 and axis < 0:
+            indices = torch.argmin(*args, **kwargs).reshape(1)
+            minimums = args[0].flatten()[indices]
+
+            # artificially flatten the input tensor shape to correct the offset computation
+            axis = x.split
+            shape = [np.prod(shape)]
+        # usual case where indices and minimum values are both returned. Axis is not equal to None
+        else:
+            minimums, indices = torch.min(*args, **kwargs)
+
+        # add offset of data chunks if reduction is computed across split axis
+        if axis == x.split:
+            offset, _, _ = x.comm.chunk(shape, x.split)
             indices += offset
 
         return torch.cat([minimums.double(), indices.double()])
@@ -205,6 +217,10 @@ def argmin(x, axis=None, keepdim=False, out=None):
     # correct the tensor
     reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
     reduced_result._tensor__dtype = types.int64
+
+    # set out parameter correctly, i.e. set the storage correctly
+    if out is not None:
+        out._tensor__array.storage().copy_(reduced_result._tensor__array.storage())
 
     return reduced_result
 
@@ -524,7 +540,7 @@ def __reduce_op(x, partial_op, reduction_op, axis, keepdim, out):
     split = x.split
 
     if axis is None:
-        partial = partial_op(x._tensor__array).reshape((1,))
+        partial = partial_op(x._tensor__array).reshape(-1)
         output_shape = (1,)
     else:
         partial = partial_op(x._tensor__array, dim=axis, keepdim=True)

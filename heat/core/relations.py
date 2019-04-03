@@ -4,8 +4,8 @@ import numpy as np
 
 from .communication import MPI
 from . import tensor
-from .operations import __reduce_op as reduce_op
 from .operations import __binary_op as binary_op
+from .operations import __reduce_op as reduce_op
 
 __all__ = [
     'eq',
@@ -45,15 +45,13 @@ def eq(t1, t2):
     >>> T1 = ht.float32([[1, 2],[3, 4]])
     >>> ht.eq(T1, 3.0)
     tensor([[0, 0],
-         [1, 0]])
+            [1, 0]])
 
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.eq(T1, T2)
     tensor([[0, 1],
-         [0, 0]])
-
+            [0, 0]])
     """
-
     return binary_op(torch.eq, t1, t2)
 
 
@@ -89,9 +87,7 @@ def equal(t1, t2):
     >>> ht.eq(T1, 3.0)
     False
     """
-
     if np.isscalar(t1):
-
         try:
             t1 = tensor.array([t1])
         except (TypeError, ValueError,):
@@ -111,7 +107,6 @@ def equal(t1, t2):
                 'Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
 
     elif isinstance(t1, tensor.tensor):
-
         if np.isscalar(t2):
             try:
                 t2 = tensor.array([t2])
@@ -122,20 +117,16 @@ def equal(t1, t2):
             # TODO: implement complex NUMPY rules
             if t2.split is None or t2.split == t1.split:
                 pass
-
             else:
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
                 raise NotImplementedError(
                     'Not implemented for other splittings')
         else:
-            raise TypeError(
-                'Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
-
+            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
     else:
         raise NotImplementedError('Not implemented for non scalar')
 
     result = torch.equal(t1._tensor__array, t2._tensor__array)
-
     return result
 
 
@@ -149,9 +140,8 @@ def ge(t1, t2):
     ----------
     t1: tensor or scalar
         The first operand to be compared greater than or equal to second operand
-
     t2: tensor or scalar
-        The second operand to be compared less than or equal to first operand
+       The second operand to be compared less than or equal to first operand
 
     Returns
     -------
@@ -165,16 +155,13 @@ def ge(t1, t2):
     >>> T1 = ht.float32([[1, 2],[3, 4]])
     >>> ht.ge(T1, 3.0)
     tensor([[0, 0],
-         [1, 1]], dtype=torch.uint8)
+            [1, 1]], dtype=torch.uint8)
 
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.ge(T1, T2)
     tensor([[0, 1],
-         [1, 1]], dtype=torch.uint8)
-
-
+            [1, 1]], dtype=torch.uint8)
     """
-
     return binary_op(torch.ge, t1, t2)
 
 
@@ -187,16 +174,16 @@ def gt(t1, t2):
     Parameters
     ----------
     t1: tensor or scalar
-        The first operand to be compared greater than second operand
+       The first operand to be compared greater than second operand
 
     t2: tensor or scalar
-        The second operand to be compared less than first operand
+       The second operand to be compared less than first operand
 
     Returns
     -------
     result: ht.tensor
-        A uint8-tensor holding 1 for all elements in which values of t1 are greater than values of t2,
-        0 for all other elements
+       A uint8-tensor holding 1 for all elements in which values of t1 are greater than values of t2,
+       0 for all other elements
 
     Examples
     -------
@@ -204,13 +191,12 @@ def gt(t1, t2):
     >>> T1 = ht.float32([[1, 2],[3, 4]])
     >>> ht.gt(T1, 3.0)
     tensor([[0, 0],
-         [0, 1]], dtype=torch.uint8)
+            [0, 1]], dtype=torch.uint8)
 
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.gt(T1, T2)
     tensor([[0, 0],
-        [1, 1]], dtype=torch.uint8)
-
+            [1, 1]], dtype=torch.uint8)
     """
     return binary_op(torch.gt, t1, t2)
 
@@ -224,16 +210,15 @@ def le(t1, t2):
     Parameters
     ----------
     t1: tensor or scalar
-        The first operand to be compared less than or equal to second operand
-
+       The first operand to be compared less than or equal to second operand
     t2: tensor or scalar
-        The second operand to be compared greater than or equal to first operand
+       The second operand to be compared greater than or equal to first operand
 
     Returns
     -------
     result: ht.tensor
-        A uint8-tensor holding 1 for all elements in which values of t1 are less than or equal to values of t2,
-        0 for all other elements
+       A uint8-tensor holding 1 for all elements in which values of t1 are less than or equal to values of t2,
+       0 for all other elements
 
     Examples
     -------
@@ -241,13 +226,12 @@ def le(t1, t2):
     >>> T1 = ht.float32([[1, 2],[3, 4]])
     >>> ht.le(T1, 3.0)
     tensor([[1, 1],
-         [1, 0]], dtype=torch.uint8)
+            [1, 0]], dtype=torch.uint8)
 
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.le(T1, T2)
     tensor([[1, 1],
-         [0, 0]], dtype=torch.uint8)
-
+            [0, 0]], dtype=torch.uint8)
     """
     return binary_op(torch.le, t1, t2)
 
@@ -278,12 +262,12 @@ def lt(t1, t2):
     >>> T1 = ht.float32([[1, 2],[3, 4]])
     >>> ht.lt(T1, 3.0)
     tensor([[1, 1],
-        [0, 0]], dtype=torch.uint8)
+            [0, 0]], dtype=torch.uint8)
 
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.lt(T1, T2)
     tensor([[1, 0],
-        [0, 0]], dtype=torch.uint8)
+            [0, 0]], dtype=torch.uint8)
     """
 
     return binary_op(torch.lt, t1, t2)
@@ -382,7 +366,6 @@ def ne(t1, t2):
     ----------
     t1: tensor or scalar
         The first operand involved in the comparison
-
     t2: tensor or scalar
         The second operand involved in the comparison
 
@@ -398,13 +381,11 @@ def ne(t1, t2):
     >>> T1 = ht.float32([[1, 2],[3, 4]])
     >>> ht.ne(T1, 3.0)
     tensor([[1, 1],
-         [0, 1]])
+            [0, 1]])
 
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.ne(T1, T2)
     tensor([[1, 0],
-         [1, 1]])
-
+            [1, 1]])
     """
-
     return binary_op(torch.ne, t1, t2)

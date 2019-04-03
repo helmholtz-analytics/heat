@@ -63,8 +63,7 @@ def div(t1, t2):
     Parameters
     ----------
     t1: tensor or scalar
-    T   he first operand whose values are divided
-
+        The first operand whose values are divided
     t2: tensor or scalar
         The second operand by whose values is divided
 
@@ -88,7 +87,7 @@ def div(t1, t2):
     >>> s = 2.0
     >>> ht.div(s, T1)
     tensor([[2.0000, 1.0000],
-    [0.6667, 0.5000]])
+            [0.6667, 0.5000]])
     """
     return binary_op(torch.div, t1, t2)
 
@@ -102,14 +101,13 @@ def mul(t1, t2):
     ----------
     t1: tensor or scalar
         The first operand involved in the multiplication
-
     t2: tensor or scalar
         The second operand involved in the multiplication
 
     Returns
     -------
     result: ht.tensor
-    A tensor containing the results of element-wise multiplication of t1 and t2.
+        A tensor containing the results of element-wise multiplication of t1 and t2.
 
     Examples:
     ---------
@@ -121,12 +119,17 @@ def mul(t1, t2):
     >>> s = 3.0
     >>> ht.mul(T1, s)
     tensor([[3., 6.],
-         [9., 12.]])
+            [9., 12.]])
 
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.mul(T1, T2)
     tensor([[2., 4.],
-         [6., 8.]])
+            [6., 8.]])
+
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.mul(T1, T2)
+    tensor([[2., 4.],
+            [6., 8.]])
     """
     return binary_op(torch.mul, t1, t2)
 
@@ -142,10 +145,8 @@ def pow(t1, t2):
     ----------
     t1: tensor or scalar
         The first operand whose values represent the base
-
     t2: tensor or scalar
         The second operand by whose values represent the exponent
-
 
     Returns
     -------
@@ -200,11 +201,11 @@ def sub(t1, t2):
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.sub(T1, T2)
     tensor([[-1., 0.],
-          [1., 2.]])
+            [1., 2.]])
 
     >>> s = 2.0
     >>> ht.sub(s, T1)
     tensor([[ 1.,  0.],
-          [-1., -2.]])
+            [-1., -2.]])
     """
     return binary_op(torch.sub, t1, t2)
