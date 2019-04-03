@@ -633,9 +633,10 @@ def __binary_op(operation, t1, t2):
             if t2.split is None or t2.split == t1.split:
                 pass
             else:
+                # todo: implement binary ops for different splits
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
                 # and split=1
-                raise NotImplementedError('Not implemented for other splittings')
+                raise NotImplementedError('Not implemented for unequal splittings')
         else:
             raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
 
@@ -648,7 +649,6 @@ def __binary_op(operation, t1, t2):
         output_comm = t1.comm
     else:
         raise NotImplementedError('Not implemented for non scalar')
-
     result = operation(t1._tensor__array, t2._tensor__array)
 
     return tensor.tensor(result, output_shape, t1.dtype, output_split, output_device, output_comm)

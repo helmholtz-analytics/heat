@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 from .communication import MPI
 from . import types
@@ -223,10 +224,7 @@ def mean(x, axis=None):
             else:
                 # multiple dimensions which does *not* include the split axis
                 # combine along the split axis
-                try:
-                    return tensor.array(local_op(torch.mean, x, out=None, dim=axis), split=x.split, comm=x.comm)
-                except ValueError:
-                    return local_op(torch.mean, x, out=None, dim=axis)
+                return tensor.array(torch.mean(x._tensor__array, dim=axis, keepdim=True), split=x.split, device=x.device, comm=x.comm)
         elif isinstance(axis, int):
             if axis >= len(x.shape):
                 raise ValueError("axis (axis) must be < {}, currently is {}".format(len(x.shape), axis))
@@ -242,10 +240,7 @@ def mean(x, axis=None):
             else:
                 # singular axis given (axis) not equal to split direction (x.split)
                 # local operation followed by array creation to create the full tensor of the means
-                try:
-                    return tensor.array(local_op(torch.mean, x, out=None, dim=axis), split=x.split, comm=x.comm)
-                except ValueError:
-                    return local_op(torch.mean, x, out=None, dim=axis)
+                return tensor.array(torch.mean(x._tensor__array, dim=axis, keepdim=True), split=x.split, device=x.device, comm=x.comm)
         else:
             raise TypeError("axis (axis) must be an int or a list, ht.tensor, torch.Tensor, or tuple, currently is {}".format(type(axis)))
 
@@ -420,9 +415,9 @@ def var(x, axis=None, bessel=True):
                 # what should the split dimension be?
                 return ret
     # ----------------------------------------------------------------------------------------------------
-    if axis is None:
+    if axis is None:  # no axis given
         # case for full matrix calculation (axis is None)
-        if x.split is not None:
+        if x.is_distributed():
             if x.lshape[x.split] != 0:
                 mu_in = local_op(torch.mean, x, out=None)
                 var_in = local_op(torch.var, x, out=None, unbiased=bessel)
@@ -466,11 +461,11 @@ def var(x, axis=None, bessel=True):
                                             var_tot[rem1, 0], var_tot[rem1, 1], var_tot[rem1, 2], bessel)
                         for enum, m in enumerate(merged):
                             var_tot[0, enum] = m
+                    # print(var_tot[0][0].item(), '\n')
                     return var_tot[0][0]
-        else:
-            # full matrix on one node
-            ret = local_op(torch.var, x, out=None, unbiased=bessel)
-    else:
+        else:  # not distributed (full tensor on one node)
+            return local_op(torch.var, x, out=None, unbiased=bessel)
+    else:  # axis is given
         # case for var in one dimension
         output_shape = list(x.shape)
         if isinstance(axis, int):
@@ -479,15 +474,18 @@ def var(x, axis=None, bessel=True):
             axis = axis if axis > 0 else axis % len(x.shape)
             # only one axis given
             output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
-            if x.split != x.split:
-                ret = local_op(torch.var, x, out=None, dim=axis, unbiased=bessel)
+
+            if not x.is_distributed():  # x is *not* distributed -> no need to distributed
+                return local_op(torch.var, x, out=None, dim=axis, unbiased=bessel)
+            elif axis == x.split:  # x is distributed and axis chosen is == to split
+                return reduce_vars_elementwise(output_shape)
             else:
-                ret = reduce_vars_elementwise(output_shape)
+                # singular axis given (axis) not equal to split direction (x.split)
+                # local operation followed by array creation to create the full tensor of the vars on
+                lcl = torch.var(x._tensor__array, dim=axis, keepdim=True)
+                return tensor.array(lcl, split=x.split)
         else:
             raise TypeError("Axis (axis) must be an int, currently is {}. Check if multidim var is available in pyTorch".format(type(axis)))
-
-    return tensor.tensor(ret, gshape=output_shape, dtype=types.float,
-                         split=x.split, device=x.device, comm=x.comm)
 
 
 def std(x, axis=None, bessel=True):
