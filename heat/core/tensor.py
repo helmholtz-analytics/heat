@@ -119,12 +119,12 @@ class tensor:
         >>> T1 = ht.float32([[1, 2], [3, 4]])
         >>> T1.__add__(2.0)
         tensor([[3., 4.],
-            [5., 6.]])
+               [5., 6.]])
 
         >>> T2 = ht.float32([[2, 2], [2, 2]])
         >>> T1.__add__(T2)
         tensor([[3., 4.],
-             [5., 6.]])
+                [5., 6.]])
         """
         return arithmetics.add(self, other)
 
@@ -135,20 +135,20 @@ class tensor:
         Parameters:
         -----------
         axis : None or int, optional #TODO: tuple of ints
-            Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a 
-            logical AND over all the dimensions of the input array. axis may be negative, in which case it counts 
+            Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a
+            logical AND over all the dimensions of the input array. axis may be negative, in which case it counts
             from the last to the first axis.
 
         out : ht.tensor, optional
-            Alternate output array in which to place the result. It must have the same shape as the expected output 
+            Alternate output array in which to place the result. It must have the same shape as the expected output
             and its type is preserved.
 
-        Returns:	
+        Returns:
         --------
         all : ht.tensor, bool
             A new boolean or ht.tensor is returned unless out is specified, in which case a reference to out is returned.
 
-       Examples:
+        Examples:
         ---------
         >>> import heat as ht
         >>> a = ht.random.randn(4,5)
@@ -218,6 +218,45 @@ class tensor:
         True
         """
         return operations.allclose(self, other, rtol, atol, equal_nan)
+
+    def argmax(self, axis=None):
+        """
+        Returns the indices of the minimum values along an axis.
+
+        Parameters:	
+        ----------
+        x : ht.tensor
+            Input array.
+        axis : int, optional
+            By default, the index is into the flattened tensor, otherwise along the specified axis.
+        #TODO out : array, optional
+            If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
+
+        Returns:
+        -------	
+        index_tensor : ht.tensor of ints
+            Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
+
+        Examples:
+        --------
+        >>> import heat as ht
+        >>> import torch
+        >>> torch.manual_seed(1)
+        >>> a = ht.random.randn(3,3)
+        >>> a
+        tensor([[-0.5631, -0.8923, -0.0583],
+        [-0.1955, -0.9656,  0.4224],
+        [ 0.2673, -0.4212, -0.5107]])
+        >>> a.argmax()
+        tensor([5])
+        >>> a.argmax(axis=0)
+        tensor([[2, 2, 1]])
+        >>> a.argmax(axis=1)
+        tensor([[2],
+        [2],
+        [0]])
+        """
+        return operations.argmax(self, axis)
 
     def argmin(self, axis=None):
         """
@@ -339,6 +378,31 @@ class tensor:
         """
         return trigonometrics.cos(self, out)
 
+    def cosh(self, out=None):
+        """
+        Return the hyperbolic cosine, element-wise.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            The value for which to compute the hyperbolic cosine.
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        hyperbolic cosine : ht.tensor
+            A tensor of the same shape as x, containing the hyperbolic cosine of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+
+        Examples
+        --------
+        >>> ht.cosh(ht.arange(-6, 7, 2))
+        tensor([201.7156,  27.3082,   3.7622,   1.0000,   3.7622,  27.3082, 201.7156])
+        """
+        return trigonometrics.cosh(self, out)
+
     def cpu(self):
         """
         Returns a copy of this object in main memory. If this object is already in main memory, then no copy is
@@ -361,12 +425,12 @@ class tensor:
         Parameters
         ----------
         other: tensor or scalar
-            The value(s) by which to divide the tensor (element-wise)
+           The value(s) by which to divide the tensor (element-wise)
 
         Returns
         -------
         result: ht.tensor
-            A tensor containing the results of element-wise division.
+           A tensor containing the results of element-wise division.
 
         Examples:
         ---------
@@ -378,12 +442,12 @@ class tensor:
         >>> T2 = ht.float32([[2, 2], [2, 2]])
         >>> T1.__div__(T2)
         tensor([[0.5000, 1.0000],
-             [1.5000, 2.0000]])
+                [1.5000, 2.0000]])
 
         >>> s = 2.0
         >>> T1.__div__(s)
         tensor([[0.5000, 1.0000],
-             [1.5, 2.0000]])
+                [1.5, 2.0000]])
         """
         return arithmetics.div(self, other)
 
@@ -507,13 +571,14 @@ class tensor:
         return self.split is not None and self.comm.is_distributed()
 
     def max(self, axis=None, out=None):
-        """"
+        """
         Return the maximum of an array or maximum along an axis.
 
         Parameters
         ----------
-        a : ht.tensor
+        self : ht.tensor
             Input data.
+
         axis : None or int  
             Axis or axes along which to operate. By default, flattened input is used.
         #TODO: out : ht.tensor, optional
@@ -532,12 +597,12 @@ class tensor:
         return self.sum(axis) / self.shape[axis]
 
     def min(self, axis=None, out=None):
-        """"
+        """
         Return the minimum of an array or minimum along an axis.
 
         Parameters
         ----------
-        a : ht.tensor
+        self : ht.tensor
             Input data.
         axis : None or int
             Axis or axes along which to operate. By default, flattened input is used.
@@ -624,8 +689,39 @@ class tensor:
             self.comm
         )
 
+    def ceil(self, out=None):
+        """
+        Return the ceil of the input, element-wise.
+
+        The ceil of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lceil x \rceil.
+
+        Parameters
+        ----------
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        ceiled : ht.tensor
+            A tensor of the same shape as x, containing the ceiled valued of each element in this tensor. If out was
+            provided, ceiled is a reference to it.
+
+        Returns
+        -------
+        ceiled : ht.tensor
+            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
+            provided, ceiled is a reference to it.
+
+        Examples
+        --------
+        >>> ht.arange(-2.0, 2.0, 0.4).ceil()
+        tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
+        """
+        return rounding.ceil(self, out)
+
     def floor(self, out=None):
-        r"""
+        """
         Return the floor of the input, element-wise.
 
         The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as :math:`\lfloor x
@@ -641,7 +737,7 @@ class tensor:
         -------
         floored : ht.tensor
             A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
-            provided, logarithms is a reference to it.
+            provided, floored is a reference to it.
 
         Examples
         --------
@@ -663,8 +759,8 @@ class tensor:
         Returns
         -------
         result: ht.tensor
-            Tensor holding 1 for all elements in which values in self are less than or equal to values of other
-            (x1 <= x2), 0 for all other elements
+            Tensor holding 1 for all elements in which values in self are less than or equal to values of other (x1 <= x2),
+            0 for all other elements
 
         Examples
         -------
@@ -771,8 +867,8 @@ class tensor:
         Returns
         -------
         result: ht.tensor
-            Tensor holding 1 for all elements in which values in self are less than values of other (x1 < x2), 0 for
-            all other elements
+            Tensor holding 1 for all elements in which values in self are less than values of other (x1 < x2),
+            0 for all other elements
 
         Examples
         -------
@@ -798,12 +894,12 @@ class tensor:
         Parameters
         ----------
         other: tensor or scalar
-            The value(s) to multiply to the tensor (element-wise)
+           The value(s) to multiply to the tensor (element-wise)
 
         Returns
         -------
         result: ht.tensor
-            A tensor containing the results of element-wise multiplication.
+           A tensor containing the results of element-wise multiplication.
 
         Examples:
         ---------
@@ -817,7 +913,6 @@ class tensor:
         >>> T1.__mul__(T2)
         tensor([[2., 4.],
             [6., 8.]])
-
         """
         return arithmetics.mul(self, other)
 
@@ -834,8 +929,8 @@ class tensor:
         Returns
         -------
         result: ht.tensor
-            Tensor holding 1 for all elements in which values of self are equal to values of other, 0 for all other
-            elements
+            Tensor holding 1 for all elements in which values of self are equal to values of other,
+            0 for all other elements
 
         Examples:
         ---------
@@ -849,7 +944,6 @@ class tensor:
         >>> T1.__ne__(T2)
         tensor([[1, 0],
                 [1, 1]])
-
         """
         return relations.ne(self, other)
 
@@ -862,12 +956,12 @@ class tensor:
         Parameters
         ----------
         other: tensor or scalar
-            The value(s) in the exponent (element-wise)
+           The value(s) in the exponent (element-wise)
 
         Returns
         -------
         result: ht.tensor
-            A tensor containing the results of element-wise exponential operation.
+           A tensor containing the results of element-wise exponential operation.
 
         Examples:
         ---------
@@ -876,13 +970,12 @@ class tensor:
         >>> T1 = ht.float32([[1, 2], [3, 4]])
         >>> T1.__pow__(3.0)
         tensor([[1., 8.],
-             [27., 64.]])
+                [27., 64.]])
 
         >>> T2 = ht.float32([[3, 3], [2, 2]])
         >>> T1.__pow__(T2)
         tensor([[1., 8.],
-             [9., 16.]])
-
+                [9., 16.]])
         """
         return arithmetics.pow(self, other)
 
@@ -976,7 +1069,7 @@ class tensor:
 
         Parameters
         ----------
-        data : ht.tensor
+        self : ht.tensor
             The tensor holding the data to be stored
         path : str
             Path to the file to be stored.
@@ -1077,6 +1170,31 @@ class tensor:
         """
         return trigonometrics.sin(self, out)
 
+    def sinh(self, out=None):
+        """
+        Return the hyperbolic sine, element-wise.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            The value for which to compute the hyperbolic sine.
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        hyperbolic sine : ht.tensor
+            A tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+
+        Examples
+        --------
+        >>> ht.sinh(ht.arange(-6, 7, 2))
+        tensor([[-201.7132,  -27.2899,   -3.6269,    0.0000,    3.6269,   27.2899,  201.7132])
+        """
+        return trigonometrics.sinh(self, out)
+
     def sqrt(self, out=None):
         """
         Return the non-negative square-root of the tensor element-wise.
@@ -1123,13 +1241,12 @@ class tensor:
         >>> T1 = ht.float32([[1, 2], [3, 4]])
         >>> T1.__sub__(2.0)
         tensor([[ 1.,  0.],
-             [-1., -2.]])
+                [-1., -2.]])
 
         >>> T2 = ht.float32([[2, 2], [2, 2]])
         >>> T1.__sub__(T2)
         tensor([[-1., 0.],
-             [1., 2.]])
-
+                [1., 2.]])
         """
         return arithmetics.sub(self, other)
 
@@ -1194,6 +1311,30 @@ class tensor:
         """
         return trigonometrics.tan(self, out)
 
+    def tanh(self, out=None):
+        """
+        Return the hyperbolic tangent, element-wise.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            The value for which to compute the hyperbolic tangent.
+        out : ht.tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        hyperbolic tangent : ht.tensor
+            A tensor of the same shape as x, containing the hyperbolic tangent of each element in this tensor.
+
+        Examples
+        --------
+        >>> ht.tanh(ht.arange(-6, 7, 2))
+        tensor([-1.0000, -0.9993, -0.9640,  0.0000,  0.9640,  0.9993,  1.0000])
+        """
+        return trigonometrics.tanh(self, out)
+
     def transpose(self, axes=None):
         """
         Permute the dimensions of an array.
@@ -1223,7 +1364,7 @@ class tensor:
         >>> a.transpose(1, 0)
         tensor([[1, 3],
                 [2, 4]])
-                
+
         >>> x = ht.ones((1, 2, 3))
         >>> ht.transpose(x, (1, 0, 2)).shape
         (2, 1, 3)
@@ -2010,4 +2151,3 @@ def zeros_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
             [0., 0., 0.]])
     """
     return __factory_like(a, dtype, split, zeros, device, comm)
-
