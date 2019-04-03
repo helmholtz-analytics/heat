@@ -130,14 +130,14 @@ def mean(x, axis=None):
         mu_reshape_combi = tensor.zeros((x.comm.size, int(np.prod(mu.lshape))))
         x.comm.Allreduce(mu_reshape, mu_reshape_combi, MPI.SUM)
 
-        while True:
+        while True:  # todo: multithread for GPU parrallelizm
             if sz % 2 != 0:
                 if rem1 and not rem2:
                     rem2 = sz - 1
                 elif not rem1:
                     rem1 = sz - 1
             splt = sz // 2
-            for sp_it in range(splt):  # todo: multithread for GPU parrallelizm
+            for sp_it in range(splt):
                 for en, (el1, el2) in enumerate(zip(mu_reshape_combi[sp_it, :], mu_reshape_combi[sp_it+splt, :])):
                     try:
                         mu_reshape_combi[sp_it, en], n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it+splt])
@@ -179,13 +179,14 @@ def mean(x, axis=None):
             rem2 = 0
             sz = mu_tot.shape[0]
             while True:  # this loop will loop pairwise over the whole process and do pairwise updates
+                # likely: do not need to parallelize: (likely) will not be worth it (can be tested)
                 if sz % 2 != 0:
                     if rem1 and not rem2:
                         rem2 = sz - 1
                     elif not rem1:
                         rem1 = sz - 1
                 splt = sz // 2
-                for i in range(splt):  # todo: make this multithreaded for GPU
+                for i in range(splt):
                     merged = merge_means(mu_tot[i, 0], mu_tot[i, 1], mu_tot[i + splt, 0], mu_tot[i + splt, 1])
                     for enum, m in enumerate(merged):
                         mu_tot[i, enum] = m
@@ -384,14 +385,14 @@ def var(x, axis=None, bessel=True):
         var_reshape_combi = tensor.zeros((x.comm.size, int(np.prod(var.lshape))))
         x.comm.Allreduce(var_reshape, var_reshape_combi, MPI.SUM)
 
-        while True:
+        while True:  # todo: multithread for GPU
             if sz % 2 != 0:
                 if rem1 and not rem2:
                     rem2 = sz - 1
                 elif not rem1:
                     rem1 = sz - 1
             splt = sz // 2
-            for i in range(splt):  # todo: multithread for GPU
+            for i in range(splt):
                 for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape_combi[i], var_reshape_combi[i], mu_reshape_combi[i + splt], var_reshape_combi[i + splt])):
                     try:
                         var_reshape_combi[i, en], mu_reshape_combi[i, en], n = merge_vars(var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i+splt], bessel)
