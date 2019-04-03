@@ -1,4 +1,5 @@
 import torch
+import warnings
 
 from .communication import Communication, MPI, MPI_WORLD
 from .stride_tricks import *
@@ -13,6 +14,7 @@ from . import exponential
 from . import rounding
 from . import reductions
 
+warnings.simplefilter('always', ResourceWarning)
 
 class LocalIndex:
     """
@@ -1529,6 +1531,7 @@ class tensor:
                         lout = self.comm.allreduce(tuple(self.__array[key].shape)[0], MPI.SUM)
                         return tensor(self.__array[key], (lout, ), self.dtype, self.split, self.device, self.comm)
                 else:
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
                     return None
 
             elif isinstance(key, (tuple, list)):  # multi-argument gets are passed as tuples by python
@@ -1584,6 +1587,7 @@ class tensor:
                     except ValueError:  # case of returning just one value
                         return self.__array[tuple(key)]
                 else:
+
                     return None
 
             elif isinstance(key, slice) and self.split == 0:  # if the given axes are only a slice
