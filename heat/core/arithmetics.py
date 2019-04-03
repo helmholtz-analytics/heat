@@ -12,6 +12,7 @@ __all__ = [
     'sub'
 ]
 
+
 def add(t1, t2):
     """
     Element-wise addition of values from two operands, commutative.
@@ -26,7 +27,7 @@ def add(t1, t2):
         The second operand involved in the addition
 
 
-    Returns:
+    Returns
     -------
     result: ht.tensor
         A tensor containing the results of element-wise addition of t1 and t2.
@@ -52,6 +53,7 @@ def add(t1, t2):
 
     return binary_op(torch.add, t1, t2)
 
+
 def div(t1, t2):
     """
     Element-wise true division of values of operand t1 by values of operands t2 (i.e t1 / t2), not commutative.
@@ -62,16 +64,13 @@ def div(t1, t2):
     ----------
     t1: tensor or scalar
         The first operand whose values are divided
-
     t2: tensor or scalar
         The second operand by whose values is divided
-
 
     Returns
     -------
     result: ht.tensor
         A tensor containing the results of element-wise true division (i.e. floating point values) of t1 by t2.
-
 
     Examples:
     ---------
@@ -88,12 +87,12 @@ def div(t1, t2):
     >>> s = 2.0
     >>> ht.div(s, T1)
     tensor([[2.0000, 1.0000],
-    [0.6667, 0.5000]])
+            [0.6667, 0.5000]])
     """
-
     return binary_op(torch.div, t1, t2)
 
-def mul(t1,t2):
+
+def mul(t1, t2):
     """
     Element-wise multiplication (NOT matrix multiplication) of values from two operands, commutative.
     Takes the first and second operand (scalar or tensor) whose elements are to be multiplied as argument.
@@ -102,10 +101,8 @@ def mul(t1,t2):
     ----------
     t1: tensor or scalar
         The first operand involved in the multiplication
-
     t2: tensor or scalar
         The second operand involved in the multiplication
-
 
     Returns
     -------
@@ -129,11 +126,15 @@ def mul(t1,t2):
     tensor([[2., 4.],
             [6., 8.]])
 
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.mul(T1, T2)
+    tensor([[2., 4.],
+            [6., 8.]])
     """
-
     return binary_op(torch.mul, t1, t2)
 
-def pow(t1,t2):
+
+def pow(t1, t2):
     """
     Element-wise exponential function of values of operand t1 to the power of values of operand t2 (i.e t1 ** t2),
     not commutative. Takes the two operands (scalar or tensor) whose elements are to be involved in the exponential
@@ -144,10 +145,8 @@ def pow(t1,t2):
     ----------
     t1: tensor or scalar
         The first operand whose values represent the base
-
     t2: tensor or scalar
         The second operand by whose values represent the exponent
-
 
     Returns
     -------
@@ -169,9 +168,7 @@ def pow(t1,t2):
     >>> ht.pow(T1, s)
     tensor([[1., 8.],
             [27., 64.]])
-
     """
-
     return binary_op(torch.pow, t1, t2)
 
 
@@ -211,5 +208,4 @@ def sub(t1, t2):
     tensor([[ 1.,  0.],
             [-1., -2.]])
     """
-
     return binary_op(torch.sub, t1, t2)

@@ -1,4 +1,5 @@
 import itertools
+import numpy as np
 
 
 def broadcast_shape(shape_a, shape_b):
@@ -101,7 +102,7 @@ def sanitize_axis(shape, axis):
         axis += len(shape)
 
     if axis < 0 or axis >= len(shape):
-        raise ValueError('axis axis {} is out of bounds for shape {}'.format(axis, shape))
+        raise ValueError('axis {} is out of bounds for shape {}'.format(axis, shape))
 
     return axis
 
@@ -141,6 +142,8 @@ def sanitize_shape(shape):
     shape = (shape,) if not hasattr(shape, '__iter__') else tuple(shape)
 
     for dimension in shape:
+        if issubclass(type(dimension), np.integer):
+            dimension = int(dimension)
         if not isinstance(dimension, int):
             raise TypeError('expected sequence object with length >= 0 or a single integer')
         if dimension <= 0:
