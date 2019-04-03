@@ -399,11 +399,13 @@ def var(x, axis=None, bessel=True):
                     rem1 = sz - 1
             splt = sz // 2
             for i in range(splt):
+
                 for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape_combi[i], var_reshape_combi[i], mu_reshape_combi[i + splt], var_reshape_combi[i + splt])):
                     try:
                         var_reshape_combi[i, en], mu_reshape_combi[i, en], n = merge_vars(var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i+splt], bessel)
                     except ValueError:
                         var_reshape_combi, mu_reshape_combi, n = merge_vars(var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i + splt], bessel)
+
                 n_for_merge[i] = n
             if rem1 and rem2:
                 for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape_combi[rem1], var_reshape_combi[rem1], mu_reshape_combi[rem2], var_reshape_combi[rem2])):
@@ -418,6 +420,8 @@ def var(x, axis=None, bessel=True):
                     for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape_combi[0], var_reshape_combi[0], mu_reshape_combi[rem1], var_reshape_combi[rem1])):
                         var_reshape_combi[0], mu_reshape_combi[0], n = merge_vars(var1, mu1, n_for_merge[0], var2, mu2, n_for_merge[rem1], bessel)
                 ret = local_op(torch.reshape, var_reshape_combi[0], out=None, shape=output_shape_i)
+                # TODO: this must return a split tensor with the same split dimension
+                # what should the split dimension be?
                 return ret
     # ----------------------------------------------------------------------------------------------------
     if axis is None:
@@ -469,9 +473,9 @@ def var(x, axis=None, bessel=True):
                     return var_tot[0][0]
         else:
             # full matrix on one node
-            return local_op(torch.var, x, out=None, unbiased=bessel)
+            ret = local_op(torch.var, x, out=None, unbiased=bessel)
     else:
-        # case for mean in one dimension
+        # case for var in one dimension
         output_shape = list(x.shape)
         if isinstance(axis, int):
             if axis >= len(x.shape):
@@ -479,17 +483,15 @@ def var(x, axis=None, bessel=True):
             axis = axis if axis > 0 else axis % len(x.shape)
             # only one axis given
             output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
-            if x.split is None:
-                return local_op(torch.var, x, out=None, dim=axis, unbiased=bessel)
-            elif axis == x.split:
-                return reduce_vars_elementwise(output_shape)
+            if x.split != x.split:
+                ret = local_op(torch.var, x, out=None, dim=axis, unbiased=bessel)
             else:
-                try:
-                    return tensor.array(local_op(torch.var, x, out=None, dim=axis, unbiased=bessel), split=x.split, comm=x.comm)
-                except ValueError:
-                    return local_op(torch.var, x, out=None, dim=axis, unbiased=bessel)
+                ret = reduce_vars_elementwise(output_shape)
         else:
             raise TypeError("Axis (axis) must be an int, currently is {}. Check if multidim var is available in pyTorch".format(type(axis)))
+
+    return tensor.tensor(ret, gshape=output_shape, dtype=types.float,
+                         split=x.split, device=x.device, comm=x.comm)
 
 
 def std(x, axis=None, bessel=True):
