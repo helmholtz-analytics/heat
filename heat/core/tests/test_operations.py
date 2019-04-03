@@ -147,8 +147,8 @@ class TestOperations(unittest.TestCase):
         b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]])
 
         self.assertFalse(ht.allclose(a, b))
-        self.assertTrue(ht.allclose(a, b, atol = 1e-04))
-        self.assertTrue(ht.allclose(a,b, rtol = 1e-04))
+        self.assertTrue(ht.allclose(a, b, atol=1e-04))
+        self.assertTrue(ht.allclose(a, b, rtol=1e-04))
 
         with self.assertRaises(TypeError):
             ht.allclose(a, (2, 2, 2, 2))
@@ -213,6 +213,21 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.split, None)
         self.assertTrue((result._tensor__array != 0).all())
 
+        # 2D split tensor, across the axis, output tensor
+        size = ht.MPI_WORLD.size * 2
+        data = ht.triu(ht.ones((size, size,), split=0), k=-1)
+
+        output = ht.empty((1, size,))
+        result = ht.argmax(data, axis=0, out=output)
+
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(output.dtype, ht.int64)
+        self.assertEqual(output._tensor__array.dtype, torch.int64)
+        self.assertEqual(output.shape, (1, size,))
+        self.assertEqual(output.lshape, (1, size,))
+        self.assertEqual(output.split, None)
+        self.assertTrue((output._tensor__array != 0).all())
+
         # check exceptions
         with self.assertRaises(NotImplementedError):
             data.argmax(axis=(0, 1))
@@ -222,7 +237,6 @@ class TestOperations(unittest.TestCase):
             data.argmax(axis='y')
         with self.assertRaises(ValueError):
             ht.argmax(data, axis=-4)
-
 
     def test_argmin(self):
         torch.manual_seed(1)
@@ -282,6 +296,21 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.lshape, (1, size,))
         self.assertEqual(result.split, None)
         self.assertTrue((result._tensor__array != 0).all())
+
+        # 2D split tensor, across the axis, output tensor
+        size = ht.MPI_WORLD.size * 2
+        data = ht.triu(ht.ones((size, size,), split=0), k=1)
+
+        output = ht.empty((1, size,))
+        result = ht.argmin(data, axis=0, out=output)
+
+        self.assertIsInstance(result, ht.tensor)
+        self.assertEqual(output.dtype, ht.int64)
+        self.assertEqual(output._tensor__array.dtype, torch.int64)
+        self.assertEqual(output.shape, (1, size,))
+        self.assertEqual(output.lshape, (1, size,))
+        self.assertEqual(output.split, None)
+        self.assertTrue((output._tensor__array != 0).all())
 
         # check exceptions
         with self.assertRaises(NotImplementedError):
