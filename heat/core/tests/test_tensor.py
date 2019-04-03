@@ -301,6 +301,21 @@ class TestTensor(unittest.TestCase):
             if a.comm.rank == 0:
                 self.assertEqual(a[3:13, 2:5:2, 1:7:3].lshape, (10, 2, 1))
 
+        a = ht.ones((4, 5,), split=0).tril()
+        a[0] = [6, 6, 6, 6, 6]
+        if a.comm.rank == 0:
+            self.assertEqual(a[0], 6)
+
+        a = ht.ones((4, 5,), split=0).tril()
+        a[0] = (6, 6, 6, 6, 6)
+        if a.comm.rank == 0:
+            self.assertEqual(a[0], 6)
+
+        a = ht.ones((4, 5,), split=0).tril()
+        a[0] = np.array([6, 6, 6, 6, 6])
+        if a.comm.rank == 0:
+            self.assertEqual(a[0], 6)
+
     def test_resplit(self):
         # resplitting with same axis, should leave everything unchanged
         shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size,)

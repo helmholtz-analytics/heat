@@ -1655,6 +1655,12 @@ class tensor:
             self.__array.__setitem__(key, value.__array)
         elif isinstance(value, torch.Tensor):
             self.__array.__setitem__(key, value.data)
+        elif isinstance(value, (list, tuple)):
+            value = torch.Tensor(value)
+            self.__array.__setitem__(key, value.data)
+        elif isinstance(value, np.ndarray):
+            value = torch.from_numpy(value)
+            self.__array.__setitem__(key, value.data)
         else:
             raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
 
