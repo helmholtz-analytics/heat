@@ -18,18 +18,11 @@ T1 = ht.float32([
 v = ht.float32([2, 2])
 v2 = ht.float32([2, 2, 2])
 T_s = ht.tensor(T1._tensor__array, T1.shape, T1.dtype, 0, None, None)
-Ts = ht.ones((2,2), split=1)
-otherType = (2,2)
+Ts = ht.ones((2, 2), split=1)
+otherType = (2, 2)
+
 
 class TestOperations(unittest.TestCase):
-
-    def test_equal(self):
-        self.assertTrue(ht.equal(T, T))
-        self.assertFalse(ht.equal(T, T1))
-        self.assertFalse(ht.equal(T, s))
-        self.assertFalse(ht.equal(T1, s))
-
-
     def test_eq(self):
         T_r = ht.uint8([
             [0, 1],
@@ -53,6 +46,11 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.eq('T', 's')
 
+    def test_equal(self):
+        self.assertTrue(ht.equal(T, T))
+        self.assertFalse(ht.equal(T, T1))
+        self.assertFalse(ht.equal(T, s))
+        self.assertFalse(ht.equal(T1, s))
 
     def test_ge(self):
         T_r = ht.uint8([
@@ -82,7 +80,6 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.ge('T', 's')
 
-
     def test_gt(self):
         T_r = ht.uint8([
             [0, 0],
@@ -110,8 +107,6 @@ class TestOperations(unittest.TestCase):
             ht.gt(T, otherType)
         with self.assertRaises(TypeError):
             ht.gt('T', 's')
-
-
 
     def test_le(self):
         T_r = ht.uint8([
@@ -168,7 +163,6 @@ class TestOperations(unittest.TestCase):
             ht.lt(T, otherType)
         with self.assertRaises(TypeError):
             ht.lt('T', 's')
-
 
     def test_max(self):
         data = [
@@ -344,4 +338,3 @@ class TestOperations(unittest.TestCase):
             ht.ne(T, otherType)
         with self.assertRaises(TypeError):
             ht.ne('T', 's')
-
