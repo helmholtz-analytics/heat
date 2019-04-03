@@ -1,4 +1,5 @@
 import itertools
+import numpy as np
 
 
 def broadcast_shape(shape_a, shape_b):
@@ -141,6 +142,8 @@ def sanitize_shape(shape):
     shape = (shape,) if not hasattr(shape, '__iter__') else tuple(shape)
 
     for dimension in shape:
+        if issubclass(type(dimension), np.integer):
+            dimension = int(dimension)
         if not isinstance(dimension, int):
             raise TypeError('expected sequence object with length >= 0 or a single integer')
         if dimension <= 0:

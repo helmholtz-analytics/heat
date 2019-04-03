@@ -1,10 +1,6 @@
-import itertools
 import torch
-import warnings
-import numpy as np
 
 from .communication import MPI
-from . import stride_tricks
 from . import types
 from . import tensor
 from . import exponential

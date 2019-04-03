@@ -262,4 +262,3 @@ class TestOperations(unittest.TestCase):
             ht.tanh([1, 2, 3])
         with self.assertRaises(TypeError):
             ht.tanh('hello world')
-

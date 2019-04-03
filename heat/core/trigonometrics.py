@@ -71,10 +71,7 @@ def sin(x, out=None):
     Parameters
     ----------
     x : ht.tensor
-        The value for which to compute the trigonometric sine.
-    out : ht.tensor or None, optional
-        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        The value for which to compute the trigonometric tangent.
 
     Returns
     -------
