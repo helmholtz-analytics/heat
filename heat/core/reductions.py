@@ -385,6 +385,12 @@ def var(x, axis=None, bessel=True):
         var_reshape_combi = tensor.zeros((x.comm.size, int(np.prod(var.lshape))))
         x.comm.Allreduce(var_reshape, var_reshape_combi, MPI.SUM)
 
+        # TODO: gpu init:
+        # if x.device == gpu or if gpu is available:
+        #   (if the device is not on the gpu need to copy/create reshape_compi there)
+        #   create a gpu tensor for the reshape_combi ones
+        #   do the loops
+
         while True:  # todo: multithread for GPU
             if sz % 2 != 0:
                 if rem1 and not rem2:
@@ -434,7 +440,7 @@ def var(x, axis=None, bessel=True):
             rem1 = 0
             rem2 = 0
             sz = var_tot.shape[0]
-            while True:  # this loop will loop pairwise over the whole process and do pairwise updates
+            while True:  # this loop will loop pairwise over the processes and do pairwise updates
                 if sz % 2 != 0:
                     if rem1 and not rem2:
                         rem2 = sz - 1
