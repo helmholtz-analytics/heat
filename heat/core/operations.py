@@ -173,7 +173,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
 
 
-def argmax(x, **kwargs):  # axis=None, out=None):
+def argmax(x, **kwargs):
     """
     Returns the indices of the maximum values along an axis.
 
@@ -183,7 +183,7 @@ def argmax(x, **kwargs):  # axis=None, out=None):
         Input array.
     axis : int, optional
         By default, the index is into the flattened tensor, otherwise along the specified axis.
-    # out : ht.tensor, optional.
+    out : ht.tensor, optional.
         If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
     Returns:
@@ -249,7 +249,7 @@ def argmax(x, **kwargs):  # axis=None, out=None):
     return reduced_result
 
 
-def argmin(x, **kwargs):  # axis=None, out=None):
+def argmin(x, **kwargs):
     """
     Returns the indices of the minimum values along an axis.
 
@@ -259,7 +259,7 @@ def argmin(x, **kwargs):  # axis=None, out=None):
         Input array.
     axis : int, optional
         By default, the index is into the flattened tensor, otherwise along the specified axis.
-    # TODO out : ht.tensor, optional. Issue #100
+    # out : ht.tensor, optional. Issue #100
         If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
     Returns:
@@ -269,17 +269,20 @@ def argmin(x, **kwargs):  # axis=None, out=None):
 
     Examples:
     --------
-    >>> a = ht.randn(3,3)
+    >>> import heat as ht
+    >>> import torch
+    >>> torch.manual_seed(1)
+    >>> a = ht.random.randn(3,3)
     >>> a
-    tensor([[-1.7297,  0.2541, -0.1044],
-            [ 1.0865, -0.4415,  1.3716],
-            [-0.0827,  1.0215, -2.0176]])
+    tensor([[-0.5631, -0.8923, -0.0583],
+    [-0.1955, -0.9656,  0.4224],
+    [ 0.2673, -0.4212, -0.5107]])
     >>> ht.argmin(a)
-    tensor([8])
+    tensor([4])
     >>> ht.argmin(a, axis=0)
     tensor([[0, 1, 2]])
     >>> ht.argmin(a, axis=1)
-    tensor([[0],
+    tensor([[1],
             [1],
             [2]])
     """

@@ -32,7 +32,6 @@ class KMeans:
         for epoch in range(self.max_iter):
             # calculate the distance matrix and determine the closest centroid
             distances = ((data - centroids) ** 2).sum(axis=1, keepdim=True)
-            print('IN KMEANS.FIT: ', data.shape, centroids.shape, (data-centroids).shape, distances.shape)
             matching_centroids = distances.argmin(axis=2, keepdim=True)
 
             # update the centroids

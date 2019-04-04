@@ -229,7 +229,7 @@ class tensor:
             Input array.
         axis : int, optional
             By default, the index is into the flattened tensor, otherwise along the specified axis.
-        #TODO out : array, optional
+        out : array, optional
             If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
         Returns:
@@ -268,7 +268,7 @@ class tensor:
             Input array.
         axis : int, optional
             By default, the index is into the flattened tensor, otherwise along the specified axis.
-        #TODO out : array, optional
+        out : array, optional
             If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
         Returns:
@@ -278,17 +278,20 @@ class tensor:
 
         Examples
         --------
-        >>> a = ht.randn(3,3)
+        >>> import heat as ht
+        >>> import torch
+        >>> torch.manual_seed(1)
+        >>> a = ht.random.randn(3,3)
         >>> a
-        tensor([[-1.7297,  0.2541, -0.1044],
-                [ 1.0865, -0.4415,  1.3716],
-                [-0.0827,  1.0215, -2.0176]])
+        tensor([[-0.5631, -0.8923, -0.0583],
+        [-0.1955, -0.9656,  0.4224],
+        [ 0.2673, -0.4212, -0.5107]])
         >>> a.argmin()
-        tensor([8])
+        tensor([4])
         >>> a.argmin(axis=0)
         tensor([[0, 1, 2]])
         >>> a.argmin(axis=1)
-        tensor([[0],
+        tensor([[1],
                 [1],
                 [2]])
         """
