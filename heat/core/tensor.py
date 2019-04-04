@@ -1606,7 +1606,7 @@ class tensor:
     __radd__ = __add__
     __rmul__ = __mul__
 
-    # __rfloordiv__ = __floordiv__  //  TODO: Implement me when implementing __floordiv__
+    # __rfloordiv__  //  TODO: Implement me when implementing __floordiv__
 
 
 def __factory(shape, dtype, split, local_factory, device, comm):
