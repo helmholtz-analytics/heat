@@ -115,6 +115,16 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.fmod('T', 's')
 
+    def test_mod(self):
+        T_int_1 = ht.int32([[1, 4], [2, 2]])
+        T_int_2 = ht.int32([[1, 2], [3, 4]])
+        T_int_res_1 = ht.int32([[0, 0], [2, 2]])
+        T_int_res_2 = ht.int32([[1, 0], [0, 0]])
+
+        self.assertTrue(ht.equal(ht.mod(T_int_1, T_int_2), T_int_res_1))
+        self.assertTrue(ht.equal(ht.mod(T_int_1, s_int), T_int_res_2))
+        self.assertTrue(ht.equal(ht.mod(s_int, T_int_2), T_int_res_1))
+
     def test_mul(self):
         T_r = ht.float32([
             [2, 4],
