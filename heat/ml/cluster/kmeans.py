@@ -32,6 +32,7 @@ class KMeans:
         for epoch in range(self.max_iter):
             # calculate the distance matrix and determine the closest centroid
             distances = ((data - centroids) ** 2).sum(axis=1, keepdim=True)
+            print('IN KMEANS.FIT: ', data.shape, centroids.shape, (data-centroids).shape, distances.shape)
             matching_centroids = distances.argmin(axis=2, keepdim=True)
 
             # update the centroids
@@ -39,6 +40,8 @@ class KMeans:
                 selection = (matching_centroids == i).astype(ht.int64)
                 new_centroids[:, :, i:i + 1] = ((data * selection).sum(axis=0, keepdim=True) /
                                                 selection.sum(axis=0, keepdim=True).clip(1.0, sys.maxsize))
+                # new_centroids[:, :, i:i + 1] = ((data * selection).sum(axis=0) /
+                #                                selection.sum(axis=0).clip(1.0, sys.maxsize))
 
             # check whether centroid movement has converged
             epsilon = ((centroids - new_centroids) ** 2).sum()

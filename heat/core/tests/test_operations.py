@@ -301,13 +301,13 @@ class TestOperations(unittest.TestCase):
         size = ht.MPI_WORLD.size * 2
         data = ht.triu(ht.ones((size, size,), split=0), k=1)
 
-        output = ht.empty((1, size,))
+        output = ht.empty((size,))
         result = ht.argmin(data, axis=0, out=output)
 
         self.assertIsInstance(result, ht.tensor)
         self.assertEqual(output.dtype, ht.int64)
         self.assertEqual(output._tensor__array.dtype, torch.int64)
-        self.assertEqual(output.shape, (1, size,))
+        self.assertEqual(output.shape, (size,))
         self.assertEqual(output.lshape, (1, size,))
         self.assertEqual(output.split, None)
         self.assertTrue((output._tensor__array != 0).all())

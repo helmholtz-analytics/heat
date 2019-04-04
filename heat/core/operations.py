@@ -118,7 +118,7 @@ def all(x, axis=None, out=None, keepdim=None):
     tensor([[0, 1, 0, 1, 0]], dtype=ht.uint8)
     """
     # TODO: make me more numpy API complete. Issue #101
-    return __reduce_op(x, lambda t, *args, **kwargs: t.byte().all(*args, **kwargs), MPI.LAND, axis, out=out)
+    return __reduce_op(x, lambda t, *args, **kwargs: t.byte().all(*args, **kwargs), MPI.LAND, axis=axis, out=out, keepdim=keepdim)
 
 
 def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
@@ -173,7 +173,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
 
 
-def argmax(x, axis=None, out=None):
+def argmax(x, **kwargs):  # axis=None, out=None):
     """
     Returns the indices of the maximum values along an axis.
 
@@ -235,20 +235,21 @@ def argmax(x, axis=None, out=None):
         return torch.cat([maxima.double(), indices.double()])
 
     # perform the global reduction
-    reduced_result = __reduce_op(x, local_argmax, MPI_ARGMAX, axis, out, keepdim=False)
+    reduced_result = __reduce_op(x, local_argmax, MPI_ARGMAX, **kwargs)  # axis=axis, out=out, keepdim=False)
 
     # correct the tensor
     reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
     reduced_result._tensor__dtype = types.int64
 
     # set out parameter correctly, i.e. set the storage correctly
+    out = kwargs.get('out')
     if out is not None:
         out._tensor__array.storage().copy_(reduced_result._tensor__array.storage())
 
     return reduced_result
 
 
-def argmin(x, axis=None, out=None):
+def argmin(x, **kwargs):  # axis=None, out=None):
     """
     Returns the indices of the minimum values along an axis.
 
@@ -307,13 +308,14 @@ def argmin(x, axis=None, out=None):
         return torch.cat([minimums.double(), indices.double()])
 
     # perform the global reduction
-    reduced_result = __reduce_op(x, local_argmin, MPI_ARGMIN, axis, keepdim, out, keepdim=False)
+    reduced_result = __reduce_op(x, local_argmin, MPI_ARGMIN, **kwargs)  # axis, out, keepdim=False)
 
     # correct the tensor
     reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
     reduced_result._tensor__dtype = types.int64
 
     # set out parameter correctly, i.e. set the storage correctly
+    out = kwargs.get('out')
     if out is not None:
         out._tensor__array.storage().copy_(reduced_result._tensor__array.storage())
 
@@ -620,18 +622,19 @@ def __local_operation(operation, x, out):
     return out
 
 
-def __reduce_op(x, partial_op, reduction_op, axis, out, keepdim):
+def __reduce_op(x, partial_op, reduction_op, **kwargs):  # axis=None, out=None, keepdim=None):
     # TODO: document me Issue #102
     # perform sanitation
     if not isinstance(x, tensor.tensor):
         raise TypeError(
             'expected x to be a ht.tensor, but was {}'.format(type(x)))
+    out = kwargs.get('out')
     if out is not None and not isinstance(out, tensor.tensor):
         raise TypeError(
             'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
 
     # no further checking needed, sanitize axis will raise the proper exceptions
-    axis = stride_tricks.sanitize_axis(x.shape, axis)
+    axis = stride_tricks.sanitize_axis(x.shape, kwargs.get('axis'))
     split = x.split
 
     if axis is None:
@@ -641,7 +644,7 @@ def __reduce_op(x, partial_op, reduction_op, axis, out, keepdim):
         partial = partial_op(x._tensor__array, dim=axis, keepdim=True)
         shape_keepdim = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
         shape_losedim = x.gshape[:axis] + x.gshape[axis + 1:]
-        output_shape = shape_keepdim if keepdim else shape_losedim
+        output_shape = shape_keepdim if kwargs.get('keepdim') else shape_losedim
 
     # Check shape of output buffer, if any
     if out is not None and out.shape != output_shape:

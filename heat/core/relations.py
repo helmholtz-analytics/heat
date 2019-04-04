@@ -273,7 +273,7 @@ def lt(t1, t2):
     return binary_op(torch.lt, t1, t2)
 
 
-def max(x, axis=None, out=None, keepdim=False):
+def max(x, **kwargs):
     # TODO: initial : scalar, optional Issue #101
     """
     Return the maximum along a given axis.
@@ -312,10 +312,10 @@ def max(x, axis=None, out=None, keepdim=False):
             return result[0]
         return result
 
-    return reduce_op(x, local_max, MPI.MAX, axis, out, keepdim)
+    return reduce_op(x, local_max, MPI.MAX, **kwargs)
 
 
-def min(x, axis=None, out=None, keepdim=None):
+def min(x, **kwargs):
     # TODO: initial : scalar, optional Issue #101
     """
     Return the minimum along a given axis.
@@ -354,7 +354,7 @@ def min(x, axis=None, out=None, keepdim=None):
             return result[0]
         return result
 
-    return reduce_op(x, local_min, MPI.MIN, axis, out, keepdim)
+    return reduce_op(x, local_min, MPI.MIN, **kwargs)
 
 
 def ne(t1, t2):
