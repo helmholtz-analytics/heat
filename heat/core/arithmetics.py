@@ -7,10 +7,10 @@ from .operations import __binary_op as binary_op
 __all__ = [
     'add',
     'div',
+    'mod',
     'mul',
     'pow',
-    'sub',
-    'mod'
+    'sub'
 ]
 
 def add(t1, t2):

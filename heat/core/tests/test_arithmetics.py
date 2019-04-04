@@ -1,4 +1,5 @@
 import unittest
+
 import heat as ht
 
 FLOAT_EPSILON = 1e-4
@@ -145,6 +146,9 @@ class TestOperations(unittest.TestCase):
             [0.0, 0.0],
             [0.0, 0.0]
         ])
+        float1 = ht.float32([5.3])
+        float2 = ht.float32([1.9])
+        float_res = ht.float32([1.5000])
 
         self.assertTrue(ht.equal(ht.mod(s, s), ht.float32([0.0])))
         self.assertTrue(ht.equal(ht.mod(T, T), T_zero))
@@ -155,6 +159,7 @@ class TestOperations(unittest.TestCase):
         self.assertTrue(ht.equal(ht.mod(T_int, s_int), T_r_int))
         self.assertTrue(ht.equal(ht.mod(s, T), T_inv))
         self.assertTrue(ht.equal(ht.mod(T_s, T), T_inv))
+        self.assertTrue(ht.allclose(ht.mod(float1, float2), float_res, atol=FLOAT_EPSILON, rtol=0))
 
         with self.assertRaises(ValueError):
             ht.mod(T, v2)
