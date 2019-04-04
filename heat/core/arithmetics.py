@@ -7,7 +7,7 @@ from .operations import __binary_op as binary_op
 __all__ = [
     'add',
     'div',
-    'mod',
+    'fmod',
     'mul',
     'pow',
     'sub'
@@ -95,7 +95,7 @@ def div(t1, t2):
     return binary_op(torch.div, t1, t2)
 
 
-def mod(t1, t2):
+def fmod(t1, t2):
     """
         Element-wise remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
         Takes the two operands (scalar or tensor, both may contain floating point number) whose elements are to be
@@ -117,17 +117,17 @@ def mod(t1, t2):
         Examples:
         ---------
         >>> import heat as ht
-        >>> ht.mod(2.0, 2.0)
+        >>> ht.fmod(2.0, 2.0)
         tensor([0.])
 
         >>> T1 = ht.float32([[1, 2], [3, 4]])
         >>> T2 = ht.float32([[2, 2], [2, 2]])
-        >>> ht.mod(T1, T2)
+        >>> ht.fmod(T1, T2)
         tensor([[1., 0.],
                 [1., 0.]])
 
         >>> s = 2.0
-        >>> ht.mod(s, T1)
+        >>> ht.fmod(s, T1)
         tensor([[0., 0.]
                 [2., 2.]])
         """

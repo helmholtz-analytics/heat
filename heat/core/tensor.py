@@ -422,12 +422,12 @@ class tensor:
             Examples:
             ---------
             >>> import heat as ht
-            >>> ht.mod(2.0, 2.0)
+            >>> ht.fmod(2.0, 2.0)
             tensor([0.])
 
             >>> T1 = ht.float32([[1, 2], [3, 4]])
             >>> T2 = ht.float32([[2, 2], [2, 2]])
-            >>> ht.mod(T1, T2)
+            >>> ht.fmod(T1, T2)
             tensor([[1., 0.],
                     [1., 0.]])
 
@@ -436,11 +436,11 @@ class tensor:
                     [1., 0.]])
 
             >>> s = 2.0
-            >>> ht.mod(s, T1)
+            >>> ht.fmod(s, T1)
             tensor([[0., 0.]
                     [2., 2.]])
             """
-        return arithmetics.mod(self, other)
+        return arithmetics.fmod(self, other)
 
     def __eq__(self, other):
         """

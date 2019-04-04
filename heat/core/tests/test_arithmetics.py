@@ -125,7 +125,7 @@ class TestOperations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.div('T', 's')
 
-    def test_mod(self):
+    def test_fmod(self):
         T_r = ht.float32([
             [1., 0.],
             [1., 0.]
@@ -148,27 +148,27 @@ class TestOperations(unittest.TestCase):
         ])
         float1 = ht.float32([5.3])
         float2 = ht.float32([1.9])
-        float_res = ht.float32([1.5000])
+        float_res = ht.float32([1.5])
 
-        self.assertTrue(ht.equal(ht.mod(s, s), ht.float32([0.0])))
-        self.assertTrue(ht.equal(ht.mod(T, T), T_zero))
-        self.assertTrue(ht.equal(ht.mod(T, s_int), T_r))
-        self.assertTrue(ht.equal(ht.mod(T, T1), T_r))
-        self.assertTrue(ht.equal(ht.mod(T, v), T_r))
-        self.assertTrue(ht.equal(ht.mod(T, s_int), T_r))
-        self.assertTrue(ht.equal(ht.mod(T_int, s_int), T_r_int))
-        self.assertTrue(ht.equal(ht.mod(s, T), T_inv))
-        self.assertTrue(ht.equal(ht.mod(T_s, T), T_inv))
-        self.assertTrue(ht.allclose(ht.mod(float1, float2), float_res, atol=FLOAT_EPSILON, rtol=0))
+        self.assertTrue(ht.equal(ht.fmod(s, s), ht.float32([0.0])))
+        self.assertTrue(ht.equal(ht.fmod(T, T), T_zero))
+        self.assertTrue(ht.equal(ht.fmod(T, s_int), T_r))
+        self.assertTrue(ht.equal(ht.fmod(T, T1), T_r))
+        self.assertTrue(ht.equal(ht.fmod(T, v), T_r))
+        self.assertTrue(ht.equal(ht.fmod(T, s_int), T_r))
+        self.assertTrue(ht.equal(ht.fmod(T_int, s_int), T_r_int))
+        self.assertTrue(ht.equal(ht.fmod(s, T), T_inv))
+        self.assertTrue(ht.equal(ht.fmod(T_s, T), T_inv))
+        self.assertTrue(ht.allclose(ht.fmod(float1, float2), float_res, atol=FLOAT_EPSILON, rtol=0))
 
         with self.assertRaises(ValueError):
-            ht.mod(T, v2)
+            ht.fmod(T, v2)
         with self.assertRaises(NotImplementedError):
-            ht.mod(T, T_s)
+            ht.fmod(T, T_s)
         with self.assertRaises(TypeError):
-            ht.mod(T, otherType)
+            ht.fmod(T, otherType)
         with self.assertRaises(TypeError):
-            ht.mod('T', 's')
+            ht.fmod('T', 's')
 
     def test_pow(self):
         T_r = ht.float32([
