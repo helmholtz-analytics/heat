@@ -1,7 +1,7 @@
 import itertools
 import torch
 import numpy as np
-
+import warnings
 
 from .communication import MPI
 from . import stride_tricks
@@ -128,26 +128,22 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
 
     Parameters:
     -----------
-
     x : ht.tensor
         First tensor to compare
-
     y : ht.tensor
         Second tensor to compare
-
     atol: float, optional
         Absolute tolerance. Default is 1e-08
-
     rtol: float, optional
         Relative tolerance (with respect to y). Default is 1e-05
-
     equal_nan: bool, optional
-        Whether to compare NaN’s as equal. If True, NaN’s in a will be considered equal to NaN’s in b in the output array.
+        Whether to compare NaN’s as equal. If True, NaN’s in a will be considered equal to NaN’s in b in the output
+        array.
 
     Returns:
     --------
     allclose : bool
-    True if the two tensors are equal within the given tolerance; False otherwise.
+        True if the two tensors are equal within the given tolerance; False otherwise.
 
     Examples:
     ---------
@@ -155,7 +151,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     >>> ht.allclose(a, a)
     True
 
-    >>> b = ht.float32([[2.00005,2.00005], [2.00005,2.00005]])
+    >>> b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]])
     >>> ht.allclose(a, b)
     False
     >>> ht.allclose(a, b, atol=1e-04)
@@ -737,21 +733,41 @@ def __binary_op(operation, t1, t2):
         if np.isscalar(t2):
             try:
                 t2 = tensor.array([t2])
+                output_shape = t1.shape
+                output_split = t1.split
+                output_device = t1.device
+                output_comm = t1.comm
             except (ValueError, TypeError,):
                 raise TypeError(
                     'Data type not supported, input was {}'.format(type(t2)))
 
         elif isinstance(t2, tensor.tensor):
-            output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
-
             # TODO: implement complex NUMPY rules
             if t2.split is None or t2.split == t1.split:
-                pass
+                output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+                output_split = t1.split
+                output_device = t1.device
+                output_comm = t1.comm
             else:
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
                 # and split=1
-                raise NotImplementedError(
-                    'Not implemented for other splittings')
+                raise NotImplementedError('Not implemented for other splittings')
+
+            # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data.
+            if t1.split is not None:
+                if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
+                    warnings.warn('Broadcasting requires transferring data of first operator between MPI ranks!')
+                    if t1.comm.rank > 0:
+                        t1._tensor__array = torch.zeros(t1.shape, dtype=t1.dtype.torch_type())
+                    t1.comm.Bcast(t1)
+
+            if t2.split is not None:
+                if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
+                    warnings.warn('Broadcasting requires transferring data of second operator between MPI ranks!')
+                    if t2.comm.rank > 0:
+                        t2._tensor__array = torch.zeros(t2.shape, dtype=t2.dtype.torch_type())
+                    t2.comm.Bcast(t2)
+
         else:
             raise TypeError(
                 'Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
@@ -759,13 +775,20 @@ def __binary_op(operation, t1, t2):
         if t2.dtype != t1.dtype:
             t2 = t2.astype(t1.dtype)
 
-        output_shape = t1.shape
-        output_split = t1.split
-        output_device = t1.device
-        output_comm = t1.comm
     else:
         raise NotImplementedError('Not implemented for non scalar')
 
-    result = operation(t1._tensor__array, t2._tensor__array)
+    if t1.split is not None:
+        if t1.lshape[t1.split] == 0:
+            result = t1
+        else:
+            result = operation(t1._tensor__array, t2._tensor__array)
+    elif t1.split is not None:
+        if t2.lshape[t2.split] == 0:
+            result = t2
+        else:
+            result = operation(t1._tensor__array, t2._tensor__array)
+    else:
+        result = operation(t1._tensor__array, t2._tensor__array)
 
     return tensor.tensor(result, output_shape, t1.dtype, output_split, output_device, output_comm)
