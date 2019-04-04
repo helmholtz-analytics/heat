@@ -104,7 +104,7 @@ class TestOperations(unittest.TestCase):
         self.assertTrue(ht.equal(ht.fmod(T_int, s_int), T_r_int))
         self.assertTrue(ht.equal(ht.fmod(s, T), T_inv))
         self.assertTrue(ht.equal(ht.fmod(T_s, T), T_inv))
-        self.assertTrue(ht.allclose(ht.fmod(float1, float2), float_res, rtol=0))
+        self.assertTrue(ht.allclose(ht.fmod(float1, float2), float_res))
 
         with self.assertRaises(ValueError):
             ht.fmod(T, v2)

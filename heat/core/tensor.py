@@ -454,8 +454,8 @@ class tensor:
     def __mod__(self, other):
         """
             Element-wise remainder of values of self by values of operand other (i.e. self % other), not commutative.
-            Takes the two operands (scalar or tensor, both may contain floating point number) whose elements are to be
-            divided (operand 1 by operand 2) as arguments.
+            Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2)
+            as arguments.
 
             Parameters
             ----------
@@ -465,31 +465,26 @@ class tensor:
             Returns
             -------
             result: ht.tensor
-                A tensor containing the remainder of the element-wise division (i.e. floating point values)
-                of self by other.
+                A tensor containing the remainder of the element-wise division of self by other.
 
             Examples:
             ---------
             >>> import heat as ht
-            >>> ht.fmod(2.0, 2.0)
-            tensor([0.])
+            >>> ht.mod(2, 2)
+            tensor([0])
 
-            >>> T1 = ht.float32([[1, 2], [3, 4]])
-            >>> T2 = ht.float32([[2, 2], [2, 2]])
-            >>> ht.fmod(T1, T2)
-            tensor([[1., 0.],
-                    [1., 0.]])
-
+            >>> T1 = ht.int32([[1, 2], [3, 4]])
+            >>> T2 = ht.int32([[2, 2], [2, 2]])
             >>> T1 % T2
-            tensor([[1., 0.],
-                    [1., 0.]])
+            tensor([[1, 0],
+                    [1, 0]], dtype=torch.int32)
 
-            >>> s = 2.0
-            >>> ht.fmod(s, T1)
-            tensor([[0., 0.]
-                    [2., 2.]])
+            >>> s = ht.int32([2])
+            >>> s % T1
+            tensor([[0, 0]
+                    [2, 2]], dtype=torch.int32)
             """
-        return arithmetics.fmod(self, other)
+        return arithmetics.mod(self, other)
 
     def __eq__(self, other):
         """

@@ -8,6 +8,7 @@ __all__ = [
     'add',
     'div',
     'fmod',
+    'mod',
     'mul',
     'pow',
     'sub'
@@ -93,6 +94,46 @@ def div(t1, t2):
     return binary_op(torch.div, t1, t2)
 
 
+def mod(t1, t2):
+    """
+    Element-wise remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
+    Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2) as arguments.
+
+    Currently t1 and t2 are just passed to fmod.
+
+    Parameters
+    ----------
+    t1: tensor or scalar
+        The first operand whose values are divided
+
+    t2: tensor or scalar
+        The second operand by whose values is divided
+
+    Returns
+    -------
+    result: ht.tensor
+        A tensor containing the remainder of the element-wise division of t1 by t2.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> ht.mod(2, 2)
+    tensor([0])
+
+    >>> T1 = ht.int32([[1, 2], [3, 4]])
+    >>> T2 = ht.int32([[2, 2], [2, 2]])
+    >>> ht.mod(T1, T2)
+    tensor([[1, 0],
+            [1, 0]], dtype=torch.int32)
+
+    >>> s = 2
+    >>> ht.mod(s, T1)
+    tensor([[0, 0]
+            [2, 2]], dtype=torch.int32)
+    """
+    return fmod(t1, t2)
+
+
 def fmod(t1, t2):
     """
     Element-wise remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
@@ -102,10 +143,10 @@ def fmod(t1, t2):
     Parameters
     ----------
     t1: tensor or scalar
-        The first operand whose values are divided
+        The first operand whose values are divided (may be floats)
 
     t2: tensor or scalar
-        The second operand by whose values is divided
+        The second operand by whose values is divided (may be floats)
 
     Returns
     -------
