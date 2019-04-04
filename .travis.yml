@@ -13,8 +13,11 @@ before_install:
 install:
   - pip install . -e .[hdf5] .[netcdf]
 script:
+  # Running mpi with 1 - 4 processes and generating a unique coverage report for each process in each run (10 in total)
   - for i in {1..4}; do mpirun -np $i coverage run --source=heat --parallel-mode -m pytest heat/; done
+  # Combining the unique coverage reports into one file (.coverage)
   - coverage combine
+  # Displaying the coverage results in the travis log, not necessary for build process
   - coverage report
 after_success:
   - codecov
