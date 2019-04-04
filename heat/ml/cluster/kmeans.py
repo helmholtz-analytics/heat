@@ -39,8 +39,6 @@ class KMeans:
                 selection = (matching_centroids == i).astype(ht.int64)
                 new_centroids[:, :, i:i + 1] = ((data * selection).sum(axis=0, keepdim=True) /
                                                 selection.sum(axis=0, keepdim=True).clip(1.0, sys.maxsize))
-                # new_centroids[:, :, i:i + 1] = ((data * selection).sum(axis=0) /
-                #                                selection.sum(axis=0).clip(1.0, sys.maxsize))
 
             # check whether centroid movement has converged
             epsilon = ((centroids - new_centroids) ** 2).sum()
