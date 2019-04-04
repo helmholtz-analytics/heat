@@ -9,12 +9,13 @@ cache:
   - $HOME/virtualenv/python3.5/share
 before_install:
   - sudo apt-get install -y libopenmpi-dev openmpi-bin libhdf5-dev libnetcdf-dev
-  - pip install codecov pytest pytest-cov
+  - pip install codecov pytest coverage
 install:
   - pip install . -e .[hdf5] .[netcdf]
 script:
-  - mpirun -np 2 pytest
-  - mpirun pytest --cov=heat heat/
+  - for i in {1..4}; do mpirun -np $i coverage run --source=heat --parallel-mode -m pytest heat/; done
+  - coverage combine
+  - coverage report
 after_success:
   - codecov
 deploy:
