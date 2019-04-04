@@ -451,6 +451,41 @@ class tensor:
         """
         return arithmetics.div(self, other)
 
+    def __mod__(self, other):
+        """
+            Element-wise division remainder of values of self by values of operand other (i.e. self % other), not commutative.
+            Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2)
+            as arguments.
+
+            Parameters
+            ----------
+            other: tensor or scalar
+                The second operand by whose values it self to be divided.
+
+            Returns
+            -------
+            result: ht.tensor
+                A tensor containing the remainder of the element-wise division of self by other.
+
+            Examples:
+            ---------
+            >>> import heat as ht
+            >>> ht.mod(2, 2)
+            tensor([0])
+
+            >>> T1 = ht.int32([[1, 2], [3, 4]])
+            >>> T2 = ht.int32([[2, 2], [2, 2]])
+            >>> T1 % T2
+            tensor([[1, 0],
+                    [1, 0]], dtype=torch.int32)
+
+            >>> s = ht.int32([2])
+            >>> s % T1
+            tensor([[0, 0]
+                    [2, 2]], dtype=torch.int32)
+            """
+        return arithmetics.mod(self, other)
+
     def __eq__(self, other):
         """
         Element-wise rich comparison of equality with values from second operand (scalar or tensor)
