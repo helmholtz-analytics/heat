@@ -15,7 +15,7 @@ T1 = ht.float32([
 v = ht.float32([2, 2])
 v2 = ht.float32([2, 2, 2])
 T_s = ht.tensor(T1._tensor__array, T1.shape, T1.dtype, 0, T1.device, T1.comm)
-otherType = (2,2)
+otherType = (2, 2)
 
 
 class TestOperations(unittest.TestCase):
@@ -24,7 +24,7 @@ class TestOperations(unittest.TestCase):
             [3, 4],
             [5, 6]
         ])
-
+        
         self.assertTrue(ht.equal(ht.add(s, s), ht.float32([4.0])))
         self.assertTrue(ht.equal(ht.add(T, s), T_r))
         self.assertTrue(ht.equal(ht.add(s, T), T_r))

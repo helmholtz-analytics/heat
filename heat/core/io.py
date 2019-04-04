@@ -1,7 +1,7 @@
 import os.path
 import torch
 import warnings
-
+from .stride_tricks import sanitize_axis
 from .communication import MPI, MPI_WORLD
 from . import devices
 from . import types
@@ -95,9 +95,20 @@ else:
         with h5py.File(path, 'r') as handle:
             data = handle[dataset]
             gshape = tuple(data.shape)
+            dims = len(gshape)
+            split = sanitize_axis(gshape, split)
             _, _, indices = comm.chunk(gshape, split)
-            data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
-
+            if split is None: 
+                data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
+            elif indices[split].stop > indices[split].start: 
+                data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
+            else: 
+                warnings.warn('More MPI ranks are used then the length of splitting dimension!')
+                slice1 = tuple(slice(0, gshape[i]) if i != split else slice(0, 1) for i in range(dims)) 
+                slice2 = tuple(slice(0, gshape[i]) if i != split else slice(0, 0) for i in range(dims)) 
+                data = torch.tensor(data[slice1], dtype=dtype.torch_type(), device=device.torch_device)
+                data = data[slice2]
+                
             return tensor.tensor(data, gshape, dtype, split, device, comm)
 
 

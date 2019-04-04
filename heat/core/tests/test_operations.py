@@ -7,6 +7,31 @@ FLOAT_EPSILON = 1e-4
 
 
 class TestOperations(unittest.TestCase):
+
+    def test___binary_op_broadcast(self):
+
+        left_tensor = ht.ones((4, 1), split=0) 
+        right_tensor = ht.ones((1, 2), split=0)
+        result = left_tensor + right_tensor
+        self.assertEqual(result.shape, (4, 2))
+        result = right_tensor + left_tensor
+        self.assertEqual(result.shape, (4, 2))
+
+        left_tensor = ht.ones((4, 1), split=1) 
+        right_tensor = ht.ones((1, 2), split=1)
+        result = left_tensor + right_tensor
+        self.assertEqual(result.shape, (4, 2))
+        result = right_tensor + left_tensor
+        self.assertEqual(result.shape, (4, 2))
+
+        left_tensor = ht.ones((4, 1, 3, 1, 2), split=0, dtype=torch.uint8) 
+        right_tensor = ht.ones((1, 2, 1, 3, 1), split=0, dtype=torch.uint8)
+        result = left_tensor + right_tensor
+        self.assertEqual(result.shape, (4, 2, 3, 3, 2))
+        result = right_tensor + left_tensor
+        self.assertEqual(result.shape, (4, 2, 3, 3, 2))
+
+
     def test_all(self):
         array_len = 9
 
@@ -540,7 +565,7 @@ class TestOperations(unittest.TestCase):
         self.assertTrue(result.sum(), 15)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[-1, 0] == 1)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 6:
             self.assertTrue(result._tensor__array[0, -1] == 0)
 
         # 1D case, positive offset, data is split, method
@@ -553,7 +578,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 22)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[-1, 0] == 1)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 6:
             self.assertTrue(result._tensor__array[0, -1] == 0)
 
         # 1D case, negative offset, data is split, method
@@ -566,7 +591,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 6)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[-1, 0] == 1)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 6:
             self.assertTrue(result._tensor__array[0, -1] == 0)
 
         distributed_ones = ht.ones((4, 5,), split=0)
@@ -581,7 +606,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 10)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[0, -1] == 0)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 5:
             self.assertTrue(result._tensor__array[-1, 0] == 1)
 
         # 2D case, positive offset, data is horizontally split, method
@@ -594,7 +619,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 17)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[0, -1] == 0)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 5:
             self.assertTrue(result._tensor__array[-1, 0] == 1)
 
         # 2D case, negative offset, data is horizontally split, method
@@ -607,7 +632,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 3)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[0, -1] == 0)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 5:
             self.assertTrue(result._tensor__array[-1, 0] == 1)
 
         distributed_ones = ht.ones((4, 5,), split=1)
@@ -622,7 +647,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 10)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[-1, 0] == 1)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 6:
             self.assertTrue(result._tensor__array[0, -1] == 0)
 
         # 2D case, positive offset, data is horizontally split, method
@@ -635,7 +660,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 17)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[-1, 0] == 1)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 6:
             self.assertTrue(result._tensor__array[0, -1] == 0)
 
         # 2D case, negative offset, data is horizontally split, method
@@ -648,7 +673,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 3)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[-1, 0] == 1)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 6:
             self.assertTrue(result._tensor__array[0, -1] == 0)
 
     def test_triu(self):
@@ -757,7 +782,7 @@ class TestOperations(unittest.TestCase):
         self.assertTrue(result.sum(), 15)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[-1, 0] == 0)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 6:
             self.assertTrue(result._tensor__array[0, -1] == 1)
 
         # 1D case, positive offset, data is split, method
@@ -770,7 +795,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 6)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[-1, 0] == 0)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 6:
             self.assertTrue(result._tensor__array[0, -1] == 1)
 
         # 1D case, negative offset, data is split, method
@@ -783,7 +808,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 22)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[-1, 0] == 0)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 6:
             self.assertTrue(result._tensor__array[0, -1] == 1)
 
         distributed_ones = ht.ones((4, 5,), split=0)
@@ -798,7 +823,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 14)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[0, -1] == 1)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 5:
             self.assertTrue(result._tensor__array[-1, 0] == 0)
 
         # # 2D case, positive offset, data is horizontally split, method
@@ -811,7 +836,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 6)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[0, -1] == 1)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 5:
             self.assertTrue(result._tensor__array[-1, 0] == 0)
 
         # # 2D case, negative offset, data is horizontally split, method
@@ -824,7 +849,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 19)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[0, -1] == 1)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 5:
             self.assertTrue(result._tensor__array[-1, 0] == 0)
 
         distributed_ones = ht.ones((4, 5,), split=1)
@@ -839,7 +864,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 14)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[-1, 0] == 0)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 6:
             self.assertTrue(result._tensor__array[0, -1] == 1)
 
         # 2D case, positive offset, data is horizontally split, method
@@ -852,7 +877,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 6)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[-1, 0] == 0)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 6:
             self.assertTrue(result._tensor__array[0, -1] == 1)
 
         # 2D case, negative offset, data is horizontally split, method
@@ -865,7 +890,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.sum(), 19)
         if result.comm.rank == 0:
             self.assertTrue(result._tensor__array[-1, 0] == 0)
-        if result.comm.rank == result.comm.size - 1:
+        if result.comm.rank == result.comm.size - 1 and result.comm.size < 6:
             self.assertTrue(result._tensor__array[0, -1] == 1)
 
 
