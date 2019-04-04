@@ -1538,11 +1538,11 @@ class tensor:
                 if isinstance(key[self.split], slice):  # if a slice is given in the split direction
                     # below allows for the split given to contain Nones
                     key_set = set(range(key[self.split].start if key[self.split].start is not None else 0,
-                                        key[self.split].stop if key[self.split].stop is not None else -1,
+                                        key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split],
                                         key[self.split].step if key[self.split].step else 1))
                     key = list(key)
                     overlap = list(set(range(key[self.split].start if key[self.split].start is not None else 0,
-                                             key[self.split].stop if key[self.split].stop is not None else -1))
+                                             key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split]))
                                    & set(range(chunk_start, chunk_end)))
 
                     if overlap:  # if the slice is requesting data on the nodes
@@ -1587,11 +1587,12 @@ class tensor:
                     except ValueError:  # case of returning just one value
                         return self.__array[tuple(key)]
                 else:
-
                     return None
 
             elif isinstance(key, slice) and self.split == 0:  # if the given axes are only a slice
-                key_set = set(range(key.start, key.stop, key.step if key.step else 1))
+                key_set = set(range(key.start if key.start is not None else 0,
+                                    key.stop if key.stop is not None else self.gshape[0],
+                                    key.step if key.step else 1))
                 overlap = list(key_set & chunk_set)
                 if overlap:
                     hold = [x - chunk_start for x in overlap]
@@ -1602,7 +1603,7 @@ class tensor:
                         lout = list(self.__array[key].shape)
                         if len(lout) > 1:
                             lout[self.split if self.split < 2 else self.split - 1] = \
-                                self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split if self.split < 2 else self.split - 1], MPI.SUM)
+                                self.comm.allreduce(tuple(self.__array[key].shape)[self.split], MPI.SUM)
                         else:
                             lout = self.comm.allreduce(tuple(self.__array[key].shape), MPI.SUM)
                         return tensor(self.__array[key], tuple(lout), self.dtype, self.split, self.device, self.comm)
