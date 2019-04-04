@@ -10,7 +10,7 @@ class TestOperations(unittest.TestCase):
     def test_all(self):
         array_len = 9
 
-        # check all over all float elements of 1d tensor locally 
+        # check all over all float elements of 1d tensor locally
         ones_noaxis = ht.ones(array_len)
         x = (ones_noaxis == 1).all()
 
@@ -152,7 +152,7 @@ class TestOperations(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             ht.allclose(a, (2, 2, 2, 2))
-            
+
     def test_argmax(self):
         torch.manual_seed(1)
         data = ht.random.randn(3, 4, 5)
@@ -162,7 +162,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._tensor__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (1, 4, 5,))
+        self.assertEqual(result.shape, (4, 5,))
         self.assertEqual(result.lshape, (1, 4, 5,))
         self.assertEqual(result.split, None)
         self.assertTrue((result._tensor__array == data._tensor__array.argmax(0)).all())
@@ -172,7 +172,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._tensor__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (3, 4, 1,))
+        self.assertEqual(result.shape, (3, 4,))
         self.assertEqual(result.lshape, (3, 4, 1,))
         self.assertEqual(result.split, None)
         self.assertTrue((result._tensor__array == data._tensor__array.argmax(-1, keepdim=True)).all())
@@ -195,7 +195,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._tensor__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4, 1,))
+        self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
         self.assertEqual(result.lshape, (4, 1,))
         self.assertEqual(result.split, 0)
         self.assertTrue((result._tensor__array == torch.tensor([[4], [4], [2], [4]])).all())
@@ -208,7 +208,7 @@ class TestOperations(unittest.TestCase):
         self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._tensor__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (1, size,))
+        self.assertEqual(result.shape, (size,))
         self.assertEqual(result.lshape, (1, size,))
         self.assertEqual(result.split, None)
         self.assertTrue((result._tensor__array != 0).all())
@@ -217,13 +217,13 @@ class TestOperations(unittest.TestCase):
         size = ht.MPI_WORLD.size * 2
         data = ht.triu(ht.ones((size, size,), split=0), k=-1)
 
-        output = ht.empty((1, size,))
+        output = ht.empty((size,))
         result = ht.argmax(data, axis=0, out=output)
 
         self.assertIsInstance(result, ht.tensor)
         self.assertEqual(output.dtype, ht.int64)
         self.assertEqual(output._tensor__array.dtype, torch.int64)
-        self.assertEqual(output.shape, (1, size,))
+        self.assertEqual(output.shape, (size,))
         self.assertEqual(output.lshape, (1, size,))
         self.assertEqual(output.split, None)
         self.assertTrue((output._tensor__array != 0).all())
@@ -359,7 +359,6 @@ class TestOperations(unittest.TestCase):
         # test exceptions
         with self.assertRaises(TypeError):
             ht.copy('hello world')
-
 
     def test_transpose(self):
         # vector transpose, not distributed
@@ -867,6 +866,3 @@ class TestOperations(unittest.TestCase):
             self.assertTrue(result._tensor__array[-1, 0] == 0)
         if result.comm.rank == result.comm.size - 1:
             self.assertTrue(result._tensor__array[0, -1] == 1)
-
-
-

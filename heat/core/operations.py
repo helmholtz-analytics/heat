@@ -61,7 +61,7 @@ def mpi_argmin(a, b, _):
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
-def all(x, axis=None, keepdim=False, out=None):
+def all(x, axis=None, out=None, keepdim=None):
     """
     Test whether all array elements along a given axis evaluate to True.
 
@@ -118,7 +118,7 @@ def all(x, axis=None, keepdim=False, out=None):
     tensor([[0, 1, 0, 1, 0]], dtype=ht.uint8)
     """
     # TODO: make me more numpy API complete. Issue #101
-    return __reduce_op(x, lambda t, *args, **kwargs: t.byte().all(*args, **kwargs), MPI.LAND, axis, keepdim, out=out)
+    return __reduce_op(x, lambda t, *args, **kwargs: t.byte().all(*args, **kwargs), MPI.LAND, axis, out=out)
 
 
 def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
@@ -235,7 +235,7 @@ def argmax(x, axis=None, out=None):
         return torch.cat([maxima.double(), indices.double()])
 
     # perform the global reduction
-    reduced_result = __reduce_op(x, local_argmax, MPI_ARGMAX, axis, out)
+    reduced_result = __reduce_op(x, local_argmax, MPI_ARGMAX, axis, out, keepdim=False)
 
     # correct the tensor
     reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
@@ -307,7 +307,7 @@ def argmin(x, axis=None, out=None):
         return torch.cat([minimums.double(), indices.double()])
 
     # perform the global reduction
-    reduced_result = __reduce_op(x, local_argmin, MPI_ARGMIN, axis, keepdim, out)
+    reduced_result = __reduce_op(x, local_argmin, MPI_ARGMIN, axis, keepdim, out, keepdim=False)
 
     # correct the tensor
     reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
@@ -620,7 +620,7 @@ def __local_operation(operation, x, out):
     return out
 
 
-def __reduce_op(x, partial_op, reduction_op, axis, keepdim, out):
+def __reduce_op(x, partial_op, reduction_op, axis, out, keepdim):
     # TODO: document me Issue #102
     # perform sanitation
     if not isinstance(x, tensor.tensor):

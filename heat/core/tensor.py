@@ -128,7 +128,7 @@ class tensor:
         """
         return arithmetics.add(self, other)
 
-    def all(self, axis=None, keepdim=False, out=None):
+    def all(self, axis=None, out=None, keepdim=None):
         """
         Test whether all array elements along a given axis evaluate to True.
 
@@ -179,7 +179,7 @@ class tensor:
         >>> out
         tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
         """
-        return operations.all(self, axis, keepdim, out)
+        return operations.all(self, axis, out, keepdim)
 
     def allclose(self, other, rtol=1e-05, atol=1e-08, equal_nan=False):
         """
@@ -219,7 +219,7 @@ class tensor:
         """
         return operations.allclose(self, other, rtol, atol, equal_nan)
 
-    def argmax(self, axis=None):
+    def argmax(self, axis=None, out=None):
         """
         Returns the indices of the minimum values along an axis.
 
@@ -256,9 +256,9 @@ class tensor:
         [2],
         [0]])
         """
-        return operations.argmax(self, axis)
+        return operations.argmax(self, axis, out)
 
-    def argmin(self, axis=None):
+    def argmin(self, axis=None, out=None):
         """
         Returns the indices of the minimum values along an axis.
 
@@ -292,7 +292,7 @@ class tensor:
                 [1],
                 [2]])
         """
-        return operations.argmin(self, axis, keepdim)
+        return operations.argmin(self, axis, out)
 
     def astype(self, dtype, copy=True):
         """
@@ -570,7 +570,7 @@ class tensor:
         """
         return self.split is not None and self.comm.is_distributed()
 
-    def max(self, axis=None, out=None):
+    def max(self, axis=None, out=None, keepdim=None):
         """
         Return the maximum of an array or maximum along an axis.
 
@@ -587,7 +587,7 @@ class tensor:
         #TODO: initial : scalar, optional   
             The minimum value of an output element. Must be present to allow computation on empty slice.
         """
-        return relations.max(self, axis, keepdim, out)
+        return relations.max(self, axis, out, keepdim)
 
     def mean(self, axis):
         # TODO: document me
@@ -596,7 +596,7 @@ class tensor:
         # TODO: make me more numpy API complete
         return self.sum(axis) / self.shape[axis]
 
-    def min(self, axis=None, out=None):
+    def min(self, axis=None, out=None, keepdim=None):
         """
         Return the minimum of an array or minimum along an axis.
 
@@ -612,7 +612,7 @@ class tensor:
         #TODO: initial : scalar, optional   
             The maximum value of an output element. Must be present to allow computation on empty slice.
         """
-        return relations.min(self, axis, keepdim, out)
+        return relations.min(self, axis, out, keepdim)
 
     def expand_dims(self, axis):
         # TODO: document me
@@ -1250,7 +1250,7 @@ class tensor:
         """
         return arithmetics.sub(self, other)
 
-    def sum(self, axis=None, keepdim=False, out=None):
+    def sum(self, axis=None, out=None, keepdim=None):
         # TODO: Allow also list of axes
         """
         Sum of array elements over a given axis.
@@ -1283,7 +1283,7 @@ class tensor:
         tensor([[[3.],
                  [3.]]])
         """
-        return reductions.sum(self, axis, keepdim, out)
+        return reductions.sum(self, axis, out, keepdim)
 
     def tan(self, out=None):
         """
