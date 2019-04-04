@@ -453,7 +453,7 @@ class tensor:
 
     def __mod__(self, other):
         """
-            Element-wise remainder of values of self by values of operand other (i.e. self % other), not commutative.
+            Element-wise division remainder of values of self by values of operand other (i.e. self % other), not commutative.
             Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2)
             as arguments.
 

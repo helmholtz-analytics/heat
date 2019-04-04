@@ -96,7 +96,7 @@ def div(t1, t2):
 
 def mod(t1, t2):
     """
-    Element-wise remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
+    Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
     Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2) as arguments.
 
     Currently t1 and t2 are just passed to fmod.
@@ -136,7 +136,7 @@ def mod(t1, t2):
 
 def fmod(t1, t2):
     """
-    Element-wise remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
+    Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
     Takes the two operands (scalar or tensor, both may contain floating point number) whose elements are to be
     divided (operand 1 by operand 2) as arguments.
 
