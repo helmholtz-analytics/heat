@@ -7,7 +7,3 @@ RUN python3 -m venv ~/.virtualenvs/heat && \
     source ~/.virtualenvs/heat/bin/activate && \
     pip install --upgrade pip && \
     pip install pytest codecov coverage
-
-CMD /bin/bash -c "eval `/usr/bin/modulecmd bash load mpi`"
-# CMD module load mpi
-
