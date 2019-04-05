@@ -273,7 +273,7 @@ def lt(t1, t2):
     return binary_op(torch.lt, t1, t2)
 
 
-def max(x, **kwargs):
+def max(x, axis=None, out=None, keepdim=None):
     # TODO: initial : scalar, optional Issue #101
     """
     Return the maximum along a given axis.
@@ -312,10 +312,10 @@ def max(x, **kwargs):
             return result[0]
         return result
 
-    return reduce_op(x, local_max, MPI.MAX, **kwargs)
+    return reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
 
 
-def min(x, **kwargs):
+def min(x, axis=None, out=None, keepdim=None):
     # TODO: initial : scalar, optional Issue #101
     """
     Return the minimum along a given axis.
@@ -354,13 +354,13 @@ def min(x, **kwargs):
             return result[0]
         return result
 
-    return reduce_op(x, local_min, MPI.MIN, **kwargs)
+    return reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
 
 
 def ne(t1, t2):
     """
     Element-wise rich comparison of non-equality between values from two operands, commutative.
-    Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+    Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument. 
 
     Parameters
     ----------

@@ -169,7 +169,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
 
 
-def argmax(x, **kwargs):
+def argmax(x, axis=None, out=None, **kwargs):
     """
     Returns the indices of the maximum values along an axis.
 
@@ -231,21 +231,20 @@ def argmax(x, **kwargs):
         return torch.cat([maxima.double(), indices.double()])
 
     # perform the global reduction
-    reduced_result = __reduce_op(x, local_argmax, MPI_ARGMAX, **kwargs)  # axis=axis, out=out, keepdim=False)
+    reduced_result = __reduce_op(x, local_argmax, MPI_ARGMAX, axis=axis, out=out, **kwargs)
 
     # correct the tensor
     reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
     reduced_result._tensor__dtype = types.int64
 
     # set out parameter correctly, i.e. set the storage correctly
-    out = kwargs.get('out')
     if out is not None:
         out._tensor__array.storage().copy_(reduced_result._tensor__array.storage())
 
     return reduced_result
 
 
-def argmin(x, **kwargs):
+def argmin(x, axis=None, out=None, **kwargs):
     """
     Returns the indices of the minimum values along an axis.
 
@@ -307,14 +306,13 @@ def argmin(x, **kwargs):
         return torch.cat([minimums.double(), indices.double()])
 
     # perform the global reduction
-    reduced_result = __reduce_op(x, local_argmin, MPI_ARGMIN, **kwargs)  # axis, out, keepdim=False)
+    reduced_result = __reduce_op(x, local_argmin, MPI_ARGMIN, axis=axis, out=out, **kwargs)
 
     # correct the tensor
     reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
     reduced_result._tensor__dtype = types.int64
 
     # set out parameter correctly, i.e. set the storage correctly
-    out = kwargs.get('out')
     if out is not None:
         out._tensor__array.storage().copy_(reduced_result._tensor__array.storage())
 

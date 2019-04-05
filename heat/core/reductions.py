@@ -9,7 +9,7 @@ __all__ = [
 ]
 
 
-def sum(x, **kwargs):
+def sum(x, axis=None, out=None, keepdim=None):
     """
     Sum of array elements over a given axis.
 
@@ -45,4 +45,4 @@ def sum(x, **kwargs):
             [3.]]])
     """
     # TODO: make me more numpy API complete Issue #101
-    return reduce_op(x, torch.sum, MPI.SUM, **kwargs)
+    return reduce_op(x, torch.sum, MPI.SUM, axis=axis, out=out, keepdim=keepdim)
