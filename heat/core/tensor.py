@@ -1476,16 +1476,14 @@ class tensor:
         # TODO: sanitize input
         # TODO: make me more numpy API complete
         if self.__split is not None:
-            raise NotImplementedError(
-                'Slicing not supported for __split != None')
+            raise NotImplementedError('Slicing not supported for __split != None')
 
         if np.isscalar(value):
             self.__array.__setitem__(key, value)
         elif isinstance(value, tensor):
             self.__array.__setitem__(key, value.__array)
         else:
-            raise NotImplementedError(
-                'Not implemented for {}'.format(value.__class__.__name__))
+            raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
 
 
 def __factory(shape, dtype, split, local_factory, device, comm):
@@ -1660,8 +1658,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
         step = args[2]
         num = int(np.ceil((stop - start) / step))
     else:
-        raise TypeError(
-            'function takes minimum one and at most 3 positional arguments ({} given)'.format(num_of_param))
+        raise TypeError('function takes minimum one and at most 3 positional arguments ({} given)'.format(num_of_param))
 
     gshape = (num,)
     split = sanitize_axis(gshape, split)
@@ -2016,8 +2013,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
     stop = float(stop)
     num = int(num)
     if num <= 0:
-        raise ValueError(
-            'number of samples \'num\' must be non-negative integer, but was {}'.format(num))
+        raise ValueError('number of samples \'num\' must be non-negative integer, but was {}'.format(num))
     step = (stop - start) / max(1, num - 1 if endpoint else num)
 
     # infer local and global shapes

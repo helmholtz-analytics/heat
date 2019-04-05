@@ -159,12 +159,10 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
 
     """
     if not isinstance(x, tensor.tensor):
-        raise TypeError(
-            'Expected x to be a ht.tensor, but was {}'.format(type(x)))
+        raise TypeError('Expected x to be a ht.tensor, but was {}'.format(type(x)))
 
     if not isinstance(y, tensor.tensor):
-        raise TypeError(
-            'Expected y to be a ht.tensor, but was {}'.format(type(y)))
+        raise TypeError('Expected y to be a ht.tensor, but was {}'.format(type(y)))
 
     return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
 
@@ -391,8 +389,7 @@ def transpose(a, axes=None):
     """
     # type check the input tensor
     if not isinstance(a, tensor.tensor):
-        raise TypeError(
-            'a must be of type ht.tensor, but was {}'.format(type(a)))
+        raise TypeError('a must be of type ht.tensor, but was {}'.format(type(a)))
 
     # set default value for axes permutations
     dimensions = len(a.shape)
@@ -410,8 +407,7 @@ def transpose(a, axes=None):
             raise ValueError('axes do not match tensor shape')
         for index, axis in enumerate(axes):
             if not isinstance(axis, int):
-                raise TypeError(
-                    'axis must be an integer, but was {}'.format(type(axis)))
+                raise TypeError('axis must be an integer, but was {}'.format(type(axis)))
             elif axis < 0:
                 axes[index] = axis + dimensions
 
@@ -466,8 +462,7 @@ def __tri_op(m, k, op):
     try:
         k = int(k)
     except ValueError:
-        raise TypeError(
-            'Expected k to be integral, but was {}'.format(type(k)))
+        raise TypeError('Expected k to be integral, but was {}'.format(type(k)))
 
     # chunk the global shape of the tensor to obtain the offset compared to the other ranks
     offset, _, _ = m.comm.chunk(m.shape, m.split)
@@ -586,11 +581,9 @@ def __local_operation(operation, x, out):
     """
     # perform sanitation
     if not isinstance(x, tensor.tensor):
-        raise TypeError(
-            'expected x to be a ht.tensor, but was {}'.format(type(x)))
+        raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
     if out is not None and not isinstance(out, tensor.tensor):
-        raise TypeError(
-            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+        raise TypeError('expected out to be None or an ht.tensor, but was {}'.format(type(out)))
 
     # infer the output type of the tensor
     # we need floating point numbers here, due to PyTorch only providing sqrt() implementation for float32/64
@@ -623,12 +616,10 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):  # axis=None, out=None, 
     # TODO: document me Issue #102
     # perform sanitation
     if not isinstance(x, tensor.tensor):
-        raise TypeError(
-            'expected x to be a ht.tensor, but was {}'.format(type(x)))
+        raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
     out = kwargs.get('out')
     if out is not None and not isinstance(out, tensor.tensor):
-        raise TypeError(
-            'expected out to be None or an ht.tensor, but was {}'.format(type(out)))
+        raise TypeError('expected out to be None or an ht.tensor, but was {}'.format(type(out)))
 
     # no further checking needed, sanitize axis will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape, kwargs.get('axis'))
@@ -702,15 +693,13 @@ def __binary_op(operation, t1, t2):
         try:
             t1 = tensor.array([t1])
         except (ValueError, TypeError,):
-            raise TypeError(
-                'Data type not supported, input was {}'.format(type(t1)))
+            raise TypeError('Data type not supported, input was {}'.format(type(t1)))
 
         if np.isscalar(t2):
             try:
                 t2 = tensor.array([t2])
             except (ValueError, TypeError,):
-                raise TypeError(
-                    'Only numeric scalars are supported, but input was {}'.format(type(t2)))
+                raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
             output_shape = (1,)
             output_split = None
             output_device = None
@@ -721,8 +710,7 @@ def __binary_op(operation, t1, t2):
             output_device = t2.device
             output_comm = t2.comm
         else:
-            raise TypeError(
-                'Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
 
         if t1.dtype != t2.dtype:
             t1 = t1.astype(t2.dtype)
@@ -736,8 +724,7 @@ def __binary_op(operation, t1, t2):
                 output_device = t1.device
                 output_comm = t1.comm
             except (ValueError, TypeError,):
-                raise TypeError(
-                    'Data type not supported, input was {}'.format(type(t2)))
+                raise TypeError('Data type not supported, input was {}'.format(type(t2)))
 
         elif isinstance(t2, tensor.tensor):
             # TODO: implement complex NUMPY rules
@@ -767,8 +754,7 @@ def __binary_op(operation, t1, t2):
                     t2.comm.Bcast(t2)
 
         else:
-            raise TypeError(
-                'Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
 
         if t2.dtype != t1.dtype:
             t2 = t2.astype(t1.dtype)

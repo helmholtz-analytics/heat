@@ -91,36 +91,31 @@ def equal(t1, t2):
         try:
             t1 = tensor.array([t1])
         except (TypeError, ValueError,):
-            raise TypeError(
-                'Data type not supported, input was {}'.format(type(t1)))
+            raise TypeError('Data type not supported, input was {}'.format(type(t1)))
 
         if np.isscalar(t2):
             try:
                 t2 = tensor.array([t2])
             except (TypeError, ValueError,):
-                raise TypeError(
-                    'Only numeric scalars are supported, but input was {}'.format(type(t2)))
+                raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
         elif isinstance(t2, tensor.tensor):
             pass
         else:
-            raise TypeError(
-                'Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
 
     elif isinstance(t1, tensor.tensor):
         if np.isscalar(t2):
             try:
                 t2 = tensor.array([t2])
             except (TypeError, ValueError,):
-                raise TypeError(
-                    'Data type not supported, input was {}'.format(type(t2)))
+                raise TypeError('Data type not supported, input was {}'.format(type(t2)))
         elif isinstance(t2, tensor.tensor):
             # TODO: implement complex NUMPY rules
             if t2.split is None or t2.split == t1.split:
                 pass
             else:
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
-                raise NotImplementedError(
-                    'Not implemented for other splittings')
+                raise NotImplementedError('Not implemented for other splittings')
         else:
             raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
     else:
