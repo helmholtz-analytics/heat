@@ -5,7 +5,8 @@ services:
     
 before_install:
     - docker pull markusgoetz/heat
-    - docker run -d --name unittest --v .:/home/heat markusgoetz/heat module load mpi
+    - docker images
+    - docker run -d --name unittest -v $PWD:/home/heat markusgoetz/heat /bin/bash -c "eval `/usr/bin/modulecmd bash load mpi`"
 
 install:
     - docker exec unittest cd /home/heat && pip install . -e .[hdf5] .[netcdf]
@@ -19,4 +20,3 @@ script:
     - docker exec unittest coverage report
 after_success:
     - codecov
-
