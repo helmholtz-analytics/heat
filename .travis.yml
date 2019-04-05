@@ -1,26 +1,29 @@
 language: python
 python:
   - "3.5"
-cache:
-  directories:
-  - $HOME/virtualenv/python3.5/bin
-  - $HOME/virtualenv/python3.5/lib
-  - $HOME/virtualenv/python3.5/include
-  - $HOME/virtualenv/python3.5/share
+
+services:
+  - docker
+    
 before_install:
-  - sudo apt-get install -y libopenmpi-dev openmpi-bin libhdf5-dev libnetcdf-dev
-  - pip install codecov pytest coverage
+  - pip install codecov
+  - docker pull markusgoetz/heat
+  - docker run -dt --name unittest -v $PWD:/heat markusgoetz/heat
+
 install:
-  - pip install . -e .[hdf5] .[netcdf]
+  - docker exec -t unittest /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
+ 
 script:
-  # Running mpi with 1 - 4 processes and generating a unique coverage report for each process in each run (10 in total)
-  - for i in {1..4}; do mpirun -np $i coverage run --source=heat --parallel-mode -m pytest heat/; done
-  # Combining the unique coverage reports into one file (.coverage)
-  - coverage combine
-  # Displaying the coverage results in the travis log, not necessary for build process
-  - coverage report
+  # Running multiple mpi process count, generate a unique coverage report for each one and merge into one report
+  - |
+    docker exec -t unittest /bin/bash -c '. /root/.bashrc && \
+      for i in {1..4}; do mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ > /dev/null; done && \
+      coverage combine && \
+      coverage report'
+
 after_success:
   - codecov
+
 deploy:
   provider: pypi
   user: bhagemeier
