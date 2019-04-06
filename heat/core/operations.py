@@ -72,15 +72,15 @@ def all(x, axis=None, out=None, keepdim=None):
         Input array or object that can be converted to an array.
 
     axis : None or int, optional #TODO: tuple of ints, issue #67
-        Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a 
-        logical AND over all the dimensions of the input array. axis may be negative, in which case it counts 
+        Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a
+        logical AND over all the dimensions of the input array. axis may be negative, in which case it counts
         from the last to the first axis.
 
     out : ht.tensor, optional
-        Alternate output array in which to place the result. It must have the same shape as the expected output 
+        Alternate output array in which to place the result. It must have the same shape as the expected output
         and its type is preserved.
 
-    Returns:	
+    Returns:
     --------
     all : ht.tensor, bool
 
@@ -616,7 +616,7 @@ def __local_operation(operation, x, out):
     return out
 
 
-def __reduce_op(x, partial_op, reduction_op, **kwargs):  # axis=None, out=None, keepdim=None):
+def __reduce_op(x, partial_op, reduction_op, **kwargs):
     # TODO: document me Issue #102
     # perform sanitation
     if not isinstance(x, tensor.tensor):
@@ -626,16 +626,24 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):  # axis=None, out=None, 
         raise TypeError('expected out to be None or an ht.tensor, but was {}'.format(type(out)))
 
     # no further checking needed, sanitize axis will raise the proper exceptions
-    axis = stride_tricks.sanitize_axis(x.shape, kwargs.get('axis'))
+    axis = kwargs.get('axis')
+    # axis = stride_tricks.sanitize_axis(x.shape, axis)
     split = x.split
 
     if axis is None:
         partial = partial_op(x._tensor__array).reshape(-1)
         output_shape = (1,)
     else:
-        partial = partial_op(x._tensor__array, dim=axis, keepdim=True)
-        shape_keepdim = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
-        shape_losedim = x.gshape[:axis] + x.gshape[axis + 1:]
+        partial = x._tensor__array
+        for dim in axis:
+            # if axis = tuple
+            # definitely keepdim = true
+            # for axis in axes apply partial_op sequentially
+            # if keepdim=False remove reduced dimensions
+            partial = partial_op(partial, dim=dim, keepdim=True)
+            shape_keepdim = x.gshape[:dim] + (1,) + x.gshape[dim + 1:]
+        # shape_losedim = x.gshape[:axis] + x.gshape[axis + 1:]
+        shape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
         output_shape = shape_keepdim if kwargs.get('keepdim') else shape_losedim
 
     # Check shape of output buffer, if any
