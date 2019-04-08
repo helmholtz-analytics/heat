@@ -10,7 +10,7 @@ before_install:
   - docker run -dt --name unittest -v $PWD:/heat markusgoetz/heat
 
 install:
-  - docker exec -t unittest /bin/bash -c '. /root/.bashrc && pip install . -e .[hdf5,netcdf]'
+  - docker exec -t unittest /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
  
 script:
   # Running mpi with 1 - 4 processes and generating a unique coverage report for each process in each run (10 in total)
