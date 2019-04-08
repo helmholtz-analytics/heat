@@ -626,23 +626,19 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
         raise TypeError('expected out to be None or an ht.tensor, but was {}'.format(type(out)))
 
     # no further checking needed, sanitize axis will raise the proper exceptions
-    axis = kwargs.get('axis')
-    # axis = stride_tricks.sanitize_axis(x.shape, axis)
+    axis = stride_tricks.sanitize_axis(x.shape,  kwargs.get('axis'))
     split = x.split
 
     if axis is None:
         partial = partial_op(x._tensor__array).reshape(-1)
         output_shape = (1,)
     else:
+        if isinstance(axis, int):
+            axis = (axis,)
         partial = x._tensor__array
         for dim in axis:
-            # if axis = tuple
-            # definitely keepdim = true
-            # for axis in axes apply partial_op sequentially
-            # if keepdim=False remove reduced dimensions
             partial = partial_op(partial, dim=dim, keepdim=True)
             shape_keepdim = x.gshape[:dim] + (1,) + x.gshape[dim + 1:]
-        # shape_losedim = x.gshape[:axis] + x.gshape[axis + 1:]
         shape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
         output_shape = shape_keepdim if kwargs.get('keepdim') else shape_losedim
 
