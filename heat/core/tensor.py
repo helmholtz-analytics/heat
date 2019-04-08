@@ -1924,7 +1924,6 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
     split = sanitize_axis(gshape, split)
     device = devices.sanitize_device(device)
     offset, lshape, _ = comm.chunk(gshape, split)
-    print("shape", lshape)
     # Start by creating tensor filled with zeroes
     data = torch.zeros(lshape, dtype=types.canonical_heat_type(dtype).torch_type(), device=device.torch_device)
     # Insert ones at the correct positions
@@ -1932,7 +1931,7 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
         pos_x = i if split is 0 else i + offset
         pos_y = i if split is 1 else i + offset
         data[pos_x][pos_y] = 1
-    print(data)
+
     return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
 
 

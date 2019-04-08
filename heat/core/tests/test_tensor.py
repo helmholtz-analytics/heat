@@ -737,12 +737,11 @@ class TestTensorFactories(unittest.TestCase):
 
     def test_eye(self):
 
-        def get_offset(tensor):
-            x, y = tensor._tensor__array.shape
+        def get_offset(tensor_array):
+            x, y = tensor_array.shape
             for k in range(x):
                 for l in range(y):
-                    if tensor._tensor__array[k][l] == 1:
-                        print("offset", k, l)
+                    if tensor_array[k][l] == 1:
                         return k, l
 
         shape = 5
@@ -752,7 +751,7 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(eye.shape, (shape, shape))
         self.assertEqual(eye.split, 1)
 
-        offset_x, offset_y = get_offset(eye)
+        offset_x, offset_y = get_offset(eye._tensor__array)
         self.assertGreaterEqual(offset_x, 0)
         self.assertGreaterEqual(offset_y, 0)
         x, y = eye._tensor__array.shape
@@ -768,7 +767,7 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(eye.shape, shape)
         self.assertEqual(eye.split, None)
 
-        offset_x, offset_y = get_offset(eye)
+        offset_x, offset_y = get_offset(eye._tensor__array)
         self.assertGreaterEqual(offset_x, 0)
         self.assertGreaterEqual(offset_y, 0)
         x, y = eye._tensor__array.shape
@@ -784,7 +783,7 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(eye.shape, shape * 2)
         self.assertEqual(eye.split, 0)
 
-        offset_x, offset_y = get_offset(eye)
+        offset_x, offset_y = get_offset(eye._tensor__array)
         self.assertGreaterEqual(offset_x, 0)
         self.assertGreaterEqual(offset_y, 0)
         x, y = eye._tensor__array.shape
