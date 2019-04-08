@@ -1931,7 +1931,7 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
     for i in range(min(lshape)):
         pos = offset + i
         data[pos][pos] = 1
-
+    print('data', data)
     return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
 
 
