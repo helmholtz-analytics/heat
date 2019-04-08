@@ -21,6 +21,7 @@ script:
       coverage report'
 
 after_success:
+  - cat .coverage
   - codecov
 
 deploy:
