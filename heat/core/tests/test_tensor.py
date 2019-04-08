@@ -745,6 +745,7 @@ class TestTensorFactories(unittest.TestCase):
         for i in range(shape):
             for j in range(shape):
                 expected = 1 if i is j else 0
+                print(ht.int32(eye._tensor__array[i][j]), ht.int32(expected))
                 self.assertTrue(ht.equal(ht.int32(eye._tensor__array[i][j]), ht.int32(expected)))
 
         shape = (10, 20)
