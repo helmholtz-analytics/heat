@@ -13,10 +13,10 @@ install:
   - docker exec -t unittest /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
  
 script:
-  # Running mpi with 1 - 4 processes and generating a unique coverage report for each process in each run (10 in total)
+  # Running multiple mpi process count, generate a unique coverage report for each one and merge into one report
   - |
     docker exec -t unittest /bin/bash -c '. /root/.bashrc && \
-      for i in {1..4}; do mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/; done && \
+      for i in {1..4}; do mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ > /dev/null; done && \
       coverage combine && \
       coverage report'
 
