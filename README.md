@@ -34,11 +34,9 @@ Requirements
 ------------
 
 HeAT is based on [PyTorch](https://pytorch.org/). Specifially, we are exploiting
-PyTorch's support for GPUs *and* MPI parallelism. Therefore, PyTorch must be
-compiled with MPI support when using HeAT. The instructions to install PyTorch
-in that way are contained in the script
-[install-torch.sh](install-torch.sh),
-which we're also using to install PyTorch in Travis CI.
+PyTorch's support for GPUs *and* MPI parallelism. For MPI support we utilize 
+[mpi4py](https://mpi4py.readthedocs.io). Both packages can be installed via pip.
+
 
 Installation
 ------------
