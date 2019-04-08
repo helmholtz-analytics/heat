@@ -157,42 +157,38 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     True
 
     """
-    if isinstance(x, tensor.tensor):
-        pass
 
-    elif np.isscalar(x):
+    if np.isscalar(x):
         try:
             x = tensor.array([float(x)])
         except (ValueError, TypeError,):
             raise TypeError('Data type not supported, input was {}'.format(type(x)))
 
-    else:
+    elif not isinstance(x, tensor.tensor):
         raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(x)))
 
-    if isinstance(y, tensor.tensor):
-        pass
-
-    elif np.isscalar(y):
+    if np.isscalar(y):
         try:
             y = tensor.array([float(y)])
         except (ValueError, TypeError,):
             raise TypeError('Data type not supported, input was {}'.format(type(y)))
 
-    else:
+    elif not isinstance(y, tensor.tensor):
         raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(y)))
 
     if (x.split is not None) and (y.split is not None) and (x.split != y.split):
-        # It is NOT possible to perform allclose on tensors with different splits
-        raise NotImplementedError('Not implemented for different splittings of tensors')
+        # If both x and y are split, but along different axes, y is redistributed to be split along the same axis as x
+        y.resplit(axis=x.split)
 
     # perform local allclose
     # no sanitization for shapes of x and y needed, torch.allclose raises relevant errors
     _local_allclose = torch.tensor(torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan))
 
+    # If x is distributed, allclose is performed along its split (if y was distributed along a differnt axis, this has been taken care of by resplit)
     if x.comm.is_distributed():
-        # Makes no distinction if y is also distributed. IS THAT VALID?
         x.comm.Allreduce(MPI.IN_PLACE, _local_allclose, MPI.LAND)
 
+    # If x is not distributed, check whether y is distributed
     else:
         if y.comm.is_distributed():
             y.comm.Allreduce(MPI.IN_PLACE, _local_allclose, MPI.LAND)
