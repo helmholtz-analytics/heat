@@ -757,3 +757,14 @@ class TestTensorFactories(unittest.TestCase):
             for j in range(shape[1]):
                 expected = 1.0 if i is j else 0.0
                 self.assertEqual(eye._tensor__array[i][j], expected)
+
+        shape = (10,)
+        eye = ht.eye(shape, dtype=ht.int32, split=0)
+        self.assertIsInstance(eye, ht.tensor)
+        self.assertEqual(eye.dtype, ht.int32)
+        self.assertEqual(eye.shape, shape * 2)
+        self.assertEqual(eye.split, 0)
+        for i in range(shape[0]):
+            for j in range(shape[0]):
+                expected = 1 if i is j else 0
+                self.assertEqual(eye._tensor__array[i][j], expected)
