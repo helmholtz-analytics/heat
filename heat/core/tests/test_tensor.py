@@ -734,3 +734,26 @@ class TestTensorFactories(unittest.TestCase):
             ht.empty_like(ones, dtype='abc')
         with self.assertRaises(TypeError):
             ht.empty_like(ones, split='axis')
+
+    def test_eye(self):
+        shape = 5
+        eye = ht.eye(shape, dtype=ht.uint8, split=1)
+        self.assertIsInstance(eye, ht.tensor)
+        self.assertEqual(eye.dtype, ht.uint8)
+        self.assertEqual(eye.shape, (shape, shape))
+        self.assertEqual(eye.split, 1)
+        for i in range(shape):
+            for j in range(shape):
+                expected = 1 if i is j else 0
+                self.assertEqual(eye._tensor__array[i][j], expected)
+
+        shape = (10, 20)
+        eye = ht.eye(shape, dtype=ht.float32)
+        self.assertIsInstance(eye, ht.tensor)
+        self.assertEqual(eye.dtype, ht.float32)
+        self.assertEqual(eye.shape, shape)
+        self.assertEqual(eye.split, None)
+        for i in range(shape[0]):
+            for j in range(shape[1]):
+                expected = 1.0 if i is j else 0.0
+                self.assertEqual(eye._tensor__array[i][j], expected)
