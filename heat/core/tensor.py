@@ -1885,6 +1885,23 @@ def empty_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
     return __factory_like(a, dtype, split, empty, device, comm)
 
 
+def eye(shape, dtype=types.int32, split=None, device=None, comm=MPI_WORLD):
+    # determine the global shape of the object to create
+    # attempt in this order: shape property, length of object or default shape (1,)
+    gshape = shape
+    if isinstance(gshape, int):
+        gshape = (gshape, gshape)
+    split = sanitize_axis(gshape, split)
+    device = devices.sanitize_device(device)
+    offset, lshape, _ = comm.chunk(gshape, split)
+    data = torch.zeros(gshape, dtype=types.canonical_heat_type(dtype).torch_type(), device=device.torch_device)
+    for i in range(min(lshape)):
+        pos = offset + i
+        data[pos][pos] = 1
+    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
+
+
+
 def full(shape, fill_value, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
     """
     Return a new array of given shape and type, filled with fill_value.
