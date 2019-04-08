@@ -1926,7 +1926,7 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
     offset, lshape, _ = comm.chunk(gshape, split)
 
     # Start by creating tensor filled with zeroes
-    data = torch.zeros(gshape, dtype=types.canonical_heat_type(dtype).torch_type(), device=device.torch_device)
+    data = torch.zeros(lshape, dtype=types.canonical_heat_type(dtype).torch_type(), device=device.torch_device)
     # Insert ones at the correct positions
     for i in range(min(lshape)):
         pos = offset + i
