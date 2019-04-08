@@ -10,14 +10,14 @@ before_install:
   - docker run -dt --name unittest -v $PWD:/heat markusgoetz/heat
 
 install:
-  - docker exec -t unittest /bin/bash -c ". /root/.bashrc && pip install -q -e .[hdf5,netcdf]"
+  - docker exec -t unittest /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
  
 script:
   # Running mpi with 1 - 4 processes and generating a unique coverage report for each process in each run (10 in total)
-  - docker exec -t unittest /bin/bash -c ". /root/.bashrc && \
-      for i in {1..4}; do mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/; done && \
+  - docker exec -t unittest /bin/bash -c '. /root/.bashrc && \
+      for i in {1..4}; do mpirun --allow-run-as-root -np ${i} coverage run --source=heat --parallel-mode -m pytest heat/; done && \
       coverage combine && \
-      coverage report"
+      coverage report'
 
 after_success:
   - codecov
