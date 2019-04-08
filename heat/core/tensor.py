@@ -1935,7 +1935,6 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
     return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
 
 
-
 def full(shape, fill_value, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
     """
     Return a new array of given shape and type, filled with fill_value.
