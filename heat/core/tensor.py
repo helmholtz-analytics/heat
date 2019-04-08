@@ -1930,8 +1930,8 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
     # Insert ones at the correct positions
     print('shape', lshape)
     for i in range(min(lshape)):
-        pos_x = i if split is 1 else i + offset
-        pos_y = i if split is 0 else i + offset
+        pos_x = i if split is 0 else i + offset
+        pos_y = i if split is 1 else i + offset
         data[pos_x][pos_y] = 1
     print('data', data)
     return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
