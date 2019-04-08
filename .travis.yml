@@ -19,7 +19,8 @@ script:
     docker exec -t unittest /bin/bash -c '. /root/.bashrc && \
       for i in {1..4}; do mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ > /dev/null; done && \
       coverage combine && \
-      coverage report'
+      coverage report && \
+      coverage xml'
 
 after_success:
   - codecov
