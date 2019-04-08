@@ -12,7 +12,7 @@ before_install:
 install:
   - docker exec -t unittest /bin/bash -c ". /root/.bashrc && pip install -q -e .[hdf5,netcdf]"
  
-script: >
+script:
   # Running mpi with 1 - 4 processes and generating a unique coverage report for each process in each run (10 in total)
   - docker exec -t unittest /bin/bash -c ". /root/.bashrc && \
       for i in {1..4};
