@@ -6,7 +6,7 @@ services:
   - docker
     
 before_install:
-  - pip install coverage
+  - pip install codecov
   - docker pull markusgoetz/heat
   - docker run -dt --name unittest -v $PWD:/heat markusgoetz/heat
 
@@ -22,7 +22,6 @@ script:
       coverage report'
 
 after_success:
-  - cat .coverage
   - codecov
 
 deploy:
