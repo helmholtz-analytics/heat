@@ -18,9 +18,7 @@ script: >
       for i in {1..4};
         do mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/;
       done && \
-      # Combining the unique coverage reports into one file (.coverage)
       coverage combine && \
-      # Displaying the coverage results in the travis log, not necessary for build process
       coverage report"
 
 after_success:
