@@ -6,11 +6,11 @@ services:
   - docker
     
 before_install:
+  - pip install coverage
   - docker pull markusgoetz/heat
   - docker run -dt --name unittest -v $PWD:/heat markusgoetz/heat
 
 install:
-  - pip install coverage
   - docker exec -t unittest /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
  
 script:
