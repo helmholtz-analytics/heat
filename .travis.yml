@@ -22,7 +22,7 @@ script:
       coverage xml'
 
 after_success:
-  - codecov
+  - docker exec -t unittest `bash <(curl -s https://codecov.io/env)` /bin/bash -c './root/.bashrc && codecov'
 
 deploy:
   provider: pypi
