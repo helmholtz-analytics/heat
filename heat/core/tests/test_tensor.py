@@ -742,6 +742,7 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(eye.dtype, ht.uint8)
         self.assertEqual(eye.shape, (shape, shape))
         self.assertEqual(eye.split, 1)
+        print(eye)
         for i in range(shape):
             for j in range(shape):
                 expected = 1 if i is j else 0
