@@ -5,17 +5,21 @@ services:
     
 before_install:
     - docker pull markusgoetz/heat
-    - docker run -dt --name unittest -v $PWD:/home/heat markusgoetz/heat
+    - docker run -dt --name unittest -v $PWD:/heat markusgoetz/heat
 
 install:
-    - docker exec -t cd /home/heat && pip install . -e .[hdf5] .[netcdf]
+    - docker exec -t unittest /bin/bash -c '. /root/.bashrc && pip install . -e .[hdf5,netcdf]'
  
 script:
     # Running mpi with 1 - 4 processes and generating a unique coverage report for each process in each run (10 in total)
-    - docker exec unittest for i in {1..4}; do mpirun -np $i coverage run --source=heat --parallel-mode -m pytest heat/; done
-    # Combining the unique coverage reports into one file (.coverage)
-    - docker exec unittest coverage combine
-    # Displaying the coverage results in the travis log, not necessary for build process
-    - docker exec unittest coverage report
+    - docker exec -t unittest /bin/bash -c '
+        . /root/.bashrc && \
+        for i in {1..4};
+          do mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/;
+        done && \
+        # Combining the unique coverage reports into one file (.coverage)
+        coverage combine && \
+        # Displaying the coverage results in the travis log, not necessary for build process
+        coverage report'
 after_success:
     - codecov
