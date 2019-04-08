@@ -738,7 +738,7 @@ class TestTensorFactories(unittest.TestCase):
     def test_eye(self):
 
         def get_offset(tensor):
-            x, y = tensor.shape
+            x, y = tensor._tensor__array.shape
             for k in range(x):
                 for l in range(y):
                     if tensor._tensor__array[k][l] == 1:
