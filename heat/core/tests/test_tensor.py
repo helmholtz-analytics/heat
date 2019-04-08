@@ -736,6 +736,15 @@ class TestTensorFactories(unittest.TestCase):
             ht.empty_like(ones, split='axis')
 
     def test_eye(self):
+
+        def get_offset(tensor):
+            x, y = tensor.shape
+            for k in range(x):
+                for l in range(y):
+                    if tensor._tensor__array[k][l] == 1:
+                        print("offset", k, l)
+                        return k, l
+
         shape = 5
         eye = ht.eye(shape, dtype=ht.uint8, split=1)
         self.assertIsInstance(eye, ht.tensor)
@@ -743,15 +752,14 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(eye.shape, (shape, shape))
         self.assertEqual(eye.split, 1)
 
-        offset = None
-        for i in range(shape):
-            for j in range(shape):
-                if offset is None and eye._tensor__array[i][j] == 1:
-                    offset = i
-                    print("offset", i)
-                expected = 1 if offset is not None and i + offset is j else 0
+        offset_x, offset_y = get_offset(eye)
+        self.assertGreaterEqual(offset_x, 0)
+        self.assertGreaterEqual(offset_y, 0)
+        x, y = eye._tensor__array.shape
+        for i in range(x):
+            for j in range(y):
+                expected = 1 if i - offset_x is j - offset_y else 0
                 self.assertEqual(eye._tensor__array[i][j], expected)
-        self.assertIsNotNone(offset)
 
         shape = (10, 20)
         eye = ht.eye(shape, dtype=ht.float32)
@@ -759,9 +767,14 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(eye.dtype, ht.float32)
         self.assertEqual(eye.shape, shape)
         self.assertEqual(eye.split, None)
-        for i in range(shape[0]):
-            for j in range(shape[1]):
-                expected = 1.0 if i is j else 0.0
+
+        offset_x, offset_y = get_offset(eye)
+        self.assertGreaterEqual(offset_x, 0)
+        self.assertGreaterEqual(offset_y, 0)
+        x, y = eye._tensor__array.shape
+        for i in range(x):
+            for j in range(y):
+                expected = 1.0 if i - offset_x is j - offset_y else 0.0
                 self.assertEqual(eye._tensor__array[i][j], expected)
 
         shape = (10,)
@@ -771,12 +784,11 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(eye.shape, shape * 2)
         self.assertEqual(eye.split, 0)
 
-        offset = None
-        for i in range(shape[0]):
-            for j in range(shape[0]):
-                if offset is None and eye._tensor__array[i][j] == 1:
-                    print("offset", offset)
-                    offset = j
-                expected = 1 if offset is not None and i is j + offset else 0
+        offset_x, offset_y = get_offset(eye)
+        self.assertGreaterEqual(offset_x, 0)
+        self.assertGreaterEqual(offset_y, 0)
+        x, y = eye._tensor__array.shape
+        for i in range(x):
+            for j in range(y):
+                expected = 1 if i - offset_x is j - offset_y else 0
                 self.assertEqual(eye._tensor__array[i][j], expected)
-        self.assertIsNotNone(offset)
