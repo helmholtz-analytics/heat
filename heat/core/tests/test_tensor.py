@@ -742,12 +742,16 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(eye.dtype, ht.uint8)
         self.assertEqual(eye.shape, (shape, shape))
         self.assertEqual(eye.split, 1)
-        print(eye)
+
+        offset = None
         for i in range(shape):
             for j in range(shape):
-                expected = 1 if i is j else 0
-                print(ht.int32(eye._tensor__array[i][j]), ht.int32(expected))
-                self.assertTrue(ht.equal(ht.int32(eye._tensor__array[i][j]), ht.int32(expected)))
+                if offset is None and eye._tensor__array[i][j] == 1:
+                    offset = i
+                    print("offset", i)
+                expected = 1 if offset is not None and i + offset is j else 0
+                self.assertEqual(eye._tensor__array[i][j], expected)
+        self.assertIsNotNone(offset)
 
         shape = (10, 20)
         eye = ht.eye(shape, dtype=ht.float32)
@@ -758,7 +762,7 @@ class TestTensorFactories(unittest.TestCase):
         for i in range(shape[0]):
             for j in range(shape[1]):
                 expected = 1.0 if i is j else 0.0
-                self.assertTrue(ht.equal(ht.int32(eye._tensor__array[i][j]), ht.int32(expected)))
+                self.assertEqual(eye._tensor__array[i][j], expected)
 
         shape = (10,)
         eye = ht.eye(shape, dtype=ht.int32, split=0)
@@ -766,7 +770,13 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(eye.dtype, ht.int32)
         self.assertEqual(eye.shape, shape * 2)
         self.assertEqual(eye.split, 0)
+
+        offset = None
         for i in range(shape[0]):
             for j in range(shape[0]):
-                expected = 1 if i is j else 0
-                self.assertTrue(ht.equal(ht.int32(eye._tensor__array[i][j]), ht.int32(expected)))
+                if offset is None and eye._tensor__array[i][j] == 1:
+                    print("offset", offset)
+                    offset = j
+                expected = 1 if offset is not None and i is j + offset else 0
+                self.assertEqual(eye._tensor__array[i][j], expected)
+        self.assertIsNotNone(offset)
