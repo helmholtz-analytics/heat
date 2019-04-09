@@ -29,6 +29,35 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(as_float64._tensor__array.dtype, torch.float64)
         self.assertIs(as_float64, data)
 
+    def test_any(self):
+        one = ht.ones(1, dtype=bool)
+        zero = ht.zeros(1, dtype=bool)
+        x = ht.float32([[0, 0],
+                        [0.4, 0]])
+        any_tensor = x.any()
+        self.assertIsInstance(any_tensor, ht.tensor)
+        self.assertEqual(any_tensor.shape, (1,))
+        self.assertEqual(any_tensor.dtype, ht.bool)
+        self.assertTrue(ht.equal(any_tensor, one))
+        any_tensor = ht.ones(1)
+        x = ht.float32([[0, 0, 0],
+                        [0, 0, 0]])
+        x.any(out=any_tensor)
+        self.assertIsInstance(any_tensor, ht.tensor)
+        self.assertEqual(any_tensor.shape, (1,))
+        self.assertEqual(any_tensor.dtype, ht.bool)
+        self.assertTrue(ht.equal(any_tensor, zero))
+
+        x = ht.int32([[1, 0, 0],
+                      [0, 1, 0]])
+        res = ht.uint8([[1, 1, 0]])
+        any_tensor = ht.zeros(1)
+        any_tensor = x.any(axis=0)
+        self.assertIsInstance(any_tensor, ht.tensor)
+        self.assertEqual(any_tensor.shape, (1, 3))
+        self.assertEqual(any_tensor.dtype, ht.bool)
+        self.assertTrue(ht.equal(any_tensor, res))
+
     def test_is_distributed(self):
         data = ht.zeros((5, 5,))
         self.assertFalse(data.is_distributed())
@@ -1007,3 +1036,60 @@ class TestTensorFactories(unittest.TestCase):
             ht.empty_like(ones, dtype='abc')
         with self.assertRaises(TypeError):
             ht.empty_like(ones, split='axis')
+
+    def test_eye(self):
+
+        def get_offset(tensor_array):
+            x, y = tensor_array.shape
+            for k in range(x):
+                for l in range(y):
+                    if tensor_array[k][l] == 1:
+                        return k, l
+
+        shape = 5
+        eye = ht.eye(shape, dtype=ht.uint8, split=1)
+        self.assertIsInstance(eye, ht.tensor)
+        self.assertEqual(eye.dtype, ht.uint8)
+        self.assertEqual(eye.shape, (shape, shape))
+        self.assertEqual(eye.split, 1)
+
+        offset_x, offset_y = get_offset(eye._tensor__array)
+        self.assertGreaterEqual(offset_x, 0)
+        self.assertGreaterEqual(offset_y, 0)
+        x, y = eye._tensor__array.shape
+        for i in range(x):
+            for j in range(y):
+                expected = 1 if i - offset_x is j - offset_y else 0
+                self.assertEqual(eye._tensor__array[i][j], expected)
+
+        shape = (10, 20)
+        eye = ht.eye(shape, dtype=ht.float32)
+        self.assertIsInstance(eye, ht.tensor)
+        self.assertEqual(eye.dtype, ht.float32)
+        self.assertEqual(eye.shape, shape)
+        self.assertEqual(eye.split, None)
+
+        offset_x, offset_y = get_offset(eye._tensor__array)
+        self.assertGreaterEqual(offset_x, 0)
+        self.assertGreaterEqual(offset_y, 0)
+        x, y = eye._tensor__array.shape
+        for i in range(x):
+            for j in range(y):
+                expected = 1.0 if i - offset_x is j - offset_y else 0.0
+                self.assertEqual(eye._tensor__array[i][j], expected)
+
+        shape = (10,)
+        eye = ht.eye(shape, dtype=ht.int32, split=0)
+        self.assertIsInstance(eye, ht.tensor)
+        self.assertEqual(eye.dtype, ht.int32)
+        self.assertEqual(eye.shape, shape * 2)
+        self.assertEqual(eye.split, 0)
+
+        offset_x, offset_y = get_offset(eye._tensor__array)
+        self.assertGreaterEqual(offset_x, 0)
+        self.assertGreaterEqual(offset_y, 0)
+        x, y = eye._tensor__array.shape
+        for i in range(x):
+            for j in range(y):
+                expected = 1 if i - offset_x is j - offset_y else 0
+                self.assertEqual(eye._tensor__array[i][j], expected)

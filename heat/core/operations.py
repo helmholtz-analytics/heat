@@ -1,7 +1,8 @@
+import builtins
 import itertools
 import torch
 import numpy as np
-
+import warnings
 
 from .communication import MPI
 from . import stride_tricks
@@ -14,6 +15,7 @@ __all__ = [
 
     'all',
     'allclose',
+    'any',
     'argmax',
     'argmin',
     'clip',
@@ -127,26 +129,22 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
 
     Parameters:
     -----------
-
     x : ht.tensor
         First tensor to compare
-
     y : ht.tensor
         Second tensor to compare
-
     atol: float, optional
         Absolute tolerance. Default is 1e-08
-
     rtol: float, optional
         Relative tolerance (with respect to y). Default is 1e-05
-
     equal_nan: bool, optional
-        Whether to compare NaN’s as equal. If True, NaN’s in a will be considered equal to NaN’s in b in the output array.
+        Whether to compare NaN’s as equal. If True, NaN’s in a will be considered equal to NaN’s in b in the output
+        array.
 
     Returns:
     --------
     allclose : bool
-    True if the two tensors are equal within the given tolerance; False otherwise.
+        True if the two tensors are equal within the given tolerance; False otherwise.
 
     Examples:
     ---------
@@ -154,7 +152,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     >>> ht.allclose(a, a)
     True
 
-    >>> b = ht.float32([[2.00005,2.00005], [2.00005,2.00005]])
+    >>> b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]])
     >>> ht.allclose(a, b)
     False
     >>> ht.allclose(a, b, atol=1e-04)
@@ -168,6 +166,53 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
         raise TypeError('Expected y to be a ht.tensor, but was {}'.format(type(y)))
 
     return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
+
+
+def any(x, axis=None, out=None):
+    """
+    Test whether any array element along a given axis evaluates to True.
+    The returning tensor is one dimensional unless axis is not None.
+
+    Parameters:
+    -----------
+    x : tensor
+        Input tensor
+    axis : int, optional
+        Axis along which a logic OR reduction is performed. With axis=None, the logical OR is performed over all
+        dimensions of the tensor.
+    out : tensor, optional
+        Alternative output tensor in which to place the result. It must have the same shape as the expected output.
+        The output is a tensor with dtype=bool.
+
+    Returns:
+    --------
+    boolean_tensor : tensor of type bool
+        Returns a tensor of booleans that are 1, if any non-zero values exist on this axis, 0 otherwise.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> t = ht.float32([[0.3, 0, 0.5]])
+    >>> t.any()
+    tensor([1], dtype=torch.uint8)
+    >>> t.any(axis=0)
+    tensor([[1, 0, 1]], dtype=torch.uint8)
+    >>> t.any(axis=1)
+    tensor([[1]], dtype=torch.uint8)
+
+    >>> t = ht.int32([[0, 0, 1], [0, 0, 0]])
+    >>> res = ht.zeros((1, 3), dtype=ht.bool)
+    >>> t.any(axis=0, out=res)
+    tensor([[0, 0, 1]], dtype=torch.uint8)
+    >>> res
+    tensor([[0, 0, 1]], dtype=torch.uint8)
+    """
+    def local_any(t, *args, **kwargs):
+        if t.dtype is torch.float:
+            t = t.ceil()
+        a = t.byte()
+        return torch.any(a, *args, **kwargs)
+    return __reduce_op(x, local_any, MPI.LOR, axis, out)
 
 
 def argmax(x, axis=None, out=None):
@@ -473,7 +518,10 @@ def __tri_op(m, k, op):
 
     # manually repeat the input for vectors
     if dimensions == 1:
-        triangle = op(m._tensor__array.expand(m.shape[0], -1), k - offset)
+        triangle = m._tensor__array.expand(m.shape[0], -1)
+        if torch.numel(triangle > 0):
+            triangle = op(triangle, k - offset)
+
         return tensor.tensor(
             triangle,
             (m.shape[0], m.shape[0],),
@@ -495,7 +543,8 @@ def __tri_op(m, k, op):
 
     # in case of two dimensions we can just forward the call to the callable
     if dimensions == 2:
-        op(original, k, out=output)
+        if torch.numel(original) > 0:
+            op(original, k, out=output)
     # more than two dimensions: iterate over all but the last two to realize 2D broadcasting
     else:
         ranges = [range(elements) for elements in m.lshape[:-2]]
@@ -605,7 +654,7 @@ def __local_operation(operation, x, out):
     broadcast_shape = stride_tricks.broadcast_shape(x.lshape, out.lshape)
     padded_shape = (1,) * (len(broadcast_shape) - len(x.lshape)) + x.lshape
     multiples = [int(a / b) for a, b in zip(broadcast_shape, padded_shape)]
-    needs_repetition = any(multiple > 1 for multiple in multiples)
+    needs_repetition = builtins.any(multiple > 1 for multiple in multiples)
 
     # do an inplace operation into a provided buffer
     casted = x._tensor__array.type(torch_type)
@@ -720,33 +769,60 @@ def __binary_op(operation, t1, t2):
         if np.isscalar(t2):
             try:
                 t2 = tensor.array([t2])
+                output_shape = t1.shape
+                output_split = t1.split
+                output_device = t1.device
+                output_comm = t1.comm
             except (ValueError, TypeError,):
                 raise TypeError('Data type not supported, input was {}'.format(type(t2)))
 
         elif isinstance(t2, tensor.tensor):
-            output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
-
             # TODO: implement complex NUMPY rules
             if t2.split is None or t2.split == t1.split:
-                pass
+                output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+                output_split = t1.split
+                output_device = t1.device
+                output_comm = t1.comm
             else:
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
                 # and split=1
                 raise NotImplementedError('Not implemented for other splittings')
+
+            # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data. 
+            if t1.split is not None:
+                if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
+                    warnings.warn('Broadcasting requires transferring data of first operator between MPI ranks!')
+                    if t1.comm.rank > 0:
+                        t1._tensor__array = torch.zeros(t1.shape, dtype=t1.dtype.torch_type())
+                    t1.comm.Bcast(t1)
+
+            if t2.split is not None:
+                if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
+                    warnings.warn('Broadcasting requires transferring data of second operator between MPI ranks!')
+                    if t2.comm.rank > 0:
+                        t2._tensor__array = torch.zeros(t2.shape, dtype=t2.dtype.torch_type())
+                    t2.comm.Bcast(t2)            
+
         else:
             raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
 
         if t2.dtype != t1.dtype:
             t2 = t2.astype(t1.dtype)
 
-        output_shape = t1.shape
-        output_split = t1.split
-        output_device = t1.device
-        output_comm = t1.comm
-
     else:
         raise NotImplementedError('Not implemented for non scalar')
 
-    result = operation(t1._tensor__array, t2._tensor__array)
+    if t1.split is not None:
+        if t1.lshape[t1.split] == 0:
+            result = t1
+        else:
+            result = operation(t1._tensor__array, t2._tensor__array)
+    elif t1.split is not None:
+        if t2.lshape[t2.split] == 0:
+            result = t2
+        else: 
+            result = operation(t1._tensor__array, t2._tensor__array)
+    else:
+        result = operation(t1._tensor__array, t2._tensor__array)
 
     return tensor.tensor(result, output_shape, t1.dtype, output_split, output_device, output_comm)

@@ -15,7 +15,7 @@ T1 = ht.float32([
 v = ht.float32([2, 2])
 v2 = ht.float32([2, 2, 2])
 T_s = ht.tensor(T1._tensor__array, T1.shape, T1.dtype, 0, T1.device, T1.comm)
-otherType = (2,2)
+otherType = (2, 2)
 
 
 class TestOperations(unittest.TestCase):
@@ -24,7 +24,7 @@ class TestOperations(unittest.TestCase):
             [3, 4],
             [5, 6]
         ])
-
+        
         self.assertTrue(ht.equal(ht.add(s, s), ht.float32([4.0])))
         self.assertTrue(ht.equal(ht.add(T, s), T_r))
         self.assertTrue(ht.equal(ht.add(s, T), T_r))
@@ -69,6 +69,61 @@ class TestOperations(unittest.TestCase):
             ht.div(T, otherType)
         with self.assertRaises(TypeError):
             ht.div('T', 's')
+
+    def test_fmod(self):
+        T_r = ht.float32([
+            [1., 0.],
+            [1., 0.]
+        ])
+        T_int = ht.int32([
+            [5, 3],
+            [4, 1]
+        ])
+        T_r_int = ht.int32([
+            [1, 1],
+            [0, 1]
+        ])
+        T_inv = ht.float32([
+            [0.0, 0.0],
+            [2.0, 2.0]
+        ])
+        T_zero = ht.float32([
+            [0.0, 0.0],
+            [0.0, 0.0]
+        ])
+        float1 = ht.float32([5.3])
+        float2 = ht.float32([1.9])
+        float_res = ht.float32([1.5])
+
+        self.assertTrue(ht.equal(ht.fmod(s, s), ht.float32([0.0])))
+        self.assertTrue(ht.equal(ht.fmod(T, T), T_zero))
+        self.assertTrue(ht.equal(ht.fmod(T, s_int), T_r))
+        self.assertTrue(ht.equal(ht.fmod(T, T1), T_r))
+        self.assertTrue(ht.equal(ht.fmod(T, v), T_r))
+        self.assertTrue(ht.equal(ht.fmod(T, s_int), T_r))
+        self.assertTrue(ht.equal(ht.fmod(T_int, s_int), T_r_int))
+        self.assertTrue(ht.equal(ht.fmod(s, T), T_inv))
+        self.assertTrue(ht.equal(ht.fmod(T_s, T), T_inv))
+        self.assertTrue(ht.allclose(ht.fmod(float1, float2), float_res))
+
+        with self.assertRaises(ValueError):
+            ht.fmod(T, v2)
+        with self.assertRaises(NotImplementedError):
+            ht.fmod(T, T_s)
+        with self.assertRaises(TypeError):
+            ht.fmod(T, otherType)
+        with self.assertRaises(TypeError):
+            ht.fmod('T', 's')
+
+    def test_mod(self):
+        T_int_1 = ht.int32([[1, 4], [2, 2]])
+        T_int_2 = ht.int32([[1, 2], [3, 4]])
+        T_int_res_1 = ht.int32([[0, 0], [2, 2]])
+        T_int_res_2 = ht.int32([[1, 0], [0, 0]])
+
+        self.assertTrue(ht.equal(ht.mod(T_int_1, T_int_2), T_int_res_1))
+        self.assertTrue(ht.equal(ht.mod(T_int_1, s_int), T_int_res_2))
+        self.assertTrue(ht.equal(ht.mod(s_int, T_int_2), T_int_res_1))
 
     def test_mul(self):
         T_r = ht.float32([
