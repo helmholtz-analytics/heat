@@ -469,7 +469,10 @@ def __tri_op(m, k, op):
 
     # manually repeat the input for vectors
     if dimensions == 1:
-        triangle = op(m._tensor__array.expand(m.shape[0], -1), k - offset)
+        triangle = m._tensor__array.expand(m.shape[0], -1)
+        if torch.numel(triangle > 0):
+            triangle = op(triangle, k - offset)
+
         return tensor.tensor(
             triangle,
             (m.shape[0], m.shape[0],),
@@ -491,7 +494,8 @@ def __tri_op(m, k, op):
 
     # in case of two dimensions we can just forward the call to the callable
     if dimensions == 2:
-        op(original, k, out=output)
+        if torch.numel(original) > 0:
+            op(original, k, out=output)
     # more than two dimensions: iterate over all but the last two to realize 2D broadcasting
     else:
         ranges = [range(elements) for elements in m.lshape[:-2]]

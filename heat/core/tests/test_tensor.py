@@ -770,3 +770,60 @@ class TestTensorFactories(unittest.TestCase):
             res_2 = op(num, tensor)
             if commutative:
                 self.assertTrue(ht.equal(res_1, res_2))
+
+    def test_eye(self):
+
+        def get_offset(tensor_array):
+            x, y = tensor_array.shape
+            for k in range(x):
+                for l in range(y):
+                    if tensor_array[k][l] == 1:
+                        return k, l
+
+        shape = 5
+        eye = ht.eye(shape, dtype=ht.uint8, split=1)
+        self.assertIsInstance(eye, ht.tensor)
+        self.assertEqual(eye.dtype, ht.uint8)
+        self.assertEqual(eye.shape, (shape, shape))
+        self.assertEqual(eye.split, 1)
+
+        offset_x, offset_y = get_offset(eye._tensor__array)
+        self.assertGreaterEqual(offset_x, 0)
+        self.assertGreaterEqual(offset_y, 0)
+        x, y = eye._tensor__array.shape
+        for i in range(x):
+            for j in range(y):
+                expected = 1 if i - offset_x is j - offset_y else 0
+                self.assertEqual(eye._tensor__array[i][j], expected)
+
+        shape = (10, 20)
+        eye = ht.eye(shape, dtype=ht.float32)
+        self.assertIsInstance(eye, ht.tensor)
+        self.assertEqual(eye.dtype, ht.float32)
+        self.assertEqual(eye.shape, shape)
+        self.assertEqual(eye.split, None)
+
+        offset_x, offset_y = get_offset(eye._tensor__array)
+        self.assertGreaterEqual(offset_x, 0)
+        self.assertGreaterEqual(offset_y, 0)
+        x, y = eye._tensor__array.shape
+        for i in range(x):
+            for j in range(y):
+                expected = 1.0 if i - offset_x is j - offset_y else 0.0
+                self.assertEqual(eye._tensor__array[i][j], expected)
+
+        shape = (10,)
+        eye = ht.eye(shape, dtype=ht.int32, split=0)
+        self.assertIsInstance(eye, ht.tensor)
+        self.assertEqual(eye.dtype, ht.int32)
+        self.assertEqual(eye.shape, shape * 2)
+        self.assertEqual(eye.split, 0)
+
+        offset_x, offset_y = get_offset(eye._tensor__array)
+        self.assertGreaterEqual(offset_x, 0)
+        self.assertGreaterEqual(offset_y, 0)
+        x, y = eye._tensor__array.shape
+        for i in range(x):
+            for j in range(y):
+                expected = 1 if i - offset_x is j - offset_y else 0
+                self.assertEqual(eye._tensor__array[i][j], expected)
