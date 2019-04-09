@@ -20,7 +20,8 @@ __all__ = [
     'copy',
     'transpose',
     'tril',
-    'triu'
+    'triu',
+    'unique'
 ]
 
 
@@ -554,6 +555,17 @@ def triu(m, k=0):
         Upper triangle of the input tensor.
     """
     return __tri_op(m, k, torch.triu)
+
+
+def unique(a, sorted=False, return_inverse=False, axis=None):
+    output= None
+    res = (output, )
+    if return_inverse:
+        inverse_indices = None
+        res = (output, inverse_indices)
+    res = torch.unique(a._tensor__array, sorted, return_inverse, dim=axis)
+    return res
+
 
 
 def __local_operation(operation, x, out):
