@@ -1522,17 +1522,26 @@ class tensor:
             chunk_end = chunk_slice[self.split].stop
             chunk_set = set(range(chunk_start, chunk_end))
 
+            lout = list(self.gshape)
+            lout[self.split] = 0
+            arr = torch.Tensor()
+
+            all_one_flag = [False, 0]  # t/f true flag, process with data
+
             if isinstance(key, int):  # if a sigular index is given and the tensor is split
                 if key in range(chunk_start, chunk_end) and self.split == 0:  # only need to adjust the key if split==0
-                    return tensor(self.__array[key-chunk_start], tuple(self.__array[key-chunk_start].shape), self.dtype, self.split, self.device, self.comm)
+                    lout = tuple(self.__array[key-chunk_start].shape)
+                    arr = self.__array[key - chunk_start]
+                    # return , , self.dtype, self.split, self.device, self.comm)
                 elif self.split != 0:
                     _, _, chunk_slice2 = self.comm.chunk(self.shape, self.split)
                     if key in range(chunk_slice2[0].start, chunk_slice2[0].stop):  # need to test if the given axis is on the node and then get the shape
                         lout = self.comm.allreduce(tuple(self.__array[key].shape)[0], MPI.SUM)
-                        return tensor(self.__array[key], (lout, ), self.dtype, self.split, self.device, self.comm)
+                        lout = (lout, )
+                        arr = self.__array[key]
+                        # return tensor(, (lout, ), self.dtype, self.split, self.device, self.comm)
                 else:
                     warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
-                    return None
 
             elif isinstance(key, (tuple, list)):  # multi-argument gets are passed as tuples by python
                 if isinstance(key[self.split], slice):  # if a slice is given in the split direction
@@ -1544,12 +1553,13 @@ class tensor:
                     overlap = list(set(range(key[self.split].start if key[self.split].start is not None else 0,
                                              key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split]))
                                    & set(range(chunk_start, chunk_end)))
-
                     if overlap:  # if the slice is requesting data on the nodes
                         hold = [x - chunk_start for x in overlap]
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
+                        arr = self.__array[tuple(key)]
                         if key_set.issubset(chunk_set):  # if **all** the keys are included in the chunk
-                            return tensor(self.__array[tuple(key)], tuple(self.__array[tuple(key)].shape), self.dtype, self.split, self.device, self.comm)
+                            lout = tuple(self.__array[tuple(key)].shape)
+                            all_one_flag = [True, self.comm.rank]
 
                         else:  # if the keys given ask for data across multiple nodes
                             if len(list(self.__array[tuple(key)].shape)) > 1:  # handles the definition of the lshape
@@ -1559,11 +1569,10 @@ class tensor:
                                     self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split if len(tuple(self.__array[tuple(key)].shape)
                                                                                                                 ) == len(self.gshape) else self.split - 1],
                                                         MPI.SUM)
-
-                                return tensor(self.__array[tuple(key)], tuple(lout), self.dtype, self.split, self.device, self.comm)
+                                # return tensor(self.__array[tuple(key)], tuple(lout), self.dtype, self.split, self.device, self.comm)
                             else:
                                 lout = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[0], MPI.SUM)
-                                return tensor(self.__array[tuple(key)], (lout, ), self.dtype, self.split, self.device, self.comm)
+                                lout = (lout, )
 
                     # if there is no overlap then the output is all on one node:
                     if len(list(self.__array[tuple(key)].shape)) > 1:
@@ -1572,22 +1581,20 @@ class tensor:
                         lout[self.split if len(tuple(self.__array[tuple(key)].shape)) == len(self.gshape) else self.split - 1] = \
                             self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split if len(tuple(self.__array[tuple(key)].shape)
                                                                                                         ) == len(self.gshape) else self.split - 1], MPI.SUM)
-
-                        return tensor(self.__array[tuple(key)], tuple(lout), self.dtype, self.split, self.device, self.comm)
-                    else:
-                        lout = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[0], MPI.SUM)
-                        return tensor(self.__array[tuple(key)], (lout,), self.dtype, self.split, self.device, self.comm)
+                        arr = self.__array[tuple(key)]
 
                 # if the given axes are not splits (must be ints for python)
+                # this means the whole slice is on one node
                 elif key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
                     key[self.split] = key[self.split] - chunk_start
                     try:
-                        return tensor(self.__array[tuple(key)], tuple(self.__array[tuple(key)].shape), self.dtype, self.split, self.device, self.comm)
+                        arr = self.__array[tuple(key)]
+                        lout = tuple(self.__array[tuple(key)].shape)
+                        all_one_flag = [True, self.comm.rank]
                     except ValueError:  # case of returning just one value
+                        warnings.warn("This slice returns one value on only one process {}".format(self.comm.rank), ResourceWarning)
                         return self.__array[tuple(key)]
-                else:
-                    return None
 
             elif isinstance(key, slice) and self.split == 0:  # if the given axes are only a slice
                 key_set = set(range(key.start if key.start is not None else 0,
@@ -1597,24 +1604,34 @@ class tensor:
                 if overlap:
                     hold = [x - chunk_start for x in overlap]
                     key = slice(min(hold), max(hold) + 1, key.step)
-                    if key_set.issubset(chunk_set):
-                        return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
-                    else:
-                        lout = list(self.__array[key].shape)
-                        if len(lout) > 1:
-                            lout[self.split if self.split < 2 else self.split - 1] = \
-                                self.comm.allreduce(tuple(self.__array[key].shape)[self.split], MPI.SUM)
-                        else:
-                            lout = self.comm.allreduce(tuple(self.__array[key].shape), MPI.SUM)
-                        return tensor(self.__array[key], tuple(lout), self.dtype, self.split, self.device, self.comm)
+                    arr = self.__array[key]
+                    lout = list(self.__array[key].shape)
+
+                if len(lout) > 1:
+                    lout[self.split if self.split < 2 else self.split - 1] = \
+                        self.comm.allreduce(lout[self.split], MPI.SUM)
+                else:
+                    lout = self.comm.allreduce(lout, MPI.SUM)
 
             else:  # handle other cases not accounted for
                 lout = list(self.__array[key].shape)
+                arr = self.__array[key]
                 if len(lout) > 1:
                     lout[self.split] = self.comm.allreduce(tuple(self.__array[key].shape)[self.split], MPI.SUM)
                 else:
                     lout = self.comm.allreduce(tuple(self.__array[key].shape), MPI.SUM)
-                return tensor(self.__array[key], tuple(lout), self.dtype, self.split, self.device, self.comm)
+
+            lout = lout if isinstance(lout, tuple) else tuple(lout)
+
+            if all_one_flag[0]:
+                warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+
+            all_one_flag[0] = self.comm.allreduce(all_one_flag[0], MPI.LOR)
+            all_one_flag[1] = self.comm.allreduce(all_one_flag[1], MPI.MAX)
+            if all_one_flag[0]:
+                lout = self.comm.bcast(lout, root=all_one_flag[1])
+
+            return tensor(arr, lout, self.dtype, self.split, self.device, self.comm)
         else:
             return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
 
@@ -1673,8 +1690,8 @@ class tensor:
                             if str(te) != "'int' object is not subscriptable":
                                 raise TypeError
                             self.setter(tuple(key), value)
-                    else:
-                        self.setter(tuple(key), value)
+                    # else:
+                    #     self.setter(tuple(key), value)
 
                 elif key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
