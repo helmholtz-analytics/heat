@@ -27,7 +27,7 @@ setup(
         'numpy>=1.13.0',
         'torch>=1.0.0'
     ],
-    extra_require={
+    extras_require={
         'hdf5':  ['h5py>=2.8.0'],
         'netcdf': ['netCDF4>=1.4.0'],
     }
