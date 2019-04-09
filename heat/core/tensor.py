@@ -476,6 +476,62 @@ class tensor:
         """
         return arithmetics.div(other, self)
 
+    def __floordiv__(self, other):
+        """
+        Element-wise floor division (i.e. result is rounded int (floor))
+        of the tensor by another tensor or scalar. Takes the first tensor by which it divides the second
+        not-heat-typed-parameter.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+            The second operand by whose values is divided
+
+        Return
+        ------
+        result: ht.tensor
+            A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
+        >>> T1 // 1
+        tensor([[1., 2.],
+                [1., 4.]])
+        >>> T2 = ht.float32([1.5, 2.5])
+        >>> T1 // T2
+        tensor([[1., 0.],
+                [1., 1.]])
+        """
+        return arithmetics.floordiv(self, other)
+
+    def __rfloordiv__(self, other):
+        """
+        Element-wise floor division (i.e. result is rounded int (floor))
+        of the not-heat-typed parameter by another tensor. Takes the first operand (scalar or tensor) by which to divide
+        as argument.
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+            this will be divided by the self-tensor
+
+        Return
+        ------
+        result: ht.tensor
+            A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T = ht.float32([[1.7, 2.0], [1.9, 4.2]])
+        >>> 5 // T
+        tensor([[2., 2.],
+                [2., 1.]])
+        """
+        return arithmetics.floordiv(other, self)
+
     def __mod__(self, other):
         """
         Element-wise division remainder of values of self by values of operand other (i.e. self % other), not commutative.
