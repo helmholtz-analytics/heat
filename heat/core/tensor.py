@@ -219,6 +219,9 @@ class tensor:
         """
         return operations.allclose(self, other, rtol, atol, equal_nan)
 
+    def any(self, axis=None, out=None):
+        return operations.any(self, axis, out)
+
     def argmax(self, axis=None):
         """
         Returns the indices of the minimum values along an axis.

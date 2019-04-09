@@ -14,6 +14,7 @@ __all__ = [
 
     'all',
     'allclose',
+    'any',
     'argmax',
     'argmin',
     'clip',
@@ -164,6 +165,15 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
         raise TypeError('Expected y to be a ht.tensor, but was {}'.format(type(y)))
 
     return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
+
+
+def any(x, axis=None, out=None):
+    def local_any(t, *args, **kwargs):
+        if t.dtype is torch.float:
+            t = t.ceil()
+        a = t.byte()
+        return torch.any(a, *args, **kwargs)
+    return __reduce_op(x, local_any, MPI.LOR, axis, out)
 
 
 def argmax(x, axis=None, out=None):
