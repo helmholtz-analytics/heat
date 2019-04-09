@@ -168,6 +168,42 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
 
 
 def any(x, axis=None, out=None):
+    """
+    Returns a boolean indicating if any elements are non-zero.
+
+    Parameters:
+    -----------
+    x : tensor
+        The tensor on which any should be calculated
+    axis : int, optional
+        Defines along which axis any should be calculated. If not specified, any will be computed on the whole
+        tensor.
+    out : tensor, optional
+        An output tensor into which the result will be copied. Result is a tensor with dtype=uint8/bool.
+
+    Returns:
+    --------
+    boolean_tensor : tensor of type uint8/bool
+        Returns a tensor of booleans that are 1, if any non-zero values exist on this axis, 0 otherwise.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> t = ht.float32([[0.3, 0, 0.5]])
+    >>> ht.any(t)
+    tensor([1], dtype=torch.uint8)
+    >>> ht.any(t, axis=0)
+    tensor([[1, 0, 1]], dtype=torch.uint8)
+    >>> ht.any(t, axis=1)
+    tensor([[1]], dtype=torch.uint8)
+
+    >>> t = ht.int32([[0, 0, 1], [0, 0, 0]])
+    >>> res = ht.zeros((1, 3), dtype=ht.uint8)
+    >>> ht.any(t, axis=0, out=res)
+    tensor([[0, 0, 1]], dtype=torch.uint8)
+    >>> res
+    tensor([[0, 0, 1]], dtype=torch.uint8)
+    """
     def local_any(t, *args, **kwargs):
         if t.dtype is torch.float:
             t = t.ceil()
