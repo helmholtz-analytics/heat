@@ -765,13 +765,13 @@ class TestTensorFactories(unittest.TestCase):
             ht.empty_like(ones, split='axis')
 
     def test_eye(self):
-
         def get_offset(tensor_array):
             x, y = tensor_array.shape
             for k in range(x):
                 for l in range(y):
                     if tensor_array[k][l] == 1:
                         return k, l
+            return x, y
 
         shape = 5
         eye = ht.eye(shape, dtype=ht.uint8, split=1)
