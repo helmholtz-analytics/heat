@@ -219,6 +219,45 @@ class tensor:
         """
         return operations.allclose(self, other, rtol, atol, equal_nan)
 
+    def any(self, axis=None, out=None):
+        """
+        Test whether any array element along a given axis evaluates to True.
+        The returning tensor is one dimensional unless axis is not None.
+
+        Parameters:
+        -----------
+        axis : int, optional
+            Axis along which a logic OR reduction is performed. With axis=None, the logical OR is performed over all
+            dimensions of the tensor.
+        out : tensor, optional
+            Alternative output tensor in which to place the result. It must have the same shape as the expected output.
+            The output is a tensor with dtype=bool.
+
+        Returns:
+        --------
+        boolean_tensor : tensor of type bool
+            Returns a tensor of booleans that are 1, if any non-zero values exist on this axis, 0 otherwise.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> t = ht.float32([[0.3, 0, 0.5]])
+        >>> t.any()
+        tensor([1], dtype=torch.uint8)
+        >>> t.any(axis=0)
+        tensor([[1, 0, 1]], dtype=torch.uint8)
+        >>> t.any(axis=1)
+        tensor([[1]], dtype=torch.uint8)
+
+        >>> t = ht.int32([[0, 0, 1], [0, 0, 0]])
+        >>> res = ht.zeros((1, 3), dtype=ht.bool)
+        >>> t.any(axis=0, out=res)
+        tensor([[0, 0, 1]], dtype=torch.uint8)
+        >>> res
+        tensor([[0, 0, 1]], dtype=torch.uint8)
+        """
+        return operations.any(self, axis, out)
+
     def argmax(self, axis=None):
         """
         Returns the indices of the minimum values along an axis.
