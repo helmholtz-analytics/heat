@@ -7,7 +7,7 @@ with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 with open(os.path.join('heat', 'core', 'version.py'), 'r') as handle:
-    VERSION = re.match(r'\_\_version\_\_\s*=\s*\'(\d+\.\d+\.\d+)\'', a).group(1)
+    VERSION = re.match(r'\_\_version\_\_\s*=\s*\'(\d+\.\d+\.\d+)\'', handle.read()).group(1)
 
 setup(
     name='heat',
