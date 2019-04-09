@@ -98,6 +98,23 @@ class tensor:
         """
         return self.abs(out, dtype)
 
+    def fabs(self, out=None):
+        """
+        Calculate the absolute value element-wise and return floating-point tensor.
+
+        Parameters
+        ----------
+        out : ht.tensor, optional
+            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+            If not provided or None, a freshly-allocated array is returned.
+
+        Returns
+        -------
+        absolute_values : ht.tensor
+            A tensor containing the absolute value of each element in x.
+        """
+        return rounding.fabs(self, out)
+
     def __add__(self, other):
         """
         Element-wise addition of another tensor or a scalar to the tensor.

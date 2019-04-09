@@ -6,6 +6,7 @@ from .operations import __local_operation as local_op
 __all__ = [
     'abs',
     'absolute',
+    'fabs',
     'ceil',
     'floor'
 ]
@@ -67,6 +68,28 @@ def absolute(x, out=None, dtype=None):
         A tensor containing the absolute value of each element in x.
     """
     return abs(x, out, dtype)
+
+
+def fabs(x, out=None):
+    """
+    Calculate the absolute value element-wise and return floating-point tensor.
+
+    Parameters
+    ----------
+
+    x : ht.tensor
+        The values for which the compute the absolute value.
+    out : ht.tensor, optional
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+        If not provided or None, a freshly-allocated array is returned.
+
+    Returns
+    -------
+    absolute_values : ht.tensor
+        A tensor containing the absolute value of each element in x.
+    """
+
+    return abs(x, out, dtype=None)
 
 
 def ceil(x, out=None):
