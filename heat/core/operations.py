@@ -216,7 +216,7 @@ def any(x, axis=None, out=None):
             t = t.ceil()
         a = t.byte()
         return torch.any(a, *args, **kwargs)
-    return __reduce_op(x, local_any, MPI.LOR, axis, out)
+    return __reduce_op(x, local_any, MPI.LOR, axis=axis, out=out)
 
 
 def argmax(x, axis=None, out=None, **kwargs):

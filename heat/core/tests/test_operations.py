@@ -192,18 +192,18 @@ class TestOperations(unittest.TestCase):
         any_tensor = ht.any(x, axis=1)
         res = ht.uint8([[1], [0], [1]])
         self.assertIsInstance(any_tensor, ht.tensor)
-        self.assertEqual(any_tensor.shape, (3, 1))
+        self.assertEqual(any_tensor.shape, (3,))
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))
 
-        any_tensor = ht.zeros((1, 2))
+        any_tensor = ht.zeros((2,))
         x = ht.int32([[0, 0],
                       [0, 0],
                       [0, 1]])
         ht.any(x, axis=0, out=any_tensor)
         res = ht.uint8([[0, 1]])
         self.assertIsInstance(any_tensor, ht.tensor)
-        self.assertEqual(any_tensor.shape, (1, 2))
+        self.assertEqual(any_tensor.shape, (2,))
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))
 
