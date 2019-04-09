@@ -1627,8 +1627,8 @@ class tensor:
                 warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
 
             all_one_flag[0] = self.comm.allreduce(all_one_flag[0], MPI.LOR)
-            all_one_flag[1] = self.comm.allreduce(all_one_flag[1], MPI.MAX)
             if all_one_flag[0]:
+                all_one_flag[1] = self.comm.allreduce(all_one_flag[1], MPI.MAX)
                 lout = self.comm.bcast(lout, root=all_one_flag[1])
 
             return tensor(arr, lout, self.dtype, self.split, self.device, self.comm)
