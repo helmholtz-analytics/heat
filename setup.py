@@ -1,13 +1,19 @@
 from distutils.core import setup
 
+import os.path
+import re
+
 with open('README.md', 'r') as fh:
     long_description = fh.read()
+
+with open(os.path.join('heat', 'core', 'version.py'), 'r') as handle:
+    VERSION = re.match(r'\_\_version\_\_\s*=\s*\'(\d+\.\d+\.\d+)\'', a).group(1)
 
 setup(
     name='heat',
     packages=['heat', 'heat.core', 'heat.ml', 'heat.ml.cluster'],
     data_files=['README.md', 'LICENSE'],
-    version='0.0.3',
+    version=VERSION,
     description='A framework for high performance data analytics and machine learning.',
     long_description=long_description,
     long_description_content_type='text/markdown',
