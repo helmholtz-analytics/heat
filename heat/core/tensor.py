@@ -256,7 +256,7 @@ class tensor:
         >>> res
         tensor([[0, 0, 1]], dtype=torch.uint8)
         """
-        return operations.any(self, axis, out)
+        return operations.any(self, axis=axis, out=out)
 
     def argmax(self, axis=None, out=None, **kwargs):
         """
