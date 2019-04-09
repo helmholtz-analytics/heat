@@ -71,10 +71,13 @@ def all(x, axis=None, out=None, keepdim=None):
     x : ht.tensor
         Input array or object that can be converted to an array.
 
-    axis : None or int, optional #TODO: tuple of ints, issue #67
-        Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a
+    axis : None or int or tuple of ints
+        Axis or axes along which a logical AND reduction is performed. The default (axis = None) is to perform a
         logical AND over all the dimensions of the input array. axis may be negative, in which case it counts
         from the last to the first axis.
+
+        If this is a tuple of ints, a reduction is performed on multiple axes, instead of a single axis 
+        or all the axes as before.
 
     out : ht.tensor, optional
         Alternate output array in which to place the result. It must have the same shape as the expected output
