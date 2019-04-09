@@ -53,7 +53,7 @@ class TestTensor(unittest.TestCase):
         any_tensor = ht.zeros(1)
         any_tensor = x.any(axis=0)
         self.assertIsInstance(any_tensor, ht.tensor)
-        self.assertEqual(any_tensor.shape, (1, 3))
+        self.assertEqual(any_tensor.shape, (3,))
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))
 
@@ -678,7 +678,6 @@ class TestTensorFactories(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.zeros_like(ones, split='axis')
 
-
     def test_empty(self):
         # scalar input
         simple_empty_float = ht.empty(3)
@@ -720,7 +719,6 @@ class TestTensorFactories(unittest.TestCase):
             ht.empty((-1, 3,), dtype=ht.float64)
         with self.assertRaises(TypeError):
             ht.empty((2, 3,), dtype=ht.float64, split='axis')
-
 
     def test_empty_like(self):
         # scalar
