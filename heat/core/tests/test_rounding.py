@@ -39,12 +39,12 @@ class TestOperations(unittest.TestCase):
             float32_tensor.absolute(out=float32_tensor, dtype=3.2)
 
     def test_fabs(self):
-        int8_tensor = ht.int8([1, -1, 2, 3])
-        int16_tensor = ht.int16([1, -1, 2, 3])
-        int32_tensor = ht.int32([1, -1, 2, 3])
-        int64_tensor = ht.int64([1, -1, 2, 3])
-        float32_tensor = ht.float32([1, -1, 2, 3])
-        float64_tensor = ht.float64([1, -1, 2, 3])
+        int8_tensor = ht.arange(-10, 10, dtype=ht.int8, split=0)
+        int16_tensor = ht.arange(-10, 10, dtype=ht.int16, split=0)
+        int32_tensor = ht.arange(-10, 10, dtype=ht.int32, split=0)
+        int64_tensor = ht.arange(-10, 10, dtype=ht.int64, split=0)
+        float32_tensor = ht.arange(-10, 10, dtype=ht.float32, split=0)
+        float64_tensor = ht.arange(-10, 10, dtype=ht.float64, split=0)
         int8_absolute_values = ht.fabs(int8_tensor)
         int16_absolute_values = ht.fabs(int16_tensor)
         int32_absolute_values = ht.fabs(int32_tensor)
@@ -61,10 +61,10 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(float64_absolute_values.dtype, ht.float64)
 
         # check whether output works
-        output_tensor = ht.zeros(4, split=0)
+        output_tensor = ht.zeros(20, split=0)
         self.assertEqual(output_tensor.sum(axis=0), 0)
         ht.fabs(float32_tensor, out=output_tensor)
-        self.assertEqual(output_tensor.sum(axis=0), 7)
+        self.assertEqual(output_tensor.sum(axis=0), 100)
 
         # exceptions
         with self.assertRaises(TypeError):
