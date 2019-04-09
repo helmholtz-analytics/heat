@@ -193,8 +193,12 @@ except ImportError:
     def supports_netcdf():
         return False
 else:
+    __nc_has_par = nc.__dict__.get('__has_parallel4_support__', False) or \
+                   nc.__dict__.get('__has_pnetcdf_support__', False) or \
+                   nc.__dict__.get('__has_nc_par__', False)
+
     # warn the user about serial netcdf
-    if not nc.__has_nc_par__ and MPI_WORLD.rank == 0:
+    if not __nc_has_par and MPI_WORLD.rank == 0:
         warnings.warn('netCDF4 does not support parallel I/O, falling back to slower serial I/O', ImportWarning)
 
     # add functions to visible exports
@@ -261,7 +265,7 @@ else:
         device = devices.sanitize_device(device)
 
         # actually load the data
-        with nc.Dataset(path, 'r', parallel=nc.__has_nc_par__, comm=comm.handle) as handle:
+        with nc.Dataset(path, 'r', parallel=__nc_has_par, comm=comm.handle) as handle:
             data = handle[variable][:]
             gshape = tuple(data.shape)
             _, _, indices = comm.chunk(gshape, split)
@@ -315,7 +319,7 @@ else:
         _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
 
         # attempt to perform parallel I/O if possible
-        if nc.__has_nc_par__:
+        if __nc_has_par:
             with nc.Dataset(path, mode, parallel=True, comm=data.comm.handle) as handle:
                 dimension_names = []
                 for dimension, elements in enumerate(data.shape):
