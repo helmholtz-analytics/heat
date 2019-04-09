@@ -375,7 +375,7 @@ def transpose(a, axes=None):
     Parameters
     ----------
     a : array_like
-        Input array.
+        Input array.ich
     axes : None or list of ints, optional
         By default, reverse the dimensions, otherwise permute the axes according to the values given.
 
@@ -558,14 +558,12 @@ def triu(m, k=0):
 
 
 def unique(a, sorted=False, return_inverse=False, axis=None):
-    output= None
-    res = (output, )
-    if return_inverse:
-        inverse_indices = None
-        res = (output, inverse_indices)
-    res = torch.unique(a._tensor__array, sorted, return_inverse, dim=axis)
-    return res
-
+    lres = torch.unique(a._tensor__array, sorted=sorted, return_inverse=return_inverse, dim=axis)
+    print("lres", lres)
+    gres = a.comm.allgather(lres)
+    gres = torch.cat(gres)
+    print("concat", gres)
+    return torch.unique(gres, sorted=sorted, return_inverse=return_inverse, dim=axis)
 
 
 def __local_operation(operation, x, out):
