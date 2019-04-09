@@ -90,64 +90,64 @@ class TestTensor(unittest.TestCase):
         # set value on one node
         a[10, 0] = 1
         self.assertEqual(a[10, 0], 1)
-        # self.assertEqual(a[10, 0].dtype, ht.float32)
+        self.assertEqual(a[10, 0].dtype, ht.float32)
 
-        # # slice in 1st dim only on 1 node
-        # a = ht.zeros((13, 5,), split=0)
-        # a[1:4] = 1
-        # self.assertEqual(a[1:4], 1)
-        # self.assertEqual(a[1:4].gshape, (3, 5))
-        # self.assertEqual(a[1:4].split, 0)
-        # self.assertEqual(a[1:4].dtype, ht.float32)
-        # if a.comm.size == 2:
-        #     if a.comm.rank == 0:
-        #         self.assertEqual(a[1:4].lshape, (3, 5))
-        #     else:
-        #         self.assertEqual(a[1:4].lshape, (0,))
-        #
-        # # slice in 1st dim only on 1 node w/ singular second dim
-        # a = ht.zeros((13, 5,), split=0)
-        # a[1:4, 1] = 1
-        # b = a[1:4, 1]
-        # self.assertEqual(b, 1)
-        # self.assertEqual(b, 1)
-        # self.assertEqual(b.gshape, (3,))
-        # self.assertEqual(b.split, 0)
-        # self.assertEqual(b.dtype, ht.float32)
-        # if a.comm.size == 2:
-        #     if a.comm.rank == 0:
-        #         self.assertEqual(b.lshape, (3,))
-        #     else:
-        #         self.assertEqual(b.lshape, (0,))
-        #
-        # # slice in 1st dim across both nodes (2 node case) w/ singular second dim
-        # a = ht.zeros((13, 5,), split=0)
-        # a[1:11, 1] = 1
-        # self.assertEqual(a[1:11, 1], 1)
-        # self.assertEqual(a[1:11, 1].gshape, (10,))
-        # self.assertEqual(a[1:11, 1].split, 0)
-        # self.assertEqual(a[1:11, 1].dtype, ht.float32)
-        # if a.comm.size == 2:
-        #     if a.comm.rank == 1:
-        #         self.assertEqual(a[1:11, 1].lshape, (4,))
-        #     if a.comm.rank == 0:
-        #         self.assertEqual(a[1:11, 1].lshape, (6,))
-        # else:
-        #     self.assertEqual(a[1:11, 1].lshape, (10,))
-        #
-        # # slice in 1st dim across 1 node (2nd) w/ singular second dim
-        # a = ht.zeros((13, 5,), split=0)
-        # a[8:12, 1] = 1
-        # self.assertEqual(a[8:12, 1], 1)
-        # self.assertEqual(a[8:12, 1].gshape, (4,))
-        # self.assertEqual(a[8:12, 1].split, 0)
-        # self.assertEqual(a[8:12, 1].dtype, ht.float32)
-        # if a.comm.size == 2:
-        #     if a.comm.rank == 1:
-        #         self.assertEqual(a[8:12, 1].lshape, (4,))
-        #     if a.comm.rank == 0:
-        #         self.assertEqual(a[8:12, 1].lshape, (0,))
-        #
+        # slice in 1st dim only on 1 node
+        a = ht.zeros((13, 5,), split=0)
+        a[1:4] = 1
+        self.assertEqual(a[1:4], 1)
+        self.assertEqual(a[1:4].gshape, (3, 5))
+        self.assertEqual(a[1:4].split, 0)
+        self.assertEqual(a[1:4].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(a[1:4].lshape, (3, 5))
+            else:
+                self.assertEqual(a[1:4].lshape, (0,))
+
+        # slice in 1st dim only on 1 node w/ singular second dim
+        a = ht.zeros((13, 5,), split=0)
+        a[1:4, 1] = 1
+        b = a[1:4, 1]
+        self.assertEqual(b, 1)
+        self.assertEqual(b.gshape, (3,))
+        self.assertEqual(b.split, 0)
+        self.assertEqual(b.dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(b.lshape, (3,))
+            else:
+                self.assertEqual(b.lshape, (0,))
+
+        # slice in 1st dim across both nodes (2 node case) w/ singular second dim
+        a = ht.zeros((13, 5,), split=0)
+        a[1:11, 1] = 1
+        self.assertEqual(a[1:11, 1], 1)
+        self.assertEqual(a[1:11, 1].gshape, (10,))
+        self.assertEqual(a[1:11, 1].split, 0)
+        self.assertEqual(a[1:11, 1].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(a[1:11, 1].lshape, (4,))
+            if a.comm.rank == 0:
+                self.assertEqual(a[1:11, 1].lshape, (6,))
+
+        # slice in 1st dim across 1 node (2nd) w/ singular second dim
+        a = ht.zeros((13, 5,), split=0)
+        a[8:12, 1] = 1
+        b = a[8:12, 1]
+        print('test here 0 ')
+        self.assertEqual(b, 1)
+        print('test here')
+        self.assertEqual(b.gshape, (4,))
+        self.assertEqual(b.split, 0)
+        self.assertEqual(b.dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(b.lshape, (4,))
+            if a.comm.rank == 0:
+                self.assertEqual(b.lshape, (0,))
+
         # # slice in both directions
         # a = ht.zeros((13, 5,), split=0)
         # a[3:13, 2:5:2] = 1
@@ -164,16 +164,16 @@ class TestTensor(unittest.TestCase):
         # # setting with heat tensor
         # a = ht.zeros((4, 5), split=0)
         # a[1, 0:4] = ht.arange(4)
-        # if a.comm.size == 2:
-        #     for c, i in enumerate(range(4)):
-        #         self.assertEqual(a[1, c], i)
+        # # if a.comm.size == 2:
+        # for c, i in enumerate(range(4)):
+        #     self.assertEqual(a[1, c], i)
         #
         # # setting with torch tensor
         # a = ht.zeros((4, 5), split=0)
         # a[1, 0:4] = torch.arange(4)
-        # if a.comm.size == 2:
-        #     for c, i in enumerate(range(4)):
-        #         self.assertEqual(a[1, c], i)
+        # # if a.comm.size == 2:
+        # for c, i in enumerate(range(4)):
+        #     self.assertEqual(a[1, c], i)
         #
         # ####################################################
         # a = ht.zeros((13, 5,), split=1)

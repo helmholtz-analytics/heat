@@ -813,12 +813,12 @@ def __binary_op(operation, t1, t2):
         raise NotImplementedError('Not implemented for non scalar')
 
     if t1.split is not None:
-        if t1.lshape[t1.split] == 0:
+        if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
             result = t1
         else:
             result = operation(t1._tensor__array, t2._tensor__array)
     elif t1.split is not None:
-        if t2.lshape[t2.split] == 0:
+        if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
             result = t2
         else: 
             result = operation(t1._tensor__array, t2._tensor__array)

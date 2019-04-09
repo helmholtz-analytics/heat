@@ -1668,7 +1668,8 @@ class tensor:
                         all_one_flag = [True, self.comm.rank]
                     except ValueError:  # case of returning just one value
                         warnings.warn("This slice returns one value on only one process {}".format(self.comm.rank), ResourceWarning)
-                        return self.__array[tuple(key)]
+                        arr = self.__array[tuple(key)]
+                        lout = (1, )
 
             elif isinstance(key, slice) and self.split == 0:  # if the given axes are only a slice
                 key_set = set(range(key.start if key.start is not None else 0,
@@ -1697,14 +1698,10 @@ class tensor:
 
             lout = lout if isinstance(lout, tuple) else tuple(lout)
 
-            if all_one_flag[0]:
-                warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
-
             all_one_flag[0] = self.comm.allreduce(all_one_flag[0], MPI.LOR)
             if all_one_flag[0]:
                 all_one_flag[1] = self.comm.allreduce(all_one_flag[1], MPI.MAX)
                 lout = self.comm.bcast(lout, root=all_one_flag[1])
-
             return tensor(arr, lout, self.dtype, self.split, self.device, self.comm)
         else:
             return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
