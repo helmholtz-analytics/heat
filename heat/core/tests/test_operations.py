@@ -181,12 +181,12 @@ class TestOperations(unittest.TestCase):
         self.assertTrue(ht.allclose(c, e))
         self.assertTrue(ht.allclose(e, c))
 
-
-
         with self.assertRaises(TypeError):
             ht.allclose(a, (2, 2, 2, 2))
         with self.assertRaises(TypeError):
             ht.allclose(a, '?')
+        with self.assertRaises(TypeError):
+            ht.allclose('?', a)
 
     def test_any(self):
         x = ht.float32([[2.7, 0, 0],
