@@ -63,7 +63,7 @@ def mpi_argmin(a, b, _):
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
-def all(x, axis=None, out=None, keepdim=None):
+def all(x, axis=None, out=None, keepdim=False):
     """
     Test whether all array elements along a given axis evaluate to True.
 
@@ -123,7 +123,10 @@ def all(x, axis=None, out=None, keepdim=None):
     tensor([[0, 1, 0, 1, 0]], dtype=ht.uint8)
     """
     # TODO: make me more numpy API complete. Issue #101
-    return __reduce_op(x, lambda t, *args, **kwargs: t.byte().all(*args, **kwargs), MPI.LAND, axis=axis, out=out, keepdim=keepdim)
+    def local_all(t, *args, **kwargs):
+        return torch.all(t != 0, *args, **kwargs)
+
+    return __reduce_op(x, local_all, MPI.LAND, axis=axis, out=out, keepdim=keepdim)
 
 
 def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
@@ -212,11 +215,9 @@ def any(x, axis=None, out=None):
     tensor([[0, 0, 1]], dtype=torch.uint8)
     """
     def local_any(t, *args, **kwargs):
-        if t.dtype is torch.float:
-            t = t.ceil()
-        a = t.byte()
-        return torch.any(a, *args, **kwargs)
-    return __reduce_op(x, local_any, MPI.LOR, axis=axis, out=out)
+        return torch.any(t != 0, *args, **kwargs)
+
+    return __reduce_op(x, local_any, MPI.LOR, axis=axis, out=out, keepdim=False)
 
 
 def argmax(x, axis=None, out=None, **kwargs):
@@ -670,8 +671,7 @@ def __local_operation(operation, x, out):
 
     # do an inplace operation into a provided buffer
     casted = x._tensor__array.type(torch_type)
-    operation(casted.repeat(multiples)
-              if needs_repetition else casted, out=out._tensor__array)
+    operation(casted.repeat(multiples) if needs_repetition else casted, out=out._tensor__array)
 
     return out
 
