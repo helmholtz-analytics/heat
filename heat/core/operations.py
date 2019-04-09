@@ -212,10 +212,8 @@ def any(x, axis=None, out=None):
     tensor([[0, 0, 1]], dtype=torch.uint8)
     """
     def local_any(t, *args, **kwargs):
-        if t.dtype is torch.float:
-            t = t.ceil()
-        a = t.byte()
-        return torch.any(a, *args, **kwargs)
+        return torch.any(t != 0, *args, **kwargs)
+
     return __reduce_op(x, local_any, MPI.LOR, axis=axis, out=out, keepdim=False)
 
 
