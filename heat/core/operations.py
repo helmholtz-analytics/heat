@@ -119,7 +119,7 @@ def all(x, axis=None, out=None):
     tensor([[0, 1, 0, 1, 0]], dtype=ht.uint8)
     """
     # TODO: make me more numpy API complete. Issue #101
-    return __reduce_op(x, lambda t, *args, **kwargs: t.byte().all(*args, **kwargs), MPI.LAND, axis, out=out)
+    return __reduce_op(x, lambda t, *args, **kwargs: torch.all(t != 0, *args, **kwargs), MPI.LAND, axis, out=out)
 
 
 def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
@@ -207,12 +207,7 @@ def any(x, axis=None, out=None):
     >>> res
     tensor([[0, 0, 1]], dtype=torch.uint8)
     """
-    def local_any(t, *args, **kwargs):
-        if t.dtype is torch.float:
-            t = t.ceil()
-        a = t.byte()
-        return torch.any(a, *args, **kwargs)
-    return __reduce_op(x, local_any, MPI.LOR, axis, out)
+    return __reduce_op(x, lambda t, *args, **kwargs: torch.any(t != 0, *args, **kwargs), MPI.LOR, axis, out)
 
 
 def argmax(x, axis=None, out=None):
