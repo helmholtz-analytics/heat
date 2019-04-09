@@ -178,6 +178,38 @@ class TestOperations(unittest.TestCase):
             ht.allclose(a, (2, 2, 2, 2))
         with self.assertRaises(TypeError):
             ht.allclose(a, '?')
+
+    def test_any(self):
+        x = ht.float32([[2.7, 0, 0],
+                        [0, 0, 0],
+                        [0, 0.3, 0]])
+        any_tensor = ht.any(x, axis=1)
+        res = ht.uint8([[1], [0], [1]])
+        self.assertIsInstance(any_tensor, ht.tensor)
+        self.assertEqual(any_tensor.shape, (3, 1))
+        self.assertEqual(any_tensor.dtype, ht.bool)
+        self.assertTrue(ht.equal(any_tensor, res))
+
+        any_tensor = ht.zeros((1, 2))
+        x = ht.int32([[0, 0],
+                      [0, 0],
+                      [0, 1]])
+        ht.any(x, axis=0, out=any_tensor)
+        res = ht.uint8([[0, 1]])
+        self.assertIsInstance(any_tensor, ht.tensor)
+        self.assertEqual(any_tensor.shape, (1, 2))
+        self.assertEqual(any_tensor.dtype, ht.bool)
+        self.assertTrue(ht.equal(any_tensor, res))
+
+        any_tensor = ht.zeros(1)
+        x = ht.float64([[0, 0, 0],
+                        [0, 0, 0]])
+        res = ht.zeros(1, dtype=ht.uint8)
+        any_tensor = ht.any(x)
+        self.assertIsInstance(any_tensor, ht.tensor)
+        self.assertEqual(any_tensor.shape, (1,))
+        self.assertEqual(any_tensor.dtype, ht.bool)
+        self.assertTrue(ht.equal(any_tensor, res))
             
     def test_argmax(self):
         torch.manual_seed(1)
