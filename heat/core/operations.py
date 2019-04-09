@@ -208,8 +208,8 @@ def argmax(x, axis=None, out=None, **kwargs):
         axis = kwargs.get('dim', -1)
         shape = x.shape
 
-        # case where the argmin axis is set to None
-        # argmin will be the flattened index, computed standalone and the actual minimum value obtain separately
+        # case where the argmax axis is set to None
+        # argmax will be the flattened index, computed standalone and the actual maximum value obtain separately
         if len(args) <= 1 and axis < 0:
             indices = torch.argmax(*args, **kwargs).reshape(1)
             maxima = args[0].flatten()[indices]
@@ -228,6 +228,10 @@ def argmax(x, axis=None, out=None, **kwargs):
 
         return torch.cat([maxima.double(), indices.double()])
 
+    # axis sanitation
+    if axis is not None:
+        if not isinstance(axis, int):
+            raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
     # perform the global reduction
     reduced_result = __reduce_op(x, local_argmax, MPI_ARGMAX, axis=axis, out=out, **kwargs)
 
@@ -252,7 +256,7 @@ def argmin(x, axis=None, out=None, **kwargs):
         Input array.
     axis : int, optional
         By default, the index is into the flattened tensor, otherwise along the specified axis.
-    # out : ht.tensor, optional. Issue #100
+    out : ht.tensor, optional. Issue #100
         If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
     Returns:
@@ -303,6 +307,10 @@ def argmin(x, axis=None, out=None, **kwargs):
 
         return torch.cat([minimums.double(), indices.double()])
 
+    # axis sanitation
+    if axis is not None:
+        if not isinstance(axis, int):
+            raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
     # perform the global reduction
     reduced_result = __reduce_op(x, local_argmin, MPI_ARGMIN, axis=axis, out=out, **kwargs)
 
