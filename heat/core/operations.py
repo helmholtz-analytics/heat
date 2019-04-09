@@ -1,3 +1,4 @@
+import builtins
 import itertools
 import torch
 import numpy as np
@@ -651,7 +652,7 @@ def __local_operation(operation, x, out):
     broadcast_shape = stride_tricks.broadcast_shape(x.lshape, out.lshape)
     padded_shape = (1,) * (len(broadcast_shape) - len(x.lshape)) + x.lshape
     multiples = [int(a / b) for a, b in zip(broadcast_shape, padded_shape)]
-    needs_repetition = any(multiple > 1 for multiple in multiples)
+    needs_repetition = builtins.any(multiple > 1 for multiple in multiples)
 
     # do an inplace operation into a provided buffer
     casted = x._tensor__array.type(torch_type)
