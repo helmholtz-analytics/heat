@@ -645,12 +645,15 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
         output_shape = (1,)
     else:
         if isinstance(axis, int):
-            axis = (axis,)
-        partial = x._tensor__array
-        for dim in axis:
-            partial = partial_op(partial, dim=dim, keepdim=True)
-            shape_keepdim = x.gshape[:dim] + (1,) + x.gshape[dim + 1:]
-        shape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
+            partial = partial_op(x._tensor__array, dim=axis, keepdim=True)
+            shape_keepdim = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
+            shape_losedim = x.gshape[:axis] + x.gshape[axis + 1:]
+        if isinstance(axis, tuple):
+            partial = x._tensor__array
+            for dim in axis:
+                partial = partial_op(partial, dim=dim, keepdim=True)
+                shape_keepdim = x.gshape[:dim] + (1,) + x.gshape[dim + 1:]
+            shape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
         output_shape = shape_keepdim if kwargs.get('keepdim') else shape_losedim
 
     # Check shape of output buffer, if any
