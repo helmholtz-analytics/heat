@@ -223,6 +223,45 @@ class tensor:
         """
         return operations.allclose(self, other, rtol, atol, equal_nan)
 
+    def any(self, axis=None, out=None):
+        """
+        Test whether any array element along a given axis evaluates to True.
+        The returning tensor is one dimensional unless axis is not None.
+
+        Parameters:
+        -----------
+        axis : int, optional
+            Axis along which a logic OR reduction is performed. With axis=None, the logical OR is performed over all
+            dimensions of the tensor.
+        out : tensor, optional
+            Alternative output tensor in which to place the result. It must have the same shape as the expected output.
+            The output is a tensor with dtype=bool.
+
+        Returns:
+        --------
+        boolean_tensor : tensor of type bool
+            Returns a tensor of booleans that are 1, if any non-zero values exist on this axis, 0 otherwise.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> t = ht.float32([[0.3, 0, 0.5]])
+        >>> t.any()
+        tensor([1], dtype=torch.uint8)
+        >>> t.any(axis=0)
+        tensor([[1, 0, 1]], dtype=torch.uint8)
+        >>> t.any(axis=1)
+        tensor([[1]], dtype=torch.uint8)
+
+        >>> t = ht.int32([[0, 0, 1], [0, 0, 0]])
+        >>> res = ht.zeros((1, 3), dtype=ht.bool)
+        >>> t.any(axis=0, out=res)
+        tensor([[0, 0, 1]], dtype=torch.uint8)
+        >>> res
+        tensor([[0, 0, 1]], dtype=torch.uint8)
+        """
+        return operations.any(self, axis, out)
+
     def argmax(self, axis=None, out=None, **kwargs):
         """
         Returns the indices of the minimum values along an axis.
@@ -1893,6 +1932,56 @@ def empty_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
             [ 3.6902e+19,  1.2096e+04,  7.1846e+22]])
     """
     return __factory_like(a, dtype, split, empty, device, comm)
+
+
+def eye(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+    """
+    Returns a new 2-D tensor with ones on the diagonal and zeroes elsewhere.
+
+    Parameters
+    ----------
+    shape : int or tuple of ints
+            The shape of the data-type. If only one number is provided, returning tensor will be square with that size.
+            In other cases, the first value represents the number rows, the second the number of columns.
+    dtype : ht.dtype, optional
+            Overrides the data type of the result.
+    split : int, optional
+            The axis along which the tensor is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+            Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm : Communication, optional
+            Handle to the nodes holding distributed parts or copies of this tensor.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> ht.eye(2)
+    tensor([[1., 0.],
+            [0., 1.]])
+
+    >>> ht.eye((2, 3), dtype=ht.int32)
+    tensor([[1, 0, 0],
+            [0, 1, 0]], dtype=torch.int32)
+    """
+    # Determine the actual size of the resulting data
+    gshape = shape
+    if isinstance(gshape, int):
+        gshape = (gshape, gshape)
+    if len(gshape) is 1:
+        gshape = gshape * 2
+
+    split = sanitize_axis(gshape, split)
+    device = devices.sanitize_device(device)
+    offset, lshape, _ = comm.chunk(gshape, split)
+    # Start by creating tensor filled with zeroes
+    data = torch.zeros(lshape, dtype=types.canonical_heat_type(dtype).torch_type(), device=device.torch_device)
+    # Insert ones at the correct positions
+    for i in range(min(lshape)):
+        pos_x = i if split is 0 else i + offset
+        pos_y = i if split is 1 else i + offset
+        data[pos_x][pos_y] = 1
+
+    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
 
 
 def full(shape, fill_value, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):

@@ -1,3 +1,4 @@
+import builtins
 import itertools
 import torch
 import numpy as np
@@ -14,6 +15,7 @@ __all__ = [
 
     'all',
     'allclose',
+    'any',
     'argmax',
     'argmin',
     'clip',
@@ -168,6 +170,53 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
         raise TypeError('Expected y to be a ht.tensor, but was {}'.format(type(y)))
 
     return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
+
+
+def any(x, axis=None, out=None):
+    """
+    Test whether any array element along a given axis evaluates to True.
+    The returning tensor is one dimensional unless axis is not None.
+
+    Parameters:
+    -----------
+    x : tensor
+        Input tensor
+    axis : int, optional
+        Axis along which a logic OR reduction is performed. With axis=None, the logical OR is performed over all
+        dimensions of the tensor.
+    out : tensor, optional
+        Alternative output tensor in which to place the result. It must have the same shape as the expected output.
+        The output is a tensor with dtype=bool.
+
+    Returns:
+    --------
+    boolean_tensor : tensor of type bool
+        Returns a tensor of booleans that are 1, if any non-zero values exist on this axis, 0 otherwise.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> t = ht.float32([[0.3, 0, 0.5]])
+    >>> t.any()
+    tensor([1], dtype=torch.uint8)
+    >>> t.any(axis=0)
+    tensor([[1, 0, 1]], dtype=torch.uint8)
+    >>> t.any(axis=1)
+    tensor([[1]], dtype=torch.uint8)
+
+    >>> t = ht.int32([[0, 0, 1], [0, 0, 0]])
+    >>> res = ht.zeros((1, 3), dtype=ht.bool)
+    >>> t.any(axis=0, out=res)
+    tensor([[0, 0, 1]], dtype=torch.uint8)
+    >>> res
+    tensor([[0, 0, 1]], dtype=torch.uint8)
+    """
+    def local_any(t, *args, **kwargs):
+        if t.dtype is torch.float:
+            t = t.ceil()
+        a = t.byte()
+        return torch.any(a, *args, **kwargs)
+    return __reduce_op(x, local_any, MPI.LOR, axis, out)
 
 
 def argmax(x, axis=None, out=None, **kwargs):
@@ -617,7 +666,7 @@ def __local_operation(operation, x, out):
     broadcast_shape = stride_tricks.broadcast_shape(x.lshape, out.lshape)
     padded_shape = (1,) * (len(broadcast_shape) - len(x.lshape)) + x.lshape
     multiples = [int(a / b) for a, b in zip(broadcast_shape, padded_shape)]
-    needs_repetition = any(multiple > 1 for multiple in multiples)
+    needs_repetition = builtins.any(multiple > 1 for multiple in multiples)
 
     # do an inplace operation into a provided buffer
     casted = x._tensor__array.type(torch_type)
