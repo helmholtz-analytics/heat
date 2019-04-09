@@ -93,7 +93,6 @@ def sanitize_axis(shape, axis):
     if axis is not None:
         if not isinstance(axis, int) and not isinstance(axis, tuple):
             raise TypeError('axis must be None or int or tuple, but was {}'.format(type(axis)))
-        pass
     if isinstance(axis, tuple):
         axis = tuple(dim+len(shape) if dim < 0 else dim for dim in axis)
         for dim in axis:
