@@ -1,10 +1,10 @@
-import unittest
 import torch
+import unittest
 
 import heat as ht
 
 
-class TestOperations(unittest.TestCase):
+class TestTrigonometrics(unittest.TestCase):
     def test_cos(self):
         # base elements
         elements = 30
@@ -53,7 +53,7 @@ class TestOperations(unittest.TestCase):
         elements = 30
         comparison = torch.arange(elements, dtype=torch.float64).cosh()
 
-        # cosine of float32
+        # hyperbolic cosine of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
         float32_cosh = ht.cosh(float32_tensor)
         self.assertIsInstance(float32_cosh, ht.Tensor)
@@ -61,7 +61,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(float32_cosh.dtype, ht.float32)
         self.assertTrue(torch.allclose(float32_cosh._Tensor__array.type(torch.double), comparison))
 
-        # coshine of float64
+        # hyperbolic cosine of float64
         float64_tensor = ht.arange(elements, dtype=ht.float64)
         float64_cosh = ht.cosh(float64_tensor)
         self.assertIsInstance(float64_cosh, ht.Tensor)
@@ -69,7 +69,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(float64_cosh.dtype, ht.float64)
         self.assertTrue(torch.allclose(float64_cosh._Tensor__array.type(torch.double), comparison))
 
-        # cosine of ints, automatic conversion to intermediate floats
+        # hyperbolic cosine of ints, automatic conversion to intermediate floats
         int32_tensor = ht.arange(elements, dtype=ht.int32)
         int32_cosh = ht.cosh(int32_tensor)
         self.assertIsInstance(int32_cosh, ht.Tensor)
@@ -77,7 +77,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(int32_cosh.dtype, ht.float64)
         self.assertTrue(torch.allclose(float32_cosh._Tensor__array.type(torch.double), comparison))
 
-        # cosine of longs, automatic conversion to intermediate floats
+        # hyperbolic cosine of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(elements, dtype=ht.int64)
         int64_cosh = ht.cosh(int64_tensor)
         self.assertIsInstance(int64_cosh, ht.Tensor)
@@ -139,7 +139,7 @@ class TestOperations(unittest.TestCase):
         elements = 30
         comparison = torch.arange(elements, dtype=torch.float64).sinh()
 
-        # sine of float32
+        # hyperbolic sine of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
         float32_sinh = ht.sinh(float32_tensor)
         self.assertIsInstance(float32_sinh, ht.Tensor)
@@ -147,7 +147,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(float32_sinh.dtype, ht.float32)
         self.assertTrue(torch.allclose(float32_sinh._Tensor__array.type(torch.double), comparison))
 
-        # sine of float64
+        # hyperbolic sine of float64
         float64_tensor = ht.arange(elements, dtype=ht.float64)
         float64_sinh = ht.sinh(float64_tensor)
         self.assertIsInstance(float64_sinh, ht.Tensor)
@@ -155,7 +155,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(float64_sinh.dtype, ht.float64)
         self.assertTrue(torch.allclose(float64_sinh._Tensor__array.type(torch.double), comparison))
 
-        # sine of ints, automatic conversion to intermediate floats
+        # hyperbolic sine of ints, automatic conversion to intermediate floats
         int32_tensor = ht.arange(elements, dtype=ht.int32)
         int32_sinh = ht.sinh(int32_tensor)
         self.assertIsInstance(int32_sinh, ht.Tensor)
@@ -163,7 +163,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(int32_sinh.dtype, ht.float64)
         self.assertTrue(torch.allclose(int32_sinh._Tensor__array.type(torch.double), comparison))
 
-        # sine of longs, automatic conversion to intermediate floats
+        # hyperbolic sine of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(elements, dtype=ht.int64)
         int64_sinh = ht.sinh(int64_tensor)
         self.assertIsInstance(int64_sinh, ht.Tensor)
@@ -225,7 +225,7 @@ class TestOperations(unittest.TestCase):
         elements = 30
         comparison = torch.arange(elements, dtype=torch.float64).tanh()
 
-        # tangent of float32
+        # hyperbolic tangent of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
         float32_tanh = ht.tanh(float32_tensor)
         self.assertIsInstance(float32_tanh, ht.Tensor)
@@ -233,7 +233,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(float32_tanh.dtype, ht.float32)
         self.assertTrue(torch.allclose(float32_tanh._Tensor__array.type(torch.double), comparison))
 
-        # tangent of float64
+        # hyperbolic tangent of float64
         float64_tensor = ht.arange(elements, dtype=ht.float64)
         float64_tanh = ht.tanh(float64_tensor)
         self.assertIsInstance(float64_tanh, ht.Tensor)
@@ -241,7 +241,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(float64_tanh.dtype, ht.float64)
         self.assertTrue(torch.allclose(float64_tanh._Tensor__array.type(torch.double), comparison))
 
-        # tangent of ints, automatic conversion to intermediate floats
+        # hyperbolic tangent of ints, automatic conversion to intermediate floats
         int32_tensor = ht.arange(elements, dtype=ht.int32)
         int32_tanh = ht.tanh(int32_tensor)
         self.assertIsInstance(int32_tanh, ht.Tensor)
@@ -249,7 +249,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(int32_tanh.dtype, ht.float64)
         self.assertTrue(torch.allclose(int32_tanh._Tensor__array.type(torch.double), comparison))
 
-        # tangent of longs, automatic conversion to intermediate floats
+        # hyperbolic tangent of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(elements, dtype=ht.int64)
         int64_tanh = ht.tanh(int64_tensor)
         self.assertIsInstance(int64_tanh, ht.Tensor)
