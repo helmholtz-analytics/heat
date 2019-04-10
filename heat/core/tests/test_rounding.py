@@ -76,7 +76,6 @@ class TestOperations(unittest.TestCase):
 
         # long tensor
         int64_tensor = ht.arange(elements, dtype=ht.int64, split=0)
-        print(int64_tensor)
         clipped = int64_tensor.clip(4, 16)
         self.assertIsInstance(clipped, ht.Tensor)
         self.assertEqual(clipped.dtype, ht.int64)
