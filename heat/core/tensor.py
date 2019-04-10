@@ -1,17 +1,19 @@
+import numpy as np
 import torch
 
-from .communication import Communication, MPI, MPI_WORLD
-from .stride_tricks import *
-from . import types
-from . import devices
-from . import operations
-from . import io
 from . import arithmetics
-from . import relations
-from . import trigonometrics
+from . import devices
 from . import exponential
-from . import rounding
+from . import io
+from . import operations
 from . import reductions
+from . import relations
+from . import rounding
+from . import trigonometrics
+from . import types
+
+from .communication import Communication, MPI, MPI_WORLD
+from .stride_tricks import sanitize_axis, sanitize_shape
 
 
 class Tensor:
@@ -364,6 +366,37 @@ class Tensor:
 
         return self
 
+    def ceil(self, out=None):
+        """
+        Return the ceil of the input, element-wise.
+
+        The ceil of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lceil x \rceil.
+
+        Parameters
+        ----------
+        out : ht.Tensor or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        ceiled : ht.Tensor
+            A tensor of the same shape as x, containing the ceiled valued of each element in this tensor. If out was
+            provided, ceiled is a reference to it.
+
+        Returns
+        -------
+        ceiled : ht.Tensor
+            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
+            provided, ceiled is a reference to it.
+
+        Examples
+        --------
+        >>> ht.arange(-2.0, 2.0, 0.4).ceil()
+        tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
+        """
+        return rounding.ceil(self, out)
+
     def clip(self, a_min, a_max, out=None):
         """
         Parameters
@@ -458,76 +491,6 @@ class Tensor:
         self.__array = self.__array.cpu()
         return self
 
-    def __truediv__(self, other):
-        """
-        Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
-        of the tensor by another tensor or scalar. Takes the second operand (scalar or tensor) by which to divide
-        as argument.
-
-        Parameters
-        ----------
-        other: tensor or scalar
-           The value(s) by which to divide the tensor (element-wise)
-
-        Returns
-        -------
-        result: ht.Tensor
-           A tensor containing the results of element-wise division.
-
-        Examples:
-        ---------
-        >>> import heat as ht
-        >>> ht.div(2.0, 2.0)
-        tensor([1.])
-
-        >>> T1 = ht.float32([[1, 2],[3, 4]])
-        >>> T2 = ht.float32([[2, 2], [2, 2]])
-        >>> T1.__div__(T2)
-        tensor([[0.5000, 1.0000],
-                [1.5000, 2.0000]])
-
-        >>> s = 2.0
-        >>> T1.__div__(s)
-        tensor([[0.5000, 1.0000],
-                [1.5, 2.0000]])
-        """
-        return arithmetics.div(self, other)
-
-    def __mod__(self, other):
-        """
-            Element-wise division remainder of values of self by values of operand other (i.e. self % other), not commutative.
-            Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2)
-            as arguments.
-
-            Parameters
-            ----------
-            other: tensor or scalar
-                The second operand by whose values it self to be divided.
-
-            Returns
-            -------
-            result: ht.Tensor
-                A tensor containing the remainder of the element-wise division of self by other.
-
-            Examples:
-            ---------
-            >>> import heat as ht
-            >>> ht.mod(2, 2)
-            tensor([0])
-
-            >>> T1 = ht.int32([[1, 2], [3, 4]])
-            >>> T2 = ht.int32([[2, 2], [2, 2]])
-            >>> T1 % T2
-            tensor([[1, 0],
-                    [1, 0]], dtype=torch.int32)
-
-            >>> s = ht.int32([2])
-            >>> s % T1
-            tensor([[0, 0]
-                    [2, 2]], dtype=torch.int32)
-            """
-        return arithmetics.mod(self, other)
-
     def __eq__(self, other):
         """
         Element-wise rich comparison of equality with values from second operand (scalar or tensor)
@@ -558,138 +521,6 @@ class Tensor:
                 [0, 0]])
         """
         return relations.eq(self, other)
-
-    def __ge__(self, other):
-        """
-        Element-wise rich comparison of relation "greater than or equal" with values from second operand (scalar or
-        tensor).
-        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
-
-        Parameters
-        ----------
-        other: tensor or scalar
-            The value(s) to which to compare elements from tensor
-
-        Returns
-        -------
-        result: ht.Tensor
-            Tensor holding 1 for all elements in which values in self are greater than or equal to values of other
-            (x1 >= x2), 0 for all other elements
-
-        Examples
-        -------
-        >>> import heat as ht
-        >>> T1 = ht.float32([[1, 2],[3, 4]])
-        >>> T1.__ge__(3.0)
-        tensor([[0, 0],
-                [1, 1]], dtype=torch.uint8)
-        >>> T2 = ht.float32([[2, 2], [2, 2]])
-        >>> T1.__ge__(T2)
-        tensor([[0, 1],
-                [1, 1]], dtype=torch.uint8)
-        """
-        return relations.ge(self, other)
-
-    if torch.cuda.device_count() > 0:
-        def gpu(self):
-            """
-            Returns a copy of this object in GPU memory. If this object is already in GPU memory, then no copy is
-            performed and the original object is returned.
-
-            Returns
-            -------
-            tensor_on_device : ht.Tensor
-                A copy of this object on the GPU.
-            """
-            self.__array = self.__array.cuda(devices.gpu_index())
-            return self
-
-    def __gt__(self, other):
-        """
-        Element-wise rich comparison of relation "greater than" with values from second operand (scalar or tensor)
-        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
-
-        Parameters
-        ----------
-        other: tensor or scalar
-            The value(s) to which to compare elements from tensor
-
-        Returns
-        -------
-        result: ht.Tensor
-            Tensor holding 1 for all elements in which values in self are greater than values of other (x1 > x2),
-            0 for all other elements
-
-         Examples
-         -------
-         >>> import heat as ht
-         >>> T1 = ht.float32([[1, 2],[3, 4]])
-         >>> T1.__gt__(3.0)
-         tensor([[0, 0],
-                 [0, 1]], dtype=torch.uint8)
-
-         >>> T2 = ht.float32([[2, 2], [2, 2]])
-         >>> T1.__gt__(T2)
-         tensor([[0, 0],
-                [1, 1]], dtype=torch.uint8)
-
-        """
-        return relations.gt(self, other)
-
-    def is_distributed(self):
-        """
-        Determines whether the data of this tensor is distributed across multiple processes.
-
-        Returns
-        -------
-        is_distributed : bool
-            Whether the data of the tensor is distributed across multiple processes
-        """
-        return self.split is not None and self.comm.is_distributed()
-
-    def max(self, axis=None, out=None, keepdim=None):
-        """
-        Return the maximum of an array or maximum along an axis.
-
-        Parameters
-        ----------
-        self : ht.Tensor
-            Input data.
-
-        axis : None or int  
-            Axis or axes along which to operate. By default, flattened input is used.
-        #TODO: out : ht.Tensor, optional
-            Alternative output array in which to place the result. Must be of the same shape and buffer length as the
-            expected output.
-        #TODO: initial : scalar, optional   
-            The minimum value of an output element. Must be present to allow computation on empty slice.
-        """
-        return relations.max(self, axis=axis, out=out, keepdim=keepdim)
-
-    def mean(self, axis):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        return self.sum(axis) / self.shape[axis]
-
-    def min(self, axis=None, out=None, keepdim=None):
-        """
-        Return the minimum of an array or minimum along an axis.
-
-        Parameters
-        ----------
-        self : ht.Tensor
-            Input data.
-        axis : None or int
-            Axis or axes along which to operate. By default, flattened input is used.
-        #TODO: out : ht.Tensor, optional
-            Alternative output array in which to place the result. Must be of the same shape and buffer length as the
-            expected output.
-        #TODO: initial : scalar, optional   
-            The maximum value of an output element. Must be present to allow computation on empty slice.
-        """
-        return relations.min(self, axis=axis, out=out, keepdim=keepdim)
 
     def expand_dims(self, axis):
         # TODO: document me
@@ -766,37 +597,6 @@ class Tensor:
             self.comm
         )
 
-    def ceil(self, out=None):
-        """
-        Return the ceil of the input, element-wise.
-
-        The ceil of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lceil x \rceil.
-
-        Parameters
-        ----------
-        out : ht.Tensor or None, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        ceiled : ht.Tensor
-            A tensor of the same shape as x, containing the ceiled valued of each element in this tensor. If out was
-            provided, ceiled is a reference to it.
-
-        Returns
-        -------
-        ceiled : ht.Tensor
-            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
-            provided, ceiled is a reference to it.
-
-        Examples
-        --------
-        >>> ht.arange(-2.0, 2.0, 0.4).ceil()
-        tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
-        """
-        return rounding.ceil(self, out)
-
     def floor(self, out=None):
         """
         Return the floor of the input, element-wise.
@@ -822,6 +622,101 @@ class Tensor:
         tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
         """
         return rounding.floor(self, out)
+
+    def __ge__(self, other):
+        """
+        Element-wise rich comparison of relation "greater than or equal" with values from second operand (scalar or
+        tensor).
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+            The value(s) to which to compare elements from tensor
+
+        Returns
+        -------
+        result: ht.Tensor
+            Tensor holding 1 for all elements in which values in self are greater than or equal to values of other
+            (x1 >= x2), 0 for all other elements
+
+        Examples
+        -------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2],[3, 4]])
+        >>> T1.__ge__(3.0)
+        tensor([[0, 0],
+                [1, 1]], dtype=torch.uint8)
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__ge__(T2)
+        tensor([[0, 1],
+                [1, 1]], dtype=torch.uint8)
+        """
+        return relations.ge(self, other)
+
+    def __getitem__(self, key):
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        # TODO: make me more numpy API complete
+        return Tensor(self.__array[key], self.shape, self.split, self.device, self.comm)
+
+    if torch.cuda.device_count() > 0:
+        def gpu(self):
+            """
+            Returns a copy of this object in GPU memory. If this object is already in GPU memory, then no copy is
+            performed and the original object is returned.
+
+            Returns
+            -------
+            tensor_on_device : ht.Tensor
+                A copy of this object on the GPU.
+            """
+            self.__array = self.__array.cuda(devices.gpu_index())
+            return self
+
+    def __gt__(self, other):
+        """
+        Element-wise rich comparison of relation "greater than" with values from second operand (scalar or tensor)
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+            The value(s) to which to compare elements from tensor
+
+        Returns
+        -------
+        result: ht.Tensor
+            Tensor holding 1 for all elements in which values in self are greater than values of other (x1 > x2),
+            0 for all other elements
+
+         Examples
+         -------
+         >>> import heat as ht
+         >>> T1 = ht.float32([[1, 2],[3, 4]])
+         >>> T1.__gt__(3.0)
+         tensor([[0, 0],
+                 [0, 1]], dtype=torch.uint8)
+
+         >>> T2 = ht.float32([[2, 2], [2, 2]])
+         >>> T1.__gt__(T2)
+         tensor([[0, 0],
+                [1, 1]], dtype=torch.uint8)
+
+        """
+        return relations.gt(self, other)
+
+    def is_distributed(self):
+        """
+        Determines whether the data of this tensor is distributed across multiple processes.
+
+        Returns
+        -------
+        is_distributed : bool
+            Whether the data of the tensor is distributed across multiple processes
+        """
+        return self.split is not None and self.comm.is_distributed()
 
     def __le__(self, other):
         """
@@ -963,6 +858,85 @@ class Tensor:
         """
         return relations.lt(self, other)
 
+    def max(self, axis=None, out=None, keepdim=None):
+        """
+        Return the maximum of an array or maximum along an axis.
+
+        Parameters
+        ----------
+        self : ht.Tensor
+            Input data.
+
+        axis : None or int  
+            Axis or axes along which to operate. By default, flattened input is used.
+        #TODO: out : ht.Tensor, optional
+            Alternative output array in which to place the result. Must be of the same shape and buffer length as the
+            expected output.
+        #TODO: initial : scalar, optional   
+            The minimum value of an output element. Must be present to allow computation on empty slice.
+        """
+        return relations.max(self, axis=axis, out=out, keepdim=keepdim)
+
+    def mean(self, axis):
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        # TODO: make me more numpy API complete
+        return self.sum(axis) / self.shape[axis]
+
+    def min(self, axis=None, out=None, keepdim=None):
+        """
+        Return the minimum of an array or minimum along an axis.
+
+        Parameters
+        ----------
+        self : ht.Tensor
+            Input data.
+        axis : None or int
+            Axis or axes along which to operate. By default, flattened input is used.
+        #TODO: out : ht.Tensor, optional
+            Alternative output array in which to place the result. Must be of the same shape and buffer length as the
+            expected output.
+        #TODO: initial : scalar, optional   
+            The maximum value of an output element. Must be present to allow computation on empty slice.
+        """
+        return relations.min(self, axis=axis, out=out, keepdim=keepdim)
+
+    def __mod__(self, other):
+        """
+            Element-wise division remainder of values of self by values of operand other (i.e. self % other), not commutative.
+            Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2)
+            as arguments.
+
+            Parameters
+            ----------
+            other: tensor or scalar
+                The second operand by whose values it self to be divided.
+
+            Returns
+            -------
+            result: ht.Tensor
+                A tensor containing the remainder of the element-wise division of self by other.
+
+            Examples:
+            ---------
+            >>> import heat as ht
+            >>> ht.mod(2, 2)
+            tensor([0])
+
+            >>> T1 = ht.int32([[1, 2], [3, 4]])
+            >>> T2 = ht.int32([[2, 2], [2, 2]])
+            >>> T1 % T2
+            tensor([[1, 0],
+                    [1, 0]], dtype=torch.int32)
+
+            >>> s = ht.int32([2])
+            >>> s % T1
+            tensor([[0, 0]
+                    [2, 2]], dtype=torch.int32)
+            """
+        return arithmetics.mod(self, other)
+
     def __mul__(self, other):
         """
         Element-wise multiplication (not matrix multiplication) with values from second operand (scalar or tensor)
@@ -1055,6 +1029,11 @@ class Tensor:
                 [9., 16.]])
         """
         return arithmetics.pow(self, other)
+
+    def __repr__(self, *args):
+        # TODO: document me
+        # TODO: generate none-PyTorch repr
+        return self.__array.__repr__(*args)
 
     def resplit(self, axis=None):
         """
@@ -1224,6 +1203,21 @@ class Tensor:
             """
             return io.save_netcdf(self, path, variable, mode, **kwargs)
 
+    def __setitem__(self, key, value):
+        # TODO: document me
+        # TODO: test me
+        # TODO: sanitize input
+        # TODO: make me more numpy API complete
+        if self.__split is not None:
+            raise NotImplementedError('Slicing not supported for __split != None')
+
+        if np.isscalar(value):
+            self.__array.__setitem__(key, value)
+        elif isinstance(value, Tensor):
+            self.__array.__setitem__(key, value.__array)
+        else:
+            raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
+
     def sin(self, out=None):
         """
         Return the trigonometric sine, element-wise.
@@ -1296,6 +1290,11 @@ class Tensor:
         tensor([nan, nan, nan, nan, nan])
         """
         return exponential.sqrt(self, out)
+
+    def __str__(self, *args):
+        # TODO: document me
+        # TODO: generate none-PyTorch str
+        return self.__array.__str__(*args)
 
     def __sub__(self, other):
         """
@@ -1492,127 +1491,40 @@ class Tensor:
         """
         return operations.triu(self, k)
 
-    def __str__(self, *args):
-        # TODO: document me
-        # TODO: generate none-PyTorch str
-        return self.__array.__str__(*args)
+    def __truediv__(self, other):
+        """
+        Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
+        of the tensor by another tensor or scalar. Takes the second operand (scalar or tensor) by which to divide
+        as argument.
 
-    def __repr__(self, *args):
-        # TODO: document me
-        # TODO: generate none-PyTorch repr
-        return self.__array.__repr__(*args)
+        Parameters
+        ----------
+        other: tensor or scalar
+           The value(s) by which to divide the tensor (element-wise)
 
-    def __getitem__(self, key):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        return Tensor(self.__array[key], self.shape, self.split, self.device, self.comm)
+        Returns
+        -------
+        result: ht.Tensor
+           A tensor containing the results of element-wise division.
 
-    def __setitem__(self, key, value):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        if self.__split is not None:
-            raise NotImplementedError('Slicing not supported for __split != None')
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> ht.div(2.0, 2.0)
+        tensor([1.])
 
-        if np.isscalar(value):
-            self.__array.__setitem__(key, value)
-        elif isinstance(value, Tensor):
-            self.__array.__setitem__(key, value.__array)
-        else:
-            raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
+        >>> T1 = ht.float32([[1, 2],[3, 4]])
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__div__(T2)
+        tensor([[0.5000, 1.0000],
+                [1.5000, 2.0000]])
 
-
-def __factory(shape, dtype, split, local_factory, device, comm):
-    """
-    Abstracted factory function for HeAT tensor initialization.
-
-    Parameters
-    ----------
-    shape : int or sequence of ints
-        Desired shape of the output array, e.g. 1 or (1, 2, 3,).
-    dtype : ht.dtype
-        The desired HeAT data type for the array, defaults to ht.float32.
-    split : int
-        The axis along which the array is split and distributed.
-    local_factory : function
-        Function that creates the local PyTorch tensor for the HeAT tensor.
-    device : str or None
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
-    comm: Communication, optional
-        Handle to the nodes holding distributed parts or copies of this tensor.
-
-    Returns
-    -------
-    out : ht.Tensor
-        Array of ones with given shape, data type and node distribution.
-    """
-    # clean the user input
-    shape = sanitize_shape(shape)
-    dtype = types.canonical_heat_type(dtype)
-    split = sanitize_axis(shape, split)
-    device = devices.sanitize_device(device)
-
-    # chunk the shape if necessary
-    _, local_shape, _ = comm.chunk(shape, split)
-    # create the torch data using the factory function
-    data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
-
-    return Tensor(data, shape, dtype, split, device, comm)
-
-
-def __factory_like(a, dtype, split, factory, device, comm, **kwargs):
-    """
-    Abstracted '...-like' factory function for HeAT tensor initialization
-
-    Parameters
-    ----------
-    a : object
-        The shape and data-type of 'a' define these same attributes of the returned array.
-    dtype : ht.dtype
-        The desired HeAT data type for the array, defaults to ht.float32.
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-    factory : function
-        Function that creates a HeAT tensor.
-    device : str or None
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
-    comm: Communication, optional
-        Handle to the nodes holding distributed parts or copies of this tensor.
-
-    Returns
-    -------
-    out : ht.Tensor
-        Array of ones with given shape, data type and node distribution that is like a
-    """
-    # determine the global shape of the object to create
-    # attempt in this order: shape property, length of object or default shape (1,)
-    try:
-        shape = a.shape
-    except AttributeError:
-        try:
-            shape = (len(a),)
-        except TypeError:
-            shape = (1,)
-
-    # infer the data type, otherwise default to float32
-    if dtype is None:
-        try:
-            dtype = types.heat_type_of(a)
-        except TypeError:
-            dtype = types.float32
-
-    # infer split axis
-    if split is None:
-        try:
-            split = a.split if not isinstance(a, str) else None
-        except AttributeError:
-            # do not split at all
-            pass
-
-    return factory(shape, dtype=dtype, split=split, device=device, comm=comm, **kwargs)
+        >>> s = 2.0
+        >>> T1.__div__(s)
+        tensor([[0.5000, 1.0000],
+                [1.5, 2.0000]])
+        """
+        return arithmetics.div(self, other)
 
 
 def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
@@ -1972,6 +1884,96 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
         data[pos_x][pos_y] = 1
 
     return Tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
+
+
+def __factory(shape, dtype, split, local_factory, device, comm):
+    """
+    Abstracted factory function for HeAT tensor initialization.
+
+    Parameters
+    ----------
+    shape : int or sequence of ints
+        Desired shape of the output array, e.g. 1 or (1, 2, 3,).
+    dtype : ht.dtype
+        The desired HeAT data type for the array, defaults to ht.float32.
+    split : int
+        The axis along which the array is split and distributed.
+    local_factory : function
+        Function that creates the local PyTorch tensor for the HeAT tensor.
+    device : str or None
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
+
+    Returns
+    -------
+    out : ht.Tensor
+        Array of ones with given shape, data type and node distribution.
+    """
+    # clean the user input
+    shape = sanitize_shape(shape)
+    dtype = types.canonical_heat_type(dtype)
+    split = sanitize_axis(shape, split)
+    device = devices.sanitize_device(device)
+
+    # chunk the shape if necessary
+    _, local_shape, _ = comm.chunk(shape, split)
+    # create the torch data using the factory function
+    data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
+
+    return Tensor(data, shape, dtype, split, device, comm)
+
+
+def __factory_like(a, dtype, split, factory, device, comm, **kwargs):
+    """
+    Abstracted '...-like' factory function for HeAT tensor initialization
+
+    Parameters
+    ----------
+    a : object
+        The shape and data-type of 'a' define these same attributes of the returned array.
+    dtype : ht.dtype
+        The desired HeAT data type for the array, defaults to ht.float32.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+    factory : function
+        Function that creates a HeAT tensor.
+    device : str or None
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
+
+    Returns
+    -------
+    out : ht.Tensor
+        Array of ones with given shape, data type and node distribution that is like a
+    """
+    # determine the global shape of the object to create
+    # attempt in this order: shape property, length of object or default shape (1,)
+    try:
+        shape = a.shape
+    except AttributeError:
+        try:
+            shape = (len(a),)
+        except TypeError:
+            shape = (1,)
+
+    # infer the data type, otherwise default to float32
+    if dtype is None:
+        try:
+            dtype = types.heat_type_of(a)
+        except TypeError:
+            dtype = types.float32
+
+    # infer split axis
+    if split is None:
+        try:
+            split = a.split if not isinstance(a, str) else None
+        except AttributeError:
+            # do not split at all
+            pass
+
+    return factory(shape, dtype=dtype, split=split, device=device, comm=comm, **kwargs)
 
 
 def full(shape, fill_value, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):

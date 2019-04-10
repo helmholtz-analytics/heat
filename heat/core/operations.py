@@ -1,7 +1,7 @@
 import builtins
 import itertools
-import torch
 import numpy as np
+import torch
 import warnings
 
 from .communication import MPI
