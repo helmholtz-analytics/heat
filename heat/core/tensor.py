@@ -1613,10 +1613,8 @@ class tensor:
                 elif self.split != 0:
                     _, _, chunk_slice2 = self.comm.chunk(self.shape, self.split)
                     if key in range(chunk_slice2[0].start, chunk_slice2[0].stop):  # need to test if the given axis is on the node and then get the shape
-                        # gout = self.comm.allreduce(tuple(self.__array[key].shape)[0], MPI.SUM)
                         arr = self.__array[key]
                         gout = list(arr.shape)
-                        # return tensor(, (gout, ), self.dtype, self.split, self.device, self.comm)
                 else:
                     warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
 
@@ -1667,7 +1665,6 @@ class tensor:
                     one_ret = True
 
                 elif any(isinstance(k, int) for k in key) and self.split > 1:
-                    # print(self.split - 1)
                     gout[self.split - 1] = self.comm.allreduce(gout[self.split - 1], MPI.SUM)
 
                 elif all_slices:
