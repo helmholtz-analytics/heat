@@ -149,7 +149,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(float_volume_is_one.shape, (3,))
         self.assertEqual(float_volume_is_one.all(axis=0).dtype, ht.bool)
         self.assertEqual(float_volume_is_one._tensor__array.dtype, torch.uint8)
-        self.assertNotEqual(float_volume_is_one.split, None)
+        self.assertEqual(float_volume_is_one.split, None)
 
         # check all over all float elements of split 5d tensor with negative axis
         ones_noaxis_split_axis_neg = ht.zeros((1, 2, 3, 4, 5), split=1)

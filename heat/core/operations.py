@@ -708,7 +708,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
         raise ValueError('Expecting output buffer of shape {}, got {}'.format(output_shape, out.shape))
 
     # perform a reduction operation in case the tensor is distributed across the reduction axis
-    if x.split is not None and (axis is None or dim == x.split for dim in axis):
+    if x.split is not None and (axis is None or (x.split in axis)):
         split = None
         if x.comm.is_distributed():
             x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)

@@ -102,7 +102,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(shape_noaxis_split_axis_tuple_sum.dtype, ht.float32)
         self.assertEqual(
             shape_noaxis_split_axis_tuple_sum._tensor__array.dtype, torch.float32)
-        self.assertEqual(shape_noaxis_split_axis_tuple_sum.split, 1)
+        self.assertEqual(shape_noaxis_split_axis_tuple_sum.split, None)
 
         # exceptions
         with self.assertRaises(ValueError):
