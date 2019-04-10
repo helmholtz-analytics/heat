@@ -1,12 +1,14 @@
 import torch
 
+from . import operations
+from . import tensor
 from . import types
-from .operations import __local_operation as local_op
 
 __all__ = [
     'abs',
     'absolute',
     'ceil',
+    'clip',
     'floor'
 ]
 
@@ -35,7 +37,7 @@ def abs(x, out=None, dtype=None):
     if dtype is not None and not issubclass(dtype, types.generic):
         raise TypeError('dtype must be a heat data type')
 
-    absolute_values = local_op(torch.abs, x, out)
+    absolute_values = operations.__local_operation(torch.abs, x, out)
     if dtype is not None:
         absolute_values._Tensor__array = absolute_values._Tensor__array.type(
             dtype.torch_type())
@@ -94,7 +96,42 @@ def ceil(x, out=None):
     >>> ht.ceil(ht.arange(-2.0, 2.0, 0.4))
     tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
     """
-    return local_op(torch.ceil, x, out)
+    return operations.__local_operation(torch.ceil, x, out)
+
+
+def clip(a, a_min, a_max, out=None):
+    """
+    Parameters
+    ----------
+    a : ht.Tensor
+        Array containing elements to clip.
+    a_min : scalar or None
+        Minimum value. If None, clipping is not performed on lower interval edge. Not more than one of a_min and
+        a_max may be None.
+    a_max : scalar or None
+        Maximum value. If None, clipping is not performed on upper interval edge. Not more than one of a_min and
+        a_max may be None.
+    out : ht.Tensor, optional
+        The results will be placed in this array. It may be the input array for in-place clipping. out must be of
+        the right shape to hold the output. Its type is preserved.
+
+    Returns
+    -------
+    clipped_values : ht.Tensor
+        A tensor with the elements of this tensor, but where values < a_min are replaced with a_min, and those >
+        a_max with a_max.
+    """
+    if not isinstance(a, tensor.Tensor):
+        raise TypeError('a must be a tensor')
+    if a_min is None and a_max is None:
+        raise ValueError('either a_min or a_max must be set')
+
+    if out is None:
+        return tensor.Tensor(a._Tensor__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, a.device, a.comm)
+    if not isinstance(out, tensor.Tensor):
+        raise TypeError('out must be a tensor')
+
+    return a._Tensor__array.clamp(a_min, a_max, out=out._Tensor__array) and out
 
 
 def floor(x, out=None):
@@ -122,4 +159,4 @@ def floor(x, out=None):
     >>> ht.floor(ht.arange(-2.0, 2.0, 0.4))
     tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
     """
-    return local_op(torch.floor, x, out)
+    return operations.__local_operation(torch.floor, x, out)

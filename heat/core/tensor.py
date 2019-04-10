@@ -417,7 +417,7 @@ class Tensor:
             A tensor with the elements of this tensor, but where values < a_min are replaced with a_min, and those >
             a_max with a_max.
         """
-        return operations.clip(self, a_min, a_max, out)
+        return rounding.clip(self, a_min, a_max, out)
 
     def copy(self):
         """

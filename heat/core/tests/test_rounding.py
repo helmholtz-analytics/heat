@@ -1,5 +1,5 @@
-import unittest
 import torch
+import unittest
 
 import heat as ht
 
@@ -63,6 +63,32 @@ class TestOperations(unittest.TestCase):
             ht.floor([0, 1, 2, 3])
         with self.assertRaises(TypeError):
             ht.floor(object())
+
+    def test_clip(self):
+        elements = 20
+
+        # float tensor
+        float32_tensor = ht.arange(elements, dtype=ht.float32, split=0)
+        clipped = float32_tensor.clip(5, 15)
+        self.assertIsInstance(clipped, ht.Tensor)
+        self.assertEqual(clipped.dtype, ht.float32)
+        self.assertEqual(clipped.sum(axis=0), 195)
+
+        # long tensor
+        int64_tensor = ht.arange(elements, dtype=ht.int64, split=0)
+        print(int64_tensor)
+        clipped = int64_tensor.clip(4, 16)
+        self.assertIsInstance(clipped, ht.Tensor)
+        self.assertEqual(clipped.dtype, ht.int64)
+        self.assertEqual(clipped.sum(axis=0), 195)
+
+        # test the exceptions
+        with self.assertRaises(TypeError):
+            ht.clip(torch.arange(10), 2, 5)
+        with self.assertRaises(ValueError):
+            ht.arange(20).clip(None, None)
+        with self.assertRaises(TypeError):
+            ht.clip(ht.arange(20), 5, 15, out=torch.arange(20))
 
     def test_floor(self):
         start, end, step = -5.0, 5.0, 1.4
