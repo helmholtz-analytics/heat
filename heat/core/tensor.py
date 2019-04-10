@@ -7,7 +7,7 @@ from . import exponential
 from . import io
 from . import operations
 from . import reductions
-from . import relations
+from . import relational
 from . import rounding
 from . import trigonometrics
 from . import types
@@ -520,7 +520,7 @@ class Tensor:
         tensor([[0, 1],
                 [0, 0]])
         """
-        return relations.eq(self, other)
+        return relational.eq(self, other)
 
     def expand_dims(self, axis):
         # TODO: document me
@@ -652,7 +652,7 @@ class Tensor:
         tensor([[0, 1],
                 [1, 1]], dtype=torch.uint8)
         """
-        return relations.ge(self, other)
+        return relational.ge(self, other)
 
     def __getitem__(self, key):
         # TODO: document me
@@ -705,7 +705,7 @@ class Tensor:
                 [1, 1]], dtype=torch.uint8)
 
         """
-        return relations.gt(self, other)
+        return relational.gt(self, other)
 
     def is_distributed(self):
         """
@@ -748,7 +748,7 @@ class Tensor:
                 [0, 0]], dtype=torch.uint8)
 
         """
-        return relations.le(self, other)
+        return relational.le(self, other)
 
     def log(self, out=None):
         """
@@ -856,7 +856,7 @@ class Tensor:
                [0, 0]], dtype=torch.uint8)
 
         """
-        return relations.lt(self, other)
+        return relational.lt(self, other)
 
     def max(self, axis=None, out=None, keepdim=None):
         """
@@ -875,7 +875,7 @@ class Tensor:
         #TODO: initial : scalar, optional   
             The minimum value of an output element. Must be present to allow computation on empty slice.
         """
-        return relations.max(self, axis=axis, out=out, keepdim=keepdim)
+        return relational.max(self, axis=axis, out=out, keepdim=keepdim)
 
     def mean(self, axis):
         # TODO: document me
@@ -900,7 +900,7 @@ class Tensor:
         #TODO: initial : scalar, optional   
             The maximum value of an output element. Must be present to allow computation on empty slice.
         """
-        return relations.min(self, axis=axis, out=out, keepdim=keepdim)
+        return relational.min(self, axis=axis, out=out, keepdim=keepdim)
 
     def __mod__(self, other):
         """
@@ -996,7 +996,7 @@ class Tensor:
         tensor([[1, 0],
                 [1, 1]])
         """
-        return relations.ne(self, other)
+        return relational.ne(self, other)
 
     def __pow__(self, other):
         """

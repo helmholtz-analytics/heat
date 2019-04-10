@@ -1,5 +1,5 @@
-import unittest
 import torch
+import unittest
 
 import heat as ht
 
@@ -22,7 +22,7 @@ Ts = ht.ones((2, 2), split=1)
 otherType = (2, 2)
 
 
-class TestOperations(unittest.TestCase):
+class TestRelational(unittest.TestCase):
     def test_eq(self):
         T_r = ht.uint8([
             [0, 1],

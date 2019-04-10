@@ -7,7 +7,7 @@ from .io import *
 from .operations import *
 from . import random
 from .reductions import *
-from .relations import *
+from .relational import *
 from .rounding import *
 from .tensor import *
 from .trigonometrics import *
