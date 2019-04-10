@@ -18,7 +18,6 @@ __all__ = [
     'any',
     'argmax',
     'argmin',
-    'copy',
     'transpose',
     'tril',
     'triu'
@@ -364,25 +363,6 @@ def argmin(x, axis=None, out=None, **kwargs):
         out._Tensor__array.storage().copy_(reduced_result._Tensor__array.storage())
 
     return reduced_result
-
-
-def copy(a):
-    """
-    Return an array copy of the given object.
-
-    Parameters
-    ----------
-    a : ht.Tensor
-        Input data to be copied.
-
-    Returns
-    -------
-    copied : ht.Tensor
-        A copy of the original
-    """
-    if not isinstance(a, tensor.Tensor):
-        raise TypeError('input needs to be a tensor')
-    return tensor.Tensor(a._Tensor__array.clone(), a.shape, a.dtype, a.split, a.device, a.comm)
 
 
 def transpose(a, axes=None):

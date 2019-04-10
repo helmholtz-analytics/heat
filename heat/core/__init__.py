@@ -4,6 +4,7 @@ from .constants import *
 from .devices import *
 from .exponential import *
 from .io import *
+from .memory import *
 from .operations import *
 from . import random
 from .reductions import *

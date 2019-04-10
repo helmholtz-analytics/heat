@@ -5,6 +5,7 @@ from . import arithmetics
 from . import devices
 from . import exponential
 from . import io
+from . import memory
 from . import operations
 from . import reductions
 from . import relational
@@ -428,7 +429,7 @@ class Tensor:
         copied : ht.Tensor
             A copy of the original
         """
-        return operations.copy(self)
+        return memory.copy(self)
 
     def cos(self, out=None):
         """
