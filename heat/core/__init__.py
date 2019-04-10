@@ -7,7 +7,6 @@ from .io import *
 from .memory import *
 from .operations import *
 from . import random
-from .reductions import *
 from .relational import *
 from .rounding import *
 from .tensor import *

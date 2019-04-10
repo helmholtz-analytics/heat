@@ -7,7 +7,6 @@ from . import exponential
 from . import io
 from . import memory
 from . import operations
-from . import reductions
 from . import relational
 from . import rounding
 from . import trigonometrics
@@ -1360,7 +1359,7 @@ class Tensor:
         tensor([[[3.],
                  [3.]]])
         """
-        return reductions.sum(self, axis=axis, out=out, keepdim=keepdim)
+        return arithmetics.sum(self, axis=axis, out=out, keepdim=keepdim)
 
     def tan(self, out=None):
         """

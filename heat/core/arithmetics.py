@@ -1,7 +1,8 @@
 import torch
 
+from .communication import MPI
+from . import operations
 from . import tensor
-from .operations import __binary_op as binary_op
 
 
 __all__ = [
@@ -11,7 +12,8 @@ __all__ = [
     'mod',
     'mul',
     'pow',
-    'sub'
+    'sub',
+    'sum'
 ]
 
 
@@ -37,7 +39,7 @@ def add(t1, t2):
     Examples:
     ---------
     >>> import heat as ht
-    >>> ht.add ( 1.0, 4.0)
+    >>> ht.add(1.0, 4.0)
     tensor([5.])
 
     >>> T1 = ht.float32([[1, 2], [3, 4]])
@@ -53,7 +55,7 @@ def add(t1, t2):
 
     """
 
-    return binary_op(torch.add, t1, t2)
+    return operations.__binary_op(torch.add, t1, t2)
 
 
 def div(t1, t2):
@@ -91,7 +93,46 @@ def div(t1, t2):
     tensor([[2.0000, 1.0000],
             [0.6667, 0.5000]])
     """
-    return binary_op(torch.div, t1, t2)
+    return operations.__binary_op(torch.div, t1, t2)
+
+
+def fmod(t1, t2):
+    """
+    Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
+    Takes the two operands (scalar or tensor, both may contain floating point number) whose elements are to be
+    divided (operand 1 by operand 2) as arguments.
+
+    Parameters
+    ----------
+    t1: tensor or scalar
+        The first operand whose values are divided (may be floats)
+
+    t2: tensor or scalar
+        The second operand by whose values is divided (may be floats)
+
+    Returns
+    -------
+    result: ht.Tensor
+        A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> ht.fmod(2.0, 2.0)
+    tensor([0.])
+
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.fmod(T1, T2)
+    tensor([[1., 0.],
+            [1., 0.]])
+
+    >>> s = 2.0
+    >>> ht.fmod(s, T1)
+    tensor([[0., 0.]
+            [2., 2.]])
+    """
+    return operations.__binary_op(torch.fmod, t1, t2)
 
 
 def mod(t1, t2):
@@ -134,45 +175,6 @@ def mod(t1, t2):
     return fmod(t1, t2)
 
 
-def fmod(t1, t2):
-    """
-    Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
-    Takes the two operands (scalar or tensor, both may contain floating point number) whose elements are to be
-    divided (operand 1 by operand 2) as arguments.
-
-    Parameters
-    ----------
-    t1: tensor or scalar
-        The first operand whose values are divided (may be floats)
-
-    t2: tensor or scalar
-        The second operand by whose values is divided (may be floats)
-
-    Returns
-    -------
-    result: ht.Tensor
-        A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2.
-
-    Examples:
-    ---------
-    >>> import heat as ht
-    >>> ht.fmod(2.0, 2.0)
-    tensor([0.])
-
-    >>> T1 = ht.float32([[1, 2], [3, 4]])
-    >>> T2 = ht.float32([[2, 2], [2, 2]])
-    >>> ht.fmod(T1, T2)
-    tensor([[1., 0.],
-            [1., 0.]])
-
-    >>> s = 2.0
-    >>> ht.fmod(s, T1)
-    tensor([[0., 0.]
-            [2., 2.]])
-    """
-    return binary_op(torch.fmod, t1, t2)
-
-
 def mul(t1, t2):
     """
     Element-wise multiplication (NOT matrix multiplication) of values from two operands, commutative.
@@ -193,7 +195,7 @@ def mul(t1, t2):
     Examples:
     ---------
     >>> import heat as ht
-    >>> ht.mul ( 2.0, 4.0)
+    >>> ht.mul(2.0, 4.0)
     tensor([8.])
 
     >>> T1 = ht.float32([[1, 2], [3, 4]])
@@ -212,7 +214,7 @@ def mul(t1, t2):
     tensor([[2., 4.],
             [6., 8.]])
     """
-    return binary_op(torch.mul, t1, t2)
+    return operations.__binary_op(torch.mul, t1, t2)
 
 
 def pow(t1, t2):
@@ -237,7 +239,7 @@ def pow(t1, t2):
     Examples:
     ---------
     >>> import heat as ht
-    >>> ht.pow ( 3.0, 2.0)
+    >>> ht.pow (3.0, 2.0)
     tensor([9.])
 
     >>> T1 = ht.float32([[1, 2], [3, 4]])
@@ -250,7 +252,7 @@ def pow(t1, t2):
     tensor([[1., 8.],
             [27., 64.]])
     """
-    return binary_op(torch.pow, t1, t2)
+    return operations.__binary_op(torch.pow, t1, t2)
 
 
 def sub(t1, t2):
@@ -275,7 +277,7 @@ def sub(t1, t2):
     Examples:
     ---------
     >>> import heat as ht
-    >>> ht.sub ( 4.0, 1.0)
+    >>> ht.sub(4.0, 1.0)
     tensor([3.])
 
     >>> T1 = ht.float32([[1, 2], [3, 4]])
@@ -289,4 +291,44 @@ def sub(t1, t2):
     tensor([[ 1.,  0.],
             [-1., -2.]])
     """
-    return binary_op(torch.sub, t1, t2)
+    return operations.__binary_op(torch.sub, t1, t2)
+
+
+def sum(x, axis=None, out=None, keepdim=None):
+    """
+    Sum of array elements over a given axis.
+
+    Parameters
+    ----------
+    x : ht.Tensor
+        Input data.
+
+    axis : None or int, optional
+        Axis along which a sum is performed. The default, axis=None, will sum
+        all of the elements of the input array. If axis is negative it counts
+        from the last to the first axis.
+
+    Returns
+    -------
+    sum_along_axis : ht.Tensor
+        An array with the same shape as self.__array except for the specified axis which
+        becomes one, e.g. a.shape = (1, 2, 3) => ht.ones((1, 2, 3)).sum(axis=1).shape = (1, 1, 3)
+
+    Examples
+    --------
+    >>> ht.sum(ht.ones(2))
+    tensor([2.])
+
+    >>> ht.sum(ht.ones((3,3)))
+    tensor([9.])
+
+    >>> ht.sum(ht.ones((3,3)).astype(ht.int))
+    tensor([9])
+
+    >>> ht.sum(ht.ones((3,2,1)), axis=-3)
+    tensor([[[3.],
+            [3.]]])
+    """
+    # TODO: make me more numpy API complete Issue #101
+    return operations.__reduce_op(x, torch.sum, MPI.SUM, axis=axis, out=out, keepdim=keepdim)
+
