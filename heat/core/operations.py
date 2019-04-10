@@ -4,9 +4,10 @@ import torch
 import warnings
 
 from .communication import MPI
+from . import factories
 from . import stride_tricks
-from . import types
 from . import tensor
+from . import types
 
 __all__ = [
     'all',
@@ -306,13 +307,13 @@ def __binary_op(operation, t1, t2):
     """
     if np.isscalar(t1):
         try:
-            t1 = tensor.array([t1])
+            t1 = factories.array([t1])
         except (ValueError, TypeError,):
             raise TypeError('Data type not supported, input was {}'.format(type(t1)))
 
         if np.isscalar(t2):
             try:
-                t2 = tensor.array([t2])
+                t2 = factories.array([t2])
             except (ValueError, TypeError,):
                 raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
             output_shape = (1,)
@@ -333,7 +334,7 @@ def __binary_op(operation, t1, t2):
     elif isinstance(t1, tensor.Tensor):
         if np.isscalar(t2):
             try:
-                t2 = tensor.array([t2])
+                t2 = factories.array([t2])
                 output_shape = t1.shape
                 output_split = t1.split
                 output_device = t1.device

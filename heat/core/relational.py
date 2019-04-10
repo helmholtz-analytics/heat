@@ -1,9 +1,9 @@
 import torch
 import numpy as np
 
-
+from . import factories
+from . import operations
 from . import tensor
-from .operations import __binary_op as binary_op
 
 __all__ = [
     'eq',
@@ -48,7 +48,7 @@ def eq(t1, t2):
     tensor([[0, 1],
             [0, 0]])
     """
-    return binary_op(torch.eq, t1, t2)
+    return operations.__binary_op(torch.eq, t1, t2)
 
 
 def equal(t1, t2):
@@ -85,13 +85,13 @@ def equal(t1, t2):
     """
     if np.isscalar(t1):
         try:
-            t1 = tensor.array([t1])
+            t1 = factories.array([t1])
         except (TypeError, ValueError,):
             raise TypeError('Data type not supported, input was {}'.format(type(t1)))
 
         if np.isscalar(t2):
             try:
-                t2 = tensor.array([t2])
+                t2 = factories.array([t2])
             except (TypeError, ValueError,):
                 raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
         elif isinstance(t2, tensor.Tensor):
@@ -102,7 +102,7 @@ def equal(t1, t2):
     elif isinstance(t1, tensor.Tensor):
         if np.isscalar(t2):
             try:
-                t2 = tensor.array([t2])
+                t2 = factories.array([t2])
             except (TypeError, ValueError,):
                 raise TypeError('Data type not supported, input was {}'.format(type(t2)))
         elif isinstance(t2, tensor.Tensor):
@@ -153,7 +153,7 @@ def ge(t1, t2):
     tensor([[0, 1],
             [1, 1]], dtype=torch.uint8)
     """
-    return binary_op(torch.ge, t1, t2)
+    return operations.__binary_op(torch.ge, t1, t2)
 
 
 def gt(t1, t2):
@@ -189,7 +189,7 @@ def gt(t1, t2):
     tensor([[0, 0],
             [1, 1]], dtype=torch.uint8)
     """
-    return binary_op(torch.gt, t1, t2)
+    return operations.__binary_op(torch.gt, t1, t2)
 
 
 def le(t1, t2):
@@ -224,7 +224,7 @@ def le(t1, t2):
     tensor([[1, 1],
             [0, 0]], dtype=torch.uint8)
     """
-    return binary_op(torch.le, t1, t2)
+    return operations.__binary_op(torch.le, t1, t2)
 
 
 def lt(t1, t2):
@@ -261,7 +261,7 @@ def lt(t1, t2):
             [0, 0]], dtype=torch.uint8)
     """
 
-    return binary_op(torch.lt, t1, t2)
+    return operations.__binary_op(torch.lt, t1, t2)
 
 
 def ne(t1, t2):
@@ -295,4 +295,4 @@ def ne(t1, t2):
     tensor([[1, 0],
             [1, 1]])
     """
-    return binary_op(torch.ne, t1, t2)
+    return operations.__binary_op(torch.ne, t1, t2)

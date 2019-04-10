@@ -3,6 +3,7 @@ from .communication import *
 from .constants import *
 from .devices import *
 from .exponential import *
+from .factories import *
 from .io import *
 from .linalg import *
 from .memory import *
