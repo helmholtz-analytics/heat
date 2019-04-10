@@ -18,9 +18,9 @@ def abs(x, out=None, dtype=None):
     Parameters
     ----------
 
-    x : ht.tensor
+    x : ht.Tensor
         The values for which the compute the absolute value.
-    out : ht.tensor, optional
+    out : ht.Tensor, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated array is returned.
     dtype : ht.type, optional
@@ -29,7 +29,7 @@ def abs(x, out=None, dtype=None):
 
     Returns
     -------
-    absolute_values : ht.tensor
+    absolute_values : ht.Tensor
         A tensor containing the absolute value of each element in x.
     """
     if dtype is not None and not issubclass(dtype, types.generic):
@@ -37,9 +37,9 @@ def abs(x, out=None, dtype=None):
 
     absolute_values = local_op(torch.abs, x, out)
     if dtype is not None:
-        absolute_values._tensor__array = absolute_values._tensor__array.type(
+        absolute_values._Tensor__array = absolute_values._Tensor__array.type(
             dtype.torch_type())
-        absolute_values._tensor__dtype = dtype
+        absolute_values._Tensor__dtype = dtype
 
     return absolute_values
 
@@ -52,9 +52,9 @@ def absolute(x, out=None, dtype=None):
 
     Parameters
     ----------
-    x : ht.tensor
+    x : ht.Tensor
         The values for which the compute the absolute value.
-    out : ht.tensor, optional
+    out : ht.Tensor, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated array is returned.
     dtype : ht.type, optional
@@ -63,7 +63,7 @@ def absolute(x, out=None, dtype=None):
 
     Returns
     -------
-    absolute_values : ht.tensor
+    absolute_values : ht.Tensor
         A tensor containing the absolute value of each element in x.
     """
     return abs(x, out, dtype)
@@ -77,15 +77,15 @@ def ceil(x, out=None):
 
     Parameters
     ----------
-    x : ht.tensor
+    x : ht.Tensor
         The value for which to compute the ceiled values.
-    out : ht.tensor or None, optional
+    out : ht.Tensor or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
 
     Returns
     -------
-    ceiled : ht.tensor
+    ceiled : ht.Tensor
         A tensor of the same shape as x, containing the ceiled valued of each element in this tensor. If out was
         provided, ceiled is a reference to it.
 
@@ -105,15 +105,15 @@ def floor(x, out=None):
 
     Parameters
     ----------
-    x : ht.tensor
+    x : ht.Tensor
         The value for which to compute the floored values.
-    out : ht.tensor or None, optional
+    out : ht.Tensor or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
 
     Returns
     -------
-    floored : ht.tensor
+    floored : ht.Tensor
         A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
         provided, floored is a reference to it.
 

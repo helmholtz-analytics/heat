@@ -31,7 +31,7 @@ def add(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.Tensor
         A tensor containing the results of element-wise addition of t1 and t2.
 
     Examples:
@@ -71,7 +71,7 @@ def div(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.Tensor
         A tensor containing the results of element-wise true division (i.e. floating point values) of t1 by t2.
 
     Examples:
@@ -111,7 +111,7 @@ def mod(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.Tensor
         A tensor containing the remainder of the element-wise division of t1 by t2.
 
     Examples:
@@ -150,7 +150,7 @@ def fmod(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.Tensor
         A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2.
 
     Examples:
@@ -187,7 +187,7 @@ def mul(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.Tensor
         A tensor containing the results of element-wise multiplication of t1 and t2.
 
     Examples:
@@ -231,7 +231,7 @@ def pow(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.Tensor
         A tensor containing the results of element-wise exponential function.
 
     Examples:
@@ -269,7 +269,7 @@ def sub(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.Tensor
         A tensor containing the results of element-wise subtraction of t1 and t2.
 
     Examples:

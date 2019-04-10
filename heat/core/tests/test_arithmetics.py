@@ -14,7 +14,7 @@ T1 = ht.float32([
 ])
 v = ht.float32([2, 2])
 v2 = ht.float32([2, 2, 2])
-T_s = ht.tensor(T1._tensor__array, T1.shape, T1.dtype, 0, T1.device, T1.comm)
+T_s = ht.Tensor(T1._Tensor__array, T1.shape, T1.dtype, 0, T1.device, T1.comm)
 otherType = (2, 2)
 
 

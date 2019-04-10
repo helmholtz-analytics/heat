@@ -25,7 +25,7 @@ def uniform(low=0.0, high=1.0, size=None, device=None, comm=MPI_WORLD):
     device = devices.sanitize_device(device)
     data = torch.rand(*size, device=device.torch_device) * (high - low) + low
 
-    return tensor(data, size, types.float32, None, device, comm)
+    return tensor.Tensor(data, size, types.float32, None, device, comm)
 
 
 def randn(*args, split=None, device=None, comm=MPI_WORLD):
@@ -83,4 +83,4 @@ def randn(*args, split=None, device=None, comm=MPI_WORLD):
     device = devices.sanitize_device(device)
     data = torch.randn(args, device=device.torch_device)
 
-    return tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
+    return tensor.Tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)

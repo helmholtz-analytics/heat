@@ -15,7 +15,7 @@ def sum(x, axis=None, out=None, keepdim=None):
 
     Parameters
     ----------
-    x : ht.tensor
+    x : ht.Tensor
         Input data.
 
     axis : None or int, optional
@@ -25,7 +25,7 @@ def sum(x, axis=None, out=None, keepdim=None):
 
     Returns
     -------
-    sum_along_axis : ht.tensor
+    sum_along_axis : ht.Tensor
         An array with the same shape as self.__array except for the specified axis which
         becomes one, e.g. a.shape = (1, 2, 3) => ht.ones((1, 2, 3)).sum(axis=1).shape = (1, 1, 3)
 

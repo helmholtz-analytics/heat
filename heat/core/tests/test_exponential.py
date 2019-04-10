@@ -15,37 +15,37 @@ class TestOperations(unittest.TestCase):
         # exponential of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
         float32_exp = ht.exp(float32_tensor)
-        self.assertIsInstance(float32_exp, ht.tensor)
+        self.assertIsInstance(float32_exp, ht.Tensor)
         self.assertEqual(float32_exp.dtype, ht.float32)
         self.assertEqual(float32_exp.dtype, ht.float32)
-        in_range = (float32_exp._tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
+        in_range = (float32_exp._Tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # exponential of float64
         float64_tensor = ht.arange(elements, dtype=ht.float64)
         float64_exp = ht.exp(float64_tensor)
-        self.assertIsInstance(float64_exp, ht.tensor)
+        self.assertIsInstance(float64_exp, ht.Tensor)
         self.assertEqual(float64_exp.dtype, ht.float64)
         self.assertEqual(float64_exp.dtype, ht.float64)
-        in_range = (float64_exp._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (float64_exp._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # exponential of ints, automatic conversion to intermediate floats
         int32_tensor = ht.arange(elements, dtype=ht.int32)
         int32_exp = ht.exp(int32_tensor)
-        self.assertIsInstance(int32_exp, ht.tensor)
+        self.assertIsInstance(int32_exp, ht.Tensor)
         self.assertEqual(int32_exp.dtype, ht.float64)
         self.assertEqual(int32_exp.dtype, ht.float64)
-        in_range = (int32_exp._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (int32_exp._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # exponential of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(elements, dtype=ht.int64)
         int64_exp = ht.exp(int64_tensor)
-        self.assertIsInstance(int64_exp, ht.tensor)
+        self.assertIsInstance(int64_exp, ht.Tensor)
         self.assertEqual(int64_exp.dtype, ht.float64)
         self.assertEqual(int64_exp.dtype, ht.float64)
-        in_range = (int64_exp._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (int64_exp._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # check exceptions
@@ -61,37 +61,37 @@ class TestOperations(unittest.TestCase):
         # exponential of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
         float32_exp2 = ht.exp2(float32_tensor)
-        self.assertIsInstance(float32_exp2, ht.tensor)
+        self.assertIsInstance(float32_exp2, ht.Tensor)
         self.assertEqual(float32_exp2.dtype, ht.float32)
         self.assertEqual(float32_exp2.dtype, ht.float32)
-        in_range = (float32_exp2._tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
+        in_range = (float32_exp2._Tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # exponential of float64
         float64_tensor = ht.arange(elements, dtype=ht.float64)
         float64_exp2 = ht.exp2(float64_tensor)
-        self.assertIsInstance(float64_exp2, ht.tensor)
+        self.assertIsInstance(float64_exp2, ht.Tensor)
         self.assertEqual(float64_exp2.dtype, ht.float64)
         self.assertEqual(float64_exp2.dtype, ht.float64)
-        in_range = (float64_exp2._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (float64_exp2._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # exponential of ints, automatic conversion to intermediate floats
         int32_tensor = ht.arange(elements, dtype=ht.int32)
         int32_exp2 = ht.exp2(int32_tensor)
-        self.assertIsInstance(int32_exp2, ht.tensor)
+        self.assertIsInstance(int32_exp2, ht.Tensor)
         self.assertEqual(int32_exp2.dtype, ht.float64)
         self.assertEqual(int32_exp2.dtype, ht.float64)
-        in_range = (int32_exp2._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (int32_exp2._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # exponential of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(elements, dtype=ht.int64)
         int64_exp2 = ht.exp2(int64_tensor)
-        self.assertIsInstance(int64_exp2, ht.tensor)
+        self.assertIsInstance(int64_exp2, ht.Tensor)
         self.assertEqual(int64_exp2.dtype, ht.float64)
         self.assertEqual(int64_exp2.dtype, ht.float64)
-        in_range = (int64_exp2._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (int64_exp2._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # check exceptions
@@ -107,37 +107,37 @@ class TestOperations(unittest.TestCase):
         # logarithm of float32
         float32_tensor = ht.arange(1, elements, dtype=ht.float32)
         float32_log2 = ht.log2(float32_tensor)
-        self.assertIsInstance(float32_log2, ht.tensor)
+        self.assertIsInstance(float32_log2, ht.Tensor)
         self.assertEqual(float32_log2.dtype, ht.float32)
         self.assertEqual(float32_log2.dtype, ht.float32)
-        in_range = (float32_log2._tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
+        in_range = (float32_log2._Tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # logarithm of float64
         float64_tensor = ht.arange(1, elements, dtype=ht.float64)
         float64_log2 = ht.log2(float64_tensor)
-        self.assertIsInstance(float64_log2, ht.tensor)
+        self.assertIsInstance(float64_log2, ht.Tensor)
         self.assertEqual(float64_log2.dtype, ht.float64)
         self.assertEqual(float64_log2.dtype, ht.float64)
-        in_range = (float64_log2._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (float64_log2._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # logarithm of ints, automatic conversion to intermediate floats
         int32_tensor = ht.arange(1, elements, dtype=ht.int32)
         int32_log2 = ht.log2(int32_tensor)
-        self.assertIsInstance(int32_log2, ht.tensor)
+        self.assertIsInstance(int32_log2, ht.Tensor)
         self.assertEqual(int32_log2.dtype, ht.float64)
         self.assertEqual(int32_log2.dtype, ht.float64)
-        in_range = (int32_log2._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (int32_log2._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # log2arithm of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(1, elements, dtype=ht.int64)
         int64_log2 = ht.log2(int64_tensor)
-        self.assertIsInstance(int64_log2, ht.tensor)
+        self.assertIsInstance(int64_log2, ht.Tensor)
         self.assertEqual(int64_log2.dtype, ht.float64)
         self.assertEqual(int64_log2.dtype, ht.float64)
-        in_range = (int64_log2._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (int64_log2._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # check exceptions
@@ -153,37 +153,37 @@ class TestOperations(unittest.TestCase):
         # logarithm of float32
         float32_tensor = ht.arange(1, elements, dtype=ht.float32)
         float32_log = ht.log(float32_tensor)
-        self.assertIsInstance(float32_log, ht.tensor)
+        self.assertIsInstance(float32_log, ht.Tensor)
         self.assertEqual(float32_log.dtype, ht.float32)
         self.assertEqual(float32_log.dtype, ht.float32)
-        in_range = (float32_log._tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
+        in_range = (float32_log._Tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # logarithm of float64
         float64_tensor = ht.arange(1, elements, dtype=ht.float64)
         float64_log = ht.log(float64_tensor)
-        self.assertIsInstance(float64_log, ht.tensor)
+        self.assertIsInstance(float64_log, ht.Tensor)
         self.assertEqual(float64_log.dtype, ht.float64)
         self.assertEqual(float64_log.dtype, ht.float64)
-        in_range = (float64_log._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (float64_log._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # logarithm of ints, automatic conversion to intermediate floats
         int32_tensor = ht.arange(1, elements, dtype=ht.int32)
         int32_log = ht.log(int32_tensor)
-        self.assertIsInstance(int32_log, ht.tensor)
+        self.assertIsInstance(int32_log, ht.Tensor)
         self.assertEqual(int32_log.dtype, ht.float64)
         self.assertEqual(int32_log.dtype, ht.float64)
-        in_range = (int32_log._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (int32_log._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # logarithm of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(1, elements, dtype=ht.int64)
         int64_log = ht.log(int64_tensor)
-        self.assertIsInstance(int64_log, ht.tensor)
+        self.assertIsInstance(int64_log, ht.Tensor)
         self.assertEqual(int64_log.dtype, ht.float64)
         self.assertEqual(int64_log.dtype, ht.float64)
-        in_range = (int64_log._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (int64_log._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # check exceptions
@@ -199,37 +199,37 @@ class TestOperations(unittest.TestCase):
         # logarithm of float32
         float32_tensor = ht.arange(1, elements, dtype=ht.float32)
         float32_log10 = ht.log10(float32_tensor)
-        self.assertIsInstance(float32_log10, ht.tensor)
+        self.assertIsInstance(float32_log10, ht.Tensor)
         self.assertEqual(float32_log10.dtype, ht.float32)
         self.assertEqual(float32_log10.dtype, ht.float32)
-        in_range = (float32_log10._tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
+        in_range = (float32_log10._Tensor__array - comparison.type(torch.float32)) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # logarithm of float64
         float64_tensor = ht.arange(1, elements, dtype=ht.float64)
         float64_log10 = ht.log10(float64_tensor)
-        self.assertIsInstance(float64_log10, ht.tensor)
+        self.assertIsInstance(float64_log10, ht.Tensor)
         self.assertEqual(float64_log10.dtype, ht.float64)
         self.assertEqual(float64_log10.dtype, ht.float64)
-        in_range = (float64_log10._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (float64_log10._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # logarithm of ints, automatic conversion to intermediate floats
         int32_tensor = ht.arange(1, elements, dtype=ht.int32)
         int32_log10 = ht.log10(int32_tensor)
-        self.assertIsInstance(int32_log10, ht.tensor)
+        self.assertIsInstance(int32_log10, ht.Tensor)
         self.assertEqual(int32_log10.dtype, ht.float64)
         self.assertEqual(int32_log10.dtype, ht.float64)
-        in_range = (int32_log10._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (int32_log10._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # logarithm of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(1, elements, dtype=ht.int64)
         int64_log10 = ht.log10(int64_tensor)
-        self.assertIsInstance(int64_log10, ht.tensor)
+        self.assertIsInstance(int64_log10, ht.Tensor)
         self.assertEqual(int64_log10.dtype, ht.float64)
         self.assertEqual(int64_log10.dtype, ht.float64)
-        in_range = (int64_log10._tensor__array - comparison) < FLOAT_EPSILON
+        in_range = (int64_log10._Tensor__array - comparison) < FLOAT_EPSILON
         self.assertTrue(in_range.all())
 
         # check exceptions
@@ -245,7 +245,7 @@ class TestOperations(unittest.TestCase):
         # square roots of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
         float32_sqrt = ht.sqrt(float32_tensor)
-        self.assertIsInstance(float32_sqrt, ht.tensor)
+        self.assertIsInstance(float32_sqrt, ht.Tensor)
         self.assertEqual(float32_sqrt.dtype, ht.float32)
         self.assertEqual(float32_sqrt.dtype, ht.float32)
         self.assertTrue(ht.allclose(float32_sqrt, comparison.astype(ht.float32), 1e-06))
@@ -253,7 +253,7 @@ class TestOperations(unittest.TestCase):
         # square roots of float64
         float64_tensor = ht.arange(elements, dtype=ht.float64)
         float64_sqrt = ht.sqrt(float64_tensor)
-        self.assertIsInstance(float64_sqrt, ht.tensor)
+        self.assertIsInstance(float64_sqrt, ht.Tensor)
         self.assertEqual(float64_sqrt.dtype, ht.float64)
         self.assertEqual(float64_sqrt.dtype, ht.float64)
         self.assertTrue(ht.allclose(float64_sqrt, comparison, 1e-06))
@@ -261,7 +261,7 @@ class TestOperations(unittest.TestCase):
         # square roots of ints, automatic conversion to intermediate floats
         int32_tensor = ht.arange(elements, dtype=ht.int32)
         int32_sqrt = ht.sqrt(int32_tensor)
-        self.assertIsInstance(int32_sqrt, ht.tensor)
+        self.assertIsInstance(int32_sqrt, ht.Tensor)
         self.assertEqual(int32_sqrt.dtype, ht.float64)
         self.assertEqual(int32_sqrt.dtype, ht.float64)
         self.assertTrue(ht.allclose(int32_sqrt, comparison, 1e-06))
@@ -269,7 +269,7 @@ class TestOperations(unittest.TestCase):
         # square roots of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(elements, dtype=ht.int64)
         int64_sqrt = ht.sqrt(int64_tensor)
-        self.assertIsInstance(int64_sqrt, ht.tensor)
+        self.assertIsInstance(int64_sqrt, ht.Tensor)
         self.assertEqual(int64_sqrt.dtype, ht.float64)
         self.assertEqual(int64_sqrt.dtype, ht.float64)
         self.assertTrue(ht.allclose(int64_sqrt, comparison, 1e-06))
@@ -286,28 +286,28 @@ class TestOperations(unittest.TestCase):
 
         # square roots of float32
         float32_sqrt = ht.arange(elements, dtype=ht.float32).sqrt()
-        self.assertIsInstance(float32_sqrt, ht.tensor)
+        self.assertIsInstance(float32_sqrt, ht.Tensor)
         self.assertEqual(float32_sqrt.dtype, ht.float32)
         self.assertEqual(float32_sqrt.dtype, ht.float32)
         self.assertTrue(ht.allclose(float32_sqrt, comparison.astype(ht.float32), 1e-05))
 
         # square roots of float64
         float64_sqrt = ht.arange(elements, dtype=ht.float64).sqrt()
-        self.assertIsInstance(float64_sqrt, ht.tensor)
+        self.assertIsInstance(float64_sqrt, ht.Tensor)
         self.assertEqual(float64_sqrt.dtype, ht.float64)
         self.assertEqual(float64_sqrt.dtype, ht.float64)
         self.assertTrue(ht.allclose(float64_sqrt, comparison, 1e-05))
 
         # square roots of ints, automatic conversion to intermediate floats
         int32_sqrt = ht.arange(elements, dtype=ht.int32).sqrt()
-        self.assertIsInstance(int32_sqrt, ht.tensor)
+        self.assertIsInstance(int32_sqrt, ht.Tensor)
         self.assertEqual(int32_sqrt.dtype, ht.float64)
         self.assertEqual(int32_sqrt.dtype, ht.float64)
         self.assertTrue(ht.allclose(int32_sqrt, comparison, 1e-05))
 
         # square roots of longs, automatic conversion to intermediate floats
         int64_sqrt = ht.arange(elements, dtype=ht.int64).sqrt()
-        self.assertIsInstance(int64_sqrt, ht.tensor)
+        self.assertIsInstance(int64_sqrt, ht.Tensor)
         self.assertEqual(int64_sqrt.dtype, ht.float64)
         self.assertEqual(int64_sqrt.dtype, ht.float64)
         self.assertTrue(ht.allclose(int64_sqrt, comparison, 1e-05))
@@ -329,16 +329,16 @@ class TestOperations(unittest.TestCase):
         comparison = torch.arange(elements, dtype=torch.float32).sqrt()
 
         # check whether the input range remain unchanged
-        self.assertIsInstance(number_range, ht.tensor)
+        self.assertIsInstance(number_range, ht.Tensor)
         self.assertEqual(number_range.sum(axis=0), 190)  # gaussian sum
         self.assertEqual(number_range.gshape, (elements,))
 
         # check whether the output buffer still has the correct shape
-        self.assertIsInstance(float32_sqrt, ht.tensor)
+        self.assertIsInstance(float32_sqrt, ht.Tensor)
         self.assertEqual(float32_sqrt.dtype, ht.float32)
-        self.assertEqual(float32_sqrt._tensor__array.shape, output_shape)
+        self.assertEqual(float32_sqrt._Tensor__array.shape, output_shape)
         for row in range(output_shape[0]):
-            self.assertTrue((float32_sqrt._tensor__array[row] == comparison).all())
+            self.assertTrue((float32_sqrt._Tensor__array[row] == comparison).all())
 
         # exception
         with self.assertRaises(TypeError):

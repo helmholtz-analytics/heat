@@ -86,7 +86,7 @@ class generic(metaclass=abc.ABCMeta):
         # sanitize the input device type
         device = devices.sanitize_device(device)
 
-        return tensor.tensor(array, tuple(array.shape), cls, split=None, device=device, comm=comm)
+        return tensor.Tensor(array, tuple(array.shape), cls, split=None, device=device, comm=comm)
 
     @classmethod
     @abc.abstractclassmethod

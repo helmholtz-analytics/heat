@@ -14,65 +14,65 @@ class TestOperations(unittest.TestCase):
         shape_noaxis = ht.ones(array_len)
         no_axis_sum = shape_noaxis.sum()
 
-        self.assertIsInstance(no_axis_sum, ht.tensor)
+        self.assertIsInstance(no_axis_sum, ht.Tensor)
         self.assertEqual(no_axis_sum.shape, (1,))
         self.assertEqual(no_axis_sum.lshape, (1,))
         self.assertEqual(no_axis_sum.dtype, ht.float32)
-        self.assertEqual(no_axis_sum._tensor__array.dtype, torch.float32)
+        self.assertEqual(no_axis_sum._Tensor__array.dtype, torch.float32)
         self.assertEqual(no_axis_sum.split, None)
-        self.assertEqual(no_axis_sum._tensor__array, array_len)
+        self.assertEqual(no_axis_sum._Tensor__array, array_len)
 
         out_noaxis = ht.zeros((1,))
         ht.sum(shape_noaxis, out=out_noaxis)
-        self.assertTrue(out_noaxis._tensor__array ==
-                        shape_noaxis._tensor__array.sum())
+        self.assertTrue(out_noaxis._Tensor__array ==
+                        shape_noaxis._Tensor__array.sum())
 
         # check sum over all float elements of split 1d tensor
         shape_noaxis_split = ht.arange(array_len, split=0)
         shape_noaxis_split_sum = shape_noaxis_split.sum()
 
-        self.assertIsInstance(shape_noaxis_split_sum, ht.tensor)
+        self.assertIsInstance(shape_noaxis_split_sum, ht.Tensor)
         self.assertEqual(shape_noaxis_split_sum.shape, (1,))
         self.assertEqual(shape_noaxis_split_sum.lshape, (1,))
         self.assertEqual(shape_noaxis_split_sum.dtype, ht.int64)
         self.assertEqual(
-            shape_noaxis_split_sum._tensor__array.dtype, torch.int64)
+            shape_noaxis_split_sum._Tensor__array.dtype, torch.int64)
         self.assertEqual(shape_noaxis_split_sum.split, None)
         self.assertEqual(shape_noaxis_split_sum, 55)
 
         out_noaxis = ht.zeros((1,))
         ht.sum(shape_noaxis_split, out=out_noaxis)
-        self.assertEqual(out_noaxis._tensor__array, 55)
+        self.assertEqual(out_noaxis._Tensor__array, 55)
 
         # check sum over all float elements of 3d tensor locally
         shape_noaxis = ht.ones((3, 3, 3))
         no_axis_sum = shape_noaxis.sum()
 
-        self.assertIsInstance(no_axis_sum, ht.tensor)
+        self.assertIsInstance(no_axis_sum, ht.Tensor)
         self.assertEqual(no_axis_sum.shape, (1,))
         self.assertEqual(no_axis_sum.lshape, (1,))
         self.assertEqual(no_axis_sum.dtype, ht.float32)
-        self.assertEqual(no_axis_sum._tensor__array.dtype, torch.float32)
+        self.assertEqual(no_axis_sum._Tensor__array.dtype, torch.float32)
         self.assertEqual(no_axis_sum.split, None)
-        self.assertEqual(no_axis_sum._tensor__array, 27)
+        self.assertEqual(no_axis_sum._Tensor__array, 27)
 
         out_noaxis = ht.zeros((1,))
         ht.sum(shape_noaxis, out=out_noaxis)
-        self.assertEqual(out_noaxis._tensor__array, 27)
+        self.assertEqual(out_noaxis._Tensor__array, 27)
 
         # check sum over all float elements of split 3d tensor
         shape_noaxis_split_axis = ht.ones((3, 3, 3), split=0)
         split_axis_sum = shape_noaxis_split_axis.sum(axis=0)
 
-        self.assertIsInstance(split_axis_sum, ht.tensor)
+        self.assertIsInstance(split_axis_sum, ht.Tensor)
         self.assertEqual(split_axis_sum.shape, (3, 3))
         self.assertEqual(split_axis_sum.dtype, ht.float32)
-        self.assertEqual(split_axis_sum._tensor__array.dtype, torch.float32)
+        self.assertEqual(split_axis_sum._Tensor__array.dtype, torch.float32)
         self.assertEqual(split_axis_sum.split, None)
 
         out_noaxis = ht.zeros((3, 3,))
         ht.sum(shape_noaxis, axis=0, out=out_noaxis)
-        self.assertTrue((out_noaxis._tensor__array ==
+        self.assertTrue((out_noaxis._Tensor__array ==
                          torch.full((3, 3,), 3)).all())
 
         # check sum over all float elements of splitted 5d tensor with negative axis
@@ -80,12 +80,12 @@ class TestOperations(unittest.TestCase):
         shape_noaxis_split_axis_neg_sum = shape_noaxis_split_axis_neg.sum(
             axis=-2)
 
-        self.assertIsInstance(shape_noaxis_split_axis_neg_sum, ht.tensor)
+        self.assertIsInstance(shape_noaxis_split_axis_neg_sum, ht.Tensor)
         self.assertEqual(
             shape_noaxis_split_axis_neg_sum.shape, (1, 2, 3, 5))
         self.assertEqual(shape_noaxis_split_axis_neg_sum.dtype, ht.float32)
         self.assertEqual(
-            shape_noaxis_split_axis_neg_sum._tensor__array.dtype, torch.float32)
+            shape_noaxis_split_axis_neg_sum._Tensor__array.dtype, torch.float32)
         self.assertEqual(shape_noaxis_split_axis_neg_sum.split, 1)
 
         out_noaxis = ht.zeros((1, 2, 3, 5))

@@ -47,15 +47,15 @@ class TestIO(unittest.TestCase):
         # HDF5
         if ht.io.supports_hdf5():
             iris = ht.load(self.HDF5_PATH, dataset='data')
-            self.assertIsInstance(iris, ht.tensor)
+            self.assertIsInstance(iris, ht.Tensor)
             # shape invariant
             self.assertEqual(iris.shape, self.IRIS.shape)
-            self.assertEqual(iris._tensor__array.shape, self.IRIS.shape)
+            self.assertEqual(iris._Tensor__array.shape, self.IRIS.shape)
             # data type
             self.assertEqual(iris.dtype, ht.float32)
-            self.assertEqual(iris._tensor__array.dtype, torch.float32)
+            self.assertEqual(iris._Tensor__array.dtype, torch.float32)
             # content
-            self.assertTrue((self.IRIS == iris._tensor__array).all())
+            self.assertTrue((self.IRIS == iris._Tensor__array).all())
         else:
             with self.assertRaises(ValueError):
                 _ = ht.load(self.HDF5_PATH, dataset=self.HDF5_DATASET)
@@ -63,15 +63,15 @@ class TestIO(unittest.TestCase):
         # netCDF
         if ht.io.supports_netcdf():
             iris = ht.load(self.NETCDF_PATH, variable=self.NETCDF_VARIABLE)
-            self.assertIsInstance(iris, ht.tensor)
+            self.assertIsInstance(iris, ht.Tensor)
             # shape invariant
             self.assertEqual(iris.shape, self.IRIS.shape)
-            self.assertEqual(iris._tensor__array.shape, self.IRIS.shape)
+            self.assertEqual(iris._Tensor__array.shape, self.IRIS.shape)
             # data type
             self.assertEqual(iris.dtype, ht.float32)
-            self.assertEqual(iris._tensor__array.dtype, torch.float32)
+            self.assertEqual(iris._Tensor__array.dtype, torch.float32)
             # content
-            self.assertTrue((self.IRIS == iris._tensor__array).all())
+            self.assertTrue((self.IRIS == iris._Tensor__array).all())
         else:
             with self.assertRaises(ValueError):
                 _ = ht.load(self.NETCDF_PATH, variable=self.NETCDF_VARIABLE)
@@ -107,7 +107,7 @@ class TestIO(unittest.TestCase):
             if local_range.comm.rank == 0:
                 with ht.io.h5py.File(self.HDF5_OUT_PATH, 'r') as handle:
                     comparison = torch.tensor(handle[self.HDF5_DATASET], dtype=torch.int32)
-                self.assertTrue((local_range._tensor__array == comparison).all())
+                self.assertTrue((local_range._Tensor__array == comparison).all())
 
             # split range
             split_range = ht.arange(100, split=0)
@@ -115,7 +115,7 @@ class TestIO(unittest.TestCase):
             if split_range.comm.rank == 0:
                 with ht.io.h5py.File(self.HDF5_OUT_PATH, 'r') as handle:
                     comparison = torch.tensor(handle[self.HDF5_DATASET], dtype=torch.int32)
-                self.assertTrue((local_range._tensor__array == comparison).all())
+                self.assertTrue((local_range._Tensor__array == comparison).all())
 
         if ht.io.supports_netcdf():
             # local range
@@ -124,7 +124,7 @@ class TestIO(unittest.TestCase):
             if local_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, 'r') as handle:
                     comparison = torch.tensor(handle[self.NETCDF_VARIABLE][:], dtype=torch.int32)
-                self.assertTrue((local_range._tensor__array == comparison).all())
+                self.assertTrue((local_range._Tensor__array == comparison).all())
 
             # split range
             split_range = ht.arange(100, split=0)
@@ -132,7 +132,7 @@ class TestIO(unittest.TestCase):
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, 'r') as handle:
                     comparison = torch.tensor(handle[self.NETCDF_VARIABLE][:], dtype=torch.int32)
-                self.assertTrue((local_range._tensor__array == comparison).all())
+                self.assertTrue((local_range._Tensor__array == comparison).all())
 
     def test_save_exception(self):
         data = ht.arange(1)
@@ -166,15 +166,15 @@ class TestIO(unittest.TestCase):
 
         # default parameters
         iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET)
-        self.assertIsInstance(iris, ht.tensor)
+        self.assertIsInstance(iris, ht.Tensor)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.float32)
-        self.assertEqual(iris._tensor__array.dtype, torch.float32)
-        self.assertTrue((self.IRIS == iris._tensor__array).all())
+        self.assertEqual(iris._Tensor__array.dtype, torch.float32)
+        self.assertTrue((self.IRIS == iris._Tensor__array).all())
 
         # positive split axis
         iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=0)
-        self.assertIsInstance(iris, ht.tensor)
+        self.assertIsInstance(iris, ht.Tensor)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.float32)
         lshape = iris.lshape
@@ -183,7 +183,7 @@ class TestIO(unittest.TestCase):
 
         # negative split axis
         iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=-1)
-        self.assertIsInstance(iris, ht.tensor)
+        self.assertIsInstance(iris, ht.Tensor)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.float32)
         lshape = iris.lshape
@@ -192,10 +192,10 @@ class TestIO(unittest.TestCase):
 
         # different data type
         iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, dtype=ht.int8)
-        self.assertIsInstance(iris, ht.tensor)
+        self.assertIsInstance(iris, ht.Tensor)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.int8)
-        self.assertEqual(iris._tensor__array.dtype, torch.int8)
+        self.assertEqual(iris._Tensor__array.dtype, torch.int8)
 
     def test_load_hdf5_exception(self):
         # HDF5 support is optional
@@ -227,7 +227,7 @@ class TestIO(unittest.TestCase):
         if local_data.comm.rank == 0:
             with ht.io.h5py.File(self.HDF5_OUT_PATH, 'r') as handle:
                 comparison = torch.tensor(handle[self.HDF5_DATASET], dtype=torch.int32)
-            self.assertTrue((local_data._tensor__array == comparison).all())
+            self.assertTrue((local_data._Tensor__array == comparison).all())
 
         # distributed data range
         split_data = ht.arange(100, split=0)
@@ -235,7 +235,7 @@ class TestIO(unittest.TestCase):
         if split_data.comm.rank == 0:
             with ht.io.h5py.File(self.HDF5_OUT_PATH, 'r') as handle:
                 comparison = torch.tensor(handle[self.HDF5_DATASET], dtype=torch.int32)
-            self.assertTrue((local_data._tensor__array == comparison).all())
+            self.assertTrue((local_data._Tensor__array == comparison).all())
 
     def test_save_hdf5_exception(self):
         # HDF5 support is optional
@@ -259,15 +259,15 @@ class TestIO(unittest.TestCase):
 
         # default parameters
         iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE)
-        self.assertIsInstance(iris, ht.tensor)
+        self.assertIsInstance(iris, ht.Tensor)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.float32)
-        self.assertEqual(iris._tensor__array.dtype, torch.float32)
-        self.assertTrue((self.IRIS == iris._tensor__array).all())
+        self.assertEqual(iris._Tensor__array.dtype, torch.float32)
+        self.assertTrue((self.IRIS == iris._Tensor__array).all())
 
         # positive split axis
         iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE, split=0)
-        self.assertIsInstance(iris, ht.tensor)
+        self.assertIsInstance(iris, ht.Tensor)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.float32)
         lshape = iris.lshape
@@ -276,7 +276,7 @@ class TestIO(unittest.TestCase):
 
         # negative split axis
         iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE, split=-1)
-        self.assertIsInstance(iris, ht.tensor)
+        self.assertIsInstance(iris, ht.Tensor)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.float32)
         lshape = iris.lshape
@@ -285,10 +285,10 @@ class TestIO(unittest.TestCase):
 
         # different data type
         iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE, dtype=ht.int8)
-        self.assertIsInstance(iris, ht.tensor)
+        self.assertIsInstance(iris, ht.Tensor)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.int8)
-        self.assertEqual(iris._tensor__array.dtype, torch.int8)
+        self.assertEqual(iris._Tensor__array.dtype, torch.int8)
 
     def test_load_netcdf_exception(self):
         # netcdf support is optional
@@ -320,7 +320,7 @@ class TestIO(unittest.TestCase):
         if local_data.comm.rank == 0:
             with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, 'r') as handle:
                 comparison = torch.tensor(handle[self.NETCDF_VARIABLE][:], dtype=torch.int32)
-            self.assertTrue((local_data._tensor__array == comparison).all())
+            self.assertTrue((local_data._Tensor__array == comparison).all())
 
         # distributed data range
         split_data = ht.arange(100, split=0)
@@ -328,7 +328,7 @@ class TestIO(unittest.TestCase):
         if split_data.comm.rank == 0:
             with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, 'r') as handle:
                 comparison = torch.tensor(handle[self.NETCDF_VARIABLE][:], dtype=torch.int32)
-            self.assertTrue((local_data._tensor__array == comparison).all())
+            self.assertTrue((local_data._Tensor__array == comparison).all())
 
     def test_save_netcdf_exception(self):
         # netcdf support is optional

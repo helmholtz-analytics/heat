@@ -35,7 +35,7 @@ def eq(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.Tensor
         A uint8-tensor holding 1 for all elements in which values of t1 are equal to values of t2, 0 for all other
         elements
 
@@ -98,18 +98,18 @@ def equal(t1, t2):
                 t2 = tensor.array([t2])
             except (TypeError, ValueError,):
                 raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
-        elif isinstance(t2, tensor.tensor):
+        elif isinstance(t2, tensor.Tensor):
             pass
         else:
             raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
 
-    elif isinstance(t1, tensor.tensor):
+    elif isinstance(t1, tensor.Tensor):
         if np.isscalar(t2):
             try:
                 t2 = tensor.array([t2])
             except (TypeError, ValueError,):
                 raise TypeError('Data type not supported, input was {}'.format(type(t2)))
-        elif isinstance(t2, tensor.tensor):
+        elif isinstance(t2, tensor.Tensor):
             # TODO: implement complex NUMPY rules
             if t2.split is None or t2.split == t1.split:
                 pass
@@ -121,7 +121,7 @@ def equal(t1, t2):
     else:
         raise NotImplementedError('Not implemented for non scalar')
 
-    result = torch.equal(t1._tensor__array, t2._tensor__array)
+    result = torch.equal(t1._Tensor__array, t2._Tensor__array)
     return result
 
 
@@ -140,7 +140,7 @@ def ge(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.Tensor
         A uint8-tensor holding 1 for all elements in which values of t1 are greater than or equal tp values of t2,
         0 for all other elements
 
@@ -176,7 +176,7 @@ def gt(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.Tensor
        A uint8-tensor holding 1 for all elements in which values of t1 are greater than values of t2,
        0 for all other elements
 
@@ -211,7 +211,7 @@ def le(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.Tensor
        A uint8-tensor holding 1 for all elements in which values of t1 are less than or equal to values of t2,
        0 for all other elements
 
@@ -247,7 +247,7 @@ def lt(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.Tensor
         A uint8-tensor holding 1 for all elements in which values of t1 are less than values of t2,
         0 for all other elements
 
@@ -275,11 +275,11 @@ def max(x, axis=None, out=None, keepdim=None):
 
     Parameters
     ----------
-    a : ht.tensor
+    a : ht.Tensor
         Input data.
     axis : None or int, optional
         Axis or axes along which to operate. By default, flattened input is used.
-    out : ht.tensor, optional
+    out : ht.Tensor, optional
         Tuple of two output tensors (max, max_indices). Must be of the same shape and buffer length as the expected
         output. The minimum value of an output element. Must be present to allow computation on empty slice.
 
@@ -317,11 +317,11 @@ def min(x, axis=None, out=None, keepdim=None):
 
     Parameters
     ----------
-    a : ht.tensor
+    a : ht.Tensor
         Input data.
     axis : None or int
         Axis or axes along which to operate. By default, flattened input is used.
-    out : ht.tensor, optional
+    out : ht.Tensor, optional
         Tuple of two output tensors (min, min_indices). Must be of the same shape and buffer length as the expected
         output.The maximum value of an output element. Must be present to allow computation on empty slice.
 
@@ -366,7 +366,7 @@ def ne(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.Tensor
         A uint8-tensor holding 1 for all elements in which values of t1 are not equal to values of t2,
         0 for all other elements
 
