@@ -19,7 +19,7 @@ T_s = ht.Tensor(T1._Tensor__array, T1.shape, T1.dtype, 0, T1.device, T1.comm)
 otherType = (2, 2)
 
 
-class TestOperations(unittest.TestCase):
+class TestArithmetics(unittest.TestCase):
     def test_add(self):
         T_r = ht.float32([
             [3, 4],

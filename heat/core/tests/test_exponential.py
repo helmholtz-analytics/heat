@@ -7,7 +7,7 @@ import heat as ht
 FLOAT_EPSILON = 1e-4
 
 
-class TestOperations(unittest.TestCase):
+class TestExponential(unittest.TestCase):
     def test_exp(self):
         elements = 10
         comparison = torch.arange(elements, dtype=torch.float64).exp()

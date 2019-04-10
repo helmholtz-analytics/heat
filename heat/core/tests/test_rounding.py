@@ -6,7 +6,7 @@ import heat as ht
 FLOAT_EPSILON = 1e-4
 
 
-class TestOperations(unittest.TestCase):
+class TestRounding(unittest.TestCase):
     def test_abs(self):
         float32_tensor = ht.arange(-10, 10, dtype=ht.float32, split=0)
         absolute_values = ht.abs(float32_tensor)
