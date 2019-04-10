@@ -515,6 +515,7 @@ def promote_types(type1, type2):
 
     return __type_promotions[typecode_type1][typecode_type2]
 
+
 class finfo:
     """
     finfo(dtype)
@@ -565,15 +566,15 @@ class finfo:
 
         return super(finfo, cls).__new__(cls)._init(dtype)
 
-
     def _init(self, dtype):
         _torch_finfo = torch.finfo(dtype.torch_type())
         for word in ['bits', 'eps', 'max', 'tiny']:
             setattr(self, word, getattr(_torch_finfo, word))
 
-        self.min=-self.max
+        self.min = -self.max
 
         return self
+
 
 class iinfo:
     """
@@ -614,7 +615,6 @@ class iinfo:
             raise TypeError('Data type {} not inexact, not supported'.format(dtype))
 
         return super(iinfo, cls).__new__(cls)._init(dtype)
-
 
     def _init(self, dtype):
         _torch_iinfo = torch.iinfo(dtype.torch_type())
