@@ -107,7 +107,7 @@ def equal(t1, t2):
         if np.isscalar(t2):
             try:
                 t2 = tensor.array([t2])
-            except (TypeError,ValueError,):
+            except (TypeError, ValueError,):
                 raise TypeError('Data type not supported, input was {}'.format(type(t2)))
         elif isinstance(t2, tensor.tensor):
             # TODO: implement complex NUMPY rules
@@ -268,7 +268,7 @@ def lt(t1, t2):
     return binary_op(torch.lt, t1, t2)
 
 
-def max(x, axis=None, out=None):
+def max(x, axis=None, out=None, keepdim=None):
     # TODO: initial : scalar, optional Issue #101
     """
     Return the maximum along a given axis.
@@ -307,10 +307,10 @@ def max(x, axis=None, out=None):
             return result[0]
         return result
 
-    return reduce_op(x, local_max, MPI.MAX, axis, out)
+    return reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
 
 
-def min(x, axis=None, out=None):
+def min(x, axis=None, out=None, keepdim=None):
     # TODO: initial : scalar, optional Issue #101
     """
     Return the minimum along a given axis.
@@ -349,13 +349,13 @@ def min(x, axis=None, out=None):
             return result[0]
         return result
 
-    return reduce_op(x, local_min, MPI.MIN, axis, out)
+    return reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
 
 
 def ne(t1, t2):
     """
     Element-wise rich comparison of non-equality between values from two operands, commutative.
-    Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+    Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument. 
 
     Parameters
     ----------

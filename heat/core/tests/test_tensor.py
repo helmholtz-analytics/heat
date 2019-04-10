@@ -54,7 +54,7 @@ class TestTensor(unittest.TestCase):
         any_tensor = ht.zeros(1)
         any_tensor = x.any(axis=0)
         self.assertIsInstance(any_tensor, ht.tensor)
-        self.assertEqual(any_tensor.shape, (1, 3))
+        self.assertEqual(any_tensor.shape, (3,))
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))
 
