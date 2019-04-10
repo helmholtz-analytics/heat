@@ -694,9 +694,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
         output_shape = (1,)
     else:
         if isinstance(axis, int):
-            partial = partial_op(x._tensor__array, dim=axis, keepdim=True)
-            shape_keepdim = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
-            shape_losedim = x.gshape[:axis] + x.gshape[axis + 1:]
+            axis = (axis,)
         if isinstance(axis, tuple):
             partial = x._tensor__array
             for dim in axis:
@@ -710,7 +708,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
         raise ValueError('Expecting output buffer of shape {}, got {}'.format(output_shape, out.shape))
 
     # perform a reduction operation in case the tensor is distributed across the reduction axis
-    if x.split is not None and (axis is None or axis == x.split):
+    if x.split is not None and (axis is None or dim == x.split for dim in axis):
         split = None
         if x.comm.is_distributed():
             x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
