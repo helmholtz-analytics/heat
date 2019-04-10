@@ -1596,113 +1596,123 @@ class tensor:
             chunk_end = chunk_slice[self.split].stop
             chunk_set = set(range(chunk_start, chunk_end))
 
-            lout = list(self.gshape)
-            lout[self.split] = 0
+            gout = [None for _ in self.gshape]  # for the building of the gshape of the returned tensor
+            gout[self.split] = 0
             arr = torch.Tensor()
 
-            all_one_flag = [False, 0]  # t/f true flag, process with data
+            one_ret = False
 
             if isinstance(key, int):  # if a sigular index is given and the tensor is split
+                gout = [0]
                 if key in range(chunk_start, chunk_end) and self.split == 0:  # only need to adjust the key if split==0
-                    lout = tuple(self.__array[key-chunk_start].shape)
+                    gout = list(self.__array[key-chunk_start].shape)
                     arr = self.__array[key - chunk_start]
-                    # return , , self.dtype, self.split, self.device, self.comm)
                 elif self.split != 0:
                     _, _, chunk_slice2 = self.comm.chunk(self.shape, self.split)
                     if key in range(chunk_slice2[0].start, chunk_slice2[0].stop):  # need to test if the given axis is on the node and then get the shape
-                        lout = self.comm.allreduce(tuple(self.__array[key].shape)[0], MPI.SUM)
-                        lout = (lout, )
+                        # gout = self.comm.allreduce(tuple(self.__array[key].shape)[0], MPI.SUM)
                         arr = self.__array[key]
-                        # return tensor(, (lout, ), self.dtype, self.split, self.device, self.comm)
+                        gout = list(arr.shape)
+                        # return tensor(, (gout, ), self.dtype, self.split, self.device, self.comm)
                 else:
                     warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
 
+                gout = self.comm.allreduce(gout, MPI.SUM)
+                gout = [g for g in gout if g != 0]
+
             elif isinstance(key, (tuple, list)):  # multi-argument gets are passed as tuples by python
+                all_slices = False
+                if all(isinstance(t, slice) for t in key):
+                    gout = [0] * len(self.gshape)
+                    all_slices = True
                 if isinstance(key[self.split], slice):  # if a slice is given in the split direction
                     # below allows for the split given to contain Nones
                     key_set = set(range(key[self.split].start if key[self.split].start is not None else 0,
                                         key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split],
                                         key[self.split].step if key[self.split].step else 1))
                     key = list(key)
-                    overlap = list(set(range(key[self.split].start if key[self.split].start is not None else 0,
-                                             key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split]))
-                                   & set(range(chunk_start, chunk_end)))
+                    overlap = list(key_set & chunk_set)
                     if overlap:  # if the slice is requesting data on the nodes
                         hold = [x - chunk_start for x in overlap]
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
                         arr = self.__array[tuple(key)]
-                        if key_set.issubset(chunk_set):  # if **all** the keys are included in the chunk
-                            lout = tuple(self.__array[tuple(key)].shape)
-                            all_one_flag = [True, self.comm.rank]
+                        gout = list(arr.shape)
 
-                        else:  # if the keys given ask for data across multiple nodes
-                            if len(list(self.__array[tuple(key)].shape)) > 1:  # handles the definition of the lshape
-                                lout = list(self.__array[tuple(key)].shape)
-
-                                lout[self.split if len(tuple(self.__array[tuple(key)].shape)) == len(self.gshape) else self.split - 1] = \
-                                    self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split if len(tuple(self.__array[tuple(key)].shape)
-                                                                                                                ) == len(self.gshape) else self.split - 1],
-                                                        MPI.SUM)
-                                # return tensor(self.__array[tuple(key)], tuple(lout), self.dtype, self.split, self.device, self.comm)
-                            else:
-                                lout = self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[0], MPI.SUM)
-                                lout = (lout, )
-
-                    # if there is no overlap then the output is all on one node:
-                    if len(list(self.__array[tuple(key)].shape)) > 1:
-                        lout = list(self.__array[tuple(key)].shape)
-
-                        lout[self.split if len(tuple(self.__array[tuple(key)].shape)) == len(self.gshape) else self.split - 1] = \
-                            self.comm.allreduce(tuple(self.__array[tuple(key)].shape)[self.split if len(tuple(self.__array[tuple(key)].shape)
-                                                                                                        ) == len(self.gshape) else self.split - 1], MPI.SUM)
-                        arr = self.__array[tuple(key)]
-
+                        if not key_set.issubset(chunk_set):  # if **all** the keys are **not** included in the chunk
+                            if len(list(arr.shape)) == 1:
+                                gout = [tuple(arr.shape)[0], ]
                 # if the given axes are not splits (must be ints for python)
                 # this means the whole slice is on one node
                 elif key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
                     key[self.split] = key[self.split] - chunk_start
-                    try:
-                        arr = self.__array[tuple(key)]
-                        lout = tuple(self.__array[tuple(key)].shape)
-                        all_one_flag = [True, self.comm.rank]
-                    except ValueError:  # case of returning just one value
-                        warnings.warn("This slice returns one value on only one process {}".format(self.comm.rank), ResourceWarning)
-                        arr = self.__array[tuple(key)]
-                        lout = (1, )
+                    arr = self.__array[tuple(key)]
+                    gout = list(arr.shape)
+                    if not gout:  # gout is an empty list in the case that only one data point is returned
+                        gout = [1, ]
+                        arr = torch.Tensor([arr.item()])
+                else:
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+
+                # below this is only about getting the proper shape
+                # below handles the case of a single return value
+                if all(isinstance(k, int) for k in key):  # single return value
+                    if gout[0] is None:
+                        gout = [0, ]
+                    gout[0] = self.comm.allreduce(gout[0], MPI.SUM)
+                    gout = (gout[0],)
+                    one_ret = True
+
+                elif any(isinstance(k, int) for k in key) and self.split > 1:
+                    # print(self.split - 1)
+                    gout[self.split - 1] = self.comm.allreduce(gout[self.split - 1], MPI.SUM)
+
+                elif all_slices:
+                    gout[self.split] = self.comm.allreduce(gout[self.split], MPI.SUM)
+                    for x in range(len(gout)):
+                        if x != self.split:
+                            gout[x] = self.comm.allreduce(gout[x], MPI.MAX)
+
+                elif any(g is None for g in gout):  # this is the case where no data is on the process
+                    # two cases: 1 dim out, multi dim out
+                    if not isinstance(key, int) and any(isinstance(k, int) for k in key) and tuple(arr.shape)[0] == 0:
+                        gout = [0] * (len(key) - 1)
+                    else:
+                        gout = [it for it in self.gshape]
+                        gout[self.split] = 0
+
+                if len(gout) == 1 and not one_ret:
+                    gout = self.comm.allreduce(gout[0], MPI.SUM)
+                    gout = (gout,)
 
             elif isinstance(key, slice) and self.split == 0:  # if the given axes are only a slice
                 key_set = set(range(key.start if key.start is not None else 0,
                                     key.stop if key.stop is not None else self.gshape[0],
                                     key.step if key.step else 1))
                 overlap = list(key_set & chunk_set)
+                gout = list(self.gshape)
+                gout[self.split] = 0
                 if overlap:
                     hold = [x - chunk_start for x in overlap]
                     key = slice(min(hold), max(hold) + 1, key.step)
                     arr = self.__array[key]
-                    lout = list(self.__array[key].shape)
+                    gout = list(arr.shape)
 
-                if len(lout) > 1:
-                    lout[self.split if self.split < 2 else self.split - 1] = \
-                        self.comm.allreduce(lout[self.split], MPI.SUM)
+                if len(gout) > 1:
+                    gout[self.split if self.split < 2 else self.split - 1] = self.comm.allreduce(gout[self.split], MPI.SUM)
                 else:
-                    lout = self.comm.allreduce(lout, MPI.SUM)
+                    gout = self.comm.allreduce(gout, MPI.SUM)
+                gout = tuple(gout)
 
             else:  # handle other cases not accounted for
-                lout = list(self.__array[key].shape)
+                gout = list(self.__array[key].shape)
                 arr = self.__array[key]
-                if len(lout) > 1:
-                    lout[self.split] = self.comm.allreduce(tuple(self.__array[key].shape)[self.split], MPI.SUM)
+                if len(gout) > 1:
+                    gout[self.split] = self.comm.allreduce(tuple(arr.shape)[self.split], MPI.SUM)
                 else:
-                    lout = self.comm.allreduce(tuple(self.__array[key].shape), MPI.SUM)
+                    gout = self.comm.allreduce(tuple(arr.shape), MPI.SUM)
 
-            lout = lout if isinstance(lout, tuple) else tuple(lout)
-
-            all_one_flag[0] = self.comm.allreduce(all_one_flag[0], MPI.LOR)
-            if all_one_flag[0]:
-                all_one_flag[1] = self.comm.allreduce(all_one_flag[1], MPI.MAX)
-                lout = self.comm.bcast(lout, root=all_one_flag[1])
-            return tensor(arr, lout, self.dtype, self.split, self.device, self.comm)
+            return tensor(arr, gout if isinstance(gout, tuple) else tuple(gout), self.dtype, self.split, self.device, self.comm)
         else:
             return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
 
@@ -1750,8 +1760,9 @@ class tensor:
                 if isinstance(key[self.split], slice):
                     key = list(key)
                     overlap = list(set(range(key[self.split].start if key[self.split].start is not None else 0,
-                                             key[self.split].stop if key[self.split].stop is not None else -1))
+                                             key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split]))
                                    & set(range(chunk_start, chunk_end)))
+
                     if overlap:
                         hold = [x - chunk_start for x in overlap]
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
