@@ -5,164 +5,165 @@ import heat as ht
 
 FLOAT_EPSILON = 1e-4
 
-T = ht.float32([
-    [1, 2],
-    [3, 4]
-])
-s = 2.0
-s_int = 2
-T1 = ht.float32([
-    [2, 2],
-    [2, 2]
-])
-v = ht.float32([2, 2])
-v2 = ht.float32([2, 2, 2])
-T_s = ht.Tensor(T1._Tensor__array, T1.shape, T1.dtype, 0, None, None)
-Ts = ht.ones((2, 2), split=1)
-otherType = (2, 2)
-
 
 class TestRelational(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.a_scalar = 2.0
+        cls.an_int_scalar = 2
+
+        cls.a_vector = ht.float32([2, 2])
+        cls.another_vector = ht.float32([2, 2, 2])
+        
+        cls.a_tensor = ht.array([
+            [1.0, 2.0],
+            [3.0, 4.0]
+        ])
+        cls.another_tensor = ht.array([
+            [2.0, 2.0],
+            [2.0, 2.0]
+        ])
+        cls.a_split_tensor = cls.another_tensor.copy().resplit(0)
+        cls.split_ones_tensor = ht.ones((2, 2), split=1)
+
+        cls.errorneous_type = (2, 2)
+
     def test_eq(self):
-        T_r = ht.uint8([
+        result = ht.uint8([
             [0, 1],
             [0, 0]
         ])
 
-        self.assertTrue(ht.equal(ht.eq(s, s), ht.uint8([1])))
-        self.assertTrue(ht.equal(ht.eq(T, s), T_r))
-        self.assertTrue(ht.equal(ht.eq(s, T), T_r))
-        self.assertTrue(ht.equal(ht.eq(T, T1), T_r))
-        self.assertTrue(ht.equal(ht.eq(T, v), T_r))
-        self.assertTrue(ht.equal(ht.eq(T, s_int), T_r))
-        self.assertTrue(ht.equal(ht.eq(T_s, T), T_r))
+        self.assertTrue(ht.equal(ht.eq(self.a_scalar, self.a_scalar), ht.uint8([1])))
+        self.assertTrue(ht.equal(ht.eq(self.a_tensor, self.a_scalar), result))
+        self.assertTrue(ht.equal(ht.eq(self.a_scalar, self.a_tensor), result))
+        self.assertTrue(ht.equal(ht.eq(self.a_tensor, self.another_tensor), result))
+        self.assertTrue(ht.equal(ht.eq(self.a_tensor, self.a_vector), result))
+        self.assertTrue(ht.equal(ht.eq(self.a_tensor, self.an_int_scalar), result))
+        self.assertTrue(ht.equal(ht.eq(self.a_split_tensor, self.a_tensor), result))
 
         with self.assertRaises(ValueError):
-            ht.eq(T, v2)
+            ht.eq(self.a_tensor, self.another_vector)
         with self.assertRaises(NotImplementedError):
-            ht.eq(T, Ts)
+            ht.eq(self.a_tensor, self.split_ones_tensor)
         with self.assertRaises(TypeError):
-            ht.eq(T, otherType)
+            ht.eq(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.eq('T', 's')
+            ht.eq('self.a_tensor', 's')
 
     def test_equal(self):
-        self.assertTrue(ht.equal(T, T))
-        self.assertFalse(ht.equal(T, T1))
-        self.assertFalse(ht.equal(T, s))
-        self.assertFalse(ht.equal(T1, s))
+        self.assertTrue(ht.equal(self.a_tensor, self.a_tensor))
+        self.assertFalse(ht.equal(self.a_tensor, self.another_tensor))
+        self.assertFalse(ht.equal(self.a_tensor, self.a_scalar))
+        self.assertFalse(ht.equal(self.another_tensor, self.a_scalar))
 
     def test_ge(self):
-        T_r = ht.uint8([
+        result = ht.uint8([
             [0, 1],
             [1, 1]
         ])
-
-        T_inv = ht.uint8([
+        commutated_result = ht.uint8([
             [1, 1],
             [0, 0]
         ])
 
-        self.assertTrue(ht.equal(ht.ge(s, s), ht.uint8([1])))
-        self.assertTrue(ht.equal(ht.ge(T, s), T_r))
-        self.assertTrue(ht.equal(ht.ge(s, T), T_inv))
-        self.assertTrue(ht.equal(ht.ge(T, T1), T_r))
-        self.assertTrue(ht.equal(ht.ge(T, v), T_r))
-        self.assertTrue(ht.equal(ht.ge(T, s_int), T_r))
-        self.assertTrue(ht.equal(ht.ge(T_s, T), T_inv))
+        self.assertTrue(ht.equal(ht.ge(self.a_scalar, self.a_scalar), ht.uint8([1])))
+        self.assertTrue(ht.equal(ht.ge(self.a_tensor, self.a_scalar), result))
+        self.assertTrue(ht.equal(ht.ge(self.a_scalar, self.a_tensor), commutated_result))
+        self.assertTrue(ht.equal(ht.ge(self.a_tensor, self.another_tensor), result))
+        self.assertTrue(ht.equal(ht.ge(self.a_tensor, self.a_vector), result))
+        self.assertTrue(ht.equal(ht.ge(self.a_tensor, self.an_int_scalar), result))
+        self.assertTrue(ht.equal(ht.ge(self.a_split_tensor, self.a_tensor), commutated_result))
 
         with self.assertRaises(ValueError):
-            ht.ge(T, v2)
+            ht.ge(self.a_tensor, self.another_vector)
         with self.assertRaises(NotImplementedError):
-            ht.ge(T, Ts)
+            ht.ge(self.a_tensor, self.split_ones_tensor)
         with self.assertRaises(TypeError):
-            ht.ge(T, otherType)
+            ht.ge(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.ge('T', 's')
+            ht.ge('self.a_tensor', 's')
 
     def test_gt(self):
-        T_r = ht.uint8([
+        result = ht.uint8([
             [0, 0],
             [1, 1]
         ])
-
-        T_inv = ht.uint8([
+        commutated_result = ht.uint8([
             [1, 0],
             [0, 0]
         ])
 
-        self.assertTrue(ht.equal(ht.gt(s, s), ht.uint8([0])))
-        self.assertTrue(ht.equal(ht.gt(T, s), T_r))
-        self.assertTrue(ht.equal(ht.gt(s, T), T_inv))
-        self.assertTrue(ht.equal(ht.gt(T, T1), T_r))
-        self.assertTrue(ht.equal(ht.gt(T, v), T_r))
-        self.assertTrue(ht.equal(ht.gt(T, s_int), T_r))
-        self.assertTrue(ht.equal(ht.gt(T_s, T), T_inv))
+        self.assertTrue(ht.equal(ht.gt(self.a_scalar, self.a_scalar), ht.uint8([0])))
+        self.assertTrue(ht.equal(ht.gt(self.a_tensor, self.a_scalar), result))
+        self.assertTrue(ht.equal(ht.gt(self.a_scalar, self.a_tensor), commutated_result))
+        self.assertTrue(ht.equal(ht.gt(self.a_tensor, self.another_tensor), result))
+        self.assertTrue(ht.equal(ht.gt(self.a_tensor, self.a_vector), result))
+        self.assertTrue(ht.equal(ht.gt(self.a_tensor, self.an_int_scalar), result))
+        self.assertTrue(ht.equal(ht.gt(self.a_split_tensor, self.a_tensor), commutated_result))
 
         with self.assertRaises(ValueError):
-            ht.gt(T, v2)
+            ht.gt(self.a_tensor, self.another_vector)
         with self.assertRaises(NotImplementedError):
-            ht.gt(T, Ts)
+            ht.gt(self.a_tensor, self.split_ones_tensor)
         with self.assertRaises(TypeError):
-            ht.gt(T, otherType)
+            ht.gt(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.gt('T', 's')
+            ht.gt('self.a_tensor', 's')
 
     def test_le(self):
-        T_r = ht.uint8([
+        result = ht.uint8([
             [1, 1],
             [0, 0]
         ])
-
-        T_inv = ht.uint8([
+        commutated_result = ht.uint8([
             [0, 1],
             [1, 1]
         ])
 
-        self.assertTrue(ht.equal(ht.le(s, s), ht.uint8([1])))
-        self.assertTrue(ht.equal(ht.le(T, s), T_r))
-        self.assertTrue(ht.equal(ht.le(s, T), T_inv))
-        self.assertTrue(ht.equal(ht.le(T, T1), T_r))
-        self.assertTrue(ht.equal(ht.le(T, v), T_r))
-        self.assertTrue(ht.equal(ht.le(T, s_int), T_r))
-        self.assertTrue(ht.equal(ht.le(T_s, T), T_inv))
+        self.assertTrue(ht.equal(ht.le(self.a_scalar, self.a_scalar), ht.uint8([1])))
+        self.assertTrue(ht.equal(ht.le(self.a_tensor, self.a_scalar), result))
+        self.assertTrue(ht.equal(ht.le(self.a_scalar, self.a_tensor), commutated_result))
+        self.assertTrue(ht.equal(ht.le(self.a_tensor, self.another_tensor), result))
+        self.assertTrue(ht.equal(ht.le(self.a_tensor, self.a_vector), result))
+        self.assertTrue(ht.equal(ht.le(self.a_tensor, self.an_int_scalar), result))
+        self.assertTrue(ht.equal(ht.le(self.a_split_tensor, self.a_tensor), commutated_result))
 
         with self.assertRaises(ValueError):
-            ht.le(T, v2)
+            ht.le(self.a_tensor, self.another_vector)
         with self.assertRaises(NotImplementedError):
-            ht.le(T, Ts)
+            ht.le(self.a_tensor, self.split_ones_tensor)
         with self.assertRaises(TypeError):
-            ht.le(T, otherType)
+            ht.le(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.le('T', 's')
+            ht.le('self.a_tensor', 's')
 
     def test_lt(self):
-        T_r = ht.uint8([
+        result = ht.uint8([
             [1, 0],
             [0, 0]
         ])
-
-        T_inv = ht.uint8([
+        commutated_result = ht.uint8([
             [0, 0],
             [1, 1]
         ])
 
-        self.assertTrue(ht.equal(ht.lt(s, s), ht.uint8([0])))
-        self.assertTrue(ht.equal(ht.lt(T, s), T_r))
-        self.assertTrue(ht.equal(ht.lt(s, T), T_inv))
-        self.assertTrue(ht.equal(ht.lt(T, T1), T_r))
-        self.assertTrue(ht.equal(ht.lt(T, v), T_r))
-        self.assertTrue(ht.equal(ht.lt(T, s_int), T_r))
-        self.assertTrue(ht.equal(ht.lt(T_s, T), T_inv))
+        self.assertTrue(ht.equal(ht.lt(self.a_scalar, self.a_scalar), ht.uint8([0])))
+        self.assertTrue(ht.equal(ht.lt(self.a_tensor, self.a_scalar), result))
+        self.assertTrue(ht.equal(ht.lt(self.a_scalar, self.a_tensor), commutated_result))
+        self.assertTrue(ht.equal(ht.lt(self.a_tensor, self.another_tensor), result))
+        self.assertTrue(ht.equal(ht.lt(self.a_tensor, self.a_vector), result))
+        self.assertTrue(ht.equal(ht.lt(self.a_tensor, self.an_int_scalar), result))
+        self.assertTrue(ht.equal(ht.lt(self.a_split_tensor, self.a_tensor), commutated_result))
 
         with self.assertRaises(ValueError):
-            ht.lt(T, v2)
+            ht.lt(self.a_tensor, self.another_vector)
         with self.assertRaises(NotImplementedError):
-            ht.lt(T, Ts)
+            ht.lt(self.a_tensor, self.split_ones_tensor)
         with self.assertRaises(TypeError):
-            ht.lt(T, otherType)
+            ht.lt(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.lt('T', 's')
+            ht.lt('self.a_tensor', 's')
 
     def test_max(self):
         data = [
@@ -207,8 +208,7 @@ class TestRelational(unittest.TestCase):
         self.assertEqual(maximum_horizontal.split, None)
         self.assertEqual(maximum_horizontal.dtype, ht.int64)
         self.assertEqual(maximum_horizontal._Tensor__array.dtype, torch.int64)
-        self.assertTrue((maximum_horizontal._Tensor__array ==
-                         comparison.max(dim=1, keepdim=True)[0]).all())
+        self.assertTrue((maximum_horizontal._Tensor__array == comparison.max(dim=1, keepdim=True)[0]).all())
 
         # check max over all float elements of split 3d tensor, across split axis
         random_volume = ht.random.randn(3, 3, 3, split=1)
@@ -273,8 +273,7 @@ class TestRelational(unittest.TestCase):
         self.assertEqual(minimum_vertical.split, None)
         self.assertEqual(minimum_vertical.dtype, ht.int64)
         self.assertEqual(minimum_vertical._Tensor__array.dtype, torch.int64)
-        self.assertTrue((minimum_vertical._Tensor__array ==
-                         comparison.min(dim=0, keepdim=True)[0]).all())
+        self.assertTrue((minimum_vertical._Tensor__array == comparison.min(dim=0, keepdim=True)[0]).all())
 
         # maximum along second axis
         minimum_horizontal = ht.min(ht_array, axis=1)
@@ -285,8 +284,7 @@ class TestRelational(unittest.TestCase):
         self.assertEqual(minimum_horizontal.split, None)
         self.assertEqual(minimum_horizontal.dtype, ht.int64)
         self.assertEqual(minimum_horizontal._Tensor__array.dtype, torch.int64)
-        self.assertTrue((minimum_horizontal._Tensor__array ==
-                         comparison.min(dim=1, keepdim=True)[0]).all())
+        self.assertTrue((minimum_horizontal._Tensor__array == comparison.min(dim=1, keepdim=True)[0]).all())
 
         # check max over all float elements of split 3d tensor, across split axis
         random_volume = ht.random.randn(3, 3, 3, split=1)
@@ -321,24 +319,24 @@ class TestRelational(unittest.TestCase):
             ht.min(ht_array, axis=-4)
 
     def test_ne(self):
-        T_r = ht.uint8([
+        result = ht.uint8([
             [1, 0],
             [1, 1]
         ])
 
-        self.assertTrue(ht.equal(ht.ne(s, s), ht.uint8([0])))
-        self.assertTrue(ht.equal(ht.ne(T, s), T_r))
-        self.assertTrue(ht.equal(ht.ne(s, T), T_r))
-        self.assertTrue(ht.equal(ht.ne(T, T1), T_r))
-        self.assertTrue(ht.equal(ht.ne(T, v), T_r))
-        self.assertTrue(ht.equal(ht.ne(T, s_int), T_r))
-        self.assertTrue(ht.equal(ht.ne(T_s, T), T_r))
+        self.assertTrue(ht.equal(ht.ne(self.a_scalar, self.a_scalar), ht.uint8([0])))
+        self.assertTrue(ht.equal(ht.ne(self.a_tensor, self.a_scalar), result))
+        self.assertTrue(ht.equal(ht.ne(self.a_scalar, self.a_tensor), result))
+        self.assertTrue(ht.equal(ht.ne(self.a_tensor, self.another_tensor), result))
+        self.assertTrue(ht.equal(ht.ne(self.a_tensor, self.a_vector), result))
+        self.assertTrue(ht.equal(ht.ne(self.a_tensor, self.an_int_scalar), result))
+        self.assertTrue(ht.equal(ht.ne(self.a_split_tensor, self.a_tensor), result))
 
         with self.assertRaises(ValueError):
-            ht.ne(T, v2)
+            ht.ne(self.a_tensor, self.another_vector)
         with self.assertRaises(NotImplementedError):
-            ht.ne(T, Ts)
+            ht.ne(self.a_tensor, self.split_ones_tensor)
         with self.assertRaises(TypeError):
-            ht.ne(T, otherType)
+            ht.ne(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.ne('T', 's')
+            ht.ne('self.a_tensor', 's')
