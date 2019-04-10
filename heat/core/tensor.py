@@ -6,6 +6,7 @@ from . import devices
 from . import exponential
 from . import io
 from . import linalg
+from . import logical
 from . import memory
 from . import operations
 from . import relational
@@ -15,6 +16,11 @@ from . import trigonometrics
 from . import types
 
 from .stride_tricks import sanitize_axis
+
+
+__all__ = [
+    'Tensor'
+]
 
 
 class Tensor:
@@ -182,7 +188,7 @@ class Tensor:
         >>> out
         tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
         """
-        return operations.all(self, axis=axis, out=out, keepdim=keepdim)
+        return logical.all(self, axis=axis, out=out, keepdim=keepdim)
 
     def allclose(self, other, rtol=1e-05, atol=1e-08, equal_nan=False):
         """
@@ -220,7 +226,7 @@ class Tensor:
         >>> a.allclose(b, atol=1e-04)
         True
         """
-        return operations.allclose(self, other, rtol, atol, equal_nan)
+        return logical.allclose(self, other, rtol, atol, equal_nan)
 
     def any(self, axis=None, out=None):
         """
@@ -259,7 +265,7 @@ class Tensor:
         >>> res
         tensor([[0, 0, 1]], dtype=torch.uint8)
         """
-        return operations.any(self, axis=axis, out=out)
+        return logical.any(self, axis=axis, out=out)
 
     def argmax(self, axis=None, out=None, **kwargs):
         """

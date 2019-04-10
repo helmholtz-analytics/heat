@@ -6,6 +6,7 @@ from .exponential import *
 from .factories import *
 from .io import *
 from .linalg import *
+from .logical import *
 from .memory import *
 from .operations import *
 from . import random
