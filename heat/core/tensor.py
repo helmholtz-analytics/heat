@@ -10,6 +10,7 @@ from . import memory
 from . import operations
 from . import relational
 from . import rounding
+from . import statistics
 from . import trigonometrics
 from . import types
 
@@ -298,7 +299,7 @@ class Tensor:
         [2],
         [0]])
         """
-        return operations.argmax(self, axis=axis, out=out, **kwargs)
+        return statistics.argmax(self, axis=axis, out=out, **kwargs)
 
     def argmin(self, axis=None, out=None, **kwargs):
         """
@@ -337,7 +338,7 @@ class Tensor:
                 [1],
                 [2]])
         """
-        return operations.argmin(self, axis=axis, out=out, **kwargs)
+        return statistics.argmin(self, axis=axis, out=out, **kwargs)
 
     def astype(self, dtype, copy=True):
         """
@@ -876,7 +877,7 @@ class Tensor:
         #TODO: initial : scalar, optional   
             The minimum value of an output element. Must be present to allow computation on empty slice.
         """
-        return relational.max(self, axis=axis, out=out, keepdim=keepdim)
+        return statistics.max(self, axis=axis, out=out, keepdim=keepdim)
 
     def mean(self, axis):
         # TODO: document me
@@ -901,7 +902,7 @@ class Tensor:
         #TODO: initial : scalar, optional   
             The maximum value of an output element. Must be present to allow computation on empty slice.
         """
-        return relational.min(self, axis=axis, out=out, keepdim=keepdim)
+        return statistics.min(self, axis=axis, out=out, keepdim=keepdim)
 
     def __mod__(self, other):
         """

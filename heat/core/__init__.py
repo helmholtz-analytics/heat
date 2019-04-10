@@ -10,6 +10,7 @@ from .operations import *
 from . import random
 from .relational import *
 from .rounding import *
+from .statistics import *
 from .tensor import *
 from .trigonometrics import *
 from .types import *

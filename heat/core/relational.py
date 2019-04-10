@@ -2,10 +2,8 @@ import torch
 import numpy as np
 
 
-from .communication import MPI
 from . import tensor
 from .operations import __binary_op as binary_op
-from .operations import __reduce_op as reduce_op
 
 __all__ = [
     'eq',
@@ -14,8 +12,6 @@ __all__ = [
     'gt',
     'le',
     'lt',
-    'max',
-    'min',
     'ne'
 ]
 
@@ -266,90 +262,6 @@ def lt(t1, t2):
     """
 
     return binary_op(torch.lt, t1, t2)
-
-
-def max(x, axis=None, out=None, keepdim=None):
-    # TODO: initial : scalar, optional Issue #101
-    """
-    Return the maximum along a given axis.
-
-    Parameters
-    ----------
-    a : ht.Tensor
-        Input data.
-    axis : None or int, optional
-        Axis or axes along which to operate. By default, flattened input is used.
-    out : ht.Tensor, optional
-        Tuple of two output tensors (max, max_indices). Must be of the same shape and buffer length as the expected
-        output. The minimum value of an output element. Must be present to allow computation on empty slice.
-
-    Examples
-    --------
-    >>> a = ht.float32([
-            [1, 2, 3],
-            [4, 5, 6],
-            [7, 8, 9],
-            [10, 11, 12]
-        ])
-    >>> ht.max(a)
-    tensor([12.])
-    >>> ht.min(a, axis=0)
-    tensor([[10., 11., 12.]])
-    >>> ht.min(a, axis=1)
-    tensor([[ 3.],
-        [ 6.],
-        [ 9.],
-        [12.]])
-    """
-    def local_max(*args, **kwargs):
-        result = torch.max(*args, **kwargs)
-        if isinstance(result, tuple):
-            return result[0]
-        return result
-
-    return reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
-
-
-def min(x, axis=None, out=None, keepdim=None):
-    # TODO: initial : scalar, optional Issue #101
-    """
-    Return the minimum along a given axis.
-
-    Parameters
-    ----------
-    a : ht.Tensor
-        Input data.
-    axis : None or int
-        Axis or axes along which to operate. By default, flattened input is used.
-    out : ht.Tensor, optional
-        Tuple of two output tensors (min, min_indices). Must be of the same shape and buffer length as the expected
-        output.The maximum value of an output element. Must be present to allow computation on empty slice.
-
-    Examples
-    --------
-    >>> a = ht.float32([
-            [1, 2, 3],
-            [4, 5, 6],
-            [7, 8, 9],
-            [10, 11, 12]
-        ])
-    >>> ht.min(a)
-    tensor([1.])
-    >>> ht.min(a, axis=0)
-    tensor([[1., 2., 3.]])
-    >>> ht.min(a, axis=1)
-    tensor([[ 1.],
-        [ 4.],
-        [ 7.],
-        [10.]])
-    """
-    def local_min(*args, **kwargs):
-        result = torch.min(*args, **kwargs)
-        if isinstance(result, tuple):
-            return result[0]
-        return result
-
-    return reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
 
 
 def ne(t1, t2):
