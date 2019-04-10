@@ -92,17 +92,16 @@ class TestOperations(unittest.TestCase):
         ht.sum(shape_noaxis_split_axis_neg, axis=-2, out=out_noaxis)
 
         # check sum over all float elements of splitted 3d tensor with tuple axis
-        shape_noaxis_split_axis_tuple = ht.ones((3, 4, 5), split=1)
-        shape_noaxis_split_axis_tuple_sum = shape_noaxis_split_axis_tuple.sum(
-            axis=(-2, -3))
+        shape_split_axis_tuple = ht.ones((3, 4, 5), split=1)
+        shape_split_axis_tuple_sum = shape_split_axis_tuple.sum(axis=(-2, -3))
+        expected_result = ht.ones((5,))*12.
 
-        self.assertIsInstance(shape_noaxis_split_axis_tuple_sum, ht.tensor)
-        self.assertEqual(
-            shape_noaxis_split_axis_tuple_sum.shape, (5,))
-        self.assertEqual(shape_noaxis_split_axis_tuple_sum.dtype, ht.float32)
-        self.assertEqual(
-            shape_noaxis_split_axis_tuple_sum._tensor__array.dtype, torch.float32)
-        self.assertEqual(shape_noaxis_split_axis_tuple_sum.split, None)
+        self.assertIsInstance(shape_split_axis_tuple_sum, ht.tensor)
+        self.assertEqual(shape_split_axis_tuple_sum.shape, (5,))
+        self.assertEqual(shape_split_axis_tuple_sum.dtype, ht.float32)
+        self.assertEqual(shape_split_axis_tuple_sum._tensor__array.dtype, torch.float32)
+        self.assertEqual(shape_split_axis_tuple_sum.split, None)
+        self.assertEqual(shape_split_axis_tuple_sum, expected_result)
 
         # exceptions
         with self.assertRaises(ValueError):
