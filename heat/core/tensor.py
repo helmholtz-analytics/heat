@@ -5,6 +5,7 @@ from . import arithmetics
 from . import devices
 from . import exponential
 from . import io
+from . import linalg
 from . import memory
 from . import operations
 from . import relational
@@ -55,7 +56,7 @@ class Tensor:
 
     @property
     def T(self, axes=None):
-        return operations.transpose(self, axes)
+        return linalg.transpose(self, axes)
 
     def abs(self, out=None, dtype=None):
         """
@@ -1445,7 +1446,7 @@ class Tensor:
         >>> ht.transpose(x, (1, 0, 2)).shape
         (2, 1, 3)
         """
-        return operations.transpose(self, axes)
+        return linalg.transpose(self, axes)
 
     def tril(self, k=0):
         """
@@ -1467,7 +1468,7 @@ class Tensor:
         lower_triangle : ht.Tensor
             Lower triangle of the input tensor.
         """
-        return operations.tril(self, k)
+        return linalg.tril(self, k)
 
     def triu(self, k=0):
         """
@@ -1489,7 +1490,7 @@ class Tensor:
         upper_triangle : ht.Tensor
             Upper triangle of the input tensor.
         """
-        return operations.triu(self, k)
+        return linalg.triu(self, k)
 
     def __truediv__(self, other):
         """
