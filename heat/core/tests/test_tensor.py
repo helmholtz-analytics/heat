@@ -51,9 +51,9 @@ class TestTensor(unittest.TestCase):
                       [0, 1, 0]])
         res = ht.uint8([[1, 1, 0]])
         any_tensor = ht.zeros(1)
-        any_tensor = x.any(axis=0)
+        any_tensor = x.any(axis=0, keepdim=True)
         self.assertIsInstance(any_tensor, ht.tensor)
-        self.assertEqual(any_tensor.shape, (3,))
+        self.assertEqual(any_tensor.shape, (1, 3))
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))
 
@@ -194,7 +194,7 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(three_arg_arange_dtype_float32._tensor__array.dtype, torch.float32)
         self.assertEqual(three_arg_arange_dtype_float32.split, 0)
         # make an in direct check for the sequence, compare against the gaussian sum
-        self.assertEqual(three_arg_arange_dtype_float32.sum(axis=0), 20.0)
+        self.assertEqual(three_arg_arange_dtype_float32.sum(axis=0, keepdim=True), 20.0)
 
         # testing setting dtype to int16
         three_arg_arange_dtype_short = ht.arange(0, 10, 2., dtype=torch.int16)
@@ -205,7 +205,7 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(three_arg_arange_dtype_short._tensor__array.dtype, torch.int16)
         self.assertEqual(three_arg_arange_dtype_short.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
-        self.assertEqual(three_arg_arange_dtype_short.sum(axis=0), 20)
+        self.assertEqual(three_arg_arange_dtype_short.sum(axis=0, keepdim=True), 20)
 
         # testing setting dtype to float64
         three_arg_arange_dtype_float64 = ht.arange(
@@ -217,7 +217,7 @@ class TestTensorFactories(unittest.TestCase):
         self.assertEqual(three_arg_arange_dtype_float64._tensor__array.dtype, torch.float64)
         self.assertEqual(three_arg_arange_dtype_float64.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
-        self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0), 20.0)
+        self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0, keepdim=True), 20.0)
 
         # exceptions
         with self.assertRaises(ValueError):

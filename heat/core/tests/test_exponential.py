@@ -330,7 +330,7 @@ class TestOperations(unittest.TestCase):
 
         # check whether the input range remain unchanged
         self.assertIsInstance(number_range, ht.tensor)
-        self.assertEqual(number_range.sum(axis=0), 190)  # gaussian sum
+        self.assertEqual(number_range.sum(axis=0, keepdim=True), 190)  # gaussian sum
         self.assertEqual(number_range.gshape, (elements,))
 
         # check whether the output buffer still has the correct shape

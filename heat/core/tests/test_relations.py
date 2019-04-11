@@ -191,7 +191,7 @@ class TestOperations(unittest.TestCase):
 
         self.assertIsInstance(maximum_vertical, ht.tensor)
         self.assertEqual(maximum_vertical.shape, (3,))
-        self.assertEqual(maximum_vertical.lshape, (1, 3,))
+        self.assertEqual(maximum_vertical.lshape, (3,))
         self.assertEqual(maximum_vertical.split, None)
         self.assertEqual(maximum_vertical.dtype, ht.int64)
         self.assertEqual(maximum_vertical._tensor__array.dtype, torch.int64)
@@ -203,12 +203,12 @@ class TestOperations(unittest.TestCase):
 
         self.assertIsInstance(maximum_horizontal, ht.tensor)
         self.assertEqual(maximum_horizontal.shape, (4,))
-        self.assertEqual(maximum_horizontal.lshape, (4, 1,))
+        self.assertEqual(maximum_horizontal.lshape, (4,))
         self.assertEqual(maximum_horizontal.split, None)
         self.assertEqual(maximum_horizontal.dtype, ht.int64)
         self.assertEqual(maximum_horizontal._tensor__array.dtype, torch.int64)
         self.assertTrue((maximum_horizontal._tensor__array ==
-                         comparison.max(dim=1, keepdim=True)[0]).all())
+                         comparison.max(dim=1)[0]).all())
 
         # check max over all float elements of split 3d tensor, across split axis
         random_volume = ht.random.randn(3, 3, 3, split=1)
@@ -216,7 +216,7 @@ class TestOperations(unittest.TestCase):
 
         self.assertIsInstance(maximum_volume, ht.tensor)
         self.assertEqual(maximum_volume.shape, (3, 3))
-        self.assertEqual(maximum_volume.lshape, (3, 1, 3))
+        self.assertEqual(maximum_volume.lshape, (3, 3))
         self.assertEqual(maximum_volume.dtype, ht.float32)
         self.assertEqual(maximum_volume._tensor__array.dtype, torch.float32)
         self.assertEqual(maximum_volume.split, None)
@@ -228,7 +228,7 @@ class TestOperations(unittest.TestCase):
 
         self.assertIsInstance(maximum_volume, ht.tensor)
         self.assertEqual(maximum_volume.shape, (3,))
-        self.assertEqual(maximum_volume.lshape, (3, 1, 1))
+        self.assertEqual(maximum_volume.lshape, (3,))
         self.assertEqual(maximum_volume.dtype, ht.float32)
         self.assertEqual(maximum_volume._tensor__array.dtype, torch.float32)
         self.assertEqual(maximum_volume.split, 0)
@@ -236,10 +236,10 @@ class TestOperations(unittest.TestCase):
 
         # check max over all float elements of split 5d tensor, along split axis
         random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0)
-        maximum_5d = ht.max(random_5d, axis=1)
+        maximum_5d = ht.max(random_5d, axis=1, keepdim=True)
 
         self.assertIsInstance(maximum_5d, ht.tensor)
-        self.assertEqual(maximum_5d.shape, (1, 3, 4, 5))
+        self.assertEqual(maximum_5d.shape, (1, 1, 3, 4, 5))
         self.assertLessEqual(maximum_5d.lshape[1], 2)
         self.assertEqual(maximum_5d.dtype, ht.float32)
         self.assertEqual(maximum_5d._tensor__array.dtype, torch.float32)
@@ -280,7 +280,7 @@ class TestOperations(unittest.TestCase):
 
         self.assertIsInstance(minimum_vertical, ht.tensor)
         self.assertEqual(minimum_vertical.shape, (3,))
-        self.assertEqual(minimum_vertical.lshape, (1, 3,))
+        self.assertEqual(minimum_vertical.lshape, (3,))
         self.assertEqual(minimum_vertical.split, None)
         self.assertEqual(minimum_vertical.dtype, ht.int64)
         self.assertEqual(minimum_vertical._tensor__array.dtype, torch.int64)
@@ -292,12 +292,12 @@ class TestOperations(unittest.TestCase):
 
         self.assertIsInstance(minimum_horizontal, ht.tensor)
         self.assertEqual(minimum_horizontal.shape, (4,))
-        self.assertEqual(minimum_horizontal.lshape, (4, 1,))
+        self.assertEqual(minimum_horizontal.lshape, (4,))
         self.assertEqual(minimum_horizontal.split, None)
         self.assertEqual(minimum_horizontal.dtype, ht.int64)
         self.assertEqual(minimum_horizontal._tensor__array.dtype, torch.int64)
         self.assertTrue((minimum_horizontal._tensor__array ==
-                         comparison.min(dim=1, keepdim=True)[0]).all())
+                         comparison.min(dim=1)[0]).all())
 
         # check min over all float elements of split 3d tensor, across split axis
         random_volume = ht.random.randn(3, 3, 3, split=1)
@@ -305,7 +305,7 @@ class TestOperations(unittest.TestCase):
 
         self.assertIsInstance(minimum_volume, ht.tensor)
         self.assertEqual(minimum_volume.shape, (3, 3))
-        self.assertEqual(minimum_volume.lshape, (3, 1, 3))
+        self.assertEqual(minimum_volume.lshape, (3, 3))
         self.assertEqual(minimum_volume.dtype, ht.float32)
         self.assertEqual(minimum_volume._tensor__array.dtype, torch.float32)
         self.assertEqual(minimum_volume.split, None)
@@ -317,7 +317,7 @@ class TestOperations(unittest.TestCase):
 
         self.assertIsInstance(minimum_volume, ht.tensor)
         self.assertEqual(minimum_volume.shape, (3,))
-        self.assertEqual(minimum_volume.lshape, (3, 1, 1))
+        self.assertEqual(minimum_volume.lshape, (3,))
         self.assertEqual(minimum_volume.dtype, ht.float32)
         self.assertEqual(minimum_volume._tensor__array.dtype, torch.float32)
         self.assertEqual(minimum_volume.split, 0)
@@ -325,10 +325,10 @@ class TestOperations(unittest.TestCase):
 
         # check min over all float elements of split 5d tensor, along split axis
         random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0)
-        minimum_5d = ht.min(random_5d, axis=1)
+        minimum_5d = ht.min(random_5d, axis=1, keepdim=True)
 
         self.assertIsInstance(minimum_5d, ht.tensor)
-        self.assertEqual(minimum_5d.shape, (1, 3, 4, 5))
+        self.assertEqual(minimum_5d.shape, (1, 1, 3, 4, 5))
         self.assertLessEqual(minimum_5d.lshape[1], 2)
         self.assertEqual(minimum_5d.dtype, ht.float32)
         self.assertEqual(minimum_5d._tensor__array.dtype, torch.float32)

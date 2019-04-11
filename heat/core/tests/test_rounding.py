@@ -14,19 +14,19 @@ class TestOperations(unittest.TestCase):
         # basic absolute test
         self.assertIsInstance(absolute_values, ht.tensor)
         self.assertEqual(absolute_values.dtype, ht.float32)
-        self.assertEqual(absolute_values.sum(axis=0), 100)
+        self.assertEqual(absolute_values.sum(axis=0, keepdim=True), 100)
 
         # check whether output works
         output_tensor = ht.zeros(20, split=0)
-        self.assertEqual(output_tensor.sum(axis=0), 0)
+        self.assertEqual(output_tensor.sum(axis=0, keepdim=True), 0)
         ht.absolute(float32_tensor, out=output_tensor)
-        self.assertEqual(output_tensor.sum(axis=0), 100)
+        self.assertEqual(output_tensor.sum(axis=0, keepdim=True), 100)
 
         # dtype parameter
         int64_tensor = ht.arange(-10, 10, dtype=ht.int64)
         absolute_values = ht.abs(int64_tensor, dtype=ht.float32)
         self.assertIsInstance(absolute_values, ht.tensor)
-        self.assertEqual(absolute_values.sum(axis=0), 100)
+        self.assertEqual(absolute_values.sum(axis=0, keepdim=True), 100)
         self.assertEqual(absolute_values.dtype, ht.float32)
         self.assertEqual(absolute_values._tensor__array.dtype, torch.float32)
 
