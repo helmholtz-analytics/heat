@@ -1,6 +1,6 @@
 import torch
 
-from .operations import __local_operation as local_op
+from .operations import __local_op as local_op
 
 __all__ = [
     'cos',

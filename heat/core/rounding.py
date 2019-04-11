@@ -37,7 +37,7 @@ def abs(x, out=None, dtype=None):
     if dtype is not None and not issubclass(dtype, types.generic):
         raise TypeError('dtype must be a heat data type')
 
-    absolute_values = operations.__local_operation(torch.abs, x, out)
+    absolute_values = operations.__local_op(torch.abs, x, out)
     if dtype is not None:
         absolute_values._Tensor__array = absolute_values._Tensor__array.type(
             dtype.torch_type())
@@ -96,7 +96,7 @@ def ceil(x, out=None):
     >>> ht.ceil(ht.arange(-2.0, 2.0, 0.4))
     tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
     """
-    return operations.__local_operation(torch.ceil, x, out)
+    return operations.__local_op(torch.ceil, x, out)
 
 
 def clip(a, a_min, a_max, out=None):
@@ -159,4 +159,4 @@ def floor(x, out=None):
     >>> ht.floor(ht.arange(-2.0, 2.0, 0.4))
     tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
     """
-    return operations.__local_operation(torch.floor, x, out)
+    return operations.__local_op(torch.floor, x, out)

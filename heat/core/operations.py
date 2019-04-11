@@ -124,7 +124,7 @@ def __binary_op(operation, t1, t2):
     return tensor.Tensor(result, output_shape, t1.dtype, output_split, output_device, output_comm)
 
 
-def __local_operation(operation, x, out):
+def __local_op(operation, x, out):
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
     argument and takes only care of buffer allocation/writing.
