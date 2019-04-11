@@ -223,7 +223,7 @@ class tensor:
         """
         return operations.allclose(self, other, rtol, atol, equal_nan)
 
-    def any(self, axis=None, out=None):
+    def any(self, axis=None, out=None, keepdim=None):
         """
         Test whether any array element along a given axis evaluates to True.
         The returning tensor is one dimensional unless axis is not None.
@@ -260,7 +260,7 @@ class tensor:
         >>> res
         tensor([[0, 0, 1]], dtype=torch.uint8)
         """
-        return operations.any(self, axis=axis, out=out)
+        return operations.any(self, axis=axis, out=out, keepdim=keepdim)
 
     def argmax(self, axis=None, out=None, **kwargs):
         """

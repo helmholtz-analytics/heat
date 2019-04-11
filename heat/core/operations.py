@@ -175,7 +175,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
 
 
-def any(x, axis=None, out=None):
+def any(x, axis=None, out=None, keepdim=None):
     """
     Test whether any array element along a given axis evaluates to True.
     The returning tensor is one dimensional unless axis is not None.
@@ -217,7 +217,7 @@ def any(x, axis=None, out=None):
     def local_any(t, *args, **kwargs):
         return torch.any(t != 0, *args, **kwargs)
 
-    return __reduce_op(x, local_any, MPI.LOR, axis=axis, out=out, keepdim=False)
+    return __reduce_op(x, local_any, MPI.LOR, axis=axis, out=out, keepdim=keepdim)
 
 
 def argmax(x, axis=None, out=None, **kwargs):
