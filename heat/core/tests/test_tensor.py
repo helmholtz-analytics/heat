@@ -208,7 +208,7 @@ class TestTensor(unittest.TestCase):
         a[1:4, 1] = 1
         self.assertEqual(a[1:4, 1], 1)
         self.assertEqual(a[1:4, 1].gshape, (3,))
-        self.assertEqual(a[1:4, 1].split, 1)
+        self.assertEqual(a[1:4, 1].split, 0)
         self.assertEqual(a[1:4, 1].dtype, ht.float32)
         if a.comm.size == 2:
             if a.comm.rank == 0:
@@ -221,7 +221,7 @@ class TestTensor(unittest.TestCase):
         a[11, 1:5] = 1
         self.assertEqual(a[11, 1:5], 1)
         self.assertEqual(a[11, 1:5].gshape, (4,))
-        self.assertEqual(a[11, 1:5].split, 1)
+        self.assertEqual(a[11, 1:5].split, 0)
         self.assertEqual(a[11, 1:5].dtype, ht.float32)
         if a.comm.size == 2:
             if a.comm.rank == 1:
@@ -234,7 +234,7 @@ class TestTensor(unittest.TestCase):
         a[8:12, 1] = 1
         self.assertEqual(a[8:12, 1], 1)
         self.assertEqual(a[8:12, 1].gshape, (4,))
-        self.assertEqual(a[8:12, 1].split, 1)
+        self.assertEqual(a[8:12, 1].split, 0)
         self.assertEqual(a[8:12, 1].dtype, ht.float32)
         if a.comm.size == 2:
             if a.comm.rank == 0:
@@ -304,7 +304,7 @@ class TestTensor(unittest.TestCase):
         self.assertEqual(a[1:4, 1, :].gshape, (3, 7))
         self.assertEqual(a[1:4, 1, :], 1)
         if a.comm.size == 2:
-            self.assertEqual(a[1:4, 1, :].split, 2)
+            self.assertEqual(a[1:4, 1, :].split, 1)
             self.assertEqual(a[1:4, 1, :].dtype, ht.float32)
             if a.comm.rank == 0:
                 self.assertEqual(a[1:4, 1, :].lshape, (3, 4))

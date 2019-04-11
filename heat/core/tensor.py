@@ -1599,14 +1599,16 @@ class tensor:
             chunk_end = chunk_slice[self.split].stop
             chunk_set = set(range(chunk_start, chunk_end))
 
-            gout = [None for _ in self.gshape]  # for the building of the gshape of the returned tensor
-            gout[self.split] = 0
             arr = torch.Tensor()
 
-            one_ret = False
-
             if isinstance(key, int):  # if a sigular index is given and the tensor is split
-                gout = [0]
+                gout = [0] * (len(self.gshape) - 1)
+                # handle the reduction of the split to accommodate for the reduced dimension
+                if self.split >= len(gout):
+                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                else:
+                    new_split = self.split
+
                 if key in range(chunk_start, chunk_end) and self.split == 0:  # only need to adjust the key if split==0
                     gout = list(self.__array[key-chunk_start].shape)
                     arr = self.__array[key - chunk_start]
@@ -1617,15 +1619,30 @@ class tensor:
                         gout = list(arr.shape)
                 else:
                     warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
-
-                gout = self.comm.allreduce(gout, MPI.SUM)
-                gout = [g for g in gout if g != 0]
+                    # arr is empyt and gout is zeros
 
             elif isinstance(key, (tuple, list)):  # multi-argument gets are passed as tuples by python
-                all_slices = False
-                if all(isinstance(t, slice) for t in key):
-                    gout = [0] * len(self.gshape)
-                    all_slices = True
+                gout = [0] * len(self.gshape)
+                # handle the dimensional reduction for integers
+                ints = sum([isinstance(it, int) for it in key])
+                gout = gout[:len(gout) - ints]
+
+                # reduce the dims if the slices are only one element in length
+                slices = [isinstance(k, slice) for k in key]
+                if any(slices):
+                    for s, b in enumerate(slices):
+                        if b:
+                            start = key[s].start if key[s].start is not None else 0
+                            stop = key[s].stop if key[s].stop is not None else self.gshape[s]
+                            if start == stop - 1:
+                                gout = gout[:-1]
+
+                if self.split >= len(gout):
+                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                else:
+                    new_split = self.split
+                # all_slices = True if all(slices) else False
+
                 if isinstance(key[self.split], slice):  # if a slice is given in the split direction
                     # below allows for the split given to contain Nones
                     key_set = set(range(key[self.split].start if key[self.split].start is not None else 0,
@@ -1639,9 +1656,6 @@ class tensor:
                         arr = self.__array[tuple(key)]
                         gout = list(arr.shape)
 
-                        if not key_set.issubset(chunk_set):  # if **all** the keys are **not** included in the chunk
-                            if len(list(arr.shape)) == 1:
-                                gout = [tuple(arr.shape)[0], ]
                 # if the given axes are not splits (must be ints for python)
                 # this means the whole slice is on one node
                 elif key[self.split] in range(chunk_start, chunk_end):
@@ -1649,70 +1663,61 @@ class tensor:
                     key[self.split] = key[self.split] - chunk_start
                     arr = self.__array[tuple(key)]
                     gout = list(arr.shape)
-                    if not gout:  # gout is an empty list in the case that only one data point is returned
-                        gout = [1, ]
-                        arr = torch.Tensor([arr.item()])
                 else:
                     warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
-
-                # below this is only about getting the proper shape
-                # below handles the case of a single return value
-                if all(isinstance(k, int) for k in key):  # single return value
-                    if gout[0] is None:
-                        gout = [0, ]
-                    gout[0] = self.comm.allreduce(gout[0], MPI.SUM)
-                    gout = (gout[0],)
-                    one_ret = True
-
-                elif any(isinstance(k, int) for k in key) and self.split > 1:
-                    gout[self.split - 1] = self.comm.allreduce(gout[self.split - 1], MPI.SUM)
-
-                elif all_slices:
-                    gout[self.split] = self.comm.allreduce(gout[self.split], MPI.SUM)
-                    for x in range(len(gout)):
-                        if x != self.split:
-                            gout[x] = self.comm.allreduce(gout[x], MPI.MAX)
-
-                elif any(g is None for g in gout):  # this is the case where no data is on the process
-                    # two cases: 1 dim out, multi dim out
-                    if not isinstance(key, int) and any(isinstance(k, int) for k in key) and tuple(arr.shape)[0] == 0:
-                        gout = [0] * (len(key) - 1)
-                    else:
-                        gout = [it for it in self.gshape]
-                        gout[self.split] = 0
-
-                if len(gout) == 1 and not one_ret:
-                    gout = self.comm.allreduce(gout[0], MPI.SUM)
-                    gout = (gout,)
+                    # arr is empty
+                    # gout is all 0s and is the proper shape
 
             elif isinstance(key, slice) and self.split == 0:  # if the given axes are only a slice
-                key_set = set(range(key.start if key.start is not None else 0,
-                                    key.stop if key.stop is not None else self.gshape[0],
-                                    key.step if key.step else 1))
+                gout = [0] * len(self.gshape)
+                # reduce the dims if the slices are only one element in length
+                start = key.start if key.start is not None else 0
+                stop = key.stop if key.stop is not None else self.gshape[0]
+                if start == stop - 1:
+                    gout = gout[:-1]
+
+                if self.split >= len(gout):
+                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                else:
+                    new_split = self.split
+
+                key_set = set(range(start, stop, key.step if key.step else 1))
                 overlap = list(key_set & chunk_set)
-                gout = list(self.gshape)
-                gout[self.split] = 0
+
                 if overlap:
                     hold = [x - chunk_start for x in overlap]
                     key = slice(min(hold), max(hold) + 1, key.step)
                     arr = self.__array[key]
                     gout = list(arr.shape)
-
-                if len(gout) > 1:
-                    gout[self.split if self.split < 2 else self.split - 1] = self.comm.allreduce(gout[self.split], MPI.SUM)
                 else:
-                    gout = self.comm.allreduce(gout, MPI.SUM)
-                gout = tuple(gout)
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    # arr is empty
+                    # gout is all 0s and is the proper shape
 
-            else:  # handle other cases not accounted for
+            else:  # handle other cases not accounted for (one is a slice is given and the split != 0)
+                gout = [0] * len(self.gshape)
+                if isinstance(key, slice):
+                    # reduce the dims if the slices are only one element in length
+                    start = key.start if key.start is not None else 0
+                    stop = key.stop if key.stop is not None else self.gshape[0]
+                    if start == stop - 1:
+                        gout = gout[:-1]
+
+                if self.split >= len(gout):
+                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                else:
+                    new_split = self.split
+
                 gout = list(self.__array[key].shape)
                 arr = self.__array[key]
-                if len(gout) > 1:
-                    gout[self.split] = self.comm.allreduce(tuple(arr.shape)[self.split], MPI.SUM)
-                else:
-                    gout = self.comm.allreduce(tuple(arr.shape), MPI.SUM)
 
-            return tensor(arr, gout if isinstance(gout, tuple) else tuple(gout), self.dtype, self.split, self.device, self.comm)
+            for e, _ in enumerate(gout):
+                if e == new_split:
+                    gout[e] = self.comm.allreduce(gout[e], MPI.SUM)
+                else:
+                    gout[e] = self.comm.allreduce(gout[e], MPI.MAX)
+
+            return tensor(arr, gout if isinstance(gout, tuple) else tuple(gout), self.dtype, new_split, self.device, self.comm)
         else:
             return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
 
@@ -1772,8 +1777,6 @@ class tensor:
                             if str(te) != "'int' object is not subscriptable":
                                 raise TypeError
                             self.setter(tuple(key), value)
-                    # else:
-                    #     self.setter(tuple(key), value)
 
                 elif key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
