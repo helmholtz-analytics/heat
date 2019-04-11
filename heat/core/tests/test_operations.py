@@ -891,8 +891,13 @@ class TestOperations(unittest.TestCase):
             self.assertTrue(result._tensor__array[0, -1] == 1)
 
     def test_unique(self):
-        t: tensor = ht.array([[1, 3, 1], [1, 3, 1], [2, 3, 0], [1, 3, 1]]).resplit(axis=0)
+        t: tensor = ht.array([
+            [1, 3, 1],
+            [1, 3, 1],
+            [2, 3, 0],
+            [1, 3, 1]
+        ]).resplit(axis=0)
         print(t.lshape, t.shape, t.comm.Get_rank(), t._tensor__array)
-        res = ht.unique(t, False, False, axis=0)
-        print(res)
+        res = ht.unique(t, False, False, axis=1)
+        print("Result:", res)
         self.fail()

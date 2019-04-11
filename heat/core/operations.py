@@ -558,12 +558,66 @@ def triu(m, k=0):
 
 
 def unique(a, sorted=False, return_inverse=False, axis=None):
-    lres = torch.unique(a._tensor__array, sorted=sorted, return_inverse=return_inverse, dim=axis)
-    print("lres", lres)
-    gres = a.comm.allgather(lres)
-    gres = torch.cat(gres)
-    print("concat", gres)
-    return torch.unique(gres, sorted=sorted, return_inverse=return_inverse, dim=axis)
+    # Calculate the unique on the local values
+    lres, inverse_pos = torch.unique(a._tensor__array, sorted=sorted, return_inverse=True, dim=axis)
+    # Share and gather the results with the other processes
+    uniques = torch.tensor([[lres.shape[axis]]]).to(torch.int32)
+    gather_buf = torch.empty((a.comm.Get_size(), 1,), dtype=torch.int32)
+    print("Local:", a.comm.Get_rank(), lres, uniques, "inverse pos", inverse_pos)
+    a.comm.Allgather(uniques, gather_buf)
+    print("Gathered:", gather_buf)
+
+    # Find process with most uniques and tell his indices to others
+    max_uniques, root_process = gather_buf.max(0)
+    pos = gather_buf.cumsum(dim=0)[a.comm.Get_rank()]
+    print("Max:", max_uniques, "pos", pos, "root process:", root_process)
+
+    # find indices of vectors
+    indices = torch.empty((max_uniques.item(),), dtype=torch.int32)
+    if a.comm.Get_rank() is root_process.item():
+        # Get the indices of the vectors we need from each process
+        current = 0
+        if axis == 0:
+            for i in range(lres.shape[0]):
+                for j in range(a.lshape[0]):
+                    if torch.equal(a._tensor__array[j], lres[i]):
+                        indices[current] = i
+                        current += 1
+                        break
+        elif axis == 1:
+            for i in range(lres.shape[1]):
+                for j in range(a.lshape[1]):
+                    if torch.equal(a._tensor__array[:, j], lres[:, i]):
+                        indices[current] = i
+                        current += 1
+                        break
+
+    a.comm.Bcast(indices, root=root_process)
+    print("indices after bcast", indices)
+
+    if a.comm.Get_rank() != root_process:
+        if axis == 0:
+            pass
+        if axis == 1:
+            lres =  a._tensor__array[:, indices.tolist()]
+
+    # result_buf = torch.empty((lres.shape[0] * a.comm.Get_size(), lres.shape[1] * a.comm.Get_size(),), dtype=torch.int32)
+    # print("before:", lres, lres.shape, result_buf.shape, result_buf)
+    # a.comm.Allgather(lres, result_buf)
+    # print("after alltoall:", result_buf)
+
+    result_buf = torch.empty((lres.shape[0] * a.comm.Get_size(), lres.shape[1]), dtype=torch.int32)
+    counts = tuple(range(1, a.comm.Get_size() + 1))
+    displs = tuple(range(0, a.comm.Get_size(), max_uniques.item()))
+    a.comm.Allgatherv(lres, (result_buf, counts, displs))
+    print("after allgatherv:", result_buf)
+
+    # Extend lres with
+
+    # gres = a.comm.allgather(lres)
+    # gres = torch.cat(gres)
+    # print("concat", gres)
+    return # torch.unique(gres, sorted=sorted, return_inverse=return_inverse, dim=axis)
 
 
 def __local_operation(operation, x, out):
