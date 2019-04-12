@@ -177,13 +177,26 @@ class TestOperations(unittest.TestCase):
     def test_allclose(self):
         a = ht.float32([[2, 2], [2, 2]])
         b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]])
+        c = ht.zeros((4, 6,), split=0)
+        d = ht.zeros((4, 6,), split=1)
+        e = ht.zeros((4, 6,))
 
         self.assertFalse(ht.allclose(a, b))
         self.assertTrue(ht.allclose(a, b, atol=1e-04))
         self.assertTrue(ht.allclose(a, b, rtol=1e-04))
+        self.assertTrue(ht.allclose(a, 2))
+        self.assertTrue(ht.allclose(a, 2.0))
+        self.assertTrue(ht.allclose(2,a))
+        self.assertTrue(ht.allclose(c, d))
+        self.assertTrue(ht.allclose(c, e))
+        self.assertTrue(ht.allclose(e, c))
 
         with self.assertRaises(TypeError):
             ht.allclose(a, (2, 2, 2, 2))
+        with self.assertRaises(TypeError):
+            ht.allclose(a, '?')
+        with self.assertRaises(TypeError):
+            ht.allclose('?', a)
 
     def test_any(self):
         x = ht.float32([[2.7, 0, 0],
