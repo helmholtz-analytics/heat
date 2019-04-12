@@ -254,25 +254,25 @@ class TestIO(unittest.TestCase):
 
     def test_load_netcdf(self):
         # netcdf support is optional
-        # if not ht.io.supports_netcdf():
-        #     return
-        #
-        # # default parameters
-        # iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE)
-        # self.assertIsInstance(iris, ht.tensor)
-        # self.assertEqual(iris.shape, self.IRIS.shape)
-        # self.assertEqual(iris.dtype, ht.float32)
-        # self.assertEqual(iris._tensor__array.dtype, torch.float32)
-        # self.assertTrue((self.IRIS == iris._tensor__array).all())
-        #
-        # # positive split axis
-        # iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE, split=0)
-        # self.assertIsInstance(iris, ht.tensor)
-        # self.assertEqual(iris.shape, self.IRIS.shape)
-        # self.assertEqual(iris.dtype, ht.float32)
-        # lshape = iris.lshape
-        # self.assertLessEqual(lshape[0], self.IRIS.shape[0])
-        # self.assertEqual(lshape[1], self.IRIS.shape[1])
+        if not ht.io.supports_netcdf():
+            return
+
+        # default parameters
+        iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE)
+        self.assertIsInstance(iris, ht.tensor)
+        self.assertEqual(iris.shape, self.IRIS.shape)
+        self.assertEqual(iris.dtype, ht.float32)
+        self.assertEqual(iris._tensor__array.dtype, torch.float32)
+        self.assertTrue((self.IRIS == iris._tensor__array).all())
+
+        # positive split axis
+        iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE, split=0)
+        self.assertIsInstance(iris, ht.tensor)
+        self.assertEqual(iris.shape, self.IRIS.shape)
+        self.assertEqual(iris.dtype, ht.float32)
+        lshape = iris.lshape
+        self.assertLessEqual(lshape[0], self.IRIS.shape[0])
+        self.assertEqual(lshape[1], self.IRIS.shape[1])
 
         # negative split axis
         iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE, split=-1)
@@ -283,12 +283,12 @@ class TestIO(unittest.TestCase):
         self.assertEqual(lshape[0], self.IRIS.shape[0])
         self.assertLessEqual(lshape[1], self.IRIS.shape[1])
 
-        # # different data type
-        # iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE, dtype=ht.int8)
-        # self.assertIsInstance(iris, ht.tensor)
-        # self.assertEqual(iris.shape, self.IRIS.shape)
-        # self.assertEqual(iris.dtype, ht.int8)
-        # self.assertEqual(iris._tensor__array.dtype, torch.int8)
+        # different data type
+        iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE, dtype=ht.int8)
+        self.assertIsInstance(iris, ht.tensor)
+        self.assertEqual(iris.shape, self.IRIS.shape)
+        self.assertEqual(iris.dtype, ht.int8)
+        self.assertEqual(iris._tensor__array.dtype, torch.int8)
 
     def test_load_netcdf_exception(self):
         # netcdf support is optional
