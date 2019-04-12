@@ -1,7 +1,7 @@
 import os.path
 import torch
 import warnings
-
+from .stride_tricks import sanitize_axis
 from .communication import MPI, MPI_WORLD
 from . import devices
 from . import types
@@ -95,9 +95,20 @@ else:
         with h5py.File(path, 'r') as handle:
             data = handle[dataset]
             gshape = tuple(data.shape)
+            dims = len(gshape)
+            split = sanitize_axis(gshape, split)
             _, _, indices = comm.chunk(gshape, split)
-            data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
-
+            if split is None: 
+                data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
+            elif indices[split].stop > indices[split].start: 
+                data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
+            else: 
+                warnings.warn('More MPI ranks are used then the length of splitting dimension!')
+                slice1 = tuple(slice(0, gshape[i]) if i != split else slice(0, 1) for i in range(dims)) 
+                slice2 = tuple(slice(0, gshape[i]) if i != split else slice(0, 0) for i in range(dims)) 
+                data = torch.tensor(data[slice1], dtype=dtype.torch_type(), device=device.torch_device)
+                data = data[slice2]
+                
             return tensor.tensor(data, gshape, dtype, split, device, comm)
 
 
@@ -182,8 +193,12 @@ except ImportError:
     def supports_netcdf():
         return False
 else:
+    __nc_has_par = nc.__dict__.get('__has_parallel4_support__', False) or \
+                   nc.__dict__.get('__has_pnetcdf_support__', False) or \
+                   nc.__dict__.get('__has_nc_par__', False)
+
     # warn the user about serial netcdf
-    if not nc.__has_nc_par__ and MPI_WORLD.rank == 0:
+    if not __nc_has_par and MPI_WORLD.rank == 0:
         warnings.warn('netCDF4 does not support parallel I/O, falling back to slower serial I/O', ImportWarning)
 
     # add functions to visible exports
@@ -250,7 +265,7 @@ else:
         device = devices.sanitize_device(device)
 
         # actually load the data
-        with nc.Dataset(path, 'r', parallel=nc.__has_nc_par__, comm=comm.handle) as handle:
+        with nc.Dataset(path, 'r', parallel=__nc_has_par, comm=comm.handle) as handle:
             data = handle[variable][:]
             gshape = tuple(data.shape)
             _, _, indices = comm.chunk(gshape, split)
@@ -304,7 +319,7 @@ else:
         _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
 
         # attempt to perform parallel I/O if possible
-        if nc.__has_nc_par__:
+        if __nc_has_par:
             with nc.Dataset(path, mode, parallel=True, comm=data.comm.handle) as handle:
                 dimension_names = []
                 for dimension, elements in enumerate(data.shape):

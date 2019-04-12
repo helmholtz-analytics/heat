@@ -1,23 +1,30 @@
 language: python
 python:
   - "3.5"
-cache:
-  directories:
-  - $HOME/virtualenv/python3.5/bin
-  - $HOME/virtualenv/python3.5/lib
-  - $HOME/virtualenv/python3.5/include
-  - $HOME/virtualenv/python3.5/share
+
+services:
+  - docker
+    
 before_install:
-  - sudo apt-get install -y libopenmpi-dev openmpi-bin libhdf5-dev libnetcdf-dev
-  - pip install codecov pytest pytest-cov
+  - pip install codecov
+  - docker pull markusgoetz/heat
+  - docker run -dt --name unittest -v $PWD:/heat markusgoetz/heat
+
 install:
-  - pip install --no-cache-dir . -e .[hdf5] .[netcdf]
-  - pip list
+  - docker exec -t unittest /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
+
 script:
-  - mpirun -np 2 pytest
-  - mpirun pytest --cov=heat heat/
+  # Running multiple mpi process count, generate a unique coverage report for each one and merge into one report
+  - |
+    docker exec -t unittest /bin/bash -c '. /root/.bashrc && \
+      for i in {1..4}; do mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ > /dev/null; done && \
+      coverage combine && \
+      coverage report && \
+      coverage xml'
+
 after_success:
   - codecov
+
 deploy:
   provider: pypi
   user: bhagemeier

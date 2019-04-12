@@ -107,7 +107,7 @@ def equal(t1, t2):
         if np.isscalar(t2):
             try:
                 t2 = tensor.array([t2])
-            except (TypeError,ValueError,):
+            except (TypeError, ValueError,):
                 raise TypeError('Data type not supported, input was {}'.format(type(t2)))
         elif isinstance(t2, tensor.tensor):
             # TODO: implement complex NUMPY rules
@@ -268,7 +268,7 @@ def lt(t1, t2):
     return binary_op(torch.lt, t1, t2)
 
 
-def max(x, axis=None, out=None):
+def max(x, axis=None, out=None, keepdim=None):
     # TODO: initial : scalar, optional Issue #101
     """
     Return the maximum along a given axis.
@@ -277,8 +277,10 @@ def max(x, axis=None, out=None):
     ----------
     a : ht.tensor
         Input data.
-    axis : None or int, optional
+    axis : None or int or tuple of ints, optional
         Axis or axes along which to operate. By default, flattened input is used.
+        If this is a tuple of ints, the maximum is selected over multiple axes, 
+        instead of a single axis or all the axes as before.
     out : ht.tensor, optional
         Tuple of two output tensors (max, max_indices). Must be of the same shape and buffer length as the expected
         output. The minimum value of an output element. Must be present to allow computation on empty slice.
@@ -307,10 +309,10 @@ def max(x, axis=None, out=None):
             return result[0]
         return result
 
-    return reduce_op(x, local_max, MPI.MAX, axis, out)
+    return reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
 
 
-def min(x, axis=None, out=None):
+def min(x, axis=None, out=None, keepdim=None):
     # TODO: initial : scalar, optional Issue #101
     """
     Return the minimum along a given axis.
@@ -319,8 +321,10 @@ def min(x, axis=None, out=None):
     ----------
     a : ht.tensor
         Input data.
-    axis : None or int
+    axis : None or int or tuple of ints
         Axis or axes along which to operate. By default, flattened input is used.
+        If this is a tuple of ints, the minimum is selected over multiple axes, 
+        instead of a single axis or all the axes as before.
     out : ht.tensor, optional
         Tuple of two output tensors (min, min_indices). Must be of the same shape and buffer length as the expected
         output.The maximum value of an output element. Must be present to allow computation on empty slice.
@@ -349,13 +353,13 @@ def min(x, axis=None, out=None):
             return result[0]
         return result
 
-    return reduce_op(x, local_min, MPI.MIN, axis, out)
+    return reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
 
 
 def ne(t1, t2):
     """
     Element-wise rich comparison of non-equality between values from two operands, commutative.
-    Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+    Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument. 
 
     Parameters
     ----------
