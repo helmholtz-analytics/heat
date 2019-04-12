@@ -6,8 +6,8 @@ from .operations import __local_operation as local_op
 __all__ = [
     'abs',
     'absolute',
-    'fabs',
     'ceil',
+    'fabs',
     'floor'
 ]
 
@@ -18,7 +18,6 @@ def abs(x, out=None, dtype=None):
 
     Parameters
     ----------
-
     x : ht.tensor
         The values for which the compute the absolute value.
     out : ht.tensor, optional
@@ -70,28 +69,6 @@ def absolute(x, out=None, dtype=None):
     return abs(x, out, dtype)
 
 
-def fabs(x, out=None):
-    """
-    Calculate the absolute value element-wise and return floating-point tensor.
-
-    Parameters
-    ----------
-
-    x : ht.tensor
-        The values for which the compute the absolute value.
-    out : ht.tensor, optional
-        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-        If not provided or None, a freshly-allocated array is returned.
-
-    Returns
-    -------
-    absolute_values : ht.tensor
-        A tensor containing the absolute value of each element in x.
-    """
-
-    return abs(x, out, dtype=None)
-
-
 def ceil(x, out=None):
     """
     Return the ceil of the input, element-wise.
@@ -118,6 +95,27 @@ def ceil(x, out=None):
     tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
     """
     return local_op(torch.ceil, x, out)
+
+
+def fabs(x, out=None):
+    """
+    Calculate the absolute value element-wise and return floating-point tensor.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        The values for which the compute the absolute value.
+    out : ht.tensor, optional
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+        If not provided or None, a freshly-allocated array is returned.
+
+    Returns
+    -------
+    absolute_values : ht.tensor
+        A tensor containing the absolute value of each element in x.
+    """
+
+    return abs(x, out, dtype=None)
 
 
 def floor(x, out=None):
