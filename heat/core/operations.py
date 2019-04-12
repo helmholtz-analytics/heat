@@ -576,28 +576,24 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     indices = torch.empty((max_uniques.item(),), dtype=torch.int32)
     if a.comm.Get_rank() is root_process.item():
         # Get the indices of the vectors we need from each process
-        current = 0
-        if axis == 0:
-            for i in range(lres.shape[0]):
-                for j in range(a.lshape[0]):
-                    if torch.equal(a._tensor__array[j], lres[i]):
-                        indices[current] = i
-                        current += 1
-                        break
-        elif axis == 1:
-            for i in range(lres.shape[1]):
-                for j in range(a.lshape[1]):
-                    if torch.equal(a._tensor__array[:, j], lres[:, i]):
-                        indices[current] = i
-                        current += 1
-                        break
+        indices = []
+        found = []
+        pos_list = inverse_pos.tolist()
+        for p in pos_list:
+            if p not in found:
+                found += [p]
+                indices += [pos_list.index(p)]
+            if len(indices) is max_uniques.item():
+                break
+        indices = torch.tensor(indices, dtype=torch.int32)
 
+    print("indices before bcast", indices)
     a.comm.Bcast(indices, root=root_process)
     print("indices after bcast", indices)
 
     if a.comm.Get_rank() != root_process:
         if axis == 0:
-            pass
+            lres = a._tensor__array[indices.tolist()]
         if axis == 1:
             lres =  a._tensor__array[:, indices.tolist()]
 
