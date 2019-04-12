@@ -179,26 +179,22 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
         raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(y)))
 
     # If only one of the tensors is distributed, unsplit/gather it
-    # (Necessary to make sure dimensions are matching)
     if (x.split is not None) and (y.split is None):
-        x.resplit(axis = None)
-    if (x.split is  None) and (y.split is not None):
-        y.resplit(axis = None)
+        x.resplit(axis=None)
+    if (x.split is None) and (y.split is not None):
+        y.resplit(axis=None)
 
     # If both x and y are split, but along different axes, y is redistributed to be split along the same axis as x
-    if (x.split is not None) and (y.split is not None) and (x.split != y.split):
-        y.resplit(axis = x.split)
+    if (x.split is not None) and (y.split is not None) and (x.split!=y.split):
+        y.resplit(axis=x.split)
 
-    # perform local allclose
     # no sanitization for shapes of x and y needed, torch.allclose raises relevant errors
     _local_allclose = torch.tensor(torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan))
 
     # If x is distributed, then y is also distributed along the same axis
-    # allclose is performed along its split
     if x.comm.is_distributed():
         x.comm.Allreduce(MPI.IN_PLACE, _local_allclose, MPI.LAND)
 
-    # If x is not distributed, then y is also not distributed (see check before), and the result of the local operation is returned
     else:
         pass
 
