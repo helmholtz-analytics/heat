@@ -3,7 +3,6 @@ import torch
 
 import heat as ht
 
-FLOAT_EPSILON = 1e-4
 
 T = ht.float32([
     [1, 2],
