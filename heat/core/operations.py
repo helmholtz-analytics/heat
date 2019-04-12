@@ -579,9 +579,6 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
             output_dim[(axis + 1) % 2] = lres.shape[(axis + 1) % 2]
             output_dim[axis] = uniques_buf.sum().item()
 
-        if a.split is 1 and axis is not None:
-            lres = lres.transpose(0, 1)
-
         counts = tuple(uniques_buf.tolist())
         displs = tuple([0] + uniques_buf.cumsum(0).tolist()[:-1])
         gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
@@ -630,7 +627,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     displs = tuple(range(0, a.comm.Get_size() * lres.shape[a.split], lres.shape[a.split]))
     print("Shapes:", lres.shape, result_buf.shape)
     print("counts", counts, "displs", displs, "buf", result_buf)
-    return
+
     a.comm.Allgatherv(lres, (result_buf, counts, displs), recv_axis=a.split)
     print("after allgatherv:", result_buf)
 
