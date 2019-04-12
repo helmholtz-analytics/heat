@@ -568,7 +568,6 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     print("uniques", uniques, "buffer", uniques_buf)
     a.comm.Allgather(uniques, uniques_buf)
     print("Uniques_buf", uniques_buf)
-
     # if a.comm.Get_size() is 1 or a.split is None:
     #     return lres
 
@@ -625,10 +624,13 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     output_dim[(a.split + 1) % 2] = max_uniques.item()
 
     result_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
+    # TODO: Currently we expect each process to have an equal share of the data
+    #  (a.lshape[a.split] of rank 0 == a.lshape[a.split] of rank 1 === ...
     counts = (lres.shape[a.split],) * a.comm.Get_size()
     displs = tuple(range(0, a.comm.Get_size() * lres.shape[a.split], lres.shape[a.split]))
     print("Shapes:", lres.shape, result_buf.shape)
     print("counts", counts, "displs", displs, "buf", result_buf)
+    return
     a.comm.Allgatherv(lres, (result_buf, counts, displs), recv_axis=a.split)
     print("after allgatherv:", result_buf)
 

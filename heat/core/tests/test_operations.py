@@ -910,7 +910,7 @@ class TestOperations(unittest.TestCase):
         res = ht.unique(t_split_zero, sorted=False, axis=1)
         self.assertTrue(torch.equal(res, exp_axis_one))
 
-        # TODO: Allgatherv with matrix that is split along axis 1 weirdly transpose the result
+        # TODO: Allgatherv with matrix that is split along axis 1 weirdly transposes the result
 
         t_split_one = ht.array([
             [1, 3, 4, 3],
@@ -928,6 +928,3 @@ class TestOperations(unittest.TestCase):
 
         res = ht.unique(t_split_one, sorted=True, axis=1)
         # self.assertTrue(torch.equal(res, exp_axis_one))
-
-
-
