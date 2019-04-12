@@ -591,20 +591,22 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     a.comm.Bcast(indices, root=root_process)
     print("indices after bcast", indices)
 
-    if a.comm.Get_rank() != root_process:
-        if axis == 0:
-            lres = a._tensor__array[indices.tolist()]
-        if axis == 1:
-            lres =  a._tensor__array[:, indices.tolist()]
+    if axis == 0:
+        lres = torch.tensor(a._tensor__array[indices.tolist()], dtype=torch.int32)
+    elif axis == 1:
+        lres = torch.tensor(a._tensor__array[:, indices.tolist()], dtype=torch.int32)
 
+    print("Vectors", lres)
     # result_buf = torch.empty((lres.shape[0] * a.comm.Get_size(), lres.shape[1] * a.comm.Get_size(),), dtype=torch.int32)
     # print("before:", lres, lres.shape, result_buf.shape, result_buf)
     # a.comm.Allgather(lres, result_buf)
     # print("after alltoall:", result_buf)
 
-    result_buf = torch.empty((lres.shape[0] * a.comm.Get_size(), lres.shape[1]), dtype=torch.int32)
-    counts = tuple(range(1, a.comm.Get_size() + 1))
-    displs = tuple(range(0, a.comm.Get_size(), max_uniques.item()))
+    result_buf = torch.empty((a.shape[0], max_uniques.item() + 3), dtype=torch.int32)
+    counts = (2, ) * a.comm.Get_size()
+    displs = tuple(range(0, a.comm.Get_size() * lres.shape[0], lres.shape[0]))
+    print("Shapes:", lres.shape, result_buf.shape)
+    print("counts", counts, "displs", displs, "buf", result_buf)
     a.comm.Allgatherv(lres, (result_buf, counts, displs))
     print("after allgatherv:", result_buf)
 
