@@ -210,7 +210,7 @@ class TestCommunication(unittest.TestCase):
         data = ht.ones((ht.MPI_WORLD.rank + 1, 10,))
         output_count = ht.MPI_WORLD.size * (ht.MPI_WORLD.size + 1) // 2
         output = ht.zeros((output_count, 10,))
-        print("On rank:", ht.MPI_WORLD.rank, data, data.shape)
+
         # ensure prior invariants
         self.assertTrue(data._tensor__array.is_contiguous())
         self.assertTrue(output._tensor__array.is_contiguous())
@@ -219,8 +219,7 @@ class TestCommunication(unittest.TestCase):
         counts = tuple(range(1, ht.MPI_WORLD.size + 1))
         displs = tuple(np.cumsum(range(ht.MPI_WORLD.size)))
         data.comm.Allgatherv(data, (output, counts, displs,))
-        print("After allgatherv", output, output.shape, counts, displs)
-        self.fail()
+
         # check scatter result
         self.assertTrue(data._tensor__array.is_contiguous())
         self.assertTrue(output._tensor__array.is_contiguous())

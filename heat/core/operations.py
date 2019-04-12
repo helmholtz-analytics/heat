@@ -560,21 +560,43 @@ def triu(m, k=0):
 def unique(a, sorted=False, return_inverse=False, axis=None):
     # Calculate the unique on the local values
     lres, inverse_pos = torch.unique(a._tensor__array, sorted=sorted, return_inverse=True, dim=axis)
-    # Share and gather the results with the other processes
-    uniques = torch.tensor([[lres.shape[axis]]]).to(torch.int32)
-    gather_buf = torch.empty((a.comm.Get_size(), 1,), dtype=torch.int32)
-    print("Local:", a.comm.Get_rank(), lres, uniques, "inverse pos", inverse_pos)
-    a.comm.Allgather(uniques, gather_buf)
-    print("Gathered:", gather_buf)
+    print("Rank", a.comm.Get_rank(), "Local", lres)
 
-    # Find process with most uniques and tell his indices to others
-    max_uniques, root_process = gather_buf.max(0)
-    pos = gather_buf.cumsum(dim=0)[a.comm.Get_rank()]
-    print("Max:", max_uniques, "pos", pos, "root process:", root_process)
+    # Share and gather the results with the other processes
+    uniques = torch.tensor([lres.shape[0 if axis is None else axis]]).to(torch.int32)
+    uniques_buf = torch.empty((a.comm.Get_size(), ), dtype=torch.int32)
+    print("uniques", uniques, "buffer", uniques_buf)
+    a.comm.Allgather(uniques, uniques_buf)
+    print("Uniques_buf", uniques_buf)
+
+    # if a.comm.Get_size() is 1 or a.split is None:
+    #     return lres
+
+    if axis is None or axis is a.split:
+        if axis is None:
+            output_dim = [uniques_buf.sum().item()]
+        else:
+            output_dim = [None, None]
+            output_dim[(axis + 1) % 2] = lres.shape[(axis + 1) % 2]
+            output_dim[axis] = uniques_buf.sum().item()
+
+        if a.split is 1 and axis is not None:
+            lres = lres.transpose(0, 1)
+
+        counts = tuple(uniques_buf.tolist())
+        displs = tuple([0] + uniques_buf.cumsum(0).tolist()[:-1])
+        gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
+        print("Output dim", output_dim, counts, displs, gres_buf, lres.shape, lres)
+        a.comm.Allgatherv(lres, (gres_buf, counts, displs,), recv_axis=axis)
+        print("After Allgather", gres_buf)
+        return torch.unique(gres_buf, sorted=sorted, return_inverse=return_inverse, dim=axis)
+
+    max_uniques, max_pos = uniques_buf.max(0)
+    print("Max:", max_uniques, "root process:", max_pos)
 
     # find indices of vectors
     indices = torch.empty((max_uniques.item(),), dtype=torch.int32)
-    if a.comm.Get_rank() is root_process.item():
+    if a.comm.Get_rank() is max_pos.item():
         # Get the indices of the vectors we need from each process
         indices = []
         found = []
@@ -588,34 +610,29 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         indices = torch.tensor(indices, dtype=torch.int32)
 
     print("indices before bcast", indices)
-    a.comm.Bcast(indices, root=root_process)
+    a.comm.Bcast(indices, root=max_pos)
     print("indices after bcast", indices)
 
-    if axis == 0:
-        lres = torch.tensor(a._tensor__array[indices.tolist()], dtype=torch.int32)
-    elif axis == 1:
-        lres = torch.tensor(a._tensor__array[:, indices.tolist()], dtype=torch.int32)
+    # Creates a list of slices to select the correct tensors of the matrix
+    local_slice = [slice(None)] * axis + [indices.tolist()]
+    print("Slice", local_slice)
+    lres = a._tensor__array[local_slice]
 
     print("Vectors", lres)
-    # result_buf = torch.empty((lres.shape[0] * a.comm.Get_size(), lres.shape[1] * a.comm.Get_size(),), dtype=torch.int32)
-    # print("before:", lres, lres.shape, result_buf.shape, result_buf)
-    # a.comm.Allgather(lres, result_buf)
-    # print("after alltoall:", result_buf)
 
-    result_buf = torch.empty((a.shape[0], max_uniques.item() + 3), dtype=torch.int32)
-    counts = (2, ) * a.comm.Get_size()
-    displs = tuple(range(0, a.comm.Get_size() * lres.shape[0], lres.shape[0]))
+    output_dim = [None, None]
+    output_dim[a.split] = a.shape[a.split]
+    output_dim[(a.split + 1) % 2] = max_uniques.item()
+
+    result_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
+    counts = (lres.shape[a.split],) * a.comm.Get_size()
+    displs = tuple(range(0, a.comm.Get_size() * lres.shape[a.split], lres.shape[a.split]))
     print("Shapes:", lres.shape, result_buf.shape)
     print("counts", counts, "displs", displs, "buf", result_buf)
-    a.comm.Allgatherv(lres, (result_buf, counts, displs))
+    a.comm.Allgatherv(lres, (result_buf, counts, displs), recv_axis=a.split)
     print("after allgatherv:", result_buf)
 
-    # Extend lres with
-
-    # gres = a.comm.allgather(lres)
-    # gres = torch.cat(gres)
-    # print("concat", gres)
-    return # torch.unique(gres, sorted=sorted, return_inverse=return_inverse, dim=axis)
+    return result_buf
 
 
 def __local_operation(operation, x, out):
