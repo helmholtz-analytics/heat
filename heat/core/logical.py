@@ -17,15 +17,12 @@ def all(x, axis=None, out=None, keepdim=False):
 
     Parameters:
     -----------
-
     x : ht.Tensor
         Input array or object that can be converted to an array.
-
-    axis : None or int, optional #TODO: tuple of ints, issue #67
-        Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a
+    axis : None or int or tuple of ints, optional
+        Axis or axes along which a logical AND reduction is performed. The default (axis = None) is to perform a
         logical AND over all the dimensions of the input array. axis may be negative, in which case it counts
         from the last to the first axis.
-
     out : ht.Tensor, optional
         Alternate output array in which to place the result. It must have the same shape as the expected output
         and its type is preserved.
@@ -33,8 +30,7 @@ def all(x, axis=None, out=None, keepdim=False):
     Returns:
     --------
     all : ht.Tensor, bool
-
-    A new boolean or ht.Tensor is returned unless out is specified, in which case a reference to out is returned.
+        A new boolean or ht.Tensor is returned unless out is specified, in which case a reference to out is returned.
 
     Examples:
     ---------

@@ -5,65 +5,66 @@ import heat as ht
 
 
 class TestStatistics(unittest.TestCase):
+
     def test_argmax(self):
         torch.manual_seed(1)
         data = ht.random.randn(3, 4, 5)
 
         # 3D local tensor, major axis
         result = ht.argmax(data, axis=0)
-        self.assertIsInstance(result, ht.Tensor)
+        self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._Tensor__array.dtype, torch.int64)
+        self.assertEqual(result._tensor__array.dtype, torch.int64)
         self.assertEqual(result.shape, (4, 5,))
         self.assertEqual(result.lshape, (1, 4, 5,))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._Tensor__array == data._Tensor__array.argmax(0)).all())
+        self.assertTrue((result._tensor__array == data._tensor__array.argmax(0)).all())
 
         # 3D local tensor, minor axis
         result = ht.argmax(data, axis=-1)
-        self.assertIsInstance(result, ht.Tensor)
+        self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._Tensor__array.dtype, torch.int64)
+        self.assertEqual(result._tensor__array.dtype, torch.int64)
         self.assertEqual(result.shape, (3, 4,))
         self.assertEqual(result.lshape, (3, 4, 1,))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._Tensor__array == data._Tensor__array.argmax(-1, keepdim=True)).all())
+        self.assertTrue((result._tensor__array == data._tensor__array.argmax(-1, keepdim=True)).all())
 
         # 1D split tensor, no axis
         data = ht.arange(-10, 10, split=0)
         result = ht.argmax(data)
-        self.assertIsInstance(result, ht.Tensor)
+        self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._Tensor__array.dtype, torch.int64)
+        self.assertEqual(result._tensor__array.dtype, torch.int64)
         self.assertEqual(result.shape, (1,))
         self.assertEqual(result.lshape, (1,))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._Tensor__array == torch.tensor([19])))
+        self.assertTrue((result._tensor__array == torch.tensor([19])))
 
         # 2D split tensor, along the axis
         torch.manual_seed(1)
         data = ht.array(ht.random.randn(4, 5), split=0)
         result = ht.argmax(data, axis=1)
-        self.assertIsInstance(result, ht.Tensor)
+        self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._Tensor__array.dtype, torch.int64)
+        self.assertEqual(result._tensor__array.dtype, torch.int64)
         self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
         self.assertEqual(result.lshape, (4, 1,))
         self.assertEqual(result.split, 0)
-        self.assertTrue((result._Tensor__array == torch.tensor([[4], [4], [2], [4]])).all())
+        self.assertTrue((result._tensor__array == torch.tensor([[4], [4], [2], [4]])).all())
 
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
         data = ht.tril(ht.ones((size, size,), split=0), k=-1)
 
         result = ht.argmax(data, axis=0)
-        self.assertIsInstance(result, ht.Tensor)
+        self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._Tensor__array.dtype, torch.int64)
+        self.assertEqual(result._tensor__array.dtype, torch.int64)
         self.assertEqual(result.shape, (size,))
         self.assertEqual(result.lshape, (1, size,))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._Tensor__array != 0).all())
+        self.assertTrue((result._tensor__array != 0).all())
 
         # 2D split tensor, across the axis, output tensor
         size = ht.MPI_WORLD.size * 2
@@ -72,16 +73,16 @@ class TestStatistics(unittest.TestCase):
         output = ht.empty((size,))
         result = ht.argmax(data, axis=0, out=output)
 
-        self.assertIsInstance(result, ht.Tensor)
+        self.assertIsInstance(result, ht.tensor)
         self.assertEqual(output.dtype, ht.int64)
-        self.assertEqual(output._Tensor__array.dtype, torch.int64)
+        self.assertEqual(output._tensor__array.dtype, torch.int64)
         self.assertEqual(output.shape, (size,))
         self.assertEqual(output.lshape, (1, size,))
         self.assertEqual(output.split, None)
-        self.assertTrue((output._Tensor__array != 0).all())
+        self.assertTrue((output._tensor__array != 0).all())
 
         # check exceptions
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(TypeError):
             data.argmax(axis=(0, 1))
         with self.assertRaises(TypeError):
             data.argmax(axis=1.1)
@@ -96,58 +97,58 @@ class TestStatistics(unittest.TestCase):
 
         # 3D local tensor, no axis
         result = ht.argmin(data)
-        self.assertIsInstance(result, ht.Tensor)
+        self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._Tensor__array.dtype, torch.int64)
+        self.assertEqual(result._tensor__array.dtype, torch.int64)
         self.assertEqual(result.shape, (1,))
         self.assertEqual(result.lshape, (1,))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._Tensor__array == data._Tensor__array.argmin()).all())
+        self.assertTrue((result._tensor__array == data._tensor__array.argmin()).all())
 
         # 3D local tensor, major axis
         result = ht.argmin(data, axis=0)
-        self.assertIsInstance(result, ht.Tensor)
+        self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._Tensor__array.dtype, torch.int64)
+        self.assertEqual(result._tensor__array.dtype, torch.int64)
         self.assertEqual(result.shape, (4, 5,))
         self.assertEqual(result.lshape, (1, 4, 5,))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._Tensor__array == data._Tensor__array.argmin(0)).all())
+        self.assertTrue((result._tensor__array == data._tensor__array.argmin(0)).all())
 
         # 3D local tensor, minor axis
         result = ht.argmin(data, axis=-1)
-        self.assertIsInstance(result, ht.Tensor)
+        self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._Tensor__array.dtype, torch.int64)
+        self.assertEqual(result._tensor__array.dtype, torch.int64)
         self.assertEqual(result.shape, (3, 4,))
         self.assertEqual(result.lshape, (3, 4, 1,))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._Tensor__array == data._Tensor__array.argmin(-1, keepdim=True)).all())
+        self.assertTrue((result._tensor__array == data._tensor__array.argmin(-1, keepdim=True)).all())
 
         # 2D split tensor, along the axis
         torch.manual_seed(1)
         data = ht.array(ht.random.randn(4, 5), split=0)
         result = ht.argmin(data, axis=1)
-        self.assertIsInstance(result, ht.Tensor)
+        self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._Tensor__array.dtype, torch.int64)
+        self.assertEqual(result._tensor__array.dtype, torch.int64)
         self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
         self.assertEqual(result.lshape, (4, 1,))
         self.assertEqual(result.split, 0)
-        self.assertTrue((result._Tensor__array == torch.tensor([[3], [1], [1], [3]])).all())
+        self.assertTrue((result._tensor__array == torch.tensor([[3], [1], [1], [3]])).all())
 
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
         data = ht.triu(ht.ones((size, size,), split=0), k=1)
 
         result = ht.argmin(data, axis=0)
-        self.assertIsInstance(result, ht.Tensor)
+        self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._Tensor__array.dtype, torch.int64)
+        self.assertEqual(result._tensor__array.dtype, torch.int64)
         self.assertEqual(result.shape, (size,))
         self.assertEqual(result.lshape, (1, size,))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._Tensor__array != 0).all())
+        self.assertTrue((result._tensor__array != 0).all())
 
         # 2D split tensor, across the axis, output tensor
         size = ht.MPI_WORLD.size * 2
@@ -156,16 +157,16 @@ class TestStatistics(unittest.TestCase):
         output = ht.empty((size,))
         result = ht.argmin(data, axis=0, out=output)
 
-        self.assertIsInstance(result, ht.Tensor)
+        self.assertIsInstance(result, ht.tensor)
         self.assertEqual(output.dtype, ht.int64)
-        self.assertEqual(output._Tensor__array.dtype, torch.int64)
+        self.assertEqual(output._tensor__array.dtype, torch.int64)
         self.assertEqual(output.shape, (size,))
         self.assertEqual(output.lshape, (1, size,))
         self.assertEqual(output.split, None)
-        self.assertTrue((output._Tensor__array != 0).all())
+        self.assertTrue((output._tensor__array != 0).all())
 
         # check exceptions
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(TypeError):
             data.argmin(axis=(0, 1))
         with self.assertRaises(TypeError):
             data.argmin(axis=1.1)

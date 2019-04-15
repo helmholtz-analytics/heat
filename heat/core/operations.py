@@ -9,7 +9,6 @@ from . import stride_tricks
 from . import tensor
 from . import types
 
-
 __all__ = []
 
 
@@ -192,16 +191,21 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
         raise TypeError('expected out to be None or an ht.Tensor, but was {}'.format(type(out)))
 
     # no further checking needed, sanitize axis will raise the proper exceptions
-    axis = stride_tricks.sanitize_axis(x.shape, kwargs.get('axis'))
+    axis = stride_tricks.sanitize_axis(x.shape,  kwargs.get('axis'))
     split = x.split
 
     if axis is None:
         partial = partial_op(x._Tensor__array).reshape(-1)
         output_shape = (1,)
     else:
-        partial = partial_op(x._Tensor__array, dim=axis, keepdim=True)
-        shape_keepdim = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
-        shape_losedim = x.gshape[:axis] + x.gshape[axis + 1:]
+        if isinstance(axis, int):
+            axis = (axis,)
+        if isinstance(axis, tuple):
+            partial = x._Tensor__array
+            for dim in axis:
+                partial = partial_op(partial, dim=dim, keepdim=True)
+                shape_keepdim = x.gshape[:dim] + (1,) + x.gshape[dim + 1:]
+            shape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
         output_shape = shape_keepdim if kwargs.get('keepdim') else shape_losedim
 
     # Check shape of output buffer, if any
@@ -209,7 +213,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
         raise ValueError('Expecting output buffer of shape {}, got {}'.format(output_shape, out.shape))
 
     # perform a reduction operation in case the tensor is distributed across the reduction axis
-    if x.split is not None and (axis is None or axis == x.split):
+    if x.split is not None and (axis is None or (x.split in axis)):
         split = None
         if x.comm.is_distributed():
             x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)

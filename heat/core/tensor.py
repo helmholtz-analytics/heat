@@ -8,7 +8,6 @@ from . import io
 from . import linalg
 from . import logical
 from . import memory
-from . import operations
 from . import relational
 from . import rounding
 from . import statistics
@@ -143,11 +142,10 @@ class Tensor:
 
         Parameters:
         -----------
-        axis : None or int, optional #TODO: tuple of ints
-            Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a
+        axis : None or int or tuple of ints, optional
+            Axis or axes along which a logical AND reduction is performed. The default (axis = None) is to perform a
             logical AND over all the dimensions of the input array. axis may be negative, in which case it counts
             from the last to the first axis.
-
         out : ht.Tensor, optional
             Alternate output array in which to place the result. It must have the same shape as the expected output
             and its type is preserved.
@@ -527,21 +525,6 @@ class Tensor:
         tensor([[0, 1],
                 [0, 0]])
         """
-        return relational.eq(self, other)
-
-    def expand_dims(self, axis):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: fix negative axis
-        return Tensor(
-            self.__array.unsqueeze(dim=axis),
-            self.shape[:axis] + (1,) + self.shape[axis:],
-            self.dtype,
-            self.split if self.split is None or self.split < axis else self.split + 1,
-            _copy(self.__comm)
-        )
 
     def exp(self, out=None):
         """
@@ -709,7 +692,7 @@ class Tensor:
          >>> T2 = ht.float32([[2, 2], [2, 2]])
          >>> T1.__gt__(T2)
          tensor([[0, 0],
-                [1, 1]], dtype=torch.uint8)
+                 [1, 1]], dtype=torch.uint8)
 
         """
         return relational.gt(self, other)
@@ -1334,16 +1317,18 @@ class Tensor:
         return arithmetics.sub(self, other)
 
     def sum(self, axis=None, out=None, keepdim=None):
-        # TODO: Allow also list of axes
         """
         Sum of array elements over a given axis.
 
         Parameters
         ----------
-        axis : None or int, optional
+        axis : None or int or tuple of ints, optional
             Axis along which a sum is performed. The default, axis=None, will sum
             all of the elements of the input array. If axis is negative it counts
             from the last to the first axis.
+
+            If axis is a tuple of ints, a sum is performed on all of the axes specified 
+            in the tuple instead of a single axis or all the axes as before.
 
          Returns
          -------

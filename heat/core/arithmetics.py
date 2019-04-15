@@ -26,10 +26,8 @@ def add(t1, t2):
     ----------
     t1: tensor or scalar
         The first operand involved in the addition
-
     t2: tensor or scalar
         The second operand involved in the addition
-
 
     Returns
     -------
@@ -106,7 +104,6 @@ def fmod(t1, t2):
     ----------
     t1: tensor or scalar
         The first operand whose values are divided (may be floats)
-
     t2: tensor or scalar
         The second operand by whose values is divided (may be floats)
 
@@ -146,7 +143,6 @@ def mod(t1, t2):
     ----------
     t1: tensor or scalar
         The first operand whose values are divided
-
     t2: tensor or scalar
         The second operand by whose values is divided
 
@@ -265,7 +261,6 @@ def sub(t1, t2):
     ----------
     t1: tensor or scalar
         The first operand from which values are subtracted
-
     t2: tensor or scalar
         The second operand whose values are subtracted
 
@@ -300,17 +295,19 @@ def sum(x, axis=None, out=None, keepdim=None):
 
     Parameters
     ----------
-    x : ht.Tensor
+    x : ht.tensor
         Input data.
-
-    axis : None or int, optional
+    axis : None or int or tuple of ints, optional
         Axis along which a sum is performed. The default, axis=None, will sum
         all of the elements of the input array. If axis is negative it counts
         from the last to the first axis.
 
+        If axis is a tuple of ints, a sum is performed on all of the axes specified
+        in the tuple instead of a single axis or all the axes as before.
+
     Returns
     -------
-    sum_along_axis : ht.Tensor
+    sum_along_axis : ht.tensor
         An array with the same shape as self.__array except for the specified axis which
         becomes one, e.g. a.shape = (1, 2, 3) => ht.ones((1, 2, 3)).sum(axis=1).shape = (1, 1, 3)
 
@@ -327,7 +324,7 @@ def sum(x, axis=None, out=None, keepdim=None):
 
     >>> ht.sum(ht.ones((3,2,1)), axis=-3)
     tensor([[[3.],
-            [3.]]])
+             [3.]]])
     """
     # TODO: make me more numpy API complete Issue #101
     return operations.__reduce_op(x, torch.sum, MPI.SUM, axis=axis, out=out, keepdim=keepdim)

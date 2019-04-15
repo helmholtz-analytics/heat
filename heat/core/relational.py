@@ -260,7 +260,6 @@ def lt(t1, t2):
     tensor([[1, 0],
             [0, 0]], dtype=torch.uint8)
     """
-
     return operations.__binary_op(torch.lt, t1, t2)
 
 

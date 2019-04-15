@@ -24,11 +24,10 @@ class TestStrideTricks(unittest.TestCase):
         self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4, 4), 1), 1)
         self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4, 4), -1), 2)
         self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4, 4), 2), 2)
+        self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4, 4), (0, 1)), (0, 1))
+        self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4, 4), (-2, -3)), (1, 0))
         self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4), 0), 0)
         self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4), None), None)
-
-        with self.assertRaises(NotImplementedError):
-            ht.core.stride_tricks.sanitize_axis((5, 4), (1, 1))
 
         # invalid types
         with self.assertRaises(TypeError):
@@ -41,6 +40,8 @@ class TestStrideTricks(unittest.TestCase):
             ht.core.stride_tricks.sanitize_axis((5, 4), 2)
         with self.assertRaises(ValueError):
             ht.core.stride_tricks.sanitize_axis((5, 4), -3)
+        with self.assertRaises(ValueError):
+            ht.core.stride_tricks.sanitize_axis((5, 4, 4), (-4, 1))
 
     def test_sanitize_shape(self):
         # valid integers and iterables

@@ -40,16 +40,16 @@ def argmax(x, axis=None, out=None, **kwargs):
     >>> a = ht.random.randn(3,3)
     >>> a
     tensor([[-0.5631, -0.8923, -0.0583],
-    [-0.1955, -0.9656,  0.4224],
-    [ 0.2673, -0.4212, -0.5107]])
+            [-0.1955, -0.9656,  0.4224],
+            [ 0.2673, -0.4212, -0.5107]])
     >>> ht.argmax(a)
     tensor([5])
     >>> ht.argmax(a, axis=0)
     tensor([[2, 2, 1]])
     >>> ht.argmax(a, axis=1)
     tensor([[2],
-    [2],
-    [0]])
+            [2],
+            [0]])
     """
     def local_argmax(*args, **kwargs):
         axis = kwargs.get('dim', -1)
@@ -74,6 +74,10 @@ def argmax(x, axis=None, out=None, **kwargs):
             indices += offset
 
         return torch.cat([maxima.double(), indices.double()])
+
+    # axis sanitation
+    if axis is not None and not isinstance(axis, int):
+        raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
 
     # perform the global reduction
     reduced_result = operations.__reduce_op(x, local_argmax, MPI_ARGMAX, axis=axis, out=out, **kwargs)
@@ -150,6 +154,10 @@ def argmin(x, axis=None, out=None, **kwargs):
 
         return torch.cat([minimums.double(), indices.double()])
 
+    # axis sanitation
+    if axis is not None and not isinstance(axis, int):
+        raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
+
     # perform the global reduction
     reduced_result = operations.__reduce_op(x, local_argmin, MPI_ARGMIN, axis=axis, out=out, **kwargs)
 
@@ -171,31 +179,33 @@ def max(x, axis=None, out=None, keepdim=None):
 
     Parameters
     ----------
-    a : ht.Tensor
+    a : ht.tensor
         Input data.
-    axis : None or int, optional
+    axis : None or int or tuple of ints, optional
         Axis or axes along which to operate. By default, flattened input is used.
-    out : ht.Tensor, optional
+        If this is a tuple of ints, the maximum is selected over multiple axes,
+        instead of a single axis or all the axes as before.
+    out : ht.tensor, optional
         Tuple of two output tensors (max, max_indices). Must be of the same shape and buffer length as the expected
         output. The minimum value of an output element. Must be present to allow computation on empty slice.
 
     Examples
     --------
     >>> a = ht.float32([
-            [1, 2, 3],
-            [4, 5, 6],
-            [7, 8, 9],
-            [10, 11, 12]
-        ])
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9],
+        [10, 11, 12]
+    ])
     >>> ht.max(a)
     tensor([12.])
     >>> ht.min(a, axis=0)
     tensor([[10., 11., 12.]])
     >>> ht.min(a, axis=1)
     tensor([[ 3.],
-        [ 6.],
-        [ 9.],
-        [12.]])
+            [ 6.],
+            [ 9.],
+            [12.]])
     """
     def local_max(*args, **kwargs):
         result = torch.max(*args, **kwargs)
@@ -203,7 +213,7 @@ def max(x, axis=None, out=None, keepdim=None):
             return result[0]
         return result
 
-    return operations.__reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
+    return operations.reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
 
 
 def min(x, axis=None, out=None, keepdim=None):
@@ -213,11 +223,13 @@ def min(x, axis=None, out=None, keepdim=None):
 
     Parameters
     ----------
-    a : ht.Tensor
+    a : ht.tensor
         Input data.
-    axis : None or int
+    axis : None or int or tuple of ints
         Axis or axes along which to operate. By default, flattened input is used.
-    out : ht.Tensor, optional
+        If this is a tuple of ints, the minimum is selected over multiple axes,
+        instead of a single axis or all the axes as before.
+    out : ht.tensor, optional
         Tuple of two output tensors (min, min_indices). Must be of the same shape and buffer length as the expected
         output.The maximum value of an output element. Must be present to allow computation on empty slice.
 
@@ -245,7 +257,7 @@ def min(x, axis=None, out=None, keepdim=None):
             return result[0]
         return result
 
-    return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
+    return operations.reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
 
 
 def mpi_argmax(a, b, _):
