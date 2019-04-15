@@ -3,8 +3,6 @@ import unittest
 
 import heat as ht
 
-FLOAT_EPSILON = 1e-4
-
 
 class TestRounding(unittest.TestCase):
     def test_abs(self):
