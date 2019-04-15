@@ -50,7 +50,6 @@ class TestRelational(unittest.TestCase):
 
     def test_equal(self):
         self.assertTrue(ht.equal(self.a_tensor, self.a_tensor))
-        print(type(ht.equal(self.a_tensor, self.another_tensor)))
         self.assertFalse(ht.equal(self.a_tensor, self.another_tensor))
         self.assertFalse(ht.equal(self.a_tensor, self.a_scalar))
         self.assertFalse(ht.equal(self.another_tensor, self.a_scalar))
