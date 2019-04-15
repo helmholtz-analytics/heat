@@ -190,10 +190,14 @@ class tensor:
 
         Parameters:
         -----------
-        axis : None or int, optional #TODO: tuple of ints
-            Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a
+        axis : None or int or tuple of ints, optional
+            Axis or axes along which a logical AND reduction is performed. The default (axis = None) is to perform a
             logical AND over all the dimensions of the input array. axis may be negative, in which case it counts
             from the last to the first axis.
+
+            If this is a tuple of ints, a reduction is performed on multiple axes, instead of a single axis 
+            or all the axes as before.
+
 
         out : ht.tensor, optional
             Alternate output array in which to place the result. It must have the same shape as the expected output
@@ -712,9 +716,11 @@ class tensor:
         self : ht.tensor
             Input data.
 
-        axis : None or int  
+        axis : None or int or tuple of ints, optional
             Axis or axes along which to operate. By default, flattened input is used.
-        #TODO: out : ht.tensor, optional
+            If this is a tuple of ints, the maximum is selected over multiple axes, 
+            instead of a single axis or all the axes as before.
+        out : ht.tensor, optional
             Alternative output array in which to place the result. Must be of the same shape and buffer length as the
             expected output.
         #TODO: initial : scalar, optional   
@@ -737,9 +743,11 @@ class tensor:
         ----------
         self : ht.tensor
             Input data.
-        axis : None or int
+        axis : None or int or tuple of ints, optional
             Axis or axes along which to operate. By default, flattened input is used.
-        #TODO: out : ht.tensor, optional
+            If this is a tuple of ints, the minimum is selected over multiple axes, 
+            instead of a single axis or all the axes as before.
+        out : ht.tensor, optional
             Alternative output array in which to place the result. Must be of the same shape and buffer length as the
             expected output.
         #TODO: initial : scalar, optional   
@@ -1384,16 +1392,18 @@ class tensor:
         return arithmetics.sub(self, other)
 
     def sum(self, axis=None, out=None, keepdim=None):
-        # TODO: Allow also list of axes
         """
         Sum of array elements over a given axis.
 
         Parameters
         ----------
-        axis : None or int, optional
+        axis : None or int or tuple of ints, optional
             Axis along which a sum is performed. The default, axis=None, will sum
             all of the elements of the input array. If axis is negative it counts
             from the last to the first axis.
+
+            If axis is a tuple of ints, a sum is performed on all of the axes specified 
+            in the tuple instead of a single axis or all the axes as before.
 
          Returns
          -------

@@ -277,8 +277,10 @@ def max(x, axis=None, out=None, keepdim=None):
     ----------
     a : ht.tensor
         Input data.
-    axis : None or int, optional
+    axis : None or int or tuple of ints, optional
         Axis or axes along which to operate. By default, flattened input is used.
+        If this is a tuple of ints, the maximum is selected over multiple axes, 
+        instead of a single axis or all the axes as before.
     out : ht.tensor, optional
         Tuple of two output tensors (max, max_indices). Must be of the same shape and buffer length as the expected
         output. The minimum value of an output element. Must be present to allow computation on empty slice.
@@ -319,8 +321,10 @@ def min(x, axis=None, out=None, keepdim=None):
     ----------
     a : ht.tensor
         Input data.
-    axis : None or int
+    axis : None or int or tuple of ints
         Axis or axes along which to operate. By default, flattened input is used.
+        If this is a tuple of ints, the minimum is selected over multiple axes, 
+        instead of a single axis or all the axes as before.
     out : ht.tensor, optional
         Tuple of two output tensors (min, min_indices). Must be of the same shape and buffer length as the expected
         output.The maximum value of an output element. Must be present to allow computation on empty slice.

@@ -221,6 +221,19 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(maximum_volume._tensor__array.dtype, torch.float32)
         self.assertEqual(maximum_volume.split, None)
 
+        # check max over all float elements of split 3d tensor, tuple axis
+        random_volume = ht.random.randn(3, 3, 3, split=0)
+        maximum_volume = ht.max(random_volume, axis=(1, 2))
+        alt_maximum_volume = ht.max(random_volume, axis=(2, 1))
+
+        self.assertIsInstance(maximum_volume, ht.tensor)
+        self.assertEqual(maximum_volume.shape, (3,))
+        self.assertEqual(maximum_volume.lshape, (3, 1, 1))
+        self.assertEqual(maximum_volume.dtype, ht.float32)
+        self.assertEqual(maximum_volume._tensor__array.dtype, torch.float32)
+        self.assertEqual(maximum_volume.split, 0)
+        self.assertEqual(maximum_volume, alt_maximum_volume)
+
         # check max over all float elements of split 5d tensor, along split axis
         random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0)
         maximum_5d = ht.max(random_5d, axis=1)
@@ -233,8 +246,6 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(maximum_5d.split, 0)
 
         # check exceptions
-        with self.assertRaises(NotImplementedError):
-            ht_array.max(axis=(0, 1))
         with self.assertRaises(TypeError):
             ht_array.max(axis=1.1)
         with self.assertRaises(TypeError):
@@ -253,7 +264,7 @@ class TestOperations(unittest.TestCase):
         ht_array = ht.array(data)
         comparison = torch.tensor(data)
 
-        # check global max
+        # check global min
         minimum = ht.min(ht_array)
 
         self.assertIsInstance(minimum, ht.tensor)
@@ -264,7 +275,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(minimum._tensor__array.dtype, torch.int64)
         self.assertEqual(minimum, 12)
 
-        # maximum along first axis
+        # minimum along first axis
         minimum_vertical = ht.min(ht_array, axis=0)
 
         self.assertIsInstance(minimum_vertical, ht.tensor)
@@ -276,7 +287,7 @@ class TestOperations(unittest.TestCase):
         self.assertTrue((minimum_vertical._tensor__array ==
                          comparison.min(dim=0, keepdim=True)[0]).all())
 
-        # maximum along second axis
+        # minimum along second axis
         minimum_horizontal = ht.min(ht_array, axis=1)
 
         self.assertIsInstance(minimum_horizontal, ht.tensor)
@@ -288,7 +299,7 @@ class TestOperations(unittest.TestCase):
         self.assertTrue((minimum_horizontal._tensor__array ==
                          comparison.min(dim=1, keepdim=True)[0]).all())
 
-        # check max over all float elements of split 3d tensor, across split axis
+        # check min over all float elements of split 3d tensor, across split axis
         random_volume = ht.random.randn(3, 3, 3, split=1)
         minimum_volume = ht.min(random_volume, axis=1)
 
@@ -299,7 +310,20 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(minimum_volume._tensor__array.dtype, torch.float32)
         self.assertEqual(minimum_volume.split, None)
 
-        # check max over all float elements of split 5d tensor, along split axis
+        # check min over all float elements of split 3d tensor, tuple axis
+        random_volume = ht.random.randn(3, 3, 3, split=0)
+        minimum_volume = ht.min(random_volume, axis=(1, 2))
+        alt_minimum_volume = ht.min(random_volume, axis=(2, 1))
+
+        self.assertIsInstance(minimum_volume, ht.tensor)
+        self.assertEqual(minimum_volume.shape, (3,))
+        self.assertEqual(minimum_volume.lshape, (3, 1, 1))
+        self.assertEqual(minimum_volume.dtype, ht.float32)
+        self.assertEqual(minimum_volume._tensor__array.dtype, torch.float32)
+        self.assertEqual(minimum_volume.split, 0)
+        self.assertEqual(minimum_volume, alt_minimum_volume)
+
+        # check min over all float elements of split 5d tensor, along split axis
         random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0)
         minimum_5d = ht.min(random_5d, axis=1)
 
@@ -311,8 +335,6 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(minimum_5d.split, 0)
 
         # check exceptions
-        with self.assertRaises(NotImplementedError):
-            ht_array.min(axis=(0, 1))
         with self.assertRaises(TypeError):
             ht_array.min(axis=1.1)
         with self.assertRaises(TypeError):

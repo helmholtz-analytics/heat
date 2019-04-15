@@ -8,21 +8,21 @@ FLOAT_EPSILON = 1e-4
 
 class TestOperations(unittest.TestCase):
     def test___binary_op_broadcast(self):
-        left_tensor = ht.ones((4, 1), split=0) 
+        left_tensor = ht.ones((4, 1), split=0)
         right_tensor = ht.ones((1, 2), split=0)
         result = left_tensor + right_tensor
         self.assertEqual(result.shape, (4, 2))
         result = right_tensor + left_tensor
         self.assertEqual(result.shape, (4, 2))
 
-        left_tensor = ht.ones((4, 1), split=1) 
+        left_tensor = ht.ones((4, 1), split=1)
         right_tensor = ht.ones((1, 2), split=1)
         result = left_tensor + right_tensor
         self.assertEqual(result.shape, (4, 2))
         result = right_tensor + left_tensor
         self.assertEqual(result.shape, (4, 2))
 
-        left_tensor = ht.ones((4, 1, 3, 1, 2), split=0, dtype=torch.uint8) 
+        left_tensor = ht.ones((4, 1, 3, 1, 2), split=0, dtype=torch.uint8)
         right_tensor = ht.ones((1, 2, 1, 3, 1), split=0, dtype=torch.uint8)
         result = left_tensor + right_tensor
         self.assertEqual(result.shape, (4, 2, 3, 3, 2))
@@ -141,6 +141,16 @@ class TestOperations(unittest.TestCase):
         out_noaxis = ht.zeros((3, 3,))
         ht.all(ones_noaxis_split_axis, axis=0, out=out_noaxis)
 
+        # check all over all float elements of split 3d tensor with tuple axis
+        ones_noaxis_split_axis = ht.ones((3, 3, 3), split=0)
+        float_volume_is_one = ones_noaxis_split_axis.all(axis=(0, 1))
+
+        self.assertIsInstance(float_volume_is_one, ht.tensor)
+        self.assertEqual(float_volume_is_one.shape, (3,))
+        self.assertEqual(float_volume_is_one.all(axis=0).dtype, ht.bool)
+        self.assertEqual(float_volume_is_one._tensor__array.dtype, torch.uint8)
+        self.assertEqual(float_volume_is_one.split, None)
+
         # check all over all float elements of split 5d tensor with negative axis
         ones_noaxis_split_axis_neg = ht.zeros((1, 2, 3, 4, 5), split=1)
         float_5d_is_one = ones_noaxis_split_axis_neg.all(axis=-2)
@@ -167,13 +177,26 @@ class TestOperations(unittest.TestCase):
     def test_allclose(self):
         a = ht.float32([[2, 2], [2, 2]])
         b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]])
+        c = ht.zeros((4, 6,), split=0)
+        d = ht.zeros((4, 6,), split=1)
+        e = ht.zeros((4, 6,))
 
         self.assertFalse(ht.allclose(a, b))
         self.assertTrue(ht.allclose(a, b, atol=1e-04))
         self.assertTrue(ht.allclose(a, b, rtol=1e-04))
+        self.assertTrue(ht.allclose(a, 2))
+        self.assertTrue(ht.allclose(a, 2.0))
+        self.assertTrue(ht.allclose(2,a))
+        self.assertTrue(ht.allclose(c, d))
+        self.assertTrue(ht.allclose(c, e))
+        self.assertTrue(ht.allclose(e, c))
 
         with self.assertRaises(TypeError):
             ht.allclose(a, (2, 2, 2, 2))
+        with self.assertRaises(TypeError):
+            ht.allclose(a, '?')
+        with self.assertRaises(TypeError):
+            ht.allclose('?', a)
 
     def test_any(self):
         x = ht.float32([[2.7, 0, 0],
@@ -283,7 +306,7 @@ class TestOperations(unittest.TestCase):
         self.assertTrue((output._tensor__array != 0).all())
 
         # check exceptions
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(TypeError):
             data.argmax(axis=(0, 1))
         with self.assertRaises(TypeError):
             data.argmax(axis=1.1)
@@ -367,7 +390,7 @@ class TestOperations(unittest.TestCase):
         self.assertTrue((output._tensor__array != 0).all())
 
         # check exceptions
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(TypeError):
             data.argmin(axis=(0, 1))
         with self.assertRaises(TypeError):
             data.argmin(axis=1.1)

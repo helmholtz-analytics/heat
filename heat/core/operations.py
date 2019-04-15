@@ -73,16 +73,19 @@ def all(x, axis=None, out=None, keepdim=False):
     x : ht.tensor
         Input array or object that can be converted to an array.
 
-    axis : None or int, optional #TODO: tuple of ints, issue #67
-        Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a 
-        logical AND over all the dimensions of the input array. axis may be negative, in which case it counts 
+    axis : None or int or tuple of ints
+        Axis or axes along which a logical AND reduction is performed. The default (axis = None) is to perform a
+        logical AND over all the dimensions of the input array. axis may be negative, in which case it counts
         from the last to the first axis.
 
+        If this is a tuple of ints, a reduction is performed on multiple axes, instead of a single axis 
+        or all the axes as before.
+
     out : ht.tensor, optional
-        Alternate output array in which to place the result. It must have the same shape as the expected output 
+        Alternate output array in which to place the result. It must have the same shape as the expected output
         and its type is preserved.
 
-    Returns:	
+    Returns:
     --------
     all : ht.tensor, bool
 
@@ -163,13 +166,47 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     True
 
     """
-    if not isinstance(x, tensor.tensor):
-        raise TypeError('Expected x to be a ht.tensor, but was {}'.format(type(x)))
 
-    if not isinstance(y, tensor.tensor):
-        raise TypeError('Expected y to be a ht.tensor, but was {}'.format(type(y)))
+    if np.isscalar(x):
+        try:
+            x = tensor.array([float(x)])
+        except (ValueError, TypeError,):
+            raise TypeError('Data type not supported, input was {}'.format(type(x)))
 
-    return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
+    elif not isinstance(x, tensor.tensor):
+        raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(x)))
+
+    if np.isscalar(y):
+        try:
+            y = tensor.array([float(y)])
+        except (ValueError, TypeError,):
+            raise TypeError('Data type not supported, input was {}'.format(type(y)))
+
+    elif not isinstance(y, tensor.tensor):
+        raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(y)))
+
+    # If only one of the tensors is distributed, unsplit/gather it
+    if (x.split is not None) and (y.split is None):
+        x.resplit(axis=None)
+    if (x.split is None) and (y.split is not None):
+        y.resplit(axis=None)
+
+    # If both x and y are split, but along different axes, y is redistributed to be split along the same axis as x
+    if (x.split is not None) and (y.split is not None) and (x.split!=y.split):
+        y.resplit(axis=x.split)
+
+    # no sanitization for shapes of x and y needed, torch.allclose raises relevant errors
+    _local_allclose = torch.tensor(torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan))
+
+    # If x is distributed, then y is also distributed along the same axis
+    if x.comm.is_distributed():
+        x.comm.Allreduce(MPI.IN_PLACE, _local_allclose, MPI.LAND)
+
+    else:
+        pass
+
+    return bool(_local_allclose.item())
+
 
 
 def any(x, axis=None, out=None):
@@ -258,8 +295,8 @@ def argmax(x, axis=None, out=None, **kwargs):
         axis = kwargs.get('dim', -1)
         shape = x.shape
 
-        # case where the argmin axis is set to None
-        # argmin will be the flattened index, computed standalone and the actual minimum value obtain separately
+        # case where the argmax axis is set to None
+        # argmax will be the flattened index, computed standalone and the actual maximum value obtain separately
         if len(args) <= 1 and axis < 0:
             indices = torch.argmax(*args, **kwargs).reshape(1)
             maxima = args[0].flatten()[indices]
@@ -278,6 +315,10 @@ def argmax(x, axis=None, out=None, **kwargs):
 
         return torch.cat([maxima.double(), indices.double()])
 
+    # axis sanitation
+    if axis is not None:
+        if not isinstance(axis, int):
+            raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
     # perform the global reduction
     reduced_result = __reduce_op(x, local_argmax, MPI_ARGMAX, axis=axis, out=out, **kwargs)
 
@@ -302,7 +343,7 @@ def argmin(x, axis=None, out=None, **kwargs):
         Input array.
     axis : int, optional
         By default, the index is into the flattened tensor, otherwise along the specified axis.
-    # out : ht.tensor, optional. Issue #100
+    out : ht.tensor, optional. Issue #100
         If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
     Returns:
@@ -353,6 +394,10 @@ def argmin(x, axis=None, out=None, **kwargs):
 
         return torch.cat([minimums.double(), indices.double()])
 
+    # axis sanitation
+    if axis is not None:
+        if not isinstance(axis, int):
+            raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
     # perform the global reduction
     reduced_result = __reduce_op(x, local_argmin, MPI_ARGMIN, axis=axis, out=out, **kwargs)
 
@@ -675,16 +720,21 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
         raise TypeError('expected out to be None or an ht.tensor, but was {}'.format(type(out)))
 
     # no further checking needed, sanitize axis will raise the proper exceptions
-    axis = stride_tricks.sanitize_axis(x.shape, kwargs.get('axis'))
+    axis = stride_tricks.sanitize_axis(x.shape,  kwargs.get('axis'))
     split = x.split
 
     if axis is None:
         partial = partial_op(x._tensor__array).reshape(-1)
         output_shape = (1,)
     else:
-        partial = partial_op(x._tensor__array, dim=axis, keepdim=True)
-        shape_keepdim = x.gshape[:axis] + (1,) + x.gshape[axis + 1:]
-        shape_losedim = x.gshape[:axis] + x.gshape[axis + 1:]
+        if isinstance(axis, int):
+            axis = (axis,)
+        if isinstance(axis, tuple):
+            partial = x._tensor__array
+            for dim in axis:
+                partial = partial_op(partial, dim=dim, keepdim=True)
+                shape_keepdim = x.gshape[:dim] + (1,) + x.gshape[dim + 1:]
+            shape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
         output_shape = shape_keepdim if kwargs.get('keepdim') else shape_losedim
 
     # Check shape of output buffer, if any
@@ -692,7 +742,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
         raise ValueError('Expecting output buffer of shape {}, got {}'.format(output_shape, out.shape))
 
     # perform a reduction operation in case the tensor is distributed across the reduction axis
-    if x.split is not None and (axis is None or axis == x.split):
+    if x.split is not None and (axis is None or (x.split in axis)):
         split = None
         if x.comm.is_distributed():
             x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
