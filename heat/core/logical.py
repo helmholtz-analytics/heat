@@ -1,6 +1,8 @@
+import numpy as np
 import torch
 
 from .communication import MPI
+from . import factories
 from . import operations
 from . import tensor
 
@@ -99,21 +101,48 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     >>> a = ht.float32([[2, 2], [2, 2]])
     >>> ht.allclose(a, a)
     True
-
     >>> b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]])
     >>> ht.allclose(a, b)
     False
     >>> ht.allclose(a, b, atol=1e-04)
     True
-
     """
-    if not isinstance(x, tensor.Tensor):
-        raise TypeError('Expected x to be a ht.Tensor, but was {}'.format(type(x)))
+    if np.isscalar(x):
+        try:
+            x = factories.array([float(x)])
+        except (ValueError, TypeError,):
+            raise TypeError('Data type not supported, input was {}'.format(type(x)))
 
-    if not isinstance(y, tensor.Tensor):
-        raise TypeError('Expected y to be a ht.Tensor, but was {}'.format(type(y)))
+    elif not isinstance(x, tensor.Tensor):
+        raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(x)))
 
-    return torch.allclose(x._Tensor__array, y._Tensor__array, rtol, atol, equal_nan)
+    if np.isscalar(y):
+        try:
+            y = factories.array([float(y)])
+        except (ValueError, TypeError,):
+            raise TypeError('Data type not supported, input was {}'.format(type(y)))
+
+    elif not isinstance(y, tensor.Tensor):
+        raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(y)))
+
+    # If only one of the tensors is distributed, unsplit/gather it
+    if (x.split is not None) and (y.split is None):
+        x.resplit(axis=None)
+    if (x.split is None) and (y.split is not None):
+        y.resplit(axis=None)
+
+    # If both x and y are split, but along different axes, y is redistributed to be split along the same axis as x
+    if (x.split is not None) and (y.split is not None) and (x.split != y.split):
+        y.resplit(axis=x.split)
+
+    # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
+    _local_allclose = torch.tensor(torch.allclose(x._Tensor__array, y._Tensor__array, rtol, atol, equal_nan))
+
+    # If x is distributed, then y is also distributed along the same axis
+    if x.comm.is_distributed():
+        x.comm.Allreduce(MPI.IN_PLACE, _local_allclose, MPI.LAND)
+
+    return bool(_local_allclose.item())
 
 
 def any(x, axis=None, out=None):

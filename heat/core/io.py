@@ -267,9 +267,17 @@ else:
         # actually load the data
         with nc.Dataset(path, 'r', parallel=__nc_has_par, comm=comm.handle) as handle:
             data = handle[variable][:]
+
+            # prepare meta information
             gshape = tuple(data.shape)
-            _, _, indices = comm.chunk(gshape, split)
-            data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
+            split = sanitize_axis(gshape, split)
+
+            # chunk up the data portion
+            _, local_shape, indices = comm.chunk(gshape, split)
+            if split is None or local_shape[split] > 0:
+                data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
+            else:
+                data = torch.empty(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
 
             return tensor.Tensor(data, gshape, dtype, split, device, comm)
 

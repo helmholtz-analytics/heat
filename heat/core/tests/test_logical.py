@@ -153,15 +153,29 @@ class TestLogical(unittest.TestCase):
     def test_allclose(self):
         a = ht.float32([[2, 2], [2, 2]])
         b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]])
+        c = ht.zeros((4, 6,), split=0)
+        d = ht.zeros((4, 6,), split=1)
+        e = ht.zeros((4, 6,))
 
         self.assertFalse(ht.allclose(a, b))
         self.assertTrue(ht.allclose(a, b, atol=1e-04))
         self.assertTrue(ht.allclose(a, b, rtol=1e-04))
+        self.assertTrue(ht.allclose(a, 2))
+        self.assertTrue(ht.allclose(a, 2.0))
+        self.assertTrue(ht.allclose(2, a))
+        self.assertTrue(ht.allclose(c, d))
+        self.assertTrue(ht.allclose(c, e))
+        self.assertTrue(ht.allclose(e, c))
 
         with self.assertRaises(TypeError):
             ht.allclose(a, (2, 2, 2, 2))
+        with self.assertRaises(TypeError):
+            ht.allclose(a, '?')
+        with self.assertRaises(TypeError):
+            ht.allclose('?', a)
 
     def test_any(self):
+        # float values, minor axis
         x = ht.float32([[2.7, 0, 0],
                         [0,   0, 0],
                         [0, 0.3, 0]])
@@ -172,6 +186,7 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))
 
+        # integer values, major axis, output tensor
         any_tensor = ht.zeros((2,))
         x = ht.int32([[0, 0],
                       [0, 0],
@@ -183,11 +198,21 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))
 
+        # float values, no axis
         x = ht.float64([[0, 0, 0],
                         [0, 0, 0]])
         res = ht.zeros(1, dtype=ht.uint8)
         any_tensor = ht.any(x)
         self.assertIsInstance(any_tensor, ht.Tensor)
         self.assertEqual(any_tensor.shape, (1,))
+        self.assertEqual(any_tensor.dtype, ht.bool)
+        self.assertTrue(ht.equal(any_tensor, res))
+
+        # split tensor, along axis
+        x = ht.arange(10, split=0)
+        any_tensor = ht.any(x, axis=0)
+        res = ht.uint8([1])
+        self.assertIsInstance(any_tensor, ht.Tensor)
+        self.assertEqual(any_tensor.shape, tuple())
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))

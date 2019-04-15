@@ -326,6 +326,7 @@ class TestFactories(unittest.TestCase):
                 for l in range(y):
                     if tensor_array[k][l] == 1:
                         return k, l
+            return x, y
 
         shape = 5
         eye = ht.eye(shape, dtype=ht.uint8, split=1)
