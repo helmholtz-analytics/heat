@@ -1,4 +1,4 @@
-from . import tensor
+from . import dndarray
 
 __all__ = [
     'copy'
@@ -11,14 +11,14 @@ def copy(a):
 
     Parameters
     ----------
-    a : ht.Tensor
+    a : ht.DNDarray
         Input data to be copied.
 
     Returns
     -------
-    copied : ht.Tensor
+    copied : ht.DNDarray
         A copy of the original
     """
-    if not isinstance(a, tensor.Tensor):
+    if not isinstance(a, dndarray.DNDarray):
         raise TypeError('input needs to be a tensor')
-    return tensor.Tensor(a._Tensor__array.clone(), a.shape, a.dtype, a.split, a.device, a.comm)
+    return dndarray.DNDarray(a._DNDarray__array.clone(), a.shape, a.dtype, a.split, a.device, a.comm)

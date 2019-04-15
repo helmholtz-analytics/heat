@@ -4,7 +4,7 @@ import torch
 from .communication import Communication, MPI, MPI_WORLD
 from .stride_tricks import sanitize_axis, sanitize_shape
 from . import devices
-from . import tensor
+from . import dndarray
 from . import types
 
 __all__ = [
@@ -121,7 +121,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
         device=device.torch_device
     )
 
-    return tensor.Tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
+    return dndarray.DNDarray(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
 
 
 def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI_WORLD):
@@ -153,7 +153,7 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
 
     Returns
     -------
-    out : ht.Tensor
+    out : ht.DNDarray
         A tensor object satisfying the specified requirements.
 
     Raises
@@ -188,8 +188,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
     (1/2) tensor([1, 2, 3, 4])
     """
     # extract the internal tensor in case of a heat tensor
-    if isinstance(obj, tensor.Tensor):
-        obj = obj._Tensor__array
+    if isinstance(obj, dndarray.DNDarray):
+        obj = obj._DNDarray__array
 
     # sanitize the data type
     if dtype is not None:
@@ -262,7 +262,7 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
             raise ValueError('unable to construct tensor, shape of local data chunk does not match')
         gshape[split] = reduction_buffer
 
-    return tensor.Tensor(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
+    return dndarray.DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
 
 
 def empty(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
@@ -285,7 +285,7 @@ def empty(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
 
     Returns
     -------
-    out : ht.Tensor
+    out : ht.DNDarray
         Array of zeros with given shape, data type and node distribution.
 
     Examples
@@ -383,7 +383,7 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
         pos_y = i if split is 1 else i + offset
         data[pos_x][pos_y] = 1
 
-    return tensor.Tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
+    return dndarray.DNDarray(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
 
 
 def __factory(shape, dtype, split, local_factory, device, comm):
@@ -407,7 +407,7 @@ def __factory(shape, dtype, split, local_factory, device, comm):
 
     Returns
     -------
-    out : ht.Tensor
+    out : ht.DNDarray
         Array of ones with given shape, data type and node distribution.
     """
     # clean the user input
@@ -421,7 +421,7 @@ def __factory(shape, dtype, split, local_factory, device, comm):
     # create the torch data using the factory function
     data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
 
-    return tensor.Tensor(data, shape, dtype, split, device, comm)
+    return dndarray.DNDarray(data, shape, dtype, split, device, comm)
 
 
 def __factory_like(a, dtype, split, factory, device, comm, **kwargs):
@@ -445,7 +445,7 @@ def __factory_like(a, dtype, split, factory, device, comm, **kwargs):
 
     Returns
     -------
-    out : ht.Tensor
+    out : ht.DNDarray
         Array of ones with given shape, data type and node distribution that is like a
     """
     # determine the global shape of the object to create
@@ -497,7 +497,7 @@ def full(shape, fill_value, dtype=types.float32, split=None, device=None, comm=M
 
     Returns
     -------
-    out : ht.Tensor
+    out : ht.DNDarray
         Array of fill_value with the given shape, dtype and split.
 
     Examples
@@ -536,7 +536,7 @@ def full_like(a, fill_value, dtype=types.float32, split=None, device=None, comm=
 
     Returns
     -------
-    out : ht.Tensor
+    out : ht.DNDarray
         Array of fill_value with the same shape and type as a.
 
 
@@ -584,7 +584,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
 
     Returns
     -------
-    samples: ht.Tensor
+    samples: ht.DNDarray
         There are num equally spaced samples in the closed interval [start, stop] or the half-open interval
         [start, stop) (depending on whether endpoint is True or False).
     step: float, optional
@@ -621,7 +621,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
         data = data.type(types.canonical_heat_type(dtype).torch_type())
 
     # construct the resulting global tensor
-    ht_tensor = tensor.Tensor(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
+    ht_tensor = dndarray.DNDarray(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
 
     if retstep:
         return ht_tensor, step
@@ -648,7 +648,7 @@ def ones(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
 
     Returns
     -------
-    out : ht.Tensor
+    out : ht.DNDarray
         Array of ones with given shape, data type and node distribution.
 
     Examples
@@ -686,7 +686,7 @@ def ones_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
 
     Returns
     -------
-    out : ht.Tensor
+    out : ht.DNDarray
         Array of ones with the same shape, type and split axis as 'a' unless overriden.
 
     Examples
@@ -723,7 +723,7 @@ def zeros(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
 
     Returns
     -------
-    out : ht.Tensor
+    out : ht.DNDarray
         Array of zeros with given shape, data type and node distribution.
 
     Examples
@@ -761,7 +761,7 @@ def zeros_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
 
     Returns
     -------
-    out : ht.Tensor
+    out : ht.DNDarray
         Array of zeros with the same shape, type and split axis as 'a' unless overriden.
 
     Examples

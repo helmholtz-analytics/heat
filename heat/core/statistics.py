@@ -20,16 +20,16 @@ def argmax(x, axis=None, out=None, **kwargs):
 
     Parameters:
     ----------
-    x : ht.Tensor
+    x : ht.DNDarray
         Input array.
     axis : int, optional
         By default, the index is into the flattened tensor, otherwise along the specified axis.
-    out : ht.Tensor, optional.
+    out : ht.DNDarray, optional.
         If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
     Returns:
     -------
-    index_tensor : ht.Tensor of ints
+    index_tensor : ht.DNDarray of ints
         Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
 
     Examples:
@@ -83,12 +83,12 @@ def argmax(x, axis=None, out=None, **kwargs):
     reduced_result = operations.__reduce_op(x, local_argmax, MPI_ARGMAX, axis=axis, out=out, **kwargs)
 
     # correct the tensor
-    reduced_result._Tensor__array = reduced_result._Tensor__array.chunk(2)[-1].type(torch.int64)
-    reduced_result._Tensor__dtype = types.int64
+    reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(torch.int64)
+    reduced_result._DNDarray__dtype = types.int64
 
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
-        out._Tensor__array.storage().copy_(reduced_result._Tensor__array.storage())
+        out._DNDarray__array.storage().copy_(reduced_result._DNDarray__array.storage())
 
     return reduced_result
 
@@ -99,16 +99,16 @@ def argmin(x, axis=None, out=None, **kwargs):
 
     Parameters:
     ----------
-    x : ht.Tensor
+    x : ht.DNDarray
         Input array.
     axis : int, optional
         By default, the index is into the flattened tensor, otherwise along the specified axis.
-    # out : ht.Tensor, optional. Issue #100
+    # out : ht.DNDarray, optional. Issue #100
         If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
     Returns:
     -------
-    index_tensor : ht.Tensor of ints
+    index_tensor : ht.DNDarray of ints
         Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
 
     Examples:
@@ -162,12 +162,12 @@ def argmin(x, axis=None, out=None, **kwargs):
     reduced_result = operations.__reduce_op(x, local_argmin, MPI_ARGMIN, axis=axis, out=out, **kwargs)
 
     # correct the tensor
-    reduced_result._Tensor__array = reduced_result._Tensor__array.chunk(2)[-1].type(torch.int64)
-    reduced_result._Tensor__dtype = types.int64
+    reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(torch.int64)
+    reduced_result._DNDarray__dtype = types.int64
 
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
-        out._Tensor__array.storage().copy_(reduced_result._Tensor__array.storage())
+        out._DNDarray__array.storage().copy_(reduced_result._DNDarray__array.storage())
 
     return reduced_result
 

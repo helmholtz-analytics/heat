@@ -86,7 +86,7 @@ class generic(metaclass=abc.ABCMeta):
         # sanitize the input device type
         device = devices.sanitize_device(device)
 
-        return tensor.Tensor(array, tuple(array.shape), cls, split=None, device=device, comm=comm)
+        return dndarray.DNDarray(array, tuple(array.shape), cls, split=None, device=device, comm=comm)
 
     @classmethod
     @abc.abstractclassmethod
@@ -627,4 +627,4 @@ class iinfo:
 
 
 # tensor is imported at the very end to break circular dependency
-from . import tensor
+from . import dndarray

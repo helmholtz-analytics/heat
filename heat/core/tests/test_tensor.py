@@ -16,16 +16,16 @@ class TestTensor(unittest.TestCase):
 
         # check the copy case for uint8
         as_uint8 = data.astype(ht.uint8)
-        self.assertIsInstance(as_uint8, ht.Tensor)
+        self.assertIsInstance(as_uint8, ht.DNDarray)
         self.assertEqual(as_uint8.dtype, ht.uint8)
-        self.assertEqual(as_uint8._Tensor__array.dtype, torch.uint8)
+        self.assertEqual(as_uint8._DNDarray__array.dtype, torch.uint8)
         self.assertIsNot(as_uint8, data)
 
         # check the copy case for uint8
         as_float64 = data.astype(ht.float64, copy=False)
-        self.assertIsInstance(as_float64, ht.Tensor)
+        self.assertIsInstance(as_float64, ht.DNDarray)
         self.assertEqual(as_float64.dtype, ht.float64)
-        self.assertEqual(as_float64._Tensor__array.dtype, torch.float64)
+        self.assertEqual(as_float64._DNDarray__array.dtype, torch.float64)
         self.assertIs(as_float64, data)
 
     def test_is_distributed(self):
@@ -41,7 +41,7 @@ class TestTensor(unittest.TestCase):
         data = ht.zeros(shape, split=None)
         data.resplit(None)
 
-        self.assertIsInstance(data, ht.Tensor)
+        self.assertIsInstance(data, ht.DNDarray)
         self.assertEqual(data.shape, shape)
         self.assertEqual(data.lshape, shape)
         self.assertEqual(data.split, None)
@@ -51,7 +51,7 @@ class TestTensor(unittest.TestCase):
         data = ht.zeros(shape, split=1)
         data.resplit(1)
 
-        self.assertIsInstance(data, ht.Tensor)
+        self.assertIsInstance(data, ht.DNDarray)
         self.assertEqual(data.shape, shape)
         self.assertEqual(data.lshape, (data.comm.size, 1,))
         self.assertEqual(data.split, 1)
@@ -61,7 +61,7 @@ class TestTensor(unittest.TestCase):
         data = ht.zeros(shape)
         data.resplit(-1)
 
-        self.assertIsInstance(data, ht.Tensor)
+        self.assertIsInstance(data, ht.DNDarray)
         self.assertEqual(data.shape, shape)
         self.assertEqual(data.lshape, (data.comm.size, 1,))
         self.assertEqual(data.split, 1)
@@ -71,7 +71,7 @@ class TestTensor(unittest.TestCase):
         data = ht.ones(shape, split=0)
         data.resplit(None)
 
-        self.assertIsInstance(data, ht.Tensor)
+        self.assertIsInstance(data, ht.DNDarray)
         self.assertEqual(data.shape, shape)
         self.assertEqual(data.lshape, shape)
         self.assertEqual(data.split, None)
@@ -81,7 +81,7 @@ class TestTensor(unittest.TestCase):
         data = ht.ones(shape, split=0)
         data.resplit(1)
 
-        self.assertIsInstance(data, ht.Tensor)
+        self.assertIsInstance(data, ht.DNDarray)
         self.assertEqual(data.shape, shape)
         self.assertEqual(data.lshape[0], ht.MPI_WORLD.size + 2)
         self.assertTrue(data.lshape[1] == 1 or data.lshape[1] == 2)

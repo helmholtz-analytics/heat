@@ -10,8 +10,8 @@ class TestMemory(unittest.TestCase):
 
         # test identity inequality and value equality
         self.assertIsNot(tensor, copied)
-        self.assertIsNot(tensor._Tensor__array, copied._Tensor__array)
-        self.assertTrue((tensor == copied)._Tensor__array.all())
+        self.assertIsNot(tensor._DNDarray__array, copied._DNDarray__array)
+        self.assertTrue((tensor == copied)._DNDarray__array.all())
 
         # test exceptions
         with self.assertRaises(TypeError):

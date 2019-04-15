@@ -4,7 +4,7 @@ import torch
 from .communication import MPI
 from . import factories
 from . import operations
-from . import tensor
+from . import dndarray
 
 __all__ = [
     'all',
@@ -19,20 +19,20 @@ def all(x, axis=None, out=None, keepdim=None):
 
     Parameters:
     -----------
-    x : ht.Tensor
+    x : ht.DNDarray
         Input array or object that can be converted to an array.
     axis : None or int or tuple of ints, optional
         Axis or axes along which a logical AND reduction is performed. The default (axis = None) is to perform a
         logical AND over all the dimensions of the input array. axis may be negative, in which case it counts
         from the last to the first axis.
-    out : ht.Tensor, optional
+    out : ht.DNDarray, optional
         Alternate output array in which to place the result. It must have the same shape as the expected output
         and its type is preserved.
 
     Returns:
     --------
-    all : ht.Tensor, bool
-        A new boolean or ht.Tensor is returned unless out is specified, in which case a reference to out is returned.
+    all : ht.DNDarray, bool
+        A new boolean or ht.DNDarray is returned unless out is specified, in which case a reference to out is returned.
 
     Examples:
     ---------
@@ -79,9 +79,9 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
 
     Parameters:
     -----------
-    x : ht.Tensor
+    x : ht.DNDarray
         First tensor to compare
-    y : ht.Tensor
+    y : ht.DNDarray
         Second tensor to compare
     atol: float, optional
         Absolute tolerance. Default is 1e-08
@@ -113,7 +113,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
         except (ValueError, TypeError,):
             raise TypeError('Data type not supported, input was {}'.format(type(x)))
 
-    elif not isinstance(x, tensor.Tensor):
+    elif not isinstance(x, dndarray.DNDarray):
         raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(x)))
 
     if np.isscalar(y):
@@ -122,7 +122,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
         except (ValueError, TypeError,):
             raise TypeError('Data type not supported, input was {}'.format(type(y)))
 
-    elif not isinstance(y, tensor.Tensor):
+    elif not isinstance(y, dndarray.DNDarray):
         raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(y)))
 
     # If only one of the tensors is distributed, unsplit/gather it
@@ -136,7 +136,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
         y.resplit(axis=x.split)
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
-    _local_allclose = torch.tensor(torch.allclose(x._Tensor__array, y._Tensor__array, rtol, atol, equal_nan))
+    _local_allclose = torch.tensor(torch.allclose(x._DNDarray__array, y._DNDarray__array, rtol, atol, equal_nan))
 
     # If x is distributed, then y is also distributed along the same axis
     if x.comm.is_distributed():

@@ -4,7 +4,7 @@ import numpy as np
 from .communication import MPI
 from . import factories
 from . import operations
-from . import tensor
+from . import dndarray
 
 __all__ = [
     'eq',
@@ -31,7 +31,7 @@ def eq(t1, t2):
 
     Returns
     -------
-    result: ht.Tensor
+    result: ht.DNDarray
         A uint8-tensor holding 1 for all elements in which values of t1 are equal to values of t2, 0 for all other
         elements
 
@@ -81,7 +81,7 @@ def equal(t1, t2):
     False
     """
     result_tensor = operations.__binary_op(torch.equal, t1, t2)
-    result_value = result_tensor._Tensor__array
+    result_value = result_tensor._DNDarray__array
     if isinstance(result_value, torch.Tensor):
         result_value = True
 
@@ -103,7 +103,7 @@ def ge(t1, t2):
 
     Returns
     -------
-    result: ht.Tensor
+    result: ht.DNDarray
         A uint8-tensor holding 1 for all elements in which values of t1 are greater than or equal tp values of t2,
         0 for all other elements
 
@@ -139,7 +139,7 @@ def gt(t1, t2):
 
     Returns
     -------
-    result: ht.Tensor
+    result: ht.DNDarray
        A uint8-tensor holding 1 for all elements in which values of t1 are greater than values of t2,
        0 for all other elements
 
@@ -174,7 +174,7 @@ def le(t1, t2):
 
     Returns
     -------
-    result: ht.Tensor
+    result: ht.DNDarray
        A uint8-tensor holding 1 for all elements in which values of t1 are less than or equal to values of t2,
        0 for all other elements
 
@@ -210,7 +210,7 @@ def lt(t1, t2):
 
     Returns
     -------
-    result: ht.Tensor
+    result: ht.DNDarray
         A uint8-tensor holding 1 for all elements in which values of t1 are less than values of t2,
         0 for all other elements
 
@@ -243,7 +243,7 @@ def ne(t1, t2):
 
     Returns
     -------
-    result: ht.Tensor
+    result: ht.DNDarray
         A uint8-tensor holding 1 for all elements in which values of t1 are not equal to values of t2,
         0 for all other elements
 

@@ -13,7 +13,7 @@ from . import random
 from .relational import *
 from .rounding import *
 from .statistics import *
-from .tensor import *
+from .dndarray import *
 from .trigonometrics import *
 from .types import *
 from .types import finfo, iinfo

@@ -1,7 +1,7 @@
 import torch
 
 from . import operations
-from . import tensor
+from . import dndarray
 from . import types
 
 __all__ = [
@@ -20,9 +20,9 @@ def abs(x, out=None, dtype=None):
     Parameters
     ----------
 
-    x : ht.Tensor
+    x : ht.DNDarray
         The values for which the compute the absolute value.
-    out : ht.Tensor, optional
+    out : ht.DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated array is returned.
     dtype : ht.type, optional
@@ -31,7 +31,7 @@ def abs(x, out=None, dtype=None):
 
     Returns
     -------
-    absolute_values : ht.Tensor
+    absolute_values : ht.DNDarray
         A tensor containing the absolute value of each element in x.
     """
     if dtype is not None and not issubclass(dtype, types.generic):
@@ -39,9 +39,9 @@ def abs(x, out=None, dtype=None):
 
     absolute_values = operations.__local_op(torch.abs, x, out)
     if dtype is not None:
-        absolute_values._Tensor__array = absolute_values._Tensor__array.type(
+        absolute_values._DNDarray__array = absolute_values._DNDarray__array.type(
             dtype.torch_type())
-        absolute_values._Tensor__dtype = dtype
+        absolute_values._DNDarray__dtype = dtype
 
     return absolute_values
 
@@ -54,9 +54,9 @@ def absolute(x, out=None, dtype=None):
 
     Parameters
     ----------
-    x : ht.Tensor
+    x : ht.DNDarray
         The values for which the compute the absolute value.
-    out : ht.Tensor, optional
+    out : ht.DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated array is returned.
     dtype : ht.type, optional
@@ -65,7 +65,7 @@ def absolute(x, out=None, dtype=None):
 
     Returns
     -------
-    absolute_values : ht.Tensor
+    absolute_values : ht.DNDarray
         A tensor containing the absolute value of each element in x.
     """
     return abs(x, out, dtype)
@@ -79,15 +79,15 @@ def ceil(x, out=None):
 
     Parameters
     ----------
-    x : ht.Tensor
+    x : ht.DNDarray
         The value for which to compute the ceiled values.
-    out : ht.Tensor or None, optional
+    out : ht.DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
 
     Returns
     -------
-    ceiled : ht.Tensor
+    ceiled : ht.DNDarray
         A tensor of the same shape as x, containing the ceiled valued of each element in this tensor. If out was
         provided, ceiled is a reference to it.
 
@@ -103,7 +103,7 @@ def clip(a, a_min, a_max, out=None):
     """
     Parameters
     ----------
-    a : ht.Tensor
+    a : ht.DNDarray
         Array containing elements to clip.
     a_min : scalar or None
         Minimum value. If None, clipping is not performed on lower interval edge. Not more than one of a_min and
@@ -111,27 +111,27 @@ def clip(a, a_min, a_max, out=None):
     a_max : scalar or None
         Maximum value. If None, clipping is not performed on upper interval edge. Not more than one of a_min and
         a_max may be None.
-    out : ht.Tensor, optional
+    out : ht.DNDarray, optional
         The results will be placed in this array. It may be the input array for in-place clipping. out must be of
         the right shape to hold the output. Its type is preserved.
 
     Returns
     -------
-    clipped_values : ht.Tensor
+    clipped_values : ht.DNDarray
         A tensor with the elements of this tensor, but where values < a_min are replaced with a_min, and those >
         a_max with a_max.
     """
-    if not isinstance(a, tensor.Tensor):
+    if not isinstance(a, dndarray.DNDarray):
         raise TypeError('a must be a tensor')
     if a_min is None and a_max is None:
         raise ValueError('either a_min or a_max must be set')
 
     if out is None:
-        return tensor.Tensor(a._Tensor__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, a.device, a.comm)
-    if not isinstance(out, tensor.Tensor):
+        return dndarray.DNDarray(a._DNDarray__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, a.device, a.comm)
+    if not isinstance(out, dndarray.DNDarray):
         raise TypeError('out must be a tensor')
 
-    return a._Tensor__array.clamp(a_min, a_max, out=out._Tensor__array) and out
+    return a._DNDarray__array.clamp(a_min, a_max, out=out._DNDarray__array) and out
 
 
 def floor(x, out=None):
@@ -142,15 +142,15 @@ def floor(x, out=None):
 
     Parameters
     ----------
-    x : ht.Tensor
+    x : ht.DNDarray
         The value for which to compute the floored values.
-    out : ht.Tensor or None, optional
+    out : ht.DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
 
     Returns
     -------
-    floored : ht.Tensor
+    floored : ht.DNDarray
         A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
         provided, floored is a reference to it.
 

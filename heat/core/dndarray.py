@@ -18,11 +18,11 @@ from .stride_tricks import sanitize_axis
 
 
 __all__ = [
-    'Tensor'
+    'DNDarray'
 ]
 
 
-class Tensor:
+class DNDarray:
     def __init__(self, array, gshape, dtype, split, device, comm):
         self.__array = array
         self.__gshape = gshape
@@ -69,7 +69,7 @@ class Tensor:
 
         Parameters
         ----------
-        out : ht.Tensor, optional
+        out : ht.DNDarray, optional
             A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
             If not provided or None, a freshly-allocated array is returned.
         dtype : ht.type, optional
@@ -78,7 +78,7 @@ class Tensor:
 
         Returns
         -------
-        absolute_values : ht.Tensor
+        absolute_values : ht.DNDarray
             A tensor containing the absolute value of each element in x.
         """
         return rounding.abs(self, out, dtype)
@@ -91,7 +91,7 @@ class Tensor:
 
         Parameters
         ----------
-        out : ht.Tensor, optional
+        out : ht.DNDarray, optional
             A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
             If not provided or None, a freshly-allocated array is returned.
         dtype : ht.type, optional
@@ -100,7 +100,7 @@ class Tensor:
 
         Returns
         -------
-        absolute_values : ht.Tensor
+        absolute_values : ht.DNDarray
             A tensor containing the absolute value of each element in x.
 
         """
@@ -118,7 +118,7 @@ class Tensor:
 
         Returns
         -------
-        result: ht.Tensor
+        result: ht.DNDarray
             A tensor containing the results of element-wise addition.
 
         Examples:
@@ -146,14 +146,14 @@ class Tensor:
             Axis or axes along which a logical AND reduction is performed. The default (axis = None) is to perform a
             logical AND over all the dimensions of the input array. axis may be negative, in which case it counts
             from the last to the first axis.
-        out : ht.Tensor, optional
+        out : ht.DNDarray, optional
             Alternate output array in which to place the result. It must have the same shape as the expected output
             and its type is preserved.
 
         Returns:
         --------
-        all : ht.Tensor, bool
-            A new boolean or ht.Tensor is returned unless out is specified, in which case a reference to out is returned.
+        all : ht.DNDarray, bool
+            A new boolean or ht.DNDarray is returned unless out is specified, in which case a reference to out is returned.
 
         Examples:
         ---------
@@ -195,7 +195,7 @@ class Tensor:
 
         Parameters:
         -----------
-        other : ht.Tensor
+        other : ht.DNDarray
             Input tensor to compare to
 
         atol: float, optional
@@ -271,7 +271,7 @@ class Tensor:
 
         Parameters:	
         ----------
-        x : ht.Tensor
+        x : ht.DNDarray
             Input array.
         axis : int, optional
             By default, the index is into the flattened tensor, otherwise along the specified axis.
@@ -280,7 +280,7 @@ class Tensor:
 
         Returns:
         -------	
-        index_tensor : ht.Tensor of ints
+        index_tensor : ht.DNDarray of ints
             Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
 
         Examples:
@@ -310,7 +310,7 @@ class Tensor:
 
         Parameters:	
         ----------
-        x : ht.Tensor
+        x : ht.DNDarray
             Input array.
         axis : int, optional
             By default, the index is into the flattened tensor, otherwise along the specified axis.
@@ -319,7 +319,7 @@ class Tensor:
 
         Returns:
         -------	
-        index_tensor : ht.Tensor of ints
+        index_tensor : ht.DNDarray of ints
             Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
 
         Examples
@@ -357,14 +357,14 @@ class Tensor:
 
         Returns
         -------
-        casted_tensor : ht.Tensor
+        casted_tensor : ht.DNDarray
             casted_tensor is a new tensor of the same shape but with given type of this tensor. If copy is True, the
             same tensor is returned instead.
         """
         dtype = types.canonical_heat_type(dtype)
         casted_array = self.__array.type(dtype.torch_type())
         if copy:
-            return Tensor(casted_array, self.shape, dtype, self.split, self.device, self.comm)
+            return DNDarray(casted_array, self.shape, dtype, self.split, self.device, self.comm)
 
         self.__array = casted_array
         self.__dtype = dtype
@@ -379,19 +379,19 @@ class Tensor:
 
         Parameters
         ----------
-        out : ht.Tensor or None, optional
+        out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
 
         Returns
         -------
-        ceiled : ht.Tensor
+        ceiled : ht.DNDarray
             A tensor of the same shape as x, containing the ceiled valued of each element in this tensor. If out was
             provided, ceiled is a reference to it.
 
         Returns
         -------
-        ceiled : ht.Tensor
+        ceiled : ht.DNDarray
             A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
             provided, ceiled is a reference to it.
 
@@ -412,13 +412,13 @@ class Tensor:
         a_max : scalar or None
             Maximum value. If None, clipping is not performed on upper interval edge. Not more than one of a_min and
             a_max may be None.
-        out : ht.Tensor, optional
+        out : ht.DNDarray, optional
             The results will be placed in this array. It may be the input array for in-place clipping. out must be of
             the right shape to hold the output. Its type is preserved.
 
         Returns
         -------
-        clipped_values : ht.Tensor
+        clipped_values : ht.DNDarray
             A tensor with the elements of this tensor, but where values < a_min are replaced with a_min, and those >
             a_max with a_max.
         """
@@ -430,7 +430,7 @@ class Tensor:
 
         Returns
         -------
-        copied : ht.Tensor
+        copied : ht.DNDarray
             A copy of the original
         """
         return memory.copy(self)
@@ -441,13 +441,13 @@ class Tensor:
 
         Parameters
         ----------
-        out : ht.Tensor or None, optional
+        out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
 
         Returns
         -------
-        cosine : ht.Tensor
+        cosine : ht.DNDarray
             A tensor of the same shape as x, containing the trigonometric cosine of each element in this tensor.
             Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
@@ -464,15 +464,15 @@ class Tensor:
 
         Parameters
         ----------
-        x : ht.Tensor
+        x : ht.DNDarray
             The value for which to compute the hyperbolic cosine.
-        out : ht.Tensor or None, optional
+        out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
 
         Returns
         -------
-        hyperbolic cosine : ht.Tensor
+        hyperbolic cosine : ht.DNDarray
             A tensor of the same shape as x, containing the hyperbolic cosine of each element in this tensor.
             Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
@@ -490,7 +490,7 @@ class Tensor:
 
         Returns
         -------
-        tensor_on_device : ht.Tensor
+        tensor_on_device : ht.DNDarray
             A copy of this object on the CPU.
         """
         self.__array = self.__array.cpu()
@@ -508,8 +508,8 @@ class Tensor:
 
         Returns
         -------
-        result: ht.Tensor
-            Tensor holding 1 for all elements in which values of self are equal to values of other, 0 for all other
+        result: ht.DNDarray
+            DNDarray holding 1 for all elements in which values of self are equal to values of other, 0 for all other
             elements
 
         Examples:
@@ -533,13 +533,13 @@ class Tensor:
 
         Parameters
         ----------
-        out : ht.Tensor or None, optional
+        out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
 
         Returns
         -------
-        exponentials : ht.Tensor
+        exponentials : ht.DNDarray
             A tensor of the same shape as x, containing the positive exponentials of each element in this tensor. If out
             was provided, logarithms is a reference to it.
 
@@ -556,13 +556,13 @@ class Tensor:
 
         Parameters
         ----------
-        out : ht.Tensor or None, optional
+        out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
 
         Returns
         -------
-        exponentials : ht.Tensor
+        exponentials : ht.DNDarray
             A tensor of the same shape as x, containing the positive exponentials of each element in this tensor. If out
             was provided, logarithms is a reference to it.
 
@@ -579,7 +579,7 @@ class Tensor:
         # TODO: sanitize input
         # TODO: make me more numpy API complete
         # TODO: fix negative axis
-        return Tensor(
+        return DNDarray(
             self.__array.unsqueeze(dim=axis),
             self.shape[:axis] + (1,) + self.shape[axis:],
             self.dtype,
@@ -597,13 +597,13 @@ class Tensor:
 
         Parameters
         ----------
-        out : ht.Tensor or None, optional
+        out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
 
         Returns
         -------
-        floored : ht.Tensor
+        floored : ht.DNDarray
             A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
             provided, floored is a reference to it.
 
@@ -627,8 +627,8 @@ class Tensor:
 
         Returns
         -------
-        result: ht.Tensor
-            Tensor holding 1 for all elements in which values in self are greater than or equal to values of other
+        result: ht.DNDarray
+            DNDarray holding 1 for all elements in which values in self are greater than or equal to values of other
             (x1 >= x2), 0 for all other elements
 
         Examples
@@ -650,7 +650,7 @@ class Tensor:
         # TODO: test me
         # TODO: sanitize input
         # TODO: make me more numpy API complete
-        return Tensor(self.__array[key], self.shape, self.split, self.device, self.comm)
+        return DNDarray(self.__array[key], self.shape, self.split, self.device, self.comm)
 
     if torch.cuda.device_count() > 0:
         def gpu(self):
@@ -660,7 +660,7 @@ class Tensor:
 
             Returns
             -------
-            tensor_on_device : ht.Tensor
+            tensor_on_device : ht.DNDarray
                 A copy of this object on the GPU.
             """
             self.__array = self.__array.cuda(devices.gpu_index())
@@ -678,8 +678,8 @@ class Tensor:
 
         Returns
         -------
-        result: ht.Tensor
-            Tensor holding 1 for all elements in which values in self are greater than values of other (x1 > x2),
+        result: ht.DNDarray
+            DNDarray holding 1 for all elements in which values in self are greater than values of other (x1 > x2),
             0 for all other elements
 
          Examples
@@ -721,8 +721,8 @@ class Tensor:
 
         Returns
         -------
-        result: ht.Tensor
-            Tensor holding 1 for all elements in which values in self are less than or equal to values of other (x1 <= x2),
+        result: ht.DNDarray
+            DNDarray holding 1 for all elements in which values in self are less than or equal to values of other (x1 <= x2),
             0 for all other elements
 
         Examples
@@ -750,13 +750,13 @@ class Tensor:
 
         Parameters
         ----------
-        out : ht.Tensor or None, optional
+        out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
 
         Returns
         -------
-        logarithms : ht.Tensor
+        logarithms : ht.DNDarray
             A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
             Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
 
@@ -773,15 +773,15 @@ class Tensor:
 
         Parameters
         ----------
-        x : ht.Tensor
+        x : ht.DNDarray
             The value for which to compute the logarithm.
-        out : ht.Tensor or None, optional
+        out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
 
         Returns
         -------
-        logarithms : ht.Tensor
+        logarithms : ht.DNDarray
             A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
             Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
 
@@ -798,15 +798,15 @@ class Tensor:
 
         Parameters
         ----------
-        x : ht.Tensor
+        x : ht.DNDarray
             The value for which to compute the logarithm.
-        out : ht.Tensor or None, optional
+        out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
 
         Returns
         -------
-        logarithms : ht.Tensor
+        logarithms : ht.DNDarray
             A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
             Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
 
@@ -829,8 +829,8 @@ class Tensor:
 
         Returns
         -------
-        result: ht.Tensor
-            Tensor holding 1 for all elements in which values in self are less than values of other (x1 < x2),
+        result: ht.DNDarray
+            DNDarray holding 1 for all elements in which values in self are less than values of other (x1 < x2),
             0 for all other elements
 
         Examples
@@ -855,12 +855,12 @@ class Tensor:
 
         Parameters
         ----------
-        self : ht.Tensor
+        self : ht.DNDarray
             Input data.
 
         axis : None or int  
             Axis or axes along which to operate. By default, flattened input is used.
-        #TODO: out : ht.Tensor, optional
+        #TODO: out : ht.DNDarray, optional
             Alternative output array in which to place the result. Must be of the same shape and buffer length as the
             expected output.
         #TODO: initial : scalar, optional   
@@ -881,11 +881,11 @@ class Tensor:
 
         Parameters
         ----------
-        self : ht.Tensor
+        self : ht.DNDarray
             Input data.
         axis : None or int
             Axis or axes along which to operate. By default, flattened input is used.
-        #TODO: out : ht.Tensor, optional
+        #TODO: out : ht.DNDarray, optional
             Alternative output array in which to place the result. Must be of the same shape and buffer length as the
             expected output.
         #TODO: initial : scalar, optional   
@@ -906,7 +906,7 @@ class Tensor:
 
             Returns
             -------
-            result: ht.Tensor
+            result: ht.DNDarray
                 A tensor containing the remainder of the element-wise division of self by other.
 
             Examples:
@@ -940,7 +940,7 @@ class Tensor:
 
         Returns
         -------
-        result: ht.Tensor
+        result: ht.DNDarray
            A tensor containing the results of element-wise multiplication.
 
         Examples:
@@ -970,8 +970,8 @@ class Tensor:
 
         Returns
         -------
-        result: ht.Tensor
-            Tensor holding 1 for all elements in which values of self are equal to values of other,
+        result: ht.DNDarray
+            DNDarray holding 1 for all elements in which values of self are equal to values of other,
             0 for all other elements
 
         Examples:
@@ -1002,7 +1002,7 @@ class Tensor:
 
         Returns
         -------
-        result: ht.Tensor
+        result: ht.DNDarray
            A tensor containing the results of element-wise exponential operation.
 
         Examples:
@@ -1041,7 +1041,7 @@ class Tensor:
 
         Returns
         -------
-        resplit: ht.Tensor
+        resplit: ht.DNDarray
             The redistributed tensor
 
         Examples
@@ -1116,7 +1116,7 @@ class Tensor:
 
         Parameters
         ----------
-        self : ht.Tensor
+        self : ht.DNDarray
             The tensor holding the data to be stored
         path : str
             Path to the file to be stored.
@@ -1204,7 +1204,7 @@ class Tensor:
 
         if np.isscalar(value):
             self.__array.__setitem__(key, value)
-        elif isinstance(value, Tensor):
+        elif isinstance(value, DNDarray):
             self.__array.__setitem__(key, value.__array)
         else:
             raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
@@ -1215,13 +1215,13 @@ class Tensor:
 
         Parameters
         ----------
-        out : ht.Tensor or None, optional
+        out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
 
         Returns
         -------
-        sine : ht.Tensor
+        sine : ht.DNDarray
             A tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
             Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
@@ -1238,15 +1238,15 @@ class Tensor:
 
         Parameters
         ----------
-        x : ht.Tensor
+        x : ht.DNDarray
             The value for which to compute the hyperbolic sine.
-        out : ht.Tensor or None, optional
+        out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
 
         Returns
         -------
-        hyperbolic sine : ht.Tensor
+        hyperbolic sine : ht.DNDarray
             A tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
             Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
@@ -1263,13 +1263,13 @@ class Tensor:
 
         Parameters
         ----------
-        out : ht.Tensor or None, optional
+        out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
 
         Returns
         -------
-        square_roots : ht.Tensor
+        square_roots : ht.DNDarray
             A tensor of the same shape as x, containing the positive square-root of each element in this tensor.
             Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
@@ -1299,7 +1299,7 @@ class Tensor:
 
         Returns
         -------
-        result: ht.Tensor
+        result: ht.DNDarray
             A tensor containing the results of element-wise subtraction.
 
         Examples:
@@ -1333,7 +1333,7 @@ class Tensor:
 
          Returns
          -------
-         sum_along_axis : ht.Tensor
+         sum_along_axis : ht.DNDarray
              An array with the same shape as self.__array except for the specified axis which
              becomes one, e.g. a.shape = (1,2,3) => ht.ones((1,2,3)).sum(axis=1).shape = (1,1,3)
 
@@ -1362,15 +1362,15 @@ class Tensor:
 
         Parameters
         ----------
-        x : ht.Tensor
+        x : ht.DNDarray
             The value for which to compute the trigonometric tangent.
-        out : ht.Tensor or None, optional
+        out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
 
         Returns
         -------
-        tangent : ht.Tensor
+        tangent : ht.DNDarray
             A tensor of the same shape as x, containing the trigonometric tangent of each element in this tensor.
 
         Examples
@@ -1386,15 +1386,15 @@ class Tensor:
 
         Parameters
         ----------
-        x : ht.Tensor
+        x : ht.DNDarray
             The value for which to compute the hyperbolic tangent.
-        out : ht.Tensor or None, optional
+        out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
 
         Returns
         -------
-        hyperbolic tangent : ht.Tensor
+        hyperbolic tangent : ht.DNDarray
             A tensor of the same shape as x, containing the hyperbolic tangent of each element in this tensor.
 
         Examples
@@ -1415,7 +1415,7 @@ class Tensor:
 
         Returns
         -------
-        p : ht.Tensor
+        p : ht.DNDarray
             a with its axes permuted.
 
         Examples
@@ -1457,7 +1457,7 @@ class Tensor:
 
         Returns
         -------
-        lower_triangle : ht.Tensor
+        lower_triangle : ht.DNDarray
             Lower triangle of the input tensor.
         """
         return linalg.tril(self, k)
@@ -1479,7 +1479,7 @@ class Tensor:
 
         Returns
         -------
-        upper_triangle : ht.Tensor
+        upper_triangle : ht.DNDarray
             Upper triangle of the input tensor.
         """
         return linalg.triu(self, k)
@@ -1497,7 +1497,7 @@ class Tensor:
 
         Returns
         -------
-        result: ht.Tensor
+        result: ht.DNDarray
            A tensor containing the results of element-wise division.
 
         Examples:

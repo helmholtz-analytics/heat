@@ -1,7 +1,7 @@
 import itertools
 import torch
 
-from . import tensor
+from . import dndarray
 
 __all__ = [
     'transpose',
@@ -23,12 +23,12 @@ def transpose(a, axes=None):
 
     Returns
     -------
-    p : ht.Tensor
+    p : ht.DNDarray
         a with its axes permuted.
     """
     # type check the input tensor
-    if not isinstance(a, tensor.Tensor):
-        raise TypeError('a must be of type ht.Tensor, but was {}'.format(type(a)))
+    if not isinstance(a, dndarray.DNDarray):
+        raise TypeError('a must be of type ht.DNDarray, but was {}'.format(type(a)))
 
     # set default value for axes permutations
     dimensions = len(a.shape)
@@ -58,10 +58,10 @@ def transpose(a, axes=None):
 
     # try to rearrange the tensor and return a new transposed variant
     try:
-        transposed_data = a._Tensor__array.permute(*axes)
+        transposed_data = a._DNDarray__array.permute(*axes)
         transposed_shape = tuple(a.shape[axis] for axis in axes)
 
-        return tensor.Tensor(transposed_data, transposed_shape, a.dtype, transposed_split, a.device, a.comm)
+        return dndarray.DNDarray(transposed_data, transposed_shape, a.dtype, transposed_split, a.device, a.comm)
     # if not possible re- raise any torch exception as ValueError
     except RuntimeError as exception:
         raise ValueError(str(exception))
@@ -78,7 +78,7 @@ def __tri_op(m, k, op):
 
     Parameters
     ----------
-    m : ht.Tensor
+    m : ht.DNDarray
         Input tensor for which to compute the triangle operator.
     k : int, optional
         Diagonal above which to apply the triangle operator, k<0 is below and k>0 is above.
@@ -87,15 +87,15 @@ def __tri_op(m, k, op):
 
     Returns
     -------
-    triangle_tensor : ht.Tensor
-        Tensor with the applied triangle operation
+    triangle_tensor : ht.DNDarray
+        DNDarray with the applied triangle operation
 
     Raises
     ------
     TypeError
         If the input is not a tensor or the diagonal offset cannot be converted to an integral value.
     """
-    if not isinstance(m, tensor.Tensor):
+    if not isinstance(m, dndarray.DNDarray):
         raise TypeError('Expected m to be a tensor but was {}'.format(type(m)))
 
     try:
@@ -109,11 +109,11 @@ def __tri_op(m, k, op):
 
     # manually repeat the input for vectors
     if dimensions == 1:
-        triangle = m._Tensor__array.expand(m.shape[0], -1)
+        triangle = m._DNDarray__array.expand(m.shape[0], -1)
         if torch.numel(triangle > 0):
             triangle = op(triangle, k - offset)
 
-        return tensor.Tensor(
+        return dndarray.DNDarray(
             triangle,
             (m.shape[0], m.shape[0],),
             m.dtype,
@@ -122,7 +122,7 @@ def __tri_op(m, k, op):
             m.comm
         )
 
-    original = m._Tensor__array
+    original = m._DNDarray__array
     output = original.clone()
 
     # modify k to account for tensor splits
@@ -143,7 +143,7 @@ def __tri_op(m, k, op):
             index = partial_index + __index_base
             op(original[index], k, out=output[index])
 
-    return tensor.Tensor(output, m.shape, m.dtype, m.split, m.device, m.comm)
+    return dndarray.DNDarray(output, m.shape, m.dtype, m.split, m.device, m.comm)
 
 
 def tril(m, k=0):
@@ -158,14 +158,14 @@ def tril(m, k=0):
 
     Parameters
     ----------
-    m : ht.Tensor
+    m : ht.DNDarray
         Input tensor for which to compute the lower triangle.
     k : int, optional
         Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
 
     Returns
     -------
-    lower_triangle : ht.Tensor
+    lower_triangle : ht.DNDarray
         Lower triangle of the input tensor.
     """
     return __tri_op(m, k, torch.tril)
@@ -183,14 +183,14 @@ def triu(m, k=0):
 
     Parameters
     ----------
-    m : ht.Tensor
+    m : ht.DNDarray
         Input tensor for which to compute the upper triangle.
     k : int, optional
         Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
 
     Returns
     -------
-    upper_triangle : ht.Tensor
+    upper_triangle : ht.DNDarray
         Upper triangle of the input tensor.
     """
     return __tri_op(m, k, torch.triu)
