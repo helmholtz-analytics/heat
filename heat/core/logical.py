@@ -11,7 +11,7 @@ __all__ = [
 ]
 
 
-def all(x, axis=None, out=None, keepdim=False):
+def all(x, axis=None, out=None, keepdim=None):
     """
     Test whether all array elements along a given axis evaluate to True.
 

@@ -200,12 +200,14 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
     else:
         if isinstance(axis, int):
             axis = (axis,)
+
         if isinstance(axis, tuple):
             partial = x._Tensor__array
             for dim in axis:
                 partial = partial_op(partial, dim=dim, keepdim=True)
                 shape_keepdim = x.gshape[:dim] + (1,) + x.gshape[dim + 1:]
             shape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
+
         output_shape = shape_keepdim if kwargs.get('keepdim') else shape_losedim
 
     # Check shape of output buffer, if any

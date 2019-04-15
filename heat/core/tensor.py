@@ -525,6 +525,7 @@ class Tensor:
         tensor([[0, 1],
                 [0, 0]])
         """
+        return relational.eq(self, other)
 
     def exp(self, out=None):
         """

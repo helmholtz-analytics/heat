@@ -213,7 +213,7 @@ def max(x, axis=None, out=None, keepdim=None):
             return result[0]
         return result
 
-    return operations.reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
+    return operations.__reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
 
 
 def min(x, axis=None, out=None, keepdim=None):
@@ -257,7 +257,7 @@ def min(x, axis=None, out=None, keepdim=None):
             return result[0]
         return result
 
-    return operations.reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
+    return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
 
 
 def mpi_argmax(a, b, _):
