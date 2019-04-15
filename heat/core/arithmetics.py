@@ -52,7 +52,6 @@ def add(t1, t2):
             [5., 6.]])
 
     """
-
     return operations.__binary_op(torch.add, t1, t2)
 
 
@@ -80,7 +79,7 @@ def div(t1, t2):
     >>> ht.div(2.0, 2.0)
     tensor([1.])
 
-    >>> T1 = ht.float32([[1, 2],[3, 4]])
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.div(T1, T2)
     tensor([[0.5000, 1.0000],

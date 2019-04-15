@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 
+from .communication import MPI
 from . import factories
 from . import operations
 from . import tensor
@@ -25,7 +26,6 @@ def eq(t1, t2):
     ----------
     t1: tensor or scalar
         The first operand involved in the comparison
-
     t2: tensor or scalar
         The second operand involved in the comparison
 
@@ -60,7 +60,6 @@ def equal(t1, t2):
     ----------
     t1: tensor or scalar
         The first operand involved in the comparison
-
     t2: tensor or scalar
         The second operand involved in the comparison
 
@@ -75,50 +74,18 @@ def equal(t1, t2):
     >>> T1 = ht.float32([[1, 2],[3, 4]])
     >>> ht.equal(T1, ht.float32([[1, 2],[3, 4]]))
     True
-
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.eq(T1, T2)
     False
-
     >>> ht.eq(T1, 3.0)
     False
     """
-    if np.isscalar(t1):
-        try:
-            t1 = factories.array([t1])
-        except (TypeError, ValueError,):
-            raise TypeError('Data type not supported, input was {}'.format(type(t1)))
+    result_tensor = operations.__binary_op(torch.equal, t1, t2)
+    result_value = result_tensor._Tensor__array
+    if isinstance(result_value, torch.Tensor):
+        result_value = True
 
-        if np.isscalar(t2):
-            try:
-                t2 = factories.array([t2])
-            except (TypeError, ValueError,):
-                raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
-        elif isinstance(t2, tensor.Tensor):
-            pass
-        else:
-            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
-
-    elif isinstance(t1, tensor.Tensor):
-        if np.isscalar(t2):
-            try:
-                t2 = factories.array([t2])
-            except (TypeError, ValueError,):
-                raise TypeError('Data type not supported, input was {}'.format(type(t2)))
-        elif isinstance(t2, tensor.Tensor):
-            # TODO: implement complex NUMPY rules
-            if t2.split is None or t2.split == t1.split:
-                pass
-            else:
-                # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
-                raise NotImplementedError('Not implemented for other splittings')
-        else:
-            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
-    else:
-        raise NotImplementedError('Not implemented for non scalar')
-
-    result = torch.equal(t1._Tensor__array, t2._Tensor__array)
-    return result
+    return result_tensor.comm.allreduce(result_value, MPI.LAND)
 
 
 def ge(t1, t2):
@@ -254,7 +221,6 @@ def lt(t1, t2):
     >>> ht.lt(T1, 3.0)
     tensor([[1, 1],
             [0, 0]], dtype=torch.uint8)
-
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.lt(T1, T2)
     tensor([[1, 0],

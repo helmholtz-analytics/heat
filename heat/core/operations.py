@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import warnings
 
-from .communication import MPI
+from .communication import MPI, MPI_WORLD
 from . import factories
 from . import stride_tricks
 from . import tensor
@@ -34,6 +34,7 @@ def __binary_op(operation, t1, t2):
     result: ht.Tensor
         A tensor containing the results of element-wise operation.
     """
+
     if np.isscalar(t1):
         try:
             t1 = factories.array([t1])
@@ -48,7 +49,7 @@ def __binary_op(operation, t1, t2):
             output_shape = (1,)
             output_split = None
             output_device = None
-            output_comm = None
+            output_comm = MPI_WORLD
         elif isinstance(t2, tensor.Tensor):
             output_shape = t2.shape
             output_split = t2.split
@@ -107,20 +108,21 @@ def __binary_op(operation, t1, t2):
     else:
         raise NotImplementedError('Not implemented for non scalar')
 
+    promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
     if t1.split is not None:
         if t1.lshape[t1.split] == 0:
-            result = t1
+            result = t1._Tensor__array.type(promoted_type)
         else:
-            result = operation(t1._Tensor__array, t2._Tensor__array)
+            result = operation(t1._Tensor__array.type(promoted_type), t2._Tensor__array.type(promoted_type))
     elif t1.split is not None:
         if t2.lshape[t2.split] == 0:
-            result = t2
+            result = t2._Tensor__array.type(promoted_type)
         else:
-            result = operation(t1._Tensor__array, t2._Tensor__array)
+            result = operation(t1._Tensor__array.type(promoted_type), t2._Tensor__array.type(promoted_type))
     else:
-        result = operation(t1._Tensor__array, t2._Tensor__array)
+        result = operation(t1._Tensor__array.type(promoted_type), t2._Tensor__array.type(promoted_type))
 
-    return tensor.Tensor(result, output_shape, t1.dtype, output_split, output_device, output_comm)
+    return tensor.Tensor(result, output_shape, types.canonical_heat_type(t1.dtype), output_split, output_device, output_comm)
 
 
 def __local_op(operation, x, out):
