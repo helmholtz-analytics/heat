@@ -127,6 +127,11 @@ def mean(x, axis=None):
         mu_reshape_combi = tensor.zeros((x.comm.size, int(np.prod(mu.lshape))))
         x.comm.Allreduce(mu_reshape, mu_reshape_combi, MPI.SUM)
 
+        gpu = False
+        if mu_reshape_combi.size() > 100000 and torch.cuda.device_count() > 0:  # test if the tensor is large enough to make a gpu useful
+            gpu = True
+            gpu_copy = mu_reshape_combi.gpu()
+
         while True:  # todo: multithread for GPU parrallelizm
             if sz % 2 != 0:
                 if rem1 and not rem2:
@@ -134,32 +139,41 @@ def mean(x, axis=None):
                 elif not rem1:
                     rem1 = sz - 1
             splt = sz // 2
-            for sp_it in range(splt):
-                for en, (el1, el2) in enumerate(zip(mu_reshape_combi[sp_it, :], mu_reshape_combi[sp_it+splt, :])):
-                    try:
-                        mu_reshape_combi[sp_it, en], n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it+splt])
-                    except IndexError:
-                        mu_reshape_combi, n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it + splt])
-                n_for_merge[sp_it] = n
-            if rem1 and rem2:
-                for en, (el1, el2) in enumerate(zip(mu_reshape_combi[rem1, :], mu_reshape_combi[rem2, :])):
-                    mu_reshape_combi[rem2, en], n = merge_means(el1, n_for_merge[rem1], el2, n_for_merge[rem2])
-                n_for_merge[rem2] = n
+            if gpu:
+                # dev is the cuda device
+                with gpu_copy.device:
+                    pass
+                    # do the gpu stuff here
+            else:
+                for sp_it in range(splt):
+                    for en, (el1, el2) in enumerate(zip(mu_reshape_combi[sp_it, :], mu_reshape_combi[sp_it+splt, :])):
+                        try:
+                            mu_reshape_combi[sp_it, en], n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it+splt])
+                        except IndexError:
+                            mu_reshape_combi, n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it + splt])
+                    n_for_merge[sp_it] = n
+                if rem1 and rem2:
+                    for en, (el1, el2) in enumerate(zip(mu_reshape_combi[rem1, :], mu_reshape_combi[rem2, :])):
+                        mu_reshape_combi[rem2, en], n = merge_means(el1, n_for_merge[rem1], el2, n_for_merge[rem2])
+                    n_for_merge[rem2] = n
 
-                rem1 = rem2
-                rem2 = 0
-            sz = splt
-            if sz == 1 or sz == 0:
-                if rem1:
-                    for en, (el1, el2) in enumerate(zip(mu_reshape_combi[0, :], mu_reshape_combi[rem1, :])):
-                        mu_reshape_combi[0, en], _ = merge_means(el1, n_for_merge[0], el2, n_for_merge[rem1])
+                    rem1 = rem2
+                    rem2 = 0
+                sz = splt
+                if sz == 1 or sz == 0:
+                    if rem1:
+                        for en, (el1, el2) in enumerate(zip(mu_reshape_combi[0, :], mu_reshape_combi[rem1, :])):
+                            mu_reshape_combi[0, en], _ = merge_means(el1, n_for_merge[0], el2, n_for_merge[rem1])
 
-                ret = local_op(torch.reshape, mu_reshape_combi[0], out=None, shape=output_shape_i)
-                return ret
+                    ret = local_op(torch.reshape, mu_reshape_combi[0], out=None, shape=output_shape_i)
+                    return ret
     # ------------------------------------------------------------------------------------------------------------------
     if axis is None:
         # full matrix calculation
-        if x.split:
+        if not x.is_distributed():
+            # if x is not distributed do a torch.mean on x
+            return local_op(torch.mean, x, out=None)
+        else:
             # if x is distributed and no axis is given: return mean of the whole set
             if x.lshape[x.split] != 0:
                 mu_in = local_op(torch.mean, x, out=None)
@@ -200,9 +214,6 @@ def mean(x, axis=None):
                         for enum, m in enumerate(merged):
                             mu_tot[0, enum] = m
                     return mu_tot[0][0]
-        else:
-            # if x is not distributed do a torch.mean on x
-            return local_op(torch.mean, x, out=None)
     else:
         output_shape = list(x.shape)
         if isinstance(axis, (list, tuple, tensor.tensor, torch.Tensor)):
@@ -216,11 +227,11 @@ def mean(x, axis=None):
             # multiple dimensions
             if x.split is None:
                 return local_op(torch.mean, x, out=None, **{'dim': axis})
+
             output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
             if x.split in axis:
                 # merge in the direction of the split
                 return reduce_means_elementwise(output_shape)
-
             else:
                 # multiple dimensions which does *not* include the split axis
                 # combine along the split axis
@@ -235,7 +246,7 @@ def mean(x, axis=None):
 
             if x.split is None:
                 return local_op(torch.mean, x, out=None, **{'dim': axis})
-            if axis == x.split:
+            elif axis == x.split:
                 return reduce_means_elementwise(output_shape)
             else:
                 # singular axis given (axis) not equal to split direction (x.split)
