@@ -1,14 +1,22 @@
 from distutils.core import setup
-from heat.core.version import __version__
+import sys
+sys.path.append('./heat/core')
+import version
 
-with open('README.md', 'r') as fh:
-    long_description = fh.read()
+print(version, dir(version))
+
+with open('README.md', 'r') as handle:
+    long_description = handle.read()
+
+# with open('./heat/core/version.py') as handle:
+#     exec(handle.read())
+#     print(dir())
 
 setup(
     name='heat',
     packages=['heat', 'heat.core', 'heat.ml', 'heat.ml.cluster'],
     data_files=['README.md', 'LICENSE'],
-    version=__version__,
+    version=version.__version__,
     description='A framework for high performance data analytics and machine learning.',
     long_description=long_description,
     long_description_content_type='text/markdown',
