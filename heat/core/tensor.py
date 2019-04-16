@@ -1603,7 +1603,6 @@ class tensor:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-        print('here', self.is_distributed())
         if not self.is_distributed():
             if not self.comm.size == 1:
                 return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
