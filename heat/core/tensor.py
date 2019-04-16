@@ -82,7 +82,6 @@ class tensor:
         ----------
         key : int, slice, list, tuple
             indices of the desired data
-
         value : all types compatible with pytorch tensors
             optional (if none given then this is a getter function)
 
@@ -1583,6 +1582,7 @@ class tensor:
             getter returns a new ht.tensor composed of the elements of the original tensor selected by the indices given.
             this does *NOT* redistribute or rebalance the resulting tensor. If the selection of values is unbalanced then
             the resultant tensor is also unbalanced!
+            To redistributed the tensor use balance() (issue #187)
 
         Examples
         --------
@@ -1603,7 +1603,9 @@ class tensor:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-        if self.is_distributed():
+        if not self.is_distributed():
+            return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
+        else:
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
@@ -1629,7 +1631,7 @@ class tensor:
                         gout = list(arr.shape)
                 else:
                     warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
-                    # arr is empyt and gout is zeros
+                    # arr is empty and gout is zeros
 
             elif isinstance(key, (tuple, list)):  # multi-argument gets are passed as tuples by python
                 gout = [0] * len(self.gshape)
@@ -1651,7 +1653,6 @@ class tensor:
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
                     new_split = self.split
-                # all_slices = True if all(slices) else False
 
                 if isinstance(key[self.split], slice):  # if a slice is given in the split direction
                     # below allows for the split given to contain Nones
@@ -1728,8 +1729,6 @@ class tensor:
                     gout[e] = self.comm.allreduce(gout[e], MPI.MAX)
 
             return tensor(arr, gout if isinstance(gout, tuple) else tuple(gout), self.dtype, new_split, self.device, self.comm)
-        else:
-            return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
 
     def __setitem__(self, key, value):
         """
@@ -1762,7 +1761,9 @@ class tensor:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
-        if self.is_distributed():
+        if not self.is_distributed():
+            self.setter(key, value)
+        else:
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
@@ -1801,8 +1802,6 @@ class tensor:
                     self.setter(key, value)
             else:
                 self.setter(key, value)
-        else:
-            self.setter(key, value)
 
     def setter(self, key, value):
         if np.isscalar(value):

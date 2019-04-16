@@ -1,7 +1,7 @@
+import numpy as np
 import torch
 import unittest
 
-import numpy as np
 import heat as ht
 
 
