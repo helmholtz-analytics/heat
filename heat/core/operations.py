@@ -31,7 +31,7 @@ def __binary_op(operation, t1, t2):
 
     Returns
     -------
-    result: ht.Tensor
+    result: ht.DNDarray
         A tensor containing the results of element-wise operation.
     """
 
@@ -110,12 +110,12 @@ def __binary_op(operation, t1, t2):
 
     promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
     if t1.split is not None:
-        if t1.lshape[t1.split] == 0:
+        if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
             result = t1._DNDarray__array.type(promoted_type)
         else:
             result = operation(t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type))
     elif t1.split is not None:
-        if t2.lshape[t2.split] == 0:
+        if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
             result = t2._DNDarray__array.type(promoted_type)
         else:
             result = operation(t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type))

@@ -294,7 +294,7 @@ def sum(x, axis=None, out=None, keepdim=None):
 
     Parameters
     ----------
-    x : ht.tensor
+    x : ht.DNDarray
         Input data.
     axis : None or int or tuple of ints, optional
         Axis along which a sum is performed. The default, axis=None, will sum
@@ -306,7 +306,7 @@ def sum(x, axis=None, out=None, keepdim=None):
 
     Returns
     -------
-    sum_along_axis : ht.tensor
+    sum_along_axis : ht.DNDarray
         An array with the same shape as self.__array except for the specified axis which
         becomes one, e.g. a.shape = (1, 2, 3) => ht.ones((1, 2, 3)).sum(axis=1).shape = (1, 1, 3)
 

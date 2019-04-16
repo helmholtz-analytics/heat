@@ -17,3 +17,5 @@ from .dndarray import *
 from .trigonometrics import *
 from .types import *
 from .types import finfo, iinfo
+from . import version
+from .version import __version__
