@@ -128,16 +128,20 @@ class tensor:
         """
         return arithmetics.add(self, other)
 
-    def all(self, axis=None, out=None):
+    def all(self, axis=None, out=None, keepdim=None):
         """
         Test whether all array elements along a given axis evaluate to True.
 
         Parameters:
         -----------
-        axis : None or int, optional #TODO: tuple of ints
-            Axis or along which a logical AND reduction is performed. The default (axis = None) is to perform a
+        axis : None or int or tuple of ints, optional
+            Axis or axes along which a logical AND reduction is performed. The default (axis = None) is to perform a
             logical AND over all the dimensions of the input array. axis may be negative, in which case it counts
             from the last to the first axis.
+
+            If this is a tuple of ints, a reduction is performed on multiple axes, instead of a single axis 
+            or all the axes as before.
+
 
         out : ht.tensor, optional
             Alternate output array in which to place the result. It must have the same shape as the expected output
@@ -179,7 +183,7 @@ class tensor:
         >>> out
         tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
         """
-        return operations.all(self, axis, out)
+        return operations.all(self, axis=axis, out=out, keepdim=keepdim)
 
     def allclose(self, other, rtol=1e-05, atol=1e-08, equal_nan=False):
         """
@@ -219,9 +223,48 @@ class tensor:
         """
         return operations.allclose(self, other, rtol, atol, equal_nan)
 
-    def argmax(self, axis=None):
+    def any(self, axis=None, out=None):
         """
-        Returns the indices of the minimum values along an axis.
+        Test whether any array element along a given axis evaluates to True.
+        The returning tensor is one dimensional unless axis is not None.
+
+        Parameters:
+        -----------
+        axis : int, optional
+            Axis along which a logic OR reduction is performed. With axis=None, the logical OR is performed over all
+            dimensions of the tensor.
+        out : tensor, optional
+            Alternative output tensor in which to place the result. It must have the same shape as the expected output.
+            The output is a tensor with dtype=bool.
+
+        Returns:
+        --------
+        boolean_tensor : tensor of type bool
+            Returns a tensor of booleans that are 1, if any non-zero values exist on this axis, 0 otherwise.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> t = ht.float32([[0.3, 0, 0.5]])
+        >>> t.any()
+        tensor([1], dtype=torch.uint8)
+        >>> t.any(axis=0)
+        tensor([[1, 0, 1]], dtype=torch.uint8)
+        >>> t.any(axis=1)
+        tensor([[1]], dtype=torch.uint8)
+
+        >>> t = ht.int32([[0, 0, 1], [0, 0, 0]])
+        >>> res = ht.zeros((1, 3), dtype=ht.bool)
+        >>> t.any(axis=0, out=res)
+        tensor([[0, 0, 1]], dtype=torch.uint8)
+        >>> res
+        tensor([[0, 0, 1]], dtype=torch.uint8)
+        """
+        return operations.any(self, axis=axis, out=out)
+
+    def argmax(self, axis=None, out=None, **kwargs):
+        """
+        Returns the indices of the maximum values along an axis.
 
         Parameters:	
         ----------
@@ -229,7 +272,7 @@ class tensor:
             Input array.
         axis : int, optional
             By default, the index is into the flattened tensor, otherwise along the specified axis.
-        #TODO out : array, optional
+        out : array, optional
             If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
         Returns:
@@ -256,9 +299,9 @@ class tensor:
         [2],
         [0]])
         """
-        return operations.argmax(self, axis)
+        return operations.argmax(self, axis=axis, out=out, **kwargs)
 
-    def argmin(self, axis=None):
+    def argmin(self, axis=None, out=None, **kwargs):
         """
         Returns the indices of the minimum values along an axis.
 
@@ -268,7 +311,7 @@ class tensor:
             Input array.
         axis : int, optional
             By default, the index is into the flattened tensor, otherwise along the specified axis.
-        #TODO out : array, optional
+        out : array, optional
             If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
         Returns:
@@ -278,21 +321,24 @@ class tensor:
 
         Examples
         --------
-        >>> a = ht.randn(3,3)
+        >>> import heat as ht
+        >>> import torch
+        >>> torch.manual_seed(1)
+        >>> a = ht.random.randn(3,3)
         >>> a
-        tensor([[-1.7297,  0.2541, -0.1044],
-                [ 1.0865, -0.4415,  1.3716],
-                [-0.0827,  1.0215, -2.0176]])
+        tensor([[-0.5631, -0.8923, -0.0583],
+        [-0.1955, -0.9656,  0.4224],
+        [ 0.2673, -0.4212, -0.5107]])
         >>> a.argmin()
-        tensor([8])
+        tensor([4])
         >>> a.argmin(axis=0)
         tensor([[0, 1, 2]])
         >>> a.argmin(axis=1)
-        tensor([[0],
+        tensor([[1],
                 [1],
                 [2]])
         """
-        return operations.argmin(self, axis)
+        return operations.argmin(self, axis=axis, out=out, **kwargs)
 
     def astype(self, dtype, copy=True):
         """
@@ -605,7 +651,7 @@ class tensor:
         """
         return self.split is not None and self.comm.is_distributed()
 
-    def max(self, axis=None, out=None):
+    def max(self, axis=None, out=None, keepdim=None):
         """
         Return the maximum of an array or maximum along an axis.
 
@@ -614,15 +660,17 @@ class tensor:
         self : ht.tensor
             Input data.
 
-        axis : None or int  
+        axis : None or int or tuple of ints, optional
             Axis or axes along which to operate. By default, flattened input is used.
-        #TODO: out : ht.tensor, optional
+            If this is a tuple of ints, the maximum is selected over multiple axes, 
+            instead of a single axis or all the axes as before.
+        out : ht.tensor, optional
             Alternative output array in which to place the result. Must be of the same shape and buffer length as the
             expected output.
         #TODO: initial : scalar, optional   
             The minimum value of an output element. Must be present to allow computation on empty slice.
         """
-        return relations.max(self, axis, out)
+        return relations.max(self, axis=axis, out=out, keepdim=keepdim)
 
     def mean(self, axis):
         # TODO: document me
@@ -631,7 +679,7 @@ class tensor:
         # TODO: make me more numpy API complete
         return self.sum(axis) / self.shape[axis]
 
-    def min(self, axis=None, out=None):
+    def min(self, axis=None, out=None, keepdim=None):
         """
         Return the minimum of an array or minimum along an axis.
 
@@ -639,15 +687,17 @@ class tensor:
         ----------
         self : ht.tensor
             Input data.
-        axis : None or int
+        axis : None or int or tuple of ints, optional
             Axis or axes along which to operate. By default, flattened input is used.
-        #TODO: out : ht.tensor, optional
+            If this is a tuple of ints, the minimum is selected over multiple axes, 
+            instead of a single axis or all the axes as before.
+        out : ht.tensor, optional
             Alternative output array in which to place the result. Must be of the same shape and buffer length as the
             expected output.
         #TODO: initial : scalar, optional   
             The maximum value of an output element. Must be present to allow computation on empty slice.
         """
-        return relations.min(self, axis, out)
+        return relations.min(self, axis=axis, out=out, keepdim=keepdim)
 
     def expand_dims(self, axis):
         # TODO: document me
@@ -1285,17 +1335,19 @@ class tensor:
         """
         return arithmetics.sub(self, other)
 
-    def sum(self, axis=None, out=None):
-        # TODO: Allow also list of axes
+    def sum(self, axis=None, out=None, keepdim=None):
         """
         Sum of array elements over a given axis.
 
         Parameters
         ----------
-        axis : None or int, optional
+        axis : None or int or tuple of ints, optional
             Axis along which a sum is performed. The default, axis=None, will sum
             all of the elements of the input array. If axis is negative it counts
             from the last to the first axis.
+
+            If axis is a tuple of ints, a sum is performed on all of the axes specified 
+            in the tuple instead of a single axis or all the axes as before.
 
          Returns
          -------
@@ -1318,7 +1370,7 @@ class tensor:
         tensor([[[3.],
                  [3.]]])
         """
-        return reductions.sum(self, axis, out)
+        return reductions.sum(self, axis=axis, out=out, keepdim=keepdim)
 
     def tan(self, out=None):
         """
@@ -1473,16 +1525,14 @@ class tensor:
         # TODO: sanitize input
         # TODO: make me more numpy API complete
         if self.__split is not None:
-            raise NotImplementedError(
-                'Slicing not supported for __split != None')
+            raise NotImplementedError('Slicing not supported for __split != None')
 
         if np.isscalar(value):
             self.__array.__setitem__(key, value)
         elif isinstance(value, tensor):
             self.__array.__setitem__(key, value.__array)
         else:
-            raise NotImplementedError(
-                'Not implemented for {}'.format(value.__class__.__name__))
+            raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
 
 
 def __factory(shape, dtype, split, local_factory, device, comm):
@@ -1657,8 +1707,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
         step = args[2]
         num = int(np.ceil((stop - start) / step))
     else:
-        raise TypeError(
-            'function takes minimum one and at most 3 positional arguments ({} given)'.format(num_of_param))
+        raise TypeError('function takes minimum one and at most 3 positional arguments ({} given)'.format(num_of_param))
 
     gshape = (num,)
     split = sanitize_axis(gshape, split)
@@ -2063,8 +2112,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
     stop = float(stop)
     num = int(num)
     if num <= 0:
-        raise ValueError(
-            'number of samples \'num\' must be non-negative integer, but was {}'.format(num))
+        raise ValueError('number of samples \'num\' must be non-negative integer, but was {}'.format(num))
     step = (stop - start) / max(1, num - 1 if endpoint else num)
 
     # infer local and global shapes

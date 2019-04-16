@@ -9,7 +9,7 @@ __all__ = [
 ]
 
 
-def sum(x, axis=None, out=None):
+def sum(x, axis=None, out=None, keepdim=None):
     """
     Sum of array elements over a given axis.
 
@@ -18,11 +18,13 @@ def sum(x, axis=None, out=None):
     x : ht.tensor
         Input data.
 
-    axis : None or int, optional
+    axis : None or int or tuple of ints, optional
         Axis along which a sum is performed. The default, axis=None, will sum
         all of the elements of the input array. If axis is negative it counts
         from the last to the first axis.
 
+        If axis is a tuple of ints, a sum is performed on all of the axes specified 
+        in the tuple instead of a single axis or all the axes as before.
     Returns
     -------
     sum_along_axis : ht.tensor
@@ -45,4 +47,4 @@ def sum(x, axis=None, out=None):
             [3.]]])
     """
     # TODO: make me more numpy API complete Issue #101
-    return reduce_op(x, torch.sum, MPI.SUM, axis, out)
+    return reduce_op(x, torch.sum, MPI.SUM, axis=axis, out=out, keepdim=keepdim)
