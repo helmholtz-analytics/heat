@@ -1603,8 +1603,18 @@ class tensor:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
+        print('here', self.is_distributed())
         if not self.is_distributed():
-            return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
+            if not self.comm.size == 1:
+                return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
+            else:
+                gout = tuple(self.__array[key].shape)
+                if self.split >= len(gout):
+                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                else:
+                    new_split = self.split
+
+                return tensor(self.__array[key], gout, self.dtype, new_split, self.device, self.comm)
         else:
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
