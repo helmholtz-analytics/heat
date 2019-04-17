@@ -1119,7 +1119,7 @@ class tensor:
         """
         return arithmetics.pow(self, other)
 
-    def resplit(self, axis=None):
+    def resplit(self, axis=None, out=None):
         """
         In-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
         nodes as well as the definition of new axis along which the tensor is split without changes to the values.
@@ -1131,6 +1131,8 @@ class tensor:
         ----------
         axis : int
             The new split axis, None denotes gathering, an int will set the new split axis
+        out : ht.tensor or None, optional
+            A location in which to store the resplit tensor. Old data is overwritten.
 
         Returns
         -------
@@ -1164,44 +1166,64 @@ class tensor:
         # sanitize the axis to check whether it is in range
         axis = sanitize_axis(self.shape, axis)
 
+        # sanitize the output tensor
+        if out is not None and not isinstance(out, tensor):
+            raise TypeError('out must be None or tensor. but was {}'.format(type(out)))
+
         # early out for unchanged content
         if axis == self.split:
-            return self
+            if out is None:
+                return self
+
+            out._tensor__array = self.__array
+            out._tensor__gshape = self.__gshape
+            out._tensor__dtype = self.__dtype
+            out._tensor__split = self.__split
+            out._tensor__device = self.__device
+            out._tensor__comm = self.__comm
+
+            return out
 
         # unsplit the tensor
         if axis is None:
-            gathered = torch.empty(self.shape)
+            target_data = torch.empty(self.shape)
+            target_split = None
 
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), recv_axis=axis)
-
-            self.__array = gathered
-            self.__split = None
+            self.comm.Allgatherv(self.__array, (target_data, recv_counts, recv_displs,), recv_axis=axis)
 
         # tensor needs be split/sliced locally
         elif self.split is None:
             _, _, slices = self.comm.chunk(self.shape, axis)
-            self.__array = self.__array[slices]
-            self.__split = axis
+            target_data = self.__array[slices]
+            target_split = axis
 
         # entirely new split axis, need to redistribute
         else:
             _, output_shape, _ = self.comm.chunk(self.shape, axis)
-            redistributed = torch.empty(output_shape)
+            target_data = torch.empty(output_shape)
+            target_split = axis
 
             send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
 
             self.comm.Alltoallv(
                 (self.__array, send_counts, send_displs,),
-                (redistributed, recv_counts, recv_displs,),
+                (target_data, recv_counts, recv_displs,),
                 axis=axis, recv_axis=self.split
             )
 
-            self.__array = redistributed
-            self.__split = axis
+        if out is not None:
+            out._tensor__array = target_data
+            out._tensor__gshape = self.__gshape
+            out._tensor__dtype = self.__dtype
+            out._tensor__split = target_split
+            out._tensor__device = self.__device
+            out._tensor__comm = self.__comm
 
-        return self
+            return out
+
+        return tensor(target_data, self.__gshape, self.__dtype, target_split, self.__device, self.__comm)
 
     def save(self, path, *args, **kwargs):
         """

@@ -185,7 +185,7 @@ class TestOperations(unittest.TestCase):
         self.assertTrue(ht.allclose(a, b, rtol=1e-04))
         self.assertTrue(ht.allclose(a, 2))
         self.assertTrue(ht.allclose(a, 2.0))
-        self.assertTrue(ht.allclose(2,a))
+        self.assertTrue(ht.allclose(2, a))
         self.assertTrue(ht.allclose(c, d))
         self.assertTrue(ht.allclose(c, e))
         self.assertTrue(ht.allclose(e, c))

@@ -360,33 +360,43 @@ class TestTensor(unittest.TestCase):
         # splitting an unsplit tensor should result in slicing the tensor locally
         shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size,)
         data = ht.zeros(shape)
-        data.resplit(-1)
+        resplit = data.resplit(-1)
 
-        self.assertIsInstance(data, ht.tensor)
-        self.assertEqual(data.shape, shape)
-        self.assertEqual(data.lshape, (data.comm.size, 1,))
-        self.assertEqual(data.split, 1)
+        self.assertIsInstance(resplit, ht.tensor)
+        self.assertEqual(resplit.shape, shape)
+        self.assertEqual(resplit.lshape, (resplit.comm.size, 1,))
+        self.assertEqual(resplit.split, 1)
 
         # unsplitting, aka gathering a tensor
         shape = (ht.MPI_WORLD.size + 1, ht.MPI_WORLD.size,)
         data = ht.ones(shape, split=0)
-        data.resplit(None)
+        resplit = data.resplit(None)
+
+        self.assertIsInstance(resplit, ht.tensor)
+        self.assertEqual(resplit.shape, shape)
+        self.assertEqual(resplit.lshape, shape)
+        self.assertEqual(resplit.split, None)
+
+        # assign and entirely new split axis
+        shape = (ht.MPI_WORLD.size + 2, ht.MPI_WORLD.size + 1,)
+        data = ht.ones(shape, split=0)
+        resplit = data.resplit(1)
+
+        self.assertIsInstance(resplit, ht.tensor)
+        self.assertEqual(resplit.shape, shape)
+        self.assertEqual(resplit.lshape[0], ht.MPI_WORLD.size + 2)
+        self.assertTrue(resplit.lshape[1] == 1 or resplit.lshape[1] == 2)
+        self.assertEqual(resplit.split, 1)
+
+        # split the tensor in-place via out parameter
+        shape = (ht.MPI_WORLD.size + 1, ht.MPI_WORLD.size,)
+        data = ht.ones(shape, split=0)
+        data.resplit(None, out=data)
 
         self.assertIsInstance(data, ht.tensor)
         self.assertEqual(data.shape, shape)
         self.assertEqual(data.lshape, shape)
         self.assertEqual(data.split, None)
-
-        # assign and entirely new split axis
-        shape = (ht.MPI_WORLD.size + 2, ht.MPI_WORLD.size + 1,)
-        data = ht.ones(shape, split=0)
-        data.resplit(1)
-
-        self.assertIsInstance(data, ht.tensor)
-        self.assertEqual(data.shape, shape)
-        self.assertEqual(data.lshape[0], ht.MPI_WORLD.size + 2)
-        self.assertTrue(data.lshape[1] == 1 or data.lshape[1] == 2)
-        self.assertEqual(data.split, 1)
 
 
 class TestTensorFactories(unittest.TestCase):
