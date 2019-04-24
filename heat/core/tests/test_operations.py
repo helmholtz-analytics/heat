@@ -485,9 +485,9 @@ class TestOperations(unittest.TestCase):
         result = ht.squeeze(data, axis=-1)
         self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._tensor__array.dtype, torch.float32)
+        self.assertEqual(result._tensor__array.dtype, ht.float32)
         self.assertEqual(result.shape, (1, ht.MPI_WORLD.size * 4, 5))
-        self.assertEqual(result.lshape, (1, 4, 5))
+        self.assertEqual(result.lshape, (1, ht.MPI_WORLD.size * 4, 5))
         self.assertEqual(result.split, 1)
 
         # 3D split tensor, across the axis
@@ -497,7 +497,7 @@ class TestOperations(unittest.TestCase):
         result = ht.squeeze(data, axis=0)
         self.assertIsInstance(result, ht.tensor)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._tensor__array.dtype, torch.float32)
+        self.assertEqual(result._tensor__array.dtype, ht.float32)
         self.assertEqual(result.shape, (size, size))
         self.assertEqual(result.lshape, (size, size))
         #self.assertEqual(result.split, None)
