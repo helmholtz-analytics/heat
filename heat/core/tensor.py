@@ -16,11 +16,13 @@ from . import reductions
 
 warnings.simplefilter('always', ResourceWarning)
 
+
 class LocalIndex:
     """
     Indexing class for local operations (primarily for lloc function)
     For docs on __getitem__ and __setitem__ see lloc(self)
     """
+
     def __init__(self, obj):
         self.obj = obj
 
@@ -1360,6 +1362,35 @@ class tensor:
         """
         return exponential.sqrt(self, out)
 
+    def squeeze(self, axis=None):
+        """
+        Remove single-dimensional entries from the shape of a tensor.
+
+        Parameters:	
+
+        x : ht.tensor
+        Input data.
+
+        axis : None or int or tuple of ints, optional
+
+
+        Returns:	
+
+        squeezed : ht.tensor
+
+        The input tensor, but with all or a subset of the dimensions of length 1 removed. 
+
+        Raises:	
+
+        ValueError
+
+        If axis is not None, and an axis being squeezed is not of length 1
+
+        TODO: Examples:
+
+        """
+        return operations.squeeze(self, axis)
+
     def __sub__(self, other):
         """
         Element-wise subtraction of another tensor or a scalar from the tensor.
@@ -1635,11 +1666,13 @@ class tensor:
                     arr = self.__array[key - chunk_start]
                 elif self.split != 0:
                     _, _, chunk_slice2 = self.comm.chunk(self.shape, self.split)
-                    if key in range(chunk_slice2[0].start, chunk_slice2[0].stop):  # need to test if the given axis is on the node and then get the shape
+                    # need to test if the given axis is on the node and then get the shape
+                    if key in range(chunk_slice2[0].start, chunk_slice2[0].stop):
                         arr = self.__array[key]
                         gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                        self.comm.rank), ResourceWarning)
                     # arr is empty and gout is zeros
 
             elif isinstance(key, (tuple, list)):  # multi-argument gets are passed as tuples by python
@@ -1684,7 +1717,8 @@ class tensor:
                     arr = self.__array[tuple(key)]
                     gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                        self.comm.rank), ResourceWarning)
                     # arr is empty
                     # gout is all 0s and is the proper shape
 
@@ -1710,7 +1744,8 @@ class tensor:
                     arr = self.__array[key]
                     gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                        self.comm.rank), ResourceWarning)
                     # arr is empty
                     # gout is all 0s and is the proper shape
 
