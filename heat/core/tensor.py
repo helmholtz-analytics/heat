@@ -1,4 +1,5 @@
 import torch
+import warnings
 
 from .communication import Communication, MPI, MPI_WORLD
 from .stride_tricks import *
@@ -12,6 +13,22 @@ from . import trigonometrics
 from . import exponential
 from . import rounding
 from . import reductions
+
+warnings.simplefilter('always', ResourceWarning)
+
+class LocalIndex:
+    """
+    Indexing class for local operations (primarily for lloc function)
+    For docs on __getitem__ and __setitem__ see lloc(self)
+    """
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __getitem__(self, key):
+        return self.obj[key]
+
+    def __setitem__(self, key, value):
+        self.obj[key] = value
 
 
 class tensor:
@@ -54,6 +71,44 @@ class tensor:
     @property
     def T(self, axes=None):
         return operations.transpose(self, axes)
+
+    @property
+    def lloc(self):
+        """
+        Local item setter and getter. i.e. this function operates on a local level and only on the pytorch tesnors composing the ht tensor
+        This function uses the LocalIndex class
+
+        Parameters
+        ----------
+        key : int, slice, list, tuple
+            indices of the desired data
+        value : all types compatible with pytorch tensors
+            optional (if none given then this is a getter function)
+
+        Returns
+        -------
+        (getter) -> ht.tensor with the indices selected at a *local* level
+        (setter) -> nothing
+
+        Examples
+        --------
+        (2 processes)
+        >>> a = ht.zeros((4, 5), split=0)
+        (1/2) tensor([[0., 0., 0., 0., 0.],
+                      [0., 0., 0., 0., 0.]])
+        (2/2) tensor([[0., 0., 0., 0., 0.],
+                      [0., 0., 0., 0., 0.]])
+        >>> a.lloc[1, 0:4]
+        (1/2) tensor([0., 0., 0., 0.])
+        (2/2) tensor([0., 0., 0., 0.])
+        >>> a.lloc[1, 0:4] = torch.arange(1, 5)
+        >>> a
+        (1/2) tensor([[0., 0., 0., 0., 0.],
+                      [1., 2., 3., 4., 0.]])
+        (2/2) tensor([[0., 0., 0., 0., 0.],
+                      [1., 2., 3., 4., 0.]])
+        """
+        return LocalIndex(self.__array)
 
     def abs(self, out=None, dtype=None):
         """
@@ -1513,24 +1568,263 @@ class tensor:
         return self.__array.__repr__(*args)
 
     def __getitem__(self, key):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        return tensor(self.__array[key], self.shape, self.split, self.device, self.comm)
+        """
+        Global getter function for ht.tensors
+
+        Parametes
+        ---------
+        key : int, slice, tuple, list
+            indices to get from the tensor.
+
+        Returns
+        -------
+        result : ht.tensor
+            getter returns a new ht.tensor composed of the elements of the original tensor selected by the indices given.
+            this does *NOT* redistribute or rebalance the resulting tensor. If the selection of values is unbalanced then
+            the resultant tensor is also unbalanced!
+            To redistributed the tensor use balance() (issue #187)
+
+        Examples
+        --------
+        (2 processes)
+        >>> a = ht.arange(10, split=0)
+        (1/2) >>> tensor([0, 1, 2, 3, 4], dtype=torch.int32)
+        (2/2) >>> tensor([5, 6, 7, 8, 9], dtype=torch.int32)
+        >>> a[1:6]
+        (1/2) >>> tensor([1, 2, 3, 4], dtype=torch.int32)
+        (2/2) >>> tensor([5], dtype=torch.int32)
+
+        >>> a = ht.zeros((4,5), split=0)
+        (1/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 0., 0., 0., 0.]])
+        (2/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 0., 0., 0., 0.]])
+        >>> a[1:4, 1]
+        (1/2) >>> tensor([0.])
+        (2/2) >>> tensor([0., 0.])
+        """
+        if not self.is_distributed():
+            if not self.comm.size == 1:
+                return tensor(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
+            else:
+                gout = tuple(self.__array[key].shape)
+                if self.split >= len(gout):
+                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                else:
+                    new_split = self.split
+
+                return tensor(self.__array[key], gout, self.dtype, new_split, self.device, self.comm)
+        else:
+            _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
+            chunk_start = chunk_slice[self.split].start
+            chunk_end = chunk_slice[self.split].stop
+            chunk_set = set(range(chunk_start, chunk_end))
+
+            arr = torch.Tensor()
+
+            if isinstance(key, int):  # if a sigular index is given and the tensor is split
+                gout = [0] * (len(self.gshape) - 1)
+                # handle the reduction of the split to accommodate for the reduced dimension
+                if self.split >= len(gout):
+                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                else:
+                    new_split = self.split
+
+                if key in range(chunk_start, chunk_end) and self.split == 0:  # only need to adjust the key if split==0
+                    gout = list(self.__array[key-chunk_start].shape)
+                    arr = self.__array[key - chunk_start]
+                elif self.split != 0:
+                    _, _, chunk_slice2 = self.comm.chunk(self.shape, self.split)
+                    if key in range(chunk_slice2[0].start, chunk_slice2[0].stop):  # need to test if the given axis is on the node and then get the shape
+                        arr = self.__array[key]
+                        gout = list(arr.shape)
+                else:
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    # arr is empty and gout is zeros
+
+            elif isinstance(key, (tuple, list)):  # multi-argument gets are passed as tuples by python
+                gout = [0] * len(self.gshape)
+                # handle the dimensional reduction for integers
+                ints = sum([isinstance(it, int) for it in key])
+                gout = gout[:len(gout) - ints]
+
+                # reduce the dims if the slices are only one element in length
+                slices = [isinstance(k, slice) for k in key]
+                if any(slices):
+                    for s, b in enumerate(slices):
+                        if b:
+                            start = key[s].start if key[s].start is not None else 0
+                            stop = key[s].stop if key[s].stop is not None else self.gshape[s]
+                            if start == stop - 1:
+                                gout = gout[:-1]
+
+                if self.split >= len(gout):
+                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                else:
+                    new_split = self.split
+
+                if isinstance(key[self.split], slice):  # if a slice is given in the split direction
+                    # below allows for the split given to contain Nones
+                    key_set = set(range(key[self.split].start if key[self.split].start is not None else 0,
+                                        key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split],
+                                        key[self.split].step if key[self.split].step else 1))
+                    key = list(key)
+                    overlap = list(key_set & chunk_set)
+                    if overlap:  # if the slice is requesting data on the nodes
+                        hold = [x - chunk_start for x in overlap]
+                        key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
+                        arr = self.__array[tuple(key)]
+                        gout = list(arr.shape)
+
+                # if the given axes are not splits (must be ints for python)
+                # this means the whole slice is on one node
+                elif key[self.split] in range(chunk_start, chunk_end):
+                    key = list(key)
+                    key[self.split] = key[self.split] - chunk_start
+                    arr = self.__array[tuple(key)]
+                    gout = list(arr.shape)
+                else:
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    # arr is empty
+                    # gout is all 0s and is the proper shape
+
+            elif isinstance(key, slice) and self.split == 0:  # if the given axes are only a slice
+                gout = [0] * len(self.gshape)
+                # reduce the dims if the slices are only one element in length
+                start = key.start if key.start is not None else 0
+                stop = key.stop if key.stop is not None else self.gshape[0]
+                if start == stop - 1:
+                    gout = gout[:-1]
+
+                if self.split >= len(gout):
+                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                else:
+                    new_split = self.split
+
+                key_set = set(range(start, stop, key.step if key.step else 1))
+                overlap = list(key_set & chunk_set)
+
+                if overlap:
+                    hold = [x - chunk_start for x in overlap]
+                    key = slice(min(hold), max(hold) + 1, key.step)
+                    arr = self.__array[key]
+                    gout = list(arr.shape)
+                else:
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    # arr is empty
+                    # gout is all 0s and is the proper shape
+
+            else:  # handle other cases not accounted for (one is a slice is given and the split != 0)
+                gout = [0] * len(self.gshape)
+                if isinstance(key, slice):
+                    # reduce the dims if the slices are only one element in length
+                    start = key.start if key.start is not None else 0
+                    stop = key.stop if key.stop is not None else self.gshape[0]
+                    if start == stop - 1:
+                        gout = gout[:-1]
+
+                if self.split >= len(gout):
+                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                else:
+                    new_split = self.split
+
+                gout = list(self.__array[key].shape)
+                arr = self.__array[key]
+
+            for e, _ in enumerate(gout):
+                if e == new_split:
+                    gout[e] = self.comm.allreduce(gout[e], MPI.SUM)
+                else:
+                    gout[e] = self.comm.allreduce(gout[e], MPI.MAX)
+
+            return tensor(arr, gout if isinstance(gout, tuple) else tuple(gout), self.dtype, new_split, self.device, self.comm)
 
     def __setitem__(self, key, value):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        if self.__split is not None:
-            raise NotImplementedError('Slicing not supported for __split != None')
+        """
+        Global item setter
 
+        Parameters
+        ----------
+        key : int, tuple, list, slice
+            index/indices to be set
+        value: np.scalar, tensor, torch.Tensor
+            value to be set to the specified positions in the ht.tensor (self)
+
+        Returns
+        -------
+        Nothing
+            The specified element/s (key) of self is set with the value
+
+        Examples
+        --------
+        (2 processes)
+        >>> a = ht.zeros((4,5), split=0)
+        (1/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 0., 0., 0., 0.]])
+        (2/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 0., 0., 0., 0.]])
+        >>> a[1:4, 1] = 1
+        >>> a
+        (1/2) >>> tensor([[0., 0., 0., 0., 0.],
+                          [0., 1., 0., 0., 0.]])
+        (2/2) >>> tensor([[0., 1., 0., 0., 0.],
+                          [0., 1., 0., 0., 0.]])
+        """
+        if not self.is_distributed():
+            self.setter(key, value)
+        else:
+            _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
+            chunk_start = chunk_slice[self.split].start
+            chunk_end = chunk_slice[self.split].stop
+
+            if isinstance(key, int) and self.split == 0:
+                if key in range(chunk_start, chunk_end):
+                    self.setter(key-chunk_start, value)
+
+            elif isinstance(key, (tuple, list, tensor, torch.Tensor)):
+                if isinstance(key[self.split], slice):
+                    key = list(key)
+                    overlap = list(set(range(key[self.split].start if key[self.split].start is not None else 0,
+                                             key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split]))
+                                   & set(range(chunk_start, chunk_end)))
+
+                    if overlap:
+                        hold = [x - chunk_start for x in overlap]
+                        key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
+                        try:
+                            self.setter(tuple(key), value[overlap])
+                        except TypeError as te:
+                            if str(te) != "'int' object is not subscriptable":
+                                raise TypeError
+                            self.setter(tuple(key), value)
+
+                elif key[self.split] in range(chunk_start, chunk_end):
+                    key = list(key)
+                    key[self.split] = key[self.split] - chunk_start
+                    self.setter(tuple(key), value)
+
+            elif isinstance(key, slice) and self.split == 0:
+                overlap = list(set(range(key.start, key.stop)) & set(range(chunk_start, chunk_end)))
+                if overlap:
+                    hold = [x - chunk_start for x in overlap]
+                    key = slice(min(hold), max(hold) + 1, key.step)
+                    self.setter(key, value)
+            else:
+                self.setter(key, value)
+
+    def setter(self, key, value):
         if np.isscalar(value):
             self.__array.__setitem__(key, value)
         elif isinstance(value, tensor):
             self.__array.__setitem__(key, value.__array)
+        elif isinstance(value, torch.Tensor):
+            self.__array.__setitem__(key, value.data)
+        elif isinstance(value, (list, tuple)):
+            value = torch.Tensor(value)
+            self.__array.__setitem__(key, value.data)
+        elif isinstance(value, np.ndarray):
+            value = torch.from_numpy(value)
+            self.__array.__setitem__(key, value.data)
         else:
             raise NotImplementedError('Not implemented for {}'.format(value.__class__.__name__))
 
@@ -1729,7 +2023,6 @@ def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
 def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI_WORLD):
     """
     Create a tensor.
-
     Parameters
     ----------
     obj : array_like
@@ -1752,37 +2045,29 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed tensor chunks.
-
     Returns
     -------
     out : ht.tensor
         A tensor object satisfying the specified requirements.
-
     Raises
     ------
-
     Examples
     --------
     >>> ht.array([1, 2, 3])
     tensor([1, 2, 3])
-
     Upcasting:
     >>> ht.array([1, 2, 3.0])
     tensor([ 1.,  2.,  3.])
-
     More than one dimension:
     >>> ht.array([[1, 2], [3, 4]])
     tensor([[1, 2],
            [3, 4]])
-
     Minimum dimensions given:
     >>> ht.array([1, 2, 3], ndmin=2)
     tensor([[1, 2, 3]])
-
     Type provided:
     >>> ht.array([1, 2, 3], dtype=float)
     tensor([ 1.0, 2.0, 3.0])
-
     Pre-split data:
     (0/2) >>> ht.array([1, 2], split=0)
     (1/2) >>> ht.array([3, 4], split=0)

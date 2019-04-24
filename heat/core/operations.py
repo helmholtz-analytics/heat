@@ -166,13 +166,47 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     True
 
     """
-    if not isinstance(x, tensor.tensor):
-        raise TypeError('Expected x to be a ht.tensor, but was {}'.format(type(x)))
 
-    if not isinstance(y, tensor.tensor):
-        raise TypeError('Expected y to be a ht.tensor, but was {}'.format(type(y)))
+    if np.isscalar(x):
+        try:
+            x = tensor.array([float(x)])
+        except (ValueError, TypeError,):
+            raise TypeError('Data type not supported, input was {}'.format(type(x)))
 
-    return torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan)
+    elif not isinstance(x, tensor.tensor):
+        raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(x)))
+
+    if np.isscalar(y):
+        try:
+            y = tensor.array([float(y)])
+        except (ValueError, TypeError,):
+            raise TypeError('Data type not supported, input was {}'.format(type(y)))
+
+    elif not isinstance(y, tensor.tensor):
+        raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(y)))
+
+    # If only one of the tensors is distributed, unsplit/gather it
+    if (x.split is not None) and (y.split is None):
+        x.resplit(axis=None)
+    if (x.split is None) and (y.split is not None):
+        y.resplit(axis=None)
+
+    # If both x and y are split, but along different axes, y is redistributed to be split along the same axis as x
+    if (x.split is not None) and (y.split is not None) and (x.split!=y.split):
+        y.resplit(axis=x.split)
+
+    # no sanitization for shapes of x and y needed, torch.allclose raises relevant errors
+    _local_allclose = torch.tensor(torch.allclose(x._tensor__array, y._tensor__array, rtol, atol, equal_nan))
+
+    # If x is distributed, then y is also distributed along the same axis
+    if x.comm.is_distributed():
+        x.comm.Allreduce(MPI.IN_PLACE, _local_allclose, MPI.LAND)
+
+    else:
+        pass
+
+    return bool(_local_allclose.item())
+
 
 
 def any(x, axis=None, out=None, keepdim=None):
@@ -842,12 +876,12 @@ def __binary_op(operation, t1, t2):
         raise NotImplementedError('Not implemented for non scalar')
 
     if t1.split is not None:
-        if t1.lshape[t1.split] == 0:
+        if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
             result = t1
         else:
             result = operation(t1._tensor__array, t2._tensor__array)
     elif t1.split is not None:
-        if t2.lshape[t2.split] == 0:
+        if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
             result = t2
         else:
             result = operation(t1._tensor__array, t2._tensor__array)
