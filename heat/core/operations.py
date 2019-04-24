@@ -20,6 +20,7 @@ __all__ = [
     'argmin',
     'clip',
     'copy',
+    'squeeze',
     'transpose',
     'tril',
     'triu'
@@ -192,7 +193,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
         y.resplit(axis=None)
 
     # If both x and y are split, but along different axes, y is redistributed to be split along the same axis as x
-    if (x.split is not None) and (y.split is not None) and (x.split!=y.split):
+    if (x.split is not None) and (y.split is not None) and (x.split != y.split):
         y.resplit(axis=x.split)
 
     # no sanitization for shapes of x and y needed, torch.allclose raises relevant errors
@@ -206,7 +207,6 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
         pass
 
     return bool(_local_allclose.item())
-
 
 
 def any(x, axis=None, out=None, keepdim=None):
@@ -464,6 +464,62 @@ def copy(a):
     if not isinstance(a, tensor.tensor):
         raise TypeError('input needs to be a tensor')
     return tensor.tensor(a._tensor__array.clone(), a.shape, a.dtype, a.split, a.device, a.comm)
+
+
+def squeeze(x, axis=None):
+    """
+    Remove single-dimensional entries from the shape of a tensor.
+
+    Parameters:	
+
+    x : ht.tensor
+    Input data.
+
+    axis : None or int or tuple of ints, optional
+
+
+    Returns:	
+
+    squeezed : ht.tensor
+
+    The input tensor, but with all or a subset of the dimensions of length 1 removed. 
+
+    Raises:	
+
+    ValueError
+
+    If axis is not None, and an axis being squeezed is not of length 1
+
+    TODO: Examples:
+
+    """
+    # Sanitize input
+    if not isinstance(x, tensor.tensor):
+        raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
+    # Sanitize axis
+    axis = stride_tricks.sanitize_axis(x.shape, axis)
+    if axis is not None:
+        if isinstance(axis, int):
+            dim_is_one = (x.shape[axis] == 1)
+        if isinstance(axis, tuple):
+            dim_is_one = bool(tensor.array(list(x.shape[dim] == 1 for dim in axis)).all()._tensor__array)
+        if not dim_is_one:
+            raise ValueError('Dimension along axis {} is not 1 for shape {}'.format(axis, x.shape))
+
+    if axis is None:
+        axis = tuple(i for i, dim in enumerate(x.shape) if dim == 1)
+    if isinstance(axis, int):
+        axis = (axis,)
+    out_shape = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if not dim in axis)
+    x_squeezed = x._tensor__array.reshape(out_shape)
+
+    return tensor.tensor(
+        x_squeezed,
+        out_shape,
+        x.dtype,
+        split=x.split,
+        device=x.device,
+        comm=x.comm)
 
 
 def transpose(a, axes=None):
