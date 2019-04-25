@@ -300,7 +300,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(output.dtype, ht.int64)
         self.assertEqual(output._tensor__array.dtype, torch.int64)
         self.assertEqual(output.shape, (size,))
-        self.assertEqual(output.lshape, (1, size,))
+        self.assertEqual(output.lshape, (size,))
         self.assertEqual(output.split, None)
         self.assertTrue((output._tensor__array != 0).all())
 

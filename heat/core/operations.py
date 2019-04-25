@@ -320,7 +320,7 @@ def argmax(x, axis=None, out=None, **kwargs):
         if not isinstance(axis, int):
             raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
     # perform the global reduction
-    reduced_result = __reduce_op(x, local_argmax, MPI_ARGMAX, axis=axis, out=out, **kwargs)
+    reduced_result = __reduce_op(x, local_argmax, MPI_ARGMAX, axis=axis, out=None, **kwargs)
 
     # correct the tensor
     reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
@@ -336,7 +336,12 @@ def argmax(x, axis=None, out=None, **kwargs):
 
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
+        if out.shape != reduced_result.shape:
+            raise ValueError('Expecting output buffer of shape {}, got {}'.format(reduced_result.shape, out.shape))
         out._tensor__array.storage().copy_(reduced_result._tensor__array.storage())
+        out._tensor__array = out._tensor__array.type(torch.int64)
+        out._tensor__dtype = types.int64
+        return out
 
     return reduced_result
 
@@ -407,11 +412,12 @@ def argmin(x, axis=None, out=None, **kwargs):
         if not isinstance(axis, int):
             raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
     # perform the global reduction
-    reduced_result = __reduce_op(x, local_argmin, MPI_ARGMIN, axis=axis, out=out, **kwargs)
+    reduced_result = __reduce_op(x, local_argmin, MPI_ARGMIN, axis=axis, out=None, **kwargs)
 
     # correct the tensor
     reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
     reduced_result._tensor__dtype = types.int64
+
     # address lshape/gshape mismatch when axis is 0
     if axis is not None:
         if isinstance(axis, int):
@@ -423,7 +429,12 @@ def argmin(x, axis=None, out=None, **kwargs):
 
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
+        if out.shape != reduced_result.shape:
+            raise ValueError('Expecting output buffer of shape {}, got {}'.format(reduced_result.shape, out.shape))
         out._tensor__array.storage().copy_(reduced_result._tensor__array.storage())
+        out._tensor__array = out._tensor__array.type(torch.int64)
+        out._tensor__dtype = types.int64
+        return out
 
     return reduced_result
 
