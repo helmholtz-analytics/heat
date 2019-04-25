@@ -1366,28 +1366,48 @@ class tensor:
         """
         Remove single-dimensional entries from the shape of a tensor.
 
-        Parameters:	
-
+        Parameters:
+        -----------
         x : ht.tensor
-        Input data.
+            Input data.
 
         axis : None or int or tuple of ints, optional
 
 
-        Returns:	
-
+        Returns:
+        --------	
         squeezed : ht.tensor
+                   The input tensor, but with all or a subset of the dimensions of length 1 removed. 
 
-        The input tensor, but with all or a subset of the dimensions of length 1 removed. 
 
-        Raises:	
+        Examples:
+        >>> import heat as ht
+        >>> import torch
+        >>> torch.manual_seed(1)
+        <torch._C.Generator object at 0x115704ad0>
+        >>> a = ht.random.randn(1,3,1,5)
+        >>> a
+        tensor([[[[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232]],
 
-        ValueError
+                [[ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255]],
 
-        If axis is not None, and an axis being squeezed is not of length 1
-
-        TODO: Examples:
-
+                [[-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]]]])
+        >>> a.shape
+        (1, 3, 1, 5)
+        >>> a.squeeze().shape
+        (3, 5)
+        >>> a.squeeze
+        tensor([[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232],
+                [ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255],
+                [-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]])
+        >>> a.squeeze(axis=0).shape
+        (3, 1, 5)
+        >>> a.squeeze(axis=-2).shape
+        (1, 3, 5)
+        >>> a.squeeze(axis=1).shape
+        Traceback (most recent call last):
+        ...
+        ValueError: Dimension along axis 1 is not 1 for shape (1, 3, 1, 5)
         """
         return operations.squeeze(self, axis)
 

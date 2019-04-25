@@ -470,29 +470,50 @@ def squeeze(x, axis=None):
     """
     Remove single-dimensional entries from the shape of a tensor.
 
-    Parameters:	
-
+    Parameters:
+    -----------
     x : ht.tensor
-    Input data.
+        Input data.
 
     axis : None or int or tuple of ints, optional
 
 
-    Returns:	
-
+    Returns:
+    --------	
     squeezed : ht.tensor
+               The input tensor, but with all or a subset of the dimensions of length 1 removed. 
 
-    The input tensor, but with all or a subset of the dimensions of length 1 removed. 
 
-    Raises:	
+    Examples:
+    >>> import heat as ht
+    >>> import torch
+    >>> torch.manual_seed(1)
+    <torch._C.Generator object at 0x115704ad0>
+    >>> a = ht.random.randn(1,3,1,5)
+    >>> a
+    tensor([[[[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232]],
 
-    ValueError
+            [[ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255]],
 
-    If axis is not None, and an axis being squeezed is not of length 1
-
-    TODO: Examples:
-
+            [[-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]]]])
+    >>> a.shape
+    (1, 3, 1, 5)
+    >>> ht.squeeze(a).shape
+    (3, 5)
+    >>> ht.squeeze(a)
+    tensor([[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232],
+            [ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255],
+            [-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]])
+    >>> ht.squeeze(a,axis=0).shape
+    (3, 1, 5)
+    >>> ht.squeeze(a,axis=-2).shape
+    (1, 3, 5)
+    >>> ht.squeeze(a,axis=1).shape
+    Traceback (most recent call last):
+    ...
+    ValueError: Dimension along axis 1 is not 1 for shape (1, 3, 1, 5)
     """
+
     # Sanitize input
     if not isinstance(x, tensor.tensor):
         raise TypeError('expected x to be a ht.tensor, but was {}'.format(type(x)))
@@ -506,6 +527,7 @@ def squeeze(x, axis=None):
         if not dim_is_one:
             raise ValueError('Dimension along axis {} is not 1 for shape {}'.format(axis, x.shape))
 
+    # Local squeeze
     if axis is None:
         axis = tuple(i for i, dim in enumerate(x.shape) if dim == 1)
     if isinstance(axis, int):
@@ -513,6 +535,7 @@ def squeeze(x, axis=None):
     out_shape = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if not dim in axis)
     x_lsqueezed = x._tensor__array.reshape(out_shape)
 
+    # Distributed squeeze
     if x.split is not None:
         split = None
         if x.comm.is_distributed():
