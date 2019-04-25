@@ -488,11 +488,11 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result._tensor__array.dtype, ht.float32)
         self.assertEqual(result.shape, (1, ht.MPI_WORLD.size * 4, 5))
         self.assertEqual(result.lshape, (1, ht.MPI_WORLD.size * 4, 5))
-        self.assertEqual(result.split, 1)
+        self.assertEqual(result.split, None)
 
         # 3D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((1, size, size), split=0), k=1)
+        data = ht.triu(ht.ones((1, size, size), split=1), k=1)
 
         result = ht.squeeze(data, axis=0)
         self.assertIsInstance(result, ht.tensor)
@@ -500,7 +500,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result._tensor__array.dtype, ht.float32)
         self.assertEqual(result.shape, (size, size))
         self.assertEqual(result.lshape, (size, size))
-        #self.assertEqual(result.split, None)
+        self.assertEqual(result.split, None)
 
         # check exceptions
         with self.assertRaises(ValueError):

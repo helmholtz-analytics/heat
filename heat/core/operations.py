@@ -506,24 +506,22 @@ def squeeze(x, axis=None):
         if not dim_is_one:
             raise ValueError('Dimension along axis {} is not 1 for shape {}'.format(axis, x.shape))
 
-    # local:
     if axis is None:
         axis = tuple(i for i, dim in enumerate(x.shape) if dim == 1)
     if isinstance(axis, int):
         axis = (axis,)
     out_shape = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if not dim in axis)
-    x_squeezed = x._tensor__array.reshape(out_shape)
+    x_lsqueezed = x._tensor__array.reshape(out_shape)
 
-    # distributed:
-    # if split == axis: not allowed, dimension along axis must be 1, hence no splitting can occur
-    # 2. split != axis
-
-    if x.split is not None and (axis is None or (x.split not in axis)):
+    if x.split is not None:
         split = None
         if x.comm.is_distributed():
+            if x.split in axis:
+                raise ValueError('Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}'.format(
+                    x.split, axis, x.shape))
             out_shape = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
-            x_gsqueezed = tensor.zeros(out_shape)
-            x.comm.Allgather(x_squeezed, x_gsqueezed)
+            x_gsqueezed = tensor.empty(out_shape, dtype=x.dtype)
+            x.comm.Allgather(x_lsqueezed, x_gsqueezed)
             return tensor.tensor(
                 x_gsqueezed,
                 out_shape,
@@ -533,10 +531,10 @@ def squeeze(x, axis=None):
                 comm=x.comm)
 
     return tensor.tensor(
-        x_squeezed,
+        x_lsqueezed,
         out_shape,
         x.dtype,
-        split=x.split,
+        split=None,
         device=x.device,
         comm=x.comm)
 
