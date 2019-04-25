@@ -325,6 +325,14 @@ def argmax(x, axis=None, out=None, **kwargs):
     # correct the tensor
     reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
     reduced_result._tensor__dtype = types.int64
+    # address lshape/gshape mismatch when axis is 0
+    if axis is not None:
+        if isinstance(axis, int):
+            axis = (axis,)
+        if 0 in axis:
+            reduced_result._tensor__gshape = (1,) + reduced_result._tensor__gshape
+            if not kwargs.get('keepdim'):
+                reduced_result = reduced_result.squeeze(axis=0)
 
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
@@ -404,6 +412,14 @@ def argmin(x, axis=None, out=None, **kwargs):
     # correct the tensor
     reduced_result._tensor__array = reduced_result._tensor__array.chunk(2)[-1].type(torch.int64)
     reduced_result._tensor__dtype = types.int64
+    # address lshape/gshape mismatch when axis is 0
+    if axis is not None:
+        if isinstance(axis, int):
+            axis = (axis,)
+        if 0 in axis:
+            reduced_result._tensor__gshape = (1,) + reduced_result._tensor__gshape
+            if not kwargs.get('keepdim'):
+                reduced_result = reduced_result.squeeze(axis=0)
 
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
@@ -840,7 +856,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
                 if 0 in axis:
                     lshape_losedim = (2,) + lshape_losedim
                 else:
-                    lshape_losedim = (2*lshape_losedim[0],) + lshape_losedim[1:]
+                    lshape_losedim = (2 * lshape_losedim[0],) + lshape_losedim[1:]
             partial = partial.reshape(lshape_losedim)
 
     # Check shape of output buffer, if any

@@ -239,7 +239,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._tensor__array.dtype, torch.int64)
         self.assertEqual(result.shape, (4, 5,))
-        self.assertEqual(result.lshape, (1, 4, 5,))
+        self.assertEqual(result.lshape, (4, 5,))
         self.assertEqual(result.split, None)
         self.assertTrue((result._tensor__array == data._tensor__array.argmax(0)).all())
 
@@ -285,7 +285,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._tensor__array.dtype, torch.int64)
         self.assertEqual(result.shape, (size,))
-        self.assertEqual(result.lshape, (1, size,))
+        self.assertEqual(result.lshape, (size,))
         self.assertEqual(result.split, None)
         self.assertTrue((result._tensor__array != 0).all())
 
@@ -334,7 +334,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._tensor__array.dtype, torch.int64)
         self.assertEqual(result.shape, (4, 5))
-        self.assertEqual(result.lshape, (1, 4, 5))
+        self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._tensor__array == data._tensor__array.argmin(0)).all())
 
@@ -369,7 +369,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._tensor__array.dtype, torch.int64)
         self.assertEqual(result.shape, (size,))
-        self.assertEqual(result.lshape, (1, size,))
+        self.assertEqual(result.lshape, (size,))
         self.assertEqual(result.split, None)
         self.assertTrue((result._tensor__array != 0).all())
 
@@ -384,7 +384,7 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(output.dtype, ht.int64)
         self.assertEqual(output._tensor__array.dtype, torch.int64)
         self.assertEqual(output.shape, (size,))
-        self.assertEqual(output.lshape, (1, size,))
+        self.assertEqual(output.lshape, (size,))
         self.assertEqual(output.split, None)
         self.assertTrue((output._tensor__array != 0).all())
 
