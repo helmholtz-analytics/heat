@@ -1,6 +1,6 @@
 import torch
 
-from .operations import __local_operation as local_op
+from .operations import __local_op as local_op
 
 __all__ = [
     'cos',
@@ -18,15 +18,15 @@ def cos(x, out=None):
 
     Parameters
     ----------
-    x : ht.tensor
+    x : ht.DNDarray
         The value for which to compute the trigonometric cosine.
-    out : ht.tensor or None, optional
+    out : ht.DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
 
     Returns
     -------
-    cosine : ht.tensor
+    cosine : ht.DNDarray
         A tensor of the same shape as x, containing the trigonometric cosine of each element in this tensor.
         Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
@@ -44,15 +44,15 @@ def cosh(x, out=None):
 
     Parameters
     ----------
-    x : ht.tensor
+    x : ht.DNDarray
         The value for which to compute the hyperbolic cosine.
-    out : ht.tensor or None, optional
+    out : ht.DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
 
     Returns
     -------
-    hyperbolic cosine : ht.tensor
+    hyperbolic cosine : ht.DNDarray
         A tensor of the same shape as x, containing the hyperbolic cosine of each element in this tensor.
         Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
@@ -70,12 +70,12 @@ def sin(x, out=None):
 
     Parameters
     ----------
-    x : ht.tensor
+    x : ht.DNDarray
         The value for which to compute the trigonometric tangent.
 
     Returns
     -------
-    sine : ht.tensor
+    sine : ht.DNDarray
         A tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
         Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
@@ -93,15 +93,15 @@ def sinh(x, out=None):
 
     Parameters
     ----------
-    x : ht.tensor
+    x : ht.DNDarray
         The value for which to compute the hyperbolic sine.
-    out : ht.tensor or None, optional
+    out : ht.DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
 
     Returns
     -------
-    hyperbolic sine : ht.tensor
+    hyperbolic sine : ht.DNDarray
         A tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
         Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
@@ -121,15 +121,15 @@ def tan(x, out=None):
 
     Parameters
     ----------
-    x : ht.tensor
+    x : ht.DNDarray
         The value for which to compute the trigonometric tangent.
-    out : ht.tensor or None, optional
+    out : ht.DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
 
     Returns
     -------
-    tangent : ht.tensor
+    tangent : ht.DNDarray
         A tensor of the same shape as x, containing the trigonometric tangent of each element in this tensor.
 
     Examples
@@ -146,15 +146,15 @@ def tanh(x, out=None):
 
     Parameters
     ----------
-    x : ht.tensor
+    x : ht.DNDarray
         The value for which to compute the hyperbolic tangent.
-    out : ht.tensor or None, optional
+    out : ht.DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
 
     Returns
     -------
-    hyperbolic tangent : ht.tensor
+    hyperbolic tangent : ht.DNDarray
         A tensor of the same shape as x, containing the hyperbolic tangent of each element in this tensor.
 
     Examples
