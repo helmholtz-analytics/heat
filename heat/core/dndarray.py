@@ -936,6 +936,14 @@ class DNDarray:
     def item(self):
         """
         Returns the only element of a 1-element tensor. Mirror of the pytorch command by the same name
+        If size of tensor is >1 element, then a ValueError is raised (by pytorch)
+
+        Example
+        -------
+        >>> import heat as ht
+        >>> x = ht.zeros((1))
+        >>> x.item()
+        0.0
         """
         return self.__array.item()
 
