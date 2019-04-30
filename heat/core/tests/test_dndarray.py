@@ -42,7 +42,8 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(type(x.item()), float)
 
         x = ht.zeros((1, 2))
-        self.assertRaises(x.item(), ValueError)
+        with self.assertRaises(ValueError):
+            x.item()
 
     def test_lloc(self):
         # single set
