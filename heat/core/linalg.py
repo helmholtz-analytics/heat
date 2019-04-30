@@ -89,13 +89,11 @@ def matmul(a, b, out=None, out_split=None):
         # print(kB, rem_a, rem_b)
 
         # get the lshape map to determine what needs to be sent where as well as M and N
+        # lshape map dims -> {node, a=0, b=1, lshape}
         lshape_map = factories.zeros((a.comm.size, 2, len(a.gshape)))
-        lshape_map_hold = factories.zeros((a.comm.size, 2, len(a.gshape)))
-        lshape_map_hold[a.comm.rank, 0, :] = torch.Tensor(a.lshape)
-        lshape_map_hold[b.comm.rank, 1, :] = torch.Tensor(b.lshape)
-        a.comm.Allreduce(lshape_map_hold, lshape_map, MPI.SUM)
-
-        # print('lshape map:', '\n', lshape_map)
+        lshape_map[a.comm.rank, 0, :] = torch.Tensor(a.lshape)
+        lshape_map[b.comm.rank, 1, :] = torch.Tensor(b.lshape)
+        a.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
         # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
         mB = min(lshape_map[:, 0, -2]).item()
@@ -121,6 +119,10 @@ def matmul(a, b, out=None, out_split=None):
         print(rem_map)
 
         # TODO: make index map of where all the data is / tie the indecies of the data to the data (dictionary)
+        # index_map dims guide -> {process number, a=0/b=1, relevent indices (only need the last two)}
+        index_map = factories.zeros((a.comm.size, 2, 1))
+        a_idx = a.comm.chunk(a.shape, a.split)[2]
+        index_map[a.comm.rank, 0, :] = tuple()
         # with the index map then the communication can be determined
         # this index map will also be used as a meta data / dictionary when the data is passed around
 ########################################################################################################################################################
