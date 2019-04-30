@@ -933,6 +933,12 @@ class DNDarray:
         """
         return self.split is not None and self.comm.is_distributed()
 
+    def item(self):
+        """
+        Returns the only element of a 1-element tensor. Mirror of the pytorch command by the same name
+        """
+        return self.__array.item()
+
     def __le__(self, other):
         """
         Element-wise rich comparison of relation "less than or equal" with values from second operand (scalar or tensor)
