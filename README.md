@@ -15,30 +15,26 @@ Project Status
 Goals
 -----
 
-The goal of HeAT is to fill the gap between machine learning libraries that have
-a strong focus on exploiting GPUs for performance, and traditional, distributed
-high-performance computing (HPC). The basic idea is to provide a generic,
-distributed tensor library with machine learning methods based on it.
+HeAT is a flexible and seamless open-source software for high performance data analytics and machine learnings. It provides highly optimized algorithms and data structures for tensor computations using CPUs, GPUs and distributed cluster systems on top of MPI. The goal of HeAT is to fill the gap between data analytics and machine learning libraries with a strong focus on on single-node performance, and traditional high-performance computing (HPC). HeAT's generic Python-first programming interface integrates seamlessly with the existing data science ecosystem and makes it as effortless as using numpy to write scalable scientific and data science applications.
 
-Among other things, the implementation will allow us to tackle use cases that
-would otherwise exceed memory limits of a single node.
+HeAT allows you tackle your actual Big Data challenges that go beyond the computational and memory needs of your laptop and desktop.
 
 Features
 --------
 
-  * high-performance n-dimensional tensors
-  * CPU, GPU and distributed computation using MPI
-  * powerful machine learning methods using above mentioned tensors
+* High-performance n-dimensional tensors
+* CPU, GPU and distributed computation using MPI
+* Powerful data analytics and machine learning methods
+* Abstracted communication via split tensors
+* Python API
 
 Requirements
 ------------
 
 HeAT is based on [PyTorch](https://pytorch.org/). Specifially, we are exploiting
-PyTorch's support for GPUs *and* MPI parallelism. Therefore, PyTorch must be
-compiled with MPI support when using HeAT. The instructions to install PyTorch
-in that way are contained in the script
-[install-torch.sh](install-torch.sh),
-which we're also using to install PyTorch in Travis CI.
+PyTorch's support for GPUs *and* MPI parallelism. For MPI support we utilize 
+[mpi4py](https://mpi4py.readthedocs.io). Both packages can be installed via pip or automatically using the setup.py.
+
 
 Installation
 ------------
@@ -62,6 +58,6 @@ HeAT is distributed under the MIT license, see our
 Acknowledgements
 ----------------
 
-This work is supported by the [Helmholtz Association Initiative and
+*This work is supported by the [Helmholtz Association Initiative and
 Networking](https://www.helmholtz.de/en/about_us/the_association/initiating_and_networking/)
-Fund under project number ZT-I-0003.
+Fund under project number ZT-I-0003.*

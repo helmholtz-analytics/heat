@@ -86,7 +86,7 @@ class generic(metaclass=abc.ABCMeta):
         # sanitize the input device type
         device = devices.sanitize_device(device)
 
-        return tensor.tensor(array, tuple(array.shape), cls, split=None, device=device, comm=comm)
+        return dndarray.DNDarray(array, tuple(array.shape), cls, split=None, device=device, comm=comm)
 
     @classmethod
     @abc.abstractclassmethod
@@ -515,6 +515,7 @@ def promote_types(type1, type2):
 
     return __type_promotions[typecode_type1][typecode_type2]
 
+
 class finfo:
     """
     finfo(dtype)
@@ -565,15 +566,15 @@ class finfo:
 
         return super(finfo, cls).__new__(cls)._init(dtype)
 
-
     def _init(self, dtype):
         _torch_finfo = torch.finfo(dtype.torch_type())
         for word in ['bits', 'eps', 'max', 'tiny']:
             setattr(self, word, getattr(_torch_finfo, word))
 
-        self.min=-self.max
+        self.min = -self.max
 
         return self
+
 
 class iinfo:
     """
@@ -615,7 +616,6 @@ class iinfo:
 
         return super(iinfo, cls).__new__(cls)._init(dtype)
 
-
     def _init(self, dtype):
         _torch_iinfo = torch.iinfo(dtype.torch_type())
         for word in ['bits', 'max']:
@@ -627,4 +627,4 @@ class iinfo:
 
 
 # tensor is imported at the very end to break circular dependency
-from . import tensor
+from . import dndarray
