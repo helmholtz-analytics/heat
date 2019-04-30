@@ -36,6 +36,15 @@ class TestDNDarray(unittest.TestCase):
         data = ht.zeros((4, 4,), split=0)
         self.assertTrue(data.comm.size > 1 and data.is_distributed() or not data.is_distributed())
 
+    def test_item(self):
+        x = ht.zeros((1))
+        self.assertEqual(x.item(), 0)
+        self.assertEqual(type(x.item()), float)
+
+        x = ht.zeros((1, 2))
+        with self.assertRaises(ValueError):
+            x.item()
+
     def test_lloc(self):
         # single set
         a = ht.zeros((13, 5,), split=0)
