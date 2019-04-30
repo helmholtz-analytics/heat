@@ -58,7 +58,7 @@ else:
 
         Returns
         -------
-        out : ht.tensor
+        out : ht.DNDarray
             Data read from the HDF5 file.
 
         Raises
@@ -109,7 +109,7 @@ else:
                 data = torch.tensor(data[slice1], dtype=dtype.torch_type(), device=device.torch_device)
                 data = data[slice2]
                 
-            return tensor.tensor(data, gshape, dtype, split, device, comm)
+            return dndarray.DNDarray(data, gshape, dtype, split, device, comm)
 
 
     def save_hdf5(data, path, dataset, mode='w', **kwargs):
@@ -118,7 +118,7 @@ else:
 
         Parameters
         ----------
-        data : ht.tensor
+        data : ht.DNDarray
             The data to be saved on disk.
         path : str
             Path to the HDF5 file to be written.
@@ -141,7 +141,7 @@ else:
         >>> a_range = ht.arange(100, split=0)
         >>> ht.save_hdf5(a_range, 'data.h5', dataset='DATA')
         """
-        if not isinstance(data, tensor.tensor):
+        if not isinstance(data, dndarray.DNDarray):
             raise TypeError('data must be heat tensor, not {}'.format(type(data)))
         if not isinstance(path, str):
             raise TypeError('path must be str, not {}'.format(type(path)))
@@ -160,16 +160,16 @@ else:
         if h5py.get_config().mpi:
             with h5py.File(path, mode, driver='mpio', comm=data.comm.handle) as handle:
                 dset = handle.create_dataset(dataset, data.shape, **kwargs)
-                dset[slices] = data._tensor__array.cpu() if is_split else data._tensor__array[slices].cpu()
+                dset[slices] = data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
             with h5py.File(path, mode) as handle:
                 dset = handle.create_dataset(dataset, data.shape, **kwargs)
                 if is_split:
-                    dset[slices] = data._tensor__array.cpu()
+                    dset[slices] = data._DNDarray__array.cpu()
                 else:
-                    dset[...] = data._tensor__array.cpu()
+                    dset[...] = data._DNDarray__array.cpu()
 
             # ping next rank if it exists
             if is_split and data.comm.size > 1:
@@ -181,7 +181,7 @@ else:
             # wait for the previous rank to finish writing its chunk, then write own part
             data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
             with h5py.File(path, 'r+') as handle:
-                handle[dataset][slices] = data._tensor__array.cpu()
+                handle[dataset][slices] = data._DNDarray__array.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
             next_rank = (data.comm.rank + 1) % data.comm.size
@@ -231,7 +231,7 @@ else:
 
         Returns
         -------
-        out : ht.tensor
+        out : ht.DNDarray
             Data read from the NetCDF4 file.
 
         Raises
@@ -267,11 +267,19 @@ else:
         # actually load the data
         with nc.Dataset(path, 'r', parallel=__nc_has_par, comm=comm.handle) as handle:
             data = handle[variable][:]
-            gshape = tuple(data.shape)
-            _, _, indices = comm.chunk(gshape, split)
-            data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
 
-            return tensor.tensor(data, gshape, dtype, split, device, comm)
+            # prepare meta information
+            gshape = tuple(data.shape)
+            split = sanitize_axis(gshape, split)
+
+            # chunk up the data portion
+            _, local_shape, indices = comm.chunk(gshape, split)
+            if split is None or local_shape[split] > 0:
+                data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
+            else:
+                data = torch.empty(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
+
+            return dndarray.DNDarray(data, gshape, dtype, split, device, comm)
 
 
     def save_netcdf(data, path, variable, mode='w', **kwargs):
@@ -280,7 +288,7 @@ else:
 
         Parameters
         ----------
-        data : ht.tensor
+        data : ht.DNDarray
             The data to be saved on disk.
         path : str
             Path to the netCDF4 file to be written.
@@ -303,7 +311,7 @@ else:
         >>> a_range = ht.arange(100, split=0)
         >>> ht.save_netcdf(a_range, 'data.nc', dataset='DATA')
         """
-        if not isinstance(data, tensor.tensor):
+        if not isinstance(data, dndarray.DNDarray):
             raise TypeError('data must be heat tensor, not {}'.format(type(data)))
         if not isinstance(path, str):
             raise TypeError('path must be str, not {}'.format(type(path)))
@@ -328,7 +336,7 @@ else:
                     dimension_names.append(name)
 
                 var = handle.createVariable(variable, data.dtype.char(), dimension_names, **kwargs)
-                var[slices] = data._tensor__array.cpu() if is_split else data._tensor__array[slices].cpu()
+                var[slices] = data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
@@ -341,9 +349,9 @@ else:
 
                 var = handle.createVariable(variable, data.dtype.char(), tuple(dimension_names), **kwargs)
                 if is_split:
-                    var[slices] = data._tensor__array.cpu()
+                    var[slices] = data._DNDarray__array.cpu()
                 else:
-                    var[:] = data._tensor__array.cpu()
+                    var[:] = data._DNDarray__array.cpu()
 
             # ping next rank if it exists
             if is_split and data.comm.size > 1:
@@ -355,7 +363,7 @@ else:
             # wait for the previous rank to finish writing its chunk, then write own part
             data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
             with nc.Dataset(path, 'r+') as handle:
-                handle[variable][slices] = data._tensor__array.cpu()
+                handle[variable][slices] = data._DNDarray__array.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
             next_rank = (data.comm.rank + 1) % data.comm.size
@@ -376,7 +384,7 @@ def load(path, *args, **kwargs):
 
     Returns
     -------
-    out : ht.tensor
+    out : ht.DNDarray
         Data read from the file.
 
     Raises
@@ -409,7 +417,7 @@ def save(data, path, *args, **kwargs):
 
     Parameters
     ----------
-    data : ht.tensor
+    data : ht.DNDarray
         The tensor holding the data to be stored
     path : str
         Path to the file to be stored.
@@ -440,4 +448,4 @@ def save(data, path, *args, **kwargs):
 
 
 # tensor is imported at the very end to break circular dependency
-from . import tensor
+from . import dndarray
