@@ -2,6 +2,7 @@ import torch
 import unittest
 from itertools import combinations
 
+import numpy as np
 import heat as ht
 
 
@@ -352,9 +353,9 @@ class TestStatistics(unittest.TestCase):
             ht.min(ht_array, axis=-4)
 
     def test_mean(self):
-        array_0_len = 5
-        array_1_len = 5
-        array_2_len = 5
+        array_0_len = 10
+        array_1_len = 8
+        array_2_len = 9
 
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(ValueError):
@@ -375,7 +376,7 @@ class TestStatistics(unittest.TestCase):
                 hold = [None, ]
             for i in hold:  # loop over the number of dimensions of the test array
                 z = ht.zeros(dimensions, split=i)
-                res = z.mean()
+                res = ht.mean(z)
                 # print(res, z.mean())
                 total_dims_list = list(z.shape)
                 # print(dimensions, i, res)

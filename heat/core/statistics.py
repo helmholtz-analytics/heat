@@ -130,7 +130,7 @@ def mean(x, axis=None):
         x.comm.Allreduce(mu_reshape, mu_reshape_combi, MPI.SUM)
 
         gpu = False
-        if mu_reshape_combi.size() > 100000 and torch.cuda.device_count() > 0:  # test if the tensor is large enough to make a gpu useful
+        if torch.cuda.device_count() > 0 and mu_reshape_combi.size() > 100000:  # test if the tensor is large enough to make a gpu useful
             gpu = True
             gpu_copy = mu_reshape_combi.gpu()
 
@@ -162,7 +162,7 @@ def mean(x, axis=None):
                     rem1 = rem2
                     rem2 = 0
                 sz = splt
-                if sz == 1 or sz == 0:
+                if sz in [0, 1]:
                     if rem1:
                         for en, (el1, el2) in enumerate(zip(mu_reshape_combi[0, :], mu_reshape_combi[rem1, :])):
                             mu_reshape_combi[0, en], _ = merge_means(el1, n_for_merge[0], el2, n_for_merge[rem1])
@@ -237,7 +237,7 @@ def mean(x, axis=None):
             else:
                 # multiple dimensions which does *not* include the split axis
                 # combine along the split axis
-                return dndarray.array(torch.mean(x._dndarray__array, dim=axis, keepdim=True), split=x.split, device=x.device, comm=x.comm)
+                return factories.array(torch.mean(x._DNDarray__array, dim=axis, keepdim=True), split=x.split, device=x.device, comm=x.comm)
         elif isinstance(axis, int):
             if axis >= len(x.shape):
                 raise ValueError("axis (axis) must be < {}, currently is {}".format(len(x.shape), axis))
@@ -253,7 +253,7 @@ def mean(x, axis=None):
             else:
                 # singular axis given (axis) not equal to split direction (x.split)
                 # local operation followed by array creation to create the full tensor of the means
-                return dndarray.array(torch.mean(x._dndarray__array, dim=axis, keepdim=True), split=x.split, device=x.device, comm=x.comm)
+                return factories.array(torch.mean(x._DNDarray__array, dim=axis, keepdim=True), split=x.split, device=x.device, comm=x.comm)
         else:
             raise TypeError("axis (axis) must be an int or a list, ht.tensor, torch.Tensor, or tuple, currently is {}".format(type(axis)))
 
@@ -495,8 +495,8 @@ def var(x, axis=None, bessel=True):
             else:
                 # singular axis given (axis) not equal to split direction (x.split)
                 # local operation followed by array creation to create the full tensor of the vars on
-                lcl = torch.var(x._dndarray__array, dim=axis, keepdim=True)
-                return dndarray.array(lcl, split=x.split)
+                lcl = torch.var(x._DNDarray__array, dim=axis, keepdim=True)
+                return factories.array(lcl, split=x.split)
         else:
             raise TypeError("Axis (axis) must be an int, currently is {}. Check if multidim var is available in pyTorch".format(type(axis)))
 

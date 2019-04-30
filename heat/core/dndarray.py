@@ -97,36 +97,6 @@ class DNDarray:
         return np.prod(self.__array.shape)
 
     @property
-    def lshape(self):
-        """
-        Returns
-        -------
-        tuple : the shape of the data on each node
-        """
-        return tuple(self.__array.shape)
-
-    @property
-    def shape(self):
-        """
-        Returns
-        -------
-        tuple : the shape of the tensor as a whole
-        """
-        return self.__gshape
-
-    @property
-    def split(self):
-        """
-        Returns
-        -------
-        int : the axis on which the tensor split
-        """
-        return self.__split
-
-    @property
-    def T(self, axes=None):
-        return linalg.transpose(self, axes)
-
     def lloc(self):
         """
         Local item setter and getter. i.e. this function operates on a local level and only on the PyTorch tensors
@@ -163,6 +133,37 @@ class DNDarray:
                       [1., 2., 3., 4., 0.]])
         """
         return LocalIndex(self.__array)
+
+    @property
+    def lshape(self):
+        """
+        Returns
+        -------
+        tuple : the shape of the data on each node
+        """
+        return tuple(self.__array.shape)
+
+    @property
+    def shape(self):
+        """
+        Returns
+        -------
+        tuple : the shape of the tensor as a whole
+        """
+        return self.__gshape
+
+    @property
+    def split(self):
+        """
+        Returns
+        -------
+        int : the axis on which the tensor split
+        """
+        return self.__split
+
+    @property
+    def T(self, axes=None):
+        return linalg.transpose(self, axes)
 
     def item(self):
         """
@@ -632,6 +633,7 @@ class DNDarray:
         tensor([[0, 1],
                 [0, 0]])
         """
+        return relational.eq(self, other)
 
     def mean(self, axis=None):
         """
@@ -1278,13 +1280,6 @@ class DNDarray:
             The minimum value of an output element. Must be present to allow computation on empty slice.
         """
         return statistics.max(self, axis=axis, out=out, keepdim=keepdim)
-
-    def mean(self, axis):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        return self.sum(axis) / self.shape[axis]
 
     def min(self, axis=None, out=None, keepdim=None):
         """
