@@ -46,6 +46,9 @@ def __binary_op(operation, t1, t2):
             output_device = None
             output_comm = MPI_WORLD
 
+            return dndarray.DNDarray(result, output_shape, types.canonical_heat_type(t1.dtype), output_split, output_device, output_comm)
+
+
         elif isinstance(t2, dndarray.DNDarray):
             try:
                 result = operation(t1, t2._tensor__array)
@@ -56,6 +59,8 @@ def __binary_op(operation, t1, t2):
             output_split = t2.split
             output_device = t2.device
             output_comm = t2.comm
+
+            return dndarray.DNDarray(result, output_shape, types.canonical_heat_type(t1.dtype), output_split, output_device, output_comm)
 
         else:
             raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
@@ -73,16 +78,26 @@ def __binary_op(operation, t1, t2):
             output_device = t1.device
             output_comm = t1.comm
 
+            return dndarray.DNDarray(result, output_shape, types.canonical_heat_type(t1.dtype), output_split, output_device, output_comm)
+
         elif isinstance(t2, dndarray.DNDarray):
-            if t1.dtype != t2.dtype:
-                t1 = t1.astype(t2.dtype)
+
+            if t2.dtype != t1.dtype:
+                t2 = t2.astype(t1.dtype)
 
             # TODO: implement complex NUMPY rules
-            if t2.split is None or t2.split == t1.split:
+            if t2.split == t1.split:
                 output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
                 output_split = t1.split
                 output_device = t1.device
                 output_comm = t1.comm
+
+            elif (t1.split is not None) and (t2.split is None):
+                t2.resplit(axis=t1.split)
+
+            elif (t2.split is not None) and (t1.split is None):
+                t1.resplit(axis=t2.split)
+
             else:
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
                 # and split=1
@@ -106,9 +121,6 @@ def __binary_op(operation, t1, t2):
         else:
             raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
 
-        if t2.dtype != t1.dtype:
-            t2 = t2.astype(t1.dtype)
-
     else:
         raise NotImplementedError('Not implemented for non scalar')
 
@@ -118,7 +130,7 @@ def __binary_op(operation, t1, t2):
             result = t1._DNDarray__array.type(promoted_type)
         else:
             result = operation(t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type))
-    elif t1.split is not None:
+    elif t2.split is not None:
         if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
             result = t2._DNDarray__array.type(promoted_type)
         else:
