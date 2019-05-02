@@ -46,12 +46,12 @@ def __binary_op(operation, t1, t2):
             output_device = None
             output_comm = MPI_WORLD
 
-            return dndarray.DNDarray(result, output_shape, types.canonical_heat_type(t1.dtype), output_split, output_device, output_comm)
+            return dndarray.DNDarray(result, output_shape, types.canonical_heat_type(result.dtype), output_split, output_device, output_comm)
 
 
         elif isinstance(t2, dndarray.DNDarray):
             try:
-                result = operation(t1, t2._tensor__array)
+                result = operation(t1, t2._DNDarray__array)
             except (ValueError, TypeError,):
                 raise TypeError('Data type not supported, input was {}'.format(type(t1)))
 
@@ -60,7 +60,7 @@ def __binary_op(operation, t1, t2):
             output_device = t2.device
             output_comm = t2.comm
 
-            return dndarray.DNDarray(result, output_shape, types.canonical_heat_type(t1.dtype), output_split, output_device, output_comm)
+            return dndarray.DNDarray(result, output_shape, types.canonical_heat_type(result.dtype), output_split, output_device, output_comm)
 
         else:
             raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
@@ -69,7 +69,7 @@ def __binary_op(operation, t1, t2):
     elif isinstance(t1, dndarray.DNDarray):
         if np.isscalar(t2):
             try:
-                result = operation(t1._tensor__array, t2)
+                result = operation(t1._DNDarray__array, t2)
             except (ValueError, TypeError,):
                 raise TypeError('Data type not supported, input was {}'.format(type(t2)))
 
@@ -78,7 +78,7 @@ def __binary_op(operation, t1, t2):
             output_device = t1.device
             output_comm = t1.comm
 
-            return dndarray.DNDarray(result, output_shape, types.canonical_heat_type(t1.dtype), output_split, output_device, output_comm)
+            return dndarray.DNDarray(result, output_shape, types.canonical_heat_type(result.dtype), output_split, output_device, output_comm)
 
         elif isinstance(t2, dndarray.DNDarray):
 
