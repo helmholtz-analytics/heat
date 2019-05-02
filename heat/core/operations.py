@@ -36,43 +36,47 @@ def __binary_op(operation, t1, t2):
     """
 
     if np.isscalar(t1):
-        try:
-            t1 = factories.array([t1])
-        except (ValueError, TypeError,):
-            raise TypeError('Data type not supported, input was {}'.format(type(t1)))
-
         if np.isscalar(t2):
             try:
-                t2 = factories.array([t2])
+                result = operation(t1, t2)
             except (ValueError, TypeError,):
-                raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
+                raise TypeError('Only numeric scalars are supported, but inputs were {} and  {}'.format(type(t1), type(t2)))
             output_shape = (1,)
             output_split = None
             output_device = None
             output_comm = MPI_WORLD
+
         elif isinstance(t2, dndarray.DNDarray):
+            try:
+                result = operation(t1, t2._tensor__array)
+            except (ValueError, TypeError,):
+                raise TypeError('Data type not supported, input was {}'.format(type(t1)))
+
             output_shape = t2.shape
             output_split = t2.split
             output_device = t2.device
             output_comm = t2.comm
+
         else:
             raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
 
-        if t1.dtype != t2.dtype:
-            t1 = t1.astype(t2.dtype)
 
     elif isinstance(t1, dndarray.DNDarray):
         if np.isscalar(t2):
             try:
-                t2 = factories.array([t2])
-                output_shape = t1.shape
-                output_split = t1.split
-                output_device = t1.device
-                output_comm = t1.comm
+                result = operation(t1._tensor__array, t2)
             except (ValueError, TypeError,):
                 raise TypeError('Data type not supported, input was {}'.format(type(t2)))
 
+            output_shape = t1.shape
+            output_split = t1.split
+            output_device = t1.device
+            output_comm = t1.comm
+
         elif isinstance(t2, dndarray.DNDarray):
+            if t1.dtype != t2.dtype:
+                t1 = t1.astype(t2.dtype)
+
             # TODO: implement complex NUMPY rules
             if t2.split is None or t2.split == t1.split:
                 output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
