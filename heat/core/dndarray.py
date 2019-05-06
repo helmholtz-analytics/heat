@@ -738,12 +738,14 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
+        if isinstance(key, DNDarray):
+            key = tuple(x.item() for x in key)
         if not self.is_distributed():
             if not self.comm.size == 1:
                 return DNDarray(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
             else:
                 gout = tuple(self.__array[key].shape)
-                if self.split >= len(gout):
+                if self.split is None and self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
                     new_split = self.split
@@ -1506,6 +1508,8 @@ class DNDarray:
                 self.__setter(key, value)
 
     def __setter(self, key, value):
+        if isinstance(key, DNDarray):
+            key = tuple(x.item() for x in key)
         if np.isscalar(value):
             self.__array.__setitem__(key, value)
         elif isinstance(value, DNDarray):
