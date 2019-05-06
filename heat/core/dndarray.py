@@ -743,7 +743,7 @@ class DNDarray:
                 return DNDarray(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
             else:
                 gout = tuple(self.__array[key].shape)
-                if self.split >= len(gout):
+                if self.split is not None and self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
                     new_split = self.split

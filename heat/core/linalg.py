@@ -17,6 +17,8 @@ def matmul(a, b, out=None, out_split=None):
     """
     Matrix multiplication function based of the CRMM method as described in Reference 1. Communication scheme based upon reference [2]
 
+    for comment context -> a @ b = c
+
     Parameters
     ----------
     a : ht.tensor
@@ -38,6 +40,7 @@ def matmul(a, b, out=None, out_split=None):
     -------
     ht.tensor
         returns a tensor with the result of a @ b
+        the
 
     References
     ----------
@@ -112,19 +115,62 @@ def matmul(a, b, out=None, out_split=None):
         # if there is any rem_a then there are remainders on all processes
 
         # get the flags from all processes
-        rem_map = factories.zeros((a.comm.size, len(a.gshape) + len(b.gshape)))
-        rem_map_hold = factories.zeros((a.comm.size, len(a.gshape) + len(b.gshape)))
-        rem_map_hold[a.comm.rank, :] = torch.Tensor([rem_a_out, rem_a, rem_b, rem_b_out])
-        a.comm.Allreduce(rem_map_hold, rem_map, MPI.SUM)
-        print(rem_map)
+        # rem_map dims guide -> {process number, a/b (0/1), True/False (1/0) if there is a remainder in this dimension
+        rem_map = factories.zeros((a.comm.size, 2, 2))
+        rem_map[a.comm.rank, 0, :] = (rem_a_out, rem_a)
+        rem_map[a.comm.rank, 1, :] = (rem_b, rem_b_out)
+        a.comm.Allreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
+        # print(rem_map)
+        # TODO: deal with the remainders...joy
 
-        # TODO: make index map of where all the data is / tie the indecies of the data to the data (dictionary)
-        # index_map dims guide -> {process number, a=0/b=1, relevent indices (only need the last two)}
-        index_map = factories.zeros((a.comm.size, 2, 1))
+        # index_map dims guide -> {process number, a=0/b=1, relevent 1st index, 2nd index}
+        index_map = factories.zeros((a.comm.size, 2, 2, 2))
         a_idx = a.comm.chunk(a.shape, a.split)[2]
-        index_map[a.comm.rank, 0, :] = tuple()
+        index_map[a.comm.rank, 0, 0] = (a_idx[0].start, a_idx[0].stop)
+        index_map[a.comm.rank, 0, 1] = (a_idx[1].start, a_idx[1].stop)
+        b_idx = b.comm.chunk(b.shape, b.split)[2]
+        index_map[b.comm.rank, 1, 0] = (b_idx[0].start, b_idx[0].stop)
+        index_map[b.comm.rank, 1, 1] = (b_idx[1].start, b_idx[1].stop)
+        a.comm.Allreduce(MPI.IN_PLACE, index_map, MPI.SUM)
+        print(index_map)
+
         # with the index map then the communication can be determined
         # this index map will also be used as a meta data / dictionary when the data is passed around
+
+        # Index map is done, remainder map is done,
+        # todo: determine communication scheme
+        # for the communication scheme, the output array needs to be created
+        c_shape = (a.gshape[-2], b.gshape[-1])
+        c = factories.zeros(c_shape, split=out_split if out_split is not None else a.split)
+
+        # get the index map for c
+        c_index_map = factories.zeros((c.comm.size, 2, 2))
+        c_idx = c.comm.chunk(c.shape, c.split)[2]
+        c_index_map[c.comm.rank, 0, :] = (c_idx[0].start, c_idx[0].stop)
+        c_index_map[c.comm.rank, 1, :] = (c_idx[1].start, c_idx[1].stop)
+        c.comm.Allreduce(MPI.IN_PLACE, c_index_map, MPI.SUM)
+
+        # TODO: to determine which direction to shuffle the data. i.e. which requires the least communication
+
+        # need to make the blocking a bit more intelligent,
+        # the sizes are fine but the locations of them need to be chosen
+        # the blocks are shifted in the 2nd dimension of A for as many remainders there are between the blocks in the first dim of B
+        a_block_map = factories.zeros((int(a.gshape[-2] // mB), int(a.gshape[-1] // kB), 2))  # 0th dim start of blocks, 1st dim start of blocks
+
+        for zth in index_map[:, 0, :]:
+            # 0th dim
+            print(zth)
+            # bk = 0
+            # if zth[0, 1] >= mB * 2:  # if there are multiple blocks in the 0th direction
+            #     for cnt, itt in enumerate(range(zth[0, 1] // mB)):
+            #         a_block_map[] = 0
+
+        # for it in range(a.gshape[-2] // mB):
+        #     if
+
+        # calculate the blocks of c which can be easily done
+
+
 ########################################################################################################################################################
 
 
