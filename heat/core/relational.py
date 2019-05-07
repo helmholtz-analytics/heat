@@ -1,11 +1,10 @@
 import torch
 import numpy as np
 
-
 from .communication import MPI
-from . import tensor
-from .operations import __binary_op as binary_op
-from .operations import __reduce_op as reduce_op
+from . import factories
+from . import operations
+from . import dndarray
 
 __all__ = [
     'eq',
@@ -14,8 +13,6 @@ __all__ = [
     'gt',
     'le',
     'lt',
-    'max',
-    'min',
     'ne'
 ]
 
@@ -29,13 +26,12 @@ def eq(t1, t2):
     ----------
     t1: tensor or scalar
         The first operand involved in the comparison
-
     t2: tensor or scalar
         The second operand involved in the comparison
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.DNDarray
         A uint8-tensor holding 1 for all elements in which values of t1 are equal to values of t2, 0 for all other
         elements
 
@@ -52,7 +48,7 @@ def eq(t1, t2):
     tensor([[0, 1],
             [0, 0]])
     """
-    return binary_op(torch.eq, t1, t2)
+    return operations.__binary_op(torch.eq, t1, t2)
 
 
 def equal(t1, t2):
@@ -64,7 +60,6 @@ def equal(t1, t2):
     ----------
     t1: tensor or scalar
         The first operand involved in the comparison
-
     t2: tensor or scalar
         The second operand involved in the comparison
 
@@ -79,50 +74,18 @@ def equal(t1, t2):
     >>> T1 = ht.float32([[1, 2],[3, 4]])
     >>> ht.equal(T1, ht.float32([[1, 2],[3, 4]]))
     True
-
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.eq(T1, T2)
     False
-
     >>> ht.eq(T1, 3.0)
     False
     """
-    if np.isscalar(t1):
-        try:
-            t1 = tensor.array([t1])
-        except (TypeError, ValueError,):
-            raise TypeError('Data type not supported, input was {}'.format(type(t1)))
+    result_tensor = operations.__binary_op(torch.equal, t1, t2)
+    result_value = result_tensor._DNDarray__array
+    if isinstance(result_value, torch.Tensor):
+        result_value = True
 
-        if np.isscalar(t2):
-            try:
-                t2 = tensor.array([t2])
-            except (TypeError, ValueError,):
-                raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
-        elif isinstance(t2, tensor.tensor):
-            pass
-        else:
-            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
-
-    elif isinstance(t1, tensor.tensor):
-        if np.isscalar(t2):
-            try:
-                t2 = tensor.array([t2])
-            except (TypeError, ValueError,):
-                raise TypeError('Data type not supported, input was {}'.format(type(t2)))
-        elif isinstance(t2, tensor.tensor):
-            # TODO: implement complex NUMPY rules
-            if t2.split is None or t2.split == t1.split:
-                pass
-            else:
-                # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0 and split=1
-                raise NotImplementedError('Not implemented for other splittings')
-        else:
-            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
-    else:
-        raise NotImplementedError('Not implemented for non scalar')
-
-    result = torch.equal(t1._tensor__array, t2._tensor__array)
-    return result
+    return result_tensor.comm.allreduce(result_value, MPI.LAND)
 
 
 def ge(t1, t2):
@@ -140,7 +103,7 @@ def ge(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.DNDarray
         A uint8-tensor holding 1 for all elements in which values of t1 are greater than or equal tp values of t2,
         0 for all other elements
 
@@ -157,7 +120,7 @@ def ge(t1, t2):
     tensor([[0, 1],
             [1, 1]], dtype=torch.uint8)
     """
-    return binary_op(torch.ge, t1, t2)
+    return operations.__binary_op(torch.ge, t1, t2)
 
 
 def gt(t1, t2):
@@ -176,7 +139,7 @@ def gt(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.DNDarray
        A uint8-tensor holding 1 for all elements in which values of t1 are greater than values of t2,
        0 for all other elements
 
@@ -193,7 +156,7 @@ def gt(t1, t2):
     tensor([[0, 0],
             [1, 1]], dtype=torch.uint8)
     """
-    return binary_op(torch.gt, t1, t2)
+    return operations.__binary_op(torch.gt, t1, t2)
 
 
 def le(t1, t2):
@@ -211,7 +174,7 @@ def le(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.DNDarray
        A uint8-tensor holding 1 for all elements in which values of t1 are less than or equal to values of t2,
        0 for all other elements
 
@@ -228,7 +191,7 @@ def le(t1, t2):
     tensor([[1, 1],
             [0, 0]], dtype=torch.uint8)
     """
-    return binary_op(torch.le, t1, t2)
+    return operations.__binary_op(torch.le, t1, t2)
 
 
 def lt(t1, t2):
@@ -247,7 +210,7 @@ def lt(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.DNDarray
         A uint8-tensor holding 1 for all elements in which values of t1 are less than values of t2,
         0 for all other elements
 
@@ -258,102 +221,12 @@ def lt(t1, t2):
     >>> ht.lt(T1, 3.0)
     tensor([[1, 1],
             [0, 0]], dtype=torch.uint8)
-
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.lt(T1, T2)
     tensor([[1, 0],
             [0, 0]], dtype=torch.uint8)
     """
-
-    return binary_op(torch.lt, t1, t2)
-
-
-def max(x, axis=None, out=None, keepdim=None):
-    # TODO: initial : scalar, optional Issue #101
-    """
-    Return the maximum along a given axis.
-
-    Parameters
-    ----------
-    a : ht.tensor
-        Input data.
-    axis : None or int or tuple of ints, optional
-        Axis or axes along which to operate. By default, flattened input is used.
-        If this is a tuple of ints, the maximum is selected over multiple axes, 
-        instead of a single axis or all the axes as before.
-    out : ht.tensor, optional
-        Tuple of two output tensors (max, max_indices). Must be of the same shape and buffer length as the expected
-        output. The minimum value of an output element. Must be present to allow computation on empty slice.
-
-    Examples
-    --------
-    >>> a = ht.float32([
-            [1, 2, 3],
-            [4, 5, 6],
-            [7, 8, 9],
-            [10, 11, 12]
-        ])
-    >>> ht.max(a)
-    tensor([12.])
-    >>> ht.min(a, axis=0)
-    tensor([[10., 11., 12.]])
-    >>> ht.min(a, axis=1)
-    tensor([[ 3.],
-        [ 6.],
-        [ 9.],
-        [12.]])
-    """
-    def local_max(*args, **kwargs):
-        result = torch.max(*args, **kwargs)
-        if isinstance(result, tuple):
-            return result[0]
-        return result
-
-    return reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
-
-
-def min(x, axis=None, out=None, keepdim=None):
-    # TODO: initial : scalar, optional Issue #101
-    """
-    Return the minimum along a given axis.
-
-    Parameters
-    ----------
-    a : ht.tensor
-        Input data.
-    axis : None or int or tuple of ints
-        Axis or axes along which to operate. By default, flattened input is used.
-        If this is a tuple of ints, the minimum is selected over multiple axes, 
-        instead of a single axis or all the axes as before.
-    out : ht.tensor, optional
-        Tuple of two output tensors (min, min_indices). Must be of the same shape and buffer length as the expected
-        output.The maximum value of an output element. Must be present to allow computation on empty slice.
-
-    Examples
-    --------
-    >>> a = ht.float32([
-            [1, 2, 3],
-            [4, 5, 6],
-            [7, 8, 9],
-            [10, 11, 12]
-        ])
-    >>> ht.min(a)
-    tensor([1.])
-    >>> ht.min(a, axis=0)
-    tensor([[1., 2., 3.]])
-    >>> ht.min(a, axis=1)
-    tensor([[ 1.],
-        [ 4.],
-        [ 7.],
-        [10.]])
-    """
-    def local_min(*args, **kwargs):
-        result = torch.min(*args, **kwargs)
-        if isinstance(result, tuple):
-            return result[0]
-        return result
-
-    return reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
+    return operations.__binary_op(torch.lt, t1, t2)
 
 
 def ne(t1, t2):
@@ -370,7 +243,7 @@ def ne(t1, t2):
 
     Returns
     -------
-    result: ht.tensor
+    result: ht.DNDarray
         A uint8-tensor holding 1 for all elements in which values of t1 are not equal to values of t2,
         0 for all other elements
 
@@ -387,4 +260,4 @@ def ne(t1, t2):
     tensor([[1, 0],
             [1, 1]])
     """
-    return binary_op(torch.ne, t1, t2)
+    return operations.__binary_op(torch.ne, t1, t2)
