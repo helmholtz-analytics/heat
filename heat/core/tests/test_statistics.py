@@ -370,7 +370,6 @@ class TestStatistics(unittest.TestCase):
         res = ht.unique(t_split_zero, sorted=False, axis=1)
         self.assertTrue(torch.equal(res, exp_axis_one))
 
-        # TODO: Allgatherv with matrix that is split along axis 1 weirdly transposes the result
 
         t_split_one = ht.array([
             [1, 3, 4, 3],
@@ -381,7 +380,9 @@ class TestStatistics(unittest.TestCase):
         exp_axis_one = torch.tensor([[1, 3, 4], [1, 1, 2]]).to(torch.int32)
 
         res = ht.unique(t_split_one, sorted=True)
-        # self.assertTrue(torch.equal(res, exp_axis_none))
+        self.assertTrue(torch.equal(res, exp_axis_none))
+
+        # TODO: Allgatherv with matrix that is split along axis 1 weirdly transposes the result
 
         res = ht.unique(t_split_one, sorted=False, axis=0)
         # self.assertTrue(torch.equal(res, exp_axis_zero))

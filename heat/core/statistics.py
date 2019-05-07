@@ -312,16 +312,13 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     else:
         lres, inverse_pos = torch.unique(a._DNDarray__array, sorted=sorted, return_inverse=True, dim=axis)
 
-    print("Rank", a.comm.Get_rank(), "Local", lres, "global shape", a.gshape, "split", a.gshape[a.split], "values", a._DNDarray__array)
-
     # Share and gather the results with the other processes
     uniques = torch.tensor([lres.shape[0 if axis is None else axis]]).to(torch.int32)
     uniques_buf = torch.empty((a.comm.Get_size(), ), dtype=torch.int32)
-    print("uniques", uniques, "buffer", uniques_buf)
     a.comm.Allgather(uniques, uniques_buf)
-    print("Uniques_buf", uniques_buf)
 
     if axis is None or axis is a.split:
+        # Local results can now just be added together
         if axis is None:
             output_dim = [uniques_buf.sum().item()]
         else:
@@ -332,16 +329,14 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         counts = tuple(uniques_buf.tolist())
         displs = tuple([0] + uniques_buf.cumsum(0).tolist()[:-1])
         gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
-        print("Output dim", output_dim, counts, displs, gres_buf, lres.shape, lres)
+
         a.comm.Allgatherv(lres, (gres_buf, counts, displs,), recv_axis=axis)
-        print("After Allgather", gres_buf)
+
         return torch.unique(gres_buf, sorted=sorted, return_inverse=return_inverse, dim=axis)
 
     max_uniques, max_pos = uniques_buf.max(0)
-    print("Max:", max_uniques, "root process:", max_pos)
 
     # find indices of vectors
-    indices = torch.empty((max_uniques.item(),), dtype=torch.int32)
     if a.comm.Get_rank() is max_pos.item():
         # Get the indices of the vectors we need from each process
         indices = []
@@ -354,34 +349,28 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
             if len(indices) is max_uniques.item():
                 break
         indices = torch.tensor(indices, dtype=torch.int32)
+    else:
+        indices = torch.empty((max_uniques.item(),), dtype=torch.int32)
 
-    print("indices before bcast", indices)
     a.comm.Bcast(indices, root=max_pos)
-    print("indices after bcast", indices)
 
     # Creates a list of slices to select the correct tensors of the matrix
     local_slice = [slice(None)] * axis + [indices.tolist()]
-    print("Slice", local_slice)
     lres = a._DNDarray__array[local_slice]
-
-    print("Vectors", lres)
 
     output_dim = [None, None]
     output_dim[a.split] = a.gshape[a.split]
     output_dim[(a.split + 1) % 2] = max_uniques.item()
-
     counts_buf = torch.empty(a.comm.Get_size(), dtype=torch.int32)
     local_count = torch.tensor([a.lshape[a.split]]).to(torch.int32)
-    print("local size", a.lshape, a.lshape[a.split], "local count", local_count)
+
     a.comm.Allgather(local_count, counts_buf)
+
     result_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
 
     counts = tuple(counts_buf.tolist())
     displs = tuple([0] + counts_buf.cumsum(dim=0).tolist())[:-1]
-    print("Shapes:", lres.shape, result_buf.shape)
-    print("counts", counts, "displs", displs, "buf", result_buf)
 
     a.comm.Allgatherv(lres, (result_buf, counts, displs), recv_axis=a.split)
-    print("after allgatherv:", result_buf)
 
     return result_buf
