@@ -553,66 +553,6 @@ class DNDarray:
         self.__array = self.__array.cpu()
         return self
 
-    def __truediv__(self, other):
-        """
-        Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
-        of the tensor by another tensor or scalar. Takes the second operand (scalar or tensor) by which to divide
-        as argument.
-
-        Parameters
-        ----------
-        other: tensor or scalar
-           The value(s) by which to divide the tensor (element-wise)
-
-        Returns
-        -------
-        result: ht.DNDarray
-           A tensor containing the results of element-wise division.
-
-        Examples:
-        ---------
-        >>> import heat as ht
-        >>> ht.div(2.0, 2.0)
-        tensor([1.])
-
-        >>> T1 = ht.float32([[1, 2],[3, 4]])
-        >>> T2 = ht.float32([[2, 2], [2, 2]])
-        >>> T1.__div__(T2)
-        tensor([[0.5000, 1.0000],
-                [1.5000, 2.0000]])
-
-        >>> s = 2.0
-        >>> T1.__div__(s)
-        tensor([[0.5000, 1.0000],
-                [1.5, 2.0000]])
-        """
-        return arithmetics.div(self, other)
-
-    def __rtruediv__(self, other):
-        """
-        Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
-        of the not-heat-type parameter by another tensor. Takes the first tensor by which it divides the second
-        not-heat-typed-parameter.
-
-        Parameters
-        ----------
-        other: scalar or unknown data-type
-            this will be divided by the self-tensor
-
-        Returns
-        -------
-        result: ht.DNDarray
-           A tensor containing the results of element-wise division.
-
-        Examples:
-        ---------
-        >>> import heat as ht
-        >>> T = ht.float32([2,3])
-        >>> 2 / T
-        tensor([1.0000, 0.6667])
-        """
-        return arithmetics.div(other, self)
-
     def __floordiv__(self, other):
         """
         Element-wise floor division (i.e. result is rounded int (floor))
@@ -642,94 +582,6 @@ class DNDarray:
                 [1., 1.]])
         """
         return arithmetics.floordiv(self, other)
-
-    def __rfloordiv__(self, other):
-        """
-        Element-wise floor division (i.e. result is rounded int (floor))
-        of the not-heat-typed parameter by another tensor. Takes the first operand (scalar or tensor) by which to divide
-        as argument.
-
-        Parameters
-        ----------
-        other: scalar or unknown data-type
-            this will be divided by the self-tensor
-
-        Return
-        ------
-        result: ht.tensor
-            A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
-
-        Examples:
-        ---------
-        >>> import heat as ht
-        >>> T = ht.float32([[1.7, 2.0], [1.9, 4.2]])
-        >>> 5 // T
-        tensor([[2., 2.],
-                [2., 1.]])
-        """
-        return arithmetics.floordiv(other, self)
-
-    def __mod__(self, other):
-        """
-        Element-wise division remainder of values of self by values of operand other (i.e. self % other), not commutative.
-        Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2)
-        as arguments.
-
-        Parameters
-        ----------
-        other: tensor or scalar
-            The second operand by whose values it self to be divided.
-
-        Returns
-        -------
-        result: ht.tensor
-            A tensor containing the remainder of the element-wise division of self by other.
-
-        Examples:
-        ---------
-        >>> import heat as ht
-        >>> ht.mod(2, 2)
-        tensor([0])
-
-        >>> T1 = ht.int32([[1, 2], [3, 4]])
-        >>> T2 = ht.int32([[2, 2], [2, 2]])
-        >>> T1 % T2
-        tensor([[1, 0],
-                [1, 0]], dtype=torch.int32)
-
-        >>> s = ht.int32([2])
-        >>> s % T1
-        tensor([[0, 0]
-                [2, 2]], dtype=torch.int32)
-        """
-        return arithmetics.mod(self, other)
-
-    def __rmod__(self, other):
-        """
-        Element-wise division remainder of values of other by values of operand self (i.e. other % self),
-        not commutative.
-        Takes the two operands (scalar or tensor) whose elements are to be divided (operand 2 by operand 1)
-        as arguments.
-
-        Parameters
-        ----------
-        other: scalar or unknown data-type
-            The second operand which values will be divided by self.
-
-        Returns
-        -------
-        result: ht.tensor
-            A tensor containing the remainder of the element-wise division of other by self.
-
-        Examples:
-        ---------
-        >>> import heat as ht
-        >>> T = ht.int32([1, 3])
-        >>> 2 % T
-        tensor([0, 2], dtype=torch.int32)
-
-        """
-        return arithmetics.mod(other, self)
 
     def __eq__(self, other):
         """
@@ -1442,33 +1294,6 @@ class DNDarray:
         # TODO: generate none-PyTorch repr
         return self.__array.__repr__(*args)
 
-    def __rpow__(self, other):
-        """
-        Element-wise exponential function of second operand (not-heat-typed) with values from first operand (tensor).
-        Takes the first operand (tensor) whose values are the exponent to be applied to the second
-        scalar or unknown data-type as argument.
-
-        Parameters
-        ----------
-        other: scalar or unknown data-type
-           The value(s) in the base (element-wise)
-
-        Returns
-        -------
-        result: ht.NDNarray
-           A tensor containing the results of element-wise exponential operation.
-
-        Examples:
-        ---------
-        >>> import heat as ht
-
-        >>> T = ht.float32([[1, 2], [3, 4]])
-        >>> 3 ** T
-        tensor([[ 3., 9.],
-                [27., 81.]])
-        """
-        return arithmetics.pow(other, self)
-
     def resplit(self, axis=None):
         """
         In-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
@@ -1552,6 +1377,137 @@ class DNDarray:
             self.__split = axis
 
         return self
+
+    def __rfloordiv__(self, other):
+        """
+        Element-wise floor division (i.e. result is rounded int (floor))
+        of the not-heat-typed parameter by another tensor. Takes the first operand (scalar or tensor) by which to divide
+        as argument.
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+            this will be divided by the self-tensor
+
+        Return
+        ------
+        result: ht.tensor
+            A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T = ht.float32([[1.7, 2.0], [1.9, 4.2]])
+        >>> 5 // T
+        tensor([[2., 2.],
+                [2., 1.]])
+        """
+        return arithmetics.floordiv(other, self)
+
+    def __rmod__(self, other):
+        """
+        Element-wise division remainder of values of other by values of operand self (i.e. other % self),
+        not commutative.
+        Takes the two operands (scalar or tensor) whose elements are to be divided (operand 2 by operand 1)
+        as arguments.
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+            The second operand which values will be divided by self.
+
+        Returns
+        -------
+        result: ht.tensor
+            A tensor containing the remainder of the element-wise division of other by self.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T = ht.int32([1, 3])
+        >>> 2 % T
+        tensor([0, 2], dtype=torch.int32)
+
+        """
+        return arithmetics.mod(other, self)
+
+    def __rpow__(self, other):
+        """
+        Element-wise exponential function of second operand (not-heat-typed) with values from first operand (tensor).
+        Takes the first operand (tensor) whose values are the exponent to be applied to the second
+        scalar or unknown data-type as argument.
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+           The value(s) in the base (element-wise)
+
+        Returns
+        -------
+        result: ht.NDNarray
+           A tensor containing the results of element-wise exponential operation.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+
+        >>> T = ht.float32([[1, 2], [3, 4]])
+        >>> 3 ** T
+        tensor([[ 3., 9.],
+                [27., 81.]])
+        """
+        return arithmetics.pow(other, self)
+
+    def __rsub__(self, other):
+        """
+        Element-wise subtraction of another tensor or a scalar from the tensor.
+        Takes the first operand (tensor) whose elements are to be subtracted from the second argument
+        (scalar or unknown data-type).
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+            The value(s) from which the self-tensor will be element wise subtracted.
+
+        Returns
+        -------
+        result: ht.DNDarray
+            A tensor containing the results of element-wise subtraction.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T = ht.float32([[1, 2], [3, 4]])
+        >>> 5 - T
+        tensor([[4., 3.],
+                [2., 1.]])
+        """
+        return arithmetics.sub(other, self)
+
+    def __rtruediv__(self, other):
+        """
+        Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
+        of the not-heat-type parameter by another tensor. Takes the first tensor by which it divides the second
+        not-heat-typed-parameter.
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+            this will be divided by the self-tensor
+
+        Returns
+        -------
+        result: ht.DNDarray
+           A tensor containing the results of element-wise division.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T = ht.float32([2,3])
+        >>> 2 / T
+        tensor([1.0000, 0.6667])
+        """
+        return arithmetics.div(other, self)
 
     def save(self, path, *args, **kwargs):
         """
@@ -1834,32 +1790,6 @@ class DNDarray:
         """
         return arithmetics.sub(self, other)
 
-    def __rsub__(self, other):
-        """
-        Element-wise subtraction of another tensor or a scalar from the tensor.
-        Takes the first operand (tensor) whose elements are to be subtracted from the second argument
-        (scalar or unknown data-type).
-
-        Parameters
-        ----------
-        other: scalar or unknown data-type
-            The value(s) from which the self-tensor will be element wise subtracted.
-
-        Returns
-        -------
-        result: ht.DNDarray
-            A tensor containing the results of element-wise subtraction.
-
-        Examples:
-        ---------
-        >>> import heat as ht
-        >>> T = ht.float32([[1, 2], [3, 4]])
-        >>> 5 - T
-        tensor([[4., 3.],
-                [2., 1.]])
-        """
-        return arithmetics.sub(other, self)
-
     def sum(self, axis=None, out=None, keepdim=None):
         """
         Sum of array elements over a given axis.
@@ -2060,19 +1990,19 @@ class DNDarray:
         """
         return arithmetics.div(self, other)
 
-        """
-        This ensures that commutative arithmetic operations work no matter on which side the heat-tensor is placed.
-        
-        Examples
-        --------
-        >>> import heat as ht
-        >>> T = ht.float32([[1., 2.], [3., 4.,]])
-        >>> T + 1
-        tensor([[2., 3.],
-                [4., 5.]])
-        >>> 1 + T
-        tensor([[2., 3.],
+    """
+    This ensures that commutative arithmetic operations work no matter on which side the heat-tensor is placed.
+    
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T = ht.float32([[1., 2.], [3., 4.,]])
+    >>> T + 1
+    tensor([[2., 3.],
             [4., 5.]])
-        """
-        __radd__ = __add__
-        __rmul__ = __mul__
+    >>> 1 + T
+    tensor([[2., 3.],
+        [4., 5.]])
+    """
+    __radd__ = __add__
+    __rmul__ = __mul__
