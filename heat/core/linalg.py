@@ -4,6 +4,7 @@ import torch
 from .communication import MPI, MPI_WORLD
 from . import dndarray
 from . import factories
+from . import operations
 
 __all__ = [
     'matmul',
@@ -67,7 +68,10 @@ def matmul(a, b, out=None, out_split=None):
     if a.gshape[-1] != b.gshape[-2]:
         raise ValueError("If the last dimension of a ({}) is not the same size as the second-to-last dimension of b. ({})".format(a.gshape[-1], b.gshape[-2]))
 
-    if a.is_distributed() and b.is_distributed():  # else its simple matmul from torch
+    if not a.is_distributed() and not b.is_distributed():  # else its simple matmul from torch
+        # todo: make this actually work in the proper form....needs to return a DNDarray
+        return torch.matmul(a._DNDarray__array, b._DNDarray__array)
+    else:
         # block sizes dont need to be the same. thy just need the same inner dimmension (kB)
         kB = 0
         rem_a, rem_b = [0] * 2
@@ -161,17 +165,18 @@ def matmul(a, b, out=None, out_split=None):
         # the blocks are shifted in the 2nd dimension of A for as many remainders there are between the blocks in the first dim of B
         a_block_map = torch.zeros((int(a.gshape[-2] // mB), int(a.gshape[-1] // kB), 2))
         # process, 0th dim start of blocks, 1st dim start of blocks
+        # a_block_map has the *LOCAL* indices
         # TODO: test this with multiple blocks in the 0th dimension
+        # TODO: make this work for both with split 1
 
         for proc, zth in enumerate(index_map[:, 0, :]):
-            # 0th dim
             bk = 0
-            if zth[1, 1] >= kB * 2:  # if there are multiple blocks in the 0th direction
+            if zth[1, 1] >= kB * 2:  # if there are multiple blocks in the 1th direction
                 for cnt in range(int((zth[1, 1].item() - zth[1, 0].item()) // kB)):
-                    a_block_map[proc, cnt, 1] = kB * cnt + zth[1, 0].item()
+                    a_block_map[proc, cnt, 1] = kB * cnt
             if zth[0, 1] >= mB * 2:  # if there are multiple blocks in the 0th direction
                 for cnt in range(int((zth[0, 1].item() - zth[0, 0].item()) // mB)):
-                    a_block_map[proc, :, 0] = mB * cnt + zth[0, 0].item()
+                    a_block_map[proc, :, 0] = mB * cnt
 
         cnt = 0
         for pr in rem_map[:, 1, :]:
@@ -179,9 +184,10 @@ def matmul(a, b, out=None, out_split=None):
                 cnt += 1
                 a_block_map[:, cnt, 1] += cnt
         a_block_map = a_block_map.int()
-        print(a_block_map[1, 1, 0].item(), mB, a_block_map[1, 1, 0].item(),kB)
         # time for communication and on-process communication
-        print(a[a_block_map[1, 1, 0].item():a_block_map[1, 1, 0].item() + mB, a_block_map[1, 1, 0].item():a_block_map[1, 1, 0].item() + kB])
+        if a.comm.rank == 1:
+            start, stop = a_block_map[1, 2]
+            print(a.lloc[start:start + mB, stop:stop + kB])
 
 ########################################################################################################################################################
 
