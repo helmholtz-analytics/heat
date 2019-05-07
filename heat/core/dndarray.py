@@ -738,6 +738,8 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
+        # if isinstance(key, DNDarray):
+        #     key = tuple(x.item() for x in key)
         if not self.is_distributed():
             if not self.comm.size == 1:
                 return DNDarray(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
@@ -1463,6 +1465,8 @@ class DNDarray:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
+        # if isinstance(key, DNDarray):
+        #     key = tuple(x.item() for x in key)
         if not self.is_distributed():
             self.__setter(key, value)
         else:

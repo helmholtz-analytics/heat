@@ -83,7 +83,7 @@ def matmul(a, b, out=None, out_split=None):
             # what to do here?
             raise NotImplementedError("need to implement case of split 0 and split 1 for a and b respectively")
             pass
-
+        # kB = int(kB)
         if a.lshape[-1] % kB != 0:
             rem_a = 1
         if b.lshape[-2] % kB != 0:
@@ -99,8 +99,12 @@ def matmul(a, b, out=None, out_split=None):
         a.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
         # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
-        mB = min(lshape_map[:, 0, -2]).item()
-        nB = min(lshape_map[:, 1, -1]).item()
+        mB = lshape_map[:, 0, -2].min().item()
+        nB = lshape_map[:, 1, -1].min().item()
+
+        # todo: make nB smaller to allow for nonblocking communication to work while some communication is happening
+        nB = int(nB // 2)
+        mB = int(mB)
         # todo: handle the outside dimensional remainders
         print('mb', mB, 'kB', kB, 'nb', nB)
 
@@ -110,7 +114,7 @@ def matmul(a, b, out=None, out_split=None):
             rem_a_out = 1
         if b.lshape[-1] % nB != 0:
             rem_b_out = 1
-        print('rems:', rem_a_out, rem_a, rem_b, rem_b_out)
+        # print('rems:', rem_a_out, rem_a, rem_b, rem_b_out)
         # print('block sizes:', '\n a:', mB, kB, '\n b:', kB, nB)
         # if there is any rem_a then there are remainders on all processes
 
@@ -132,7 +136,7 @@ def matmul(a, b, out=None, out_split=None):
         index_map[b.comm.rank, 1, 0] = (b_idx[0].start, b_idx[0].stop)
         index_map[b.comm.rank, 1, 1] = (b_idx[1].start, b_idx[1].stop)
         a.comm.Allreduce(MPI.IN_PLACE, index_map, MPI.SUM)
-        print(index_map)
+        # print(index_map)
 
         # with the index map then the communication can be determined
         # this index map will also be used as a meta data / dictionary when the data is passed around
@@ -155,21 +159,29 @@ def matmul(a, b, out=None, out_split=None):
         # need to make the blocking a bit more intelligent,
         # the sizes are fine but the locations of them need to be chosen
         # the blocks are shifted in the 2nd dimension of A for as many remainders there are between the blocks in the first dim of B
-        a_block_map = factories.zeros((int(a.gshape[-2] // mB), int(a.gshape[-1] // kB), 2))  # 0th dim start of blocks, 1st dim start of blocks
+        a_block_map = torch.zeros((int(a.gshape[-2] // mB), int(a.gshape[-1] // kB), 2))
+        # process, 0th dim start of blocks, 1st dim start of blocks
+        # TODO: test this with multiple blocks in the 0th dimension
 
-        for zth in index_map[:, 0, :]:
+        for proc, zth in enumerate(index_map[:, 0, :]):
             # 0th dim
-            print(zth)
-            # bk = 0
-            # if zth[0, 1] >= mB * 2:  # if there are multiple blocks in the 0th direction
-            #     for cnt, itt in enumerate(range(zth[0, 1] // mB)):
-            #         a_block_map[] = 0
+            bk = 0
+            if zth[1, 1] >= kB * 2:  # if there are multiple blocks in the 0th direction
+                for cnt in range(int((zth[1, 1].item() - zth[1, 0].item()) // kB)):
+                    a_block_map[proc, cnt, 1] = kB * cnt + zth[1, 0].item()
+            if zth[0, 1] >= mB * 2:  # if there are multiple blocks in the 0th direction
+                for cnt in range(int((zth[0, 1].item() - zth[0, 0].item()) // mB)):
+                    a_block_map[proc, :, 0] = mB * cnt + zth[0, 0].item()
 
-        # for it in range(a.gshape[-2] // mB):
-        #     if
-
-        # calculate the blocks of c which can be easily done
-
+        cnt = 0
+        for pr in rem_map[:, 1, :]:
+            if pr[0].item():
+                cnt += 1
+                a_block_map[:, cnt, 1] += cnt
+        a_block_map = a_block_map.int()
+        print(a_block_map[1, 1, 0].item(), mB, a_block_map[1, 1, 0].item(),kB)
+        # time for communication and on-process communication
+        print(a[a_block_map[1, 1, 0].item():a_block_map[1, 1, 0].item() + mB, a_block_map[1, 1, 0].item():a_block_map[1, 1, 0].item() + kB])
 
 ########################################################################################################################################################
 
