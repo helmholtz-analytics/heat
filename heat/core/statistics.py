@@ -301,9 +301,17 @@ MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 def unique(a, sorted=False, return_inverse=False, axis=None):
     # Calculate the unique on the local values
-    print("LOCAL SHAPE", a.lshape)
+    if a.lshape[a.split] is 0:
+        # Passing empty vector to torch results in an exception
+        if axis is None:
+            res_shape = [0]
+        else:
+            res_shape = list(a.lshape)
+            res_shape[axis] = 0
+        lres = torch.empty(res_shape, dtype=a.dtype.torch_type())
+    else:
+        lres, inverse_pos = torch.unique(a._DNDarray__array, sorted=sorted, return_inverse=True, dim=axis)
 
-    lres, inverse_pos = torch.unique(a._DNDarray__array, sorted=sorted, return_inverse=True, dim=axis)
     print("Rank", a.comm.Get_rank(), "Local", lres, "global shape", a.gshape, "split", a.gshape[a.split], "values", a._DNDarray__array)
 
     # Share and gather the results with the other processes
@@ -312,8 +320,6 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     print("uniques", uniques, "buffer", uniques_buf)
     a.comm.Allgather(uniques, uniques_buf)
     print("Uniques_buf", uniques_buf)
-    # if a.comm.Get_size() is 1 or a.split is None:
-    #     return lres
 
     if axis is None or axis is a.split:
         if axis is None:
