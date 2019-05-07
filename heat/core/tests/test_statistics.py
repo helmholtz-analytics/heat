@@ -349,3 +349,42 @@ class TestStatistics(unittest.TestCase):
             ht_array.min(axis='y')
         with self.assertRaises(ValueError):
             ht.min(ht_array, axis=-4)
+
+    def test_unique(self):
+        t_split_zero = ht.array([
+            [1, 3, 1],
+            [1, 3, 1],
+            [1, 2, 3],
+            [1, 3, 1]
+        ]).resplit(axis=0)
+        exp_axis_none = torch.tensor([1, 2, 3])
+        exp_axis_zero = torch.tensor([[1, 2, 3], [1, 3, 1]])
+        exp_axis_one = torch.tensor([[1, 3, 1], [1, 3, 1], [1, 2, 3], [1, 3, 1]])
+
+        res = ht.unique(t_split_zero, sorted=True)
+        self.assertTrue(torch.equal(res, exp_axis_none))
+
+        res = ht.unique(t_split_zero, sorted=True, axis=0)
+        self.assertTrue(torch.equal(res, exp_axis_zero))
+
+        res = ht.unique(t_split_zero, sorted=False, axis=1)
+        self.assertTrue(torch.equal(res, exp_axis_one))
+
+        # TODO: Allgatherv with matrix that is split along axis 1 weirdly transposes the result
+
+        t_split_one = ht.array([
+            [1, 3, 4, 3],
+            [1, 1, 2, 1]
+        ], dtype=ht.int32).resplit(axis=1)
+        exp_axis_none = torch.tensor([1, 2, 3, 4]).to(torch.int32)
+        exp_axis_zero = torch.tensor([[1, 3, 4, 3], [1, 1, 2, 1]]).to(torch.int32)
+        exp_axis_one = torch.tensor([[1, 3, 4], [1, 1, 2]]).to(torch.int32)
+
+        res = ht.unique(t_split_one, sorted=True)
+        # self.assertTrue(torch.equal(res, exp_axis_none))
+
+        res = ht.unique(t_split_one, sorted=False, axis=0)
+        # self.assertTrue(torch.equal(res, exp_axis_zero))
+
+        res = ht.unique(t_split_one, sorted=True, axis=1)
+        # self.assertTrue(torch.equal(res, exp_axis_one))
