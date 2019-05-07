@@ -352,3 +352,4 @@ class TestArithmetics(unittest.TestCase):
             res_2 = op(num, tensor)
             if commutative:
                 self.assertTrue(ht.equal(res_1, res_2))
+        # TODO: Test with split tensors when binary operations are working properly for split tensors
