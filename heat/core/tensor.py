@@ -559,6 +559,7 @@ class tensor:
     def fabs(self, out=None):
         """
         Calculate the absolute value element-wise and return floating-point tensor.
+        This function exists besides abs==absolute since it will be needed in case complex numbers will be introduced in the future.
 
         Parameters
         ----------
