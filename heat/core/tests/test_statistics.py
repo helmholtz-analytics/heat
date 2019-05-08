@@ -297,7 +297,6 @@ class TestStatistics(unittest.TestCase):
                 total_dims_list = list(z.shape)
                 self.assertEqual(res, 1)
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
-                    # print('it=', it)
                     res = z.mean(axis=it)
                     self.assertEqual(res, 1)
                     if not isinstance(res, float) and res.split:

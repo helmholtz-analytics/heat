@@ -267,7 +267,6 @@ def mean(x, axis=None):
     -------
     ht.tensor containing the mean/s, if split, then split in the same direction as x.
     """
-
     def reduce_means_elementwise(output_shape_i):
         """
         Function to combine the calculated means together.
@@ -301,7 +300,7 @@ def mean(x, axis=None):
         mu_reshape_combi = factories.zeros((x.comm.size, int(np.prod(mu.lshape))))
         x.comm.Allreduce(mu_reshape, mu_reshape_combi, MPI.SUM)
 
-        while True:
+        while sz not in [0, 1]:
             if sz % 2 != 0:
                 if rem1 and not rem2:
                     rem2 = sz - 1
@@ -323,14 +322,14 @@ def mean(x, axis=None):
 
                 rem1 = rem2
                 rem2 = 0
-                sz = splt
-            if sz in [0, 1]:
-                if rem1:  # this loop works but is inefficient, need to fix
-                    for en, (el1, el2) in enumerate(zip(mu_reshape_combi[0, :], mu_reshape_combi[rem1, :])):
-                        mu_reshape_combi[0, en], _ = merge_means(el1, n_for_merge[0], el2, n_for_merge[rem1])
+            sz = splt
 
-                ret = operations.__local_op(torch.reshape, mu_reshape_combi[0], out=None, shape=output_shape_i)
-                return ret
+        if rem1:  # this loop works but is inefficient, need to fix
+            for en, (el1, el2) in enumerate(zip(mu_reshape_combi[0, :], mu_reshape_combi[rem1, :])):
+                mu_reshape_combi[0, en], _ = merge_means(el1, n_for_merge[0], el2, n_for_merge[rem1])
+
+        ret = operations.__local_op(torch.reshape, mu_reshape_combi[0], out=None, shape=output_shape_i)
+        return ret
     # ------------------------------------------------------------------------------------------------------------------
     if axis is None:
         # full matrix calculation
@@ -353,7 +352,7 @@ def mean(x, axis=None):
             rem1 = 0
             rem2 = 0
             sz = mu_tot.shape[0]
-            while True:  # this loop will loop pairwise over the whole process and do pairwise updates
+            while sz not in [0, 1]:  # this loop will loop pairwise over the whole process and do pairwise updates
                 # likely: do not need to parallelize: (likely) will not be worth it (can be tested)
                 if sz % 2 != 0:
                     if rem1 and not rem2:
@@ -372,12 +371,12 @@ def mean(x, axis=None):
                     rem1 = rem2
                     rem2 = 0
                 sz = splt
-                if sz == 1 or sz == 0:
-                    if rem1:
-                        merged = merge_means(mu_tot[0, 0], mu_tot[0, 1], mu_tot[rem1, 0], mu_tot[rem1, 1])
-                        for enum, m in enumerate(merged):
-                            mu_tot[0, enum] = m
-                    return mu_tot[0][0]
+
+            if rem1:
+                merged = merge_means(mu_tot[0, 0], mu_tot[0, 1], mu_tot[rem1, 0], mu_tot[rem1, 1])
+                for enum, m in enumerate(merged):
+                    mu_tot[0, enum] = m
+            return mu_tot[0][0]
     else:
         output_shape = list(x.shape)
         if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
@@ -711,7 +710,7 @@ def var(x, axis=None, bessel=True):
         var_reshape_combi = factories.zeros((x.comm.size, int(np.prod(var.lshape))))
         x.comm.Allreduce(var_reshape, var_reshape_combi, MPI.SUM)
 
-        while True:
+        while sz not in [0, 1]:
             if sz % 2 != 0:
                 if rem1 and not rem2:
                     rem2 = sz - 1
@@ -734,12 +733,12 @@ def var(x, axis=None, bessel=True):
                 rem1 = rem2
                 rem2 = 0
             sz = splt
-            if sz == 1 or sz == 0:
-                if rem1:  # this loop works but is inefficient, need to fix
-                    for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape_combi[0], var_reshape_combi[0], mu_reshape_combi[rem1], var_reshape_combi[rem1])):
-                        var_reshape_combi[0], mu_reshape_combi[0], n = merge_vars(var1, mu1, n_for_merge[0], var2, mu2, n_for_merge[rem1], bessel)
-                ret = operations.__local_op(torch.reshape, var_reshape_combi[0], out=None, shape=output_shape_i)
-                return ret
+
+        if rem1:  # this loop works but is inefficient, need to fix
+            for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape_combi[0], var_reshape_combi[0], mu_reshape_combi[rem1], var_reshape_combi[rem1])):
+                var_reshape_combi[0], mu_reshape_combi[0], n = merge_vars(var1, mu1, n_for_merge[0], var2, mu2, n_for_merge[rem1], bessel)
+        ret = operations.__local_op(torch.reshape, var_reshape_combi[0], out=None, shape=output_shape_i)
+        return ret
     # ----------------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
         # case for full matrix calculation (axis is None)
@@ -761,7 +760,7 @@ def var(x, axis=None, bessel=True):
             rem1 = 0
             rem2 = 0
             sz = var_tot.shape[0]
-            while True:  # this loop will loop pairwise over the processes and do pairwise updates
+            while sz not in [0, 1]:  # this loop will loop pairwise over the processes and do pairwise updates
                 if sz % 2 != 0:
                     if rem1 and not rem2:
                         rem2 = sz - 1
@@ -781,14 +780,14 @@ def var(x, axis=None, bessel=True):
                     rem1 = rem2
                     rem2 = 0
                 sz = splt
-                if sz == 1 or sz == 0:
-                    if rem1:
-                        merged = merge_vars(var_tot[0, 0], var_tot[0, 1], var_tot[0, 2],
-                                            var_tot[rem1, 0], var_tot[rem1, 1], var_tot[rem1, 2], bessel)
-                        for enum, m in enumerate(merged):
-                            var_tot[0, enum] = m
-                    # print(var_tot[0][0].item(), '\n')
-                    return var_tot[0][0]
+
+            if rem1:
+                merged = merge_vars(var_tot[0, 0], var_tot[0, 1], var_tot[0, 2],
+                                    var_tot[rem1, 0], var_tot[rem1, 1], var_tot[rem1, 2], bessel)
+                for enum, m in enumerate(merged):
+                    var_tot[0, enum] = m
+
+            return var_tot[0][0]
         else:  # not distributed (full tensor on one node)
             return operations.__local_op(torch.var, x, out=None, unbiased=bessel)
     else:  # axis is given
