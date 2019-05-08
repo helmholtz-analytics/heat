@@ -284,14 +284,12 @@ class TestStatistics(unittest.TestCase):
 
         for d in [array_0_len, array_1_len, array_2_len]:
             dimensions.extend([d, ])
-            # print("dimensions: ", dimensions)
             try:
                 hold = list(range(len(dimensions)))
                 hold.append(None)
             except TypeError:
                 hold = [None, ]
             for i in hold:  # loop over the number of split dimension of the test array
-                # print("Beginning of dimensions i=", i)
                 z = ht.ones(dimensions, split=i)
                 res = z.mean()
                 total_dims_list = list(z.shape)
@@ -317,7 +315,6 @@ class TestStatistics(unittest.TestCase):
                     for r in range(3, len(z.shape)):
                         loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
                 for it in loop_list:  # loop over the different combinations of dimensions for mean
-                    # print("it combi:", it)
                     res = z.mean(axis=[int(q) for q in it.split(',')])
                     self.assertEqual(res, 1)
                     if not isinstance(res, float) and res.split:
@@ -443,14 +440,12 @@ class TestStatistics(unittest.TestCase):
         dimensions = []
         for d in [array_0_len, array_1_len, array_2_len]:
             dimensions.extend([d, ])
-            # print("dimensions: ", dimensions)
             try:
                 hold = list(range(len(dimensions)))
                 hold.append(None)
             except TypeError:
                 hold = [None, ]
             for i in hold:  # loop over the number of dimensions of the test array
-                # print("Beginning of dimensions i=", i)
                 z = ht.ones(dimensions, split=i)
                 res = z.var()
                 total_dims_list = list(z.shape)
