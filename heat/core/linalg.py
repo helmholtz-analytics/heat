@@ -63,7 +63,7 @@ def transpose(a, axes=None):
 
         return dndarray.DNDarray(transposed_data, transposed_shape, a.dtype, transposed_split, a.device, a.comm)
     # if not possible re- raise any torch exception as ValueError
-    except Exception as exception:
+    except (RuntimeError, IndexError) as exception:
         raise ValueError(str(exception))
 
 
