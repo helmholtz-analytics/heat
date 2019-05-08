@@ -214,11 +214,9 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
             gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
             lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if not dim in axis)
             output_shape = gshape_losedim
-            if reduction_op in [MPI_ARGMAX, MPI_ARGMIN]:
-                if 0 in axis:
-                    lshape_losedim = (2,) + lshape_losedim
-                else:
-                    lshape_losedim = (2 * lshape_losedim[0],) + lshape_losedim[1:]
+            # Take care of special cases argmin and argmax: keep partial.shape[0]
+            if (0 in axis and partial.shape[0] != 1) or (not 0 in axis and partial.shape[0] != x.lshape[0]):
+                lshape_losedim = (partial.shape[0],) + lshape_losedim
             partial = partial.reshape(lshape_losedim)
 
     # Check shape of output buffer, if any
