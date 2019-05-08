@@ -316,7 +316,7 @@ class TestExponential(unittest.TestCase):
 
         # check whether the input range remain unchanged
         self.assertIsInstance(number_range, ht.DNDarray)
-        self.assertEqual(number_range.sum(axis=0), 190)  # gaussian sum
+        self.assertEqual(number_range.sum(axis=0), 435)  # gaussian sum
         self.assertEqual(number_range.gshape, (elements,))
 
         # check whether the output buffer still has the correct shape

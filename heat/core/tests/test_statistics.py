@@ -242,7 +242,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(maximum_volume.dtype, ht.float32)
         self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float32)
         self.assertEqual(maximum_volume.split, 0)
-        self.assertEqual(maximum_volume, alt_maximum_volume)
+        self.assertTrue((maximum_volume == alt_maximum_volume).all())
 
         # check max over all float elements of split 5d tensor, along split axis
         random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0)
@@ -283,7 +283,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum.split, None)
         self.assertEqual(minimum.dtype, ht.int64)
         self.assertEqual(minimum._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(minimum, 12)
+        self.assertEqual(minimum, 1)
 
         # maximum along first axis
         minimum_vertical = ht.min(ht_array, axis=0)
@@ -329,7 +329,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum_volume.dtype, ht.float32)
         self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float32)
         self.assertEqual(minimum_volume.split, 0)
-        self.assertEqual(minimum_volume, alt_minimum_volume)
+        self.assertTrue((minimum_volume == alt_minimum_volume).all())
 
         # check max over all float elements of split 5d tensor, along split axis
         random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0)

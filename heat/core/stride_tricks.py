@@ -150,7 +150,7 @@ def sanitize_shape(shape):
             dimension = int(dimension)
         if not isinstance(dimension, int):
             raise TypeError('expected sequence object with length >= 0 or a single integer')
-        if dimension <= 0:
+        if dimension < 0:
             raise ValueError('negative dimensions are not allowed')
 
     return shape

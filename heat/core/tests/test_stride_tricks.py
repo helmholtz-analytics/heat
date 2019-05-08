@@ -51,8 +51,6 @@ class TestStrideTricks(unittest.TestCase):
 
         # invalid value ranges
         with self.assertRaises(ValueError):
-            ht.core.stride_tricks.sanitize_shape(0)
-        with self.assertRaises(ValueError):
             ht.core.stride_tricks.sanitize_shape(-1)
         with self.assertRaises(ValueError):
             ht.core.stride_tricks.sanitize_shape((2, -1,))
