@@ -301,11 +301,6 @@ def mean(x, axis=None):
         mu_reshape_combi = factories.zeros((x.comm.size, int(np.prod(mu.lshape))))
         x.comm.Allreduce(mu_reshape, mu_reshape_combi, MPI.SUM)
 
-        gpu = False
-        if torch.cuda.device_count() > 0 and mu_reshape_combi.size() > 100000:  # test if the tensor is large enough to make a gpu useful
-            gpu = True
-            gpu_copy = mu_reshape_combi.gpu()
-
         while True:
             if sz % 2 != 0:
                 if rem1 and not rem2:
@@ -313,34 +308,29 @@ def mean(x, axis=None):
                 elif not rem1:
                     rem1 = sz - 1
             splt = sz // 2
-            if gpu:
-                # dev is the cuda device
-                with gpu_copy.device:
-                    pass
-                    # do the gpu stuff here
-            else:
-                for sp_it in range(splt):  # this loop works but is inefficient, need to fix
-                    for en, (el1, el2) in enumerate(zip(mu_reshape_combi[sp_it, :], mu_reshape_combi[sp_it+splt, :])):
-                        try:
-                            mu_reshape_combi[sp_it, en], n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it+splt])
-                        except IndexError:
-                            mu_reshape_combi, n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it + splt])
-                    n_for_merge[sp_it] = n
-                if rem1 and rem2:  # this loop works but is inefficient, need to fix
-                    for en, (el1, el2) in enumerate(zip(mu_reshape_combi[rem1, :], mu_reshape_combi[rem2, :])):
-                        mu_reshape_combi[rem2, en], n = merge_means(el1, n_for_merge[rem1], el2, n_for_merge[rem2])
-                    n_for_merge[rem2] = n
 
-                    rem1 = rem2
-                    rem2 = 0
+            for sp_it in range(splt):  # this loop works but is inefficient, need to fix
+                for en, (el1, el2) in enumerate(zip(mu_reshape_combi[sp_it, :], mu_reshape_combi[sp_it+splt, :])):
+                    try:
+                        mu_reshape_combi[sp_it, en], n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it+splt])
+                    except IndexError:
+                        mu_reshape_combi, n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it + splt])
+                n_for_merge[sp_it] = n
+            if rem1 and rem2:  # this loop works but is inefficient, need to fix
+                for en, (el1, el2) in enumerate(zip(mu_reshape_combi[rem1, :], mu_reshape_combi[rem2, :])):
+                    mu_reshape_combi[rem2, en], n = merge_means(el1, n_for_merge[rem1], el2, n_for_merge[rem2])
+                n_for_merge[rem2] = n
+
+                rem1 = rem2
+                rem2 = 0
                 sz = splt
-                if sz in [0, 1]:
-                    if rem1:  # this loop works but is inefficient, need to fix
-                        for en, (el1, el2) in enumerate(zip(mu_reshape_combi[0, :], mu_reshape_combi[rem1, :])):
-                            mu_reshape_combi[0, en], _ = merge_means(el1, n_for_merge[0], el2, n_for_merge[rem1])
+            if sz in [0, 1]:
+                if rem1:  # this loop works but is inefficient, need to fix
+                    for en, (el1, el2) in enumerate(zip(mu_reshape_combi[0, :], mu_reshape_combi[rem1, :])):
+                        mu_reshape_combi[0, en], _ = merge_means(el1, n_for_merge[0], el2, n_for_merge[rem1])
 
-                    ret = operations.__local_op(torch.reshape, mu_reshape_combi[0], out=None, shape=output_shape_i)
-                    return ret
+                ret = operations.__local_op(torch.reshape, mu_reshape_combi[0], out=None, shape=output_shape_i)
+                return ret
     # ------------------------------------------------------------------------------------------------------------------
     if axis is None:
         # full matrix calculation

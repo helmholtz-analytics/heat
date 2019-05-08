@@ -265,6 +265,80 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.max(ht_array, axis=-4)
 
+    def test_mean(self):
+        array_0_len = 10
+        array_1_len = 8
+        array_2_len = 9
+        array_3_len = 7
+
+        x = ht.zeros((2, 3, 4))
+        with self.assertRaises(ValueError):
+            ht.mean(x, axis=10)
+        with self.assertRaises(TypeError):
+            ht.mean(x, axis='01')
+        with self.assertRaises(ValueError):
+            ht.mean(x, axis=(0, '10'))
+
+        # ones
+        dimensions = []
+
+        for d in [array_0_len, array_1_len, array_2_len, array_3_len]:
+            dimensions.extend([d, ])
+            # print("dimensions: ", dimensions)
+            try:
+                hold = list(range(len(dimensions)))
+                hold.append(None)
+            except TypeError:
+                hold = [None, ]
+            for i in hold:  # loop over the number of split dimension of the test array
+                # print("Beginning of dimensions i=", i)
+                z = ht.ones(dimensions, split=i)
+                res = z.mean()
+                total_dims_list = list(z.shape)
+                self.assertEqual(res, 1)
+                for it in range(len(z.shape)):  # loop over the different single dimensions for mean
+                    # print('it=', it)
+                    res = z.mean(axis=it)
+                    self.assertEqual(res, 1)
+                    if not isinstance(res, float) and res.split:
+                        self.assertEqual(res.split, z.split)
+                    target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
+                    if all(target_dims) != 0:
+                        self.assertEqual(res.split, z.split)
+                        self.assertEqual(res.lshape, tuple(target_dims))
+                    if i == it:
+                        res = z.mean(axis=it)
+                        self.assertEqual(res, 1)
+                        target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
+                        if all(target_dims) != 0:
+                            self.assertEqual(res.lshape, tuple(target_dims))
+
+                loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
+                if len(z.shape) > 2:
+                    for r in range(3, len(z.shape)):
+                        loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
+                for it in loop_list:  # loop over the different combinations of dimensions for mean
+                    # print("it combi:", it)
+                    res = z.mean(axis=[int(q) for q in it.split(',')])
+                    self.assertEqual(res, 1)
+                    if not isinstance(res, float) and res.split:
+                        self.assertEqual(res.split, z.split)
+                    target_dims = [total_dims_list[int(q)] if q not in [int(q) for q in it.split(',')] else 0 for q in range(len(total_dims_list))]
+                    if all(target_dims) != 0:
+                        if i:
+                            self.assertEqual(res.lshape, tuple(target_dims))
+                            self.assertEqual(res.split, z.split)
+                        else:
+                            self.assertEqual(res.shape, tuple(target_dims))
+                            self.assertEqual(res.split, z.split)
+
+        # values for the iris dataset mean measured by libreoffice calc
+        ax0 = [5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667]
+        for sp in [None, 0, 1]:
+            iris = ht.load('heat/datasets/data/iris.h5', 'data', split=sp)
+            self.assertAlmostEqual(ht.mean(iris), 3.46366666666667)
+            assert all([a == b for a, b in zip(ht.mean(iris, axis=0), ax0)])
+
     def test_min(self):
         data = [
             [1,   2,  3],
@@ -352,93 +426,20 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.min(ht_array, axis=-4)
 
-    def test_mean(self):
-        array_0_len = 10
-        array_1_len = 8
-        array_2_len = 9
-
-        x = ht.zeros((2, 3, 4))
-        with self.assertRaises(ValueError):
-            ht.mean(x, axis=10)
-        with self.assertRaises(TypeError):
-            ht.mean(x, axis='01')
-        with self.assertRaises(ValueError):
-            ht.mean(x, axis=(0, '10'))
-
-        # ones
-        dimensions = []
-
-        for d in [array_0_len, array_1_len, array_2_len]:
-            dimensions.extend([d, ])
-            # print("dimensions: ", dimensions)
-            try:
-                hold = list(range(len(dimensions)))
-                hold.append(None)
-            except TypeError:
-                hold = [None, ]
-            for i in hold:  # loop over the number of split dimension of the test array
-                # print("Beginning of dimensions i=", i)
-                z = ht.ones(dimensions, split=i)
-                res = z.mean()
-                total_dims_list = list(z.shape)
-                self.assertEqual(res, 1)
-                for it in range(len(z.shape)):  # loop over the different single dimensions for mean
-                    # print('it=', it)
-                    res = z.mean(axis=it)
-                    self.assertEqual(res, 1)
-                    if not isinstance(res, float) and res.split:
-                        self.assertEqual(res.split, z.split)
-                    target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
-                    if all(target_dims) != 0:
-                        self.assertEqual(res.split, z.split)
-                        self.assertEqual(res.lshape, tuple(target_dims))
-                    if i == it:
-                        res = z.mean(axis=it)
-                        self.assertEqual(res, 1)
-                        target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
-                        if all(target_dims) != 0:
-                            self.assertEqual(res.lshape, tuple(target_dims))
-
-                loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
-                if len(z.shape) > 2:
-                    for r in range(3, len(z.shape)):
-                        loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
-                for it in loop_list:  # loop over the different combinations of dimensions for mean
-                    # print("it combi:", it)
-                    res = z.mean(axis=[int(q) for q in it.split(',')])
-                    self.assertEqual(res, 1)
-                    if not isinstance(res, float) and res.split:
-                        self.assertEqual(res.split, z.split)
-                    target_dims = [total_dims_list[int(q)] if q not in [int(q) for q in it.split(',')] else 0 for q in range(len(total_dims_list))]
-                    if all(target_dims) != 0:
-                        if i:
-                            self.assertEqual(res.lshape, tuple(target_dims))
-                            self.assertEqual(res.split, z.split)
-                        else:
-                            self.assertEqual(res.shape, tuple(target_dims))
-                            self.assertEqual(res.split, z.split)
-
-        # values for the iris dataset mean measured by libreoffice calc
-        ax0 = [5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667]
-        for sp in [None, 0, 1]:
-            iris = ht.load('heat/datasets/data/iris.h5', 'data', split=sp)
-            self.assertAlmostEqual(ht.mean(iris), 3.46366666666667)
-            assert all([a == b for a, b in zip(ht.mean(iris, axis=0), ax0)])
-
     def test_var(self):
-        array_0_len = 10
+        array_0_len = 11
         array_1_len = 9
-        array_2_len = 8
+        array_2_len = 7
 
         # test raises
-        x = ht.zeros((2,3,4))
+        x = ht.zeros((2, 3, 4))
         with self.assertRaises(TypeError):
             ht.var(x, axis=0, bessel=1)
         with self.assertRaises(ValueError):
             ht.var(x, axis=10)
         with self.assertRaises(TypeError):
             ht.var(x, axis='01')
-        #
+
         # ones
         dimensions = []
         for d in [array_0_len, array_1_len, array_2_len]:
