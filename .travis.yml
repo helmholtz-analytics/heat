@@ -11,13 +11,13 @@ before_install:
   - docker run -dt --name unittest -v $PWD:/heat markusgoetz/heat
 
 install:
-  - docker exec -t unittest /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
- 
+  - docker exec -t unittest /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf] && pip list'
+
 script:
   # Running multiple mpi process count, generate a unique coverage report for each one and merge into one report
   - |
     docker exec -t unittest /bin/bash -c '. /root/.bashrc && \
-      for i in {1..6}; do mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ > /dev/null; done && \
+      for i in {1..6}; do mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/; done && \
       coverage combine && \
       coverage report && \
       coverage xml'
