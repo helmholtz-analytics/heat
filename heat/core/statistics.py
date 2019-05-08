@@ -80,15 +80,29 @@ def argmax(x, axis=None, out=None, **kwargs):
         raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
 
     # perform the global reduction
-    reduced_result = operations.__reduce_op(x, local_argmax, MPI_ARGMAX, axis=axis, out=out, **kwargs)
+    reduced_result = operations.__reduce_op(x, local_argmax, MPI_ARGMAX, axis=axis, out=None, **kwargs)
 
     # correct the tensor
     reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(torch.int64)
     reduced_result._DNDarray__dtype = types.int64
 
+    # address lshape/gshape mismatch when axis is 0
+    if axis is not None:
+        if isinstance(axis, int):
+            axis = (axis,)
+        if 0 in axis:
+            reduced_result._tensor__gshape = (1,) + reduced_result._tensor__gshape
+            if not kwargs.get('keepdim'):
+                reduced_result = reduced_result.squeeze(axis=0)
+
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
+        if out.shape != reduced_result.shape:
+            raise ValueError('Expecting output buffer of shape {}, got {}'.format(reduced_result.shape, out.shape))
         out._DNDarray__array.storage().copy_(reduced_result._DNDarray__array.storage())
+        out._DNDarray__array = out._DNDarray__array.type(torch.int64)
+        out._DNDarray__dtype = types.int64
+        return out
 
     return reduced_result
 
@@ -165,9 +179,23 @@ def argmin(x, axis=None, out=None, **kwargs):
     reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(torch.int64)
     reduced_result._DNDarray__dtype = types.int64
 
+    # address lshape/gshape mismatch when axis is 0
+    if axis is not None:
+        if isinstance(axis, int):
+            axis = (axis,)
+        if 0 in axis:
+            reduced_result._tensor__gshape = (1,) + reduced_result._tensor__gshape
+            if not kwargs.get('keepdim'):
+                reduced_result = reduced_result.squeeze(axis=0)
+
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
+        if out.shape != reduced_result.shape:
+            raise ValueError('Expecting output buffer of shape {}, got {}'.format(reduced_result.shape, out.shape))
         out._DNDarray__array.storage().copy_(reduced_result._DNDarray__array.storage())
+        out._DNDarray__array = out._DNDarray__array.type(torch.int64)
+        out._DNDarray__dtype = types.int64
+        return out
 
     return reduced_result
 
