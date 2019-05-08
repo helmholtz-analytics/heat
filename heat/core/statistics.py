@@ -19,6 +19,7 @@ __all__ = [
     'var'
 ]
 
+
 def merge_means(mu1, n1, mu2, n2):
     """
     Function to merge two means by pairwise update
@@ -134,7 +135,7 @@ def mean(x, axis=None):
             gpu = True
             gpu_copy = mu_reshape_combi.gpu()
 
-        while True:  # todo: multithread for GPU parrallelizm
+        while True:
             if sz % 2 != 0:
                 if rem1 and not rem2:
                     rem2 = sz - 1
@@ -147,7 +148,7 @@ def mean(x, axis=None):
                     pass
                     # do the gpu stuff here
             else:
-                for sp_it in range(splt):
+                for sp_it in range(splt):  # todo: multithread for GPU parrallelizm
                     for en, (el1, el2) in enumerate(zip(mu_reshape_combi[sp_it, :], mu_reshape_combi[sp_it+splt, :])):
                         try:
                             mu_reshape_combi[sp_it, en], n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it+splt])
