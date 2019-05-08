@@ -266,10 +266,10 @@ class TestStatistics(unittest.TestCase):
             ht.max(ht_array, axis=-4)
 
     def test_mean(self):
-        array_0_len = 10
+        array_0_len = 11
         array_1_len = 8
         array_2_len = 9
-        array_3_len = 7
+        # array_3_len = 7
 
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(ValueError):
@@ -282,7 +282,7 @@ class TestStatistics(unittest.TestCase):
         # ones
         dimensions = []
 
-        for d in [array_0_len, array_1_len, array_2_len, array_3_len]:
+        for d in [array_0_len, array_1_len, array_2_len]:
             dimensions.extend([d, ])
             # print("dimensions: ", dimensions)
             try:
