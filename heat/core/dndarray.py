@@ -1645,7 +1645,7 @@ class DNDarray:
         ...
         ValueError: Dimension along axis 1 is not 1 for shape (1, 3, 1, 5)
         """
-        return operations.squeeze(self, axis)
+        return manipulations.squeeze(self, axis)
 
     def __str__(self, *args):
         # TODO: document me
