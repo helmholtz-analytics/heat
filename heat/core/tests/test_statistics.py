@@ -1,5 +1,6 @@
 import torch
 import unittest
+from itertools import combinations
 
 import heat as ht
 
