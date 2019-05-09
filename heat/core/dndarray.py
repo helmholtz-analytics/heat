@@ -1011,18 +1011,18 @@ class DNDarray:
                 # reduce the dims if the slices are only one element in length
                 start = key.start if key.start is not None else 0
                 stop = key.stop if key.stop is not None else self.gshape[0]
+                step = key.step if key.step is not None else 1
 
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
                     new_split = self.split
-
-                key_set = set(range(start, stop, key.step if key.step else 1))
+                key_set = set(range(start, stop, step))
                 overlap = list(key_set & chunk_set)
 
                 if overlap:
                     hold = [x - chunk_start for x in overlap]
-                    key = slice(min(hold), max(hold) + 1, key.step)
+                    key = slice(min(hold), max(hold) + 1, step)
                     arr = self.__array[key]
                     gout = list(arr.shape)
                 else:
@@ -1646,8 +1646,10 @@ class DNDarray:
                 if isinstance(key[self.split], slice):
                     key = list(key)
                     overlap = list(set(range(key[self.split].start if key[self.split].start is not None else 0,
-                                             key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split]))
+                                             key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split],
+                                             key[self.split].step if key[self.split].step is not None else 1))
                                    & set(range(chunk_start, chunk_end)))
+                    print(overlap)
 
                     if overlap:
                         hold = [x - chunk_start for x in overlap]
