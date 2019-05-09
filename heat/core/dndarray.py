@@ -976,16 +976,6 @@ class DNDarray:
                 ints = sum([isinstance(it, int) for it in key])
                 gout = gout[:len(gout) - ints]
 
-                # reduce the dims if the slices are only one element in length
-                slices = [isinstance(k, slice) for k in key]
-                if any(slices):
-                    for s, b in enumerate(slices):
-                        if b:
-                            start = key[s].start if key[s].start is not None else 0
-                            stop = key[s].stop if key[s].stop is not None else self.gshape[s]
-                            if start == stop - 1:
-                                gout = gout[:-1]
-
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
