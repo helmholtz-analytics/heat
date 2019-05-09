@@ -265,9 +265,9 @@ class TestStatistics(unittest.TestCase):
             ht.max(ht_array, axis=-4)
 
     def test_mean(self):
-        array_0_len = 11
-        array_1_len = 8
-        array_2_len = 9
+        array_0_len = 5
+        array_1_len = 5
+        array_2_len = 5
         # array_3_len = 7
 
         x = ht.zeros((2, 3, 4))
@@ -423,9 +423,9 @@ class TestStatistics(unittest.TestCase):
             ht.min(ht_array, axis=-4)
 
     def test_var(self):
-        array_0_len = 11
-        array_1_len = 9
-        array_2_len = 7
+        array_0_len = 5
+        array_1_len = 5
+        array_2_len = 5
 
         # test raises
         x = ht.zeros((2, 3, 4))
@@ -463,9 +463,24 @@ class TestStatistics(unittest.TestCase):
                     if i == it:
                         res = z.var(axis=it)
                         self.assertEqual(res, 0)
+                z = ht.ones(dimensions, split=i)
+                res = z.var(bessel=False)
+                self.assertEqual(res, 0)
 
         # values for the iris dataset var measured by libreoffice calc
         ax0 = [0.68569351230425, 0.188004026845638, 3.11317941834452, 0.582414317673378]
         for sp in [None, 0, 1]:
             iris = ht.load_hdf5('heat/datasets/data/iris.h5', 'data', split=sp)
             self.assertAlmostEqual(ht.var(iris, bessel=True), 3.90318519755147, 5)
+
+    def test_std(self):
+        # test raises
+        x = ht.zeros((2, 3, 4))
+        with self.assertRaises(TypeError):
+            ht.std(x, axis=0, bessel=1)
+        with self.assertRaises(ValueError):
+            ht.std(x, axis=10)
+        with self.assertRaises(TypeError):
+            ht.std(x, axis='01')
+
+        # the rest of the tests are covered by var
