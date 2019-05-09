@@ -180,7 +180,7 @@ class TestLogical(unittest.TestCase):
                         [0,   0, 0],
                         [0, 0.3, 0]])
         any_tensor = ht.any(x, axis=1)
-        res = ht.uint8([[1], [0], [1]])
+        res = ht.uint8([1, 0, 1])
         self.assertIsInstance(any_tensor, ht.DNDarray)
         self.assertEqual(any_tensor.shape, (3,))
         self.assertEqual(any_tensor.dtype, ht.bool)
@@ -192,7 +192,7 @@ class TestLogical(unittest.TestCase):
                       [0, 0],
                       [0, 1]])
         ht.any(x, axis=0, out=any_tensor)
-        res = ht.uint8([[0, 1]])
+        res = ht.uint8([0, 1])
         self.assertIsInstance(any_tensor, ht.DNDarray)
         self.assertEqual(any_tensor.shape, (2,))
         self.assertEqual(any_tensor.dtype, ht.bool)
@@ -213,6 +213,6 @@ class TestLogical(unittest.TestCase):
         any_tensor = ht.any(x, axis=0)
         res = ht.uint8([1])
         self.assertIsInstance(any_tensor, ht.DNDarray)
-        self.assertEqual(any_tensor.shape, tuple())
+        self.assertEqual(any_tensor.shape, (1,))
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))

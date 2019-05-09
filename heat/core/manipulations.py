@@ -92,12 +92,12 @@ def squeeze(x, axis=None):
                 raise ValueError('Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}'.format(
                     x.split, axis, x.shape))
             out_shape = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
-            x_gsqueezed = dndarray.empty(out_shape, dtype=x.dtype)
+            x_gsqueezed = factories.empty(out_shape, dtype=x.dtype)
             x.comm.Allgather(x_lsqueezed, x_gsqueezed)
             return dndarray.DNDarray(
                 x_gsqueezed,
                 out_shape,
-                x.dtype,
+                x_lsqueezed.dtype,
                 split=split,
                 device=x.device,
                 comm=x.comm)

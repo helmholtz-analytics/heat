@@ -8,6 +8,7 @@ from . import exponential
 from . import io
 from . import linalg
 from . import logical
+from . import manipulations
 from . import memory
 from . import relational
 from . import rounding
