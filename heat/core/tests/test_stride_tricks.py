@@ -4,7 +4,6 @@ import heat as ht
 
 
 class TestStrideTricks(unittest.TestCase):
-
     def test_broadcast_shape(self):
         self.assertEqual(ht.core.stride_tricks.broadcast_shape((5, 4), (4,)), (5, 4))
         self.assertEqual(ht.core.stride_tricks.broadcast_shape((1, 100, 1), (10, 1, 5)), (10, 100, 5))

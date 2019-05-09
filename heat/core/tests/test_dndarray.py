@@ -29,7 +29,7 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(as_float64._DNDarray__array.dtype, torch.float64)
         self.assertIs(as_float64, data)
 
-    def test_bool(self):
+    def test_bool_cast(self):
         # simple scalar tensor
         a = ht.ones(1)
         casted_a = bool(a)
@@ -59,7 +59,7 @@ class TestDNDarray(unittest.TestCase):
             with self.assertRaises(TypeError):
                 bool(ht.full((ht.MPI_WORLD.size,), 2, split=0))
 
-    def test_complex(self):
+    def test_complex_cast(self):
         # simple scalar tensor
         a = ht.ones(1)
         casted_a = complex(a)
@@ -89,7 +89,7 @@ class TestDNDarray(unittest.TestCase):
             with self.assertRaises(TypeError):
                 complex(ht.full((ht.MPI_WORLD.size,), 2, split=0))
 
-    def test_float(self):
+    def test_float_cast(self):
         # simple scalar tensor
         a = ht.ones(1)
         casted_a = float(a)
@@ -119,7 +119,7 @@ class TestDNDarray(unittest.TestCase):
             with self.assertRaises(TypeError):
                 float(ht.full((ht.MPI_WORLD.size,), 2, split=0))
 
-    def test_int(self):
+    def test_int_cast(self):
         # simple scalar tensor
         a = ht.ones(1)
         casted_a = int(a)
@@ -396,7 +396,7 @@ class TestDNDarray(unittest.TestCase):
 
         # slice in both directions
         a = ht.zeros((13, 5,), split=1)
-        a[3:13, 2:5:2] = 1
+        a[3:13, 2::2] = 1
         self.assertTrue((a[3:13, 2:5:2] == 1).all())
         self.assertEqual(a[3:13, 2:5:2].gshape, (10, 2))
         self.assertEqual(a[3:13, 2:5:2].split, 1)

@@ -461,7 +461,11 @@ class DNDarray:
         if np.prod(self.shape) == 1:
             if self.split is None:
                 return cast_function(self.__array)
-            return self.comm.bcast(cast_function(self.__array) if self.comm.rank == 0 else None, root=0)
+
+            is_empty = np.prod(self.__array.shape) == 0
+            root = self.comm.allreduce(0 if is_empty else self.comm.rank, op=MPI.SUM)
+
+            return self.comm.bcast(None if is_empty else cast_function(self.__array), root=root)
 
         raise TypeError('only size-1 arrays can be converted to Python scalars')
 
@@ -1548,7 +1552,8 @@ class DNDarray:
                 if isinstance(key[self.split], slice):
                     key = list(key)
                     overlap = list(set(range(key[self.split].start if key[self.split].start is not None else 0,
-                                             key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split]))
+                                             key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split],
+                                             key[self.split].step if key[self.split].step is not None else 1))
                                    & set(range(chunk_start, chunk_end)))
 
                     if overlap:
