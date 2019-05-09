@@ -297,12 +297,17 @@ class TestStatistics(unittest.TestCase):
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     res = z.mean(axis=it)
                     self.assertEqual(res, 1)
-                    if not isinstance(res, float) and res.split:
-                        self.assertEqual(res.split, z.split)
-                    target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
-                    if all(target_dims) != 0:
-                        self.assertEqual(res.split, z.split)
-                        self.assertEqual(res.lshape, tuple(target_dims))
+                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q != it]
+                    if not target_dims:
+                        target_dims = (1, )
+
+                    self.assertEqual(res.gshape, tuple(target_dims))
+                    if res.split is not None:
+                        if i >= it:
+                            self.assertEqual(res.split, len(target_dims) - 1)
+                        else:
+                            self.assertEqual(res.split, z.split)
+
                     if i == it:
                         res = z.mean(axis=it)
                         self.assertEqual(res, 1)
@@ -314,11 +319,10 @@ class TestStatistics(unittest.TestCase):
                 if len(z.shape) > 2:
                     for r in range(3, len(z.shape)):
                         loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
+
                 for it in loop_list:  # loop over the different combinations of dimensions for mean
                     res = z.mean(axis=[int(q) for q in it.split(',')])
                     self.assertEqual(res, 1)
-                    if not isinstance(res, float) and res.split:
-                        self.assertEqual(res.split, z.split)
                     target_dims = [total_dims_list[int(q)] if q not in [int(q) for q in it.split(',')] else 0 for q in range(len(total_dims_list))]
                     if all(target_dims) != 0:
                         if i:
@@ -453,12 +457,16 @@ class TestStatistics(unittest.TestCase):
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     res = z.var(axis=it)
                     self.assertEqual(res, 0)
-                    if not isinstance(res, float) and res.split:
-                        self.assertEqual(res.split, z.split)
-                    target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
-                    if all(target_dims) != 0:
-                        self.assertEqual(res.lshape, tuple(target_dims))
-                        self.assertEqual(res.split, z.split)
+                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q != it]
+                    if not target_dims:
+                        target_dims = (1,)
+                    self.assertEqual(res.gshape, tuple(target_dims))
+                    if res.split is not None:
+                        if i >= it:
+                            self.assertEqual(res.split, len(target_dims) - 1)
+                        else:
+                            self.assertEqual(res.split, z.split)
+
                     if i == it:
                         res = z.var(axis=it)
                         self.assertEqual(res, 0)
@@ -471,4 +479,4 @@ class TestStatistics(unittest.TestCase):
         for sp in [None, 0, 1]:
             iris = ht.load_hdf5('heat/datasets/data/iris.h5', 'data', split=sp)
             self.assertAlmostEqual(ht.var(iris, bessel=True), 3.90318519755147, 5)
-            assert all([a == b for a, b in zip(ht.var(iris, axis=0, bessel=True), ax0)])
+

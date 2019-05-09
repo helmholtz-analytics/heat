@@ -329,13 +329,14 @@ def mean(x, axis=None):
                 mu_reshape_combi[0, en], _ = merge_means(el1, n_for_merge[0], el2, n_for_merge[rem1])
 
         ret = operations.__local_op(torch.reshape, mu_reshape_combi[0], out=None, shape=output_shape_i)
-        return ret
+        return dndarray.DNDarray(ret._DNDarray__array, tuple(output_shape_i), ret.dtype, None, x.device, x.comm)
     # ------------------------------------------------------------------------------------------------------------------
     if axis is None:
         # full matrix calculation
         if not x.is_distributed():
             # if x is not distributed do a torch.mean on x
-            return operations.__local_op(torch.mean, x, out=None)
+            ret = torch.mean(x._DNDarray__array)
+            return dndarray.DNDarray(ret, tuple(ret.shape), x.dtype, None, x.device, x.comm)
         else:
             # if x is distributed and no axis is given: return mean of the whole set
             if x.lshape[x.split] != 0:
@@ -353,7 +354,6 @@ def mean(x, axis=None):
             rem2 = 0
             sz = mu_tot.shape[0]
             while sz not in [0, 1]:  # this loop will loop pairwise over the whole process and do pairwise updates
-                # likely: do not need to parallelize: (likely) will not be worth it (can be tested)
                 if sz % 2 != 0:
                     if rem1 and not rem2:
                         rem2 = sz - 1
@@ -389,7 +389,8 @@ def mean(x, axis=None):
 
             # multiple dimensions
             if x.split is None:
-                return operations.__local_op(torch.mean, x, out=None, **{'dim': axis})
+                return dndarray.DNDarray(torch.mean(x._DNDarray__array, dim=axis),
+                                         tuple(output_shape), x.dtype, x.split, x.device, x.comm)
 
             output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
             if x.split in axis:
@@ -398,7 +399,10 @@ def mean(x, axis=None):
             else:
                 # multiple dimensions which does *not* include the split axis
                 # combine along the split axis
-                return factories.array(torch.mean(x._DNDarray__array, dim=axis, keepdim=True), split=x.split, device=x.device, comm=x.comm)
+                return dndarray.DNDarray(torch.mean(x._DNDarray__array, dim=axis, keepdim=True),
+                                  tuple(output_shape), x.dtype,
+                                  x.split if x.split < len(output_shape) else len(output_shape),
+                                  x.device, x.comm)
         elif isinstance(axis, int):
             if axis >= len(x.shape):
                 raise ValueError("axis (axis) must be < {}, currently is {}".format(len(x.shape), axis))
@@ -406,15 +410,18 @@ def mean(x, axis=None):
 
             # only one axis given
             output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
+            output_shape = output_shape if output_shape else (1, )
 
             if x.split is None:
-                return operations.__local_op(torch.mean, x, out=None, **{'dim': axis})
+                # return operations.__local_op(torch.mean, x, out=None, **{'dim': axis})
+                return dndarray.DNDarray(torch.mean(x._DNDarray__array, dim=axis),
+                                         tuple(output_shape), x.dtype, x.split, x.device, x.comm)
             elif axis == x.split:
                 return reduce_means_elementwise(output_shape)
             else:
                 # singular axis given (axis) not equal to split direction (x.split)
-                # local operation followed by array creation to create the full tensor of the means
-                return factories.array(torch.mean(x._DNDarray__array, dim=axis, keepdim=True), split=x.split, device=x.device, comm=x.comm)
+                return dndarray.DNDarray(torch.mean(x._DNDarray__array, dim=axis), tuple(output_shape), x.dtype,
+                                         x.split if x.split < len(output_shape) else len(output_shape) - 1, x.device, x.comm)
         else:
             raise TypeError("axis (axis) must be an int or a list, ht.tensor, torch.Tensor, or tuple, currently is {}".format(type(axis)))
 
@@ -737,12 +744,16 @@ def var(x, axis=None, bessel=True):
         if rem1:  # this loop works but is inefficient, need to fix
             for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape_combi[0], var_reshape_combi[0], mu_reshape_combi[rem1], var_reshape_combi[rem1])):
                 var_reshape_combi[0], mu_reshape_combi[0], n = merge_vars(var1, mu1, n_for_merge[0], var2, mu2, n_for_merge[rem1], bessel)
+
         ret = operations.__local_op(torch.reshape, var_reshape_combi[0], out=None, shape=output_shape_i)
-        return ret
+        return dndarray.DNDarray(ret._DNDarray__array, tuple(output_shape_i), ret.dtype, None, x.device, x.comm)
     # ----------------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
-        # case for full matrix calculation (axis is None)
-        if x.is_distributed():
+        if not x.is_distributed():  # not distributed (full tensor on one node)
+            ret = torch.var(x._DNDarray__array, unbiased=bessel)
+            return dndarray.DNDarray(ret, tuple(ret.shape), x.dtype, None, x.device, x.comm)
+
+        else:  # case for full matrix calculation (axis is None)
             if x.lshape[x.split] != 0:
                 mu_in = operations.__local_op(torch.mean, x, out=None)
                 var_in = operations.__local_op(torch.var, x, out=None, unbiased=bessel)
@@ -788,8 +799,7 @@ def var(x, axis=None, bessel=True):
                     var_tot[0, enum] = m
 
             return var_tot[0][0]
-        else:  # not distributed (full tensor on one node)
-            return operations.__local_op(torch.var, x, out=None, unbiased=bessel)
+
     else:  # axis is given
         # case for var in one dimension
         output_shape = list(x.shape)
@@ -799,15 +809,17 @@ def var(x, axis=None, bessel=True):
             axis = axis if axis > 0 else axis % len(x.shape)
             # only one axis given
             output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
+            output_shape = output_shape if output_shape else (1,)
 
-            if not x.is_distributed():  # x is *not* distributed -> no need to distributed
-                return operations.__local_op(torch.var, x, out=None, dim=axis, unbiased=bessel)
+            if x.split is None:  # x is *not* distributed -> no need to distributed
+                return dndarray.DNDarray(torch.var(x._DNDarray__array, dim=axis, unbiased=bessel),
+                                         tuple(output_shape), x.dtype, None, x.device, x.comm)
             elif axis == x.split:  # x is distributed and axis chosen is == to split
                 return reduce_vars_elementwise(output_shape)
             else:
                 # singular axis given (axis) not equal to split direction (x.split)
-                # local operation followed by array creation to create the full tensor of the vars on
                 lcl = torch.var(x._DNDarray__array, dim=axis, keepdim=True)
-                return factories.array(lcl, split=x.split)
+                return dndarray.DNDarray(lcl, tuple(output_shape), x.dtype, x.split if x.split < len(output_shape) else len(output_shape) - 1,
+                                         x.device, x.comm)
         else:
             raise TypeError("Axis (axis) must be an int, currently is {}. Check if multidim var is available in pyTorch".format(type(axis)))
