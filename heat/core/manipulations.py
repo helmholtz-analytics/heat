@@ -1,7 +1,9 @@
 import torch
 
-from . import operations
 from . import dndarray
+from . import factories
+from . import operations
+from . import stride_tricks
 from . import types
 
 __all__ = [
@@ -65,7 +67,7 @@ def squeeze(x, axis=None):
         if isinstance(axis, int):
             dim_is_one = (x.shape[axis] == 1)
         if isinstance(axis, tuple):
-            dim_is_one = bool(tensor.array(list(x.shape[dim] == 1 for dim in axis)).all()._tensor__array)
+            dim_is_one = bool(factories.array(list(x.shape[dim] == 1 for dim in axis)).all()._DNDarray__array)
         if not dim_is_one:
             raise ValueError('Dimension along axis {} is not 1 for shape {}'.format(axis, x.shape))
 
@@ -75,7 +77,7 @@ def squeeze(x, axis=None):
     if isinstance(axis, int):
         axis = (axis,)
     out_shape = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if not dim in axis)
-    x_lsqueezed = x._tensor__array.reshape(out_shape)
+    x_lsqueezed = x._DNDarray__array.reshape(out_shape)
 
     # Distributed squeeze
     if x.split is not None:
@@ -85,9 +87,9 @@ def squeeze(x, axis=None):
                 raise ValueError('Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}'.format(
                     x.split, axis, x.shape))
             out_shape = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
-            x_gsqueezed = tensor.empty(out_shape, dtype=x.dtype)
+            x_gsqueezed = dndarray.empty(out_shape, dtype=x.dtype)
             x.comm.Allgather(x_lsqueezed, x_gsqueezed)
-            return tensor.tensor(
+            return dndarray.DNDarray(
                 x_gsqueezed,
                 out_shape,
                 x.dtype,
@@ -95,7 +97,7 @@ def squeeze(x, axis=None):
                 device=x.device,
                 comm=x.comm)
 
-    return tensor.tensor(
+    return dndarray.DNDarray(
         x_lsqueezed,
         out_shape,
         x.dtype,
