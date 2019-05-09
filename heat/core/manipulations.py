@@ -20,6 +20,9 @@ def squeeze(x, axis=None):
         Input data.
 
     axis : None or int or tuple of ints, optional
+           Selects a subset of the single-dimensional entries in the shape. 
+           If axis is None, all single-dimensional entries will be removed from the shape.
+           If an axis is selected with shape entry greater than one, a ValueError is raised.
 
 
     Returns:

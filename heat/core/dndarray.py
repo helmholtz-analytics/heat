@@ -285,7 +285,7 @@ class DNDarray:
         """
         return logical.allclose(self, other, rtol, atol, equal_nan)
 
-    def any(self, axis=None, out=None, keepdim=None):
+    def any(self, axis=None, out=None, keepdim=False):
         """
         Test whether any array element along a given axis evaluates to True.
         The returning tensor is one dimensional unless axis is not None.
@@ -322,7 +322,7 @@ class DNDarray:
         >>> res
         tensor([[0, 0, 1]], dtype=torch.uint8)
         """
-        return logical.any(self, axis=axis, out=out)
+        return logical.any(self, axis=axis, out=out, keepdim=keepdim)
 
     def argmax(self, axis=None, out=None, **kwargs):
         """
@@ -1609,6 +1609,10 @@ class DNDarray:
             Input data.
 
         axis : None or int or tuple of ints, optional
+               Selects a subset of the single-dimensional entries in the shape. 
+               If axis is None, all single-dimensional entries will be removed from the shape.
+               If an axis is selected with shape entry greater than one, a ValueError is raised.
+
 
 
         Returns:
