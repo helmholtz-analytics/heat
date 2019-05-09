@@ -328,11 +328,11 @@ class TestStatistics(unittest.TestCase):
                             self.assertEqual(res.split, z.split)
 
         # values for the iris dataset mean measured by libreoffice calc
-        ax0 = [5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667]
+        ax0 = ht.array([5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667])
         for sp in [None, 0, 1]:
             iris = ht.load('heat/datasets/data/iris.h5', 'data', split=sp)
             self.assertTrue(ht.allclose(ht.mean(iris), 3.46366666666667))
-            assert all([a == b for a, b in zip(ht.mean(iris, axis=0), ax0)])
+            self.assertTrue(ht.allclose(ht.mean(iris, axis=0), ax0))
 
     def test_min(self):
         data = [
