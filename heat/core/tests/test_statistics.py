@@ -304,13 +304,6 @@ class TestStatistics(unittest.TestCase):
                         else:
                             self.assertEqual(res.split, z.split)
 
-                    if i == it:
-                        res = z.mean(axis=it)
-                        self.assertEqual(res, 1)
-                        target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
-                        if all(target_dims) != 0:
-                            self.assertEqual(res.lshape, tuple(target_dims))
-
                 loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
 
                 for it in loop_list:  # loop over the different combinations of dimensions for mean
