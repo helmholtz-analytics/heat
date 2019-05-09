@@ -445,6 +445,7 @@ class TestStatistics(unittest.TestCase):
                 z = ht.ones(dimensions, split=i)
                 res = z.var()
                 total_dims_list = list(z.shape)
+                print(res)
                 self.assertTrue((res == 0).all())
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     res = z.var(axis=it)

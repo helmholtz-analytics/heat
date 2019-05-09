@@ -694,7 +694,7 @@ class DNDarray:
 
         Parameters
         ----------
-        x : ht.tensor
+        x : ht.DNDarray
             Values for which the mean is calculated for
         axis : None, Int, iterable
             axis which the mean is taken in.
@@ -730,7 +730,7 @@ class DNDarray:
 
         Returns
         -------
-        ht.tensor containing the mean/s, if split, then split in the same direction as x.
+        ht.DNDarray containing the mean/s, if split, then split in the same direction as x.
         """
         return statistics.mean(self, axis)
 
@@ -741,7 +741,7 @@ class DNDarray:
 
         Parameters
         ----------
-        x : ht.tensor
+        x : ht.DNDarray
             Values for which the variance is calculated for
         axis : None, Int
             axis which the variance is taken in.
@@ -777,7 +777,7 @@ class DNDarray:
 
         Returns
         -------
-        ht.tensor containing the var/s, if split, then split in the same direction as x.
+        ht.DNDarray containing the var/s, if split, then split in the same direction as x.
         """
         return statistics.var(self, axis, bessel=bessel)
 
@@ -788,7 +788,7 @@ class DNDarray:
 
         Parameters
         ----------
-        x : ht.tensor
+        x : ht.DNDarray
             Values for which the std is calculated for
         axis : None, Int
             axis which the mean is taken in.
@@ -821,7 +821,7 @@ class DNDarray:
 
         Returns
         -------
-        ht.tensor containing the std/s, if split, then split in the same direction as x.
+        ht.DNDarray containing the std/s, if split, then split in the same direction as x.
         """
         return statistics.std(self, axis, bessel=bessel)
 
