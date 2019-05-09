@@ -1042,12 +1042,6 @@ class DNDarray:
 
             else:  # handle other cases not accounted for (one is a slice is given and the split != 0)
                 gout = [0] * len(self.gshape)
-                if isinstance(key, slice):
-                    # reduce the dims if the slices are only one element in length
-                    start = key.start if key.start is not None else 0
-                    stop = key.stop if key.stop is not None else self.gshape[0]
-                    if start == stop - 1:
-                        gout = gout[:-1]
 
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
