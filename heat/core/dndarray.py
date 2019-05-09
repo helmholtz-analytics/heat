@@ -67,6 +67,36 @@ class DNDarray:
         return self.__gshape
 
     @property
+    def size(self):
+        """
+        Returns
+        -------
+        int: number of total elements of the tensor
+        """
+        try:
+            return np.prod(self.__gshape)
+        except TypeError:
+            return 1
+
+    @property
+    def gnumel(self):
+        """
+        Returns
+        -------
+        int: number of total elements of the tensor
+        """
+        return self.size
+
+    @property
+    def lnumel(self):
+        """
+        Returns
+        -------
+        int: number of elements of the tensor on each node
+        """
+        return np.prod(self.__array.shape)
+
+    @property
     def lloc(self):
         """
         Local item setter and getter. i.e. this function operates on a local level and only on the PyTorch tensors
@@ -106,19 +136,40 @@ class DNDarray:
 
     @property
     def lshape(self):
+        """
+        Returns
+        -------
+        tuple : the shape of the data on each node
+        """
         return tuple(self.__array.shape)
 
     @property
     def shape(self):
+        """
+        Returns
+        -------
+        tuple : the shape of the tensor as a whole
+        """
         return self.__gshape
 
     @property
     def split(self):
+        """
+        Returns
+        -------
+        int : the axis on which the tensor split
+        """
         return self.__split
 
     @property
     def T(self, axes=None):
         return linalg.transpose(self, axes)
+
+    def item(self):
+        """
+        Returns the only element of a 1-element tensor. Mirror of the pytorch command by the same name
+        """
+        return self.__array.item()
 
     def abs(self, out=None, dtype=None):
         """
@@ -584,6 +635,144 @@ class DNDarray:
         """
         return relational.eq(self, other)
 
+    def mean(self, axis=None):
+        """
+        Calculates and returns the mean of a tensor.
+        If a axis is given, the mean will be taken in that direction.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            Values for which the mean is calculated for
+        axis : None, Int, iterable
+            axis which the mean is taken in.
+            Default: None -> mean of all data calculated
+
+        Examples
+        --------
+        >>> a = ht.random.randn(1,3)
+        >>> a
+        tensor([[-1.2435,  1.1813,  0.3509]])
+        >>> ht.mean(a)
+        tensor(0.0962)
+
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[ 0.0518,  0.9550,  0.3755,  0.3564],
+                [ 0.8182,  1.2425,  1.0549, -0.1926],
+                [-0.4997, -1.1940, -0.2812,  0.4060],
+                [-1.5043,  1.4069,  0.7493, -0.9384]])
+        >>> ht.mean(a, 1)
+        tensor([ 0.4347,  0.7307, -0.3922, -0.0716])
+        >>> ht.mean(a, 0)
+        tensor([-0.2835,  0.6026,  0.4746, -0.0921])
+
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[ 2.5893,  1.5934, -0.2870, -0.6637],
+                [-0.0344,  0.6412, -0.3619,  0.6516],
+                [ 0.2801,  0.6798,  0.3004,  0.3018],
+                [ 2.0528, -0.1121, -0.8847,  0.8214]])
+        >>> ht.mean(a, (0,1))
+        tensor(0.4730)
+
+        Returns
+        -------
+        ht.tensor containing the mean/s, if split, then split in the same direction as x.
+        """
+        return statistics.mean(self, axis)
+
+    def var(self, axis=None, bessel=True):
+        """
+        Calculates and returns the variance of a tensor.
+        If a axis is given, the variance will be taken in that direction.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            Values for which the variance is calculated for
+        axis : None, Int
+            axis which the variance is taken in.
+            Default: None -> var of all data calculated
+            NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+        bessel : Bool
+            Default: True
+            use the bessel correction when calculating the varaince/std
+            toggle between unbiased and biased calculation of the std
+
+        Examples
+        --------
+        >>> a = ht.random.randn(1,3)
+        >>> a
+        tensor([[-1.9755,  0.3522,  0.4751]])
+        >>> ht.var(a)
+        tensor(1.9065)
+
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[-0.8665, -2.6848, -0.0215, -1.7363],
+                [ 0.5886,  0.5712,  0.4582,  0.5323],
+                [ 1.9754,  1.2958,  0.5957,  0.0418],
+                [ 0.8196, -1.2911, -0.2026,  0.6212]])
+        >>> ht.var(a, 1)
+        tensor([1.3092, 0.0034, 0.7061, 0.9217])
+        >>> ht.var(a, 0)
+        tensor([1.3624, 3.2563, 0.1447, 1.2042])
+        >>> ht.var(a, 0, bessel=True)
+        tensor([1.3624, 3.2563, 0.1447, 1.2042])
+        >>> ht.var(a, 0, bessel=False)
+        tensor([1.0218, 2.4422, 0.1085, 0.9032])
+
+        Returns
+        -------
+        ht.tensor containing the var/s, if split, then split in the same direction as x.
+        """
+        return statistics.var(self, axis, bessel=bessel)
+
+    def std(self, axis=None, bessel=True):
+        """
+        Calculates and returns the standard deviation of a tensor with the bessel correction
+        If a axis is given, the variance will be taken in that direction.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            Values for which the std is calculated for
+        axis : None, Int
+            axis which the mean is taken in.
+            Default: None -> std of all data calculated
+            NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+        bessel : Bool
+            Default: True
+            use the bessel correction when calculating the varaince/std
+            toggle between unbiased and biased calculation of the std
+
+        Examples
+        --------
+        >>> a = ht.random.randn(1,3)
+        >>> a
+        tensor([[ 0.3421,  0.5736, -2.2377]])
+        >>> ht.std(a)
+        tensor(1.5606)
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
+                [ 0.2732, -0.0965, -0.1087, -1.3805],
+                [ 0.2647,  0.5998, -0.1635, -0.0848],
+                [ 0.0343,  0.1618, -0.8064, -0.1031]])
+        >>> ht.std(a, 0)
+        tensor([0.6157, 0.2918, 0.8324, 1.1996])
+        >>> ht.std(a, 1)
+        tensor([1.1405, 0.7236, 0.3506, 0.4324])
+        >>> ht.std(a, 1, bessel=False)
+        tensor([0.9877, 0.6267, 0.3037, 0.3745])
+
+        Returns
+        -------
+        ht.tensor containing the std/s, if split, then split in the same direction as x.
+        """
+        return statistics.std(self, axis, bessel=bessel)
+
     def exp(self, out=None):
         """
         Calculate the exponential of all elements in the input array.
@@ -743,7 +932,7 @@ class DNDarray:
                 return DNDarray(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
             else:
                 gout = tuple(self.__array[key].shape)
-                if self.split >= len(gout):
+                if self.split and self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
                     new_split = self.split
@@ -1105,13 +1294,6 @@ class DNDarray:
             The minimum value of an output element. Must be present to allow computation on empty slice.
         """
         return statistics.max(self, axis=axis, out=out, keepdim=keepdim)
-
-    def mean(self, axis):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        return self.sum(axis) / self.shape[axis]
 
     def min(self, axis=None, out=None, keepdim=None):
         """

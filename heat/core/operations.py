@@ -125,7 +125,7 @@ def __binary_op(operation, t1, t2):
     return dndarray.DNDarray(result, output_shape, types.canonical_heat_type(t1.dtype), output_split, output_device, output_comm)
 
 
-def __local_op(operation, x, out):
+def __local_op(operation, x, out, **kwargs):
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
     argument and takes only care of buffer allocation/writing.
@@ -164,7 +164,7 @@ def __local_op(operation, x, out):
 
     # no defined output tensor, return a freshly created one
     if out is None:
-        result = operation(x._DNDarray__array.type(torch_type))
+        result = operation(x._DNDarray__array.type(torch_type), **kwargs)
         return dndarray.DNDarray(result, x.gshape, promoted_type, x.split, x.device, x.comm)
 
     # output buffer writing requires a bit more work
@@ -178,7 +178,7 @@ def __local_op(operation, x, out):
 
     # do an inplace operation into a provided buffer
     casted = x._DNDarray__array.type(torch_type)
-    operation(casted.repeat(multiples) if needs_repetition else casted, out=out._DNDarray__array)
+    operation(casted.repeat(multiples) if needs_repetition else casted, out=out._DNDarray__array, **kwargs)
 
     return out
 
@@ -243,3 +243,4 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
         device=x.device,
         comm=x.comm
     )
+
