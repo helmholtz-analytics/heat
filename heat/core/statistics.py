@@ -91,7 +91,7 @@ def argmax(x, axis=None, out=None, **kwargs):
         if isinstance(axis, int):
             axis = (axis,)
         if 0 in axis:
-            reduced_result._tensor__gshape = (1,) + reduced_result._tensor__gshape
+            reduced_result._DNDarray__gshape = (1,) + reduced_result._DNDarray__gshape
             if not kwargs.get('keepdim'):
                 reduced_result = reduced_result.squeeze(axis=0)
 
@@ -173,7 +173,7 @@ def argmin(x, axis=None, out=None, **kwargs):
         raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
 
     # perform the global reduction
-    reduced_result = operations.__reduce_op(x, local_argmin, MPI_ARGMIN, axis=axis, out=out, **kwargs)
+    reduced_result = operations.__reduce_op(x, local_argmin, MPI_ARGMIN, axis=axis, out=None, **kwargs)
 
     # correct the tensor
     reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(torch.int64)
@@ -184,7 +184,7 @@ def argmin(x, axis=None, out=None, **kwargs):
         if isinstance(axis, int):
             axis = (axis,)
         if 0 in axis:
-            reduced_result._tensor__gshape = (1,) + reduced_result._tensor__gshape
+            reduced_result._DNDarray__gshape = (1,) + reduced_result._DNDarray__gshape
             if not kwargs.get('keepdim'):
                 reduced_result = reduced_result.squeeze(axis=0)
 
