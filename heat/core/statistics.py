@@ -387,21 +387,21 @@ def mean(x, axis=None):
             if any(d < 0 for d in axis):
                 axis = [j % len(x.shape) for j in axis]
 
+            output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
             # multiple dimensions
             if x.split is None:
                 return dndarray.DNDarray(torch.mean(x._DNDarray__array, dim=axis),
                                          tuple(output_shape), x.dtype, x.split, x.device, x.comm)
 
-            output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
             if x.split in axis:
                 # merge in the direction of the split
                 return reduce_means_elementwise(output_shape)
             else:
                 # multiple dimensions which does *not* include the split axis
                 # combine along the split axis
-                return dndarray.DNDarray(torch.mean(x._DNDarray__array, dim=axis, keepdim=True),
+                return dndarray.DNDarray(torch.mean(x._DNDarray__array, dim=axis),
                                   tuple(output_shape), x.dtype,
-                                  x.split if x.split < len(output_shape) else len(output_shape),
+                                  x.split if x.split < len(output_shape) else len(output_shape) - 1,
                                   x.device, x.comm)
         elif isinstance(axis, int):
             if axis >= len(x.shape):

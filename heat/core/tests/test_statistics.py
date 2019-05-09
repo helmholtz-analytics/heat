@@ -284,11 +284,8 @@ class TestStatistics(unittest.TestCase):
 
         for d in [array_0_len, array_1_len, array_2_len]:
             dimensions.extend([d, ])
-            try:
-                hold = list(range(len(dimensions)))
-                hold.append(None)
-            except TypeError:
-                hold = [None, ]
+            hold = list(range(len(dimensions)))
+            hold.append(None)
             for i in hold:  # loop over the number of split dimension of the test array
                 z = ht.ones(dimensions, split=i)
                 res = z.mean()
@@ -316,20 +313,20 @@ class TestStatistics(unittest.TestCase):
                             self.assertEqual(res.lshape, tuple(target_dims))
 
                 loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
-                if len(z.shape) > 2:
-                    for r in range(3, len(z.shape)):
-                        loop_list.extend([",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), r)])
 
                 for it in loop_list:  # loop over the different combinations of dimensions for mean
-                    res = z.mean(axis=[int(q) for q in it.split(',')])
+                    lp_split = [int(q) for q in it.split(',')]
+                    res = z.mean(axis=lp_split)
                     self.assertEqual(res, 1)
-                    target_dims = [total_dims_list[int(q)] if q not in [int(q) for q in it.split(',')] else 0 for q in range(len(total_dims_list))]
-                    if all(target_dims) != 0:
-                        if i:
-                            self.assertEqual(res.lshape, tuple(target_dims))
-                            self.assertEqual(res.split, z.split)
+                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q not in lp_split]
+                    if not target_dims:
+                        target_dims = (1,)
+                    if res.gshape:
+                        self.assertEqual(res.gshape, tuple(target_dims))
+                    if res.split is not None:
+                        if any([i >= x for x in lp_split]):
+                            self.assertEqual(res.split, len(target_dims) - 1)
                         else:
-                            self.assertEqual(res.shape, tuple(target_dims))
                             self.assertEqual(res.split, z.split)
 
         # values for the iris dataset mean measured by libreoffice calc
@@ -444,11 +441,8 @@ class TestStatistics(unittest.TestCase):
         dimensions = []
         for d in [array_0_len, array_1_len, array_2_len]:
             dimensions.extend([d, ])
-            try:
-                hold = list(range(len(dimensions)))
-                hold.append(None)
-            except TypeError:
-                hold = [None, ]
+            hold = list(range(len(dimensions)))
+            hold.append(None)
             for i in hold:  # loop over the number of dimensions of the test array
                 z = ht.ones(dimensions, split=i)
                 res = z.var()
@@ -470,9 +464,6 @@ class TestStatistics(unittest.TestCase):
                     if i == it:
                         res = z.var(axis=it)
                         self.assertEqual(res, 0)
-                        target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
-                        if all(target_dims) != 0:
-                            self.assertEqual(res.lshape, tuple(target_dims))
 
         # values for the iris dataset var measured by libreoffice calc
         ax0 = [0.68569351230425, 0.188004026845638, 3.11317941834452, 0.582414317673378]
