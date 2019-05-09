@@ -36,7 +36,7 @@ def randn(*args, split=None, device=None, comm=MPI_WORLD):
 
     Parameters
     ----------
-    d0, d1, …, dn : ints, optional
+    d0, d1, …, dn : int, optional
         The dimensions of the returned array, should be all positive.
 
     Returns
@@ -61,13 +61,6 @@ def randn(*args, split=None, device=None, comm=MPI_WORLD):
             [-1.8548, -1.2574,  0.2391, -0.3302],
             [ 1.3365, -1.5212,  1.4159, -0.1671],
             [ 0.1260,  1.2126, -0.0804,  0.0907]])
-
-    >>> ht.randn(4, 4, split=0)
-    (two processes)
-    tensor([[-1.1261,  0.5971,  0.2851,  0.9998],
-            [-1.8548, -1.2574,  0.2391, -0.3302]])
-    tensor([[ 1.3365, -1.5212,  1.4159, -0.1671],
-            [ 0.1260,  1.2126, -0.0804,  0.0907]])
     """
     # TODO: make me splitable
     # TODO: add device capabilities
@@ -77,7 +70,7 @@ def randn(*args, split=None, device=None, comm=MPI_WORLD):
     if not all(_ > 0 for _ in args):
         raise ValueError('negative dimension are not allowed')
 
-    gshape = tuple(args) if args else (1,)
+    gshape = tuple(args) if args else(1,)
     split = stride_tricks.sanitize_axis(gshape, split)
 
     try:
