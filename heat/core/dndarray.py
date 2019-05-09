@@ -1649,7 +1649,6 @@ class DNDarray:
                                              key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split],
                                              key[self.split].step if key[self.split].step is not None else 1))
                                    & set(range(chunk_start, chunk_end)))
-                    print(overlap)
 
                     if overlap:
                         hold = [x - chunk_start for x in overlap]
