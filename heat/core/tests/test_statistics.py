@@ -51,7 +51,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
         self.assertEqual(result.lshape, (4,))
         self.assertEqual(result.split, 0)
-        self.assertTrue((result._DNDarray__array == torch.tensor([[4], [4], [2], [4]])).all())
+        self.assertTrue((result._DNDarray__array == torch.tensor([4, 4, 2, 4])).all())
 
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
@@ -135,7 +135,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
         self.assertEqual(result.lshape, (4,))
         self.assertEqual(result.split, 0)
-        self.assertTrue((result._DNDarray__array == torch.tensor([[3], [1], [1], [3]])).all())
+        self.assertTrue((result._DNDarray__array == torch.tensor([3, 1, 1, 3])).all())
 
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
@@ -250,7 +250,7 @@ class TestStatistics(unittest.TestCase):
 
         self.assertIsInstance(maximum_5d, ht.DNDarray)
         self.assertEqual(maximum_5d.shape, (1, 3, 4, 5))
-        self.assertLessEqual(maximum_5d.lshape[1], 2)
+        self.assertLessEqual(maximum_5d.lshape[1], 3)
         self.assertEqual(maximum_5d.dtype, ht.float32)
         self.assertEqual(maximum_5d._DNDarray__array.dtype, torch.float32)
         self.assertEqual(maximum_5d.split, 0)
@@ -337,7 +337,7 @@ class TestStatistics(unittest.TestCase):
 
         self.assertIsInstance(minimum_5d, ht.DNDarray)
         self.assertEqual(minimum_5d.shape, (1, 3, 4, 5))
-        self.assertLessEqual(minimum_5d.lshape[1], 2)
+        self.assertLessEqual(minimum_5d.lshape[1], 3)
         self.assertEqual(minimum_5d.dtype, ht.float32)
         self.assertEqual(minimum_5d._DNDarray__array.dtype, torch.float32)
         self.assertEqual(minimum_5d.split, 0)
