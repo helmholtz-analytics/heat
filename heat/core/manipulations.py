@@ -79,9 +79,14 @@ def squeeze(x, axis=None):
     out_shape = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if not dim in axis)
     x_lsqueezed = x._DNDarray__array.reshape(out_shape)
 
+    # Calculate split axis according to squeezed shape
+    if x.split is not None:
+        split = x.split - len(list(dim for dim in axis if dim < x.split))
+    else:
+        split = x.split
+
     # Distributed squeeze
     if x.split is not None:
-        split = None
         if x.comm.is_distributed():
             if x.split in axis:
                 raise ValueError('Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}'.format(
@@ -101,6 +106,6 @@ def squeeze(x, axis=None):
         x_lsqueezed,
         out_shape,
         x.dtype,
-        split=None,
+        split=split,
         device=x.device,
         comm=x.comm)
