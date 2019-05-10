@@ -1,5 +1,6 @@
 import torch
 import unittest
+from itertools import combinations
 
 import heat as ht
 
@@ -263,6 +264,77 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.max(ht_array, axis=-4)
 
+    def test_mean(self):
+        array_0_len = 5
+        array_1_len = 5
+        array_2_len = 5
+        # array_3_len = 7
+
+        x = ht.zeros((2, 3, 4))
+        with self.assertRaises(ValueError):
+            ht.mean(x, axis=10)
+        with self.assertRaises(TypeError):
+            ht.mean(x, axis='01')
+        with self.assertRaises(ValueError):
+            ht.mean(x, axis=(0, '10'))
+
+        # ones
+        dimensions = []
+
+        for d in [array_0_len, array_1_len, array_2_len]:
+            dimensions.extend([d, ])
+            hold = list(range(len(dimensions)))
+            hold.append(None)
+            for i in hold:  # loop over the number of split dimension of the test array
+                z = ht.ones(dimensions, split=i)
+                res = z.mean()
+                total_dims_list = list(z.shape)
+                self.assertEqual(res, 1)
+                for it in range(len(z.shape)):  # loop over the different single dimensions for mean
+                    res = z.mean(axis=it)
+                    self.assertEqual(res, 1)
+                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q != it]
+                    if not target_dims:
+                        target_dims = (1, )
+
+                    self.assertEqual(res.gshape, tuple(target_dims))
+                    if res.split is not None:
+                        if i >= it:
+                            self.assertEqual(res.split, len(target_dims) - 1)
+                        else:
+                            self.assertEqual(res.split, z.split)
+
+                    if i == it:
+                        res = z.mean(axis=it)
+                        self.assertEqual(res, 1)
+                        target_dims = [total_dims_list[q] if q != it else 0 for q in range(len(total_dims_list))]
+                        if all(target_dims) != 0:
+                            self.assertEqual(res.lshape, tuple(target_dims))
+
+                loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
+
+                for it in loop_list:  # loop over the different combinations of dimensions for mean
+                    lp_split = [int(q) for q in it.split(',')]
+                    res = z.mean(axis=lp_split)
+                    self.assertEqual(res, 1)
+                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q not in lp_split]
+                    if not target_dims:
+                        target_dims = (1,)
+                    if res.gshape:
+                        self.assertEqual(res.gshape, tuple(target_dims))
+                    if res.split is not None:
+                        if any([i >= x for x in lp_split]):
+                            self.assertEqual(res.split, len(target_dims) - 1)
+                        else:
+                            self.assertEqual(res.split, z.split)
+
+        # values for the iris dataset mean measured by libreoffice calc
+        ax0 = [5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667]
+        for sp in [None, 0, 1]:
+            iris = ht.load('heat/datasets/data/iris.h5', 'data', split=sp)
+            self.assertAlmostEqual(ht.mean(iris), 3.46366666666667)
+            assert all([a == b for a, b in zip(ht.mean(iris, axis=0), ax0)])
+
     def test_min(self):
         data = [
             [1,   2,  3],
@@ -349,3 +421,66 @@ class TestStatistics(unittest.TestCase):
             ht_array.min(axis='y')
         with self.assertRaises(ValueError):
             ht.min(ht_array, axis=-4)
+
+    def test_var(self):
+        array_0_len = 5
+        array_1_len = 5
+        array_2_len = 5
+
+        # test raises
+        x = ht.zeros((2, 3, 4))
+        with self.assertRaises(TypeError):
+            ht.var(x, axis=0, bessel=1)
+        with self.assertRaises(ValueError):
+            ht.var(x, axis=10)
+        with self.assertRaises(TypeError):
+            ht.var(x, axis='01')
+
+        # ones
+        dimensions = []
+        for d in [array_0_len, array_1_len, array_2_len]:
+            dimensions.extend([d, ])
+            hold = list(range(len(dimensions)))
+            hold.append(None)
+            for i in hold:  # loop over the number of dimensions of the test array
+                z = ht.ones(dimensions, split=i)
+                res = z.var()
+                total_dims_list = list(z.shape)
+                self.assertEqual(res, 0)
+                for it in range(len(z.shape)):  # loop over the different single dimensions for mean
+                    res = z.var(axis=it)
+                    self.assertEqual(res, 0)
+                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q != it]
+                    if not target_dims:
+                        target_dims = (1,)
+                    self.assertEqual(res.gshape, tuple(target_dims))
+                    if res.split is not None:
+                        if i >= it:
+                            self.assertEqual(res.split, len(target_dims) - 1)
+                        else:
+                            self.assertEqual(res.split, z.split)
+
+                    if i == it:
+                        res = z.var(axis=it)
+                        self.assertEqual(res, 0)
+                z = ht.ones(dimensions, split=i)
+                res = z.var(bessel=False)
+                self.assertEqual(res, 0)
+
+        # values for the iris dataset var measured by libreoffice calc
+        ax0 = [0.68569351230425, 0.188004026845638, 3.11317941834452, 0.582414317673378]
+        for sp in [None, 0, 1]:
+            iris = ht.load_hdf5('heat/datasets/data/iris.h5', 'data', split=sp)
+            self.assertAlmostEqual(ht.var(iris, bessel=True), 3.90318519755147, 5)
+
+    def test_std(self):
+        # test raises
+        x = ht.zeros((2, 3, 4))
+        with self.assertRaises(TypeError):
+            ht.std(x, axis=0, bessel=1)
+        with self.assertRaises(ValueError):
+            ht.std(x, axis=10)
+        with self.assertRaises(TypeError):
+            ht.std(x, axis='01')
+
+        # the rest of the tests are covered by var
