@@ -770,7 +770,7 @@ def var(x, axis=None, bessel=True):
                 mu_in = operations.__local_op(torch.mean, x, out=None)
                 var_in = operations.__local_op(torch.var, x, out=None, unbiased=bessel)
                 if torch.isnan(var_in._DNDarray__array):
-                    warnings.warn('Only one element on process {} this will result in NaNs'.format(x.comm.rank), UserWarning)
+                    var_in = 0.0
             else:
                 mu_in = 0
                 var_in = 0
