@@ -422,9 +422,9 @@ class TestStatistics(unittest.TestCase):
             ht.min(ht_array, axis=-4)
 
     def test_var(self):
-        array_0_len = 5
-        array_1_len = 5
-        array_2_len = 5
+        array_0_len = 14
+        array_1_len = 14
+        # array_2_len = 14
 
         # test raises
         x = ht.zeros((2, 3, 4))
@@ -437,7 +437,7 @@ class TestStatistics(unittest.TestCase):
 
         # ones
         dimensions = []
-        for d in [array_0_len, array_1_len, array_2_len]:
+        for d in [array_0_len, array_1_len]:
             dimensions.extend([d, ])
             hold = list(range(len(dimensions)))
             hold.append(None)
@@ -445,7 +445,6 @@ class TestStatistics(unittest.TestCase):
                 z = ht.ones(dimensions, split=i)
                 res = z.var()
                 total_dims_list = list(z.shape)
-                print(res)
                 self.assertTrue((res == 0).all())
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     res = z.var(axis=it)

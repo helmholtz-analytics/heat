@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import warnings
 
 from .communication import MPI
 from . import exponential
@@ -768,6 +769,8 @@ def var(x, axis=None, bessel=True):
             if x.lshape[x.split] != 0:
                 mu_in = operations.__local_op(torch.mean, x, out=None)
                 var_in = operations.__local_op(torch.var, x, out=None, unbiased=bessel)
+                if torch.isnan(var_in._DNDarray__array):
+                    warnings.warn('Only one element on process {} this will result in NaNs'.format(x.comm.rank), UserWarning)
             else:
                 mu_in = 0
                 var_in = 0
