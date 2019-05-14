@@ -117,9 +117,10 @@ def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
     device = devices.sanitize_device(device)
     data = torch.arange(
         start, stop, step,
-        dtype=types.canonical_heat_type(dtype).torch_type(),
         device=device.torch_device
     )
+
+    data = data.type(types.canonical_heat_type(dtype).torch_type())
 
     return dndarray.DNDarray(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
 
