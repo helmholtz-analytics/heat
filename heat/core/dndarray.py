@@ -8,6 +8,7 @@ from . import exponential
 from . import io
 from . import linalg
 from . import logical
+from . import manipulation
 from . import memory
 from . import relational
 from . import rounding
@@ -67,6 +68,36 @@ class DNDarray:
         return self.__gshape
 
     @property
+    def size(self):
+        """
+        Returns
+        -------
+        int: number of total elements of the tensor
+        """
+        try:
+            return np.prod(self.__gshape)
+        except TypeError:
+            return 1
+
+    @property
+    def gnumel(self):
+        """
+        Returns
+        -------
+        int: number of total elements of the tensor
+        """
+        return self.size
+
+    @property
+    def lnumel(self):
+        """
+        Returns
+        -------
+        int: number of elements of the tensor on each node
+        """
+        return np.prod(self.__array.shape)
+
+    @property
     def lloc(self):
         """
         Local item setter and getter. i.e. this function operates on a local level and only on the PyTorch tensors
@@ -106,19 +137,40 @@ class DNDarray:
 
     @property
     def lshape(self):
+        """
+        Returns
+        -------
+        tuple : the shape of the data on each node
+        """
         return tuple(self.__array.shape)
 
     @property
     def shape(self):
+        """
+        Returns
+        -------
+        tuple : the shape of the tensor as a whole
+        """
         return self.__gshape
 
     @property
     def split(self):
+        """
+        Returns
+        -------
+        int : the axis on which the tensor split
+        """
         return self.__split
 
     @property
     def T(self, axes=None):
         return linalg.transpose(self, axes)
+
+    def item(self):
+        """
+        Returns the only element of a 1-element tensor. Mirror of the pytorch command by the same name
+        """
+        return self.__array.item()
 
     def abs(self, out=None, dtype=None):
         """
@@ -254,13 +306,10 @@ class DNDarray:
         -----------
         other : ht.DNDarray
             Input tensor to compare to
-
         atol: float, optional
-            Absolute tolerance. Default is 1e-08
-
+            Absolute tolerance. Defaults to 1e-08
         rtol: float, optional
-            Relative tolerance (with respect to y). Default is 1e-05
-
+            Relative tolerance (with respect to y). Defaults to 1e-05
         equal_nan: bool, optional
             Whether to compare NaN’s as equal. If True, NaN’s in a will be considered equal to NaN’s in b in the output array.
 
@@ -326,7 +375,7 @@ class DNDarray:
         """
         Returns the indices of the maximum values along an axis.
 
-        Parameters:	
+        Parameters:
         ----------
         x : ht.DNDarray
             Input array.
@@ -336,7 +385,7 @@ class DNDarray:
             If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
         Returns:
-        -------	
+        -------
         index_tensor : ht.DNDarray of ints
             Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
 
@@ -365,7 +414,7 @@ class DNDarray:
         """
         Returns the indices of the minimum values along an axis.
 
-        Parameters:	
+        Parameters:
         ----------
         x : ht.DNDarray
             Input array.
@@ -375,7 +424,7 @@ class DNDarray:
             If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
         Returns:
-        -------	
+        -------
         index_tensor : ht.DNDarray of ints
             Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
 
@@ -427,6 +476,47 @@ class DNDarray:
         self.__dtype = dtype
 
         return self
+
+    def __bool__(self):
+        """
+        Boolean scalar casting.
+
+        Returns
+        -------
+        casted : bool
+            The corresponding bool scalar value
+        """
+        return self.__cast(bool)
+
+    def __cast(self, cast_function):
+        """
+        Implements a generic cast function for HeAT DNDarray objects.
+
+        Parameters
+        ----------
+        cast_function : function
+            The actual cast function, e.g. 'float' or 'int'
+
+        Raises
+        ------
+        TypeError
+            If the DNDarray object cannot be converted into a scalar.
+
+        Returns
+        -------
+        casted : scalar
+            The corresponding casted scalar value
+        """
+        if np.prod(self.shape) == 1:
+            if self.split is None:
+                return cast_function(self.__array)
+
+            is_empty = np.prod(self.__array.shape) == 0
+            root = self.comm.allreduce(0 if is_empty else self.comm.rank, op=MPI.SUM)
+
+            return self.comm.bcast(None if is_empty else cast_function(self.__array), root=root)
+
+        raise TypeError('only size-1 arrays can be converted to Python scalars')
 
     def ceil(self, out=None):
         """
@@ -480,6 +570,17 @@ class DNDarray:
             a_max with a_max.
         """
         return rounding.clip(self, a_min, a_max, out)
+
+    def __complex__(self):
+        """
+        Complex scalar casting.
+
+        Returns
+        -------
+        casted : complex
+            The corresponding complex scalar value
+        """
+        return self.__cast(complex)
 
     def copy(self):
         """
@@ -584,6 +685,144 @@ class DNDarray:
         """
         return relational.eq(self, other)
 
+    def mean(self, axis=None):
+        """
+        Calculates and returns the mean of a tensor.
+        If a axis is given, the mean will be taken in that direction.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            Values for which the mean is calculated for
+        axis : None, Int, iterable
+            axis which the mean is taken in.
+            Default: None -> mean of all data calculated
+
+        Examples
+        --------
+        >>> a = ht.random.randn(1,3)
+        >>> a
+        tensor([[-1.2435,  1.1813,  0.3509]])
+        >>> ht.mean(a)
+        tensor(0.0962)
+
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[ 0.0518,  0.9550,  0.3755,  0.3564],
+                [ 0.8182,  1.2425,  1.0549, -0.1926],
+                [-0.4997, -1.1940, -0.2812,  0.4060],
+                [-1.5043,  1.4069,  0.7493, -0.9384]])
+        >>> ht.mean(a, 1)
+        tensor([ 0.4347,  0.7307, -0.3922, -0.0716])
+        >>> ht.mean(a, 0)
+        tensor([-0.2835,  0.6026,  0.4746, -0.0921])
+
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[ 2.5893,  1.5934, -0.2870, -0.6637],
+                [-0.0344,  0.6412, -0.3619,  0.6516],
+                [ 0.2801,  0.6798,  0.3004,  0.3018],
+                [ 2.0528, -0.1121, -0.8847,  0.8214]])
+        >>> ht.mean(a, (0,1))
+        tensor(0.4730)
+
+        Returns
+        -------
+        ht.DNDarray containing the mean/s, if split, then split in the same direction as x.
+        """
+        return statistics.mean(self, axis)
+
+    def var(self, axis=None, bessel=True):
+        """
+        Calculates and returns the variance of a tensor.
+        If a axis is given, the variance will be taken in that direction.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            Values for which the variance is calculated for
+        axis : None, Int
+            axis which the variance is taken in.
+            Default: None -> var of all data calculated
+            NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+        bessel : Bool
+            Default: True
+            use the bessel correction when calculating the varaince/std
+            toggle between unbiased and biased calculation of the std
+
+        Examples
+        --------
+        >>> a = ht.random.randn(1,3)
+        >>> a
+        tensor([[-1.9755,  0.3522,  0.4751]])
+        >>> ht.var(a)
+        tensor(1.9065)
+
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[-0.8665, -2.6848, -0.0215, -1.7363],
+                [ 0.5886,  0.5712,  0.4582,  0.5323],
+                [ 1.9754,  1.2958,  0.5957,  0.0418],
+                [ 0.8196, -1.2911, -0.2026,  0.6212]])
+        >>> ht.var(a, 1)
+        tensor([1.3092, 0.0034, 0.7061, 0.9217])
+        >>> ht.var(a, 0)
+        tensor([1.3624, 3.2563, 0.1447, 1.2042])
+        >>> ht.var(a, 0, bessel=True)
+        tensor([1.3624, 3.2563, 0.1447, 1.2042])
+        >>> ht.var(a, 0, bessel=False)
+        tensor([1.0218, 2.4422, 0.1085, 0.9032])
+
+        Returns
+        -------
+        ht.DNDarray containing the var/s, if split, then split in the same direction as x.
+        """
+        return statistics.var(self, axis, bessel=bessel)
+
+    def std(self, axis=None, bessel=True):
+        """
+        Calculates and returns the standard deviation of a tensor with the bessel correction
+        If a axis is given, the variance will be taken in that direction.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            Values for which the std is calculated for
+        axis : None, Int
+            axis which the mean is taken in.
+            Default: None -> std of all data calculated
+            NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+        bessel : Bool
+            Default: True
+            use the bessel correction when calculating the varaince/std
+            toggle between unbiased and biased calculation of the std
+
+        Examples
+        --------
+        >>> a = ht.random.randn(1,3)
+        >>> a
+        tensor([[ 0.3421,  0.5736, -2.2377]])
+        >>> ht.std(a)
+        tensor(1.5606)
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
+                [ 0.2732, -0.0965, -0.1087, -1.3805],
+                [ 0.2647,  0.5998, -0.1635, -0.0848],
+                [ 0.0343,  0.1618, -0.8064, -0.1031]])
+        >>> ht.std(a, 0)
+        tensor([0.6157, 0.2918, 0.8324, 1.1996])
+        >>> ht.std(a, 1)
+        tensor([1.1405, 0.7236, 0.3506, 0.4324])
+        >>> ht.std(a, 1, bessel=False)
+        tensor([0.9877, 0.6267, 0.3037, 0.3745])
+
+        Returns
+        -------
+        ht.DNDarray containing the std/s, if split, then split in the same direction as x.
+        """
+        return statistics.std(self, axis, bessel=bessel)
+
     def exp(self, out=None):
         """
         Calculate the exponential of all elements in the input array.
@@ -631,19 +870,57 @@ class DNDarray:
         return exponential.exp2(self, out)
 
     def expand_dims(self, axis):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: fix negative axis
-        return DNDarray(
-            self.__array.unsqueeze(dim=axis),
-            self.shape[:axis] + (1,) + self.shape[axis:],
-            self.dtype,
-            self.split if self.split is None or self.split < axis else self.split + 1,
-            self.device,
-            self.comm
-        )
+        """
+        Expand the shape of an array.
+
+        Insert a new axis that will appear at the axis position in the expanded array shape.
+
+        Parameters
+        ----------
+        axis : int
+            Position in the expanded axes where the new axis is placed.
+
+        Returns
+        -------
+        res : ht.DNDarray
+            Output array. The number of dimensions is one greater than that of the input array.
+
+        Raises
+        ------
+        ValueError
+            If the axis is not in range of the axes.
+
+        Examples
+        --------
+        >>> x = ht.array([1,2])
+        >>> x.shape
+        (2,)
+
+        >>> y = ht.expand_dims(x, axis=0)
+        >>> y
+        array([[1, 2]])
+        >>> y.shape
+        (1, 2)
+
+        y = ht.expand_dims(x, axis=1)
+        >>> y
+        array([[1],
+               [2]])
+        >>> y.shape
+        (2, 1)
+        """
+        return manipulation.expand_dims(self, axis)
+
+    def __float__(self):
+        """
+        Float scalar casting.
+
+        Returns
+        -------
+        casted : float
+            The corresponding float scalar value
+        """
+        return self.__cast(float)
 
     def floor(self, out=None):
         """
@@ -670,6 +947,24 @@ class DNDarray:
         tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
         """
         return rounding.floor(self, out)
+
+    def fabs(self, out=None):
+        """
+        Calculate the absolute value element-wise and return floating-point tensor.
+        This function exists besides abs==absolute since it will be needed in case complex numbers will be introduced in the future.
+
+        Parameters
+        ----------
+        out : ht.tensor, optional
+            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+            If not provided or None, a freshly-allocated array is returned.
+
+        Returns
+        -------
+        absolute_values : ht.tensor
+            A tensor containing the absolute value of each element in x.
+        """
+        return rounding.fabs(self, out)
 
     def __ge__(self, other):
         """
@@ -924,6 +1219,17 @@ class DNDarray:
         """
         return relational.gt(self, other)
 
+    def __int__(self):
+        """
+        Integer scalar casting.
+
+        Returns
+        -------
+        casted : int
+            The corresponding float scalar value
+        """
+        return self.__cast(int)
+
     def is_distributed(self):
         """
         Determines whether the data of this tensor is distributed across multiple processes.
@@ -1098,22 +1404,15 @@ class DNDarray:
         self : ht.DNDarray
             Input data.
 
-        axis : None or int  
+        axis : None or int
             Axis or axes along which to operate. By default, flattened input is used.
         #TODO: out : ht.DNDarray, optional
             Alternative output array in which to place the result. Must be of the same shape and buffer length as the
             expected output.
-        #TODO: initial : scalar, optional   
+        #TODO: initial : scalar, optional
             The minimum value of an output element. Must be present to allow computation on empty slice.
         """
         return statistics.max(self, axis=axis, out=out, keepdim=keepdim)
-
-    def mean(self, axis):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        return self.sum(axis) / self.shape[axis]
 
     def min(self, axis=None, out=None, keepdim=None):
         """
@@ -1482,7 +1781,8 @@ class DNDarray:
                 if isinstance(key[self.split], slice):
                     key = list(key)
                     overlap = list(set(range(key[self.split].start if key[self.split].start is not None else 0,
-                                             key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split]))
+                                             key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split],
+                                             key[self.split].step if key[self.split].step is not None else 1))
                                    & set(range(chunk_start, chunk_end)))
 
                     if overlap:
@@ -1699,14 +1999,6 @@ class DNDarray:
     def tanh(self, out=None):
         """
         Return the hyperbolic tangent, element-wise.
-
-        Parameters
-        ----------
-        x : ht.DNDarray
-            The value for which to compute the hyperbolic tangent.
-        out : ht.DNDarray or None, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to None, a fresh tensor is allocated.
 
         Returns
         -------
