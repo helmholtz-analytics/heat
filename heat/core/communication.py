@@ -435,7 +435,7 @@ class MPICommunication(Communication):
         # permute the send_axis order so that the split send_axis is the first to be transmitted
         send_axis_permutation = list(range(recvbuf.ndimension()))
 
-        print("list(range(recvbuf.ndimension()))", list(range(sendbuf.ndimension())))
+        print("list(range(recvbuf.ndimension()))", list(range(recvbuf.ndimension())))
 
         send_axis_permutation[0], send_axis_permutation[send_axis] = send_axis, 0
 

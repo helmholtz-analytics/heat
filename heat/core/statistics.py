@@ -321,16 +321,18 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         # Local results can now just be added together
         if axis is None:
             output_dim = [uniques_buf.sum().item()]
+            axis = 0
         else:
             output_dim = [None, None]
             output_dim[(axis + 1) % 2] = lres.shape[(axis + 1) % 2]
             output_dim[axis] = uniques_buf.sum().item()
+            axis = a.split
 
         counts = tuple(uniques_buf.tolist())
         displs = tuple([0] + uniques_buf.cumsum(0).tolist()[:-1])
         gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
 
-        a.comm.Allgatherv(lres, (gres_buf, counts, displs,), axis=1, recv_axis=axis)
+        a.comm.Allgatherv(lres, (gres_buf, counts, displs,), axis=axis, recv_axis=axis)
 
         return torch.unique(gres_buf, sorted=sorted, return_inverse=return_inverse, dim=axis)
 
@@ -372,6 +374,6 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     displs = tuple([0] + counts_buf.cumsum(dim=0).tolist())[:-1]
     print("lres", lres)
 
-    a.comm.Allgatherv(lres, (result_buf, counts, displs), axis=1, recv_axis=a.split)
+    a.comm.Allgatherv(lres, (result_buf, counts, displs), axis=a.split, recv_axis=a.split)
 
     return result_buf
