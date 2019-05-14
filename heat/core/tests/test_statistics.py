@@ -6,7 +6,6 @@ import heat as ht
 
 
 class TestStatistics(unittest.TestCase):
-
     def test_argmax(self):
         torch.manual_seed(1)
         data = ht.random.randn(3, 4, 5)
@@ -44,7 +43,7 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, along the axis
         torch.manual_seed(1)
-        data = ht.array(ht.random.randn(4, 5), split=0)
+        data = ht.array(ht.random.randn(4, 5), is_split=0)
         result = ht.argmax(data, axis=1)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
@@ -128,7 +127,7 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, along the axis
         torch.manual_seed(1)
-        data = ht.array(ht.random.randn(4, 5), split=0)
+        data = ht.array(ht.random.randn(4, 5), is_split=0)
         result = ht.argmin(data, axis=1)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)

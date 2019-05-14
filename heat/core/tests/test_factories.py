@@ -157,7 +157,22 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(d.split, None)
         self.assertTrue((d._DNDarray__array == torch.tensor(vector_data).reshape(-1, 1, 1)).all())
 
-        # distributed array function
+        # distributed array, chunk local data (split)
+        tensor_2d = ht.array([
+            [1.0, 2.0, 3.0],
+            [1.0, 2.0, 3.0],
+            [1.0, 2.0, 3.0]
+        ], split=0)
+        self.assertIsInstance(tensor_2d, ht.DNDarray)
+        self.assertEqual(tensor_2d.dtype, ht.float32)
+        self.assertEqual(tensor_2d.gshape, (3, 3))
+        self.assertEqual(len(tensor_2d.lshape), 2)
+        self.assertLessEqual(tensor_2d.lshape[0], 3)
+        self.assertEqual(tensor_2d.lshape[1], 3)
+        self.assertEqual(tensor_2d.split, 0)
+        self.assertTrue((tensor_2d._DNDarray__array == torch.tensor([1.0, 2.0, 3.0])).all())
+
+        # distributed array, partial data (is_split)
         if ht.communication.MPI_WORLD.rank == 0:
             split_data = [
                 [4.0, 5.0, 6.0],
@@ -169,7 +184,7 @@ class TestFactories(unittest.TestCase):
                 [4.0, 5.0, 6.0],
                 [1.0, 2.0, 3.0]
             ]
-        e = ht.array(split_data, ndmin=3, split=0)
+        e = ht.array(split_data, ndmin=3, is_split=0)
 
         self.assertIsInstance(e, ht.DNDarray)
         self.assertEqual(e.dtype, ht.float32)
@@ -193,7 +208,7 @@ class TestFactories(unittest.TestCase):
 
             # this will fail as the shapes do not match
             with self.assertRaises(ValueError):
-                ht.array(split_data, split=0)
+                ht.array(split_data, is_split=0)
 
         # exception distributed shapes do not fit
         if ht.communication.MPI_WORLD.size > 1:
@@ -211,7 +226,14 @@ class TestFactories(unittest.TestCase):
 
             # this will fail as the shapes do not match on a specific axis (here: 0)
             with self.assertRaises(ValueError):
-                ht.array(split_data, split=1)
+                ht.array(split_data, is_split=1)
+
+        # check exception on mutually exclusive split and is_split
+        with self.assertRaises(ValueError):
+            ht.array([
+                [1.0, 2.0, 3.0],
+                [1.0, 2.0, 3.0]
+            ], split=0, is_split=0)
 
         # non iterable type
         with self.assertRaises(TypeError):

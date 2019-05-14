@@ -87,9 +87,7 @@ def sanitize_axis(shape, axis):
 
     >>> sanitize_axis((5, 4), 1.0)
     TypeError
-
     """
-
     if axis is not None:
         if not isinstance(axis, int) and not isinstance(axis, tuple):
             raise TypeError('axis must be None or int or tuple, but was {}'.format(type(axis)))
