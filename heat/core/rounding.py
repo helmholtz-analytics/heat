@@ -9,6 +9,7 @@ __all__ = [
     'absolute',
     'ceil',
     'clip',
+    'fabs',
     'floor'
 ]
 
@@ -19,7 +20,6 @@ def abs(x, out=None, dtype=None):
 
     Parameters
     ----------
-
     x : ht.DNDarray
         The values for which the compute the absolute value.
     out : ht.DNDarray, optional
@@ -133,6 +133,28 @@ def clip(a, a_min, a_max, out=None):
 
     return a._DNDarray__array.clamp(a_min, a_max, out=out._DNDarray__array) and out
 
+    
+def fabs(x, out=None):
+    """
+    Calculate the absolute value element-wise and return floating-point tensor.
+    This function exists besides abs==absolute since it will be needed in case complex numbers will be introduced in the future.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        The values for which the compute the absolute value.
+    out : ht.tensor, optional
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+        If not provided or None, a freshly-allocated array is returned.
+
+    Returns
+    -------
+    absolute_values : ht.tensor
+        A tensor containing the absolute value of each element in x.
+    """
+
+    return abs(x, out, dtype=None)
+    
 
 def floor(x, out=None):
     """

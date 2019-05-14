@@ -923,6 +923,24 @@ class DNDarray:
         """
         return rounding.floor(self, out)
 
+    def fabs(self, out=None):
+        """
+        Calculate the absolute value element-wise and return floating-point tensor.
+        This function exists besides abs==absolute since it will be needed in case complex numbers will be introduced in the future.
+
+        Parameters
+        ----------
+        out : ht.tensor, optional
+            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+            If not provided or None, a freshly-allocated array is returned.
+
+        Returns
+        -------
+        absolute_values : ht.tensor
+            A tensor containing the absolute value of each element in x.
+        """
+        return rounding.fabs(self, out)
+
     def __ge__(self, other):
         """
         Element-wise rich comparison of relation "greater than or equal" with values from second operand (scalar or
