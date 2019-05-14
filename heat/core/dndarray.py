@@ -896,13 +896,13 @@ class DNDarray:
         >>> x.shape
         (2,)
 
-        >>> y = np.expand_dims(x, axis=0)
+        >>> y = ht.expand_dims(x, axis=0)
         >>> y
         array([[1, 2]])
         >>> y.shape
         (1, 2)
 
-        y = np.expand_dims(x, axis=1)
+        y = ht.expand_dims(x, axis=1)
         >>> y
         array([[1],
                [2]])
