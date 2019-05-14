@@ -176,24 +176,43 @@ class MPICommunication(Communication):
         """
         mpi_type, elements = cls.__mpi_type_mappings[obj.dtype], torch.numel(obj)
 
+        print("mpi_type", mpi_type)
+        print("elements", elements)
+
         # simple case, continuous memory can be transmitted as is
+        print("obj.is_contiguous", obj.is_contiguous())
         if obj.is_contiguous():
             if counts is None:
                 return mpi_type, elements
             else:
                 factor = np.prod(obj.shape[1:])
+                print("factor", factor)
                 return mpi_type, (tuple(factor * ele for ele in counts), (tuple(factor * ele for ele in displs)),)
 
         # non-continuous memory, e.g. after a transpose, has to be packed in derived MPI types
         elements = obj.shape[0]
+
+        print("elements", elements)
+
         shape = obj.shape[1:]
+
+        print("shape", shape)
+
         strides = [1] * len(shape)
+
         strides[0] = obj.stride()[-1]
+
+        print("strides", strides)
+        print("obj.element_size()", obj.element_size(), "obj.stride()", obj.stride())
+
         offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
+
+        print("offsets", offsets)
 
         # chain the types based on the
         for i in range(len(shape) - 1, -1, -1):
             mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
+            print("iteration", i, "mpi_type", mpi_type, "shape[i]", shape[i], "strides[i]", strides[i], "offsets[i]", offsets[i])
             mpi_type.Commit()
 
         if counts is not None:
@@ -217,8 +236,12 @@ class MPICommunication(Communication):
         """
         # in case of GPUs, the memory has to be copied to host memory if CUDA-aware MPI is not supported
         pointer = obj.data_ptr() if CUDA_AWARE_MPI else obj.cpu().data_ptr()
+        print("obj.cpu().data_ptr()", obj.cpu().data_ptr())
+        print("pointer", pointer)
         pointer += obj.storage_offset()
-
+        print("obj.storage_offset()", obj.storage_offset())
+        print("pointer", pointer)
+        print("MPI.memory.fromaddress(pointer, 0)", MPI.memory.fromaddress(pointer, 0))
         return MPI.memory.fromaddress(pointer, 0)
 
     @classmethod
@@ -241,6 +264,9 @@ class MPICommunication(Communication):
             The buffer information of the passed tensor, ready to be passed as MPI send or receive buffer.
         """
         mpi_type, elements = cls.mpi_type_and_elements_of(obj, counts, displs)
+
+        print("mpi_type", mpi_type)
+        print("elements", elements)
 
         return [cls.as_mpi_memory(obj), elements, mpi_type]
 
@@ -404,16 +430,31 @@ class MPICommunication(Communication):
 
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
+        print("original_recvbuf", original_recvbuf)
 
         # permute the send_axis order so that the split send_axis is the first to be transmitted
         send_axis_permutation = list(range(recvbuf.ndimension()))
+
+        print("list(range(recvbuf.ndimension()))", list(range(sendbuf.ndimension())))
+
         send_axis_permutation[0], send_axis_permutation[send_axis] = send_axis, 0
-        if self.rank == kwargs.get('root', -1) or send_counts is not None:
+
+        print("send_axis_permutation", send_axis_permutation)
+
+        if self.rank == kwargs.get('root', -1) or send_counts is not None or recv_axis != 0:
+            print("permuting sendbuf")
             sendbuf = sendbuf.permute(*send_axis_permutation)
+
+        print("sendbuf", sendbuf)
 
         recv_axis_permutation = list(range(recvbuf.ndimension()))
         recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
+
+        print("recv_axis_permutation", recv_axis_permutation)
+
         recvbuf = recvbuf.permute(*recv_axis_permutation)
+
+        print("recvbuf", recvbuf)
 
         # prepare buffer objects
         if sendbuf is not MPI.IN_PLACE:
@@ -431,8 +472,12 @@ class MPICommunication(Communication):
 
         # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
         if recv_axis != 0:
+            print("recvbuf", recvbuf)
             recvbuf = recvbuf.permute(*recv_axis_permutation)
+            print("recvbuf after permuting", recvbuf)
+            print("recvbuf.storage()", recvbuf.storage(), "recvbuf.storage_offset()", recvbuf.storage_offset(), "recvbuf.shape", recvbuf.shape, "recvbuf.stride()", recvbuf.stride())
             original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
+            print("original_recvbuf", original_recvbuf)
 
         return exit_code
 

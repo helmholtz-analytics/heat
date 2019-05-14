@@ -385,7 +385,8 @@ class TestStatistics(unittest.TestCase):
         # TODO: Allgatherv with matrix that is split along axis 1 weirdly transposes the result
 
         res = ht.unique(t_split_one, sorted=False, axis=0)
-        # self.assertTrue(torch.equal(res, exp_axis_zero))
+        self.assertTrue(torch.equal(res, exp_axis_zero))
 
         res = ht.unique(t_split_one, sorted=True, axis=1)
-        # self.assertTrue(torch.equal(res, exp_axis_one))
+        self.assertTrue(torch.equal(res, exp_axis_one))
+

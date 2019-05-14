@@ -330,7 +330,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         displs = tuple([0] + uniques_buf.cumsum(0).tolist()[:-1])
         gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
 
-        a.comm.Allgatherv(lres, (gres_buf, counts, displs,), recv_axis=axis)
+        a.comm.Allgatherv(lres, (gres_buf, counts, displs,), axis=1, recv_axis=axis)
 
         return torch.unique(gres_buf, sorted=sorted, return_inverse=return_inverse, dim=axis)
 
@@ -370,7 +370,8 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
 
     counts = tuple(counts_buf.tolist())
     displs = tuple([0] + counts_buf.cumsum(dim=0).tolist())[:-1]
+    print("lres", lres)
 
-    a.comm.Allgatherv(lres, (result_buf, counts, displs), recv_axis=a.split)
+    a.comm.Allgatherv(lres, (result_buf, counts, displs), axis=1, recv_axis=a.split)
 
     return result_buf
