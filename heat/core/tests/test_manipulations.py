@@ -174,8 +174,8 @@ class TestManipulations(unittest.TestCase):
         # TODO: the following works locally but not when distributed,
         #self.assertEqual(result.dtype, ht.float32)
         #self.assertEqual(result._DNDarray__array.dtype, torch.float32)
-        self.assertEqual(result.shape, (1, ht.MPI_WORLD.size * 4, 5))
-        self.assertEqual(result.lshape, (1, ht.MPI_WORLD.size * 4, 5))
+        self.assertEqual(result.shape, (1, 4, 5))
+        self.assertEqual(result.lshape, (1, 4, 5))
         self.assertEqual(result.split, 1)
 
         # 3D split tensor, across the axis
