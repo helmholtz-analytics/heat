@@ -910,7 +910,7 @@ class DNDarray:
         >>> y.shape
         (2, 1)
         """
-        return manipulation.expand_dims(self, axis)
+        return manipulations.expand_dims(self, axis)
 
     def __float__(self):
         """
