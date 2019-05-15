@@ -412,6 +412,18 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.min(ht_array, axis=-4)
 
+    def test_std(self):
+        # test raises
+        x = ht.zeros((2, 3, 4))
+        with self.assertRaises(TypeError):
+            ht.std(x, axis=0, bessel=1)
+        with self.assertRaises(ValueError):
+            ht.std(x, axis=10)
+        with self.assertRaises(TypeError):
+            ht.std(x, axis='01')
+
+        # the rest of the tests are covered by var
+
     def test_var(self):
         array_0_len = 14
         array_1_len = 14
@@ -461,15 +473,3 @@ class TestStatistics(unittest.TestCase):
         for sp in [None, 0, 1]:
             iris = ht.load_hdf5('heat/datasets/data/iris.h5', 'data', split=sp)
             self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))
-
-    def test_std(self):
-        # test raises
-        x = ht.zeros((2, 3, 4))
-        with self.assertRaises(TypeError):
-            ht.std(x, axis=0, bessel=1)
-        with self.assertRaises(ValueError):
-            ht.std(x, axis=10)
-        with self.assertRaises(TypeError):
-            ht.std(x, axis='01')
-
-        # the rest of the tests are covered by var
