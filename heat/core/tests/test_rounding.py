@@ -77,7 +77,7 @@ class TestRounding(unittest.TestCase):
         clipped = int64_tensor.clip(4, 16)
         self.assertIsInstance(clipped, ht.DNDarray)
         self.assertEqual(clipped.dtype, ht.int64)
-        self.assertEqual(clipped.sum(axis=0), 195)
+        self.assertEqual(clipped.sum(axis=0), 194)
 
         # test the exceptions
         with self.assertRaises(TypeError):

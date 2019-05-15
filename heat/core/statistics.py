@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import warnings
 
 from .communication import MPI
 from . import exponential
@@ -24,7 +25,7 @@ def argmax(x, axis=None, out=None, **kwargs):
     """
     Returns the indices of the maximum values along an axis.
 
-    Parameters:
+    Parameters
     ----------
     x : ht.DNDarray
         Input array.
@@ -33,12 +34,12 @@ def argmax(x, axis=None, out=None, **kwargs):
     out : ht.DNDarray, optional.
         If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
-    Returns:
+    Returns
     -------
     index_tensor : ht.DNDarray of ints
         Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
 
-    Examples:
+    Examples
     --------
     >>> import heat as ht
     >>> import torch
@@ -117,7 +118,7 @@ def argmin(x, axis=None, out=None, **kwargs):
     """
     Returns the indices of the minimum values along an axis.
 
-    Parameters:
+    Parameters
     ----------
     x : ht.DNDarray
         Input array.
@@ -126,12 +127,12 @@ def argmin(x, axis=None, out=None, **kwargs):
     # out : ht.DNDarray, optional. Issue #100
         If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
-    Returns:
+    Returns
     -------
     index_tensor : ht.DNDarray of ints
         Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
 
-    Examples:
+    Examples
     --------
     >>> import heat as ht
     >>> import torch
@@ -223,6 +224,11 @@ def max(x, axis=None, out=None, keepdim=None):
         Tuple of two output tensors (max, max_indices). Must be of the same shape and buffer length as the expected
         output. The minimum value of an output element. Must be present to allow computation on empty slice.
 
+    Returns
+    -------
+    maximums : ht.DNDarray
+        The maximum along a given axis.
+
     Examples
     --------
     >>> a = ht.float32([
@@ -257,11 +263,15 @@ def mean(x, axis=None):
 
     Parameters
     ----------
-    x : ht.tensor
-        Values for which the mean is calculated for
-    axis : None, Int, iterable
-        axis which the mean is taken in.
-        Default: None -> mean of all data calculated
+    x : ht.DNDarray
+        Values for which the mean is calculated for.
+    axis : None, Int, iterable, defaults to None
+        Axis which the mean is taken in. Default None calculates mean of all data items.
+
+    Returns
+    -------
+    means : ht.DNDarray
+        The mean/s, if split, then split in the same direction as x.
 
     Examples
     --------
@@ -290,25 +300,23 @@ def mean(x, axis=None):
             [ 2.0528, -0.1121, -0.8847,  0.8214]])
     >>> ht.mean(a, (0,1))
     tensor(0.4730)
-
-    Returns
-    -------
-    ht.tensor containing the mean/s, if split, then split in the same direction as x.
     """
+
     def reduce_means_elementwise(output_shape_i):
         """
         Function to combine the calculated means together.
         This does an element-wise update of the calculated means to merge them together using the merge_means function.
-        This function operates using x from the mean function paramters
+        This function operates using x from the mean function paramters.
 
         Parameters
         ----------
         output_shape_i : iterable
-            iterable with the dimensions of the output of the mean function
+            Iterable with the dimensions of the output of the mean function.
 
         Returns
         -------
-        ht.tensor of the calculated means
+        means : ht.DNDarray
+            The calculated means.
         """
         if x.lshape[x.split] != 0:
             mu = operations.__local_op(torch.mean, x, out=None, dim=axis)
@@ -451,71 +459,74 @@ def mean(x, axis=None):
                 return dndarray.DNDarray(torch.mean(x._DNDarray__array, dim=axis), tuple(output_shape), x.dtype,
                                          x.split if x.split < len(output_shape) else len(output_shape) - 1, x.device, x.comm)
         else:
-            raise TypeError("axis (axis) must be an int or a list, ht.tensor, torch.Tensor, or tuple, currently is {}".format(type(axis)))
+            raise TypeError('axis (axis) must be an int or a list, ht.DNDarray, torch.Tensor, or tuple, but was {}'.format(type(axis)))
 
 
 def merge_means(mu1, n1, mu2, n2):
     """
-    Function to merge two means by pairwise update
+    Function to merge two means by pairwise update.
 
     Parameters
     ----------
-    mu1 : 1D ht.tensor or 1D torch.tensor
+    mu1 : 1D ht.DNDarray or 1D torch.tensor
         Calculated mean
-    n1 : 1D ht.tensor or 1D torch.tensor
+    n1 : 1D ht.DNDarray or 1D torch.tensor
         number of elements used to calculate mu1
-    mu2 : 1D ht.tensor or 1D torch.tensor
+    mu2 : 1D ht.DNDarray or 1D torch.tensor
         Calculated mean
-    n2 : 1D ht.tensor or 1D torch.tensor
+    n2 : 1D ht.DNDarray or 1D torch.tensor
         number of elements used to calculate mu2
 
     Returns
     -------
-    mean of combined set
-    number of elements in the combined set
+    combined_set_count : int
+        Number of elements in the combined set.
 
     References
     ----------
-    [1] J. Bennett, R. Grout, P. Pebay, D. Roe, D. Thompson, Numerically stable, single-pass, parallel statistics algorithms,
-        IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA, USA.
+    [1] J. Bennett, R. Grout, P. Pebay, D. Roe, D. Thompson, Numerically stable, single-pass, parallel statistics
+        algorithms, IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA,
+        USA.
     """
     delta = mu2.item() - mu1.item()
     n1 = n1.item()
     n2 = n2.item()
+
     return mu1 + n2 * (delta / (n1 + n2)), n1 + n2
 
 
 def merge_vars(var1, mu1, n1, var2, mu2, n2, bessel=True):
     """
-    Function to merge two variances by pairwise update
+    Function to merge two variances by pairwise update.
     **Note** this is a parallel of the merge_means function
 
     Parameters
     ----------
-    var1 : 1D ht.tensor or 1D torch.tensor
-        variance
-    mu1 : 1D ht.tensor or 1D torch.tensor
-        Calculated mean
-    n1 : 1D ht.tensor or 1D torch.tensor
-        number of elements used to calculate mu1
-    var2 : 1D ht.tensor or 1D torch.tensor
-        variance
-    mu2 : 1D ht.tensor or 1D torch.tensor
-        Calculated mean
-    n2 : 1D ht.tensor or 1D torch.tensor
-        number of elements used to calculate mu2
-    bessel : Bool
-        flag for the use of the bessel correction
+    var1 : 1D ht.DNDarray or 1D torch.tensor
+        Variance.
+    mu1 : 1D ht.DNDarray or 1D torch.tensor
+        Calculated mean.
+    n1 : 1D ht.DNDarray or 1D torch.tensor
+        Number of elements used to calculate mu1.
+    var2 : 1D ht.DNDarray or 1D torch.tensor
+        Variance.
+    mu2 : 1D ht.DNDarray or 1D torch.tensor
+        Calculated mean.
+    n2 : 1D ht.DNDarray or 1D torch.tensor
+        Number of elements used to calculate mu2.
+    bessel : bool
+        Flag for the use of the bessel correction
 
     Returns
     -------
-    mean of combined set
-    number of elements in the combined set
+    combined_set_count : int
+        Number of elements in the combined set.
 
     References
     ----------
-    [1] J. Bennett, R. Grout, P. Pebay, D. Roe, D. Thompson, Numerically stable, single-pass, parallel statistics algorithms,
-        IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA, USA.
+    [1] J. Bennett, R. Grout, P. Pebay, D. Roe, D. Thompson, Numerically stable, single-pass, parallel statistics
+        algorithms, IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA,
+        USA.
     """
     n1 = n1.item()
     n2 = n2.item()
@@ -542,7 +553,12 @@ def min(x, axis=None, out=None, keepdim=None):
         instead of a single axis or all the axes as before.
     out : ht.DNDarray, optional
         Tuple of two output tensors (min, min_indices). Must be of the same shape and buffer length as the expected
-        output.The maximum value of an output element. Must be present to allow computation on empty slice.
+        output. The maximum value of an output element. Must be present to allow computation on empty slice.
+
+    Returns
+    -------
+    minimums : ht.DNDarray
+        The minimums along a given axis.
 
     Examples
     --------
@@ -610,21 +626,23 @@ MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 def std(x, axis=None, bessel=True):
     """
-    Calculates and returns the standard deviation of a tensor with the bessel correction
+    Calculates and returns the standard deviation of a tensor with the bessel correction.
     If a axis is given, the variance will be taken in that direction.
 
     Parameters
     ----------
-    x : ht.tensor
-        Values for which the std is calculated for
-    axis : None, Int
-        axis which the mean is taken in.
-        Default: None -> std of all data calculated
-        NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
-    bessel : Bool
-        Default: True
-        use the bessel correction when calculating the varaince/std
-        toggle between unbiased and biased calculation of the std
+    x : ht.DNDarray
+        Values for which the std is calculated for.
+    axis : None, int, defaults to None
+        Axis which the mean is taken in. Default None calculates the standard deviation of all data items.
+    bessel : bool, defaults to True
+        Use the bessel correction when calculating the variance/std. Toggles between unbiased and biased calculation of
+        the standard deviation.
+
+    Returns
+    -------
+    stds : ht.DNDarray
+        The std/s, if split, then split in the same direction as x.
 
     Examples
     --------
@@ -645,10 +663,6 @@ def std(x, axis=None, bessel=True):
     tensor([1.1405, 0.7236, 0.3506, 0.4324])
     >>> ht.std(a, 1, bessel=False)
     tensor([0.9877, 0.6267, 0.3037, 0.3745])
-
-    Returns
-    -------
-    ht.tensor containing the std/s, if split, then split in the same direction as x.
     """
     if not axis:
         return np.sqrt(var(x, axis, bessel))
@@ -658,21 +672,22 @@ def std(x, axis=None, bessel=True):
 
 def var(x, axis=None, bessel=True):
     """
-    Calculates and returns the variance of a tensor.
-    If a axis is given, the variance will be taken in that direction.
+    Calculates and returns the variance of a tensor. If an axis is given, the variance will be taken in that direction.
 
     Parameters
     ----------
-    x : ht.tensor
-        Values for which the variance is calculated for
-    axis : None, Int
-        axis which the variance is taken in.
-        Default: None -> var of all data calculated
-        NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
-    bessel : Bool
-        Default: True
-        use the bessel correction when calculating the varaince/std
-        toggle between unbiased and biased calculation of the std
+    x : ht.DNDarray
+        Values for which the variance is calculated for.
+    axis : None, int, defaults to None
+        Axis which the variance is taken in. Default None calculates the variance of all data items.
+    bessel : bool, defaults to True
+        Use the bessel correction when calculating the variance/std. Toggles between unbiased and biased calculation of
+        the variance.
+
+    Returns
+    -------
+    variances : ht.DNDarray
+        The var/s, if split, then split in the same direction as x.
 
     Examples
     --------
@@ -696,28 +711,25 @@ def var(x, axis=None, bessel=True):
     tensor([1.3624, 3.2563, 0.1447, 1.2042])
     >>> ht.var(a, 0, bessel=False)
     tensor([1.0218, 2.4422, 0.1085, 0.9032])
-
-    Returns
-    -------
-    ht.tensor containing the var/s, if split, then split in the same direction as x.
     """
     if not isinstance(bessel, bool):
-        raise TypeError("bessel must be a boolean, currently is {}".format(type(bessel)))
+        raise TypeError('bessel must be a boolean, currently is {}'.format(type(bessel)))
 
     def reduce_vars_elementwise(output_shape_i):
         """
-        Function to combine the calculated vars together.
-        This does an element-wise update of the calculated vars to merge them together using the merge_vars function.
-        This function operates using x from the var function paramters
+        Function to combine the calculated vars together. This does an element-wise update of the calculated vars to
+        merge them together using the merge_vars function. This function operates using x from the var function
+        parameters.
 
         Parameters
         ----------
         output_shape_i : iterable
-                         iterable with the dimensions of the output of the var function
+            Iterable with the dimensions of the output of the var function.
 
         Returns
         -------
-        ht.tensor of the calculated vars
+        variances : ht.DNDarray
+            The calculated variances.
         """
 
         if x.lshape[x.split] != 0:
@@ -785,6 +797,8 @@ def var(x, axis=None, bessel=True):
             if x.lshape[x.split] != 0:
                 mu_in = operations.__local_op(torch.mean, x, out=None)
                 var_in = operations.__local_op(torch.var, x, out=None, unbiased=bessel)
+                if torch.isnan(var_in._DNDarray__array):
+                    var_in = 0.0
             else:
                 mu_in = 0
                 var_in = 0
@@ -850,4 +864,4 @@ def var(x, axis=None, bessel=True):
                 return dndarray.DNDarray(lcl, tuple(output_shape), x.dtype, x.split if x.split < len(output_shape) else len(output_shape) - 1,
                                          x.device, x.comm)
         else:
-            raise TypeError("Axis (axis) must be an int, currently is {}. Check if multidim var is available in pyTorch".format(type(axis)))
+            raise TypeError('axis (axis) must be an int, currently is {}. Check if multidim var is available in PyTorch'.format(type(axis)))

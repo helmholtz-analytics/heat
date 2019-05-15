@@ -481,6 +481,47 @@ class DNDarray:
 
         return self
 
+    def __bool__(self):
+        """
+        Boolean scalar casting.
+
+        Returns
+        -------
+        casted : bool
+            The corresponding bool scalar value
+        """
+        return self.__cast(bool)
+
+    def __cast(self, cast_function):
+        """
+        Implements a generic cast function for HeAT DNDarray objects.
+
+        Parameters
+        ----------
+        cast_function : function
+            The actual cast function, e.g. 'float' or 'int'
+
+        Raises
+        ------
+        TypeError
+            If the DNDarray object cannot be converted into a scalar.
+
+        Returns
+        -------
+        casted : scalar
+            The corresponding casted scalar value
+        """
+        if np.prod(self.shape) == 1:
+            if self.split is None:
+                return cast_function(self.__array)
+
+            is_empty = np.prod(self.__array.shape) == 0
+            root = self.comm.allreduce(0 if is_empty else self.comm.rank, op=MPI.SUM)
+
+            return self.comm.bcast(None if is_empty else cast_function(self.__array), root=root)
+
+        raise TypeError('only size-1 arrays can be converted to Python scalars')
+
     def ceil(self, out=None):
         """
         Return the ceil of the input, element-wise.
@@ -533,6 +574,17 @@ class DNDarray:
             a_max with a_max.
         """
         return rounding.clip(self, a_min, a_max, out)
+
+    def __complex__(self):
+        """
+        Complex scalar casting.
+
+        Returns
+        -------
+        casted : complex
+            The corresponding complex scalar value
+        """
+        return self.__cast(complex)
 
     def copy(self):
         """
@@ -644,7 +696,7 @@ class DNDarray:
 
         Parameters
         ----------
-        x : ht.tensor
+        x : ht.DNDarray
             Values for which the mean is calculated for
         axis : None, Int, iterable
             axis which the mean is taken in.
@@ -680,7 +732,7 @@ class DNDarray:
 
         Returns
         -------
-        ht.tensor containing the mean/s, if split, then split in the same direction as x.
+        ht.DNDarray containing the mean/s, if split, then split in the same direction as x.
         """
         return statistics.mean(self, axis)
 
@@ -691,7 +743,7 @@ class DNDarray:
 
         Parameters
         ----------
-        x : ht.tensor
+        x : ht.DNDarray
             Values for which the variance is calculated for
         axis : None, Int
             axis which the variance is taken in.
@@ -727,7 +779,7 @@ class DNDarray:
 
         Returns
         -------
-        ht.tensor containing the var/s, if split, then split in the same direction as x.
+        ht.DNDarray containing the var/s, if split, then split in the same direction as x.
         """
         return statistics.var(self, axis, bessel=bessel)
 
@@ -738,7 +790,7 @@ class DNDarray:
 
         Parameters
         ----------
-        x : ht.tensor
+        x : ht.DNDarray
             Values for which the std is calculated for
         axis : None, Int
             axis which the mean is taken in.
@@ -771,7 +823,7 @@ class DNDarray:
 
         Returns
         -------
-        ht.tensor containing the std/s, if split, then split in the same direction as x.
+        ht.DNDarray containing the std/s, if split, then split in the same direction as x.
         """
         return statistics.std(self, axis, bessel=bessel)
 
@@ -835,6 +887,17 @@ class DNDarray:
             self.device,
             self.comm
         )
+
+    def __float__(self):
+        """
+        Float scalar casting.
+
+        Returns
+        -------
+        casted : float
+            The corresponding float scalar value
+        """
+        return self.__cast(float)
 
     def floor(self, out=None):
         """
@@ -1115,6 +1178,17 @@ class DNDarray:
 
         """
         return relational.gt(self, other)
+
+    def __int__(self):
+        """
+        Integer scalar casting.
+
+        Returns
+        -------
+        casted : int
+            The corresponding float scalar value
+        """
+        return self.__cast(int)
 
     def is_distributed(self):
         """
@@ -1665,7 +1739,8 @@ class DNDarray:
                 if isinstance(key[self.split], slice):
                     key = list(key)
                     overlap = list(set(range(key[self.split].start if key[self.split].start is not None else 0,
-                                             key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split]))
+                                             key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split],
+                                             key[self.split].step if key[self.split].step is not None else 1))
                                    & set(range(chunk_start, chunk_end)))
 
                     if overlap:
