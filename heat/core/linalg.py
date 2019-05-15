@@ -163,31 +163,55 @@ def matmul(a, b, out=None, out_split=None):
         # need to make the blocking a bit more intelligent,
         # the sizes are fine but the locations of them need to be chosen
         # the blocks are shifted in the 2nd dimension of A for as many remainders there are between the blocks in the first dim of B
-        a_block_map = torch.zeros((int(a.gshape[-2] // mB), int(a.gshape[-1] // kB), 2))
-        # process, 0th dim start of blocks, 1st dim start of blocks
+        # a_block_map = torch.zeros((int(a.gshape[-2] // mB), int(a.gshape[-1] // kB), 2))
+
+        a_block_map = {}
+        for pr in range(a.comm.size):
+            start0 = int(index_map[pr, 0, 0, 0].item())
+            stop0 = int(index_map[pr, 0, 0, 1].item())
+            start1 = int(index_map[pr, 0, 1, 0].item())
+            stop1 = int(index_map[pr, 0, 1, 1].item())
+            a_block_map[pr] = torch.zeros(((stop0 - start0) // mB, (stop1 - start1) // kB, 2))
+
+            for dim0 in range((stop0 - start0) // mB):
+                # loop over the number of blocks in the 0th dimension
+                for dim1 in range((stop1 - start1) // kB):
+                    # loop over the number of blocks in the 1st dimension
+                    a_block_map[pr][dim0, dim1] = torch.tensor((dim0 * mB + start0, dim1 * kB + start1), dtype=torch.int)
+
+            cnt = 0
+            for r in rem_map[:, 1, 0]:
+                if r.item():
+                    cnt += 1
+                    a_block_map[pr][:, cnt, 1] += cnt
+
+
+        # a_block_map = torch.zeros((a.comm.size, int(a.gshape[-2] // mB) * int(a.gshape[-1] // kB), 2))
+        # process, # blocks in 0th dir, 3 blocks 1st dir, 0th dim start of blocks, 1st dim start of blocks
         # a_block_map has the *LOCAL* indices
         # TODO: test this with multiple blocks in the 0th dimension
         # TODO: make this work for both with split 1
 
-        for proc, zth in enumerate(index_map[:, 0, :]):
-            bk = 0
-            if zth[1, 1] >= kB * 2:  # if there are multiple blocks in the 1th direction
-                for cnt in range(int((zth[1, 1].item() - zth[1, 0].item()) // kB)):
-                    a_block_map[proc, cnt, 1] = kB * cnt
-            if zth[0, 1] >= mB * 2:  # if there are multiple blocks in the 0th direction
-                for cnt in range(int((zth[0, 1].item() - zth[0, 0].item()) // mB)):
-                    a_block_map[proc, :, 0] = mB * cnt
-
-        cnt = 0
-        for pr in rem_map[:, 1, :]:
-            if pr[0].item():
-                cnt += 1
-                a_block_map[:, cnt, 1] += cnt
-        a_block_map = a_block_map.int()
+        # for proc, zth in enumerate(index_map[:, 0, :]):
+        #     bk = 0
+        #     if zth[1, 1] >= kB * 2:  # if there are multiple blocks in the 1th direction
+        #         for cnt in range(int((zth[1, 1].item() - zth[1, 0].item()) // kB)):
+        #             a_block_map[proc, cnt, 1] = kB * cnt
+        #     if zth[0, 1] >= mB * 2:  # if there are multiple blocks in the 0th direction
+        #         for cnt in range(int((zth[0, 1].item() - zth[0, 0].item()) // mB)):
+        #             a_block_map[proc, :, 0] = mB * cnt
+        #
+        # cnt = 0
+        # for pr in rem_map[:, 1, :]:
+        #     if pr[0].item():
+        #         cnt += 1
+        #         a_block_map[:, cnt, 1] += cnt
+        # a_block_map = a_block_map.int()
+        print(a_block_map)
         # time for communication and on-process communication
-        if a.comm.rank == 1:
-            start, stop = a_block_map[1, 2]
-            print(a.lloc[start:start + mB, stop:stop + kB])
+        # if a.comm.rank == 1:
+            # start, stop = a_block_map[1, 2]
+            # print(a.lloc[start:start + mB, stop:stop + kB])
 
 ########################################################################################################################################################
 
