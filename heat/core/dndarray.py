@@ -307,13 +307,10 @@ class DNDarray:
         -----------
         other : ht.DNDarray
             Input tensor to compare to
-
         atol: float, optional
-            Absolute tolerance. Default is 1e-08
-
+            Absolute tolerance. Defaults to 1e-08
         rtol: float, optional
-            Relative tolerance (with respect to y). Default is 1e-05
-
+            Relative tolerance (with respect to y). Defaults to 1e-05
         equal_nan: bool, optional
             Whether to compare NaN’s as equal. If True, NaN’s in a will be considered equal to NaN’s in b in the output array.
 
@@ -874,19 +871,46 @@ class DNDarray:
         return exponential.exp2(self, out)
 
     def expand_dims(self, axis):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: fix negative axis
-        return DNDarray(
-            self.__array.unsqueeze(dim=axis),
-            self.shape[:axis] + (1,) + self.shape[axis:],
-            self.dtype,
-            self.split if self.split is None or self.split < axis else self.split + 1,
-            self.device,
-            self.comm
-        )
+        """
+        Expand the shape of an array.
+
+        Insert a new axis that will appear at the axis position in the expanded array shape.
+
+        Parameters
+        ----------
+        axis : int
+            Position in the expanded axes where the new axis is placed.
+
+        Returns
+        -------
+        res : ht.DNDarray
+            Output array. The number of dimensions is one greater than that of the input array.
+
+        Raises
+        ------
+        ValueError
+            If the axis is not in range of the axes.
+
+        Examples
+        --------
+        >>> x = ht.array([1,2])
+        >>> x.shape
+        (2,)
+
+        >>> y = ht.expand_dims(x, axis=0)
+        >>> y
+        array([[1, 2]])
+        >>> y.shape
+        (1, 2)
+
+        y = ht.expand_dims(x, axis=1)
+        >>> y
+        array([[1],
+               [2]])
+        >>> y.shape
+        (2, 1)
+        """
+        return manipulation.expand_dims(self, axis)
 
     def __float__(self):
         """
@@ -924,6 +948,24 @@ class DNDarray:
         tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
         """
         return rounding.floor(self, out)
+
+    def fabs(self, out=None):
+        """
+        Calculate the absolute value element-wise and return floating-point tensor.
+        This function exists besides abs==absolute since it will be needed in case complex numbers will be introduced in the future.
+
+        Parameters
+        ----------
+        out : ht.tensor, optional
+            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+            If not provided or None, a freshly-allocated array is returned.
+
+        Returns
+        -------
+        absolute_values : ht.tensor
+            A tensor containing the absolute value of each element in x.
+        """
+        return rounding.fabs(self, out)
 
     def __ge__(self, other):
         """
@@ -2010,14 +2052,6 @@ class DNDarray:
     def tanh(self, out=None):
         """
         Return the hyperbolic tangent, element-wise.
-
-        Parameters
-        ----------
-        x : ht.DNDarray
-            The value for which to compute the hyperbolic tangent.
-        out : ht.DNDarray or None, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to None, a fresh tensor is allocated.
 
         Returns
         -------
