@@ -1,5 +1,7 @@
 import unittest
 
+import torch
+
 import heat as ht
 
 
@@ -120,3 +122,14 @@ class TestManipulation(unittest.TestCase):
             ht.empty((3, 4, 5,)).expand_dims(4)
         with self.assertRaises(ValueError):
             ht.empty((3, 4, 5,)).expand_dims(-5)
+
+    def test_sort(self):
+        data = ht.array([[1, 5, 1, 4, 2, 8, 1, 4, 7], [6, 3, 4, 1, 4, 6, 2, 9, 4]], dtype=ht.int32, split=1)
+        print("rank", data.comm.Get_rank())
+        print("data", data)
+        sorted = ht.sort(data, axis=1, descending=False)
+        print("sorted", sorted)
+
+        expected = torch.tensor([[1, 1, 5], [3, 4, 6]], dtype=torch.int32)
+
+        self.fail()
