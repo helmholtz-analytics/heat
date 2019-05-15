@@ -37,7 +37,7 @@ class TestExponential(unittest.TestCase):
 
         # exponential of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(elements, dtype=ht.int64)
-        int64_exp = ht.exp(int64_tensor)
+        int64_exp = int64_tensor.exp()
         self.assertIsInstance(int64_exp, ht.DNDarray)
         self.assertEqual(int64_exp.dtype, ht.float64)
         self.assertEqual(int64_exp.dtype, ht.float64)
@@ -80,7 +80,7 @@ class TestExponential(unittest.TestCase):
 
         # exponential of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(elements, dtype=ht.int64)
-        int64_exp2 = ht.exp2(int64_tensor)
+        int64_exp2 = int64_tensor.exp2()
         self.assertIsInstance(int64_exp2, ht.DNDarray)
         self.assertEqual(int64_exp2.dtype, ht.float64)
         self.assertEqual(int64_exp2.dtype, ht.float64)
@@ -93,49 +93,6 @@ class TestExponential(unittest.TestCase):
             ht.exp2('hello world')
 
     def test_log(self):
-        elements = 15
-        tmp = torch.arange(1, elements, dtype=torch.float64).log2()
-        comparison = ht.array(tmp)
-
-        # logarithm of float32
-        float32_tensor = ht.arange(1, elements, dtype=ht.float32)
-        float32_log2 = ht.log2(float32_tensor)
-        self.assertIsInstance(float32_log2, ht.DNDarray)
-        self.assertEqual(float32_log2.dtype, ht.float32)
-        self.assertEqual(float32_log2.dtype, ht.float32)
-        self.assertTrue(ht.allclose(float32_log2, comparison.astype(ht.float32)))
-
-        # logarithm of float64
-        float64_tensor = ht.arange(1, elements, dtype=ht.float64)
-        float64_log2 = ht.log2(float64_tensor)
-        self.assertIsInstance(float64_log2, ht.DNDarray)
-        self.assertEqual(float64_log2.dtype, ht.float64)
-        self.assertEqual(float64_log2.dtype, ht.float64)
-        self.assertTrue(ht.allclose(float64_log2, comparison))
-
-        # logarithm of ints, automatic conversion to intermediate floats
-        int32_tensor = ht.arange(1, elements, dtype=ht.int32)
-        int32_log2 = ht.log2(int32_tensor)
-        self.assertIsInstance(int32_log2, ht.DNDarray)
-        self.assertEqual(int32_log2.dtype, ht.float64)
-        self.assertEqual(int32_log2.dtype, ht.float64)
-        self.assertTrue(ht.allclose(int32_log2, comparison))
-
-        # log2arithm of longs, automatic conversion to intermediate floats
-        int64_tensor = ht.arange(1, elements, dtype=ht.int64)
-        int64_log2 = ht.log2(int64_tensor)
-        self.assertIsInstance(int64_log2, ht.DNDarray)
-        self.assertEqual(int64_log2.dtype, ht.float64)
-        self.assertEqual(int64_log2.dtype, ht.float64)
-        self.assertTrue(ht.allclose(int64_log2, comparison))
-
-        # check exceptions
-        with self.assertRaises(TypeError):
-            ht.log2([1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.log2('hello world')
-
-    def test_log2(self):
         elements = 15
         tmp = torch.arange(1, elements, dtype=torch.float64).log()
         comparison = ht.array(tmp)
@@ -166,7 +123,7 @@ class TestExponential(unittest.TestCase):
 
         # logarithm of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(1, elements, dtype=ht.int64)
-        int64_log = ht.log(int64_tensor)
+        int64_log = int64_tensor.log()
         self.assertIsInstance(int64_log, ht.DNDarray)
         self.assertEqual(int64_log.dtype, ht.float64)
         self.assertEqual(int64_log.dtype, ht.float64)
@@ -177,6 +134,49 @@ class TestExponential(unittest.TestCase):
             ht.log([1, 2, 3])
         with self.assertRaises(TypeError):
             ht.log('hello world')
+
+    def test_log2(self):
+        elements = 15
+        tmp = torch.arange(1, elements, dtype=torch.float64).log2()
+        comparison = ht.array(tmp)
+
+        # logarithm of float32
+        float32_tensor = ht.arange(1, elements, dtype=ht.float32)
+        float32_log2 = ht.log2(float32_tensor)
+        self.assertIsInstance(float32_log2, ht.DNDarray)
+        self.assertEqual(float32_log2.dtype, ht.float32)
+        self.assertEqual(float32_log2.dtype, ht.float32)
+        self.assertTrue(ht.allclose(float32_log2, comparison.astype(ht.float32)))
+
+        # logarithm of float64
+        float64_tensor = ht.arange(1, elements, dtype=ht.float64)
+        float64_log2 = ht.log2(float64_tensor)
+        self.assertIsInstance(float64_log2, ht.DNDarray)
+        self.assertEqual(float64_log2.dtype, ht.float64)
+        self.assertEqual(float64_log2.dtype, ht.float64)
+        self.assertTrue(ht.allclose(float64_log2, comparison))
+
+        # logarithm of ints, automatic conversion to intermediate floats
+        int32_tensor = ht.arange(1, elements, dtype=ht.int32)
+        int32_log2 = ht.log2(int32_tensor)
+        self.assertIsInstance(int32_log2, ht.DNDarray)
+        self.assertEqual(int32_log2.dtype, ht.float64)
+        self.assertEqual(int32_log2.dtype, ht.float64)
+        self.assertTrue(ht.allclose(int32_log2, comparison))
+
+        # logarithm of longs, automatic conversion to intermediate floats
+        int64_tensor = ht.arange(1, elements, dtype=ht.int64)
+        int64_log2 = int64_tensor.log2()
+        self.assertIsInstance(int64_log2, ht.DNDarray)
+        self.assertEqual(int64_log2.dtype, ht.float64)
+        self.assertEqual(int64_log2.dtype, ht.float64)
+        self.assertTrue(ht.allclose(int64_log2, comparison))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.log2([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.log2('hello world')
 
     def test_log10(self):
         elements = 15
@@ -209,7 +209,7 @@ class TestExponential(unittest.TestCase):
 
         # logarithm of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(1, elements, dtype=ht.int64)
-        int64_log10 = ht.log10(int64_tensor)
+        int64_log10 = int64_tensor.log10()
         self.assertIsInstance(int64_log10, ht.DNDarray)
         self.assertEqual(int64_log10.dtype, ht.float64)
         self.assertEqual(int64_log10.dtype, ht.float64)
@@ -252,7 +252,7 @@ class TestExponential(unittest.TestCase):
 
         # square roots of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(elements, dtype=ht.int64)
-        int64_sqrt = ht.sqrt(int64_tensor)
+        int64_sqrt = int64_tensor.sqrt()
         self.assertIsInstance(int64_sqrt, ht.DNDarray)
         self.assertEqual(int64_sqrt.dtype, ht.float64)
         self.assertEqual(int64_sqrt.dtype, ht.float64)

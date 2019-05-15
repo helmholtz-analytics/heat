@@ -244,6 +244,13 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(a[10, 0], 1)
         self.assertEqual(a[10, 0].dtype, ht.float32)
 
+        a = ht.zeros((13, 5,), split=0)
+        a[10] = 1
+        b = a[10]
+        self.assertTrue((b == 1).all())
+        self.assertEqual(b.dtype, ht.float32)
+        self.assertEqual(b.gshape, (5, ))
+
         # slice in 1st dim only on 1 node
         a = ht.zeros((13, 5,), split=0)
         a[1:4] = 1
@@ -256,6 +263,18 @@ class TestDNDarray(unittest.TestCase):
                 self.assertEqual(a[1:4].lshape, (3, 5))
             else:
                 self.assertEqual(a[1:4].lshape, (0,))
+
+        a = ht.zeros((13, 5,), split=0)
+        a[1:2] = 1
+        self.assertTrue((a[1:2] == 1).all())
+        self.assertEqual(a[1:2].gshape, (1, 5))
+        self.assertEqual(a[1:2].split, 0)
+        self.assertEqual(a[1:2].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(a[1:2].lshape, (1, 5))
+            else:
+                self.assertEqual(a[1:2].lshape, (0,))
 
         # slice in 1st dim only on 1 node w/ singular second dim
         a = ht.zeros((13, 5,), split=0)
