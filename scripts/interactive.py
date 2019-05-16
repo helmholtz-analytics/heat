@@ -8,6 +8,7 @@ from mpi4py import MPI
 import code
 import sys
 
+
 class HeatInterpreter(code.InteractiveConsole):
     def __init__(self):
         super().__init__()
@@ -24,13 +25,15 @@ class HeatInterpreter(code.InteractiveConsole):
         # remove the banner on all ranks other than zero
         super().interact(banner='' if self.rank != 0 else None, exitmsg='')
 
-    def runcode(self, code):
-        super().runcode(code)
+    def push(self, line):
+        more = super().push(line)
         # run code normaly but sync up afterwards, so that the prompt appear in proper order
         MPI.COMM_WORLD.barrier()
+
+        return more
+
 
 if __name__ == '__main__':
     # bring up the "heat" interpreter
     interpreter = HeatInterpreter()
     interpreter.interact()
-
