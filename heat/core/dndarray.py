@@ -1033,8 +1033,8 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-        # if isinstance(key, DNDarray):
-        #     key = tuple(x.item() for x in key)
+        if isinstance(key, DNDarray):
+            key = tuple(x.item() for x in key)
         if not self.is_distributed():
             if not self.comm.size == 1:
                 return DNDarray(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
@@ -1082,16 +1082,6 @@ class DNDarray:
                 ints = sum([isinstance(it, int) for it in key])
                 gout = gout[:len(gout) - ints]
 
-                # reduce the dims if the slices are only one element in length
-                slices = [isinstance(k, slice) for k in key]
-                if any(slices):
-                    for s, b in enumerate(slices):
-                        if b:
-                            start = key[s].start if key[s].start is not None else 0
-                            stop = key[s].stop if key[s].stop is not None else self.gshape[s]
-                            if start == stop - 1:
-                                gout = gout[:-1]
-
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
@@ -1127,20 +1117,18 @@ class DNDarray:
                 # reduce the dims if the slices are only one element in length
                 start = key.start if key.start is not None else 0
                 stop = key.stop if key.stop is not None else self.gshape[0]
-                if start == stop - 1:
-                    gout = gout[:-1]
+                step = key.step if key.step is not None else 1
 
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
                     new_split = self.split
-
-                key_set = set(range(start, stop, key.step if key.step else 1))
+                key_set = set(range(start, stop, step))
                 overlap = list(key_set & chunk_set)
 
                 if overlap:
                     hold = [x - chunk_start for x in overlap]
-                    key = slice(min(hold), max(hold) + 1, key.step)
+                    key = slice(min(hold), max(hold) + 1, step)
                     arr = self.__array[key]
                     gout = list(arr.shape)
                 else:
@@ -1150,12 +1138,6 @@ class DNDarray:
 
             else:  # handle other cases not accounted for (one is a slice is given and the split != 0)
                 gout = [0] * len(self.gshape)
-                if isinstance(key, slice):
-                    # reduce the dims if the slices are only one element in length
-                    start = key.start if key.start is not None else 0
-                    stop = key.stop if key.stop is not None else self.gshape[0]
-                    if start == stop - 1:
-                        gout = gout[:-1]
 
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
@@ -1764,8 +1746,8 @@ class DNDarray:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
-        # if isinstance(key, DNDarray):
-        #     key = tuple(x.item() for x in key)
+        if isinstance(key, DNDarray):
+            key = tuple(x.item() for x in key)
         if not self.is_distributed():
             self.__setter(key, value)
         else:
@@ -1777,7 +1759,7 @@ class DNDarray:
                 if key in range(chunk_start, chunk_end):
                     self.__setter(key-chunk_start, value)
 
-            elif isinstance(key, (tuple, list, DNDarray, torch.Tensor)):
+            elif isinstance(key, (tuple, list, torch.Tensor)):
                 if isinstance(key[self.split], slice):
                     key = list(key)
                     overlap = list(set(range(key[self.split].start if key[self.split].start is not None else 0,

@@ -117,11 +117,13 @@ def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
     device = devices.sanitize_device(device)
     data = torch.arange(
         start, stop, step,
-        dtype=types.canonical_heat_type(dtype).torch_type(),
         device=device.torch_device
     )
 
-    return dndarray.DNDarray(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
+    htype = types.canonical_heat_type(dtype)
+    data = data.type(htype.torch_type())
+
+    return dndarray.DNDarray(data, gshape, htype, split, device, comm)
 
 
 def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device=None, comm=MPI_WORLD):

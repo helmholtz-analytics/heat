@@ -28,10 +28,10 @@ class TestRounding(unittest.TestCase):
         self.assertEqual(absolute_values.dtype, ht.float32)
         self.assertEqual(absolute_values.sum(axis=0), 100)
         # for fabs
-        self.assertEqual(int8_absolute_values_fabs.sum(axis=0), 110.5)
-        self.assertEqual(int16_absolute_values_fabs.sum(axis=0), 110.5)
-        self.assertEqual(int32_absolute_values_fabs.sum(axis=0), 110.5)
-        self.assertEqual(int64_absolute_values_fabs.sum(axis=0), 110.5)
+        self.assertEqual(int8_absolute_values_fabs.sum(axis=0), 100.)
+        self.assertEqual(int16_absolute_values_fabs.sum(axis=0), 100.)
+        self.assertEqual(int32_absolute_values_fabs.sum(axis=0), 100.)
+        self.assertEqual(int64_absolute_values_fabs.sum(axis=0), 100.)
         self.assertEqual(float32_absolute_values_fabs.sum(axis=0), 110.5)
         self.assertEqual(float64_absolute_values_fabs.sum(axis=0), 110.5)
 
@@ -45,7 +45,7 @@ class TestRounding(unittest.TestCase):
         output_tensor_fabs = ht.zeros(21, split=0)
         self.assertEqual(output_tensor_fabs.sum(axis=0), 0)
         ht.fabs(float32_tensor_fabs, out=output_tensor_fabs)
-        self.assertEqual(output_tensor_fabs.sum(axis=0), 100)
+        self.assertEqual(output_tensor_fabs.sum(axis=0), 110.5)
 
         # dtype parameter
         # for abs==absolute
