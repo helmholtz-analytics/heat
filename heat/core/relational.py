@@ -48,7 +48,22 @@ def eq(t1, t2):
     tensor([[0, 1],
             [0, 0]])
     """
-    return operations.__binary_op(torch.eq, t1, t2)
+    if np.isscalar(t1):
+        if np.isscalar(t2):
+            try:
+                tmp = factories.array(t1)
+            except (ValueError, TypeError,):
+                raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
+        else:
+            try:
+                tmp = factories.array([t1])
+            except (ValueError, TypeError,):
+                raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
+
+        result = operations.__binary_op(torch.eq, tmp, t2)
+        return result
+    else:
+        return operations.__binary_op(torch.eq, t1, t2)
 
 
 def equal(t1, t2):
@@ -80,7 +95,24 @@ def equal(t1, t2):
     >>> ht.eq(T1, 3.0)
     False
     """
-    result_tensor = operations.__binary_op(torch.equal, t1, t2)
+    if np.isscalar(t1):
+        try:
+            tmp1 = factories.array([t1])
+        except (ValueError, TypeError,):
+            raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
+    else:
+        tmp1 = t1
+    if np.isscalar(t2):
+        try:
+            tmp2 = factories.array([t2])
+        except (ValueError, TypeError,):
+            raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
+    else:
+        tmp2 = t2
+
+    result_tensor = operations.__binary_op(torch.equal, tmp1, tmp2)
+
+
     result_value = result_tensor._DNDarray__array
     if isinstance(result_value, torch.Tensor):
         result_value = True
@@ -120,7 +152,22 @@ def ge(t1, t2):
     tensor([[0, 1],
             [1, 1]], dtype=torch.uint8)
     """
-    return operations.__binary_op(torch.ge, t1, t2)
+    if np.isscalar(t1):
+        if np.isscalar(t2):
+            try:
+                tmp = factories.array(t1)
+            except (ValueError, TypeError,):
+                raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
+        else:
+            try:
+                tmp = factories.array([t1])
+            except (ValueError, TypeError,):
+                raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
+
+        result = operations.__binary_op(torch.ge, tmp, t2)
+        return result
+    else:
+        return operations.__binary_op(torch.ge, t1, t2)
 
 
 def gt(t1, t2):
@@ -156,7 +203,22 @@ def gt(t1, t2):
     tensor([[0, 0],
             [1, 1]], dtype=torch.uint8)
     """
-    return operations.__binary_op(torch.gt, t1, t2)
+    if np.isscalar(t1):
+        if np.isscalar(t2):
+            try:
+                tmp = factories.array(t1)
+            except (ValueError, TypeError,):
+                raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
+        else:
+            try:
+                tmp = factories.array([t1])
+            except (ValueError, TypeError,):
+                raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
+
+        result = operations.__binary_op(torch.gt, tmp, t2)
+        return result
+    else:
+        return operations.__binary_op(torch.gt, t1, t2)
 
 
 def le(t1, t2):
@@ -191,7 +253,22 @@ def le(t1, t2):
     tensor([[1, 1],
             [0, 0]], dtype=torch.uint8)
     """
-    return operations.__binary_op(torch.le, t1, t2)
+    if np.isscalar(t1):
+        if np.isscalar(t2):
+            try:
+                tmp = factories.array(t1)
+            except (ValueError, TypeError,):
+                raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
+        else:
+            try:
+                tmp = factories.array([t1])
+            except (ValueError, TypeError,):
+                raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
+
+        result = operations.__binary_op(torch.le, tmp, t2)
+        return result
+    else:
+        return operations.__binary_op(torch.le, t1, t2)
 
 
 def lt(t1, t2):
@@ -226,7 +303,22 @@ def lt(t1, t2):
     tensor([[1, 0],
             [0, 0]], dtype=torch.uint8)
     """
-    return operations.__binary_op(torch.lt, t1, t2)
+    if np.isscalar(t1):
+        if np.isscalar(t2):
+            try:
+                tmp = factories.array(t1)
+            except (ValueError, TypeError,):
+                raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
+        else:
+            try:
+                tmp = factories.array([t1])
+            except (ValueError, TypeError,):
+                raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
+
+        result = operations.__binary_op(torch.lt, tmp, t2)
+        return result
+    else:
+        return operations.__binary_op(torch.lt, t1, t2)
 
 
 def ne(t1, t2):
@@ -260,4 +352,19 @@ def ne(t1, t2):
     tensor([[1, 0],
             [1, 1]])
     """
-    return operations.__binary_op(torch.ne, t1, t2)
+    if np.isscalar(t1):
+        if np.isscalar(t2):
+            try:
+                tmp = factories.array(t1)
+            except (ValueError, TypeError,):
+                raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
+        else:
+            try:
+                tmp = factories.array([t1])
+            except (ValueError, TypeError,):
+                raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
+
+        result = operations.__binary_op(torch.ne, tmp, t2)
+        return result
+    else:
+        return operations.__binary_op(torch.ne, t1, t2)
