@@ -1273,6 +1273,17 @@ class DNDarray:
         """
         return relational.le(self, other)
 
+    def __len__(self):
+        """
+        The length of the DNDarray, i.e. the number of items in the first dimension.
+
+        Returns
+        -------
+        length : int
+            The number of items in the first dimension
+        """
+        return self.shape[0]
+
     def log(self, out=None):
         """
         Natural logarithm, element-wise.
