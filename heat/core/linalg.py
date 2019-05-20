@@ -97,10 +97,11 @@ def matmul(a, b, out=None, out_split=None):
 
         # get the lshape map to determine what needs to be sent where as well as M and N
         # lshape map dims -> {node, a=0, b=1, lshape}
-        lshape_map = factories.zeros((a.comm.size, 2, len(a.gshape)))
+        lshape_map = factories.zeros((a.comm.size, 2, len(a.gshape)), dtype=int)
         lshape_map[a.comm.rank, 0, :] = torch.Tensor(a.lshape)
         lshape_map[b.comm.rank, 1, :] = torch.Tensor(b.lshape)
         a.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+        # print(lshape_map)
 
         # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
         mB = lshape_map[:, 0, -2].min().item()
@@ -132,7 +133,7 @@ def matmul(a, b, out=None, out_split=None):
         # TODO: deal with the remainders...joy
 
         # index_map dims guide -> {process number, a=0/b=1, relevent 1st index, 2nd index}
-        index_map = factories.zeros((a.comm.size, 2, 2, 2))
+        index_map = factories.zeros((a.comm.size, 2, 2, 2), dtype=int)
         a_idx = a.comm.chunk(a.shape, a.split)[2]
         index_map[a.comm.rank, 0, 0] = (a_idx[0].start, a_idx[0].stop)
         index_map[a.comm.rank, 0, 1] = (a_idx[1].start, a_idx[1].stop)
@@ -163,55 +164,120 @@ def matmul(a, b, out=None, out_split=None):
         # need to make the blocking a bit more intelligent,
         # the sizes are fine but the locations of them need to be chosen
         # the blocks are shifted in the 2nd dimension of A for as many remainders there are between the blocks in the first dim of B
-        # a_block_map = torch.zeros((int(a.gshape[-2] // mB), int(a.gshape[-1] // kB), 2))
-
-        a_block_map = {}
+        a_block_map = torch.zeros((a.comm.size, a.shape[-2] // mB // a.comm.size, a.shape[-1] // kB, 2))
+        # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
         for pr in range(a.comm.size):
-            start0 = int(index_map[pr, 0, 0, 0].item())
-            stop0 = int(index_map[pr, 0, 0, 1].item())
-            start1 = int(index_map[pr, 0, 1, 0].item())
-            stop1 = int(index_map[pr, 0, 1, 1].item())
-            a_block_map[pr] = torch.zeros(((stop0 - start0) // mB, (stop1 - start1) // kB, 2))
+            start0 = index_map[pr, 0, 0, 0].item()
+            stop0 = index_map[pr, 0, 0, 1].item()
+            start1 = index_map[pr, 0, 1, 0].item()
+            stop1 = index_map[pr, 0, 1, 1].item()
+            # a_block_map[pr] = torch.zeros(((stop0 - start0) // mB, (stop1 - start1) // kB, 2))
 
             for dim0 in range((stop0 - start0) // mB):
                 # loop over the number of blocks in the 0th dimension
                 for dim1 in range((stop1 - start1) // kB):
                     # loop over the number of blocks in the 1st dimension
-                    a_block_map[pr][dim0, dim1] = torch.tensor((dim0 * mB + start0, dim1 * kB + start1), dtype=torch.int)
+                    # todo: figure out how to change this for a_split=1
+                    # todo: this doesnt work for multiple blocks in the 0th dim...
+                    a_block_map[pr, dim0, dim1] = torch.tensor((dim0 * mB, dim1 * kB), dtype=torch.int)
 
-            cnt = 0
-            for r in rem_map[:, 1, 0]:
-                if r.item():
-                    cnt += 1
-                    a_block_map[pr][:, cnt, 1] += cnt
+        cnt = 0
+        for r in rem_map[:, 1, 0]:
+            if r.item():
+                cnt += 1
+                a_block_map[:, :, cnt, 1] += cnt
 
+        b_block_map = torch.zeros((b.comm.size, b.shape[-2] // kB // b.comm.size, b.shape[-1] // nB, 2))
+        # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
+        for pr in range(b.comm.size):
+            start0 = index_map[pr, 1, 0, 0].item()
+            stop0 = index_map[pr, 1, 0, 1].item()
+            start1 = index_map[pr, 1, 1, 0].item()
+            stop1 = index_map[pr, 1, 1, 1].item()
+            # b_block_map[pr] = torch.zeros(((stop0 - start0) // kB, (stop1 - start1) // nB, 2))
 
-        # a_block_map = torch.zeros((a.comm.size, int(a.gshape[-2] // mB) * int(a.gshape[-1] // kB), 2))
-        # process, # blocks in 0th dir, 3 blocks 1st dir, 0th dim start of blocks, 1st dim start of blocks
-        # a_block_map has the *LOCAL* indices
-        # TODO: test this with multiple blocks in the 0th dimension
-        # TODO: make this work for both with split 1
+            for dim0 in range((stop0 - start0) // kB):
+                # loop over the number of blocks in the 0th dimension
+                for dim1 in range((stop1 - start1) // nB):
+                    # loop over the number of blocks in the 1st dimension
+                    # todo: figure this out for b_split=1
+                    b_block_map[pr, dim0, dim1] = torch.tensor((dim0 * kB, dim1 * nB), dtype=torch.int)
 
-        # for proc, zth in enumerate(index_map[:, 0, :]):
-        #     bk = 0
-        #     if zth[1, 1] >= kB * 2:  # if there are multiple blocks in the 1th direction
-        #         for cnt in range(int((zth[1, 1].item() - zth[1, 0].item()) // kB)):
-        #             a_block_map[proc, cnt, 1] = kB * cnt
-        #     if zth[0, 1] >= mB * 2:  # if there are multiple blocks in the 0th direction
-        #         for cnt in range(int((zth[0, 1].item() - zth[0, 0].item()) // mB)):
-        #             a_block_map[proc, :, 0] = mB * cnt
+            # TODO: need to fix this for the case that the blocks in 'b' need to be shifted (in a_split = 0 this isnt needed)
+            # cnt = 0
+            # for r in rem_map[:, 1, 0]:
+            #     if r.item():
+            #         cnt += 1
+            #         b_block_map[pr][:, cnt, 1] += cnt
+
+        # print(a_block_map[0, :])
+        # print(b_block_map[:, :, 0])
+
+        # now the block maps are done, next need to determine the passing order
+        # c_00 = a_block_map[0, :]
+        # if a.comm.rank == 0:
+        #     a_start0 = int(a_block_map[0, 0, 1, 0].item())
+        #     a_start1 = int(a_block_map[0, 0, 1, 1].item())
+        #     a_block = a._DNDarray__array[a_start0:a_start0 + mB, a_start1:a_start1 + kB]
         #
-        # cnt = 0
-        # for pr in rem_map[:, 1, :]:
-        #     if pr[0].item():
-        #         cnt += 1
-        #         a_block_map[:, cnt, 1] += cnt
-        # a_block_map = a_block_map.int()
-        print(a_block_map)
-        # time for communication and on-process communication
-        # if a.comm.rank == 1:
-            # start, stop = a_block_map[1, 2]
-            # print(a.lloc[start:start + mB, stop:stop + kB])
+        #     b_start0 = int(b_block_map[0, 0, 0, 0].item())
+        #     b_start1 = int(b_block_map[0, 0, 0, 1].item())
+        #     b_block = b._DNDarray__array[b_start0:b_start0 + kB, b_start1:b_start1 + nB]
+        #     print(a_block @ b_block)
+        ####################################################################
+
+        print(a_block_map.shape, b_block_map.shape)
+        # work loop: loop over all processes
+        # ibcast from each node
+        # Irecv from last loop
+        # do calculation (if first loop use what is only on node)
+        req = {}
+        a_lp_data = {}
+        for pr in range(a.comm.size):
+            # ibcast data on node first
+            if a.comm.rank == pr:
+                a_lp_data[pr] = a._DNDarray__array
+            else:
+                a_lp_data[pr] = torch.empty((lshape_map[pr, 0, 0].item(), lshape_map[pr, 0, 1].item()))
+
+            # sending a to all nodes for b to operate with
+            req[pr] = a.comm.Ibcast(a_lp_data[pr], root=pr)
+
+            # receie the data from the last loop
+            if pr != 0:
+                req[pr - 1].wait()
+                # after receiving the last loop's bcast
+            else:
+                # in the first loop the data on node is used instead of what was casted
+                # for the multiplication need to get the indices of the blocks for a and b
+                # below needs to be looped over for the number of blocks in c
+                # print(a_block_map[pr].shape)
+                # todo: the looping is wrong here! need to zip the middle dims C_ij = sum(over k)(a_ik @ b_kj)
+                proc0 = a.comm.rank
+                for bl_0_b in range(b_block_map[proc0].shape[0]):
+                    for bl_1_b in range(b_block_map[proc0].shape[1]):
+                        for bl_0_a in range(a_block_map[proc0].shape[0]):  # todo: this loop needs to be the loop for k
+                            for bl_1_a in range(a_block_map[proc0].shape[1]):  # loop over the number of blocks in a (dim0)
+                                a_start1 = int(a_block_map[proc0, bl_0_a, bl_1_a, 1].item())
+                                a_start0 = int(a_block_map[proc0, bl_0_a, bl_1_a, 0].item())
+                                a_block = a._DNDarray__array[a_start0:a_start0 + mB, a_start1:a_start1 + kB]
+
+                                b_start0 = int(b_block_map[proc0, bl_0_b, bl_1_b, 0].item())
+                                b_start1 = int(b_block_map[proc0, bl_0_b, bl_1_b, 1].item())
+                                b_block = b._DNDarray__array[b_start0:b_start0 + kB, b_start1:b_start1 + nB]
+
+                                c_start0 = a_start0
+                                c_start1 = b_start1
+                                print(bl_0_a, bl_1_a, bl_0_b, bl_1_b, c_start0, c_start1)
+                                # print(c.comm.rank, c_start0, c_start1, a_start1, b_start0, '\n', a_block @ b_block)
+                                c._DNDarray__array[c_start0:c_start0 + mB, c_start1:c_start1 + nB] += a_block @ b_block
+
+            # need to wait if its the last loop
+            if pr == a.comm.size - 1:
+                req[pr].wait()
+        print(c)
+
+
 
 ########################################################################################################################################################
 
