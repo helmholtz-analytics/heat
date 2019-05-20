@@ -247,30 +247,59 @@ def matmul(a, b, out=None, out_split=None):
             if pr != 0:
                 req[pr - 1].wait()
                 # after receiving the last loop's bcast
-            else:
-                # in the first loop the data on node is used instead of what was casted
-                # for the multiplication need to get the indices of the blocks for a and b
-                # below needs to be looped over for the number of blocks in c
-                # print(a_block_map[pr].shape)
-                # todo: the looping is wrong here! need to zip the middle dims C_ij = sum(over k)(a_ik @ b_kj)
-                proc0 = a.comm.rank
-                for bl_0_b in range(b_block_map[proc0].shape[0]):
-                    for bl_1_b in range(b_block_map[proc0].shape[1]):
-                        for bl_0_a in range(a_block_map[proc0].shape[0]):  # todo: this loop needs to be the loop for k
-                            for bl_1_a in range(a_block_map[proc0].shape[1]):  # loop over the number of blocks in a (dim0)
-                                a_start1 = int(a_block_map[proc0, bl_0_a, bl_1_a, 1].item())
-                                a_start0 = int(a_block_map[proc0, bl_0_a, bl_1_a, 0].item())
-                                a_block = a._DNDarray__array[a_start0:a_start0 + mB, a_start1:a_start1 + kB]
 
-                                b_start0 = int(b_block_map[proc0, bl_0_b, bl_1_b, 0].item())
-                                b_start1 = int(b_block_map[proc0, bl_0_b, bl_1_b, 1].item())
+                proc = a.comm.rank
+                shp = list(b_block_map.shape)
+                offset = (shp[0] - 1 - pr) * shp[1]  # note: this will have to change for splits = 1
+                proc_end = (shp[0] - pr) * shp[1]
+
+                for bl_1_b in range(b_block_map[proc].shape[1]):
+                    for bl_0_b in range(b_block_map[proc].shape[0]):
+                        # the above two loops are for both directions of the b-blocks
+                        for bl_1_a in range(offset, proc_end):  # this offset is where to start the multiplication
+                            for bl_0_a in range(a_block_map[pr - 1].shape[0]):  # dim0
+                                # these two loops are for looping over the relevant a-blocks
+                                # since a section of a was sent to the other procs now need to loop over the a_lp_data[pr]
+                                a_start1 = int(a_block_map[pr - 1, bl_0_a, bl_1_a, 1].item())
+                                a_start0 = int(a_block_map[pr - 1, bl_0_a, bl_1_a, 0].item())
+                                a_block = a_lp_data[pr - 1][a_start0:a_start0 + mB, a_start1:a_start1 + kB]
+
+                                b_start0 = int(b_block_map[proc, bl_0_b, bl_1_b, 0].item())
+                                b_start1 = int(b_block_map[proc, bl_0_b, bl_1_b, 1].item())
                                 b_block = b._DNDarray__array[b_start0:b_start0 + kB, b_start1:b_start1 + nB]
 
                                 c_start0 = a_start0
                                 c_start1 = b_start1
-                                print(bl_0_a, bl_1_a, bl_0_b, bl_1_b, c_start0, c_start1)
+                                c._DNDarray__array[c_start0:c_start0 + mB, c_start1:c_start1 + nB] += a_block @ b_block
+            else:
+                # in the first loop the data on node is used instead of what was casted
+                # for the multiplication need to get the indices of the blocks for a and b
+                # below needs to be looped over for the number of blocks in c
+                proc = a.comm.rank
+                shp = list(b_block_map.shape)
+                offset = (shp[0] - 1 - proc) * shp[1]  # note: this will have to change for splits = 1
+                proc_end = (shp[0] - proc) * shp[1]
+
+                for bl_1_b in range(b_block_map[proc].shape[1]):
+                    for bl_0_b in range(b_block_map[proc].shape[0]):
+                        # the above two loops are for both directions of the b-blocks
+                        for bl_1_a in range(offset, proc_end):  # this offset is where to start the multiplication
+                            for bl_0_a in range(a_block_map[proc].shape[0]):  # dim0
+                                # these two loops are for looping over the relevant a-blocks
+                                a_start1 = int(a_block_map[proc, bl_0_a, bl_1_a, 1].item())
+                                a_start0 = int(a_block_map[proc, bl_0_a, bl_1_a, 0].item())
+                                a_block = a._DNDarray__array[a_start0:a_start0 + mB, a_start1:a_start1 + kB]
+
+                                b_start0 = int(b_block_map[proc, bl_0_b, bl_1_b, 0].item())
+                                b_start1 = int(b_block_map[proc, bl_0_b, bl_1_b, 1].item())
+                                b_block = b._DNDarray__array[b_start0:b_start0 + kB, b_start1:b_start1 + nB]
+
+                                c_start0 = a_start0
+                                c_start1 = b_start1
+                                # print(bl_0_a, bl_1_a, bl_0_b, bl_1_b, c_start0, c_start1)
                                 # print(c.comm.rank, c_start0, c_start1, a_start1, b_start0, '\n', a_block @ b_block)
                                 c._DNDarray__array[c_start0:c_start0 + mB, c_start1:c_start1 + nB] += a_block @ b_block
+
 
             # need to wait if its the last loop
             if pr == a.comm.size - 1:
