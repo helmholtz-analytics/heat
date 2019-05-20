@@ -135,16 +135,16 @@ def fmod(t1, t2):
     #Special treatment for fmod, since torch operation fmod only supports formats (Tensor input, Tensor other, Tensor out) or (Tensor input, Number other, Tensor out)
         if np.isscalar(t2):
             try:
-                tmp = factories.array(t1)
+                tensor_1 = factories.array(t1)
             except (ValueError, TypeError,):
                 raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
         else:
             try:
-                tmp = factories.array([t1])
+                tensor_1 = factories.array([t1])
             except (ValueError, TypeError,):
                 raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
 
-        result = operations.__binary_op(torch.fmod, tmp, t2)
+        result = operations.__binary_op(torch.fmod, tensor_1, t2)
         return result
     else:
         return operations.__binary_op(torch.fmod, t1, t2)
@@ -270,10 +270,10 @@ def pow(t1, t2):
 
     if np.isscalar(t1) and np.isscalar(t2):
         try:
-            tmp = factories.array(t1)
+            tensor_1 = factories.array(t1)
         except (ValueError, TypeError,):
             raise TypeError('First operand must be numeric scalar or NDNArray, but was {}'.format(type(t1)))
-        return operations.__binary_op(torch.pow, tmp, t2)
+        return operations.__binary_op(torch.pow, tensor_1, t2)
     else:
         return operations.__binary_op(torch.pow, t1, t2)
 
