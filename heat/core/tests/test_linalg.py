@@ -75,7 +75,7 @@ class TestLinalg(unittest.TestCase):
             ht.zeros((2, 3,)).transpose(axes='01')
         with self.assertRaises(TypeError):
             ht.zeros((2, 3,)).transpose(axes=(0, 1.0))
-        with self.assertRaises(ValueError):
+        with self.assertRaises((ValueError, IndexError,)):
             ht.zeros((2, 3,)).transpose(axes=(0, 3))
 
     def test_tril(self):

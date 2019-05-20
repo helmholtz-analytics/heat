@@ -293,7 +293,7 @@ class TestArithmetics(unittest.TestCase):
         self.assertEqual(shape_split_axis_tuple_sum.dtype, ht.float32)
         self.assertEqual(shape_split_axis_tuple_sum._DNDarray__array.dtype, torch.float32)
         self.assertEqual(shape_split_axis_tuple_sum.split, None)
-        self.assertEqual(shape_split_axis_tuple_sum, expected_result)
+        self.assertTrue((shape_split_axis_tuple_sum == expected_result).all())
 
         # exceptions
         with self.assertRaises(ValueError):

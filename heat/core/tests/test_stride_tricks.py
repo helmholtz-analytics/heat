@@ -4,7 +4,6 @@ import heat as ht
 
 
 class TestStrideTricks(unittest.TestCase):
-
     def test_broadcast_shape(self):
         self.assertEqual(ht.core.stride_tricks.broadcast_shape((5, 4), (4,)), (5, 4))
         self.assertEqual(ht.core.stride_tricks.broadcast_shape((1, 100, 1), (10, 1, 5)), (10, 100, 5))
@@ -50,8 +49,6 @@ class TestStrideTricks(unittest.TestCase):
         self.assertEqual(ht.core.stride_tricks.sanitize_shape((1, 2,)), (1, 2,))
 
         # invalid value ranges
-        with self.assertRaises(ValueError):
-            ht.core.stride_tricks.sanitize_shape(0)
         with self.assertRaises(ValueError):
             ht.core.stride_tricks.sanitize_shape(-1)
         with self.assertRaises(ValueError):

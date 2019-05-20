@@ -1,11 +1,11 @@
 import torch
 import unittest
+from itertools import combinations
 
 import heat as ht
 
 
 class TestStatistics(unittest.TestCase):
-
     def test_argmax(self):
         torch.manual_seed(1)
         data = ht.random.randn(3, 4, 5)
@@ -43,7 +43,7 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, along the axis
         torch.manual_seed(1)
-        data = ht.array(ht.random.randn(4, 5), split=0)
+        data = ht.array(ht.random.randn(4, 5), is_split=0)
         result = ht.argmax(data, axis=1)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
@@ -127,7 +127,7 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, along the axis
         torch.manual_seed(1)
-        data = ht.array(ht.random.randn(4, 5), split=0)
+        data = ht.array(ht.random.randn(4, 5), is_split=0)
         result = ht.argmin(data, axis=1)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
@@ -242,7 +242,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(maximum_volume.dtype, ht.float32)
         self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float32)
         self.assertEqual(maximum_volume.split, 0)
-        self.assertEqual(maximum_volume, alt_maximum_volume)
+        self.assertTrue((maximum_volume == alt_maximum_volume).all())
 
         # check max over all float elements of split 5d tensor, along split axis
         random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0)
@@ -262,6 +262,68 @@ class TestStatistics(unittest.TestCase):
             ht_array.max(axis='y')
         with self.assertRaises(ValueError):
             ht.max(ht_array, axis=-4)
+
+    def test_mean(self):
+        array_0_len = 5
+        array_1_len = 5
+        array_2_len = 5
+
+        x = ht.zeros((2, 3, 4))
+        with self.assertRaises(ValueError):
+            ht.mean(x, axis=10)
+        with self.assertRaises(TypeError):
+            ht.mean(x, axis='01')
+        with self.assertRaises(ValueError):
+            ht.mean(x, axis=(0, '10'))
+
+        # ones
+        dimensions = []
+
+        for d in [array_0_len, array_1_len, array_2_len]:
+            dimensions.extend([d, ])
+            hold = list(range(len(dimensions)))
+            hold.append(None)
+            for i in hold:  # loop over the number of split dimension of the test array
+                z = ht.ones(dimensions, split=i)
+                res = z.mean()
+                total_dims_list = list(z.shape)
+                self.assertTrue((res == 1).all())
+                for it in range(len(z.shape)):  # loop over the different single dimensions for mean
+                    res = z.mean(axis=it)
+                    self.assertTrue((res == 1).all())
+                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q != it]
+                    if not target_dims:
+                        target_dims = (1,)
+
+                    self.assertEqual(res.gshape, tuple(target_dims))
+                    if res.split is not None:
+                        if i >= it:
+                            self.assertEqual(res.split, len(target_dims) - 1)
+                        else:
+                            self.assertEqual(res.split, z.split)
+                loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
+
+                for it in loop_list:  # loop over the different combinations of dimensions for mean
+                    lp_split = [int(q) for q in it.split(',')]
+                    res = z.mean(axis=lp_split)
+                    self.assertTrue((res == 1).all())
+                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q not in lp_split]
+                    if not target_dims:
+                        target_dims = (1,)
+                    if res.gshape:
+                        self.assertEqual(res.gshape, tuple(target_dims))
+                    if res.split is not None:
+                        if any([i >= x for x in lp_split]):
+                            self.assertEqual(res.split, len(target_dims) - 1)
+                        else:
+                            self.assertEqual(res.split, z.split)
+
+        # values for the iris dataset mean measured by libreoffice calc
+        ax0 = ht.array([5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667])
+        for sp in [None, 0, 1]:
+            iris = ht.load('heat/datasets/data/iris.h5', 'data', split=sp)
+            self.assertTrue(ht.allclose(ht.mean(iris), 3.46366666666667))
+            self.assertTrue(ht.allclose(ht.mean(iris, axis=0), ax0))
 
     def test_min(self):
         data = [
@@ -283,7 +345,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum.split, None)
         self.assertEqual(minimum.dtype, ht.int64)
         self.assertEqual(minimum._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(minimum, 12)
+        self.assertEqual(minimum, 1)
 
         # maximum along first axis
         minimum_vertical = ht.min(ht_array, axis=0)
@@ -329,7 +391,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum_volume.dtype, ht.float32)
         self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float32)
         self.assertEqual(minimum_volume.split, 0)
-        self.assertEqual(minimum_volume, alt_minimum_volume)
+        self.assertTrue((minimum_volume == alt_minimum_volume).all())
 
         # check max over all float elements of split 5d tensor, along split axis
         random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0)
@@ -349,3 +411,65 @@ class TestStatistics(unittest.TestCase):
             ht_array.min(axis='y')
         with self.assertRaises(ValueError):
             ht.min(ht_array, axis=-4)
+
+    def test_std(self):
+        # test raises
+        x = ht.zeros((2, 3, 4))
+        with self.assertRaises(TypeError):
+            ht.std(x, axis=0, bessel=1)
+        with self.assertRaises(ValueError):
+            ht.std(x, axis=10)
+        with self.assertRaises(TypeError):
+            ht.std(x, axis='01')
+
+        # the rest of the tests are covered by var
+
+    def test_var(self):
+        array_0_len = 14
+        array_1_len = 14
+        # array_2_len = 14
+
+        # test raises
+        x = ht.zeros((2, 3, 4))
+        with self.assertRaises(TypeError):
+            ht.var(x, axis=0, bessel=1)
+        with self.assertRaises(ValueError):
+            ht.var(x, axis=10)
+        with self.assertRaises(TypeError):
+            ht.var(x, axis='01')
+
+        # ones
+        dimensions = []
+        for d in [array_0_len, array_1_len]:
+            dimensions.extend([d, ])
+            hold = list(range(len(dimensions)))
+            hold.append(None)
+            for i in hold:  # loop over the number of dimensions of the test array
+                z = ht.ones(dimensions, split=i)
+                res = z.var()
+                total_dims_list = list(z.shape)
+                self.assertTrue((res == 0).all())
+                for it in range(len(z.shape)):  # loop over the different single dimensions for mean
+                    res = z.var(axis=it)
+                    self.assertTrue((res == 0).all())
+                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q != it]
+                    if not target_dims:
+                        target_dims = (1,)
+                    self.assertEqual(res.gshape, tuple(target_dims))
+                    if res.split is not None:
+                        if i >= it:
+                            self.assertEqual(res.split, len(target_dims) - 1)
+                        else:
+                            self.assertEqual(res.split, z.split)
+
+                    if i == it:
+                        res = z.var(axis=it)
+                        self.assertTrue((res == 0).all())
+                z = ht.ones(dimensions, split=i)
+                res = z.var(bessel=False)
+                self.assertTrue((res == 0).all())
+
+        # values for the iris dataset var measured by libreoffice calc
+        for sp in [None, 0, 1]:
+            iris = ht.load_hdf5('heat/datasets/data/iris.h5', 'data', split=sp)
+            self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))
