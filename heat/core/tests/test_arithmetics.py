@@ -111,6 +111,8 @@ class TestArithmetics(unittest.TestCase):
             ht.fmod(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
             ht.fmod('T', 's')
+        with self.assertRaises(TypeError):
+            ht.fmod('2', self.a_tensor)
 
     def test_mod(self):
         a_tensor = ht.array([
