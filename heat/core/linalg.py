@@ -107,10 +107,9 @@ def matmul(a, b, out=None, out_split=None):
         mB = lshape_map[:, 0, -2].min().item()
         nB = lshape_map[:, 1, -1].min().item()
 
-        # todo: make nB smaller to allow for nonblocking communication to work while some communication is happening
+        # todo: make nB smaller to allow for nonblocking communication to work while some communication is happening?
         nB = int(nB // 2)
         mB = int(mB)
-        # todo: handle the outside dimensional remainders
         print('mb', mB, 'kB', kB, 'nb', nB)
 
         # check for remaining dims in the outside dimensions
@@ -129,8 +128,7 @@ def matmul(a, b, out=None, out_split=None):
         rem_map[a.comm.rank, 0, :] = (rem_a_out, rem_a)
         rem_map[a.comm.rank, 1, :] = (rem_b, rem_b_out)
         a.comm.Allreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
-        # print(rem_map)
-        # TODO: deal with the remainders...joy
+        print(rem_map)
 
         # index_map dims guide -> {process number, a=0/b=1, relevent 1st index, 2nd index}
         index_map = factories.zeros((a.comm.size, 2, 2, 2), dtype=int)
@@ -143,11 +141,6 @@ def matmul(a, b, out=None, out_split=None):
         a.comm.Allreduce(MPI.IN_PLACE, index_map, MPI.SUM)
         # print(index_map)
 
-        # with the index map then the communication can be determined
-        # this index map will also be used as a meta data / dictionary when the data is passed around
-
-        # Index map is done, remainder map is done,
-        # todo: determine communication scheme
         # for the communication scheme, the output array needs to be created
         c_shape = (a.gshape[-2], b.gshape[-1])
         c = factories.zeros(c_shape, split=out_split if out_split is not None else a.split)
@@ -171,17 +164,15 @@ def matmul(a, b, out=None, out_split=None):
             stop0 = index_map[pr, 0, 0, 1].item()
             start1 = index_map[pr, 0, 1, 0].item()
             stop1 = index_map[pr, 0, 1, 1].item()
-            # a_block_map[pr] = torch.zeros(((stop0 - start0) // mB, (stop1 - start1) // kB, 2))
 
             for dim0 in range((stop0 - start0) // mB):
                 # loop over the number of blocks in the 0th dimension
                 for dim1 in range((stop1 - start1) // kB):
                     # loop over the number of blocks in the 1st dimension
                     # todo: figure out how to change this for a_split=1
-                    # todo: this doesnt work for multiple blocks in the 0th dim...
                     a_block_map[pr, dim0, dim1] = torch.tensor((dim0 * mB, dim1 * kB), dtype=torch.int)
 
-        cnt = 0
+        cnt = 0  # todo: this may need to be changed for splits=1
         for r in rem_map[:, 1, 0]:
             if r.item():
                 cnt += 1
@@ -210,28 +201,41 @@ def matmul(a, b, out=None, out_split=None):
             #         cnt += 1
             #         b_block_map[pr][:, cnt, 1] += cnt
 
-        # print(a_block_map[0, :])
-        # print(b_block_map[:, :, 0])
+        # print(a_block_map)
+        print(index_map[:, 1])
+        # print(b_block_map)
 
-        # now the block maps are done, next need to determine the passing order
-        # c_00 = a_block_map[0, :]
-        # if a.comm.rank == 0:
-        #     a_start0 = int(a_block_map[0, 0, 1, 0].item())
-        #     a_start1 = int(a_block_map[0, 0, 1, 1].item())
-        #     a_block = a._DNDarray__array[a_start0:a_start0 + mB, a_start1:a_start1 + kB]
-        #
-        #     b_start0 = int(b_block_map[0, 0, 0, 0].item())
-        #     b_start1 = int(b_block_map[0, 0, 0, 1].item())
-        #     b_block = b._DNDarray__array[b_start0:b_start0 + kB, b_start1:b_start1 + nB]
-        #     print(a_block @ b_block)
-        ####################################################################
-
-        print(a_block_map.shape, b_block_map.shape)
         # work loop: loop over all processes
         # ibcast from each node
         # Irecv from last loop
         # do calculation (if first loop use what is only on node)
+        def c_block_setter(b_proc, a_proc):
+            proc = a.comm.rank
+            shp = list(b_block_map.shape)
+            offset = (shp[0] - 1 - a_proc) * shp[1]  # note: this will have to change for splits = 1
+            proc_end = (shp[0] - a_proc) * shp[1]
+
+            for bl_1_b in range(b_block_map[b_proc].shape[1]):
+                for bl_0_b in range(b_block_map[b_proc].shape[0]):
+                    # the above two loops are for both directions of the b-blocks
+                    for bl_1_a in range(offset, proc_end):  # this offset is where to start the multiplication
+                        for bl_0_a in range(a_block_map[a_proc].shape[0]):  # dim0
+                            # these two loops are for looping over the relevant a-blocks
+                            # since a section of a was sent to the other procs now need to loop over the a_lp_data[pr]
+                            a_start1 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 1].item())
+                            a_start0 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 0].item())
+                            a_block = a_lp_data[a_proc][a_start0:a_start0 + mB, a_start1:a_start1 + kB]
+
+                            b_start0 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 0].item())
+                            b_start1 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 1].item())
+                            b_block = b._DNDarray__array[b_start0:b_start0 + kB, b_start1:b_start1 + nB]
+
+                            c_start0 = a_start0
+                            c_start1 = b_start1
+                            c._DNDarray__array[c_start0:c_start0 + mB, c_start1:c_start1 + nB] += a_block @ b_block
+
         req = {}
+
         a_lp_data = {}
         for pr in range(a.comm.size):
             # ibcast data on node first
@@ -243,68 +247,57 @@ def matmul(a, b, out=None, out_split=None):
             # sending a to all nodes for b to operate with
             req[pr] = a.comm.Ibcast(a_lp_data[pr], root=pr)
 
-            # receie the data from the last loop
+            # receive the data from the last loop and do the calculation with that
             if pr != 0:
                 req[pr - 1].wait()
                 # after receiving the last loop's bcast
 
-                proc = a.comm.rank
-                shp = list(b_block_map.shape)
-                offset = (shp[0] - 1 - pr) * shp[1]  # note: this will have to change for splits = 1
-                proc_end = (shp[0] - pr) * shp[1]
-
-                for bl_1_b in range(b_block_map[proc].shape[1]):
-                    for bl_0_b in range(b_block_map[proc].shape[0]):
-                        # the above two loops are for both directions of the b-blocks
-                        for bl_1_a in range(offset, proc_end):  # this offset is where to start the multiplication
-                            for bl_0_a in range(a_block_map[pr - 1].shape[0]):  # dim0
-                                # these two loops are for looping over the relevant a-blocks
-                                # since a section of a was sent to the other procs now need to loop over the a_lp_data[pr]
-                                a_start1 = int(a_block_map[pr - 1, bl_0_a, bl_1_a, 1].item())
-                                a_start0 = int(a_block_map[pr - 1, bl_0_a, bl_1_a, 0].item())
-                                a_block = a_lp_data[pr - 1][a_start0:a_start0 + mB, a_start1:a_start1 + kB]
-
-                                b_start0 = int(b_block_map[proc, bl_0_b, bl_1_b, 0].item())
-                                b_start1 = int(b_block_map[proc, bl_0_b, bl_1_b, 1].item())
-                                b_block = b._DNDarray__array[b_start0:b_start0 + kB, b_start1:b_start1 + nB]
-
-                                c_start0 = a_start0
-                                c_start1 = b_start1
-                                c._DNDarray__array[c_start0:c_start0 + mB, c_start1:c_start1 + nB] += a_block @ b_block
-            else:
+                c_block_setter(b_proc=b.comm.rank, a_proc=pr - 1)
+            # else:
                 # in the first loop the data on node is used instead of what was casted
                 # for the multiplication need to get the indices of the blocks for a and b
                 # below needs to be looped over for the number of blocks in c
-                proc = a.comm.rank
-                shp = list(b_block_map.shape)
-                offset = (shp[0] - 1 - proc) * shp[1]  # note: this will have to change for splits = 1
-                proc_end = (shp[0] - proc) * shp[1]
+                # proc = a.comm.rank
+                # shp = list(b_block_map.shape)
+                # offset = (shp[0] - 1 - proc) * shp[1]  # note: this will have to change for splits = 1
+                # proc_end = (shp[0] - proc) * shp[1]
+                #
+                # for bl_1_b in range(b_block_map[proc].shape[1]):
+                #     for bl_0_b in range(b_block_map[proc].shape[0]):
+                #         # the above two loops are for both directions of the b-blocks
+                #         for bl_1_a in range(offset, proc_end):  # this offset is where to start the multiplication
+                #             for bl_0_a in range(a_block_map[proc].shape[0]):  # dim0
+                #                 # these two loops are for looping over the relevant a-blocks
+                #                 a_start1 = int(a_block_map[proc, bl_0_a, bl_1_a, 1].item())
+                #                 a_start0 = int(a_block_map[proc, bl_0_a, bl_1_a, 0].item())
+                #                 a_block = a._DNDarray__array[a_start0:a_start0 + mB, a_start1:a_start1 + kB]
+                #
+                #                 b_start0 = int(b_block_map[proc, bl_0_b, bl_1_b, 0].item())
+                #                 b_start1 = int(b_block_map[proc, bl_0_b, bl_1_b, 1].item())
+                #                 b_block = b._DNDarray__array[b_start0:b_start0 + kB, b_start1:b_start1 + nB]
+                #
+                #                 c_start0 = a_start0
+                #                 c_start1 = b_start1
+                #                 # print(bl_0_a, bl_1_a, bl_0_b, bl_1_b, c_start0, c_start1)
+                #                 # print(c.comm.rank, c_start0, c_start1, a_start1, b_start0, '\n', a_block @ b_block)
+                #                 c._DNDarray__array[c_start0:c_start0 + mB, c_start1:c_start1 + nB] += a_block @ b_block
+                # print(proc, b.comm.rank)
 
-                for bl_1_b in range(b_block_map[proc].shape[1]):
-                    for bl_0_b in range(b_block_map[proc].shape[0]):
-                        # the above two loops are for both directions of the b-blocks
-                        for bl_1_a in range(offset, proc_end):  # this offset is where to start the multiplication
-                            for bl_0_a in range(a_block_map[proc].shape[0]):  # dim0
-                                # these two loops are for looping over the relevant a-blocks
-                                a_start1 = int(a_block_map[proc, bl_0_a, bl_1_a, 1].item())
-                                a_start0 = int(a_block_map[proc, bl_0_a, bl_1_a, 0].item())
-                                a_block = a._DNDarray__array[a_start0:a_start0 + mB, a_start1:a_start1 + kB]
-
-                                b_start0 = int(b_block_map[proc, bl_0_b, bl_1_b, 0].item())
-                                b_start1 = int(b_block_map[proc, bl_0_b, bl_1_b, 1].item())
-                                b_block = b._DNDarray__array[b_start0:b_start0 + kB, b_start1:b_start1 + nB]
-
-                                c_start0 = a_start0
-                                c_start1 = b_start1
-                                # print(bl_0_a, bl_1_a, bl_0_b, bl_1_b, c_start0, c_start1)
-                                # print(c.comm.rank, c_start0, c_start1, a_start1, b_start0, '\n', a_block @ b_block)
-                                c._DNDarray__array[c_start0:c_start0 + mB, c_start1:c_start1 + nB] += a_block @ b_block
-
-
-            # need to wait if its the last loop
+            # need to wait if its the last loop, also need to collect the remainders
             if pr == a.comm.size - 1:
                 req[pr].wait()
-        print(c)
+                c_block_setter(b_proc=b.comm.rank, a_proc=pr)
+
+        # for 
+
+
+        # todo: memory management, need to delete the unnecessary data from the nodes
+        # after the ibcast loop, now need to get the coordinates of the remainders
+        # use the lshape map and the block map to find the remainders
+
+        # 'a' remainder indices
+
+        # print(a_lp_data)
 
 
 
