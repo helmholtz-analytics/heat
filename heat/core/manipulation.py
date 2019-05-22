@@ -69,15 +69,14 @@ def expand_dims(a, axis):
 
 
 def unique(a, sorted=False, return_inverse=False, axis=None):
-
     local_data = a._DNDarray__array
     unique_axis = None
+    inverse_indices = None
+
     if axis is not None:
         # transpose so we can work along the 0 axis
         local_data = local_data.transpose(0, axis)
         unique_axis = 0
-
-    print("local_data", local_data, "unqiue_axis", unique_axis)
 
     # Calculate the unique on the local values
     if a.lshape[a.split] is 0:
@@ -88,10 +87,9 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
             res_shape = list(local_data.shape)
             res_shape[0] = 0
         lres = torch.empty(res_shape, dtype=a.dtype.torch_type())
+        inverse_pos = []
     else:
         lres, inverse_pos = torch.unique(local_data, sorted=sorted, return_inverse=True, dim=unique_axis)
-
-    print("lres", lres)
 
     # Share and gather the results with the other processes
     uniques = torch.tensor([lres.shape[0]]).to(torch.int32)
@@ -104,23 +102,25 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     if axis is None or axis is a.split:
         # Local results can now just be added together
         if axis is None:
+            # One dimensional vectors can't be distributed -> no split
             output_dim = [uniques_buf.sum().item()]
             recv_axis = 0
         else:
             output_dim = list(lres.shape)
             output_dim[0] = uniques_buf.sum().item()
             recv_axis = a.split
+
+            # Result will be split along the same axis as a
             split = a.split
 
-        print("output_dim", output_dim)
-
+        # Gather all unique vectors
         counts = tuple(uniques_buf.tolist())
         displs = tuple([0] + uniques_buf.cumsum(0).tolist()[:-1])
         gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
         a.comm.Allgatherv(lres, (gres_buf, counts, displs,), axis=recv_axis, recv_axis=0)
-        gres = torch.unique(gres_buf, sorted=sorted, return_inverse=return_inverse, dim=unique_axis)
 
-        print("gres", gres)
+        # Run unique a second time for
+        gres = torch.unique(gres_buf, sorted=sorted, return_inverse=return_inverse, dim=unique_axis)
 
     else:
         max_uniques, max_pos = uniques_buf.max(0)
@@ -151,11 +151,9 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         # transpose matrix back
         gres = gres.transpose(0, axis)
 
-    print("gres after transpose", gres)
-
-    result = heat.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, split=split, is_split=is_split)
-
-    print("result", result)
+    result = heat.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, is_split=is_split)
+    if split:
+        result.resplit(a.split)
 
     return result
 
