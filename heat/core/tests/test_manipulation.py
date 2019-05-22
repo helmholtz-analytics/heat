@@ -155,3 +155,20 @@ class TestManipulation(unittest.TestCase):
         exp_axis_one = ht.array([rank] * size).expand_dims(1)
         res = ht.unique(split_one, sorted=True, axis=1)
         self.assertTrue(ht.equal(res, exp_axis_one))
+
+        torch_array = torch.tensor([
+            [1, 2],
+            [2, 3],
+            [1, 2],
+            [2, 3],
+            [1, 2]
+        ])
+        data = ht.array(torch_array, split=0)
+
+        res, inv = ht.unique(data, return_inverse=True, axis=0)
+        _, exp_inv = torch_array.unique(dim=0, return_inverse=True, sorted=True)
+        self.assertTrue(torch.equal(inv, exp_inv))
+
+        res, inv = ht.unique(data, return_inverse=True, axis=1)
+        _, exp_inv = torch_array.unique(dim=1, return_inverse=True, sorted=True)
+        self.assertTrue(torch.equal(inv, exp_inv))

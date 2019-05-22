@@ -2117,3 +2117,44 @@ class DNDarray:
                 [1.5, 2.0000]])
         """
         return arithmetics.div(self, other)
+
+    def unique(self, sorted=False, return_inverse=False, axis=None):
+        """
+        Finds and returns the unique elements of the tensor.
+
+        Works most effective if axis != self.split.
+
+        Parameters
+        ----------
+        sorted : bool
+            Whether the found elements should be sorted before returning as output.
+        return_inverse:
+            Whether to also return the indices for where elements in the original input ended up in the returned
+            unique list.
+        axis : int
+            Axis along which unique elements should be found. Default to None, which will return a one dimensional list of
+            unique values.
+
+        Returns
+        -------
+        res : ht.DNDarray
+            Output array. The unique elements. Elements are distributed the same way as the input tensor.
+        inverse_indices : torch.tensor (optional)
+            If return_inverse is True, this tensor will hold the list of inverse indices
+
+
+        Examples
+        --------
+        >>> x = ht.array([[3, 2], [1, 3]])
+        >>> x.unique(x, sorted=True)
+        array([1, 2, 3])
+
+        >>> x.unique(x, sorted=True, axis=0)
+        array([[1, 3],
+               [2, 3]])
+
+        >>> x.unique(x, sorted=True, axis=1)
+        array([[2, 3],
+               [3, 1]])
+        """
+        return manipulation.unique(self, sorted, return_inverse, axis)
