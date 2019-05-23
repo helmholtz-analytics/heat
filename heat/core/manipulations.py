@@ -1,10 +1,12 @@
 import torch
+import numpy as np
 
 from . import dndarray
 from . import factories
 from . import operations
 from . import stride_tricks
 from . import types
+from .communication import MPI
 
 __all__ = [
     'expand_dims',
@@ -79,15 +81,15 @@ def squeeze(x, axis=None):
         Input data.
 
     axis : None or int or tuple of ints, optional
-           Selects a subset of the single-dimensional entries in the shape. 
+           Selects a subset of the single-dimensional entries in the shape.
            If axis is None, all single-dimensional entries will be removed from the shape.
            If an axis is selected with shape entry greater than one, a ValueError is raised.
 
 
     Returns:
-    --------	
+    --------
     squeezed : ht.DNDarray
-               The input tensor, but with all or a subset of the dimensions of length 1 removed. 
+               The input tensor, but with all or a subset of the dimensions of length 1 removed.
 
 
     Examples:
@@ -138,8 +140,8 @@ def squeeze(x, axis=None):
         axis = tuple(i for i, dim in enumerate(x.shape) if dim == 1)
     if isinstance(axis, int):
         axis = (axis,)
-    out_shape = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if not dim in axis)
-    x_lsqueezed = x._DNDarray__array.reshape(out_shape)
+    out_lshape = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if not dim in axis)
+    x_lsqueezed = x._DNDarray__array.reshape(out_lshape)
 
     # Calculate split axis according to squeezed shape
     if x.split is not None:
@@ -153,12 +155,18 @@ def squeeze(x, axis=None):
             if x.split in axis:
                 raise ValueError('Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}'.format(
                     x.split, axis, x.shape))
-            out_shape = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
-            x_gsqueezed = factories.empty(out_shape, dtype=x.dtype)
-            x.comm.Allgather(x_lsqueezed, x_gsqueezed)
+            out_gshape = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
+            x_gsqueezed = factories.empty(out_gshape, dtype=x.dtype)
+            loffset = factories.zeros(1, dtype=types.int64)
+            loffset.__setitem__(0, x.comm.chunk(x.gshape, x.split)[0])
+            displs = factories.zeros(x.comm.size, dtype=types.int64)
+            x.comm.Allgather(loffset, displs)
+
+            # x.comm.Allgatherv(x_lsqueezed,  x_gsqueezed, displs)  # TODO
+            x.comm.Allgather(x_lsqueezed, x_gsqueezed)  # works with evenly distributed dimensions only
             return dndarray.DNDarray(
                 x_gsqueezed,
-                out_shape,
+                out_gshape,
                 x_lsqueezed.dtype,
                 split=split,
                 device=x.device,
@@ -166,7 +174,7 @@ def squeeze(x, axis=None):
 
     return dndarray.DNDarray(
         x_lsqueezed,
-        out_shape,
+        out_lshape,
         x.dtype,
         split=split,
         device=x.device,
