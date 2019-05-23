@@ -1768,6 +1768,7 @@ class DNDarray:
                                    & set(range(chunk_start, chunk_end)))
 
                     if overlap:
+                        overlap.sort()
                         hold = [x - chunk_start for x in overlap]
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
                         try:

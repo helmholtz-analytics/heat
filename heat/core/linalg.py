@@ -1,4 +1,5 @@
 import itertools
+import numpy as np
 import torch
 
 from .communication import MPI, MPI_WORLD
@@ -108,7 +109,7 @@ def matmul(a, b, out=None, out_split=None):
         nB = lshape_map[:, 1, -1].min().item()
 
         # todo: make nB smaller to allow for nonblocking communication to work while some communication is happening?
-        nB = int(nB // 2)
+        nB = int(nB)
         mB = int(mB)
         print('mb', mB, 'kB', kB, 'nb', nB)
 
@@ -128,7 +129,7 @@ def matmul(a, b, out=None, out_split=None):
         rem_map[a.comm.rank, 0, :] = (rem_a_out, rem_a)
         rem_map[a.comm.rank, 1, :] = (rem_b, rem_b_out)
         a.comm.Allreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
-        print(rem_map)
+        # print(rem_map)
 
         # index_map dims guide -> {process number, a=0/b=1, relevent 1st index, 2nd index}
         index_map = factories.zeros((a.comm.size, 2, 2, 2), dtype=int)
@@ -202,57 +203,60 @@ def matmul(a, b, out=None, out_split=None):
             #         b_block_map[pr][:, cnt, 1] += cnt
 
         # print(a_block_map)
-        print(index_map[:, 1])
+        # print(index_map[:, 1])
         # print(b_block_map)
 
         # work loop: loop over all processes
         # ibcast from each node
-        # Irecv from last loop
         # do calculation (if first loop use what is only on node)
         def c_block_setter(b_proc, a_proc):
-            proc = a.comm.rank
+            proc = b.comm.rank
             shp = list(b_block_map.shape)
-            offset = (shp[0] - 1 - a_proc) * shp[1]  # note: this will have to change for splits = 1
-            proc_end = (shp[0] - a_proc) * shp[1]
+            offset = a_proc * shp[1] if a_proc != 0 else 0
+            print(offset, shp[1])
 
             for bl_1_b in range(b_block_map[b_proc].shape[1]):
                 for bl_0_b in range(b_block_map[b_proc].shape[0]):
                     # the above two loops are for both directions of the b-blocks
-                    for bl_1_a in range(offset, proc_end):  # this offset is where to start the multiplication
+                    for bl_1_a in range(offset, offset + shp[1]):  # this offset is where to start the multiplication
                         for bl_0_a in range(a_block_map[a_proc].shape[0]):  # dim0
                             # these two loops are for looping over the relevant a-blocks
                             # since a section of a was sent to the other procs now need to loop over the a_lp_data[pr]
                             a_start1 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 1].item())
                             a_start0 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 0].item())
-                            a_block = a_lp_data[a_proc][a_start0:a_start0 + mB, a_start1:a_start1 + kB]
+                            a_block = a._DNDarray__array[a_start0:a_start0 + mB, a_start1:a_start1 + kB]
 
                             b_start0 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 0].item())
                             b_start1 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 1].item())
-                            b_block = b._DNDarray__array[b_start0:b_start0 + kB, b_start1:b_start1 + nB]
+                            b_block = b_lp_data[b_proc][b_start0:b_start0 + kB, b_start1:b_start1 + nB]
 
                             c_start0 = a_start0
                             c_start1 = b_start1
+                            # print(a._DNDarray__array, b_block)
+                            # print(a_proc, b_proc, bl_0_a, bl_1_a, bl_0_b, bl_1_b, c_start0, c_start1)
                             c._DNDarray__array[c_start0:c_start0 + mB, c_start1:c_start1 + nB] += a_block @ b_block
 
         req = {}
 
-        a_lp_data = {}
-        for pr in range(a.comm.size):
+        b_lp_data = {}
+        print(a._DNDarray__array)
+        for pr in range(b.comm.size):
             # ibcast data on node first
-            if a.comm.rank == pr:
-                a_lp_data[pr] = a._DNDarray__array
+            if b.comm.rank == pr:
+                b_lp_data[pr] = b._DNDarray__array
             else:
-                a_lp_data[pr] = torch.empty((lshape_map[pr, 0, 0].item(), lshape_map[pr, 0, 1].item()))
+                b_lp_data[pr] = torch.empty((lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()))
 
             # sending a to all nodes for b to operate with
-            req[pr] = a.comm.Ibcast(a_lp_data[pr], root=pr)
+            req[pr] = b.comm.Ibcast(b_lp_data[pr], root=pr)
 
             # receive the data from the last loop and do the calculation with that
             if pr != 0:
+                # print(c)
                 req[pr - 1].wait()
                 # after receiving the last loop's bcast
 
-                c_block_setter(b_proc=b.comm.rank, a_proc=pr - 1)
+                c_block_setter(b_proc=pr - 1, a_proc=a.comm.rank)
             # else:
                 # in the first loop the data on node is used instead of what was casted
                 # for the multiplication need to get the indices of the blocks for a and b
@@ -284,11 +288,33 @@ def matmul(a, b, out=None, out_split=None):
                 # print(proc, b.comm.rank)
 
             # need to wait if its the last loop, also need to collect the remainders
-            if pr == a.comm.size - 1:
+            if pr == b.comm.size - 1:
                 req[pr].wait()
-                c_block_setter(b_proc=b.comm.rank, a_proc=pr)
+                c_block_setter(b_proc=pr, a_proc=a.comm.rank)
+        print(c)
 
-        # for 
+        # remainders:
+        # get the row remainders of A first,
+        # then block it up and multiply it with the corresponding bits of B
+
+        # rem_map = rem_map._DNDarray__array
+        # print(rem_map[:, 0])
+        # a_rem_locs = (rem_map[:, 0, 0] == 1).nonzero()
+        # print(index_map[:, 0])
+        # if a_rem_locs.nelement() != 0:
+        #     # if there is a remainder in the 0th dimension of a
+        #     for a_0 in a_rem_locs:
+        #         # get the last element in that direction (in the blocking direction this is fine as the max remainder in this dim is of size 1)
+        #         r = a_lp_data[a_0.item()][-1, :]
+        #         r_loc = index_map[a_0.item(), 0, 0, 1] - 1
+        #
+        #         for it in range(a.comm.size):
+        #             # todo: move this up into the other loop
+        #             # need to run from the start of the index for b on that node to the end
+        #             c[r_loc, ] =
+
+        # if any(a_rem_locs[:, 1] == 0):
+        #     print((a_rem_locs == 0).nonzero())
 
 
         # todo: memory management, need to delete the unnecessary data from the nodes
