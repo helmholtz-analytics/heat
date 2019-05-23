@@ -169,7 +169,7 @@ class TestManipulations(unittest.TestCase):
 
         # 4D split tensor, along the axis
         # TODO: reinstate this test of uneven dimensions distribution
-        # after update to Allgatherv implementation
+        # after update to Allgatherv implementation (Issue  #273 depending on #233)
         # data = ht.array(ht.random.randn(1, 4, 5, 1), split=1)
         # result = ht.squeeze(data, axis=-1)
         # self.assertIsInstance(result, ht.DNDarray)
