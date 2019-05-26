@@ -3,6 +3,7 @@ import torch
 from .operations import __local_op as local_op
 
 __all__ = [
+    'arctan',
     'arcsin',
     'arccos',
     'cos',
@@ -12,6 +13,33 @@ __all__ = [
     'tan',
     'tanh'
 ]
+
+
+def arctan(x, out=None):
+    """
+    Return the trigonometric arctan, element-wise.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The value for which to compute the trigonometric cosine.
+    out : ht.DNDarray or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    arcstan : ht.DNDarray
+        A tensor of the same shape as x, containing the trigonometric arctan of each element in this tensor.
+        Input elements outside [-1., 1.] are returned as nan. If out was provided, arctan is a reference to it.
+
+    Examples
+    --------
+    >>> ht.arctan(ht.arange(-6, 7, 2))
+    tensor([])
+    """
+    return local_op(torch.atan, x, out)
+
 
 def arcsin(x, out=None):
     """

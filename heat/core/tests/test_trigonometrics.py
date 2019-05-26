@@ -5,6 +5,48 @@ import heat as ht
 
 
 class TestTrigonometrics(unittest.TestCase):
+    def test_arctan(self):
+        # base elements
+        elements = 30
+        comparison = torch.arange(elements, dtype=torch.float64).atan()
+
+        # arctan of float32
+        float32_tensor = ht.arange(elements, dtype=ht.float32)
+        float32_arctan = ht.arctan(float32_tensor)
+        self.assertIsInstance(float32_arctan, ht.DNDarray)
+        self.assertEqual(float32_arctan.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_arctan._DNDarray__array.type(torch.double), comparison))
+
+        # arctan of float64
+        float64_tensor = ht.arange(elements, dtype=ht.float64)
+        float64_arctan = ht.arctan(float64_tensor)
+        self.assertIsInstance(float64_arctan, ht.DNDarray)
+        self.assertEqual(float64_arctan.dtype, ht.float64)
+        self.assertEqual(float64_arctan.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_arctan._DNDarray__array.type(torch.double), comparison))
+
+        # arctan of ints, automatic conversion to intermediate floats
+        int32_tensor = ht.arange(elements, dtype=ht.int32)
+        int32_arctan = ht.arctan(int32_tensor)
+        self.assertIsInstance(int32_arctan, ht.DNDarray)
+        self.assertEqual(int32_arctan.dtype, ht.float64)
+        self.assertEqual(int32_arctan.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float32_arctan._DNDarray__array.type(torch.double), comparison))
+
+        # arctan of longs, automatic conversion to intermediate floats
+        int64_tensor = ht.arange(elements, dtype=ht.int64)
+        int64_arctan = ht.arctan(int64_tensor)
+        self.assertIsInstance(int64_arctan, ht.DNDarray)
+        self.assertEqual(int64_arctan.dtype, ht.float64)
+        self.assertEqual(int64_arctan.dtype, ht.float64)
+        self.assertTrue(torch.allclose(int64_arctan._DNDarray__array.type(torch.double), comparison))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.arctan([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.arctan('hello world')
+
     def test_arcsin(self):
         # base elements
         elements = [-1.,-0.83,-0.12,0.,0.24,0.67,1.]
@@ -68,7 +110,6 @@ class TestTrigonometrics(unittest.TestCase):
             ht.arccos([1, 2, 3])
         with self.assertRaises(TypeError):
             ht.arccos('hello world')
-
 
 
     def test_cos(self):
