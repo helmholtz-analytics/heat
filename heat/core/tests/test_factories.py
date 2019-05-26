@@ -157,6 +157,16 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(d.split, None)
         self.assertTrue((d._DNDarray__array == torch.tensor(vector_data).reshape(-1, 1, 1)).all())
 
+       # basic array function, unsplit data, additional dimensions
+        vector_data = [4.0, 5.0, 6.0]
+        d = ht.array(vector_data, ndmin=-3)
+        self.assertIsInstance(d, ht.DNDarray)
+        self.assertEqual(d.dtype, ht.float32)
+        self.assertEqual(d.lshape, (1, 1, 3))
+        self.assertEqual(d.gshape, (1, 1, 3))
+        self.assertEqual(d.split, None)
+        self.assertTrue((d._DNDarray__array == torch.tensor(vector_data).reshape(1, 1, -1)).all())     
+
         # distributed array, chunk local data (split)
         tensor_2d = ht.array([
             [1.0, 2.0, 3.0],
@@ -234,6 +244,59 @@ class TestFactories(unittest.TestCase):
                 [1.0, 2.0, 3.0],
                 [1.0, 2.0, 3.0]
             ], split=0, is_split=0)
+
+        e = ht.array(split_data, ndmin=-3, is_split=1)
+
+        self.assertIsInstance(e, ht.DNDarray)
+        self.assertEqual(e.dtype, ht.float32)
+        if ht.communication.MPI_WORLD.rank == 0:
+            self.assertEqual(e.lshape, (1, 3, 3))
+        else:
+            self.assertEqual(e.lshape, (1, 2, 3))
+        self.assertEqual(e.split, 1)
+        for index, ele in enumerate(e.gshape):
+            if index != e.split:
+                self.assertEqual(ele, e.lshape[index])
+            else:
+                self.assertGreaterEqual(ele, e.lshape[index])
+
+        # exception distributed shapes do not fit
+        if ht.communication.MPI_WORLD.size > 1:
+            if ht.communication.MPI_WORLD.rank == 0:
+                split_data = [4.0, 5.0, 6.0]
+            else:
+                split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]]
+
+            # this will fail as the shapes do not match
+            with self.assertRaises(ValueError):
+                ht.array(split_data, is_split=0)
+
+        # exception distributed shapes do not fit
+        if ht.communication.MPI_WORLD.size > 1:
+            if ht.communication.MPI_WORLD.rank == 0:
+                split_data = [
+                    [4.0, 5.0, 6.0],
+                    [1.0, 2.0, 3.0],
+                    [0.0, 0.0, 0.0]
+                ]
+            else:
+                split_data = [
+                    [4.0, 5.0, 6.0],
+                    [1.0, 2.0, 3.0]
+                ]
+
+            # this will fail as the shapes do not match on a specific axis (here: 0)
+            with self.assertRaises(ValueError):
+                ht.array(split_data, is_split=1)
+
+        # check exception on mutually exclusive split and is_split
+        with self.assertRaises(ValueError):
+            ht.array([
+                [1.0, 2.0, 3.0],
+                [1.0, 2.0, 3.0]
+            ], split=1, is_split=1)
+
+
 
         # non iterable type
         with self.assertRaises(TypeError):
