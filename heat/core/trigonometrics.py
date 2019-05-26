@@ -4,6 +4,7 @@ from .operations import __local_op as local_op
 
 __all__ = [
     'arcsin',
+    'arccos',
     'cos',
     'cosh',
     'sin',
@@ -36,6 +37,32 @@ def arcsin(x, out=None):
     tensor([-1.5708,  0.0000,  0.9791])
     """
     return local_op(torch.asin, x, out)
+
+
+def arccos(x, out=None):
+    """
+    Return the trigonometric arccos, element-wise.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The value for which to compute the trigonometric cosine.
+    out : ht.DNDarray or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    arccos : ht.DNDarray
+        A tensor of the same shape as x, containing the trigonometric arccos of each element in this tensor.
+        Input elements outside [-1., 1.] are returned as nan. If out was provided, arccos is a reference to it.
+
+    Examples
+    --------
+    >>> ht.arccos(ht.array([-1.,-0., 0.83]))
+    tensor([-1.5708,  0.0000,  0.9791])
+    """
+    return local_op(torch.acos, x, out)
 
 
 def cos(x, out=None):
