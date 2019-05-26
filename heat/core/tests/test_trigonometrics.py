@@ -1,10 +1,43 @@
 import torch
 import unittest
-
+import math
 import heat as ht
 
 
 class TestTrigonometrics(unittest.TestCase):
+    def test_arcsin(self):
+        # base elements
+        elements = [-1.,-0.83,-0.12,0.,0.24,0.67,1.]
+        comparison = torch.tensor(elements, dtype=torch.float64).asin()
+
+        # arcsin of float32
+        float32_tensor = ht.array(elements, dtype=ht.float32)
+        float32_arcsin = ht.arcsin(float32_tensor)
+        self.assertIsInstance(float32_arcsin, ht.DNDarray)
+        self.assertEqual(float32_arcsin.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_arcsin._DNDarray__array.type(torch.double), comparison))
+        
+        # arcsin of float64
+        float64_tensor = ht.array(elements, dtype=ht.float64)
+        float64_arcsin = ht.arcsin(float64_tensor)
+        self.assertIsInstance(float64_arcsin, ht.DNDarray)
+        self.assertEqual(float64_arcsin.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_arcsin._DNDarray__array.type(torch.double), comparison))
+       
+        # arcsin of value out of domain 
+        nan_tensor = ht.array([1.2])
+        nan_arcsin = ht.arcsin(nan_tensor)
+        self.assertIsInstance(float64_arcsin, ht.DNDarray)
+        self.assertEqual(nan_arcsin.dtype, ht.float32)
+        self.assertTrue(math.isnan(nan_arcsin._DNDarray__array.item()))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.arcsin([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.arcsin('hello world')
+
+
     def test_cos(self):
         # base elements
         elements = 30
@@ -14,7 +47,6 @@ class TestTrigonometrics(unittest.TestCase):
         float32_tensor = ht.arange(elements, dtype=ht.float32)
         float32_cos = ht.cos(float32_tensor)
         self.assertIsInstance(float32_cos, ht.DNDarray)
-        self.assertEqual(float32_cos.dtype, ht.float32)
         self.assertEqual(float32_cos.dtype, ht.float32)
         self.assertTrue(torch.allclose(float32_cos._DNDarray__array.type(torch.double), comparison))
 
