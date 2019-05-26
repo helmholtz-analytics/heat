@@ -4,9 +4,9 @@ from .operations import __local_op as local_op
 
 
 __all__ = [
+    'rad2deg',
     'degrees',
     'radians',
-    'rad2deg',
     'deg2rad',
     'arctan',
     'arcsin',
@@ -39,8 +39,8 @@ def rad2deg(x, out=None):
 
     Examples
     --------
-    >>> ht.rad2deg(ht.arange(-6, 7, 2))
-    tensor([])
+    >>> ht.rad2deg(ht.array([0.,0.2,0.6,0.9,1.2,2.7,3.14])) 
+    tensor([  0.0000,  11.4592,  34.3775,  51.5662,  68.7549, 154.6986, 179.9088])
     """
     # rad2deg torch version
     def torch_rad2deg(torch_tensor):
@@ -70,20 +70,20 @@ def degrees(x, out=None):
 
     Examples
     --------
-    >>> ht.rad2deg(ht.arange(-6, 7, 2))
-    tensor([])
+    >>> ht.degrees(ht.array([0.,0.2,0.6,0.9,1.2,2.7,3.14])) 
+    tensor([  0.0000,  11.4592,  34.3775,  51.5662,  68.7549, 154.6986, 179.9088])
     """
     return rad2deg(x, out=None)  
 
 
 def deg2rad(x, out=None):
     """
-    Convert angles from radians to degrees.
+    Convert angles from degrees to radians.
 
     Parameters
     ----------
     x : ht.DNDarray
-        The value for which to compute the angles in degrees.
+        The value for which to compute the angles in radians.
     out : ht.DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
@@ -91,12 +91,12 @@ def deg2rad(x, out=None):
     Returns
     -------
     y : ht.DNDarray
-        The corresponding angle in degrees
+        The corresponding angle in radians
 
-    Examples
+    Examples elements = 
     --------
-    >>> ht.deg2rad(ht.arange(-6, 7, 2))
-    tensor([])
+    >>> ht.deg2rad(ht.array([0.,20.,45.,78.,94.,120.,180., 270., 311.])) 
+    tensor([0.0000, 0.3491, 0.7854, 1.3614, 1.6406, 2.0944, 3.1416, 4.7124, 5.4280])
     """
     # deg2rad torch version
     def torch_deg2rad(torch_tensor):
@@ -108,12 +108,12 @@ def deg2rad(x, out=None):
 
 def radians(x, out=None):
     """
-    Convert angles from radians to degrees.
+    Convert angles from degrees to radians.
 
     Parameters
     ----------
     x : ht.DNDarray
-        The value for which to compute the angles in degrees.
+        The value for which to compute the angles in radians.
     out : ht.DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
@@ -121,12 +121,12 @@ def radians(x, out=None):
     Returns
     -------
     y : ht.DNDarray
-        The corresponding angle in degrees
+        The corresponding angle in radians
 
     Examples
     --------
-    >>> ht.deg2rad(ht.arange(-6, 7, 2))
-    tensor([])
+    >>> ht.radians(ht.array([0., 20., 45., 78., 94., 120., 180., 270., 311.])) 
+    tensor([0.0000, 0.3491, 0.7854, 1.3614, 1.6406, 2.0944, 3.1416, 4.7124, 5.4280])
     """
 
     return deg2rad(x, out=None)
@@ -152,7 +152,8 @@ def arctan(x, out=None):
     Examples
     --------
     >>> ht.arctan(ht.arange(-6, 7, 2))
-    tensor([])
+    tensor([-1.4056, -1.3258, -1.1071,  0.0000,  1.1071,  1.3258,  1.4056],
+       dtype=torch.float64)
     """
     return local_op(torch.atan, x, out)
 
@@ -204,7 +205,7 @@ def arccos(x, out=None):
     Examples
     --------
     >>> ht.arccos(ht.array([-1.,-0., 0.83]))
-    tensor([-1.5708,  0.0000,  0.9791])
+    tensor([3.1416, 1.5708, 0.5917])
     """
     return local_op(torch.acos, x, out)
 
