@@ -1,8 +1,13 @@
 import torch
-
+from .constants import pi
 from .operations import __local_op as local_op
 
+
 __all__ = [
+    'degrees',
+    'radians',
+    'rad2deg',
+    'deg2rad',
     'arctan',
     'arcsin',
     'arccos',
@@ -14,6 +19,117 @@ __all__ = [
     'tanh'
 ]
 
+
+def rad2deg(x, out=None):
+    """
+    Convert angles from radians to degrees.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The value for which to compute the angles in degrees.
+    out : ht.DNDarray or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    y : ht.DNDarray
+        The corresponding angle in degrees
+
+    Examples
+    --------
+    >>> ht.rad2deg(ht.arange(-6, 7, 2))
+    tensor([])
+    """
+    # rad2deg torch version
+    def torch_rad2deg(torch_tensor):
+        if not torch.is_tensor(torch_tensor):
+            raise TypeError("Input is not a torch tensor but {}".format(type(torch_tensor)))
+        return 180. * torch_tensor / pi
+
+    return local_op(torch_rad2deg, x, out)
+
+
+def degrees(x, out=None):
+    """
+    Convert angles from radians to degrees.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The value for which to compute the angles in degrees.
+    out : ht.DNDarray or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    y : ht.DNDarray
+        The corresponding angle in degrees
+
+    Examples
+    --------
+    >>> ht.rad2deg(ht.arange(-6, 7, 2))
+    tensor([])
+    """
+    return rad2deg(x, out=None)  
+
+
+def deg2rad(x, out=None):
+    """
+    Convert angles from radians to degrees.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The value for which to compute the angles in degrees.
+    out : ht.DNDarray or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    y : ht.DNDarray
+        The corresponding angle in degrees
+
+    Examples
+    --------
+    >>> ht.deg2rad(ht.arange(-6, 7, 2))
+    tensor([])
+    """
+    # deg2rad torch version
+    def torch_deg2rad(torch_tensor):
+        if not torch.is_tensor(torch_tensor):
+            raise TypeError("Input is not a torch tensor but {}".format(type(torch_tensor)))
+        return torch_tensor * pi / 180.
+
+    return local_op(torch_deg2rad, x, out)
+
+def radians(x, out=None):
+    """
+    Convert angles from radians to degrees.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The value for which to compute the angles in degrees.
+    out : ht.DNDarray or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    y : ht.DNDarray
+        The corresponding angle in degrees
+
+    Examples
+    --------
+    >>> ht.deg2rad(ht.arange(-6, 7, 2))
+    tensor([])
+    """
+
+    return deg2rad(x, out=None)
 
 def arctan(x, out=None):
     """
@@ -31,7 +147,7 @@ def arctan(x, out=None):
     -------
     arcstan : ht.DNDarray
         A tensor of the same shape as x, containing the trigonometric arctan of each element in this tensor.
-        Input elements outside [-1., 1.] are returned as nan. If out was provided, arctan is a reference to it.
+        If out was provided, arctan is a reference to it.
 
     Examples
     --------
