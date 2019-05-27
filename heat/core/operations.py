@@ -195,6 +195,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
     # no further checking needed, sanitize axis will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape,  kwargs.get('axis'))
     split = x.split
+    keepdim = kwargs.get('keepdim')
 
     if axis is None:
         partial = partial_op(x._DNDarray__array).reshape(-1)
@@ -205,12 +206,20 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
 
         if isinstance(axis, tuple):
             partial = x._DNDarray__array
+            output_shape = x.gshape
             for dim in axis:
                 partial = partial_op(partial, dim=dim, keepdim=True)
-                shape_keepdim = x.gshape[:dim] + (1,) + x.gshape[dim + 1:]
-            shape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
-
-        output_shape = shape_keepdim if kwargs.get('keepdim') else shape_losedim
+                output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1:]
+        if not keepdim and not len(partial.shape) == 1:
+            gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
+            lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if not dim in axis)
+            output_shape = gshape_losedim
+            # Take care of special cases argmin and argmax: keep partial.shape[0]
+            if (0 in axis and partial.shape[0] != 1):
+                lshape_losedim = (partial.shape[0],) + lshape_losedim
+            if (not 0 in axis and partial.shape[0] != x.lshape[0]):
+                lshape_losedim = (partial.shape[0],) + lshape_losedim[1:]
+            partial = partial.reshape(lshape_losedim)
 
     # Check shape of output buffer, if any
     if out is not None and out.shape != output_shape:

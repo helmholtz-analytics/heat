@@ -30,7 +30,7 @@ class TestArithmetics(unittest.TestCase):
             [3.0, 4.0],
             [5.0, 6.0]
         ])
-        
+
         self.assertTrue(ht.equal(ht.add(self.a_scalar, self.a_scalar), ht.float32([4.0])))
         self.assertTrue(ht.equal(ht.add(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.add(self.a_scalar, self.a_tensor), result))
@@ -193,10 +193,10 @@ class TestArithmetics(unittest.TestCase):
     def test_sub(self):
         result = ht.array([
             [-1.0, 0.0],
-            [ 1.0, 2.0]
+            [1.0, 2.0]
         ])
         minus_result = ht.array([
-            [ 1.0,  0.0],
+            [1.0,  0.0],
             [-1.0, -2.0]
         ])
 

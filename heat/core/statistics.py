@@ -87,15 +87,29 @@ def argmax(x, axis=None, out=None, **kwargs):
         raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
 
     # perform the global reduction
-    reduced_result = operations.__reduce_op(x, local_argmax, MPI_ARGMAX, axis=axis, out=out, **kwargs)
+    reduced_result = operations.__reduce_op(x, local_argmax, MPI_ARGMAX, axis=axis, out=None, **kwargs)
 
     # correct the tensor
     reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(torch.int64)
     reduced_result._DNDarray__dtype = types.int64
 
+    # address lshape/gshape mismatch when axis is 0
+    if axis is not None:
+        if isinstance(axis, int):
+            axis = (axis,)
+        if 0 in axis:
+            reduced_result._DNDarray__gshape = (1,) + reduced_result._DNDarray__gshape
+            if not kwargs.get('keepdim'):
+                reduced_result = reduced_result.squeeze(axis=0)
+
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
+        if out.shape != reduced_result.shape:
+            raise ValueError('Expecting output buffer of shape {}, got {}'.format(reduced_result.shape, out.shape))
         out._DNDarray__array.storage().copy_(reduced_result._DNDarray__array.storage())
+        out._DNDarray__array = out._DNDarray__array.type(torch.int64)
+        out._DNDarray__dtype = types.int64
+        return out
 
     return reduced_result
 
@@ -166,15 +180,29 @@ def argmin(x, axis=None, out=None, **kwargs):
         raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
 
     # perform the global reduction
-    reduced_result = operations.__reduce_op(x, local_argmin, MPI_ARGMIN, axis=axis, out=out, **kwargs)
+    reduced_result = operations.__reduce_op(x, local_argmin, MPI_ARGMIN, axis=axis, out=None, **kwargs)
 
     # correct the tensor
     reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(torch.int64)
     reduced_result._DNDarray__dtype = types.int64
 
+    # address lshape/gshape mismatch when axis is 0
+    if axis is not None:
+        if isinstance(axis, int):
+            axis = (axis,)
+        if 0 in axis:
+            reduced_result._DNDarray__gshape = (1,) + reduced_result._DNDarray__gshape
+            if not kwargs.get('keepdim'):
+                reduced_result = reduced_result.squeeze(axis=0)
+
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
+        if out.shape != reduced_result.shape:
+            raise ValueError('Expecting output buffer of shape {}, got {}'.format(reduced_result.shape, out.shape))
         out._DNDarray__array.storage().copy_(reduced_result._DNDarray__array.storage())
+        out._DNDarray__array = out._DNDarray__array.type(torch.int64)
+        out._DNDarray__dtype = types.int64
+        return out
 
     return reduced_result
 
@@ -357,9 +385,9 @@ def mean(x, axis=None):
                 # multiple dimensions which does *not* include the split axis
                 # combine along the split axis
                 return dndarray.DNDarray(torch.mean(x._DNDarray__array, dim=axis),
-                                  tuple(output_shape), x.dtype,
-                                  x.split if x.split < len(output_shape) else len(output_shape) - 1,
-                                  x.device, x.comm)
+                                         tuple(output_shape), x.dtype,
+                                         x.split if x.split < len(output_shape) else len(output_shape) - 1,
+                                         x.device, x.comm)
         elif isinstance(axis, int):
             if axis >= len(x.shape):
                 raise ValueError("axis (axis) must be < {}, currently is {}".format(len(x.shape), axis))
@@ -380,7 +408,8 @@ def mean(x, axis=None):
                 return dndarray.DNDarray(torch.mean(x._DNDarray__array, dim=axis), tuple(output_shape), x.dtype,
                                          x.split if x.split < len(output_shape) else len(output_shape) - 1, x.device, x.comm)
         else:
-            raise TypeError('axis (axis) must be an int or a list, ht.DNDarray, torch.Tensor, or tuple, but was {}'.format(type(axis)))
+            raise TypeError(
+                'axis (axis) must be an int or a list, ht.DNDarray, torch.Tensor, or tuple, but was {}'.format(type(axis)))
 
 
 def merge_means(mu1, n1, mu2, n2):
@@ -728,4 +757,5 @@ def var(x, axis=None, bessel=True):
                 return dndarray.DNDarray(lcl, tuple(output_shape), x.dtype, x.split if x.split < len(output_shape) else len(output_shape) - 1,
                                          x.device, x.comm)
         else:
-            raise TypeError('axis (axis) must be an int, currently is {}. Check if multidim var is available in PyTorch'.format(type(axis)))
+            raise TypeError(
+                'axis (axis) must be an int, currently is {}. Check if multidim var is available in PyTorch'.format(type(axis)))
