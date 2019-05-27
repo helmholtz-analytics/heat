@@ -16,14 +16,12 @@ class TestExponential(unittest.TestCase):
         float32_exp = ht.exp(float32_tensor)
         self.assertIsInstance(float32_exp, ht.DNDarray)
         self.assertEqual(float32_exp.dtype, ht.float32)
-        self.assertEqual(float32_exp.dtype, ht.float32)
         self.assertTrue(ht.allclose(float32_exp, comparison.astype(ht.float32)))
 
         # exponential of float64
         float64_tensor = ht.arange(elements, dtype=ht.float64)
         float64_exp = ht.exp(float64_tensor)
         self.assertIsInstance(float64_exp, ht.DNDarray)
-        self.assertEqual(float64_exp.dtype, ht.float64)
         self.assertEqual(float64_exp.dtype, ht.float64)
         self.assertTrue(ht.allclose(float64_exp, comparison))
 
@@ -32,14 +30,12 @@ class TestExponential(unittest.TestCase):
         int32_exp = ht.exp(int32_tensor)
         self.assertIsInstance(int32_exp, ht.DNDarray)
         self.assertEqual(int32_exp.dtype, ht.float64)
-        self.assertEqual(int32_exp.dtype, ht.float64)
         self.assertTrue(ht.allclose(int32_exp, comparison))
 
         # exponential of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(elements, dtype=ht.int64)
         int64_exp = int64_tensor.exp()
         self.assertIsInstance(int64_exp, ht.DNDarray)
-        self.assertEqual(int64_exp.dtype, ht.float64)
         self.assertEqual(int64_exp.dtype, ht.float64)
         self.assertTrue(ht.allclose(int64_exp, comparison))
 
@@ -48,6 +44,46 @@ class TestExponential(unittest.TestCase):
             ht.exp([1, 2, 3])
         with self.assertRaises(TypeError):
             ht.exp('hello world')
+
+
+    def test_expm1(self):
+        elements = 10
+        tmp = torch.arange(elements, dtype=torch.float64).expm1()
+        comparison = ht.array(tmp)
+
+        # expm1onential of float32
+        float32_tensor = ht.arange(elements, dtype=ht.float32)
+        float32_expm1 = ht.expm1(float32_tensor)
+        self.assertIsInstance(float32_expm1, ht.DNDarray)
+        self.assertEqual(float32_expm1.dtype, ht.float32)
+        self.assertTrue(ht.allclose(float32_expm1, comparison.astype(ht.float32)))
+
+        # expm1onential of float64
+        float64_tensor = ht.arange(elements, dtype=ht.float64)
+        float64_expm1 = ht.expm1(float64_tensor)
+        self.assertIsInstance(float64_expm1, ht.DNDarray)
+        self.assertEqual(float64_expm1.dtype, ht.float64)
+        self.assertTrue(ht.allclose(float64_expm1, comparison))
+
+        # expm1onential of ints, automatic conversion to intermediate floats
+        int32_tensor = ht.arange(elements, dtype=ht.int32)
+        int32_expm1 = ht.expm1(int32_tensor)
+        self.assertIsInstance(int32_expm1, ht.DNDarray)
+        self.assertEqual(int32_expm1.dtype, ht.float64)
+        self.assertTrue(ht.allclose(int32_expm1, comparison))
+
+        # expm1onential of longs, automatic conversion to intermediate floats
+        int64_tensor = ht.arange(elements, dtype=ht.int64)
+        int64_expm1 = int64_tensor.expm1()
+        self.assertIsInstance(int64_expm1, ht.DNDarray)
+        self.assertEqual(int64_expm1.dtype, ht.float64)
+        self.assertTrue(ht.allclose(int64_expm1, comparison))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.expm1([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.expm1('hello world')
 
     def test_exp2(self):
         elements = 10

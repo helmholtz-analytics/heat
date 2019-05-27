@@ -885,6 +885,30 @@ class DNDarray:
         """
         return exponential.exp(self, out)
 
+
+    def expm1(self, out=None):
+        """
+        Calculate exp(x) - 1 for all elements in the array.
+
+        Parameters
+        ----------
+        out : ht.DNDarray or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        exponentials : ht.DNDarray
+            A tensor of the same shape as x, containing the positive exponentials minus one of each element in this tensor. If out
+            was provided, logarithms is a reference to it.
+
+        Examples
+        --------
+        >>> ht.arange(5).exp() + 1.
+        tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
+        """
+        return exponential.expm1(self, out)
+
     def exp2(self, out=None):
         """
         Calculate the exponential of all elements in the input array.
