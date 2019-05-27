@@ -69,6 +69,10 @@ class DNDarray:
         return self.__gshape
 
     @property
+    def numdims(self):
+        return len(self.__gshape)
+
+    @property
     def size(self):
         """
         Returns
