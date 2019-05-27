@@ -5,7 +5,6 @@ import numpy as np
 import heat as ht
 
 
-
 class TestExponential(unittest.TestCase):
     def test_exp(self):
         elements = 10
@@ -26,7 +25,7 @@ class TestExponential(unittest.TestCase):
         self.assertIsInstance(float64_exp, ht.DNDarray)
         self.assertEqual(float64_exp.dtype, ht.float64)
         self.assertEqual(float64_exp.dtype, ht.float64)
-        self.assertTrue(ht.allclose(float64_exp , comparison))
+        self.assertTrue(ht.allclose(float64_exp, comparison))
 
         # exponential of ints, automatic conversion to intermediate floats
         int32_tensor = ht.arange(elements, dtype=ht.int32)
