@@ -554,6 +554,40 @@ class DNDarray:
         """
         return rounding.ceil(self, out)
 
+
+    def trunc(self, out=None):
+        """
+        Return the trunc of the input, element-wise.
+
+        The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the 
+        fractional part of the signed number x is discarded.
+
+        Parameters
+        ----------
+        out : ht.DNDarray or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        trunced : ht.DNDarray
+            A tensor of the same shape as x, containing the trunced valued of each element in this tensor. If out was
+            provided, trunced is a reference to it.
+
+        Returns
+        -------
+        trunced : ht.DNDarray
+            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
+            provided, trunced is a reference to it.
+
+        Examples
+        --------
+        >>> ht.trunc(ht.arange(-2.0, 2.0, 0.4))
+        tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
+        """
+        return rounding.trunc(self, out)
+
+
     def clip(self, a_min, a_max, out=None):
         """
         Parameters

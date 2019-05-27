@@ -10,7 +10,8 @@ __all__ = [
     'ceil',
     'clip',
     'fabs',
-    'floor'
+    'floor',
+    'trunc'
 ]
 
 
@@ -133,7 +134,7 @@ def clip(a, a_min, a_max, out=None):
 
     return a._DNDarray__array.clamp(a_min, a_max, out=out._DNDarray__array) and out
 
-    
+ 
 def fabs(x, out=None):
     """
     Calculate the absolute value element-wise and return floating-point tensor.
@@ -182,3 +183,32 @@ def floor(x, out=None):
     tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
     """
     return operations.__local_op(torch.floor, x, out)
+
+
+def trunc(x, out=None):
+    """
+    Return the trunc of the input, element-wise.
+
+    The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the 
+    fractional part of the signed number x is discarded.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The value for which to compute the trunced values.
+    out : ht.DNDarray or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    trunced : ht.DNDarray
+        A tensor of the same shape as x, containing the trunced valued of each element in this tensor. If out was
+        provided, trunced is a reference to it.
+
+    Examples
+    --------
+    >>> ht.trunc(ht.arange(-2.0, 2.0, 0.4))
+    tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
+    """
+    return operations.__local_op(torch.trunc, x, out)
