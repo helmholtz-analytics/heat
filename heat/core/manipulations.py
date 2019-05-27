@@ -162,7 +162,7 @@ def squeeze(x, axis=None):
             displs = factories.zeros(x.comm.size, dtype=types.int64)
             x.comm.Allgather(loffset, displs)
 
-            # x.comm.Allgatherv(x_lsqueezed,  x_gsqueezed, displs)  # TODO
+            # TODO: address uneven distribution of dimensions (Allgatherv). Issue #273, #233
             x.comm.Allgather(x_lsqueezed, x_gsqueezed)  # works with evenly distributed dimensions only
             return dndarray.DNDarray(
                 x_gsqueezed,
