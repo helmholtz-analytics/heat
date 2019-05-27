@@ -73,12 +73,27 @@ def matmul(a, b, out=None, out_split=None):
         # todo: make this actually work in the proper form....needs to return a DNDarray
         return torch.matmul(a._DNDarray__array, b._DNDarray__array)
     else:
+        split_0_flag = False
+        split_1_flag = False
+        split_01_flag = False
+        split_10_flag = False
+        if a.split == 0 and b.split == 0:
+            split_0_flag = True
+        elif a.split == 1 and b.split == 1:
+            split_1_flag = True
+        elif a.split == 0 and b.split == 1:
+            split_01_flag = True
+        elif a.split == 1 and b.split == 0:
+            split_10_flag = True
+
         # block sizes dont need to be the same. thy just need the same inner dimmension (kB)
         kB = 0
         rem_a, rem_b = [0] * 2
         if a.split == len(a.gshape)-1 and b.split == len(a.gshape)-2:  # if the split direction is the last dim in a and the first dim in b
             # the max inner dim (kB) is the min value from the result of the integer division of the last dim of a/world size and the first dim of b/world size
             kB = min([a.gshape[-1] // a.comm.size, b.gshape[0] // b.comm.size])
+        elif a.split == len(a.gshape) - 2 and b.split == len(a.gshape) - 1:
+            kB = a.gshape[-1]
         elif a.split == len(a.gshape)-1:
             kB = a.gshape[-1] // a.comm.size
         elif b.split == len(a.gshape)-2:
@@ -87,14 +102,13 @@ def matmul(a, b, out=None, out_split=None):
         else:  # if the split is not in either of these directions then kB can be anything, it just needs to be tuned
             # what to do here?
             raise NotImplementedError("need to implement case of split 0 and split 1 for a and b respectively")
-            pass
+
         # kB = int(kB)
         if a.lshape[-1] % kB != 0:
             rem_a = 1
         if b.lshape[-2] % kB != 0:
             rem_b = 1
 
-        # print(kB, rem_a, rem_b)
 
         # get the lshape map to determine what needs to be sent where as well as M and N
         # lshape map dims -> {node, a=0, b=1, lshape}
@@ -110,7 +124,7 @@ def matmul(a, b, out=None, out_split=None):
 
         nB = int(nB)
         mB = int(mB)
-        # print('mb', mB, 'kB', kB, 'nb', nB)
+        print('mb', mB, 'kB', kB, 'nb', nB)
 
         # check for remaining dims in the outside dimensions
         rem_a_out, rem_b_out = 0, 0
@@ -128,7 +142,7 @@ def matmul(a, b, out=None, out_split=None):
         rem_map[a.comm.rank, 0, :] = (rem_a_out, rem_a)
         rem_map[a.comm.rank, 1, :] = (rem_b, rem_b_out)
         a.comm.Allreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
-        # print(rem_map)
+        print(rem_map)
 
         # index_map dims guide -> {process number, a=0/b=1, relevent 1st index, 2nd index}
         index_map = factories.zeros((a.comm.size, 2, 2, 2), dtype=int)
@@ -152,7 +166,10 @@ def matmul(a, b, out=None, out_split=None):
         c_index_map[c.comm.rank, 1, :] = (c_idx[1].start, c_idx[1].stop)
         c.comm.Allreduce(MPI.IN_PLACE, c_index_map, MPI.SUM)
 
-        a_block_map = torch.zeros((a.comm.size, a.shape[-2] // mB // a.comm.size, a.shape[-1] // kB, 2))
+        if a.split == 0:
+            a_block_map = torch.zeros((a.comm.size, a.shape[-2] // mB // a.comm.size, a.shape[-1] // kB, 2))
+        if a.split == 1:
+            a_block_map = torch.zeros((a.comm.size, a.shape[-2] // mB, a.shape[-1] // kB // a.comm.size, 2))
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
         for pr in range(a.comm.size):
             start0 = index_map[pr, 0, 0, 0].item()
@@ -164,18 +181,20 @@ def matmul(a, b, out=None, out_split=None):
                 # loop over the number of blocks in the 0th dimension
                 for dim1 in range((stop1 - start1) // kB):
                     # loop over the number of blocks in the 1st dimension
-                    # todo: figure out how to change this for a_split=1
                     a_block_map[pr, dim0, dim1] = torch.tensor((dim0 * mB, dim1 * kB), dtype=torch.int)
 
-        # the blocks are shifted in the 2nd dimension of A for as many remainders there are between the blocks in the first dim of B
-        cnt = 0  # todo: this may need to be changed for splits=1
-        for r in rem_map[:, 1, 0]:
-            if r.item():
-                cnt += 1
-                a_block_map[:, :, cnt:, 1] += 1
+        if b.split == 0:
+            # the blocks are shifted in the 2nd dimension of A for as many remainders there are between the blocks in the first dim of B
+            cnt = 0
+            for r in rem_map[:, 1, 0]:
+                if r.item():
+                    cnt += 1
+                    a_block_map[:, :, cnt:, 1] += 1
 
-
-        b_block_map = torch.zeros((b.comm.size, b.shape[-2] // kB // b.comm.size, b.shape[-1] // nB, 2))
+        if b.split == 0:
+            b_block_map = torch.zeros((b.comm.size, b.shape[-2] // kB // b.comm.size, b.shape[-1] // nB, 2))
+        if b.split == 1:
+            b_block_map = torch.zeros((b.comm.size, b.shape[-2] // kB, b.shape[-1] // nB // b.comm.size, 2))
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
         for pr in range(b.comm.size):
             start0 = index_map[pr, 1, 0, 0].item()
@@ -188,105 +207,191 @@ def matmul(a, b, out=None, out_split=None):
                 # loop over the number of blocks in the 0th dimension
                 for dim1 in range((stop1 - start1) // nB):
                     # loop over the number of blocks in the 1st dimension
-                    # todo: figure this out for b_split=1
                     b_block_map[pr, dim0, dim1] = torch.tensor((dim0 * kB, dim1 * nB), dtype=torch.int)
 
-            # TODO: need to fix this for the case that the blocks in 'b' need to be shifted (in a_split = 0 this isnt needed)
-            # cnt = 0
-            # for r in rem_map[:, 1, 0]:
-            #     if r.item():
-            #         cnt += 1
-            #         b_block_map[pr][:, cnt, 1] += cnt
+        if a.split == 1:
+            cnt = 0
+
+            for r in rem_map[:, 0, 1]:
+                if r.item():
+                    cnt += 1
+                    # print(b_block_map[:, cnt:, :, 0])
+                    b_block_map[:, cnt:, :, 0] += 1
+
+        # print(b_block_map)
 
         # ibcast from each node
         # do calculation (if first loop use what is only on node)
-        def c_block_setter(b_proc, a_proc):
-            shp = list(b_block_map.shape)
-            offset = b_proc * shp[1] if b_proc != 0 else 0
+        def c_block_setter(b_proc, a_proc, a_data, b_data):
+            shp_b = list(b_block_map.shape)
+            offset_a = b_proc * shp_b[1] if b_proc != 0 else 0
+            shp_a = list(a_block_map.shape)
+            offset_b = a_proc * shp_a[2] if a_proc != 0 else 0
 
-            for bl_1_a in range(offset, offset + shp[1]):  # this offset is where to start the multiplication
+            for bl_1_a in range(offset_a, offset_a + shp_b[1]) if a.split == 0 else range(a_block_map[a_proc].shape[0]):
+                # this offset is where to start the multiplication
                 for bl_0_a in range(a_block_map[a_proc].shape[0]):  # dim0
                     for bl_1_b in range(b_block_map[b_proc].shape[1]):
-                        for bl_0_b in range(b_block_map[b_proc].shape[0]):
+                        for bl_0_b in range(offset_b, offset_b + shp_a[1]) if b.split == 1 else range(b_block_map[b_proc].shape[0]):
+                            # need to add the offest for here
                             a_start1 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 1].item())
                             a_start0 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 0].item())
-                            a_block = a._DNDarray__array[a_start0:a_start0 + mB, a_start1:a_start1 + kB]
+                            a_block = a_data[a_start0:a_start0 + mB, a_start1:a_start1 + kB]
 
                             b_start0 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 0].item())
                             b_start1 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 1].item())
-                            b_block = b_lp_data[b_proc][b_start0:b_start0 + kB, b_start1:b_start1 + nB]
+                            b_block = b_data[b_start0:b_start0 + kB, b_start1:b_start1 + nB]
 
                             c_start0 = a_start0
                             c_start1 = b_start1
+                            # print(a_proc, a_start0, a_start1, b_start0, b_start1, c_start0, c_start1)
                             c._DNDarray__array[c_start0:c_start0 + mB, c_start1:c_start1 + nB] += a_block @ b_block
 
-        req = {}
-        b_lp_data = {}
         # work loop: loop over all processes (also will incorporate the remainder calcuations)
 
         rem_map = rem_map._DNDarray__array
-        b_rem_locs0 = (rem_map[:, 1, 0] == 1).nonzero()  # locations of the remainders in b
-        a_node_rem = a._DNDarray__array[:mB, kB:(kB + 1)*b_rem_locs0.numel():kB + 1]  # remainders for a in the
-        b_rem = torch.empty(b_rem_locs0.numel(), b.lshape[-1])
+        # print(rem_map[:, 0, :])
 
-        a_rem_locs0 = (rem_map[:, 0, 0] == 1).nonzero()
-        if a.comm.rank in a_rem_locs0:
-            r = a._DNDarray__array[-1]
-            r_loc = index_map[a.comm.rank, 0, 0, 1] - index_map[a.comm.rank, 0, 0, 0] - 1
-        else:
-            r = None
-            r_loc = None
+        if split_0_flag:
+            # need to send b here and not a
+            b_rem_locs0 = (rem_map[:, 1, 0] == 1).nonzero()  # locations of the remainders in b
+            a_rem_locs0 = (rem_map[:, 0, 0] == 1).nonzero()
+            a_node_rem_s0 = a._DNDarray__array[:mB, kB:(kB + 1) * b_rem_locs0.numel():kB + 1]  # remainders for a in the
+            b_rem = torch.empty(b_rem_locs0.numel(), b.lshape[-1])
 
-        for pr in range(b.comm.size):
-            # ibcast data on node first
-            if b.comm.rank == pr:
-                b_lp_data[pr] = b._DNDarray__array
+            # this if/elif/else loop is for the handling of
+            if a.comm.rank in a_rem_locs0:
+                # if A is split in dim0 and the rank has a remainder in this direction
+                r = a._DNDarray__array[-1]
+                r_loc = index_map[a.comm.rank, 0, 0, 1] - index_map[a.comm.rank, 0, 0, 0] - 1
             else:
-                b_lp_data[pr] = torch.empty((lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()))
+                r = None
+                r_loc = None
 
-            # sending a to all nodes for b to operate with
-            req[pr] = b.comm.Ibcast(b_lp_data[pr], root=pr)
+            req = {}
+            b_lp_data = {}
+            for pr in range(b.comm.size):
+                # ibcast data on node first
+                if b.comm.rank == pr:
+                    b_lp_data[pr] = b._DNDarray__array
+                else:
+                    b_lp_data[pr] = torch.empty((lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()))
 
-            # receive the data from the last loop and do the calculation with that
-            if pr != 0:
-                req[pr - 1].wait()
-                # after receiving the last loop's bcast
-                c_block_setter(b_proc=pr - 1, a_proc=a.comm.rank)
+                # sending a to all nodes for b to operate with
+                req[pr] = b.comm.Ibcast(b_lp_data[pr], root=pr)
 
-                # check if there is a remainder on b in the previous node
-                if pr - 1 in b_rem_locs0:
-                    b_rem[pr - 1] = b_lp_data[pr - 1][-1]  # takes care of the remainders in b as well as dim0 of a
+                # receive the data from the last loop and do the calculation with that
+                if pr != 0:
+                    req[pr - 1].wait()
+                    # after receiving the last loop's bcast
+                    c_block_setter(b_proc=pr - 1, a_proc=a.comm.rank, a_data=a._DNDarray__array, b_data=b_lp_data[pr-1])
 
-                if a_rem_locs0.nelement() != 0:  # this loop is to take care of the remainders in dim0 of A
-                    if r_loc is not None:
-                        st = index_map[pr - 1, 1, 0, 0].item()
-                        sp = index_map[pr - 1, 1, 0, 1].item()
-                        c._DNDarray__array[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr - 1]
+                    # check if there is a remainder on b in the previous node
+                    if pr - 1 in b_rem_locs0 and split_0_flag:  # this loop is intended to get the remainders of b since it is the one being passed
+                        b_rem[pr - 1] = b_lp_data[pr - 1][-1]  # takes care of the remainders in b as well as dim0 of a
 
-                del b_lp_data[pr - 1]
+                    if a_rem_locs0.nelement() != 0:  # this loop is to take care of the remainders in dim0 of A
+                        if r_loc is not None:
+                            st = index_map[pr - 1, 1, 0, 0].item()
+                            sp = index_map[pr - 1, 1, 0, 1].item()
+                            c._DNDarray__array[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr - 1]
 
-            # need to wait if its the last loop, also need to collect the remainders
-            if pr == b.comm.size - 1:
-                req[pr].wait()
-                c_block_setter(b_proc=pr, a_proc=a.comm.rank)
-                # check if there is a remainder on b on the last node (there shouldnt be)
-                if pr in b_rem_locs0:
-                    b_rem[pr] = b_lp_data[pr][-1]  # this is to save the data from B required by the remainders from dim1 of A
+                    del b_lp_data[pr - 1]
 
-                if a_rem_locs0.nelement() != 0:  # this loop is to take care of the remainders in the 0th dimension of A
-                    if r_loc is not None:
-                        st = index_map[pr, 1, 0, 0].item()
-                        sp = index_map[pr, 1, 0, 1].item()
-                        # print(r_loc, index_map[a.comm.rank, 0, 0, 0], st, sp, r.shape)
-                        c._DNDarray__array[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr]
+                # need to wait if its the last loop, also need to collect the remainders
+                if pr == b.comm.size - 1:
+                    req[pr].wait()
+                    c_block_setter(b_proc=pr, a_proc=a.comm.rank, a_data=a._DNDarray__array, b_data=b_lp_data[pr])
+                    # check if there is a remainder on b on the last node (there shouldnt be)
+                    if pr in b_rem_locs0:
+                        b_rem[pr] = b_lp_data[pr][-1]  # this is to save the data from B required by the remainders from dim1 of A
 
-                # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
-                if b_rem_locs0.numel():
-                    c._DNDarray__array[:a_node_rem.shape[0]] += a_node_rem @ b_rem  # todo: this needs to change for the other splittings
+                    if a_rem_locs0.nelement() != 0:  # this loop is to take care of the remainders in the 0th dimension of A
+                        if r_loc is not None:
+                            st = index_map[pr, 1, 0, 0].item()
+                            sp = index_map[pr, 1, 0, 1].item()
+                            # print(r_loc, index_map[a.comm.rank, 0, 0, 0], st, sp, r.shape)
+                            c._DNDarray__array[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr]
 
-                del b_lp_data[pr]
+                    # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
+                    if b_rem_locs0.numel():
+                        c._DNDarray__array[:a_node_rem_s0.shape[0]] += a_node_rem_s0 @ b_rem
 
-        return c
+                    del b_lp_data[pr]
+            return c
+
+        if split_1_flag:
+            # need to send a here instead of b
+            b_rem_locs1 = (rem_map[:, 1, 1] == 1).nonzero()  # locations of the remainders in b
+            a_rem_locs1 = (rem_map[:, 0, 1] == 1).nonzero()
+            b_node_rem_s1 = b._DNDarray__array[kB:(kB + 1) * a_rem_locs1.numel():kB + 1, : nB]  # remainders for a in the
+            a_rem = torch.empty(a.lshape[-2], a_rem_locs1.numel())
+
+            # this if/elif/else loop is for the handling of
+            if b.comm.rank in b_rem_locs1:
+                # if b is split in dim1 and the rank has a remainder in this direction
+                r = b._DNDarray__array[:, -1]
+                r_loc = index_map[a.comm.rank, 1, 1, 1] - index_map[a.comm.rank, 1, 1, 0] - 1
+            else:
+                r = None
+                r_loc = None
+
+            req = {}
+            a_lp_data = {}
+            for pr in range(a.comm.size):
+                # ibcast data on node first
+                if a.comm.rank == pr:
+                    a_lp_data[pr] = a._DNDarray__array
+                else:
+                    a_lp_data[pr] = torch.empty((lshape_map[pr, 0, 0].item(), lshape_map[pr, 0, 1].item()))
+
+                # sending a to all nodes for b to operate with
+                req[pr] = a.comm.Ibcast(a_lp_data[pr], root=pr)
+
+                # receive the data from the last loop and do the calculation with that
+                if pr != 0:
+                    # print(pr-1, req[pr-1])
+                    req[pr - 1].wait()
+                    # after receiving the last loop's bcast
+                    c_block_setter(a_proc=pr - 1, b_proc=b.comm.rank, a_data=a_lp_data[pr - 1], b_data=b._DNDarray__array)
+
+                    # check if there is a remainder on b in the previous node
+                    if pr - 1 in a_rem_locs1:  # this loop is intended to get the remainders of b since it is the one being passed
+                        # print(a_rem[:, pr - 1].shape, a_lp_data[pr - 1][:, -1])
+                        a_rem[:, pr - 1] = a_lp_data[pr - 1][:, -1]  # takes care of the remainders in b as well as dim0 of a
+
+                    if b_rem_locs1.nelement() != 0:  # this loop is to take care of the remainders in dim1 of B
+                        if r_loc is not None:
+                            st = index_map[pr - 1, 0, 1, 0].item()
+                            sp = index_map[pr - 1, 0, 1, 1].item()
+                            # print(c._DNDarray__array[:, r_loc.item()], (a_lp_data[pr - 1] @ r[st:sp, None]).flatten())
+                            c._DNDarray__array[:, r_loc.item()] += (a_lp_data[pr - 1] @ r[st:sp, None]).flatten()
+
+                    del a_lp_data[pr - 1]
+
+                # need to wait if its the last loop, also need to collect the remainders
+                if pr == b.comm.size - 1:
+                    req[pr].wait()
+                    c_block_setter(a_proc=pr, b_proc=a.comm.rank, a_data=a_lp_data[pr], b_data=b._DNDarray__array)
+                    # check if there is a remainder on b on the last node (there shouldnt be)
+                    if pr in a_rem_locs1:
+                        a_rem[:, pr] = a_lp_data[pr][:, -1]  # this is to save the data from B required by the remainders from dim1 of A
+
+                    if b_rem_locs1.nelement() != 0:  # this loop is to take care of the remainders in the 0th dimension of A
+                        if r_loc is not None:
+                            st = index_map[pr, 0, 1, 0].item()
+                            sp = index_map[pr, 0, 1, 1].item()
+                            # print(r_loc, index_map[a.comm.rank, 0, 0, 0], st, sp, r.shape)
+                            c._DNDarray__array[:, r_loc.item()] += (a_lp_data[pr] @ r[st:sp, None]).flatten()
+
+                    # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
+                    if a_rem_locs1.numel():
+                        # print(c._DNDarray__array[:, b_node_rem_s1.shape[1]].shape, (a_rem @ b_node_rem_s1).shape)
+                        c._DNDarray__array[:, :b_node_rem_s1.shape[1]] += a_rem @ b_node_rem_s1  # todo: this needs to change for the other splittings
+
+                    del a_lp_data[pr]
+            return c
+
 
 
 def transpose(a, axes=None):

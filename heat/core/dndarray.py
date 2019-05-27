@@ -1107,6 +1107,11 @@ class DNDarray:
                     key[self.split] = key[self.split] - chunk_start
                     arr = self.__array[tuple(key)]
                     gout = list(arr.shape)
+                elif key[self.split] < 0 and self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
+                    key = list(key)
+                    key[self.split] = key[self.split] + chunk_end - chunk_start
+                    arr = self.__array[tuple(key)]
+                    gout = list(arr.shape)
                 else:
                     warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
                     # arr is empty
@@ -1769,6 +1774,8 @@ class DNDarray:
             if isinstance(key, int) and self.split == 0:
                 if key in range(chunk_start, chunk_end):
                     self.__setter(key-chunk_start, value)
+            elif isinstance(key, int) and self.split > 0:
+                self[key, :] = value
 
             elif isinstance(key, (tuple, list, torch.Tensor)):
                 if isinstance(key[self.split], slice):
@@ -1793,6 +1800,12 @@ class DNDarray:
                     key = list(key)
                     key[self.split] = key[self.split] - chunk_start
                     self.__setter(tuple(key), value)
+
+                elif key[self.split] < 0:
+                    if self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
+                        key = list(key)
+                        key[self.split] = key[self.split] + chunk_end - chunk_start
+                        self.__setter(tuple(key), value)
 
             elif isinstance(key, slice) and self.split == 0:
                 overlap = list(set(range(key.start, key.stop)) & set(range(chunk_start, chunk_end)))
