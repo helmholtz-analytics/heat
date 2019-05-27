@@ -427,7 +427,7 @@ class TestStatistics(unittest.TestCase):
     def test_var(self):
         array_0_len = 14
         array_1_len = 14
-        # array_2_len = 14
+        array_2_len = 14
 
         # test raises
         x = ht.zeros((2, 3, 4))
@@ -440,7 +440,7 @@ class TestStatistics(unittest.TestCase):
 
         # ones
         dimensions = []
-        for d in [array_0_len, array_1_len]:
+        for d in [array_0_len, array_1_len, array_2_len]:
             dimensions.extend([d, ])
             hold = list(range(len(dimensions)))
             hold.append(None)
@@ -455,6 +455,7 @@ class TestStatistics(unittest.TestCase):
                     target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q != it]
                     if not target_dims:
                         target_dims = (1,)
+
                     self.assertEqual(res.gshape, tuple(target_dims))
                     if res.split is not None:
                         if i >= it:
