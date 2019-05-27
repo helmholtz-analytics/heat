@@ -28,6 +28,11 @@ Features
 * Abstracted communication via split tensors
 * Python API
 
+Getting Started
+---------------
+
+Check out our Jupyter Notebook [tutorial](https://github.com/helmholtz-analytics/heat/blob/master/scripts/tutorial.ipynb) right here on Github or in the /scripts directory.
+
 Requirements
 ------------
 
