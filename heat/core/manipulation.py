@@ -119,7 +119,7 @@ def sort(a, axis=None, descending=False, out=None):
 
         print("Bcas global_pivots", global_pivots)
 
-        # TODO: wirte algorithm that creates a 2D list of with the indices for each column (is it also 2D for higher dimensions?)
+        # TODO: wirte algorithm that creates a 2D list with the indices for each column (is it also 2D for higher dimensions?)
         # # compute starting locations
         # partition_list = [[0] * size]
         # index = 0
