@@ -16,17 +16,17 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
         self.assertEqual(result.shape, (4, 5,))
-        self.assertEqual(result.lshape, (1, 4, 5,))
+        self.assertEqual(result.lshape, (4, 5,))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmax(0)).all())
 
         # 3D local tensor, minor axis
-        result = ht.argmax(data, axis=-1)
+        result = ht.argmax(data, axis=-1, keepdim=True)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (3, 4,))
-        self.assertEqual(result.lshape, (3, 4, 1,))
+        self.assertEqual(result.shape, (3, 4, 1))
+        self.assertEqual(result.lshape, (3, 4, 1))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmax(-1, keepdim=True)).all())
 
@@ -49,9 +49,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
         self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
-        self.assertEqual(result.lshape, (4, 1,))
+        self.assertEqual(result.lshape, (4,))
         self.assertEqual(result.split, 0)
-        self.assertTrue((result._DNDarray__array == torch.tensor([[4], [4], [2], [4]])).all())
+        self.assertTrue((result._DNDarray__array == torch.tensor([4, 4, 2, 4])).all())
 
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
@@ -62,7 +62,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
         self.assertEqual(result.shape, (size,))
-        self.assertEqual(result.lshape, (1, size,))
+        self.assertEqual(result.lshape, (size,))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array != 0).all())
 
@@ -77,7 +77,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(output.dtype, ht.int64)
         self.assertEqual(output._DNDarray__array.dtype, torch.int64)
         self.assertEqual(output.shape, (size,))
-        self.assertEqual(output.lshape, (1, size,))
+        self.assertEqual(output.lshape, (size,))
         self.assertEqual(output.split, None)
         self.assertTrue((output._DNDarray__array != 0).all())
 
@@ -111,17 +111,17 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
         self.assertEqual(result.shape, (4, 5,))
-        self.assertEqual(result.lshape, (1, 4, 5,))
+        self.assertEqual(result.lshape, (4, 5,))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmin(0)).all())
 
         # 3D local tensor, minor axis
-        result = ht.argmin(data, axis=-1)
+        result = ht.argmin(data, axis=-1, keepdim=True)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (3, 4,))
-        self.assertEqual(result.lshape, (3, 4, 1,))
+        self.assertEqual(result.shape, (3, 4, 1))
+        self.assertEqual(result.lshape, (3, 4, 1))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmin(-1, keepdim=True)).all())
 
@@ -133,9 +133,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
         self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
-        self.assertEqual(result.lshape, (4, 1,))
+        self.assertEqual(result.lshape, (4,))
         self.assertEqual(result.split, 0)
-        self.assertTrue((result._DNDarray__array == torch.tensor([[3], [1], [1], [3]])).all())
+        self.assertTrue((result._DNDarray__array == torch.tensor([3, 1, 1, 3])).all())
 
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
@@ -146,7 +146,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
         self.assertEqual(result.shape, (size,))
-        self.assertEqual(result.lshape, (1, size,))
+        self.assertEqual(result.lshape, (size,))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array != 0).all())
 
@@ -161,7 +161,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(output.dtype, ht.int64)
         self.assertEqual(output._DNDarray__array.dtype, torch.int64)
         self.assertEqual(output.shape, (size,))
-        self.assertEqual(output.lshape, (1, size,))
+        self.assertEqual(output.lshape, (size,))
         self.assertEqual(output.split, None)
         self.assertTrue((output._DNDarray__array != 0).all())
 
@@ -202,7 +202,7 @@ class TestStatistics(unittest.TestCase):
 
         self.assertIsInstance(maximum_vertical, ht.DNDarray)
         self.assertEqual(maximum_vertical.shape, (3,))
-        self.assertEqual(maximum_vertical.lshape, (1, 3,))
+        self.assertEqual(maximum_vertical.lshape, (3,))
         self.assertEqual(maximum_vertical.split, None)
         self.assertEqual(maximum_vertical.dtype, ht.int64)
         self.assertEqual(maximum_vertical._DNDarray__array.dtype, torch.int64)
@@ -210,11 +210,11 @@ class TestStatistics(unittest.TestCase):
                          comparison.max(dim=0, keepdim=True)[0]).all())
 
         # maximum along second axis
-        maximum_horizontal = ht.max(ht_array, axis=1)
+        maximum_horizontal = ht.max(ht_array, axis=1, keepdim=True)
 
         self.assertIsInstance(maximum_horizontal, ht.DNDarray)
-        self.assertEqual(maximum_horizontal.shape, (4,))
-        self.assertEqual(maximum_horizontal.lshape, (4, 1,))
+        self.assertEqual(maximum_horizontal.shape, (4, 1))
+        self.assertEqual(maximum_horizontal.lshape, (4, 1))
         self.assertEqual(maximum_horizontal.split, None)
         self.assertEqual(maximum_horizontal.dtype, ht.int64)
         self.assertEqual(maximum_horizontal._DNDarray__array.dtype, torch.int64)
@@ -226,7 +226,7 @@ class TestStatistics(unittest.TestCase):
 
         self.assertIsInstance(maximum_volume, ht.DNDarray)
         self.assertEqual(maximum_volume.shape, (3, 3))
-        self.assertEqual(maximum_volume.lshape, (3, 1, 3))
+        self.assertEqual(maximum_volume.lshape, (3, 3))
         self.assertEqual(maximum_volume.dtype, ht.float32)
         self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float32)
         self.assertEqual(maximum_volume.split, None)
@@ -238,7 +238,7 @@ class TestStatistics(unittest.TestCase):
 
         self.assertIsInstance(maximum_volume, ht.DNDarray)
         self.assertEqual(maximum_volume.shape, (3,))
-        self.assertEqual(maximum_volume.lshape, (3, 1, 1))
+        self.assertEqual(maximum_volume.lshape, (3,))
         self.assertEqual(maximum_volume.dtype, ht.float32)
         self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float32)
         self.assertEqual(maximum_volume.split, 0)
@@ -250,7 +250,7 @@ class TestStatistics(unittest.TestCase):
 
         self.assertIsInstance(maximum_5d, ht.DNDarray)
         self.assertEqual(maximum_5d.shape, (1, 3, 4, 5))
-        self.assertLessEqual(maximum_5d.lshape[1], 2)
+        self.assertLessEqual(maximum_5d.lshape[1], 3)
         self.assertEqual(maximum_5d.dtype, ht.float32)
         self.assertEqual(maximum_5d._DNDarray__array.dtype, torch.float32)
         self.assertEqual(maximum_5d.split, 0)
@@ -352,18 +352,18 @@ class TestStatistics(unittest.TestCase):
 
         self.assertIsInstance(minimum_vertical, ht.DNDarray)
         self.assertEqual(minimum_vertical.shape, (3,))
-        self.assertEqual(minimum_vertical.lshape, (1, 3,))
+        self.assertEqual(minimum_vertical.lshape, (3,))
         self.assertEqual(minimum_vertical.split, None)
         self.assertEqual(minimum_vertical.dtype, ht.int64)
         self.assertEqual(minimum_vertical._DNDarray__array.dtype, torch.int64)
         self.assertTrue((minimum_vertical._DNDarray__array == comparison.min(dim=0, keepdim=True)[0]).all())
 
         # maximum along second axis
-        minimum_horizontal = ht.min(ht_array, axis=1)
+        minimum_horizontal = ht.min(ht_array, axis=1, keepdim=True)
 
         self.assertIsInstance(minimum_horizontal, ht.DNDarray)
-        self.assertEqual(minimum_horizontal.shape, (4,))
-        self.assertEqual(minimum_horizontal.lshape, (4, 1,))
+        self.assertEqual(minimum_horizontal.shape, (4, 1))
+        self.assertEqual(minimum_horizontal.lshape, (4, 1))
         self.assertEqual(minimum_horizontal.split, None)
         self.assertEqual(minimum_horizontal.dtype, ht.int64)
         self.assertEqual(minimum_horizontal._DNDarray__array.dtype, torch.int64)
@@ -375,7 +375,7 @@ class TestStatistics(unittest.TestCase):
 
         self.assertIsInstance(minimum_volume, ht.DNDarray)
         self.assertEqual(minimum_volume.shape, (3, 3))
-        self.assertEqual(minimum_volume.lshape, (3, 1, 3))
+        self.assertEqual(minimum_volume.lshape, (3, 3))
         self.assertEqual(minimum_volume.dtype, ht.float32)
         self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float32)
         self.assertEqual(minimum_volume.split, None)
@@ -387,7 +387,7 @@ class TestStatistics(unittest.TestCase):
 
         self.assertIsInstance(minimum_volume, ht.DNDarray)
         self.assertEqual(minimum_volume.shape, (3,))
-        self.assertEqual(minimum_volume.lshape, (3, 1, 1))
+        self.assertEqual(minimum_volume.lshape, (3,))
         self.assertEqual(minimum_volume.dtype, ht.float32)
         self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float32)
         self.assertEqual(minimum_volume.split, 0)
@@ -399,7 +399,7 @@ class TestStatistics(unittest.TestCase):
 
         self.assertIsInstance(minimum_5d, ht.DNDarray)
         self.assertEqual(minimum_5d.shape, (1, 3, 4, 5))
-        self.assertLessEqual(minimum_5d.lshape[1], 2)
+        self.assertLessEqual(minimum_5d.lshape[1], 3)
         self.assertEqual(minimum_5d.dtype, ht.float32)
         self.assertEqual(minimum_5d._DNDarray__array.dtype, torch.float32)
         self.assertEqual(minimum_5d.split, 0)
@@ -427,7 +427,7 @@ class TestStatistics(unittest.TestCase):
     def test_var(self):
         array_0_len = 14
         array_1_len = 14
-        # array_2_len = 14
+        array_2_len = 14
 
         # test raises
         x = ht.zeros((2, 3, 4))
@@ -440,7 +440,7 @@ class TestStatistics(unittest.TestCase):
 
         # ones
         dimensions = []
-        for d in [array_0_len, array_1_len]:
+        for d in [array_0_len, array_1_len, array_2_len]:
             dimensions.extend([d, ])
             hold = list(range(len(dimensions)))
             hold.append(None)
@@ -455,6 +455,7 @@ class TestStatistics(unittest.TestCase):
                     target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q != it]
                     if not target_dims:
                         target_dims = (1,)
+
                     self.assertEqual(res.gshape, tuple(target_dims))
                     if res.split is not None:
                         if i >= it:

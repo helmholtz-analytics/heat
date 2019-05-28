@@ -30,7 +30,7 @@ class TestArithmetics(unittest.TestCase):
             [3.0, 4.0],
             [5.0, 6.0]
         ])
-        
+
         self.assertTrue(ht.equal(ht.add(self.a_scalar, self.a_scalar), ht.float32([4.0])))
         self.assertTrue(ht.equal(ht.add(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.add(self.a_scalar, self.a_tensor), result))
@@ -41,8 +41,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.add(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.add(self.a_tensor, self.a_split_tensor)
         with self.assertRaises(TypeError):
             ht.add(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -68,8 +66,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.div(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.sub(self.a_tensor, self.a_split_tensor)
         with self.assertRaises(TypeError):
             ht.div(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -111,8 +107,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.fmod(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.fmod(self.a_tensor, self.a_split_tensor)
         with self.assertRaises(TypeError):
             ht.fmod(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -156,8 +150,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.mul(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.mul(self.a_tensor, self.a_split_tensor)
         with self.assertRaises(TypeError):
             ht.mul(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -183,8 +175,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.pow(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.pow(self.a_tensor, self.a_split_tensor)
         with self.assertRaises(TypeError):
             ht.pow(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -193,10 +183,10 @@ class TestArithmetics(unittest.TestCase):
     def test_sub(self):
         result = ht.array([
             [-1.0, 0.0],
-            [ 1.0, 2.0]
+            [1.0, 2.0]
         ])
         minus_result = ht.array([
-            [ 1.0,  0.0],
+            [1.0,  0.0],
             [-1.0, -2.0]
         ])
 
@@ -210,8 +200,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.sub(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.sub(self.a_tensor, self.a_split_tensor)
         with self.assertRaises(TypeError):
             ht.sub(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):

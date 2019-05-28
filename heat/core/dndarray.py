@@ -8,7 +8,7 @@ from . import exponential
 from . import io
 from . import linalg
 from . import logical
-from . import manipulation
+from . import manipulations
 from . import memory
 from . import relational
 from . import rounding
@@ -32,6 +32,7 @@ class LocalIndex:
     Indexing class for local operations (primarily for lloc function)
     For docs on __getitem__ and __setitem__ see lloc(self)
     """
+
     def __init__(self, obj):
         self.obj = obj
 
@@ -66,6 +67,10 @@ class DNDarray:
     @property
     def gshape(self):
         return self.__gshape
+
+    @property
+    def numdims(self):
+        return len(self.__gshape)
 
     @property
     def size(self):
@@ -332,7 +337,7 @@ class DNDarray:
         """
         return logical.allclose(self, other, rtol, atol, equal_nan)
 
-    def any(self, axis=None, out=None):
+    def any(self, axis=None, out=None, keepdim=False):
         """
         Test whether any array element along a given axis evaluates to True.
         The returning tensor is one dimensional unless axis is not None.
@@ -369,7 +374,7 @@ class DNDarray:
         >>> res
         tensor([[0, 0, 1]], dtype=torch.uint8)
         """
-        return logical.any(self, axis=axis, out=out)
+        return logical.any(self, axis=axis, out=out, keepdim=keepdim)
 
     def argmax(self, axis=None, out=None, **kwargs):
         """
@@ -909,7 +914,7 @@ class DNDarray:
         >>> y.shape
         (2, 1)
         """
-        return manipulation.expand_dims(self, axis)
+        return manipulations.expand_dims(self, axis)
 
     def __float__(self):
         """
@@ -1073,7 +1078,8 @@ class DNDarray:
                         arr = self.__array[key]
                         gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                        self.comm.rank), ResourceWarning)
                     # arr is empty and gout is zeros
 
             elif isinstance(key, (tuple, list)):  # multi-argument gets are passed as tuples by python
@@ -1108,7 +1114,8 @@ class DNDarray:
                     arr = self.__array[tuple(key)]
                     gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                        self.comm.rank), ResourceWarning)
                     # arr is empty
                     # gout is all 0s and is the proper shape
 
@@ -1132,7 +1139,8 @@ class DNDarray:
                     arr = self.__array[key]
                     gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                        self.comm.rank), ResourceWarning)
                     # arr is empty
                     # gout is all 0s and is the proper shape
 
@@ -1890,6 +1898,59 @@ class DNDarray:
         tensor([nan, nan, nan, nan, nan])
         """
         return exponential.sqrt(self, out)
+
+    def squeeze(self, axis=None):
+        """
+        Remove single-dimensional entries from the shape of a tensor.
+
+        Parameters:
+        -----------
+        x : ht.tensor
+            Input data.
+
+        axis : None or int or tuple of ints, optional
+               Selects a subset of the single-dimensional entries in the shape. 
+               If axis is None, all single-dimensional entries will be removed from the shape.
+               If an axis is selected with shape entry greater than one, a ValueError is raised.
+
+
+
+        Returns:
+        --------	
+        squeezed : ht.tensor
+                   The input tensor, but with all or a subset of the dimensions of length 1 removed. 
+
+
+        Examples:
+        >>> import heat as ht
+        >>> import torch
+        >>> torch.manual_seed(1)
+        <torch._C.Generator object at 0x115704ad0>
+        >>> a = ht.random.randn(1,3,1,5)
+        >>> a
+        tensor([[[[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232]],
+
+                [[ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255]],
+
+                [[-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]]]])
+        >>> a.shape
+        (1, 3, 1, 5)
+        >>> a.squeeze().shape
+        (3, 5)
+        >>> a.squeeze
+        tensor([[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232],
+                [ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255],
+                [-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]])
+        >>> a.squeeze(axis=0).shape
+        (3, 1, 5)
+        >>> a.squeeze(axis=-2).shape
+        (1, 3, 5)
+        >>> a.squeeze(axis=1).shape
+        Traceback (most recent call last):
+        ...
+        ValueError: Dimension along axis 1 is not 1 for shape (1, 3, 1, 5)
+        """
+        return manipulations.squeeze(self, axis)
 
     def __str__(self, *args):
         # TODO: document me
