@@ -8,6 +8,7 @@ from . import exponential
 from . import io
 from . import linalg
 from . import logical
+from . import manipulations
 from . import memory
 from . import relational
 from . import rounding
@@ -31,6 +32,7 @@ class LocalIndex:
     Indexing class for local operations (primarily for lloc function)
     For docs on __getitem__ and __setitem__ see lloc(self)
     """
+
     def __init__(self, obj):
         self.obj = obj
 
@@ -65,6 +67,10 @@ class DNDarray:
     @property
     def gshape(self):
         return self.__gshape
+
+    @property
+    def numdims(self):
+        return len(self.__gshape)
 
     @property
     def size(self):
@@ -305,13 +311,10 @@ class DNDarray:
         -----------
         other : ht.DNDarray
             Input tensor to compare to
-
         atol: float, optional
-            Absolute tolerance. Default is 1e-08
-
+            Absolute tolerance. Defaults to 1e-08
         rtol: float, optional
-            Relative tolerance (with respect to y). Default is 1e-05
-
+            Relative tolerance (with respect to y). Defaults to 1e-05
         equal_nan: bool, optional
             Whether to compare NaN’s as equal. If True, NaN’s in a will be considered equal to NaN’s in b in the output array.
 
@@ -334,7 +337,7 @@ class DNDarray:
         """
         return logical.allclose(self, other, rtol, atol, equal_nan)
 
-    def any(self, axis=None, out=None):
+    def any(self, axis=None, out=None, keepdim=False):
         """
         Test whether any array element along a given axis evaluates to True.
         The returning tensor is one dimensional unless axis is not None.
@@ -371,7 +374,7 @@ class DNDarray:
         >>> res
         tensor([[0, 0, 1]], dtype=torch.uint8)
         """
-        return logical.any(self, axis=axis, out=out)
+        return logical.any(self, axis=axis, out=out, keepdim=keepdim)
 
     def argmax(self, axis=None, out=None, **kwargs):
         """
@@ -902,19 +905,46 @@ class DNDarray:
         return exponential.exp2(self, out)
 
     def expand_dims(self, axis):
-        # TODO: document me
-        # TODO: test me
-        # TODO: sanitize input
-        # TODO: make me more numpy API complete
-        # TODO: fix negative axis
-        return DNDarray(
-            self.__array.unsqueeze(dim=axis),
-            self.shape[:axis] + (1,) + self.shape[axis:],
-            self.dtype,
-            self.split if self.split is None or self.split < axis else self.split + 1,
-            self.device,
-            self.comm
-        )
+        """
+        Expand the shape of an array.
+
+        Insert a new axis that will appear at the axis position in the expanded array shape.
+
+        Parameters
+        ----------
+        axis : int
+            Position in the expanded axes where the new axis is placed.
+
+        Returns
+        -------
+        res : ht.DNDarray
+            Output array. The number of dimensions is one greater than that of the input array.
+
+        Raises
+        ------
+        ValueError
+            If the axis is not in range of the axes.
+
+        Examples
+        --------
+        >>> x = ht.array([1,2])
+        >>> x.shape
+        (2,)
+
+        >>> y = ht.expand_dims(x, axis=0)
+        >>> y
+        array([[1, 2]])
+        >>> y.shape
+        (1, 2)
+
+        y = ht.expand_dims(x, axis=1)
+        >>> y
+        array([[1],
+               [2]])
+        >>> y.shape
+        (2, 1)
+        """
+        return manipulations.expand_dims(self, axis)
 
     def __float__(self):
         """
@@ -952,6 +982,24 @@ class DNDarray:
         tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
         """
         return rounding.floor(self, out)
+
+    def fabs(self, out=None):
+        """
+        Calculate the absolute value element-wise and return floating-point tensor.
+        This function exists besides abs==absolute since it will be needed in case complex numbers will be introduced in the future.
+
+        Parameters
+        ----------
+        out : ht.tensor, optional
+            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+            If not provided or None, a freshly-allocated array is returned.
+
+        Returns
+        -------
+        absolute_values : ht.tensor
+            A tensor containing the absolute value of each element in x.
+        """
+        return rounding.fabs(self, out)
 
     def __ge__(self, other):
         """
@@ -1020,12 +1068,14 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
+        if isinstance(key, DNDarray):
+            key = tuple(x.item() for x in key)
         if not self.is_distributed():
             if not self.comm.size == 1:
                 return DNDarray(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
             else:
                 gout = tuple(self.__array[key].shape)
-                if self.split and self.split >= len(gout):
+                if self.split is not None and self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
                     new_split = self.split
@@ -1058,7 +1108,8 @@ class DNDarray:
                         arr = self.__array[key]
                         gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                        self.comm.rank), ResourceWarning)
                     # arr is empty and gout is zeros
 
             elif isinstance(key, (tuple, list)):  # multi-argument gets are passed as tuples by python
@@ -1066,16 +1117,6 @@ class DNDarray:
                 # handle the dimensional reduction for integers
                 ints = sum([isinstance(it, int) for it in key])
                 gout = gout[:len(gout) - ints]
-
-                # reduce the dims if the slices are only one element in length
-                slices = [isinstance(k, slice) for k in key]
-                if any(slices):
-                    for s, b in enumerate(slices):
-                        if b:
-                            start = key[s].start if key[s].start is not None else 0
-                            stop = key[s].stop if key[s].stop is not None else self.gshape[s]
-                            if start == stop - 1:
-                                gout = gout[:-1]
 
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
@@ -1103,7 +1144,8 @@ class DNDarray:
                     arr = self.__array[tuple(key)]
                     gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                        self.comm.rank), ResourceWarning)
                     # arr is empty
                     # gout is all 0s and is the proper shape
 
@@ -1112,35 +1154,28 @@ class DNDarray:
                 # reduce the dims if the slices are only one element in length
                 start = key.start if key.start is not None else 0
                 stop = key.stop if key.stop is not None else self.gshape[0]
-                if start == stop - 1:
-                    gout = gout[:-1]
+                step = key.step if key.step is not None else 1
 
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
                     new_split = self.split
-
-                key_set = set(range(start, stop, key.step if key.step else 1))
+                key_set = set(range(start, stop, step))
                 overlap = list(key_set & chunk_set)
 
                 if overlap:
                     hold = [x - chunk_start for x in overlap]
-                    key = slice(min(hold), max(hold) + 1, key.step)
+                    key = slice(min(hold), max(hold) + 1, step)
                     arr = self.__array[key]
                     gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                        self.comm.rank), ResourceWarning)
                     # arr is empty
                     # gout is all 0s and is the proper shape
 
             else:  # handle other cases not accounted for (one is a slice is given and the split != 0)
                 gout = [0] * len(self.gshape)
-                if isinstance(key, slice):
-                    # reduce the dims if the slices are only one element in length
-                    start = key.start if key.start is not None else 0
-                    stop = key.stop if key.stop is not None else self.gshape[0]
-                    if start == stop - 1:
-                        gout = gout[:-1]
 
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
@@ -1271,6 +1306,17 @@ class DNDarray:
 
         """
         return relational.le(self, other)
+
+    def __len__(self):
+        """
+        The length of the DNDarray, i.e. the number of items in the first dimension.
+
+        Returns
+        -------
+        length : int
+            The number of items in the first dimension
+        """
+        return self.shape[0]
 
     def log(self, out=None):
         """
@@ -1880,6 +1926,8 @@ class DNDarray:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
+        if isinstance(key, DNDarray):
+            key = tuple(x.item() for x in key)
         if not self.is_distributed():
             self.__setter(key, value)
         else:
@@ -1891,7 +1939,7 @@ class DNDarray:
                 if key in range(chunk_start, chunk_end):
                     self.__setter(key-chunk_start, value)
 
-            elif isinstance(key, (tuple, list, DNDarray, torch.Tensor)):
+            elif isinstance(key, (tuple, list, torch.Tensor)):
                 if isinstance(key[self.split], slice):
                     key = list(key)
                     overlap = list(set(range(key[self.split].start if key[self.split].start is not None else 0,
@@ -2012,6 +2060,59 @@ class DNDarray:
         """
         return exponential.sqrt(self, out)
 
+    def squeeze(self, axis=None):
+        """
+        Remove single-dimensional entries from the shape of a tensor.
+
+        Parameters:
+        -----------
+        x : ht.tensor
+            Input data.
+
+        axis : None or int or tuple of ints, optional
+               Selects a subset of the single-dimensional entries in the shape. 
+               If axis is None, all single-dimensional entries will be removed from the shape.
+               If an axis is selected with shape entry greater than one, a ValueError is raised.
+
+
+
+        Returns:
+        --------	
+        squeezed : ht.tensor
+                   The input tensor, but with all or a subset of the dimensions of length 1 removed. 
+
+
+        Examples:
+        >>> import heat as ht
+        >>> import torch
+        >>> torch.manual_seed(1)
+        <torch._C.Generator object at 0x115704ad0>
+        >>> a = ht.random.randn(1,3,1,5)
+        >>> a
+        tensor([[[[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232]],
+
+                [[ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255]],
+
+                [[-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]]]])
+        >>> a.shape
+        (1, 3, 1, 5)
+        >>> a.squeeze().shape
+        (3, 5)
+        >>> a.squeeze
+        tensor([[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232],
+                [ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255],
+                [-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]])
+        >>> a.squeeze(axis=0).shape
+        (3, 1, 5)
+        >>> a.squeeze(axis=-2).shape
+        (1, 3, 5)
+        >>> a.squeeze(axis=1).shape
+        Traceback (most recent call last):
+        ...
+        ValueError: Dimension along axis 1 is not 1 for shape (1, 3, 1, 5)
+        """
+        return manipulations.squeeze(self, axis)
+
     def __str__(self, *args):
         # TODO: document me
         # TODO: generate none-PyTorch str
@@ -2113,14 +2214,6 @@ class DNDarray:
     def tanh(self, out=None):
         """
         Return the hyperbolic tangent, element-wise.
-
-        Parameters
-        ----------
-        x : ht.DNDarray
-            The value for which to compute the hyperbolic tangent.
-        out : ht.DNDarray or None, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to None, a fresh tensor is allocated.
 
         Returns
         -------

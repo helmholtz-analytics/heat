@@ -55,7 +55,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
 
     Returns
     -------
-    arange : 1D heat tensor
+    arange : ht.DNDarraytensor
         1D heat tensor of evenly spaced values.
 
         For floating point arguments, the length of the result is ``ceil((stop - start)/step)``. Because of floating
@@ -117,17 +117,18 @@ def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
     device = devices.sanitize_device(device)
     data = torch.arange(
         start, stop, step,
-        dtype=types.canonical_heat_type(dtype).torch_type(),
         device=device.torch_device
     )
 
-    return dndarray.DNDarray(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
+    htype = types.canonical_heat_type(dtype)
+    data = data.type(htype.torch_type())
+
+    return dndarray.DNDarray(data, gshape, htype, split, device, comm)
 
 
-def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI_WORLD):
+def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device=None, comm=MPI_WORLD):
     """
     Create a tensor.
-
     Parameters
     ----------
     obj : array_like
@@ -141,11 +142,15 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
         If true (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested sequence or
         if a copy is needed to satisfy any of the other requirements, e.g. dtype.
     ndmin : int, optional
-        Specifies the minimum number of dimensions that the resulting array should have. Ones will be pre-pended to the
-        shape as needed to meet this requirement.
+        Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be attached to the
+        shape if  ndim>0  and prefaced in case of ndim<0 to meet the requirement.
     split : None or int, optional
-        The axis along which the array is split and distributed in memory. If not None (default) the shape of the global
-        tensor is automatically inferred.
+        The axis along which the passed array content obj is split and distributed in memory. Mutually exclusive with
+        is_split.
+    is_split : None or int, optional
+        Specifies the axis along which the local data portions, passed in obj, are split across all machines. Useful for
+        interfacing with other HPC code. The shape of the global tensor is automatically inferred. Mutually exclusive
+        with split.
     device : str, ht.Device or None, optional
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
@@ -155,9 +160,6 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
     -------
     out : ht.DNDarray
         A tensor object satisfying the specified requirements.
-
-    Raises
-    ------
 
     Examples
     --------
@@ -171,7 +173,7 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
     More than one dimension:
     >>> ht.array([[1, 2], [3, 4]])
     tensor([[1, 2],
-           [3, 4]])
+            [3, 4]])
 
     Minimum dimensions given:
     >>> ht.array([1, 2, 3], ndmin=2)
@@ -181,9 +183,14 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
     >>> ht.array([1, 2, 3], dtype=float)
     tensor([ 1.0, 2.0, 3.0])
 
+    Split data:
+    >>> ht.array([1, 2, 3, 4], split=0)
+    (0/2) tensor([1, 2])
+    (1/2) tensor([3, 4])
+
     Pre-split data:
-    (0/2) >>> ht.array([1, 2], split=0)
-    (1/2) >>> ht.array([3, 4], split=0)
+    (0/2) >>> ht.array([1, 2], is_split=0)
+    (1/2) >>> ht.array([3, 4], is_split=0)
     (0/2) tensor([1, 2, 3, 4])
     (1/2) tensor([1, 2, 3, 4])
     """
@@ -214,12 +221,17 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
         raise TypeError('expected ndmin to be int, but was {}'.format(type(ndmin)))
 
     # reshape the object to encompass additional dimensions
-    ndmin -= len(obj.shape)
-    if ndmin > 0:
-        obj = obj.reshape(obj.shape + ndmin * (1,))
+    ndmin_abs = abs(ndmin) - len(obj.shape)
+    if ndmin_abs > 0 and ndmin>0:
+        obj = obj.reshape(obj.shape + ndmin_abs * (1,))
+    if ndmin_abs > 0 and ndmin<0:
+        obj = obj.reshape(ndmin_abs * (1,) + obj.shape )
 
-    # sanitize split axis
+    # sanitize the split axes, ensure mutual exclusiveness
     split = sanitize_axis(obj.shape, split)
+    is_split = sanitize_axis(obj.shape, is_split)
+    if split is not None and is_split is not None:
+        raise ValueError('split and is_split are mutually exclusive parameters')
 
     # sanitize communication object
     if not isinstance(comm, Communication):
@@ -229,8 +241,12 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
     lshape = np.array(obj.shape)
     gshape = lshape.copy()
 
-    # check with the neighboring rank whether the local shape would fit into a global shape
+    # content shall be split, chunk the passed data object up
     if split is not None:
+        _, _, slices = comm.chunk(obj.shape, split)
+        obj = obj[slices]
+    # check with the neighboring rank whether the local shape would fit into a global shape
+    elif is_split is not None:
         if comm.rank < comm.size - 1:
             comm.Isend(lshape, dest=comm.rank + 1)
         if comm.rank != 0:
@@ -241,26 +257,25 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, device=None, comm=MPI
 
             # the number of shape elements does not match with the 'left' rank
             if length != len(lshape):
-                # dummy receive so that the message buffer is cleared
-                dummy = np.empty(length)
-                comm.Recv(dummy, source=comm.rank - 1)
-
-                gshape[split] = np.iinfo(gshape.dtype).min
+                discard_buffer = np.empty(length)
+                comm.Recv(discard_buffer, source=comm.rank - 1)
+                gshape[is_split] = np.iinfo(gshape.dtype).min
             else:
                 # check whether the individual shape elements match
                 comm.Recv(gshape, source=comm.rank - 1)
                 for i in range(length):
-                    if i == split:
+                    if i == is_split:
                         continue
                     elif lshape[i] != gshape[i] and lshape[i] - 1 != gshape[i]:
-                        gshape[split] = np.iinfo(gshape.dtype).min
+                        gshape[is_split] = np.iinfo(gshape.dtype).min
 
         # sum up the elements along the split dimension
-        reduction_buffer = np.array(gshape[split])
+        reduction_buffer = np.array(gshape[is_split])
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
         if reduction_buffer < 0:
             raise ValueError('unable to construct tensor, shape of local data chunk does not match')
-        gshape[split] = reduction_buffer
+        gshape[is_split] = reduction_buffer
+        split = is_split
 
     return dndarray.DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
 
@@ -322,6 +337,11 @@ def empty_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
+    Returns
+    -------
+    out : ht.DNDarray
+        A new uninitialized array.
+
     Examples
     --------
     >>> x = ht.ones((2, 3,))
@@ -353,6 +373,11 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
             Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm : Communication, optional
             Handle to the nodes holding distributed parts or copies of this tensor.
+
+    Returns
+    -------
+    out : ht.DNDarray
+        An identity matrix.
 
     Examples
     --------
@@ -538,7 +563,6 @@ def full_like(a, fill_value, dtype=types.float32, split=None, device=None, comm=
     -------
     out : ht.DNDarray
         Array of fill_value with the same shape and type as a.
-
 
     Examples
     --------
