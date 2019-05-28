@@ -241,7 +241,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
             res_shape = list(local_data.shape)
             res_shape[0] = 0
         lres = torch.empty(res_shape, dtype=a.dtype.torch_type())
-        inverse_pos = []
+        inverse_pos = torch.tensor([])
     else:
         lres, inverse_pos = torch.unique(local_data, sorted=sorted, return_inverse=True, dim=unique_axis)
 
