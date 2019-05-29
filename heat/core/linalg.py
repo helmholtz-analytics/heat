@@ -306,13 +306,7 @@ def matmul(a, b, out=None):
                         if r_loc is not None:
                             st = index_map[pr - 1, 1, 0, 0].item()
                             sp = index_map[pr - 1, 1, 0, 1].item()
-                            # print(c._DNDarray__array[r_loc.item(), :].shape, (r[st:sp] @ b_lp_data[pr - 1]).shape, st, sp)
-                            if split_01_flag:
-                                st1 = index_map[pr - 1, 1, 1, 0].item()
-                                sp1 = index_map[pr - 1, 1, 1, 1].item()
-                                c._DNDarray__array[r_loc.item(), st1:sp1] += r[st:sp] @ b_lp_data[pr - 1]
-                            else:
-                                c._DNDarray__array[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr - 1]
+                            c._DNDarray__array[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr - 1]
 
                     del b_lp_data[pr - 1]
 
