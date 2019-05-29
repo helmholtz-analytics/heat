@@ -15,34 +15,30 @@ __all__ = [
 ]
 
 
-def matmul(a, b, out=None, out_split=None):
+def matmul(a, b, out=None):
     """
-    Matrix multiplication function based of the CRMM method as described in Reference 1. Communication scheme based upon reference [2]
+    Matrix multiplication of two DNDarrays
 
-    for comment context -> a @ b = c
+    for comment context -> a @ b = c or A @ B = c
 
     Parameters
     ----------
-    a : ht.tensor
-        2 dimensions: L x P
+    a : ht.DNDarray
+        2 dimensional: L x P
 
-    b : ht.tensor
-        2 dimensions: P x Q
+    b : ht.DNDarray
+        2 dimensional: P x Q
 
     out : ht.tensor
         Optional
         output tensor
 
-    out_split : int
-        Optional
-        split direction of the output tensor if out is None
-        if out is None and out_split is None then the split direction of a is chosen
 
     Returns
     -------
-    ht.tensor
-        returns a tensor with the result of a @ b
-        the
+    ht.DNDarray
+        returns a tensor with the result of a @ b. The split dimension of the returned array is typically the split dimension of a.
+        However, if a.split = None then the the c.split will be set as the split dimension of b. If both are None then c.split is also None.
 
     References
     ----------
@@ -51,27 +47,45 @@ def matmul(a, b, out=None, out_split=None):
     [2] S. Ryu and D. Kim, "Parallel Huge Matrix Multiplication on a Cluster with GPGPU Accelerators,"
         2018 IEEE International Parallel and Distributed Processing Symposium Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
 
-    Process:
-    --------
-    1. split a and b into blocks of the respective sizes (M x kB and kB x N)
-        kB must be the same in both
-        if a common kB cannot be found then x rows/columns can be sliced off and saved for later
-            this cut must occur in the 'P' dimension of both matricies
-            best way to do this is to either equate all of the
-
-    detailed process:
-    -----------------
-    1. get the lshape of the data on all procs
-
-    possible problems:
-    -> a and b not the same splits
+    Example
+    -------
+    >>> a = ht.ones((n, m), split=1)
+    >>> a[0] = ht.arange(1, m + 1)
+    >>> a[:, -1] = ht.arange(1, n + 1)
+    (0/1) tensor([[1., 2.],
+                  [1., 1.],
+                  [1., 1.],
+                  [1., 1.],
+                  [1., 1.]])
+    (1/1) tensor([[3., 1.],
+                  [1., 2.],
+                  [1., 3.],
+                  [1., 4.],
+                  [1., 5.]])
+    >>> b = ht.ones((j, k), split=0)
+    >>> b[0] = ht.arange(1, k + 1)
+    >>> b[:, 0] = ht.arange(1, j + 1)
+    (0/1) tensor([[1., 2., 3., 4., 5., 6., 7.],
+                  [2., 1., 1., 1., 1., 1., 1.]])
+    (1/1) tensor([[3., 1., 1., 1., 1., 1., 1.],
+                  [4., 1., 1., 1., 1., 1., 1.]])
+    >>> linalg.matmul(a, b)
+    (0/1) tensor([[18.,  8.,  9., 10.],
+                  [14.,  6.,  7.,  8.],
+                  [18.,  7.,  8.,  9.],
+                  [22.,  8.,  9., 10.],
+                  [26.,  9., 10., 11.]])
+    (1/1) tensor([[11., 12., 13.],
+                  [ 9., 10., 11.],
+                  [10., 11., 12.],
+                  [11., 12., 13.],
+                  [12., 13., 14.]])
     """
     if a.gshape[-1] != b.gshape[-2]:
         raise ValueError("If the last dimension of a ({}) is not the same size as the second-to-last dimension of b. ({})".format(a.gshape[-1], b.gshape[-2]))
 
     if not a.is_distributed() and not b.is_distributed():  # else its simple matmul from torch
-        # todo: make this actually work in the proper form....needs to return a DNDarray
-        return torch.matmul(a._DNDarray__array, b._DNDarray__array)
+        return factories.array(torch.matmul(a._DNDarray__array, b._DNDarray__array))
     else:
         split_0_flag = False
         split_1_flag = False
@@ -104,6 +118,8 @@ def matmul(a, b, out=None, out_split=None):
             split_01_flag = True
         elif a.split == 1 and b.split == 0:
             split_10_flag = True
+        else:
+            raise NotImplementedError("splits > 1 not implemented")
 
         # block sizes dont need to be the same. thy just need the same inner dimmension (kB)
         kB = 0
@@ -118,8 +134,6 @@ def matmul(a, b, out=None, out_split=None):
         elif b.split == len(a.gshape)-2:
             kB = b.gshape[0] // b.comm.size
             kB = kB if kB < a.gshape[-1] else a.gshape[-1]
-        else:  # if the split is not in either of these directions then kB can be anything, it just needs to be tuned
-            raise NotImplementedError("need to implement cases for higher dimensional datasets (>2)")
 
         if a.lshape[-1] % kB != 0:
             rem_a = 1
@@ -162,16 +176,15 @@ def matmul(a, b, out=None, out_split=None):
         a.comm.Allreduce(MPI.IN_PLACE, index_map, MPI.SUM)
 
         # for the communication scheme, the output array needs to be created
-        if not split_10_flag:
-            c_shape = (a.gshape[-2], b.gshape[1])
-            c = factories.zeros(c_shape, split=out_split if out_split is not None else a.split)
+        c_shape = (a.gshape[-2], b.gshape[1])
+        c = factories.zeros(c_shape, split=a.split)
 
-            # get the index map for c
-            c_index_map = factories.zeros((c.comm.size, 2, 2))
-            c_idx = c.comm.chunk(c.shape, c.split)[2]
-            c_index_map[c.comm.rank, 0, :] = (c_idx[0].start, c_idx[0].stop)
-            c_index_map[c.comm.rank, 1, :] = (c_idx[1].start, c_idx[1].stop)
-            c.comm.Allreduce(MPI.IN_PLACE, c_index_map, MPI.SUM)
+        # get the index map for c
+        c_index_map = factories.zeros((c.comm.size, 2, 2))
+        c_idx = c.comm.chunk(c.shape, c.split)[2]
+        c_index_map[c.comm.rank, 0, :] = (c_idx[0].start, c_idx[0].stop)
+        c_index_map[c.comm.rank, 1, :] = (c_idx[1].start, c_idx[1].stop)
+        c.comm.Allreduce(MPI.IN_PLACE, c_index_map, MPI.SUM)
 
         if a.split == 0:
             a_block_map = torch.zeros((a.comm.size, a.shape[-2] // mB // a.comm.size, a.shape[-1] // kB, 2))
@@ -353,15 +366,15 @@ def matmul(a, b, out=None, out_split=None):
                 if a.comm.rank == pr:
                     a_lp_data[pr] = a._DNDarray__array
                 else:
-                    a_lp_data[pr] = torch.empty((lshape_map[pr, 0, 0].item(), lshape_map[pr, 0, 1].item()))
+                    a_lp_data[pr] = torch.zeros((lshape_map[pr, 0, 0].item(), lshape_map[pr, 0, 1].item()))
 
                 # sending a to all nodes for b to operate with
                 req[pr] = a.comm.Ibcast(a_lp_data[pr], root=pr)
 
                 # receive the data from the last loop and do the calculation with that
                 if pr != 0:
-                    # print(pr-1, req[pr-1])
                     # after receiving the last loop's bcast
+                    req[pr - 1].wait()
                     c_block_setter(a_proc=pr - 1, b_proc=b.comm.rank, a_data=a_lp_data[pr - 1], b_data=b._DNDarray__array)
 
                     # check if there is a remainder on b in the previous node
@@ -445,8 +458,6 @@ def matmul(a, b, out=None, out_split=None):
 
             a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
             return factories.array(res, split=a.split)
-        else:
-            pass
 
 
 def transpose(a, axes=None):

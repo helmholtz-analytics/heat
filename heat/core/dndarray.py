@@ -686,6 +686,74 @@ class DNDarray:
         """
         return relational.eq(self, other)
 
+    def __matmul__(self, other):
+        """
+            Matrix multiplication of two DNDarrays
+
+            for comment context -> a @ b = c or A @ B = c
+
+            Parameters
+            ----------
+            a : ht.DNDarray
+                2 dimensional: L x P
+
+            b : ht.DNDarray
+                2 dimensional: P x Q
+
+            out : ht.tensor
+                Optional
+                output tensor
+
+
+            Returns
+            -------
+            ht.DNDarray
+                returns a tensor with the result of a @ b. The split dimension of the returned array is typically the split dimension of a.
+                However, if a.split = None then the the c.split will be set as the split dimension of b. If both are None then c.split is also None.
+
+            References
+            ----------
+            [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on Distributed Data-parallel Platforms,"
+                IEEE Transactions on Parallel and Distributed Systems, vol 28, no. 9. 2017.
+            [2] S. Ryu and D. Kim, "Parallel Huge Matrix Multiplication on a Cluster with GPGPU Accelerators,"
+                2018 IEEE International Parallel and Distributed Processing Symposium Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
+
+            Example
+            -------
+            >>> a = ht.ones((n, m), split=1)
+            >>> a[0] = ht.arange(1, m + 1)
+            >>> a[:, -1] = ht.arange(1, n + 1)
+            (0/1) tensor([[1., 2.],
+                          [1., 1.],
+                          [1., 1.],
+                          [1., 1.],
+                          [1., 1.]])
+            (1/1) tensor([[3., 1.],
+                          [1., 2.],
+                          [1., 3.],
+                          [1., 4.],
+                          [1., 5.]])
+            >>> b = ht.ones((j, k), split=0)
+            >>> b[0] = ht.arange(1, k + 1)
+            >>> b[:, 0] = ht.arange(1, j + 1)
+            (0/1) tensor([[1., 2., 3., 4., 5., 6., 7.],
+                          [2., 1., 1., 1., 1., 1., 1.]])
+            (1/1) tensor([[3., 1., 1., 1., 1., 1., 1.],
+                          [4., 1., 1., 1., 1., 1., 1.]])
+            >>> linalg.matmul(a, b)
+            (0/1) tensor([[18.,  8.,  9., 10.],
+                          [14.,  6.,  7.,  8.],
+                          [18.,  7.,  8.,  9.],
+                          [22.,  8.,  9., 10.],
+                          [26.,  9., 10., 11.]])
+            (1/1) tensor([[11., 12., 13.],
+                          [ 9., 10., 11.],
+                          [10., 11., 12.],
+                          [11., 12., 13.],
+                          [12., 13., 14.]])
+            """
+        return linalg.matmul(self, other)
+
     def mean(self, axis=None):
         """
         Calculates and returns the mean of a tensor.

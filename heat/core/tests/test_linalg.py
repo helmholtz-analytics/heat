@@ -5,6 +5,161 @@ import heat as ht
 
 
 class TestLinalg(unittest.TestCase):
+    def test_matmul(self):
+        # cases to test:
+        n, m = 21, 31
+        j, k = m, 45
+        a_torch = torch.ones((n, m))
+        a_torch[0] = torch.arange(1, m + 1)
+        a_torch[:, -1] = torch.arange(1, n + 1)
+        b_torch = torch.ones((j, k))
+        b_torch[0] = torch.arange(1, k + 1)
+        b_torch[:, 0] = torch.arange(1, j + 1)
+
+        # splits 00
+        a = ht.ones((n, m), split=0)
+        b = ht.ones((j, k), split=0)
+        a[0] = ht.arange(1, m + 1)
+        a[:, -1] = ht.arange(1, n + 1)
+        b[0] = ht.arange(1, k + 1)
+        b[:, 0] = ht.arange(1, j + 1)
+        ret00 = a @ b
+
+        ret_comp00 = ht.array(a_torch @ b_torch, split=0)
+        self.assertTrue(ht.equal(ret00, ret_comp00))
+        self.assertIsInstance(ret00, ht.DNDarray)
+        self.assertEqual(ret00.shape, (n, k))
+        self.assertEqual(ret00.dtype, ht.float)
+        self.assertEqual(ret00.split, 0)
+
+        # splits 01
+        a = ht.ones((n, m), split=0)
+        b = ht.ones((j, k), split=1)
+        a[0] = ht.arange(1, m + 1)
+        a[:, -1] = ht.arange(1, n + 1)
+        b[0] = ht.arange(1, k + 1)
+        b[:, 0] = ht.arange(1, j + 1)
+        ret00 = ht.matmul(a, b)
+
+        ret_comp01 = ht.array(a_torch @ b_torch, split=0)
+        self.assertTrue(ht.equal(ret00, ret_comp01))
+        self.assertIsInstance(ret00, ht.DNDarray)
+        self.assertEqual(ret00.shape, (n, k))
+        self.assertEqual(ret00.dtype, ht.float)
+        self.assertEqual(ret00.split, 0)
+
+        # splits 10
+        a = ht.ones((n, m), split=1)
+        b = ht.ones((j, k), split=0)
+        a[0] = ht.arange(1, m + 1)
+        a[:, -1] = ht.arange(1, n + 1)
+        b[0] = ht.arange(1, k + 1)
+        b[:, 0] = ht.arange(1, j + 1)
+        ret00 = ht.matmul(a, b)
+
+        ret_comp10 = ht.array(a_torch @ b_torch, split=1)
+        self.assertTrue(ht.equal(ret00, ret_comp10))
+        self.assertIsInstance(ret00, ht.DNDarray)
+        self.assertEqual(ret00.shape, (n, k))
+        self.assertEqual(ret00.dtype, ht.float)
+        self.assertEqual(ret00.split, 1)
+
+        # splits 11
+        a = ht.ones((n, m), split=1)
+        b = ht.ones((j, k), split=1)
+        a[0] = ht.arange(1, m + 1)
+        a[:, -1] = ht.arange(1, n + 1)
+        b[0] = ht.arange(1, k + 1)
+        b[:, 0] = ht.arange(1, j + 1)
+        ret00 = ht.matmul(a, b)
+
+        ret_comp11 = ht.array(a_torch @ b_torch, split=1)
+        self.assertTrue(ht.equal(ret00, ret_comp11))
+        self.assertIsInstance(ret00, ht.DNDarray)
+        self.assertEqual(ret00.shape, (n, k))
+        self.assertEqual(ret00.dtype, ht.float)
+        self.assertEqual(ret00.split, 1)
+
+        # splits 0 None
+        a = ht.ones((n, m), split=0)
+        b = ht.ones((j, k), split=None)
+        a[0] = ht.arange(1, m + 1)
+        a[:, -1] = ht.arange(1, n + 1)
+        b[0] = ht.arange(1, k + 1)
+        b[:, 0] = ht.arange(1, j + 1)
+        ret00 = ht.matmul(a, b)
+
+        ret_comp0 = ht.array(a_torch @ b_torch, split=0)
+        self.assertTrue(ht.equal(ret00, ret_comp0))
+        self.assertIsInstance(ret00, ht.DNDarray)
+        self.assertEqual(ret00.shape, (n, k))
+        self.assertEqual(ret00.dtype, ht.float)
+        self.assertEqual(ret00.split, 0)
+
+        # splits 1 None
+        a = ht.ones((n, m), split=1)
+        b = ht.ones((j, k), split=None)
+        a[0] = ht.arange(1, m + 1)
+        a[:, -1] = ht.arange(1, n + 1)
+        b[0] = ht.arange(1, k + 1)
+        b[:, 0] = ht.arange(1, j + 1)
+        ret00 = ht.matmul(a, b)
+
+        ret_comp1 = ht.array(a_torch @ b_torch, split=1)
+        self.assertTrue(ht.equal(ret00, ret_comp1))
+        self.assertIsInstance(ret00, ht.DNDarray)
+        self.assertEqual(ret00.shape, (n, k))
+        self.assertEqual(ret00.dtype, ht.float)
+        self.assertEqual(ret00.split, 1)
+
+        # splits None None
+        a = ht.ones((n, m), split=None)
+        b = ht.ones((j, k), split=None)
+        a[0] = ht.arange(1, m + 1)
+        a[:, -1] = ht.arange(1, n + 1)
+        b[0] = ht.arange(1, k + 1)
+        b[:, 0] = ht.arange(1, j + 1)
+        ret00 = ht.matmul(a, b)
+
+        self.assertEqual(ht.all(ret00 == ht.array(a_torch @ b_torch)), 1)
+        self.assertIsInstance(ret00, ht.DNDarray)
+        self.assertEqual(ret00.shape, (n, k))
+        self.assertEqual(ret00.dtype, ht.float)
+        self.assertEqual(ret00.split, None)
+
+        # splits None 0
+        a = ht.ones((n, m), split=None)
+        b = ht.ones((j, k), split=0)
+        a[0] = ht.arange(1, m + 1)
+        a[:, -1] = ht.arange(1, n + 1)
+        b[0] = ht.arange(1, k + 1)
+        b[:, 0] = ht.arange(1, j + 1)
+        ret00 = ht.matmul(a, b)
+
+        ret_comp = ht.array(a_torch @ b_torch, split=0)
+        self.assertTrue(ht.equal(ret00, ret_comp))
+        self.assertIsInstance(ret00, ht.DNDarray)
+        self.assertEqual(ret00.shape, (n, k))
+        self.assertEqual(ret00.dtype, ht.float)
+        self.assertEqual(ret00.split, 0)
+
+        # splits None 1
+
+        a = ht.ones((n, m), split=None)
+        b = ht.ones((j, k), split=1)
+        a[0] = ht.arange(1, m + 1)
+        a[:, -1] = ht.arange(1, n + 1)
+        b[0] = ht.arange(1, k + 1)
+        b[:, 0] = ht.arange(1, j + 1)
+        ret00 = ht.matmul(a, b)
+
+        ret_comp = ht.array(a_torch @ b_torch, split=1)
+        self.assertTrue(ht.equal(ret00, ret_comp))
+        self.assertIsInstance(ret00, ht.DNDarray)
+        self.assertEqual(ret00.shape, (n, k))
+        self.assertEqual(ret00.dtype, ht.float)
+        self.assertEqual(ret00.split, 1)
+
     def test_transpose(self):
         # vector transpose, not distributed
         vector = ht.arange(10)
