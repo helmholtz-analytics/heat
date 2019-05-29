@@ -142,8 +142,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
         If true (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested sequence or
         if a copy is needed to satisfy any of the other requirements, e.g. dtype.
     ndmin : int, optional
-        Specifies the minimum number of dimensions that the resulting array should have. Ones will be pre-pended to the
-        shape as needed to meet this requirement.
+        Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be attached to the
+        shape if  ndim>0  and prefaced in case of ndim<0 to meet the requirement.
     split : None or int, optional
         The axis along which the passed array content obj is split and distributed in memory. Mutually exclusive with
         is_split.
@@ -221,9 +221,11 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
         raise TypeError('expected ndmin to be int, but was {}'.format(type(ndmin)))
 
     # reshape the object to encompass additional dimensions
-    ndmin -= len(obj.shape)
-    if ndmin > 0:
-        obj = obj.reshape(obj.shape + ndmin * (1,))
+    ndmin_abs = abs(ndmin) - len(obj.shape)
+    if ndmin_abs > 0 and ndmin>0:
+        obj = obj.reshape(obj.shape + ndmin_abs * (1,))
+    if ndmin_abs > 0 and ndmin<0:
+        obj = obj.reshape(ndmin_abs * (1,) + obj.shape )
 
     # sanitize the split axes, ensure mutual exclusiveness
     split = sanitize_axis(obj.shape, split)
