@@ -532,17 +532,63 @@ def min(x, axis=None, out=None, keepdim=None):
 
 def minimum(x1, x2, out=None, **kwargs):
     '''
-    Element-wise minimum of array elements.
+    Compares two tensors and returns a new tensor containing the element-wise minima. 
+    TODO: If one of the elements being compared is a NaN, then that element is returned. If both elements are NaNs then the first is returned. 
+    The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
 
-    Compare two arrays and returns a new array containing the element-wise minima. If one of the elements being compared is a NaN, then that element is returned. If both elements are NaNs then the first is returned. The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
     Parameters:
+    -----------
 
-    x1, x2 : array_like
+    x1, x2 : ht.DNDarray
+            The tensors containing the elements to be compared. They must have the same shape, or shapes that can be broadcast to a single shape.
+            For broadcasting semantics, see: https://pytorch.org/docs/stable/notes/broadcasting.html
 
-    The arrays holding the elements to be compared. They must have the same shape, or shapes that can be broadcast to a single shape.
-    out : ndarray, None, or tuple of ndarray and None, optional
+    out : ht.DNDarray or None, optional
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to. 
+        If not provided or None, a freshly-allocated tensor is returned.
 
-    A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to. If not provided or None, a freshly-allocated array is returned. A tuple (possible only as a keyword argument) must have length equal to the number of outputs.
+    Returns:
+    --------
+
+    minimum: ht.DNDarray
+            Element-wise minimum of the two input tensors.
+
+    Examples:
+    ---------          
+    >>> import heat as ht
+    >>> import torch
+    >>> torch.manual_seed(1)
+    <torch._C.Generator object at 0x105c50b50>
+
+    >>> a = ht.random.randn(3,4)
+    >>> a
+    tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
+        [-0.4212, -0.5107, -1.5727, -0.1232],
+        [ 3.5870, -1.8313,  1.5987, -1.2770]])
+
+    >>> b = ht.random.randn(3,4)
+    >>> b
+    tensor([[ 0.8310, -0.2477, -0.8029,  0.2366],
+        [ 0.2857,  0.6898, -0.6331,  0.8795],
+        [-0.6842,  0.4533,  0.2912, -0.8317]])
+
+    >>> ht.minimum(a,b)
+    tensor([[-0.1955, -0.9656, -0.8029,  0.2366],
+        [-0.4212, -0.5107, -1.5727, -0.1232],
+        [-0.6842, -1.8313,  0.2912, -1.2770]])
+
+    >>> c = ht.random.randn(1,4)
+    >>> c
+    tensor([[-1.6428,  0.9803, -0.0421, -0.8206]])
+
+    >>> ht.minimum(a,c)
+    tensor([[-1.6428, -0.9656, -0.0421, -0.8206],
+        [-1.6428, -0.5107, -1.5727, -0.8206],
+        [-1.6428, -1.8313, -0.0421, -1.2770]])
+
+    >>> d = ht.random.randn(3,4,5)
+    >>> ht.minimum(a,d)
+    ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     '''
 
     # Broadcasting
