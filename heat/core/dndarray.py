@@ -1165,6 +1165,7 @@ class DNDarray:
                     key = list(key)
                     overlap = list(key_set & chunk_set)
                     if overlap:  # if the slice is requesting data on the nodes
+                        overlap.sort()
                         hold = [x - chunk_start for x in overlap]
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
                         arr = self.__array[tuple(key)]
@@ -1203,6 +1204,7 @@ class DNDarray:
                 overlap = list(key_set & chunk_set)
 
                 if overlap:
+                    overlap.sort()
                     hold = [x - chunk_start for x in overlap]
                     key = slice(min(hold), max(hold) + 1, step)
                     arr = self.__array[key]
@@ -1882,6 +1884,7 @@ class DNDarray:
             elif isinstance(key, slice) and self.split == 0:
                 overlap = list(set(range(key.start, key.stop)) & set(range(chunk_start, chunk_end)))
                 if overlap:
+                    overlap.sort()
                     hold = [x - chunk_start for x in overlap]
                     key = slice(min(hold), max(hold) + 1, key.step)
                     self.__setter(key, value)
