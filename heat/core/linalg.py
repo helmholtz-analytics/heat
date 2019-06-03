@@ -16,7 +16,7 @@ __all__ = [
 ]
 
 
-def matmul(a, b, out=None):
+def matmul(a, b):
     """
     Matrix multiplication of two DNDarrays
 
@@ -28,9 +28,6 @@ def matmul(a, b, out=None):
         2 dimensional: L x P
     b : ht.DNDarray
         2 dimensional: P x Q
-    out : ht.tensor
-        Optional
-        output tensor
 
     Returns
     -------
