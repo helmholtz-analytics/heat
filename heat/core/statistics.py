@@ -596,7 +596,8 @@ def minimum(x1, x2, out=None, **kwargs):
     bc_x1 = x1._DNDarray__array.expand(output_shape) if not (x1.lshape == output_shape) else x1._DNDarray__array
     bc_x2 = x2._DNDarray__array.expand(output_shape) if not (x2.lshape == output_shape) else x2._DNDarray__array
 
-    # Concatenating (expanded) x1 and x2 into x to satisfy __reduce_op()
+    # Concatenating (expanded) x1 and x2 into x to satisfy __reduce_op(),
+    # then enforce axis = 0 for torch.min()
     x = factories.empty((2,) + output_shape)
     x._DNDarray__array = torch.cat((bc_x1, bc_x2)).reshape((2,) + output_shape)
     # TODO: what happens if e.g. x1 and x2 have different splits?
