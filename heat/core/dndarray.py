@@ -250,6 +250,36 @@ class DNDarray:
         """
         return arithmetics.add(self, other)
 
+    def __radd__(self, other):
+        """
+        Element-wise addition of another tensor or a scalar to the tensor.
+        Takes the first operand (scalar or tensor) whose elements are to be added as argument.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+            The value(s) to be added element-wise to the tensor
+
+        Returns
+        -------
+        result: ht.DNDarray
+            A tensor containing the results of element-wise addition.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1, 2], [3, 4]])
+        >>> T1.__add__(2.0)
+        tensor([[3., 4.],
+               [5., 6.]])
+
+        >>> T2 = ht.float32([[2, 2], [2, 2]])
+        >>> T1.__add__(T2)
+        tensor([[3., 4.],
+                [5., 6.]])
+        """
+        return arithmetics.radd(self, other)
+
     def all(self, axis=None, out=None, keepdim=None):
         """
         Test whether all array elements along a given axis evaluate to True.

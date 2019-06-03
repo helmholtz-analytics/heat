@@ -39,12 +39,21 @@ class TestArithmetics(unittest.TestCase):
         self.assertTrue(ht.equal(ht.add(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.add(self.a_split_tensor, self.a_tensor), result))
 
+        self.assertTrue(ht.equal(self.a_scalar + self.a_scalar, ht.float32([4.0])))
+        self.assertTrue(ht.equal(self.a_tensor + self.a_scalar, result))
+        self.assertTrue(ht.equal(self.a_scalar + self.a_tensor, result))
+        self.assertTrue(ht.equal(self.a_tensor + self.another_tensor, result))
+        self.assertTrue(ht.equal(self.a_tensor + self.a_vector, result))
+        self.assertTrue(ht.equal(self.a_tensor + self.an_int_scalar, result))
+        self.assertTrue(ht.equal(self.a_split_tensor + self.a_tensor, result))
+
         with self.assertRaises(ValueError):
             ht.add(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.add(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
             ht.add('T', 's')
+ 
 
     def test_div(self):
         result = ht.array([

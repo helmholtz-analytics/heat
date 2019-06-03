@@ -54,6 +54,43 @@ def add(t1, t2):
     """
     return operations.__binary_op(torch.add, t1, t2)
 
+def radd(t1, t2):
+    """
+    Element-wise addition of values from two operands, commutative.
+    Takes the first and second operand (scalar or tensor) whose elements are to be added as argument.
+
+    Parameters
+    ----------
+    t1: tensor or scalar
+        The first operand involved in the addition
+    t2: tensor or scalar
+        The second operand involved in the addition
+
+    Returns
+    -------
+    result: ht.DNDarray
+        A tensor containing the results of element-wise addition of t1 and t2.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> ht.add(1.0, 4.0)
+    tensor([5.])
+
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.add(T1, T2)
+    tensor([[3., 4.],
+            [5., 6.]])
+
+    >>> s = 2.0
+    >>> ht.add(T1, s)
+    tensor([[3., 4.],
+            [5., 6.]])
+
+    """
+    return operations.__binary_op(torch.add, t2, t1)
+
 
 def div(t1, t2):
     """
