@@ -5,6 +5,7 @@ import torch
 from .communication import MPI, MPI_WORLD
 from . import dndarray
 from . import factories
+from . import manipulations
 from . import operations
 
 __all__ = [
@@ -25,20 +26,18 @@ def matmul(a, b, out=None):
     ----------
     a : ht.DNDarray
         2 dimensional: L x P
-
     b : ht.DNDarray
         2 dimensional: P x Q
-
     out : ht.tensor
         Optional
         output tensor
-
 
     Returns
     -------
     ht.DNDarray
         returns a tensor with the result of a @ b. The split dimension of the returned array is typically the split dimension of a.
         However, if a.split = None then the the c.split will be set as the split dimension of b. If both are None then c.split is also None.
+        ** NOTE ** if a is a split vector then the returned vector will be of shape (1xQ) and will be split in the 1st dimention
 
     References
     ----------
@@ -81,12 +80,19 @@ def matmul(a, b, out=None):
                   [11., 12., 13.],
                   [12., 13., 14.]])
     """
-    if a.gshape[-1] != b.gshape[-2]:
+    if a.gshape[-1] != b.gshape[0]:
         raise ValueError("If the last dimension of a ({}) is not the same size as the second-to-last dimension of b. ({})".format(a.gshape[-1], b.gshape[-2]))
 
     if not a.is_distributed() and not b.is_distributed():  # else its simple matmul from torch
         return factories.array(torch.matmul(a._DNDarray__array, b._DNDarray__array))
     else:
+        # if they are vectors being multiplied by the
+        a_vec  = False
+        if len(a.gshape) < 2:
+            a = manipulations.expand_dims(a, axis=0)
+            a_vec = True
+        if len(b.gshape) < 2:
+            b = manipulations.expand_dims(b, axis=1)
         split_0_flag = False
         split_1_flag = False
         split_01_flag = False
@@ -119,7 +125,7 @@ def matmul(a, b, out=None):
         elif a.split == 1 and b.split == 0:
             split_10_flag = True
         else:
-            raise NotImplementedError("splits > 1 not implemented")
+            raise NotImplementedError('splits > 1 not implemented')
 
         # block sizes dont need to be the same. thy just need the same inner dimmension (kB)
         kB = 0
@@ -451,6 +457,7 @@ def matmul(a, b, out=None):
                 res += a._DNDarray__array[:, -1, None] @ b._DNDarray__array[None, -1, :]  # these Nones are used to change the dims
 
             a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
+
             return factories.array(res, split=a.split)
 
 
