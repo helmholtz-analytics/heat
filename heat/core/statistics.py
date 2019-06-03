@@ -545,12 +545,17 @@ def minimum(x1, x2, out=None, **kwargs):
     A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to. If not provided or None, a freshly-allocated array is returned. A tuple (possible only as a keyword argument) must have length equal to the number of outputs.
     '''
 
-    output_shape = stride_tricks.broadcast_shape(x1.shape, x2.shape)
+    output_shape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
     bc_x1 = x1._DNDarray__array.expand(output_shape) if not (x1.shape == output_shape) else x1._DNDarray__array
     bc_x2 = x2._DNDarray__array.expand(output_shape) if not (x2.shape == output_shape) else x2._DNDarray__array
 
     x = factories.empty((2,) + output_shape)
     x._DNDarray__array = torch.cat((bc_x1, bc_x2)).reshape((2,) + output_shape)
+    # TODO: what happens if e.g. x1 and x2 have different splits?
+    x._DNDarray__split = x1.split  # assumes x1.split = x2.split
+    x._DNDarray__device = x1.device
+    x._DNDarray__comm = x1.comm
+
     result = operations.__reduce_op(x, local_min, MPI_MINIMUM, axis=0, out=out)
     return result
 
@@ -583,8 +588,6 @@ MPI_ARGMAX = MPI.Op.Create(mpi_argmax, commute=True)
 def mpi_argmin(a, b, _):
     lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
     rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
-    print('RANK = ', MPI.COMM_WORLD.Get_rank(), 'lhs = ', lhs)
-    print('RANK = ', MPI.COMM_WORLD.Get_rank(), 'rhs = ', rhs)
     # extract the values and minimal indices from the buffers (first half are values, second are indices)
     values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0],), dim=1)
     indices = torch.stack((lhs.chunk(2)[1], rhs.chunk(2)[1],), dim=1)
@@ -603,9 +606,6 @@ MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 def mpi_minimum(a, b, _):
     lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
     rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
-
-    print('RANK = ', MPI.COMM_WORLD.Get_rank(), 'lhs = ', lhs)
-    print('RANK = ', MPI.COMM_WORLD.Get_rank(), 'rhs = ', rhs)
 
     result = torch.min(lhs, rhs)
     rhs.copy_(result)
