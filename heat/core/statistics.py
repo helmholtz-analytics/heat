@@ -8,6 +8,7 @@ from . import factories
 from . import operations
 from . import dndarray
 from . import types
+from . import stride_tricks
 
 
 __all__ = [
@@ -16,6 +17,7 @@ __all__ = [
     'max',
     'mean',
     'min',
+    'minimum',
     'std',
     'var'
 ]
@@ -524,13 +526,40 @@ def min(x, axis=None, out=None, keepdim=None):
         [ 7.],
         [10.]])
     """
-    def local_min(*args, **kwargs):
-        result = torch.min(*args, **kwargs)
-        if isinstance(result, tuple):
-            return result[0]
-        return result
 
     return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
+
+
+def minimum(x1, x2, out=None, **kwargs):
+    '''
+    Element-wise minimum of array elements.
+
+    Compare two arrays and returns a new array containing the element-wise minima. If one of the elements being compared is a NaN, then that element is returned. If both elements are NaNs then the first is returned. The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
+    Parameters:
+
+    x1, x2 : array_like
+
+    The arrays holding the elements to be compared. They must have the same shape, or shapes that can be broadcast to a single shape.
+    out : ndarray, None, or tuple of ndarray and None, optional
+
+    A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to. If not provided or None, a freshly-allocated array is returned. A tuple (possible only as a keyword argument) must have length equal to the number of outputs.
+    '''
+
+    output_shape = stride_tricks.broadcast_shape(x1.shape, x2.shape)
+    bc_x1 = x1._DNDarray__array.expand(output_shape) if not (x1.shape == output_shape) else x1._DNDarray__array
+    bc_x2 = x2._DNDarray__array.expand(output_shape) if not (x2.shape == output_shape) else x2._DNDarray__array
+
+    x = factories.empty((2,) + output_shape)
+    x._DNDarray__array = torch.cat((bc_x1, bc_x2)).reshape((2,) + output_shape)
+    result = operations.__reduce_op(x, local_min, MPI_MINIMUM, axis=0, out=out)
+    return result
+
+
+def local_min(*args, **kwargs):
+    result = torch.min(*args, **kwargs)
+    if isinstance(result, tuple):
+        return result[0]
+    return result
 
 
 def mpi_argmax(a, b, _):
@@ -554,7 +583,8 @@ MPI_ARGMAX = MPI.Op.Create(mpi_argmax, commute=True)
 def mpi_argmin(a, b, _):
     lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
     rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
-
+    print('RANK = ', MPI.COMM_WORLD.Get_rank(), 'lhs = ', lhs)
+    print('RANK = ', MPI.COMM_WORLD.Get_rank(), 'rhs = ', rhs)
     # extract the values and minimal indices from the buffers (first half are values, second are indices)
     values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0],), dim=1)
     indices = torch.stack((lhs.chunk(2)[1], rhs.chunk(2)[1],), dim=1)
@@ -568,6 +598,20 @@ def mpi_argmin(a, b, _):
 
 
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
+
+
+def mpi_minimum(a, b, _):
+    lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
+    rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
+
+    print('RANK = ', MPI.COMM_WORLD.Get_rank(), 'lhs = ', lhs)
+    print('RANK = ', MPI.COMM_WORLD.Get_rank(), 'rhs = ', rhs)
+
+    result = torch.min(lhs, rhs)
+    rhs.copy_(result)
+
+
+MPI_MINIMUM = MPI.Op.Create(mpi_minimum, commute=True)
 
 
 def std(x, axis=None, bessel=True):
