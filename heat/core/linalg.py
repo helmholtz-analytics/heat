@@ -81,8 +81,17 @@ def matmul(a, b):
     if a.gshape[-1] != b.gshape[0]:
         raise ValueError("If the last dimension of a ({}) is not the same size as the second-to-last dimension of b. ({})".format(a.gshape[-1], b.gshape[-2]))
 
-    if not a.is_distributed() and not b.is_distributed():  # else its simple matmul from torch
-        return factories.array(torch.matmul(a._DNDarray__array, b._DNDarray__array))
+    if a.split is None and b.split is None:  # else its simple matmul from torch
+        if len(a.gshape) < 2 or len(b.gshape) < 2:
+            # if either of A or B is a vector
+            return factories.array(torch.matmul(a._DNDarray__array, b._DNDarray__array))
+        else:
+            c = factories.zeros((a.gshape[-2], b.gshape[1]))
+            a = a.resplit(0)
+            slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
+            c._DNDarray__array[slice_0.start:slice_0.stop, :] += a._DNDarray__array @ b._DNDarray__array
+            c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
+            return c
     else:
         # if they are vectors being multiplied by the
         a_vec  = False
