@@ -591,21 +591,32 @@ def minimum(x1, x2, out=None, **kwargs):
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     '''
 
-    # Broadcasting
-    output_shape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
-    bc_x1 = x1._DNDarray__array.expand(output_shape) if not (x1.lshape == output_shape) else x1._DNDarray__array
-    bc_x2 = x2._DNDarray__array.expand(output_shape) if not (x2.lshape == output_shape) else x2._DNDarray__array
+    # Broadcasting locally
+    output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
+    bc_x1 = x1._DNDarray__array.expand(output_lshape) if not (x1.lshape == output_lshape) else x1._DNDarray__array
+    bc_x2 = x2._DNDarray__array.expand(output_lshape) if not (x2.lshape == output_lshape) else x2._DNDarray__array
 
-    # Concatenating (expanded) x1 and x2 into x to satisfy __reduce_op(),
-    # then enforce axis = 0 for torch.min()
-    x = factories.empty((2,) + output_shape)
-    x._DNDarray__array = torch.cat((bc_x1, bc_x2)).reshape((2,) + output_shape)
+    # Concatenating (expanded, local) x1 and x2 into x to satisfy operations.__reduce_op(),
+    # enforcing axis = 0 for torch.min()
+    x = factories.empty((2,) + output_lshape)
+    x._DNDarray__array = torch.cat((bc_x1, bc_x2)).reshape((2,) + output_lshape)
     # TODO: what happens if e.g. x1 and x2 have different splits?
     x._DNDarray__split = x1.split  # assumes x1.split = x2.split
     x._DNDarray__device = x1.device
     x._DNDarray__comm = x1.comm
-
-    return operations.__reduce_op(x, local_min, MPI_MINIMUM, axis=0, out=out)
+    result_l = operations.__reduce_op(x, local_min, MPI_MINIMUM, axis = 0, out = None)
+    
+    #If distributed, gather local results into global one
+    if x1.split is not None or x2.split is not None:
+        split = None
+        if x.comm.is_distributed():
+            output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
+            result = factories.empty(output_gshape)
+            x.comm.Allgather(result_l, result)
+            result._DNDarray__split = split                
+            return result
+            
+    return result_l
 
 
 def local_min(*args, **kwargs):
