@@ -1,6 +1,6 @@
 import torch
 
-from .communication import MPI_WORLD
+from . import communication
 from . import devices
 from . import dndarray
 from . import types
@@ -14,7 +14,7 @@ def set_gseed(seed):
     torch.manual_seed(seed)
 
 
-def uniform(low=0.0, high=1.0, size=None, device=None, comm=MPI_WORLD):
+def uniform(low=0.0, high=1.0, size=None, device=None, comm=None):
     # TODO: comment me
     # TODO: test me
     # TODO: make me splitable
@@ -23,12 +23,13 @@ def uniform(low=0.0, high=1.0, size=None, device=None, comm=MPI_WORLD):
         size = (1,)
 
     device = devices.sanitize_device(device)
+    comm = communication.sanitize_comm(comm)
     data = torch.rand(*size, device=device.torch_device) * (high - low) + low
 
     return dndarray.DNDarray(data, size, types.float32, None, device, comm)
 
 
-def randn(*args, split=None, device=None, comm=MPI_WORLD):
+def randn(*args, split=None, device=None, comm=None):
     """
     Returns a tensor filled with random numbers from a standard normal distribution with zero mean and variance of one.
 
@@ -81,6 +82,7 @@ def randn(*args, split=None, device=None, comm=MPI_WORLD):
 
     # compose the local tensor
     device = devices.sanitize_device(device)
+    comm = communication.sanitize_comm(comm)
     data = torch.randn(args, device=device.torch_device)
 
     return dndarray.DNDarray(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
