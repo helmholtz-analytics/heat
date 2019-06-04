@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from .communication import Communication, MPI, MPI_WORLD
+from . communication import Communication, MPI, sanitize_comm
 from .stride_tricks import sanitize_axis, sanitize_shape
 from . import devices
 from . import dndarray
@@ -23,7 +23,7 @@ __all__ = [
 ]
 
 
-def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
+def arange(*args, dtype=None, split=None, device=None, comm=None):
     """
     Return evenly spaced values within a given interval.
 
@@ -107,6 +107,10 @@ def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
     else:
         raise TypeError('function takes minimum one and at most 3 positional arguments ({} given)'.format(num_of_param))
 
+    # sanitize device and comm
+    device = devices.sanitize_device(device)
+    comm = sanitize_comm(comm)
+
     gshape = (num,)
     split = sanitize_axis(gshape, split)
     offset, lshape, _ = comm.chunk(gshape, split)
@@ -114,7 +118,6 @@ def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step
-    device = devices.sanitize_device(device)
     data = torch.arange(
         start, stop, step,
         device=device.torch_device
@@ -126,7 +129,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=MPI_WORLD):
     return dndarray.DNDarray(data, gshape, htype, split, device, comm)
 
 
-def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device=None, comm=MPI_WORLD):
+def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device=None, comm=None):
     """
     Create a tensor.
     Parameters
@@ -142,8 +145,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
         If true (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested sequence or
         if a copy is needed to satisfy any of the other requirements, e.g. dtype.
     ndmin : int, optional
-        Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be attached to the
-        shape if  ndim>0  and prefaced in case of ndim<0 to meet the requirement.
+        Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be
+        attached to the shape if  ndim>0  and prefaced in case of ndim<0 to meet the requirement.
     split : None or int, optional
         The axis along which the passed array content obj is split and distributed in memory. Mutually exclusive with
         is_split.
@@ -233,9 +236,9 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     if split is not None and is_split is not None:
         raise ValueError('split and is_split are mutually exclusive parameters')
 
-    # sanitize communication object
-    if not isinstance(comm, Communication):
-        raise TypeError('expected communication object, but got {}'.format(type(comm)))
+    # sanitize device and object
+    device = devices.sanitize_device(device)
+    comm = sanitize_comm(comm)
 
     # determine the local and the global shape, if not split is given, they are identical
     lshape = np.array(obj.shape)
@@ -280,7 +283,7 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     return dndarray.DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
 
 
-def empty(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+def empty(shape, dtype=types.float32, split=None, device=None, comm=None):
     """
     Returns a new uninitialized array of given shape and data type. May be allocated split up across multiple
     nodes along the specified axis.
@@ -318,7 +321,7 @@ def empty(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
     return __factory(shape, dtype, split, torch.empty, device, comm)
 
 
-def empty_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
+def empty_like(a, dtype=None, split=None, device=None, comm=None):
     """
     Returns a new uninitialized array with the same type, shape and data distribution of given object. Data type and
     data distribution strategy can be explicitly overriden.
@@ -356,7 +359,7 @@ def empty_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
     return __factory_like(a, dtype, split, empty, device, comm)
 
 
-def eye(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+def eye(shape, dtype=types.float32, split=None, device=None, comm=None):
     """
     Returns a new 2-D tensor with ones on the diagonal and zeroes elsewhere.
 
@@ -399,10 +402,13 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
 
     split = sanitize_axis(gshape, split)
     device = devices.sanitize_device(device)
+    comm = sanitize_comm(comm)
     offset, lshape, _ = comm.chunk(gshape, split)
-    # Start by creating tensor filled with zeroes
+
+    # start by creating tensor filled with zeroes
     data = torch.zeros(lshape, dtype=types.canonical_heat_type(dtype).torch_type(), device=device.torch_device)
-    # Insert ones at the correct positions
+
+    # insert ones at the correct positions
     for i in range(min(lshape)):
         pos_x = i if split is 0 else i + offset
         pos_y = i if split is 1 else i + offset
@@ -427,7 +433,7 @@ def __factory(shape, dtype, split, local_factory, device, comm):
         Function that creates the local PyTorch tensor for the HeAT tensor.
     device : str or None
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
-    comm: Communication, optional
+    comm: Communication
         Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
@@ -440,6 +446,7 @@ def __factory(shape, dtype, split, local_factory, device, comm):
     dtype = types.canonical_heat_type(dtype)
     split = sanitize_axis(shape, split)
     device = devices.sanitize_device(device)
+    comm = sanitize_comm(comm)
 
     # chunk the shape if necessary
     _, local_shape, _ = comm.chunk(shape, split)
@@ -465,7 +472,7 @@ def __factory_like(a, dtype, split, factory, device, comm, **kwargs):
         Function that creates a HeAT tensor.
     device : str or None
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
-    comm: Communication, optional
+    comm: Communication
         Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
@@ -498,10 +505,13 @@ def __factory_like(a, dtype, split, factory, device, comm, **kwargs):
             # do not split at all
             pass
 
+    # use the default communicator, if not set
+    comm = sanitize_comm(comm)
+
     return factory(shape, dtype=dtype, split=split, device=device, comm=comm, **kwargs)
 
 
-def full(shape, fill_value, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+def full(shape, fill_value, dtype=types.float32, split=None, device=None, comm=None):
     """
     Return a new array of given shape and type, filled with fill_value.
 
@@ -540,7 +550,7 @@ def full(shape, fill_value, dtype=types.float32, split=None, device=None, comm=M
     return __factory(shape, dtype, split, local_factory, device, comm)
 
 
-def full_like(a, fill_value, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+def full_like(a, fill_value, dtype=types.float32, split=None, device=None, comm=None):
     """
     Return a full array with the same shape and type as a given array.
 
@@ -578,7 +588,7 @@ def full_like(a, fill_value, dtype=types.float32, split=None, device=None, comm=
     return __factory_like(a, dtype, split, full, device, comm, fill_value=fill_value)
 
 
-def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None, device=None, comm=MPI_WORLD):
+def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, split=None, device=None, comm=None):
     """
     Returns num evenly spaced samples, calculated over the interval [start, stop]. The endpoint of the interval can
     optionally be excluded.
@@ -631,6 +641,10 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
         raise ValueError('number of samples \'num\' must be non-negative integer, but was {}'.format(num))
     step = (stop - start) / max(1, num - 1 if endpoint else num)
 
+    # sanitize device and comm
+    device = devices.sanitize_device(device)
+    comm = sanitize_comm(comm)
+
     # infer local and global shapes
     gshape = (num,)
     split = sanitize_axis(gshape, split)
@@ -639,7 +653,6 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step - step
-    device = devices.sanitize_device(device)
     data = torch.linspace(start, stop, lshape[0], device=device.torch_device)
     if dtype is not None:
         data = data.type(types.canonical_heat_type(dtype).torch_type())
@@ -652,7 +665,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
     return ht_tensor
 
 
-def ones(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+def ones(shape, dtype=types.float32, split=None, device=None, comm=None):
     """
     Returns a new array of given shape and data type filled with one values. May be allocated split up across multiple
     nodes along the specified axis.
@@ -690,7 +703,7 @@ def ones(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
     return __factory(shape, dtype, split, torch.ones, device, comm)
 
 
-def ones_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
+def ones_like(a, dtype=None, split=None, device=None, comm=None):
     """
     Returns a new array filled with ones with the same type, shape and data distribution of given object. Data type and
     data distribution strategy can be explicitly overriden.
@@ -727,7 +740,7 @@ def ones_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
     return __factory_like(a, dtype, split, ones, device, comm)
 
 
-def zeros(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+def zeros(shape, dtype=types.float32, split=None, device=None, comm=None):
     """
     Returns a new array of given shape and data type filled with zero values. May be allocated split up across multiple
     nodes along the specified axis.
@@ -765,7 +778,7 @@ def zeros(shape, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
     return __factory(shape, dtype, split, torch.zeros, device, comm)
 
 
-def zeros_like(a, dtype=None, split=None, device=None, comm=MPI_WORLD):
+def zeros_like(a, dtype=None, split=None, device=None, comm=None):
     """
     Returns a new array filled with zeros with the same type, shape and data distribution of given object. Data type and
     data distribution strategy can be explicitly overriden.
