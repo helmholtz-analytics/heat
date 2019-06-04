@@ -274,38 +274,39 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
 
         if return_inverse:
             # Prepare some information to generated the inverse indices list
-            if axis is None:
-                inverse_indices = inverse_pos
-            else:
-                avg_len = a.gshape[a.split] // a.comm.Get_size()
-                rem = a.gshape[a.split] % a.comm.Get_size()
+            avg_len = a.gshape[a.split] // a.comm.Get_size()
+            rem = a.gshape[a.split] % a.comm.Get_size()
 
-                # Share the local reverse indices with other processes
-                counts = [avg_len] * a.comm.Get_size()
-                add_vec = [1] * rem + [0] * (a.comm.Get_size() - rem)
-                inverse_counts = [sum(x) for x in zip(counts, add_vec)]
-                inverse_displs = [0] + list(np.cumsum(inverse_counts[:-1]))
-                inverse_dim = list(inverse_pos.shape)
-                inverse_dim[0] = a.gshape[0]
-                inverse_buf = torch.empty(inverse_dim, dtype=inverse_pos.dtype)
-                a.comm.Allgatherv(inverse_pos, (inverse_buf, inverse_counts, inverse_displs))
+            # Share the local reverse indices with other processes
+            counts = [avg_len] * a.comm.Get_size()
+            add_vec = [1] * rem + [0] * (a.comm.Get_size() - rem)
+            inverse_counts = [sum(x) for x in zip(counts, add_vec)]
+            inverse_displs = [0] + list(np.cumsum(inverse_counts[:-1]))
+            inverse_dim = list(inverse_pos.shape)
+            inverse_dim[0] = a.gshape[0]
+            inverse_buf = torch.empty(inverse_dim, dtype=inverse_pos.dtype)
+            a.comm.Allgatherv(inverse_pos, (inverse_buf, inverse_counts, inverse_displs))
 
-        # Run unique a second time for
+        # Run unique a second time
         gres = torch.unique(gres_buf, sorted=sorted, return_inverse=return_inverse, dim=unique_axis)
-
-        if return_inverse and axis is not None:
+        print('gres_buf', gres_buf)
+        if return_inverse:
             # Use the previously gathered information to generate global inverse_indices
             g_inverse = gres[1]
             gres = gres[0]
-            inverse_indices = torch.zeros_like(inverse_buf)
-            steps = displs + [None]
+            if axis is None:
+                print('lres', lres, 'inverse_pos', inverse_pos, 'gres', gres, 'g_inverse', g_inverse, 'inverse_buf', inverse_buf, 'inverse_displs', inverse_displs)
+                inverse_indices = g_inverse.reshape(a.gshape)
+            else:
+                inverse_indices = torch.zeros_like(inverse_buf)
+                steps = displs + [None]
 
-            # Algorithm that creates the correct list for the reverse_indices
-            for i in range(len(steps) - 1):
-                begin = steps[i]
-                end = steps[i + 1]
-                for num, x in enumerate(inverse_buf[begin: end]):
-                    inverse_indices[begin + num] = g_inverse[begin + x]
+                # Algorithm that creates the correct list for the reverse_indices
+                for i in range(len(steps) - 1):
+                    begin = steps[i]
+                    end = steps[i + 1]
+                    for num, x in enumerate(inverse_buf[begin: end]):
+                        inverse_indices[begin + num] = g_inverse[begin + x]
 
     else:
         max_uniques, max_pos = uniques_buf.max(0)
@@ -335,7 +336,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     if axis is not None:
         # transpose matrix back
         gres = gres.transpose(0, axis)
-
+    print('gres', gres, 'is_split', is_split)
     result = factories.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, is_split=is_split)
 
     if split is not None:

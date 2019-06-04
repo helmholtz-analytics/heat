@@ -251,3 +251,21 @@ class TestManipulations(unittest.TestCase):
         res, inv = ht.unique(data, return_inverse=True, axis=1)
         _, exp_inv = torch_array.unique(dim=1, return_inverse=True, sorted=True)
         self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+
+    def test_unique_indices(self):
+        torch_array = torch.tensor([
+            [1, 2],
+            [2, 3],
+            [1, 2],
+            [2, 4],
+            [1, 2]
+        ], dtype=torch.int32)
+        data = ht.array(torch_array, split=0)
+        print('Rank', data.comm.Get_rank())
+        res, inv = ht.unique(data, return_inverse=True)
+        print("res", res, ' inv', inv)
+        _, exp_inv = torch_array.unique(return_inverse=True, sorted=True)
+        print('exp_inv', inv)
+        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+
+
