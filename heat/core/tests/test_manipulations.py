@@ -253,13 +253,13 @@ class TestManipulations(unittest.TestCase):
         self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
 
         torch_array = torch.tensor([
-            [2, 2],
-            [2, 3],
-            [3, 2],
-            [2, 4],
-            [1, 2]
+            [1, 1, 2],
+            [1, 2, 2],
+            [2, 1, 2],
+            [1, 3, 2],
+            [0, 1, 2]
         ], dtype=torch.int32)
-        exp_res, exp_inv = torch_array.unique(return_inverse=True)
+        exp_res, exp_inv = torch_array.unique(return_inverse=True, sorted=True)
 
         data_split_none = ht.array(torch_array)
         res, inv = ht.unique(data_split_none, return_inverse=True, sorted=True)
@@ -267,8 +267,4 @@ class TestManipulations(unittest.TestCase):
 
         data_split_zero = ht.array(torch_array, split=0)
         res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
-        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
-
-        data_split_one = ht.array(torch_array, split=1)
-        res, inv = ht.unique(data_split_one, return_inverse=True, sorted=True)
         self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))

@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 
-from . import factories
 from . import dndarray
 from . import factories
 from . import stride_tricks
@@ -230,24 +229,25 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     unique_axis = None
     inverse_indices = None
 
-
     if axis is not None:
         # transpose so we can work along the 0 axis
         local_data = local_data.transpose(0, axis)
         unique_axis = 0
-    # else:
-    #     local_data = local_data.transpose(0, a.split)
 
     # Calculate the unique on the local values
     if a.lshape[a.split] == 0:
         # Passing an empty vector to torch throws exception
         if axis is None:
             res_shape = [0]
+            inv_shape = list(a.gshape)
+            inv_shape[a.split] = 0
         else:
             res_shape = list(local_data.shape)
             res_shape[0] = 0
+            inv_shape = [0]
         lres = torch.empty(res_shape, dtype=a.dtype.torch_type())
-        inverse_pos = torch.tensor([])
+        inverse_pos = torch.empty(inv_shape, dtype=torch.int64)
+
     else:
         lres, inverse_pos = torch.unique(local_data, sorted=sorted, return_inverse=True, dim=unique_axis)
 
@@ -288,11 +288,17 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
             counts = [avg_len] * a.comm.Get_size()
             add_vec = [1] * rem + [0] * (a.comm.Get_size() - rem)
             inverse_counts = [sum(x) for x in zip(counts, add_vec)]
+            # inverse_counts = [sum(x) for x in zip(counts, add_vec)]
             inverse_displs = [0] + list(np.cumsum(inverse_counts[:-1]))
             inverse_dim = list(inverse_pos.shape)
             inverse_dim[a.split] = a.gshape[a.split]
             inverse_buf = torch.empty(inverse_dim, dtype=inverse_pos.dtype)
-            a.comm.Allgatherv(inverse_pos, (inverse_buf, inverse_counts, inverse_displs), axis=a.split)
+
+            # Transpose data and buffer so we can use Allgatherv along axis=0 (axis=1 does not work properly yet)
+            inverse_pos = inverse_pos.transpose(0, a.split)
+            inverse_buf = inverse_buf.transpose(0, a.split)
+            a.comm.Allgatherv(inverse_pos, (inverse_buf, inverse_counts, inverse_displs), axis=0)
+            inverse_buf = inverse_buf.transpose(0, a.split)
 
         # Run unique a second time
         gres = torch.unique(gres_buf, sorted=sorted, return_inverse=return_inverse, dim=unique_axis)
@@ -327,6 +333,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
                 # Convert the flattened array back to the correct global shape of a
                 inverse_indices = torch.tensor(inverse_indices).reshape(transposed_shape)
                 inverse_indices = inverse_indices.transpose(0, a.split)
+
             else:
                 inverse_indices = torch.zeros_like(inverse_buf)
                 steps = displs + [None]
@@ -366,7 +373,6 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     if axis is not None:
         # transpose matrix back
         gres = gres.transpose(0, axis)
-    print('gres', gres, 'is_split', is_split)
     result = factories.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, is_split=is_split)
 
     if split is not None:
