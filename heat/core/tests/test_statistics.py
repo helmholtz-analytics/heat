@@ -412,6 +412,65 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.min(ht_array, axis=-4)
 
+    def test_minimum(self):
+        data1 = [
+            [1,   2,  3],
+            [4,   5,  6],
+            [7,   8,  9],
+            [10, 11, 12]
+        ]
+        data2 = [
+            [0,   3,  2],
+            [5,   4,  7],
+            [6,   9,  8],
+            [9, 10, 11]
+        ]
+
+        ht_array1 = ht.array(data1)
+        ht_array2 = ht.array(data2)
+        comparison1 = torch.tensor(data1)
+        comparison2 = torch.tensor(data2)
+
+        # check minimum
+        minimum = ht.minimum(ht_array1, ht_array2)
+
+        self.assertIsInstance(minimum, ht.DNDarray)
+        self.assertEqual(minimum.shape, (4, 3))
+        self.assertEqual(minimum.lshape, (4, 3))
+        self.assertEqual(minimum.split, None)
+        self.assertEqual(minimum.dtype, ht.int64)
+        self.assertEqual(minimum._DNDarray__array.dtype, torch.int64)
+
+        # check minimum over float elements of split 3d tensor
+        # TODO: add check for uneven distribution of dimensions (see Issue #273)
+        torch.manual_seed(1)
+        random_volume_1 = ht.array(ht.random.randn(12, 3, 3), is_split=0)
+        random_volume_2 = ht.array(ht.random.randn(12, 1, 3), is_split=0)
+        minimum_volume = ht.minimum(random_volume_1, random_volume_2)
+
+        self.assertIsInstance(minimum_volume, ht.DNDarray)
+        self.assertEqual(minimum_volume.shape, (ht.MPI_WORLD.size * 12, 3, 3))
+        self.assertEqual(minimum_volume.lshape, (ht.MPI_WORLD.size * 12, 3, 3))
+        self.assertEqual(minimum_volume.dtype, ht.float32)
+        self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(minimum_volume.split, random_volume_1.split)
+
+        # check output buffer
+        out_shape = ht.stride_tricks.broadcast_shape(random_volume_1.gshape, random_volume_2.gshape)
+        output = ht.empty(out_shape)
+        ht.minimum(random_volume_1, random_volume_2, out=output)
+        self.assertIsInstance(output, ht.DNDarray)
+        self.assertEqual(output.shape, (ht.MPI_WORLD.size * 12, 3, 3))
+        self.assertEqual(output.lshape, (ht.MPI_WORLD.size * 12, 3, 3))
+        self.assertEqual(output.dtype, ht.float32)
+        self.assertEqual(output._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(output.split, random_volume_1.split)
+
+        # check exceptions
+        random_volume_3 = ht.array(ht.random.randn(4, 2, 3), split=0)
+        with self.assertRaises(ValueError):
+            ht.minimum(random_volume_1, random_volume_3)
+
     def test_std(self):
         # test raises
         x = ht.zeros((2, 3, 4))
