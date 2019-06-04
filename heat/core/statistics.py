@@ -604,18 +604,34 @@ def minimum(x1, x2, out=None, **kwargs):
     x._DNDarray__split = x1.split  # assumes x1.split = x2.split
     x._DNDarray__device = x1.device
     x._DNDarray__comm = x1.comm
-    result_l = operations.__reduce_op(x, local_min, MPI_MINIMUM, axis = 0, out = None)
-    
-    #If distributed, gather local results into global one
-    if x1.split is not None or x2.split is not None:
+
+    # If distributed, collect local results
+    if x.split is not None:
         split = None
         if x.comm.is_distributed():
             output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
+            result_l = operations.__reduce_op(x, local_min, MPI_MINIMUM, axis=0, out=None)
             result = factories.empty(output_gshape)
             x.comm.Allgather(result_l, result)
-            result._DNDarray__split = split                
+            result._DNDarray__split = split
+
+            if out is not None:
+                if not isinstance(out, dndarray.DNDarray):
+                    raise TypeError('expected out to be None or an ht.DNDarray, but was {}'.format(type(out)))
+                if out.shape != output_gshape:
+                    raise ValueError('Expecting output buffer of shape {}, got {}'.format(output_gshape, out.shape))
+                out._DNDarray__array = result._DNDarray__array
+                out._DNDarray__dtype = result._DNDarray__dtype
+                out._DNDarray__split = split
+                out._DNDarray__device = x.device
+                out._DNDarray__comm = x.comm
+
+                return out
+
             return result
-            
+
+    # if not distributed, write to out through __reduce_op()
+    result_l = operations.__reduce_op(x, local_min, MPI_MINIMUM, axis=0, out=out)
     return result_l
 
 
