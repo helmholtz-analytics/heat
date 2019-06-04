@@ -5,9 +5,9 @@ from .communication import MPI_WORLD
 
 __all__ = [
     'cpu',
-    'get_default_device',
+    'get_backend',
     'sanitize_device',
-    'set_default_device'
+    'use_backend'
 ]
 
 
@@ -81,7 +81,7 @@ if torch.cuda.device_count() > 0:
     __all__.append('gpu')
 
 
-def get_default_device():
+def get_backend():
     """
     Retrieves the currently globally set default device.
 
@@ -114,7 +114,7 @@ def sanitize_device(device):
         If the given device id is not recognized
     """
     if device is None:
-        return get_default_device()
+        return get_backend()
 
     if isinstance(device, Device):
         return device
@@ -125,7 +125,7 @@ def sanitize_device(device):
         raise ValueError('Unknown device, must be one of {}'.format(', '.join(__device_mapping.keys())))
 
 
-def set_default_device(device=None):
+def use_backend(device=None):
     """
     Sets the globally used default device.
 

@@ -8,7 +8,7 @@ from . import exponential
 from . import io
 from . import linalg
 from . import logical
-from . import manipulation
+from . import manipulations
 from . import memory
 from . import relational
 from . import rounding
@@ -32,6 +32,7 @@ class LocalIndex:
     Indexing class for local operations (primarily for lloc function)
     For docs on __getitem__ and __setitem__ see lloc(self)
     """
+
     def __init__(self, obj):
         self.obj = obj
 
@@ -66,6 +67,10 @@ class DNDarray:
     @property
     def gshape(self):
         return self.__gshape
+
+    @property
+    def numdims(self):
+        return len(self.__gshape)
 
     @property
     def size(self):
@@ -332,7 +337,7 @@ class DNDarray:
         """
         return logical.allclose(self, other, rtol, atol, equal_nan)
 
-    def any(self, axis=None, out=None):
+    def any(self, axis=None, out=None, keepdim=False):
         """
         Test whether any array element along a given axis evaluates to True.
         The returning tensor is one dimensional unless axis is not None.
@@ -369,7 +374,7 @@ class DNDarray:
         >>> res
         tensor([[0, 0, 1]], dtype=torch.uint8)
         """
-        return logical.any(self, axis=axis, out=out)
+        return logical.any(self, axis=axis, out=out, keepdim=keepdim)
 
     def argmax(self, axis=None, out=None, **kwargs):
         """
@@ -654,6 +659,36 @@ class DNDarray:
         self.__array = self.__array.cpu()
         return self
 
+    def __floordiv__(self, other):
+        """
+        Element-wise floor division (i.e. result is rounded int (floor))
+        of the tensor by another tensor or scalar. Takes the first tensor by which it divides the second
+        not-heat-typed-parameter.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+            The second operand by whose values is divided
+
+        Return
+        ------
+        result: ht.tensor
+            A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
+        >>> T1 // 1
+        tensor([[1., 2.],
+                [1., 4.]])
+        >>> T2 = ht.float32([1.5, 2.5])
+        >>> T1 // T2
+        tensor([[1., 0.],
+                [1., 1.]])
+        """
+        return arithmetics.floordiv(self, other)
+
     def __eq__(self, other):
         """
         Element-wise rich comparison of equality with values from second operand (scalar or tensor)
@@ -909,7 +944,7 @@ class DNDarray:
         >>> y.shape
         (2, 1)
         """
-        return manipulation.expand_dims(self, axis)
+        return manipulations.expand_dims(self, axis)
 
     def __float__(self):
         """
@@ -1073,7 +1108,8 @@ class DNDarray:
                         arr = self.__array[key]
                         gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                        self.comm.rank), ResourceWarning)
                     # arr is empty and gout is zeros
 
             elif isinstance(key, (tuple, list)):  # multi-argument gets are passed as tuples by python
@@ -1095,6 +1131,7 @@ class DNDarray:
                     key = list(key)
                     overlap = list(key_set & chunk_set)
                     if overlap:  # if the slice is requesting data on the nodes
+                        overlap.sort()
                         hold = [x - chunk_start for x in overlap]
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
                         arr = self.__array[tuple(key)]
@@ -1108,7 +1145,8 @@ class DNDarray:
                     arr = self.__array[tuple(key)]
                     gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                        self.comm.rank), ResourceWarning)
                     # arr is empty
                     # gout is all 0s and is the proper shape
 
@@ -1127,12 +1165,14 @@ class DNDarray:
                 overlap = list(key_set & chunk_set)
 
                 if overlap:
+                    overlap.sort()
                     hold = [x - chunk_start for x in overlap]
                     key = slice(min(hold), max(hold) + 1, step)
                     arr = self.__array[key]
                     gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(self.comm.rank), ResourceWarning)
+                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                        self.comm.rank), ResourceWarning)
                     # arr is empty
                     # gout is all 0s and is the proper shape
 
@@ -1268,6 +1308,17 @@ class DNDarray:
 
         """
         return relational.le(self, other)
+
+    def __len__(self):
+        """
+        The length of the DNDarray, i.e. the number of items in the first dimension.
+
+        Returns
+        -------
+        length : int
+            The number of items in the first dimension
+        """
+        return self.shape[0]
 
     def log(self, out=None):
         """
@@ -1409,7 +1460,7 @@ class DNDarray:
         #TODO: out : ht.DNDarray, optional
             Alternative output array in which to place the result. Must be of the same shape and buffer length as the
             expected output.
-        #TODO: initial : scalar, optional   
+        #TODO: initial : scalar, optional
             The maximum value of an output element. Must be present to allow computation on empty slice.
         """
         return statistics.min(self, axis=axis, out=out, keepdim=keepdim)
@@ -1631,6 +1682,137 @@ class DNDarray:
 
         return self
 
+    def __rfloordiv__(self, other):
+        """
+        Element-wise floor division (i.e. result is rounded int (floor))
+        of the not-heat-typed parameter by another tensor. Takes the first operand (scalar or tensor) by which to divide
+        as argument.
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+            this will be divided by the self-tensor
+
+        Return
+        ------
+        result: ht.tensor
+            A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T = ht.float32([[1.7, 2.0], [1.9, 4.2]])
+        >>> 5 // T
+        tensor([[2., 2.],
+                [2., 1.]])
+        """
+        return arithmetics.floordiv(other, self)
+
+    def __rmod__(self, other):
+        """
+        Element-wise division remainder of values of other by values of operand self (i.e. other % self),
+        not commutative.
+        Takes the two operands (scalar or tensor) whose elements are to be divided (operand 2 by operand 1)
+        as arguments.
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+            The second operand which values will be divided by self.
+
+        Returns
+        -------
+        result: ht.tensor
+            A tensor containing the remainder of the element-wise division of other by self.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T = ht.int32([1, 3])
+        >>> 2 % T
+        tensor([0, 2], dtype=torch.int32)
+
+        """
+        return arithmetics.mod(other, self)
+
+    def __rpow__(self, other):
+        """
+        Element-wise exponential function of second operand (not-heat-typed) with values from first operand (tensor).
+        Takes the first operand (tensor) whose values are the exponent to be applied to the second
+        scalar or unknown data-type as argument.
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+           The value(s) in the base (element-wise)
+
+        Returns
+        -------
+        result: ht.NDNarray
+           A tensor containing the results of element-wise exponential operation.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+
+        >>> T = ht.float32([[1, 2], [3, 4]])
+        >>> 3 ** T
+        tensor([[ 3., 9.],
+                [27., 81.]])
+        """
+        return arithmetics.pow(other, self)
+
+    def __rsub__(self, other):
+        """
+        Element-wise subtraction of another tensor or a scalar from the tensor.
+        Takes the first operand (tensor) whose elements are to be subtracted from the second argument
+        (scalar or unknown data-type).
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+            The value(s) from which the self-tensor will be element wise subtracted.
+
+        Returns
+        -------
+        result: ht.DNDarray
+            A tensor containing the results of element-wise subtraction.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T = ht.float32([[1, 2], [3, 4]])
+        >>> 5 - T
+        tensor([[4., 3.],
+                [2., 1.]])
+        """
+        return arithmetics.sub(other, self)
+
+    def __rtruediv__(self, other):
+        """
+        Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
+        of the not-heat-type parameter by another tensor. Takes the first tensor by which it divides the second
+        not-heat-typed-parameter.
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+            this will be divided by the self-tensor
+
+        Returns
+        -------
+        result: ht.DNDarray
+           A tensor containing the results of element-wise division.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T = ht.float32([2,3])
+        >>> 2 / T
+        tensor([1.0000, 0.6667])
+        """
+        return arithmetics.div(other, self)
+
     def save(self, path, *args, **kwargs):
         """
         Save the tensor's data to disk. Attempts to auto-detect the file format by determining the extension.
@@ -1768,6 +1950,7 @@ class DNDarray:
                                    & set(range(chunk_start, chunk_end)))
 
                     if overlap:
+                        overlap.sort()
                         hold = [x - chunk_start for x in overlap]
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
                         try:
@@ -1785,6 +1968,7 @@ class DNDarray:
             elif isinstance(key, slice) and self.split == 0:
                 overlap = list(set(range(key.start, key.stop)) & set(range(chunk_start, chunk_end)))
                 if overlap:
+                    overlap.sort()
                     hold = [x - chunk_start for x in overlap]
                     key = slice(min(hold), max(hold) + 1, key.step)
                     self.__setter(key, value)
@@ -1880,6 +2064,59 @@ class DNDarray:
         """
         return exponential.sqrt(self, out)
 
+    def squeeze(self, axis=None):
+        """
+        Remove single-dimensional entries from the shape of a tensor.
+
+        Parameters:
+        -----------
+        x : ht.tensor
+            Input data.
+
+        axis : None or int or tuple of ints, optional
+               Selects a subset of the single-dimensional entries in the shape. 
+               If axis is None, all single-dimensional entries will be removed from the shape.
+               If an axis is selected with shape entry greater than one, a ValueError is raised.
+
+
+
+        Returns:
+        --------	
+        squeezed : ht.tensor
+                   The input tensor, but with all or a subset of the dimensions of length 1 removed. 
+
+
+        Examples:
+        >>> import heat as ht
+        >>> import torch
+        >>> torch.manual_seed(1)
+        <torch._C.Generator object at 0x115704ad0>
+        >>> a = ht.random.randn(1,3,1,5)
+        >>> a
+        tensor([[[[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232]],
+
+                [[ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255]],
+
+                [[-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]]]])
+        >>> a.shape
+        (1, 3, 1, 5)
+        >>> a.squeeze().shape
+        (3, 5)
+        >>> a.squeeze
+        tensor([[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232],
+                [ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255],
+                [-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]])
+        >>> a.squeeze(axis=0).shape
+        (3, 1, 5)
+        >>> a.squeeze(axis=-2).shape
+        (1, 3, 5)
+        >>> a.squeeze(axis=1).shape
+        Traceback (most recent call last):
+        ...
+        ValueError: Dimension along axis 1 is not 1 for shape (1, 3, 1, 5)
+        """
+        return manipulations.squeeze(self, axis)
+
     def __str__(self, *args):
         # TODO: document me
         # TODO: generate none-PyTorch str
@@ -1926,7 +2163,7 @@ class DNDarray:
             all of the elements of the input array. If axis is negative it counts
             from the last to the first axis.
 
-            If axis is a tuple of ints, a sum is performed on all of the axes specified 
+            If axis is a tuple of ints, a sum is performed on all of the axes specified
             in the tuple instead of a single axis or all the axes as before.
 
          Returns
@@ -2106,3 +2343,20 @@ class DNDarray:
                 [1.5, 2.0000]])
         """
         return arithmetics.div(self, other)
+
+    """
+    This ensures that commutative arithmetic operations work no matter on which side the heat-tensor is placed.
+    
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T = ht.float32([[1., 2.], [3., 4.,]])
+    >>> T + 1
+    tensor([[2., 3.],
+            [4., 5.]])
+    >>> 1 + T
+    tensor([[2., 3.],
+        [4., 5.]])
+    """
+    __radd__ = __add__
+    __rmul__ = __mul__

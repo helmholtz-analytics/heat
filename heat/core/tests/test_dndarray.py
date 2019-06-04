@@ -165,6 +165,28 @@ class TestDNDarray(unittest.TestCase):
         with self.assertRaises(ValueError):
             x.item()
 
+    def test_len(self):
+        # vector
+        a = ht.zeros((10,))
+        a_length = len(a)
+
+        self.assertIsInstance(a_length, int)
+        self.assertEqual(a_length, 10)
+
+        # matrix
+        b = ht.ones((50, 2,))
+        b_length = len(b)
+
+        self.assertIsInstance(b_length, int)
+        self.assertEqual(b_length, 50)
+
+        # split 5D array
+        c = ht.empty((3, 4, 5, 6, 7,), split=-1)
+        c_length = len(c)
+
+        self.assertIsInstance(c_length, int)
+        self.assertEqual(c_length, 3)
+
     def test_lloc(self):
         # single set
         a = ht.zeros((13, 5,), split=0)

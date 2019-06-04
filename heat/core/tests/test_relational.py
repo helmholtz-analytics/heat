@@ -41,8 +41,6 @@ class TestRelational(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.eq(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.eq(self.a_tensor, self.split_ones_tensor)
         with self.assertRaises(TypeError):
             ht.eq(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -74,8 +72,6 @@ class TestRelational(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.ge(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.ge(self.a_tensor, self.split_ones_tensor)
         with self.assertRaises(TypeError):
             ht.ge(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -101,8 +97,6 @@ class TestRelational(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.gt(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.gt(self.a_tensor, self.split_ones_tensor)
         with self.assertRaises(TypeError):
             ht.gt(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -128,8 +122,6 @@ class TestRelational(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.le(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.le(self.a_tensor, self.split_ones_tensor)
         with self.assertRaises(TypeError):
             ht.le(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -155,8 +147,6 @@ class TestRelational(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.lt(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.lt(self.a_tensor, self.split_ones_tensor)
         with self.assertRaises(TypeError):
             ht.lt(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -178,8 +168,6 @@ class TestRelational(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.ne(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.ne(self.a_tensor, self.split_ones_tensor)
         with self.assertRaises(TypeError):
             ht.ne(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
