@@ -526,6 +526,11 @@ def min(x, axis=None, out=None, keepdim=None):
         [ 7.],
         [10.]])
     """
+    def local_min(*args, **kwargs):
+        result = torch.min(*args, **kwargs)
+        if isinstance(result, tuple):
+            return result[0]
+        return result
 
     return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
 
@@ -601,54 +606,44 @@ def minimum(x1, x2, out=None, **kwargs):
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     '''
 
-    # Broadcasting locally
-    output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
-    bc_x1 = x1._DNDarray__array.expand(output_lshape) if not (x1.lshape == output_lshape) else x1._DNDarray__array
-    bc_x2 = x2._DNDarray__array.expand(output_lshape) if not (x2.lshape == output_lshape) else x2._DNDarray__array
+    # Sanitation
+    if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
+        raise TypeError('expected x1 and x2 to be a ht.DNDarray, but was {} and {}'.format(type(x1), type(x2)))
+    if out is not None and not isinstance(out, dndarray.DNDarray):
+        raise TypeError('expected out to be None or an ht.DNDarray, but was {}'.format(type(out)))
 
-    # Concatenating (expanded, local) x1 and x2 into x to satisfy operations.__reduce_op(x, ...)
-    x = factories.empty((2,) + output_lshape)
-    x._DNDarray__array = torch.cat((bc_x1, bc_x2)).reshape((2,) + output_lshape)
-    # TODO: what happens if e.g. x1 and x2 have different splits?
-    x._DNDarray__split = x1.split  # assumes x1.split = x2.split
-    x._DNDarray__device = x1.device
-    x._DNDarray__comm = x1.comm
+    # Local element-wise minimum
+    output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
+    result_l = factories.empty(output_lshape)
+    result_l._DNDarray__array = torch.min(x1._DNDarray__array, x2._DNDarray__array)
+    result_l._DNDarray__dtype = types.promote_types(x1._DNDarray__dtype, x2._DNDarray__dtype)
+    result_l._DNDarray__split = None
+    result_l._DNDarray__device = x1.device
+    result_l._DNDarray__comm = x1.comm
 
     # If distributed, collect local results
-    if x.split is not None:
-        split = None
-        if x.comm.is_distributed():
+    if x1.split is not None:  # assumes x1.split = x2.split
+        # TODO: what if x1.split != x2.split?
+        if x1.comm.is_distributed():
             output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
-            result_l = operations.__reduce_op(x, local_min, MPI_MINIMUM, axis=0, out=None)
             result = factories.empty(output_gshape)
-            x.comm.Allgather(result_l, result)
-            result._DNDarray__split = split
+            x1.comm.Allgather(result_l, result)
+            result._DNDarray__dtype = result_l._DNDarray__dtype
+            result._DNDarray__split = x1.split
 
             if out is not None:
-                if not isinstance(out, dndarray.DNDarray):
-                    raise TypeError('expected out to be None or an ht.DNDarray, but was {}'.format(type(out)))
                 if out.shape != output_gshape:
                     raise ValueError('Expecting output buffer of shape {}, got {}'.format(output_gshape, out.shape))
                 out._DNDarray__array = result._DNDarray__array
                 out._DNDarray__dtype = result._DNDarray__dtype
-                out._DNDarray__split = split
-                out._DNDarray__device = x.device
-                out._DNDarray__comm = x.comm
+                out._DNDarray__split = x1.split
+                out._DNDarray__device = x1.device
+                out._DNDarray__comm = x1.comm
 
                 return out
 
             return result
-
-    # if not distributed, write to out through __reduce_op()
-    result_l = operations.__reduce_op(x, local_min, MPI_MINIMUM, axis=0, out=out)
     return result_l
-
-
-def local_min(*args, **kwargs):
-    result = torch.min(*args, **kwargs)
-    if isinstance(result, tuple):
-        return result[0]
-    return result
 
 
 def mpi_argmax(a, b, _):
@@ -685,17 +680,6 @@ def mpi_argmin(a, b, _):
 
 
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
-
-
-def mpi_minimum(a, b, _):
-    lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
-    rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
-
-    result = torch.min(lhs, rhs)
-    rhs.copy_(result)
-
-
-MPI_MINIMUM = MPI.Op.Create(mpi_minimum, commute=True)
 
 
 def std(x, axis=None, bessel=True):
