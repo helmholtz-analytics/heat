@@ -533,7 +533,7 @@ def min(x, axis=None, out=None, keepdim=None):
 def minimum(x1, x2, out=None, **kwargs):
     '''
     Compares two tensors and returns a new tensor containing the element-wise minima. 
-    TODO: If one of the elements being compared is a NaN, then that element is returned. If both elements are NaNs then the first is returned. 
+    If one of the elements being compared is a NaN, then that element is returned. TODO: Check this: If both elements are NaNs then the first is returned. 
     The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
 
     Parameters:
@@ -563,19 +563,19 @@ def minimum(x1, x2, out=None, **kwargs):
     >>> a = ht.random.randn(3,4)
     >>> a
     tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
-        [-0.4212, -0.5107, -1.5727, -0.1232],
-        [ 3.5870, -1.8313,  1.5987, -1.2770]])
+            [-0.4212, -0.5107, -1.5727, -0.1232],
+            [ 3.5870, -1.8313,  1.5987, -1.2770]])
 
     >>> b = ht.random.randn(3,4)
     >>> b
     tensor([[ 0.8310, -0.2477, -0.8029,  0.2366],
-        [ 0.2857,  0.6898, -0.6331,  0.8795],
-        [-0.6842,  0.4533,  0.2912, -0.8317]])
+            [ 0.2857,  0.6898, -0.6331,  0.8795],
+            [-0.6842,  0.4533,  0.2912, -0.8317]])
 
     >>> ht.minimum(a,b)
     tensor([[-0.1955, -0.9656, -0.8029,  0.2366],
-        [-0.4212, -0.5107, -1.5727, -0.1232],
-        [-0.6842, -1.8313,  0.2912, -1.2770]])
+            [-0.4212, -0.5107, -1.5727, -0.1232],
+            [-0.6842, -1.8313,  0.2912, -1.2770]])
 
     >>> c = ht.random.randn(1,4)
     >>> c
@@ -583,8 +583,18 @@ def minimum(x1, x2, out=None, **kwargs):
 
     >>> ht.minimum(a,c)
     tensor([[-1.6428, -0.9656, -0.0421, -0.8206],
-        [-1.6428, -0.5107, -1.5727, -0.8206],
-        [-1.6428, -1.8313, -0.0421, -1.2770]])
+            [-1.6428, -0.5107, -1.5727, -0.8206],
+            [-1.6428, -1.8313, -0.0421, -1.2770]])
+
+    >>> b.__setitem__((0,1), ht.nan) 
+    >>> b
+    tensor([[ 0.8310,     nan, -0.8029,  0.2366],
+            [ 0.2857,  0.6898, -0.6331,  0.8795],
+            [-0.6842,  0.4533,  0.2912, -0.8317]])
+    >>> ht.minimum(a,b)
+    tensor([[-0.1955,     nan, -0.8029,  0.2366],
+            [-0.4212, -0.5107, -1.5727, -0.1232],
+            [-0.6842, -1.8313,  0.2912, -1.2770]])
 
     >>> d = ht.random.randn(3,4,5)
     >>> ht.minimum(a,d)
@@ -596,8 +606,7 @@ def minimum(x1, x2, out=None, **kwargs):
     bc_x1 = x1._DNDarray__array.expand(output_lshape) if not (x1.lshape == output_lshape) else x1._DNDarray__array
     bc_x2 = x2._DNDarray__array.expand(output_lshape) if not (x2.lshape == output_lshape) else x2._DNDarray__array
 
-    # Concatenating (expanded, local) x1 and x2 into x to satisfy operations.__reduce_op(),
-    # enforcing axis = 0 for torch.min()
+    # Concatenating (expanded, local) x1 and x2 into x to satisfy operations.__reduce_op(x, ...)
     x = factories.empty((2,) + output_lshape)
     x._DNDarray__array = torch.cat((bc_x1, bc_x2)).reshape((2,) + output_lshape)
     # TODO: what happens if e.g. x1 and x2 have different splits?
