@@ -453,7 +453,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum_volume.lshape, (ht.MPI_WORLD.size * 12, 3, 3))
         self.assertEqual(minimum_volume.dtype, ht.float32)
         self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float32)
-        self.assertEqual(minimum_volume.split, None)
+        self.assertEqual(minimum_volume.split, random_volume_1.split)
 
         # check output buffer
         out_shape = ht.stride_tricks.broadcast_shape(random_volume_1.gshape, random_volume_2.gshape)
@@ -464,7 +464,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(output.lshape, (ht.MPI_WORLD.size * 12, 3, 3))
         self.assertEqual(output.dtype, ht.float32)
         self.assertEqual(output._DNDarray__array.dtype, torch.float32)
-        self.assertEqual(output.split, None)
+        self.assertEqual(output.split, random_volume_1.split)
 
         # check exceptions
         random_volume_3 = ht.array(ht.random.randn(4, 2, 3), split=0)
