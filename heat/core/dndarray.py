@@ -2207,7 +2207,6 @@ class DNDarray:
         inverse_indices : torch.tensor (optional)
             If return_inverse is True, this tensor will hold the list of inverse indices
 
-
         Examples
         --------
         >>> x = ht.array([[3, 2], [1, 3]])
@@ -2222,4 +2221,4 @@ class DNDarray:
         array([[2, 3],
                [3, 1]])
         """
-        return manipulation.unique(self, sorted, return_inverse, axis)
+        return manipulations.unique(self, sorted, return_inverse, axis)

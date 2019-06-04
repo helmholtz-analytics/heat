@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-import heat
+from . import factories
 from . import dndarray
 from . import factories
 from . import stride_tricks
@@ -208,7 +208,6 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     inverse_indices : torch.tensor (optional)
         If return_inverse is True, this tensor will hold the list of inverse indices
 
-
     Examples
     --------
     >>> x = ht.array([[3, 2], [1, 3]])
@@ -233,7 +232,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         unique_axis = 0
 
     # Calculate the unique on the local values
-    if a.lshape[a.split] is 0:
+    if a.lshape[a.split] == 0:
         # Passing an empty vector to torch throws exception
         if axis is None:
             res_shape = [0]
@@ -253,7 +252,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     split = None
     is_split = None
 
-    if axis is None or axis is a.split:
+    if axis is None or axis == a.split:
         # Local results can now just be added together
         if axis is None:
             # One dimensional vectors can't be distributed -> no split
@@ -312,7 +311,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         max_uniques, max_pos = uniques_buf.max(0)
 
         # find indices of vectors
-        if a.comm.Get_rank() is max_pos.item():
+        if a.comm.Get_rank() == max_pos.item():
             # Get the indices of the vectors we need from each process
             indices = []
             found = []
@@ -337,7 +336,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         # transpose matrix back
         gres = gres.transpose(0, axis)
 
-    result = heat.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, is_split=is_split)
+    result = factories.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, is_split=is_split)
 
     if split is not None:
         result.resplit(a.split)
