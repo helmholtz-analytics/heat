@@ -659,6 +659,36 @@ class DNDarray:
         self.__array = self.__array.cpu()
         return self
 
+    def __floordiv__(self, other):
+        """
+        Element-wise floor division (i.e. result is rounded int (floor))
+        of the tensor by another tensor or scalar. Takes the first tensor by which it divides the second
+        not-heat-typed-parameter.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+            The second operand by whose values is divided
+
+        Return
+        ------
+        result: ht.tensor
+            A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
+        >>> T1 // 1
+        tensor([[1., 2.],
+                [1., 4.]])
+        >>> T2 = ht.float32([1.5, 2.5])
+        >>> T1 // T2
+        tensor([[1., 0.],
+                [1., 1.]])
+        """
+        return arithmetics.floordiv(self, other)
+
     def __eq__(self, other):
         """
         Element-wise rich comparison of equality with values from second operand (scalar or tensor)
@@ -1430,7 +1460,7 @@ class DNDarray:
         #TODO: out : ht.DNDarray, optional
             Alternative output array in which to place the result. Must be of the same shape and buffer length as the
             expected output.
-        #TODO: initial : scalar, optional   
+        #TODO: initial : scalar, optional
             The maximum value of an output element. Must be present to allow computation on empty slice.
         """
         return statistics.min(self, axis=axis, out=out, keepdim=keepdim)
@@ -1651,6 +1681,137 @@ class DNDarray:
             self.__split = axis
 
         return self
+
+    def __rfloordiv__(self, other):
+        """
+        Element-wise floor division (i.e. result is rounded int (floor))
+        of the not-heat-typed parameter by another tensor. Takes the first operand (scalar or tensor) by which to divide
+        as argument.
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+            this will be divided by the self-tensor
+
+        Return
+        ------
+        result: ht.tensor
+            A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T = ht.float32([[1.7, 2.0], [1.9, 4.2]])
+        >>> 5 // T
+        tensor([[2., 2.],
+                [2., 1.]])
+        """
+        return arithmetics.floordiv(other, self)
+
+    def __rmod__(self, other):
+        """
+        Element-wise division remainder of values of other by values of operand self (i.e. other % self),
+        not commutative.
+        Takes the two operands (scalar or tensor) whose elements are to be divided (operand 2 by operand 1)
+        as arguments.
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+            The second operand which values will be divided by self.
+
+        Returns
+        -------
+        result: ht.tensor
+            A tensor containing the remainder of the element-wise division of other by self.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T = ht.int32([1, 3])
+        >>> 2 % T
+        tensor([0, 2], dtype=torch.int32)
+
+        """
+        return arithmetics.mod(other, self)
+
+    def __rpow__(self, other):
+        """
+        Element-wise exponential function of second operand (not-heat-typed) with values from first operand (tensor).
+        Takes the first operand (tensor) whose values are the exponent to be applied to the second
+        scalar or unknown data-type as argument.
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+           The value(s) in the base (element-wise)
+
+        Returns
+        -------
+        result: ht.NDNarray
+           A tensor containing the results of element-wise exponential operation.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+
+        >>> T = ht.float32([[1, 2], [3, 4]])
+        >>> 3 ** T
+        tensor([[ 3., 9.],
+                [27., 81.]])
+        """
+        return arithmetics.pow(other, self)
+
+    def __rsub__(self, other):
+        """
+        Element-wise subtraction of another tensor or a scalar from the tensor.
+        Takes the first operand (tensor) whose elements are to be subtracted from the second argument
+        (scalar or unknown data-type).
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+            The value(s) from which the self-tensor will be element wise subtracted.
+
+        Returns
+        -------
+        result: ht.DNDarray
+            A tensor containing the results of element-wise subtraction.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T = ht.float32([[1, 2], [3, 4]])
+        >>> 5 - T
+        tensor([[4., 3.],
+                [2., 1.]])
+        """
+        return arithmetics.sub(other, self)
+
+    def __rtruediv__(self, other):
+        """
+        Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
+        of the not-heat-type parameter by another tensor. Takes the first tensor by which it divides the second
+        not-heat-typed-parameter.
+
+        Parameters
+        ----------
+        other: scalar or unknown data-type
+            this will be divided by the self-tensor
+
+        Returns
+        -------
+        result: ht.DNDarray
+           A tensor containing the results of element-wise division.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T = ht.float32([2,3])
+        >>> 2 / T
+        tensor([1.0000, 0.6667])
+        """
+        return arithmetics.div(other, self)
 
     def save(self, path, *args, **kwargs):
         """
@@ -2002,7 +2163,7 @@ class DNDarray:
             all of the elements of the input array. If axis is negative it counts
             from the last to the first axis.
 
-            If axis is a tuple of ints, a sum is performed on all of the axes specified 
+            If axis is a tuple of ints, a sum is performed on all of the axes specified
             in the tuple instead of a single axis or all the axes as before.
 
          Returns
@@ -2182,3 +2343,20 @@ class DNDarray:
                 [1.5, 2.0000]])
         """
         return arithmetics.div(self, other)
+
+    """
+    This ensures that commutative arithmetic operations work no matter on which side the heat-tensor is placed.
+    
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T = ht.float32([[1., 2.], [3., 4.,]])
+    >>> T + 1
+    tensor([[2., 3.],
+            [4., 5.]])
+    >>> 1 + T
+    tensor([[2., 3.],
+        [4., 5.]])
+    """
+    __radd__ = __add__
+    __rmul__ = __mul__
