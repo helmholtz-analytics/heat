@@ -604,7 +604,6 @@ def minimum(x1, x2, out=None, **kwargs):
     x._DNDarray__split = x1.split  # assumes x1.split = x2.split
     x._DNDarray__device = x1.device
     x._DNDarray__comm = x1.comm
-<<<<<<< HEAD
 
     # If distributed, collect local results
     if x.split is not None:
@@ -633,20 +632,6 @@ def minimum(x1, x2, out=None, **kwargs):
 
     # if not distributed, write to out through __reduce_op()
     result_l = operations.__reduce_op(x, local_min, MPI_MINIMUM, axis=0, out=out)
-=======
-    result_l = operations.__reduce_op(x, local_min, MPI_MINIMUM, axis = 0, out = None)
-    
-    #If distributed, gather local results into global one
-    if x1.split is not None or x2.split is not None:
-        split = None
-        if x.comm.is_distributed():
-            output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
-            result = factories.empty(output_gshape)
-            x.comm.Allgather(result_l, result)
-            result._DNDarray__split = split                
-            return result
-            
->>>>>>> 2b8d0672201ad2dd7c18ee34a2faa88df34ab382
     return result_l
 
 
