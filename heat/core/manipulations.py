@@ -222,14 +222,21 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     array([[2, 3],
            [3, 1]])
     """
+    if a.split is None:
+        # Trivial case, result can just be forwarded
+        return torch.unique(a._DNDarray__array, sorted=sorted, return_inverse=return_inverse, dim=axis)
+
     local_data = a._DNDarray__array
     unique_axis = None
     inverse_indices = None
+
 
     if axis is not None:
         # transpose so we can work along the 0 axis
         local_data = local_data.transpose(0, axis)
         unique_axis = 0
+    # else:
+    #     local_data = local_data.transpose(0, a.split)
 
     # Calculate the unique on the local values
     if a.lshape[a.split] == 0:
@@ -283,20 +290,43 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
             inverse_counts = [sum(x) for x in zip(counts, add_vec)]
             inverse_displs = [0] + list(np.cumsum(inverse_counts[:-1]))
             inverse_dim = list(inverse_pos.shape)
-            inverse_dim[0] = a.gshape[0]
+            inverse_dim[a.split] = a.gshape[a.split]
             inverse_buf = torch.empty(inverse_dim, dtype=inverse_pos.dtype)
-            a.comm.Allgatherv(inverse_pos, (inverse_buf, inverse_counts, inverse_displs))
+            a.comm.Allgatherv(inverse_pos, (inverse_buf, inverse_counts, inverse_displs), axis=a.split)
 
         # Run unique a second time
         gres = torch.unique(gres_buf, sorted=sorted, return_inverse=return_inverse, dim=unique_axis)
-        print('gres_buf', gres_buf)
         if return_inverse:
             # Use the previously gathered information to generate global inverse_indices
             g_inverse = gres[1]
             gres = gres[0]
             if axis is None:
-                print('lres', lres, 'inverse_pos', inverse_pos, 'gres', gres, 'g_inverse', g_inverse, 'inverse_buf', inverse_buf, 'inverse_displs', inverse_displs)
-                inverse_indices = g_inverse.reshape(a.gshape)
+                # Calculate how many elements we have in each layer along the split axis
+                elements_per_layer = 1
+                for num, val in enumerate(a.gshape):
+                    if not num == a.split:
+                        elements_per_layer *= val
+
+                # Create the displacements for the flattened inverse indices array
+                local_elements = [displ * elements_per_layer for displ in inverse_displs][1:] + [float('inf')]
+
+                # Flatten the inverse indices array every element can be updated to represent a global index
+                transposed = inverse_buf.transpose(0, a.split)
+                transposed_shape = transposed.shape
+                flatten_inverse = transposed.flatten()
+
+                # Update the index elements iteratively
+                cur_displ = 0
+                inverse_indices = [0] * len(flatten_inverse)
+                for num in range(len(inverse_indices)):
+                    if num >= local_elements[cur_displ]:
+                        cur_displ += 1
+                    index = flatten_inverse[num] + displs[cur_displ]
+                    inverse_indices[num] = g_inverse[index].tolist()
+
+                # Convert the flattened array back to the correct global shape of a
+                inverse_indices = torch.tensor(inverse_indices).reshape(transposed_shape)
+                inverse_indices = inverse_indices.transpose(0, a.split)
             else:
                 inverse_indices = torch.zeros_like(inverse_buf)
                 steps = displs + [None]

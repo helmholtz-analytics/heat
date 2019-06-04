@@ -252,20 +252,23 @@ class TestManipulations(unittest.TestCase):
         _, exp_inv = torch_array.unique(dim=1, return_inverse=True, sorted=True)
         self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
 
-    def test_unique_indices(self):
         torch_array = torch.tensor([
-            [1, 2],
+            [2, 2],
             [2, 3],
-            [1, 2],
+            [3, 2],
             [2, 4],
             [1, 2]
         ], dtype=torch.int32)
-        data = ht.array(torch_array, split=0)
-        print('Rank', data.comm.Get_rank())
-        res, inv = ht.unique(data, return_inverse=True)
-        print("res", res, ' inv', inv)
-        _, exp_inv = torch_array.unique(return_inverse=True, sorted=True)
-        print('exp_inv', inv)
+        exp_res, exp_inv = torch_array.unique(return_inverse=True)
+
+        data_split_none = ht.array(torch_array)
+        res, inv = ht.unique(data_split_none, return_inverse=True, sorted=True)
         self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
 
+        data_split_zero = ht.array(torch_array, split=0)
+        res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
+        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
 
+        data_split_one = ht.array(torch_array, split=1)
+        res, inv = ht.unique(data_split_one, return_inverse=True, sorted=True)
+        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
