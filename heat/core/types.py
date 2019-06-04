@@ -25,8 +25,8 @@ import collections
 import numpy as np
 import torch
 
+from . import communication
 from . import devices
-from .communication import MPI_WORLD
 
 
 __all__ = [
@@ -61,7 +61,7 @@ __all__ = [
 
 class generic(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def __new__(cls, *value, device=None, comm=MPI_WORLD):
+    def __new__(cls, *value, device=None, comm=None):
         try:
             torch_type = cls.torch_type()
         except TypeError:
@@ -83,7 +83,8 @@ class generic(metaclass=abc.ABCMeta):
             # re-raise the exception to be consistent with numpy's exception interface
             raise ValueError(str(exception))
 
-        # sanitize the input device type
+        # sanitize the distributed processing flags
+        comm = communication.sanitize_comm(comm)
         device = devices.sanitize_device(device)
 
         return dndarray.DNDarray(array, tuple(array.shape), cls, split=None, device=device, comm=comm)
