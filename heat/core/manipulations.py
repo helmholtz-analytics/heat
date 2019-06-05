@@ -288,7 +288,6 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
             counts = [avg_len] * a.comm.Get_size()
             add_vec = [1] * rem + [0] * (a.comm.Get_size() - rem)
             inverse_counts = [sum(x) for x in zip(counts, add_vec)]
-            # inverse_counts = [sum(x) for x in zip(counts, add_vec)]
             inverse_displs = [0] + list(np.cumsum(inverse_counts[:-1]))
             inverse_dim = list(inverse_pos.shape)
             inverse_dim[a.split] = a.gshape[a.split]
