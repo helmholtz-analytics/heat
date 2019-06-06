@@ -1,32 +1,32 @@
+import time
 import torch
 
 from . import communication
 from . import devices
 from . import dndarray
-from . import types
 from . import stride_tricks
+from . import types
+
+# introduce the variables, will be correctly initialized at the end of file
+__seed = None
+__counter = None
 
 
-def set_gseed(seed):
-    # TODO: think about proper random number generation
-    # TODO: comment me
-    # TODO: test me
-    torch.manual_seed(seed)
+def get_state():
+    """
+    Return a tuple representing the internal state of the generator.
 
-
-def uniform(low=0.0, high=1.0, size=None, device=None, comm=None):
-    # TODO: comment me
-    # TODO: test me
-    # TODO: make me splitable
-    # TODO: add device capabilities
-    if size is None:
-        size = (1,)
-
-    device = devices.sanitize_device(device)
-    comm = communication.sanitize_comm(comm)
-    data = torch.rand(*size, device=device.torch_device) * (high - low) + low
-
-    return dndarray.DNDarray(data, size, types.float32, None, device, comm)
+    Returns
+    -------
+    out : tuple(str, int, int, int, float)
+        The returned tuple has the following items:
+            1. the string ‘Threefry’,
+            2. the Threefry key value, aka seed,
+            3. the internal counter value,
+            4. an integer has_gauss, always set to 0 (present for compatibility with numpy) and
+            5. a float cached_gaussian, always set to 0.0 (present for compatibility with numpy).
+    """
+    return 'Threefry', __seed, __counter, 0, 0.0
 
 
 def randn(*args, split=None, device=None, comm=None):
@@ -86,3 +86,117 @@ def randn(*args, split=None, device=None, comm=None):
     data = torch.randn(args, device=device.torch_device)
 
     return dndarray.DNDarray(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
+
+
+def seed(seed=None):
+    """
+    Seed the generator.
+
+    Parameters
+    ----------
+    seed : int, optional
+        Value to seed the algorithm with, if not set a time-based seed is generated.
+    """
+    if seed is None:
+        seed = communication.MPI_WORLD.bcast(int(time.time() * 256))
+
+    global __seed, __counter
+    __seed = seed
+    __counter = 0
+    torch.manual_seed(seed)
+
+
+def set_state(state):
+    """
+    Set the internal state of the generator from a tuple.
+
+    Parameters
+    ----------
+    state : tuple(str, int, int, int, float)
+        The returned tuple has the following items:
+            1. the string ‘Threefry’,
+            2. the Threefry key value, aka seed,
+            3. the internal counter value,
+            4. an integer has_gauss, ignored (present for compatibility with numpy), optional and
+            5. a float cached_gaussian, ignored (present for compatibility with numpy), optional.
+
+    Raises
+    ------
+    TypeError
+        If and improper state is passed.
+    ValueError
+        If one of the items in the state tuple is of wrong type or value.
+    """
+    if not isinstance(state, tuple) or (len(state) != 3 and len(state) != 5):
+        raise TypeError('state needs to be a three- or five-tuple')
+
+    if state[0] != 'Threefry':
+        raise ValueError('algorithm must be "Threefry"')
+
+    global __seed, __counter
+    __seed = int(state[1])
+    __counter = int(state[2])
+
+
+def __threefry_32(num_samples):
+    samples = (num_samples + 1) // 2
+
+    # set up X, i.e. output buffer
+    X_0 = t.arange(samples, dtype=t.int32)
+    X_1 = t.arange(samples, dtype=t.int32)
+    X_0 //= t.iinfo(t.int32).max
+
+    # set up key buffer
+    ks_0 = t.full((samples,), 0, dtype=t.int32) # seed instead of 0
+    ks_1 = t.full((samples,), 0, dtype=t.int32) # seed instead of 0
+    ks_2 = t.full((samples,), 466688986, dtype=t.int32)
+    ks_2 ^= ks_0
+    ks_2 ^= ks_0
+
+    # initialize output using the key
+    X_0 += ks_0
+    X_1 += ks_1
+
+    # perform rounds
+    X_0 += X_1; X_1 = (X_1 << 13) | (X_1 >> 19); X_1 ^= X_0  # round 1
+    X_0 += X_1; X_1 = (X_1 << 15) | (X_1 >> 17); X_1 ^= X_0  # round 2
+    X_0 += X_1; X_1 = (X_1 << 26) | (X_1 >>  6); X_1 ^= X_0  # round 3
+    X_0 += X_1; X_1 = (X_1 << 6)  | (X_1 >> 26); X_1 ^= X_0  # round 4
+
+    # inject key
+    X_0 += ks_1; X_1 += (ks_2 + 1)
+
+    X_0 += X_1; X_1 = (X_1 << 17) | (X_1 >> 15); X_1 ^= X_0  # round 5
+    X_0 += X_1; X_1 = (X_1 << 29) | (X_1 >>  3); X_1 ^= X_0  # round 6
+    X_0 += X_1; X_1 = (X_1 << 16) | (X_1 >> 16); X_1 ^= X_0  # round 7
+    X_0 += X_1; X_1 = (X_1 << 24) | (X_1 >>  8); X_1 ^= X_0  # round 8
+
+    # inject key
+    X_0 += ks_2; X_1 += (ks_0 + 2)
+
+    X_0 += X_1; X_1 = (X_1 << 13) | (X_1 >> 19); X_1 ^= X_0  # round 9
+    X_0 += X_1; X_1 = (X_1 << 15) | (X_1 >> 17); X_1 ^= X_0  # round 10
+    X_0 += X_1; X_1 = (X_1 << 26) | (X_1 >>  6); X_1 ^= X_0  # round 11
+    X_0 += X_1; X_1 = (X_1 <<  6) | (X_1 >> 26); X_1 ^= X_0  # round 12
+
+    # inject key
+    X_0 += ks_0; X_1 += (ks_1 + 3)
+
+
+def uniform(low=0.0, high=1.0, size=None, device=None, comm=None):
+    # TODO: comment me
+    # TODO: test me
+    # TODO: make me splitable
+    # TODO: add device capabilities
+    if size is None:
+        size = (1,)
+
+    device = devices.sanitize_device(device)
+    comm = communication.sanitize_comm(comm)
+    data = torch.rand(*size, device=device.torch_device) * (high - low) + low
+
+    return dndarray.DNDarray(data, size, types.float32, None, device, comm)
+
+
+# roll a global time-based seed
+seed()
