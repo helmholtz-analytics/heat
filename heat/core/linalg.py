@@ -1,12 +1,12 @@
 import itertools
-import numpy as np
+import sys
 import torch
 
-from .communication import MPI, MPI_WORLD
+from .communication import MPI
 from . import dndarray
 from . import factories
 from . import manipulations
-from . import operations
+from . import types
 
 __all__ = [
     'matmul',
@@ -81,43 +81,52 @@ def matmul(a, b):
     if a.gshape[-1] != b.gshape[0]:
         raise ValueError("If the last dimension of a ({}) is not the same size as the second-to-last dimension of b. ({})".format(a.gshape[-1], b.gshape[-2]))
 
-    if a.split is None and b.split is None:  # else its simple matmul from torch
+    # determine if a larger type is needed for c
+    if a.dtype is types.float64 or b.dtype is types.float64:
+        c_type = types.float64
+    elif (a.dtype is types.int64 and b.dtype is types.int) or (b.dtype is types.int64 and a.dtype is types.int):
+        c_type = types.int64
+    else:
+        c_type = types.float
+
+    if a.split is None and b.split is None:  # matmul from torch
         if len(a.gshape) < 2 or len(b.gshape) < 2:
             # if either of A or B is a vector
             return factories.array(torch.matmul(a._DNDarray__array, b._DNDarray__array))
         else:
-            c = factories.zeros((a.gshape[-2], b.gshape[1]))
             a = a.resplit(0)
             slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
-            c._DNDarray__array[slice_0.start:slice_0.stop, :] += a._DNDarray__array @ b._DNDarray__array
+            hold = a._DNDarray__array @ b._DNDarray__array
+
+            c = factories.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type)
+            c._DNDarray__array[slice_0.start:slice_0.stop, :] += hold
             c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
             return c
     else:
-        # if they are vectors being multiplied by the
-        a_vec  = False
+        # if they are vectors they need to be expanded to be the proper dimensions
         if len(a.gshape) < 2:
             a = manipulations.expand_dims(a, axis=0)
-            a_vec = True
         if len(b.gshape) < 2:
             b = manipulations.expand_dims(b, axis=1)
         split_0_flag = False
         split_1_flag = False
         split_01_flag = False
         split_10_flag = False
+
         if (a.split == 0 and b.split is None) or (a.split is None and b.split == 1):
-            c = factories.zeros((a.gshape[-2], b.gshape[1]), split=a.split if a.split is not None else b.split)
+            c = factories.zeros((a.gshape[-2], b.gshape[1]), split=a.split if a.split is not None else b.split, dtype=c_type)
             c._DNDarray__array += a._DNDarray__array @ b._DNDarray__array
             return c
 
         elif a.split == 1 and b.split is None:
-            c = torch.zeros((a.gshape[-2], b.gshape[1]))
+            c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type())
             a_idx = a.comm.chunk(a.shape, a.split)[2]
             c += a._DNDarray__array @ b._DNDarray__array[a_idx[1].start:a_idx[1].start + a.lshape[-1], :]
             a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
             return factories.array(c, split=a.split if b.gshape[1] > 1 else 0)
 
         elif a.split is None and b.split == 0:
-            c = torch.zeros((a.gshape[-2], b.gshape[1]))
+            c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type())
             b_idx = b.comm.chunk(b.shape, b.split)[2]
             c += a._DNDarray__array[:, b_idx[0].start:b_idx[0].start + b.lshape[0]] @ b._DNDarray__array
             b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
@@ -190,7 +199,7 @@ def matmul(a, b):
 
         # for the communication scheme, the output array needs to be created
         c_shape = (a.gshape[-2], b.gshape[1])
-        c = factories.zeros(c_shape, split=a.split)
+        c = factories.zeros(c_shape, split=a.split, dtype=c_type)
 
         # get the index map for c
         c_index_map = factories.zeros((c.comm.size, 2, 2))
@@ -284,7 +293,7 @@ def matmul(a, b):
             b_rem_locs0 = (rem_map[:, 1, 0] == 1).nonzero()  # locations of the remainders in b
             a_rem_locs0 = (rem_map[:, 0, 0] == 1).nonzero()
             a_node_rem_s0 = a._DNDarray__array[:mB, kB:(kB + 1) * b_rem_locs0.numel():kB + 1]  # remainders for a in the
-            b_rem = torch.empty(b_rem_locs0.numel(), b.lshape[-1])
+            b_rem = torch.empty(b_rem_locs0.numel(), b.lshape[-1], dtype=a.dtype.torch_type())
 
             # this if/elif/else loop is for the handling of
             if a.comm.rank in a_rem_locs0:
@@ -302,7 +311,7 @@ def matmul(a, b):
                 if b.comm.rank == pr:
                     b_lp_data[pr] = b._DNDarray__array
                 else:
-                    b_lp_data[pr] = torch.empty((lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()))
+                    b_lp_data[pr] = torch.zeros((lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()), dtype=b.dtype.torch_type())
 
                 # sending a to all nodes for b to operate with
                 req[pr] = b.comm.Ibcast(b_lp_data[pr], root=pr)
@@ -357,7 +366,7 @@ def matmul(a, b):
             b_rem_locs1 = (rem_map[:, 1, 1] == 1).nonzero()  # locations of the remainders in b
             a_rem_locs1 = (rem_map[:, 0, 1] == 1).nonzero()
             b_node_rem_s1 = b._DNDarray__array[kB:(kB + 1) * a_rem_locs1.numel():kB + 1, : nB]  # remainders for a in the
-            a_rem = torch.empty(a.lshape[-2], a_rem_locs1.numel())
+            a_rem = torch.empty(a.lshape[-2], a_rem_locs1.numel(), dtype=b.dtype.torch_type())
 
             # this if/elif/else loop is for the handling of
             if b.comm.rank in b_rem_locs1:
@@ -375,7 +384,7 @@ def matmul(a, b):
                 if a.comm.rank == pr:
                     a_lp_data[pr] = a._DNDarray__array
                 else:
-                    a_lp_data[pr] = torch.zeros((lshape_map[pr, 0, 0].item(), lshape_map[pr, 0, 1].item()))
+                    a_lp_data[pr] = torch.zeros((lshape_map[pr, 0, 0].item(), lshape_map[pr, 0, 1].item()), dtype=a.dtype.torch_type())
 
                 # sending a to all nodes for b to operate with
                 req[pr] = a.comm.Ibcast(a_lp_data[pr], root=pr)
@@ -428,7 +437,7 @@ def matmul(a, b):
                 if b.comm.rank == pr:
                     b_lp_data[pr] = b._DNDarray__array
                 else:
-                    b_lp_data[pr] = torch.empty((lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()))
+                    b_lp_data[pr] = torch.empty((lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()), dtype=b.dtype.torch_type())
 
                 # sending a to all nodes for b to operate with
                 req[pr] = b.comm.Ibcast(b_lp_data[pr], root=pr)
@@ -460,7 +469,7 @@ def matmul(a, b):
             # for this case, only a sum is needed at the end
             a_rem_locs1 = (rem_map[:, 0, 1] == 1).nonzero()
             b_rem_locs0 = (rem_map[:, 1, 0] == 1).nonzero()  # locations of the remainders in b
-            res = torch.zeros((a.gshape[-2], b.gshape[1]))
+            res = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type())
             res += a._DNDarray__array[:mB, :kB] @ b._DNDarray__array[:kB, :nB]
             if a.comm.rank in a_rem_locs1 and b.comm.rank in b_rem_locs0:
                 res += a._DNDarray__array[:, -1, None] @ b._DNDarray__array[None, -1, :]  # these Nones are used to change the dims

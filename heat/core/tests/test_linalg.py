@@ -2,7 +2,7 @@ import torch
 import unittest
 
 import heat as ht
-
+import numpy as np
 
 class TestLinalg(unittest.TestCase):
     def test_matmul(self):
@@ -48,6 +48,22 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
+            # splits 00 (numpy)
+            a = ht.array(np.ones((n, m)), split=0)
+            b = ht.array(np.ones((j, k)), split=0)
+            a[0] = ht.arange(1, m + 1)
+            a[:, -1] = ht.arange(1, n + 1)
+            b[0] = ht.arange(1, k + 1)
+            b[:, 0] = ht.arange(1, j + 1)
+            ret00 = a @ b
+
+            ret_comp00 = ht.array(a_torch @ b_torch, split=0)
+            self.assertTrue(ht.equal(ret00, ret_comp00))
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n, k))
+            self.assertEqual(ret00.dtype, ht.float64)
+            self.assertEqual(ret00.split, 0)
+
             # splits 01
             a = ht.ones((n, m), split=0)
             b = ht.ones((j, k), split=1)
@@ -83,6 +99,22 @@ class TestLinalg(unittest.TestCase):
             # splits 11
             a = ht.ones((n, m), split=1)
             b = ht.ones((j, k), split=1)
+            a[0] = ht.arange(1, m + 1)
+            a[:, -1] = ht.arange(1, n + 1)
+            b[0] = ht.arange(1, k + 1)
+            b[:, 0] = ht.arange(1, j + 1)
+            ret00 = ht.matmul(a, b)
+
+            ret_comp11 = ht.array(a_torch @ b_torch, split=1)
+            self.assertTrue(ht.equal(ret00, ret_comp11))
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n, k))
+            self.assertEqual(ret00.dtype, ht.float)
+            self.assertEqual(ret00.split, 1)
+
+            # splits 11 (torch)
+            a = ht.array(torch.ones((n, m)), split=1)
+            b = ht.array(torch.ones((j, k)), split=1)
             a[0] = ht.arange(1, m + 1)
             a[:, -1] = ht.arange(1, n + 1)
             b[0] = ht.arange(1, k + 1)
