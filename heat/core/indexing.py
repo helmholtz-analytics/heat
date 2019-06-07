@@ -8,7 +8,8 @@ from . import stride_tricks
 from . import types
 
 __all__ = [
-    'nonzero'
+    'nonzero',
+    'where'
 ]
 
 
@@ -43,5 +44,25 @@ def nonzero(a):
         return factories.array(lcl_nonzero, is_split=0, dtype=types.int)
 
 
-def where(op, x, y):
-    pass
+def where(op, x=None, y=None):
+    """
+    mirror of the numpy where function
+    :param op:
+    :param x:
+    :param y:
+    :return:
+    """
+    '''
+    where works by taking just a nonzero call for only op
+    if x AND y then you broadcast x in the case that its true and y in the case that its not
+    '''
+    print(op.shape)
+    # if (x and y is None) or (y and x is None):
+    #     raise ValueError("either both or neither x and y should be given")
+    #
+    # indices = nonzero(op)
+    # if x is None and y is None:
+    #     return indices
+
+
+
