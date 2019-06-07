@@ -1068,7 +1068,7 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-        if isinstance(key, DNDarray):
+        if isinstance(key, DNDarray)and key.gshape[-1] != len(self.gshape):
             key = tuple(x.item() for x in key)
         if not self.is_distributed():
             if not self.comm.size == 1:
@@ -1175,6 +1175,9 @@ class DNDarray:
                         self.comm.rank), ResourceWarning)
                     # arr is empty
                     # gout is all 0s and is the proper shape
+
+            # elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
+            #     for i in
 
             else:  # handle other cases not accounted for (one is a slice is given and the split != 0)
                 gout = [0] * len(self.gshape)
@@ -1928,10 +1931,15 @@ class DNDarray:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
-        if isinstance(key, DNDarray):
+        if isinstance(key, DNDarray) and key.gshape[-1] != len(self.gshape):
             key = tuple(x.item() for x in key)
         if not self.is_distributed():
-            self.__setter(key, value)
+            if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
+                # this is for a list of values
+                for i in range(key.gshape[0]):
+                    self.__setter((key[i, 0].item(), key[i, 1].item()), value)
+            else:
+                self.__setter(key, value)
         else:
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
@@ -1940,6 +1948,9 @@ class DNDarray:
             if isinstance(key, int) and self.split == 0:
                 if key in range(chunk_start, chunk_end):
                     self.__setter(key-chunk_start, value)
+
+            elif isinstance(key, int) and self.split > 0:
+                self[key, :] = value
 
             elif isinstance(key, (tuple, list, torch.Tensor)):
                 if isinstance(key[self.split], slice):
@@ -1965,6 +1976,12 @@ class DNDarray:
                     key[self.split] = key[self.split] - chunk_start
                     self.__setter(tuple(key), value)
 
+                elif key[self.split] < 0:
+                    if self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
+                        key = list(key)
+                        key[self.split] = key[self.split] + chunk_end - chunk_start
+                        self.__setter(tuple(key), value)
+
             elif isinstance(key, slice) and self.split == 0:
                 overlap = list(set(range(key.start, key.stop)) & set(range(chunk_start, chunk_end)))
                 if overlap:
@@ -1972,6 +1989,12 @@ class DNDarray:
                     hold = [x - chunk_start for x in overlap]
                     key = slice(min(hold), max(hold) + 1, key.step)
                     self.__setter(key, value)
+
+            elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
+                # this is the case with a list of indices to set
+                for i in range(key.lshape[0]):
+                    key.lloc[i][self.split] -= chunk_start
+                    self.__setter((key.lloc[i][0].item(), key.lloc[i][1].item()), value)
             else:
                 self.__setter(key, value)
 
