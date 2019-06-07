@@ -247,7 +247,7 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     # content shall be split, chunk the passed data object up
     if split is not None:
         _, _, slices = comm.chunk(obj.shape, split)
-        obj = obj[slices]
+        obj = obj[slices].clone()
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
         if comm.rank < comm.size - 1:
