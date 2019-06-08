@@ -526,11 +526,6 @@ def min(x, axis=None, out=None, keepdim=None):
         [ 7.],
         [10.]])
     """
-    def local_min(*args, **kwargs):
-        result = torch.min(*args, **kwargs)
-        if isinstance(result, tuple):
-            return result[0]
-        return result
 
     return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
 
@@ -606,24 +601,30 @@ def minimum(x1, x2, out=None, **kwargs):
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     '''
 
-    # Sanitation
-    if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
-        raise TypeError('expected x1 and x2 to be a ht.DNDarray, but was {} and {}'.format(type(x1), type(x2)))
-    if out is not None and not isinstance(out, dndarray.DNDarray):
-        raise TypeError('expected out to be None or an ht.DNDarray, but was {}'.format(type(out)))
+    # TODO: address cases where x1 and x2 have different splits
+    # or (x1.device != x2.device)
+    if (x1.split != x2.split):
+        raise NotImplementedError('Not implemented for x1.split != x2.split')
+    if (x1.device != x2.device):
+        raise NotImplementedError('Not implemented for x1.device != x2.device')
 
-    # Local element-wise minimum
+    # Broadcasting locally if necessary
     output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
-    result_l = factories.empty(output_lshape)
-    result_l._DNDarray__array = torch.min(x1._DNDarray__array, x2._DNDarray__array)
-    result_l._DNDarray__dtype = types.promote_types(x1._DNDarray__dtype, x2._DNDarray__dtype)
-    result_l._DNDarray__split = None
-    result_l._DNDarray__device = x1.device
-    result_l._DNDarray__comm = x1.comm
+    if x1.shape != output_lshape:
+        x1._DNDarray__array = x1._DNDarray__array.expand(output_lshape)
+    if x2.shape != output_lshape:
+        x2._DNDarray__array = x2._DNDarray__array.expand(output_lshape)
+
+    x = factories.empty((2,) + output_lshape)
+    x._DNDarray__array = torch.cat((x1._DNDarray__array, x2._DNDarray__array)).reshape((2,) + output_lshape)
+    x._DNDarray__split = 0
+    x._DNDarray__device = x1.device
+    x._DNDarray__comm = x1.comm
+
+    result_l = operations.__reduce_op(x, local_min, MPI.MIN, axis=0, out=None)
 
     # If distributed, collect local results
     if x1.split is not None:  # assumes x1.split = x2.split
-        # TODO: what if x1.split != x2.split?
         if x1.comm.is_distributed():
             output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
             result = factories.empty(output_gshape)
@@ -644,6 +645,13 @@ def minimum(x1, x2, out=None, **kwargs):
 
             return result
     return result_l
+
+
+def local_min(*args, **kwargs):
+    result = torch.min(*args, **kwargs)
+    if isinstance(result, tuple):
+        return result[0]
+    return result
 
 
 def mpi_argmax(a, b, _):
