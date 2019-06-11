@@ -935,15 +935,26 @@ class DNDarray:
             key = tuple(x.item() for x in key)
         if not self.is_distributed():
             if not self.comm.size == 1:
-                return DNDarray(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
-            else:
-                gout = tuple(self.__array[key].shape)
-                if self.split is not None and self.split >= len(gout):
-                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
+                    # this will return a 1D array as the shape cannot be determined automatically
+                    arr = self.__array[key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]]
+                    return DNDarray(arr, tuple(arr.shape), self.dtype, self.split, self.device, self.comm)
                 else:
-                    new_split = self.split
+                    return DNDarray(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
+            else:
+                if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
+                    # this will return a 1D array as the shape cannot be determined automatically
+                    arr = self.__array[key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]]
+                    return DNDarray(arr, tuple(arr.shape), self.dtype, 0, self.device, self.comm)
 
-                return DNDarray(self.__array[key], gout, self.dtype, new_split, self.device, self.comm)
+                else:
+                    gout = tuple(self.__array[key].shape)
+                    if self.split is not None and self.split >= len(gout):
+                        new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                    else:
+                        new_split = self.split
+
+                    return DNDarray(self.__array[key], gout, self.dtype, new_split, self.device, self.comm)
 
         else:
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
@@ -1042,12 +1053,11 @@ class DNDarray:
             # elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
             elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                 # this is for a list of values
+                # it will return a 1D DNDarray of the elements on each node which are in the key (will be split in the 0th dimension
                 key.lloc[..., self.split] -= chunk_start
-                arr = torch.index_select(self.__array, 0, torch.unique(key.lloc[..., 0]))
-                arr = torch.index_select(arr, 1, torch.unique(key.lloc[..., 1]))
-
+                arr = self.__array[key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]]
                 gout = list(arr.shape)
-                new_split = self.split
+                new_split = 0
 
             else:  # handle other cases not accounted for (one is a slice is given and the split != 0)
                 gout = [0] * len(self.gshape)
