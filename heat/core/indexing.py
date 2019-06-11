@@ -1,10 +1,10 @@
 import torch
 import numpy as np
 
+from .communication import MPI
 from . import dndarray
 from . import factories
 from . import operations
-from . import stride_tricks
 from . import types
 
 __all__ = [
@@ -66,14 +66,17 @@ def nonzero(a):
 
     if a.split is None:
         # if there is no split then just return the values from torch
-        return operations.__local_op(torch.nonzero, a, out=None)
+        return operations.__local_op(torch.nonzero, a, out=None, dtype=types.int)
     else:
         # a is split
         lcl_nonzero = torch.nonzero(a._DNDarray__array)
         _, _, slices = a.comm.chunk(a.shape, a.split)
         lcl_nonzero[..., a.split] += slices[a.split].start
+        gout = list(lcl_nonzero.size())
+        gout[0] = a.comm.allreduce(gout[0], MPI.SUM)
 
-        return factories.array(lcl_nonzero, is_split=0, dtype=types.int)
+        return dndarray.DNDarray(lcl_nonzero, tuple(gout), types.int, 0, a.device, a.comm)
+        # return factories.array(lcl_nonzero, is_split=0, dtype=types.int)
 
 
 def where(cond, x=None, y=None):
@@ -112,8 +115,12 @@ def where(cond, x=None, y=None):
     [1/1] tensor([[ 0.,  3., -1.]])
 
     """
+    if cond.split is not None and (isinstance(x, dndarray.DNDarray) or isinstance(y, dndarray.DNDarray)):
+        if (isinstance(x, dndarray.DNDarray) and cond.split != x.split) or (isinstance(y, dndarray.DNDarray) and cond.split != y.split):
+            raise NotImplementedError("binary op not implemented for different split axes")
     if isinstance(x, (dndarray.DNDarray, int, float)) and isinstance(y, (dndarray.DNDarray, int, float)):
-        return cond * x + (cond == 0) * y
+        # print('here')
+        return (cond == 0) * y + cond * x
     elif x is None and y is None:
         return nonzero(cond)
     else:
