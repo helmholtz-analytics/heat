@@ -3,7 +3,6 @@ import numpy as np
 
 from .communication import MPI
 from . import dndarray
-from . import factories
 from . import operations
 from . import types
 
@@ -76,7 +75,6 @@ def nonzero(a):
         gout[0] = a.comm.allreduce(gout[0], MPI.SUM)
 
         return dndarray.DNDarray(lcl_nonzero, tuple(gout), types.int, 0, a.device, a.comm)
-        # return factories.array(lcl_nonzero, is_split=0, dtype=types.int)
 
 
 def where(cond, x=None, y=None):
