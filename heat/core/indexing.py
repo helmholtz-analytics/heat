@@ -23,6 +23,7 @@ def nonzero(a):
     Parameters
     ----------
     a: ht.DNDarray
+        Input array
 
     Returns
     -------
@@ -44,6 +45,9 @@ def nonzero(a):
     [2/2] tensor([[2, 1]])
 
     >>> a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=0)
+    [0/1] tensor([[1, 2, 3],
+    [0/1]         [4, 5, 6]])
+    [1/1] tensor([[7, 8, 9]])
     >>> a > 3
     [0/1] tensor([[0, 0, 0],
     [0/1]         [1, 1, 1]], dtype=torch.uint8)
@@ -55,7 +59,9 @@ def nonzero(a):
     [1/1] tensor([[2, 0],
     [1/1]         [2, 1],
     [1/1]         [2, 2]])
-
+    >>> a[ht.nonzero(a > 3)]
+    [0/1] tensor([[4, 5, 6]])
+    [1/1] tensor([[7, 8, 9]])
     """
 
     if a.split is None:
@@ -72,17 +78,38 @@ def nonzero(a):
 
 def where(cond, x=None, y=None):
     """
-    mirror of the numpy where function:
     Return elements chosen from x or y depending on condition.
-    **NOTE** When only condition is provided, this function is a shorthand for np.asarray(condition).nonzero(). Using nonzero directly should be preferred
+    **NOTE** When only condition is provided, this function is a shorthand for ht.nonzero(cond).
 
     Parameters
     ----------
-    cond:
-    x, y:
+    cond: DNDarray
+        condition of interest, where true yield x otherwise yield y
+    x, y: DNDarray, int, or float
+        Values from which to choose. x, y and condition need to be broadcastable to some shape.
 
     Returns
     -------
+    out: DNDarray
+        A DNDarray with elements from x where cond is True(1), and elements from y elsewhere (False/0).
+
+    Examples
+    --------
+    >>> a = ht.arange(10, split=0)
+    [0/1] tensor([0, 1, 2, 3, 4], dtype=torch.int32)
+    [1/1] tensor([5, 6, 7, 8, 9], dtype=torch.int32)
+    >>> ht.where(a < 5, a, 10*a)
+    [0/1] tensor([0, 1, 2, 3, 4], dtype=torch.int32)
+    [1/1] tensor([50, 60, 70, 80, 90], dtype=torch.int32)
+
+    >>> a = np.array([[0, 1, 2], [0, 2, 4], [0, 3, 6]])
+    [0/1] tensor([[ 0.,  1.,  2.],
+    [0/1]         [ 0.,  2.,  4.]])
+    [1/1] tensor([[ 0.,  3.,  6.]])
+    >>> ht.where(a < 4, a, -1)
+    [0/1] tensor([[ 0.,  1.,  2.],
+    [0/1]         [ 0.,  2., -1.]])
+    [1/1] tensor([[ 0.,  3., -1.]])
 
     """
     if isinstance(x, (dndarray.DNDarray, int, float)) and isinstance(y, (dndarray.DNDarray, int, float)):
