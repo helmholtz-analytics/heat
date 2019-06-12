@@ -1659,6 +1659,19 @@ class DNDarray:
         return indexing.nonzero(self)
 
     def numpy(self):
+        """
+        Convert heat tensor to numpy tensor. If the tensor is distributed it will be merged beforehand. If the tensor 
+        resides on the GPU, it will be copied to the CPU first.
+
+
+        Examples
+        --------
+        >>> import heat as ht 
+        
+        T1 = ht.random.randn((10,8))
+        T1.numpy()
+        """
+       
         return self.resplit(None)._DNDarray__array.cpu().numpy()
 
     def __pow__(self, other):
