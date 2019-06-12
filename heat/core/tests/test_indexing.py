@@ -80,3 +80,9 @@ class TestIndexing(unittest.TestCase):
         self.assertEqual(wh.gshape, (3, 3))
         self.assertEqual(wh.dtype, ht.float)
         self.assertEqual(wh.split, 1)
+
+        with self.assertRaises(TypeError):
+            ht.where(cond, a)
+
+        with self.assertRaises(NotImplementedError):
+            ht.where(cond, ht.ones((3, 3), split=0), ht.ones((3, 3), split=1))
