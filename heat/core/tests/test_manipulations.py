@@ -209,7 +209,7 @@ class TestManipulations(unittest.TestCase):
         split_zero = ht.array(torch_array, split=0)
 
         exp_axis_none = ht.arange(size, dtype=ht.int32)
-        res = ht.unique(split_zero, sorted=True)
+        res = split_zero.unique(sorted=True)
         self.assertTrue((res._DNDarray__array == exp_axis_none._DNDarray__array).all())
 
         exp_axis_zero = ht.arange(size, dtype=ht.int32).expand_dims(0)

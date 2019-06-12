@@ -168,8 +168,12 @@ def __local_op(operation, x, out, **kwargs):
 
     # no defined output tensor, return a freshly created one
     if out is None:
+        kwargs_dtype = kwargs.get('dtype')
+        if kwargs_dtype:
+            del kwargs['dtype']
         result = operation(x._DNDarray__array.type(torch_type), **kwargs)
-        return dndarray.DNDarray(result, x.gshape, promoted_type, x.split, x.device, x.comm)
+        return dndarray.DNDarray(result, tuple(result.shape), promoted_type if kwargs_dtype is None else kwargs_dtype,
+                                 x.split, x.device, x.comm)
 
     # output buffer writing requires a bit more work
     # we need to determine whether the operands are broadcastable and the multiple of the broadcasting

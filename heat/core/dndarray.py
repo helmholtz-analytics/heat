@@ -5,6 +5,7 @@ import warnings
 from . import arithmetics
 from . import devices
 from . import exponential
+from . import indexing
 from . import io
 from . import linalg
 from . import logical
@@ -720,144 +721,6 @@ class DNDarray:
         """
         return relational.eq(self, other)
 
-    def mean(self, axis=None):
-        """
-        Calculates and returns the mean of a tensor.
-        If a axis is given, the mean will be taken in that direction.
-
-        Parameters
-        ----------
-        x : ht.DNDarray
-            Values for which the mean is calculated for
-        axis : None, Int, iterable
-            axis which the mean is taken in.
-            Default: None -> mean of all data calculated
-
-        Examples
-        --------
-        >>> a = ht.random.randn(1,3)
-        >>> a
-        tensor([[-1.2435,  1.1813,  0.3509]])
-        >>> ht.mean(a)
-        tensor(0.0962)
-
-        >>> a = ht.random.randn(4,4)
-        >>> a
-        tensor([[ 0.0518,  0.9550,  0.3755,  0.3564],
-                [ 0.8182,  1.2425,  1.0549, -0.1926],
-                [-0.4997, -1.1940, -0.2812,  0.4060],
-                [-1.5043,  1.4069,  0.7493, -0.9384]])
-        >>> ht.mean(a, 1)
-        tensor([ 0.4347,  0.7307, -0.3922, -0.0716])
-        >>> ht.mean(a, 0)
-        tensor([-0.2835,  0.6026,  0.4746, -0.0921])
-
-        >>> a = ht.random.randn(4,4)
-        >>> a
-        tensor([[ 2.5893,  1.5934, -0.2870, -0.6637],
-                [-0.0344,  0.6412, -0.3619,  0.6516],
-                [ 0.2801,  0.6798,  0.3004,  0.3018],
-                [ 2.0528, -0.1121, -0.8847,  0.8214]])
-        >>> ht.mean(a, (0,1))
-        tensor(0.4730)
-
-        Returns
-        -------
-        ht.DNDarray containing the mean/s, if split, then split in the same direction as x.
-        """
-        return statistics.mean(self, axis)
-
-    def var(self, axis=None, bessel=True):
-        """
-        Calculates and returns the variance of a tensor.
-        If a axis is given, the variance will be taken in that direction.
-
-        Parameters
-        ----------
-        x : ht.DNDarray
-            Values for which the variance is calculated for
-        axis : None, Int
-            axis which the variance is taken in.
-            Default: None -> var of all data calculated
-            NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
-        bessel : Bool
-            Default: True
-            use the bessel correction when calculating the varaince/std
-            toggle between unbiased and biased calculation of the std
-
-        Examples
-        --------
-        >>> a = ht.random.randn(1,3)
-        >>> a
-        tensor([[-1.9755,  0.3522,  0.4751]])
-        >>> ht.var(a)
-        tensor(1.9065)
-
-        >>> a = ht.random.randn(4,4)
-        >>> a
-        tensor([[-0.8665, -2.6848, -0.0215, -1.7363],
-                [ 0.5886,  0.5712,  0.4582,  0.5323],
-                [ 1.9754,  1.2958,  0.5957,  0.0418],
-                [ 0.8196, -1.2911, -0.2026,  0.6212]])
-        >>> ht.var(a, 1)
-        tensor([1.3092, 0.0034, 0.7061, 0.9217])
-        >>> ht.var(a, 0)
-        tensor([1.3624, 3.2563, 0.1447, 1.2042])
-        >>> ht.var(a, 0, bessel=True)
-        tensor([1.3624, 3.2563, 0.1447, 1.2042])
-        >>> ht.var(a, 0, bessel=False)
-        tensor([1.0218, 2.4422, 0.1085, 0.9032])
-
-        Returns
-        -------
-        ht.DNDarray containing the var/s, if split, then split in the same direction as x.
-        """
-        return statistics.var(self, axis, bessel=bessel)
-
-    def std(self, axis=None, bessel=True):
-        """
-        Calculates and returns the standard deviation of a tensor with the bessel correction
-        If a axis is given, the variance will be taken in that direction.
-
-        Parameters
-        ----------
-        x : ht.DNDarray
-            Values for which the std is calculated for
-        axis : None, Int
-            axis which the mean is taken in.
-            Default: None -> std of all data calculated
-            NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
-        bessel : Bool
-            Default: True
-            use the bessel correction when calculating the varaince/std
-            toggle between unbiased and biased calculation of the std
-
-        Examples
-        --------
-        >>> a = ht.random.randn(1,3)
-        >>> a
-        tensor([[ 0.3421,  0.5736, -2.2377]])
-        >>> ht.std(a)
-        tensor(1.5606)
-        >>> a = ht.random.randn(4,4)
-        >>> a
-        tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
-                [ 0.2732, -0.0965, -0.1087, -1.3805],
-                [ 0.2647,  0.5998, -0.1635, -0.0848],
-                [ 0.0343,  0.1618, -0.8064, -0.1031]])
-        >>> ht.std(a, 0)
-        tensor([0.6157, 0.2918, 0.8324, 1.1996])
-        >>> ht.std(a, 1)
-        tensor([1.1405, 0.7236, 0.3506, 0.4324])
-        >>> ht.std(a, 1, bessel=False)
-        tensor([0.9877, 0.6267, 0.3037, 0.3745])
-
-        Returns
-        -------
-        ht.DNDarray containing the std/s, if split, then split in the same direction as x.
-        """
-        return statistics.std(self, axis, bessel=bessel)
-
     def exp(self, out=None):
         """
         Calculate the exponential of all elements in the input array.
@@ -1068,19 +931,30 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-        if isinstance(key, DNDarray):
+        if isinstance(key, DNDarray)and key.gshape[-1] != len(self.gshape):
             key = tuple(x.item() for x in key)
         if not self.is_distributed():
             if not self.comm.size == 1:
-                return DNDarray(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
-            else:
-                gout = tuple(self.__array[key].shape)
-                if self.split is not None and self.split >= len(gout):
-                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
+                    # this will return a 1D array as the shape cannot be determined automatically
+                    arr = self.__array[key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]]
+                    return DNDarray(arr, tuple(arr.shape), self.dtype, self.split, self.device, self.comm)
                 else:
-                    new_split = self.split
+                    return DNDarray(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
+            else:
+                if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
+                    # this will return a 1D array as the shape cannot be determined automatically
+                    arr = self.__array[key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]]
+                    return DNDarray(arr, tuple(arr.shape), self.dtype, 0, self.device, self.comm)
 
-                return DNDarray(self.__array[key], gout, self.dtype, new_split, self.device, self.comm)
+                else:
+                    gout = tuple(self.__array[key].shape)
+                    if self.split is not None and self.split >= len(gout):
+                        new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                    else:
+                        new_split = self.split
+
+                    return DNDarray(self.__array[key], gout, self.dtype, new_split, self.device, self.comm)
 
         else:
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
@@ -1175,6 +1049,15 @@ class DNDarray:
                         self.comm.rank), ResourceWarning)
                     # arr is empty
                     # gout is all 0s and is the proper shape
+
+            # elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
+            elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
+                # this is for a list of values
+                # it will return a 1D DNDarray of the elements on each node which are in the key (will be split in the 0th dimension
+                key.lloc[..., self.split] -= chunk_start
+                arr = self.__array[key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]]
+                gout = list(arr.shape)
+                new_split = 0
 
             else:  # handle other cases not accounted for (one is a slice is given and the split != 0)
                 gout = [0] * len(self.gshape)
@@ -1447,6 +1330,53 @@ class DNDarray:
         """
         return statistics.max(self, axis=axis, out=out, keepdim=keepdim)
 
+    def mean(self, axis=None):
+        """
+        Calculates and returns the mean of a tensor.
+        If a axis is given, the mean will be taken in that direction.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            Values for which the mean is calculated for
+        axis : None, Int, iterable
+            axis which the mean is taken in.
+            Default: None -> mean of all data calculated
+
+        Examples
+        --------
+        >>> a = ht.random.randn(1,3)
+        >>> a
+        tensor([[-1.2435,  1.1813,  0.3509]])
+        >>> ht.mean(a)
+        tensor(0.0962)
+
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[ 0.0518,  0.9550,  0.3755,  0.3564],
+                [ 0.8182,  1.2425,  1.0549, -0.1926],
+                [-0.4997, -1.1940, -0.2812,  0.4060],
+                [-1.5043,  1.4069,  0.7493, -0.9384]])
+        >>> ht.mean(a, 1)
+        tensor([ 0.4347,  0.7307, -0.3922, -0.0716])
+        >>> ht.mean(a, 0)
+        tensor([-0.2835,  0.6026,  0.4746, -0.0921])
+
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[ 2.5893,  1.5934, -0.2870, -0.6637],
+                [-0.0344,  0.6412, -0.3619,  0.6516],
+                [ 0.2801,  0.6798,  0.3004,  0.3018],
+                [ 2.0528, -0.1121, -0.8847,  0.8214]])
+        >>> ht.mean(a, (0,1))
+        tensor(0.4730)
+
+        Returns
+        -------
+        ht.DNDarray containing the mean/s, if split, then split in the same direction as x.
+        """
+        return statistics.mean(self, axis)
+
     def min(self, axis=None, out=None, keepdim=None):
         """
         Return the minimum of an array or minimum along an axis.
@@ -1560,6 +1490,57 @@ class DNDarray:
                 [1, 1]])
         """
         return relational.ne(self, other)
+
+    def nonzero(self):
+        """
+        Return the indices of the elements that are non-zero. (using torch.nonzero)
+
+        Returns a tuple of arrays, one for each dimension of a, containing the indices of the non-zero elements in that dimension.
+        The values in a are always tested and returned in row-major, C-style order. The corresponding non-zero values can be obtained with: a[nonzero(a)].
+
+        Parameters
+        ----------
+        a: ht.DNDarray
+
+        Returns
+        -------
+        result: ht.DNDarray
+            Indices of elements that are non-zero.
+            If 'a' is split then the result is split in the 0th dimension. However, this DNDarray can be UNBALANCED as it contains the indices of the
+            non-zero elements on each node.
+
+        Examples
+        --------
+        >>> x = ht.array([[3, 0, 0], [0, 4, 1], [0, 6, 0]], split=0)
+        [0/2] tensor([[3, 0, 0]])
+        [1/2] tensor([[0, 4, 1]])
+        [2/2] tensor([[0, 6, 0]])
+        >>> ht.nonzero(x)
+        [0/2] tensor([[0, 0]])
+        [1/2] tensor([[1, 1],
+        [1/2]         [1, 2]])
+        [2/2] tensor([[2, 1]])
+
+        >>> a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=0)
+        [0/1] tensor([[1, 2, 3],
+        [0/1]         [4, 5, 6]])
+        [1/1] tensor([[7, 8, 9]])
+        >>> a > 3
+        [0/1] tensor([[0, 0, 0],
+        [0/1]         [1, 1, 1]], dtype=torch.uint8)
+        [1/1] tensor([[1, 1, 1]], dtype=torch.uint8)
+        >>> ht.nonzero(a > 3)
+        [0/1] tensor([[1, 0],
+        [0/1]         [1, 1],
+        [0/1]         [1, 2]])
+        [1/1] tensor([[2, 0],
+        [1/1]         [2, 1],
+        [1/1]         [2, 2]])
+        >>> a[ht.nonzero(a > 3)]
+        [0/1] tensor([[4, 5, 6]])
+        [1/1] tensor([[7, 8, 9]])
+        """
+        return indexing.nonzero(self)
 
     def __pow__(self, other):
         """
@@ -1928,10 +1909,15 @@ class DNDarray:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
-        if isinstance(key, DNDarray):
+        if isinstance(key, DNDarray) and key.gshape[-1] != len(self.gshape):
             key = tuple(x.item() for x in key)
         if not self.is_distributed():
-            self.__setter(key, value)
+            if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
+                # this is for a list of values
+                for i in range(key.gshape[0]):
+                    self.__setter((key[i, 0].item(), key[i, 1].item()), value)
+            else:
+                self.__setter(key, value)
         else:
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
@@ -1940,6 +1926,9 @@ class DNDarray:
             if isinstance(key, int) and self.split == 0:
                 if key in range(chunk_start, chunk_end):
                     self.__setter(key-chunk_start, value)
+
+            elif isinstance(key, int) and self.split > 0:
+                self[key, :] = value
 
             elif isinstance(key, (tuple, list, torch.Tensor)):
                 if isinstance(key[self.split], slice):
@@ -1957,13 +1946,19 @@ class DNDarray:
                             self.__setter(tuple(key), value[overlap])
                         except TypeError as te:
                             if str(te) != "'int' object is not subscriptable":
-                                raise TypeError
+                                raise TypeError(te)
                             self.__setter(tuple(key), value)
 
                 elif key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
                     key[self.split] = key[self.split] - chunk_start
                     self.__setter(tuple(key), value)
+
+                elif key[self.split] < 0:
+                    if self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
+                        key = list(key)
+                        key[self.split] = key[self.split] + chunk_end - chunk_start
+                        self.__setter(tuple(key), value)
 
             elif isinstance(key, slice) and self.split == 0:
                 overlap = list(set(range(key.start, key.stop)) & set(range(chunk_start, chunk_end)))
@@ -1972,6 +1967,13 @@ class DNDarray:
                     hold = [x - chunk_start for x in overlap]
                     key = slice(min(hold), max(hold) + 1, key.step)
                     self.__setter(key, value)
+
+            elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
+                # this is the case with a list of indices to set
+                key = key.copy()
+                for i in range(key.lshape[0]):
+                    key.lloc[i][self.split] -= chunk_start
+                    self.__setter((key.lloc[i][0].item(), key.lloc[i][1].item()), value)
             else:
                 self.__setter(key, value)
 
@@ -2116,6 +2118,50 @@ class DNDarray:
         ValueError: Dimension along axis 1 is not 1 for shape (1, 3, 1, 5)
         """
         return manipulations.squeeze(self, axis)
+
+    def std(self, axis=None, bessel=True):
+        """
+        Calculates and returns the standard deviation of a tensor with the bessel correction
+        If a axis is given, the variance will be taken in that direction.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            Values for which the std is calculated for
+        axis : None, Int
+            axis which the mean is taken in.
+            Default: None -> std of all data calculated
+            NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+        bessel : Bool
+            Default: True
+            use the bessel correction when calculating the varaince/std
+            toggle between unbiased and biased calculation of the std
+
+        Examples
+        --------
+        >>> a = ht.random.randn(1,3)
+        >>> a
+        tensor([[ 0.3421,  0.5736, -2.2377]])
+        >>> ht.std(a)
+        tensor(1.5606)
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
+                [ 0.2732, -0.0965, -0.1087, -1.3805],
+                [ 0.2647,  0.5998, -0.1635, -0.0848],
+                [ 0.0343,  0.1618, -0.8064, -0.1031]])
+        >>> ht.std(a, 0)
+        tensor([0.6157, 0.2918, 0.8324, 1.1996])
+        >>> ht.std(a, 1)
+        tensor([1.1405, 0.7236, 0.3506, 0.4324])
+        >>> ht.std(a, 1, bessel=False)
+        tensor([0.9877, 0.6267, 0.3037, 0.3745])
+
+        Returns
+        -------
+        ht.DNDarray containing the std/s, if split, then split in the same direction as x.
+        """
+        return statistics.std(self, axis, bessel=bessel)
 
     def __str__(self, *args):
         # TODO: document me
@@ -2383,6 +2429,53 @@ class DNDarray:
                [3, 1]])
         """
         return manipulations.unique(self, sorted, return_inverse, axis)
+
+    def var(self, axis=None, bessel=True):
+        """
+        Calculates and returns the variance of a tensor.
+        If a axis is given, the variance will be taken in that direction.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            Values for which the variance is calculated for
+        axis : None, Int
+            axis which the variance is taken in.
+            Default: None -> var of all data calculated
+            NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+        bessel : Bool
+            Default: True
+            use the bessel correction when calculating the varaince/std
+            toggle between unbiased and biased calculation of the std
+
+        Examples
+        --------
+        >>> a = ht.random.randn(1,3)
+        >>> a
+        tensor([[-1.9755,  0.3522,  0.4751]])
+        >>> ht.var(a)
+        tensor(1.9065)
+
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[-0.8665, -2.6848, -0.0215, -1.7363],
+                [ 0.5886,  0.5712,  0.4582,  0.5323],
+                [ 1.9754,  1.2958,  0.5957,  0.0418],
+                [ 0.8196, -1.2911, -0.2026,  0.6212]])
+        >>> ht.var(a, 1)
+        tensor([1.3092, 0.0034, 0.7061, 0.9217])
+        >>> ht.var(a, 0)
+        tensor([1.3624, 3.2563, 0.1447, 1.2042])
+        >>> ht.var(a, 0, bessel=True)
+        tensor([1.3624, 3.2563, 0.1447, 1.2042])
+        >>> ht.var(a, 0, bessel=False)
+        tensor([1.0218, 2.4422, 0.1085, 0.9032])
+
+        Returns
+        -------
+        ht.DNDarray containing the var/s, if split, then split in the same direction as x.
+        """
+        return statistics.var(self, axis, bessel=bessel)
 
     """
     This ensures that commutative arithmetic operations work no matter on which side the heat-tensor is placed.
