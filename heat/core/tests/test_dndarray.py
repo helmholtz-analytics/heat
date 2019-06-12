@@ -227,7 +227,9 @@ class TestDNDarray(unittest.TestCase):
         b = np.ones((2,2)).astype('int32')  
         self.assertEqual(a.numpy().dtype, b.dtype)
 
-
+        a = ht.ones((10,8), dtype=ht.int64)
+        b = np.ones((2,2)).astype('int64')  
+        self.assertEqual(a.numpy().dtype, b.dtype)
 
     def test_resplit(self):
         # resplitting with same axis, should leave everything unchanged

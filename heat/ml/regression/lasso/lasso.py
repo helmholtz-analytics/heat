@@ -46,11 +46,17 @@ class HeatLasso():
 
     @property
     def coef_(self): 
-         return self.__theta[1:]    
+        if self.__theta is None:
+            return None 
+        else:
+            return self.__theta[1:]    
 
     @property
     def intercept_(self): 
-         return self.__theta[0]      
+        if self.__theta is None:
+            return None
+        else: 
+            return self.__theta[0]      
 
     @property
     def lam(self): 
@@ -199,11 +205,17 @@ class NumpyLasso():
 
     @property
     def coef_(self): 
-         return self.__theta[1:]    
+        if self.__theta is None:
+            return None 
+        else:
+            return self.__theta[1:]    
 
     @property
     def intercept_(self): 
-         return self.__theta[0]      
+        if self.__theta is None:
+            return None
+        else: 
+            return self.__theta[0]      
 
     @property
     def lam(self): 
@@ -345,11 +357,17 @@ class PytorchLasso():
 
     @property
     def coef_(self): 
-         return self.__theta[1:]    
+        if self.__theta is None:
+            return None 
+        else:
+            return self.__theta[1:]    
 
     @property
     def intercept_(self): 
-         return self.__theta[0]      
+        if self.__theta is None:
+            return None
+        else: 
+            return self.__theta[0]      
 
     @property
     def lam(self): 
