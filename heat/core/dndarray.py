@@ -1658,6 +1658,9 @@ class DNDarray:
         """
         return indexing.nonzero(self)
 
+    def numpy(self):
+        return self.resplit(None)._DNDarray__array.cpu().numpy()
+
     def __pow__(self, other):
         """
         Element-wise exponential function with values from second operand (scalar or tensor)
