@@ -165,6 +165,7 @@ class TestRelational(unittest.TestCase):
         # self.assertTrue(ht.equal(ht.ne(self.a_tensor, self.a_vector), result))
         # self.assertTrue(ht.equal(ht.ne(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.ne(self.a_split_tensor, self.a_tensor), result))
+        self.assertTrue(ht.equal(self.a_split_tensor != self.a_tensor, result))
 
         with self.assertRaises(ValueError):
             ht.ne(self.a_tensor, self.another_vector)
