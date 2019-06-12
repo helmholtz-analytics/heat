@@ -529,6 +529,10 @@ class TestDNDarray(unittest.TestCase):
         a[0] = np.array([6, 6, 6, 6, 6])
         self.assertTrue((a[0] == 6).all())
 
+        a = ht.ones((4, 5,), split=0).tril()
+        a[0] = ht.array([6, 6, 6, 6, 6])
+        self.assertTrue((a[0] == 6).all())
+
     def test_size_gnumel(self):
         a = ht.zeros((10, 10, 10), split=None)
         self.assertEqual(a.size, 10 * 10 * 10)
@@ -545,6 +549,3 @@ class TestDNDarray(unittest.TestCase):
         a = ht.zeros((10, 10, 10), split=2)
         self.assertEqual(a.size, 10 * 10 * 10)
         self.assertEqual(a.gnumel, 10 * 10 * 10)
-
-        a = ht.zeros((1, ))
-        self.assertEqual(a.size, 1)
