@@ -208,7 +208,6 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.arccos('hello world')
 
-
     def test_cos(self):
         # base elements
         elements = 30
@@ -237,7 +236,7 @@ class TestTrigonometrics(unittest.TestCase):
 
         # cosine of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(elements, dtype=ht.int64)
-        int64_cos = ht.cos(int64_tensor)
+        int64_cos = int64_tensor.cos()
         self.assertIsInstance(int64_cos, ht.DNDarray)
         self.assertEqual(int64_cos.dtype, ht.float64)
         self.assertTrue(torch.allclose(int64_cos._DNDarray__array.type(torch.double), comparison))

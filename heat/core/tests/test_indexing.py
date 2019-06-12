@@ -18,7 +18,7 @@ class TestIndexing(unittest.TestCase):
         # split
         a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=1)
         cond = a > 3
-        nz = ht.nonzero(cond)
+        nz = cond.nonzero()
         self.assertEqual(nz.gshape, (6, 2))
         self.assertEqual(nz.dtype, ht.int)
         self.assertEqual(nz.split, 0)
