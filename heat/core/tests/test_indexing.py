@@ -63,7 +63,7 @@ class TestIndexing(unittest.TestCase):
                         [0., 2., -1.],
                         [0., 3., -1.]], split=0)
         wh = ht.where(a < 4., a, -1)
-        self.assertTrue(ht.equal(wh[ht.nonzero(a >= 4)], -1))
+        self.assertTrue(ht.all(wh[ht.nonzero(a >= 4)], -1))
         self.assertTrue(ht.equal(wh, res))
         self.assertEqual(wh.gshape, (3, 3))
         self.assertEqual(wh.dtype, ht.float)
