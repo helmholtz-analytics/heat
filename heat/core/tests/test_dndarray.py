@@ -369,13 +369,13 @@ class TestDNDarray(unittest.TestCase):
         ####################################################
         a = ht.zeros((13, 5,), split=1)
         # # set value on one node
-        a[10, :] = 1
-        self.assertEqual(a[10, :].dtype, ht.float32)
+        a[10] = 1
+        self.assertEqual(a[10].dtype, ht.float32)
         if a.comm.size == 2:
             if a.comm.rank == 0:
-                self.assertEqual(a[10, :].lshape, (3,))
+                self.assertEqual(a[10].lshape, (3,))
             if a.comm.rank == 1:
-                self.assertEqual(a[10, :].lshape, (2,))
+                self.assertEqual(a[10].lshape, (2,))
 
         a = ht.zeros((13, 5,), split=1)
         # # set value on one node
@@ -545,3 +545,6 @@ class TestDNDarray(unittest.TestCase):
         a = ht.zeros((10, 10, 10), split=2)
         self.assertEqual(a.size, 10 * 10 * 10)
         self.assertEqual(a.gnumel, 10 * 10 * 10)
+
+        a = ht.zeros((1, ))
+        self.assertEqual(a.size, 1)

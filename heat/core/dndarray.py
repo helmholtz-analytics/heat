@@ -1946,7 +1946,7 @@ class DNDarray:
                             self.__setter(tuple(key), value[overlap])
                         except TypeError as te:
                             if str(te) != "'int' object is not subscriptable":
-                                raise TypeError
+                                raise TypeError(te)
                             self.__setter(tuple(key), value)
 
                 elif key[self.split] in range(chunk_start, chunk_end):
