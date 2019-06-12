@@ -1970,6 +1970,7 @@ class DNDarray:
 
             elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                 # this is the case with a list of indices to set
+                key = key.copy()
                 for i in range(key.lshape[0]):
                     key.lloc[i][self.split] -= chunk_start
                     self.__setter((key.lloc[i][0].item(), key.lloc[i][1].item()), value)

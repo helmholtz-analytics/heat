@@ -22,6 +22,8 @@ class TestIndexing(unittest.TestCase):
         self.assertEqual(nz.gshape, (6, 2))
         self.assertEqual(nz.dtype, ht.int)
         self.assertEqual(nz.split, 0)
+        a[nz] = 10.
+        self.assertEqual(ht.all(a[nz] == 10), 1)
 
     def test_where(self):
         # cases to test
@@ -61,6 +63,7 @@ class TestIndexing(unittest.TestCase):
                         [0., 2., -1.],
                         [0., 3., -1.]], split=0)
         wh = ht.where(a < 4., a, -1)
+        self.assertTrue(ht.equal(wh[ht.nonzero(a >= 4)], -1))
         self.assertTrue(ht.equal(wh, res))
         self.assertEqual(wh.gshape, (3, 3))
         self.assertEqual(wh.dtype, ht.float)
