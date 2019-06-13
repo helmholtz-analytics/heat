@@ -7,7 +7,7 @@ from . import stride_tricks
 from . import types
 
 __all__ = [
-    'cat',
+    'concatenate',
     'expand_dims',
     'squeeze',
     'unique'

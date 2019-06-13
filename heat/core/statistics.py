@@ -239,6 +239,12 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
             raise ValueError('y has more than 2 dimensions')
         if x.gnumel != y.gnumel:
             raise ValueError('m and y must have the same number of values, {} {}'.format(m.gnumel, y.gnumel))
+
+        # todo: need balance function before/instead of this
+        if y.split > 0:
+            y.resplit(0)
+        if x.split > 0:
+            x.resplit(0)
         # if x.split != y.split:
         #     # todo: deal with the case that x and y have separate split dimensions
         #     # resplit?
@@ -247,11 +253,9 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
         # combine x and y into a 2xN array
         _, _, x_chunk_slice = x.comm.chunk(x.shape, x.split)
         _, _, y_chunk_slice = y.comm.chunk(y.shape, y.split)
-        hld = factories.zeros((2, m.gnumel), split=x.split)
-        # print(hld[0, x_chunk_slice[0]])
+        hld = factories.zeros((2, m.gnumel), split=1)
         hld[0, x_chunk_slice[0]] = x[x_chunk_slice[0]]
         hld[1, y_chunk_slice[0]] = y[y_chunk_slice[0]]
-        print(hld)
         x = hld
 
     if ddof is None:
