@@ -7,7 +7,7 @@ from . import dndarray
 from . import stride_tricks
 from . import types
 
-# introduce the variables, will be correctly initialized at the end of file
+# introduce the global random state variables, will be correctly initialized at the end of file
 __seed = None
 __counter = None
 
@@ -27,6 +27,44 @@ def get_state():
             5. a float cached_gaussian, always set to 0.0 (present for compatibility with numpy).
     """
     return 'Threefry', __seed, __counter, 0, 0.0
+
+
+def __int32_to_float32(values):
+    """
+    Converts a tensor of 32-bit (random) numbers to matching single-precision floating point numbers (equally 32-bit) in
+    the bounded interval [0.0, 1.0). Extracts the 23 least-significant bits of the integers (0x7fffff) and sets them to
+    be the mantissa of the floating point number. Interval is bound by dividing by 2^23 = 8388608.0.
+
+    Parameters
+    ----------
+    values : torch.Tensor (int32)
+        Values to be converted to floating points numbers in interval [0.0, 1.0).
+
+    Returns
+    -------
+    floats : torch.Tensor (float32)
+        Corresponding single-precision floating point numbers.
+    """
+    return (values & 0x7fffff).type(torch.float32) / 8388608.0
+
+
+def __int64_to_float64(values):
+    """
+    Converts a tensor of 64-bit (random) numbers to matching double-precision floating point numbers (equally 64-bit) in
+    the bounded interval [0.0, 1.0). Extracts the 53 least-significant bits of the integers (0x1fffffffffffff) and sets
+    them to be the mantissa of the floating point number. Interval is bound by dividing by 2^53 = 9007199254740992.0.
+
+    Parameters
+    ----------
+    values : torch.Tensor (int64)
+        Values to be converted to floating points numbers in interval [0.0, 1.0).
+
+    Returns
+    -------
+    floats : torch.Tensor (float64)
+        Corresponding single-precision floating point numbers.
+    """
+    return (values & 0x1fffffffffffff).type(torch.float64) / 9007199254740992.0
 
 
 def randn(*args, split=None, device=None, comm=None):
@@ -139,17 +177,37 @@ def set_state(state):
 
 
 def __threefry_32(num_samples):
+    """
+    Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. This is the
+    32-bit version.
+
+    Parameters
+    ----------
+    num_samples : int
+        Number of 32-bit pseudo random numbers to be generated.
+
+    Returns
+    -------
+    random_numbers : torch.Tensor (int32)
+        Vector with num_samples pseudo random numbers.
+
+    References
+    ----------
+    [1] Salmon, John K., Moraes, Mark A., Dror, Ron O. and Shaw, David E., "Parallel random numbers: as easy as 1, 2, 3"
+        Proceedings of 2011 International Conference for High Performance Computing, Networking, Storage and Analysis,
+        p. 16, 2011
+    """
     samples = (num_samples + 1) // 2
 
     # set up X, i.e. output buffer
-    X_0 = t.arange(samples, dtype=t.int32)
-    X_1 = t.arange(samples, dtype=t.int32)
-    X_0 //= t.iinfo(t.int32).max
+    X_0 = torch.arange(samples, dtype=torch.int32)
+    X_1 = torch.arange(samples, dtype=torch.int32)
+    X_0 //= torch.iinfo(torch.int32).max
 
     # set up key buffer
-    ks_0 = t.full((samples,), 0, dtype=t.int32) # seed instead of 0
-    ks_1 = t.full((samples,), 0, dtype=t.int32) # seed instead of 0
-    ks_2 = t.full((samples,), 466688986, dtype=t.int32)
+    ks_0 = torch.full((samples,), __seed, dtype=torch.int32)
+    ks_1 = torch.full((samples,), __seed, dtype=torch.int32)
+    ks_2 = torch.full((samples,), 466688986, dtype=torch.int32)
     ks_2 ^= ks_0
     ks_2 ^= ks_0
 
@@ -181,6 +239,74 @@ def __threefry_32(num_samples):
 
     # inject key
     X_0 += ks_0; X_1 += (ks_1 + 3)
+
+    return X_0, X_1
+
+
+def __threefry64(num_samples):
+    """
+    Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. This is the
+    64-bit version.
+
+    Parameters
+    ----------
+    num_samples : int
+        Number of 64-bit pseudo random numbers to be generated.
+
+    Returns
+    -------
+    random_numbers : torch.Tensor (int64)
+        Vector with num_samples pseudo random numbers.
+
+    References
+    ----------
+    [1] Salmon, John K., Moraes, Mark A., Dror, Ron O. and Shaw, David E., "Parallel random numbers: as easy as 1, 2, 3"
+        Proceedings of 2011 International Conference for High Performance Computing, Networking, Storage and Analysis,
+        p. 16, 2011
+    """
+    samples = (num_samples + 1) // 2
+
+    # set up X, i.e. output buffer
+    X_0 = torch.arange(samples, dtype=torch.int64)
+    X_1 = torch.arange(samples, dtype=torch.int64)
+    X_0 //= torch.iinfo(torch.int64).max
+
+    # set up key buffer
+    ks_0 = torch.full((samples,), __seed, dtype=torch.int64)
+    ks_1 = torch.full((samples,), __seed, dtype=torch.int64)
+    ks_2 = torch.full((samples,), 2004413935125273122, dtype=torch.int64)
+    ks_2 ^= ks_0
+    ks_2 ^= ks_0
+
+    # initialize output using the key
+    X_0 += ks_0
+    X_1 += ks_1
+
+    # perform rounds
+    X_0 += X_1; X_1 = (X_1 << 16) | (X_1 >> 48); X_1 ^= X_0  # round 1
+    X_0 += X_1; X_1 = (X_1 << 42) | (X_1 >> 22); X_1 ^= X_0  # round 2
+    X_0 += X_1; X_1 = (X_1 << 12) | (X_1 >> 52); X_1 ^= X_0  # round 3
+    X_0 += X_1; X_1 = (X_1 << 31) | (X_1 >> 33); X_1 ^= X_0  # round 4
+    # inject key
+    X_0 += ks_1; X_1 += (ks_2 + 1)
+
+    X_0 += X_1; X_1 = (X_1 << 16) | (X_1 >> 48); X_1 ^= X_0  # round 5
+    X_0 += X_1; X_1 = (X_1 << 32) | (X_1 >> 32); X_1 ^= X_0  # round 6
+    X_0 += X_1; X_1 = (X_1 << 24) | (X_1 >> 40); X_1 ^= X_0  # round 7
+    X_0 += X_1; X_1 = (X_1 << 21) | (X_1 >> 43); X_1 ^= X_0  # round 8
+
+    # inject key
+    X_0 += ks_2; X_1 += (ks_0 + 2)
+
+    X_0 += X_1; X_1 = (X_1 << 16) | (X_1 >> 48); X_1 ^= X_0  # round 9
+    X_0 += X_1; X_1 = (X_1 << 42) | (X_1 >> 22); X_1 ^= X_0  # round 10
+    X_0 += X_1; X_1 = (X_1 << 12) | (X_1 >> 52); X_1 ^= X_0  # round 11
+    X_0 += X_1; X_1 = (X_1 << 31) | (X_1 >> 33); X_1 ^= X_0  # round 12
+
+    # inject key
+    X_0 += ks_0; X_1 += (ks_1 + 3)
+
+    return X_0, X_1
 
 
 def uniform(low=0.0, high=1.0, size=None, device=None, comm=None):
