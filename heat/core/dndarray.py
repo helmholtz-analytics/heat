@@ -5,6 +5,7 @@ import warnings
 from . import arithmetics
 from . import devices
 from . import exponential
+from . import factories
 from . import indexing
 from . import io
 from . import linalg
@@ -482,6 +483,34 @@ class DNDarray:
         self.__dtype = dtype
 
         return self
+
+    def balance(self):
+        """
+        function to balance a tensor between all nodes, import for after a function is sliced and then unbalanced
+        :return:
+        """
+        '''
+        1. get the current data map
+        2. calculate the desired shape for each node
+        3. select the proper MPI command (if all on one node then can scatter)
+        4. profit?'''
+        # units -> {pr, 1st index, 2nd index}
+        lshape_map = factories.zeros((self.comm.size, len(self.gshape)), dtype=int)
+        lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
+        lshape_map_comm = self.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+
+        chunk_map = factories.zeros((self.comm.size, 2, 2), dtype=int)
+        _, _, chk = self.comm.chunk(self.shape, self.split)
+        chunk_map[self.comm.rank, 0] = (chk[0].start, chk[0].stop)
+        chunk_map[self.comm.rank, 1] = (chk[1].start, chk[1].stop)
+        chunk_map_comm = self.comm.Iallreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
+
+        lshape_map_comm.wait()
+        chunk_map_comm.wait()
+        # print(lshape_map)
+        print(chunk_map)
+
+
 
     def __bool__(self):
         """
