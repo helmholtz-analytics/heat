@@ -5,15 +5,54 @@ import torch
 from .communication import MPI
 from . import dndarray
 from . import factories
+from . import logical
 from . import manipulations
 from . import types
 
 __all__ = [
+    'dot',
     'matmul',
     'transpose',
     'tril',
     'triu'
 ]
+
+
+def dot(a, b):
+    """
+    dot product / matmul
+
+    Dot product of two arrays. Specifically,
+
+    1. If both a and b are 1-D arrays, it is inner product of vectors.
+
+    2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or a @ b is preferred.
+
+    3. If either a or b is 0-D (scalar), it is equivalent to multiply and using numpy.multiply(a, b) or a * b is preferred.
+
+    **todo: 4. If a is an N-D array and b is a 1-D array, it is a sum product over the last axis of a and b.
+
+    **todo: 5. If a is an N-D array and b is an M-D array (where M>=2), it is a sum product over the last axis of a and the second-to-last axis of b:
+    :param a:
+    :param b:
+    :return:
+    """
+    # 1. If both a and b are 1-D arrays, it is inner product of vectors.
+    if a.numdims == 1 and b.numdims == 1:
+        ret = torch.dot(a._DNDarray__array, b._DNDarray__array)
+        if a.is_distributed():
+            a.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
+        elif b.is_distributed():
+            b.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
+        return ret.item()
+    elif a.numdims == 2 and b.numdims == 2:
+        # 2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or a @ b is preferred.
+        return matmul(a, b)
+    elif isinstance(a, (float, int)) or a.numdims == 0 or isinstance(b, (float, int)) or b.numdims == 0:
+        # 3. If either a or b is 0-D (scalar), it is equivalent to multiply and using numpy.multiply(a, b) or a * b is preferred.
+        return a * b
+    else:
+        raise NotImplementedError('shapes not supported: a: {}, b: {}'.format(a.gshape, b.gshape))
 
 
 def matmul(a, b):
@@ -211,8 +250,17 @@ def matmul(a, b):
         if a.split == 0:
             a_block_map = torch.zeros((a.comm.size, a.shape[-2] // mB // a.comm.size, a.shape[-1] // kB, 2))
         elif a.split == 1:
+            # print('h', a.shape[-2] // mB, a.shape[-1] // kB // a.comm.size)
             a_block_map = torch.zeros((a.comm.size, a.shape[-2] // mB, a.shape[-1] // kB // a.comm.size, 2))
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
+
+        # below is to handle the edge case where there is only one element in one dimension of a
+        a_d0_1s_flag, a_d1_1s_flag = False, False
+        if any(lshape_map[:, 0, :][:, 0] == 1):
+            a_d0_1s_flag = True
+        if any(lshape_map[:, 0, :][:, 1] == 1):
+            a_d1_1s_flag = True
+
         index_map_comm.wait()
         for pr in range(a.comm.size):
             start0 = index_map[pr, 0, 0, 0].item()
@@ -220,9 +268,9 @@ def matmul(a, b):
             start1 = index_map[pr, 0, 1, 0].item()
             stop1 = index_map[pr, 0, 1, 1].item()
 
-            for dim0 in range((stop0 - start0) // mB):
+            for dim0 in range((stop0 - start0) // mB // a.comm.size if a_d0_1s_flag else (stop0 - start0) // mB):
                 # loop over the number of blocks in the 0th dimension
-                for dim1 in range((stop1 - start1) // kB):
+                for dim1 in range((stop1 - start1) // kB // a.comm.size if a_d1_1s_flag else (stop1 - start1) // kB):
                     # loop over the number of blocks in the 1st dimension
                     a_block_map[pr, dim0, dim1] = torch.tensor((dim0 * mB, dim1 * kB), dtype=torch.int)
         rem_map_comm.wait()
@@ -239,15 +287,23 @@ def matmul(a, b):
         if b.split == 1:
             b_block_map = torch.zeros((b.comm.size, b.shape[-2] // kB, b.shape[-1] // nB // b.comm.size, 2))
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
+
+        # below is to handle the edge case where there is only one element in one dimension of b
+        b_d0_1s_flag, b_d1_1s_flag = False, False
+        if any(lshape_map[:, 1, :][:, 0] == 1):
+            b_d0_1s_flag = True
+        if any(lshape_map[:, 1, :][:, 1] == 1):
+            b_d1_1s_flag = True
+
         for pr in range(b.comm.size):
             start0 = index_map[pr, 1, 0, 0].item()
             stop0 = index_map[pr, 1, 0, 1].item()
             start1 = index_map[pr, 1, 1, 0].item()
             stop1 = index_map[pr, 1, 1, 1].item()
 
-            for dim0 in range((stop0 - start0) // kB):
+            for dim0 in range((stop0 - start0) // kB // b.comm.size if b_d0_1s_flag else (stop0 - start0) // kB):
                 # loop over the number of blocks in the 0th dimension
-                for dim1 in range((stop1 - start1) // nB):
+                for dim1 in range((stop1 - start1) // nB // b.comm.size if b_d1_1s_flag else (stop1 - start1) // nB):
                     # loop over the number of blocks in the 1st dimension
                     b_block_map[pr, dim0, dim1] = torch.tensor((dim0 * kB, dim1 * nB), dtype=torch.int)
 

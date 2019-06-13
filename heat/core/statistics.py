@@ -5,6 +5,7 @@ import warnings
 from .communication import MPI
 from . import exponential
 from . import factories
+from . import linalg
 from . import operations
 from . import dndarray
 from . import types
@@ -13,6 +14,7 @@ from . import types
 __all__ = [
     'argmax',
     'argmin',
+    'cov',
     'max',
     'mean',
     'min',
@@ -207,6 +209,70 @@ def argmin(x, axis=None, out=None, **kwargs):
     return reduced_result
 
 
+def cov(m, y=None, rowvar=True, bias=False, ddof=None):
+    """
+    cov function to mirror the numpy function of the same name
+    :param m:
+    :param y:
+    :param rowvar:
+    :param bias:
+    :param ddof:
+    :return:
+    """
+    if ddof is not None and ddof != int(ddof):
+        raise ValueError("ddof must be integer")
+    if m.numdims > 2:
+        raise ValueError("m has more than 2 dimensions")
+    if not isinstance(m, dndarray.DNDarray):
+        raise TypeError('m must be a DNDarray')
+
+    x = m.copy()
+    if not rowvar and x.shape[0] != 1:
+        x = x.T
+    # todo: is this needed? its the case for the first element of gshape is 0 then return 0...
+    # if x.shape[0] == 0:
+
+    if y is not None:
+        if not isinstance(y, dndarray.DNDarray):
+            raise TypeError('y must be a DNDarray')
+        if y.numdims > 2 or x.numdims > 2:
+            raise ValueError('y has more than 2 dimensions')
+        if x.gnumel != y.gnumel:
+            raise ValueError('m and y must have the same number of values, {} {}'.format(m.gnumel, y.gnumel))
+        # if x.split != y.split:
+        #     # todo: deal with the case that x and y have separate split dimensions
+        #     # resplit?
+        #     raise NotImplementedError('need to implement')
+
+        # combine x and y into a 2xN array
+        _, _, x_chunk_slice = x.comm.chunk(x.shape, x.split)
+        _, _, y_chunk_slice = y.comm.chunk(y.shape, y.split)
+        hld = factories.zeros((2, m.gnumel), split=x.split)
+        # print(hld[0, x_chunk_slice[0]])
+        hld[0, x_chunk_slice[0]] = x[x_chunk_slice[0]]
+        hld[1, y_chunk_slice[0]] = y[y_chunk_slice[0]]
+        print(hld)
+        x = hld
+
+    if ddof is None:
+        if bias == 0:
+            ddof = 1
+        else:
+            ddof = 0
+    # print(x)
+    avg = mean(x, axis=1)
+
+    # find normalization:
+    norm = m.gnumel - ddof
+    if norm <= 0:
+        raise ValueError('ddof >= number of elements in m, {} {}'.format(ddof, m.gnumel))
+
+    x -= avg[:, None]
+    c = linalg.dot(x, x.T)
+    c /= norm
+    return c
+
+
 def max(x, axis=None, out=None, keepdim=None):
     # TODO: initial : scalar, optional Issue #101
     """
@@ -301,7 +367,6 @@ def mean(x, axis=None):
     >>> ht.mean(a, (0,1))
     tensor(0.4730)
     """
-
     def reduce_means_elementwise(output_shape_i):
         """
         Function to combine the calculated means together.

@@ -1153,7 +1153,6 @@ class DNDarray:
                     new_split = self.split
                 key_set = set(range(start, stop, step))
                 overlap = list(key_set & chunk_set)
-
                 if overlap:
                     overlap.sort()
                     hold = [x - chunk_start for x in overlap]
@@ -2042,9 +2041,6 @@ class DNDarray:
             if isinstance(key, int) and self.split == 0:
                 if key in range(chunk_start, chunk_end):
                     self.__setter(key-chunk_start, value)
-            elif isinstance(key, int) and self.split > 0:
-                self[key, :] = value
-
             elif isinstance(key, int) and self.split > 0:
                 self[key, :] = value
 

@@ -7,10 +7,21 @@ from . import stride_tricks
 from . import types
 
 __all__ = [
+    'cat',
     'expand_dims',
     'squeeze',
     'unique'
 ]
+
+
+def concatenate(arrays, axis=0):
+    """
+    todo: this
+    :param arrays:
+    :param axis:
+    :return:
+    """
+    pass
 
 
 def expand_dims(a, axis):
