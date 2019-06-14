@@ -1,17 +1,19 @@
-import torch
+import functools
+import operator
+
 import numpy as np
+import torch
 
 from . import dndarray
 from . import factories
-from . import operations
 from . import stride_tricks
 from . import types
 from .communication import MPI
 
 __all__ = [
     'expand_dims',
-    'squeeze',
-    'sort'
+    'sort',
+    'squeeze'
 ]
 
 
@@ -78,7 +80,7 @@ def sort(a, axis=None, descending=False, out=None):
     if axis is None:
         axis = len(a.shape) - 1
     partial = a._DNDarray__array
-    if not a.split or axis != a.split:
+    if a.split is None or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
         partial, index = torch.sort(a._DNDarray__array, dim=axis, descending=descending)
 
@@ -115,6 +117,7 @@ def sort(a, axis=None, descending=False, out=None):
         # root process creates new pivots and shares them with other processes
         if rank is 0:
             sorted_pivots, _ = torch.sort(pivot_buffer, dim=0)
+            print('sorted_pivots', sorted_pivots)
             length = sorted_pivots.size()[0]
             global_partitions = [x * length // size for x in range(1, size)]
             print("global_partitions", global_partitions)
@@ -125,12 +128,27 @@ def sort(a, axis=None, descending=False, out=None):
 
         print("Bcas global_pivots", global_pivots)
 
-        # TODO: wirte algorithm that creates a 2D list with the indices for each column (is it also 2D for higher dimensions?)
-        # # compute starting locations
-        # partition_list = [[0] * size]
-        # index = 0
-        # for num, val in enumerate(local_sorted):
-        #     if val > global_pivots[index]:
+        # Create matrix that holds information which process gets how many values at which position
+        zeroes_dim = [size] + list(transposed.size())[1:]
+        print('zeros_dim', zeroes_dim)
+        partition_matrix = torch.zeros(zeroes_dim, dtype=torch.int64)
+
+        # Iterate along the split axis which is now 0 due to transpose
+        for x in local_sorted:
+            print('x', x)
+            # Enumerate over all values with correct index
+            for idx, val in np.ndenumerate(x.numpy()):
+                print('index', idx, 'val', val)
+                cur = next(i for i in range(len(global_pivots) + 1) if (i == len(global_pivots) or (val < global_pivots[i][idx])))
+                print('cur', cur)
+                partition_matrix[cur][idx] += 1
+        print('partition_matrix', partition_matrix)
+        # Tested with 2-4 parallel processes to this point
+
+        # Share and sum the local partition_matrix
+        g_partition_matrix = torch.empty(zeroes_dim, dtype=torch.int64)
+        a.comm.Allreduce(partition_matrix, g_partition_matrix, op=MPI.SUM)
+        print('sum_buf', g_partition_matrix)
 
     if out:
         out._DND__array = partial

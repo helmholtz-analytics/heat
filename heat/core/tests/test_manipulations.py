@@ -204,10 +204,15 @@ class TestManipulations(unittest.TestCase):
             ht.argmin(data, axis=-4)
 
     def test_sort(self):
-        data = ht.array([[1, 5, 1, 4, 2, 8, 1, 4, 7], [6, 3, 4, 1, 4, 6, 2, 9, 4]], dtype=ht.int32, split=1)
-        print("rank", data.comm.Get_rank())
-        print("data", data)
-        sorted = ht.sort(data, axis=1, descending=False)
+        # data = ht.array([[1, 5, 1, 4, 2, 8, 1, 4, 7], [6, 3, 4, 1, 4, 6, 2, 9, 4]], dtype=ht.int32, split=1)
+        # data = ht.array([[1, 1, 1, 1, 1, 2], [1, 2, 2, 2, 2, 2]], dtype=ht.int32, split=1)
+        # data = ht.array([[[7, 2, 5], [3, 3, 0]], [[2, 5, 1], [8, 9, 3]]], dtype=ht.int32, split=1)
+        data = ht.array([[[2, 8, 5], [7, 2, 3]],
+                         [[6, 5, 2], [1, 8, 7]],
+                         [[9, 3, 0], [1, 2, 4]],
+                         [[8, 4, 7], [0, 8, 9]]], dtype=ht.int32, split=0)
+        print("rank", data.comm.Get_rank(), 'Data', data)
+        sorted = ht.sort(data, axis=0, descending=False)
         print("sorted", sorted)
 
         expected = torch.tensor([[1, 1, 5], [3, 4, 6]], dtype=torch.int32)
