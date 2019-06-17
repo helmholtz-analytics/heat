@@ -484,7 +484,7 @@ class DNDarray:
 
         return self
 
-    def balance(self):
+    def balance_(self):
         """
         Function for balancing a DNDarray between all nodes. To determine if this is needed use the is_balanced function.
         If the DNDarray is already balanced this function will do nothing. This function modifies the DNDarray itself and will not return anything.
@@ -608,22 +608,6 @@ class DNDarray:
                     self.__array = torch.cat((data, self.__array), dim=self.split)
                 lshape_map[pr, self.split] += snt
                 lshape_map[spr, self.split] -= snt
-
-    def is_balanced(self):
-        """
-        Determine if a DNDarray is balanced evenly (or as evenly as possible) across all nodes
-
-        Returns
-        -------
-        balanced : bool
-            True if balanced, False if not
-        """
-        _, _, chk = self.comm.chunk(self.shape, self.split)
-        test_lshape = tuple([x.stop - x.start for x in chk])
-        balanced = 1 if test_lshape == self.lshape else 0
-
-        out = self.comm.allreduce(balanced, MPI.SUM)
-        return True if out == self.comm.size else False
 
     def __bool__(self):
         """
@@ -1276,6 +1260,22 @@ class DNDarray:
             The corresponding float scalar value
         """
         return self.__cast(int)
+
+    def is_balanced(self):
+        """
+        Determine if a DNDarray is balanced evenly (or as evenly as possible) across all nodes
+
+        Returns
+        -------
+        balanced : bool
+            True if balanced, False if not
+        """
+        _, _, chk = self.comm.chunk(self.shape, self.split)
+        test_lshape = tuple([x.stop - x.start for x in chk])
+        balanced = 1 if test_lshape == self.lshape else 0
+
+        out = self.comm.allreduce(balanced, MPI.SUM)
+        return True if out == self.comm.size else False
 
     def is_distributed(self):
         """

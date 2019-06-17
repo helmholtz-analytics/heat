@@ -29,6 +29,17 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(as_float64._DNDarray__array.dtype, torch.float64)
         self.assertIs(as_float64, data)
 
+    def test_balance_(self):
+        data = ht.zeros((70, 20), split=0)
+        data = data[:40]
+        data.balance_()
+        self.assertTrue(data.is_balanced())
+
+        data = ht.zeros((4, 120), split=1)
+        data = data[:, 40:70]
+        data.balance_()
+        self.assertTrue(data.is_balanced())
+
     def test_bool_cast(self):
         # simple scalar tensor
         a = ht.ones(1)
@@ -148,6 +159,14 @@ class TestDNDarray(unittest.TestCase):
         if ht.MPI_WORLD.size > 1:
             with self.assertRaises(TypeError):
                 int(ht.full((ht.MPI_WORLD.size,), 2, split=0))
+
+    def test_is_balanced(self):
+        data = ht.zeros((70, 20), split=0)
+        if data.comm.size != 1:
+            data = data[:40]
+            self.assertFalse(data.is_balanced())
+            data.balance_()
+            self.assertTrue(data.is_balanced())
 
     def test_is_distributed(self):
         data = ht.zeros((5, 5,))
