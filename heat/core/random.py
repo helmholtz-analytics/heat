@@ -7,9 +7,40 @@ from . import dndarray
 from . import stride_tricks
 from . import types
 
+
 # introduce the global random state variables, will be correctly initialized at the end of file
 __seed = None
 __counter = None
+
+
+# float conversion constants
+__INT32_TO_FLOAT32 = 1.0 / 8388608.0
+__INT64_TO_FLOAT64 = 1.0 / 9007199254740992.0
+__KUNDU_INVERSE = 1.0 / 0.3807
+
+
+def __kundu_transform(values):
+    """
+    Transforms uniformly distributed floating point random values in the interval [0.0, 1.0) into normal distributed
+    floating point random values with mean 0.0 and standard deviation 1.0. The algorithm makes use of the generalized
+    exponential distribution transformation [1].
+
+    Parameters
+    ----------
+    values : torch.Tensor
+        A tensor containing uniformly distributed floating point values in the interval [0.0, 1.0).
+
+    Returns
+    -------
+    normal_values : torch.Tensor
+        A tensor containing the equivalent normally distributed floating point values with mean of 0.0 and standard
+        deviation of 1.0.
+
+    References
+    ----------
+    [1] Boiroju, N. K. and Reddy, K. M., "Generation of Standard Normal Random Numbers", Interstat, vol 5., 2012.
+    """
+    return (torch.log(-torch.log(1 - values ** 0.0775)) - 1.0821) * __KUNDU_INVERSE
 
 
 def get_state():
@@ -45,7 +76,7 @@ def __int32_to_float32(values):
     floats : torch.Tensor (float32)
         Corresponding single-precision floating point numbers.
     """
-    return (values & 0x7fffff).type(torch.float32) / 8388608.0
+    return (values & 0x7fffff).type(torch.float32) * __INT32_TO_FLOAT32
 
 
 def __int64_to_float64(values):
@@ -64,7 +95,7 @@ def __int64_to_float64(values):
     floats : torch.Tensor (float64)
         Corresponding single-precision floating point numbers.
     """
-    return (values & 0x1fffffffffffff).type(torch.float64) / 9007199254740992.0
+    return (values & 0x1fffffffffffff).type(torch.float64) * __INT64_TO_FLOAT64
 
 
 def randn(*args, split=None, device=None, comm=None):
@@ -101,6 +132,9 @@ def randn(*args, split=None, device=None, comm=None):
             [ 1.3365, -1.5212,  1.4159, -0.1671],
             [ 0.1260,  1.2126, -0.0804,  0.0907]])
     """
+    # TODO: FIX ME!
+    return
+
     # TODO: make me splitable
     # TODO: add device capabilities
     # check if all positional arguments are integers
@@ -169,7 +203,7 @@ def set_state(state):
         raise TypeError('state needs to be a three- or five-tuple')
 
     if state[0] != 'Threefry':
-        raise ValueError('algorithm must be "Threefry"')
+        raise ValueError('algorithm must be \'Threefry\'')
 
     global __seed, __counter
     __seed = int(state[1])
@@ -188,8 +222,8 @@ def __threefry_32(num_samples):
 
     Returns
     -------
-    random_numbers : torch.Tensor (int32)
-        Vector with num_samples pseudo random numbers.
+    random_numbers : tuple(torch.Tensor (int32))
+        Two vectors with num_samples / 2 (rounded-up) pseudo random numbers.
 
     References
     ----------
@@ -200,8 +234,8 @@ def __threefry_32(num_samples):
     samples = (num_samples + 1) // 2
 
     # set up X, i.e. output buffer
-    X_0 = torch.arange(samples, dtype=torch.int32)
-    X_1 = torch.arange(samples, dtype=torch.int32)
+    X_0 = torch.arange(samples, dtype=torch.int32) + (__counter | 0xffffffff)
+    X_1 = torch.arange(samples, dtype=torch.int32) + (__counter >> 32)
     X_0 //= torch.iinfo(torch.int32).max
 
     # set up key buffer
@@ -255,8 +289,8 @@ def __threefry64(num_samples):
 
     Returns
     -------
-    random_numbers : torch.Tensor (int64)
-        Vector with num_samples pseudo random numbers.
+    random_numbers : tuple(torch.Tensor (int64))
+        Two vectors with num_samples / 2 (rounded-up) pseudo random numbers.
 
     References
     ----------
@@ -310,6 +344,8 @@ def __threefry64(num_samples):
 
 
 def uniform(low=0.0, high=1.0, size=None, device=None, comm=None):
+    # TODO: FIX ME!
+
     # TODO: comment me
     # TODO: test me
     # TODO: make me splitable
