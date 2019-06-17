@@ -522,39 +522,45 @@ class DNDarray:
         # todo: start a for loop here which loops from the first pr with data to the last with data
         # todo: then at the end go from the last with data to the end and stretch it out that way
         arb_slice = [slice(None), ] * self.numdims
-        for spr in range(first_pr_w_data, last_pr_w_data + 1):
-            # if first_pr_w_data != 0:  # rev order
-            # send all the data to 0
-            if self.comm.rank == spr:
+        if first_pr_w_data != 0:
+            for spr in range(first_pr_w_data, last_pr_w_data + 1):
+                # if first_pr_w_data != 0:  # rev order
+                # send all the data to 0
+                if self.comm.rank == spr:
+                    for pr in range(spr):
+                        send_amt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
+                        if send_amt:
+                            send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
+                            # print('send', self.comm.rank, self.lshape, pr, send_amt, pr + self.comm.size)
+                            arb_slice[self.split] = slice(0, send_amt)
+
+                            self.comm.Isend(self.__array[arb_slice].clone(), dest=pr, tag=pr + self.comm.size + spr)
+                            # send_req_dict[pr].wait()
+                            self.__array = self.__array[send_amt:].clone()
+
+                # else:
                 for pr in range(spr):
-                    send_amt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
-                    if send_amt:
-                        send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
-                        # print('send', self.comm.rank, self.lshape, pr, send_amt, pr + self.comm.size)
-                        arb_slice[self.split] = slice(0, send_amt)
+                    snt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
+                    snt = snt if snt < lshape_map[spr, self.split] else lshape_map[spr, self.split].item()
 
-                        self.comm.Isend(self.__array[arb_slice].clone(), dest=pr, tag=pr + self.comm.size + spr)
+                    if self.comm.rank == pr and snt:
+                        shp = list(self.gshape)
+                        shp[self.split] = snt
+                        # print('recv', spr, self.comm.rank, self.lshape, snt, pr + self.comm.size, chunk_map[pr, self.split], self.lshape[self.split])
+                        data = torch.zeros(shp)
+                        self.comm.Recv(data, source=spr, tag=pr + self.comm.size + spr)
+                        # print(data)
                         # send_req_dict[pr].wait()
-                        self.__array = self.__array[send_amt:].clone()
+                        self.__array = torch.cat((self.__array, data), dim=self.split)
+                        # print(self.lshape)
+                    lshape_map[pr, self.split] += snt
+                    lshape_map[spr, self.split] -= snt
 
-            # else:
-            for pr in range(spr):
-                snt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
-                snt = snt if snt < lshape_map[spr, self.split] else lshape_map[spr, self.split].item()
-
-                if self.comm.rank == pr and snt:
-                    shp = list(self.gshape)
-                    shp[self.split] = snt
-                    # print('recv', spr, self.comm.rank, self.lshape, snt, pr + self.comm.size, chunk_map[pr, self.split], self.lshape[self.split])
-                    data = torch.zeros(shp)
-                    self.comm.Recv(data, source=spr, tag=pr + self.comm.size + spr)
-                    # print(data)
-                    # send_req_dict[pr].wait()
-                    self.__array = torch.cat((self.__array, data), dim=self.split)
-                    # print(self.lshape)
-                lshape_map[pr, self.split] += snt
-                lshape_map[spr, self.split] -= snt
-
+        # now the DNDarray is balanced from 0 to x, (by pulling data from the higher ranking nodes)
+        # next we need to push the data to the end fo the DNDarray
+        send_list = [True if lshape_map[pr, self.split] > (chunk_map[pr, self.split]) else False
+                     for pr in range(self.comm.size)]
+        print(send_list)
 
 
 
@@ -576,15 +582,18 @@ class DNDarray:
         #
         #                 pass
 
-
     def is_balanced(self):
         """
         function to tell if a DNDarray is evenly balanced between nodes
         :return:
         """
-        pass
+        balanced = torch.zeros(self.comm.size, dtype=torch.uint8)
+        _, _, chk = self.comm.chunk(self.shape, self.split)
+        test_lshape = tuple([x.stop - x.start for x in chk])
+        balanced[self.comm.rank] = 1 if test_lshape == self.lshape else 0
 
-
+        self.comm.Allreduce(MPI.IN_PLACE, balanced, MPI.SUM)
+        return True if torch.all(balanced) else False
 
     def __bool__(self):
         """
