@@ -499,16 +499,90 @@ class DNDarray:
         lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
         lshape_map_comm = self.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
-        chunk_map = factories.zeros((self.comm.size, 2, 2), dtype=int)
+        chunk_map = factories.zeros((self.comm.size, 2), dtype=int)
         _, _, chk = self.comm.chunk(self.shape, self.split)
-        chunk_map[self.comm.rank, 0] = (chk[0].start, chk[0].stop)
-        chunk_map[self.comm.rank, 1] = (chk[1].start, chk[1].stop)
+        chunk_map[self.comm.rank, 0] = chk[0].stop - chk[0].start
+        chunk_map[self.comm.rank, 1] = chk[1].stop - chk[1].start
         chunk_map_comm = self.comm.Iallreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
 
         lshape_map_comm.wait()
         chunk_map_comm.wait()
-        # print(lshape_map)
-        print(chunk_map)
+
+        send_list = [True if lshape_map[pr, self.split] > (chunk_map[pr, self.split]) else False
+                     for pr in range(self.comm.size)]
+
+        send_req_dict = {}
+        # todo: make proper while loop criteria (proper data on all nodes)
+        # todo: get the first process with data then then send the proper amount to the first process
+
+        # keep doing this until all of the processes are filled and equal
+        first_pr_w_data = send_list.index(True) # first process with *too much* data
+        last_pr_w_data = next((i for i in reversed(range(len(lshape_map[:, self.split]))) if lshape_map[i, self.split] > chunk_map[i, self.split]))
+
+        # todo: start a for loop here which loops from the first pr with data to the last with data
+        # todo: then at the end go from the last with data to the end and stretch it out that way
+        arb_slice = [slice(None), ] * self.numdims
+        for spr in range(first_pr_w_data, last_pr_w_data + 1):
+            # if first_pr_w_data != 0:  # rev order
+            # send all the data to 0
+            if self.comm.rank == spr:
+                for pr in range(spr):
+                    send_amt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
+                    if send_amt:
+                        send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
+                        # print('send', self.comm.rank, self.lshape, pr, send_amt, pr + self.comm.size)
+                        arb_slice[self.split] = slice(0, send_amt)
+
+                        self.comm.Isend(self.__array[arb_slice].clone(), dest=pr, tag=pr + self.comm.size + spr)
+                        # send_req_dict[pr].wait()
+                        self.__array = self.__array[send_amt:].clone()
+
+            # else:
+            for pr in range(spr):
+                snt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
+                snt = snt if snt < lshape_map[spr, self.split] else lshape_map[spr, self.split].item()
+
+                if self.comm.rank == pr and snt:
+                    shp = list(self.gshape)
+                    shp[self.split] = snt
+                    # print('recv', spr, self.comm.rank, self.lshape, snt, pr + self.comm.size, chunk_map[pr, self.split], self.lshape[self.split])
+                    data = torch.zeros(shp)
+                    self.comm.Recv(data, source=spr, tag=pr + self.comm.size + spr)
+                    # print(data)
+                    # send_req_dict[pr].wait()
+                    self.__array = torch.cat((self.__array, data), dim=self.split)
+                    # print(self.lshape)
+                lshape_map[pr, self.split] += snt
+                lshape_map[spr, self.split] -= snt
+
+
+
+
+
+
+        # if rev_order:
+        #     done = False
+        #     while not done:
+        #         # for pr in range(self.comm.size):
+        #         if self.comm.rank == pr:
+        #             if send_list[pr]:
+        #                 send_amt = (chunk_map[pr - 1] - lshape_map[pr - 1]).item()
+        #                 # todo: make this for arbitrary split dimensions (...?)
+        #                 send_req_dict[pr] = self.comm.isend(self.__array[:send_amt])
+        #                 self.__array = self.__array[:send_amt]
+        #         if self.comm.rank == pr - 1:
+        #             if pr - 1 in send_req_dict:
+        #                 # recv data from the other processes
+        #
+        #                 pass
+
+
+    def is_balanced(self):
+        """
+        function to tell if a DNDarray is evenly balanced between nodes
+        :return:
+        """
+        pass
 
 
 
