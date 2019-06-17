@@ -31,7 +31,7 @@ class TestDNDarray(unittest.TestCase):
 
     def test_balance_(self):
         data = ht.zeros((70, 20), split=0)
-        data = data[:40]
+        data = data[:50]
         data.balance_()
         self.assertTrue(data.is_balanced())
 
@@ -163,7 +163,7 @@ class TestDNDarray(unittest.TestCase):
     def test_is_balanced(self):
         data = ht.zeros((70, 20), split=0)
         if data.comm.size != 1:
-            data = data[:40]
+            data = data[:50]
             self.assertFalse(data.is_balanced())
             data.balance_()
             self.assertTrue(data.is_balanced())
