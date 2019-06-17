@@ -486,9 +486,37 @@ class DNDarray:
 
     def balance(self):
         """
-        function to balance a tensor between all nodes, import for after a function is sliced and then unbalanced
-        :return:
+        Function for balancing a DNDarray between all nodes. To determine if this is needed use the is_balanced function.
+        If the DNDarray is already balanced this function will do nothing. This function modifies the DNDarray itself and will not return anything.
+
+        Examples
+        --------
+        >>> a = ht.zeros((10, 2), split=0)
+        >>> a[:, 0] = ht.arange(10)
+        >>> b = a[3:]
+        [0/2] tensor([[3., 0.],
+        [1/2] tensor([[4., 0.],
+                      [5., 0.],
+                      [6., 0.]])
+        [2/2] tensor([[7., 0.],
+                      [8., 0.],
+                      [9., 0.]])
+        >>> b.balance()
+        >>> print(b.gshape, b.lshape)
+        [0/2] (7, 2) (1, 2)
+        [1/2] (7, 2) (2, 2)
+        [2/2] (7, 2) (2, 2)
+        >>> b
+        [0/2] tensor([[3., 0.],
+                     [4., 0.],
+                     [5., 0.]])
+        [1/2] tensor([[6., 0.],
+                      [7., 0.]])
+        [2/2] tensor([[8., 0.],
+                      [9., 0.]])
         """
+        if self.is_balanced():
+            return
         # units -> {pr, 1st index, 2nd index}
         lshape_map = factories.zeros((self.comm.size, len(self.gshape)), dtype=int)
         lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
