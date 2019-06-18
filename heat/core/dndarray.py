@@ -1108,7 +1108,7 @@ class DNDarray:
                         arr = self.__array[key]
                         gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                    warnings.warn("This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
                         self.comm.rank), ResourceWarning)
                     # arr is empty and gout is zeros
 
@@ -1145,7 +1145,7 @@ class DNDarray:
                     arr = self.__array[tuple(key)]
                     gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                    warnings.warn("This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
                         self.comm.rank), ResourceWarning)
                     # arr is empty
                     # gout is all 0s and is the proper shape
@@ -1171,7 +1171,7 @@ class DNDarray:
                     arr = self.__array[key]
                     gout = list(arr.shape)
                 else:
-                    warnings.warn("This process (rank: {}) is without data after slicing".format(
+                    warnings.warn("This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
                         self.comm.rank), ResourceWarning)
                     # arr is empty
                     # gout is all 0s and is the proper shape
