@@ -216,28 +216,19 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     Parameters
     ----------
     m : array_like
-        A 1-D or 2-D array containing multiple variables and observations.
-        Each row of `m` represents a variable, and each column a single
+        A 1-D or 2-D array containing multiple variables and observations. Each row of `m` represents a variable, and each column a single
         observation of all those variables. Also see `rowvar` below.
     y : array_like, optional
-        An additional set of variables and observations. `y` has the same form
-        as that of `m`.
+        An additional set of variables and observations. `y` has the same form as that of `m`.
     rowvar : bool, optional
-        If `rowvar` is True (default), then each row represents a
-        variable, with observations in the columns. Otherwise, the relationship
-        is transposed: each column represents a variable, while the rows
-        contain observations.
+        If `rowvar` is True (default), then each row represents a variable, with observations in the columns. Otherwise, the relationship
+        is transposed: each column represents a variable, while the rows contain observations.
     bias : bool, optional
-        Default normalization (False) is by ``(N - 1)``, where ``N`` is the
-        number of observations given (unbiased estimate). If `bias` is True,
-        then normalization is by ``N``. These values can be overridden by using
-        the keyword ``ddof`` in numpy versions >= 1.5.
+        Default normalization (False) is by ``(N - 1)``, where ``N`` is the number of observations given (unbiased estimate). If `bias` is True,
+        then normalization is by ``N``. These values can be overridden by using the keyword ``ddof`` in numpy versions >= 1.5.
     ddof : int, optional
-        If not ``None`` the default value implied by `bias` is overridden.
-        Note that ``ddof=1`` will return the unbiased estimate, even if both
-        `fweights` and `aweights` are specified, and ``ddof=0`` will return
-        the simple average. See the notes for the details. The default value
-        is ``None``.
+        If not ``None`` the default value implied by `bias` is overridden. Note that ``ddof=1`` will return the unbiased estimate and
+        ``ddof=0`` will return the simple average. The default value is ``None``.
 
 
     :return:
@@ -246,6 +237,8 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
         raise ValueError("ddof must be integer")
     if m.numdims > 2:
         raise ValueError("m has more than 2 dimensions")
+    if not m.is_balanced():
+        raise RuntimeError("balance is required for cov(). use balance_() to balance m")
     if not isinstance(m, dndarray.DNDarray):
         raise TypeError('m must be a DNDarray')
 
@@ -258,20 +251,54 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
             raise TypeError('y must be a DNDarray')
         if y.numdims > 2:
             raise ValueError('y has too many dimensions, max=2')
-        print(x.lshape, y.lshape)
+        if not y.is_balanced():
+            raise RuntimeError("balance is required for cov(). use balance_() to balance y")
+        if not rowvar and y.shape[0] != 1:
+            y = y.T.copy()
+        # print(x.lshape, y.lshape)
         # if y.numdims > 1:
         #     raise NotImplementedError
         # if m.shape != y.shape:
         #     raise ValueError('m and y must have the same gshape, {} {}'.format(m.shape, y.shape))
-        if m.split != y.split:
-            raise NotImplementedError('cov requires equal split axes, currently m: {} y: {}'.format(m.split, y.split))
+        # if m.split != y.split:
+        #     raise NotImplementedError('cov requires equal split axes, currently m: {} y: {}'.format(m.split, y.split))
+
+        '''
+        if both DNDarrays have the same gshape and they are both balanced then flatten both arrays
+        then do the next stuff'''
+        if x.gshape == y.gshape:
+            if x.split == y.split:
+                x = factories.array(x._DNDarray__array.flatten(), is_split=x.split)
+                y = factories.array(y._DNDarray__array.flatten(), is_split=y.split)
+
+                if x.split is not None:
+                    hld = factories.zeros((2, x.gnumel), split=1)
+                    hld[0] = x
+                    hld[1] = y
+                else:  # this means that they are both none
+                    hld = factories.zeros((2, x.gnumel), split=None)
+                    hld[0] = x
+                    hld[1] = y
+            elif x.split is None or y.split is None:
+                x = factories.array(x._DNDarray__array.flatten(), is_split=x.split)
+                y = factories.array(y._DNDarray__array.flatten(), is_split=y.split)
+
+                hld = factories.zeros((2, x.gnumel), split=1)
+                _, _, x_chunk_slice = x.comm.chunk(x.shape, x.split)
+                _, _, y_chunk_slice = y.comm.chunk(y.shape, y.split)
+                hld[0] = x[x_chunk_slice[0]]
+                hld[1] = y[y_chunk_slice[0]]
+            else:  # this is the case that the splits are different
+                raise NotImplementedError('cov not implemented for different numerical splits')
+        else:
+            raise NotImplementedError('cov not implemented for differently shaped arrays. ')
 
         # combine x and y into a 2xN array
-        _, _, x_chunk_slice = x.comm.chunk(x.shape, x.split)
-        _, _, y_chunk_slice = y.comm.chunk(y.shape, y.split)
-        hld = factories.zeros((2, m.gnumel), split=1)
-        hld[:x.gshape[0], x_chunk_slice[0]] = x[x_chunk_slice[0]]
-        hld[x.gshape[0]:, y_chunk_slice[0]] = y[y_chunk_slice[0]]
+        # _, _, x_chunk_slice = x.comm.chunk(x.shape, x.split)
+        # _, _, y_chunk_slice = y.comm.chunk(y.shape, y.split)
+        # hld = factories.zeros((2, x.gnumel), split=1)
+        # hld[0] = x[x_chunk_slice[0]]
+        # hld[1] = y[y_chunk_slice[0]]
         x = hld
 
     if ddof is None:

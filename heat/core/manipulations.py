@@ -7,23 +7,10 @@ from . import stride_tricks
 from . import types
 
 __all__ = [
-    'concatenate',
     'expand_dims',
     'squeeze',
     'unique'
 ]
-
-
-def concatenate(arrays, axis=0):
-    """
-    todo: this
-    :param arrays:
-    :param axis:
-    :return:
-    """
-    '''
-    test if the same split axis
-    test if compatible sizes in the '''
 
 
 def expand_dims(a, axis):
