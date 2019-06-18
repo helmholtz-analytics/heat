@@ -211,6 +211,8 @@ class TestManipulations(unittest.TestCase):
                          [[6, 5, 2], [1, 8, 7]],
                          [[9, 3, 0], [1, 2, 4]],
                          [[8, 4, 7], [0, 8, 9]]], dtype=ht.int32, split=0)
+        # data = ht.array([[0], [1], [2], [2], [2], [2], [2], [2]], split=0)
+        # data = ht.array([[0], [0], [0], [0], [4], [3], [4], [0], [1], [9], [2]], split=0)
         print("rank", data.comm.Get_rank(), 'Data', data)
         sorted = ht.sort(data, axis=0, descending=False)
         print("sorted", sorted)

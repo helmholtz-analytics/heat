@@ -154,7 +154,7 @@ def sort(a, axis=None, descending=False, out=None):
         # Share and sum the local partition_matrix
         g_partition_matrix = torch.empty(zeroes_dim, dtype=torch.int64)
         a.comm.Allreduce(partition_matrix, g_partition_matrix, op=MPI.SUM)
-        print('sum_buf', g_partition_matrix)
+        print('g_partition_matrix', g_partition_matrix)
 
         shape = list(a.gshape)
         shape[0], shape[axis] = shape[axis], shape[0]   # Correct the shape because local matrix is transposed
@@ -173,6 +173,7 @@ def sort(a, axis=None, descending=False, out=None):
         # Store level to which local result is currently filled
         fill_level = torch.zeros(shape[1:], dtype=torch.int64)
 
+        # Send the values to the processes according to the global_pivot
         for i, x in enumerate(all_indices):
             for idx, val in np.ndenumerate(x.numpy()):
                 cur = next(c - 1 for c in range(len(displs) + 1) if c == len(displs) or i < displs[c])
@@ -196,6 +197,103 @@ def sort(a, axis=None, descending=False, out=None):
 
         print('local_result', local_result)
 
+        # Create a matrix which holds information about the 'unbalancedness' of the local result
+        problem_idx = torch.zeros((size, ) + local_result.shape[1:], dtype=g_partition_matrix.dtype)
+        for i, x in enumerate(g_partition_matrix):
+            for idx, val in np.ndenumerate(x.numpy()):
+                problem_idx[i][idx] = x[idx] - counts[i]
+        print('problem_index', problem_idx)
+
+        # final result tensor
+        partial = torch.empty(transposed.size(), dtype=a.dtype.torch_type())
+        copy_size = min(a.lshape[axis], lengths[rank])
+        partial[0: copy_size] = local_result[0: copy_size]
+        print('partial', partial)
+        for i in range(size):
+            # start with lowest rank and populate to the highest
+            for idx, val in np.ndenumerate(problem_idx[i].numpy()):
+                while val != 0:
+                    print('current', i, 'val', val, 'idx', idx)
+                    if val < 0:
+                        receiver = i
+                        sender = next(ind + i + 1 for ind, pr in enumerate(g_partition_matrix[i + 1:]) if pr[idx] > 0)
+                        print('Sender', sender, local_result.shape)
+                        receiver_idx = (val, ) + idx
+
+                        if rank == sender:
+                            end = g_partition_matrix[sender][idx]
+                            enumerate_index = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
+                            print('end', end, local_result[0: end])
+                            values = local_result[0: end][enumerate_index]
+                            if descending:
+                                sender_idx = (values.argmax(), ) + idx
+                            else:
+                                sender_idx = (values.argmin(), ) + idx
+                            print('Sender', sender, 'Sender_idx', sender_idx, 'receiver', receiver, 'receiver_idx', receiver_idx)
+                            send_buf = torch.tensor(local_result[sender_idx])
+                            print('send_buf', send_buf)
+                            a.comm.Send(send_buf, dest=receiver)
+                            last_idx = (a.lshape[axis] + problem_idx[sender][idx] - 1, ) + sender_idx[1:]
+                            print('last_index', last_idx, local_result[last_idx])
+                            local_result[sender_idx] = local_result[last_idx]
+                            print('local_result', local_result)
+                            if sender_idx[0] < partial.shape[0]:
+                                partial[sender_idx] = local_result[last_idx]
+                        if rank == receiver:
+                            recv_buf = torch.empty(1, dtype=local_result.dtype)
+                            a.comm.Recv(recv_buf, source=sender)
+                            print('Received', recv_buf)
+                            partial[receiver_idx] = recv_buf
+                            print('partial', partial)
+
+                        val += 1
+                        problem_idx[receiver][idx] += 1
+                        g_partition_matrix[receiver][idx] += 1
+                        problem_idx[sender][idx] -= 1
+                        g_partition_matrix[receiver][idx] -= 1
+
+                        print('problem_idx', problem_idx)
+
+                    if val > 0:
+                        sender = i
+                        receiver = next(ind + i + 1 for ind, pr in enumerate(g_partition_matrix[i + 1:]) if pr[idx] > 0)
+                        print('sender', sender, 'receiver', receiver)
+                        if rank == sender:
+                            end = g_partition_matrix[sender][idx]
+                            enumerate_index = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
+                            values = local_result[0: end][enumerate_index]
+                            if descending:
+                                sender_idx = (values.argmin(), ) + idx
+                            else:
+                                sender_idx = (values.argmax(), ) + idx
+
+                            send_buf = torch.tensor(local_result[sender_idx])
+                            a.comm.Send(send_buf, dest=receiver)
+                        if rank == receiver:
+                            recv_buf = torch.empty(1, dtype=local_result.dtype)
+                            a.comm.Recv(recv_buf, source=sender)
+                            print('recv_buf', recv_buf)
+                            recv_index = (g_partition_matrix[receiver][idx], ) + idx
+                            print('receive_index', recv_index)
+                            if recv_index[axis] < partial.shape[axis]:
+                                partial[recv_index] = recv_buf
+                            if recv_index[axis] < local_result.shape[axis]:
+                                local_result[recv_index] = recv_buf
+                            else:
+                                new_shape = list(local_result.shape)
+                                new_shape[0] = new_shape[0] + val
+                                tmp = torch.empty(new_shape, dtype=local_result.dtype)
+                                tmp[0: local_result.shape[axis]] = local_result
+                                local_result = tmp
+                                local_result[recv_index] = recv_buf
+                            print('partial', partial, 'local_result', local_result)
+                        val -= 1
+                        problem_idx[receiver][idx] += 1
+                        g_partition_matrix[receiver][idx] += 1
+                        problem_idx[sender][idx] -= 1
+                        g_partition_matrix[receiver][idx] -= 1
+        partial, _ = partial.sort(dim=0, descending=descending)
+        partial = partial.transpose(0, axis)
 
     if out:
         out._DND__array = partial
