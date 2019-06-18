@@ -143,12 +143,20 @@ def sort(a, axis=None, descending=False, out=None):
                 print('cur', cur)
                 partition_matrix[cur][idx] += 1
         print('partition_matrix', partition_matrix)
-        # Tested with 2-4 parallel processes to this point
+        # Tested with 2-4 processes to this point
 
         # Share and sum the local partition_matrix
         g_partition_matrix = torch.empty(zeroes_dim, dtype=torch.int64)
         a.comm.Allreduce(partition_matrix, g_partition_matrix, op=MPI.SUM)
         print('sum_buf', g_partition_matrix)
+
+        # TODO We now know how many elements each process gets, now we need to pass the elements to the correct process at the correct position
+        # Because the numbers are not balanced, we just make the buffer as big as necessary and leave the unwanted ones empty
+        # Later we can use the g_partition_matrix to find the values we are interested in
+        counts = [x.max() for x in g_partition_matrix]
+        print('counts', counts)
+        displs = [0] + list(np.cumsum(counts[:-1]))
+        print('displs', displs)
 
     if out:
         out._DND__array = partial
