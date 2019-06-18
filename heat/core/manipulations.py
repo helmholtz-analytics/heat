@@ -133,30 +133,69 @@ def sort(a, axis=None, descending=False, out=None):
         print('zeros_dim', zeroes_dim)
         partition_matrix = torch.zeros(zeroes_dim, dtype=torch.int64)
 
+        # Create matrix that holds information, which value is shipped to which process
+        index_matrix = torch.empty_like(local_sorted, dtype=torch.int64)
+
         # Iterate along the split axis which is now 0 due to transpose
-        for x in local_sorted:
-            print('x', x)
+        for i, x in enumerate(local_sorted):
+            # print('x', x)
             # Enumerate over all values with correct index
             for idx, val in np.ndenumerate(x.numpy()):
-                print('index', idx, 'val', val)
+                # print('index', idx, 'val', val)
                 cur = next(i for i in range(len(global_pivots) + 1) if (i == len(global_pivots) or (val < global_pivots[i][idx])))
-                print('cur', cur)
+                # print('cur', cur)
                 partition_matrix[cur][idx] += 1
+                index_matrix[i][idx] = cur
         print('partition_matrix', partition_matrix)
         # Tested with 2-4 processes to this point
+
+        print('index_matrix', index_matrix)
 
         # Share and sum the local partition_matrix
         g_partition_matrix = torch.empty(zeroes_dim, dtype=torch.int64)
         a.comm.Allreduce(partition_matrix, g_partition_matrix, op=MPI.SUM)
         print('sum_buf', g_partition_matrix)
 
-        # TODO We now know how many elements each process gets, now we need to pass the elements to the correct process at the correct position
-        # Because the numbers are not balanced, we just make the buffer as big as necessary and leave the unwanted ones empty
-        # Later we can use the g_partition_matrix to find the values we are interested in
-        counts = [x.max() for x in g_partition_matrix]
-        print('counts', counts)
-        displs = [0] + list(np.cumsum(counts[:-1]))
-        print('displs', displs)
+        shape = list(a.gshape)
+        shape[0], shape[axis] = shape[axis], shape[0]   # Correct the shape because local matrix is transposed
+
+        # Share the what to who indices with all processes
+        all_indices = torch.empty(shape, dtype=torch.int64)
+        counts, displs, _ = a.comm.counts_displs_shape(shape, 0)
+        print('counts', counts, 'displs', displs)
+        a.comm.Allgatherv(index_matrix, (all_indices, counts, displs))
+        print('all_indices', all_indices)
+
+        lengths = [x.max() for x in g_partition_matrix]
+        shape = list(local_sorted.size())
+        shape[0] = lengths[rank]
+        local_result = torch.empty(shape, dtype=local_sorted.dtype)
+        # Store level to which local result is currently filled
+        fill_level = torch.zeros(shape[1:], dtype=torch.int64)
+
+        for i, x in enumerate(all_indices):
+            for idx, val in np.ndenumerate(x.numpy()):
+                cur = next(c - 1 for c in range(len(displs) + 1) if c == len(displs) or i < displs[c])
+                # print('i', i, 'x', x, 'idx', idx, 'val', val, 'cur', cur)
+                print('Sender', cur, 'Receiving', val)
+                if rank == cur:
+                    # Sending process
+                    local_index = (i - displs[cur], ) + idx
+                    print('local_index', local_index, 'local_sorted[local_index]', local_sorted[local_index])
+                    send_buf = torch.tensor(local_sorted[local_index])
+                    a.comm.Send(send_buf, dest=val)
+                if rank == val:
+                    # Receiving process
+                    local_index = (fill_level[idx], ) + idx
+                    print('local_index', local_index)
+                    recv_buf = torch.empty(1, dtype=local_sorted.dtype)
+                    a.comm.Recv(recv_buf, source=cur)
+                    print('buf', recv_buf)
+                    local_result[local_index] = recv_buf
+                    fill_level[idx] += 1
+
+        print('local_result', local_result)
+
 
     if out:
         out._DND__array = partial
