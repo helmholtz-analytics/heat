@@ -211,12 +211,35 @@ def argmin(x, axis=None, out=None, **kwargs):
 
 def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     """
-    cov function to mirror the numpy function of the same name
-    :param m:
-    :param y:
-    :param rowvar:
-    :param bias:
-    :param ddof:
+    Estimate the covariance matrix of some data, m. For more imformation on the algorithm please see the numpy function of the same name
+
+    Parameters
+    ----------
+    m : array_like
+        A 1-D or 2-D array containing multiple variables and observations.
+        Each row of `m` represents a variable, and each column a single
+        observation of all those variables. Also see `rowvar` below.
+    y : array_like, optional
+        An additional set of variables and observations. `y` has the same form
+        as that of `m`.
+    rowvar : bool, optional
+        If `rowvar` is True (default), then each row represents a
+        variable, with observations in the columns. Otherwise, the relationship
+        is transposed: each column represents a variable, while the rows
+        contain observations.
+    bias : bool, optional
+        Default normalization (False) is by ``(N - 1)``, where ``N`` is the
+        number of observations given (unbiased estimate). If `bias` is True,
+        then normalization is by ``N``. These values can be overridden by using
+        the keyword ``ddof`` in numpy versions >= 1.5.
+    ddof : int, optional
+        If not ``None`` the default value implied by `bias` is overridden.
+        Note that ``ddof=1`` will return the unbiased estimate, even if both
+        `fweights` and `aweights` are specified, and ``ddof=0`` will return
+        the simple average. See the notes for the details. The default value
+        is ``None``.
+
+
     :return:
     """
     if ddof is not None and ddof != int(ddof):
@@ -229,26 +252,19 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     x = m.copy()
     if not rowvar and x.shape[0] != 1:
         x = x.T
-    # todo: is this needed? its the case for the first element of gshape is 0 then return 0...
-    # if x.shape[0] == 0:
 
     if y is not None:
         if not isinstance(y, dndarray.DNDarray):
             raise TypeError('y must be a DNDarray')
-        if y.numdims > 2 or x.numdims > 2:
-            raise ValueError('y has more than 2 dimensions')
-        if x.gnumel != y.gnumel:
-            raise ValueError('m and y must have the same number of values, {} {}'.format(m.gnumel, y.gnumel))
-
-        # todo: need balance function before/instead of this
-        if y.split > 0:
-            y.resplit(0)
-        if x.split > 0:
-            x.resplit(0)
-        # if x.split != y.split:
-        #     # todo: deal with the case that x and y have separate split dimensions
-        #     # resplit?
-        #     raise NotImplementedError('need to implement')
+        if y.numdims > 2:
+            raise ValueError('y has too many dimensions, max=2')
+        print(x.gshape, y.gshape)
+        # if y.numdims > 1:
+        #     raise NotImplementedError
+        # if m.shape != y.shape:
+        #     raise ValueError('m and y must have the same gshape, {} {}'.format(m.shape, y.shape))
+        if m.split != y.split:
+            raise NotImplementedError('cov requires equal split axes, currently m: {} y: {}'.format(m.split, y.split))
 
         # combine x and y into a 2xN array
         _, _, x_chunk_slice = x.comm.chunk(x.shape, x.split)
@@ -263,11 +279,9 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
             ddof = 1
         else:
             ddof = 0
-    # print(x)
     avg = mean(x, axis=1)
-
     # find normalization:
-    norm = m.gnumel - ddof
+    norm = x.shape[1] - ddof
     if norm <= 0:
         raise ValueError('ddof >= number of elements in m, {} {}'.format(ddof, m.gnumel))
 
