@@ -258,7 +258,7 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
             raise TypeError('y must be a DNDarray')
         if y.numdims > 2:
             raise ValueError('y has too many dimensions, max=2')
-        print(x.gshape, y.gshape)
+        print(x.lshape, y.lshape)
         # if y.numdims > 1:
         #     raise NotImplementedError
         # if m.shape != y.shape:
@@ -270,8 +270,8 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
         _, _, x_chunk_slice = x.comm.chunk(x.shape, x.split)
         _, _, y_chunk_slice = y.comm.chunk(y.shape, y.split)
         hld = factories.zeros((2, m.gnumel), split=1)
-        hld[0, x_chunk_slice[0]] = x[x_chunk_slice[0]]
-        hld[1, y_chunk_slice[0]] = y[y_chunk_slice[0]]
+        hld[:x.gshape[0], x_chunk_slice[0]] = x[x_chunk_slice[0]]
+        hld[x.gshape[0]:, y_chunk_slice[0]] = y[y_chunk_slice[0]]
         x = hld
 
     if ddof is None:

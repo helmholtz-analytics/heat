@@ -21,7 +21,9 @@ def concatenate(arrays, axis=0):
     :param axis:
     :return:
     """
-    pass
+    '''
+    test if the same split axis
+    test if compatible sizes in the '''
 
 
 def expand_dims(a, axis):
