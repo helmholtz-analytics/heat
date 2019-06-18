@@ -501,7 +501,7 @@ class DNDarray:
         [2/2] tensor([[7., 0.],
                       [8., 0.],
                       [9., 0.]])
-        >>> b.balance()
+        >>> b.balance_()
         >>> print(b.gshape, b.lshape)
         [0/2] (7, 2) (1, 2)
         [1/2] (7, 2) (2, 2)
@@ -522,10 +522,10 @@ class DNDarray:
         lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
         lshape_map_comm = self.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
-        chunk_map = factories.zeros((self.comm.size, 2), dtype=int)
+        chunk_map = factories.zeros((self.comm.size, len(self.gshape)), dtype=int)
         _, _, chk = self.comm.chunk(self.shape, self.split)
-        chunk_map[self.comm.rank, 0] = chk[0].stop - chk[0].start
-        chunk_map[self.comm.rank, 1] = chk[1].stop - chk[1].start
+        for i in range(len(self.gshape)):
+            chunk_map[self.comm.rank, i] = chk[i].stop - chk[i].start
         chunk_map_comm = self.comm.Iallreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
 
         lshape_map_comm.wait()
