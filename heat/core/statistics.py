@@ -246,6 +246,12 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     if not rowvar and x.shape[0] != 1:
         x = x.T
 
+    if ddof is None:
+        if bias == 0:
+            ddof = 1
+        else:
+            ddof = 0
+
     if y is not None:
         if not isinstance(y, dndarray.DNDarray):
             raise TypeError('y must be a DNDarray')
@@ -268,20 +274,17 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
         then do the next stuff'''
         if x.gshape == y.gshape:
             if x.split == y.split:
-                x = factories.array(x._DNDarray__array.flatten(), is_split=x.split)
-                y = factories.array(y._DNDarray__array.flatten(), is_split=y.split)
+                # print('h', x._DNDarray__array.flatten())
+                x = factories.array(x._DNDarray__array.flatten(), is_split=0)
+                y = factories.array(y._DNDarray__array.flatten(), is_split=0)
 
-                if x.split is not None:
-                    hld = factories.zeros((2, x.gnumel), split=1)
-                    hld[0] = x
-                    hld[1] = y
-                else:  # this means that they are both none
-                    hld = factories.zeros((2, x.gnumel), split=None)
-                    hld[0] = x
-                    hld[1] = y
+                hld = factories.zeros((2, x.gnumel), split=1 if x.split is not None else None)
+                hld[0] = x
+                hld[1] = y
+
             elif x.split is None or y.split is None:
-                x = factories.array(x._DNDarray__array.flatten(), is_split=x.split)
-                y = factories.array(y._DNDarray__array.flatten(), is_split=y.split)
+                x = factories.array(x._DNDarray__array.flatten(), is_split=0)
+                y = factories.array(y._DNDarray__array.flatten(), is_split=0)
 
                 hld = factories.zeros((2, x.gnumel), split=1)
                 _, _, x_chunk_slice = x.comm.chunk(x.shape, x.split)
@@ -300,15 +303,15 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
         # hld[0] = x[x_chunk_slice[0]]
         # hld[1] = y[y_chunk_slice[0]]
         x = hld
+        avg = mean(hld, axis=1)
+        norm = hld.shape[1] - ddof
 
-    if ddof is None:
-        if bias == 0:
-            ddof = 1
-        else:
-            ddof = 0
-    avg = mean(x, axis=1)
+    else:
+        avg = mean(x, axis=1)
+        norm = x.shape[1] - ddof
+
     # find normalization:
-    norm = x.shape[1] - ddof
+    # print(norm, x.gnumel, hld.shape)
     if norm <= 0:
         raise ValueError('ddof >= number of elements in m, {} {}'.format(ddof, m.gnumel))
 
