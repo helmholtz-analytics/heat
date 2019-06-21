@@ -1,7 +1,6 @@
 import unittest
 import torch
 
-import numpy as np
 import heat as ht
 
 
@@ -231,3 +230,70 @@ class TestManipulations(unittest.TestCase):
         expected = torch.tensor([[1, 1, 5], [3, 4, 6]], dtype=torch.int32)
 
         self.fail()
+
+    def test_unique(self):
+        size = ht.MPI_WORLD.size
+        rank = ht.MPI_WORLD.rank
+        torch_array = torch.arange(size, dtype=torch.int32).expand(size, size)
+        split_zero = ht.array(torch_array, split=0)
+
+        exp_axis_none = ht.arange(size, dtype=ht.int32)
+        res = split_zero.unique(sorted=True)
+        self.assertTrue((res._DNDarray__array == exp_axis_none._DNDarray__array).all())
+
+        exp_axis_zero = ht.arange(size, dtype=ht.int32).expand_dims(0)
+        res = ht.unique(split_zero, sorted=True, axis=0)
+        self.assertTrue((res._DNDarray__array == exp_axis_zero._DNDarray__array).all())
+
+        exp_axis_one = ht.array([rank], dtype=ht.int32).expand_dims(0)
+        split_zero_transposed = ht.array(torch_array.transpose(0, 1), split=0)
+        res = ht.unique(split_zero_transposed, sorted=True, axis=1)
+        self.assertTrue((res._DNDarray__array == exp_axis_one._DNDarray__array).all())
+
+        split_one = ht.array(torch_array, dtype=ht.int32, split=1)
+
+        exp_axis_none = ht.arange(size, dtype=ht.int32)
+        res = ht.unique(split_one, sorted=True)
+        self.assertTrue((res._DNDarray__array == exp_axis_none._DNDarray__array).all())
+
+        exp_axis_zero = ht.array([rank], dtype=ht.int32).expand_dims(0)
+        res = ht.unique(split_one, sorted=True, axis=0)
+        self.assertTrue((res._DNDarray__array == exp_axis_zero._DNDarray__array).all())
+
+        exp_axis_one = ht.array([rank] * size, dtype=ht.int32).expand_dims(1)
+        res = ht.unique(split_one, sorted=True, axis=1)
+        self.assertTrue((res._DNDarray__array == exp_axis_one._DNDarray__array).all())
+
+        torch_array = torch.tensor([
+            [1, 2],
+            [2, 3],
+            [1, 2],
+            [2, 3],
+            [1, 2]
+        ], dtype=torch.int32)
+        data = ht.array(torch_array, split=0)
+
+        res, inv = ht.unique(data, return_inverse=True, axis=0)
+        _, exp_inv = torch_array.unique(dim=0, return_inverse=True, sorted=True)
+        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+
+        res, inv = ht.unique(data, return_inverse=True, axis=1)
+        _, exp_inv = torch_array.unique(dim=1, return_inverse=True, sorted=True)
+        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+
+        torch_array = torch.tensor([
+            [1, 1, 2],
+            [1, 2, 2],
+            [2, 1, 2],
+            [1, 3, 2],
+            [0, 1, 2]
+        ], dtype=torch.int32)
+        exp_res, exp_inv = torch_array.unique(return_inverse=True, sorted=True)
+
+        data_split_none = ht.array(torch_array)
+        res, inv = ht.unique(data_split_none, return_inverse=True, sorted=True)
+        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+
+        data_split_zero = ht.array(torch_array, split=0)
+        res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
+        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))

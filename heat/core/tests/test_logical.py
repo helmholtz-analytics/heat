@@ -165,7 +165,7 @@ class TestLogical(unittest.TestCase):
         self.assertTrue(ht.allclose(2, a))
         self.assertTrue(ht.allclose(c, d))
         self.assertTrue(ht.allclose(c, e))
-        self.assertTrue(ht.allclose(e, c))
+        self.assertTrue(e.allclose(c))
 
         with self.assertRaises(TypeError):
             ht.allclose(a, (2, 2, 2, 2))
@@ -179,7 +179,7 @@ class TestLogical(unittest.TestCase):
         x = ht.float32([[2.7, 0, 0],
                         [0,   0, 0],
                         [0, 0.3, 0]])
-        any_tensor = ht.any(x, axis=1)
+        any_tensor = x.any(axis=1)
         res = ht.uint8([1, 0, 1])
         self.assertIsInstance(any_tensor, ht.DNDarray)
         self.assertEqual(any_tensor.shape, (3,))
