@@ -79,7 +79,6 @@ def sort(a, axis=None, descending=False, out=None):
     # default: using last axis
     if axis is None:
         axis = len(a.shape) - 1
-    partial = a._DNDarray__array
     if a.split is None or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
         partial, index = torch.sort(a._DNDarray__array, dim=axis, descending=descending)
@@ -116,7 +115,7 @@ def sort(a, axis=None, descending=False, out=None):
 
         # root process creates new pivots and shares them with other processes
         if rank is 0:
-            sorted_pivots, _ = torch.sort(pivot_buffer, dim=0)
+            sorted_pivots, _ = torch.sort(pivot_buffer, descending=descending, dim=0)
             print('sorted_pivots', sorted_pivots)
             length = sorted_pivots.size()[0]
             global_partitions = [x * length // size for x in range(1, size)]
@@ -129,7 +128,7 @@ def sort(a, axis=None, descending=False, out=None):
         print("Bcas global_pivots", global_pivots)
 
         # Create matrix that holds information which process gets how many values at which position
-        zeroes_dim = [size] + list(transposed.size())[1:]
+        zeroes_dim = (size, ) + transposed.size()[1:]
         print('zeros_dim', zeroes_dim)
         partition_matrix = torch.zeros(zeroes_dim, dtype=torch.int64)
 
@@ -139,10 +138,14 @@ def sort(a, axis=None, descending=False, out=None):
         # Iterate along the split axis which is now 0 due to transpose
         for i, x in enumerate(local_sorted):
             # print('x', x)
-            # Enumerate over all values with correct index
+            # Enumerate over all elements with correct index
             for idx, val in np.ndenumerate(x.numpy()):
                 # print('index', idx, 'val', val)
-                cur = next(i for i in range(len(global_pivots) + 1) if (i == len(global_pivots) or (val < global_pivots[i][idx])))
+                op_func = operator.gt if descending else operator.lt
+                # Calculate position where element must be sent to
+                cur = next(i for i in range(len(global_pivots) + 1)
+                           if (i == len(global_pivots) or op_func(val, global_pivots[i][idx])))
+
                 # print('cur', cur)
                 partition_matrix[cur][idx] += 1
                 index_matrix[i][idx] = cur
@@ -176,8 +179,9 @@ def sort(a, axis=None, descending=False, out=None):
         # Send the values to the processes according to the global_pivot
         for i, x in enumerate(all_indices):
             for idx, val in np.ndenumerate(x.numpy()):
+                # op_func = operator.gt if descending else operator.lt
                 cur = next(c - 1 for c in range(len(displs) + 1) if c == len(displs) or i < displs[c])
-                # print('i', i, 'x', x, 'idx', idx, 'val', val, 'cur', cur)
+                print('i', i, 'x', x, 'idx', idx, 'val', val, 'cur', cur)
                 print('Sender', cur, 'Receiving', val)
                 if rank == cur:
                     # Sending process
@@ -225,14 +229,13 @@ def sort(a, axis=None, descending=False, out=None):
                             enumerate_index = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
                             print('end', end, local_result[0: end])
                             values = local_result[0: end][enumerate_index]
-                            if descending:
-                                sender_idx = (values.argmax(), ) + idx
-                            else:
-                                sender_idx = (values.argmin(), ) + idx
+                            sender_idx = (values.argmax() if descending else values.argmin(), ) + idx
+
                             print('Sender', sender, 'Sender_idx', sender_idx, 'receiver', receiver, 'receiver_idx', receiver_idx)
                             send_buf = torch.tensor(local_result[sender_idx])
                             print('send_buf', send_buf)
                             a.comm.Send(send_buf, dest=receiver)
+                            # Swap last element along axis at the now freed location
                             last_idx = (a.lshape[axis] + problem_idx[sender][idx] - 1, ) + sender_idx[1:]
                             print('last_index', last_idx, local_result[last_idx])
                             local_result[sender_idx] = local_result[last_idx]
@@ -262,10 +265,7 @@ def sort(a, axis=None, descending=False, out=None):
                             end = g_partition_matrix[sender][idx]
                             enumerate_index = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
                             values = local_result[0: end][enumerate_index]
-                            if descending:
-                                sender_idx = (values.argmin(), ) + idx
-                            else:
-                                sender_idx = (values.argmax(), ) + idx
+                            sender_idx = (values.argmin() if descending else values.argmax(), ) + idx
 
                             send_buf = torch.tensor(local_result[sender_idx])
                             a.comm.Send(send_buf, dest=receiver)

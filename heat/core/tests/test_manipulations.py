@@ -204,6 +204,16 @@ class TestManipulations(unittest.TestCase):
             ht.argmin(data, axis=-4)
 
     def test_sort(self):
+        size = ht.MPI_WORLD.size
+        tensor = torch.arange(size, dtype=torch.int32).repeat(size).reshape(size, size)
+        # tensor, _ = tensor.sort(dim=1, descending=True)
+        data = ht.array(tensor, split=1)
+
+        result = ht.sort(data, descending=True, axis=1)
+        print('rank', ht.MPI_WORLD.rank, 'result', result, 'data', data, tensor)
+        self.fail()
+
+    def test_sort_exp(self):
         # data = ht.array([[1, 5, 1, 4, 2, 8, 1, 4, 7], [6, 3, 4, 1, 4, 6, 2, 9, 4]], dtype=ht.int32, split=1)
         # data = ht.array([[1, 1, 1, 1, 1, 2], [1, 2, 2, 2, 2, 2]], dtype=ht.int32, split=1)
         # data = ht.array([[[7, 2, 5], [3, 3, 0]], [[2, 5, 1], [8, 9, 3]]], dtype=ht.int32, split=1)
@@ -214,7 +224,7 @@ class TestManipulations(unittest.TestCase):
         # data = ht.array([[0], [1], [2], [2], [2], [2], [2], [2]], split=0)
         # data = ht.array([[0], [0], [0], [0], [4], [3], [4], [0], [1], [9], [2]], split=0)
         print("rank", data.comm.Get_rank(), 'Data', data)
-        sorted = ht.sort(data, axis=0, descending=False)
+        sorted = ht.sort(data, axis=0, descending=True)
         print("sorted", sorted)
 
         expected = torch.tensor([[1, 1, 5], [3, 4, 6]], dtype=torch.int32)
