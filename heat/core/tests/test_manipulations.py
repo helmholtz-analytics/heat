@@ -210,8 +210,9 @@ class TestManipulations(unittest.TestCase):
         data = ht.array(tensor, split=1)
 
         result = ht.sort(data, descending=True, axis=1)
-        print('rank', ht.MPI_WORLD.rank, 'result', result, 'data', data, tensor)
-        self.fail()
+        exp_axis_one = torch.tensor([size - 1 - ht.MPI_WORLD.rank], dtype=torch.int32).repeat(size).reshape(size, 1)
+        print('rank', ht.MPI_WORLD.rank, 'result', result, 'data', data, tensor, exp_axis_one)
+        self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_one))
 
     def test_sort_exp(self):
         # data = ht.array([[1, 5, 1, 4, 2, 8, 1, 4, 7], [6, 3, 4, 1, 4, 6, 2, 9, 4]], dtype=ht.int32, split=1)
@@ -224,7 +225,7 @@ class TestManipulations(unittest.TestCase):
         # data = ht.array([[0], [1], [2], [2], [2], [2], [2], [2]], split=0)
         # data = ht.array([[0], [0], [0], [0], [4], [3], [4], [0], [1], [9], [2]], split=0)
         print("rank", data.comm.Get_rank(), 'Data', data)
-        sorted = ht.sort(data, axis=0, descending=True)
+        sorted = ht.sort(data, axis=0, descending=False)
         print("sorted", sorted)
 
         expected = torch.tensor([[1, 1, 5], [3, 4, 6]], dtype=torch.int32)
