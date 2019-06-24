@@ -173,7 +173,7 @@ class TestManipulations(unittest.TestCase):
         data = ht.array(tensor, split=1)
         exp_axis_one = torch.tensor([[2, 2, 3]], dtype=torch.int32)
         result = ht.sort(data, axis=1)
-        first = result[0]._DNDarray__array
+        first = result[0]._DNDarray__array[:1]
         if rank == 0:
             self.assertTrue(torch.equal(first, exp_axis_one))
 
