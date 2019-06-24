@@ -87,7 +87,7 @@ def sort(a, axis=None, descending=False, out=None):
         partial, index = torch.sort(a._DNDarray__array, dim=axis, descending=descending)
 
     else:
-        # sorting is affected by split, process need to communicate results
+        # sorting is affected by split, processes need to communicate results
         # transpose so we can work along the 0 axis
         transposed = a._DNDarray__array.transpose(axis, 0)
         print("transposed", transposed)
@@ -313,8 +313,8 @@ def sort(a, axis=None, descending=False, out=None):
         partial, _ = partial.sort(dim=0, descending=descending)
         partial = partial.transpose(0, axis)
 
-    if out:
-        out._DND__array = partial
+    if out is not None:
+        out._DNDarray__array = partial
     else:
         return dndarray.DNDarray(
             partial,

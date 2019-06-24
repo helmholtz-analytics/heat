@@ -184,6 +184,10 @@ class TestManipulations(unittest.TestCase):
         if rank == 0:
             self.assertTrue(torch.equal(first, exp_axis_two))
 
+        out = ht.empty_like(data)
+        ht.sort(data, axis=2, out=out)
+        self.assertTrue(ht.equal(out, result))
+
         with self.assertRaises(ValueError):
             ht.sort(data, axis=3)
         with self.assertRaises(TypeError):
