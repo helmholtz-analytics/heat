@@ -1,8 +1,8 @@
-import functools
 import operator
 
 import numpy as np
 import torch
+from mpi4py import MPI
 
 from . import dndarray
 from . import factories
@@ -79,6 +79,9 @@ def sort(a, axis=None, descending=False, out=None):
     # default: using last axis
     if axis is None:
         axis = len(a.shape) - 1
+
+    stride_tricks.sanitize_axis(a.shape, axis)
+
     if a.split is None or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
         partial, index = torch.sort(a._DNDarray__array, dim=axis, descending=descending)
@@ -96,7 +99,7 @@ def sort(a, axis=None, descending=False, out=None):
         counts, _, _ = a.comm.counts_displs_shape(a.gshape, axis=axis)
 
         length = local_sorted.size()[0]
-        print("length", length)
+        print("length", length, 'counts', counts)
 
         # Separate the sorted tensor into size + 1 equal length partitions
         partitions = [x * length // (size + 1) for x in range(1, size + 1)]
@@ -104,14 +107,19 @@ def sort(a, axis=None, descending=False, out=None):
         local_pivots = local_sorted[partitions] if counts[rank] else torch.empty(
             (0, ) + local_sorted.size()[1:], dtype=local_sorted.dtype)
         print("local_pivots", local_pivots)
-        pivot_dim = list(transposed.size())
+
         # Only processes with elements should share their pivots
+        gather_counts = [int(x > 0) * size for x in counts]
+        gather_displs = (0, ) + tuple(np.cumsum(gather_counts[:-1]))
+        print('gather_counts', gather_counts, 'gather_displs', gather_displs)
+
+        pivot_dim = list(transposed.size())
         pivot_dim[0] = size * sum([1 for x in counts if x > 0])
         print("pivot_dim", pivot_dim)
 
         # share the local pivots with root process
         pivot_buffer = torch.empty(pivot_dim, dtype=a.dtype.torch_type())
-        a.comm.Gather(local_pivots, pivot_buffer, root=0)
+        a.comm.Gatherv(local_pivots, (pivot_buffer, gather_counts, gather_displs), root=0)
         print("Gathered pivot_buffer", pivot_buffer)
 
         pivot_dim[0] = size - 1
@@ -163,17 +171,17 @@ def sort(a, axis=None, descending=False, out=None):
         print('reduced partition_matrix', partition_matrix)
 
         shape = (size, ) + transposed.size()[1:]
-        send_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
+        send_recv_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
         # recv_matrix = torch.empty(shape, dtype=partition_matrix.dtype)
 
         for idx, val in np.ndenumerate(index_matrix.numpy()):
             pos = (val, ) + idx[1:]
-            send_matrix[pos] += 1
+            send_recv_matrix[pos] += 1
 
-        print('rank', rank, 'send_matrix', send_matrix)
-        a.comm.Alltoall(MPI.IN_PLACE, send_matrix)
+        print('rank', rank, 'send_matrix', send_recv_matrix)
+        a.comm.Alltoall(MPI.IN_PLACE, send_recv_matrix)
 
-        print('recv_matrix', send_matrix)
+        print('recv_matrix', send_recv_matrix)
         shape = (partition_matrix[rank].max(), ) + transposed.size()[1:]
         print('shape', shape)
 
@@ -181,7 +189,7 @@ def sort(a, axis=None, descending=False, out=None):
         recv_indices = torch.empty(shape, dtype=local_sorted.dtype)
         fill_level = torch.zeros(shape[1:], dtype=torch.int32)
 
-        for i, x in enumerate(send_matrix):
+        for i, x in enumerate(send_recv_matrix):
             for idx, val in np.ndenumerate(x.numpy()):
                 for k in range(val):
                     recv_indices[fill_level[idx]][idx] = i
@@ -195,7 +203,7 @@ def sort(a, axis=None, descending=False, out=None):
             tag = int(''.join([str(el) for el in idx[1:]]))
             a.comm.Send(send_buf, dest=val, tag=tag)
 
-        recv_amount = sum(send_matrix)
+        recv_amount = sum(send_recv_matrix)
         print('recv_amount', recv_amount)
         fill_level = torch.zeros(shape[1:], dtype=torch.int32)
         local_result = torch.empty(shape, dtype=local_sorted.dtype)
@@ -227,37 +235,37 @@ def sort(a, axis=None, descending=False, out=None):
             # start with lowest rank and populate to the highest
             for idx, val in np.ndenumerate(problem_idx[i].numpy()):
                 while val != 0:
-                    print('current', i, 'val', val, 'idx', idx)
+                    # print('current', i, 'val', val, 'idx', idx)
                     if val < 0:
                         receiver = i
                         sender = next(ind + i + 1 for ind, pr in enumerate(partition_matrix[i + 1:]) if pr[idx] > 0)
-                        print('Sender', sender, local_result.shape)
+                        # print('Sender', sender, local_result.shape)
                         receiver_idx = (val, ) + idx
 
                         if rank == sender:
                             end = partition_matrix[sender][idx]
                             enumerate_index = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
-                            print('end', end, local_result[0: end])
+                            # print('end', end, local_result[0: end])
                             values = local_result[0: end][enumerate_index]
                             sender_idx = (values.argmax() if descending else values.argmin(), ) + idx
 
-                            print('Sender', sender, 'Sender_idx', sender_idx, 'receiver', receiver, 'receiver_idx', receiver_idx)
+                            # print('Sender', sender, 'Sender_idx', sender_idx, 'receiver', receiver, 'receiver_idx', receiver_idx)
                             send_buf = torch.tensor(local_result[sender_idx])
-                            print('send_buf', send_buf)
+                            # print('send_buf', send_buf)
                             a.comm.Send(send_buf, dest=receiver)
                             # Swap last element along axis at the now freed location
                             last_idx = (a.lshape[axis] + problem_idx[sender][idx] - 1, ) + sender_idx[1:]
-                            print('last_index', last_idx, local_result[last_idx])
+                            # print('last_index', last_idx, local_result[last_idx])
                             local_result[sender_idx] = local_result[last_idx]
-                            print('local_result', local_result)
+                            # print('local_result', local_result)
                             if sender_idx[0] < partial.shape[0]:
                                 partial[sender_idx] = local_result[last_idx]
                         if rank == receiver:
                             recv_buf = torch.empty(1, dtype=local_result.dtype)
                             a.comm.Recv(recv_buf, source=sender)
-                            print('Received', recv_buf)
+                            # print('Received', recv_buf)
                             partial[receiver_idx] = recv_buf
-                            print('partial', partial)
+                            # print('partial', partial)
 
                         val += 1
                         problem_idx[receiver][idx] += 1
@@ -265,12 +273,12 @@ def sort(a, axis=None, descending=False, out=None):
                         problem_idx[sender][idx] -= 1
                         partition_matrix[receiver][idx] -= 1
 
-                        print('problem_idx', problem_idx)
+                        # print('problem_idx', problem_idx)
 
                     if val > 0:
                         sender = i
                         receiver = next(ind + i + 1 for ind, pr in enumerate(partition_matrix[i + 1:]) if pr[idx] > 0)
-                        print('sender', sender, 'receiver', receiver)
+                        # print('sender', sender, 'receiver', receiver)
                         if rank == sender:
                             end = partition_matrix[sender][idx]
                             enumerate_index = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
@@ -282,9 +290,9 @@ def sort(a, axis=None, descending=False, out=None):
                         if rank == receiver:
                             recv_buf = torch.empty(1, dtype=local_result.dtype)
                             a.comm.Recv(recv_buf, source=sender)
-                            print('recv_buf', recv_buf)
+                            # print('recv_buf', recv_buf)
                             recv_index = (partition_matrix[receiver][idx], ) + idx
-                            print('receive_index', recv_index)
+                            # print('receive_index', recv_index)
                             if recv_index[axis] < partial.shape[axis]:
                                 partial[recv_index] = recv_buf
                             if recv_index[axis] < local_result.shape[axis]:
@@ -296,7 +304,7 @@ def sort(a, axis=None, descending=False, out=None):
                                 tmp[0: local_result.shape[axis]] = local_result
                                 local_result = tmp
                                 local_result[recv_index] = recv_buf
-                            print('partial', partial, 'local_result', local_result)
+                            # print('partial', partial, 'local_result', local_result)
                         val -= 1
                         problem_idx[receiver][idx] += 1
                         partition_matrix[receiver][idx] += 1

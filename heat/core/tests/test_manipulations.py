@@ -122,6 +122,73 @@ class TestManipulations(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.empty((3, 4, 5,)).expand_dims(-5)
 
+    def test_sort(self):
+        size = ht.MPI_WORLD.size
+        rank = ht.MPI_WORLD.rank
+        tensor = torch.arange(size).repeat(size).reshape(size, size)
+
+        data = ht.array(tensor, split=None)
+        result = ht.sort(data, axis=0, descending=True)
+        expected, _ = torch.sort(tensor, dim=0, descending=True)
+        self.assertTrue(torch.equal(result._DNDarray__array, expected))
+
+        result = ht.sort(data, axis=1, descending=True)
+        expected, _ = torch.sort(tensor, dim=1, descending=True)
+        self.assertTrue(torch.equal(result._DNDarray__array, expected))
+
+        data = ht.array(tensor, split=0)
+
+        exp_axis_zero = torch.arange(size).reshape(1, size)
+        result = ht.sort(data, descending=True, axis=0)
+        self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_zero))
+
+        exp_axis_one, _ = torch.arange(size).reshape(1, size).sort(dim=1, descending=True)
+        result = ht.sort(data, descending=True, axis=1)
+        self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_one))
+
+        self.assertTrue(ht.equal(ht.sort(data, axis=1, descending=True), ht.sort(data, descending=True)))
+
+        data = ht.array(tensor, split=1)
+
+        exp_axis_zero = torch.tensor(rank).repeat(size).reshape(size, 1)
+        result = ht.sort(data, axis=0, descending=True)
+        self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_zero))
+
+        exp_axis_one = torch.tensor(size - rank - 1).repeat(size).reshape(size, 1)
+        result = ht.sort(data, descending=True, axis=1)
+        self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_one))
+
+        tensor = torch.tensor([[[2, 8, 5], [7, 2, 3]],
+                               [[6, 5, 2], [1, 8, 7]],
+                               [[9, 3, 0], [1, 2, 4]],
+                               [[8, 4, 7], [0, 8, 9]]], dtype=torch.int32)
+
+        data = ht.array(tensor, split=0)
+        exp_axis_zero = torch.tensor([[2, 3, 0], [0, 2, 3]], dtype=torch.int32)
+        result = ht.sort(data, axis=0)
+        first = result[0]._DNDarray__array
+        if rank == 0:
+            self.assertTrue(torch.equal(first, exp_axis_zero))
+
+        data = ht.array(tensor, split=1)
+        exp_axis_one = torch.tensor([[2, 2, 3]], dtype=torch.int32)
+        result = ht.sort(data, axis=1)
+        first = result[0]._DNDarray__array
+        if rank == 0:
+            self.assertTrue(torch.equal(first, exp_axis_one))
+
+        data = ht.array(tensor, split=2)
+        exp_axis_two = torch.tensor([[2], [2]], dtype=torch.int32)
+        result = ht.sort(data, axis=2)
+        first = result[0]._DNDarray__array[:, :1]
+        if rank == 0:
+            self.assertTrue(torch.equal(first, exp_axis_two))
+
+        with self.assertRaises(ValueError):
+            ht.sort(data, axis=3)
+        with self.assertRaises(TypeError):
+            ht.sort(data, axis='1')
+
     def test_squeeze(self):
         torch.manual_seed(1)
         data = ht.random.randn(1, 4, 5, 1)
@@ -201,35 +268,6 @@ class TestManipulations(unittest.TestCase):
             data.squeeze(axis='y')
         with self.assertRaises(ValueError):
             ht.argmin(data, axis=-4)
-
-    def test_sort(self):
-        size = ht.MPI_WORLD.size
-        tensor = torch.arange(size, dtype=torch.int32).repeat(size).reshape(size, size)
-        # tensor, _ = tensor.sort(dim=1, descending=True)
-        data = ht.array(tensor, split=1)
-
-        result = ht.sort(data, descending=True, axis=1)
-        exp_axis_one = torch.tensor([size - 1 - ht.MPI_WORLD.rank], dtype=torch.int32).repeat(size).reshape(size, 1)
-        print('rank', ht.MPI_WORLD.rank, 'result', result, 'data', data, tensor, exp_axis_one)
-        self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_one))
-
-    def test_sort_exp(self):
-        # data = ht.array([[1, 5, 1, 4, 2, 8, 1, 4, 7], [6, 3, 4, 1, 4, 6, 2, 9, 4]], dtype=ht.int32, split=1)
-        # data = ht.array([[1, 1, 1, 1, 1, 2], [1, 2, 2, 2, 2, 2]], dtype=ht.int32, split=1)
-        # data = ht.array([[[7, 2, 5], [3, 3, 0]], [[2, 5, 1], [8, 9, 3]]], dtype=ht.int32, split=1)
-        data = ht.array([[[2, 8, 5], [7, 2, 3]],
-                         [[6, 5, 2], [1, 8, 7]],
-                         [[9, 3, 0], [1, 2, 4]],
-                         [[8, 4, 7], [0, 8, 9]]], dtype=ht.int32, split=0)
-        # data = ht.array([[0], [1], [2], [2], [2], [2], [2], [2]], split=0)
-        # data = ht.array([[0], [0], [0], [0], [4], [3], [4], [0], [1], [9], [2]], split=0)
-        print("rank", data.comm.Get_rank(), 'Data', data)
-        sorted = ht.sort(data, axis=0, descending=False)
-        print("sorted", sorted)
-
-        expected = torch.tensor([[1, 1, 5], [3, 4, 6]], dtype=torch.int32)
-
-        self.fail()
 
     def test_unique(self):
         size = ht.MPI_WORLD.size
