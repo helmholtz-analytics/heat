@@ -15,7 +15,7 @@ Project Status
 Goals
 -----
 
-HeAT is a flexible and seamless open-source software for high performance data analytics and machine learnings. It provides highly optimized algorithms and data structures for tensor computations using CPUs, GPUs and distributed cluster systems on top of MPI. The goal of HeAT is to fill the gap between data analytics and machine learning libraries with a strong focus on on single-node performance, and traditional high-performance computing (HPC). HeAT's generic Python-first programming interface integrates seamlessly with the existing data science ecosystem and makes it as effortless as using numpy to write scalable scientific and data science applications.
+HeAT is a flexible and seamless open-source software for high performance data analytics and machine learning. It provides highly optimized algorithms and data structures for tensor computations using CPUs, GPUs and distributed cluster systems on top of MPI. The goal of HeAT is to fill the gap between data analytics and machine learning libraries with a strong focus on on single-node performance, and traditional high-performance computing (HPC). HeAT's generic Python-first programming interface integrates seamlessly with the existing data science ecosystem and makes it as effortless as using numpy to write scalable scientific and data science applications.
 
 HeAT allows you tackle your actual Big Data challenges that go beyond the computational and memory needs of your laptop and desktop.
 
