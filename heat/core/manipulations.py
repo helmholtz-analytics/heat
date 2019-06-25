@@ -84,19 +84,22 @@ def sort(a, axis=None, descending=False, out=None):
 
     if a.split is None or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
-        partial, index = torch.sort(a._DNDarray__array, dim=axis, descending=descending)
+        final_result, final_indices = torch.sort(a._DNDarray__array, dim=axis, descending=descending)
 
     else:
         # sorting is affected by split, processes need to communicate results
         # transpose so we can work along the 0 axis
         transposed = a._DNDarray__array.transpose(axis, 0)
         print("transposed", transposed)
-        local_sorted, _ = torch.sort(transposed, dim=0, descending=descending)
-        print("local_sorted", local_sorted)
+        local_sorted, local_indices = torch.sort(transposed, dim=0, descending=descending)
+        print("local_sorted", local_sorted, 'local_indices', local_indices)
 
         size = a.comm.Get_size()
         rank = a.comm.Get_rank()
-        counts, _, _ = a.comm.counts_displs_shape(a.gshape, axis=axis)
+        counts, disp, _ = a.comm.counts_displs_shape(a.gshape, axis=axis)
+
+        actual_indices = local_indices.to(dtype=local_sorted.dtype) + disp[rank]
+        print('actual_indices', actual_indices)
 
         length = local_sorted.size()[0]
         print("length", length, 'counts', counts)
@@ -133,7 +136,6 @@ def sort(a, axis=None, descending=False, out=None):
             global_partitions = [x * length // size for x in range(1, size)]
             print("global_partitions", global_partitions)
             global_pivots = sorted_pivots[global_partitions]
-        print("global_pivots", global_pivots)
 
         a.comm.Bcast(global_pivots, root=0)
 
@@ -170,6 +172,7 @@ def sort(a, axis=None, descending=False, out=None):
         a.comm.Allreduce(MPI.IN_PLACE, partition_matrix, op=MPI.SUM)
         print('reduced partition_matrix', partition_matrix)
 
+        # Create matrix that holds information where and how many elements will be received from each process
         shape = (size, ) + transposed.size()[1:]
         send_recv_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
         # recv_matrix = torch.empty(shape, dtype=partition_matrix.dtype)
@@ -197,40 +200,48 @@ def sort(a, axis=None, descending=False, out=None):
 
         print('recv_indices', recv_indices)
 
+        # Finally send and receive the values with the correct processes according to the global pivots
         for idx, val in np.ndenumerate(index_matrix.numpy()):
-            send_buf = torch.tensor(local_sorted[idx])
+            send_buf = torch.tensor([local_sorted[idx], actual_indices[idx]])
             # Add tag to identify correct value we want to receive later
             tag = int(''.join([str(el) for el in idx[1:]]))
             a.comm.Send(send_buf, dest=val, tag=tag)
 
+
         recv_amount = sum(send_recv_matrix)
         print('recv_amount', recv_amount)
         fill_level = torch.zeros(shape[1:], dtype=torch.int32)
-        local_result = torch.empty(shape, dtype=local_sorted.dtype)
+        first_result = torch.empty(shape, dtype=local_sorted.dtype)
+        first_indices = torch.empty_like(first_result)
 
         for idx, val in np.ndenumerate(recv_amount.numpy()):
             for i in range(val):
                 source = recv_indices[fill_level[idx]][idx]
                 tag = int(''.join([str(el) for el in idx]))
-                recv_buf = torch.empty(1, dtype=local_sorted.dtype)
+                recv_buf = torch.empty(2, dtype=local_sorted.dtype)
                 a.comm.Recv(recv_buf, source=source, tag=tag)
-                local_result[fill_level[idx]][idx] = recv_buf
+
+                first_result[fill_level[idx]][idx] = recv_buf[0]
+                first_indices[fill_level[idx]][idx] = recv_buf[1]
+
                 fill_level[idx] += 1
 
-        print('local_result', local_result)
+        print('first_result', first_result, 'first_indices', first_indices)
 
         # Create a matrix which holds information about the 'unbalancedness' of the local result
-        problem_idx = torch.zeros((size, ) + local_result.shape[1:], dtype=partition_matrix.dtype)
+        problem_idx = torch.zeros((size, ) + first_result.shape[1:], dtype=partition_matrix.dtype)
         for i, x in enumerate(partition_matrix):
             for idx, val in np.ndenumerate(x.numpy()):
                 problem_idx[i][idx] = x[idx] - counts[i]
         print('problem_index', problem_idx)
 
         # create final result tensor by iteratively redistributing with the neighbour processes
-        partial = torch.empty(transposed.size(), dtype=a.dtype.torch_type())
+        second_result = torch.empty(transposed.size(), dtype=a.dtype.torch_type())
+        second_indices = torch.empty_like(second_result)
         copy_size = min(a.lshape[axis], partition_matrix[rank].max())
-        partial[0: copy_size] = local_result[0: copy_size]
-        print('partial', partial)
+        second_result[0: copy_size] = first_result[0: copy_size]
+        second_indices[0: copy_size] = first_indices[0: copy_size]
+        print('second_result', second_result)
         for i in range(size):
             # start with lowest rank and populate to the highest
             for idx, val in np.ndenumerate(problem_idx[i].numpy()):
@@ -239,33 +250,38 @@ def sort(a, axis=None, descending=False, out=None):
                     if val < 0:
                         receiver = i
                         sender = next(ind + i + 1 for ind, pr in enumerate(partition_matrix[i + 1:]) if pr[idx] > 0)
-                        # print('Sender', sender, local_result.shape)
+                        # print('Sender', sender, first_result.shape)
                         receiver_idx = (val, ) + idx
 
                         if rank == sender:
                             end = partition_matrix[sender][idx]
                             enumerate_index = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
-                            # print('end', end, local_result[0: end])
-                            values = local_result[0: end][enumerate_index]
+                            # print('end', end, first_result[0: end])
+                            values = first_result[0: end][enumerate_index]
                             sender_idx = (values.argmax() if descending else values.argmin(), ) + idx
 
                             # print('Sender', sender, 'Sender_idx', sender_idx, 'receiver', receiver, 'receiver_idx', receiver_idx)
-                            send_buf = torch.tensor(local_result[sender_idx])
+                            send_buf = torch.tensor([first_result[sender_idx], first_indices[sender_idx]])
                             # print('send_buf', send_buf)
                             a.comm.Send(send_buf, dest=receiver)
                             # Swap last element along axis at the now freed location
                             last_idx = (a.lshape[axis] + problem_idx[sender][idx] - 1, ) + sender_idx[1:]
-                            # print('last_index', last_idx, local_result[last_idx])
-                            local_result[sender_idx] = local_result[last_idx]
-                            # print('local_result', local_result)
-                            if sender_idx[0] < partial.shape[0]:
-                                partial[sender_idx] = local_result[last_idx]
+                            # print('last_index', last_idx, first_result[last_idx])
+                            first_result[sender_idx] = first_result[last_idx]
+                            # print('first_result', first_result)
+                            if sender_idx[0] < second_result.shape[0]:
+                                second_result[sender_idx] = first_result[last_idx]
+                                second_indices[sender_idx] = first_indices[last_idx]
+                                print('updating', sender_idx)
+
                         if rank == receiver:
-                            recv_buf = torch.empty(1, dtype=local_result.dtype)
+                            recv_buf = torch.empty(2, dtype=first_result.dtype)
                             a.comm.Recv(recv_buf, source=sender)
                             # print('Received', recv_buf)
-                            partial[receiver_idx] = recv_buf
-                            # print('partial', partial)
+                            second_result[receiver_idx] = recv_buf[0]
+                            second_indices[receiver_idx] = recv_buf[1]
+                            print('updating', recv_indices, 'value', recv_buf[0], 'index', recv_buf[1])
+                            # print('second_result', second_result)
 
                         val += 1
                         problem_idx[receiver][idx] += 1
@@ -282,48 +298,72 @@ def sort(a, axis=None, descending=False, out=None):
                         if rank == sender:
                             end = partition_matrix[sender][idx]
                             enumerate_index = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
-                            values = local_result[0: end][enumerate_index]
+                            values = first_result[0: end][enumerate_index]
                             sender_idx = (values.argmin() if descending else values.argmax(), ) + idx
 
-                            send_buf = torch.tensor(local_result[sender_idx])
+                            send_buf = torch.tensor([first_result[sender_idx], first_indices[sender_idx]])
                             a.comm.Send(send_buf, dest=receiver)
                         if rank == receiver:
-                            recv_buf = torch.empty(1, dtype=local_result.dtype)
+                            recv_buf = torch.empty(2, dtype=first_result.dtype)
                             a.comm.Recv(recv_buf, source=sender)
                             # print('recv_buf', recv_buf)
                             recv_index = (partition_matrix[receiver][idx], ) + idx
                             # print('receive_index', recv_index)
-                            if recv_index[axis] < partial.shape[axis]:
-                                partial[recv_index] = recv_buf
-                            if recv_index[axis] < local_result.shape[axis]:
-                                local_result[recv_index] = recv_buf
+                            if recv_index[axis] < second_result.shape[axis]:
+                                second_result[recv_index] = recv_buf[0]
+                                second_indices[recv_index] = recv_buf[1]
+                                print('updating', recv_indices, 'value', recv_buf[0], 'index', recv_buf[1])
+                            if recv_index[axis] < first_result.shape[axis]:
+                                first_result[recv_index] = recv_buf[0]
+                                first_indices[recv_indices] = recv_buf[1]
                             else:
-                                new_shape = list(local_result.shape)
+                                new_shape = list(first_result.shape)
                                 new_shape[0] = new_shape[0] + val
-                                tmp = torch.empty(new_shape, dtype=local_result.dtype)
-                                tmp[0: local_result.shape[axis]] = local_result
-                                local_result = tmp
-                                local_result[recv_index] = recv_buf
-                            # print('partial', partial, 'local_result', local_result)
+                                tmp = torch.empty(new_shape, dtype=first_result.dtype)
+                                tmp_indices = torch.empty_like(tmp)
+                                tmp[0: first_result.shape[axis]] = first_result
+                                tmp_indices[0: first_result.shape[axis]] = first_indices
+                                first_result = tmp
+                                first_indices = tmp_indices
+                                first_result[recv_index] = recv_buf[0]
+                                first_indices[recv_indices] = recv_buf[1]
+                            # print('second_result', second_result, 'first_result', first_result)
                         val -= 1
                         problem_idx[receiver][idx] += 1
                         partition_matrix[receiver][idx] += 1
                         problem_idx[sender][idx] -= 1
                         partition_matrix[receiver][idx] -= 1
-        partial, _ = partial.sort(dim=0, descending=descending)
-        partial = partial.transpose(0, axis)
+        second_result, tmp_indices = second_result.sort(dim=0, descending=descending)
+        final_result = second_result.transpose(0, axis)
+        print('tmp_indices', tmp_indices)
+        final_indices = torch.empty_like(second_indices)
+        # Update the indices in case the ordering changed during the last sort
+        for idx, val in np.ndenumerate(tmp_indices.numpy()):
+            final_indices[idx] = second_indices[val][idx[1:]]
+        print('final_indices', final_indices)
+        final_indices = final_indices.to(dtype=torch.int64).transpose(0, axis)
 
     if out is not None:
-        out._DNDarray__array = partial
+        out._DNDarray__array = final_result
+        return final_indices
     else:
-        return dndarray.DNDarray(
-            partial,
+        tensor = dndarray.DNDarray(
+            final_result,
             a.gshape,
             a.dtype,
             a.split,
             a.device,
             a.comm
         )
+        return_indices = dndarray.DNDarray(
+            final_indices,
+            a.gshape,
+            dndarray.types.int32,
+            a.split,
+            a.device,
+            a.comm
+        )
+        return tensor, return_indices
 
 
 def squeeze(x, axis=None):

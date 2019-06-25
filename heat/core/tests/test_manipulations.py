@@ -128,35 +128,45 @@ class TestManipulations(unittest.TestCase):
         tensor = torch.arange(size).repeat(size).reshape(size, size)
 
         data = ht.array(tensor, split=None)
-        result = ht.sort(data, axis=0, descending=True)
-        expected, _ = torch.sort(tensor, dim=0, descending=True)
+        result, result_indices = ht.sort(data, axis=0, descending=True)
+        expected, exp_indices = torch.sort(tensor, dim=0, descending=True)
         self.assertTrue(torch.equal(result._DNDarray__array, expected))
+        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices))
 
-        result = ht.sort(data, axis=1, descending=True)
-        expected, _ = torch.sort(tensor, dim=1, descending=True)
+        result, result_indices = ht.sort(data, axis=1, descending=True)
+        expected, exp_indices = torch.sort(tensor, dim=1, descending=True)
         self.assertTrue(torch.equal(result._DNDarray__array, expected))
+        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices))
 
         data = ht.array(tensor, split=0)
 
         exp_axis_zero = torch.arange(size).reshape(1, size)
-        result = ht.sort(data, descending=True, axis=0)
+        # Because the sorting is not stable, indices can't be correctly checked here
+        result, _ = ht.sort(data, descending=True, axis=0)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_zero))
 
-        exp_axis_one, _ = torch.arange(size).reshape(1, size).sort(dim=1, descending=True)
-        result = ht.sort(data, descending=True, axis=1)
+        exp_axis_one, exp_indices = torch.arange(size).reshape(1, size).sort(dim=1, descending=True)
+        result, result_indices = ht.sort(data, descending=True, axis=1)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_one))
+        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices))
 
-        self.assertTrue(ht.equal(ht.sort(data, axis=1, descending=True), ht.sort(data, descending=True)))
+        result1 = ht.sort(data, axis=1, descending=True)
+        result2 = ht.sort(data, descending=True)
+        self.assertTrue(ht.equal(result1[0], result2[0]))
+        self.assertTrue(ht.equal(result1[1], result2[1]))
 
         data = ht.array(tensor, split=1)
 
         exp_axis_zero = torch.tensor(rank).repeat(size).reshape(size, 1)
-        result = ht.sort(data, axis=0, descending=True)
+        indices_axis_zero = torch.arange(size, dtype=torch.int64).reshape(size, 1)
+        result, result_indices = ht.sort(data, axis=0, descending=True)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_zero))
+        self.assertTrue(torch.equal(result_indices._DNDarray__array, indices_axis_zero))
 
         exp_axis_one = torch.tensor(size - rank - 1).repeat(size).reshape(size, 1)
-        result = ht.sort(data, descending=True, axis=1)
+        result, result_indices = ht.sort(data, descending=True, axis=1)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_one))
+        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_axis_one))
 
         tensor = torch.tensor([[[2, 8, 5], [7, 2, 3]],
                                [[6, 5, 2], [1, 8, 7]],
@@ -165,24 +175,33 @@ class TestManipulations(unittest.TestCase):
 
         data = ht.array(tensor, split=0)
         exp_axis_zero = torch.tensor([[2, 3, 0], [0, 2, 3]], dtype=torch.int32)
-        result = ht.sort(data, axis=0)
+        indices_axis_zero = torch.tensor([[0, 2, 2], [3, 0, 0]], dtype=torch.int64)
+        result, result_indices = ht.sort(data, axis=0)
         first = result[0]._DNDarray__array
+        first_indices = result_indices[0]._DNDarray__array
         if rank == 0:
             self.assertTrue(torch.equal(first, exp_axis_zero))
+            self.assertTrue(torch.equal(first_indices, indices_axis_zero))
 
         data = ht.array(tensor, split=1)
         exp_axis_one = torch.tensor([[2, 2, 3]], dtype=torch.int32)
-        result = ht.sort(data, axis=1)
+        indices_axis_one = torch.tensor([[0, 1, 1]], dtype=torch.int64)
+        result, result_indices = ht.sort(data, axis=1)
         first = result[0]._DNDarray__array[:1]
+        first_indices = result_indices[0]._DNDarray__array[:1]
         if rank == 0:
             self.assertTrue(torch.equal(first, exp_axis_one))
+            self.assertTrue(torch.equal(first_indices, indices_axis_one))
 
         data = ht.array(tensor, split=2)
         exp_axis_two = torch.tensor([[2], [2]], dtype=torch.int32)
-        result = ht.sort(data, axis=2)
+        indices_axis_two = torch.tensor([[0], [1]], dtype=torch.int64)
+        result, result_indices = ht.sort(data, axis=2)
         first = result[0]._DNDarray__array[:, :1]
+        first_indices = result_indices[0]._DNDarray__array[:, :1]
         if rank == 0:
             self.assertTrue(torch.equal(first, exp_axis_two))
+            self.assertTrue(torch.equal(first_indices, indices_axis_two))
 
         out = ht.empty_like(data)
         ht.sort(data, axis=2, out=out)
