@@ -36,7 +36,11 @@ def concatenate(arrays, axis=0):
     if s0 is None and s1 is None:
         return factories.array(torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis))
     elif s0 == s1:
-        if s0 == axis:  # case 1
+        if s0 != axis:  # case 1
+            # the axis is different than the split axis, this case can be easily implemented
+            # torch cat arrays together and return a new array that is_split
+            return factories.array(torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis), is_split=s0)
+        else:
             # in this case the data needs to be pushed up on the first
             '''
             get data from arr0 and compress it to half of the processes 0 -> size/2
@@ -123,13 +127,12 @@ def concatenate(arrays, axis=0):
             res = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
             out._DNDarray__array = res
             return out
-        else:
-            # the axis is different than the split axis, this case can be easily implemented
-            # torch cat arrays together and return a new array that is_split
-            return factories.array(torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis), is_split=s0)
     elif s0 is None:
         # arb_slice = [None] * len(arr1.gshape)
-        if s1 == axis:
+        if s1 != axis:
+            _, _, arb_slice = arr0.comm.chunk(arr0.shape, arr1.split)
+            return factories.array(torch.cat((arr0._DNDarray__array[arb_slice], arr1._DNDarray__array), dim=axis), is_split=s1)
+        else:
             lshape_map = factories.zeros((arr1.comm.size, len(arr1.gshape)), dtype=int)
             lshape_map[arr1.comm.rank, :] = torch.Tensor(arr1.lshape)
             lshape_map_comm = arr1.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
@@ -184,7 +187,7 @@ def concatenate(arrays, axis=0):
 
             # chunk_map_slice = [None] * len(arr0.shape)
             # chunk_map_slice[axis] = axis
-            print(axis, arr0.shape, arr1.shape)
+            # print(axis, arr0.shape, arr1.shape)
             if arr0.comm.rank == 0:
                 lcl_slice = [slice(None)] * arr0.numdims
                 lcl_slice[axis] = slice(chunk_map[0, axis].item())
@@ -207,12 +210,12 @@ def concatenate(arrays, axis=0):
 
             out._DNDarray__array = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
             return out
-        else:
-            _, _, arb_slice = arr0.comm.chunk(arr0.shape, arr1.split)
-            return factories.array(torch.cat((arr0._DNDarray__array[arb_slice], arr1._DNDarray__array), dim=axis), is_split=s1)
     elif s1 is None:
         # arb_slice = [None] * len(arr1.gshape)
-        if s0 == axis:
+        if s0 != axis:
+            _, _, arb_slice = arr0.comm.chunk(arr1.shape, arr0.split)
+            return factories.array(torch.cat((arr0._DNDarray__array, arr1._DNDarray__array[arb_slice]), dim=axis), is_split=s0)
+        else:
             lshape_map = factories.zeros((arr0.comm.size, len(arr0.gshape)), dtype=int)
             lshape_map[arr0.comm.rank, :] = torch.Tensor(arr0.lshape)
             lshape_map_comm = arr0.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
@@ -292,10 +295,6 @@ def concatenate(arrays, axis=0):
             out._DNDarray__array = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
 
             return out
-        else:
-            _, _, arb_slice = arr0.comm.chunk(arr1.shape, arr0.split)
-
-            return factories.array(torch.cat((arr0._DNDarray__array, arr1._DNDarray__array[arb_slice]), dim=axis), is_split=s0)
     else:
         # this is the case that s0 /= s1 and they are both not None
         # this case requires a raise -> usr needs to resplit one of them
