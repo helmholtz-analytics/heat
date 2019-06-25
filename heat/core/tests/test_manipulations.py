@@ -212,7 +212,7 @@ class TestManipulations(unittest.TestCase):
 
         tensor = torch.tensor([[[2, 8, 5], [7, 2, 3]],
                                [[6, 5, 2], [1, 8, 7]],
-                               [[9, 3, 0], [1, 2, 4]],k
+                               [[9, 3, 0], [1, 2, 4]],
                                [[8, 4, 7], [0, 8, 9]]], dtype=torch.int32)
 
         data = ht.array(tensor, split=0)
