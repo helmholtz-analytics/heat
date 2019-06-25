@@ -241,7 +241,7 @@ def sort(a, axis=None, descending=False, out=None):
                         problem_idx[receiver][idx] += 1
                         partition_matrix[receiver][idx] += 1
                         problem_idx[sender][idx] -= 1
-                        partition_matrix[receiver][idx] -= 1
+                        partition_matrix[sender][idx] -= 1
 
                     if val > 0:
                         sender = i
@@ -279,7 +279,8 @@ def sort(a, axis=None, descending=False, out=None):
                         problem_idx[receiver][idx] += 1
                         partition_matrix[receiver][idx] += 1
                         problem_idx[sender][idx] -= 1
-                        partition_matrix[receiver][idx] -= 1
+                        partition_matrix[sender][idx] -= 1
+
         second_result, tmp_indices = second_result.sort(dim=0, descending=descending)
         final_result = second_result.transpose(0, axis)
         final_indices = torch.empty_like(second_indices)
