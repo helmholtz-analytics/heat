@@ -5,6 +5,111 @@ import heat as ht
 
 
 class TestManipulations(unittest.TestCase):
+    def test_cat(self):
+        # cases to test:
+
+        # Matrices
+        # None None 0
+        x = ht.zeros((16, 15), split=None)
+        y = ht.ones((16, 15), split=None)
+        # x[:, 0] = ht.arange(15)
+        # y[:, 0] = ht.arange(15)
+        res = ht.concatenate((x, y), axis=0)
+        # gshape, dtype, lshape
+        self.assertEqual(res.gshape, (32, 15))
+        self.assertEqual(res.dtype, ht.float)
+        if x.comm.size == 2:
+            pass
+
+        # None None 1
+        res = ht.concatenate((x, y), axis=1)
+
+        # =============================================
+        # None 0 0
+        y = ht.ones((16, 15), split=0)
+        res = ht.concatenate((x, y), axis=0)
+
+        # None 0 1
+        res = ht.concatenate((x, y), axis=1)
+
+        # =============================================
+        # None 1 1
+        y = ht.ones((16, 15), split=1)
+        res = ht.concatenate((x, y), axis=1)
+
+        # None 1 0
+        y = ht.ones((16, 15), split=1)
+        res = ht.concatenate((x, y), axis=0)
+
+        # =============================================
+        x = ht.zeros((16, 15), split=0)
+        y = ht.ones((16, 15), split=None)
+        # 0 None 0
+        res = ht.concatenate((x, y), axis=0)
+        # 0 None 1
+        res = ht.concatenate((x, y), axis=1)
+
+        # =============================================
+        x = ht.zeros((16, 15), split=1)
+        # 1 None 0
+        res = ht.concatenate((x, y), axis=0)
+        # 1 None 1
+        res = ht.concatenate((x, y), axis=1)
+
+        # =============================================
+        x = ht.zeros((16, 15), split=0)
+        y = ht.ones((16, 15), split=0)
+        # 0 0 0
+
+        # =============================================
+        x = ht.zeros((16, 15,), split=1)
+        y = ht.ones((16, 15), split=1)
+        # 1 1 0
+        res = ht.concatenate((x, y), axis=0)
+
+        # 1 1 1
+        res = ht.concatenate((x, y), axis=1)
+
+        # =============================================
+        x = ht.zeros((16, 15, 14), split=2)
+        y = ht.ones((16, 15, 14), split=2)
+        # 2 2 0
+        res = ht.concatenate((x, y), axis=0)
+        # 2 2 1
+        res = ht.concatenate((x, y), axis=1)
+        # 2 2 2
+        res = ht.concatenate((x, y), axis=2)
+
+        # =============================================
+        y = ht.ones((16, 15, 14), split=None)
+        # 2 None 1
+        res = ht.concatenate((x, y), axis=1)
+        # 2 None 2
+        res = ht.concatenate((x, y), axis=2)
+
+        # =============================================
+        x = ht.zeros((16, 15, 14), split=None)
+        y = ht.ones((16, 15, 14), split=2)
+        # None 2 0
+        res = ht.concatenate((x, y), axis=0)
+        # None 2 2
+        res = ht.concatenate((x, y), axis=2)
+
+        # vectors
+        # None None 0
+        x = ht.zeros((16,), split=None)
+        y = ht.ones((16,), split=None)
+
+        # None 0 0
+        y = ht.ones((16,), split=0)
+
+        # 0 0 0
+        x = ht.ones((16,), split=0)
+        # 0 None 0
+        y = ht.ones((16,), split=None)
+
+        pass
+
     def test_expand_dims(self):
         # vector data
         a = ht.arange(10)

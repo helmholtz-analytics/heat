@@ -1,16 +1,305 @@
 import torch
 import numpy as np
 
+from .communication import MPI
+
 from . import dndarray
 from . import factories
 from . import stride_tricks
 from . import types
 
 __all__ = [
+    'concatenate',
     'expand_dims',
     'squeeze',
     'unique'
 ]
+
+
+def concatenate(arrays, axis=0):
+    """
+    todo: this
+    :param arrays:
+    :param axis:
+    :return:
+    """
+    '''
+    test if the same split axis
+    test if compatible sizes in the '''
+
+    arr0, arr1 = arrays[0], arrays[1]
+    if not isinstance(arr0, dndarray.DNDarray) and not isinstance(arr1, dndarray.DNDarray):
+        raise TypeError('Both arrays must be DNDarrays')
+    # todo: raise an exception if the arrays cannot be concatenated
+
+    s0, s1 = arr0.split, arr1.split
+    if s0 is None and s1 is None:
+        return factories.array(torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis))
+    elif s0 == s1:
+        if s0 == axis:  # case 1
+            # in this case the data needs to be pushed up on the first
+            '''
+            get data from arr0 and compress it to half of the processes 0 -> size/2
+            for arr1 do the same but put it on processes size/2 -> size'''
+            lshape_map = factories.zeros((arr0.comm.size, len(arr0.gshape)), dtype=int)
+            lshape_map[arr0.comm.rank, :] = torch.Tensor(arr0.lshape)
+            lshape_map_comm = arr0.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+
+            arr0_shape, arr1_shape = list(arr0.shape), list(arr1.shape)
+            arr0_shape[s0] += arr1_shape[s1]
+            out_shape = tuple(arr0_shape)
+
+            chunk_map = factories.zeros((arr0.comm.size, len(arr0.gshape)), dtype=int)
+            _, _, chk = arr0.comm.chunk(out_shape, arr0.split)
+            for i in range(len(out_shape)):
+                chunk_map[arr0.comm.rank, i] = chk[i].stop - chk[i].start
+            chunk_map_comm = arr0.comm.Iallreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
+
+            lshape_map_comm.wait()
+            chunk_map_comm.wait()
+
+            send_slice = [slice(None), ] * arr0.numdims
+            keep_slice = [slice(None), ] * arr0.numdims
+            # push the data forward, making the data the proper size from arr0 on the first nodes
+            for spr in range(1, arr0.comm.size):
+                if arr0.comm.rank == spr:
+                    for pr in range(spr):
+                        send_amt = abs((chunk_map[pr, axis] - lshape_map[pr, axis]).item())
+                        if send_amt:
+                            send_amt = send_amt if send_amt < arr0.lshape[axis] else arr0.lshape[axis]
+                            send_slice[arr0.split] = slice(0, send_amt)
+                            keep_slice[arr0.split] = slice(send_amt, arr0.lshape[axis])
+
+                            send = arr0.comm.Isend(arr0._DNDarray__array[send_slice].clone(), dest=pr, tag=pr + arr0.comm.size + spr)
+                            arr0._DNDarray__array = arr0._DNDarray__array[keep_slice].clone()
+                            send.wait()
+                for pr in range(spr):
+                    snt = abs((chunk_map[pr, arr0.split] - lshape_map[pr, arr0.split]).item())
+                    snt = snt if snt < lshape_map[spr, arr0.split] else lshape_map[spr, arr0.split].item()
+                    if arr0.comm.rank == pr and snt:
+                        shp = list(arr0.gshape)
+                        shp[arr0.split] = snt
+                        data = torch.zeros(shp)
+
+                        arr0.comm.Recv(data, source=spr, tag=pr + arr0.comm.size + spr)
+                        arr0._DNDarray__array = torch.cat((arr0._DNDarray__array, data), dim=arr0.split)
+                    lshape_map[pr, arr0.split] += snt
+                    lshape_map[spr, arr0.split] -= snt
+
+            send_slice = [slice(None), ] * arr0.numdims
+            keep_slice = [slice(None), ] * arr0.numdims
+
+            lshape_map = factories.zeros((arr1.comm.size, len(arr1.gshape)), dtype=int)
+            lshape_map[arr0.comm.rank, :] = torch.Tensor(arr1.lshape)
+            arr1.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+            # push the data backwards (arr1), making the data the proper size for arr1 on the last nodes
+            for spr in range(arr0.comm.size - 2, -1, -1):
+                if arr0.comm.rank == spr:
+                    for pr in range(arr0.comm.size - 1, spr, -1):
+                        send_amt = abs((chunk_map[pr, axis] - lshape_map[pr, axis]).item())
+                        if send_amt:
+                            send_amt = send_amt if send_amt < arr1.lshape[axis] else arr1.lshape[axis]
+                            send_slice[axis] = slice(arr1.lshape[axis] - send_amt, arr1.lshape[axis])
+                            keep_slice[axis] = slice(0, arr1.lshape[axis] - send_amt)
+
+                            send = arr0.comm.Isend(arr1._DNDarray__array[send_slice].clone(), dest=pr, tag=pr + arr0.comm.size + spr)
+                            arr1._DNDarray__array = arr1._DNDarray__array[keep_slice].clone()
+                            send.wait()
+                for pr in range(arr1.comm.size - 1, spr, -1):
+                    snt = abs((chunk_map[pr, axis] - lshape_map[pr, axis]).item())
+                    snt = snt if snt < lshape_map[spr, axis] else lshape_map[spr, axis].item()
+
+                    if arr1.comm.rank == pr and snt:
+                        shp = list(arr1.gshape)
+                        shp[axis] = snt
+                        data = torch.zeros(shp)
+                        arr1.comm.Recv(data, source=spr, tag=pr + arr0.comm.size + spr)
+                        arr1._DNDarray__array = torch.cat((data, arr1._DNDarray__array), dim=arr0.split)
+                    lshape_map[pr, axis] += snt
+                    lshape_map[spr, axis] -= snt
+
+            # now that the data is in the proper shape, need to concatenate them on the nodes where they both exist for the others, just set them equal
+            out = factories.empty((out_shape), split=s0)
+            res = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
+            out._DNDarray__array = res
+            return out
+        else:
+            # the axis is different than the split axis, this case can be easily implemented
+            # torch cat arrays together and return a new array that is_split
+            return factories.array(torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis), is_split=s0)
+    elif s0 is None:
+        # arb_slice = [None] * len(arr1.gshape)
+        if s1 == axis:
+            lshape_map = factories.zeros((arr1.comm.size, len(arr1.gshape)), dtype=int)
+            lshape_map[arr1.comm.rank, :] = torch.Tensor(arr1.lshape)
+            lshape_map_comm = arr1.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+
+            arr1_shape, arr1_shape = list(arr1.shape), list(arr1.shape)
+            arr1_shape[axis] += arr1_shape[axis]
+            out_shape = tuple(arr1_shape)
+
+            chunk_map = factories.zeros((arr1.comm.size, len(arr1.gshape)), dtype=int)
+            _, _, chk = arr1.comm.chunk(out_shape, arr1.split)
+            for i in range(len(out_shape)):
+                chunk_map[arr1.comm.rank, i] = chk[i].stop - chk[i].start
+            chunk_map_comm = arr1.comm.Iallreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
+
+            lshape_map_comm.wait()
+            chunk_map_comm.wait()
+
+            send_slice = [slice(None), ] * arr1.numdims
+            keep_slice = [slice(None), ] * arr1.numdims
+            # push the data backwards, making the data the proper size from arr1 on the first nodes
+            for spr in range(arr0.comm.size - 2, -1, -1):
+                if arr0.comm.rank == spr:
+                    for pr in range(arr0.comm.size - 1, spr, -1):
+                        send_amt = abs((chunk_map[pr, axis] - lshape_map[pr, axis]).item())
+                        if send_amt:
+                            send_amt = send_amt if send_amt < arr1.lshape[axis] else arr1.lshape[axis]
+                            send_slice[axis] = slice(arr1.lshape[axis] - send_amt, arr1.lshape[axis])
+                            keep_slice[axis] = slice(0, arr1.lshape[axis] - send_amt)
+
+                            send = arr0.comm.Isend(arr1._DNDarray__array[send_slice].clone(), dest=pr, tag=pr + arr0.comm.size + spr)
+                            arr1._DNDarray__array = arr1._DNDarray__array[keep_slice].clone()
+                            send.wait()
+                for pr in range(arr1.comm.size - 1, spr, -1):
+                    snt = abs((chunk_map[pr, axis] - lshape_map[pr, axis]).item())
+                    snt = snt if snt < lshape_map[spr, axis] else lshape_map[spr, axis].item()
+
+                    if arr1.comm.rank == pr and snt:
+                        shp = list(arr1.gshape)
+                        shp[axis] = snt
+                        data = torch.zeros(shp)
+                        arr1.comm.Recv(data, source=spr, tag=pr + arr0.comm.size + spr)
+                        arr1._DNDarray__array = torch.cat((data, arr1._DNDarray__array), dim=axis)
+                    lshape_map[pr, axis] += snt
+                    lshape_map[spr, axis] -= snt
+            # have split 0 for arr1 and all of arr1
+
+            arb_slice = [None] * len(arr1.shape)
+            for c in range(len(chunk_map)):
+                arb_slice[axis] = c
+                chunk_map[arb_slice] -= lshape_map[arb_slice]
+            # print(chunk_map)
+
+            # chunk_map_slice = [None] * len(arr0.shape)
+            # chunk_map_slice[axis] = axis
+            print(axis, arr0.shape, arr1.shape)
+            if arr0.comm.rank == 0:
+                lcl_slice = [slice(None)] * arr0.numdims
+                lcl_slice[axis] = slice(chunk_map[0, axis].item())
+                print(lcl_slice)
+                arr0._DNDarray__array = arr0._DNDarray__array[lcl_slice].clone().squeeze()
+                print(arr0.lshape)
+            ttl = chunk_map[0, axis].item()
+            for en in range(1, arr0.comm.size):
+                sz = chunk_map[en, axis]
+                if arr0.comm.rank == en:
+                    lcl_slice = [slice(None)] * arr0.numdims
+                    # print(en, sz.item(), ttl, sz.item() + ttl, arr0.lshape[axis] - ttl, arr0.lshape[axis] - (sz.item() + ttl))
+                    lcl_slice[axis] = slice(ttl, sz.item() + ttl, 1)
+                    # print(arr0._DNDarray__array[lcl_slice].clone().squeeze())
+                    arr0._DNDarray__array = arr0._DNDarray__array[lcl_slice].clone().squeeze()
+                ttl += sz.item()
+            out = factories.empty((out_shape), split=s1)
+            if len(arr0.lshape) < len(arr1.lshape):
+                arr0._DNDarray__array.unsqueeze_(axis)
+
+            out._DNDarray__array = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
+            return out
+        else:
+            _, _, arb_slice = arr0.comm.chunk(arr0.shape, arr1.split)
+            return factories.array(torch.cat((arr0._DNDarray__array[arb_slice], arr1._DNDarray__array), dim=axis), is_split=s1)
+    elif s1 is None:
+        # arb_slice = [None] * len(arr1.gshape)
+        if s0 == axis:
+            lshape_map = factories.zeros((arr0.comm.size, len(arr0.gshape)), dtype=int)
+            lshape_map[arr0.comm.rank, :] = torch.Tensor(arr0.lshape)
+            lshape_map_comm = arr0.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+
+            arr0_shape, arr1_shape = list(arr0.shape), list(arr1.shape)
+            arr0_shape[axis] += arr1_shape[axis]
+            out_shape = tuple(arr0_shape)
+
+            chunk_map = factories.zeros((arr0.comm.size, len(arr0.gshape)), dtype=int)
+            _, _, chk = arr0.comm.chunk(out_shape, arr0.split)
+            for i in range(len(out_shape)):
+                chunk_map[arr0.comm.rank, i] = chk[i].stop - chk[i].start
+            chunk_map_comm = arr0.comm.Iallreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
+
+            lshape_map_comm.wait()
+            chunk_map_comm.wait()
+
+            send_slice = [slice(None), ] * arr0.numdims
+            keep_slice = [slice(None), ] * arr0.numdims
+            # push the data forward, making the data the proper size from arr0 on the first nodes
+            for spr in range(1, arr0.comm.size):
+                if arr0.comm.rank == spr:
+                    for pr in range(spr):
+                        send_amt = abs((chunk_map[pr, axis] - lshape_map[pr, axis]).item())
+                        if send_amt:
+                            send_amt = send_amt if send_amt < arr0.lshape[axis] else arr0.lshape[axis]
+                            send_slice[arr0.split] = slice(0, send_amt)
+                            keep_slice[arr0.split] = slice(send_amt, arr0.lshape[axis])
+
+                            send = arr0.comm.Isend(arr0._DNDarray__array[send_slice].clone(), dest=pr, tag=pr + arr0.comm.size + spr)
+                            arr0._DNDarray__array = arr0._DNDarray__array[keep_slice].clone()
+                            send.wait()
+                for pr in range(spr):
+                    snt = abs((chunk_map[pr, arr0.split] - lshape_map[pr, arr0.split]).item())
+                    snt = snt if snt < lshape_map[spr, arr0.split] else lshape_map[spr, arr0.split].item()
+                    if arr0.comm.rank == pr and snt:
+                        shp = list(arr0.gshape)
+                        shp[arr0.split] = snt
+                        data = torch.zeros(shp)
+
+                        arr0.comm.Recv(data, source=spr, tag=pr + arr0.comm.size + spr)
+                        arr0._DNDarray__array = torch.cat((arr0._DNDarray__array, data), dim=arr0.split)
+                    lshape_map[pr, arr0.split] += snt
+                    lshape_map[spr, arr0.split] -= snt
+            # have split 0 for arr0 and all of arr1
+
+            arb_slice = [None] * len(arr0.shape)
+            for c in range(len(chunk_map)):
+                arb_slice[axis] = c
+                chunk_map[arb_slice] -= lshape_map[arb_slice]
+
+            # chunk_map_slice = [None] * len(arr0.shape)
+            # chunk_map_slice[axis] = axis
+            if arr1.comm.rank == arr1.comm.size - 1:
+                lcl_slice = [slice(None)] * arr1.numdims
+                lcl_slice[axis] = slice(arr1.lshape[axis] - chunk_map[-1, axis].item(), arr1.lshape[axis], 1)
+                # print(lcl_slice)
+                arr1._DNDarray__array = arr1._DNDarray__array[lcl_slice].clone().squeeze()
+                # print(arr1.lshape)
+            ttl = chunk_map[-1, axis].item()
+            for en in range(arr1.comm.size - 2, -1, -1):
+                sz = chunk_map[en, axis]
+                if arr1.comm.rank == en:
+                    lcl_slice = [slice(None)] * arr1.numdims
+                    # print(en, sz.item(), ttl, sz.item() + ttl, arr1.lshape[axis] - ttl, arr1.lshape[axis] - (sz.item() + ttl))
+                    lcl_slice[axis] = slice(arr1.lshape[axis] - (sz.item() + ttl), arr1.lshape[axis] - ttl, 1)
+                    # print(lcl_slice)
+                    arr1._DNDarray__array = arr1._DNDarray__array[lcl_slice].clone().squeeze()
+                ttl += sz.item()
+
+            # print(arr0._DNDarray__array, arr1._DNDarray__array)
+            out = factories.empty((out_shape), split=s0)
+            if len(arr1.lshape) < len(arr0.lshape):
+                arr1._DNDarray__array.unsqueeze_(axis)
+
+            # print(arr0._DNDarray__array.shape, arr1._DNDarray__array.shape)
+            out._DNDarray__array = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
+
+            return out
+        else:
+            _, _, arb_slice = arr0.comm.chunk(arr1.shape, arr0.split)
+
+            return factories.array(torch.cat((arr0._DNDarray__array, arr1._DNDarray__array[arb_slice]), dim=axis), is_split=s0)
+    else:
+        # this is the case that s0 /= s1 and they are both not None
+        # this case requires a raise -> usr needs to resplit one of them
+        raise RuntimeError('DNDarrays given have differing numerical splits, arr0 {} arr1 {}'.format(s0, s1))
 
 
 def expand_dims(a, axis):
