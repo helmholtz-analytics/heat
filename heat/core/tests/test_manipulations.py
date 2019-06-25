@@ -224,8 +224,8 @@ class TestManipulations(unittest.TestCase):
         if rank == 0:
             self.assertTrue(torch.equal(first, exp_axis_zero))
             self.assertTrue(torch.equal(first_indices, indices_axis_zero))
-        # else:
-        #     self.assertTrue(True)
+        else:
+            self.assertTrue(True)
     #
     # def test_sort_8(self):
     #     size = ht.MPI_WORLD.size
