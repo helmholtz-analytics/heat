@@ -52,7 +52,7 @@ def expand_dims(a, axis):
     >>> y.shape
     (1, 2)
 
-    y = ht.expand_dims(x, axis=1)
+    >>> y = ht.expand_dims(x, axis=1)
     >>> y
     array([[1],
            [2]])
@@ -76,6 +76,56 @@ def expand_dims(a, axis):
 
 
 def sort(a, axis=None, descending=False, out=None):
+    """
+    Sorts the elements of the DNDarray a along the given dimension (by default in ascending order) by their value.
+
+    The sorting is not stable which means that equal elements in the result may have a different ordering than in the
+    original array.
+
+    Sorting where `axis == a.split` needs a lot of communication between the processes of MPI.
+
+    Parameters
+    ----------
+    a : ht.DNDarray
+        Input array to be sorted.
+    axis : int, optional
+        The dimension to sort along.
+        Default is the last axis.
+    descending : bool, optiona
+        If set to true values are sorted in descending order
+        Default is false
+    out : ht.DNDarray or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    values : ht.DNDarray
+        The sorted local results.
+    indices
+        The indices of the elements in the original data
+
+    Raises
+    ------
+    ValueError
+        If the axis is not in range of the axes.
+
+    Examples
+    --------
+    >>> x = ht.array([[4, 1], [2, 3]], split=0)
+    >>> x.shape
+    (1, 2)
+    (1, 2)
+
+    >>> y = ht.sort(x, axis=0)
+    >>> y
+    (array([[2, 1]], array([[1, 0]]))
+    (array([[4, 3]], array([[0, 1]]))
+
+    >>> ht.sort(x, descending=True)
+    (array([[4, 1]], array([[0, 1]]))
+    (array([[3, 2]], array([[1, 0]]))
+    """
     # default: using last axis
     if axis is None:
         axis = len(a.shape) - 1
