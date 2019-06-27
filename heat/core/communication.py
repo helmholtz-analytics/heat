@@ -538,5 +538,62 @@ class MPICommunication(Communication):
 MPI_WORLD = MPICommunication()
 MPI_SELF = MPICommunication(MPI.COMM_SELF)
 
+# set the default communicator to be MPI_WORLD
+__default_comm = MPI_WORLD
+
+
+def get_comm():
+    """
+    Retrieves the currently globally set default communication.
+
+    Returns
+    -------
+    comm : Communication
+        The currently set default communication.
+    """
+    return __default_comm
+
+
+def sanitize_comm(comm):
+    """
+    Sanitizes a device or device identifier, i.e. checks whether it is already an instance of Device or a string with
+    known device identifier and maps it to a proper Device.
+
+    Parameters
+    ----------
+    device : str, Device or None
+        The device to be sanitized
+
+    Returns
+    -------
+    sanitized_device : Device
+        The matching Device instance
+
+    Raises
+    ------
+    ValueError
+        If the given device id is not recognized
+    """
+    if comm is None:
+        return get_comm()
+    elif isinstance(comm, Communication):
+        return comm
+
+    raise TypeError('Unknown communication, must be instance of {}'.format(Communication))
+
+
+def use_comm(comm=None):
+    """
+    Sets the globally used default communication.
+
+    Parameters
+    ----------
+    device : Communication or None
+        The communication to be set
+    """
+    global __default_comm
+    __default_comm = sanitize_comm(comm)
+
+
 # tensor is imported at the very end to break circular dependency
 from . import dndarray

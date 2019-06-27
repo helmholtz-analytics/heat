@@ -208,7 +208,6 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.arccos('hello world')
 
-
     def test_cos(self):
         # base elements
         elements = 30
@@ -237,7 +236,7 @@ class TestTrigonometrics(unittest.TestCase):
 
         # cosine of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(elements, dtype=ht.int64)
-        int64_cos = ht.cos(int64_tensor)
+        int64_cos = int64_tensor.cos()
         self.assertIsInstance(int64_cos, ht.DNDarray)
         self.assertEqual(int64_cos.dtype, ht.float64)
         self.assertTrue(torch.allclose(int64_cos._DNDarray__array.type(torch.double), comparison))
@@ -255,7 +254,7 @@ class TestTrigonometrics(unittest.TestCase):
 
         # hyperbolic cosine of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
-        float32_cosh = ht.cosh(float32_tensor)
+        float32_cosh = float32_tensor.cosh()
         self.assertIsInstance(float32_cosh, ht.DNDarray)
         self.assertEqual(float32_cosh.dtype, ht.float32)
         self.assertTrue(torch.allclose(float32_cosh._DNDarray__array.type(torch.double), comparison))
@@ -294,7 +293,7 @@ class TestTrigonometrics(unittest.TestCase):
 
         # sine of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
-        float32_sin = ht.sin(float32_tensor)
+        float32_sin = float32_tensor.sin()
         self.assertIsInstance(float32_sin, ht.DNDarray)
         self.assertEqual(float32_sin.dtype, ht.float32)
         self.assertTrue(torch.allclose(float32_sin._DNDarray__array.type(torch.double), comparison))
@@ -333,7 +332,7 @@ class TestTrigonometrics(unittest.TestCase):
 
         # hyperbolic sine of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
-        float32_sinh = ht.sinh(float32_tensor)
+        float32_sinh = float32_tensor.sinh()
         self.assertIsInstance(float32_sinh, ht.DNDarray)
         self.assertEqual(float32_sinh.dtype, ht.float32)
         self.assertTrue(torch.allclose(float32_sinh._DNDarray__array.type(torch.double), comparison))
@@ -372,7 +371,7 @@ class TestTrigonometrics(unittest.TestCase):
 
         # tangent of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
-        float32_tan = ht.tan(float32_tensor)
+        float32_tan = float32_tensor.tan()
         self.assertIsInstance(float32_tan, ht.DNDarray)
         self.assertEqual(float32_tan.dtype, ht.float32)
         self.assertTrue(torch.allclose(float32_tan._DNDarray__array.type(torch.double), comparison))
@@ -411,7 +410,7 @@ class TestTrigonometrics(unittest.TestCase):
 
         # hyperbolic tangent of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
-        float32_tanh = ht.tanh(float32_tensor)
+        float32_tanh = float32_tensor.tanh()
         self.assertIsInstance(float32_tanh, ht.DNDarray)
         self.assertEqual(float32_tanh.dtype, ht.float32)
         self.assertTrue(torch.allclose(float32_tanh._DNDarray__array.type(torch.double), comparison))

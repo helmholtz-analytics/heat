@@ -29,6 +29,17 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(as_float64._DNDarray__array.dtype, torch.float64)
         self.assertIs(as_float64, data)
 
+    def test_balance_(self):
+        data = ht.zeros((70, 20), split=0)
+        data = data[:50]
+        data.balance_()
+        self.assertTrue(data.is_balanced())
+
+        data = ht.zeros((4, 120), split=1)
+        data = data[:, 40:70]
+        data.balance_()
+        self.assertTrue(data.is_balanced())
+
     def test_bool_cast(self):
         # simple scalar tensor
         a = ht.ones(1)
@@ -148,6 +159,14 @@ class TestDNDarray(unittest.TestCase):
         if ht.MPI_WORLD.size > 1:
             with self.assertRaises(TypeError):
                 int(ht.full((ht.MPI_WORLD.size,), 2, split=0))
+
+    def test_is_balanced(self):
+        data = ht.zeros((70, 20), split=0)
+        if data.comm.size != 1:
+            data = data[:50]
+            self.assertFalse(data.is_balanced())
+            data.balance_()
+            self.assertTrue(data.is_balanced())
 
     def test_is_distributed(self):
         data = ht.zeros((5, 5,))
@@ -369,13 +388,13 @@ class TestDNDarray(unittest.TestCase):
         ####################################################
         a = ht.zeros((13, 5,), split=1)
         # # set value on one node
-        a[10, :] = 1
-        self.assertEqual(a[10, :].dtype, ht.float32)
+        a[10] = 1
+        self.assertEqual(a[10].dtype, ht.float32)
         if a.comm.size == 2:
             if a.comm.rank == 0:
-                self.assertEqual(a[10, :].lshape, (3,))
+                self.assertEqual(a[10].lshape, (3,))
             if a.comm.rank == 1:
-                self.assertEqual(a[10, :].lshape, (2,))
+                self.assertEqual(a[10].lshape, (2,))
 
         a = ht.zeros((13, 5,), split=1)
         # # set value on one node
@@ -528,3 +547,26 @@ class TestDNDarray(unittest.TestCase):
         a = ht.ones((4, 5,), split=0).tril()
         a[0] = np.array([6, 6, 6, 6, 6])
         self.assertTrue((a[0] == 6).all())
+
+        a = ht.ones((4, 5,), split=0).tril()
+        a[0] = ht.array([6, 6, 6, 6, 6])
+        self.assertTrue((a[ht.array((0,))] == 6).all())
+
+    def test_size_gnumel(self):
+        a = ht.zeros((10, 10, 10), split=None)
+        self.assertEqual(a.size, 10 * 10 * 10)
+        self.assertEqual(a.gnumel, 10 * 10 * 10)
+
+        a = ht.zeros((10, 10, 10), split=0)
+        self.assertEqual(a.size, 10 * 10 * 10)
+        self.assertEqual(a.gnumel, 10 * 10 * 10)
+
+        a = ht.zeros((10, 10, 10), split=1)
+        self.assertEqual(a.size, 10 * 10 * 10)
+        self.assertEqual(a.gnumel, 10 * 10 * 10)
+
+        a = ht.zeros((10, 10, 10), split=2)
+        self.assertEqual(a.size, 10 * 10 * 10)
+        self.assertEqual(a.gnumel, 10 * 10 * 10)
+
+        self.assertEqual(ht.array(0).size, 1)
