@@ -201,34 +201,36 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     if isinstance(obj, dndarray.DNDarray):
         obj = obj._DNDarray__array
 
-    # sanitize the data type
+        # sanitize the data type
     if dtype is not None:
         dtype = types.canonical_heat_type(dtype)
 
-    # initialize the array
+        # initialize the array
     if bool(copy):
         if isinstance(obj, torch.Tensor):
             obj = obj.clone().detach()
+        elif isinstance(obj, np.ndarray):
+            obj = torch.from_numpy(obj)
         else:
             try:
                 obj = torch.tensor(obj, dtype=dtype.torch_type() if dtype is not None else None)
             except RuntimeError:
                 raise TypeError('invalid data of type {}'.format(type(obj)))
 
-    # infer dtype from obj if not explicitly given
+        # infer dtype from obj if not explicitly given
     if dtype is None:
         dtype = types.canonical_heat_type(obj.dtype)
 
-    # sanitize minimum number of dimensions
+        # sanitize minimum number of dimensions
     if not isinstance(ndmin, int):
         raise TypeError('expected ndmin to be int, but was {}'.format(type(ndmin)))
 
-    # reshape the object to encompass additional dimensions
+        # reshape the object to encompass additional dimensions
     ndmin_abs = abs(ndmin) - len(obj.shape)
-    if ndmin_abs > 0 and ndmin>0:
+    if ndmin_abs > 0 and ndmin > 0:
         obj = obj.reshape(obj.shape + ndmin_abs * (1,))
-    if ndmin_abs > 0 and ndmin<0:
-        obj = obj.reshape(ndmin_abs * (1,) + obj.shape )
+    if ndmin_abs > 0 and ndmin < 0:
+        obj = obj.reshape(ndmin_abs * (1,) + obj.shape)
 
     # sanitize the split axes, ensure mutual exclusiveness
     split = sanitize_axis(obj.shape, split)
