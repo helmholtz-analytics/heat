@@ -60,9 +60,8 @@ __all__ = [
 
 class generic:
     def __new__(cls, *value, device=None, comm=None):
-        try:
-            torch_type = cls.torch_type()
-        except NotImplementedError:
+        torch_type = cls.torch_type()
+        if torch_type is NotImplemented:
             raise TypeError('cannot create \'{}\' instances'.format(cls))
 
         value_count = len(value)
@@ -89,11 +88,11 @@ class generic:
 
     @classmethod
     def torch_type(cls):
-        raise NotImplementedError()
+        return NotImplemented
 
     @classmethod
     def char(cls):
-        raise NotImplementedError()
+        return NotImplemented
 
 
 class bool(generic):
