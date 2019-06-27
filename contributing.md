@@ -1,4 +1,4 @@
-## Contributing to NumPy
+## Contributing to HeAT
 
 *These contribution guidelines are inspired by NumPy's contribution guidelines by the SciPy community.*
 
