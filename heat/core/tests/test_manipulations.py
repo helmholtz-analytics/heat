@@ -212,6 +212,17 @@ class TestManipulations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.sort(data, axis='1')
 
+    def test_sort_exp(self):
+        tensor = torch.rand((100, 1))
+        rank = ht.MPI_WORLD.rank
+        data = ht.array(tensor, split=0)
+        result, _ = ht.sort(data, axis=0)
+        counts, _, _ = ht.get_comm().counts_displs_shape(data.gshape, axis=0)
+        for i, c in enumerate(counts):
+            for idx in range(c - 1):
+                if rank == i:
+                    self.assertTrue(torch.lt(result._DNDarray__array[idx], result._DNDarray__array[idx + 1]).all())
+
     def test_squeeze(self):
         torch.manual_seed(1)
         data = ht.random.randn(1, 4, 5, 1)
