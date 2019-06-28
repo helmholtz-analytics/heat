@@ -137,7 +137,7 @@ def concatenate(arrays, axis=0):
     elif s0 is None:
         # arb_slice = [None] * len(arr1.gshape)
         if s1 != axis:
-            _, _, arb_slice = arr0.comm.chunk(arr0.shape, arr1.split)
+            _, _, arb_slice = arr1.comm.chunk(arr0.shape, arr1.split)
             out_shape = tuple(arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
                               for x in range(len(arr1.gshape)))
             out = factories.empty(out_shape, split=s1)
@@ -153,9 +153,9 @@ def concatenate(arrays, axis=0):
             lshape_map[arr1.comm.rank, :] = torch.Tensor(arr1.lshape)
             lshape_map_comm = arr1.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
-            arr1_shape, arr1_shape = list(arr1.shape), list(arr1.shape)
-            arr1_shape[axis] += arr1_shape[axis]
-            out_shape = tuple(arr1_shape)
+            arr0_shape, arr1_shape = list(arr0.shape), list(arr1.shape)
+            arr0_shape[axis] += arr1_shape[axis]
+            out_shape = tuple(arr0_shape)
 
             chunk_map = factories.zeros((arr1.comm.size, len(arr1.gshape)), dtype=int)
             _, _, chk = arr1.comm.chunk(out_shape, arr1.split)
@@ -163,33 +163,34 @@ def concatenate(arrays, axis=0):
                 chunk_map[arr1.comm.rank, i] = chk[i].stop - chk[i].start
             chunk_map_comm = arr1.comm.Iallreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
 
-            lshape_map_comm.wait()
-            chunk_map_comm.wait()
-
             send_slice = [slice(None), ] * arr1.numdims
             keep_slice = [slice(None), ] * arr1.numdims
+
+            lshape_map_comm.wait()
+            chunk_map_comm.wait()
             # push the data backwards, making the data the proper size from arr1 on the first nodes
-            for spr in range(arr0.comm.size - 2, -1, -1):
-                if arr0.comm.rank == spr:
-                    for pr in range(arr0.comm.size - 1, spr, -1):
+            for spr in range(arr1.comm.size - 2, -1, -1):
+                if arr1.comm.rank == spr:
+                    for pr in range(arr1.comm.size - 1, spr, -1):
                         send_amt = abs((chunk_map[pr, axis] - lshape_map[pr, axis]).item())
                         if send_amt:
                             send_amt = send_amt if send_amt < arr1.lshape[axis] else arr1.lshape[axis]
                             send_slice[axis] = slice(arr1.lshape[axis] - send_amt, arr1.lshape[axis])
                             keep_slice[axis] = slice(0, arr1.lshape[axis] - send_amt)
-
-                            send = arr0.comm.Isend(arr1._DNDarray__array[send_slice].clone(), dest=pr, tag=pr + arr0.comm.size + spr)
-                            arr1._DNDarray__array = arr1._DNDarray__array[keep_slice].clone()
-                            send.wait()
-                for pr in range(arr1.comm.size - 1, spr, -1):
-                    snt = abs((chunk_map[pr, axis] - lshape_map[pr, axis]).item())
-                    snt = snt if snt < lshape_map[spr, axis] else lshape_map[spr, axis].item()
+                            # print('s', pr, arr1.comm.size, spr, arr1._DNDarray__array[send_slice].shape, send_amt)
+                            arr1.comm.Isend(arr1._DNDarray__array[send_slice].clone(), dest=pr, tag=pr + arr1.comm.size + spr)
+                            arr1._DNDarray__array = arr1._DNDarray__array[keep_slice]
+                            # send.wait()
+                for pr in range(arr1.comm.size - 1, spr - 1, -1):
+                    snt = abs((chunk_map[pr, s1] - lshape_map[pr, s1]).item())
+                    snt = snt if snt < lshape_map[spr, s1] else lshape_map[spr, s1].item()
 
                     if arr1.comm.rank == pr and snt:
                         shp = list(arr1.gshape)
-                        shp[axis] = snt
+                        shp[s1] = snt
                         data = torch.zeros(shp)
-                        arr1.comm.Recv(data, source=spr, tag=pr + arr0.comm.size + spr)
+                        # print('r', pr, spr, arr0.comm.size, data.shape, snt)
+                        arr1.comm.Recv(data, source=spr, tag=pr + arr1.comm.size + spr)
                         arr1._DNDarray__array = torch.cat((data, arr1._DNDarray__array.clone()), dim=axis)
                     lshape_map[pr, axis] += snt
                     lshape_map[spr, axis] -= snt
@@ -199,11 +200,9 @@ def concatenate(arrays, axis=0):
             for c in range(len(chunk_map)):
                 arb_slice[axis] = c
                 chunk_map[arb_slice] -= lshape_map[arb_slice]
-            # print(chunk_map)
 
             # chunk_map_slice = [None] * len(arr0.shape)
             # chunk_map_slice[axis] = axis
-            # print(axis, arr0.shape, arr1.shape)
             if arr0.comm.rank == 0:
                 lcl_slice = [slice(None)] * arr0.numdims
                 lcl_slice[axis] = slice(chunk_map[0, axis].item())
@@ -220,6 +219,7 @@ def concatenate(arrays, axis=0):
                     # print(arr0._DNDarray__array[lcl_slice].clone().squeeze())
                     arr0._DNDarray__array = arr0._DNDarray__array[lcl_slice].clone().squeeze()
                 ttl += sz.item()
+
             out = factories.empty(out_shape, split=s1)
             if len(arr0.lshape) < len(arr1.lshape):
                 arr0._DNDarray__array.unsqueeze_(axis)
@@ -253,11 +253,11 @@ def concatenate(arrays, axis=0):
                 chunk_map[arr0.comm.rank, i] = chk[i].stop - chk[i].start
             chunk_map_comm = arr0.comm.Iallreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
 
-            lshape_map_comm.wait()
-            chunk_map_comm.wait()
-
             send_slice = [slice(None), ] * arr0.numdims
             keep_slice = [slice(None), ] * arr0.numdims
+
+            lshape_map_comm.wait()
+            chunk_map_comm.wait()
             # push the data forward, making the data the proper size from arr0 on the first nodes
             for spr in range(1, arr0.comm.size):
                 if arr0.comm.rank == spr:
@@ -269,11 +269,12 @@ def concatenate(arrays, axis=0):
                             keep_slice[arr0.split] = slice(send_amt, arr0.lshape[axis])
 
                             send = arr0.comm.Isend(arr0._DNDarray__array[send_slice].clone(), dest=pr, tag=pr + arr0.comm.size + spr)
-                            arr0._DNDarray__array = arr0._DNDarray__array[keep_slice].clone()
+                            arr0._DNDarray__array = arr0._DNDarray__array[keep_slice]
                             send.wait()
                 for pr in range(spr):
-                    snt = abs((chunk_map[pr, arr0.split] - lshape_map[pr, arr0.split]).item())
-                    snt = snt if snt < lshape_map[spr, arr0.split] else lshape_map[spr, arr0.split].item()
+                    snt = abs((chunk_map[pr, s0] - lshape_map[pr, s0]).item())
+                    snt = snt if snt < lshape_map[spr, s0] else lshape_map[spr, s0].item()
+
                     if arr0.comm.rank == pr and snt:
                         shp = list(arr0.gshape)
                         shp[arr0.split] = snt
@@ -309,14 +310,11 @@ def concatenate(arrays, axis=0):
                     arr1._DNDarray__array = arr1._DNDarray__array[lcl_slice].clone().squeeze()
                 ttl += sz.item()
 
-            # print(arr0._DNDarray__array, arr1._DNDarray__array)
             out = factories.empty((out_shape), split=s0)
             if len(arr1.lshape) < len(arr0.lshape):
                 arr1._DNDarray__array.unsqueeze_(axis)
 
-            # print(arr0._DNDarray__array.shape, arr1._DNDarray__array.shape)
             out._DNDarray__array = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
-
             return out
     else:
         # this is the case that s0 /= s1 and they are both not None
@@ -683,6 +681,12 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     if axis is not None:
         # transpose matrix back
         gres = gres.transpose(0, axis)
+
+    # if all([g == 1 for g in gres.shape]):
+        #     gres = torch.tensor((gres.squeeze()))
+        # gres.squeeze_().unsqueeze_(0)
+    # print(gres.shape)
+    # print(a.dtype, is_split)
     result = factories.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, is_split=is_split)
 
     if split is not None:

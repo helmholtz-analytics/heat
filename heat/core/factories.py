@@ -201,11 +201,11 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     if isinstance(obj, dndarray.DNDarray):
         obj = obj._DNDarray__array
 
-        # sanitize the data type
+    # sanitize the data type
     if dtype is not None:
         dtype = types.canonical_heat_type(dtype)
 
-        # initialize the array
+    # initialize the array
     if bool(copy):
         if isinstance(obj, torch.Tensor):
             obj = obj.clone().detach()
@@ -217,20 +217,20 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
             except RuntimeError:
                 raise TypeError('invalid data of type {}'.format(type(obj)))
 
-        # infer dtype from obj if not explicitly given
+    # infer dtype from obj if not explicitly given
     if dtype is None:
         dtype = types.canonical_heat_type(obj.dtype)
 
-        # sanitize minimum number of dimensions
+    # sanitize minimum number of dimensions
     if not isinstance(ndmin, int):
         raise TypeError('expected ndmin to be int, but was {}'.format(type(ndmin)))
 
-        # reshape the object to encompass additional dimensions
+    # reshape the object to encompass additional dimensions
     ndmin_abs = abs(ndmin) - len(obj.shape)
-    if ndmin_abs > 0 and ndmin > 0:
+    if ndmin_abs > 0 and ndmin>0:
         obj = obj.reshape(obj.shape + ndmin_abs * (1,))
-    if ndmin_abs > 0 and ndmin < 0:
-        obj = obj.reshape(ndmin_abs * (1,) + obj.shape)
+    if ndmin_abs > 0 and ndmin<0:
+        obj = obj.reshape(ndmin_abs * (1,) + obj.shape )
 
     # sanitize the split axes, ensure mutual exclusiveness
     split = sanitize_axis(obj.shape, split)
@@ -253,21 +253,29 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
         if comm.rank < comm.size - 1:
-            comm.Isend(lshape, dest=comm.rank + 1)
+            w = comm.Isend(lshape, dest=comm.rank + 1)
+            print('s', lshape, comm.rank + 1)
         if comm.rank != 0:
             # look into the message of the neighbor to see whether the shape length fits
-            status = MPI.Status()
-            comm.Probe(source=comm.rank - 1, status=status)
-            length = status.Get_count() // lshape.dtype.itemsize
+            # status = MPI.Status()
+            # comm.Probe(source=comm.rank - 1, status=status)
+            # length = status.Get_count() // lshape.dtype.itemsize
+            # print(status.Get_count(), lshape.dtype.itemsize)
+            comm.Recv(gshape, source=comm.rank - 1)
+            print(gshape)
+            length = len(gshape)
+            print('g0', gshape, lshape, length)
 
             # the number of shape elements does not match with the 'left' rank
             if length != len(lshape):
                 discard_buffer = np.empty(length)
-                comm.Recv(discard_buffer, source=comm.rank - 1)
+                # comm.Recv(discard_buffer, source=comm.rank - 1)
+                # print(discard_buffer)
                 gshape[is_split] = np.iinfo(gshape.dtype).min
             else:
+                # print('g', gshape, lshape)
                 # check whether the individual shape elements match
-                comm.Recv(gshape, source=comm.rank - 1)
+                # comm.Recv(gshape, source=comm.rank - 1)
                 for i in range(length):
                     if i == is_split:
                         continue
@@ -276,6 +284,7 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
 
         # sum up the elements along the split dimension
         reduction_buffer = np.array(gshape[is_split])
+        # print(reduction_buffer)
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
         if reduction_buffer < 0:
             raise ValueError('unable to construct tensor, shape of local data chunk does not match')
