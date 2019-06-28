@@ -23,7 +23,6 @@ from .stride_tricks import sanitize_axis
 
 warnings.simplefilter('always', ResourceWarning)
 
-
 __all__ = [
     'DNDarray'
 ]
@@ -851,6 +850,117 @@ class DNDarray:
         """
         return relational.eq(self, other)
 
+    def __matmul__(self, other):
+        """
+        Matrix multiplication of two DNDarrays
+
+        for comment context -> a @ b = c or A @ B = c
+
+        Parameters
+        ----------
+        a : ht.DNDarray
+            2 dimensional: L x P
+        b : ht.DNDarray
+            2 dimensional: P x Q
+
+        Returns
+        -------
+        ht.DNDarray
+            returns a tensor with the result of a @ b. The split dimension of the returned array is typically the split dimension of a.
+            However, if a.split = None then the the c.split will be set as the split dimension of b. If both are None then c.split is also None.
+            ** NOTE ** if a is a split vector, then the returned vector will be of shape (1xQ) and will be split in the 1st dimension
+            ** NOTE ** if b is a vector and either a or b is split, then the returned vector will be of shape (Lx1) and will be split in the 0th dimension
+
+        References
+        ----------
+        [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on Distributed Data-parallel Platforms,"
+            IEEE Transactions on Parallel and Distributed Systems, vol 28, no. 9. 2017.
+        [2] S. Ryu and D. Kim, "Parallel Huge Matrix Multiplication on a Cluster with GPGPU Accelerators,"
+            2018 IEEE International Parallel and Distributed Processing Symposium Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
+
+        Example
+        -------
+        >>> a = ht.ones((n, m), split=1)
+        >>> a[0] = ht.arange(1, m + 1)
+        >>> a[:, -1] = ht.arange(1, n + 1)
+        (0/1) tensor([[1., 2.],
+                      [1., 1.],
+                      [1., 1.],
+                      [1., 1.],
+                      [1., 1.]])
+        (1/1) tensor([[3., 1.],
+                      [1., 2.],
+                      [1., 3.],
+                      [1., 4.],
+                      [1., 5.]])
+        >>> b = ht.ones((j, k), split=0)
+        >>> b[0] = ht.arange(1, k + 1)
+        >>> b[:, 0] = ht.arange(1, j + 1)
+        (0/1) tensor([[1., 2., 3., 4., 5., 6., 7.],
+                      [2., 1., 1., 1., 1., 1., 1.]])
+        (1/1) tensor([[3., 1., 1., 1., 1., 1., 1.],
+                      [4., 1., 1., 1., 1., 1., 1.]])
+        >>> linalg.matmul(a, b)
+        (0/1) tensor([[18.,  8.,  9., 10.],
+                      [14.,  6.,  7.,  8.],
+                      [18.,  7.,  8.,  9.],
+                      [22.,  8.,  9., 10.],
+                      [26.,  9., 10., 11.]])
+        (1/1) tensor([[11., 12., 13.],
+                      [ 9., 10., 11.],
+                      [10., 11., 12.],
+                      [11., 12., 13.],
+                      [12., 13., 14.]])
+        """
+        return linalg.matmul(self, other)
+
+    def mean(self, axis=None):
+        """
+        Calculates and returns the mean of a tensor.
+        If a axis is given, the mean will be taken in that direction.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            Values for which the mean is calculated for
+        axis : None, Int, iterable
+            axis which the mean is taken in.
+            Default: None -> mean of all data calculated
+
+        Examples
+        --------
+        >>> a = ht.random.randn(1,3)
+        >>> a
+        tensor([[-1.2435,  1.1813,  0.3509]])
+        >>> ht.mean(a)
+        tensor(0.0962)
+
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[ 0.0518,  0.9550,  0.3755,  0.3564],
+                [ 0.8182,  1.2425,  1.0549, -0.1926],
+                [-0.4997, -1.1940, -0.2812,  0.4060],
+                [-1.5043,  1.4069,  0.7493, -0.9384]])
+        >>> ht.mean(a, 1)
+        tensor([ 0.4347,  0.7307, -0.3922, -0.0716])
+        >>> ht.mean(a, 0)
+        tensor([-0.2835,  0.6026,  0.4746, -0.0921])
+
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[ 2.5893,  1.5934, -0.2870, -0.6637],
+                [-0.0344,  0.6412, -0.3619,  0.6516],
+                [ 0.2801,  0.6798,  0.3004,  0.3018],
+                [ 2.0528, -0.1121, -0.8847,  0.8214]])
+        >>> ht.mean(a, (0,1))
+        tensor(0.4730)
+
+        Returns
+        -------
+        ht.DNDarray containing the mean/s, if split, then split in the same direction as x.
+        """
+        return statistics.mean(self, axis)
+
     def exp(self, out=None):
         """
         Calculate the exponential of all elements in the input array.
@@ -1061,7 +1171,7 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-        if isinstance(key, DNDarray)and key.gshape[-1] != len(self.gshape):
+        if isinstance(key, DNDarray) and key.gshape[-1] != len(self.gshape):
             key = tuple(x.item() for x in key)
         if not self.is_distributed():
             if not self.comm.size == 1:
@@ -1085,6 +1195,7 @@ class DNDarray:
                         new_split = self.split
 
                     return DNDarray(self.__array[key], gout, self.dtype, new_split, self.device, self.comm)
+
         else:
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
@@ -1102,7 +1213,7 @@ class DNDarray:
                     new_split = self.split
 
                 if key in range(chunk_start, chunk_end) and self.split == 0:  # only need to adjust the key if split==0
-                    gout = list(self.__array[key-chunk_start].shape)
+                    gout = list(self.__array[key - chunk_start].shape)
                     arr = self.__array[key - chunk_start]
                 elif self.split != 0:
                     _, _, chunk_slice2 = self.comm.chunk(self.shape, self.split)
@@ -1145,6 +1256,11 @@ class DNDarray:
                 elif key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
                     key[self.split] = key[self.split] - chunk_start
+                    arr = self.__array[tuple(key)]
+                    gout = list(arr.shape)
+                elif key[self.split] < 0 and self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
+                    key = list(key)
+                    key[self.split] = key[self.split] + chunk_end - chunk_start
                     arr = self.__array[tuple(key)]
                     gout = list(arr.shape)
                 else:
@@ -2070,7 +2186,9 @@ class DNDarray:
 
             if isinstance(key, int) and self.split == 0:
                 if key in range(chunk_start, chunk_end):
-                    self.__setter(key-chunk_start, value)
+                    self.__setter(key - chunk_start, value)
+            elif isinstance(key, int) and self.split > 0:
+                self[key, :] = value
 
             elif isinstance(key, int) and self.split > 0:
                 self[key, :] = value
@@ -2221,16 +2339,16 @@ class DNDarray:
             Input data.
 
         axis : None or int or tuple of ints, optional
-               Selects a subset of the single-dimensional entries in the shape. 
+               Selects a subset of the single-dimensional entries in the shape.
                If axis is None, all single-dimensional entries will be removed from the shape.
                If an axis is selected with shape entry greater than one, a ValueError is raised.
 
 
 
         Returns:
-        --------	
+        --------
         squeezed : ht.tensor
-                   The input tensor, but with all or a subset of the dimensions of length 1 removed. 
+                   The input tensor, but with all or a subset of the dimensions of length 1 removed.
 
 
         Examples:
@@ -2624,7 +2742,7 @@ class DNDarray:
 
     """
     This ensures that commutative arithmetic operations work no matter on which side the heat-tensor is placed.
-    
+
     Examples
     --------
     >>> import heat as ht
