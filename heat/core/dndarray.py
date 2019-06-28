@@ -851,117 +851,6 @@ class DNDarray:
         """
         return relational.eq(self, other)
 
-    def __matmul__(self, other):
-        """
-        Matrix multiplication of two DNDarrays
-
-        for comment context -> a @ b = c or A @ B = c
-
-        Parameters
-        ----------
-        a : ht.DNDarray
-            2 dimensional: L x P
-        b : ht.DNDarray
-            2 dimensional: P x Q
-
-        Returns
-        -------
-        ht.DNDarray
-            returns a tensor with the result of a @ b. The split dimension of the returned array is typically the split dimension of a.
-            However, if a.split = None then the the c.split will be set as the split dimension of b. If both are None then c.split is also None.
-            ** NOTE ** if a is a split vector, then the returned vector will be of shape (1xQ) and will be split in the 1st dimension
-            ** NOTE ** if b is a vector and either a or b is split, then the returned vector will be of shape (Lx1) and will be split in the 0th dimension
-
-        References
-        ----------
-        [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on Distributed Data-parallel Platforms,"
-            IEEE Transactions on Parallel and Distributed Systems, vol 28, no. 9. 2017.
-        [2] S. Ryu and D. Kim, "Parallel Huge Matrix Multiplication on a Cluster with GPGPU Accelerators,"
-            2018 IEEE International Parallel and Distributed Processing Symposium Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
-
-        Example
-        -------
-        >>> a = ht.ones((n, m), split=1)
-        >>> a[0] = ht.arange(1, m + 1)
-        >>> a[:, -1] = ht.arange(1, n + 1)
-        (0/1) tensor([[1., 2.],
-                      [1., 1.],
-                      [1., 1.],
-                      [1., 1.],
-                      [1., 1.]])
-        (1/1) tensor([[3., 1.],
-                      [1., 2.],
-                      [1., 3.],
-                      [1., 4.],
-                      [1., 5.]])
-        >>> b = ht.ones((j, k), split=0)
-        >>> b[0] = ht.arange(1, k + 1)
-        >>> b[:, 0] = ht.arange(1, j + 1)
-        (0/1) tensor([[1., 2., 3., 4., 5., 6., 7.],
-                      [2., 1., 1., 1., 1., 1., 1.]])
-        (1/1) tensor([[3., 1., 1., 1., 1., 1., 1.],
-                      [4., 1., 1., 1., 1., 1., 1.]])
-        >>> linalg.matmul(a, b)
-        (0/1) tensor([[18.,  8.,  9., 10.],
-                      [14.,  6.,  7.,  8.],
-                      [18.,  7.,  8.,  9.],
-                      [22.,  8.,  9., 10.],
-                      [26.,  9., 10., 11.]])
-        (1/1) tensor([[11., 12., 13.],
-                      [ 9., 10., 11.],
-                      [10., 11., 12.],
-                      [11., 12., 13.],
-                      [12., 13., 14.]])
-        """
-        return linalg.matmul(self, other)
-
-    def mean(self, axis=None):
-        """
-        Calculates and returns the mean of a tensor.
-        If a axis is given, the mean will be taken in that direction.
-
-        Parameters
-        ----------
-        x : ht.DNDarray
-            Values for which the mean is calculated for
-        axis : None, Int, iterable
-            axis which the mean is taken in.
-            Default: None -> mean of all data calculated
-
-        Examples
-        --------
-        >>> a = ht.random.randn(1,3)
-        >>> a
-        tensor([[-1.2435,  1.1813,  0.3509]])
-        >>> ht.mean(a)
-        tensor(0.0962)
-
-        >>> a = ht.random.randn(4,4)
-        >>> a
-        tensor([[ 0.0518,  0.9550,  0.3755,  0.3564],
-                [ 0.8182,  1.2425,  1.0549, -0.1926],
-                [-0.4997, -1.1940, -0.2812,  0.4060],
-                [-1.5043,  1.4069,  0.7493, -0.9384]])
-        >>> ht.mean(a, 1)
-        tensor([ 0.4347,  0.7307, -0.3922, -0.0716])
-        >>> ht.mean(a, 0)
-        tensor([-0.2835,  0.6026,  0.4746, -0.0921])
-
-        >>> a = ht.random.randn(4,4)
-        >>> a
-        tensor([[ 2.5893,  1.5934, -0.2870, -0.6637],
-                [-0.0344,  0.6412, -0.3619,  0.6516],
-                [ 0.2801,  0.6798,  0.3004,  0.3018],
-                [ 2.0528, -0.1121, -0.8847,  0.8214]])
-        >>> ht.mean(a, (0,1))
-        tensor(0.4730)
-
-        Returns
-        -------
-        ht.DNDarray containing the mean/s, if split, then split in the same direction as x.
-        """
-        return statistics.mean(self, axis)
-
     def exp(self, out=None):
         """
         Calculate the exponential of all elements in the input array.
@@ -1176,14 +1065,14 @@ class DNDarray:
             key = tuple(x.item() for x in key)
         if not self.is_distributed():
             if not self.comm.size == 1:
-                if type(key) == DNDarray and key.gshape[-1] == len(self.gshape):
+                if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                     # this will return a 1D array as the shape cannot be determined automatically
                     arr = self.__array[key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]]
                     return DNDarray(arr, tuple(arr.shape), self.dtype, self.split, self.device, self.comm)
                 else:
                     return DNDarray(self.__array[key], tuple(self.__array[key].shape), self.dtype, self.split, self.device, self.comm)
             else:
-                if type(key) == DNDarray and key.gshape[-1] == len(self.gshape):
+                if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                     # this will return a 1D array as the shape cannot be determined automatically
                     arr = self.__array[key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]]
                     return DNDarray(arr, tuple(arr.shape), self.dtype, 0, self.device, self.comm)
@@ -1204,7 +1093,7 @@ class DNDarray:
 
             arr = torch.Tensor()
 
-            if type(key) == int:  # if a sigular index is given and the tensor is split
+            if isinstance(key, int):  # if a sigular index is given and the tensor is split
                 gout = [0] * (len(self.gshape) - 1)
                 # handle the reduction of the split to accommodate for the reduced dimension
                 if self.split >= len(gout):
@@ -1237,7 +1126,7 @@ class DNDarray:
                 else:
                     new_split = self.split
 
-                if type(key[self.split]) == slice:  # if a slice is given in the split direction
+                if isinstance(key[self.split], slice):  # if a slice is given in the split direction
                     # below allows for the split given to contain Nones
                     key_set = set(range(key[self.split].start if key[self.split].start is not None else 0,
                                         key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split],
@@ -1258,18 +1147,13 @@ class DNDarray:
                     key[self.split] = key[self.split] - chunk_start
                     arr = self.__array[tuple(key)]
                     gout = list(arr.shape)
-                elif key[self.split] < 0 and self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
-                    key = list(key)
-                    key[self.split] = key[self.split] + chunk_end - chunk_start
-                    arr = self.__array[tuple(key)]
-                    gout = list(arr.shape)
                 else:
                     warnings.warn("This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
                         self.comm.rank), ResourceWarning)
                     # arr is empty
                     # gout is all 0s and is the proper shape
 
-            elif type(key) == slice and self.split == 0:  # if the given axes are only a slice
+            elif isinstance(key, slice) and self.split == 0:  # if the given axes are only a slice
                 gout = [0] * len(self.gshape)
                 # reduce the dims if the slices are only one element in length
                 start = key.start if key.start is not None else 0
@@ -1296,7 +1180,7 @@ class DNDarray:
                     # gout is all 0s and is the proper shape
 
             # elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
-            elif type(key) == DNDarray and key.gshape[-1] == len(self.gshape):
+            elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                 # this is for a list of values
                 # it will return a 1D DNDarray of the elements on each node which are in the key (will be split in the 0th dimension
                 key.lloc[..., self.split] -= chunk_start
@@ -2170,10 +2054,10 @@ class DNDarray:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
-        if type(key) == DNDarray and key.gshape[-1] != len(self.gshape):
+        if isinstance(key, DNDarray) and key.gshape[-1] != len(self.gshape):
             key = tuple(x.item() for x in key)
         if not self.is_distributed():
-            if type(key) == DNDarray and key.gshape[-1] == len(self.gshape):
+            if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                 # this is for a list of values
                 for i in range(key.gshape[0]):
                     self.__setter((key[i, 0].item(), key[i, 1].item()), value)
@@ -2184,17 +2068,15 @@ class DNDarray:
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
 
-            if type(key) == int and self.split == 0:
+            if isinstance(key, int) and self.split == 0:
                 if key in range(chunk_start, chunk_end):
                     self.__setter(key-chunk_start, value)
+
             elif isinstance(key, int) and self.split > 0:
                 self[key, :] = value
 
-            elif type(key) == int and self.split > 0:
-                self[key, :] = value
-
             elif isinstance(key, (tuple, list, torch.Tensor)):
-                if type(key[self.split]) == slice:
+                if isinstance(key[self.split], slice):
                     key = list(key)
                     overlap = list(set(range(key[self.split].start if key[self.split].start is not None else 0,
                                              key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split],
@@ -2223,7 +2105,7 @@ class DNDarray:
                         key[self.split] = key[self.split] + chunk_end - chunk_start
                         self.__setter(tuple(key), value)
 
-            elif type(key) == slice and self.split == 0:
+            elif isinstance(key, slice) and self.split == 0:
                 overlap = list(set(range(key.start, key.stop)) & set(range(chunk_start, chunk_end)))
                 if overlap:
                     overlap.sort()
@@ -2231,7 +2113,7 @@ class DNDarray:
                     key = slice(min(hold), max(hold) + 1, key.step)
                     self.__setter(key, value)
 
-            elif type(key) == DNDarray and key.gshape[-1] == len(self.gshape):
+            elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                 # this is the case with a list of indices to set
                 key = key.copy()
                 for i in range(key.lshape[0]):
