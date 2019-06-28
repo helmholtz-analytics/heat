@@ -212,7 +212,6 @@ class TestManipulations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.sort(data, axis='1')
 
-    def test_sort_exp(self):
         tensor = torch.rand((100, 1))
         rank = ht.MPI_WORLD.rank
         data = ht.array(tensor, split=0)
