@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 import sys
 sys.path.append('./heat/core')
 import version
