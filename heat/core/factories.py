@@ -253,29 +253,21 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
         if comm.rank < comm.size - 1:
-            w = comm.Isend(lshape, dest=comm.rank + 1)
-            print('s', lshape, comm.rank + 1)
+            comm.Isend(lshape, dest=comm.rank + 1)
         if comm.rank != 0:
             # look into the message of the neighbor to see whether the shape length fits
-            # status = MPI.Status()
-            # comm.Probe(source=comm.rank - 1, status=status)
-            # length = status.Get_count() // lshape.dtype.itemsize
-            # print(status.Get_count(), lshape.dtype.itemsize)
-            comm.Recv(gshape, source=comm.rank - 1)
-            print(gshape)
-            length = len(gshape)
-            print('g0', gshape, lshape, length)
+            status = MPI.Status()
+            comm.Probe(source=comm.rank - 1, status=status)
+            length = status.Get_count() // lshape.dtype.itemsize
 
             # the number of shape elements does not match with the 'left' rank
             if length != len(lshape):
                 discard_buffer = np.empty(length)
-                # comm.Recv(discard_buffer, source=comm.rank - 1)
-                # print(discard_buffer)
+                comm.Recv(discard_buffer, source=comm.rank - 1)
                 gshape[is_split] = np.iinfo(gshape.dtype).min
             else:
-                # print('g', gshape, lshape)
                 # check whether the individual shape elements match
-                # comm.Recv(gshape, source=comm.rank - 1)
+                comm.Recv(gshape, source=comm.rank - 1)
                 for i in range(length):
                     if i == is_split:
                         continue
@@ -284,7 +276,6 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
 
         # sum up the elements along the split dimension
         reduction_buffer = np.array(gshape[is_split])
-        # print(reduction_buffer)
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
         if reduction_buffer < 0:
             raise ValueError('unable to construct tensor, shape of local data chunk does not match')
