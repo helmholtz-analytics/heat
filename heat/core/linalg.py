@@ -201,8 +201,6 @@ def matmul(a, b):
         if b.lshape[0] % kB != 0:
             rem_b = 1
 
-        print(a.lshape[-1], kB, 2 % 1)
-
         # get the lshape map to determine what needs to be sent where as well as M and N
         # lshape map dims -> {node, a=0, b=1, lshape}
         lshape_map = factories.zeros((a.comm.size, 2, len(a.gshape)), dtype=int)
