@@ -86,12 +86,12 @@ def concatenate(arrays, axis=0):
     [1/1]         [1., 1.]])
     """
 
-    arr0, arr1 = arrays[0], arrays[1]
     if len(arrays) != 2:
         if len(arrays) < 2:
             raise ValueError('concatenate requires 2 arrays')
         else:
             raise NotImplementedError('concatenate is not implemented for >2 DNDarrays')
+    arr0, arr1 = arrays[0], arrays[1]
 
     if not isinstance(arr0, dndarray.DNDarray) and not isinstance(arr1, dndarray.DNDarray):
         raise TypeError('Both arrays must be DNDarrays')
@@ -204,7 +204,7 @@ def concatenate(arrays, axis=0):
         if s1 != axis:
             _, _, arb_slice = arr1.comm.chunk(arr0.shape, arr1.split)
             out_shape = tuple(arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
-                             for x in range(len(arr1.gshape)))
+                              for x in range(len(arr1.gshape)))
             out = factories.empty(out_shape, split=s1)
             out._DNDarray__array = torch.cat((arr0._DNDarray__array[arb_slice], arr1._DNDarray__array), dim=axis)
             return out

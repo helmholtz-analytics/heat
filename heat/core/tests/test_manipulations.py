@@ -278,6 +278,15 @@ class TestManipulations(unittest.TestCase):
         lshape[0] = chk[0].stop - chk[0].start
         self.assertEqual(res.lshape, tuple(lshape))
 
+        with self.assertRaises(ValueError):
+            ht.concatenate((ht.zeros((6, 3, 5)), ))
+        with self.assertRaises(TypeError):
+            ht.concatenate((x, y), axis='ste')
+        with self.assertRaises(ValueError):
+            ht.concatenate((ht.zeros((6, 3, 5)), ht.zeros((4, 5, 1))))
+        with self.assertRaises(RuntimeError):
+            ht.concatenate((x, 'stg'))
+
     def test_expand_dims(self):
         # vector data
         a = ht.arange(10)
