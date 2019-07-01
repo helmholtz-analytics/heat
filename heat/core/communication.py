@@ -1,6 +1,5 @@
 from mpi4py import MPI
 
-import abc
 import numpy as np
 import os
 import subprocess
@@ -16,17 +15,14 @@ else:
     CUDA_AWARE_MPI = False
 
 
-class Communication(metaclass=abc.ABCMeta):
+class Communication:
     @staticmethod
-    @abc.abstractmethod
     def is_distributed():
-        pass
+        return NotImplemented
 
-    @abc.abstractmethod
     def __init__(self):
-        pass
+        return NotImplemented
 
-    @abc.abstractmethod
     def chunk(self, shape, split):
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
@@ -46,7 +42,7 @@ class Communication(metaclass=abc.ABCMeta):
         slices : tuple of slices
             the chunk slices with respect to the given shape
         """
-        pass
+        return NotImplemented
 
 
 class MPICommunication(Communication):
@@ -420,11 +416,14 @@ class MPICommunication(Communication):
             mpi_sendbuf = self.as_buffer(sendbuf, send_counts, send_displs)
             if send_counts is None:
                 mpi_sendbuf[1] //= send_factor
-
+        else:
+            mpi_sendbuf = sendbuf
         if recvbuf is not MPI.IN_PLACE:
             mpi_recvbuf = self.as_buffer(recvbuf, recv_counts, recv_displs)
             if recv_counts is None:
                 mpi_recvbuf[1] //= recv_factor
+        else:
+            mpi_recvbuf = recvbuf
 
         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)

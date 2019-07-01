@@ -19,7 +19,6 @@ generic
  \\-> flexible (currently unused, placeholder for characters)
 """
 
-import abc
 import builtins
 import collections
 import numpy as np
@@ -59,12 +58,10 @@ __all__ = [
 ]
 
 
-class generic(metaclass=abc.ABCMeta):
-    @abc.abstractmethod
+class generic:
     def __new__(cls, *value, device=None, comm=None):
-        try:
-            torch_type = cls.torch_type()
-        except TypeError:
+        torch_type = cls.torch_type()
+        if torch_type is NotImplemented:
             raise TypeError('cannot create \'{}\' instances'.format(cls))
 
         value_count = len(value)
@@ -90,14 +87,12 @@ class generic(metaclass=abc.ABCMeta):
         return dndarray.DNDarray(array, tuple(array.shape), cls, split=None, device=device, comm=comm)
 
     @classmethod
-    @abc.abstractclassmethod
     def torch_type(cls):
-        pass
+        return NotImplemented
 
     @classmethod
-    @abc.abstractclassmethod
     def char(cls):
-        pass
+        return NotImplemented
 
 
 class bool(generic):
