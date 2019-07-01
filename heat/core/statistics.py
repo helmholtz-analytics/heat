@@ -236,14 +236,14 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     cov : DNDarray
         the covariance matrix of the variables
     """
-    if ddof is not None and ddof != int(ddof):
-        raise ValueError("ddof must be integer")
-    if m.numdims > 2:
-        raise ValueError("m has more than 2 dimensions")
-    if not m.is_balanced():
-        raise RuntimeError("balance is required for cov(). use balance_() to balance m")
+    if ddof is not None and not isinstance(ddof, int):
+        raise TypeError("ddof must be integer")
     if not isinstance(m, dndarray.DNDarray):
         raise TypeError('m must be a DNDarray')
+    if not m.is_balanced():
+        raise RuntimeError("balance is required for cov(). use balance_() to balance m")
+    if m.numdims > 2:
+        raise ValueError("m has more than 2 dimensions")
 
     if m.numdims == 1:
         m = m.expand_dims(1)

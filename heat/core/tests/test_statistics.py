@@ -1,3 +1,5 @@
+import numpy as np
+import h5py
 import torch
 import unittest
 from itertools import combinations
@@ -177,9 +179,61 @@ class TestStatistics(unittest.TestCase):
 
     def test_cov(self):
         x = ht.array([[0, 2], [1, 1], [2, 0]], dtype=ht.float, split=1).T
-        cov = ht.cov(x)
-        actual = ht.array([[1, -1], [-1, 1]], split=0)
-        self.assertTrue(ht.equal(cov, actual))
+        if x.comm.size < 3:
+            cov = ht.cov(x)
+            actual = ht.array([[1, -1], [-1, 1]], split=0)
+            self.assertTrue(ht.equal(cov, actual))
+
+        f = h5py.File('heat/datasets/data/iris.h5', 'r')
+        data = f['data']
+        np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False)
+
+        htdata = ht.load('heat/datasets/data/iris.h5', 'data', split=0)
+        ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+
+        np_cov = np.cov(data, rowvar=False)
+        ht_cov = ht.cov(htdata, rowvar=False)
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+
+        np_cov = np.cov(data, rowvar=False, ddof=1)
+        ht_cov = ht.cov(htdata, rowvar=False, ddof=1)
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+
+        np_cov = np.cov(data, rowvar=False, bias=True)
+        ht_cov = ht.cov(htdata, rowvar=False, bias=True)
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+
+        if 1 < x.comm.size < 5:
+            htdata = ht.load('heat/datasets/data/iris.h5', 'data', split=1)
+            np_cov = np.cov(data, rowvar=False)
+            ht_cov = ht.cov(htdata, rowvar=False)
+            self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
+
+            np_cov = np.cov(data, data, rowvar=True)
+
+            htdata = ht.load('heat/datasets/data/iris.h5', 'data', split=0)
+            ht_cov = ht.cov(htdata, htdata, rowvar=True)
+            self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
+
+            htdata = ht.load('heat/datasets/data/iris.h5', 'data', split=0)
+            with self.assertRaises(RuntimeError):
+                ht.cov(htdata[1:], rowvar=False)
+            with self.assertRaises(RuntimeError):
+                ht.cov(htdata, htdata[1:], rowvar=False)
+
+        with self.assertRaises(TypeError):
+            ht.cov(np_cov)
+        with self.assertRaises(TypeError):
+            ht.cov(htdata, np_cov)
+        with self.assertRaises(TypeError):
+            ht.cov(htdata, ddof='str')
+        with self.assertRaises(ValueError):
+            ht.cov(ht.zeros((1, 2, 3)))
+        with self.assertRaises(ValueError):
+            ht.cov(htdata, ht.zeros((1, 2, 3)))
+        with self.assertRaises(ValueError):
+            ht.cov(htdata, ddof=10000)
 
     def test_max(self):
         data = [
