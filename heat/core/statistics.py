@@ -6,6 +6,7 @@ from .communication import MPI
 from . import exponential
 from . import factories
 from . import linalg
+from . import manipulations
 from . import operations
 from . import dndarray
 from . import types
@@ -272,29 +273,8 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
         '''
         if both DNDarrays have the same gshape and they are both balanced then flatten both arrays
         then do the next stuff'''
-        if x.gshape == y.gshape:
-            if x.split == y.split:
-                # print('h', x._DNDarray__array.flatten())
-                x = factories.array(x._DNDarray__array.flatten(), is_split=0)
-                y = factories.array(y._DNDarray__array.flatten(), is_split=0)
-
-                hld = factories.zeros((2, x.gnumel), split=1 if x.split is not None else None)
-                hld[0] = x
-                hld[1] = y
-
-            elif x.split is None or y.split is None:
-                x = factories.array(x._DNDarray__array.flatten(), is_split=0)
-                y = factories.array(y._DNDarray__array.flatten(), is_split=0)
-
-                hld = factories.zeros((2, x.gnumel), split=1)
-                _, _, x_chunk_slice = x.comm.chunk(x.shape, x.split)
-                _, _, y_chunk_slice = y.comm.chunk(y.shape, y.split)
-                hld[0] = x[x_chunk_slice[0]]
-                hld[1] = y[y_chunk_slice[0]]
-            else:  # this is the case that the splits are different
-                raise NotImplementedError('cov not implemented for different numerical splits')
-        else:
-            raise NotImplementedError('cov not implemented for differently shaped arrays. ')
+        x = manipulations.concatenate((x, y), axis=1)
+        # print(x)
 
         # combine x and y into a 2xN array
         # _, _, x_chunk_slice = x.comm.chunk(x.shape, x.split)
@@ -302,13 +282,14 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
         # hld = factories.zeros((2, x.gnumel), split=1)
         # hld[0] = x[x_chunk_slice[0]]
         # hld[1] = y[y_chunk_slice[0]]
-        x = hld
-        avg = mean(hld, axis=1)
-        norm = hld.shape[1] - ddof
+        # x = hld
+        # avg = mean(hld, axis=1)
+        # norm = hld.shape[1] - ddof
 
-    else:
-        avg = mean(x, axis=1)
-        norm = x.shape[1] - ddof
+    # else:
+    print(x.gshape)
+    avg = mean(x, axis=1)
+    norm = x.shape[1] - ddof
 
     # find normalization:
     # print(norm, x.gnumel, hld.shape)
