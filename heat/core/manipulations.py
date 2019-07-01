@@ -275,7 +275,8 @@ def concatenate(arrays, axis=0):
 
             if len(arr0.lshape) < len(arr1.lshape):
                 arr0._DNDarray__array.unsqueeze_(axis)
-            out = factories.array(torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis), is_split=s1)
+            out = factories.empty(out_shape, split=s1)
+            out._DNDarray__array = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
             return out
     elif s1 is None:
         if s0 != axis:
