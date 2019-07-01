@@ -23,7 +23,6 @@ from .stride_tricks import sanitize_axis
 
 warnings.simplefilter('always', ResourceWarning)
 
-
 __all__ = [
     'DNDarray'
 ]
@@ -1172,7 +1171,7 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-        if isinstance(key, DNDarray)and key.gshape[-1] != len(self.gshape):
+        if isinstance(key, DNDarray) and key.gshape[-1] != len(self.gshape):
             key = tuple(x.item() for x in key)
         if not self.is_distributed():
             if not self.comm.size == 1:
@@ -1214,7 +1213,7 @@ class DNDarray:
                     new_split = self.split
 
                 if key in range(chunk_start, chunk_end) and self.split == 0:  # only need to adjust the key if split==0
-                    gout = list(self.__array[key-chunk_start].shape)
+                    gout = list(self.__array[key - chunk_start].shape)
                     arr = self.__array[key - chunk_start]
                 elif self.split != 0:
                     _, _, chunk_slice2 = self.comm.chunk(self.shape, self.split)
@@ -2186,7 +2185,7 @@ class DNDarray:
 
             if isinstance(key, int) and self.split == 0:
                 if key in range(chunk_start, chunk_end):
-                    self.__setter(key-chunk_start, value)
+                    self.__setter(key - chunk_start, value)
             elif isinstance(key, int) and self.split > 0:
                 self[key, :] = value
 
@@ -2337,16 +2336,16 @@ class DNDarray:
             Input data.
 
         axis : None or int or tuple of ints, optional
-               Selects a subset of the single-dimensional entries in the shape. 
+               Selects a subset of the single-dimensional entries in the shape.
                If axis is None, all single-dimensional entries will be removed from the shape.
                If an axis is selected with shape entry greater than one, a ValueError is raised.
 
 
 
         Returns:
-        --------	
+        --------
         squeezed : ht.tensor
-                   The input tensor, but with all or a subset of the dimensions of length 1 removed. 
+                   The input tensor, but with all or a subset of the dimensions of length 1 removed.
 
 
         Examples:
@@ -2740,7 +2739,7 @@ class DNDarray:
 
     """
     This ensures that commutative arithmetic operations work no matter on which side the heat-tensor is placed.
-    
+
     Examples
     --------
     >>> import heat as ht
