@@ -201,6 +201,8 @@ def matmul(a, b):
         if b.lshape[0] % kB != 0:
             rem_b = 1
 
+        print(a.lshape[-1], kB, 2 % 1)
+
         # get the lshape map to determine what needs to be sent where as well as M and N
         # lshape map dims -> {node, a=0, b=1, lshape}
         lshape_map = factories.zeros((a.comm.size, 2, len(a.gshape)), dtype=int)
@@ -415,6 +417,7 @@ def matmul(a, b):
                         c._DNDarray__array[:a_node_rem_s0.shape[0]] += a_node_rem_s0 @ b_rem
 
                     del b_lp_data[pr]
+
             return c
 
         elif split_1_flag:
@@ -526,7 +529,8 @@ def matmul(a, b):
             a_rem_locs1 = (rem_map[:, 0, 1] == 1).nonzero()
             b_rem_locs0 = (rem_map[:, 1, 0] == 1).nonzero()  # locations of the remainders in b
             res = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type())
-            res += a._DNDarray__array[:mB, :kB] @ b._DNDarray__array[:kB, :nB]
+            for i in range(a.lshape[-1] // kB):
+                res += a._DNDarray__array[:mB, i * kB:i*kB + kB] @ b._DNDarray__array[i * kB:i*kB + kB, :nB]
             if a.comm.rank in a_rem_locs1 and b.comm.rank in b_rem_locs0:
                 res += a._DNDarray__array[:, -1, None] @ b._DNDarray__array[None, -1, :]  # these Nones are used to change the dims
 

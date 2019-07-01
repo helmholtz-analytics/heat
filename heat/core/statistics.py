@@ -231,8 +231,10 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
         If not ``None`` the default value implied by `bias` is overridden. Note that ``ddof=1`` will return the unbiased estimate and
         ``ddof=0`` will return the simple average. The default value is ``None``.
 
-
-    :return:
+    Returns
+    -------
+    cov : DNDarray
+        the covariance matrix of the variables
     """
     if ddof is not None and ddof != int(ddof):
         raise ValueError("ddof must be integer")
@@ -243,6 +245,8 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     if not isinstance(m, dndarray.DNDarray):
         raise TypeError('m must be a DNDarray')
 
+    if m.numdims == 1:
+        m = m.expand_dims(1)
     x = m.copy()
     if not rowvar and x.shape[0] != 1:
         x = x.T
@@ -258,41 +262,18 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
             raise TypeError('y must be a DNDarray')
         if y.numdims > 2:
             raise ValueError('y has too many dimensions, max=2')
+        if y.numdims == 1:
+            y = y.expand_dims(1)
         if not y.is_balanced():
             raise RuntimeError("balance is required for cov(). use balance_() to balance y")
         if not rowvar and y.shape[0] != 1:
-            y = y.T.copy()
-        # print(x.lshape, y.lshape)
-        # if y.numdims > 1:
-        #     raise NotImplementedError
-        # if m.shape != y.shape:
-        #     raise ValueError('m and y must have the same gshape, {} {}'.format(m.shape, y.shape))
-        # if m.split != y.split:
-        #     raise NotImplementedError('cov requires equal split axes, currently m: {} y: {}'.format(m.split, y.split))
+            y = y.T
 
-        '''
-        if both DNDarrays have the same gshape and they are both balanced then flatten both arrays
-        then do the next stuff'''
-        x = manipulations.concatenate((x, y), axis=1)
-        # print(x)
+        x = manipulations.concatenate((x, y), axis=0)
 
-        # combine x and y into a 2xN array
-        # _, _, x_chunk_slice = x.comm.chunk(x.shape, x.split)
-        # _, _, y_chunk_slice = y.comm.chunk(y.shape, y.split)
-        # hld = factories.zeros((2, x.gnumel), split=1)
-        # hld[0] = x[x_chunk_slice[0]]
-        # hld[1] = y[y_chunk_slice[0]]
-        # x = hld
-        # avg = mean(hld, axis=1)
-        # norm = hld.shape[1] - ddof
-
-    # else:
-    print(x.gshape)
     avg = mean(x, axis=1)
     norm = x.shape[1] - ddof
-
     # find normalization:
-    # print(norm, x.gnumel, hld.shape)
     if norm <= 0:
         raise ValueError('ddof >= number of elements in m, {} {}'.format(ddof, m.gnumel))
 

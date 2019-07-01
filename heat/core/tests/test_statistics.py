@@ -175,6 +175,12 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.argmin(data, axis=-4)
 
+    def test_cov(self):
+        x = ht.array([[0, 2], [1, 1], [2, 0]], dtype=ht.float, split=1).T
+        cov = ht.cov(x)
+        actual = ht.array([[1, -1], [-1, 1]], split=0)
+        self.assertTrue(ht.equal(cov, actual))
+
     def test_max(self):
         data = [
             [1,   2,  3],
