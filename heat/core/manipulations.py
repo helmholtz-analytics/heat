@@ -76,8 +76,8 @@ def concatenate(arrays, axis=0):
                 if arr0.comm.rank == spr:
                     for pr in range(spr):
                         send_amt = abs((chunk_map[pr, axis] - lshape_map[pr, axis]).item())
+                        send_amt = send_amt if send_amt < arr0.lshape[axis] else arr0.lshape[axis]
                         if send_amt:
-                            send_amt = send_amt if send_amt < arr0.lshape[axis] else arr0.lshape[axis]
                             send_slice[arr0.split] = slice(0, send_amt)
                             keep_slice[arr0.split] = slice(send_amt, arr0.lshape[axis])
 
@@ -108,8 +108,8 @@ def concatenate(arrays, axis=0):
                 if arr0.comm.rank == spr:
                     for pr in range(arr0.comm.size - 1, spr, -1):
                         send_amt = abs((chunk_map[pr, axis] - lshape_map[pr, axis]).item())
+                        send_amt = send_amt if send_amt < arr1.lshape[axis] else arr1.lshape[axis]
                         if send_amt:
-                            send_amt = send_amt if send_amt < arr1.lshape[axis] else arr1.lshape[axis]
                             send_slice[axis] = slice(arr1.lshape[axis] - send_amt, arr1.lshape[axis])
                             keep_slice[axis] = slice(0, arr1.lshape[axis] - send_amt)
 
@@ -139,17 +139,16 @@ def concatenate(arrays, axis=0):
         if s1 != axis:
             _, _, arb_slice = arr1.comm.chunk(arr0.shape, arr1.split)
             out_shape = tuple(arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
-                              for x in range(len(arr1.gshape)))
+                             for x in range(len(arr1.gshape)))
             out = factories.empty(out_shape, split=s1)
             out._DNDarray__array = torch.cat((arr0._DNDarray__array[arb_slice], arr1._DNDarray__array), dim=axis)
             return out
-            # print('a0', arr0.gshape, arr0.lshape, 'a1', arr1.gshape, arr1.lshape)
-            # print('cat', torch.cat((arr0._DNDarray__array[arb_slice].clone(), arr1._DNDarray__array.clone()), dim=axis).shape)
+            # print(torch.cat((arr0._DNDarray__array[arb_slice], arr1._DNDarray__array), dim=axis))
             # return factories.array(torch.cat((arr0._DNDarray__array[arb_slice], arr1._DNDarray__array), dim=axis), is_split=s1)
         else:
             arr0 = arr0.copy()
             arr1 = arr1.copy()
-            lshape_map = factories.zeros((arr1.comm.size, len(arr1.gshape)), dtype=int)
+            lshape_map = torch.zeros((arr1.comm.size, len(arr1.gshape)), dtype=torch.int)
             lshape_map[arr1.comm.rank, :] = torch.Tensor(arr1.lshape)
             lshape_map_comm = arr1.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
@@ -157,7 +156,7 @@ def concatenate(arrays, axis=0):
             arr0_shape[axis] += arr1_shape[axis]
             out_shape = tuple(arr0_shape)
 
-            chunk_map = factories.zeros((arr1.comm.size, len(arr1.gshape)), dtype=int)
+            chunk_map = torch.zeros((arr1.comm.size, len(arr1.gshape)), dtype=torch.int)
             _, _, chk = arr1.comm.chunk(out_shape, arr1.split)
             for i in range(len(out_shape)):
                 chunk_map[arr1.comm.rank, i] = chk[i].stop - chk[i].start
@@ -169,32 +168,38 @@ def concatenate(arrays, axis=0):
             lshape_map_comm.wait()
             chunk_map_comm.wait()
             # push the data backwards, making the data the proper size from arr1 on the first nodes
-            for spr in range(arr1.comm.size - 2, -1, -1):
+            for spr in range(arr1.comm.size - 1, -1, -1):
                 if arr1.comm.rank == spr:
                     for pr in range(arr1.comm.size - 1, spr, -1):
                         send_amt = abs((chunk_map[pr, axis] - lshape_map[pr, axis]).item())
+                        send_amt = send_amt if send_amt < arr1.lshape[axis] else arr1.lshape[axis]
                         if send_amt:
-                            send_amt = send_amt if send_amt < arr1.lshape[axis] else arr1.lshape[axis]
                             send_slice[axis] = slice(arr1.lshape[axis] - send_amt, arr1.lshape[axis])
                             keep_slice[axis] = slice(0, arr1.lshape[axis] - send_amt)
-                            # print('s', pr, arr1.comm.size, spr, arr1._DNDarray__array[send_slice].shape, send_amt)
-                            arr1.comm.Isend(arr1._DNDarray__array[send_slice].clone(), dest=pr, tag=pr + arr1.comm.size + spr)
-                            arr1._DNDarray__array = arr1._DNDarray__array[keep_slice]
+                            # print('s', pr, send_amt)
+                            arr1.comm.Isend(arr1.lloc[send_slice].clone(), dest=pr, tag=pr + arr1.comm.size + spr)
+                            arr1._DNDarray__array = arr1.lloc[keep_slice]
                             # send.wait()
-                for pr in range(arr1.comm.size - 1, spr - 1, -1):
+                for pr in range(arr1.comm.size - 1, spr, -1):
                     snt = abs((chunk_map[pr, s1] - lshape_map[pr, s1]).item())
                     snt = snt if snt < lshape_map[spr, s1] else lshape_map[spr, s1].item()
+                    # print('\tlp', pr, spr, snt)
 
                     if arr1.comm.rank == pr and snt:
                         shp = list(arr1.gshape)
                         shp[s1] = snt
                         data = torch.zeros(shp)
-                        # print('r', pr, spr, arr0.comm.size, data.shape, snt)
+                        # print('r', spr, snt)
                         arr1.comm.Recv(data, source=spr, tag=pr + arr1.comm.size + spr)
-                        arr1._DNDarray__array = torch.cat((data, arr1._DNDarray__array.clone()), dim=axis)
+                        # print(data)
+                        arr1._DNDarray__array = torch.cat((data, arr1._DNDarray__array), dim=axis)
+
                     lshape_map[pr, axis] += snt
                     lshape_map[spr, axis] -= snt
+
+            arr1.comm.Barrier()
             # have split 0 for arr1 and all of arr1
+            # print(arr1.gshape, arr1.lshape)
 
             arb_slice = [None] * len(arr1.shape)
             for c in range(len(chunk_map)):
@@ -220,11 +225,13 @@ def concatenate(arrays, axis=0):
                     arr0._DNDarray__array = arr0._DNDarray__array[lcl_slice].clone().squeeze()
                 ttl += sz.item()
 
-            out = factories.empty(out_shape, split=s1)
+            # out = factories.empty(out_shape, split=s1)
             if len(arr0.lshape) < len(arr1.lshape):
                 arr0._DNDarray__array.unsqueeze_(axis)
-
-            out._DNDarray__array = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
+            # print('cat end', arr0._DNDarray__array, arr1._DNDarray__array)
+            # print()
+            # out._DNDarray__array = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
+            out = factories.array(torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis), is_split=s1)
             return out
     elif s1 is None:
         # arb_slice = [None] * len(arr1.gshape)
