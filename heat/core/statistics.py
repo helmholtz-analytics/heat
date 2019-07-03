@@ -655,6 +655,10 @@ def minimum(x1, x2, out=None, **kwargs):
 
     # Option 2: do not use __reduce_op
     # sanitate input, sanitate output, sanitate axis?
+    if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
+        raise TypeError('expected x1 and x2 to be a ht.DNDarray, but were {}, {} '.format(type(x1), type(x2)))
+    if out is not None and not isinstance(out, dndarray.DNDarray):
+        raise TypeError('expected out to be None or an ht.DNDarray, but was {}'.format(type(out)))
     # split semantics
     # locally: apply torch.min(x1, x2)
     split = x1.split 
