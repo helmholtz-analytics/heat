@@ -91,7 +91,7 @@ def sort(a, axis=None, descending=False, out=None):
     axis : int, optional
         The dimension to sort along.
         Default is the last axis.
-    descending : bool, optiona
+    descending : bool, optional
         If set to true values are sorted in descending order
         Default is false
     out : ht.DNDarray or None, optional
@@ -177,74 +177,81 @@ def sort(a, axis=None, descending=False, out=None):
             global_pivots = sorted_pivots[global_partitions]
 
         a.comm.Bcast(global_pivots, root=0)
+        print('global_pivots', global_pivots)
 
-        # Create matrix that holds information which process gets how many values at which position
-        zeroes_dim = (size, ) + transposed.size()[1:]
-        partition_matrix = torch.zeros(zeroes_dim, dtype=torch.int64)
+        lt_partitions = torch.empty((size, ) + local_sorted.shape, dtype=torch.int64)
+        last = torch.zeros_like(local_sorted, dtype=torch.int64)
+        comp_op = torch.gt if descending else torch.lt
+        # Iterate over all pivots and store which pivot is the first greater than the elements value
+        for idx, p in enumerate(global_pivots):
+            lt = comp_op(local_sorted, p)
+            if idx > 0:
+                lt_partitions[idx] = lt - last
+            else:
+                lt_partitions[idx] = lt
+            last = lt
+        lt_partitions[size - 1] = torch.ones_like(local_sorted, dtype=last.dtype) - last
 
-        # Create matrix that holds information, which value is shipped to which process
+        print('lt_partitions', lt_partitions)
+        # Matrix holding information how many values will be sent where
+        local_partitions = torch.sum(lt_partitions, dim=1)
+        print('local_partitions', local_partitions)
+
+        partition_matrix = torch.empty_like(local_partitions)
+        a.comm.Allreduce(local_partitions, partition_matrix, op=MPI.SUM)
+        print('partition_matrix', partition_matrix)
+
+        # Matrix that holds information which value will be shipped where
         index_matrix = torch.empty_like(local_sorted, dtype=torch.int64)
+        print('index_matrix', lt_partitions)
 
-        # Iterate along the split axis which is now 0 due to transpose
-        for i, x in enumerate(local_sorted):
-            # Enumerate over all elements with correct index
-            for idx, val in np.ndenumerate(x.numpy()):
-                op_func = operator.gt if descending else operator.lt
-                # Calculate position where element must be sent to
-                cur = next(i for i in range(len(global_pivots) + 1)
-                           if (i == len(global_pivots) or op_func(val, global_pivots[i][idx])))
-
-                partition_matrix[cur][idx] += 1
-                index_matrix[i][idx] = cur
-
-        # Share and sum the local partition_matrix
-        a.comm.Allreduce(MPI.IN_PLACE, partition_matrix, op=MPI.SUM)
-
-        # Create matrix that holds information where and how many elements will be received from each process
+        # Matrix holding information which process get how many values from where
         shape = (size, ) + transposed.size()[1:]
         send_recv_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
 
-        for idx, val in np.ndenumerate(index_matrix.numpy()):
-            pos = (val, ) + idx[1:]
-            send_recv_matrix[pos] += 1
+        for i, x in enumerate(lt_partitions):
+            index_matrix[x > 0] = i
+            send_recv_matrix[i] += torch.sum(x, dim=0)
+
+        print('index_matrix', index_matrix)
+        print('send_receive_matrix', send_recv_matrix)
 
         a.comm.Alltoall(MPI.IN_PLACE, send_recv_matrix)
+        print('after_alltoall', send_recv_matrix)
+
+        scounts = local_partitions
+        print('counts', scounts, local_partitions.shape)
+
+        rcounts = send_recv_matrix
+        print('rcounts', rcounts)
 
         shape = (partition_matrix[rank].max(), ) + transposed.size()[1:]
-
-        # create matrix whose elements are ranks of processes where the value will come from
-        recv_indices = torch.empty(shape, dtype=local_sorted.dtype)
-        fill_level = torch.zeros(shape[1:], dtype=torch.int32)
-
-        for i, x in enumerate(send_recv_matrix):
-            for idx, val in np.ndenumerate(x.numpy()):
-                for k in range(val):
-                    recv_indices[fill_level[idx]][idx] = i
-                    fill_level[idx] += 1
-
-        # Finally send and receive the values with the correct processes according to the global pivots
-        for idx, val in np.ndenumerate(index_matrix.numpy()):
-            send_buf = torch.tensor([local_sorted[idx], actual_indices[idx]])
-            # Add tag to identify correct value we want to receive later
-            tag = int(''.join([str(el) for el in idx[1:]]))
-            a.comm.Send(send_buf, dest=val, tag=tag)
-
-        recv_amount = sum(send_recv_matrix)
-        fill_level = torch.zeros(shape[1:], dtype=torch.int32)
         first_result = torch.empty(shape, dtype=local_sorted.dtype)
         first_indices = torch.empty_like(first_result)
 
-        for idx, val in np.ndenumerate(recv_amount.numpy()):
-            for i in range(val):
-                source = recv_indices[fill_level[idx]][idx]
-                tag = int(''.join([str(el) for el in idx]))
-                recv_buf = torch.empty(2, dtype=local_sorted.dtype)
-                a.comm.Recv(recv_buf, source=source, tag=tag)
+        # Iterate through one layer
+        for idx in np.ndindex(local_sorted.shape[1:]):
+            idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
 
-                first_result[fill_level[idx]][idx] = recv_buf[0]
-                first_indices[fill_level[idx]][idx] = recv_buf[1]
+            send_count = scounts[idx_slice].reshape(-1).tolist()
+            send_disp = [0] + list(np.cumsum(send_count[:-1]))
+            s_val = torch.tensor(local_sorted[idx_slice])
+            s_ind = torch.tensor(actual_indices[idx_slice])
 
-                fill_level[idx] += 1
+            recv_count = rcounts[idx_slice].reshape(-1).tolist()
+            recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
+            rcv_length = rcounts[idx_slice].sum().item()
+            r_val = torch.empty((rcv_length, ) + s_val.shape[1:], dtype=local_sorted.dtype)
+            r_ind = torch.empty_like(r_val)
+
+            a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
+            a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
+            first_result[idx_slice][:rcv_length] = r_val
+            first_indices[idx_slice][:rcv_length] = r_ind
+        print('f_result', first_result, 'f_ind', first_indices)
+
+        part_cumsum = torch.cumsum(partition_matrix, dim=0)
+        print('part_cumsum', part_cumsum)
 
         # Create a matrix which holds information about the 'unbalancedness' of the local result
         problem_idx = torch.zeros((size, ) + first_result.shape[1:], dtype=partition_matrix.dtype)
