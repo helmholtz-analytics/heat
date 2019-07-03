@@ -19,8 +19,8 @@ class TestIO(unittest.TestCase):
         cls.NETCDF_VARIABLE = 'data'
 
         # load comparison data from csv
-        csv_path = os.path.join(os.getcwd(), 'heat/datasets/data/iris.csv')
-        cls.IRIS = torch.from_numpy(np.loadtxt(csv_path, delimiter=';')).type(torch.float32)
+        cls.CSV_PATH = os.path.join(os.getcwd(), 'heat/datasets/data/iris.csv')
+        cls.IRIS = torch.from_numpy(np.loadtxt(cls.CSV_PATH, delimiter=';')).type(torch.float32)
 
     def tearDown(self):
         # synchronize all nodes
@@ -75,6 +75,10 @@ class TestIO(unittest.TestCase):
         else:
             with self.assertRaises(ValueError):
                 _ = ht.load(self.NETCDF_PATH, variable=self.NETCDF_VARIABLE)
+
+    def test_load_csv(self):
+        ht.load_csv(self.CSV_PATH)
+        self.fail()
 
     def test_load_exception(self):
         # correct extension, file does not exist

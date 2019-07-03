@@ -1,4 +1,5 @@
 import os.path
+
 import torch
 import warnings
 
@@ -30,6 +31,7 @@ else:
 
     # add functions to exports
     __all__.extend([
+        'load_csv',
         'load_hdf5',
         'save_hdf5'
     ])
@@ -37,6 +39,22 @@ else:
     def supports_hdf5():
         return True
 
+    def load_csv(path, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+        size = os.stat(path).st_size
+        rank = comm.rank
+        counts, displs, _ = comm.counts_displs_shape((size, 1), 0)
+        print('rank', rank, 'size', size, 'counts', counts, 'disp', displs)
+        f = open(path, 'rb')
+        f.seek(displs[rank], 0)
+        lines = 0
+        r = f.read(counts[rank])
+        for l in r:
+            if chr(l) == '\n':
+                lines += 1
+        lines_buf = torch.tensor([lines])
+        comm.Allreduce(MPI.IN_PLACE, lines_buf, MPI.SUM)
+        print('reduces', lines_buf, )
+    #     TODO Counting number of lines works, now the lines need to be distributed evenly
 
     def load_hdf5(path, dataset, dtype=types.float32, split=None, device=None, comm=None):
         """
