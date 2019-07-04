@@ -462,7 +462,6 @@ class TestStatistics(unittest.TestCase):
         random_volume_1_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
         random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
-
         self.assertIsInstance(minimum_volume_splitdiff, ht.DNDarray)
         self.assertEqual(minimum_volume_splitdiff.shape, (size*3, size*3, 4))
         self.assertEqual(minimum_volume_splitdiff.lshape, (size*3, size*3, 4))
@@ -470,16 +469,20 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum_volume_splitdiff._DNDarray__array.dtype, torch.float32)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
+        random_volume_1_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
+        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
+        minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
+        self.assertEqual(minimum_volume_splitdiff.split, 0)
+
         random_volume_1_splitNone = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
         random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_splitNone, random_volume_2_splitdiff)
-
-        self.assertIsInstance(minimum_volume_splitdiff, ht.DNDarray)
-        self.assertEqual(minimum_volume_splitdiff.shape, (size*3, size*3, 4))
-        self.assertEqual(minimum_volume_splitdiff.lshape, (size*3, size*3, 4))
-        self.assertEqual(minimum_volume_splitdiff.dtype, ht.float32)
-        self.assertEqual(minimum_volume_splitdiff._DNDarray__array.dtype, torch.float32)
         self.assertEqual(minimum_volume_splitdiff.split, 1)
+
+        random_volume_1_splitNone = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
+        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
+        minimum_volume_splitdiff = ht.minimum(random_volume_1_splitNone, random_volume_2_splitdiff)
+        self.assertEqual(minimum_volume_splitdiff.split, 0)
 
         # check output buffer
         out_shape = ht.stride_tricks.broadcast_shape(random_volume_1.gshape, random_volume_2.gshape)
