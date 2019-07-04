@@ -654,21 +654,50 @@ def minimum(x1, x2, out=None, **kwargs):
     # return result_l
 
     # Option 2: do not use __reduce_op
-    # sanitate input, sanitate output, sanitate axis?
+    # perform sanitation
     if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
         raise TypeError('expected x1 and x2 to be a ht.DNDarray, but were {}, {} '.format(type(x1), type(x2)))
     if out is not None and not isinstance(out, dndarray.DNDarray):
         raise TypeError('expected out to be None or an ht.DNDarray, but was {}'.format(type(out)))
-    # split semantics
+    #split semantics
+    if x1.split is not None or x2.split is not None:
+        if x1.split == None:
+            x1.resplit(x2.split)
+        if x2.split == None:
+            x2.resplit(x1.split)
+        if x1.split != x2.split:
+            if np.prod(x1.gshape) < np.prod(x2.gshape):
+                x1.resplit(x2.split)
+            if np.prod(x2.gshape) < np.prod(x1.gshape):
+                x2.resplit(x1.split)
+            else:
+                if x1.split < x2.split:
+                    x2.resplit(x1.split)
+                else:
+                    x1.resplit(x2.split)
+    split = x1.split
+
     # locally: apply torch.min(x1, x2)
-    split = x1.split 
     output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
     lresult = factories.empty(output_lshape)
     lresult._DNDarray__array = torch.min(x1._DNDarray__array, x2._DNDarray__array)
     lresult._DNDarray__dtype = types.promote_types(x1.dtype, x2.dtype)
     lresult._DNDarray__split = split
-    if split is not None:  
-        if x1.comm.is_distributed():
+    if x1.split is not None or x2.split is not None:  
+        if x1.comm.is_distributed():  #assuming x1.comm = x2.comm
+            #split semantics
+            if x1.split != x2.split:
+                if np.prod(x1.gshape) < np.prod(x2.gshape):
+                    x1.resplit(x2.split)
+                if np.prod(x2.gshape) < np.prod(x1.gshape):
+                    x2.resplit(x1.split)
+                else:
+                    if x1.split < x2.split:
+                        x2.resplit(x1.split)
+                    else:
+                        x1.resplit(x2.split)
+        
+            split = x1.split
             output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
             result = factories.empty(output_gshape)
             x1.comm.Allgather(lresult, result)
