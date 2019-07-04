@@ -628,7 +628,9 @@ def minimum(x1, x2, out=None, **kwargs):
                     x2.resplit(x1.split)
                 else:
                     x1.resplit(x2.split)
-    split = x1.split
+        split = x1.split
+    else:
+        split = None
 
     # locally: apply torch.min(x1, x2)
     output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
@@ -703,15 +705,6 @@ def mpi_argmin(a, b, _):
 
 
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
-
-# # TODO: implement mpi_minimum
-# def mpi_minimum(a, b, _):
-#     lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
-#     rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
-
-#     # do something
-
-#     rhs.copy_(result)
 
 
 def std(x, axis=None, bessel=True):
