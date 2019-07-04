@@ -444,38 +444,39 @@ class TestStatistics(unittest.TestCase):
 
         # check minimum over float elements of split 3d tensors
         # TODO: add check for uneven distribution of dimensions (see Issue #273)
+        size = ht.MPI_WORLD.size
         torch.manual_seed(1)
         random_volume_1 = ht.array(ht.random.randn(12, 3, 3), is_split=0)
         random_volume_2 = ht.array(ht.random.randn(12, 1, 3), is_split=0)
         minimum_volume = ht.minimum(random_volume_1, random_volume_2)
 
         self.assertIsInstance(minimum_volume, ht.DNDarray)
-        self.assertEqual(minimum_volume.shape, (ht.MPI_WORLD.size * 12, 3, 3))
-        self.assertEqual(minimum_volume.lshape, (ht.MPI_WORLD.size * 12, 3, 3))
+        self.assertEqual(minimum_volume.shape, (size * 12, 3, 3))
+        self.assertEqual(minimum_volume.lshape, (size * 12, 3, 3))
         self.assertEqual(minimum_volume.dtype, ht.float32)
         self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float32)
         self.assertEqual(minimum_volume.split, random_volume_1.split)
 
         # check minimum over float elements of split 3d tensors with different split axis
         torch.manual_seed(1)
-        random_volume_1_splitdiff = ht.array(ht.random.randn(12, 12, 4), split=0)
-        random_volume_2_splitdiff = ht.array(ht.random.randn(12, 12, 4), split=1)
+        random_volume_1_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
+        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
 
         self.assertIsInstance(minimum_volume_splitdiff, ht.DNDarray)
-        self.assertEqual(minimum_volume_splitdiff.shape, (12, 12, 4))
-        self.assertEqual(minimum_volume_splitdiff.lshape, (12, 12, 4))
+        self.assertEqual(minimum_volume_splitdiff.shape, (size*3, size*3, 4))
+        self.assertEqual(minimum_volume_splitdiff.lshape, (size*3, size*3, 4))
         self.assertEqual(minimum_volume_splitdiff.dtype, ht.float32)
         self.assertEqual(minimum_volume_splitdiff._DNDarray__array.dtype, torch.float32)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
-        random_volume_1_splitNone = ht.array(ht.random.randn(12, 12, 4), split=None)
-        random_volume_2_splitdiff = ht.array(ht.random.randn(12, 12, 4), split=1)
+        random_volume_1_splitNone = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
+        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_splitNone, random_volume_2_splitdiff)
 
         self.assertIsInstance(minimum_volume_splitdiff, ht.DNDarray)
-        self.assertEqual(minimum_volume_splitdiff.shape, (12, 12, 4))
-        self.assertEqual(minimum_volume_splitdiff.lshape, (12, 12, 4))
+        self.assertEqual(minimum_volume_splitdiff.shape, (size*3, size*3, 4))
+        self.assertEqual(minimum_volume_splitdiff.lshape, (size*3, size*3, 4))
         self.assertEqual(minimum_volume_splitdiff.dtype, ht.float32)
         self.assertEqual(minimum_volume_splitdiff._DNDarray__array.dtype, torch.float32)
         self.assertEqual(minimum_volume_splitdiff.split, 1)
