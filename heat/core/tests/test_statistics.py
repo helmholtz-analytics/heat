@@ -468,6 +468,10 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(output.split, random_volume_1.split)
 
         # check exceptions
+        random_volume_1_np = np.random.randn(4, 2, 3)
+        random_volume_2_ht = ht.random.randn(4, 2, 3)
+        with self.assertRaises(TypeError):
+            ht.minimum(random_volume_1_np, random_volume_2_ht)
         random_volume_3 = ht.array(ht.random.randn(4, 2, 3), split=0)
         with self.assertRaises(ValueError):
             ht.minimum(random_volume_1, random_volume_3)
