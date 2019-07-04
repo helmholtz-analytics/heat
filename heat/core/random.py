@@ -1,3 +1,4 @@
+import numpy as np
 import time
 import torch
 
@@ -19,28 +20,43 @@ __INT64_TO_FLOAT64 = 1.0 / 9007199254740992.0
 __KUNDU_INVERSE = 1.0 / 0.3807
 
 
-def __kundu_transform(values):
+def __counter_sequence(shape, dtype, split, device, comm):
     """
-    Transforms uniformly distributed floating point random values in the interval [0.0, 1.0) into normal distributed
-    floating point random values with mean 0.0 and standard deviation 1.0. The algorithm makes use of the generalized
-    exponential distribution transformation [1].
 
     Parameters
     ----------
-    values : torch.Tensor
-        A tensor containing uniformly distributed floating point values in the interval [0.0, 1.0).
+    shape
+    dtype
+    split
+    device
+    comm
 
     Returns
     -------
-    normal_values : torch.Tensor
-        A tensor containing the equivalent normally distributed floating point values with mean of 0.0 and standard
-        deviation of 1.0.
 
-    References
-    ----------
-    [1] Boiroju, N. K. and Reddy, K. M., "Generation of Standard Normal Random Numbers", Interstat, vol 5., 2012.
     """
-    return (torch.log(-torch.log(1 - values ** 0.0775)) - 1.0821) * __KUNDU_INVERSE
+    global __counter
+
+    total_elements = np.prod(shape)
+
+
+    dimensions = len(shape)
+    elements_in_higher_dims = 1
+    offset, lshape, _ = comm.chunk(shape, split)
+    ranges = dimensions * [None]
+
+    for i in range(dimensions - 2, -1, -1):
+        elements_in_dim = lshape[i]
+        if i != split:
+            values = torch.arange(elements_in_dim, dtype=dtype, device=device) * elements_in_higher_dims
+        else:
+            values = (torch.arange(elements_in_dim, dtype=dtype, device=device) + offset) * elements_in_higher_dims
+
+        values = values.reshape(*[1 if j != i else -1 for j in range(dimensions)])
+        ranges[i] = values
+        elements_in_higher_dims *= elements_in_dim
+
+    return torch.sum(ranges)
 
 
 def get_state():
@@ -98,16 +114,161 @@ def __int64_to_float64(values):
     return (values & 0x1fffffffffffff).type(torch.float64) * __INT64_TO_FLOAT64
 
 
+def __kundu_transform(values):
+    """
+    Transforms uniformly distributed floating point random values in the interval [0.0, 1.0) into normal distributed
+    floating point random values with mean 0.0 and standard deviation 1.0. The algorithm makes use of the generalized
+    exponential distribution transformation [1].
+
+    Parameters
+    ----------
+    values : torch.Tensor
+        A tensor containing uniformly distributed floating point values in the interval [0.0, 1.0).
+
+    Returns
+    -------
+    normal_values : torch.Tensor
+        A tensor containing the equivalent normally distributed floating point values with mean of 0.0 and standard
+        deviation of 1.0.
+
+    References
+    ----------
+    [1] Boiroju, N. K. and Reddy, K. M., "Generation of Standard Normal Random Numbers", Interstat, vol 5., 2012.
+    """
+    return (torch.log(-torch.log(1 - values ** 0.0775)) - 1.0821) * __KUNDU_INVERSE
+
+
+def rand(*args, split=None, device=None, comm=None):
+    """
+    Random values in a given shape.
+
+    Create a tensor of the given shape and populate it with random samples from a uniform distribution over [0, 1).
+
+    Parameters
+    ----------
+    d0, d1, …, dn : int, optional
+        The dimensions of the returned array, should all be positive. If no argument is given a single random samples is
+        generated.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
+
+    Returns
+    -------
+    out : ndarray, shape (d0, d1, ..., dn)
+        The uniformly distributed [0.0, 1.0)-bound random values.
+    """
+    # if args are not set, generate a single sample
+    if not args:
+        args = (1,)
+
+    # ensure that the passed dimensions are positive integer-likes
+    shape = tuple(int(ele) for ele in args)
+    if not all(ele > 0 for ele in shape):
+        raise ValueError('negative dimensions are not allowed')
+
+    # make sure the remaining parameters are of proper type
+    split = stride_tricks.sanitize_axis(shape, split)
+    device = devices.sanitize_device(device)
+    comm = communication.sanitize_comm(comm)
+
+    # generate the random sequence
+    x_0, x_1, counter_shape, slices = __counter_sequence(shape, torch.int64, split, device, comm)
+    x_0, x_1 = __threefry64(x_0, x_1)
+
+    # combine the values into one tensor and convert them to floats
+    values = torch.stack([x_0, x_1], dim=1).reshape(counter_shape)[slices]
+    values = __int64_to_float64(values)
+
+    return dndarray.DNDarray(values, shape, types.float64, split, device, comm)
+
+
+def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm=None):
+    """
+    Random values in a given shape.
+
+    Create a tensor of the given shape and populate it with random samples from a uniform distribution over [0, 1).
+
+    Parameters
+    ----------
+    low : int
+        Lowest (signed) integer to be drawn from the distribution (unless high=None, in which case this parameter is one
+        above the highest such integer).
+    high : int, optional
+        If provided, one above the largest (signed) integer to be drawn from the distribution (see above for behavior if high=None).
+    size : int or tuple of ints, optional
+        Output shape. If the given shape is, e.g., (m, n, k), then m * n * k samples are drawn. Default is None, in
+        which case a single value is returned.
+    dtype : dtype, optional
+        Desired dtype of the result. Must be an integer type. Defaults to ht.int64.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
+
+    Returns
+    -------
+    out : ndarray, shape (d0, d1, ..., dn)
+        The uniformly distributed [0.0, 1.0)-bound random values.
+    """
+    # determine range bounds
+    if high is None:
+        low, high = 0, int(low)
+    else:
+        low, high = int(low), int(high)
+    if low >= high:
+        raise ValueError('low >= high')
+    span = high - low + 1
+
+    # sanitize shape
+    if size is None:
+        size = (1,)
+    shape = tuple(int(ele) for ele in size)
+    if not all(ele > 0 for ele in shape):
+        raise ValueError('negative dimensions are not allowed')
+
+    # sanitize the data type
+    if dtype is None:
+        dtype = types.int64
+    dtype = types.canonical_heat_type(dtype)
+    if dtype is not types.int64 and dtype is not types.int32:
+        raise ValueError('Unsupported dtype for randint')
+
+    # make sure the remaining parameters are of proper type
+    split = stride_tricks.sanitize_axis(shape, split)
+    device = devices.sanitize_device(device)
+    comm = communication.sanitize_comm(comm)
+
+    # generate the random sequence
+    x_0, x_1, counter_shape, slices = __counter_sequence(shape, torch.int64, split, device, comm)
+    x_0, x_1 = __threefry64(x_0, x_1)
+
+    # combine the values into one tensor and convert them to floats
+    values = torch.stack([x_0, x_1], dim=1).reshape(counter_shape)[slices]
+    values = __int64_to_float64(values)
+
+    return dndarray.DNDarray(values, shape, types.float64, split, device, comm)
+
+
 def randn(*args, split=None, device=None, comm=None):
     """
     Returns a tensor filled with random numbers from a standard normal distribution with zero mean and variance of one.
-
-    The shape of the tensor is defined by the varargs args.
 
     Parameters
     ----------
     d0, d1, …, dn : int, optional
         The dimensions of the returned array, should be all positive.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
     -------
@@ -132,32 +293,12 @@ def randn(*args, split=None, device=None, comm=None):
             [ 1.3365, -1.5212,  1.4159, -0.1671],
             [ 0.1260,  1.2126, -0.0804,  0.0907]])
     """
-    # TODO: FIX ME!
-    return
+    # generate uniformly distributed random numbers first
+    normal_tensor = rand(*args, split, device, comm)
+    # convert the the values to a normal distribution using the kundu transform
+    normal_tensor._DNDarray__array = __kundu_transform(normal_tensor._DNDarray__array)
 
-    # TODO: make me splitable
-    # TODO: add device capabilities
-    # check if all positional arguments are integers
-    if not all(isinstance(_, int) for _ in args):
-        raise TypeError('dimensions have to be integers')
-    if not all(_ > 0 for _ in args):
-        raise ValueError('negative dimension are not allowed')
-
-    gshape = tuple(args) if args else(1,)
-    split = stride_tricks.sanitize_axis(gshape, split)
-
-    try:
-        torch.randn(gshape)
-    except RuntimeError as exception:
-        # re-raise the exception to be consistent with numpy's exception interface
-        raise ValueError(str(exception))
-
-    # compose the local tensor
-    device = devices.sanitize_device(device)
-    comm = communication.sanitize_comm(comm)
-    data = torch.randn(args, device=device.torch_device)
-
-    return dndarray.DNDarray(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
+    return normal_tensor
 
 
 def seed(seed=None):
@@ -210,15 +351,17 @@ def set_state(state):
     __counter = int(state[2])
 
 
-def __threefry_32(num_samples):
+def __threefry_32(X_0, X_1):
     """
     Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. This is the
     32-bit version.
 
     Parameters
     ----------
-    num_samples : int
-        Number of 32-bit pseudo random numbers to be generated.
+    X_0 : torch.Tensor
+        Upper bits of the to be encoded random sequence
+    X_1 : torch.Tensor
+        Lower bits of the to be encoded random sequence
 
     Returns
     -------
@@ -231,12 +374,7 @@ def __threefry_32(num_samples):
         Proceedings of 2011 International Conference for High Performance Computing, Networking, Storage and Analysis,
         p. 16, 2011
     """
-    samples = (num_samples + 1) // 2
-
-    # set up X, i.e. output buffer
-    X_0 = torch.arange(samples, dtype=torch.int32) + (__counter | 0xffffffff)
-    X_1 = torch.arange(samples, dtype=torch.int32) + (__counter >> 32)
-    X_0 //= torch.iinfo(torch.int32).max
+    samples = len(X_0)
 
     # set up key buffer
     ks_0 = torch.full((samples,), __seed, dtype=torch.int32)
@@ -277,15 +415,17 @@ def __threefry_32(num_samples):
     return X_0, X_1
 
 
-def __threefry64(num_samples):
+def __threefry64(X_0, X_1):
     """
     Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. This is the
     64-bit version.
 
     Parameters
     ----------
-    num_samples : int
-        Number of 64-bit pseudo random numbers to be generated.
+    X_0 : torch.Tensor
+        Upper bits of the to be encoded random sequence
+    X_1 : torch.Tensor
+        Lower bits of the to be encoded random sequence
 
     Returns
     -------
@@ -298,12 +438,7 @@ def __threefry64(num_samples):
         Proceedings of 2011 International Conference for High Performance Computing, Networking, Storage and Analysis,
         p. 16, 2011
     """
-    samples = (num_samples + 1) // 2
-
-    # set up X, i.e. output buffer
-    X_0 = torch.arange(samples, dtype=torch.int64)
-    X_1 = torch.arange(samples, dtype=torch.int64)
-    X_0 //= torch.iinfo(torch.int64).max
+    samples = len(X_0)
 
     # set up key buffer
     ks_0 = torch.full((samples,), __seed, dtype=torch.int64)
@@ -341,23 +476,6 @@ def __threefry64(num_samples):
     X_0 += ks_0; X_1 += (ks_1 + 3)
 
     return X_0, X_1
-
-
-def uniform(low=0.0, high=1.0, size=None, device=None, comm=None):
-    # TODO: FIX ME!
-
-    # TODO: comment me
-    # TODO: test me
-    # TODO: make me splitable
-    # TODO: add device capabilities
-    if size is None:
-        size = (1,)
-
-    device = devices.sanitize_device(device)
-    comm = communication.sanitize_comm(comm)
-    data = torch.rand(*size, device=device.torch_device) * (high - low) + low
-
-    return dndarray.DNDarray(data, size, types.float32, None, device, comm)
 
 
 # roll a global time-based seed
