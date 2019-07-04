@@ -527,6 +527,12 @@ def min(x, axis=None, out=None, keepdim=None):
         [10.]])
     """
 
+    def local_min(*args, **kwargs):
+        result = torch.min(*args, **kwargs)
+        if isinstance(result, tuple):
+            return result[0]
+        return result
+
     return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
 
 
@@ -661,13 +667,6 @@ def minimum(x1, x2, out=None, **kwargs):
         out._DNDarray__comm = x1.comm
 
     return lresult
-
-
-def local_min(*args, **kwargs):
-    result = torch.min(*args, **kwargs)
-    if isinstance(result, tuple):
-        return result[0]
-    return result
 
 
 def mpi_argmax(a, b, _):
