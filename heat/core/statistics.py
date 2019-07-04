@@ -600,66 +600,13 @@ def minimum(x1, x2, out=None, **kwargs):
     >>> ht.minimum(a,d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     '''
-    # Option 1: use __reduce_op
-        # __reduce_op accepts 1 tensor only, hence:
-        # broadcast (if necessary) and concatenate x1, x2 into x (x.lshape[0] = 2 * x1.lshape[0])
-        # local reduction of x: torch.min with axis=0
-        # within __reduce_op: result = Allgather(partial) 
-        # problem: how to tell __reduce_op that it should apply Allgather instead of Allreduce??
-
-    # # TODO: fix according to split semantics, resplit
-    # if (x1.split != x2.split):
-    #     raise NotImplementedError('Not implemented for x1.split != x2.split')
-    # if (x1.device != x2.device):
-    #     raise NotImplementedError('Not implemented for x1.device != x2.device')
-
-    # # Broadcasting locally if necessary
-    # output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
-    # if x1.shape != output_lshape:
-    #     x1._DNDarray__array = x1._DNDarray__array.expand(output_lshape)
-    # if x2.shape != output_lshape:
-    #     x2._DNDarray__array = x2._DNDarray__array.expand(output_lshape)
-
-    # x = factories.empty((2,) + output_lshape)
-    # x._DNDarray__array = torch.cat((x1._DNDarray__array, x2._DNDarray__array)).reshape((2,) + output_lshape)
-    # x._DNDarray__split = 0
-    # x._DNDarray__device = x1.device
-    # x._DNDarray__comm = x1.comm
-
-    # result_l = operations.__reduce_op(x, local_min, MPI.MIN, axis=0, out=None)
-
-    # # TODO: bring x1 and x2 back to initial shape/values if broadcast
-
-    # # If distributed, collect local results
-    # if x1.split is not None:  # assumes x1.split = x2.split
-    #     if x1.comm.is_distributed():
-    #         output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
-    #         result = factories.empty(output_gshape)
-    #         x1.comm.Allgather(result_l, result)
-    #         result._DNDarray__dtype = result_l._DNDarray__dtype
-    #         result._DNDarray__split = x1.split
-
-    #         if out is not None:
-    #             if out.shape != output_gshape:
-    #                 raise ValueError('Expecting output buffer of shape {}, got {}'.format(output_gshape, out.shape))
-    #             out._DNDarray__array = result._DNDarray__array
-    #             out._DNDarray__dtype = result._DNDarray__dtype
-    #             out._DNDarray__split = x1.split
-    #             out._DNDarray__device = x1.device
-    #             out._DNDarray__comm = x1.comm
-
-    #             return out
-
-    #         return result
-    # return result_l
-
-    # Option 2: do not use __reduce_op
     # perform sanitation
     if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
         raise TypeError('expected x1 and x2 to be a ht.DNDarray, but were {}, {} '.format(type(x1), type(x2)))
     if out is not None and not isinstance(out, dndarray.DNDarray):
         raise TypeError('expected out to be None or an ht.DNDarray, but was {}'.format(type(out)))
-    #split semantics
+
+    # apply split semantics
     if x1.split is not None or x2.split is not None:
         if x1.split == None:
             x1.resplit(x2.split)
@@ -683,21 +630,8 @@ def minimum(x1, x2, out=None, **kwargs):
     lresult._DNDarray__array = torch.min(x1._DNDarray__array, x2._DNDarray__array)
     lresult._DNDarray__dtype = types.promote_types(x1.dtype, x2.dtype)
     lresult._DNDarray__split = split
-    if x1.split is not None or x2.split is not None:  
-        if x1.comm.is_distributed():  #assuming x1.comm = x2.comm
-            #split semantics
-            if x1.split != x2.split:
-                if np.prod(x1.gshape) < np.prod(x2.gshape):
-                    x1.resplit(x2.split)
-                if np.prod(x2.gshape) < np.prod(x1.gshape):
-                    x2.resplit(x1.split)
-                else:
-                    if x1.split < x2.split:
-                        x2.resplit(x1.split)
-                    else:
-                        x1.resplit(x2.split)
-        
-            split = x1.split
+    if x1.split is not None or x2.split is not None:
+        if x1.comm.is_distributed():  # assuming x1.comm = x2.comm
             output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
             result = factories.empty(output_gshape)
             x1.comm.Allgather(lresult, result)
