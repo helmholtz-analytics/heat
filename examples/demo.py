@@ -1,17 +1,24 @@
 import numpy as np
 import torch
+
+import os,sys,inspect
+current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir) 
+
+
 import heat as ht
 from matplotlib import pyplot as plt
 from sklearn import datasets
-import lasso
+import heat.ml.regression.lasso as lasso
 import plotfkt
 
 # read scikit diabetes data set 
 diabetes = datasets.load_diabetes()
 
 # load diabetes dataset from hdf5 file
-X = ht.load_hdf5('../../../datasets/data/diabetes.h5', dataset='x', split=0)
-y = ht.load_hdf5('../../../datasets/data/diabetes.h5', dataset='y', split=0)
+X = ht.load_hdf5('../heat/datasets/data/diabetes.h5', dataset='x', split=0)
+y = ht.load_hdf5('../heat/datasets/data/diabetes.h5', dataset='y', split=0)
 
 # normalize dataset #DoTO this goes into the lasso fit routine soon as issue #106 is solved
 X = X / ht.sqrt((ht.mean(X**2, axis = 0))) 
