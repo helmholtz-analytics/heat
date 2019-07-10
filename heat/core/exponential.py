@@ -194,8 +194,8 @@ def log1p(x, out=None):
 
     Examples
     --------
-    >>> ht.log10(ht.arange(5))
-    tensor([  -inf, 0.0000, 0.3010, 0.4771, 0.6021])
+    >>> ht.log1p(ht.arange(5))
+    array([0., 0.69314718, 1.09861229, 1.38629436, 1.60943791])
     """
     return operations.__local_op(torch.log1p, x, out)
 
