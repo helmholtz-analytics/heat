@@ -1422,6 +1422,31 @@ class DNDarray:
         """
         return exponential.log10(self, out)
 
+    def log1p(self, out=None):
+        """
+        Return the natural logarithm of one plus the input array, element-wise.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            The value for which to compute the logarithm.
+        out : ht.DNDarray or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        logarithms : ht.DNDarray
+            A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
+
+        Examples
+        --------
+        >>> ht.log1p(ht.arange(5))
+        array([0., 0.69314718, 1.09861229, 1.38629436, 1.60943791])
+        """
+        return exponential.log1p(self, out)
+
     def __lt__(self, other):
         """
         Element-wise rich comparison of relation "less than" with values from second operand (scalar or tensor)
