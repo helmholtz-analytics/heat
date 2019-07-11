@@ -171,6 +171,7 @@ class TestExponential(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.log('hello world')
 
+
     def test_log2(self):
         elements = 15
         tmp = torch.arange(1, elements, dtype=torch.float64).log2()
