@@ -1,9 +1,10 @@
 import os.path
 import torch
 import warnings
-from .stride_tricks import sanitize_axis
-from .communication import MPI, MPI_WORLD
+
+from .communication import MPI, MPI_WORLD, sanitize_comm
 from . import devices
+from .stride_tricks import sanitize_axis
 from . import types
 
 __VALID_WRITE_MODES = frozenset(['w', 'a', 'r+'])
@@ -37,7 +38,7 @@ else:
         return True
 
 
-    def load_hdf5(path, dataset, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+    def load_hdf5(path, dataset, dtype=types.float32, split=None, device=None, comm=None):
         """
         Loads data from an HDF5 file. The data may be distributed among multiple processing nodes via the split flag.
 
@@ -53,7 +54,7 @@ else:
             The axis along which the data is distributed among the processing cores.
         device : None or str, optional
             The device id on which to place the data, defaults to globally set default device.
-        comm : ht.Communication, optional
+        comm : Communication, optional
             The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
 
         Returns
@@ -88,8 +89,9 @@ else:
 
         # infer the type and communicator for the loaded array
         dtype = types.canonical_heat_type(dtype)
-        # determine the device the data will be placed on
+        # determine the comm and device the data will be placed on
         device = devices.sanitize_device(device)
+        comm = sanitize_comm(comm)
 
         # actually load the data from the HDF5 file
         with h5py.File(path, 'r') as handle:
@@ -210,7 +212,7 @@ else:
     def supports_netcdf():
         return True
 
-    def load_netcdf(path, variable, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
+    def load_netcdf(path, variable, dtype=types.float32, split=None, device=None, comm=None):
         """
         Loads data from a NetCDF4 file. The data may be distributed among multiple processing nodes via the split flag.
 
@@ -261,8 +263,9 @@ else:
 
         # infer the canonical heat datatype
         dtype = types.canonical_heat_type(dtype)
-        # determine the device the data will be placed on
+        # determine the device and comm the data will be placed on
         device = devices.sanitize_device(device)
+        comm = sanitize_comm(comm)
 
         # actually load the data
         with nc.Dataset(path, 'r', parallel=__nc_has_par, comm=comm.handle) as handle:

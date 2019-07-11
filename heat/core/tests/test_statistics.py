@@ -412,6 +412,103 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.min(ht_array, axis=-4)
 
+    def test_minimum(self):
+        data1 = [
+            [1,   2,  3],
+            [4,   5,  6],
+            [7,   8,  9],
+            [10, 11, 12]
+        ]
+        data2 = [
+            [0,   3,  2],
+            [5,   4,  7],
+            [6,   9,  8],
+            [9, 10, 11]
+        ]
+
+        ht_array1 = ht.array(data1)
+        ht_array2 = ht.array(data2)
+        comparison1 = torch.tensor(data1)
+        comparison2 = torch.tensor(data2)
+
+        # check minimum
+        minimum = ht.minimum(ht_array1, ht_array2)
+
+        self.assertIsInstance(minimum, ht.DNDarray)
+        self.assertEqual(minimum.shape, (4, 3))
+        self.assertEqual(minimum.lshape, (4, 3))
+        self.assertEqual(minimum.split, None)
+        self.assertEqual(minimum.dtype, ht.int64)
+        self.assertEqual(minimum._DNDarray__array.dtype, torch.int64)
+        self.assertTrue((minimum._DNDarray__array == torch.min(comparison1, comparison2)).all())
+
+        # check minimum over float elements of split 3d tensors
+        # TODO: add check for uneven distribution of dimensions (see Issue #273)
+        size = ht.MPI_WORLD.size
+        torch.manual_seed(1)
+        random_volume_1 = ht.array(ht.random.randn(12, 3, 3), is_split=0)
+        random_volume_2 = ht.array(ht.random.randn(12, 1, 3), is_split=0)
+        minimum_volume = ht.minimum(random_volume_1, random_volume_2)
+
+        self.assertIsInstance(minimum_volume, ht.DNDarray)
+        self.assertEqual(minimum_volume.shape, (size * 12, 3, 3))
+        self.assertEqual(minimum_volume.lshape, (size * 12, 3, 3))
+        self.assertEqual(minimum_volume.dtype, ht.float32)
+        self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(minimum_volume.split, random_volume_1.split)
+
+        # check minimum over float elements of split 3d tensors with different split axis
+        torch.manual_seed(1)
+        random_volume_1_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
+        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
+        minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
+        self.assertIsInstance(minimum_volume_splitdiff, ht.DNDarray)
+        self.assertEqual(minimum_volume_splitdiff.shape, (size*3, size*3, 4))
+        self.assertEqual(minimum_volume_splitdiff.lshape, (size*3, size*3, 4))
+        self.assertEqual(minimum_volume_splitdiff.dtype, ht.float32)
+        self.assertEqual(minimum_volume_splitdiff._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(minimum_volume_splitdiff.split, 0)
+
+        random_volume_1_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
+        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
+        minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
+        self.assertEqual(minimum_volume_splitdiff.split, 0)
+
+        random_volume_1_splitNone = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
+        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
+        minimum_volume_splitdiff = ht.minimum(random_volume_1_splitNone, random_volume_2_splitdiff)
+        self.assertEqual(minimum_volume_splitdiff.split, 1)
+
+        random_volume_1_splitNone = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
+        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
+        minimum_volume_splitdiff = ht.minimum(random_volume_1_splitNone, random_volume_2_splitdiff)
+        self.assertEqual(minimum_volume_splitdiff.split, 0)
+
+        # check output buffer
+        out_shape = ht.stride_tricks.broadcast_shape(random_volume_1.gshape, random_volume_2.gshape)
+        output = ht.empty(out_shape)
+        ht.minimum(random_volume_1, random_volume_2, out=output)
+        self.assertIsInstance(output, ht.DNDarray)
+        self.assertEqual(output.shape, (ht.MPI_WORLD.size * 12, 3, 3))
+        self.assertEqual(output.lshape, (ht.MPI_WORLD.size * 12, 3, 3))
+        self.assertEqual(output.dtype, ht.float32)
+        self.assertEqual(output._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(output.split, random_volume_1.split)
+
+        # check exceptions
+        random_volume_3 = ht.array(ht.random.randn(4, 2, 3), split=0)
+        with self.assertRaises(ValueError):
+            ht.minimum(random_volume_1, random_volume_3)
+        random_volume_3 = torch.ones(12, 3, 3)
+        with self.assertRaises(TypeError):
+            ht.minimum(random_volume_1, random_volume_3)
+        output = torch.ones(12, 3, 3)
+        with self.assertRaises(TypeError):
+            ht.minimum(random_volume_1, random_volume_2, out=output)
+        output = ht.ones((12, 4, 3))
+        with self.assertRaises(ValueError):
+            ht.minimum(random_volume_1, random_volume_2, out=output)
+
     def test_std(self):
         # test raises
         x = ht.zeros((2, 3, 4))
@@ -427,7 +524,7 @@ class TestStatistics(unittest.TestCase):
     def test_var(self):
         array_0_len = 14
         array_1_len = 14
-        # array_2_len = 14
+        array_2_len = 14
 
         # test raises
         x = ht.zeros((2, 3, 4))
@@ -440,7 +537,7 @@ class TestStatistics(unittest.TestCase):
 
         # ones
         dimensions = []
-        for d in [array_0_len, array_1_len]:
+        for d in [array_0_len, array_1_len, array_2_len]:
             dimensions.extend([d, ])
             hold = list(range(len(dimensions)))
             hold.append(None)
@@ -455,6 +552,7 @@ class TestStatistics(unittest.TestCase):
                     target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q != it]
                     if not target_dims:
                         target_dims = (1,)
+
                     self.assertEqual(res.gshape, tuple(target_dims))
                     if res.split is not None:
                         if i >= it:

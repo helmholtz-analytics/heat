@@ -8,6 +8,7 @@ from . import factories
 from . import operations
 from . import dndarray
 from . import types
+from . import stride_tricks
 
 
 __all__ = [
@@ -16,6 +17,7 @@ __all__ = [
     'max',
     'mean',
     'min',
+    'minimum',
     'std',
     'var'
 ]
@@ -319,54 +321,24 @@ def mean(x, axis=None):
             The calculated means.
         """
         if x.lshape[x.split] != 0:
-            mu = operations.__local_op(torch.mean, x, out=None, dim=axis)
+            mu = torch.mean(x._DNDarray__array, out=None, dim=axis)
         else:
             mu = factories.zeros(output_shape_i)
 
-        n_for_merge = factories.zeros(x.comm.size)
-        n2 = factories.zeros(x.comm.size)
-        n2[x.comm.rank] = x.lshape[x.split]
-        x.comm.Allreduce(n2, n_for_merge, MPI.SUM)
+        mu_shape = list(mu.shape) if list(mu.shape) else [1]
 
-        sz = x.comm.size
-        rem1, rem2 = 0, 0
+        mu_tot = factories.zeros(([x.comm.size] + mu_shape))
+        n_tot = factories.zeros(x.comm.size)
+        mu_tot[x.comm.rank, :] = mu
+        n_tot[x.comm.rank] = float(x.lshape[x.split])
+        x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)
+        x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
 
-        mu_reshape = factories.zeros((x.comm.size, int(np.prod(mu.lshape))))
-        mu_reshape[x.comm.rank] = operations.__local_op(torch.reshape, mu, out=None, shape=(1, int(mu.lnumel)))
-        mu_reshape_combi = factories.zeros((x.comm.size, int(np.prod(mu.lshape))))
-        x.comm.Allreduce(mu_reshape, mu_reshape_combi, MPI.SUM)
+        for i in range(1, x.comm.size):
+            mu_tot[0, :],  n_tot[0] = merge_means(mu_tot[0, :], n_tot[0], mu_tot[i, :], n_tot[i])
 
-        while sz not in [0, 1]:
-            if sz % 2 != 0:
-                if rem1 and not rem2:
-                    rem2 = sz - 1
-                elif not rem1:
-                    rem1 = sz - 1
-            splt = sz // 2
+        return mu_tot[0]
 
-            for sp_it in range(splt):  # this loop works but is inefficient, need to fix
-                for en, (el1, el2) in enumerate(zip(mu_reshape_combi[sp_it, :], mu_reshape_combi[sp_it+splt, :])):
-                    try:
-                        mu_reshape_combi[sp_it, en], n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it+splt])
-                    except IndexError:
-                        mu_reshape_combi, n = merge_means(el1, n_for_merge[sp_it], el2, n_for_merge[sp_it + splt])
-                n_for_merge[sp_it] = n
-            if rem1 and rem2:  # this loop works but is inefficient, need to fix
-                for en, (el1, el2) in enumerate(zip(mu_reshape_combi[rem1, :], mu_reshape_combi[rem2, :])):
-                    mu_reshape_combi[rem2, en], n = merge_means(el1, n_for_merge[rem1], el2, n_for_merge[rem2])
-                n_for_merge[rem2] = n
-
-                rem1 = rem2
-                rem2 = 0
-            sz = splt
-
-        if rem1:  # this loop works but is inefficient, need to fix
-            for en, (el1, el2) in enumerate(zip(mu_reshape_combi[0, :], mu_reshape_combi[rem1, :])):
-                mu_reshape_combi[0, en], _ = merge_means(el1, n_for_merge[0], el2, n_for_merge[rem1])
-
-        ret = operations.__local_op(torch.reshape, mu_reshape_combi[0], out=None, shape=output_shape_i)
-        return dndarray.DNDarray(ret._DNDarray__array, tuple(output_shape_i), ret.dtype, None, x.device, x.comm)
-    # ------------------------------------------------------------------------------------------------------------------
     if axis is None:
         # full matrix calculation
         if not x.is_distributed():
@@ -386,32 +358,11 @@ def mean(x, axis=None):
             mu_proc[x.comm.rank][1] = float(n)
             x.comm.Allreduce(mu_proc, mu_tot, MPI.SUM)
 
-            rem1 = 0
-            rem2 = 0
-            sz = mu_tot.shape[0]
-            while sz not in [0, 1]:  # this loop will loop pairwise over the whole process and do pairwise updates
-                if sz % 2 != 0:
-                    if rem1 and not rem2:
-                        rem2 = sz - 1
-                    elif not rem1:
-                        rem1 = sz - 1
-                splt = sz // 2
-                for i in range(splt):
-                    merged = merge_means(mu_tot[i, 0], mu_tot[i, 1], mu_tot[i + splt, 0], mu_tot[i + splt, 1])
-                    for enum, m in enumerate(merged):
-                        mu_tot[i, enum] = m
-                if rem1 and rem2:
-                    merged = merge_means(mu_tot[rem1, 0], mu_tot[rem1, 1], mu_tot[rem2, 0], mu_tot[rem2, 1])
-                    for enum, m in enumerate(merged):
-                        mu_tot[rem2, enum] = m
-                    rem1 = rem2
-                    rem2 = 0
-                sz = splt
+            for i in range(1, x.comm.size):
+                merged = merge_means(mu_tot[0, 0], mu_tot[0, 1], mu_tot[i, 0], mu_tot[i, 1])
+                mu_tot[0, 0] = merged[0]
+                mu_tot[0, 1] = merged[1]
 
-            if rem1:
-                merged = merge_means(mu_tot[0, 0], mu_tot[0, 1], mu_tot[rem1, 0], mu_tot[rem1, 1])
-                for enum, m in enumerate(merged):
-                    mu_tot[0, enum] = m
             return mu_tot[0][0]
     else:
         output_shape = list(x.shape)
@@ -466,16 +417,17 @@ def mean(x, axis=None):
 def merge_means(mu1, n1, mu2, n2):
     """
     Function to merge two means by pairwise update.
+    **Note** all tensors/arrays must be either the same size or individual values (can be mixed, i.e. n can be a float)
 
     Parameters
     ----------
-    mu1 : 1D ht.DNDarray or 1D torch.tensor
+    mu1 : ht.DNDarray, torch.tensor, float, int
         Calculated mean
-    n1 : 1D ht.DNDarray or 1D torch.tensor
+    n1 : ht.DNDarray, torch.tensor, float
         number of elements used to calculate mu1
-    mu2 : 1D ht.DNDarray or 1D torch.tensor
+    mu2 : ht.DNDarray, torch.tensor, float, int
         Calculated mean
-    n2 : 1D ht.DNDarray or 1D torch.tensor
+    n2 : ht.DNDarray, torch.tensor, float
         number of elements used to calculate mu2
 
     Returns
@@ -489,31 +441,28 @@ def merge_means(mu1, n1, mu2, n2):
         algorithms, IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA,
         USA.
     """
-    delta = mu2.item() - mu1.item()
-    n1 = n1.item()
-    n2 = n2.item()
-
-    return mu1 + n2 * (delta / (n1 + n2)), n1 + n2
+    return mu1 + n2 * ((mu2 - mu1) / (n1 + n2)), n1 + n2
 
 
 def merge_vars(var1, mu1, n1, var2, mu2, n2, bessel=True):
     """
     Function to merge two variances by pairwise update.
     **Note** this is a parallel of the merge_means function
+    **Note pt2.** all tensors/arrays must be either the same size or individual values
 
     Parameters
     ----------
-    var1 : 1D ht.DNDarray or 1D torch.tensor
+    var1 : ht.DNDarray, torch.tensor, float, int
         Variance.
-    mu1 : 1D ht.DNDarray or 1D torch.tensor
+    mu1 : ht.DNDarray, torch.tensor, float, int
         Calculated mean.
-    n1 : 1D ht.DNDarray or 1D torch.tensor
+    n1 : ht.DNDarray, torch.tensor, float, int
         Number of elements used to calculate mu1.
-    var2 : 1D ht.DNDarray or 1D torch.tensor
+    var2 : ht.DNDarray, torch.tensor, float, int
         Variance.
-    mu2 : 1D ht.DNDarray or 1D torch.tensor
+    mu2 : ht.DNDarray, torch.tensor, float, int
         Calculated mean.
-    n2 : 1D ht.DNDarray or 1D torch.tensor
+    n2 : ht.DNDarray, torch.tensor, float, int
         Number of elements used to calculate mu2.
     bessel : bool
         Flag for the use of the bessel correction
@@ -529,10 +478,8 @@ def merge_vars(var1, mu1, n1, var2, mu2, n2, bessel=True):
         algorithms, IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA,
         USA.
     """
-    n1 = n1.item()
-    n2 = n2.item()
     n = n1 + n2
-    delta = mu2.item() - mu1.item()
+    delta = mu2 - mu1
     if bessel:
         return (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1), mu1 + n2 * (delta / (n1 + n2)), n
     else:
@@ -579,6 +526,7 @@ def min(x, axis=None, out=None, keepdim=None):
         [ 7.],
         [10.]])
     """
+
     def local_min(*args, **kwargs):
         result = torch.min(*args, **kwargs)
         if isinstance(result, tuple):
@@ -586,6 +534,141 @@ def min(x, axis=None, out=None, keepdim=None):
         return result
 
     return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
+
+
+def minimum(x1, x2, out=None, **kwargs):
+    '''
+    Compares two tensors and returns a new tensor containing the element-wise minima. 
+    If one of the elements being compared is a NaN, then that element is returned. TODO: Check this: If both elements are NaNs then the first is returned. 
+    The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
+
+    Parameters:
+    -----------
+
+    x1, x2 : ht.DNDarray
+            The tensors containing the elements to be compared. They must have the same shape, or shapes that can be broadcast to a single shape.
+            For broadcasting semantics, see: https://pytorch.org/docs/stable/notes/broadcasting.html
+
+    out : ht.DNDarray or None, optional
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to. 
+        If not provided or None, a freshly-allocated tensor is returned.
+
+    Returns:
+    --------
+
+    minimum: ht.DNDarray
+            Element-wise minimum of the two input tensors.
+
+    Examples:
+    ---------          
+    >>> import heat as ht
+    >>> import torch
+    >>> torch.manual_seed(1)
+    <torch._C.Generator object at 0x105c50b50>
+
+    >>> a = ht.random.randn(3,4)
+    >>> a
+    tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
+            [-0.4212, -0.5107, -1.5727, -0.1232],
+            [ 3.5870, -1.8313,  1.5987, -1.2770]])
+
+    >>> b = ht.random.randn(3,4)
+    >>> b
+    tensor([[ 0.8310, -0.2477, -0.8029,  0.2366],
+            [ 0.2857,  0.6898, -0.6331,  0.8795],
+            [-0.6842,  0.4533,  0.2912, -0.8317]])
+
+    >>> ht.minimum(a,b)
+    tensor([[-0.1955, -0.9656, -0.8029,  0.2366],
+            [-0.4212, -0.5107, -1.5727, -0.1232],
+            [-0.6842, -1.8313,  0.2912, -1.2770]])
+
+    >>> c = ht.random.randn(1,4)
+    >>> c
+    tensor([[-1.6428,  0.9803, -0.0421, -0.8206]])
+
+    >>> ht.minimum(a,c)
+    tensor([[-1.6428, -0.9656, -0.0421, -0.8206],
+            [-1.6428, -0.5107, -1.5727, -0.8206],
+            [-1.6428, -1.8313, -0.0421, -1.2770]])
+
+    >>> b.__setitem__((0,1), ht.nan) 
+    >>> b
+    tensor([[ 0.8310,     nan, -0.8029,  0.2366],
+            [ 0.2857,  0.6898, -0.6331,  0.8795],
+            [-0.6842,  0.4533,  0.2912, -0.8317]])
+    >>> ht.minimum(a,b)
+    tensor([[-0.1955,     nan, -0.8029,  0.2366],
+            [-0.4212, -0.5107, -1.5727, -0.1232],
+            [-0.6842, -1.8313,  0.2912, -1.2770]])
+
+    >>> d = ht.random.randn(3,4,5)
+    >>> ht.minimum(a,d)
+    ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
+    '''
+    # perform sanitation
+    if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
+        raise TypeError('expected x1 and x2 to be a ht.DNDarray, but were {}, {} '.format(type(x1), type(x2)))
+    if out is not None and not isinstance(out, dndarray.DNDarray):
+        raise TypeError('expected out to be None or an ht.DNDarray, but was {}'.format(type(out)))
+
+    # apply split semantics
+    if x1.split is not None or x2.split is not None:
+        if x1.split == None:
+            x1.resplit(x2.split)
+        if x2.split == None:
+            x2.resplit(x1.split)
+        if x1.split != x2.split:
+            if np.prod(x1.gshape) < np.prod(x2.gshape):
+                x1.resplit(x2.split)
+            if np.prod(x2.gshape) < np.prod(x1.gshape):
+                x2.resplit(x1.split)
+            else:
+                if x1.split < x2.split:
+                    x2.resplit(x1.split)
+                else:
+                    x1.resplit(x2.split)
+        split = x1.split
+    else:
+        split = None
+
+    # locally: apply torch.min(x1, x2)
+    output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
+    lresult = factories.empty(output_lshape)
+    lresult._DNDarray__array = torch.min(x1._DNDarray__array, x2._DNDarray__array)
+    lresult._DNDarray__dtype = types.promote_types(x1.dtype, x2.dtype)
+    lresult._DNDarray__split = split
+    if x1.split is not None or x2.split is not None:
+        if x1.comm.is_distributed():  # assuming x1.comm = x2.comm
+            output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
+            result = factories.empty(output_gshape)
+            x1.comm.Allgather(lresult, result)
+            # TODO: adopt Allgatherv() as soon as it is fixed, Issue #233
+            result._DNDarray__dtype = lresult._DNDarray__dtype
+            result._DNDarray__split = split
+
+            if out is not None:
+                if out.shape != output_gshape:
+                    raise ValueError('Expecting output buffer of shape {}, got {}'.format(output_gshape, out.shape))
+                out._DNDarray__array = result._DNDarray__array
+                out._DNDarray__dtype = result._DNDarray__dtype
+                out._DNDarray__split = split
+                out._DNDarray__device = x1.device
+                out._DNDarray__comm = x1.comm
+
+                return out
+            return result
+
+    if out is not None:
+        if out.shape != output_lshape:
+            raise ValueError('Expecting output buffer of shape {}, got {}'.format(output_lshape, out.shape))
+        out._DNDarray__array = lresult._DNDarray__array
+        out._DNDarray__dtype = lresult._DNDarray__dtype
+        out._DNDarray__split = split
+        out._DNDarray__device = x1.device
+        out._DNDarray__comm = x1.comm
+
+    return lresult
 
 
 def mpi_argmax(a, b, _):
@@ -609,7 +692,6 @@ MPI_ARGMAX = MPI.Op.Create(mpi_argmax, commute=True)
 def mpi_argmin(a, b, _):
     lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
     rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
-
     # extract the values and minimal indices from the buffers (first half are values, second are indices)
     values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0],), dim=1)
     indices = torch.stack((lhs.chunk(2)[1], rhs.chunk(2)[1],), dim=1)
@@ -735,7 +817,7 @@ def var(x, axis=None, bessel=True):
 
         if x.lshape[x.split] != 0:
             mu = operations.__local_op(torch.mean, x, out=None, dim=axis)
-            var = operations.__local_op(torch.var, x, out=None, dim=axis, unbiased=bessel)
+            var = torch.var(x._DNDarray__array, out=None, dim=axis, unbiased=bessel)
         else:
             mu = factories.zeros(output_shape_i)
             var = factories.zeros(output_shape_i)
@@ -745,53 +827,20 @@ def var(x, axis=None, bessel=True):
         n2[x.comm.rank] = x.lshape[x.split]
         x.comm.Allreduce(n2, n_for_merge, MPI.SUM)
 
-        sz = x.comm.size
-        rem1, rem2 = 0, 0
+        var_shape = list(var.shape) if list(var.shape) else [1]
 
-        mu_reshape = factories.zeros((x.comm.size, int(np.prod(mu.lshape))))
-        mu_reshape[x.comm.rank] = operations.__local_op(torch.reshape, mu, out=None, shape=(1, int(mu.lnumel)))
-        mu_reshape_combi = factories.zeros((x.comm.size, int(np.prod(mu.lshape))))
-        x.comm.Allreduce(mu_reshape, mu_reshape_combi, MPI.SUM)
+        var_tot = factories.zeros(([x.comm.size, 2] + var_shape))
+        n_tot = factories.zeros(x.comm.size)
+        var_tot[x.comm.rank, 0, :] = var
+        var_tot[x.comm.rank, 1, :] = mu
+        n_tot[x.comm.rank] = float(x.lshape[x.split])
+        x.comm.Allreduce(MPI.IN_PLACE, var_tot, MPI.SUM)
+        x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
 
-        var_reshape = factories.zeros((x.comm.size, int(np.prod(var.lshape))))
-        var_reshape[x.comm.rank] = operations.__local_op(torch.reshape, var, out=None, shape=(1, int(var.lnumel)))
-        var_reshape_combi = factories.zeros((x.comm.size, int(np.prod(var.lshape))))
-        x.comm.Allreduce(var_reshape, var_reshape_combi, MPI.SUM)
-
-        while sz not in [0, 1]:
-            if sz % 2 != 0:
-                if rem1 and not rem2:
-                    rem2 = sz - 1
-                elif not rem1:
-                    rem1 = sz - 1
-            splt = sz // 2
-            for i in range(splt):  # this loop works but is inefficient, need to fix
-                for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape_combi[i], var_reshape_combi[i], mu_reshape_combi[i + splt], var_reshape_combi[i + splt])):
-                    try:
-                        var_reshape_combi[i, en], mu_reshape_combi[i, en], n = merge_vars(
-                            var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i+splt], bessel)
-                    except ValueError:
-                        var_reshape_combi, mu_reshape_combi, n = merge_vars(
-                            var1, mu1, n_for_merge[i], var2, mu2, n_for_merge[i + splt], bessel)
-
-                n_for_merge[i] = n
-            if rem1 and rem2:  # this loop works but is inefficient, need to fix
-                for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape_combi[rem1], var_reshape_combi[rem1], mu_reshape_combi[rem2], var_reshape_combi[rem2])):
-                    var_reshape_combi[rem2], mu_reshape_combi[rem2], n = merge_vars(
-                        var1, mu1, n_for_merge[rem1], var2, mu2, n_for_merge[rem2], bessel)
-                n_for_merge[rem2] = n
-
-                rem1 = rem2
-                rem2 = 0
-            sz = splt
-
-        if rem1:  # this loop works but is inefficient, need to fix
-            for en, (mu1, var1, mu2, var2) in enumerate(zip(mu_reshape_combi[0], var_reshape_combi[0], mu_reshape_combi[rem1], var_reshape_combi[rem1])):
-                var_reshape_combi[0], mu_reshape_combi[0], n = merge_vars(
-                    var1, mu1, n_for_merge[0], var2, mu2, n_for_merge[rem1], bessel)
-
-        ret = operations.__local_op(torch.reshape, var_reshape_combi[0], out=None, shape=output_shape_i)
-        return dndarray.DNDarray(ret._DNDarray__array, tuple(output_shape_i), ret.dtype, None, x.device, x.comm)
+        for i in range(1, x.comm.size):
+            var_tot[0, 0, :], var_tot[0, 1, :], n_tot[0] = merge_vars(var_tot[0, 0, :], var_tot[0, 1, :], n_tot[0],
+                                                                      var_tot[i, 0, :], var_tot[i, 1, :], n_tot[i])
+        return var_tot[0, 0, :]
     # ----------------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
         if not x.is_distributed():  # not distributed (full tensor on one node)
@@ -815,35 +864,11 @@ def var(x, axis=None, bessel=True):
             var_proc[x.comm.rank][2] = float(n)
             x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
 
-            rem1 = 0
-            rem2 = 0
-            sz = var_tot.shape[0]
-            while sz not in [0, 1]:  # this loop will loop pairwise over the processes and do pairwise updates
-                if sz % 2 != 0:
-                    if rem1 and not rem2:
-                        rem2 = sz - 1
-                    elif not rem1:
-                        rem1 = sz - 1
-                splt = sz // 2
-                for i in range(splt):
-                    merged = merge_vars(var_tot[i, 0], var_tot[i, 1], var_tot[i, 2],
-                                        var_tot[i + splt, 0], var_tot[i + splt, 1], var_tot[i + splt, 2], bessel)
-                    for enum, m in enumerate(merged):
-                        var_tot[i, enum] = m
-                if rem1 and rem2:
-                    merged = merge_vars(var_tot[rem1, 0], var_tot[rem1, 1], var_tot[rem1, 2],
-                                        var_tot[rem2, 0], var_tot[rem2, 1], var_tot[rem2, 2], bessel)
-                    for enum, m in enumerate(merged):
-                        var_tot[rem2, enum] = m
-                    rem1 = rem2
-                    rem2 = 0
-                sz = splt
-
-            if rem1:
-                merged = merge_vars(var_tot[0, 0], var_tot[0, 1], var_tot[0, 2],
-                                    var_tot[rem1, 0], var_tot[rem1, 1], var_tot[rem1, 2], bessel)
-                for enum, m in enumerate(merged):
-                    var_tot[0, enum] = m
+            for i in range(1, x.comm.size):
+                merged = merge_vars(var_tot[0, 0], var_tot[0, 1], var_tot[0, 2], var_tot[i, 0], var_tot[i, 1], var_tot[i, 2])
+                var_tot[0, 0] = merged[0]
+                var_tot[0, 1] = merged[1]
+                var_tot[0, 2] = merged[2]
 
             return var_tot[0][0]
 

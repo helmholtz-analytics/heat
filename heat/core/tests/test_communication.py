@@ -148,6 +148,26 @@ class TestCommunication(unittest.TestCase):
         self.assertTrue((both_non_contiguous_data._DNDarray__array == both_non_contiguous_out._DNDarray__array).all())
         self.assertFalse(both_non_contiguous_out._DNDarray__array.is_contiguous())
 
+    def test_default_comm(self):
+        # default comm is world
+        a = ht.zeros((4, 5,))
+        self.assertIs(ht.get_comm(), ht.MPI_WORLD)
+        self.assertIs(a.comm, ht.MPI_WORLD)
+
+        # we can set a new comm that is being used for new allocation, old are not affected
+        ht.use_comm(ht.MPI_SELF)
+        b = ht.zeros((4, 5,))
+        self.assertIs(ht.get_comm(), ht.MPI_SELF)
+        self.assertIs(b.comm, ht.MPI_SELF)
+        self.assertIsNot(a.comm, ht.MPI_SELF)
+
+        # reset the comm
+        ht.use_comm(ht.MPI_WORLD)
+
+        # test for proper sanitation
+        with self.assertRaises(TypeError):
+            ht.use_comm('1')
+
     def test_allgather(self):
         # contiguous data
         data = ht.ones((1, 7,))
@@ -1639,10 +1659,17 @@ class TestCommunication(unittest.TestCase):
             pass
 
     def test_mpi_in_place(self):
-        data = ht.ones((ht.MPI_WORLD.size, ht.MPI_WORLD.size,), dtype=ht.int32)
+        size = ht.MPI_WORLD.size
+        data = ht.ones((size, size,), dtype=ht.int32)
         data.comm.Allreduce(ht.MPI.IN_PLACE, data, op=ht.MPI.SUM)
 
-        self.assertTrue((data._DNDarray__array == ht.MPI_WORLD.size).all())
+        self.assertTrue((data._DNDarray__array == size).all())
+
+        tensor = torch.arange(size).repeat(size).reshape(size, size)
+        data = ht.array(tensor, split=0)
+        data.comm.Alltoall(ht.MPI.IN_PLACE, data)
+        self.assertTrue((data._DNDarray__array == ht.MPI_WORLD.rank).all())
+
 
     def test_reduce(self):
         # contiguous data

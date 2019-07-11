@@ -8,6 +8,7 @@ from . import dndarray
 __all__ = [
     'add',
     'div',
+    'floordiv',
     'fmod',
     'mod',
     'mul',
@@ -129,6 +130,38 @@ def fmod(t1, t2):
             [2., 2.]])
     """
     return operations.__binary_op(torch.fmod, t1, t2)
+
+
+def floordiv(t1, t2):
+    """
+    Element-wise floor division of value of operand t1 by values of operands t2 (i.e. t1 // t2), not commutative.
+    Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2) as argument.
+
+    Parameters
+    ----------
+    t1: tensor or scalar
+        The first operand whose values are divided
+    t2: tensor or scalar
+        The second operand by whose values is divided
+
+    Return
+    ------
+    result: ht.DNDarray
+        A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
+    >>> ht.floordiv(T1, 1)
+    tensor([[1., 2.],
+            [1., 4.]])
+    >>> T2 = ht.float32([1.5, 2.5])
+    >>> ht.floordiv(T1, T2)
+    tensor([[1., 0.],
+            [1., 1.]])
+    """
+    return operations.__binary_op(lambda a, b: torch.div(a, b).floor(), t1, t2)
 
 
 def mod(t1, t2):

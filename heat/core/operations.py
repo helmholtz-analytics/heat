@@ -11,6 +11,7 @@ from . import types
 
 __all__ = []
 
+
 def __binary_op(operation, t1, t2):
     """
     Generic wrapper for element-wise binary operations of two operands (either can be tensor or scalar).
@@ -99,7 +100,7 @@ def __binary_op(operation, t1, t2):
                     warnings.warn('Broadcasting requires transferring data of second operator between MPI ranks!')
                     if t2.comm.rank > 0:
                         t2._DNDarray__array = torch.zeros(t2.shape, dtype=t2.dtype.torch_type())
-                    t2.comm.Bcast(t2) 
+                    t2.comm.Bcast(t2)
 
         else:
             raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
@@ -110,7 +111,6 @@ def __binary_op(operation, t1, t2):
     else:
         raise NotImplementedError('Not implemented for non scalar')
 
-
     promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
     if t1.split is not None:
         if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
@@ -118,7 +118,7 @@ def __binary_op(operation, t1, t2):
         else:
             result = operation(t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type))
     elif t2.split is not None:
-        
+
         if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
             result = t2._DNDarray__array.type(promoted_type)
         else:
@@ -168,8 +168,12 @@ def __local_op(operation, x, out, **kwargs):
 
     # no defined output tensor, return a freshly created one
     if out is None:
+        kwargs_dtype = kwargs.get('dtype')
+        if kwargs_dtype:
+            del kwargs['dtype']
         result = operation(x._DNDarray__array.type(torch_type), **kwargs)
-        return dndarray.DNDarray(result, x.gshape, promoted_type, x.split, x.device, x.comm)
+        return dndarray.DNDarray(result, tuple(result.shape), promoted_type if kwargs_dtype is None else kwargs_dtype,
+                                 x.split, x.device, x.comm)
 
     # output buffer writing requires a bit more work
     # we need to determine whether the operands are broadcastable and the multiple of the broadcasting
