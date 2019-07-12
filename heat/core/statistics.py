@@ -258,6 +258,7 @@ def max(x, axis=None, out=None, keepdim=None):
 
     return operations.__reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
 
+
 def maximum(x1, x2, out=None, **kwargs):
     '''
     Compares two tensors and returns a new tensor containing the element-wise maxima. 
@@ -354,7 +355,7 @@ def maximum(x1, x2, out=None, **kwargs):
     else:
         split = None
 
-    # locally: apply torch.min(x1, x2)
+    # locally: apply torch.max(x1, x2)
     output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
     lresult = factories.empty(output_lshape)
     lresult._DNDarray__array = torch.max(x1._DNDarray__array, x2._DNDarray__array)
@@ -668,7 +669,7 @@ def min(x, axis=None, out=None, keepdim=None):
             return result[0]
         return result
 
-    return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim
+    return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
 
 
 def minimum(x1, x2, out=None, **kwargs):
