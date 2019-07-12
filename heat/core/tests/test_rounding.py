@@ -1,6 +1,6 @@
 import torch
 import unittest
-
+import numpy as np
 import heat as ht
 
 
@@ -107,9 +107,9 @@ class TestRounding(unittest.TestCase):
 
         # check exceptions
         with self.assertRaises(TypeError):
-            ht.floor([0, 1, 2, 3])
+            ht.ceil([0, 1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.floor(object())
+            ht.ceil(object())
 
     def test_clip(self):
         elements = 20
@@ -161,3 +161,28 @@ class TestRounding(unittest.TestCase):
             ht.floor([0, 1, 2, 3])
         with self.assertRaises(TypeError):
             ht.floor(object())
+
+    def test_trunc(self):
+        base_array = np.random.randn(20)
+
+        comparison = torch.tensor(base_array, dtype=torch.float64).trunc()
+
+        # trunc of float32
+        float32_tensor = ht.array(base_array, dtype=ht.float32)
+        float32_floor = float32_tensor.trunc()
+        self.assertIsInstance(float32_floor, ht.DNDarray)
+        self.assertEqual(float32_floor.dtype, ht.float32)
+        self.assertTrue((float32_floor._DNDarray__array == comparison.type(torch.float32)).all())
+
+        # trunc of float64
+        float64_tensor = ht.array(base_array, dtype=ht.float64)
+        float64_floor = float64_tensor.trunc()
+        self.assertIsInstance(float64_floor, ht.DNDarray)
+        self.assertEqual(float64_floor.dtype, ht.float64)
+        self.assertTrue((float64_floor._DNDarray__array == comparison).all())
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.trunc([0, 1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.trunc(object())
