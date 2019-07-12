@@ -305,7 +305,8 @@ def sort(a, axis=None, descending=False, out=None):
         final_result = second_result.transpose(0, axis)
         final_indices = torch.empty_like(second_indices)
         # Update the indices in case the ordering changed during the last sort
-        for idx, val in np.ndenumerate(tmp_indices.numpy()):
+        for idx in np.ndindex(tmp_indices.shape):
+            val = tmp_indices[idx]
             final_indices[idx] = second_indices[val][idx[1:]]
         final_indices = final_indices.to(dtype=torch.int64).transpose(0, axis)
 
