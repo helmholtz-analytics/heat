@@ -140,9 +140,10 @@ class TestManipulations(unittest.TestCase):
         data = ht.array(tensor, split=0)
 
         exp_axis_zero = torch.arange(size).reshape(1, size)
-        # Because the sorting is not stable, indices can't be correctly checked here
-        result, _ = ht.sort(data, descending=True, axis=0)
+        exp_indices = torch.tensor([[rank] * size])
+        result, result_indices = ht.sort(data, descending=True, axis=0)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_zero))
+        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices))
 
         exp_axis_one, exp_indices = torch.arange(size).reshape(1, size).sort(dim=1, descending=True)
         result, result_indices = ht.sort(data, descending=True, axis=1)
@@ -203,9 +204,9 @@ class TestManipulations(unittest.TestCase):
             self.assertTrue(torch.equal(first_indices, indices_axis_two))
         #
         out = ht.empty_like(data)
-        ht.sort(data, axis=2, out=out)
-        print(out, result)
+        indices = ht.sort(data, axis=2, out=out)
         self.assertTrue(ht.equal(out, result))
+        self.assertTrue(ht.equal(indices, result_indices))
 
         with self.assertRaises(ValueError):
             ht.sort(data, axis=3)

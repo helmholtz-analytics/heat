@@ -217,7 +217,7 @@ def sort(a, axis=None, descending=False, out=None):
         first_result = torch.empty(shape, dtype=local_sorted.dtype)
         first_indices = torch.empty_like(first_result)
 
-        # Iterate through one layer
+        # Iterate through one layer and send values with alltoallv
         for idx in np.ndindex(local_sorted.shape[1:]):
             idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
 
@@ -237,6 +237,7 @@ def sort(a, axis=None, descending=False, out=None):
             first_result[idx_slice][:rcv_length] = r_val
             first_indices[idx_slice][:rcv_length] = r_ind
 
+        # The process might not have the correct number of values therefore the tensors need to be rebalanced
         send_vec = torch.zeros(local_sorted.shape[1:] + (size, size), dtype=torch.int64)
         target_cumsum = np.cumsum(counts)
         for idx in np.ndindex(local_sorted.shape[1:]):
@@ -250,11 +251,13 @@ def sort(a, axis=None, descending=False, out=None):
                     last = next(i for i in range(size + 1) if i == size or current_cumsum[proc] < target_cumsum[i])
                     sent = 0
                     for i, x in enumerate(counts[first: last]):
+                        # Each following process gets as many elements as it needs
                         amount = int(x - send_vec[idx][:, first + i].sum())
                         send_vec[idx][proc][first + i] = amount
                         current_counts[first + i] += amount
                         sent += amount
                     if last < size:
+                        # Send all left over values to the highest last process
                         amount = partition_matrix[proc][idx]
                         send_vec[idx][proc][last] = int(amount - sent)
                         current_counts[last] += int(amount - sent)
@@ -264,8 +267,10 @@ def sort(a, axis=None, descending=False, out=None):
                                                      if target_cumsum[proc - 1] < x)
                     last = next(i for i, x in enumerate(current_cumsum) if target_cumsum[proc] <= x)
                     for i, x in enumerate(partition_matrix[idx_slice][first: last]):
+                        # Taking as many elements as possible from each following process
                         send_vec[idx][first + i][proc] = int(x - send_vec[idx][first + i].sum())
                         current_counts[first + i] = 0
+                    # Taking just enough elements from the last element to fill the current processes tensor
                     send_vec[idx][last][proc] = int(target_cumsum[proc] - current_cumsum[last - 1])
                     current_counts[last] -= int(target_cumsum[proc] - current_cumsum[last - 1])
                 else:
@@ -274,10 +279,10 @@ def sort(a, axis=None, descending=False, out=None):
                 current_counts[proc] = counts[proc]
                 current_cumsum = list(np.cumsum(current_counts))
 
+        # Iterate through one layer again to create the final balanced local tensors
         second_result = torch.empty_like(local_sorted)
         second_indices = torch.empty_like(second_result)
         for idx in np.ndindex(local_sorted.shape[1:]):
-            # Use alltoallv to correctly share the vales on each coordinate
             idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
 
             send_count = send_vec[idx][rank]
@@ -310,22 +315,22 @@ def sort(a, axis=None, descending=False, out=None):
             final_indices[idx] = second_indices[val][idx[1:]]
         final_indices = final_indices.to(dtype=torch.int64).transpose(0, axis)
 
+    return_indices = dndarray.DNDarray(
+        final_indices,
+        a.gshape,
+        dndarray.types.int32,
+        a.split,
+        a.device,
+        a.comm
+    )
     if out is not None:
         out._DNDarray__array = final_result
-        return final_indices
+        return return_indices
     else:
         tensor = dndarray.DNDarray(
             final_result,
             a.gshape,
             a.dtype,
-            a.split,
-            a.device,
-            a.comm
-        )
-        return_indices = dndarray.DNDarray(
-            final_indices,
-            a.gshape,
-            dndarray.types.int32,
             a.split,
             a.device,
             a.comm
