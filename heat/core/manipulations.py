@@ -177,7 +177,6 @@ def sort(a, axis=None, descending=False, out=None):
             global_pivots = sorted_pivots[global_partitions]
 
         a.comm.Bcast(global_pivots, root=0)
-        # print('global_pivots', global_pivots)
 
         lt_partitions = torch.empty((size, ) + local_sorted.shape, dtype=torch.int64)
         last = torch.zeros_like(local_sorted, dtype=torch.int64)
@@ -192,18 +191,14 @@ def sort(a, axis=None, descending=False, out=None):
             last = lt
         lt_partitions[size - 1] = torch.ones_like(local_sorted, dtype=last.dtype) - last
 
-        # print('lt_partitions', lt_partitions)
         # Matrix holding information how many values will be sent where
         local_partitions = torch.sum(lt_partitions, dim=1)
-        # print('local_partitions', local_partitions)
 
         partition_matrix = torch.empty_like(local_partitions)
         a.comm.Allreduce(local_partitions, partition_matrix, op=MPI.SUM)
-        # print('partition_matrix', partition_matrix)
 
         # Matrix that holds information which value will be shipped where
         index_matrix = torch.empty_like(local_sorted, dtype=torch.int64)
-        # print('index_matrix', lt_partitions)
 
         # Matrix holding information which process get how many values from where
         shape = (size, ) + transposed.size()[1:]
@@ -213,17 +208,10 @@ def sort(a, axis=None, descending=False, out=None):
             index_matrix[x > 0] = i
             send_recv_matrix[i] += torch.sum(x, dim=0)
 
-        # print('index_matrix', index_matrix)
-        # print('send_receive_matrix', send_recv_matrix)
-
         a.comm.Alltoall(MPI.IN_PLACE, send_recv_matrix)
-        # print('after_alltoall', send_recv_matrix)
 
         scounts = local_partitions
-        # print('counts', scounts, local_partitions.shape)
-
         rcounts = send_recv_matrix
-        # print('rcounts', rcounts)
 
         shape = (partition_matrix[rank].max(), ) + transposed.size()[1:]
         first_result = torch.empty(shape, dtype=local_sorted.dtype)
@@ -248,9 +236,7 @@ def sort(a, axis=None, descending=False, out=None):
             a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
             first_result[idx_slice][:rcv_length] = r_val
             first_indices[idx_slice][:rcv_length] = r_ind
-        # print('f_result', first_result, 'f_ind', first_indices)
 
-        print('partition matrix', partition_matrix)
         send_vec = torch.zeros(local_sorted.shape[1:] + (size, size), dtype=torch.int64)
         target_cumsum = np.cumsum(counts)
         for idx in np.ndindex(local_sorted.shape[1:]):
@@ -260,21 +246,16 @@ def sort(a, axis=None, descending=False, out=None):
             for proc in range(size):
                 if current_cumsum[proc] > target_cumsum[proc]:
                     # process has to many values which will be sent to higher ranks
-                    # print('greater equal')
-                    print('send_vec at i', send_vec[idx][:, proc])
                     first = next(i for i in range(size) if send_vec[idx][:, i].sum() < counts[i])
                     last = next(i for i in range(size + 1) if i == size or current_cumsum[proc] < target_cumsum[i])
                     sent = 0
-                    print('first', first, 'last', last)
                     for i, x in enumerate(counts[first: last]):
                         amount = int(x - send_vec[idx][:, first + i].sum())
-                        print('amount', amount)
                         send_vec[idx][proc][first + i] = amount
                         current_counts[first + i] += amount
                         sent += amount
                     if last < size:
                         amount = partition_matrix[proc][idx]
-                        print('val', amount)
                         send_vec[idx][proc][last] = int(amount - sent)
                         current_counts[last] += int(amount - sent)
                 elif current_cumsum[proc] < target_cumsum[proc]:
@@ -282,9 +263,7 @@ def sort(a, axis=None, descending=False, out=None):
                     first = 0 if proc == 0 else next(i for i, x in enumerate(current_cumsum)
                                                      if target_cumsum[proc - 1] < x)
                     last = next(i for i, x in enumerate(current_cumsum) if target_cumsum[proc] <= x)
-                    print('first', first, 'last', last, 'partition_matrix', partition_matrix[idx_slice])
                     for i, x in enumerate(partition_matrix[idx_slice][first: last]):
-                        print('i', i, 'x', x)
                         send_vec[idx][first + i][proc] = int(x - send_vec[idx][first + i].sum())
                         current_counts[first + i] = 0
                     send_vec[idx][last][proc] = int(target_cumsum[proc] - current_cumsum[last - 1])
@@ -292,16 +271,11 @@ def sort(a, axis=None, descending=False, out=None):
                 else:
                     # process doesn't need more values
                     send_vec[idx][proc][proc] = partition_matrix[proc][idx] - send_vec[idx][proc].sum()
-                print('current_cumsum', current_cumsum, 'target_cumsum', target_cumsum)
-                print('rank', rank, 'idx', idx, 'proc', proc, 'send_vec', send_vec, 'current_counts', current_counts)
                 current_counts[proc] = counts[proc]
                 current_cumsum = list(np.cumsum(current_counts))
-        print('send_vec', send_vec)
 
         second_result = torch.empty_like(local_sorted)
         second_indices = torch.empty_like(second_result)
-        # print('partition_matrix', partition_matrix)
-        # print('first_result', first_result)
         for idx in np.ndindex(local_sorted.shape[1:]):
             # Use alltoallv to correctly share the vales on each coordinate
             idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
@@ -311,23 +285,16 @@ def sort(a, axis=None, descending=False, out=None):
 
             recv_count = send_vec[idx][:, rank]
             recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
-            # print('rank', rank, 'proc', idx)
-            # print('send_count', send_count, 'send_disp', send_disp)
-            # print('recv_count', recv_count, 'recv_disp', recv_disp)
 
             end = partition_matrix[rank][idx]
-            # print('end', end, 'first_result', first_result[0: end])
             s_val, indices = first_result[0: end][idx_slice].sort(descending=descending, dim=0)
             s_ind = first_indices[0: end][idx_slice][indices].reshape_as(s_val)
-            # print('s_val', s_val, 's_ind', s_ind)
 
             r_val = torch.empty((counts[rank], ) + s_val.shape[1:], dtype=local_sorted.dtype)
             r_ind = torch.empty_like(r_val)
-            # print('rank', rank, 'send_count', send_count, 'send_disp', send_disp, 'shape', s_val.shape)
-            # print('rank', rank, 'recv_count', recv_count, 'recv_disp', recv_disp, 'shape', r_val.shape)
+
             a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
             a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
-            # print('values', r_val, 'indices', r_ind)
 
             second_result[idx_slice] = r_val
             second_indices[idx_slice] = r_ind
