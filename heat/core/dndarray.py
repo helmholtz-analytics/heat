@@ -685,6 +685,40 @@ class DNDarray:
         """
         return rounding.ceil(self, out)
 
+
+    def trunc(self, out=None):
+        """
+        Return the trunc of the input, element-wise.
+
+        The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the 
+        fractional part of the signed number x is discarded.
+
+        Parameters
+        ----------
+        out : ht.DNDarray or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        trunced : ht.DNDarray
+            A tensor of the same shape as x, containing the trunced valued of each element in this tensor. If out was
+            provided, trunced is a reference to it.
+
+        Returns
+        -------
+        trunced : ht.DNDarray
+            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
+            provided, trunced is a reference to it.
+
+        Examples
+        --------
+        >>> ht.trunc(ht.arange(-2.0, 2.0, 0.4))
+        tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
+        """
+        return rounding.trunc(self, out)
+
+
     def clip(self, a_min, a_max, out=None):
         """
         Parameters
@@ -984,6 +1018,30 @@ class DNDarray:
         tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
         """
         return exponential.exp(self, out)
+
+
+    def expm1(self, out=None):
+        """
+        Calculate exp(x) - 1 for all elements in the array.
+
+        Parameters
+        ----------
+        out : ht.DNDarray or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        exponentials : ht.DNDarray
+            A tensor of the same shape as x, containing the positive exponentials minus one of each element in this tensor. If out
+            was provided, logarithms is a reference to it.
+
+        Examples
+        --------
+        >>> ht.arange(5).exp() + 1.
+        tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
+        """
+        return exponential.expm1(self, out)
 
     def exp2(self, out=None):
         """
@@ -1540,6 +1598,31 @@ class DNDarray:
         tensor([-inf, 0.0000, 1.0000, 1.5850, 2.0000])
         """
         return exponential.log10(self, out)
+
+    def log1p(self, out=None):
+        """
+        Return the natural logarithm of one plus the input array, element-wise.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            The value for which to compute the logarithm.
+        out : ht.DNDarray or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        logarithms : ht.DNDarray
+            A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
+            Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
+
+        Examples
+        --------
+        >>> ht.log1p(ht.arange(5))
+        array([0., 0.69314718, 1.09861229, 1.38629436, 1.60943791])
+        """
+        return exponential.log1p(self, out)
 
     def __lt__(self, other):
         """
