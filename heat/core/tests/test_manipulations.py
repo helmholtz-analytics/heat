@@ -1,6 +1,5 @@
 import unittest
 import torch
-
 import heat as ht
 
 
@@ -202,9 +201,10 @@ class TestManipulations(unittest.TestCase):
         if rank == 0:
             self.assertTrue(torch.equal(first, exp_axis_two))
             self.assertTrue(torch.equal(first_indices, indices_axis_two))
-
+        #
         out = ht.empty_like(data)
         ht.sort(data, axis=2, out=out)
+        print(out, result)
         self.assertTrue(ht.equal(out, result))
 
         with self.assertRaises(ValueError):

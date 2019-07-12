@@ -177,7 +177,7 @@ def sort(a, axis=None, descending=False, out=None):
             global_pivots = sorted_pivots[global_partitions]
 
         a.comm.Bcast(global_pivots, root=0)
-        print('global_pivots', global_pivots)
+        # print('global_pivots', global_pivots)
 
         lt_partitions = torch.empty((size, ) + local_sorted.shape, dtype=torch.int64)
         last = torch.zeros_like(local_sorted, dtype=torch.int64)
@@ -192,18 +192,18 @@ def sort(a, axis=None, descending=False, out=None):
             last = lt
         lt_partitions[size - 1] = torch.ones_like(local_sorted, dtype=last.dtype) - last
 
-        print('lt_partitions', lt_partitions)
+        # print('lt_partitions', lt_partitions)
         # Matrix holding information how many values will be sent where
         local_partitions = torch.sum(lt_partitions, dim=1)
-        print('local_partitions', local_partitions)
+        # print('local_partitions', local_partitions)
 
         partition_matrix = torch.empty_like(local_partitions)
         a.comm.Allreduce(local_partitions, partition_matrix, op=MPI.SUM)
-        print('partition_matrix', partition_matrix)
+        # print('partition_matrix', partition_matrix)
 
         # Matrix that holds information which value will be shipped where
         index_matrix = torch.empty_like(local_sorted, dtype=torch.int64)
-        print('index_matrix', lt_partitions)
+        # print('index_matrix', lt_partitions)
 
         # Matrix holding information which process get how many values from where
         shape = (size, ) + transposed.size()[1:]
@@ -213,17 +213,17 @@ def sort(a, axis=None, descending=False, out=None):
             index_matrix[x > 0] = i
             send_recv_matrix[i] += torch.sum(x, dim=0)
 
-        print('index_matrix', index_matrix)
-        print('send_receive_matrix', send_recv_matrix)
+        # print('index_matrix', index_matrix)
+        # print('send_receive_matrix', send_recv_matrix)
 
         a.comm.Alltoall(MPI.IN_PLACE, send_recv_matrix)
-        print('after_alltoall', send_recv_matrix)
+        # print('after_alltoall', send_recv_matrix)
 
         scounts = local_partitions
-        print('counts', scounts, local_partitions.shape)
+        # print('counts', scounts, local_partitions.shape)
 
         rcounts = send_recv_matrix
-        print('rcounts', rcounts)
+        # print('rcounts', rcounts)
 
         shape = (partition_matrix[rank].max(), ) + transposed.size()[1:]
         first_result = torch.empty(shape, dtype=local_sorted.dtype)
@@ -248,113 +248,92 @@ def sort(a, axis=None, descending=False, out=None):
             a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
             first_result[idx_slice][:rcv_length] = r_val
             first_indices[idx_slice][:rcv_length] = r_ind
-        print('f_result', first_result, 'f_ind', first_indices)
+        # print('f_result', first_result, 'f_ind', first_indices)
 
-        part_cumsum = torch.cumsum(partition_matrix, dim=0)
-        print('part_cumsum', part_cumsum)
+        print('partition matrix', partition_matrix)
+        send_vec = torch.zeros(local_sorted.shape[1:] + (size, size), dtype=torch.int64)
+        target_cumsum = np.cumsum(counts)
+        for idx in np.ndindex(local_sorted.shape[1:]):
+            idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
+            current_counts = partition_matrix[idx_slice].reshape(-1).tolist()
+            current_cumsum = list(np.cumsum(current_counts))
+            for proc in range(size):
+                if current_cumsum[proc] > target_cumsum[proc]:
+                    # process has to many values which will be sent to higher ranks
+                    # print('greater equal')
+                    print('send_vec at i', send_vec[idx][:, proc])
+                    first = next(i for i in range(size) if send_vec[idx][:, i].sum() < counts[i])
+                    last = next(i for i in range(size + 1) if i == size or current_cumsum[proc] < target_cumsum[i])
+                    sent = 0
+                    print('first', first, 'last', last)
+                    for i, x in enumerate(counts[first: last]):
+                        amount = int(x - send_vec[idx][:, first + i].sum())
+                        print('amount', amount)
+                        send_vec[idx][proc][first + i] = amount
+                        current_counts[first + i] += amount
+                        sent += amount
+                    if last < size:
+                        amount = partition_matrix[proc][idx]
+                        print('val', amount)
+                        send_vec[idx][proc][last] = int(amount - sent)
+                        current_counts[last] += int(amount - sent)
+                elif current_cumsum[proc] < target_cumsum[proc]:
+                    # process needs values from higher rank
+                    first = 0 if proc == 0 else next(i for i, x in enumerate(current_cumsum)
+                                                     if target_cumsum[proc - 1] < x)
+                    last = next(i for i, x in enumerate(current_cumsum) if target_cumsum[proc] <= x)
+                    print('first', first, 'last', last, 'partition_matrix', partition_matrix[idx_slice])
+                    for i, x in enumerate(partition_matrix[idx_slice][first: last]):
+                        print('i', i, 'x', x)
+                        send_vec[idx][first + i][proc] = int(x)
+                        current_counts[first + i] = 0
+                    send_vec[idx][last][proc] = int(target_cumsum[proc] - current_cumsum[last - 1])
+                    current_counts[last] -= int(target_cumsum[proc] - current_cumsum[last - 1])
+                else:
+                    # process doesn't need more values
+                    send_vec[idx][proc][proc] = partition_matrix[proc][idx] - send_vec[idx][proc].sum()
+                if idx[0] == 0:
+                    print('current_cumsum', current_cumsum, 'target_cumsum', target_cumsum)
+                    print('rank', rank, 'idx', idx, 'proc', proc, 'send_vec', send_vec, 'current_counts', current_counts)
+                current_counts[proc] = counts[proc]
+                current_cumsum = list(np.cumsum(current_counts))
+        print('send_vec', send_vec)
 
-        # Create a matrix which holds information about the 'unbalancedness' of the local result
-        problem_idx = torch.zeros((size, ) + first_result.shape[1:], dtype=partition_matrix.dtype)
-        for i, x in enumerate(partition_matrix):
-            for idx, val in np.ndenumerate(x.numpy()):
-                problem_idx[i][idx] = x[idx] - counts[i]
-
-        # create final result tensor by iteratively redistributing with the neighbour processes
-        second_result = torch.empty(transposed.size(), dtype=a.dtype.torch_type())
+        second_result = torch.empty_like(local_sorted)
         second_indices = torch.empty_like(second_result)
-        copy_size = min(a.lshape[axis], partition_matrix[rank].max())
-        second_result[0: copy_size] = first_result[0: copy_size]
-        second_indices[0: copy_size] = first_indices[0: copy_size]
-        for i in range(size):
-            for idx, val in np.ndenumerate(problem_idx[i].numpy()):
-                while val != 0:
-                    if val < 0:
-                        # Not enough elements yet -> find next process to receive values from
-                        receiver = i
-                        sender = next(ind + i + 1 for ind, pr in enumerate(partition_matrix[i + 1:]) if pr[idx] > 0)
-                        receiver_idx = (val, ) + idx
+        # print('partition_matrix', partition_matrix)
+        # print('first_result', first_result)
+        for idx in np.ndindex(local_sorted.shape[1:]):
+            # Use alltoallv to correctly share the vales on each coordinate
+            idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
 
-                        if rank == sender:
-                            end = partition_matrix[sender][idx]
-                            enumerate_index = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
-                            values = first_result[0: end][enumerate_index]
-                            sender_idx = (values.argmax() if descending else values.argmin(), ) + idx
+            send_count = send_vec[idx][rank]
+            send_disp = [0] + list(np.cumsum(send_count[:-1]))
 
-                            send_buf = torch.tensor([first_result[sender_idx], first_indices[sender_idx]])
-                            a.comm.Send(send_buf, dest=receiver)
-                            # Swap last element along axis at the now freed location
-                            last_idx = (a.lshape[axis] + problem_idx[sender][idx] - 1, ) + sender_idx[1:]
-                            first_result[sender_idx] = first_result[last_idx]
-                            if sender_idx[0] < second_result.shape[0]:
-                                second_result[sender_idx] = first_result[last_idx]
-                                second_indices[sender_idx] = first_indices[last_idx]
+            recv_count = send_vec[idx][:, rank]
+            recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
+            # print('rank', rank, 'proc', idx)
+            # print('send_count', send_count, 'send_disp', send_disp)
+            # print('recv_count', recv_count, 'recv_disp', recv_disp)
 
-                        if rank == receiver:
-                            recv_buf = torch.empty(2, dtype=first_result.dtype)
-                            a.comm.Recv(recv_buf, source=sender)
-                            second_result[receiver_idx] = recv_buf[0]
-                            second_indices[receiver_idx] = recv_buf[1]
+            end = partition_matrix[rank][idx]
+            # print('end', end, 'first_result', first_result[0: end])
+            s_val, indices = first_result[0: end][idx_slice].sort(descending=descending, dim=0)
+            s_ind = first_indices[0: end][idx_slice][indices].reshape_as(s_val)
+            # print('s_val', s_val, 's_ind', s_ind)
 
-                        val += 1
-                        problem_idx[receiver][idx] += 1
-                        partition_matrix[receiver][idx] += 1
-                        problem_idx[sender][idx] -= 1
-                        partition_matrix[sender][idx] -= 1
+            r_val = torch.empty((counts[rank], ) + s_val.shape[1:], dtype=local_sorted.dtype)
+            r_ind = torch.empty_like(r_val)
+            # print('rank', rank, 'send_count', send_count, 'send_disp', send_disp, 'shape', s_val.shape)
+            # print('rank', rank, 'recv_count', recv_count, 'recv_disp', recv_disp, 'shape', r_val.shape)
+            a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
+            a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
+            # print('values', r_val, 'indices', r_ind)
 
-                    if val > 0:
-                        # Too many values -> send all to the next process
-                        sender = i
-                        receiver = i + 1
-                        if rank == sender:
-                            end = partition_matrix[sender][idx]
-                            enumerate_index = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
-                            values = first_result[0: end][enumerate_index]
-                            kth = val if descending else -val
-                            send_part = slice(None, kth) if descending else slice(kth, None)
-                            rem_part = slice(kth, None) if descending else slice(None, kth)
-                            partition_indices = np.array(values).argpartition(axis=0, kth=kth).reshape(-1)
-                            sender_indices = partition_indices[send_part]
+            second_result[idx_slice] = r_val
+            second_indices[idx_slice] = r_ind
 
-                            send_buf = torch.tensor([list(first_result[sender_indices, idx]),
-                                                     list(first_indices[sender_indices, idx])])
-                            a.comm.Send(send_buf, dest=receiver)
-
-                            # Swap the not sent values to the correct location
-                            free_spots = [sent_loc for sent_loc in sender_indices if sent_loc < a.lshape[a.split]]
-                            unsent = [loc for loc in partition_indices[rem_part] if loc >= a.lshape[a.split]]
-                            second_result[free_spots] = first_result[unsent]
-                            second_indices[free_spots] = first_indices[unsent]
-
-                        if rank == receiver:
-                            recv_buf = torch.empty((2, val), dtype=first_result.dtype)
-                            a.comm.Recv(recv_buf, source=sender)
-                            recv_start = partition_matrix[receiver][idx]
-                            if recv_start + val > first_result.shape[0]:
-                                # The temporary buffer is to small to store the received values
-                                new_shape = list(first_result.shape)
-                                new_shape[0] = new_shape[0] + val
-                                tmp = torch.empty(new_shape, dtype=first_result.dtype)
-                                tmp_indices = torch.empty_like(tmp)
-                                tmp[0: first_result.shape[axis]] = first_result
-                                tmp_indices[0: first_result.shape[axis]] = first_indices
-                                first_result = tmp
-                                first_indices = tmp_indices
-
-                            reshape_dim = list(local_sorted.shape)
-                            reshape_dim[0] = -1
-                            recv_values = recv_buf[0].reshape(reshape_dim)
-                            recv_indices = recv_buf[1].reshape(reshape_dim)
-                            end_second = min(a.lshape[axis] - recv_start, val)
-                            first_result[recv_start: recv_start + val, idx] = recv_values
-                            first_indices[recv_start: recv_start + val, idx] = recv_indices
-                            second_result[recv_start: recv_start + end_second, idx] = recv_values[: end_second]
-                            second_indices[recv_start: recv_start + end_second, idx] = recv_indices[: end_second]
-
-                        problem_idx[receiver][idx] += val
-                        partition_matrix[receiver][idx] += val
-                        problem_idx[sender][idx] -= val
-                        partition_matrix[sender][idx] -= val
-                        val -= val
+        # print('second_result', second_result, 'tmp_indices', second_indices)
 
         second_result, tmp_indices = second_result.sort(dim=0, descending=descending)
         final_result = second_result.transpose(0, axis)
