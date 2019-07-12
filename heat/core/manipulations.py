@@ -285,16 +285,15 @@ def sort(a, axis=None, descending=False, out=None):
                     print('first', first, 'last', last, 'partition_matrix', partition_matrix[idx_slice])
                     for i, x in enumerate(partition_matrix[idx_slice][first: last]):
                         print('i', i, 'x', x)
-                        send_vec[idx][first + i][proc] = int(x - send_vec[idx][proc].sum())
+                        send_vec[idx][first + i][proc] = int(x - send_vec[idx][first + i].sum())
                         current_counts[first + i] = 0
                     send_vec[idx][last][proc] = int(target_cumsum[proc] - current_cumsum[last - 1])
                     current_counts[last] -= int(target_cumsum[proc] - current_cumsum[last - 1])
                 else:
                     # process doesn't need more values
                     send_vec[idx][proc][proc] = partition_matrix[proc][idx] - send_vec[idx][proc].sum()
-                if idx[0] == 0:
-                    print('current_cumsum', current_cumsum, 'target_cumsum', target_cumsum)
-                    print('rank', rank, 'idx', idx, 'proc', proc, 'send_vec', send_vec, 'current_counts', current_counts)
+                print('current_cumsum', current_cumsum, 'target_cumsum', target_cumsum)
+                print('rank', rank, 'idx', idx, 'proc', proc, 'send_vec', send_vec, 'current_counts', current_counts)
                 current_counts[proc] = counts[proc]
                 current_cumsum = list(np.cumsum(current_counts))
         print('send_vec', send_vec)
