@@ -436,6 +436,9 @@ def load_csv(path, header_lines=0, sep=';', dtype=types.float32, encoding='UTF-8
     dtype : ht.dtype, optional
         Data type of the resulting array;
         default: ht.float32.
+    encoding : str, optional
+        The type of encoding which will be used to interpret the lines of the csv file as strings.
+        default: 'UTF-8'
     device : None or str, optional
         The device id on which to place the data, defaults to globally set default device.
     comm : Communication, optional

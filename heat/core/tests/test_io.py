@@ -112,6 +112,13 @@ class TestIO(unittest.TestCase):
         a = ht.load_csv(self.CSV_PATH, header_lines=100)
         self.assertEqual(a.shape, (50, 4))
 
+        with self.assertRaises(TypeError):
+            ht.load_csv(12314)
+        with self.assertRaises(TypeError):
+            ht.load_csv(self.CSV_PATH, sep=11)
+        with self.assertRaises(TypeError):
+            ht.load_csv(self.CSV_PATH, header_lines='3')
+
     def test_load_exception(self):
         # correct extension, file does not exist
         if ht.io.supports_hdf5():
