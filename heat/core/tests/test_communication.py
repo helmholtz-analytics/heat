@@ -1659,10 +1659,17 @@ class TestCommunication(unittest.TestCase):
             pass
 
     def test_mpi_in_place(self):
-        data = ht.ones((ht.MPI_WORLD.size, ht.MPI_WORLD.size,), dtype=ht.int32)
+        size = ht.MPI_WORLD.size
+        data = ht.ones((size, size,), dtype=ht.int32)
         data.comm.Allreduce(ht.MPI.IN_PLACE, data, op=ht.MPI.SUM)
 
-        self.assertTrue((data._DNDarray__array == ht.MPI_WORLD.size).all())
+        self.assertTrue((data._DNDarray__array == size).all())
+
+        tensor = torch.arange(size).repeat(size).reshape(size, size)
+        data = ht.array(tensor, split=0)
+        data.comm.Alltoall(ht.MPI.IN_PLACE, data)
+        self.assertTrue((data._DNDarray__array == ht.MPI_WORLD.rank).all())
+
 
     def test_reduce(self):
         # contiguous data

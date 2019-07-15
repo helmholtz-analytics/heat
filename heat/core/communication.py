@@ -1,6 +1,5 @@
 from mpi4py import MPI
 
-import abc
 import numpy as np
 import os
 import subprocess
@@ -16,17 +15,14 @@ else:
     CUDA_AWARE_MPI = False
 
 
-class Communication(metaclass=abc.ABCMeta):
+class Communication:
     @staticmethod
-    @abc.abstractmethod
     def is_distributed():
-        pass
+        return NotImplemented
 
-    @abc.abstractmethod
     def __init__(self):
-        pass
+        return NotImplemented
 
-    @abc.abstractmethod
     def chunk(self, shape, split):
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
@@ -46,7 +42,7 @@ class Communication(metaclass=abc.ABCMeta):
         slices : tuple of slices
             the chunk slices with respect to the given shape
         """
-        pass
+        return NotImplemented
 
 
 class MPICommunication(Communication):
@@ -244,20 +240,22 @@ class MPICommunication(Communication):
 
         return [cls.as_mpi_memory(obj), elements, mpi_type]
 
-    def __recv_like(self, func, buf, source, tag, status):
+    def Irecv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG):
         if isinstance(buf, dndarray.DNDarray):
             buf = buf._DNDarray__array
         if not isinstance(buf, torch.Tensor):
-            return func(buf, source, tag, status)
+            return self.handle.Irecv(buf, source, tag)
 
-        return func(self.as_buffer(buf), source, tag, status)
-
-    def Irecv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=None):
-        return self.__recv_like(self.handle.Irecv, buf, source, tag, status)
+        return self.handle.Irecv(self.as_buffer(buf), source, tag)
     Irecv.__doc__ = MPI.Comm.Irecv.__doc__
 
     def Recv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=None):
-        return self.__recv_like(self.handle.Recv, buf, source, tag, status)
+        if isinstance(buf, dndarray.DNDarray):
+            buf = buf._DNDarray__array
+        if not isinstance(buf, torch.Tensor):
+            return self.handle.Recv(buf, source, tag, status)  
+ 
+        return self.handle.Recv(self.as_buffer(buf), source, tag, status)     
     Recv.__doc__ = MPI.Comm.Recv.__doc__
 
     def __send_like(self, func, buf, dest, tag):
@@ -420,11 +418,14 @@ class MPICommunication(Communication):
             mpi_sendbuf = self.as_buffer(sendbuf, send_counts, send_displs)
             if send_counts is None:
                 mpi_sendbuf[1] //= send_factor
-
+        else:
+            mpi_sendbuf = sendbuf
         if recvbuf is not MPI.IN_PLACE:
             mpi_recvbuf = self.as_buffer(recvbuf, recv_counts, recv_displs)
             if recv_counts is None:
                 mpi_recvbuf[1] //= recv_factor
+        else:
+            mpi_recvbuf = recvbuf
 
         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)

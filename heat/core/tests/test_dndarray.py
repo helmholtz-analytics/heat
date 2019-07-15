@@ -225,6 +225,31 @@ class TestDNDarray(unittest.TestCase):
         self.assertTrue(torch.all(a._DNDarray__array[3:7:2, 2:5:2] == 1))
         self.assertEqual(a.lloc[3:7:2, 2:5:2].dtype, torch.float32)
 
+    def test_numpy(self):
+        # ToDo: numpy does not work for distributed tensors du to issue#
+        # Add additional tests if the issue is solved
+        a = np.random.randn(10,8)
+        b = ht.array(a)
+        self.assertIsInstance(b.numpy(), np.ndarray)
+        self.assertEqual(b.numpy().shape, a.shape)
+        self.assertEqual(b.numpy().tolist(), b._DNDarray__array.numpy().tolist())
+
+        a = ht.ones((10,8), dtype=ht.float32)
+        b = np.ones((2,2)).astype('float32')  
+        self.assertEqual(a.numpy().dtype, b.dtype)
+
+        a = ht.ones((10,8), dtype=ht.float64)
+        b = np.ones((2,2)).astype('float64')  
+        self.assertEqual(a.numpy().dtype, b.dtype)
+
+        a = ht.ones((10,8), dtype=ht.int32)
+        b = np.ones((2,2)).astype('int32')  
+        self.assertEqual(a.numpy().dtype, b.dtype)
+
+        a = ht.ones((10,8), dtype=ht.int64)
+        b = np.ones((2,2)).astype('int64')  
+        self.assertEqual(a.numpy().dtype, b.dtype)
+
     def test_resplit(self):
         # resplitting with same axis, should leave everything unchanged
         shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size,)
