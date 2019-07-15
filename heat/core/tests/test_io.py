@@ -108,6 +108,10 @@ class TestIO(unittest.TestCase):
         b = ht.load(self.CSV_PATH)
         self.assertTrue(ht.equal(a, b))
 
+        # Test for csv where header is longer then the first process`s share of lines
+        a = ht.load_csv(self.CSV_PATH, header_lines=100)
+        self.assertEqual(a.shape, (50, 4))
+
     def test_load_exception(self):
         # correct extension, file does not exist
         if ht.io.supports_hdf5():
@@ -126,7 +130,7 @@ class TestIO(unittest.TestCase):
 
         # unknown file extension
         with self.assertRaises(ValueError):
-            ht.load(os.path.join(os.getcwd(), 'heat/datasets/data/iris.csv'), 'data')
+            ht.load(os.path.join(os.getcwd(), 'heat/datasets/data/iris.json'), 'data')
         with self.assertRaises(ValueError):
             ht.load('iris', 'data')
 

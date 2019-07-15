@@ -504,31 +504,47 @@ def load_csv(path, header_lines=0, sep=';', dtype=types.float32, encoding='UTF-8
         if chr(l) == '\n':
             line_starts.append(pos + 1)
 
-    # Find the correct starting point
     if rank == 0:
-        # TODO this will fail for small files where header_lines > counts[0]
         line_starts = [0] + line_starts
-        line_starts = line_starts[header_lines:]
+
+    # Find the correct starting point
+    total_lines = torch.empty(size, dtype=torch.int32)
+    comm.Allgather(torch.tensor([len(line_starts)], dtype=torch.int32), total_lines)
+
+    cumsum = total_lines.cumsum(dim=0).tolist()
+    start = next(i for i in range(size) if cumsum[i] > header_lines)
+    if rank < start:
+        line_starts = []
+    if rank == start:
+        rem = header_lines - (0 if start == 0 else cumsum[start - 1])
+        line_starts = line_starts[rem:]
 
     # Determine the number of columns that each line consists of
-    columns = 1
-    for l in r[line_starts[0]: line_starts[1]]:
-        if chr(l) == sep:
-            columns += 1
+    if len(line_starts) > 1:
+        columns = 1
+        for l in r[line_starts[0]: line_starts[1]]:
+            if chr(l) == sep:
+                columns += 1
+    else:
+        columns = 0
+
+    columns = torch.tensor([columns], dtype=torch.int32)
+    comm.Allreduce(MPI.IN_PLACE, columns, MPI.MAX)
 
     # Share how far the processes need to reed in their last line
-    if rank == 0:
-        last_line = torch.empty(1, dtype=torch.int32)
-        comm.Recv(last_line, source=rank + 1)
-    elif rank == size - 1:
-        first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
-        last_line = file_size
-        comm.Send(first_line, dest=rank - 1)
-    else:
-        last_line = torch.empty(1, dtype=torch.int32)
-        first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
-        comm.Send(first_line, dest=rank - 1)
-        comm.Recv(last_line, source=rank + 1)
+    last_line = file_size
+    if size - start > 1:
+        if rank == start:
+            last_line = torch.empty(1, dtype=torch.int32)
+            comm.Recv(last_line, source=rank + 1)
+        elif rank == size - 1:
+            first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
+            comm.Send(first_line, dest=rank - 1)
+        elif start < rank < size - 1:
+            last_line = torch.empty(1, dtype=torch.int32)
+            first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
+            comm.Send(first_line, dest=rank - 1)
+            comm.Recv(last_line, source=rank + 1)
 
     # Create empty tensor and iteratively fill it with the values
     local_shape = (len(line_starts), columns)
@@ -553,7 +569,6 @@ def load_csv(path, header_lines=0, sep=';', dtype=types.float32, encoding='UTF-8
     # Share the local size to determine the global size
     sum_lengths = torch.tensor([actual_length], dtype=torch.int32)
     comm.Allreduce(MPI.IN_PLACE, sum_lengths, MPI.SUM)
-
     resulting_tensor = dndarray.DNDarray(
         local_tensor,
         gshape=(sum_lengths, columns),
