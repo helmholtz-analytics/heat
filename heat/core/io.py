@@ -39,22 +39,149 @@ else:
     def supports_hdf5():
         return True
 
-    def load_csv(path, dtype=types.float32, split=None, device=None, comm=MPI_WORLD):
-        size = os.stat(path).st_size
+    def load_csv(path, header_lines=0, sep=';', dtype=types.float32, encoding='UTF-8', device=None, comm=MPI_WORLD):
+        """
+        Loads data from an CSV file. The data will be distributed along the 0 axis.
+
+        Parameters
+        ----------
+        path : str
+            Path to the CSV file to be read.
+        header_lines : int, optional
+            The number of rows at the beginning of the file that should not be considered as data.
+            default: 0.
+        sep : str, optional
+            The single char or string that separates the values in each row.
+            default: ';'
+        dtype : ht.dtype, optional
+            Data type of the resulting array;
+            default: ht.float32.
+        device : None or str, optional
+            The device id on which to place the data, defaults to globally set default device.
+        comm : Communication, optional
+            The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
+
+        Returns
+        -------
+        out : ht.DNDarray
+            Data read from the CSV file.
+
+        Raises
+        -------
+        TypeError
+            If any of the input parameters are not of correct type
+
+        Examples
+        --------
+        >>> import heat as ht
+        >>> a = ht.load_csv('data.csv')
+        >>> a.shape
+        [0/3] (150, 4)
+        [1/3] (150, 4)
+        [2/3] (150, 4)
+        [3/3] (150, 4)
+        >>> a.lshape
+        [0/3] (38, 4)
+        [1/3] (38, 4)
+        [2/3] (37, 4)
+        [3/3] (37, 4)
+        >>> b = ht.load_csv('data.csv', header_lines=10)
+        >>> b.shape
+        [0/3] (140, 4)
+        [1/3] (140, 4)
+        [2/3] (140, 4)
+        [3/3] (140, 4)
+        >>> b.lshape
+        [0/3] (35, 4)
+        [1/3] (35, 4)
+        [2/3] (35, 4)
+        [3/3] (35, 4)
+        """
+        if not isinstance(path, str):
+            raise TypeError('path must be str, not {}'.format(type(path)))
+        if not isinstance(sep, str):
+            raise TypeError('separator must be str, not {}'.format(type(sep)))
+        if not isinstance(header_lines, int):
+            raise TypeError('header_lines must int, not {}'.format(type(header_lines)))
+
+        # infer the type and communicator for the loaded array
+        dtype = types.canonical_heat_type(dtype)
+        # determine the comm and device the data will be placed on
+        device = devices.sanitize_device(device)
+        comm = sanitize_comm(comm)
+
+        file_size = os.stat(path).st_size
         rank = comm.rank
-        counts, displs, _ = comm.counts_displs_shape((size, 1), 0)
-        print('rank', rank, 'size', size, 'counts', counts, 'disp', displs)
+        size = comm.size
+        counts, displs, _ = comm.counts_displs_shape((file_size, 1), 0)
+
+        # Read a chunk of bytes and count the linebreaks
         f = open(path, 'rb')
         f.seek(displs[rank], 0)
-        lines = 0
+        line_starts = []
         r = f.read(counts[rank])
-        for l in r:
+        for pos, l in enumerate(r):
             if chr(l) == '\n':
-                lines += 1
-        lines_buf = torch.tensor([lines])
-        comm.Allreduce(MPI.IN_PLACE, lines_buf, MPI.SUM)
-        print('reduces', lines_buf, )
-    #     TODO Counting number of lines works, now the lines need to be distributed evenly
+                line_starts.append(pos + 1)
+
+        # Find the correct starting point
+        if rank == 0:
+            # TODO this will fail for small files where header_lines > counts[0]
+            line_starts = [0] + line_starts
+            line_starts = line_starts[header_lines:]
+
+        # Determine the number of rows that each line consists of
+        rows = 1
+        for l in r[line_starts[0]: line_starts[1]]:
+            if chr(l) == sep:
+                rows += 1
+
+        # Share how far the processes need to reed in their last line
+        if rank == 0:
+            last_line = torch.empty(1, dtype=torch.int32)
+            comm.Recv(last_line, source=rank+1)
+        elif rank == size - 1:
+            first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
+            last_line = file_size
+            comm.Send(first_line, dest=rank-1)
+        else:
+            last_line = torch.empty(1, dtype=torch.int32)
+            first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
+            comm.Send(first_line, dest=rank-1)
+            comm.Recv(last_line, source=rank+1)
+
+        # Create empty tensor and iteratively fill it with the values
+        local_shape = (len(line_starts), rows)
+        actual_length = 0
+        local_tensor = torch.empty(local_shape, dtype=dtype.torch_type())
+        for ind, start in enumerate(line_starts):
+            if ind == len(line_starts) - 1:
+                f.seek(displs[rank] + start, 0)
+                line = f.read(last_line - displs[rank] - start)
+            else:
+                line = r[start: line_starts[ind+1] - 1]
+            # Decode byte array
+            line = line.decode(encoding)
+            if len(line) > 0:
+                sep_values = [float(val) for val in line.split(sep)]
+                local_tensor[actual_length] = torch.tensor(sep_values, dtype=dtype.torch_type())
+                actual_length += 1
+
+        # In case there are some empty lines in the csv file
+        local_tensor = local_tensor[:actual_length]
+
+        # Share the local size to determine the global size
+        sum_lengths = torch.tensor([actual_length], dtype=torch.int32)
+        comm.Allreduce(MPI.IN_PLACE, sum_lengths, MPI.SUM)
+
+        resulting_tensor = dndarray.DNDarray(
+            local_tensor,
+            gshape=(sum_lengths, rows),
+            dtype=dtype, split=0,
+            device=device,
+            comm=comm)
+        resulting_tensor.balance_()
+        return resulting_tensor
 
     def load_hdf5(path, dataset, dtype=types.float32, split=None, device=None, comm=None):
         """
