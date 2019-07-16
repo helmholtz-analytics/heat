@@ -86,9 +86,9 @@ def concatenate(arrays, axis=0):
     if len(arrays) < 2:
         raise ValueError('concatenate requires 2 arrays')
     elif len(arrays) > 2:
-        res = concatenate(arrays[0], arrays[1])
+        res = concatenate((arrays[0], arrays[1]), axis=axis)
         for a in range(2, len(arrays)):
-            res = concatenate(res, arrays[a])
+            res = concatenate((res, arrays[a]), axis=axis)
         return res
 
     arr0, arr1 = arrays[0], arrays[1]
@@ -117,7 +117,7 @@ def concatenate(arrays, axis=0):
         _, _, arr1_slice = arr0.comm.chunk(arr1.shape, arr0.split)
         out._DNDarray__array = torch.cat((arr0._DNDarray__array[arr0_slice], arr1._DNDarray__array[arr1_slice]), dim=axis)
         return out
-    
+
     elif s0 == s1 or any([s is None for s in [s0, s1]]):
         if s0 != axis and all([s is not None for s in [s0, s1]]):
             # the axis is different than the split axis, this case can be easily implemented
@@ -140,6 +140,7 @@ def concatenate(arrays, axis=0):
             arr0_shape[axis] += arr1_shape[axis]
             out_shape = tuple(arr0_shape)
 
+            # the chunk map is used for determine how much data should be on each process
             chunk_map = factories.zeros((arr0.comm.size, len(arr0.gshape)), dtype=int)
             _, _, chk = arr0.comm.chunk(out_shape, s0 if s0 is not None else s1)
             for i in range(len(out_shape)):
@@ -182,9 +183,11 @@ def concatenate(arrays, axis=0):
                 send_slice = [slice(None), ] * arr0.numdims
                 keep_slice = [slice(None), ] * arr0.numdims
                 # push the data backwards (arr1), making the data the proper size for arr1 on the last nodes
+                # the data is "compressed" on np/2 processes. data is sent from
                 for spr in range(arr0.comm.size - 1, -1, -1):
                     if arr0.comm.rank == spr:
                         for pr in range(arr0.comm.size - 1, spr, -1):
+                            # calculate the amount of data to send from the chunk map
                             send_amt = abs((chunk_map[pr, axis] - lshape_map[1, pr, axis]).item())
                             send_amt = send_amt if send_amt < arr1.lshape[axis] else arr1.lshape[axis]
                             if send_amt:
@@ -211,9 +214,11 @@ def concatenate(arrays, axis=0):
                 arb_slice = [None] * len(arr1.shape)
                 for c in range(len(chunk_map)):
                     arb_slice[axis] = c
+                    # the chunk map is adjusted by subtracting what data is already in the correct place (the data from arr1 is already correctly placed)
+                    #   i.e. the chunk map shows how much data is still needed on each process, the local
                     chunk_map[arb_slice] -= lshape_map[tuple([1] + arb_slice)]
 
-                # after adjusting arr1 need to now select the target data on each node with a local slice
+                # after adjusting arr1 need to now select the target data in arr0 on each node with a local slice
                 if arr0.comm.rank == 0:
                     lcl_slice = [slice(None)] * arr0.numdims
                     lcl_slice[axis] = slice(chunk_map[0, axis].item())
