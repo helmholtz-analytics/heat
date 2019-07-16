@@ -302,6 +302,26 @@ class TestDNDarray(unittest.TestCase):
         self.assertTrue(data.lshape[1] == 1 or data.lshape[1] == 2)
         self.assertEqual(data.split, 1)
 
+        expected = torch.ones((ht.MPI_WORLD.size, 100), dtype=torch.int64)
+        data = ht.array(expected, split=1)
+        data.resplit(None)
+
+        self.assertTrue(torch.equal(data._DNDarray__array, expected))
+        self.assertFalse(data.is_distributed())
+        self.assertIsNone(data.split)
+        self.assertEqual(data.dtype, ht.int64)
+        self.assertEqual(data._DNDarray__array.dtype, expected.dtype)
+
+        expected = torch.zeros((100, ht.MPI_WORLD.size), dtype=torch.uint8)
+        data = ht.array(expected, split=0)
+        data.resplit(None)
+
+        self.assertTrue(torch.equal(data._DNDarray__array, expected))
+        self.assertFalse(data.is_distributed())
+        self.assertIsNone(data.split)
+        self.assertEqual(data.dtype, ht.uint8)
+        self.assertEqual(data._DNDarray__array.dtype, expected.dtype)
+
     def test_setitem_getitem(self):
         # set and get single value
         a = ht.zeros((13, 5,), split=0)
