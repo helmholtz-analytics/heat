@@ -1950,7 +1950,7 @@ class DNDarray:
 
         Parameters
         ----------
-        axis : int
+        axis : int or None
             The new split axis, None denotes gathering, an int will set the new split axis
 
         Returns
@@ -1960,25 +1960,26 @@ class DNDarray:
 
         Examples
         --------
-        a = ht.zeros((4, 5,), split=0)
-        a.lshape
+        >>> import heat as ht
+        >>> a = ht.zeros((4, 5,), split=0)
+        >>> a.lshape
         (0/2) >>> (2, 5)
         (1/2) >>> (2, 5)
-        a.resplit(None)
-        a.split
-        >>> None
-        a.lshape
+        >>> a.resplit(None)
+        >>> a.split
+        None
+        >>> a.lshape
         (0/2) >>> (4, 5)
         (1/2) >>> (4, 5)
 
-        a = ht.zeros((4, 5,), split=0)
-        a.lshape
+        >>> a = ht.zeros((4, 5,), split=0)
+        >>> a.lshape
         (0/2) >>> (2, 5)
         (1/2) >>> (2, 5)
-        a.resplit(1)
-        a.split
-        >>> 1
-        a.lshape
+        >>> a.resplit(1)
+        >>> a.split
+        1
+        >>> a.lshape
         (0/2) >>> (4, 3)
         (1/2) >>> (4, 2)
         """
@@ -1991,12 +1992,15 @@ class DNDarray:
 
         # unsplit the tensor
         if axis is None:
-            gathered = torch.empty(self.shape)
+            # Transpose because Allgatherv only works along axis 0 at the moment
+            # TODO change when Allgatherv works along all other axis as well
+            local_array = self.__array.transpose(0, self.split)
+            gathered = torch.empty((self.gshape[self.split], ) + local_array.shape[1:], dtype=self.dtype.torch_type())
 
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), recv_axis=axis)
+            self.comm.Allgatherv(local_array, (gathered, recv_counts, recv_displs,), recv_axis=0)
 
-            self.__array = gathered
+            self.__array = gathered.transpose(0, self.split)
             self.__split = None
 
         # tensor needs be split/sliced locally
@@ -2008,7 +2012,7 @@ class DNDarray:
         # entirely new split axis, need to redistribute
         else:
             _, output_shape, _ = self.comm.chunk(self.shape, axis)
-            redistributed = torch.empty(output_shape)
+            redistributed = torch.empty(output_shape, dtype=self.dtype.torch_type())
 
             send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
