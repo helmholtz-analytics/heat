@@ -608,7 +608,7 @@ class DNDarray:
                 if self.comm.rank == pr and snt:
                     shp = list(self.gshape)
                     shp[self.split] = snt
-                    data = torch.zeros(shp)
+                    data = torch.zeros(shp, dtype=sl_dtype)
                     self.comm.Recv(data, source=spr, tag=pr + self.comm.size + spr)
                     self.__array = torch.cat((data, self.__array), dim=self.split)
                 lshape_map[pr, self.split] += snt
