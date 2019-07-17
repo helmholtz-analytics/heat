@@ -92,6 +92,12 @@ def concatenate(arrays, axis=0):
         return res
 
     arr0, arr1 = arrays[0], arrays[1]
+    out_dtype = types.promote_types(arr0.dtype, arr1.dtype)
+    if arr0.dtype != out_dtype:
+        arr0 = out_dtype(arr0)
+    if arr1.dtype != out_dtype:
+        arr1 = out_dtype(arr1)
+
     if not isinstance(arr0, dndarray.DNDarray) and not isinstance(arr1, dndarray.DNDarray):
         raise TypeError('Both arrays must be DNDarrays')
     if not isinstance(axis, int):
@@ -124,7 +130,7 @@ def concatenate(arrays, axis=0):
             # torch cat arrays together and return a new array that is_split
             out_shape = tuple(arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
                               for x in range(len(arr1.gshape)))
-            out = factories.empty(out_shape, split=s0)
+            out = factories.empty(out_shape, split=s0, dtype=out_dtype)
             out._DNDarray__array = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
             return out
         else:
@@ -172,7 +178,7 @@ def concatenate(arrays, axis=0):
                         if arr0.comm.rank == pr and snt:
                             shp = list(arr0.gshape)
                             shp[arr0.split] = snt
-                            data = torch.zeros(shp)
+                            data = torch.zeros(shp, dtype=out_dtype.torch_type())
 
                             arr0.comm.Recv(data, source=spr, tag=pr + arr0.comm.size + spr)
                             arr0._DNDarray__array = torch.cat((arr0._DNDarray__array, data), dim=arr0.split)
@@ -204,7 +210,7 @@ def concatenate(arrays, axis=0):
                         if arr1.comm.rank == pr and snt:
                             shp = list(arr1.gshape)
                             shp[axis] = snt
-                            data = torch.zeros(shp)
+                            data = torch.zeros(shp, dtype=out_dtype.torch_type())
                             arr1.comm.Recv(data, source=spr, tag=pr + arr1.comm.size + spr)
                             arr1._DNDarray__array = torch.cat((data, arr1._DNDarray__array), dim=axis)
                         lshape_map[1, pr, axis] += snt
@@ -258,7 +264,7 @@ def concatenate(arrays, axis=0):
                     arr1._DNDarray__array.unsqueeze_(axis)
 
             # now that the data is in the proper shape, need to concatenate them on the nodes where they both exist for the others, just set them equal
-            out = factories.empty((out_shape), split=s0 if s0 is not None else s1)
+            out = factories.empty((out_shape), split=s0 if s0 is not None else s1, dtype=out_dtype)
             res = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
             out._DNDarray__array = res
             return out

@@ -260,19 +260,19 @@ class TestManipulations(unittest.TestCase):
         self.assertEqual(res.lshape, tuple(lshape))
 
         # 0 0 0
-        x = ht.ones((16,), split=0)
+        x = ht.ones((16,), split=0, dtype=ht.float64)
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32,))
-        self.assertEqual(res.dtype, ht.float)
+        self.assertEqual(res.dtype, ht.float64)
         _, _, chk = res.comm.chunk((32,), res.split)
         lshape = [0, ]
         lshape[0] = chk[0].stop - chk[0].start
         self.assertEqual(res.lshape, tuple(lshape))
         # 0 None 0
-        y = ht.ones((16,), split=None)
+        y = ht.ones((16,), split=None, dtype=ht.int64)
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32,))
-        self.assertEqual(res.dtype, ht.float)
+        self.assertEqual(res.dtype, ht.float64)
         _, _, chk = res.comm.chunk((32,), res.split)
         lshape = [0, ]
         lshape[0] = chk[0].stop - chk[0].start
