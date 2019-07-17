@@ -4,10 +4,12 @@ from . import operations
 
 __all__ = [
     'exp',
+    'expm1',
     'exp2',
     'log',
     'log2',
     'log10',
+    'log1p',
     'sqrt',
 ]
 
@@ -37,6 +39,31 @@ def exp(x, out=None):
     """
     return operations.__local_op(torch.exp, x, out)
 
+
+def expm1(x, out=None):
+    """
+    Calculate exp(x) - 1 for all elements in the array.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The value for which to compute the exponential.
+    out : ht.DNDarray or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    exponentials : ht.DNDarray
+        A tensor of the same shape as x, containing the positive exponentials of each element in this tensor. If out
+        was provided, logarithms is a reference to it.
+
+    Examples
+    --------
+    >>> ht.expm1(ht.arange(5)) + 1.
+    tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
+    """
+    return operations.__local_op(torch.expm1, x, out)
 
 def exp2(x, out=None):
     """
@@ -145,6 +172,32 @@ def log10(x, out=None):
     tensor([  -inf, 0.0000, 0.3010, 0.4771, 0.6021])
     """
     return operations.__local_op(torch.log10, x, out)
+
+
+def log1p(x, out=None):
+    """
+    Return the natural logarithm of one plus the input array, element-wise.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The value for which to compute the logarithm.
+    out : ht.DNDarray or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    logarithms : ht.DNDarray
+        A tensor of the same shape as x, containing the positive logarithms plus one of each element in this tensor.
+        Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
+
+    Examples
+    --------
+    >>> ht.log1p(ht.arange(5))
+    array([0., 0.69314718, 1.09861229, 1.38629436, 1.60943791])
+    """
+    return operations.__local_op(torch.log1p, x, out)
 
 
 def sqrt(x, out=None):
