@@ -240,6 +240,74 @@ class MPICommunication(Communication):
 
         return [cls.as_mpi_memory(obj), elements, mpi_type]
 
+    @classmethod
+    def as_send_buffer(cls, obj, counts=None, displs=None):
+        mpi_type, elements = cls.__mpi_type_mappings[obj.dtype], torch.numel(obj)
+
+        # simple case, continuous memory can be transmitted as is
+        if obj.is_contiguous():
+            if counts is None:
+                return [cls.as_mpi_memory(obj), elements, mpi_type]
+            else:
+                factor = np.prod(obj.shape[1:])
+                elements = (tuple(factor * ele for ele in counts), (tuple(factor * ele for ele in displs)),)
+                return [cls.as_mpi_memory(obj),elements , mpi_type]
+
+        # non-continuous memory, e.g. after a transpose, has to be packed in derived MPI types
+        elements = obj.shape[0]
+        shape = obj.shape[1:]
+        strides = [1] * len(shape)
+        strides[0] = obj.stride()[-1]
+        offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
+        strides = strides[::-1]
+        # chain the types based on the
+        for i in range(len(shape) - 1, -1, -1):
+            mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
+            #print("i = {}: Create_vector(shape[i] = {}, 1, strides[i]={}).Create_resized(0, offsets[i] = {})\n obj = {} ".format(i, shape[i], strides[i], offsets[i],  obj))
+            mpi_type.Commit()
+
+        if counts is not None:
+            return [cls.as_mpi_memory(obj), (counts, displs,), mpi_type]
+
+
+        return [cls.as_mpi_memory(obj), elements, mpi_type]
+
+    @classmethod
+    def as_recv_buffer(cls, obj, counts=None, displs=None):
+        mpi_type, elements = cls.__mpi_type_mappings[obj.dtype], torch.numel(obj)
+
+        # simple case, continuous memory can be transmitted as is
+        if obj.is_contiguous():
+            if counts is None:
+                return [cls.as_mpi_memory(obj), elements, mpi_type]
+            else:
+                factor = np.prod(obj.shape[1:])
+                elements = (tuple(factor * ele for ele in counts), (tuple(factor * ele for ele in displs)),)
+                return [cls.as_mpi_memory(obj),elements , mpi_type]
+
+        # non-continuous memory, e.g. after a transpose, has to be packed in derived MPI types
+        elements = obj.shape[0]
+        shape = obj.shape[1:]
+        strides = [1] * len(shape)
+        strides[0] = obj.stride()[-1]
+        offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
+        strides = strides[::-1]
+        # chain the types based on the
+        for i in range(len(shape) - 1, -1, -1):
+            mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
+            #print("i = {}: Create_vector(shape[i] = {}, 1, strides[i]={}).Create_resized(0, offsets[i] = {})\n obj = {} ".format(i, shape[i], strides[i], offsets[i],  obj))
+            mpi_type.Commit()
+
+        if counts is not None:
+            return [cls.as_mpi_memory(obj), (counts, displs,), mpi_type]
+
+
+        return [cls.as_mpi_memory(obj), elements, mpi_type]
+
+
+
+
+
     def Irecv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG):
         if isinstance(buf, dndarray.DNDarray):
             buf = buf._DNDarray__array
@@ -427,6 +495,7 @@ class MPICommunication(Communication):
         else:
             mpi_recvbuf = recvbuf
 
+
         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
 
@@ -446,11 +515,6 @@ class MPICommunication(Communication):
         recv_factor = self.size
         send_factor = 1
 
-        # align the output buffer in the same way as the input buffer by default
-        #if recv_axis is None:
-        #    recv_axis = send_axis
-
-        # dummy allocation for *v calls
         send_counts, send_displs, recv_counts, recv_displs = None, None, None, None,
 
         # unpack the send buffer
@@ -483,13 +547,13 @@ class MPICommunication(Communication):
 
         # prepare buffer objects
         if sendbuf is not MPI.IN_PLACE:
-            mpi_sendbuf = self.as_buffer(sendbuf, send_counts, send_displs)
+            mpi_sendbuf = self.as_send_buffer(sendbuf, send_counts, send_displs)
             if send_counts is None:
                 mpi_sendbuf[1] //= send_factor
         else:
             mpi_sendbuf = sendbuf
         if recvbuf is not MPI.IN_PLACE:
-            mpi_recvbuf = self.as_buffer(recvbuf, recv_counts, recv_displs)
+            mpi_recvbuf = self.as_recv_buffer(recvbuf, recv_counts, recv_displs)
             if recv_counts is None:
                 mpi_recvbuf[1] //= recv_factor
         else:
@@ -502,7 +566,6 @@ class MPICommunication(Communication):
         if recv_axis != 0:
             recvbuf = recvbuf.permute(*recv_axis_permutation)
             original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
-
         return exit_code
 
     Allgatherv.__doc__ = MPI.Comm.Allgatherv.__doc__
