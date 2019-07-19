@@ -439,7 +439,7 @@ class MPICommunication(Communication):
         return self.__scatter_like(self.handle.Allgather, sendbuf, recvbuf, axis, recv_axis, recv_factor=self.size)
     Allgather.__doc__ = MPI.Comm.Allgather.__doc__
 
-    def Allgatherv(self, sendbuf, recvbuf, axis=0, recv_axis=None):
+    def Allgatherv(self, sendbuf, recvbuf, axis=None, recv_axis=None):
 
         func = self.handle.Allgatherv
         send_axis = axis
@@ -447,8 +447,8 @@ class MPICommunication(Communication):
         send_factor = 1
 
         # align the output buffer in the same way as the input buffer by default
-        if recv_axis is None:
-            recv_axis = send_axis
+        #if recv_axis is None:
+        #    recv_axis = send_axis
 
         # dummy allocation for *v calls
         send_counts, send_displs, recv_counts, recv_displs = None, None, None, None,
