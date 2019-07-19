@@ -440,7 +440,70 @@ class MPICommunication(Communication):
     Allgather.__doc__ = MPI.Comm.Allgather.__doc__
 
     def Allgatherv(self, sendbuf, recvbuf, axis=0, recv_axis=None):
-        return self.__scatter_like(self.handle.Allgatherv, sendbuf, recvbuf, axis, recv_axis, recv_factor=self.size)
+
+        func = self.handle.Allgatherv
+        send_axis = axis
+        recv_factor = self.size
+        send_factor = 1
+
+        # align the output buffer in the same way as the input buffer by default
+        if recv_axis is None:
+            recv_axis = send_axis
+
+        # dummy allocation for *v calls
+        send_counts, send_displs, recv_counts, recv_displs = None, None, None, None,
+
+        # unpack the send buffer
+        if isinstance(sendbuf, tuple):
+            sendbuf, send_counts, send_displs = sendbuf
+        if isinstance(sendbuf, dndarray.DNDarray):
+            sendbuf = sendbuf._DNDarray__array
+        if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
+            raise TypeError('sendbuf of type {} does not support send_axis != 0'.format(type(sendbuf)))
+
+        # unpack the receive buffer
+        if isinstance(recvbuf, tuple):
+            recvbuf, recv_counts, recv_displs = recvbuf
+        if isinstance(recvbuf, dndarray.DNDarray):
+            recvbuf = recvbuf._DNDarray__array
+        if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
+            raise TypeError('recvbuf of type {} does not support send_axis != 0'.format(type(recvbuf)))
+
+        # keep a reference to the original buffer object
+        original_recvbuf = recvbuf
+
+        # permute the send_axis order so that the split send_axis is the first to be transmitted
+        send_axis_permutation = list(range(recvbuf.ndimension()))
+        send_axis_permutation[0], send_axis_permutation[send_axis] = send_axis, 0
+
+        recv_axis_permutation = list(range(recvbuf.ndimension()))
+        recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
+        recvbuf = recvbuf.permute(*recv_axis_permutation)
+
+        # prepare buffer objects
+        if sendbuf is not MPI.IN_PLACE:
+            mpi_sendbuf = self.as_buffer(sendbuf, send_counts, send_displs)
+            if send_counts is None:
+                mpi_sendbuf[1] //= send_factor
+        else:
+            mpi_sendbuf = sendbuf
+        if recvbuf is not MPI.IN_PLACE:
+            mpi_recvbuf = self.as_buffer(recvbuf, recv_counts, recv_displs)
+            if recv_counts is None:
+                mpi_recvbuf[1] //= recv_factor
+        else:
+            mpi_recvbuf = recvbuf
+
+        # perform the scatter operation
+        exit_code = func(mpi_sendbuf, mpi_recvbuf)
+
+        # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
+        if recv_axis != 0:
+            recvbuf = recvbuf.permute(*recv_axis_permutation)
+            original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
+
+        return exit_code
+
     Allgatherv.__doc__ = MPI.Comm.Allgatherv.__doc__
 
     def Alltoall(self, sendbuf, recvbuf, axis=0, recv_axis=None):
