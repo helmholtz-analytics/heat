@@ -240,20 +240,22 @@ class MPICommunication(Communication):
 
         return [cls.as_mpi_memory(obj), elements, mpi_type]
 
-    def __recv_like(self, func, buf, source, tag, status):
+    def Irecv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG):
         if isinstance(buf, dndarray.DNDarray):
             buf = buf._DNDarray__array
         if not isinstance(buf, torch.Tensor):
-            return func(buf, source, tag, status)
+            return self.handle.Irecv(buf, source, tag)
 
-        return func(self.as_buffer(buf), source, tag, status)
-
-    def Irecv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=None):
-        return self.__recv_like(self.handle.Irecv, buf, source, tag, status)
+        return self.handle.Irecv(self.as_buffer(buf), source, tag)
     Irecv.__doc__ = MPI.Comm.Irecv.__doc__
 
     def Recv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=None):
-        return self.__recv_like(self.handle.Recv, buf, source, tag, status)
+        if isinstance(buf, dndarray.DNDarray):
+            buf = buf._DNDarray__array
+        if not isinstance(buf, torch.Tensor):
+            return self.handle.Recv(buf, source, tag, status)  
+ 
+        return self.handle.Recv(self.as_buffer(buf), source, tag, status)     
     Recv.__doc__ = MPI.Comm.Recv.__doc__
 
     def __send_like(self, func, buf, dest, tag):
