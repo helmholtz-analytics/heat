@@ -439,10 +439,8 @@ class MPICommunication(Communication):
         return self.__scatter_like(self.handle.Allgather, sendbuf, recvbuf, axis, recv_axis, recv_factor=self.size)
     Allgather.__doc__ = MPI.Comm.Allgather.__doc__
 
-    def Allgatherv(self, sendbuf, recvbuf, axis=None, recv_axis=None):
-
+    def Allgatherv(self, sendbuf, recvbuf, send_axis=None, recv_axis=None):
         func = self.handle.Allgatherv
-        send_axis = axis
         recv_factor = self.size
         send_factor = 1
 
@@ -475,6 +473,7 @@ class MPICommunication(Communication):
         # permute the send_axis order so that the split send_axis is the first to be transmitted
         send_axis_permutation = list(range(recvbuf.ndimension()))
         send_axis_permutation[0], send_axis_permutation[send_axis] = send_axis, 0
+        sendbuf = sendbuf.permute(*send_axis_permutation)
 
         recv_axis_permutation = list(range(recvbuf.ndimension()))
         recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
