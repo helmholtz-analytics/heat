@@ -418,10 +418,11 @@ class MPICommunication(Communication):
         # prepare buffer objects
         if sendbuf is not MPI.IN_PLACE:
             mpi_sendbuf = self.as_buffer(sendbuf, send_counts, send_displs)
-            if send_counts is None:
-                mpi_sendbuf[1] //= 1
+            if send_counts is not None:
+                mpi_sendbuf[1] = mpi_sendbuf[1][0][self.rank]
         else:
             mpi_sendbuf = sendbuf
+
         if recvbuf is not MPI.IN_PLACE:
             mpi_recvbuf = self.as_buffer(recvbuf, recv_counts, recv_displs)
             if recv_counts is None:
@@ -506,7 +507,6 @@ class MPICommunication(Communication):
                 mpi_recvbuf[1] //= recv_factor
         else:
             mpi_recvbuf = recvbuf
-
 
         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)

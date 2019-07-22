@@ -302,6 +302,24 @@ class TestCommunication(unittest.TestCase):
         self.assertFalse(output._DNDarray__array.is_contiguous())
         self.assertTrue((output._DNDarray__array == torch.ones(output_count, 10,)).all())
 
+        # contiguous data buffer
+        data = ht.array([[ht.MPI_WORLD.rank] * 10] * (ht.MPI_WORLD.size + 1))
+        first_line = ht.array([[0] * 10])
+        last_line = ht.array([[ht.MPI_WORLD.size - 1] * 10])
+
+        send_counts, send_displs, _ = data.comm.counts_displs_shape(data.lshape, 0)
+        # contiguous output buffer
+        output_shape = data.lshape
+        output = ht.zeros(output_shape, dtype=ht.int64)
+        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(output.lshape, 0)
+
+        data.comm.Allgatherv((data, send_counts, send_displs,), (output, recv_counts, recv_displs,))
+        self.assertTrue(data._DNDarray__array.is_contiguous())
+        self.assertTrue(output._DNDarray__array.is_contiguous())
+        self.assertTrue((output[0] == first_line).all())
+        self.assertTrue((output[output.lshape[0]-1] == last_line).all())
+
+
     def test_allreduce(self):
         # contiguous data
         data = ht.ones((10, 2,), dtype=ht.int8)

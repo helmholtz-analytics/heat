@@ -1942,6 +1942,93 @@ class DNDarray:
 
     def resplit(self, axis=None):
         """
+        Out-of-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
+        nodes as well as the definition of new axis along which the tensor is split without changes to the values.
+
+        WARNING: this operation might involve a significant communication overhead. Use it sparingly and preferably for
+        small tensors.
+
+        Parameters
+        ----------
+        axis : int
+            The new split axis, None denotes gathering, an int will set the new split axis
+
+        Returns
+        -------
+        resplit: ht.DNDarray
+            The redistributed tensor
+
+        Examples
+        --------
+        a = ht.zeros((4, 5,), split=0)
+        a.lshape
+        (0/2) >>> (2, 5)
+        (1/2) >>> (2, 5)
+        a.resplit(None)
+        a.split
+        >>> None
+        a.lshape
+        (0/2) >>> (4, 5)
+        (1/2) >>> (4, 5)
+
+        a = ht.zeros((4, 5,), split=0)
+        a.lshape
+        (0/2) >>> (2, 5)
+        (1/2) >>> (2, 5)
+        a.resplit(1)
+        a.split
+        >>> 1
+        a.lshape
+        (0/2) >>> (4, 3)
+        (1/2) >>> (4, 2)
+        """
+        # sanitize the axis to check whether it is in range
+        axis = sanitize_axis(self.shape, axis)
+
+        # early out for unchanged content
+        if axis == self.split:
+            return self
+
+        # unsplit the tensor
+        if axis is None:
+            gathered = torch.empty(self.shape)
+
+            recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
+            self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), send_axis=self.split)
+
+            self.__array = gathered
+            self.__split = None
+
+        # tensor needs be split/sliced locally
+        elif self.split is None:
+            _, _, slices = self.comm.chunk(self.shape, axis)
+            temp = self.__array[slices]
+            self.__array = torch.empty((1,))
+            # necessary to clear storage of local __array
+            self.__array= temp.clone().detach()
+            self.__split = axis
+
+        # entirely new split axis, need to redistribute
+        else:
+            _, output_shape, _ = self.comm.chunk(self.shape, axis)
+            redistributed = torch.empty(output_shape)
+
+            send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
+            recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
+
+            self.comm.Alltoallv(
+                (self.__array, send_counts, send_displs,),
+                (redistributed, recv_counts, recv_displs,),
+                axis=axis, recv_axis=self.split
+            )
+
+            self.__array = redistributed
+            self.__split = axis
+
+        return self
+
+    def resplit_(self, axis=None):
+        """
         In-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
         nodes as well as the definition of new axis along which the tensor is split without changes to the values.
 
@@ -2026,6 +2113,7 @@ class DNDarray:
             self.__split = axis
 
         return self
+
 
     def __rfloordiv__(self, other):
         """
