@@ -1955,3 +1955,61 @@ class TestCommunication(unittest.TestCase):
         self.assertFalse(output._DNDarray__array.is_contiguous())
         self.assertTrue((output._DNDarray__array == torch.ones(output_count, 12,)).all())
 
+    def test_allgathervSorting(self):
+        data = ht.zeros((2, 3, 4))
+        data[0, 0, 0] = 0
+        data[0, 0, 1] = 1
+        data[0, 0, 2] = 2
+        data[0, 0, 3] = 3
+
+        data[0, 1, 0] = 10
+        data[0, 1, 1] = 11
+        data[0, 1, 2] = 12
+        data[0, 1, 3] = 13
+
+        data[0, 2, 0] = 20
+        data[0, 2, 1] = 21
+        data[0, 2, 2] = 22
+        data[0, 2, 3] = 23
+
+        data[1, 0, 0] = 100
+        data[1, 0, 1] = 101
+        data[1, 0, 2] = 102
+        data[1, 0, 3] = 103
+
+        data[1, 1, 0] = 110
+        data[1, 1, 1] = 111
+        data[1, 1, 2] = 112
+        data[1, 1, 3] = 113
+
+        data[1, 2, 0] = 120
+        data[1, 2, 1] = 121
+        data[1, 2, 2] = 122
+        data[1, 2, 3] = 123
+
+        result = data
+
+
+        data.resplit(axis=0)
+
+        gathered = torch.empty(data.shape)
+        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(data.shape, data.split)
+        data.comm.Allgatherv(data._DNDarray__array, (gathered, recv_counts, recv_displs,), send_axis=data.split)
+
+        self.assertTrue(ht.equal(data, result))
+
+        data.resplit(axis=1)
+
+        gathered2 = torch.empty(data.shape)
+        recv_counts2, recv_displs2, _ = data.comm.counts_displs_shape(data.shape, data.split)
+        data.comm.Allgatherv(data._DNDarray__array, (gathered2, recv_counts2, recv_displs2,), send_axis=data.split)
+
+        self.assertTrue(ht.equal(data, result))
+
+        data.resplit(axis=2)
+
+        gathered2 = torch.empty(data.shape)
+        recv_counts2, recv_displs2, _ = data.comm.counts_displs_shape(data.shape, data.split)
+        data.comm.Allgatherv(data._DNDarray__array, (gathered2, recv_counts2, recv_displs2,), send_axis=data.split)
+
+        self.assertTrue(ht.equal(data, result))
