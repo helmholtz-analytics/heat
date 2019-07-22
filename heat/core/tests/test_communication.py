@@ -190,7 +190,7 @@ class TestCommunication(unittest.TestCase):
         # ensure prior invariants
         self.assertTrue(data._DNDarray__array.is_contiguous())
         self.assertTrue(output._DNDarray__array.is_contiguous())
-        data.comm.Allgather(data, output, axis=1)
+        data.comm.Allgather(data, output, send_axis=1)
 
         # check scatter result
         self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -218,7 +218,7 @@ class TestCommunication(unittest.TestCase):
         # ensure prior invariants
         self.assertTrue(data._DNDarray__array.is_contiguous())
         self.assertFalse(output._DNDarray__array.is_contiguous())
-        data.comm.Allgather(data, output, axis=1)
+        data.comm.Allgather(data, output, send_axis=1)
 
         # check scatter result
         self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -749,7 +749,7 @@ class TestCommunication(unittest.TestCase):
             # ensure prior invariants
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
-            req = data.comm.Iallgather(data, output, axis=1)
+            req = data.comm.Iallgather(data, output, send_axis=1)
             req.wait()
 
             # check scatter result
@@ -779,7 +779,7 @@ class TestCommunication(unittest.TestCase):
             # ensure prior invariants
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertFalse(output._DNDarray__array.is_contiguous())
-            req = data.comm.Iallgather(data, output, axis=1)
+            req = data.comm.Iallgather(data, output, send_axis=1)
             req.wait()
 
             # check scatter result

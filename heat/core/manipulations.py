@@ -277,7 +277,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         counts = list(uniques_buf.tolist())
         displs = list([0] + uniques_buf.cumsum(0).tolist()[:-1])
         gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
-        a.comm.Allgatherv(lres, (gres_buf, counts, displs,), axis=recv_axis, recv_axis=0)
+        a.comm.Allgatherv(lres, (gres_buf, counts, displs,), send_axis=recv_axis, recv_axis=0)
 
         if return_inverse:
             # Prepare some information to generated the inverse indices list
@@ -296,7 +296,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
             # Transpose data and buffer so we can use Allgatherv along axis=0 (axis=1 does not work properly yet)
             inverse_pos = inverse_pos.transpose(0, a.split)
             inverse_buf = inverse_buf.transpose(0, a.split)
-            a.comm.Allgatherv(inverse_pos, (inverse_buf, inverse_counts, inverse_displs), axis=0)
+            a.comm.Allgatherv(inverse_pos, (inverse_buf, inverse_counts, inverse_displs), send_axis=0)
             inverse_buf = inverse_buf.transpose(0, a.split)
 
         # Run unique a second time

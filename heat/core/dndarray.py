@@ -1994,7 +1994,7 @@ class DNDarray:
             gathered = torch.empty(self.shape)
 
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), send_axis=self.split, recv_axis=self.split)
+            self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), send_axis=self.split)
 
             self.__array = gathered
             self.__split = None
