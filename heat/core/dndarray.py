@@ -521,6 +521,7 @@ class DNDarray:
         """
         if self.is_balanced():
             return
+        sl_dtype = self.dtype.torch_type()
         # units -> {pr, 1st index, 2nd index}
         lshape_map = factories.zeros((self.comm.size, len(self.gshape)), dtype=int)
         lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
@@ -569,7 +570,7 @@ class DNDarray:
                     if self.comm.rank == pr and snt:
                         shp = list(self.gshape)
                         shp[self.split] = snt
-                        data = torch.zeros(shp)
+                        data = torch.zeros(shp, dtype=sl_dtype)
                         self.comm.Recv(data, source=spr, tag=pr + self.comm.size + spr)
                         self.__array = torch.cat((self.__array, data), dim=self.split)
                     lshape_map[pr, self.split] += snt
@@ -607,7 +608,7 @@ class DNDarray:
                 if self.comm.rank == pr and snt:
                     shp = list(self.gshape)
                     shp[self.split] = snt
-                    data = torch.zeros(shp)
+                    data = torch.zeros(shp, dtype=sl_dtype)
                     self.comm.Recv(data, source=spr, tag=pr + self.comm.size + spr)
                     self.__array = torch.cat((data, self.__array), dim=self.split)
                 lshape_map[pr, self.split] += snt
@@ -1230,6 +1231,8 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
+        l_dtype = self.dtype.torch_type()
+        dtype = self.dtype
         if isinstance(key, DNDarray)and key.gshape[-1] != len(self.gshape):
             key = tuple(x.item() for x in key)
         if not self.is_distributed():
@@ -1380,7 +1383,7 @@ class DNDarray:
                 else:
                     gout[e] = self.comm.allreduce(gout[e], MPI.MAX)
 
-            return DNDarray(arr, gout if isinstance(gout, tuple) else tuple(gout), self.dtype, new_split, self.device, self.comm)
+            return DNDarray(arr.type(l_dtype), gout if isinstance(gout, tuple) else tuple(gout), self.dtype, new_split, self.device, self.comm)
 
     if torch.cuda.device_count() > 0:
         def gpu(self):
