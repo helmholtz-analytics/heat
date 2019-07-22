@@ -2002,7 +2002,10 @@ class DNDarray:
         # tensor needs be split/sliced locally
         elif self.split is None:
             _, _, slices = self.comm.chunk(self.shape, axis)
-            self.__array = self.__array[slices]
+            temp = self.__array[slices]
+            self.__array = torch.empty((1,))
+            # necessary to clear storage of local __array
+            self.__array= temp.clone().detach()
             self.__split = axis
 
         # entirely new split axis, need to redistribute
