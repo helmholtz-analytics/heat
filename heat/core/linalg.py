@@ -10,6 +10,7 @@ from . import types
 
 __all__ = [
     'matmul',
+    'qr',
     'transpose',
     'tril',
     'triu'
@@ -477,6 +478,21 @@ def matmul(a, b):
             a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
 
             return factories.array(res, split=a.split if b.gshape[-1] > 1 else 0)
+
+
+def qr(input, output=None):
+    """
+    Compute the qr factorization of a matrix.
+    Factor the matrix a as qr, where q is orthonormal and r is upper-triangular.
+
+    :param input:
+    :param output:
+    :return:
+    """
+    '''
+    assuming split=1 for now (for visualization purposes)
+    take the QR of the column, then distribute Q to the other processes and do matmul of the rest'''
+    pass
 
 
 def transpose(a, axes=None):
