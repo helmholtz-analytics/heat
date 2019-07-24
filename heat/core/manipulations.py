@@ -92,22 +92,29 @@ def concatenate(arrays, axis=0):
         return res
 
     arr0, arr1 = arrays[0], arrays[1]
-    out_dtype = types.promote_types(arr0.dtype, arr1.dtype)
-    if arr0.dtype != out_dtype:
-        arr0 = out_dtype(arr0)
-    if arr1.dtype != out_dtype:
-        arr1 = out_dtype(arr1)
 
-    if not isinstance(arr0, dndarray.DNDarray) and not isinstance(arr1, dndarray.DNDarray):
+    if not isinstance(arr0, dndarray.DNDarray) or not isinstance(arr1, dndarray.DNDarray):
         raise TypeError('Both arrays must be DNDarrays')
     if not isinstance(axis, int):
         raise TypeError('axis must be an integer, currently: {}'.format(type(axis)))
+
+    axis = stride_tricks.sanitize_axis(arr0.gshape, axis)
+
+    if arr0.numdims != arr1.numdims:
+        raise RuntimeError('DNDarrays must have the same number of dimensions')
 
     if not all([arr0.gshape[i] == arr1.gshape[i] for i in range(len(arr0.gshape)) if i != axis]):
         raise ValueError('Arrays cannot be concatenated, gshapes must be the same in every axis except the selected axis:'
                          ' {}, {}'.format(arr0.gshape, arr1.gshape))
 
     s0, s1 = arr0.split, arr1.split
+
+    out_dtype = types.promote_types(arr0.dtype, arr1.dtype)
+    if arr0.dtype != out_dtype:
+        arr0 = out_dtype(arr0)
+    if arr1.dtype != out_dtype:
+        arr1 = out_dtype(arr1)
+
     if s0 is None and s1 is None:
         return factories.array(torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis))
 
