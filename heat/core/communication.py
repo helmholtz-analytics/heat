@@ -173,7 +173,7 @@ class MPICommunication(Communication):
         mpi_type, elements = cls.__mpi_type_mappings[obj.dtype], torch.numel(obj)
 
         # simple case, continuous memory can be transmitted as is
-        if obj.is_contiguous():
+        if obj.is_contiguous() :
             if counts is None:
                 return mpi_type, elements
             else:
@@ -185,8 +185,8 @@ class MPICommunication(Communication):
         shape = obj.shape[1:]
         strides = [1] * len(shape)
         strides[0] = obj.stride()[-1]
-        offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
         strides = strides[::-1]
+        offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
 
         # chain the types based on the
         for i in range(len(shape) - 1, -1, -1):
@@ -414,24 +414,29 @@ class MPICommunication(Communication):
         recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
         recvbuf = recvbuf.permute(*recv_axis_permutation)
 
-
-        # prepare buffer objects
+          # prepare buffer objects
         if sendbuf is not MPI.IN_PLACE:
             mpi_sendbuf = self.as_buffer(sendbuf, send_counts, send_displs)
+
+
             if send_counts is not None:
                 mpi_sendbuf[1] = mpi_sendbuf[1][0][self.rank]
+
+
         else:
             mpi_sendbuf = sendbuf
 
         if recvbuf is not MPI.IN_PLACE:
             mpi_recvbuf = self.as_buffer(recvbuf, recv_counts, recv_displs)
+
             if recv_counts is None:
                 mpi_recvbuf[1] //= self.size
+
         else:
             mpi_recvbuf = recvbuf
 
 
-        # perform the scatter operation
+         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
 
         # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
