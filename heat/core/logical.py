@@ -127,13 +127,13 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
 
     # If only one of the tensors is distributed, unsplit/gather it
     if (x.split is not None) and (y.split is None):
-        x.resplit(axis=None)
+        x.resplit_(axis=None)
     if (x.split is None) and (y.split is not None):
-        y.resplit(axis=None)
+        y.resplit_(axis=None)
 
     # If both x and y are split, but along different axes, y is redistributed to be split along the same axis as x
     if (x.split is not None) and (y.split is not None) and (x.split != y.split):
-        y.resplit(axis=x.split)
+        y.resplit_(axis=x.split)
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
     _local_allclose = torch.tensor(torch.allclose(x._DNDarray__array, y._DNDarray__array, rtol, atol, equal_nan))

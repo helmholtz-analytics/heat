@@ -2008,7 +2008,7 @@ class TestCommunication(unittest.TestCase):
         result = data
 
 
-        data.resplit(axis=0)
+        data.resplit_(axis=0)
 
         gathered = torch.empty(data.shape)
         recv_counts, recv_displs, _ = data.comm.counts_displs_shape(data.shape, data.split)
@@ -2016,7 +2016,7 @@ class TestCommunication(unittest.TestCase):
 
         self.assertTrue(ht.equal(data, result))
 
-        data.resplit(axis=1)
+        data.resplit_(axis=1)
 
         gathered2 = torch.empty(data.shape)
         recv_counts2, recv_displs2, _ = data.comm.counts_displs_shape(data.shape, data.split)
@@ -2024,7 +2024,7 @@ class TestCommunication(unittest.TestCase):
 
         self.assertTrue(ht.equal(data, result))
 
-        data.resplit(axis=2)
+        data.resplit_(axis=2)
 
         gathered2 = torch.empty(data.shape)
         recv_counts2, recv_displs2, _ = data.comm.counts_displs_shape(data.shape, data.split)

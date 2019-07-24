@@ -338,19 +338,19 @@ def maximum(x1, x2, out=None, **kwargs):
     # apply split semantics
     if x1.split is not None or x2.split is not None:
         if x1.split == None:
-            x1.resplit(x2.split)
+            x1.resplit_(x2.split)
         if x2.split == None:
-            x2.resplit(x1.split)
+            x2.resplit_(x1.split)
         if x1.split != x2.split:
             if np.prod(x1.gshape) < np.prod(x2.gshape):
-                x1.resplit(x2.split)
+                x1.resplit_(x2.split)
             if np.prod(x2.gshape) < np.prod(x1.gshape):
-                x2.resplit(x1.split)
+                x2.resplit_(x1.split)
             else:
                 if x1.split < x2.split:
-                    x2.resplit(x1.split)
+                    x2.resplit_(x1.split)
                 else:
-                    x1.resplit(x2.split)
+                    x1.resplit_(x2.split)
         split = x1.split
     else:
         split = None
@@ -751,19 +751,19 @@ def minimum(x1, x2, out=None, **kwargs):
     # apply split semantics
     if x1.split is not None or x2.split is not None:
         if x1.split == None:
-            x1.resplit(x2.split)
+            x1.resplit_(x2.split)
         if x2.split == None:
-            x2.resplit(x1.split)
+            x2.resplit_(x1.split)
         if x1.split != x2.split:
             if np.prod(x1.gshape) < np.prod(x2.gshape):
-                x1.resplit(x2.split)
+                x1.resplit_(x2.split)
             if np.prod(x2.gshape) < np.prod(x1.gshape):
-                x2.resplit(x1.split)
+                x2.resplit_(x1.split)
             else:
                 if x1.split < x2.split:
-                    x2.resplit(x1.split)
+                    x2.resplit_(x1.split)
                 else:
-                    x1.resplit(x2.split)
+                    x1.resplit_(x2.split)
         split = x1.split
     else:
         split = None
