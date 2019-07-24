@@ -268,3 +268,100 @@ class TestManipulations(unittest.TestCase):
         data_split_zero = ht.array(torch_array, split=0)
         res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
         self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+
+    def test_resplit(self):
+
+
+        # resplitting with same axis, should leave everything unchanged
+        shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size,)
+        data = ht.zeros(shape, split=None)
+        data2 = ht.resplit(data, None)
+
+        self.assertIsInstance(data2, ht.DNDarray)
+        self.assertEqual(data2.shape, shape)
+        self.assertEqual(data2.lshape, shape)
+        self.assertEqual(data2.split, None)
+
+        # resplitting with same axis, should leave everything unchanged
+        shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size,)
+        data = ht.zeros(shape, split=1)
+        data2 = ht.resplit(data, 1)
+
+        self.assertIsInstance(data2, ht.DNDarray)
+        self.assertEqual(data2.shape, shape)
+        self.assertEqual(data2.lshape, (data.comm.size, 1,))
+        self.assertEqual(data2.split, 1)
+
+        # splitting an unsplit tensor should result in slicing the tensor locally
+        shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size,)
+        data = ht.zeros(shape)
+        data2 = ht.resplit(data, 1)
+
+        self.assertIsInstance(data2, ht.DNDarray)
+        self.assertEqual(data2.shape, shape)
+        self.assertEqual(data2.lshape, (data.comm.size, 1,))
+        self.assertEqual(data2.split, 1)
+
+        # unsplitting, aka gathering a tensor
+        shape = (ht.MPI_WORLD.size + 1, ht.MPI_WORLD.size,)
+        data = ht.ones(shape, split=0)
+        data2 = ht.resplit(data, None)
+
+        self.assertIsInstance(data2, ht.DNDarray)
+        self.assertEqual(data2.shape, shape)
+        self.assertEqual(data2.lshape, shape)
+        self.assertEqual(data2.split, None)
+
+        # assign and entirely new split axis
+        shape = (ht.MPI_WORLD.size + 2, ht.MPI_WORLD.size + 1,)
+        data = ht.ones(shape, split=0)
+        data2 = ht.resplit(data, 1)
+
+        self.assertIsInstance(data2, ht.DNDarray)
+        self.assertEqual(data2.shape, shape)
+        self.assertEqual(data2.lshape[0], ht.MPI_WORLD.size + 2)
+        self.assertTrue(data2.lshape[1] == 1 or data2.lshape[1] == 2)
+        self.assertEqual(data2.split, 1)
+
+        # test sorting order of resplit
+
+        N = ht.MPI_WORLD.size
+        reference_tensor = ht.zeros((N, N + 1, 2*N))
+        for n in range(N):
+            for m in range(N + 1):
+                reference_tensor[n, m, :] = ht.arange(0, 2 * N) + m * 10 + n * 100
+
+        # split along axis = 0
+        resplit_tensor = ht.resplit(reference_tensor, axis=0)
+        local_shape = (1, N + 1, 2 * N)
+        local_tensor = reference_tensor[ht.MPI_WORLD.rank, :, :]
+        self.assertEqual(resplit_tensor.lshape, local_shape)
+        self.assertTrue((resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
+
+        # unsplit
+        unsplit_tensor = ht.resplit(resplit_tensor, axis=None)
+        self.assertTrue((unsplit_tensor._DNDarray__array == reference_tensor._DNDarray__array).all())
+
+        # split along axis = 1
+        resplit_tensor = ht.resplit(unsplit_tensor, axis=1)
+        if (ht.MPI_WORLD.rank == 0):
+            local_shape = (N, 2, 2 * N)
+            local_tensor = reference_tensor[:, 0:2, :]
+        else:
+            local_shape = (N, 1, 2 * N)
+            local_tensor = reference_tensor[:, ht.MPI_WORLD.rank + 1:ht.MPI_WORLD.rank + 2, :]
+
+        self.assertEqual(resplit_tensor.lshape, local_shape)
+        self.assertTrue((resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
+
+        # unsplit
+        unsplit_tensor = ht.resplit(resplit_tensor, axis=None)
+        self.assertTrue((unsplit_tensor._DNDarray__array == reference_tensor._DNDarray__array).all())
+
+        # split along axis = 2
+        resplit_tensor = ht.resplit(unsplit_tensor, axis=2)
+        local_shape = (N, N + 1, 2)
+        local_tensor = reference_tensor[:, :, 2 * ht.MPI_WORLD.rank: 2 * ht.MPI_WORLD.rank + 2]
+
+        self.assertEqual(resplit_tensor.lshape, local_shape)
+        self.assertTrue((resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
