@@ -5,6 +5,39 @@ import heat as ht
 import numpy as np
 
 class TestLinalg(unittest.TestCase):
+    def test_dot(self):
+        # ONLY TESTING CORRECTNESS! ALL CALLS IN DOT ARE PREVIOUSLY TESTED
+        # cases to test:
+        data2d = np.ones((10, 10))
+        data1d = np.arange(10)
+        data3d = np.ones((10, 10, 10))
+        data4d = np.ones((10, 10, 10, 10))
+
+        a1d = ht.array(data1d, split=0)
+        b1d = ht.array(data1d, split=0)
+        # 2 1D arrays,
+        # print((ht.dot(a1d, b1d), np.dot(data1d, data1d)))
+        self.assertEqual(ht.dot(a1d, b1d), ht.array(np.dot(data1d, data1d)))
+
+        # print(data2d, ht.array(data2d, split=1))
+        a2d = ht.array(data2d, split=1)
+        b2d = ht.array(data2d, split=1)
+        # 2 2D arrays,
+        res = ht.dot(a2d, b2d) - ht.array(np.dot(data2d, data2d))
+        self.assertEqual(ht.equal(res, ht.zeros(res.shape)), 1)
+
+        const1 = 5
+        const2 = 6
+        # a is const,
+        res = ht.dot(const1, b2d) - ht.array(np.dot(const1, data2d))
+        self.assertEqual(ht.equal(res, ht.zeros(res.shape)), 1)
+
+        # b is const,
+        res = ht.dot(a2d, const2) - ht.array(np.dot(data2d, const2))
+        self.assertEqual(ht.equal(res, ht.zeros(res.shape)), 1)
+        # a and b and const
+        self.assertEqual(ht.dot(const2, const1), 5*6)
+
     def test_matmul(self):
         # cases to test:
         n, m = 21, 31
@@ -370,7 +403,6 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.shape, (n, 1))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
-
 
     def test_transpose(self):
         # vector transpose, not distributed
