@@ -3,6 +3,7 @@ import sys
 import torch
 
 from .communication import MPI
+from . import arithmetics
 from . import dndarray
 from . import factories
 from . import logical
@@ -18,27 +19,32 @@ __all__ = [
 ]
 
 
-def dot(a, b):
+def dot(a, b, out=None):
     """
     dot product / matmul
 
     Dot product of two arrays. Specifically,
 
     1. If both a and b are 1-D arrays, it is inner product of vectors.
+    2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or `a @ b` is preferred.
+    3. If either a or b is 0-D (scalar), it is equivalent to multiply and using `ht.multiply(a, b)` or `a * b` is preferred.
 
-    2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or a @ b is preferred.
+    Parameters
+    ----------
+    a : ht.DNDarray
+    b : ht.DNDarray
 
-    3. If either a or b is 0-D (scalar), it is equivalent to multiply and using numpy.multiply(a, b) or a * b is preferred.
-
-    **todo: 4. If a is an N-D array and b is a 1-D array, it is a sum product over the last axis of a and b.
-
-    **todo: 5. If a is an N-D array and b is an M-D array (where M>=2), it is a sum product over the last axis of a and the second-to-last axis of b:
-    :param a:
-    :param b:
-    :return:
+    Returns
+    -------
+    ht.DNDarray or single value (float or int)
+        Returns the dot product of a and b. If a and b are both scalars or both 1-D arrays then a scalar is returned;
+        otherwise an array is returned. If out is given, then it is returned.
     """
-    # 1. If both a and b are 1-D arrays, it is inner product of vectors.
-    if a.numdims == 1 and b.numdims == 1:
+    if isinstance(a, (float, int)) or isinstance(b, (float, int)) or a.numdims == 0 or b.numdims == 0:
+        # 3. If either a or b is 0-D (scalar), it is equivalent to multiply and using numpy.multiply(a, b) or a * b is preferred.
+        return a * b
+    elif a.numdims == 1 and b.numdims == 1:
+        # 1. If both a and b are 1-D arrays, it is inner product of vectors.
         ret = torch.dot(a._DNDarray__array, b._DNDarray__array)
         if a.is_distributed():
             a.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
@@ -48,11 +54,8 @@ def dot(a, b):
     elif a.numdims == 2 and b.numdims == 2:
         # 2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or a @ b is preferred.
         return matmul(a, b)
-    elif isinstance(a, (float, int)) or a.numdims == 0 or isinstance(b, (float, int)) or b.numdims == 0:
-        # 3. If either a or b is 0-D (scalar), it is equivalent to multiply and using numpy.multiply(a, b) or a * b is preferred.
-        return a * b
     else:
-        raise NotImplementedError('shapes not supported: a: {}, b: {}'.format(a.gshape, b.gshape))
+        raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
 
 def matmul(a, b):
@@ -121,12 +124,11 @@ def matmul(a, b):
         raise ValueError("If the last dimension of a ({}) is not the same size as the second-to-last dimension of b. ({})".format(a.gshape[-1], b.gshape[-2]))
 
     # determine if a larger type is needed for c
-    if a.dtype is types.float64 or b.dtype is types.float64:
-        c_type = types.float64
-    elif (a.dtype is types.int64 and b.dtype is types.int) or (b.dtype is types.int64 and a.dtype is types.int):
-        c_type = types.int64
-    else:
-        c_type = types.float
+    c_type = types.promote_types(a.dtype, b.dtype)
+    if a.dtype != c_type:
+        a = c_type(a)
+    if b.dtype != c_type:
+        b = c_type(b)
 
     if a.split is None and b.split is None:  # matmul from torch
         if len(a.gshape) < 2 or len(b.gshape) < 2:
@@ -196,9 +198,9 @@ def matmul(a, b):
             kB = b.gshape[0] // b.comm.size
             kB = kB if kB < a.gshape[-1] else a.gshape[-1]
 
-        if a.lshape[-1] % kB != 0:
+        if a.lshape[-1] % kB != 0 or (kB == 1 and a.lshape[-1] != 1):
             rem_a = 1
-        if b.lshape[0] % kB != 0:
+        if b.lshape[0] % kB != 0 or (kB == 1 and b.lshape[-2] != 1):
             rem_b = 1
 
         # get the lshape map to determine what needs to be sent where as well as M and N
@@ -214,9 +216,9 @@ def matmul(a, b):
 
         # check for remaining dims in the outside dimensions
         rem_a_out, rem_b_out = 0, 0
-        if a.lshape[-2] % mB != 0:
+        if a.lshape[-2] % mB != 0 or (kB == 1 and a.lshape[-2] != 1):
             rem_a_out = 1
-        if b.lshape[-1] % nB != 0:
+        if b.lshape[-1] % nB != 0 or (kB == 1 and b.lshape[-1] != 1):
             rem_b_out = 1
 
         # get the flags from all processes
