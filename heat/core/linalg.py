@@ -42,7 +42,9 @@ def dot(a, b, out=None):
     """
     if isinstance(a, (float, int)) or isinstance(b, (float, int)) or a.numdims == 0 or b.numdims == 0:
         # 3. If either a or b is 0-D (scalar), it is equivalent to multiply and using numpy.multiply(a, b) or a * b is preferred.
-        return a * b
+        if out is not None:
+            out = a * b
+        return a * b if out is not None else out
     elif a.numdims == 1 and b.numdims == 1:
         # 1. If both a and b are 1-D arrays, it is inner product of vectors.
         ret = torch.dot(a._DNDarray__array, b._DNDarray__array)
@@ -50,10 +52,14 @@ def dot(a, b, out=None):
             a.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
         elif b.is_distributed():
             b.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
-        return ret.item()
+        if out is not None:
+            out = ret
+        return ret.item() if out is not None else out
     elif a.numdims == 2 and b.numdims == 2:
         # 2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or a @ b is preferred.
-        return matmul(a, b)
+        if out is not None:
+            out = matmul(a, b)
+        return matmul(a, b) if out is not None else out
     else:
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
