@@ -1993,7 +1993,7 @@ class DNDarray:
 
         # unsplit the tensor
         if axis is None:
-            gathered = torch.empty(self.shape)
+            gathered = torch.empty(self.shape, dtype=self.dtype.torch_type())
 
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
             self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), send_axis=self.split)
@@ -2013,7 +2013,7 @@ class DNDarray:
         # entirely new split axis, need to redistribute
         else:
             _, output_shape, _ = self.comm.chunk(self.shape, axis)
-            redistributed = torch.empty(output_shape)
+            redistributed = torch.empty(output_shape, dtype=self.dtype.torch_type())
 
             send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)

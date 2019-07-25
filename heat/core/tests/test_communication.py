@@ -255,6 +255,36 @@ class TestCommunication(unittest.TestCase):
         result = ht.array([np.arange(0, ht.MPI_WORLD.size)] * 10)
         self.assertTrue(ht.equal(output, result))
 
+        # other datatypes (send numpy array)
+        data = np.array([ht.MPI_WORLD.rank] * 3)
+        output = ht.array([[0 ] * 3] * ht.MPI_WORLD.size)
+
+        # perform the allgather operation
+        ht.MPI_WORLD.Allgatherv(data, output)
+
+        # check  result
+        result = ht.array([np.arange(0, ht.MPI_WORLD.size)] * 3).T
+        self.assertTrue(ht.equal(output, result))
+
+        data = ht.array([ht.MPI_WORLD.rank] * 3)
+        output = np.array([[0] * 3] * ht.MPI_WORLD.size)
+
+        # perform the allgather operation
+        ht.MPI_WORLD.Allgatherv(data, output)
+
+        # check  result
+        result = np.array([np.arange(0, ht.MPI_WORLD.size)] * 3).T
+        self.assertTrue((output == result).all())
+
+        with self.assertRaises(TypeError):
+            data = np.array([ht.MPI_WORLD.rank] * 3)
+            output = ht.array([[0] * 3* ht.MPI_WORLD.size])
+            ht.MPI_WORLD.Allgatherv(data, output, send_axis=1)
+        with self.assertRaises(TypeError):
+            data = ht.array([ht.MPI_WORLD.rank] * 3)
+            output = np.array([[0] * 3 * ht.MPI_WORLD.size])
+            ht.MPI_WORLD.Allgatherv(data, output, send_axis=1)
+
     def test_allgatherv(self):
         # contiguous data buffer, contiguous output buffer
         data = ht.ones((ht.MPI_WORLD.rank + 1, 10,))
