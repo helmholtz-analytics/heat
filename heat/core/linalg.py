@@ -17,6 +17,19 @@ __all__ = [
 ]
 
 
+# def householder(x):
+#     """
+#     this function is for the calculation of v and b as shown in the Golub and Van Loan book (algorithm 5.1.1)
+#     :param x: x must be a DNDarray which is a vector
+#     :return:
+#     """
+#     if x.numdims > 1:
+#         raise RuntimeError("x must be a vector")
+#     n = x.shape[0]
+#     v = factories.zeros((n))
+#     v[0]
+
+
 def matmul(a, b):
     """
     Matrix multiplication of two DNDarrays
