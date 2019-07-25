@@ -391,22 +391,28 @@ class MPICommunication(Communication):
             sendbuf, send_counts, send_displs = sendbuf
         if isinstance(sendbuf, dndarray.DNDarray):
             sendbuf = sendbuf._DNDarray__array
-        if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
-            raise TypeError('sendbuf of type {} does not support send_axis != 0'.format(type(sendbuf)))
+        if not isinstance(sendbuf, torch.Tensor):
+            if send_axis != 0:
+                raise TypeError('sendbuf of type {} does not support send_axis != 0'.format(type(sendbuf)))
+            else:
+                sendbuf = torch.tensor(sendbuf)
 
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, dndarray.DNDarray):
             recvbuf = recvbuf._DNDarray__array
-        if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
-            raise TypeError('recvbuf of type {} does not support send_axis != 0'.format(type(recvbuf)))
+        if not isinstance(recvbuf, torch.Tensor):
+            if send_axis != 0:
+                raise TypeError('recvbuf of type {} does not support send_axis != 0'.format(type(recvbuf)))
+            else:
+                recvbuf = torch.tensor(recvbuf)
 
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
 
         # permute the send_axis order so that the split send_axis is the first to be transmitted
-        send_axis_permutation = list(range(recvbuf.ndimension()))
+        send_axis_permutation = list(range(sendbuf.ndimension()))
         send_axis_permutation[0], send_axis_permutation[send_axis] = send_axis, 0
         sendbuf = sendbuf.permute(*send_axis_permutation)
 
@@ -414,14 +420,12 @@ class MPICommunication(Communication):
         recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
         recvbuf = recvbuf.permute(*recv_axis_permutation)
 
-          # prepare buffer objects
+        # prepare buffer objects
         if sendbuf is not MPI.IN_PLACE:
             mpi_sendbuf = self.as_buffer(sendbuf, send_counts, send_displs)
 
-
             if send_counts is not None:
                 mpi_sendbuf[1] = mpi_sendbuf[1][0][self.rank]
-
 
         else:
             mpi_sendbuf = sendbuf
@@ -435,8 +439,7 @@ class MPICommunication(Communication):
         else:
             mpi_recvbuf = recvbuf
 
-
-         # perform the scatter operation
+        # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
 
         # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
