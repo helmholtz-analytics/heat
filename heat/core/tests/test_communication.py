@@ -266,6 +266,16 @@ class TestCommunication(unittest.TestCase):
         result = ht.array([np.arange(0, ht.MPI_WORLD.size)] * 3).T
         self.assertTrue(ht.equal(output, result))
 
+        data = ht.array([ht.MPI_WORLD.rank] * 3)
+        output = np.array([[0] * 3] * ht.MPI_WORLD.size)
+
+        # perform the allgather operation
+        ht.MPI_WORLD.Allgatherv(data, output)
+
+        # check  result
+        result = np.array([np.arange(0, ht.MPI_WORLD.size)] * 3).T
+        self.assertTrue((output == result).all())
+
         with self.assertRaises(TypeError):
             data = np.array([ht.MPI_WORLD.rank] * 3)
             output = ht.array([[0] * 3* ht.MPI_WORLD.size])
