@@ -1942,7 +1942,7 @@ class DNDarray:
 
     def resplit(self, axis=None):
         """
-        In-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
+        Out-of-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
         nodes as well as the definition of new axis along which the tensor is split without changes to the values.
 
         WARNING: this operation might involve a significant communication overhead. Use it sparingly and preferably for
@@ -1991,10 +1991,10 @@ class DNDarray:
 
         # unsplit the tensor
         if axis is None:
-            gathered = torch.empty(self.shape)
+            gathered = torch.empty(self.shape, dtype=self.dtype.torch_type())
 
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), recv_axis=axis)
+            self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), send_axis=self.split)
 
             self.__array = gathered
             self.__split = None
@@ -2002,13 +2002,16 @@ class DNDarray:
         # tensor needs be split/sliced locally
         elif self.split is None:
             _, _, slices = self.comm.chunk(self.shape, axis)
-            self.__array = self.__array[slices]
+            temp = self.__array[slices]
+            self.__array = torch.empty((1,))
+            # necessary to clear storage of local __array
+            self.__array= temp.clone().detach()
             self.__split = axis
 
         # entirely new split axis, need to redistribute
         else:
             _, output_shape, _ = self.comm.chunk(self.shape, axis)
-            redistributed = torch.empty(output_shape)
+            redistributed = torch.empty(output_shape, dtype=self.dtype.torch_type())
 
             send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
@@ -2023,6 +2026,7 @@ class DNDarray:
             self.__split = axis
 
         return self
+
 
     def __rfloordiv__(self, other):
         """

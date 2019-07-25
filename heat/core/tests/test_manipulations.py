@@ -5,7 +5,7 @@ import heat as ht
 
 
 class TestManipulations(unittest.TestCase):
-    def test_cat(self):
+    def test_concatenate(self):
         # cases to test:
         # Matrices / Vectors
         # s0    s1  axis
@@ -220,6 +220,15 @@ class TestManipulations(unittest.TestCase):
             lshape[i] = chk[i].stop - chk[i].start
         self.assertEqual(res.lshape, tuple(lshape))
 
+        res = ht.concatenate((x, y), axis=-1)
+        self.assertEqual(res.gshape, (16, 15, 28))
+        self.assertEqual(res.dtype, ht.float)
+        _, _, chk = res.comm.chunk((16, 15, 28), res.split)
+        lshape = [0, 0, 0]
+        for i in range(3):
+            lshape[i] = chk[i].stop - chk[i].start
+        self.assertEqual(res.lshape, tuple(lshape))
+
         # =============================================
         x = ht.zeros((16, 15, 14), split=None)
         y = ht.ones((16, 15, 14), split=2)
@@ -260,32 +269,37 @@ class TestManipulations(unittest.TestCase):
         self.assertEqual(res.lshape, tuple(lshape))
 
         # 0 0 0
-        x = ht.ones((16,), split=0)
+        x = ht.ones((16,), split=0, dtype=ht.float64)
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32,))
-        self.assertEqual(res.dtype, ht.float)
+        self.assertEqual(res.dtype, ht.float64)
         _, _, chk = res.comm.chunk((32,), res.split)
         lshape = [0, ]
         lshape[0] = chk[0].stop - chk[0].start
         self.assertEqual(res.lshape, tuple(lshape))
         # 0 None 0
-        y = ht.ones((16,), split=None)
+        y = ht.ones((16,), split=None, dtype=ht.int64)
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32,))
-        self.assertEqual(res.dtype, ht.float)
+        self.assertEqual(res.dtype, ht.float64)
         _, _, chk = res.comm.chunk((32,), res.split)
         lshape = [0, ]
         lshape[0] = chk[0].stop - chk[0].start
         self.assertEqual(res.lshape, tuple(lshape))
 
-        with self.assertRaises(ValueError):
-            ht.concatenate((ht.zeros((6, 3, 5)), ))
+        # test raises
         with self.assertRaises(TypeError):
-            ht.concatenate((x, y), axis='ste')
+            ht.concatenate((x, '5'))
         with self.assertRaises(ValueError):
-            ht.concatenate((ht.zeros((6, 3, 5)), ht.zeros((4, 5, 1))))
+            ht.concatenate((x))
+        with self.assertRaises(TypeError):
+            ht.concatenate((x, x), axis=x)
         with self.assertRaises(RuntimeError):
-            ht.concatenate((x, 'stg'))
+            ht.concatenate((x, ht.zeros((2, 2))), axis=0)
+        with self.assertRaises(ValueError):
+            ht.concatenate((ht.zeros((12, 12)), ht.zeros((2, 2))), axis=0)
+        with self.assertRaises(RuntimeError):
+            ht.concatenate((ht.zeros((2, 2), split=0), ht.zeros((2, 2), split=1)), axis=0)
 
     def test_expand_dims(self):
         # vector data
