@@ -40,6 +40,16 @@ class TestDNDarray(unittest.TestCase):
         data.balance_()
         self.assertTrue(data.is_balanced())
 
+        data = ht.zeros((70, 20), split=0, dtype=ht.float64)
+        data = data[:50]
+        data.balance_()
+        self.assertTrue(data.is_balanced())
+
+        data = ht.zeros((4, 120), split=1, dtype=ht.int64)
+        data = data[:, 40:70]
+        data.balance_()
+        self.assertTrue(data.is_balanced())
+
     def test_bool_cast(self):
         # simple scalar tensor
         a = ht.ones(1)
