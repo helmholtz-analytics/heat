@@ -1269,6 +1269,8 @@ class DNDarray:
                 # handle the reduction of the split to accommodate for the reduced dimension
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                elif self.split > 0:
+                    new_split = self.split - 1
                 else:
                     new_split = self.split
 
@@ -2293,11 +2295,7 @@ class DNDarray:
                 if key in range(chunk_start, chunk_end):
                     self.__setter(key - chunk_start, value)
             elif isinstance(key, int) and self.split > 0:
-                self[key, :] = value
-
-            elif isinstance(key, int) and self.split > 0:
-                self[key, :] = value
-
+                self.__setter(key, value)
             elif isinstance(key, (tuple, list, torch.Tensor)):
                 if isinstance(key[self.split], slice):
                     key = list(key)
