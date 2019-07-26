@@ -2295,6 +2295,12 @@ class DNDarray:
                 if key in range(chunk_start, chunk_end):
                     self.__setter(key - chunk_start, value)
             elif isinstance(key, int) and self.split > 0:
+                if isinstance(value, DNDarray):
+                    val_split = self.split
+                    if self.split >= len(value.shape):
+                        val_split = len(value.shape) - 1
+                    value = factories.array(value, split=val_split)
+                # print(value.lshape)
                 self.__setter(key, value)
             elif isinstance(key, (tuple, list, torch.Tensor)):
                 if isinstance(key[self.split], slice):

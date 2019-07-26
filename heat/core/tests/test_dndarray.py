@@ -586,10 +586,14 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(a[3:13, 2:5:2, 1:7:3].dtype, ht.float32)
         self.assertEqual(a[3:13, 2:5:2, 1:7:3].gshape, (10, 2, 2))
         if a.comm.size == 2:
+            out = ht.ones((4, 5, 5), split=1)
+            self.assertEqual(out[0].gshape, (5, 5))
             if a.comm.rank == 1:
                 self.assertEqual(a[3:13, 2:5:2, 1:7:3].lshape, (10, 2, 1))
+                self.assertEqual(out[0].lshape, (2, 5))
             if a.comm.rank == 0:
                 self.assertEqual(a[3:13, 2:5:2, 1:7:3].lshape, (10, 2, 1))
+                self.assertEqual(out[0].lshape, (3, 5))
 
         a = ht.ones((4, 5,), split=0).tril()
         a[0] = [6, 6, 6, 6, 6]
@@ -602,6 +606,10 @@ class TestDNDarray(unittest.TestCase):
         a = ht.ones((4, 5,), split=0).tril()
         a[0] = np.array([6, 6, 6, 6, 6])
         self.assertTrue((a[0] == 6).all())
+
+        a = ht.ones((4, 5,), split=0).tril()
+        a[0] = ht.array([6, 6, 6, 6, 6])
+        self.assertTrue((a[ht.array((0,))] == 6).all())
 
         a = ht.ones((4, 5,), split=0).tril()
         a[0] = ht.array([6, 6, 6, 6, 6])
