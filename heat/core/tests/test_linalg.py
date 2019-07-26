@@ -9,17 +9,25 @@ class TestLinalg(unittest.TestCase):
         # ONLY TESTING CORRECTNESS! ALL CALLS IN DOT ARE PREVIOUSLY TESTED
         # cases to test:
         data2d = np.ones((10, 10))
+        data3d = np.ones((10, 10, 10))
         data1d = np.arange(10)
 
         a1d = ht.array(data1d, split=0)
         b1d = ht.array(data1d, split=0)
         # 2 1D arrays,
         self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
+        ret = []
+        self.assertEqual(ht.dot(a1d, b1d, out=ret), np.dot(data1d, data1d))
 
         a2d = ht.array(data2d, split=1)
         b2d = ht.array(data2d, split=1)
         # 2 2D arrays,
         res = ht.dot(a2d, b2d) - ht.array(np.dot(data2d, data2d))
+        self.assertEqual(ht.equal(res, ht.zeros(res.shape)), 1)
+        ret = ht.array(data2d, split=1)
+        ht.dot(a2d, b2d, out=ret)
+        # print(ht.dot(a2d, b2d, out=ret))
+        res = ret - ht.array(np.dot(data2d, data2d))
         self.assertEqual(ht.equal(res, ht.zeros(res.shape)), 1)
 
         const1 = 5
@@ -33,6 +41,9 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(ht.equal(res, ht.zeros(res.shape)), 1)
         # a and b and const
         self.assertEqual(ht.dot(const2, const1), 5*6)
+
+        with self.assertRaises(NotImplementedError):
+            ht.dot(ht.array(data3d), ht.array(data1d))
 
     def test_matmul(self):
         # cases to test:

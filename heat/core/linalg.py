@@ -54,15 +54,21 @@ def dot(a, b, out=None):
         elif b.is_distributed():
             b.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
         if out is not None:
-            out = ret
+            out = ret.item()
             return out
         return ret.item()
     elif a.numdims == 2 and b.numdims == 2:
         # 2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or a @ b is preferred.
+        ret = matmul(a, b)
         if out is not None:
-            out = matmul(a, b)
+            if out is not None:
+                out._DNDarray__array = ret._DNDarray__array
+                out._DNDarray__dtype = ret.dtype
+                out._DNDarray__split = ret.split
+                out._DNDarray__device = ret.device
+                out._DNDarray__comm = ret.comm
             return out
-        return matmul(a, b)
+        return ret
     else:
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
