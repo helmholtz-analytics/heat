@@ -21,8 +21,6 @@ __all__ = [
 
 def dot(a, b, out=None):
     """
-    dot product / matmul
-
     Dot product of two arrays. Specifically,
 
     1. If both a and b are 1-D arrays, it is inner product of vectors.
@@ -48,11 +46,14 @@ def dot(a, b, out=None):
         return a * b
     elif a.numdims == 1 and b.numdims == 1:
         # 1. If both a and b are 1-D arrays, it is inner product of vectors.
-        ret = torch.dot(a._DNDarray__array, b._DNDarray__array)
+        if a.split is not None or b.split is not None:
+            sl = a.comm.chunk(a.shape, a.split if a.split is not None else b.split)[2]
+        ret = torch.dot(a[sl]._DNDarray__array, b[sl]._DNDarray__array)
         if a.is_distributed():
             a.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
         elif b.is_distributed():
             b.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
+
         if out is not None:
             out = ret.item()
             return out

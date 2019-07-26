@@ -4,6 +4,7 @@ import unittest
 import heat as ht
 import numpy as np
 
+
 class TestLinalg(unittest.TestCase):
     def test_dot(self):
         # ONLY TESTING CORRECTNESS! ALL CALLS IN DOT ARE PREVIOUSLY TESTED
@@ -18,6 +19,11 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
         ret = []
         self.assertEqual(ht.dot(a1d, b1d, out=ret), np.dot(data1d, data1d))
+
+        a1d = ht.array(data1d, split=None)
+        b1d = ht.array(data1d, split=0)
+        # 2 1D arrays,
+        self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
 
         a2d = ht.array(data2d, split=1)
         b2d = ht.array(data2d, split=1)
@@ -34,6 +40,8 @@ class TestLinalg(unittest.TestCase):
         const2 = 6
         # a is const,
         res = ht.dot(const1, b2d) - ht.array(np.dot(const1, data2d))
+        ret = 0
+        ht.dot(const1, b2d, out=ret)
         self.assertEqual(ht.equal(res, ht.zeros(res.shape)), 1)
 
         # b is const,
