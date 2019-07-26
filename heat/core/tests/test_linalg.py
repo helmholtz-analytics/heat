@@ -10,16 +10,12 @@ class TestLinalg(unittest.TestCase):
         # cases to test:
         data2d = np.ones((10, 10))
         data1d = np.arange(10)
-        data3d = np.ones((10, 10, 10))
-        data4d = np.ones((10, 10, 10, 10))
 
         a1d = ht.array(data1d, split=0)
         b1d = ht.array(data1d, split=0)
         # 2 1D arrays,
-        # print((ht.dot(a1d, b1d), np.dot(data1d, data1d)))
-        self.assertEqual(ht.dot(a1d, b1d), ht.array(np.dot(data1d, data1d)))
+        self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
 
-        # print(data2d, ht.array(data2d, split=1))
         a2d = ht.array(data2d, split=1)
         b2d = ht.array(data2d, split=1)
         # 2 2D arrays,
