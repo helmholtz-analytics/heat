@@ -256,28 +256,19 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     uniques_buf = torch.empty((a.comm.Get_size(), ), dtype=torch.int32)
     a.comm.Allgather(uniques, uniques_buf)
 
-    split = None
-    is_split = None
-
     if axis is None or axis == a.split:
-        # Local results can now just be added together
-        if axis is None:
-            # One dimensional vectors can't be distributed -> no split
-            output_dim = [uniques_buf.sum().item()]
-            recv_axis = 0
-        else:
-            output_dim = list(lres.shape)
-            output_dim[0] = uniques_buf.sum().item()
-            recv_axis = a.split
+        #
+        is_split = None
+        split = a.split
 
-            # Result will be split along the same axis as a
-            split = a.split
+        output_dim = list(lres.shape)
+        output_dim[0] = uniques_buf.sum().item()
 
         # Gather all unique vectors
         counts = list(uniques_buf.tolist())
         displs = list([0] + uniques_buf.cumsum(0).tolist()[:-1])
         gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
-        a.comm.Allgatherv(lres, (gres_buf, counts, displs,), axis=recv_axis, recv_axis=0)
+        a.comm.Allgatherv(lres, (gres_buf, counts, displs,), axis=0, recv_axis=0)
 
         if return_inverse:
             # Prepare some information to generated the inverse indices list
@@ -345,6 +336,10 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
                         inverse_indices[begin + num] = g_inverse[begin + x]
 
     else:
+        # Tensor is already split and does not need to be redistributed afterward
+        split = None
+        is_split = a.split
+
         max_uniques, max_pos = uniques_buf.max(0)
 
         # find indices of vectors
@@ -366,17 +361,19 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         a.comm.Bcast(indices, root=max_pos)
         gres = local_data[indices.tolist()]
 
-        is_split = a.split
+        # is_split = a.split
         inverse_indices = indices
 
     if axis is not None:
         # transpose matrix back
         gres = gres.transpose(0, axis)
-    result = factories.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, is_split=is_split)
+    print('gres', gres, gres.shape, 'split', split, 'is_split', is_split)
 
-    if split is not None:
-        result.resplit(a.split)
-
+    # If split is not in range of the resulting shape any more, every process gets full result
+    split = split if a.split < len(gres.shape) else None
+    result = factories.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, split=split, is_split=is_split)
+    # Todo shape is wrong (2/6) instead of (2/5)
+    print('result', result.shape)
     return_value = result
     if return_inverse:
         return_value = [return_value, inverse_indices]
