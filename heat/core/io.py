@@ -3,6 +3,7 @@ import os.path
 import torch
 import warnings
 
+from heat.core import factories
 from .communication import MPI, MPI_WORLD, sanitize_comm
 from . import devices
 from .stride_tricks import sanitize_axis
@@ -490,6 +491,8 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
         raise TypeError('separator must be str, not {}'.format(type(sep)))
     if not isinstance(header_lines, int):
         raise TypeError('header_lines must int, not {}'.format(type(header_lines)))
+    if split not in [None, 0, 1]:
+        raise ValueError('split must be in [None, 0, 1], but is {}'.format(split))
 
     # infer the type and communicator for the loaded array
     dtype = types.canonical_heat_type(dtype)
@@ -497,11 +500,21 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
     device = devices.sanitize_device(device)
     comm = sanitize_comm(comm)
 
+    file_size = os.stat(path).st_size
+
     if split == None:
-        resulting_tensor = []
+        f = open(path)
+        data = f.readlines()
+        data = data[header_lines:]
+        result = []
+        for i, line in enumerate(data):
+            values = line.replace('\n', '').split(sep)
+            values = [float(val) for val in values]
+            result.append(values)
+        resulting_tensor = factories.array(result, dtype=dtype, split=split, device=device, comm=comm)
+
     elif split == 0:
 
-        file_size = os.stat(path).st_size
         rank = comm.rank
         size = comm.size
         counts, displs, _ = comm.counts_displs_shape((file_size, 1), 0)
@@ -580,17 +593,14 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
         # Share the local size to determine the global size
         sum_lengths = torch.tensor([actual_length], dtype=torch.int32)
         comm.Allreduce(MPI.IN_PLACE, sum_lengths, MPI.SUM)
-        resulting_tensor = dndarray.DNDarray(
+        resulting_tensor = factories.array(
             local_tensor,
-            gshape=(sum_lengths, columns),
             dtype=dtype, split=0,
             device=device,
             comm=comm)
         resulting_tensor.balance_()
     elif split == 1:
         resulting_tensor = []
-    else:
-        raise ValueError('split must be in [None, 0, 1], but is', split)
 
     return resulting_tensor
 

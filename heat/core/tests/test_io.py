@@ -81,6 +81,13 @@ class TestIO(unittest.TestCase):
         csv_file_cols = 4
         first_value = torch.tensor([5.1, 3.5, 1.4, 0.2], dtype=torch.float32)
         tenth_value = torch.tensor([4.9, 3.1, 1.5, 0.1], dtype=torch.float32)
+
+        a = ht.load_csv(self.CSV_PATH, sep=';')
+        self.assertEqual(len(a), csv_file_length)
+        self.assertEqual(a.shape, (csv_file_length, csv_file_cols))
+        self.assertTrue(torch.equal(a._DNDarray__array[0], first_value))
+        self.assertTrue(torch.equal(a._DNDarray__array[9], tenth_value))
+
         a = ht.load_csv(self.CSV_PATH, sep=';', split=0)
         rank = a.comm.Get_rank()
         expected_gshape = (csv_file_length, csv_file_cols)
