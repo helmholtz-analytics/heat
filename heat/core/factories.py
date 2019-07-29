@@ -237,7 +237,6 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     is_split = sanitize_axis(obj.shape, is_split)
     if split is not None and is_split is not None:
         raise ValueError('split and is_split are mutually exclusive parameters')
-
     # sanitize device and object
     device = devices.sanitize_device(device)
     comm = sanitize_comm(comm)
@@ -267,11 +266,12 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
                 gshape[is_split] = np.iinfo(gshape.dtype).min
             else:
                 # check whether the individual shape elements match
-                comm.Recv(gshape, source=comm.rank - 1)
+                shape_buf = np.empty_like(gshape)
+                comm.Recv(shape_buf, source=comm.rank - 1)
                 for i in range(length):
                     if i == is_split:
                         continue
-                    elif lshape[i] != gshape[i] and lshape[i] - 1 != gshape[i]:
+                    elif lshape[i] != shape_buf[i] and lshape[i] - 1 != shape_buf[i]:
                         gshape[is_split] = np.iinfo(gshape.dtype).min
 
         # sum up the elements along the split dimension
