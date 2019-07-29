@@ -510,14 +510,15 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
             data = data[header_lines:]
             result = []
             for i, line in enumerate(data):
-                values = line.replace('\n', '').split(sep)
+                values = line.replace('\n', '').replace('\r', '').split(sep)
                 values = [float(val) for val in values]
                 result.append(values)
             resulting_tensor = factories.array(result, dtype=dtype, split=split, device=device, comm=comm)
 
     elif split == 0:
         counts, displs, _ = comm.counts_displs_shape((file_size, 1), 0)
-
+        # in case lines are terminated with '\r\n' we need to skip 2 bytes later
+        lineter_len = 1
         # Read a chunk of bytes and count the linebreaks
         with open(path, 'rb') as f:
             f.seek(displs[rank], 0)
@@ -525,7 +526,16 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
             r = f.read(counts[rank])
             for pos, l in enumerate(r):
                 if chr(l) == '\n':
-                    line_starts.append(pos + 1)
+                    # Check if it is part of '\r\n'
+                    if not chr(r[pos - 1]) == '\r':
+                        line_starts.append(pos + 1)
+                elif chr(l) == '\r':
+                    # check if file line is terminated by '\r\n'
+                    if pos + 1 < len(r) and chr(r[pos + 1]) == '\n':
+                        line_starts.append(pos + 2)
+                        lineter_len = 2
+                    else:
+                        line_starts.append(pos + 1)
 
             if rank == 0:
                 line_starts = [0] + line_starts
@@ -578,7 +588,7 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
                     f.seek(displs[rank] + start, 0)
                     line = f.read(last_line - displs[rank] - start)
                 else:
-                    line = r[start: line_starts[ind + 1] - 1]
+                    line = r[start: line_starts[ind + 1] - lineter_len]
                 # Decode byte array
                 line = line.decode(encoding)
                 if len(line) > 0:
@@ -603,7 +613,7 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
             for i in range(header_lines):
                 f.readline()
             line = f.readline()
-            values = line.replace('\n', '').split(sep)
+            values = line.replace('\n', '').replace('\r', '').split(sep)
             values = [float(val) for val in values]
             rows = len(values)
 
@@ -611,7 +621,7 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
             data.append(values[displs[rank]: displs[rank] + chunk[rank]])
             # Read file line by line till EOF reached
             for line in iter(f.readline, ''):
-                values = line.replace('\n', '').split(sep)
+                values = line.replace('\n', '').replace('\r', '').split(sep)
                 values = [float(val) for val in values]
                 data.append(values[displs[rank]: displs[rank] + chunk[rank]])
         resulting_tensor = factories.array(data, dtype=dtype, is_split=1, device=device, comm=comm)
