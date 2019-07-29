@@ -15,6 +15,7 @@ from . import memory
 from . import relational
 from . import rounding
 from . import statistics
+from . import stride_tricks
 from . import trigonometrics
 from . import types
 
@@ -2295,11 +2296,8 @@ class DNDarray:
                 if key in range(chunk_start, chunk_end):
                     self.__setter(key - chunk_start, value)
             elif isinstance(key, int) and self.split > 0:
-                if isinstance(value, DNDarray):
-                    val_split = self.split
-                    if self.split >= len(value.shape):
-                        val_split = len(value.shape) - 1
-                    value = factories.array(value, split=val_split)
+                if self[key].split is not None and isinstance(value, DNDarray) and value.split is None:
+                    value = factories.array(value, split=self[key].split)
                 self.__setter(key, value)
             elif isinstance(key, (tuple, list, torch.Tensor)):
                 if isinstance(key[self.split], slice):
@@ -2308,7 +2306,6 @@ class DNDarray:
                                              key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split],
                                              key[self.split].step if key[self.split].step is not None else 1))
                                    & set(range(chunk_start, chunk_end)))
-
                     if overlap:
                         overlap.sort()
                         hold = [x - chunk_start for x in overlap]
@@ -2326,8 +2323,8 @@ class DNDarray:
                     self.__setter(tuple(key), value)
 
                 elif key[self.split] < 0:
+                    key = list(key)
                     if self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
-                        key = list(key)
                         key[self.split] = key[self.split] + chunk_end - chunk_start
                         self.__setter(tuple(key), value)
 
