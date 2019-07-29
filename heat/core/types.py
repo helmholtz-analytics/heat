@@ -26,6 +26,7 @@ import torch
 
 from . import communication
 from . import devices
+from . import factories
 
 
 __all__ = [
@@ -66,6 +67,10 @@ class generic:
 
         value_count = len(value)
 
+        # sanitize the distributed processing flags
+        comm = communication.sanitize_comm(comm)
+        device = devices.sanitize_device(device)
+
         # check whether there are too many arguments
         if value_count >= 2:
             raise TypeError('function takes at most 1 argument ({} given)'.format(value_count))
@@ -75,14 +80,17 @@ class generic:
 
         # otherwise, attempt to create a torch tensor of given type
         try:
+            array = value[0]._DNDarray__array.type(torch_type)
+            if value[0].split is None:
+                return factories.array(array, dtype=cls, split=None, comm=comm, device=device)
+            else:
+                return factories.array(array, dtype=cls, is_split=value[0].split, comm=comm, device=device)
+        except AttributeError:
+            # this is the case of that the first/only element of value is not a DNDarray
             array = torch.tensor(*value, dtype=torch_type)
         except TypeError as exception:
             # re-raise the exception to be consistent with numpy's exception interface
             raise ValueError(str(exception))
-
-        # sanitize the distributed processing flags
-        comm = communication.sanitize_comm(comm)
-        device = devices.sanitize_device(device)
 
         return dndarray.DNDarray(array, tuple(array.shape), cls, split=None, device=device, comm=comm)
 
