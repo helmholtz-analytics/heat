@@ -111,6 +111,10 @@ class TestIO(unittest.TestCase):
         if rank == 0:
             self.assertTrue(torch.equal(a._DNDarray__array[0], tenth_value))
 
+        a = ht.load_csv(self.CSV_PATH, sep=';', split=1)
+        self.assertEqual(a.shape, (csv_file_length, csv_file_cols))
+        self.assertEqual(a.lshape[0], csv_file_length)
+
         a = ht.load_csv(self.CSV_PATH, sep=';', split=0)
         b = ht.load(self.CSV_PATH, sep=';', split=0)
         self.assertTrue(ht.equal(a, b))

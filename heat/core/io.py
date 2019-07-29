@@ -501,106 +501,120 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
     comm = sanitize_comm(comm)
 
     file_size = os.stat(path).st_size
+    rank = comm.rank
+    size = comm.size
 
     if split == None:
-        f = open(path)
-        data = f.readlines()
-        data = data[header_lines:]
-        result = []
-        for i, line in enumerate(data):
-            values = line.replace('\n', '').split(sep)
-            values = [float(val) for val in values]
-            result.append(values)
-        resulting_tensor = factories.array(result, dtype=dtype, split=split, device=device, comm=comm)
+        with open(path) as f:
+            data = f.readlines()
+            data = data[header_lines:]
+            result = []
+            for i, line in enumerate(data):
+                values = line.replace('\n', '').split(sep)
+                values = [float(val) for val in values]
+                result.append(values)
+            resulting_tensor = factories.array(result, dtype=dtype, split=split, device=device, comm=comm)
 
     elif split == 0:
-
-        rank = comm.rank
-        size = comm.size
         counts, displs, _ = comm.counts_displs_shape((file_size, 1), 0)
 
         # Read a chunk of bytes and count the linebreaks
-        f = open(path, 'rb')
-        f.seek(displs[rank], 0)
-        line_starts = []
-        r = f.read(counts[rank])
-        for pos, l in enumerate(r):
-            if chr(l) == '\n':
-                line_starts.append(pos + 1)
-
-        if rank == 0:
-            line_starts = [0] + line_starts
-
-        # Find the correct starting point
-        total_lines = torch.empty(size, dtype=torch.int32)
-        comm.Allgather(torch.tensor([len(line_starts)], dtype=torch.int32), total_lines)
-
-        cumsum = total_lines.cumsum(dim=0).tolist()
-        start = next(i for i in range(size) if cumsum[i] > header_lines)
-        if rank < start:
+        with open(path, 'rb') as f:
+            f.seek(displs[rank], 0)
             line_starts = []
-        if rank == start:
-            rem = header_lines - (0 if start == 0 else cumsum[start - 1])
-            line_starts = line_starts[rem:]
+            r = f.read(counts[rank])
+            for pos, l in enumerate(r):
+                if chr(l) == '\n':
+                    line_starts.append(pos + 1)
 
-        # Determine the number of columns that each line consists of
-        if len(line_starts) > 1:
-            columns = 1
-            for l in r[line_starts[0]: line_starts[1]]:
-                if chr(l) == sep:
-                    columns += 1
-        else:
-            columns = 0
+            if rank == 0:
+                line_starts = [0] + line_starts
 
-        columns = torch.tensor([columns], dtype=torch.int32)
-        comm.Allreduce(MPI.IN_PLACE, columns, MPI.MAX)
+            # Find the correct starting point
+            total_lines = torch.empty(size, dtype=torch.int32)
+            comm.Allgather(torch.tensor([len(line_starts)], dtype=torch.int32), total_lines)
 
-        # Share how far the processes need to reed in their last line
-        last_line = file_size
-        if size - start > 1:
+            cumsum = total_lines.cumsum(dim=0).tolist()
+            start = next(i for i in range(size) if cumsum[i] > header_lines)
+            if rank < start:
+                line_starts = []
             if rank == start:
-                last_line = torch.empty(1, dtype=torch.int32)
-                comm.Recv(last_line, source=rank + 1)
-            elif rank == size - 1:
-                first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
-                comm.Send(first_line, dest=rank - 1)
-            elif start < rank < size - 1:
-                last_line = torch.empty(1, dtype=torch.int32)
-                first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
-                comm.Send(first_line, dest=rank - 1)
-                comm.Recv(last_line, source=rank + 1)
+                rem = header_lines - (0 if start == 0 else cumsum[start - 1])
+                line_starts = line_starts[rem:]
 
-        # Create empty tensor and iteratively fill it with the values
-        local_shape = (len(line_starts), columns)
-        actual_length = 0
-        local_tensor = torch.empty(local_shape, dtype=dtype.torch_type())
-        for ind, start in enumerate(line_starts):
-            if ind == len(line_starts) - 1:
-                f.seek(displs[rank] + start, 0)
-                line = f.read(last_line - displs[rank] - start)
+            # Determine the number of columns that each line consists of
+            if len(line_starts) > 1:
+                columns = 1
+                for l in r[line_starts[0]: line_starts[1]]:
+                    if chr(l) == sep:
+                        columns += 1
             else:
-                line = r[start: line_starts[ind + 1] - 1]
-            # Decode byte array
-            line = line.decode(encoding)
-            if len(line) > 0:
-                sep_values = [float(val) for val in line.split(sep)]
-                local_tensor[actual_length] = torch.tensor(sep_values, dtype=dtype.torch_type())
-                actual_length += 1
+                columns = 0
+
+            columns = torch.tensor([columns], dtype=torch.int32)
+            comm.Allreduce(MPI.IN_PLACE, columns, MPI.MAX)
+
+            # Share how far the processes need to reed in their last line
+            last_line = file_size
+            if size - start > 1:
+                if rank == start:
+                    last_line = torch.empty(1, dtype=torch.int32)
+                    comm.Recv(last_line, source=rank + 1)
+                elif rank == size - 1:
+                    first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
+                    comm.Send(first_line, dest=rank - 1)
+                elif start < rank < size - 1:
+                    last_line = torch.empty(1, dtype=torch.int32)
+                    first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
+                    comm.Send(first_line, dest=rank - 1)
+                    comm.Recv(last_line, source=rank + 1)
+
+            # Create empty tensor and iteratively fill it with the values
+            local_shape = (len(line_starts), columns)
+            actual_length = 0
+            local_tensor = torch.empty(local_shape, dtype=dtype.torch_type())
+            for ind, start in enumerate(line_starts):
+                if ind == len(line_starts) - 1:
+                    f.seek(displs[rank] + start, 0)
+                    line = f.read(last_line - displs[rank] - start)
+                else:
+                    line = r[start: line_starts[ind + 1] - 1]
+                # Decode byte array
+                line = line.decode(encoding)
+                if len(line) > 0:
+                    sep_values = [float(val) for val in line.split(sep)]
+                    local_tensor[actual_length] = torch.tensor(sep_values, dtype=dtype.torch_type())
+                    actual_length += 1
 
         # In case there are some empty lines in the csv file
         local_tensor = local_tensor[:actual_length]
 
-        # Share the local size to determine the global size
-        sum_lengths = torch.tensor([actual_length], dtype=torch.int32)
-        comm.Allreduce(MPI.IN_PLACE, sum_lengths, MPI.SUM)
         resulting_tensor = factories.array(
             local_tensor,
-            dtype=dtype, split=0,
+            dtype=dtype, is_split=0,
             device=device,
             comm=comm)
         resulting_tensor.balance_()
+
     elif split == 1:
-        resulting_tensor = []
+        data = []
+
+        with open(path) as f:
+            for i in range(header_lines):
+                f.readline()
+            line = f.readline()
+            values = line.replace('\n', '').split(sep)
+            values = [float(val) for val in values]
+            rows = len(values)
+
+            chunk, displs, _ = comm.counts_displs_shape((1, rows), 1)
+            data.append(values[displs[rank]: displs[rank] + chunk[rank]])
+            # Read file line by line till EOF reached
+            for line in iter(f.readline, ''):
+                values = line.replace('\n', '').split(sep)
+                values = [float(val) for val in values]
+                data.append(values[displs[rank]: displs[rank] + chunk[rank]])
+        resulting_tensor = factories.array(data, dtype=dtype, is_split=1, device=device, comm=comm)
 
     return resulting_tensor
 
