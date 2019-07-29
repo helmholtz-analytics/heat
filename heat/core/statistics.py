@@ -9,11 +9,13 @@ from . import operations
 from . import dndarray
 from . import types
 from . import stride_tricks
+from . import logical
 
 
 __all__ = [
     'argmax',
     'argmin',
+    'average',
     'max',
     'maximum',
     'mean',
@@ -208,6 +210,54 @@ def argmin(x, axis=None, out=None, **kwargs):
         return out
 
     return reduced_result
+
+
+def average(x, axis=None, weights=None, returned=False):
+    #TODO: DOCUMENTATION
+
+    # perform sanitation
+    if not isinstance(x, dndarray.DNDarray):
+        raise TypeError('expected x to be a ht.DNDarray, but was {}'.format(type(x)))
+    if weights is not None and not isinstance(weights, dndarray.DNDarray):
+        raise TypeError('expected weights to be a ht.DNDarray, but was {}'.format(type(x)))
+    axis = stride_tricks.sanitize_axis(x.shape, axis)
+
+    if weights is None:
+        return mean(x, axis)
+    else:
+        # Weights sanitation:
+        # weights (global) is either same size as x (global), or it is 1D and same size as x along chosen axis
+        if x.gshape != weights.gshape:
+            if axis is None:
+                raise TypeError(
+                    "Axis must be specified when shapes of x and weights "
+                    "differ.")
+            if weights.numpy().ndim != 1:
+                raise TypeError(
+                    "1D weights expected when shapes of x and weights differ.")
+            if weights.gshape[0] != x.gshape[axis]:
+                raise ValueError(
+                    "Length of weights not compatible with specified axis.")
+
+        # Broadcast weights along axis
+        if weights.numpy().ndim == 1 and axis is not None and axis != 0:
+            if weights.split is not None:
+                weights.resplit(None)
+            weights_newshape = tuple(1 if i != axis else x.gshape[axis] for i in range(axis+1))
+            weights._DNDarray__array = torch.reshape(weights._DNDarray__array, weights_newshape)
+            weights._DNDarray__gshape = weights_newshape
+
+        cumwgt = weights.sum(axis=axis)
+        if logical.any(cumwgt == 0.0):
+            raise ZeroDivisionError("Weights sum to zero, can't be normalized")
+
+        # Distribution: if x is split, apply same split to weights if possible
+        if x.split is not None and weights.split != x.split:
+            if weights.gshape[x.split] != 1:
+                weights.resplit(x.split)
+
+        result = (x * weights).sum(axis=axis) / cumwgt
+        return result
 
 
 def max(x, axis=None, out=None, keepdim=None):
