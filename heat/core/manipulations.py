@@ -577,27 +577,25 @@ def sort(a, axis=None, descending=False, out=None):
         for idx in np.ndindex(tmp_indices.shape):
             val = tmp_indices[idx]
             final_indices[idx] = second_indices[val][idx[1:]]
-        final_indices = final_indices.to(dtype=torch.int64).transpose(0, axis)
+        final_indices = final_indices.transpose(0, axis)
 
-    return_indices = dndarray.DNDarray(
+    return_indices = factories.array(
         final_indices,
-        a.gshape,
-        dndarray.types.int32,
-        a.split,
-        a.device,
-        a.comm
+        dtype=dndarray.types.int32,
+        is_split=a.split,
+        device=a.device,
+        comm=a.comm
     )
     if out is not None:
         out._DNDarray__array = final_result
         return return_indices
     else:
-        tensor = dndarray.DNDarray(
+        tensor = factories.array(
             final_result,
-            a.gshape,
-            a.dtype,
-            a.split,
-            a.device,
-            a.comm
+            dtype=a.dtype,
+            is_split=a.split,
+            device=a.device,
+            comm=a.comm
         )
         return tensor, return_indices
 
