@@ -81,7 +81,7 @@ class TestIO(unittest.TestCase):
         csv_file_cols = 4
         first_value = torch.tensor([5.1, 3.5, 1.4, 0.2], dtype=torch.float32)
         tenth_value = torch.tensor([4.9, 3.1, 1.5, 0.1], dtype=torch.float32)
-        a = ht.load_csv(self.CSV_PATH)
+        a = ht.load_csv(self.CSV_PATH, sep=';', split=0)
         rank = a.comm.Get_rank()
         expected_gshape = (csv_file_length, csv_file_cols)
         self.assertEqual(a.gshape, expected_gshape)
@@ -93,7 +93,7 @@ class TestIO(unittest.TestCase):
         if rank == 0:
             self.assertTrue(torch.equal(a._DNDarray__array[0], first_value))
 
-        a = ht.load_csv(self.CSV_PATH, header_lines=9, dtype=ht.float32)
+        a = ht.load_csv(self.CSV_PATH, sep=';', header_lines=9, dtype=ht.float32, split=0)
         expected_gshape = (csv_file_length - 9, csv_file_cols)
         counts, _, _ = a.comm.counts_displs_shape(expected_gshape, 0)
         expected_lshape = (counts[rank], csv_file_cols)
@@ -104,12 +104,12 @@ class TestIO(unittest.TestCase):
         if rank == 0:
             self.assertTrue(torch.equal(a._DNDarray__array[0], tenth_value))
 
-        a = ht.load_csv(self.CSV_PATH)
-        b = ht.load(self.CSV_PATH)
+        a = ht.load_csv(self.CSV_PATH, sep=';', split=0)
+        b = ht.load(self.CSV_PATH, sep=';', split=0)
         self.assertTrue(ht.equal(a, b))
 
         # Test for csv where header is longer then the first process`s share of lines
-        a = ht.load_csv(self.CSV_PATH, header_lines=100)
+        a = ht.load_csv(self.CSV_PATH, sep=';', header_lines=100, split=0)
         self.assertEqual(a.shape, (50, 4))
 
         with self.assertRaises(TypeError):
@@ -117,7 +117,7 @@ class TestIO(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.load_csv(self.CSV_PATH, sep=11)
         with self.assertRaises(TypeError):
-            ht.load_csv(self.CSV_PATH, header_lines='3')
+            ht.load_csv(self.CSV_PATH, header_lines='3', sep=';', split=0)
 
     def test_load_exception(self):
         # correct extension, file does not exist

@@ -16,8 +16,8 @@ __NETCDF_DIM_TEMPLATE = '{}_dim_{}'
 
 __all__ = [
     'load',
-    'save',
-    'load_csv'
+    'load_csv',
+    'save'
 ]
 
 
@@ -419,7 +419,8 @@ def load(path, *args, **kwargs):
         raise ValueError('Unsupported file extension {}'.format(extension))
 
 
-def load_csv(path, header_lines=0, sep=';', dtype=types.float32, encoding='UTF-8', device=None, comm=MPI_WORLD):
+def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
+             encoding='UTF-8', split=None, device=None, comm=MPI_WORLD):
     """
     Loads data from an CSV file. The data will be distributed along the 0 axis.
 
@@ -439,6 +440,9 @@ def load_csv(path, header_lines=0, sep=';', dtype=types.float32, encoding='UTF-8
     encoding : str, optional
         The type of encoding which will be used to interpret the lines of the csv file as strings.
         default: 'UTF-8'
+    split : None, 0, 1 : optional
+        Along which axis the resulting tensor should be split.
+        Default is None which means each node will have the full tensor.
     device : None or str, optional
         The device id on which to place the data, defaults to globally set default device.
     comm : Communication, optional
@@ -493,92 +497,101 @@ def load_csv(path, header_lines=0, sep=';', dtype=types.float32, encoding='UTF-8
     device = devices.sanitize_device(device)
     comm = sanitize_comm(comm)
 
-    file_size = os.stat(path).st_size
-    rank = comm.rank
-    size = comm.size
-    counts, displs, _ = comm.counts_displs_shape((file_size, 1), 0)
+    if split == None:
+        resulting_tensor = []
+    elif split == 0:
 
-    # Read a chunk of bytes and count the linebreaks
-    f = open(path, 'rb')
-    f.seek(displs[rank], 0)
-    line_starts = []
-    r = f.read(counts[rank])
-    for pos, l in enumerate(r):
-        if chr(l) == '\n':
-            line_starts.append(pos + 1)
+        file_size = os.stat(path).st_size
+        rank = comm.rank
+        size = comm.size
+        counts, displs, _ = comm.counts_displs_shape((file_size, 1), 0)
 
-    if rank == 0:
-        line_starts = [0] + line_starts
-
-    # Find the correct starting point
-    total_lines = torch.empty(size, dtype=torch.int32)
-    comm.Allgather(torch.tensor([len(line_starts)], dtype=torch.int32), total_lines)
-
-    cumsum = total_lines.cumsum(dim=0).tolist()
-    start = next(i for i in range(size) if cumsum[i] > header_lines)
-    if rank < start:
+        # Read a chunk of bytes and count the linebreaks
+        f = open(path, 'rb')
+        f.seek(displs[rank], 0)
         line_starts = []
-    if rank == start:
-        rem = header_lines - (0 if start == 0 else cumsum[start - 1])
-        line_starts = line_starts[rem:]
+        r = f.read(counts[rank])
+        for pos, l in enumerate(r):
+            if chr(l) == '\n':
+                line_starts.append(pos + 1)
 
-    # Determine the number of columns that each line consists of
-    if len(line_starts) > 1:
-        columns = 1
-        for l in r[line_starts[0]: line_starts[1]]:
-            if chr(l) == sep:
-                columns += 1
-    else:
-        columns = 0
+        if rank == 0:
+            line_starts = [0] + line_starts
 
-    columns = torch.tensor([columns], dtype=torch.int32)
-    comm.Allreduce(MPI.IN_PLACE, columns, MPI.MAX)
+        # Find the correct starting point
+        total_lines = torch.empty(size, dtype=torch.int32)
+        comm.Allgather(torch.tensor([len(line_starts)], dtype=torch.int32), total_lines)
 
-    # Share how far the processes need to reed in their last line
-    last_line = file_size
-    if size - start > 1:
+        cumsum = total_lines.cumsum(dim=0).tolist()
+        start = next(i for i in range(size) if cumsum[i] > header_lines)
+        if rank < start:
+            line_starts = []
         if rank == start:
-            last_line = torch.empty(1, dtype=torch.int32)
-            comm.Recv(last_line, source=rank + 1)
-        elif rank == size - 1:
-            first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
-            comm.Send(first_line, dest=rank - 1)
-        elif start < rank < size - 1:
-            last_line = torch.empty(1, dtype=torch.int32)
-            first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
-            comm.Send(first_line, dest=rank - 1)
-            comm.Recv(last_line, source=rank + 1)
+            rem = header_lines - (0 if start == 0 else cumsum[start - 1])
+            line_starts = line_starts[rem:]
 
-    # Create empty tensor and iteratively fill it with the values
-    local_shape = (len(line_starts), columns)
-    actual_length = 0
-    local_tensor = torch.empty(local_shape, dtype=dtype.torch_type())
-    for ind, start in enumerate(line_starts):
-        if ind == len(line_starts) - 1:
-            f.seek(displs[rank] + start, 0)
-            line = f.read(last_line - displs[rank] - start)
+        # Determine the number of columns that each line consists of
+        if len(line_starts) > 1:
+            columns = 1
+            for l in r[line_starts[0]: line_starts[1]]:
+                if chr(l) == sep:
+                    columns += 1
         else:
-            line = r[start: line_starts[ind + 1] - 1]
-        # Decode byte array
-        line = line.decode(encoding)
-        if len(line) > 0:
-            sep_values = [float(val) for val in line.split(sep)]
-            local_tensor[actual_length] = torch.tensor(sep_values, dtype=dtype.torch_type())
-            actual_length += 1
+            columns = 0
 
-    # In case there are some empty lines in the csv file
-    local_tensor = local_tensor[:actual_length]
+        columns = torch.tensor([columns], dtype=torch.int32)
+        comm.Allreduce(MPI.IN_PLACE, columns, MPI.MAX)
 
-    # Share the local size to determine the global size
-    sum_lengths = torch.tensor([actual_length], dtype=torch.int32)
-    comm.Allreduce(MPI.IN_PLACE, sum_lengths, MPI.SUM)
-    resulting_tensor = dndarray.DNDarray(
-        local_tensor,
-        gshape=(sum_lengths, columns),
-        dtype=dtype, split=0,
-        device=device,
-        comm=comm)
-    resulting_tensor.balance_()
+        # Share how far the processes need to reed in their last line
+        last_line = file_size
+        if size - start > 1:
+            if rank == start:
+                last_line = torch.empty(1, dtype=torch.int32)
+                comm.Recv(last_line, source=rank + 1)
+            elif rank == size - 1:
+                first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
+                comm.Send(first_line, dest=rank - 1)
+            elif start < rank < size - 1:
+                last_line = torch.empty(1, dtype=torch.int32)
+                first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
+                comm.Send(first_line, dest=rank - 1)
+                comm.Recv(last_line, source=rank + 1)
+
+        # Create empty tensor and iteratively fill it with the values
+        local_shape = (len(line_starts), columns)
+        actual_length = 0
+        local_tensor = torch.empty(local_shape, dtype=dtype.torch_type())
+        for ind, start in enumerate(line_starts):
+            if ind == len(line_starts) - 1:
+                f.seek(displs[rank] + start, 0)
+                line = f.read(last_line - displs[rank] - start)
+            else:
+                line = r[start: line_starts[ind + 1] - 1]
+            # Decode byte array
+            line = line.decode(encoding)
+            if len(line) > 0:
+                sep_values = [float(val) for val in line.split(sep)]
+                local_tensor[actual_length] = torch.tensor(sep_values, dtype=dtype.torch_type())
+                actual_length += 1
+
+        # In case there are some empty lines in the csv file
+        local_tensor = local_tensor[:actual_length]
+
+        # Share the local size to determine the global size
+        sum_lengths = torch.tensor([actual_length], dtype=torch.int32)
+        comm.Allreduce(MPI.IN_PLACE, sum_lengths, MPI.SUM)
+        resulting_tensor = dndarray.DNDarray(
+            local_tensor,
+            gshape=(sum_lengths, columns),
+            dtype=dtype, split=0,
+            device=device,
+            comm=comm)
+        resulting_tensor.balance_()
+    elif split == 1:
+        resulting_tensor = []
+    else:
+        raise ValueError('split must be in [None, 0, 1], but is', split)
+
     return resulting_tensor
 
 
