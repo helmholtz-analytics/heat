@@ -23,7 +23,6 @@ from .stride_tricks import sanitize_axis
 
 warnings.simplefilter('always', ResourceWarning)
 
-
 __all__ = [
     'DNDarray'
 ]
@@ -521,6 +520,7 @@ class DNDarray:
         """
         if self.is_balanced():
             return
+        sl_dtype = self.dtype.torch_type()
         # units -> {pr, 1st index, 2nd index}
         lshape_map = factories.zeros((self.comm.size, len(self.gshape)), dtype=int)
         lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
@@ -553,8 +553,8 @@ class DNDarray:
                 if self.comm.rank == spr:
                     for pr in range(spr):
                         send_amt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
+                        send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
                         if send_amt:
-                            send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
                             send_slice[self.split] = slice(0, send_amt)
                             keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
 
@@ -569,7 +569,7 @@ class DNDarray:
                     if self.comm.rank == pr and snt:
                         shp = list(self.gshape)
                         shp[self.split] = snt
-                        data = torch.zeros(shp)
+                        data = torch.zeros(shp, dtype=sl_dtype)
                         self.comm.Recv(data, source=spr, tag=pr + self.comm.size + spr)
                         self.__array = torch.cat((self.__array, data), dim=self.split)
                     lshape_map[pr, self.split] += snt
@@ -592,8 +592,8 @@ class DNDarray:
             if self.comm.rank == spr:
                 for pr in range(self.comm.size - 1, spr, -1):
                     send_amt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
+                    send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
                     if send_amt:
-                        send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
                         send_slice[self.split] = slice(self.lshape[self.split] - send_amt, self.lshape[self.split])
                         keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
 
@@ -607,7 +607,7 @@ class DNDarray:
                 if self.comm.rank == pr and snt:
                     shp = list(self.gshape)
                     shp[self.split] = snt
-                    data = torch.zeros(shp)
+                    data = torch.zeros(shp, dtype=sl_dtype)
                     self.comm.Recv(data, source=spr, tag=pr + self.comm.size + spr)
                     self.__array = torch.cat((data, self.__array), dim=self.split)
                 lshape_map[pr, self.split] += snt
@@ -1230,7 +1230,8 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-        if isinstance(key, DNDarray)and key.gshape[-1] != len(self.gshape):
+        l_dtype = self.dtype.torch_type()
+        if isinstance(key, DNDarray) and key.gshape[-1] != len(self.gshape):
             key = tuple(x.item() for x in key)
         if not self.is_distributed():
             if not self.comm.size == 1:
@@ -1272,7 +1273,7 @@ class DNDarray:
                     new_split = self.split
 
                 if key in range(chunk_start, chunk_end) and self.split == 0:  # only need to adjust the key if split==0
-                    gout = list(self.__array[key-chunk_start].shape)
+                    gout = list(self.__array[key - chunk_start].shape)
                     arr = self.__array[key - chunk_start]
                 elif self.split != 0:
                     _, _, chunk_slice2 = self.comm.chunk(self.shape, self.split)
@@ -1380,7 +1381,7 @@ class DNDarray:
                 else:
                     gout[e] = self.comm.allreduce(gout[e], MPI.MAX)
 
-            return DNDarray(arr, gout if isinstance(gout, tuple) else tuple(gout), self.dtype, new_split, self.device, self.comm)
+            return DNDarray(arr.type(l_dtype), gout if isinstance(gout, tuple) else tuple(gout), self.dtype, new_split, self.device, self.comm)
 
     if torch.cuda.device_count() > 0:
         def gpu(self):
@@ -1942,7 +1943,7 @@ class DNDarray:
 
     def resplit(self, axis=None):
         """
-        In-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
+        Out-of-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
         nodes as well as the definition of new axis along which the tensor is split without changes to the values.
 
         WARNING: this operation might involve a significant communication overhead. Use it sparingly and preferably for
@@ -1950,7 +1951,7 @@ class DNDarray:
 
         Parameters
         ----------
-        axis : int or None
+        axis : int
             The new split axis, None denotes gathering, an int will set the new split axis
 
         Returns
@@ -1960,26 +1961,25 @@ class DNDarray:
 
         Examples
         --------
-        >>> import heat as ht
-        >>> a = ht.zeros((4, 5,), split=0)
-        >>> a.lshape
+        a = ht.zeros((4, 5,), split=0)
+        a.lshape
         (0/2) >>> (2, 5)
         (1/2) >>> (2, 5)
-        >>> a.resplit(None)
-        >>> a.split
-        None
-        >>> a.lshape
+        a.resplit(None)
+        a.split
+        >>> None
+        a.lshape
         (0/2) >>> (4, 5)
         (1/2) >>> (4, 5)
 
-        >>> a = ht.zeros((4, 5,), split=0)
-        >>> a.lshape
+        a = ht.zeros((4, 5,), split=0)
+        a.lshape
         (0/2) >>> (2, 5)
         (1/2) >>> (2, 5)
-        >>> a.resplit(1)
-        >>> a.split
-        1
-        >>> a.lshape
+        a.resplit(1)
+        a.split
+        >>> 1
+        a.lshape
         (0/2) >>> (4, 3)
         (1/2) >>> (4, 2)
         """
@@ -1992,21 +1992,21 @@ class DNDarray:
 
         # unsplit the tensor
         if axis is None:
-            # Transpose because Allgatherv only works along axis 0 at the moment
-            # TODO change when Allgatherv works along all other axis as well
-            local_array = self.__array.transpose(0, self.split)
-            gathered = torch.empty((self.gshape[self.split], ) + local_array.shape[1:], dtype=self.dtype.torch_type())
+            gathered = torch.empty(self.shape, dtype=self.dtype.torch_type())
 
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Allgatherv(local_array, (gathered, recv_counts, recv_displs,), recv_axis=0)
+            self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), send_axis=self.split)
 
-            self.__array = gathered.transpose(0, self.split)
+            self.__array = gathered
             self.__split = None
 
         # tensor needs be split/sliced locally
         elif self.split is None:
             _, _, slices = self.comm.chunk(self.shape, axis)
-            self.__array = self.__array[slices]
+            temp = self.__array[slices]
+            self.__array = torch.empty((1,))
+            # necessary to clear storage of local __array
+            self.__array= temp.clone().detach()
             self.__split = axis
 
         # entirely new split axis, need to redistribute
@@ -2027,6 +2027,7 @@ class DNDarray:
             self.__split = axis
 
         return self
+
 
     def __rfloordiv__(self, other):
         """
@@ -2290,7 +2291,7 @@ class DNDarray:
 
             if isinstance(key, int) and self.split == 0:
                 if key in range(chunk_start, chunk_end):
-                    self.__setter(key-chunk_start, value)
+                    self.__setter(key - chunk_start, value)
             elif isinstance(key, int) and self.split > 0:
                 self[key, :] = value
 
@@ -2443,16 +2444,16 @@ class DNDarray:
             Input data.
 
         axis : None or int or tuple of ints, optional
-               Selects a subset of the single-dimensional entries in the shape. 
+               Selects a subset of the single-dimensional entries in the shape.
                If axis is None, all single-dimensional entries will be removed from the shape.
                If an axis is selected with shape entry greater than one, a ValueError is raised.
 
 
 
         Returns:
-        --------	
+        --------
         squeezed : ht.tensor
-                   The input tensor, but with all or a subset of the dimensions of length 1 removed. 
+                   The input tensor, but with all or a subset of the dimensions of length 1 removed.
 
 
         Examples:
@@ -2846,7 +2847,7 @@ class DNDarray:
 
     """
     This ensures that commutative arithmetic operations work no matter on which side the heat-tensor is placed.
-    
+
     Examples
     --------
     >>> import heat as ht
