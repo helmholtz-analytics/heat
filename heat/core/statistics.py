@@ -310,27 +310,26 @@ def average(x, axis=None, weights=None, returned=False):
                 raise ValueError(
                     "Length of weights not compatible with specified axis.")
 
+        wgt = factories.empty_like(weights)
+
         # Broadcast weights along axis
         if weights.numdims == 1 and axis is not None and axis != 0:
             if weights.split is not None:
                 weights.resplit(None)
-            weights_newshape = tuple(1 if i != axis else x.gshape[axis] for i in range(axis+1))
-            weights._DNDarray__array = torch.reshape(weights._DNDarray__array, weights_newshape)
-            weights._DNDarray__gshape = weights_newshape
+            weights_newshape = tuple(1 if i != axis else x.gshape[axis] for i in range(x.numdims))
+            wgt._DNDarray__array = torch.reshape(weights._DNDarray__array, weights_newshape)
+            wgt._DNDarray__gshape = weights_newshape
 
-        cumwgt = weights.sum(axis=axis)
+        cumwgt = wgt.sum(axis=axis)
         if logical.any(cumwgt == 0.0):
             raise ZeroDivisionError("Weights sum to zero, can't be normalized")
 
         # Distribution: if x is split, apply same split to weights if possible
-        if x.split is not None and weights.split != x.split:
-            if weights.gshape[x.split] != 1:
-                weights.resplit(x.split)
+        if x.split is not None and wgt.split != x.split:
+            if wgt.gshape[x.split] != 1:
+                wgt.resplit(x.split)
 
-        result = (x * weights).sum(axis=axis) / cumwgt
-        if axis is not None:
-            # Bring weights back to 1D
-            weights = weights.squeeze()
+        result = (x * wgt).sum(axis=axis) / cumwgt
 
     if returned:
         if cumwgt.gshape != result.gshape:
