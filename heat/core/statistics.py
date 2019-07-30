@@ -213,6 +213,81 @@ def argmin(x, axis=None, out=None, **kwargs):
 
 
 def average(x, axis=None, weights=None, returned=False):
+    """
+    Compute the weighted average along the specified axis.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        Tensor containing data to be averaged. 
+
+    axis : None or int or tuple of ints, optional
+        Axis or axes along which to average x.  The default,
+        axis=None, will average over all of the elements of the input tensor.
+        If axis is negative it counts from the last to the first axis.
+
+        If axis is a tuple of ints, averaging is performed on all of the axes
+        specified in the tuple instead of a single axis or all the axes as
+        before.
+
+    weights : ht.tensor, optional
+        An tensor of weights associated with the values in x. Each value in
+        x contributes to the average according to its associated weight.
+        The weights tensor can either be 1D (in which case its length must be
+        the size of x along the given axis) or of the same shape as x.
+        If weights=None, then all data in x are assumed to have a
+        weight equal to one, the result is equivalent to ht.mean(x).
+
+    returned : bool, optional
+        Default is False. If True, the tuple (average, sum_of_weights)
+        is returned, otherwise only the average is returned.
+        If weights=None, sum_of_weights is equivalent to the number of
+        elements over which the average is taken.
+
+    Returns
+    -------
+    average, [sum_of_weights] : ht.tensor or tuple of ht.tensors
+        Return the average along the specified axis. When returned=True,
+        return a tuple with the average as the first element and the sum
+        of the weights as the second element. sum_of_weights is of the
+        same type as `average`. 
+
+    Raises
+    ------
+    ZeroDivisionError
+        When all weights along axis are zero. 
+
+    TypeError
+        When the length of 1D weights is not the same as the shape of x
+        along axis.
+
+
+    Examples
+    --------
+    >>> data = list(range(1,5))
+    >>> data
+    [1, 2, 3, 4]
+    >>> np.average(data)
+    2.5
+    >>> np.average(range(1,11), weights=range(10,0,-1))
+    4.0
+    >>> data = np.arange(6).reshape((3,2))
+    >>> data
+    array([[0, 1],
+           [2, 3],
+           [4, 5]])
+    >>> np.average(data, axis=1, weights=[1./4, 3./4])
+    array([0.75, 2.75, 4.75])
+    >>> np.average(data, weights=[1./4, 3./4])
+    Traceback (most recent call last):
+        ...
+    TypeError: Axis must be specified when shapes of a and weights differ.
+    >>> a = np.ones(5, dtype=np.float128)
+    >>> w = np.ones(5, dtype=np.complex64)
+    >>> avg = np.average(a, weights=w)
+    >>> print(avg.dtype)
+    complex256
+    """
 
     # perform sanitation
     if not isinstance(x, dndarray.DNDarray):
@@ -222,7 +297,10 @@ def average(x, axis=None, weights=None, returned=False):
     axis = stride_tricks.sanitize_axis(x.shape, axis)
 
     if weights is None:
-        return mean(x, axis)
+        result = mean(x, axis)
+        num_elements = x.gnumel/result.gnumel
+        cumwgt = factories.empty(1, dtype=result.dtype)
+        cumwgt._DNDarray__array = num_elements
     else:
         # Weights sanitation:
         # weights (global) is either same size as x (global), or it is 1D and same size as x along chosen axis
@@ -239,7 +317,7 @@ def average(x, axis=None, weights=None, returned=False):
                     "Length of weights not compatible with specified axis.")
 
         # Broadcast weights along axis
-        if weights.numpy().ndim == 1 and axis is not None and axis != 0:
+        if weights.numdims == 1 and axis is not None and axis != 0:
             if weights.split is not None:
                 weights.resplit(None)
             weights_newshape = tuple(1 if i != axis else x.gshape[axis] for i in range(axis+1))
@@ -256,10 +334,11 @@ def average(x, axis=None, weights=None, returned=False):
                 weights.resplit(x.split)
 
         result = (x * weights).sum(axis=axis) / cumwgt
-        if returned:
-            return (result, cumwgt)
 
-        return result
+    if returned:
+        return (result, cumwgt)
+
+    return result
 
 
 def max(x, axis=None, out=None, keepdim=None):
