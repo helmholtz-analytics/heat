@@ -1,5 +1,5 @@
 from unittest import TestCase
-from heat.core import dndarray, MPICommunication, MPI, types, factories
+from heat.core import dndarray, MPICommunication, MPI, types, factories, random
 
 import numpy as np
 import torch
@@ -25,30 +25,37 @@ class BasicTest(TestCase):
         return self.comm.size
 
     def assert_func_equal(self, tensor, heat_func, numpy_func, distributed_result=True, heat_args=None, numpy_args=None):
-        if isinstance(tensor, tuple) or isinstance(tensor, list):
-            tensor = np.random.randn(tensor)
         print('rank', self.get_rank())
+        if isinstance(tensor, tuple) or isinstance(tensor, list):
+            tensor = self._create_random_array(tensor)
+
         if heat_args is None:
             heat_args = {}
         if numpy_args is None:
             numpy_args = {}
+
         if isinstance(tensor, np.ndarray):
-            torch_tensor = torch.tensor(tensor)
-            print('tensor', torch_tensor.dtype)
+            torch_tensor = torch.from_numpy(tensor.copy())
             np_array = tensor
-        if isinstance(tensor, torch.Tensor):
+        elif isinstance(tensor, torch.Tensor):
             torch_tensor = tensor
-            np_array = tensor.numpy()
+            np_array = tensor.numpy().copy()
+        else:
+            raise TypeError('The input tensors type must be one of [tuple, list, ' +
+                            'numpy.ndarray, torch.tensor] but is {}'.format(type(tensor)))
+
+        print('tensor', tensor)
         np_res = numpy_func(np_array, **numpy_args)
         if not isinstance(np_res, np.ndarray):
             np_res = np.array([np_res])
         print('np_res', np_res, np_res.dtype)
 
+        dtype = types.canonical_heat_type(torch_tensor.dtype)
+        print('dtype', dtype)
+
         for i in range(len(tensor.shape)):
-            dtype = types.canonical_heat_type(torch_tensor.dtype)
-            print('dtype', dtype)
+            print('before', torch_tensor)
             ht_array = factories.array(torch_tensor, split=i, dtype=dtype, device=self.device, comm=self.comm)
-            print('heat dtype', ht_array.dtype)
             ht_res = heat_func(ht_array, **heat_args)
             print('ht_res', ht_res, 'gshape', ht_res.gshape)
             if distributed_result:
@@ -62,10 +69,20 @@ class BasicTest(TestCase):
 
         # Array is distributed correctly
         equal_res = np.array(np.array_equal(heat_array._DNDarray__array.numpy(), numpy_array[slices]))
+        print('heat', heat_array._DNDarray__array.numpy(), '\nnumpy', numpy_array[slices], '\ndiff', heat_array._DNDarray__array.numpy() - numpy_array[slices])
         self.comm.Allreduce(MPI.IN_PLACE, equal_res, MPI.LAND)
         self.assertTrue(equal_res)
 
         # Combined array is correct
         combined = heat_array.numpy()
-        print('numpy', combined, combined.dtype, heat_array.dtype)
+        print('combined', combined)
         self.assertTrue(np.array_equal(heat_array.numpy(), numpy_array))
+
+    def _create_random_array(self, shape):
+        # Ensure all processes have the same initial array
+        if self.get_rank() == 0:
+            array = np.random.randn(*shape)
+        else:
+            array = np.empty(shape)
+        self.comm.Bcast(array, root=0)
+        return array
