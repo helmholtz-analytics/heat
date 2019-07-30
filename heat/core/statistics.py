@@ -264,29 +264,23 @@ def average(x, axis=None, weights=None, returned=False):
 
     Examples
     --------
-    >>> data = list(range(1,5))
+    >>> data = ht.arange(1,5, dtype=float)
     >>> data
-    [1, 2, 3, 4]
-    >>> np.average(data)
-    2.5
-    >>> np.average(range(1,11), weights=range(10,0,-1))
-    4.0
-    >>> data = np.arange(6).reshape((3,2))
-    >>> data
-    array([[0, 1],
-           [2, 3],
-           [4, 5]])
-    >>> np.average(data, axis=1, weights=[1./4, 3./4])
-    array([0.75, 2.75, 4.75])
-    >>> np.average(data, weights=[1./4, 3./4])
+    tensor([1., 2., 3., 4.])
+    >>> ht.average(data)
+    tensor(2.5000)
+    >>> ht.average(ht.arange(1,11, dtype=float), weights=ht.arange(10,0,-1))
+    tensor([4.])
+    >>> data = ht.array([[0, 1],
+                         [2, 3],
+                        [4, 5]], dtype=float, split=1)
+    >>> weights = ht.array([1./4, 3./4])
+    >>> ht.average(data, axis=1, weights=weights)
+    tensor([0.7500, 2.7500, 4.7500])
+    >>> ht.average(data, weights=weights)
     Traceback (most recent call last):
         ...
-    TypeError: Axis must be specified when shapes of a and weights differ.
-    >>> a = np.ones(5, dtype=np.float128)
-    >>> w = np.ones(5, dtype=np.complex64)
-    >>> avg = np.average(a, weights=w)
-    >>> print(avg.dtype)
-    complex256
+    TypeError: Axis must be specified when shapes of x and weights differ.
     """
 
     # perform sanitation
@@ -296,6 +290,7 @@ def average(x, axis=None, weights=None, returned=False):
         raise TypeError('expected weights to be a ht.DNDarray, but was {}'.format(type(x)))
     axis = stride_tricks.sanitize_axis(x.shape, axis)
 
+    if is
     if weights is None:
         result = mean(x, axis)
         num_elements = x.gnumel/result.gnumel
