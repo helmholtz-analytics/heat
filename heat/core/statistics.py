@@ -290,7 +290,6 @@ def average(x, axis=None, weights=None, returned=False):
         raise TypeError('expected weights to be a ht.DNDarray, but was {}'.format(type(x)))
     axis = stride_tricks.sanitize_axis(x.shape, axis)
 
-    if is
     if weights is None:
         result = mean(x, axis)
         num_elements = x.gnumel/result.gnumel

@@ -483,6 +483,12 @@ class DNDarray:
 
         return self
 
+    def average(self, axis=None, weights=None, returned=False):
+        '''
+        #TODO: docs
+        '''
+        return statistics.average(self, axis=axis, weights=weights, returned=returned)
+
     def balance_(self):
         """
         Function for balancing a DNDarray between all nodes. To determine if this is needed use the is_balanced function.
