@@ -631,13 +631,10 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     if axis is not None:
         # transpose matrix back
         gres = gres.transpose(0, axis)
-    print('gres', gres, gres.shape, 'split', split, 'is_split', is_split)
 
     # If split is not in range of the resulting shape any more, every process gets full result
     split = split if a.split < len(gres.shape) else None
     result = factories.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, split=split, is_split=is_split)
-    # Todo shape is wrong (2/6) instead of (2/5)
-    print('result', result.shape)
     return_value = result
     if return_inverse:
         return_value = [return_value, inverse_indices]
