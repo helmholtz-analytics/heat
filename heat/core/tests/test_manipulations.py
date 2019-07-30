@@ -505,7 +505,7 @@ class TestManipulations(unittest.TestCase):
         torch_array = torch.arange(size, dtype=torch.int32).expand(size, size)
         split_zero = ht.array(torch_array, split=0)
 
-        exp_axis_none = ht.arange(size, dtype=ht.int32)
+        exp_axis_none = ht.array([rank], dtype=ht.int32)
         res = split_zero.unique(sorted=True)
         self.assertTrue((res._DNDarray__array == exp_axis_none._DNDarray__array).all())
 
