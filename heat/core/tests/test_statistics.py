@@ -234,15 +234,12 @@ class TestStatistics(unittest.TestCase):
         # check average over all float elements of split 3d tensor, tuple axis
         # TODO: insert check for weights
         random_volume = ht.array(ht.random.randn(3, 3, 3), split=0)
-        print('RANDOM_VOLUME = ', random_volume)
         avg_volume = ht.average(random_volume, axis=(1, 2))
         alt_avg_volume = ht.average(random_volume, axis=(2, 1))
 
         self.assertIsInstance(avg_volume, ht.DNDarray)
         self.assertEqual(avg_volume.shape, (3,))
-        print('AVG_VOLUME = ', avg_volume)
-        # TODO: fix this
-#        self.assertEqual(avg_volume.lshape, (3,))
+        self.assertEqual(avg_volume.lshape[0], random_volume.lshape[0])
         self.assertEqual(avg_volume.dtype, ht.float32)
         self.assertEqual(avg_volume._DNDarray__array.dtype, torch.float32)
         self.assertEqual(avg_volume.split, 0)
