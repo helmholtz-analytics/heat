@@ -334,8 +334,15 @@ def average(x, axis=None, weights=None, returned=False):
                 weights.resplit(x.split)
 
         result = (x * weights).sum(axis=axis) / cumwgt
+        if axis is not None:
+            # Bring weights back to 1D
+            weights = weights.squeeze()
 
     if returned:
+        if cumwgt.gshape != result.gshape:
+            cumwgt._DNDarray__array = torch.broadcast_tensors(cumwgt._DNDarray__array, result._DNDarray__array)[0]
+            cumwgt._DNDarray__gshape = result.gshape
+            cumwgt._DNDarray__split = result.split
         return (result, cumwgt)
 
     return result
