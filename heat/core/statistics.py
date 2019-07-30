@@ -213,7 +213,6 @@ def argmin(x, axis=None, out=None, **kwargs):
 
 
 def average(x, axis=None, weights=None, returned=False):
-    #TODO: DOCUMENTATION
 
     # perform sanitation
     if not isinstance(x, dndarray.DNDarray):
@@ -257,6 +256,9 @@ def average(x, axis=None, weights=None, returned=False):
                 weights.resplit(x.split)
 
         result = (x * weights).sum(axis=axis) / cumwgt
+        if returned:
+            return (result, cumwgt)
+
         return result
 
 
