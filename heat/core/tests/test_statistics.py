@@ -635,6 +635,9 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.var(x, axis='01')
 
+        a = ht.arange(1, 5)
+        self.assertEqual(a.var(), 2.5)
+
         # ones
         dimensions = []
         for d in [array_0_len, array_1_len, array_2_len]:

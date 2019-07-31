@@ -980,8 +980,8 @@ def var(x, axis=None, bessel=True):
     # ----------------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
         if not x.is_distributed():  # not distributed (full tensor on one node)
-            ret = torch.var(x._DNDarray__array, unbiased=bessel)
-            return dndarray.DNDarray(ret, tuple(ret.shape), x.dtype, None, x.device, x.comm)
+            ret = torch.var(x._DNDarray__array.float(), unbiased=bessel)
+            return dndarray.DNDarray(ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm)
 
         else:  # case for full matrix calculation (axis is None)
             if x.lshape[x.split] != 0:
