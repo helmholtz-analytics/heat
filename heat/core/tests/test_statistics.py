@@ -636,7 +636,7 @@ class TestStatistics(unittest.TestCase):
             ht.var(x, axis='01')
 
         a = ht.arange(1, 5)
-        self.assertEqual(a.var(), 1.2910)
+        self.assertEqual(a.var(), 1.6667)
 
         # ones
         dimensions = []
