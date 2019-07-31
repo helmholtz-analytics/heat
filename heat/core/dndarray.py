@@ -554,8 +554,8 @@ class DNDarray:
                 if self.comm.rank == spr:
                     for pr in range(spr):
                         send_amt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
+                        send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
                         if send_amt:
-                            send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
                             send_slice[self.split] = slice(0, send_amt)
                             keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
 
@@ -593,8 +593,8 @@ class DNDarray:
             if self.comm.rank == spr:
                 for pr in range(self.comm.size - 1, spr, -1):
                     send_amt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
+                    send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
                     if send_amt:
-                        send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
                         send_slice[self.split] = slice(self.lshape[self.split] - send_amt, self.lshape[self.split])
                         keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
 
