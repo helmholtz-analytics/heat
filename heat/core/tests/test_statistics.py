@@ -373,6 +373,9 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.mean(x, axis=(0, '10'))
 
+        a = ht.arange(1, 5)
+        self.assertEqual(a.mean(), 2.5)
+
         # ones
         dimensions = []
 
