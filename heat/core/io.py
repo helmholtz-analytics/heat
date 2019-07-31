@@ -269,7 +269,7 @@ else:
 
         # actually load the data
         with nc.Dataset(path, 'r', parallel=__nc_has_par, comm=comm.handle) as handle:
-            data = handle[variable][:]
+            data = handle[variable]
 
             # prepare meta information
             gshape = tuple(data.shape)
