@@ -2296,13 +2296,16 @@ class DNDarray:
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
 
-            if isinstance(key, int) and self.split == 0:
-                if key in range(chunk_start, chunk_end):
-                    self.__setter(key - chunk_start, value)
-            elif isinstance(key, int) and self.split > 0:
-                if self[key].split is not None and isinstance(value, DNDarray) and value.split is None:
-                    value = factories.array(value, split=self[key].split)
-                self.__setter(key, value)
+            if isinstance(key, int):
+                if key < 0:
+                    key += self.numdims
+                if self.split == 0:
+                    if key in range(chunk_start, chunk_end):
+                        self.__setter(key - chunk_start, value)
+                if self.split > 0:
+                    if self[key].split is not None and isinstance(value, DNDarray) and value.split is None:
+                        value = factories.array(value, split=self[key].split)
+                    self.__setter(key, value)
             elif isinstance(key, (tuple, list, torch.Tensor)):
                 if isinstance(key[self.split], slice):
                     key = list(key)
