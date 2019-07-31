@@ -610,8 +610,8 @@ def mean(x, axis=None):
         # full matrix calculation
         if not x.is_distributed():
             # if x is not distributed do a torch.mean on x
-            ret = torch.mean(x._DNDarray__array)
-            return dndarray.DNDarray(ret, tuple(ret.shape), x.dtype, None, x.device, x.comm)
+            ret = torch.mean(x._DNDarray__array.float())
+            return dndarray.DNDarray(ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm)
         else:
             # if x is distributed and no axis is given: return mean of the whole set
             if x.lshape[x.split] != 0:
@@ -1111,8 +1111,8 @@ def var(x, axis=None, bessel=True):
     # ----------------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
         if not x.is_distributed():  # not distributed (full tensor on one node)
-            ret = torch.var(x._DNDarray__array, unbiased=bessel)
-            return dndarray.DNDarray(ret, tuple(ret.shape), x.dtype, None, x.device, x.comm)
+            ret = torch.var(x._DNDarray__array.float(), unbiased=bessel)
+            return dndarray.DNDarray(ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm)
 
         else:  # case for full matrix calculation (axis is None)
             if x.lshape[x.split] != 0:
