@@ -347,6 +347,13 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(b.dtype, ht.float32)
         self.assertEqual(b.gshape, (5, ))
 
+        a = ht.zeros((13, 5,), split=0)
+        a[-1] = 1
+        b = a[-1]
+        self.assertTrue((b == 1).all())
+        self.assertEqual(b.dtype, ht.float32)
+        self.assertEqual(b.gshape, (5,))
+
         # slice in 1st dim only on 1 node
         a = ht.zeros((13, 5,), split=0)
         a[1:4] = 1
