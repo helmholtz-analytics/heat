@@ -15,6 +15,7 @@ from . import memory
 from . import relational
 from . import rounding
 from . import statistics
+from . import stride_tricks
 from . import trigonometrics
 from . import types
 
@@ -1239,6 +1240,7 @@ class DNDarray:
         l_dtype = self.dtype.torch_type()
         if isinstance(key, DNDarray) and key.gshape[-1] != len(self.gshape):
             key = tuple(x.item() for x in key)
+
         if not self.is_distributed():
             if not self.comm.size == 1:
                 if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
@@ -1272,9 +1274,13 @@ class DNDarray:
 
             if isinstance(key, int):  # if a sigular index is given and the tensor is split
                 gout = [0] * (len(self.gshape) - 1)
+                if key < 0:
+                    key += self.numdims
                 # handle the reduction of the split to accommodate for the reduced dimension
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                elif self.split > 0:
+                    new_split = self.split - 1
                 else:
                     new_split = self.split
 
@@ -1366,7 +1372,8 @@ class DNDarray:
                 # this is for a list of values
                 # it will return a 1D DNDarray of the elements on each node which are in the key (will be split in the 0th dimension
                 key.lloc[..., self.split] -= chunk_start
-                arr = self.__array[key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]]
+                key_new = [key._DNDarray__array[..., i] for i in range(len(self.gshape))]
+                arr = self.__array[tuple(key_new)]
                 gout = list(arr.shape)
                 new_split = 0
 
@@ -2295,15 +2302,16 @@ class DNDarray:
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
 
-            if isinstance(key, int) and self.split == 0:
-                if key in range(chunk_start, chunk_end):
-                    self.__setter(key - chunk_start, value)
-            elif isinstance(key, int) and self.split > 0:
-                self[key, :] = value
-
-            elif isinstance(key, int) and self.split > 0:
-                self[key, :] = value
-
+            if isinstance(key, int):
+                if key < 0:
+                    key += self.numdims
+                if self.split == 0:
+                    if key in range(chunk_start, chunk_end):
+                        self.__setter(key - chunk_start, value)
+                if self.split > 0:
+                    if self[key].split is not None and isinstance(value, DNDarray) and value.split is None:
+                        value = factories.array(value, split=self[key].split)
+                    self.__setter(key, value)
             elif isinstance(key, (tuple, list, torch.Tensor)):
                 if isinstance(key[self.split], slice):
                     key = list(key)
@@ -2311,7 +2319,6 @@ class DNDarray:
                                              key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split],
                                              key[self.split].step if key[self.split].step is not None else 1))
                                    & set(range(chunk_start, chunk_end)))
-
                     if overlap:
                         overlap.sort()
                         hold = [x - chunk_start for x in overlap]
@@ -2329,8 +2336,8 @@ class DNDarray:
                     self.__setter(tuple(key), value)
 
                 elif key[self.split] < 0:
+                    key = list(key)
                     if self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
-                        key = list(key)
                         key[self.split] = key[self.split] + chunk_end - chunk_start
                         self.__setter(tuple(key), value)
 
@@ -2345,9 +2352,9 @@ class DNDarray:
             elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                 # this is the case with a list of indices to set
                 key = key.copy()
-                for i in range(key.lshape[0]):
-                    key.lloc[i][self.split] -= chunk_start
-                    self.__setter((key.lloc[i][0].item(), key.lloc[i][1].item()), value)
+                key.lloc[..., self.split] -= chunk_start
+                key_new = [key._DNDarray__array[..., i] for i in range(len(self.gshape))]
+                self.__setter(tuple(key_new), value)
             else:
                 self.__setter(key, value)
 
