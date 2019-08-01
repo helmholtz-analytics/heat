@@ -226,7 +226,7 @@ def average(x, axis=None, weights=None, returned=False):
         axis=None, will average over all of the elements of the input tensor.
         If axis is negative it counts from the last to the first axis.
 
-        If axis is a tuple of ints, averaging is performed on all of the axes
+        #TODO: If axis is a tuple of ints, averaging is performed on all of the axes
         specified in the tuple instead of a single axis or all the axes as
         before.
 
@@ -303,6 +303,9 @@ def average(x, axis=None, weights=None, returned=False):
                 raise TypeError(
                     "Axis must be specified when shapes of x and weights "
                     "differ.")
+            if isinstance(axis, tuple):
+                raise NotImplementedError(
+                    "Weighted average over tuple axis not implemented yet.")
             if weights.numdims != 1:
                 raise TypeError(
                     "1D weights expected when shapes of x and weights differ.")
@@ -310,7 +313,8 @@ def average(x, axis=None, weights=None, returned=False):
                 raise ValueError(
                     "Length of weights not compatible with specified axis.")
 
-        wgt = weights
+        wgt = factories.empty_like(weights)
+        wgt._DNDarray__array = weights._DNDarray__array
 
         # Broadcast weights along axis
         if weights.numdims == 1 and axis is not None and axis != 0:
