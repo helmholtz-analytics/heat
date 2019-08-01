@@ -304,8 +304,8 @@ def average(x, axis=None, weights=None, returned=False):
                     "Axis must be specified when shapes of x and weights "
                     "differ.")
             if isinstance(axis, tuple):
-                raise TypeError(
-                    "Shape of weights must be equal shape of x if axis is tuple of ints.")
+                raise NotImplementedError(
+                    "Weighted average over tuple axis not implemented yet.")
             if weights.numdims != 1:
                 raise TypeError(
                     "1D weights expected when shapes of x and weights differ.")
