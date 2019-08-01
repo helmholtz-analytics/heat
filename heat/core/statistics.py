@@ -303,14 +303,14 @@ def average(x, axis=None, weights=None, returned=False):
                 raise TypeError(
                     "Axis must be specified when shapes of x and weights "
                     "differ.")
-            if weights.numpy().ndim != 1:
+            if weights.numdims != 1:
                 raise TypeError(
                     "1D weights expected when shapes of x and weights differ.")
             if weights.gshape[0] != x.gshape[axis]:
                 raise ValueError(
                     "Length of weights not compatible with specified axis.")
 
-        wgt = factories.empty_like(weights)
+        wgt = weights
 
         # Broadcast weights along axis
         if weights.numdims == 1 and axis is not None and axis != 0:
