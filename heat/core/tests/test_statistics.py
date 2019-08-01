@@ -220,16 +220,19 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(avg_horizontal._DNDarray__array.dtype, torch.float32)
         self.assertTrue((avg_horizontal.numpy() == np.average(comparison, axis=1)).all())
 
-        # check average over all float elements of split 3d tensor, across split axis
-        random_volume = ht.array(ht.random.randn(3, 3, 3), split=1)
-        avg_volume = ht.average(random_volume, axis=1)
-
+        # check weighted average over all float elements of split 3d tensor, across split axis
+        random_volume = ht.array(torch.randn((3, 3, 3), dtype=torch.float64), is_split=1)
+        size = random_volume.comm.size
+        random_weights = ht.array(torch.randn((3 * size,), dtype=torch.float64))
+        avg_volume = ht.average(random_volume, weights=random_weights, axis=1)
+        np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)
         self.assertIsInstance(avg_volume, ht.DNDarray)
         self.assertEqual(avg_volume.shape, (3, 3))
         self.assertEqual(avg_volume.lshape, (3, 3))
-        self.assertEqual(avg_volume.dtype, ht.float32)
-        self.assertEqual(avg_volume._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(avg_volume.dtype, ht.float64)
+        self.assertEqual(avg_volume._DNDarray__array.dtype, torch.float64)
         self.assertEqual(avg_volume.split, None)
+        self.assertAlmostEqual(avg_volume.numpy().all(), np_avg_volume.all())
 
         # check average over all float elements of split 3d tensor, tuple axis
         # TODO: insert check for weights
@@ -245,11 +248,13 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(avg_volume.split, 0)
 
         # check average over all float elements of split 5d tensor, along split axis
-        random_5d = ht.array(ht.random.randn(1, 2, 3, 4, 5), split=0)
-        avg_5d = ht.average(random_5d, axis=1)
+        random_5d = ht.array(ht.random.randn(1, 2, 3, 4, 5), is_split=0)
+        axis = 1
+        random_weights = ht.random.randn(random_5d.gshape[axis])
+        avg_5d = ht.average(random_5d, weights=random_weights, axis=axis)
 
         self.assertIsInstance(avg_5d, ht.DNDarray)
-        self.assertEqual(avg_5d.shape, (1, 3, 4, 5))
+        self.assertEqual(avg_5d.gshape, (size, 3, 4, 5))
         self.assertLessEqual(avg_5d.lshape[1], 3)
         self.assertEqual(avg_5d.dtype, ht.float32)
         self.assertEqual(avg_5d._DNDarray__array.dtype, torch.float32)
