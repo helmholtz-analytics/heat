@@ -235,7 +235,6 @@ class TestStatistics(unittest.TestCase):
         self.assertAlmostEqual(avg_volume.numpy().all(), np_avg_volume.all())
 
         # check average over all float elements of split 3d tensor, tuple axis
-        # TODO: insert check for weights
         random_volume = ht.array(ht.random.randn(3, 3, 3), split=0)
         avg_volume = ht.average(random_volume, axis=(1, 2))
         alt_avg_volume = ht.average(random_volume, axis=(2, 1))
@@ -247,11 +246,11 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(avg_volume._DNDarray__array.dtype, torch.float32)
         self.assertEqual(avg_volume.split, 0)
 
-        # check average over all float elements of split 5d tensor, along split axis
+        # check weighted average over all float elements of split 5d tensor, along split axis
         random_5d = ht.array(ht.random.randn(1, 2, 3, 4, 5), is_split=0)
         axis = 1
         random_weights = ht.random.randn(random_5d.gshape[axis])
-        avg_5d = ht.average(random_5d, weights=random_weights, axis=axis)
+        avg_5d = random_5d.average(weights=random_weights, axis=axis)
 
         self.assertIsInstance(avg_5d, ht.DNDarray)
         self.assertEqual(avg_5d.gshape, (size, 3, 4, 5))
