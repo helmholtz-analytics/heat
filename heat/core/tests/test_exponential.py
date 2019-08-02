@@ -45,6 +45,10 @@ class TestExponential(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.exp('hello world')
 
+    def test_exp_with_split(self):
+        expected = torch.arange(10, dtype=torch.float32).exp()
+        actual = ht.arange(10, split=0, dtype=ht.float32).exp()
+        self.assertEqual(actual.gshape, tuple(expected.shape))
 
     def test_expm1(self):
         elements = 10

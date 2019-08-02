@@ -172,7 +172,12 @@ def __local_op(operation, x, out, **kwargs):
         if kwargs_dtype:
             del kwargs['dtype']
         result = operation(x._DNDarray__array.type(torch_type), **kwargs)
-        return dndarray.DNDarray(result, tuple(result.shape), promoted_type if kwargs_dtype is None else kwargs_dtype,
+        gshape = list(result.shape)
+        if x.split is not None:
+            split_shape = torch.tensor([result.shape[x.split]])
+            x.comm.Allreduce(MPI.IN_PLACE, split_shape, MPI.SUM)
+            gshape[x.split] = split_shape.item()
+        return dndarray.DNDarray(result, tuple(gshape), promoted_type if kwargs_dtype is None else kwargs_dtype,
                                  x.split, x.device, x.comm)
 
     # output buffer writing requires a bit more work
