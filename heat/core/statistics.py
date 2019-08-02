@@ -315,13 +315,14 @@ def average(x, axis=None, weights=None, returned=False):
 
         wgt = factories.empty_like(weights)
         wgt._DNDarray__array = weights._DNDarray__array
+        wgt._DNDarray__split = weights.split
 
-        # Broadcast weights along axis
-        if weights.numdims == 1 and axis is not None and axis != 0:
-            if weights.split is not None:
-                weights.resplit(None)
+        # Broadcast weights along specified axis
+        if wgt.numdims == 1 and axis != 0:
+            if wgt.split is not None:
+                wgt.resplit(None)
             weights_newshape = tuple(1 if i != axis else x.gshape[axis] for i in range(x.numdims))
-            wgt._DNDarray__array = torch.reshape(weights._DNDarray__array, weights_newshape)
+            wgt._DNDarray__array = torch.reshape(wgt._DNDarray__array, weights_newshape)
             wgt._DNDarray__gshape = weights_newshape
 
         cumwgt = wgt.sum(axis=axis)
