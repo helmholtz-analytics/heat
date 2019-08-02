@@ -303,3 +303,4 @@ tags
 
 MANIFEST
 travis_wait_*.log
+testing.py

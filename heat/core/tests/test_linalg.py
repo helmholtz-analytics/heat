@@ -371,7 +371,6 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
-
     def test_transpose(self):
         # vector transpose, not distributed
         vector = ht.arange(10)
