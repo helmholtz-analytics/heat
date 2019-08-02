@@ -486,7 +486,73 @@ class DNDarray:
 
     def average(self, axis=None, weights=None, returned=False):
         '''
-        #TODO: docs
+        Compute the weighted average along the specified axis.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            Tensor containing data to be averaged. 
+
+        axis : None or int or tuple of ints, optional
+            Axis or axes along which to average x.  The default,
+            axis=None, will average over all of the elements of the input tensor.
+            If axis is negative it counts from the last to the first axis.
+
+            #TODO Issue #351: If axis is a tuple of ints, averaging is performed on all of the axes
+            specified in the tuple instead of a single axis or all the axes as
+            before.
+
+        weights : ht.tensor, optional
+            An tensor of weights associated with the values in x. Each value in
+            x contributes to the average according to its associated weight.
+            The weights tensor can either be 1D (in which case its length must be
+            the size of x along the given axis) or of the same shape as x.
+            If weights=None, then all data in x are assumed to have a
+            weight equal to one, the result is equivalent to ht.mean(x).
+
+        returned : bool, optional
+            Default is False. If True, the tuple (average, sum_of_weights)
+            is returned, otherwise only the average is returned.
+            If weights=None, sum_of_weights is equivalent to the number of
+            elements over which the average is taken.
+
+        Returns
+        -------
+        average, [sum_of_weights] : ht.tensor or tuple of ht.tensors
+            Return the average along the specified axis. When returned=True,
+            return a tuple with the average as the first element and the sum
+            of the weights as the second element. sum_of_weights is of the
+            same type as `average`. 
+
+        Raises
+        ------
+        ZeroDivisionError
+            When all weights along axis are zero. 
+
+        TypeError
+            When the length of 1D weights is not the same as the shape of x
+            along axis.
+
+
+        Examples
+        --------
+        >>> data = ht.arange(1,5, dtype=float)
+        >>> data
+        tensor([1., 2., 3., 4.])
+        >>> ht.average(data)
+        tensor(2.5000)
+        >>> ht.average(ht.arange(1,11, dtype=float), weights=ht.arange(10,0,-1))
+        tensor([4.])
+        >>> data = ht.array([[0, 1],
+                             [2, 3],
+                            [4, 5]], dtype=float, split=1)
+        >>> weights = ht.array([1./4, 3./4])
+        >>> ht.average(data, axis=1, weights=weights)
+        tensor([0.7500, 2.7500, 4.7500])
+        >>> ht.average(data, weights=weights)
+        Traceback (most recent call last):
+        ...
+        TypeError: Axis must be specified when shapes of x and weights differ.
         '''
         return statistics.average(self, axis=axis, weights=weights, returned=returned)
 
