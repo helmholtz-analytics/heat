@@ -1,21 +1,26 @@
 import os.path
+
 import torch
 import warnings
 
+from heat.core import factories
 from .communication import MPI, MPI_WORLD, sanitize_comm
 from . import devices
 from .stride_tricks import sanitize_axis
 from . import types
 
 __VALID_WRITE_MODES = frozenset(['w', 'a', 'r+'])
+__CSV_EXTENSION = frozenset(['.csv'])
 __HDF5_EXTENSIONS = frozenset(['.h5', '.hdf5'])
 __NETCDF_EXTENSIONS = frozenset(['.nc', '.nc4', 'netcdf'])
 __NETCDF_DIM_TEMPLATE = '{}_dim_{}'
 
 __all__ = [
     'load',
+    'load_csv',
     'save'
 ]
+
 
 try:
     import h5py
@@ -36,7 +41,6 @@ else:
 
     def supports_hdf5():
         return True
-
 
     def load_hdf5(path, dataset, dtype=types.float32, split=None, device=None, comm=None):
         """
@@ -406,12 +410,223 @@ def load(path, *args, **kwargs):
         raise TypeError('Expected path to be str, but was {}'.format(type(path)))
     extension = os.path.splitext(path)[-1].strip().lower()
 
-    if supports_hdf5() and extension in __HDF5_EXTENSIONS:
+    if extension in __CSV_EXTENSION:
+        return load_csv(path, *args, **kwargs)
+    elif supports_hdf5() and extension in __HDF5_EXTENSIONS:
         return load_hdf5(path, *args, **kwargs)
     elif supports_netcdf() and extension in __NETCDF_EXTENSIONS:
         return load_netcdf(path, *args, **kwargs)
     else:
         raise ValueError('Unsupported file extension {}'.format(extension))
+
+
+def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
+             encoding='UTF-8', split=None, device=None, comm=MPI_WORLD):
+    """
+    Loads data from an CSV file. The data will be distributed along the 0 axis.
+
+    Parameters
+    ----------
+    path : str
+        Path to the CSV file to be read.
+    header_lines : int, optional
+        The number of columns at the beginning of the file that should not be considered as data.
+        default: 0.
+    sep : str, optional
+        The single char or string that separates the values in each row.
+        default: ';'
+    dtype : ht.dtype, optional
+        Data type of the resulting array;
+        default: ht.float32.
+    encoding : str, optional
+        The type of encoding which will be used to interpret the lines of the csv file as strings.
+        default: 'UTF-8'
+    split : None, 0, 1 : optional
+        Along which axis the resulting tensor should be split.
+        Default is None which means each node will have the full tensor.
+    device : None or str, optional
+        The device id on which to place the data, defaults to globally set default device.
+    comm : Communication, optional
+        The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
+
+    Returns
+    -------
+    out : ht.DNDarray
+        Data read from the CSV file.
+
+    Raises
+    -------
+    TypeError
+        If any of the input parameters are not of correct type
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.load_csv('data.csv')
+    >>> a.shape
+    [0/3] (150, 4)
+    [1/3] (150, 4)
+    [2/3] (150, 4)
+    [3/3] (150, 4)
+    >>> a.lshape
+    [0/3] (38, 4)
+    [1/3] (38, 4)
+    [2/3] (37, 4)
+    [3/3] (37, 4)
+    >>> b = ht.load_csv('data.csv', header_lines=10)
+    >>> b.shape
+    [0/3] (140, 4)
+    [1/3] (140, 4)
+    [2/3] (140, 4)
+    [3/3] (140, 4)
+    >>> b.lshape
+    [0/3] (35, 4)
+    [1/3] (35, 4)
+    [2/3] (35, 4)
+    [3/3] (35, 4)
+    """
+    if not isinstance(path, str):
+        raise TypeError('path must be str, not {}'.format(type(path)))
+    if not isinstance(sep, str):
+        raise TypeError('separator must be str, not {}'.format(type(sep)))
+    if not isinstance(header_lines, int):
+        raise TypeError('header_lines must int, not {}'.format(type(header_lines)))
+    if split not in [None, 0, 1]:
+        raise ValueError('split must be in [None, 0, 1], but is {}'.format(split))
+
+    # infer the type and communicator for the loaded array
+    dtype = types.canonical_heat_type(dtype)
+    # determine the comm and device the data will be placed on
+    device = devices.sanitize_device(device)
+    comm = sanitize_comm(comm)
+
+    file_size = os.stat(path).st_size
+    rank = comm.rank
+    size = comm.size
+
+    if split == None:
+        with open(path) as f:
+            data = f.readlines()
+            data = data[header_lines:]
+            result = []
+            for i, line in enumerate(data):
+                values = line.replace('\n', '').replace('\r', '').split(sep)
+                values = [float(val) for val in values]
+                result.append(values)
+            resulting_tensor = factories.array(result, dtype=dtype, split=split, device=device, comm=comm)
+
+    elif split == 0:
+        counts, displs, _ = comm.counts_displs_shape((file_size, 1), 0)
+        # in case lines are terminated with '\r\n' we need to skip 2 bytes later
+        lineter_len = 1
+        # Read a chunk of bytes and count the linebreaks
+        with open(path, 'rb') as f:
+            f.seek(displs[rank], 0)
+            line_starts = []
+            r = f.read(counts[rank])
+            for pos, l in enumerate(r):
+                if chr(l) == '\n':
+                    # Check if it is part of '\r\n'
+                    if not chr(r[pos - 1]) == '\r':
+                        line_starts.append(pos + 1)
+                elif chr(l) == '\r':
+                    # check if file line is terminated by '\r\n'
+                    if pos + 1 < len(r) and chr(r[pos + 1]) == '\n':
+                        line_starts.append(pos + 2)
+                        lineter_len = 2
+                    else:
+                        line_starts.append(pos + 1)
+
+            if rank == 0:
+                line_starts = [0] + line_starts
+
+            # Find the correct starting point
+            total_lines = torch.empty(size, dtype=torch.int32)
+            comm.Allgather(torch.tensor([len(line_starts)], dtype=torch.int32), total_lines)
+
+            cumsum = total_lines.cumsum(dim=0).tolist()
+            start = next(i for i in range(size) if cumsum[i] > header_lines)
+            if rank < start:
+                line_starts = []
+            if rank == start:
+                rem = header_lines - (0 if start == 0 else cumsum[start - 1])
+                line_starts = line_starts[rem:]
+
+            # Determine the number of columns that each line consists of
+            if len(line_starts) > 1:
+                columns = 1
+                for l in r[line_starts[0]: line_starts[1]]:
+                    if chr(l) == sep:
+                        columns += 1
+            else:
+                columns = 0
+
+            columns = torch.tensor([columns], dtype=torch.int32)
+            comm.Allreduce(MPI.IN_PLACE, columns, MPI.MAX)
+
+            # Share how far the processes need to reed in their last line
+            last_line = file_size
+            if size - start > 1:
+                if rank == start:
+                    last_line = torch.empty(1, dtype=torch.int32)
+                    comm.Recv(last_line, source=rank + 1)
+                elif rank == size - 1:
+                    first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
+                    comm.Send(first_line, dest=rank - 1)
+                elif start < rank < size - 1:
+                    last_line = torch.empty(1, dtype=torch.int32)
+                    first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
+                    comm.Send(first_line, dest=rank - 1)
+                    comm.Recv(last_line, source=rank + 1)
+
+            # Create empty tensor and iteratively fill it with the values
+            local_shape = (len(line_starts), columns)
+            actual_length = 0
+            local_tensor = torch.empty(local_shape, dtype=dtype.torch_type())
+            for ind, start in enumerate(line_starts):
+                if ind == len(line_starts) - 1:
+                    f.seek(displs[rank] + start, 0)
+                    line = f.read(last_line - displs[rank] - start)
+                else:
+                    line = r[start: line_starts[ind + 1] - lineter_len]
+                # Decode byte array
+                line = line.decode(encoding)
+                if len(line) > 0:
+                    sep_values = [float(val) for val in line.split(sep)]
+                    local_tensor[actual_length] = torch.tensor(sep_values, dtype=dtype.torch_type())
+                    actual_length += 1
+
+        # In case there are some empty lines in the csv file
+        local_tensor = local_tensor[:actual_length]
+
+        resulting_tensor = factories.array(
+            local_tensor,
+            dtype=dtype, is_split=0,
+            device=device,
+            comm=comm)
+        resulting_tensor.balance_()
+
+    elif split == 1:
+        data = []
+
+        with open(path) as f:
+            for i in range(header_lines):
+                f.readline()
+            line = f.readline()
+            values = line.replace('\n', '').replace('\r', '').split(sep)
+            values = [float(val) for val in values]
+            rows = len(values)
+
+            chunk, displs, _ = comm.counts_displs_shape((1, rows), 1)
+            data.append(values[displs[rank]: displs[rank] + chunk[rank]])
+            # Read file line by line till EOF reached
+            for line in iter(f.readline, ''):
+                values = line.replace('\n', '').replace('\r', '').split(sep)
+                values = [float(val) for val in values]
+                data.append(values[displs[rank]: displs[rank] + chunk[rank]])
+        resulting_tensor = factories.array(data, dtype=dtype, is_split=1, device=device, comm=comm)
+
+    return resulting_tensor
 
 
 def save(data, path, *args, **kwargs):
