@@ -226,7 +226,7 @@ def average(x, axis=None, weights=None, returned=False):
         axis=None, will average over all of the elements of the input tensor.
         If axis is negative it counts from the last to the first axis.
 
-        #TODO: If axis is a tuple of ints, averaging is performed on all of the axes
+        #TODO Issue #351: If axis is a tuple of ints, averaging is performed on all of the axes
         specified in the tuple instead of a single axis or all the axes as
         before.
 
