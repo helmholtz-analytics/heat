@@ -261,11 +261,27 @@ class TestStatistics(unittest.TestCase):
 
         # check exceptions
         with self.assertRaises(TypeError):
+            ht.average(comparison)
+        with self.assertRaises(TypeError):
+            ht.average(random_5d, weights=random_weights.numpy(), axis=axis)
+        with self.assertRaises(TypeError):
+            ht.average(random_5d, weights=random_weights, axis=None)
+        with self.assertRaises(NotImplementedError):
+            ht.average(random_5d, weights=random_weights, axis=(1, 2))
+        random_weights = ht.random.randn(random_5d.gshape[axis], random_5d.gshape[axis+1])
+        with self.assertRaises(TypeError):
+            ht.average(random_5d, weights=random_weights, axis=axis)
+        random_weights = ht.random.randn(random_5d.gshape[axis] + 1)
+        with self.assertRaises(ValueError):
+            ht.average(random_5d, weights=random_weights, axis=axis)
+        with self.assertRaises(TypeError):
             ht_array.average(axis=1.1)
         with self.assertRaises(TypeError):
             ht_array.average(axis='y')
         with self.assertRaises(ValueError):
             ht.average(ht_array, axis=-4)
+
+
 
     def test_max(self):
         data = [
