@@ -1,3 +1,6 @@
+import operator
+from functools import reduce
+
 import torch
 import numpy as np
 
@@ -600,43 +603,49 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
                         inverse_indices[begin + num] = g_inverse[begin + x]
 
     else:
+        print('case2')
         # Tensor is already split and does not need to be redistributed afterward
         split = None
         is_split = a.split
-
+        print('uniques_buf', uniques_buf)
         max_uniques, max_pos = uniques_buf.max(0)
-
+        print('max_uniques', max_uniques, 'position', max_pos)
         # find indices of vectors
         if a.comm.Get_rank() == max_pos.item():
-            # Get the indices of the vectors we need from each process
-            indices = []
-            found = []
-            pos_list = inverse_pos.tolist()
-            for p in pos_list:
-                if p not in found:
-                    found += [p]
-                    indices += [pos_list.index(p)]
-                if len(indices) is max_uniques.item():
-                    break
-            indices = torch.tensor(indices, dtype=a.dtype.torch_type())
+            # Get indices of the unique vectors to share with all over processes
+            indices = inverse_pos.reshape(-1).unique()
+            print('indices', indices)
         else:
-            indices = torch.empty((max_uniques.item(),), dtype=a.dtype.torch_type())
+            indices = torch.empty((max_uniques.item(),), dtype=inverse_pos.dtype)
 
         a.comm.Bcast(indices, root=max_pos)
+
         gres = local_data[indices.tolist()]
 
         inverse_indices = indices
+        if sorted:
+            if a.comm.Get_rank() == 0:
+                print('gres', gres)
+                _, sort_indices = torch.unique(gres, dim=0, return_inverse=True, sorted=True)
+                sort_indices = sort_indices.reshape(-1)
+            else:
+                sort_indices = torch.empty((max_uniques.item(), ), dtype=torch.int64)
+            print('sort indices', sort_indices, sort_indices.shape)
+            a.comm.Bcast(sort_indices, root=0)
+            # TODO find a way to apply the indices on the local tensor
+            print('indices', sort_indices)
+            print('gres before', gres)
+            print('gres at', gres[sort_indices])
+            gres = gres[sort_indices]
+            inverse_indices = inverse_indices[sort_indices]
+            print('gres', gres)
 
     if axis is not None:
         # transpose matrix back
         gres = gres.transpose(0, axis)
 
-    # if all([g == 1 for g in gres.shape]):
-        #     gres = torch.tensor((gres.squeeze()))
-        # gres.squeeze_().unsqueeze_(0)
-    # print(gres.shape)
-    # print(a.dtype, is_split)
     split = split if a.split < len(gres.shape) else None
+    # result = factories.array([1], dtype=a.dtype, device=a.device, comm=a.comm, split=split, is_split=is_split)
     result = factories.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, split=split, is_split=is_split)
     if split is not None:
         result.resplit(a.split)
