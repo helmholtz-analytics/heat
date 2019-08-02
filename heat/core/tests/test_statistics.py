@@ -274,6 +274,9 @@ class TestStatistics(unittest.TestCase):
         random_weights = ht.random.randn(random_5d.gshape[axis] + 1)
         with self.assertRaises(ValueError):
             ht.average(random_5d, weights=random_weights, axis=axis)
+        random_weights = ht.zeros((random_5d.gshape[axis]))
+        with self.assertRaises(ZeroDivisionError):
+            ht.average(random_5d, weights=random_weights, axis=axis)
         with self.assertRaises(TypeError):
             ht_array.average(axis=1.1)
         with self.assertRaises(TypeError):
