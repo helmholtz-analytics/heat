@@ -317,8 +317,8 @@ def average(x, axis=None, weights=None, returned=False):
         wgt._DNDarray__array = weights._DNDarray__array
         wgt._DNDarray__split = weights.split
 
-        # Broadcast weights along specified axis
-        if wgt.numdims == 1 and axis != 0:
+        # Broadcast weights along specified axis if necessary
+        if wgt.numdims == 1 and x.numdims != 1:
             if wgt.split is not None:
                 wgt.resplit(None)
             weights_newshape = tuple(1 if i != axis else x.gshape[axis] for i in range(x.numdims))
@@ -329,7 +329,7 @@ def average(x, axis=None, weights=None, returned=False):
         if logical.any(cumwgt == 0.0):
             raise ZeroDivisionError("Weights sum to zero, can't be normalized")
 
-        # Distribution: if x is split, apply same split to weights if possible
+        # Distribution: if x is split, split to weights along same dimension if possible
         if x.split is not None and wgt.split != x.split:
             if wgt.gshape[x.split] != 1:
                 wgt.resplit(x.split)
