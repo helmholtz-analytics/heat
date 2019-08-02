@@ -458,12 +458,15 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     ----------
     a : ht.DNDarray
         Input array where unique elements should be found.
-    sorted : bool
+    sorted : bool, optional
         Whether the found elements should be sorted before returning as output.
-    return_inverse:
+        Warning: sorted is not working if 'axis != None and axis != a.split'
+        Default: False
+    return_inverse : bool, optional
         Whether to also return the indices for where elements in the original input ended up in the returned
         unique list.
-    axis : int
+        Default: False
+    axis : int, optional
         Axis along which unique elements should be found. Default to None, which will return a one dimensional list of
         unique values.
 
@@ -603,18 +606,14 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
                         inverse_indices[begin + num] = g_inverse[begin + x]
 
     else:
-        print('case2')
         # Tensor is already split and does not need to be redistributed afterward
         split = None
         is_split = a.split
-        print('uniques_buf', uniques_buf)
         max_uniques, max_pos = uniques_buf.max(0)
-        print('max_uniques', max_uniques, 'position', max_pos)
         # find indices of vectors
         if a.comm.Get_rank() == max_pos.item():
             # Get indices of the unique vectors to share with all over processes
             indices = inverse_pos.reshape(-1).unique()
-            print('indices', indices)
         else:
             indices = torch.empty((max_uniques.item(),), dtype=inverse_pos.dtype)
 
@@ -624,28 +623,14 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
 
         inverse_indices = indices
         if sorted:
-            if a.comm.Get_rank() == 0:
-                print('gres', gres)
-                _, sort_indices = torch.unique(gres, dim=0, return_inverse=True, sorted=True)
-                sort_indices = sort_indices.reshape(-1)
-            else:
-                sort_indices = torch.empty((max_uniques.item(), ), dtype=torch.int64)
-            print('sort indices', sort_indices, sort_indices.shape)
-            a.comm.Bcast(sort_indices, root=0)
-            # TODO find a way to apply the indices on the local tensor
-            print('indices', sort_indices)
-            print('gres before', gres)
-            print('gres at', gres[sort_indices])
-            gres = gres[sort_indices]
-            inverse_indices = inverse_indices[sort_indices]
-            print('gres', gres)
+            # TODO This case is not working, we would need a vector-sort across multiple processes
+            pass
 
     if axis is not None:
         # transpose matrix back
         gres = gres.transpose(0, axis)
 
     split = split if a.split < len(gres.shape) else None
-    # result = factories.array([1], dtype=a.dtype, device=a.device, comm=a.comm, split=split, is_split=is_split)
     result = factories.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, split=split, is_split=is_split)
     if split is not None:
         result.resplit(a.split)
