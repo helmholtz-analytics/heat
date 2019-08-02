@@ -539,17 +539,17 @@ class DNDarray:
         >>> data = ht.arange(1,5, dtype=float)
         >>> data
         tensor([1., 2., 3., 4.])
-        >>> ht.average(data)
+        >>> data.average()
         tensor(2.5000)
-        >>> ht.average(ht.arange(1,11, dtype=float), weights=ht.arange(10,0,-1))
+        >>> ht.arange(1,11, dtype=float).average(weights=ht.arange(10,0,-1))
         tensor([4.])
         >>> data = ht.array([[0, 1],
                              [2, 3],
                             [4, 5]], dtype=float, split=1)
         >>> weights = ht.array([1./4, 3./4])
-        >>> ht.average(data, axis=1, weights=weights)
+        >>> data.average(axis=1, weights=weights)
         tensor([0.7500, 2.7500, 4.7500])
-        >>> ht.average(data, weights=weights)
+        >>> data.average(weights=weights)
         Traceback (most recent call last):
         ...
         TypeError: Axis must be specified when shapes of x and weights differ.
