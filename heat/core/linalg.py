@@ -17,17 +17,48 @@ __all__ = [
 ]
 
 
-# def householder(x):
-#     """
-#     this function is for the calculation of v and b as shown in the Golub and Van Loan book (algorithm 5.1.1)
-#     :param x: x must be a DNDarray which is a vector
-#     :return:
-#     """
-#     if x.numdims > 1:
-#         raise RuntimeError("x must be a vector")
-#     n = x.shape[0]
-#     v = factories.zeros((n))
-#     v[0]
+def larft(n, k, v, tau, t):
+    """
+    forms the triangular factor T of a real block reflector H of order n, which is defined as a product of k elementary reflectors.
+    This is a special case of the LAPACK subroutine of the same name for use with QR. (this function is not implemented in PyTorch
+
+    Parameters
+    ----------
+    n : int
+        order of the block reflector, H.
+        must be >= 0
+    k : int
+        order of the triangular factor T
+        must be >= 1
+    v : PyTorch Tensor
+        array of the transform vectors, lower triangular, can be calculated by torch.geqrf
+    tau : PyTorch Tensor
+          array of scalar factors of the elementary reflector H_i, can be calculated by torch.geqrf
+    t : optional, PyTorch Tensor
+        output
+        the k x k triangular factor of the block reflector
+    """
+    # todo: what is k? where is this defined???? which dimension of v is this?
+    if n == 0:
+        # what am I returning here???
+        return
+
+    for i in range(k):
+        if tau[i] == 0:
+            # what is I here? what size should it be?
+            # todo: is this size k?
+            h_i = torch.eye(k)
+
+            t[[j for j in range(i)], i] = 0
+
+        else:
+            v_diag = torch.diagonal(v, 0)
+            v[i, i] = 1
+
+            # todo: check the setting of t, originally in fortran
+            t[0:i-1, i] = -1 * tau[i] * v[i:n, 0:i-1].t() @ v[i:n, i]
+
+    pass
 
 
 def matmul(a, b):
@@ -493,14 +524,17 @@ def matmul(a, b):
             return factories.array(res, split=a.split if b.gshape[-1] > 1 else 0)
 
 
-def qr(input, output=None):
+def qr(x, output=None):
     """
     Compute the qr factorization of a matrix.
     Factor the matrix a as qr, where q is orthonormal and r is upper-triangular.
 
-    :param input:
+    :param x:
     :param output:
     :return:
+    NOTE : to get it so that the input is in the proper shape (split=1), take the transpose if q=0
+           this means that A.T = QR and A = Q"R" where Q" = Q (orthogonal) and R" = Q.T @ R.T @ Q.T
+           ...it is unlikely that this works.... need to verify and change if necessary
     """
     '''
     assuming split=1 for now (for visualization purposes)
