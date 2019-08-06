@@ -11,11 +11,13 @@ from . import operations
 from . import dndarray
 from . import types
 from . import stride_tricks
+from . import logical
 
 
 __all__ = [
     'argmax',
     'argmin',
+    'average',
     'cov',
     'max',
     'maximum',
@@ -211,6 +213,140 @@ def argmin(x, axis=None, out=None, **kwargs):
         return out
 
     return reduced_result
+
+
+def average(x, axis=None, weights=None, returned=False):
+    """
+    Compute the weighted average along the specified axis.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        Tensor containing data to be averaged.
+
+    axis : None or int or tuple of ints, optional
+        Axis or axes along which to average x.  The default,
+        axis=None, will average over all of the elements of the input tensor.
+        If axis is negative it counts from the last to the first axis.
+
+        #TODO Issue #351: If axis is a tuple of ints, averaging is performed on all of the axes
+        specified in the tuple instead of a single axis or all the axes as
+        before.
+
+    weights : ht.tensor, optional
+        An tensor of weights associated with the values in x. Each value in
+        x contributes to the average according to its associated weight.
+        The weights tensor can either be 1D (in which case its length must be
+        the size of x along the given axis) or of the same shape as x.
+        If weights=None, then all data in x are assumed to have a
+        weight equal to one, the result is equivalent to ht.mean(x).
+
+    returned : bool, optional
+        Default is False. If True, the tuple (average, sum_of_weights)
+        is returned, otherwise only the average is returned.
+        If weights=None, sum_of_weights is equivalent to the number of
+        elements over which the average is taken.
+
+    Returns
+    -------
+    average, [sum_of_weights] : ht.tensor or tuple of ht.tensors
+        Return the average along the specified axis. When returned=True,
+        return a tuple with the average as the first element and the sum
+        of the weights as the second element. sum_of_weights is of the
+        same type as `average`.
+
+    Raises
+    ------
+    ZeroDivisionError
+        When all weights along axis are zero.
+
+    TypeError
+        When the length of 1D weights is not the same as the shape of x
+        along axis.
+
+
+    Examples
+    --------
+    >>> data = ht.arange(1,5, dtype=float)
+    >>> data
+    tensor([1., 2., 3., 4.])
+    >>> ht.average(data)
+    tensor(2.5000)
+    >>> ht.average(ht.arange(1,11, dtype=float), weights=ht.arange(10,0,-1))
+    tensor([4.])
+    >>> data = ht.array([[0, 1],
+                         [2, 3],
+                        [4, 5]], dtype=float, split=1)
+    >>> weights = ht.array([1./4, 3./4])
+    >>> ht.average(data, axis=1, weights=weights)
+    tensor([0.7500, 2.7500, 4.7500])
+    >>> ht.average(data, weights=weights)
+    Traceback (most recent call last):
+        ...
+    TypeError: Axis must be specified when shapes of x and weights differ.
+    """
+
+    # perform sanitation
+    if not isinstance(x, dndarray.DNDarray):
+        raise TypeError('expected x to be a ht.DNDarray, but was {}'.format(type(x)))
+    if weights is not None and not isinstance(weights, dndarray.DNDarray):
+        raise TypeError('expected weights to be a ht.DNDarray, but was {}'.format(type(x)))
+    axis = stride_tricks.sanitize_axis(x.shape, axis)
+
+    if weights is None:
+        result = mean(x, axis)
+        num_elements = x.gnumel/result.gnumel
+        cumwgt = factories.empty(1, dtype=result.dtype)
+        cumwgt._DNDarray__array = num_elements
+    else:
+        # Weights sanitation:
+        # weights (global) is either same size as x (global), or it is 1D and same size as x along chosen axis
+        if x.gshape != weights.gshape:
+            if axis is None:
+                raise TypeError(
+                    "Axis must be specified when shapes of x and weights "
+                    "differ.")
+            if isinstance(axis, tuple):
+                raise NotImplementedError(
+                    "Weighted average over tuple axis not implemented yet.")
+            if weights.numdims != 1:
+                raise TypeError(
+                    "1D weights expected when shapes of x and weights differ.")
+            if weights.gshape[0] != x.gshape[axis]:
+                raise ValueError(
+                    "Length of weights not compatible with specified axis.")
+
+        wgt = factories.empty_like(weights)
+        wgt._DNDarray__array = weights._DNDarray__array
+        wgt._DNDarray__split = weights.split
+
+        # Broadcast weights along specified axis if necessary
+        if wgt.numdims == 1 and x.numdims != 1:
+            if wgt.split is not None:
+                wgt.resplit(None)
+            weights_newshape = tuple(1 if i != axis else x.gshape[axis] for i in range(x.numdims))
+            wgt._DNDarray__array = torch.reshape(wgt._DNDarray__array, weights_newshape)
+            wgt._DNDarray__gshape = weights_newshape
+
+        cumwgt = wgt.sum(axis=axis)
+        if logical.any(cumwgt == 0.0):
+            raise ZeroDivisionError("Weights sum to zero, can't be normalized")
+
+        # Distribution: if x is split, split to weights along same dimension if possible
+        if x.split is not None and wgt.split != x.split:
+            if wgt.gshape[x.split] != 1:
+                wgt.resplit(x.split)
+
+        result = (x * wgt).sum(axis=axis) / cumwgt
+
+    if returned:
+        if cumwgt.gshape != result.gshape:
+            cumwgt._DNDarray__array = torch.broadcast_tensors(cumwgt._DNDarray__array, result._DNDarray__array)[0]
+            cumwgt._DNDarray__gshape = result.gshape
+            cumwgt._DNDarray__split = result.split
+        return (result, cumwgt)
+
+    return result
 
 
 def cov(m, y=None, rowvar=True, bias=False, ddof=None):
@@ -554,8 +690,8 @@ def mean(x, axis=None):
         # full matrix calculation
         if not x.is_distributed():
             # if x is not distributed do a torch.mean on x
-            ret = torch.mean(x._DNDarray__array)
-            return dndarray.DNDarray(ret, tuple(ret.shape), x.dtype, None, x.device, x.comm)
+            ret = torch.mean(x._DNDarray__array.float())
+            return dndarray.DNDarray(ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm)
         else:
             # if x is distributed and no axis is given: return mean of the whole set
             if x.lshape[x.split] != 0:
@@ -1055,8 +1191,8 @@ def var(x, axis=None, bessel=True):
     # ----------------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
         if not x.is_distributed():  # not distributed (full tensor on one node)
-            ret = torch.var(x._DNDarray__array, unbiased=bessel)
-            return dndarray.DNDarray(ret, tuple(ret.shape), x.dtype, None, x.device, x.comm)
+            ret = torch.var(x._DNDarray__array.float(), unbiased=bessel)
+            return dndarray.DNDarray(ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm)
 
         else:  # case for full matrix calculation (axis is None)
             if x.lshape[x.split] != 0:
