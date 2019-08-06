@@ -325,14 +325,14 @@ class TestStatistics(unittest.TestCase):
         maximum_volume_splitdiff = ht.maximum(random_volume_1_splitdiff, random_volume_2_splitdiff)
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
-        random_volume_1_splitNone = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
+        random_volume_1_split_none = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
         random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
-        maximum_volume_splitdiff = ht.maximum(random_volume_1_splitNone, random_volume_2_splitdiff)
+        maximum_volume_splitdiff = ht.maximum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(maximum_volume_splitdiff.split, 1)
 
-        random_volume_1_splitNone = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
+        random_volume_1_split_none = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
         random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
-        maximum_volume_splitdiff = ht.maximum(random_volume_1_splitNone, random_volume_2_splitdiff)
+        maximum_volume_splitdiff = ht.maximum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
         # check output buffer
@@ -571,14 +571,14 @@ class TestStatistics(unittest.TestCase):
         minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
-        random_volume_1_splitNone = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
+        random_volume_1_split_none = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
         random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
-        minimum_volume_splitdiff = ht.minimum(random_volume_1_splitNone, random_volume_2_splitdiff)
+        minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 1)
 
-        random_volume_1_splitNone = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
+        random_volume_1_split_none = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
         random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
-        minimum_volume_splitdiff = ht.minimum(random_volume_1_splitNone, random_volume_2_splitdiff)
+        minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
         # check output buffer

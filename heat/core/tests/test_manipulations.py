@@ -255,7 +255,7 @@ class TestManipulations(unittest.TestCase):
         # None None 0
         x = ht.zeros((16,), split=None)
         y = ht.ones((16,), split=None)
-        res = ht.concatenate((x,y), axis=0)
+        res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32,))
         self.assertEqual(res.dtype, ht.float)
         # None 0 0
@@ -300,7 +300,6 @@ class TestManipulations(unittest.TestCase):
             ht.concatenate((ht.zeros((12, 12)), ht.zeros((2, 2))), axis=0)
         with self.assertRaises(RuntimeError):
             ht.concatenate((ht.zeros((2, 2), split=0), ht.zeros((2, 2), split=1)), axis=0)
-
 
     def test_expand_dims(self):
         # vector data

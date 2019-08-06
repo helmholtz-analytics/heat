@@ -20,7 +20,7 @@ class TestIO(unittest.TestCase):
 
         # load comparison data from csv
         csv_path = os.path.join(os.getcwd(), 'heat/datasets/data/iris.csv')
-        cls.IRIS = torch.from_numpy(np.loadtxt(csv_path, delimiter=';')).type(torch.float32)
+        cls.IRIS = torch.from_numpy(np.loadtxt(csv_path, delimiter=';')).float()
 
     def tearDown(self):
         # synchronize all nodes
