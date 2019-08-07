@@ -127,7 +127,7 @@ def argmin(x, axis=None, out=None, **kwargs):
         Input array.
     axis : int, optional
         By default, the index is into the flattened tensor, otherwise along the specified axis.
-    # out : ht.DNDarray, optional. Issue #100
+    out : ht.DNDarray, optional. Issue #100
         If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
     Returns
@@ -217,7 +217,7 @@ def max(x, axis=None, out=None, keepdim=None):
 
     Parameters
     ----------
-    a : ht.DNDarray
+    x : ht.DNDarray
         Input data.
     axis : None or int or tuple of ints, optional
         Axis or axes along which to operate. By default, flattened input is used.
@@ -226,6 +226,9 @@ def max(x, axis=None, out=None, keepdim=None):
     out : ht.DNDarray, optional
         Tuple of two output tensors (max, max_indices). Must be of the same shape and buffer length as the expected
         output. The minimum value of an output element. Must be present to allow computation on empty slice.
+    keepdim : bool, optional
+        If this is set to True, the axes which are reduced are left in the result as dimensions with size one.
+        With this option, the result will broadcast correctly against the original arr.
 
     Returns
     -------
@@ -259,8 +262,8 @@ def max(x, axis=None, out=None, keepdim=None):
     return operations.__reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
 
 
-def maximum(x1, x2, out=None, **kwargs):
-    '''
+def maximum(x1, x2, out=None):
+    """
     Compares two tensors and returns a new tensor containing the element-wise maxima. 
     If one of the elements being compared is a NaN, then that element is returned. TODO: Check this: If both elements are NaNs then the first is returned. 
     The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
@@ -289,46 +292,46 @@ def maximum(x1, x2, out=None, **kwargs):
     >>> torch.manual_seed(1)
     <torch._C.Generator object at 0x105c50b50>
 
-    >>> a = ht.random.randn(3,4)
+    >>> a = ht.random.randn(3, 4)
     >>> a
     tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
             [-0.4212, -0.5107, -1.5727, -0.1232],
             [ 3.5870, -1.8313,  1.5987, -1.2770]])
 
-    >>> b = ht.random.randn(3,4)
+    >>> b = ht.random.randn(3, 4)
     >>> b
     tensor([[ 0.8310, -0.2477, -0.8029,  0.2366],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [-0.6842,  0.4533,  0.2912, -0.8317]])
 
-    >>> ht.maximum(a,b)
+    >>> ht.maximum(a, b)
     tensor([[ 0.8310, -0.2477,  0.4224,  0.2673],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [ 3.5870,  0.4533,  1.5987, -0.8317]])
 
-    >>> c = ht.random.randn(1,4)
+    >>> c = ht.random.randn(1, 4)
     >>> c
     tensor([[-1.6428,  0.9803, -0.0421, -0.8206]])
 
-    >>> ht.maximum(a,c)
+    >>> ht.maximum(a, c)
     tensor([[-0.1955,  0.9803,  0.4224,  0.2673],
             [-0.4212,  0.9803, -0.0421, -0.1232],
             [ 3.5870,  0.9803,  1.5987, -0.8206]])
 
-    >>> b.__setitem__((0,1), ht.nan) 
+    >>> b.__setitem__((0, 1), ht.nan)
     >>> b
     tensor([[ 0.8310,     nan, -0.8029,  0.2366],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [-0.6842,  0.4533,  0.2912, -0.8317]])
-    >>> ht.maximum(a,b)
+    >>> ht.maximum(a, b)
     tensor([[ 0.8310,     nan,  0.4224,  0.2673],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [ 3.5870,  0.4533,  1.5987, -0.8317]])
 
-    >>> d = ht.random.randn(3,4,5)
-    >>> ht.maximum(a,d)
+    >>> d = ht.random.randn(3, 4, 5)
+    >>> ht.maximum(a, d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
-    '''
+    """
     # perform sanitation
     if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
         raise TypeError('expected x1 and x2 to be a ht.DNDarray, but were {}, {} '.format(type(x1), type(x2)))
@@ -337,9 +340,9 @@ def maximum(x1, x2, out=None, **kwargs):
 
     # apply split semantics
     if x1.split is not None or x2.split is not None:
-        if x1.split == None:
+        if x1.split is None:
             x1.resplit(x2.split)
-        if x2.split == None:
+        if x2.split is None:
             x2.resplit(x1.split)
         if x1.split != x2.split:
             if np.prod(x1.gshape) < np.prod(x2.gshape):
@@ -629,7 +632,7 @@ def min(x, axis=None, out=None, keepdim=None):
 
     Parameters
     ----------
-    a : ht.DNDarray
+    x : ht.DNDarray
         Input data.
     axis : None or int or tuple of ints
         Axis or axes along which to operate. By default, flattened input is used.
@@ -638,6 +641,9 @@ def min(x, axis=None, out=None, keepdim=None):
     out : ht.DNDarray, optional
         Tuple of two output tensors (min, min_indices). Must be of the same shape and buffer length as the expected
         output. The maximum value of an output element. Must be present to allow computation on empty slice.
+    keepdim : bool, optional
+        If this is set to True, the axes which are reduced are left in the result as dimensions with size one.
+        With this option, the result will broadcast correctly against the original arr.
 
     Returns
     -------
@@ -672,8 +678,8 @@ def min(x, axis=None, out=None, keepdim=None):
     return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
 
 
-def minimum(x1, x2, out=None, **kwargs):
-    '''
+def minimum(x1, x2, out=None):
+    """
     Compares two tensors and returns a new tensor containing the element-wise minima. 
     If one of the elements being compared is a NaN, then that element is returned. TODO: Check this: If both elements are NaNs then the first is returned. 
     The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
@@ -741,7 +747,7 @@ def minimum(x1, x2, out=None, **kwargs):
     >>> d = ht.random.randn(3,4,5)
     >>> ht.minimum(a,d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
-    '''
+    """
     # perform sanitation
     if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
         raise TypeError('expected x1 and x2 to be a ht.DNDarray, but were {}, {} '.format(type(x1), type(x2)))
@@ -750,9 +756,9 @@ def minimum(x1, x2, out=None, **kwargs):
 
     # apply split semantics
     if x1.split is not None or x2.split is not None:
-        if x1.split == None:
+        if x1.split is None:
             x1.resplit(x2.split)
-        if x2.split == None:
+        if x2.split is None:
             x2.resplit(x1.split)
         if x1.split != x2.split:
             if np.prod(x1.gshape) < np.prod(x2.gshape):

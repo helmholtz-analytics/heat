@@ -1,10 +1,7 @@
 import torch
-import numpy as np
 
 from .communication import MPI
-from . import factories
 from . import operations
-from . import dndarray
 
 __all__ = [
     'eq',

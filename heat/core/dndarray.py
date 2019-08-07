@@ -686,7 +686,6 @@ class DNDarray:
         """
         return rounding.ceil(self, out)
 
-
     def trunc(self, out=None):
         """
         Return the trunc of the input, element-wise.
@@ -718,7 +717,6 @@ class DNDarray:
         tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
         """
         return rounding.trunc(self, out)
-
 
     def clip(self, a_min, a_max, out=None):
         """
@@ -1019,7 +1017,6 @@ class DNDarray:
         tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
         """
         return exponential.exp(self, out)
-
 
     def expm1(self, out=None):
         """
@@ -1563,7 +1560,7 @@ class DNDarray:
 
         Parameters
         ----------
-        x : ht.DNDarray
+        self : ht.DNDarray
             The value for which to compute the logarithm.
         out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
@@ -1588,7 +1585,7 @@ class DNDarray:
 
         Parameters
         ----------
-        x : ht.DNDarray
+        self : ht.DNDarray
             The value for which to compute the logarithm.
         out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
@@ -1613,7 +1610,7 @@ class DNDarray:
 
         Parameters
         ----------
-        x : ht.DNDarray
+        self : ht.DNDarray
             The value for which to compute the logarithm.
         out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
@@ -1690,7 +1687,7 @@ class DNDarray:
 
         Parameters
         ----------
-        x : ht.DNDarray
+        self : ht.DNDarray
             Values for which the mean is calculated for
         axis : None, Int, iterable
             axis which the mean is taken in.
@@ -1750,37 +1747,37 @@ class DNDarray:
 
     def __mod__(self, other):
         """
-            Element-wise division remainder of values of self by values of operand other (i.e. self % other), not commutative.
-            Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2)
-            as arguments.
+        Element-wise division remainder of values of self by values of operand other (i.e. self % other), not commutative.
+        Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2)
+        as arguments.
 
-            Parameters
-            ----------
-            other: tensor or scalar
-                The second operand by whose values it self to be divided.
+        Parameters
+        ----------
+        other: tensor or scalar
+            The second operand by whose values it self to be divided.
 
-            Returns
-            -------
-            result: ht.DNDarray
-                A tensor containing the remainder of the element-wise division of self by other.
+        Returns
+        -------
+        result: ht.DNDarray
+            A tensor containing the remainder of the element-wise division of self by other.
 
-            Examples:
-            ---------
-            >>> import heat as ht
-            >>> ht.mod(2, 2)
-            tensor([0])
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> ht.mod(2, 2)
+        tensor([0])
 
-            >>> T1 = ht.int32([[1, 2], [3, 4]])
-            >>> T2 = ht.int32([[2, 2], [2, 2]])
-            >>> T1 % T2
-            tensor([[1, 0],
-                    [1, 0]], dtype=torch.int32)
+        >>> T1 = ht.int32([[1, 2], [3, 4]])
+        >>> T2 = ht.int32([[2, 2], [2, 2]])
+        >>> T1 % T2
+        tensor([[1, 0],
+                [1, 0]], dtype=torch.int32)
 
-            >>> s = ht.int32([2])
-            >>> s % T1
-            tensor([[0, 0]
-                    [2, 2]], dtype=torch.int32)
-            """
+        >>> s = ht.int32([2])
+        >>> s % T1
+        tensor([[0, 0]
+                [2, 2]], dtype=torch.int32)
+        """
         return arithmetics.mod(self, other)
 
     def __mul__(self, other):
@@ -1853,7 +1850,7 @@ class DNDarray:
 
         Parameters
         ----------
-        a: ht.DNDarray
+        self: ht.DNDarray
 
         Returns
         -------
@@ -2034,7 +2031,6 @@ class DNDarray:
             self.__split = axis
 
         return self
-
 
     def __rfloordiv__(self, other):
         """
