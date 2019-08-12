@@ -606,6 +606,60 @@ class TestFactories(unittest.TestCase):
             ht.linspace(-5, 3, num=-1)
         with self.assertRaises(ValueError):
             ht.linspace(-5, 3, num=0)
+        
+    def test_logspace(self):
+        # simple log space
+        ascending = ht.logspace(-3, 5)
+        self.assertIsInstance(ascending, ht.DNDarray)
+        self.assertEqual(ascending.shape, (50,))
+        self.assertLessEqual(ascending.lshape[0], 50)
+        self.assertEqual(ascending.dtype, ht.float32)
+        self.assertEqual(ascending._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(ascending.split, None)
+
+        # simple inverse log space
+        descending = ht.logspace(-5, 3, num=100)
+        self.assertIsInstance(descending, ht.DNDarray)
+        self.assertEqual(descending.shape, (100,))
+        self.assertLessEqual(descending.lshape[0], 100)
+        self.assertEqual(descending.dtype, ht.float32)
+        self.assertEqual(descending._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(descending.split, None)
+
+        # split log space
+        split = ht.logspace(-5, 3, num=70, split=0)
+        self.assertIsInstance(split, ht.DNDarray)
+        self.assertEqual(split.shape, (70,))
+        self.assertLessEqual(split.lshape[0], 70)
+        self.assertEqual(split.dtype, ht.float32)
+        self.assertEqual(split._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(split.split, 0)
+
+        # with casted type
+        casted = ht.logspace(-5, 3, num=70, dtype=ht.uint8, split=0)
+        self.assertIsInstance(casted, ht.DNDarray)
+        self.assertEqual(casted.shape, (70,))
+        self.assertLessEqual(casted.lshape[0], 70)
+        self.assertEqual(casted.dtype, ht.uint8)
+        self.assertEqual(casted._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(casted.split, 0)
+
+        # base test
+        base = ht.logspace(-5, 3, num=70, base=2.0)
+        self.assertIsInstance(base, ht.DNDarray)
+        self.assertEqual(base.shape, (70,))
+        self.assertLessEqual(base.lshape[0], 70)
+        self.assertEqual(base.dtype, ht.float32)
+        self.assertEqual(base._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(base.split, None)
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            ht.logspace(-5, 3, split=1)
+        with self.assertRaises(ValueError):
+            ht.logspace(-5, 3, num=-1)
+        with self.assertRaises(ValueError):
+            ht.logspace(-5, 3, num=0)
 
     def test_ones(self):
         # scalar input
