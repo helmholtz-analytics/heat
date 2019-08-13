@@ -13,11 +13,13 @@ __all__ = [
     'qr',
     'transpose',
     'tril',
-    'triu'
+    'triu',
+    'form_w',
+    'larft'
 ]
 
 
-def larft(n, k, v, tau, t):
+def larft(v, tau, t=None):
     """
     forms the triangular factor T of a real block reflector H of order n, which is defined as a product of k elementary reflectors.
     This is a special case of the LAPACK subroutine of the same name for use with QR. (this function is not implemented in PyTorch
@@ -27,38 +29,64 @@ def larft(n, k, v, tau, t):
     n : int
         order of the block reflector, H.
         must be >= 0
-    k : int
+    k : int == nb
         order of the triangular factor T
         must be >= 1
-    v : PyTorch Tensor
+    v : PyTorch Tensor, shape: m x nb
         array of the transform vectors, lower triangular, can be calculated by torch.geqrf
     tau : PyTorch Tensor
           array of scalar factors of the elementary reflector H_i, can be calculated by torch.geqrf
     t : optional, PyTorch Tensor
         output
-        the k x k triangular factor of the block reflector
+        the nb x nb triangular factor of the block reflector
     """
     # todo: what is k? where is this defined???? which dimension of v is this?
-    if n == 0:
+    # V is of size: m, nb
+    # T is of size: nb, nb -> k is nb
+    # todo: v must be 2D
+    m, nb = v.shape
+    t = torch.eye(nb)
+    if m == 0:
         # what am I returning here???
-        return
-
-    for i in range(k):
+        return t
+    t[0, 0] = tau[0]
+    for i in range(1, nb):
         if tau[i] == 0:
-            # what is I here? what size should it be?
-            # todo: is this size k?
-            h_i = torch.eye(k)
-
             t[[j for j in range(i)], i] = 0
-
         else:
-            v_diag = torch.diagonal(v, 0)
-            v[i, i] = 1
-
             # todo: check the setting of t, originally in fortran
-            t[0:i-1, i] = -1 * tau[i] * v[i:n, 0:i-1].t() @ v[i:n, i]
+            t[0:i, i] = -1 * tau[i] * v[i:m, 0:i].t() @ v[i:m, i]
 
-    pass
+            t[0:i, i] = t[0:i, 0:i] @ t[0:i, i]
+        t[i, i] = tau[i]
+
+    return t
+
+
+def form_w(v, tau, old_w=None):
+    if old_w is None:
+        if len(v.shape) == 1:
+            w = (-1 * tau[0] * v).unsqueeze_(1)
+            return w
+        w = -1 * tau[0] * v[:, 0]
+        w = torch.unsqueeze(w, 1)
+
+    else:
+        w = old_w
+    # this is assuming that the w is not split in the 0th dimension
+    for i in range(1, v.shape[1]):
+        y = v[:, :i]
+        # print(w.shape)
+        # print(i, y)
+        # prev_q = torch.eye(v.shape[0]) + w @ y.t()
+        # print(prev_q)
+        # print(i, (torch.eye(v.shape[0]) + w @ y.t()).shape, v[:, i].unsqueeze_(1).shape)
+        c = -1 * tau[i] * (torch.eye(v.shape[0]) + w @ y.t()) @ v[:, i].unsqueeze_(1)
+        if len(c.shape) == 1:
+            c.unsqueeze_(1)
+        # print(c)
+        w = torch.cat((w, c), dim=1)
+    return w
 
 
 def matmul(a, b):
@@ -524,12 +552,12 @@ def matmul(a, b):
             return factories.array(res, split=a.split if b.gshape[-1] > 1 else 0)
 
 
-def qr(x, output=None):
+def qr(a, copy=True, output=None):
     """
     Compute the qr factorization of a matrix.
     Factor the matrix a as qr, where q is orthonormal and r is upper-triangular.
 
-    :param x:
+    :param a:
     :param output:
     :return:
     NOTE : to get it so that the input is in the proper shape (split=1), take the transpose if q=0
@@ -538,8 +566,87 @@ def qr(x, output=None):
     """
     '''
     assuming split=1 for now (for visualization purposes)
-    take the QR of the column, then distribute Q to the other processes and do matmul of the rest'''
-    pass
+    take the QR of the column, then distribute Q to the other processes and do matmul of the rest
+    
+    1. run geqrf on the first node
+    2. calculate v by getting the tril from a and setting the diagonal to 1
+    2b. save R to the output matrix
+    3. send v to other processes (from rank + 1 to size)
+        * need to slice the data in the proper shape for what matters on each process...
+    4. (base) calculate w with the form w formula
+    SPLIT IN PROCESSES
+    5. (base) send w to other processes (from rank + 1 to size)
+    6. figure out a way to save and update Q
+    
+    4. (rest) multiple v.t by the rest of the dataset
+    5. receive w and multiply w @ (v.t @ A2) <- done already
+    6. cut top n rows (n = the number of vectors passed in v) and save to output_r
+    7. update Q???
+    8. cut the rows across all processes and repeat with n-1 processes    '''
+    if copy:
+        a = a.copy()
+    if not isinstance(a, dndarray.DNDarray):
+        raise TypeError('\'a\' must be a DNDarray')
+
+    lshape_map = factories.zeros((a.comm.size, len(a.gshape)), dtype=int)
+    lshape_map[a.comm.rank, :] = torch.Tensor(a.lshape)
+    a.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+
+    # need to get the shape of the data on other nodes
+    rank = a.comm.rank
+    r_out = torch.zeros(a.lshape, dtype=a.dtype.torch_type())
+    # need to keep track of the previous columns to adjust for the amount to slice off the top
+    prev_cols = 0
+    for pr in range(a.comm.size):
+        if pr == a.comm.size - 1:
+            if pr == rank:
+                # print('h', a._DNDarray__array[prev_cols:, :].shape)
+                a_geqrf, tau = a._DNDarray__array[prev_cols:, :].geqrf()
+                # set the r_out from the geqrf function
+                r_out[prev_cols:, :] = a_geqrf.triu()
+            return factories.array(r_out, is_split=a.split, device=a.device, comm=a.comm, dtype=types.canonical_heat_type(r_out.dtype))
+
+        equal = True if rank == pr else False
+        greater = True if rank > pr else False
+        less_eq = True if rank <= pr else False
+
+        if equal:
+            a_geqrf, tau = a._DNDarray__array[prev_cols:, :].geqrf()
+            # set the r_out from the geqrf function
+            r_out[prev_cols:, :] = a_geqrf.triu()
+            # get v from the lower triangular portion of a,
+            v = a_geqrf.tril()
+            v_mask = torch.eye(min(v.shape), dtype=a.dtype.torch_type())
+            dims_to_pad = [i - j for i, j in zip(v.shape, v_mask.shape)]
+
+            dims_to_pad = [0, dims_to_pad[1], 0, dims_to_pad[0]]
+            v_mask = torch.nn.functional.pad(v_mask, dims_to_pad, "constant", 0)
+            v.masked_fill_(v_mask.byte(), 1)
+        else:
+            # todo: if differing chunk size need to change the second item here
+            v = torch.empty((lshape_map[pr, 0].item() - prev_cols, lshape_map[pr, 1].item()), dtype=a.dtype.torch_type())
+            t = torch.empty((lshape_map[pr, 1].item(), lshape_map[pr, 1].item()), dtype=a.dtype.torch_type())
+
+        req_v = a.comm.Ibcast(v, root=pr)
+        if equal:
+            t = larft(v, tau)
+        # print(pr, v.shape, t.shape)
+        # print('t', t)
+        req_t = a.comm.Ibcast(t, root=pr)
+
+        if greater:
+            req_v.wait()
+            # todo: replace the rest of a with v.t @ a
+            # print('vshape', v.shape)
+            w = v.t() @ a._DNDarray__array[prev_cols:, :]
+            req_t.wait()
+            # print(a)
+            a._DNDarray__array[prev_cols:, :] -= v @ t.t() @ w
+            r_out = a._DNDarray__array[:, :lshape_map[pr, 1].item() + 1]
+            # print('r', rank, r_out)
+
+        prev_cols += lshape_map[pr, 1].item()  # todo: change if diff block size
+        # print(prev_cols)
 
 
 def transpose(a, axes=None):
