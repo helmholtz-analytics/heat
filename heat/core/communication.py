@@ -48,6 +48,7 @@ class Communication:
 class MPICommunication(Communication):
     # static mapping of torch types to the respective MPI type handle
     __mpi_type_mappings = {
+        torch.bool: MPI.BOOL,
         torch.uint8: MPI.UNSIGNED_CHAR,
         torch.int8: MPI.SIGNED_CHAR,
         torch.int16: MPI.SHORT_INT,

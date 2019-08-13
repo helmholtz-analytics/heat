@@ -74,7 +74,7 @@ def nonzero(a):
         gout = list(lcl_nonzero.size())
         gout[0] = a.comm.allreduce(gout[0], MPI.SUM)
 
-        return dndarray.DNDarray(lcl_nonzero, tuple(gout), types.int, 0, a.device, a.comm)
+        return dndarray.DNDarray(lcl_nonzero, gshape=tuple(gout), dtype=types.int, split=0, device=a.device, comm=a.comm)
 
 
 def where(cond, x=None, y=None):
@@ -117,6 +117,7 @@ def where(cond, x=None, y=None):
         if (isinstance(x, dndarray.DNDarray) and cond.split != x.split) or (isinstance(y, dndarray.DNDarray) and cond.split != y.split):
             raise NotImplementedError("binary op not implemented for different split axes")
     if isinstance(x, (dndarray.DNDarray, int, float)) and isinstance(y, (dndarray.DNDarray, int, float)):
+        cond = types.float(cond)
         return (cond == 0) * y + cond * x
     elif x is None and y is None:
         return nonzero(cond)

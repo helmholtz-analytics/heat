@@ -447,7 +447,7 @@ def sort(a, axis=None, descending=False, out=None):
         comp_op = torch.gt if descending else torch.lt
         # Iterate over all pivots and store which pivot is the first greater than the elements value
         for idx, p in enumerate(global_pivots):
-            lt = comp_op(local_sorted, p)
+            lt = comp_op(local_sorted, p).int()
             if idx > 0:
                 lt_partitions[idx] = lt - last
             else:

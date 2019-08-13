@@ -106,7 +106,7 @@ class generic:
 class bool(generic):
     @classmethod
     def torch_type(cls):
-        return torch.uint8
+        return torch.bool
 
     @classmethod
     def char(cls):
@@ -259,6 +259,7 @@ __type_mappings = {
     np.float64:     float64,
 
     # torch types
+    torch.bool:     bool,
     torch.uint8:    uint8,
     torch.int8:     int8,
     torch.int16:    int16,

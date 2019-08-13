@@ -19,6 +19,7 @@ class TestIO(unittest.TestCase):
         cls.NETCDF_VARIABLE = 'data'
 
         # load comparison data from csv
+        cls.CSV_PATH = os.path.join(os.getcwd(), 'heat/datasets/data/iris.csv')
         cls.IRIS = torch.from_numpy(np.loadtxt(cls.CSV_PATH, delimiter=';')).float()
 
     def tearDown(self):
