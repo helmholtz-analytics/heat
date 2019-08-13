@@ -48,6 +48,7 @@ class Communication:
 class MPICommunication(Communication):
     # static mapping of torch types to the respective MPI type handle
     __mpi_type_mappings = {
+        torch.bool: MPI.BOOL,
         torch.uint8: MPI.UNSIGNED_CHAR,
         torch.int8: MPI.SIGNED_CHAR,
         torch.int16: MPI.SHORT_INT,
@@ -173,7 +174,7 @@ class MPICommunication(Communication):
         mpi_type, elements = cls.__mpi_type_mappings[obj.dtype], torch.numel(obj)
 
         # simple case, continuous memory can be transmitted as is
-        if obj.is_contiguous() :
+        if obj.is_contiguous():
             if counts is None:
                 return mpi_type, elements
             else:
@@ -394,8 +395,6 @@ class MPICommunication(Communication):
         if not isinstance(sendbuf, torch.Tensor):
             if send_axis != 0:
                 raise TypeError('sendbuf of type {} does not support send_axis != 0'.format(type(sendbuf)))
-            #else:
-            #    sendbuf = torch.tensor(sendbuf)
 
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
@@ -405,8 +404,6 @@ class MPICommunication(Communication):
         if not isinstance(recvbuf, torch.Tensor):
             if send_axis != 0:
                 raise TypeError('recvbuf of type {} does not support send_axis != 0'.format(type(recvbuf)))
-            #else:
-            #    recvbuf = torch.tensor(recvbuf)
 
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
@@ -524,7 +521,6 @@ class MPICommunication(Communication):
 
         return exit_code
 
-
     def Alltoall(self, sendbuf, recvbuf, axis=0, recv_axis=None):
         return self.__scatter_like(
             self.handle.Alltoall, sendbuf, recvbuf, axis, recv_axis, send_factor=self.size, recv_factor=self.size
@@ -544,7 +540,6 @@ class MPICommunication(Communication):
     def Gatherv(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
         return self.__scatter_like(self.handle.Gatherv, sendbuf, recvbuf, axis, recv_axis, root=root)
     Gatherv.__doc__ = MPI.Comm.Gatherv.__doc__
-
 
     def Ialltoall(self, sendbuf, recvbuf, axis=0, recv_axis=None):
         return self.__scatter_like(
@@ -635,18 +630,18 @@ def sanitize_comm(comm):
 
     Parameters
     ----------
-    device : str, Device or None
-        The device to be sanitized
+    comm : Communication
+        The comm to be sanitized
 
     Returns
     -------
-    sanitized_device : Device
-        The matching Device instance
+    Communication
+        The matching Communication instance
 
     Raises
     ------
-    ValueError
-        If the given device id is not recognized
+    TypeError
+        If the given communication is not the proper type
     """
     if comm is None:
         return get_comm()
@@ -662,7 +657,7 @@ def use_comm(comm=None):
 
     Parameters
     ----------
-    device : Communication or None
+    comm : Communication or None
         The communication to be set
     """
     global __default_comm
