@@ -619,10 +619,9 @@ def mean(x, axis=None):
             return dndarray.DNDarray(ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm)
         else:
             # if x is distributed and no axis is given: return mean of the whole set
-            if x.lshape[x.split] != 0:
-                mu_in = operations.__local_op(torch.mean, x, out=None)
-            else:
-                mu_in = 0
+            mu_in = operations.__local_op(torch.mean, x, out=None)
+            if torch.isnan(mu_in._DNDarray__array):
+                mu_in = 0.0
             n = x.lnumel
             mu_tot = factories.zeros((x.comm.size, 2))
             mu_proc = factories.zeros((x.comm.size, 2))
@@ -1120,14 +1119,14 @@ def var(x, axis=None, bessel=True):
             return dndarray.DNDarray(ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm)
 
         else:  # case for full matrix calculation (axis is None)
-            if x.lshape[x.split] != 0:
-                mu_in = operations.__local_op(torch.mean, x, out=None)
-                var_in = operations.__local_op(torch.var, x, out=None, unbiased=bessel)
-                if torch.isnan(var_in._DNDarray__array):
-                    var_in = 0.0
-            else:
-                mu_in = 0
-                var_in = 0
+            mu_in = operations.__local_op(torch.mean, x, out=None)
+            var_in = operations.__local_op(torch.var, x, out=None, unbiased=bessel)
+            # Nan is returned when local tensor is empty
+            if torch.isnan(var_in._DNDarray__array):
+                var_in = 0.0
+            if torch.isnan(mu_in._DNDarray__array):
+                mu_in = 0.0
+
             n = x.lnumel
             var_tot = factories.zeros((x.comm.size, 3))
             var_proc = factories.zeros((x.comm.size, 3))
