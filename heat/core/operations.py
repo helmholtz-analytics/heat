@@ -172,13 +172,23 @@ def __local_op(operation, x, out, **kwargs):
         if kwargs_dtype:
             del kwargs['dtype']
         result = operation(x._DNDarray__array.type(torch_type), **kwargs)
+        split = x.split
         gshape = list(result.shape)
         if x.split is not None:
-            split_shape = torch.tensor([result.shape[x.split]])
+            # The operation could have reduced the result by one axis
+            axis = x.split if x.split < len(result.shape) else len(result.shape) - 1
+            if len(result.shape) > 0:
+                split_shape = torch.tensor([result.shape[axis]])
+            else:
+                # 0-Dimensional tensor in other words just a number on each process
+                split_shape = torch.tensor([1 if x.shape[x.split] > 0 else 0], dtype=result.dtype)
+                gshape = [0]
             x.comm.Allreduce(MPI.IN_PLACE, split_shape, MPI.SUM)
-            gshape[x.split] = split_shape.item()
-        return dndarray.DNDarray(result, tuple(gshape), promoted_type if kwargs_dtype is None else kwargs_dtype,
-                                 x.split, x.device, x.comm)
+            gshape[axis] = split_shape.item()
+            split = axis
+        gshape = tuple(gshape)
+        return dndarray.DNDarray(result, gshape, promoted_type if kwargs_dtype is None else kwargs_dtype,
+                                 split, x.device, x.comm)
 
     # output buffer writing requires a bit more work
     # we need to determine whether the operands are broadcastable and the multiple of the broadcasting
