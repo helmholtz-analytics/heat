@@ -22,27 +22,59 @@ __KUNDU_INVERSE = 1.0 / 0.3807
 
 def __counter_sequence(shape, dtype, split, device, comm):
     """
+    Generates a sequence of numbers to be used as the "clear text" for the threefry encryption, i.e. the pseudo random
+    number generator. Due to the fact that threefry always requires pairs of inputs, the input sequence may not just be
+    a simple range including the global offset, but rather needs to be to independent vectors, one containing the range
+    and the other having the interleaved high-bits counter in it.
 
     Parameters
     ----------
-    shape
-    dtype
-    split
-    device
-    comm
+    shape : tuple of ints
+        The global shape of the random tensor to be generated.
+    dtype : torch.dtype
+        The data type of the elements to be generated. Needs to be either torch.int32 or torch.int64.
+    split : int or None
+        The split axis along which the random number tensor is split
+    device : 'str'
+        Specifies the device the tensor shall be allocated on.
+    comm: ht.Communication
+        Handle to the nodes holding distributed parts or copies of this tensor.
 
     Returns
     -------
-
+    x_0 : torch.Tensor
+        The high-bits vector for the threefry encryption.
+    x_1 : torch.Tensor
+        The low-bits vector for the threefry encryption.
+    lshape : tuple of ints
+        The shape x_0 and x_1 need to be reshaped to after encryption. May be slightly larger than the actual local
+        portion of the random number tensor due to sequence overlaps of the counter sequence.
+    slices : list of slices
+        The indices into the reshaped tensor to obtain the actual local portion.
     """
+    # get the global random state into the function, might want to factor this out into a class later
     global __counter
 
-    total_elements = np.prod(shape)
+    # extract the counter state of the random number generator
+    if dtype is torch.int32:
+        c_0 = __counter & (0xffffffff << 32)
+        c_1 = __counter & 0xffffffff
+    else:  # torch.int64
+        c_0 = __counter & (0xffffffffffffffff << 64)
+        c_1 = __counter & 0xffffffffffffffff
 
-
+    # prepare some reusable values
     dimensions = len(shape)
-    elements_in_higher_dims = 1
+    total_elements = np.prod(shape)
     offset, lshape, _ = comm.chunk(shape, split)
+
+    # generate the x_0 counter sequence
+    x_0 = torch.full
+
+    # generate the x_1 counter sequence
+
+
+    elements_in_higher_dims = 1
     ranges = dimensions * [None]
 
     for i in range(dimensions - 2, -1, -1):
@@ -56,7 +88,10 @@ def __counter_sequence(shape, dtype, split, device, comm):
         ranges[i] = values
         elements_in_higher_dims *= elements_in_dim
 
-    return torch.sum(ranges)
+    # advance the global counter
+    __counter += total_elements
+
+    return x_0, x_1, lshape, slices
 
 
 def get_state():
@@ -176,12 +211,11 @@ def rand(*args, split=None, device=None, comm=None):
     comm = communication.sanitize_comm(comm)
 
     # generate the random sequence
-    x_0, x_1, counter_shape, slices = __counter_sequence(shape, torch.int64, split, device, comm)
+    x_0, x_1, lshape = __counter_sequence(shape, torch.int64, split, device, comm)
     x_0, x_1 = __threefry64(x_0, x_1)
 
     # combine the values into one tensor and convert them to floats
-    values = torch.stack([x_0, x_1], dim=1).reshape(counter_shape)[slices]
-    values = __int64_to_float64(values)
+    values = __int64_to_float64(torch.stack([x_0, x_1], dim=1)).reshape(lshape)
 
     return dndarray.DNDarray(values, shape, types.float64, split, device, comm)
 
@@ -238,6 +272,7 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     dtype = types.canonical_heat_type(dtype)
     if dtype is not types.int64 and dtype is not types.int32:
         raise ValueError('Unsupported dtype for randint')
+    torch_dtype = dtype.torch_type()
 
     # make sure the remaining parameters are of proper type
     split = stride_tricks.sanitize_axis(shape, split)
@@ -245,14 +280,18 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     comm = communication.sanitize_comm(comm)
 
     # generate the random sequence
-    x_0, x_1, counter_shape, slices = __counter_sequence(shape, torch.int64, split, device, comm)
-    x_0, x_1 = __threefry64(x_0, x_1)
+    x_0, x_1, lshape = __counter_sequence(shape, torch_dtype, split, device, comm)
+    if torch_dtype is torch.int32:
+        x_0, x_1 = __threefry32(x_0, x_1)
+    else:
+        x_0, x_1 = __threefry64(x_0, x_1)
 
-    # combine the values into one tensor and convert them to floats
-    values = torch.stack([x_0, x_1], dim=1).reshape(counter_shape)[slices]
-    values = __int64_to_float64(values)
+    # stack the resulting sequence and normalize to given range
+    values = torch.stack([x_0, x_1], dim=1).reshape(lshape)
+    # ATTENTION: this is biased and known, bias-free rejection sampling is difficult to do in parallel
+    values = (values.abs_() % span) + low
 
-    return dndarray.DNDarray(values, shape, types.float64, split, device, comm)
+    return dndarray.DNDarray(values, shape, dtype, split, device, comm)
 
 
 def randn(*args, split=None, device=None, comm=None):
@@ -351,7 +390,7 @@ def set_state(state):
     __counter = int(state[2])
 
 
-def __threefry_32(X_0, X_1):
+def __threefry32(X_0, X_1):
     """
     Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. This is the
     32-bit version.
