@@ -2,6 +2,7 @@ import itertools
 import torch
 
 from .communication import MPI
+from . import communication
 from . import dndarray
 from . import factories
 from . import manipulations
@@ -105,7 +106,7 @@ def matmul(a, b):
     -------
     ht.DNDarray
         returns a tensor with the result of a @ b. The split dimension of the returned array is typically the split dimension of a.
-        However, if a.split = None then the the c.split will be set as the split dimension of b. If both are None then c.split is also None.
+        However, if a.split = None then c.split will be set as the split dimension of b. If both are None then c.split is also None.
         ** NOTE ** if a is a split vector then the returned vector will be of shape (1xQ) and will be split in the 1st dimension
         ** NOTE ** if b is a vector and either a or b is split, then the returned vector will be of shape (Lx1) and will be split in the 0th dimension
 
@@ -551,7 +552,7 @@ def matmul(a, b):
             return factories.array(res, split=a.split if b.gshape[-1] > 1 else 0)
 
 
-def qr(a, copy=True, output=None):
+def qr(a, copy=True, return_q=True, output=None):
     """
     Compute the qr factorization of a matrix.
     Factor the matrix a as qr, where q is orthonormal and r is upper-triangular.
@@ -587,65 +588,105 @@ def qr(a, copy=True, output=None):
     if not isinstance(a, dndarray.DNDarray):
         raise TypeError('\'a\' must be a DNDarray')
 
-    lshape_map = factories.zeros((a.comm.size, len(a.gshape)), dtype=int)
+    lshape_map = factories.zeros((a.comm.size, 2), dtype=int)
     lshape_map[a.comm.rank, :] = torch.Tensor(a.lshape)
     a.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
-    # need to get the shape of the data on other nodes
+    if a.split == 0:
+        # generate the 'chunk map' if a.split = 0
+        # this is used to find start and stop points while gathering the data before running geqrf()
+        chunk_map = torch.zeros((a.comm.size, 2), dtype=int)
+        block_indexes = a.comm.chunk(a.gshape, 1)[1]
+        chunk_map[a.comm.rank, :] = torch.Tensor(block_indexes)
+        a.comm.Allreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
+        chunk_map[..., 1] = chunk_map[..., 1].cumsum(dim=0)
+
     rank = a.comm.rank
+    # r_out is only used if only q is required
     r_out = torch.zeros(a.lshape, dtype=a.dtype.torch_type())
-    # need to keep track of the previous columns to adjust for the amount to slice off the top
+    # need to keep track of the previous columns to adjust for the amount to slice off the top in the 0th dimension
     prev_cols = 0
+    # initialize q as the unity matrix with the shape of a
+    q_old = factories.eye(a.gshape, split=a.split, comm=a.comm, device=a.device, dtype=a.dtype)
     for pr in range(a.comm.size):
-        if pr == a.comm.size - 1:
-            if pr == rank:
-                # print('h', a._DNDarray__array[prev_cols:, :].shape)
-                a_geqrf, tau = a._DNDarray__array[prev_cols:, :].geqrf()
+        equal = True if rank == pr else False
+        greater = True if rank > pr else False
+
+        # a_block is what will be operated on by geqrf()
+        if a.split == 0:
+            # gather data from all of the other processes
+            st_dim1 = chunk_map[pr - 1, 1].item() if pr != 0 else 0
+            sp_dim1 = chunk_map[pr, 1].item()
+            a_block = a.comm.gather(a._DNDarray__array[:, st_dim1:sp_dim1], pr)
+            if a_block is not None:
+                a_block = torch.cat([i for i in a_block], dim=0)[prev_cols:]
+        else:
+            # split is 1, nothing needs to change, only need to select prev_cols to the end of the 0th dimension
+            st_dim1, sp_dim1 = 0, lshape_map[pr, 1].item()
+            a_block = a._DNDarray__array[prev_cols:]
+
+        if not return_q and pr == a.comm.size - 1:
+            # exit loop only setting r
+            if equal:
+                a_geqrf, tau = a_block.geqrf()
                 # set the r_out from the geqrf function
                 r_out[prev_cols:, :] = a_geqrf.triu()
             return factories.array(r_out, is_split=a.split, device=a.device, comm=a.comm, dtype=types.canonical_heat_type(r_out.dtype))
 
-        equal = True if rank == pr else False
-        greater = True if rank > pr else False
-        less_eq = True if rank <= pr else False
-
+        # run geqrf on the A1 block ( A = [A1 A2] )
         if equal:
-            a_geqrf, tau = a._DNDarray__array[prev_cols:, :].geqrf()
-            # set the r_out from the geqrf function
-            r_out[prev_cols:, :] = a_geqrf.triu()
-            # get v from the lower triangular portion of a,
+            a_geqrf, tau = a_block.geqrf()
+            # get v from the lower triangular portion of a
             v = a_geqrf.tril()
+            # create a mask to set the diagonal values of v to 1
             v_mask = torch.eye(min(v.shape), dtype=a.dtype.torch_type())
             dims_to_pad = [i - j for i, j in zip(v.shape, v_mask.shape)]
-
             dims_to_pad = [0, dims_to_pad[1], 0, dims_to_pad[0]]
-            v_mask = torch.nn.functional.pad(v_mask, dims_to_pad, "constant", 0)
-            v.masked_fill_(v_mask.byte(), 1)
+            v_mask = torch.nn.functional.pad(v_mask, dims_to_pad, 'constant', 0)
+            v.masked_fill_(v_mask.bool(), 1)
         else:
             # todo: if differing chunk size need to change the second item here
-            v = torch.empty((lshape_map[pr, 0].item() - prev_cols, lshape_map[pr, 1].item()), dtype=a.dtype.torch_type())
-            t = torch.empty((lshape_map[pr, 1].item(), lshape_map[pr, 1].item()), dtype=a.dtype.torch_type())
+            # create v and t on the other processes
+            v = torch.empty((a.gshape[0] - prev_cols, sp_dim1-st_dim1), dtype=a.dtype.torch_type())
+            t = torch.empty((sp_dim1 - st_dim1, sp_dim1 - st_dim1), dtype=a.dtype.torch_type())
 
         req_v = a.comm.Ibcast(v, root=pr)
         if equal:
+            # calculate t while v is being sent
             t = larft(v, tau)
-        # print(pr, v.shape, t.shape)
-        # print('t', t)
         req_t = a.comm.Ibcast(t, root=pr)
 
-        if greater:
-            req_v.wait()
-            # todo: replace the rest of a with v.t @ a
-            # print('vshape', v.shape)
-            w = v.t() @ a._DNDarray__array[prev_cols:, :]
-            req_t.wait()
-            # print(a)
-            a._DNDarray__array[prev_cols:, :] -= v @ t.t() @ w
-            r_out = a._DNDarray__array[:, :lshape_map[pr, 1].item() + 1]
-            # print('r', rank, r_out)
+        # if only R is needed then the below can be used
+        if not return_q:
+            # todo: update this to work with split=0
+            if greater:
+                req_v.wait()
+                # todo: replace the rest of a with v.t @ a
+                # print('vshape', v.shape)
+                w = v.t() @ a_block
+                req_t.wait()
+                # print(a)
+                a_block -= v @ t.t() @ w
+                r_out = a._DNDarray__array[:, :lshape_map[pr, 1].item() + 1]
 
-        prev_cols += lshape_map[pr, 1].item()  # todo: change if diff block size
-        # print(prev_cols)
+        if return_q:
+            req_v.wait()
+            # pad v on the top with zeros to avoid changing the already calculated portions of R
+            v = torch.nn.functional.pad(v, [0, 0, prev_cols, 0], 'constant', 0)
+            # the split semantics are to get q and a to have the same splits
+            i_m = factories.eye(a.gshape, split=0 if a.split == 1 else 1, comm=a.comm, device=a.device, dtype=a.dtype)
+            req_t.wait()
+            t = t @ v.t()
+            v = factories.array(v, dtype=types.canonical_heat_type(v.dtype), split=0 if a.split == 1 else 1, comm=a.comm, device=a.device)
+            t = factories.array(t, dtype=types.canonical_heat_type(t.dtype), split=None, comm=a.comm, device=a.device)
+            # Q = I - V @ T @ V.T
+            q = i_m - v @ t
+            # a is partially transformed into R
+            a = q.T @ a
+            # q is stored in q_old to be used in the next round (Q = Q1 @ Q2 @ Q3 ...)
+            q_old = q_old @ q
+        prev_cols += (sp_dim1 - st_dim1)  # todo: change if diff block size
+    return q_old, a
 
 
 def transpose(a, axes=None):
