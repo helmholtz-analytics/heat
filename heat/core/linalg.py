@@ -14,79 +14,52 @@ __all__ = [
     'transpose',
     'tril',
     'triu',
-    'form_w',
     'larft'
 ]
 
 
-def larft(v, tau, t=None):
+def larft(v, tau):
     """
     forms the triangular factor T of a real block reflector H of order n, which is defined as a product of k elementary reflectors.
     This is a special case of the LAPACK subroutine of the same name for use with QR. (this function is not implemented in PyTorch
 
     Parameters
     ----------
-    n : int
-        order of the block reflector, H.
-        must be >= 0
-    k : int == nb
-        order of the triangular factor T
-        must be >= 1
     v : PyTorch Tensor, shape: m x nb
         array of the transform vectors, lower triangular, can be calculated by torch.geqrf
     tau : PyTorch Tensor
           array of scalar factors of the elementary reflector H_i, can be calculated by torch.geqrf
     t : optional, PyTorch Tensor
         output
-        the nb x nb triangular factor of the block reflector
+
+    Returns
+    -------
+    t : the nb x nb triangular factor of the block reflector v
+
+    References
+    ----------
+    [0] http://www.netlib.org/lapack/lapack-3.1.1/html/dlarft.f.html
     """
-    # todo: what is k? where is this defined???? which dimension of v is this?
     # V is of size: m, nb
     # T is of size: nb, nb -> k is nb
     # todo: v must be 2D
     m, nb = v.shape
     t = torch.eye(nb)
+    # tau = torch.round(tau * 10**8) * 10**-8
     if m == 0:
-        # what am I returning here???
         return t
     t[0, 0] = tau[0]
-    for i in range(1, nb):
+    mask = (tau == 0)
+    for i in range(1, tau.shape[0]):
         if tau[i] == 0:
-            t[[j for j in range(i)], i] = 0
+            t[i:, i] = 0
         else:
-            # todo: check the setting of t, originally in fortran
             t[0:i, i] = -1 * tau[i] * v[i:m, 0:i].t() @ v[i:m, i]
 
             t[0:i, i] = t[0:i, 0:i] @ t[0:i, i]
         t[i, i] = tau[i]
 
     return t
-
-
-def form_w(v, tau, old_w=None):
-    if old_w is None:
-        if len(v.shape) == 1:
-            w = (-1 * tau[0] * v).unsqueeze_(1)
-            return w
-        w = -1 * tau[0] * v[:, 0]
-        w = torch.unsqueeze(w, 1)
-
-    else:
-        w = old_w
-    # this is assuming that the w is not split in the 0th dimension
-    for i in range(1, v.shape[1]):
-        y = v[:, :i]
-        # print(w.shape)
-        # print(i, y)
-        # prev_q = torch.eye(v.shape[0]) + w @ y.t()
-        # print(prev_q)
-        # print(i, (torch.eye(v.shape[0]) + w @ y.t()).shape, v[:, i].unsqueeze_(1).shape)
-        c = -1 * tau[i] * (torch.eye(v.shape[0]) + w @ y.t()) @ v[:, i].unsqueeze_(1)
-        if len(c.shape) == 1:
-            c.unsqueeze_(1)
-        # print(c)
-        w = torch.cat((w, c), dim=1)
-    return w
 
 
 def matmul(a, b):
@@ -186,12 +159,12 @@ def matmul(a, b):
         split_01_flag = False
         split_10_flag = False
 
-        if (a.split == 0 and b.split is None) or (a.split is None and b.split == 1):
+        if (b.split is None and a.split == 0) or (a.split is None and b.split == 1):
             c = factories.zeros((a.gshape[-2], b.gshape[1]), split=a.split if a.split is not None else b.split, dtype=c_type)
             c._DNDarray__array += a._DNDarray__array @ b._DNDarray__array
             return c
 
-        elif a.split == 1 and b.split is None:
+        elif b.split is None and a.split == 1:
             c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type())
             a_idx = a.comm.chunk(a.shape, a.split)[2]
             c += a._DNDarray__array @ b._DNDarray__array[a_idx[1].start:a_idx[1].start + a.lshape[-1], :]
@@ -282,9 +255,9 @@ def matmul(a, b):
         c_wait = c.comm.Iallreduce(MPI.IN_PLACE, c_index_map, MPI.SUM)
 
         if a.split == 0:
-            a_block_map = torch.zeros((a.comm.size, a.shape[-2] // mB // a.comm.size, a.shape[-1] // kB, 2))
+            a_block_map = torch.zeros((a.comm.size, a.shape[-2] // mB // a.comm.size, a.shape[-1] // kB, 2), dtype=torch.int)
         elif a.split == 1:
-            a_block_map = torch.zeros((a.comm.size, a.shape[-2] // mB, a.shape[-1] // kB // a.comm.size, 2))
+            a_block_map = torch.zeros((a.comm.size, a.shape[-2] // mB, a.shape[-1] // kB // a.comm.size, 2), dtype=torch.int)
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
         index_map_comm.wait()
         for pr in range(a.comm.size):
@@ -308,9 +281,9 @@ def matmul(a, b):
                     a_block_map[:, :, cnt:, 1] += 1
 
         if b.split == 0:
-            b_block_map = torch.zeros((b.comm.size, b.shape[-2] // kB // b.comm.size, b.shape[-1] // nB, 2))
+            b_block_map = torch.zeros((b.comm.size, b.shape[-2] // kB // b.comm.size, b.shape[-1] // nB, 2), dtype=torch.int)
         if b.split == 1:
-            b_block_map = torch.zeros((b.comm.size, b.shape[-2] // kB, b.shape[-1] // nB // b.comm.size, 2))
+            b_block_map = torch.zeros((b.comm.size, b.shape[-2] // kB, b.shape[-1] // nB // b.comm.size, 2), dtype=torch.int)
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
         for pr in range(b.comm.size):
             start0 = index_map[pr, 1, 0, 0].item()
@@ -332,30 +305,39 @@ def matmul(a, b):
                     cnt += 1
                     b_block_map[:, cnt:, :, 0] += 1
 
-        def c_block_setter(b_proc, a_proc, a_data, b_data):
-            shp_b = list(b_block_map.shape)
+        @torch.jit.script
+        def c_block_setter(b_proc, a_proc, a_data, b_data, b_block_map=b_block_map, a_block_map=a_block_map,
+                           b_split=b.split, a_split=a.split, mB=mB, kB=kB, nB=nB, c=c._DNDarray__array):
+            # type: (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor) -> None
+            shp_b = b_block_map.shape
             offset_a = b_proc * shp_b[1] if b_proc != 0 else 0
-            shp_a = list(a_block_map.shape)
+            shp_a = a_block_map.shape
             offset_b = a_proc * shp_a[2] if a_proc != 0 else 0
             # offsets are the number of blocks in the multiplication direction on previous nodes
-
-            for bl_1_a in range(offset_a, offset_a + shp_b[1]) if b.split == 0 else range(a_block_map[a_proc].shape[0]):
+            for bl_1_a in torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.int) if b_split == 0 else \
+                    torch.arange(a_block_map[a_proc].shape[0], dtype=torch.int):
+                bl_1_a = int(bl_1_a)
                 # this offset is the number of blocks on the previous node in the direction of multiplication
-                for bl_0_a in range(a_block_map[a_proc].shape[0]):  # dim0
-                    for bl_1_b in range(b_block_map[b_proc].shape[1]):
-                        for bl_0_b in range(offset_b, offset_b + shp_a[1]) if a.split == 1 else range(b_block_map[b_proc].shape[0]):
+                for bl_0_a in torch.arange(a_block_map[a_proc].shape[0], dtype=torch.int):  # dim0
+                    bl_0_a = int(bl_0_a)
+                    for bl_1_b in torch.arange(b_block_map[b_proc].shape[1], dtype=torch.int):
+                        bl_1_b = int(bl_1_b)
+                        for bl_0_b in torch.arange(offset_b, offset_b + shp_a[1], dtype=torch.int) if a_split == 1 else \
+                                torch.arange(b_block_map[b_proc].shape[0], dtype=torch.int):
+                            bl_0_b = int(bl_0_b)
                             # this offset is the same as before but for b
-                            a_start1 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 1].item())
-                            a_start0 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 0].item())
+                            a_start1 = a_block_map[a_proc, bl_0_a, bl_1_a, 1]
+                            a_start0 = a_block_map[a_proc, bl_0_a, bl_1_a, 0]
                             a_block = a_data[a_start0:a_start0 + mB, a_start1:a_start1 + kB]
 
-                            b_start0 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 0].item())
-                            b_start1 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 1].item())
+                            b_start0 = b_block_map[b_proc, bl_0_b, bl_1_b, 0]
+                            b_start1 = b_block_map[b_proc, bl_0_b, bl_1_b, 1]
+                            # print(b_start0, b_start1)
                             b_block = b_data[b_start0:b_start0 + kB, b_start1:b_start1 + nB]
 
                             c_start0 = a_start0
                             c_start1 = b_start1
-                            c._DNDarray__array[c_start0:c_start0 + mB, c_start1:c_start1 + nB] += a_block @ b_block
+                            c[c_start0:c_start0 + mB, c_start1:c_start1 + nB] += a_block @ b_block
 
         # work loop: loop over all processes (also will incorporate the remainder calcuations)
         rem_map = rem_map._DNDarray__array
@@ -393,6 +375,7 @@ def matmul(a, b):
                 if pr != 0:
                     req[pr - 1].wait()
                     # after receiving the last loop's bcast
+                    # torch.jit.script(c_block_setter, (pr - 1, a.comm.rank, a._DNDarray__array, b_lp_data[pr-1]))
                     c_block_setter(b_proc=pr - 1, a_proc=a.comm.rank, a_data=a._DNDarray__array, b_data=b_lp_data[pr-1])
 
                     # check if there is a remainder on b in the previous node
@@ -563,34 +546,29 @@ def qr(a, copy=True, return_q=True, output=None):
     NOTE : to get it so that the input is in the proper shape (split=1), take the transpose if q=0
            this means that A.T = QR and A = Q"R" where Q" = Q (orthogonal) and R" = Q.T @ R.T @ Q.T
            ...it is unlikely that this works.... need to verify and change if necessary
+
+    References
+    ----------
+    [0] Jaeyoung Choi, Jack J. Dongarra, L. Susan Ostrouchov, Antoine P. Petitet, David W. Walker, and R. Clint Whaley,
+        “Design and Implementation of the ScaLAPACK LU, QR, and Cholesky Factorization Routines,” Scientific Programming,
+        vol. 5, no. 3, pp. 173-184, 1996. https://doi.org/10.1155/1996/483083.
+    [1] Gene H. Golub and Charles F. Van Loan. 1996. Matrix Computations (3rd Ed.). Johns Hopkins University Press, Baltimore, MD, USA.
     """
-    '''
-    assuming split=1 for now (for visualization purposes)
-    take the QR of the column, then distribute Q to the other processes and do matmul of the rest
-    
-    1. run geqrf on the first node
-    2. calculate v by getting the tril from a and setting the diagonal to 1
-    2b. save R to the output matrix
-    3. send v to other processes (from rank + 1 to size)
-        * need to slice the data in the proper shape for what matters on each process...
-    4. (base) calculate w with the form w formula
-    SPLIT IN PROCESSES
-    5. (base) send w to other processes (from rank + 1 to size)
-    6. figure out a way to save and update Q
-    
-    4. (rest) multiple v.t by the rest of the dataset
-    5. receive w and multiply w @ (v.t @ A2) <- done already
-    6. cut top n rows (n = the number of vectors passed in v) and save to output_r
-    7. update Q???
-    8. cut the rows across all processes and repeat with n-1 processes    '''
     if copy:
         a = a.copy()
+
     if not isinstance(a, dndarray.DNDarray):
         raise TypeError('\'a\' must be a DNDarray')
 
+    if not a.is_distributed():
+        # local op
+        q, r = a._DNDarray__array.qr()
+        return factories.array(q, dtype=a.dtype, split=a.split, comm=a.comm, device=a.device), \
+               factories.array(r, dtype=a.dtype, split=a.split, comm=a.comm, device=a.device)
+
     lshape_map = factories.zeros((a.comm.size, 2), dtype=int)
     lshape_map[a.comm.rank, :] = torch.Tensor(a.lshape)
-    a.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+    lshap_wait = a.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
     if a.split == 0:
         # generate the 'chunk map' if a.split = 0
@@ -607,7 +585,7 @@ def qr(a, copy=True, return_q=True, output=None):
     # need to keep track of the previous columns to adjust for the amount to slice off the top in the 0th dimension
     prev_cols = 0
     # initialize q as the unity matrix with the shape of a
-    q_old = factories.eye(a.gshape, split=a.split, comm=a.comm, device=a.device, dtype=a.dtype)
+    q_old = factories.eye(a.gshape[0], split=a.split, comm=a.comm, device=a.device, dtype=a.dtype)
     for pr in range(a.comm.size):
         equal = True if rank == pr else False
         greater = True if rank > pr else False
@@ -621,6 +599,7 @@ def qr(a, copy=True, return_q=True, output=None):
             if a_block is not None:
                 a_block = torch.cat([i for i in a_block], dim=0)[prev_cols:]
         else:
+            lshap_wait.wait()
             # split is 1, nothing needs to change, only need to select prev_cols to the end of the 0th dimension
             st_dim1, sp_dim1 = 0, lshape_map[pr, 1].item()
             a_block = a._DNDarray__array[prev_cols:]
@@ -674,7 +653,7 @@ def qr(a, copy=True, return_q=True, output=None):
             # pad v on the top with zeros to avoid changing the already calculated portions of R
             v = torch.nn.functional.pad(v, [0, 0, prev_cols, 0], 'constant', 0)
             # the split semantics are to get q and a to have the same splits
-            i_m = factories.eye(a.gshape, split=0 if a.split == 1 else 1, comm=a.comm, device=a.device, dtype=a.dtype)
+            i_m = factories.eye(a.gshape[0], split=0 if a.split == 1 else 1, comm=a.comm, device=a.device, dtype=a.dtype)
             req_t.wait()
             t = t @ v.t()
             v = factories.array(v, dtype=types.canonical_heat_type(v.dtype), split=0 if a.split == 1 else 1, comm=a.comm, device=a.device)
