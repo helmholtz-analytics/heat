@@ -412,12 +412,14 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None):
 
     # start by creating tensor filled with zeroes
     data = torch.zeros(lshape, dtype=types.canonical_heat_type(dtype).torch_type(), device=device.torch_device)
-
     # insert ones at the correct positions
     for i in range(min(lshape)):
         pos_x = i if split is 0 else i + offset
         pos_y = i if split is 1 else i + offset
-        data[pos_x][pos_y] = 1
+        try:
+            data[pos_x][pos_y] = 1
+        except IndexError:
+            pass
 
     return dndarray.DNDarray(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
 
