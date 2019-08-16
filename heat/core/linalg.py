@@ -210,7 +210,7 @@ def matmul(a, b):
 
         # get the lshape map to determine what needs to be sent where as well as M and N
         # lshape map dims -> {node, a=0, b=1, lshape}
-        lshape_map = factories.zeros((a.comm.size, 2, len(a.gshape)), dtype=int)
+        lshape_map = torch.zeros((a.comm.size, 2, len(a.gshape)), dtype=int)
         lshape_map[a.comm.rank, 0, :] = torch.Tensor(a.lshape)
         lshape_map[b.comm.rank, 1, :] = torch.Tensor(b.lshape)
         a.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
@@ -228,19 +228,19 @@ def matmul(a, b):
 
         # get the flags from all processes
         # rem_map dims guide -> {process number, a/b (0/1), True/False (1/0) if there is a remainder in this dimension
-        rem_map = factories.zeros((a.comm.size, 2, 2))
-        rem_map[a.comm.rank, 0, :] = (rem_a_out, rem_a)
-        rem_map[a.comm.rank, 1, :] = (rem_b, rem_b_out)
+        rem_map = torch.zeros((a.comm.size, 2, 2))
+        rem_map[a.comm.rank, 0, :] = torch.Tensor((rem_a_out, rem_a))
+        rem_map[a.comm.rank, 1, :] = torch.Tensor((rem_b, rem_b_out))
         rem_map_comm = a.comm.Iallreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
 
         # index_map dims guide -> {process number, a=0/b=1, relevent 1st index, 2nd index}
-        index_map = factories.zeros((a.comm.size, 2, 2, 2), dtype=int)
+        index_map = torch.zeros((a.comm.size, 2, 2, 2), dtype=int)
         a_idx = a.comm.chunk(a.shape, a.split)[2]
-        index_map[a.comm.rank, 0, 0] = (a_idx[0].start, a_idx[0].stop)
-        index_map[a.comm.rank, 0, 1] = (a_idx[1].start, a_idx[1].stop)
+        index_map[a.comm.rank, 0, 0] = torch.Tensor((a_idx[0].start, a_idx[0].stop))
+        index_map[a.comm.rank, 0, 1] = torch.Tensor((a_idx[1].start, a_idx[1].stop))
         b_idx = b.comm.chunk(b.shape, b.split)[2]
-        index_map[b.comm.rank, 1, 0] = (b_idx[0].start, b_idx[0].stop)
-        index_map[b.comm.rank, 1, 1] = (b_idx[1].start, b_idx[1].stop)
+        index_map[b.comm.rank, 1, 0] = torch.Tensor((b_idx[0].start, b_idx[0].stop))
+        index_map[b.comm.rank, 1, 1] = torch.Tensor((b_idx[1].start, b_idx[1].stop))
         index_map_comm = a.comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
 
         # for the communication scheme, the output array needs to be created
@@ -332,7 +332,6 @@ def matmul(a, b):
 
                             b_start0 = b_block_map[b_proc, bl_0_b, bl_1_b, 0]
                             b_start1 = b_block_map[b_proc, bl_0_b, bl_1_b, 1]
-                            # print(b_start0, b_start1)
                             b_block = b_data[b_start0:b_start0 + kB, b_start1:b_start1 + nB]
 
                             c_start0 = a_start0
@@ -340,7 +339,6 @@ def matmul(a, b):
                             c[c_start0:c_start0 + mB, c_start1:c_start1 + nB] += a_block @ b_block
 
         # work loop: loop over all processes (also will incorporate the remainder calcuations)
-        rem_map = rem_map._DNDarray__array
         c_wait.wait()
 
         if split_0_flag:
@@ -375,7 +373,6 @@ def matmul(a, b):
                 if pr != 0:
                     req[pr - 1].wait()
                     # after receiving the last loop's bcast
-                    # torch.jit.script(c_block_setter, (pr - 1, a.comm.rank, a._DNDarray__array, b_lp_data[pr-1]))
                     c_block_setter(b_proc=pr - 1, a_proc=a.comm.rank, a_data=a._DNDarray__array, b_data=b_lp_data[pr-1])
 
                     # check if there is a remainder on b in the previous node

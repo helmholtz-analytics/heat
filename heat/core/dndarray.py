@@ -2360,6 +2360,8 @@ class DNDarray:
             else:
                 self.__setter(key, value)
         else:
+            if isinstance(value, DNDarray) and value.split is not None and value.split != self.split:
+                raise RuntimeError('split axis of array and the target value are not equal')
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
