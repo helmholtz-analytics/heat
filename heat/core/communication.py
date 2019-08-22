@@ -187,6 +187,7 @@ class MPICommunication(Communication):
         strides[0] = obj.stride()[-1]
         strides = strides[::-1]
         offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
+        print("Vector wrapping: elements={}, shape={}, strides={}, offsets={}".format(elements, shape, strides, offsets))
 
         # chain the types based on the
         for i in range(len(shape) - 1, -1, -1):
@@ -199,6 +200,7 @@ class MPICommunication(Communication):
 
     @classmethod
     def as_mpi_memory(cls, obj):
+        
         """
         Converts the passed Torch tensor into an MPI compatible memory view.
 
@@ -463,6 +465,195 @@ class MPICommunication(Communication):
         return self.__allgather_like(self.handle.Iallgatherv, sendbuf, recvbuf, send_axis, recv_axis)
     Iallgatherv.__doc__ = MPI.Comm.Iallgatherv.__doc__
 
+    @classmethod
+    def alltoall_sendbuffer(cls, obj, nproc, counts=None, displs=None): #This is a temporary soltion to pass number of arguments as variable. Better to access via cls itself, but how?
+        mpi_type, elements = cls.__mpi_type_mappings[obj.dtype], torch.numel(obj)
+
+        #print( "Obj Info: obj.shape = {}, obj.stride = {}".format(obj.shape, obj.stride()))
+
+        # simple case, continuous memory can be transmitted as is
+        #if obj.is_contiguous() :
+        #    if counts is None:
+        #        return mpi_type, elements
+        #    else:
+        #        factor = np.prod(obj.shape[1:])
+        #        return mpi_type, (tuple(factor * ele for ele in counts), (tuple(factor * ele for ele in displs)),)
+
+        # non-continuous memory, e.g. after a transpose, has to be packed in derived MPI types
+        shape = obj.shape
+        strides = [1] * len(shape)
+        strides[-1] = obj.stride()[-1]
+
+        offsets = [0]*len(shape)
+        offsets[1:] = [obj.element_size() * stride for stride in obj.stride()[:-1]]
+
+
+        #print("Vector wrapping: shape={}, strides={}, offsets={}".format(shape,strides, offsets))
+
+        # Step 1: Wrap along axes > 1 (all axes except send_axis and recv_axis
+        for i in range(len(shape) - 1, 1, -1):
+            mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
+            mpi_type.Commit()
+
+        # Step 2: Create Custom sized vector datatypes, according to rank-specific size along send_axis
+        # send_elements has nproc entries, defining how many vectors of mpi_type are stacked together for each process to receive along the send_axis
+        send_elements = np.full((nproc,), obj.shape[1]//nproc)
+        send_elements[:obj.shape[1]%nproc]+=1
+
+        #Create short_Type from the last entry of send_elements
+        mpi_short_type = mpi_type.Create_vector(send_elements[-1], 1, strides[1]).Create_resized(0, offsets[1])
+        mpi_short_type.Commit()
+        #Create long_Type from the first entry of send_elements (wraps one more mpi_type vector than short_Type
+        mpi_long_type = mpi_type.Create_vector(send_elements[0], 1, strides[1]).Create_resized(0, offsets[1])
+        mpi_long_type.Commit()
+
+        #Step 3: Pack short_type and long_type along the recv_axis
+        mpi_short_type=mpi_short_type.Create_vector(shape[0], 1, strides[0]).Create_resized(0, send_elements[-1] * obj.stride()[1] * obj.element_size())
+        mpi_short_type.Commit()
+        mpi_long_type=mpi_long_type.Create_vector(shape[0], 1, strides[0]).Create_resized(0, send_elements[0] * obj.stride()[1] * obj.element_size())
+        mpi_long_type.Commit()
+
+        #Step 4: Prepare sencounts, senddispls and sendtypes for alltoallw
+        # to each process 1 element (=sendcount) of the custom prepared long or short type will be send
+        sendcount = [1]*nproc
+
+        tmp_displs = [0] * nproc
+        tmp_displs[1:] = np.cumsum(send_elements[:-1] )
+        senddispls = [obj.element_size() * obj.stride()[1] * d for d in tmp_displs]
+
+        sendtypes = [mpi_short_type]*nproc
+        for i in range(obj.shape[1]%nproc):
+            sendtypes[i] = mpi_long_type
+
+        #print("sendcount = {}, senddispls={}, sendtypes = {}".format(sendcount, senddispls, sendtypes))
+
+        return cls.as_mpi_memory(obj), (sendcount, senddispls), sendtypes
+
+    @classmethod
+    def alltoall_recvbuffer(cls, obj, nproc, counts=None, displs=None):  # This is a temporary soltion to pass number of arguments as variable. Better to access via cls itself, but how?
+        mpi_type, elements = cls.__mpi_type_mappings[obj.dtype], torch.numel(obj)
+
+
+        #print( "Obj Info: obj.shape = {}, obj.stride = {}".format(obj.shape, obj.stride()))
+        # simple case, continuous memory can be transmitted as is
+        #if obj.is_contiguous():
+        #    if counts is not None:
+        #        factor = np.prod(obj.shape[1:])
+        #        elements = (tuple(factor * ele for ele in counts), (tuple(factor * ele for ele in displs)),)
+        #        return [cls.as_mpi_memory(obj), elements, mpi_type]
+
+        # non-continuous memory, e.g. after a transpose, has to be packed in derived MPI types
+        shape = obj.shape[1:]
+        strides = [1] * len(shape)
+        strides[0] = obj.stride()[-1]
+        strides = strides[::-1]
+        offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
+
+        #print("Vector wrapping: shape={}, strides={}, offsets={}".format(shape, strides, offsets))
+
+        # Step 1: Wrap along axes > 0 (all axes except recv_axis)
+        for i in range(len(shape) - 1, -1, -1):
+            mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
+            mpi_type.Commit()
+
+        # Step 2: Receive blocks along the recv axis
+        # Prepare recvcount, senddispls and sendtypes for alltoallw
+        recvcount = np.full((nproc,), obj.shape[0]//nproc)
+        recvcount[:obj.shape[0]%nproc]+=1
+
+        # size/extent of mpitype = offsets[0]
+        tmp_displs = [0] * nproc
+        tmp_displs[1:] = np.cumsum(recvcount[:-1] )
+        recvdispls = [offsets[0] * d for d in tmp_displs]
+
+        recvtypes = [mpi_type] * nproc
+        #print("recvcounts = {}, recvdispls={}, recvtypes = {}".format(recvcount, recvdispls, recvtypes))
+        return cls.as_mpi_memory(obj), (recvcount, recvdispls), recvtypes
+
+
+    def __alltoall_like(self, func, sendbuf, recvbuf, send_axis, recv_axis, send_factor=1, recv_factor=1, **kwargs):
+
+        # dummy allocation for *v calls
+        send_counts, send_displs, recv_counts, recv_displs = None, None, None, None,
+
+        # unpack the send buffer
+        if isinstance(sendbuf, tuple):
+            sendbuf, send_counts, send_displs = sendbuf
+        if isinstance(sendbuf, dndarray.DNDarray):
+            sendbuf = sendbuf._DNDarray__array
+        if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
+            raise TypeError('sendbuf of type {} does not support send_axis != 0'.format(type(sendbuf)))
+
+        # unpack the receive buffer
+        if isinstance(recvbuf, tuple):
+            recvbuf, recv_counts, recv_displs = recvbuf
+        if isinstance(recvbuf, dndarray.DNDarray):
+            recvbuf = recvbuf._DNDarray__array
+        if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
+            raise TypeError('recvbuf of type {} does not support send_axis != 0'.format(type(recvbuf)))
+
+
+        # keep a reference to the original buffer object
+        original_recvbuf = recvbuf
+
+        # Send_axis-Permutation: [recv_axis, send_axis, rest ...]
+        axis_permutation = list(range(recvbuf.ndimension()))
+        if(send_axis == 0):
+            if(recv_axis == 1 ):
+                axis_permutation[send_axis], axis_permutation[recv_axis] = recv_axis, send_axis
+            else:
+                axis_permutation[1], axis_permutation[send_axis] = send_axis, 1
+                axis_permutation[recv_axis] = axis_permutation[0]
+                axis_permutation[0] = recv_axis
+
+        else:
+            axis_permutation[0], axis_permutation[recv_axis] = recv_axis, 0
+            axis_permutation[send_axis] = axis_permutation[1]
+            axis_permutation[1] = send_axis
+
+        MPI_WORLD.Barrier()
+        #print("SEND AXIS PERMUTE: ", send_axis_permutation)
+        sendbuf = sendbuf.permute(*axis_permutation)
+
+        recvbuf = recvbuf.permute(*axis_permutation)
+
+        # prepare buffer objects
+        #MPI_WORLD.Barrier()
+        #print("############## SEND BUF PREPARATION ###########")
+        #if sendbuf is not MPI.IN_PLACE:
+        nproc = self.size
+        mpi_sendbuf = self.alltoall_sendbuffer(sendbuf, nproc, send_counts, send_displs)
+            #if send_counts is None:
+                #mpi_sendbuf[1] //= send_factor
+        #else:
+        #   mpi_sendbuf = sendbuf
+
+
+        #MPI_WORLD.Barrier()
+        #print("############## RECV BUF PREPARATION ###########")
+        #if recvbuf is not MPI.IN_PLACE:
+        mpi_recvbuf = self.alltoall_recvbuffer(recvbuf, nproc, recv_counts, recv_displs)
+            #if recv_counts is None:
+             #   mpi_recvbuf[1] //= recv_factor
+        #else:
+        #    mpi_recvbuf = recvbuf
+
+        # perform the scatter operation
+        exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
+
+        original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), original_recvbuf.shape, original_recvbuf.stride())
+
+        return exit_code
+
+
+    def Alltoall(self, sendbuf, recvbuf, axis=0, recv_axis=None):
+        return self.__alltoall_like(self.handle.Alltoallw, sendbuf, recvbuf, axis, recv_axis, send_factor=self.size, recv_factor=self.size)
+    Alltoall.__doc__ = MPI.Comm.Alltoall.__doc__
+
+    def Alltoallv(self, sendbuf, recvbuf, axis=0, recv_axis=None):
+        return self.__alltoall_like(self.handle.Alltoallw, sendbuf, recvbuf, axis, recv_axis)
+    Alltoallv.__doc__ = MPI.Comm.Alltoallv.__doc__
+
     def __scatter_like(self, func, sendbuf, recvbuf, send_axis, recv_axis, send_factor=1, recv_factor=1, **kwargs):
         # align the output buffer in the same way as the input buffer by default
         if recv_axis is None:
@@ -524,16 +715,6 @@ class MPICommunication(Communication):
 
         return exit_code
 
-
-    def Alltoall(self, sendbuf, recvbuf, axis=0, recv_axis=None):
-        return self.__scatter_like(
-            self.handle.Alltoall, sendbuf, recvbuf, axis, recv_axis, send_factor=self.size, recv_factor=self.size
-        )
-    Alltoall.__doc__ = MPI.Comm.Alltoall.__doc__
-
-    def Alltoallv(self, sendbuf, recvbuf, axis=0, recv_axis=None):
-        return self.__scatter_like(self.handle.Alltoallv, sendbuf, recvbuf, axis, recv_axis)
-    Alltoallv.__doc__ = MPI.Comm.Alltoallv.__doc__
 
     def Gather(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
         return self.__scatter_like(
