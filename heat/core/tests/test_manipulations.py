@@ -617,7 +617,7 @@ class TestManipulations(unittest.TestCase):
 
         exp_axis_one = ht.array([rank], dtype=ht.int32).expand_dims(0)
         split_zero_transposed = ht.array(torch_array.transpose(0, 1), split=0)
-        res = ht.unique(split_zero_transposed, sorted=True, axis=1)
+        res = ht.unique(split_zero_transposed, sorted=False, axis=1)
         self.assertTrue((res._DNDarray__array == exp_axis_one._DNDarray__array).all())
 
         split_one = ht.array(torch_array, dtype=ht.int32, split=1)
@@ -627,7 +627,7 @@ class TestManipulations(unittest.TestCase):
         self.assertTrue((res._DNDarray__array == exp_axis_none._DNDarray__array).all())
 
         exp_axis_zero = ht.array([rank], dtype=ht.int32).expand_dims(0)
-        res = ht.unique(split_one, sorted=True, axis=0)
+        res = ht.unique(split_one, sorted=False, axis=0)
         self.assertTrue((res._DNDarray__array == exp_axis_zero._DNDarray__array).all())
 
         exp_axis_one = ht.array([rank] * size, dtype=ht.int32).expand_dims(1)

@@ -789,7 +789,6 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     a.comm.Allgather(uniques, uniques_buf)
 
     if axis is None or axis == a.split:
-        #
         is_split = None
         split = a.split
 
@@ -885,8 +884,8 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
 
         inverse_indices = indices
         if sorted:
-            # TODO This case is not working, we would need a vector-sort across multiple processes
-            pass
+            raise ValueError('Sorting with axis != split is not supported yet. '
+                             'See https://github.com/helmholtz-analytics/heat/issues/363')
 
     if axis is not None:
         # transpose matrix back
