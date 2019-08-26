@@ -49,49 +49,112 @@ def __counter_sequence(shape, dtype, split, device, comm):
     lshape : tuple of ints
         The shape x_0 and x_1 need to be reshaped to after encryption. May be slightly larger than the actual local
         portion of the random number tensor due to sequence overlaps of the counter sequence.
-    slices : list of slices
-        The indices into the reshaped tensor to obtain the actual local portion.
+    slice : python slice
+        The slice that needs to be applied to the resulting random number tensor
     """
     # get the global random state into the function, might want to factor this out into a class later
     global __counter
-
+    tmp_counter = __counter  # Share this initial local state to update it correctly later
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+    max_count = 0xffffffff if dtype == torch.int32 else 0xffffffffffffffff
     # extract the counter state of the random number generator
     if dtype is torch.int32:
-        c_0 = __counter & (0xffffffff << 32)
-        c_1 = __counter & 0xffffffff
+        c_0 = (__counter & (max_count << 32)) >> 32
+        c_1 = __counter & max_count
     else:  # torch.int64
-        c_0 = __counter & (0xffffffffffffffff << 64)
-        c_1 = __counter & 0xffffffffffffffff
+        c_0 = (__counter & (max_count << 64)) >> 64
+        c_1 = __counter & max_count
 
-    # prepare some reusable values
-    dimensions = len(shape)
     total_elements = np.prod(shape)
-    offset, lshape, _ = comm.chunk(shape, split)
+    if total_elements > 2 * max_count:
+        raise ValueError('Shape is to big with {} elements'.format(total_elements))
+
+    if split is None:
+        values = total_elements / 2
+        even_end = values % 2 == 0
+        lslice = slice(None) if even_end else slice(None, -1)
+        start = c_1
+        end = start + int(values)
+        lshape = shape
+    else:
+        offset, lshape, _ = comm.chunk(shape, split)
+        counts, displs, _ = comm.counts_displs_shape(shape, split)
+
+        # Calculate number of local elements per process
+        local_elements = [total_elements / shape[split] * counts[i] for i in range(size)]
+        cum_elements = np.cumsum(local_elements)
+
+        # Calculate the correct borders and slices
+        even_start = True if rank == 0 else cum_elements[rank-1] % 2 == 0
+        start = c_1 if rank == 0 else int(cum_elements[rank-1] / 2) + c_1
+        elements = local_elements[rank] / 2
+        lslice = slice(None)
+        if even_start:
+            # No overlap with previous processes
+            if elements == int(elements):
+                # Even number of elements
+                end = int(elements)
+            else:
+                # Odd number of elements
+                end = int(elements) + 1
+                lslice = slice(None, -1)
+        else:
+            # Overlap with previous processes
+            if elements == int(elements):
+                # Even number of elements
+                end = int(elements) + 1
+                lslice = slice(1, -1)
+            else:
+                # Odd number of elements
+                end = int(elements) + 1
+                lslice = slice(1, None)
+        start = int(start)
+        end += start
+
+    # Check x_1 for overflow
+    lrange = [start, end]
+    signed_mask = 0x7fffffff if dtype == torch.int32 else 0x7fffffffffffffff
+    diff = 0 if lrange[1] <= signed_mask else lrange[1] - signed_mask
+    lrange[0], lrange[1] = lrange[0] - diff, lrange[1] - diff
+
+    # create x_1 counter sequence
+    x_1 = torch.arange(*lrange, dtype=dtype)
+    while diff > signed_mask:
+        # signed_mask is maximum that can be added at a time because torch does not support unit64 or unit32
+        x_1 += signed_mask
+        diff -= signed_mask
+    x_1 += diff
 
     # generate the x_0 counter sequence
-    x_0 = torch.full
+    x_0 = torch.empty_like(x_1)
+    diff = c_0 - signed_mask
+    if diff > 0:
+        # same problem as for x_1 with the overflow
+        x_0.fill_(signed_mask)
+        while diff > signed_mask:
+            x_0 += signed_mask
+            diff -= signed_mask
+        x_0 += diff
+    else:
+        x_0.fill_(c_0)
 
-    # generate the x_1 counter sequence
-
-
-    elements_in_higher_dims = 1
-    ranges = dimensions * [None]
-
-    for i in range(dimensions - 2, -1, -1):
-        elements_in_dim = lshape[i]
-        if i != split:
-            values = torch.arange(elements_in_dim, dtype=dtype, device=device) * elements_in_higher_dims
+    # Detect if x_0 needs to be increased for current values
+    if end > max_count:
+        if start > max_count:
+            # x_0 changed in previous process, increase all values
+            x_0 += 1
         else:
-            values = (torch.arange(elements_in_dim, dtype=dtype, device=device) + offset) * elements_in_higher_dims
+            # x_0 changes after reaching the overflow in this process
+            x_0[-(end-max_count-1):] += 1
 
-        values = values.reshape(*[1 if j != i else -1 for j in range(dimensions)])
-        ranges[i] = values
-        elements_in_higher_dims *= elements_in_dim
+    # Correctly increase the counter variable
+    used_values = int(np.ceil(total_elements / 2))
+    # Increase counter but not over 128 bit
+    tmp_counter += used_values & 0xffffffffffffffffffffffffffffffff  # 128bit mask
+    __counter = tmp_counter
 
-    # advance the global counter
-    __counter += total_elements
-
-    return x_0, x_1, lshape, slices
+    return x_0, x_1, lshape, lslice
 
 
 def get_state():
@@ -211,11 +274,11 @@ def rand(*args, split=None, device=None, comm=None):
     comm = communication.sanitize_comm(comm)
 
     # generate the random sequence
-    x_0, x_1, lshape = __counter_sequence(shape, torch.int64, split, device, comm)
+    x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int64, split, device, comm)
     x_0, x_1 = __threefry64(x_0, x_1)
 
     # combine the values into one tensor and convert them to floats
-    values = __int64_to_float64(torch.stack([x_0, x_1], dim=1)).reshape(lshape)
+    values = __int64_to_float64(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(lshape)
 
     return dndarray.DNDarray(values, shape, types.float64, split, device, comm)
 
