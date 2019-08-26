@@ -209,6 +209,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     if bool(copy):
         if isinstance(obj, torch.Tensor):
             obj = obj.clone().detach()
+        elif isinstance(obj, np.ndarray):
+            obj = torch.from_numpy(obj)
         else:
             try:
                 obj = torch.tensor(obj, dtype=dtype.torch_type() if dtype is not None else None)
@@ -247,7 +249,7 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     # content shall be split, chunk the passed data object up
     if split is not None:
         _, _, slices = comm.chunk(obj.shape, split)
-        obj = obj[slices]
+        obj = obj[slices].clone()
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
         if comm.rank < comm.size - 1:
@@ -277,7 +279,10 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
         if reduction_buffer < 0:
             raise ValueError('unable to construct tensor, shape of local data chunk does not match')
-        gshape[is_split] = reduction_buffer
+        ttl_shape = np.array(obj.shape)
+        ttl_shape[is_split] = lshape[is_split]
+        comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
+        gshape[is_split] = ttl_shape[is_split]
         split = is_split
 
     return dndarray.DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
