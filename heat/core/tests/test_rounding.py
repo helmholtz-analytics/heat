@@ -95,7 +95,7 @@ class TestRounding(unittest.TestCase):
         self.assertIsInstance(float32_floor, ht.DNDarray)
         self.assertEqual(float32_floor.dtype, ht.float32)
         self.assertEqual(float32_floor.dtype, ht.float32)
-        self.assertTrue((float32_floor._DNDarray__array == comparison.type(torch.float32)).all())
+        self.assertTrue((float32_floor._DNDarray__array == comparison.float()).all())
 
         # exponential of float64
         float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
@@ -146,7 +146,7 @@ class TestRounding(unittest.TestCase):
         self.assertIsInstance(float32_floor, ht.DNDarray)
         self.assertEqual(float32_floor.dtype, ht.float32)
         self.assertEqual(float32_floor.dtype, ht.float32)
-        self.assertTrue((float32_floor._DNDarray__array == comparison.type(torch.float32)).all())
+        self.assertTrue((float32_floor._DNDarray__array == comparison.float()).all())
 
         # exponential of float64
         float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
@@ -172,7 +172,7 @@ class TestRounding(unittest.TestCase):
         float32_floor = float32_tensor.trunc()
         self.assertIsInstance(float32_floor, ht.DNDarray)
         self.assertEqual(float32_floor.dtype, ht.float32)
-        self.assertTrue((float32_floor._DNDarray__array == comparison.type(torch.float32)).all())
+        self.assertTrue((float32_floor._DNDarray__array == comparison.float()).all())
 
         # trunc of float64
         float64_tensor = ht.array(base_array, dtype=ht.float64)
