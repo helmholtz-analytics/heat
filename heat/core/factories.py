@@ -225,10 +225,10 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
 
     # reshape the object to encompass additional dimensions
     ndmin_abs = abs(ndmin) - len(obj.shape)
-    if ndmin_abs > 0 and ndmin>0:
+    if ndmin_abs > 0 and ndmin > 0:
         obj = obj.reshape(obj.shape + ndmin_abs * (1,))
-    if ndmin_abs > 0 and ndmin<0:
-        obj = obj.reshape(ndmin_abs * (1,) + obj.shape )
+    if ndmin_abs > 0 > ndmin:
+        obj = obj.reshape(ndmin_abs * (1,) + obj.shape)
 
     # sanitize the split axes, ensure mutual exclusiveness
     split = sanitize_axis(obj.shape, split)
@@ -600,7 +600,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
     ----------
     start: scalar, scalar-convertible
         The starting value of the sample interval, maybe a sequence if convertible to scalar
-    end: scalar, scalar-convertible
+    stop: scalar, scalar-convertible
         The end value of the sample interval, unless is set to False. In that case, the sequence consists of all but the
         last of num + 1 evenly spaced samples, so that stop is excluded. Note that the step size changes when endpoint
         is False.

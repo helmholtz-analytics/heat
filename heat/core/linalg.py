@@ -1,5 +1,4 @@
 import itertools
-import sys
 import torch
 
 from .communication import MPI

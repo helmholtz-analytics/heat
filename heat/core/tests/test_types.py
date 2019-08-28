@@ -45,8 +45,8 @@ class TestTypes(unittest.TestCase):
         self.assert_non_instantiable_heat_type(ht.generic)
 
     def test_bool(self):
-        self.assert_is_instantiable_heat_type(ht.bool, torch.uint8)
-        self.assert_is_instantiable_heat_type(ht.bool_, torch.uint8)
+        self.assert_is_instantiable_heat_type(ht.bool, torch.bool)
+        self.assert_is_instantiable_heat_type(ht.bool_, torch.bool)
 
     def test_number(self):
         self.assert_non_instantiable_heat_type(ht.number)

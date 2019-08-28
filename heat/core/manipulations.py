@@ -277,7 +277,7 @@ def concatenate(arrays, axis=0):
                     arr1._DNDarray__array.unsqueeze_(axis)
 
             # now that the data is in the proper shape, need to concatenate them on the nodes where they both exist for the others, just set them equal
-            out = factories.empty((out_shape), split=s0 if s0 is not None else s1, dtype=out_dtype)
+            out = factories.empty(out_shape, split=s0 if s0 is not None else s1, dtype=out_dtype)
             res = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
             out._DNDarray__array = res
             return out
@@ -449,7 +449,7 @@ def sort(a, axis=None, descending=False, out=None):
         comp_op = torch.gt if descending else torch.lt
         # Iterate over all pivots and store which pivot is the first greater than the elements value
         for idx, p in enumerate(global_pivots):
-            lt = comp_op(local_sorted, p)
+            lt = comp_op(local_sorted, p).int()
             if idx > 0:
                 lt_partitions[idx] = lt - last
             else:
@@ -671,7 +671,7 @@ def squeeze(x, axis=None):
         axis = tuple(i for i, dim in enumerate(x.shape) if dim == 1)
     if isinstance(axis, int):
         axis = (axis,)
-    out_lshape = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if not dim in axis)
+    out_lshape = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
     x_lsqueezed = x._DNDarray__array.reshape(out_lshape)
 
     # Calculate split axis according to squeezed shape
@@ -686,7 +686,7 @@ def squeeze(x, axis=None):
             if x.split in axis:
                 raise ValueError('Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}'.format(
                     x.split, axis, x.shape))
-            out_gshape = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
+            out_gshape = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
             x_gsqueezed = factories.empty(out_gshape, dtype=x.dtype)
             loffset = factories.zeros(1, dtype=types.int64)
             loffset.__setitem__(0, x.comm.chunk(x.gshape, x.split)[0])

@@ -267,7 +267,7 @@ class TestManipulations(unittest.TestCase):
         # None None 0
         x = ht.zeros((16,), split=None)
         y = ht.ones((16,), split=None)
-        res = ht.concatenate((x,y), axis=0)
+        res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32,))
         self.assertEqual(res.dtype, ht.float)
         # None 0 0
