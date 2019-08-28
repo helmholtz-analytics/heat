@@ -16,7 +16,7 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(x.shape, (1,))
         self.assertEqual(x.lshape, (1,))
         self.assertEqual(x.dtype, ht.bool)
-        self.assertEqual(x._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(x._DNDarray__array.dtype, torch.bool)
         self.assertEqual(x.split, None)
         self.assertEqual(x._DNDarray__array, 1)
 
@@ -32,7 +32,7 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(floats_is_one.shape, (1,))
         self.assertEqual(floats_is_one.lshape, (1,))
         self.assertEqual(floats_is_one.dtype, ht.bool)
-        self.assertEqual(floats_is_one._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(floats_is_one._DNDarray__array.dtype, torch.bool)
         self.assertEqual(floats_is_one.split, None)
         self.assertEqual(floats_is_one._DNDarray__array, 1)
 
@@ -48,7 +48,7 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(int_is_one.shape, (1,))
         self.assertEqual(int_is_one.lshape, (1,))
         self.assertEqual(int_is_one.dtype, ht.bool)
-        self.assertEqual(int_is_one._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(int_is_one._DNDarray__array.dtype, torch.bool)
         self.assertEqual(int_is_one.split, None)
         self.assertEqual(int_is_one._DNDarray__array, 1)
 
@@ -64,7 +64,7 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(split_int_is_one.shape, (1,))
         self.assertEqual(split_int_is_one.lshape, (1,))
         self.assertEqual(split_int_is_one.dtype, ht.bool)
-        self.assertEqual(split_int_is_one._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(split_int_is_one._DNDarray__array.dtype, torch.bool)
         self.assertEqual(split_int_is_one.split, None)
         self.assertEqual(split_int_is_one._DNDarray__array, 1)
 
@@ -80,7 +80,7 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(volume_is_one.shape, (1,))
         self.assertEqual(volume_is_one.lshape, (1,))
         self.assertEqual(volume_is_one.dtype, ht.bool)
-        self.assertEqual(volume_is_one._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(volume_is_one._DNDarray__array.dtype, torch.bool)
         self.assertEqual(volume_is_one.split, None)
         self.assertEqual(volume_is_one._DNDarray__array, 1)
 
@@ -96,7 +96,7 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(sequence_is_one.shape, (1,))
         self.assertEqual(sequence_is_one.lshape, (1,))
         self.assertEqual(sequence_is_one.dtype, ht.bool)
-        self.assertEqual(sequence_is_one._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(sequence_is_one._DNDarray__array.dtype, torch.bool)
         self.assertEqual(sequence_is_one.split, None)
         self.assertEqual(sequence_is_one._DNDarray__array, 0)
 
@@ -111,7 +111,7 @@ class TestLogical(unittest.TestCase):
         self.assertIsInstance(float_volume_is_one, ht.DNDarray)
         self.assertEqual(float_volume_is_one.shape, (3, 3))
         self.assertEqual(float_volume_is_one.all(axis=1).dtype, ht.bool)
-        self.assertEqual(float_volume_is_one._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(float_volume_is_one._DNDarray__array.dtype, torch.bool)
         self.assertEqual(float_volume_is_one.split, None)
 
         out_noaxis = ht.zeros((3, 3,))
@@ -124,7 +124,7 @@ class TestLogical(unittest.TestCase):
         self.assertIsInstance(float_volume_is_one, ht.DNDarray)
         self.assertEqual(float_volume_is_one.shape, (3,))
         self.assertEqual(float_volume_is_one.all(axis=0).dtype, ht.bool)
-        self.assertEqual(float_volume_is_one._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(float_volume_is_one._DNDarray__array.dtype, torch.bool)
         self.assertEqual(float_volume_is_one.split, None)
 
         # check all over all float elements of split 5d tensor with negative axis
@@ -134,7 +134,7 @@ class TestLogical(unittest.TestCase):
         self.assertIsInstance(float_5d_is_one, ht.DNDarray)
         self.assertEqual(float_5d_is_one.shape, (1, 2, 3, 5))
         self.assertEqual(float_5d_is_one.dtype, ht.bool)
-        self.assertEqual(float_5d_is_one._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(float_5d_is_one._DNDarray__array.dtype, torch.bool)
         self.assertEqual(float_5d_is_one.split, 1)
 
         out_noaxis = ht.zeros((1, 2, 3, 5))
