@@ -199,7 +199,6 @@ class MPICommunication(Communication):
 
     @classmethod
     def as_mpi_memory(cls, obj):
-        
         """
         Converts the passed Torch tensor into an MPI compatible memory view.
 
@@ -471,8 +470,7 @@ class MPICommunication(Communication):
         shape = obj.shape
         strides = [1] * len(shape)
         strides[-1] = obj.stride()[-1]
-
-        offsets = [0]*len(shape)
+        offsets = [0] * len(shape)
         offsets[1:] = [obj.element_size() * stride for stride in obj.stride()[:-1]]
 
         # Step 1: Wrap along axes > 1 (all axes except send_axis and recv_axis
@@ -482,8 +480,8 @@ class MPICommunication(Communication):
 
         # Step 2: Create Custom sized vector datatypes, according to rank-specific size along send_axis
         # send_elements has nproc entries, defining how many vectors of mpi_type are stacked together for each process to receive along the send_axis
-        send_elements = np.full((nproc,), obj.shape[1]//nproc)
-        send_elements[:obj.shape[1]%nproc]+=1
+        send_elements = np.full((nproc,), obj.shape[1] // nproc)
+        send_elements[:obj.shape[1] % nproc] += 1
 
         #Create short_Type from the last entry of send_elements
         mpi_short_type = mpi_type.Create_vector(send_elements[-1], 1, strides[1]).Create_resized(0, offsets[1])
@@ -500,12 +498,13 @@ class MPICommunication(Communication):
 
         #Step 4: Prepare sencounts, senddispls and sendtypes for alltoallw
         # to each process 1 element (=sendcount) of the custom prepared long or short type will be send
-        sendcount = [1]*nproc
+        sendcount = [1] * nproc
         tmp_displs = [0] * nproc
         tmp_displs[1:] = np.cumsum(send_elements[:-1] )
-        senddispls = [obj.element_size() * obj.stride()[1] * d for d in tmp_displs]
-        sendtypes = [mpi_short_type]*nproc
-        for i in range(obj.shape[1]%nproc):
+        element_size = obj.element_size()
+        senddispls = [element_size * obj.stride()[1] * d for d in tmp_displs]
+        sendtypes = [mpi_short_type] * nproc
+        for i in range(obj.shape[1] % nproc):
             sendtypes[i] = mpi_long_type
 
         return cls.as_mpi_memory(obj), (sendcount, senddispls), sendtypes
@@ -527,11 +526,11 @@ class MPICommunication(Communication):
 
         # Step 2: Receive blocks along the recv axis
         # Prepare recvcount, senddispls and sendtypes for alltoallw
-        recvcount = np.full((nproc,), obj.shape[0]//nproc)
-        recvcount[:obj.shape[0]%nproc]+=1
+        recvcount = np.full((nproc,), obj.shape[0] // nproc)
+        recvcount[:obj.shape[0] % nproc]+=1
         # size/extent of mpitype = offsets[0]
         tmp_displs = [0] * nproc
-        tmp_displs[1:] = np.cumsum(recvcount[:-1] )
+        tmp_displs[1:] = np.cumsum(recvcount[:-1])
         recvdispls = [offsets[0] * d for d in tmp_displs]
         recvtypes = [mpi_type] * nproc
 
@@ -539,7 +538,6 @@ class MPICommunication(Communication):
 
 
     def __alltoall_w(self, sendbuf, recvbuf, send_axis, recv_axis, **kwargs):
-
         if (recv_axis == send_axis):
             raise NotImplementedError('AllToAll for same axes not supported. Please choose send_axis and recv_axis to be different.')
 
@@ -604,7 +602,7 @@ class MPICommunication(Communication):
     def Alltoall(self, sendbuf, recvbuf, axis, recv_axis):
         raise NotImplementedError(
             'AllToAll for same axes not supported. Please choose send_axis and recv_axis to be different.')
-        if(((axis == 0) & (recv_axis == 1)) | ((axis == 1) & (recv_axis == 0))):
+        if(((axis == 0) and (recv_axis == 1)) or ((axis == 1) and (recv_axis == 0))):
             return self.__scatter_like(self.handle.Alltoall, sendbuf, recvbuf, axis, recv_axis, send_factor=self.size, recv_factor=self.size)
         else:
             return self.__alltoall_w(sendbuf, recvbuf, axis, recv_axis)
@@ -613,7 +611,7 @@ class MPICommunication(Communication):
     def Alltoallv(self, sendbuf, recvbuf, axis, recv_axis):
         raise NotImplementedError(
             'AllToAll for same axes not supported. Please choose send_axis and recv_axis to be different.')
-        if(((axis == 0) & (recv_axis == 1)) | ((axis == 1) & (recv_axis == 0))):
+        if(((axis == 0) and (recv_axis == 1)) or ((axis == 1) and (recv_axis == 0))):
             return self.__scatter_like(self.handle.Alltoallv, sendbuf, recvbuf, axis, recv_axis, send_factor=self.size, recv_factor=self.size)
         else:
             return self.__alltoall_w(sendbuf, recvbuf, axis, recv_axis)
