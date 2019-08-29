@@ -7,6 +7,9 @@ from . import dndarray
 
 __all__ = [
     'add',
+    'bitwise_and',
+    'bitwise_or',
+    'bitwise_xor',
     'div',
     'floordiv',
     'fmod',
@@ -55,6 +58,109 @@ def add(t1, t2):
     """
     return operations.__binary_op(torch.add, t1, t2)
 
+def bitwise_and(t1, t2):
+    """
+    Compute the bit-wise AND of two arrays element-wise.
+
+    Parameters
+    ----------
+    t1, t2: tensor or scalar
+        Only integer and boolean types are handled. If x1.shape != x2.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
+
+    Returns
+    -------
+    result: ht.DNDarray
+        A tensor containing the results of element-wise AND of t1 and t2.
+
+    Examples:
+    ---------
+    import heat as ht
+    >>> ht.bitwise_and(13, 17)
+    tensor([1])
+    >>> np.bitwise_and(14, 13)
+    tensor([12])
+
+    >>> ht.bitwise_and(ht.array([14,3]), 13)
+    tensor([12,  1])
+    
+    >>> ht.bitwise_and(ht.array([11,7]), ht.array([4,25]))
+    tensor([0, 1])
+    >>> ht.bitwise_and(ht.array([2,5,255]), ht.array([3,14,16]))
+    tensor([ 2,  4, 16])
+
+    >>> ht.bitwise_and(ht.array([True, True]), ht.array([False, True]))
+    tensor([False,  True])
+    """
+    return operations.__binary_bit_op('__and__', t1, t2)
+
+def bitwise_or(t1, t2):
+    """
+    Compute the bit-wise OR of two arrays element-wise.
+
+    Parameters
+    ----------
+    t1, t2: tensor or scalar
+       Only integer and boolean types are handled. If x1.shape != x2.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
+
+    Returns
+    -------
+    result: ht.DNDArray
+       A tensor containing the results of element-wise OR of t1 and t2.
+
+    Examples:
+    ---------
+    import heat as ht
+    >>> ht.bitwise_or(13, 16)
+    tensor([29])
+
+    >>> ht.bitwise_or(32, 2)
+    tensor([34])
+    >>> ht.bitwise_or(ht.array([33, 4]), 1)
+    tensor([33,  5])
+    >>> ht.bitwise_or(ht.array([33, 4]), ht.array([1, 2]))
+    tensor([33,  6])
+
+    >>> ht.bitwise_or(ht.array([2, 5, 255]), ht.array([4, 4, 4]))
+    tensor([  6,   5, 255])
+    >>> ht.bitwise_or(ht.array([2, 5, 255, 2147483647], dtype=ht.int32),
+    ...               ht.array([4, 4, 4, 2147483647], dtype=ht.int32))
+    tensor([         6,          5,        255, 2147483647])
+    >>> ht.bitwise_or(ht.array([True, True]), ht.array([False, True]))
+    tensor([ True,  True])
+    """
+    return operations.__binary_bit_op('__or__', t1, t2)
+
+def bitwise_xor(t1, t2):
+    """
+    Compute the bit-wise XOR of two arrays element-wise.
+
+    Parameters
+    ----------
+    t1, t2: tensor or scalar
+       Only integer and boolean types are handled. If x1.shape != x2.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
+
+    Returns
+    -------
+    result: ht.DNDArray
+       A tensor containing the results of element-wise OR of t1 and t2.
+
+    Examples:
+    ---------
+    import heat as ht
+    >>> ht.bitwise_xor(13, 17)
+    tensor([28])
+
+    >>> ht.bitwise_xor(31, 5)
+    tensor([26])
+    >>> ht.bitwise_xor(ht.array[31,3], 5)
+    tensor([26,  6])
+
+    >>> ht.bitwise_xor(ht.array([31,3]), ht.array([5,6]))
+    tensor([26,  5])
+    >>> ht.bitwise_xor(ht.array([True, True]), ht.array([False, True]))
+    tensor([ True, False])
+    """
+    return operations.__binary_bit_op('__xor__', t1, t2)
 
 def div(t1, t2):
     """

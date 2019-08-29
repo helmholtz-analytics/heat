@@ -339,6 +339,43 @@ class DNDarray:
         """
         return logical.allclose(self, other, rtol, atol, equal_nan)
 
+    def __and__(self, other):
+        """
+        Compute the bit-wise AND of self and other arrays element-wise.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+            Only integer and boolean types are handled. If self.shape != other.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
+
+        Returns
+        -------
+        result: ht.DNDarray
+            A tensor containing the results of element-wise AND of self and other.
+
+        Examples:
+        ---------
+        import heat as ht
+        >>> ht.array([13]) & 17
+        tensor([1])
+
+        >>> ht.array([14]) & ht.array([13])
+        tensor([12])
+
+        >>> ht.array([14,3]) & 13
+        tensor([12,  1])
+
+        >>> ht.array([11,7]) & ht.array([4,25])
+        tensor([0, 1])
+
+        >>> ht.array([2,5,255]) & ht.array([3,14,16])
+        tensor([ 2,  4, 16])
+
+        >>> ht.array([True, True]) & ht.array([False, True])
+        tensor([False,  True])
+        """
+        return arithmetics.bitwise_and(self, other)
+
     def any(self, axis=None, out=None, keepdim=False):
         """
         Test whether any array element along a given axis evaluates to True.
@@ -1980,6 +2017,42 @@ class DNDarray:
        
         return self.resplit(None)._DNDarray__array.cpu().numpy()
 
+    def __or__(self, other):
+        """
+        Compute the bit-wise OR of two arrays element-wise.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        Only integer and boolean types are handled. If self.shape != other.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
+
+        Returns
+        -------
+        result: ht.DNDArray
+        A tensor containing the results of element-wise OR of self and other.
+
+        Examples:
+        ---------
+        import heat as ht
+        >>> ht.array([13]) | 16
+        tensor([29])
+
+        >>> ht.array([32]) | ht.array([2])
+        tensor([34])
+        >>> ht.array([33, 4]) | 1
+        tensor([33,  5])
+        >>> ht.array([33, 4]) | ht.array([1, 2])
+        tensor([33,  6])
+
+        >>> ht.array([2, 5, 255]) | ht.array([4, 4, 4])
+        tensor([  6,   5, 255])
+        >>> ht.array([2, 5, 255, 2147483647], dtype=ht.int32) | ht.array([4, 4, 4, 2147483647], dtype=ht.int32)
+        tensor([         6,          5,        255, 2147483647])
+        >>> ht.array([True, True]) | ht.array([False, True])
+        tensor([ True,  True])
+        """
+        return arithmetics.bitwise_or(self, other)
+
     def __pow__(self, other):
         """
         Element-wise exponential function with values from second operand (scalar or tensor)
@@ -2919,6 +2992,38 @@ class DNDarray:
         ht.DNDarray containing the var/s, if split, then split in the same direction as x.
         """
         return statistics.var(self, axis, bessel=bessel)
+
+    def __xor__(self, other):
+        """
+        Compute the bit-wise XOR of two arrays element-wise.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+        Only integer and boolean types are handled. If self.shape != other.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
+
+        Returns
+        -------
+        result: ht.DNDArray
+        A tensor containing the results of element-wise OR of self and other.
+
+        Examples:
+        ---------
+        import heat as ht
+        >>> ht.array([13]) ^ 17
+        tensor([28])
+
+        >>> ht.array([31]) ^ ht.array([5])
+        tensor([26])
+        >>> ht.array[31,3] ^ 5
+        tensor([26,  6])
+
+        >>> ht.array([31,3]) ^ ht.array([5,6])
+        tensor([26,  5])
+        >>> ht.array([True, True]) ^ ht.array([False, True])
+        tensor([ True, False])
+        """
+        return arithmetics.bitwise_xor(self, other)
 
     """
     This ensures that commutative arithmetic operations work no matter on which side the heat-tensor is placed.
