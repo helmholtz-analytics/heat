@@ -390,6 +390,7 @@ def max(x, axis=None, out=None, keepdim=None):
             [12.]])
     """
     def local_max(*args, **kwargs):
+        print('args', *args)
         result = torch.max(*args, **kwargs)
         if isinstance(result, tuple):
             return result[0]
@@ -496,14 +497,14 @@ def maximum(x1, x2, out=None):
 
     # locally: apply torch.max(x1, x2)
     output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
-    lresult = factories.empty(output_lshape)
+    lresult = factories.empty(output_lshape, dtype=x1.dtype)
     lresult._DNDarray__array = torch.max(x1._DNDarray__array, x2._DNDarray__array)
     lresult._DNDarray__dtype = types.promote_types(x1.dtype, x2.dtype)
     lresult._DNDarray__split = split
     if x1.split is not None or x2.split is not None:
         if x1.comm.is_distributed():  # assuming x1.comm = x2.comm
             output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
-            result = factories.empty(output_gshape)
+            result = factories.empty(output_gshape, dtype=x1.dtype)
             x1.comm.Allgather(lresult, result)
             # TODO: adopt Allgatherv() as soon as it is fixed, Issue #233
             result._DNDarray__dtype = lresult._DNDarray__dtype
@@ -912,14 +913,14 @@ def minimum(x1, x2, out=None):
 
     # locally: apply torch.min(x1, x2)
     output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
-    lresult = factories.empty(output_lshape)
+    lresult = factories.empty(output_lshape, dtype=x1.dtype)
     lresult._DNDarray__array = torch.min(x1._DNDarray__array, x2._DNDarray__array)
     lresult._DNDarray__dtype = types.promote_types(x1.dtype, x2.dtype)
     lresult._DNDarray__split = split
     if x1.split is not None or x2.split is not None:
         if x1.comm.is_distributed():  # assuming x1.comm = x2.comm
             output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
-            result = factories.empty(output_gshape)
+            result = factories.empty(output_gshape, dtype=x1.dtype)
             x1.comm.Allgather(lresult, result)
             # TODO: adopt Allgatherv() as soon as it is fixed, Issue #233
             result._DNDarray__dtype = lresult._DNDarray__dtype

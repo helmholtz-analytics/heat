@@ -248,8 +248,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(avg_volume, ht.DNDarray)
         self.assertEqual(avg_volume.shape, (3,))
         self.assertEqual(avg_volume.lshape[0], random_volume.lshape[0])
-        self.assertEqual(avg_volume.dtype, ht.float32)
-        self.assertEqual(avg_volume._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(avg_volume.dtype, ht.float64)
+        self.assertEqual(avg_volume._DNDarray__array.dtype, torch.float64)
         self.assertEqual(avg_volume.split, 0)
 
         # check weighted average over all float elements of split 5d tensor, along split axis
@@ -261,8 +261,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(avg_5d, ht.DNDarray)
         self.assertEqual(avg_5d.gshape, (size, 3, 4, 5))
         self.assertLessEqual(avg_5d.lshape[1], 3)
-        self.assertEqual(avg_5d.dtype, ht.float32)
-        self.assertEqual(avg_5d._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(avg_5d.dtype, ht.float64)
+        self.assertEqual(avg_5d._DNDarray__array.dtype, torch.float64)
         self.assertEqual(avg_5d.split, 0)
 
         # check exceptions
@@ -344,8 +344,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(maximum_volume, ht.DNDarray)
         self.assertEqual(maximum_volume.shape, (3, 3))
         self.assertEqual(maximum_volume.lshape, (3, 3))
-        self.assertEqual(maximum_volume.dtype, ht.float32)
-        self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(maximum_volume.dtype, ht.float64)
+        self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float64)
         self.assertEqual(maximum_volume.split, None)
 
         # check max over all float elements of split 3d tensor, tuple axis
@@ -356,8 +356,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(maximum_volume, ht.DNDarray)
         self.assertEqual(maximum_volume.shape, (3,))
         self.assertEqual(maximum_volume.lshape, (3,))
-        self.assertEqual(maximum_volume.dtype, ht.float32)
-        self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(maximum_volume.dtype, ht.float64)
+        self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float64)
         self.assertEqual(maximum_volume.split, 0)
         self.assertTrue((maximum_volume == alt_maximum_volume).all())
 
@@ -368,8 +368,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(maximum_5d, ht.DNDarray)
         self.assertEqual(maximum_5d.shape, (1, 3, 4, 5))
         self.assertLessEqual(maximum_5d.lshape[1], 3)
-        self.assertEqual(maximum_5d.dtype, ht.float32)
-        self.assertEqual(maximum_5d._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(maximum_5d.dtype, ht.float64)
+        self.assertEqual(maximum_5d._DNDarray__array.dtype, torch.float64)
         self.assertEqual(maximum_5d.split, 0)
 
         # check exceptions
@@ -421,8 +421,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(maximum_volume, ht.DNDarray)
         self.assertEqual(maximum_volume.shape, (size * 12, 3, 3))
         self.assertEqual(maximum_volume.lshape, (size * 12, 3, 3))
-        self.assertEqual(maximum_volume.dtype, ht.float32)
-        self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(maximum_volume.dtype, ht.float64)
+        self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float64)
         self.assertEqual(maximum_volume.split, random_volume_1.split)
 
         # check maximum over float elements of split 3d tensors with different split axis
@@ -433,8 +433,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(maximum_volume_splitdiff, ht.DNDarray)
         self.assertEqual(maximum_volume_splitdiff.shape, (size*3, size*3, 4))
         self.assertEqual(maximum_volume_splitdiff.lshape, (size*3, size*3, 4))
-        self.assertEqual(maximum_volume_splitdiff.dtype, ht.float32)
-        self.assertEqual(maximum_volume_splitdiff._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(maximum_volume_splitdiff.dtype, ht.float64)
+        self.assertEqual(maximum_volume_splitdiff._DNDarray__array.dtype, torch.float64)
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
         random_volume_1_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
@@ -459,8 +459,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(output, ht.DNDarray)
         self.assertEqual(output.shape, (ht.MPI_WORLD.size * 12, 3, 3))
         self.assertEqual(output.lshape, (ht.MPI_WORLD.size * 12, 3, 3))
-        self.assertEqual(output.dtype, ht.float32)
-        self.assertEqual(output._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(output.dtype, ht.float64)
+        self.assertEqual(output._DNDarray__array.dtype, torch.float64)
         self.assertEqual(output.split, random_volume_1.split)
 
         # check exceptions
@@ -593,8 +593,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(minimum_volume, ht.DNDarray)
         self.assertEqual(minimum_volume.shape, (3, 3))
         self.assertEqual(minimum_volume.lshape, (3, 3))
-        self.assertEqual(minimum_volume.dtype, ht.float32)
-        self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(minimum_volume.dtype, ht.float64)
+        self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float64)
         self.assertEqual(minimum_volume.split, None)
 
         # check min over all float elements of split 3d tensor, tuple axis
@@ -605,8 +605,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(minimum_volume, ht.DNDarray)
         self.assertEqual(minimum_volume.shape, (3,))
         self.assertEqual(minimum_volume.lshape, (3,))
-        self.assertEqual(minimum_volume.dtype, ht.float32)
-        self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(minimum_volume.dtype, ht.float64)
+        self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float64)
         self.assertEqual(minimum_volume.split, 0)
         self.assertTrue((minimum_volume == alt_minimum_volume).all())
 
@@ -617,8 +617,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(minimum_5d, ht.DNDarray)
         self.assertEqual(minimum_5d.shape, (1, 3, 4, 5))
         self.assertLessEqual(minimum_5d.lshape[1], 3)
-        self.assertEqual(minimum_5d.dtype, ht.float32)
-        self.assertEqual(minimum_5d._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(minimum_5d.dtype, ht.float64)
+        self.assertEqual(minimum_5d._DNDarray__array.dtype, torch.float64)
         self.assertEqual(minimum_5d.split, 0)
 
         # check exceptions
@@ -670,8 +670,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(minimum_volume, ht.DNDarray)
         self.assertEqual(minimum_volume.shape, (size * 12, 3, 3))
         self.assertEqual(minimum_volume.lshape, (size * 12, 3, 3))
-        self.assertEqual(minimum_volume.dtype, ht.float32)
-        self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(minimum_volume.dtype, ht.float64)
+        self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float64)
         self.assertEqual(minimum_volume.split, random_volume_1.split)
 
         # check minimum over float elements of split 3d tensors with different split axis
@@ -682,8 +682,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(minimum_volume_splitdiff, ht.DNDarray)
         self.assertEqual(minimum_volume_splitdiff.shape, (size*3, size*3, 4))
         self.assertEqual(minimum_volume_splitdiff.lshape, (size*3, size*3, 4))
-        self.assertEqual(minimum_volume_splitdiff.dtype, ht.float32)
-        self.assertEqual(minimum_volume_splitdiff._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(minimum_volume_splitdiff.dtype, ht.float64)
+        self.assertEqual(minimum_volume_splitdiff._DNDarray__array.dtype, torch.float64)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
         random_volume_1_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
@@ -708,8 +708,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(output, ht.DNDarray)
         self.assertEqual(output.shape, (ht.MPI_WORLD.size * 12, 3, 3))
         self.assertEqual(output.lshape, (ht.MPI_WORLD.size * 12, 3, 3))
-        self.assertEqual(output.dtype, ht.float32)
-        self.assertEqual(output._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(output.dtype, ht.float64)
+        self.assertEqual(output._DNDarray__array.dtype, torch.float64)
         self.assertEqual(output.split, random_volume_1.split)
 
         # check exceptions

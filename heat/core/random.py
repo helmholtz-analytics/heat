@@ -71,8 +71,8 @@ def __counter_sequence(shape, dtype, split, device, comm):
         raise ValueError('Shape is to big with {} elements'.format(total_elements))
 
     if split is None:
-        values = total_elements / 2
-        even_end = values % 2 == 0
+        values = int(total_elements / 2)
+        even_end = total_elements % 2 == 0
         lslice = slice(None) if even_end else slice(None, -1)
         start = c_1
         end = start + int(values)
@@ -259,6 +259,7 @@ def rand(*args, split=None, device=None, comm=None):
     out : ndarray, shape (d0, d1, ..., dn)
         The uniformly distributed [0.0, 1.0)-bound random values.
     """
+    print('args', args)
     # if args are not set, generate a single sample
     if not args:
         args = (1,)
@@ -395,8 +396,9 @@ def randn(*args, split=None, device=None, comm=None):
             [ 1.3365, -1.5212,  1.4159, -0.1671],
             [ 0.1260,  1.2126, -0.0804,  0.0907]])
     """
+    print('args', args)
     # generate uniformly distributed random numbers first
-    normal_tensor = rand(*args, split, device, comm)
+    normal_tensor = rand(*args, split=split, device=device, comm=comm)
     # convert the the values to a normal distribution using the kundu transform
     normal_tensor._DNDarray__array = __kundu_transform(normal_tensor._DNDarray__array)
 
