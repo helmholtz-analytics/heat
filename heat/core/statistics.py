@@ -390,7 +390,6 @@ def max(x, axis=None, out=None, keepdim=None):
             [12.]])
     """
     def local_max(*args, **kwargs):
-        print('args', *args)
         result = torch.max(*args, **kwargs)
         if isinstance(result, tuple):
             return result[0]

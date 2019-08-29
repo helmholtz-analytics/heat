@@ -216,17 +216,25 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
             partial = x._DNDarray__array
             output_shape = x.gshape
             for dim in axis:
-                partial = partial_op(partial, dim=dim, keepdim=True)
-                output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1:]
+                if 0 not in partial.shape:
+                    partial = partial_op(partial, dim=dim, keepdim=True)
+                    output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1:]
+                else:
+                    output_shape = output_shape[:dim] + (0, ) + output_shape[dim + 1:]
+                print('output', output_shape)
         if not keepdim and not len(partial.shape) == 1:
             gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
             lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
+            if 0 in partial.shape:
+                lshape_losedim = (0, )
             output_shape = gshape_losedim
+            print('output_shape', lshape_losedim)
             # Take care of special cases argmin and argmax: keep partial.shape[0]
-            if (0 in axis and partial.shape[0] != 1):
+            if 0 in axis and partial.shape[0] != 1:
                 lshape_losedim = (partial.shape[0],) + lshape_losedim
-            if (not 0 in axis and partial.shape[0] != x.lshape[0]):
+            if 0 not in axis and partial.shape[0] != x.lshape[0]:
                 lshape_losedim = (partial.shape[0],) + lshape_losedim[1:]
+            print('output_shape', lshape_losedim)
             partial = partial.reshape(lshape_losedim)
 
     # Check shape of output buffer, if any
@@ -241,7 +249,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
 
     # if reduction_op is a Boolean operation, then resulting tensor is bool
     boolean_ops = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
-    tensor_type = bool if reduction_op in boolean_ops else partial[0].dtype
+    tensor_type = bool if reduction_op in boolean_ops else partial.dtype
 
     if out is not None:
         out._DNDarray__array = partial

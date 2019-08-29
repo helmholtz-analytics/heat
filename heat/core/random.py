@@ -71,7 +71,7 @@ def __counter_sequence(shape, dtype, split, device, comm):
         raise ValueError('Shape is to big with {} elements'.format(total_elements))
 
     if split is None:
-        values = int(total_elements / 2)
+        values = np.ceil(total_elements / 2)
         even_end = total_elements % 2 == 0
         lslice = slice(None) if even_end else slice(None, -1)
         start = c_1
