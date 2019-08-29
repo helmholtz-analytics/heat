@@ -11,6 +11,77 @@ from . import types
 
 __all__ = []
 
+def first_scalar(t1, t2):
+    try:
+        t1 = factories.array([t1])
+    except (ValueError, TypeError,):
+        raise TypeError('Data type not supported, input was {}'.format(type(t1)))
+
+    if np.isscalar(t2):
+        try:
+            t2 = factories.array([t2])
+        except (ValueError, TypeError,):
+            raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
+        output_shape = (1,)
+        output_split = None
+        output_device = None
+        output_comm = MPI_WORLD
+    elif isinstance(t2, dndarray.DNDarray):
+        output_shape = t2.shape
+        output_split = t2.split
+        output_device = t2.device
+        output_comm = t2.comm
+    else:
+        raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+    
+    return t1, t2, output_shape, output_split, output_device, output_comm
+
+def first_instance(t1, t2):
+    if np.isscalar(t2):
+        try:
+            t2 = factories.array([t2])
+            output_shape = t1.shape
+            output_split = t1.split
+            output_device = t1.device
+            output_comm = t1.comm
+        except (ValueError, TypeError,):
+            raise TypeError('Data type not supported, input was {}'.format(type(t2)))
+
+    elif isinstance(t2, dndarray.DNDarray):
+        if t1.split is None:
+            t1 = factories.array(t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device, ndmin=-t2.numdims)
+        elif t2.split is None:
+            t2 = factories.array(t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device, ndmin=-t1.numdims)
+        elif t1.split != t2.split:
+            # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
+            # and split=1
+            raise NotImplementedError('Not implemented for other splittings')
+
+        output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+        output_split = t1.split
+        output_device = t1.device
+        output_comm = t1.comm
+
+        # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data.
+        if t1.split is not None:
+            if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
+                warnings.warn('Broadcasting requires transferring data of first operator between MPI ranks!')
+                if t1.comm.rank > 0:
+                    t1._DNDarray__array = torch.zeros(t1.shape, dtype=t1.dtype.torch_type())
+                t1.comm.Bcast(t1)
+
+        if t2.split is not None:
+            if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
+                warnings.warn('Broadcasting requires transferring data of second operator between MPI ranks!')
+                if t2.comm.rank > 0:
+                    t2._DNDarray__array = torch.zeros(t2.shape, dtype=t2.dtype.torch_type())
+                t2.comm.Bcast(t2)
+
+    else:
+        raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+
+    return t1, t2, output_shape, output_split, output_device, output_comm
+
 def __binary_bit_op(method, t1, t2):
     """
     Generic wrapper for element-wise binary bit-wise operations of two operands (either can be tensor or scalar).
@@ -34,74 +105,13 @@ def __binary_bit_op(method, t1, t2):
         A tensor containing the element-wise results of bit-wise operation.
     """
     if np.isscalar(t1):
-        try:
-            t1 = factories.array([t1])
-        except (ValueError, TypeError,):
-            raise TypeError('Data type not supported, input was {}'.format(type(t1)))
-
-        if np.isscalar(t2):
-            try:
-                t2 = factories.array([t2])
-            except (ValueError, TypeError,):
-                raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
-            output_shape = (1,)
-            output_split = None
-            output_device = None
-            output_comm = MPI_WORLD
-        elif isinstance(t2, dndarray.DNDarray):
-            output_shape = t2.shape
-            output_split = t2.split
-            output_device = t2.device
-            output_comm = t2.comm
-        else:
-            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+        t1, t2, output_shape, output_split, output_device, output_comm = first_scalar(t1, t2)
 
         if t1.dtype != t2.dtype:
             raise TypeError('Tensors must have the same element type, but inputs were {} and {}'.format(t1.dtype,t2.dtype))
 
     elif isinstance(t1, dndarray.DNDarray):
-        if np.isscalar(t2):
-            try:
-                t2 = factories.array([t2])
-                output_shape = t1.shape
-                output_split = t1.split
-                output_device = t1.device
-                output_comm = t1.comm
-            except (ValueError, TypeError,):
-                raise TypeError('Data type not supported, input was {}'.format(type(t2)))
-
-        elif isinstance(t2, dndarray.DNDarray):
-            if t1.split is None:
-                t1 = factories.array(t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device, ndmin=-t2.numdims)
-            elif t2.split is None:
-                t2 = factories.array(t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device, ndmin=-t1.numdims)
-            elif t1.split != t2.split:
-                # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
-                # and split=1
-                raise NotImplementedError('Not implemented for other splittings')
-
-            output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
-            output_split = t1.split
-            output_device = t1.device
-            output_comm = t1.comm
-
-            # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data.
-            if t1.split is not None:
-                if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
-                    warnings.warn('Broadcasting requires transferring data of first operator between MPI ranks!')
-                    if t1.comm.rank > 0:
-                        t1._DNDarray__array = torch.zeros(t1.shape, dtype=t1.dtype.torch_type())
-                    t1.comm.Bcast(t1)
-
-            if t2.split is not None:
-                if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
-                    warnings.warn('Broadcasting requires transferring data of second operator between MPI ranks!')
-                    if t2.comm.rank > 0:
-                        t2._DNDarray__array = torch.zeros(t2.shape, dtype=t2.dtype.torch_type())
-                    t2.comm.Bcast(t2)
-
-        else:
-            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+        t1, t2, output_shape, output_split, output_device, output_comm = first_instance(t1, t2)
 
         if t2.dtype != t1.dtype:
             raise TypeError('Arrays must have the same type, but inputs were {} and {}'.format(t1.dtype,t2.dtype))
@@ -112,24 +122,21 @@ def __binary_bit_op(method, t1, t2):
     if not ((t1.dtype == types.bool) or (t1.dtype == types.int8) or (t1.dtype == types.int16) or (t1.dtype == types.int32) or (t1.dtype == types.int64)):
         raise TypeError('Arrays are not of boolean or integer type, found {}'.format(t1.dtype))
 
-
-    promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
-
     if t1.split is not None:
-        operation = getattr(t1._DNDarray__array.type(promoted_type), method)
+        operation = getattr(t1._DNDarray__array, method)
         if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
-            result = t1._DNDarray__array.type(promoted_type)
+            result = t1._DNDarray__array
         else:
-            result = operation(t2._DNDarray__array.type(promoted_type))
+            result = operation(t2._DNDarray__array)
     elif t2.split is not None:
-        operation = getattr(t2._DNDarray__array.type(promoted_type), method)
+        operation = getattr(t2._DNDarray__array, method)
         if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
-            result = t2._DNDarray__array.type(promoted_type)
+            result = t2._DNDarray__array
         else:
-            result = operation(t1._DNDarray__array.type(promoted_type))
+            result = operation(t1._DNDarray__array)
     else:
-        operation = getattr(t1._DNDarray__array.type(promoted_type), method)
-        result = operation(t2._DNDarray__array.type(promoted_type))
+        operation = getattr(t1._DNDarray__array, method)
+        result = operation(t2._DNDarray__array)
 
     return dndarray.DNDarray(result, output_shape, types.canonical_heat_type(t1.dtype), output_split, output_device, output_comm)
 
@@ -157,74 +164,13 @@ def __binary_op(operation, t1, t2):
     """
 
     if np.isscalar(t1):
-        try:
-            t1 = factories.array([t1])
-        except (ValueError, TypeError,):
-            raise TypeError('Data type not supported, input was {}'.format(type(t1)))
-
-        if np.isscalar(t2):
-            try:
-                t2 = factories.array([t2])
-            except (ValueError, TypeError,):
-                raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
-            output_shape = (1,)
-            output_split = None
-            output_device = None
-            output_comm = MPI_WORLD
-        elif isinstance(t2, dndarray.DNDarray):
-            output_shape = t2.shape
-            output_split = t2.split
-            output_device = t2.device
-            output_comm = t2.comm
-        else:
-            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+        t1, t2, output_shape, output_split, output_device, output_comm = first_scalar(t1, t2)
 
         if t1.dtype != t2.dtype:
             t1 = t1.astype(t2.dtype)
 
     elif isinstance(t1, dndarray.DNDarray):
-        if np.isscalar(t2):
-            try:
-                t2 = factories.array([t2])
-                output_shape = t1.shape
-                output_split = t1.split
-                output_device = t1.device
-                output_comm = t1.comm
-            except (ValueError, TypeError,):
-                raise TypeError('Data type not supported, input was {}'.format(type(t2)))
-
-        elif isinstance(t2, dndarray.DNDarray):
-            if t1.split is None:
-                t1 = factories.array(t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device, ndmin=-t2.numdims)
-            elif t2.split is None:
-                t2 = factories.array(t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device, ndmin=-t1.numdims)
-            elif t1.split != t2.split:
-                # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
-                # and split=1
-                raise NotImplementedError('Not implemented for other splittings')
-
-            output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
-            output_split = t1.split
-            output_device = t1.device
-            output_comm = t1.comm
-
-            # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data.
-            if t1.split is not None:
-                if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
-                    warnings.warn('Broadcasting requires transferring data of first operator between MPI ranks!')
-                    if t1.comm.rank > 0:
-                        t1._DNDarray__array = torch.zeros(t1.shape, dtype=t1.dtype.torch_type())
-                    t1.comm.Bcast(t1)
-
-            if t2.split is not None:
-                if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
-                    warnings.warn('Broadcasting requires transferring data of second operator between MPI ranks!')
-                    if t2.comm.rank > 0:
-                        t2._DNDarray__array = torch.zeros(t2.shape, dtype=t2.dtype.torch_type())
-                    t2.comm.Bcast(t2)
-
-        else:
-            raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+        t1, t2, output_shape, output_split, output_device, output_comm = first_instance(t1, t2)
 
         if t2.dtype != t1.dtype:
             t2 = t2.astype(t1.dtype)
