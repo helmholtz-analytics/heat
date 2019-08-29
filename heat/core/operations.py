@@ -234,8 +234,8 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
                 partial = partial_op(partial, dim=dim, keepdim=True)
                 output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1:]
         if not keepdim and not len(partial.shape) == 1:
-            gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
-            lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if not dim in axis)
+            gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
+            lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
             output_shape = gshape_losedim
             # Take care of special cases argmin and argmax: keep partial.shape[0]
             if (0 in axis and partial.shape[0] != 1):
