@@ -45,7 +45,6 @@ class TestExponential(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.exp('hello world')
 
-
     def test_expm1(self):
         elements = 10
         tmp = torch.arange(elements, dtype=torch.float64).expm1()
@@ -171,7 +170,6 @@ class TestExponential(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.log('hello world')
 
-
     def test_log2(self):
         elements = 15
         tmp = torch.arange(1, elements, dtype=torch.float64).log2()
@@ -258,7 +256,6 @@ class TestExponential(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.log10('hello world')
 
-
     def test_log1p(self):
         elements = 15
         tmp = torch.arange(1, elements, dtype=torch.float64).log1p()
@@ -301,7 +298,6 @@ class TestExponential(unittest.TestCase):
             ht.log1p([1, 2, 3])
         with self.assertRaises(TypeError):
             ht.log1p('hello world')
-
 
     def test_sqrt(self):
         elements = 25
