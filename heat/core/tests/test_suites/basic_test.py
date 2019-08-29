@@ -32,22 +32,20 @@ class BasicTest(TestCase):
         self.assertIsInstance(numpy_array, np.ndarray,
                               'The array to test against was not a instance of numpy.ndarray. '
                               'Instead got {}.'.format(type(numpy_array)))
-        # self.assertEqual(heat_array.shape, numpy_array.shape,
-        #                  'Global shapes do not match. Got {} expected {}'.format(heat_array.shape, numpy_array.shape))
+        self.assertEqual(heat_array.shape, numpy_array.shape,
+                         'Global shapes do not match. Got {} expected {}'.format(heat_array.shape, numpy_array.shape))
         print('heat gshape', heat_array.gshape, heat_array.shape, heat_array.lshape)
-        numpy_array = numpy_array.astype(np.float64)
         split = heat_array.split
         offset, local_shape, slices = heat_array.comm.chunk(heat_array.gshape, split)
         print('slices', slices, 'counts', offset, 'local_shape', local_shape)
-        # self.assertEqual(heat_array.lshape, numpy_array[slices].shape,
-        #                  'Local shapes do not match. '
-        #                  'Got {} expected {}'.format(heat_array.lshape, numpy_array[slices].shape))
-
+        self.assertEqual(heat_array.lshape, numpy_array[slices].shape,
+                         'Local shapes do not match. '
+                         'Got {} expected {}'.format(heat_array.lshape, numpy_array[slices].shape))
         local_numpy = heat_array._DNDarray__array.numpy()
 
         # Array is distributed correctly
         equal_res = np.array(np.allclose(local_numpy, numpy_array[slices]))
-        print('heat', local_numpy, '\nnumpy', numpy_array[slices], '\ndiff', heat_array._DNDarray__array.numpy() - numpy_array[slices])
+        print('heat', local_numpy.dtype, '\nnumpy', numpy_array[slices].dtype, '\ndiff', heat_array._DNDarray__array.numpy() - numpy_array[slices])
         print('equal_res', equal_res)
         self.comm.Allreduce(MPI.IN_PLACE, equal_res, MPI.LAND)
         self.assertTrue(equal_res, 'Local tensors do not match the corresponding numpy slices.')
