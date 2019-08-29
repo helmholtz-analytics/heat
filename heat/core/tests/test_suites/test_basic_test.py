@@ -29,10 +29,7 @@ class TestBasicTest(BasicTest):
         self.assert_func_equal(array, ht_func, np_func, heat_args=ht_args, numpy_args=np_args)
 
         # Testing with random values
-        a = ht.ones((4, ), split=0)
-        a = a.exp()
-        print('shape', a.gshape)
-        shape = (5, )
+        shape = (5, 3, 2, 9)
         ht_func = ht.exp
         np_func = np.exp
         self.assert_func_equal(shape, heat_func=ht_func, numpy_func=np_func)
