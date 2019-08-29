@@ -538,76 +538,6 @@ def qr(a):
     :param a:
     :return:
     """
-    '''
-    this one is based on the CAQR, and by extension it is also based on the suCAQR
-    
-    the idea is as follows:
-    
-    divide A into 2D tiles (can be different shapes) (mb x nb
-    loop over each tile-column (k = 0 -> nb
-        loop over each process
-            get the tile which is on the diagonal of A (1st_row)
-            if 1st_row is on the process then do the local_caqr()
-            ================================================================================================
-            - local_caqr():
-            ds = # of rows per domain (A is divided in to blocks, mb, which are distributed between processes, P, which are then divided into domains, D)
-            --------------------------------------------- # local factorization for each domain
-            for all domains on the process (d -> D):
-                1st_row = old_1st + d * ds (???)
-                R[1st, k], V[1st, k], T[1st, k] = qr(A[1st, k])
-                
-                for the rest of the columns (j = k + 1 -> nb)
-                    # apply the results of qr(A[1st, k]) to the rest of the columns tiles
-                    A[1st, j] = Q.T(from V[1st, k], T[1st, k]) @ A[1st, j]
-                
-                for the next row to the last local row( i = 1st + 1 -> mb/P)
-                    R[i, k], V[i, k], T[i, k] = qr( vstack(A[1st, k], A[i, k]) )
-                
-                for the next row to the last domain row (i = 1st + 1 -> 1st + ds):
-                    for the next tile column to the end (j = k + 1 -> nb):
-                        # apply Q.T(from V[i, k], T[i, k]) to vstack(R[1st, j], A[i, j])
-                        R[1st, j], A[i, j] = Q.T(from V[i, k], T[i, k]) @ vstack( R[1st, j], A[i, j] )
-            --------------------------------------------- # merge results from the local domains
-            root = old_1st / ds
-            # merge all the domains (binary tree)
-            for hgt from 1 -> log2(D-root):
-                d1 = root  # domain
-                d2 = d1 + 2^(hgt - 1) # fortran code!
-                while (d2 < D):
-                    i1 = d1 * ds
-                    i2 = d2 * ds -> this one and above just get the domain number times the rows/domain
-                    
-                    if d1 = root:
-                        i1 = old_1st
-                    
-                    R[i1, k], V[i2, k], T[i2, k] = qr( vstack(R[i1, k], R[i2, k]) )
-                    
-                    for j = k+1 -> nb:
-                        A[i1, j], A[i2, j] = Q.T(from V[i2, k], T[i2, k]) @ vstack( A[i1, j], A[i2, j] ) 
-                    
-                    d1 += 2^(hgt)
-                    d2 += 2^(hgt)
-            ================================================================================================
-        # next need to merge between processes (very similar to between domains)
-        
-        root_pid = proc with diag block
-        num_active_procs = size - root_pid
-        # merge all the domains (binary tree)
-        for hgt from 1 -> log2(num_active_procs):
-            d1 = 0
-            d2 = 0 + 2^(hgt - 1) # fortran code!
-            while (d2 < D):
-                # only difference is that the two blocks are on different processes
-                i1/2 = the block with the diagonal elements for each process
-                
-                R[i1, k], V[i2, k], T[i2, k] = qr( vstack(R[i1, k], R[i2, k]) )
-                
-                for j = k+1 -> nb:
-                    A[i1, j], A[i2, j] = Q.T(from V[i2, k], T[i2, k]) @ vstack( A[i1, j], A[i2, j] ) 
-                
-                d1 += 2^(hgt)
-                d2 += 2^(hgt)
-    '''
     # TODO: determine the following:
     # D (number of domains to use) -> must be found with some testing on the HPC machines
     # blocking scheme - should have multiple blocks per column, should have a comperable number of columns tiles
@@ -639,14 +569,100 @@ def qr(a):
         #     domain_tile_shapes[a.comm.rank, :, a.comm.rank * tile_row_number + i, 1] = lshape[1]
         # domain_tile_shapes[a.comm.rank, i, :, 1] = lshape[1]
         # print(lshape)
-    # todo: fix the domain_tile_shapes in the last dimension to have the proper shape in the case that the tiles do not all fit properly
     a.comm.Allreduce(MPI.IN_PLACE, domain_tile_shapes, MPI.SUM)
+
+    if a.comm.rank + 1 == a.comm.size:
+        # need to adjust the binning on the last process
+        # only need to do this if M != N
+        # todo: need to modify the algorithm lower down to adjust for the last process, shouldnt be too crazy
+
+        if a.gshape[0] != a.gshape[1]:
+            # if M > N then there is more data on below the diagonal than above
+            if a.gshape[0] > a.gshape[1]:
+                dim1_start = domain_tile_shapes[a.comm.size - 1, 0, :(tile_row_number * (a.comm.size-1)), 1].sum()
+                w_size = tiles_per_process[1]
+                while (a.lshape[1] - dim1_start) / w_size < 2:  # need to reduce in dimension 1
+                    w_size -= 1
+                    if w_size < 0:
+                        raise RuntimeError('error in the adjustment of the local tiles on the last node')
+
+                last_rank_tile_map = torch.zeros((w_size, 2), dtype=torch.int)
+                for i in range(w_size):
+                    _, lshape, _ = a.comm.chunk(a.lshape, 0, rank=int(i), w_size=w_size)
+                    # need to only take the last w_size elements, the others will not be used
+                    last_rank_tile_map[i, 0] = lshape[0]
+                # print(domain_tile_shapes[a.comm.rank])
+                for i in range(w_size):
+                    _, lshape, _ = a.comm.chunk((a.lshape[0], a.lshape[1] - dim1_start), 1, rank=int(i), w_size=w_size)
+                    last_rank_tile_map[i, 1] = lshape[1]
+            else:  # M < N
+                # if M < N then there is more data above the diagonal than below
+                dim1_start = domain_tile_shapes[a.comm.size - 1, 0, :(tile_row_number * (a.comm.size - 1)), 1].sum()
+                w_size = tiles_per_process[1]
+                while (a.lshape[1] - dim1_start) / w_size < 2:  # need to reduce in dimension 1
+                    w_size -= 1
+                    if w_size < 0:
+                        raise RuntimeError('error in the adjustment of the local tiles on the last node')
+
+                last_rank_tile_map = torch.zeros((w_size, 2), dtype=torch.int)
+                for i in range(w_size):
+                    _, lshape, _ = a.comm.chunk(a.lshape, 0, rank=int(i), w_size=w_size)
+                    # need to only take the last w_size elements, the others will not be used
+                    last_rank_tile_map[i, 0] = lshape[0]
+                # print(domain_tile_shapes[a.comm.rank])
+                for i in range(w_size):
+                    _, lshape, _ = a.comm.chunk((a.lshape[0], a.lshape[1] - dim1_start), 1, rank=int(i), w_size=w_size)
+                    last_rank_tile_map[i, 1] = lshape[1]
+
+    # todo: fix the domain_tile_shapes in the last dimension to have the proper shape in the case that the tiles do not all fit properly
+    print(domain_tile_shapes)
     # now the diagonal blocks of each process are the tiles_row_number * process number (and then iterated over for the domain)
 
     # loop over the tile columns
     completed_tile_cols = torch.tensor([False] * tile_row_number * a.comm.size)
     rank = a.comm.rank
-    for k in range(tile_row_number * a.comm.size):  # for each column (need the total number of rows in the split direction
+
+    def merge_rows_qr(pr0, pr1):
+        if rank in [pr0, pr1]:
+            if rank == pr0:
+                send_1 = a.comm.isend(local_a[st0:sp0, st1:sp1], dest=pr1, tag=1)
+                send_2 = a.comm.isend(local_a[st0:sp0, sp1:], dest=pr1, tag=2)
+                lower_first = a.comm.irecv(source=pr1, tag=1)
+                lower_req = a.comm.irecv(source=pr1, tag=2)
+                upper = local_a[st0:sp0, st1:sp1]
+                upper_rest = local_a[st0:sp0, sp1:]
+                send_1.wait()
+                lower = lower_first.wait()
+            elif rank == pr1:
+                send_1 = a.comm.isend(local_a[st0:sp0, st1:sp1], dest=pr0, tag=1)
+                send_2 = a.comm.isend(local_a[st0:sp0, sp1:], dest=pr0, tag=2)
+                upper_first = a.comm.irecv(source=pr0, tag=1)
+                upper_req = a.comm.irecv(source=pr0, tag=2)
+                lower = local_a[st0:sp0, st1:sp1]
+                lower_rest = local_a[st0:sp0, sp1:]
+                send_1.wait()
+                upper = upper_first.wait()
+            else:
+                return None
+
+            q, r = torch.cat((upper, lower), dim=0).qr(some=False)
+            send_2.wait()
+
+            if rank == pr0:
+                # if on top of the cat: need to save the proper data (but also need the bottom half to use q properly)
+                local_a[st0:sp0, st1:sp1] = r[st0:sp0]
+                lower_rest = lower_req.wait()
+                local_a[st0:sp0, sp1:] = (q.T @ torch.cat((upper_rest, lower_rest), dim=0))[st0:sp0]
+            else:
+                # get the end of the other tile (in the split direction) to determine how to slice the qr results
+                opp_index = k % tile_row_number if pr0 == local_tile_row_index_pr else 0
+                sp0_prev = domain_tile_shapes[pr0, :, k, 0][opp_index]
+                local_a[st0:sp0, st1:sp1] = r[sp0_prev:]
+                upper_rest = upper_req.wait()
+                local_a[st0:sp0, sp1:] = (q.T @ torch.cat((upper_rest, lower_rest), dim=0))[sp0_prev:]
+
+    for k in range(tile_row_number * a.comm.size):  # for each tile column (need to do the last rank separately)
+        # todo: fix the different tiling of the data on the last process
         size_remaining = a.comm.size - (k // tile_row_number)
         # for each process need to do local qr
         # need to start the process at the 1st row (block number / iteration number
@@ -655,19 +671,18 @@ def qr(a):
         if not completed_tile_cols[k]:
             # if the process isnt completed and the completed tiles are not done yet?
             # get the number of True's moded with the tile_row_number, this will tell which process only needs to do it on the second chunk
-            local_tile_row_index = k % tile_row_number
             local_tile_row_index_pr = len(torch.nonzero(completed_tile_cols == True)) // tile_row_number
+            local_tile_row_index = k % tile_row_number if rank == local_tile_row_index_pr else 0
 
             if rank >= local_tile_row_index_pr:
                 # only work on the processes which have not computed the final result
                 # need to determine which process is operating on a partial -> local_tile_row_index_pr
-                if rank == local_tile_row_index_pr and local_tile_row_index > 0:
+                if rank == local_tile_row_index_pr:
                     # this is the case that the whole chunk is NOT operated on
                     st0 = domain_tile_shapes[rank, :, k, 0][:local_tile_row_index].sum()
                     sp0 = domain_tile_shapes[rank, :, k, 0][local_tile_row_index] + st0
                     st1 = domain_tile_shapes[rank, local_tile_row_index, :k, 1].sum()
                     sp1 = domain_tile_shapes[rank, local_tile_row_index, k, 0] + st1
-                    # todo: this needs to be a loop over all of the tiles remaining on the process
                     # todo: test if chunking is needed/beneficial for the matmul here
                 else:
                     # the is the case the qr is done for *ALL* tiles on the process
@@ -685,24 +700,23 @@ def qr(a):
                 local_a[st0:sp0, sp1:] = q1.T @ local_a[st0:sp0, sp1:]
                 q_dict = {}
                 r_dict = {}
-                # todo: fix bug in here, this loop is not functioning properly, everything working with 1 tile/process
                 for d in range(local_tile_row_index + 1, tile_row_number):  # this loop is for column tiles on a process
+                    # todo: investigate the sign flip in the middle rows of the processes
                     # local merge
                     # get the tile indices of the rest of the tiles on a process
                     st0_new = domain_tile_shapes[rank, :d, k, 0][:d].sum()
                     sp0_new = domain_tile_shapes[rank, d, k, 0] + st0_new
-                    # print(k, d, st0, sp0, st0_new, sp0_new, st1, sp1)
                     # save q/r in the dicts
                     q_dict[d], r_dict[d] = torch.cat((local_a[st0:sp0, st1:sp1], local_a[st0_new:sp0_new, st1:sp1]), dim=0).qr(some=False)
 
-                    # save the calculated r in the tiles which it was calculated for (todo: is this right?)
-                    local_a[st0:sp0, st1:sp1] = r_dict[d][st0:sp0]
-                    local_a[st0_new:sp0_new, st1:sp1] = r_dict[d][st0_new:sp0_new]
+                    # save the calculated r in the tiles which it was calculated for
+                    local_a[st0:sp0, st1:sp1] = r_dict[d][:sp0 - st0]
+                    local_a[st0_new:sp0_new, st1:sp1] = r_dict[d][sp0 - st0:]
 
                     # NEXT STEP: apply the q from the combined matrices to the rest of the tile rows
                     hold = q_dict[d].T @ torch.cat((local_a[st0:sp0, sp1:], local_a[st0_new:sp0_new, sp1:]), dim=0)
-                    local_a[st0:sp0, sp1:] = hold[st0:sp0]  # setting of the top half
-                    local_a[st0_new:sp0_new, sp1:] = hold[st0_new:sp0_new]
+                    local_a[st0:sp0, sp1:] = hold[:sp0 - st0]  # setting of the top half
+                    local_a[st0_new:sp0_new, sp1:] = hold[sp0 - st0:]
 
                 # next is the binary tree reduction
                 rem1 = None
@@ -721,112 +735,68 @@ def qr(a):
                             rem2 = loop_size_remaining[-1]
                             loop_size_remaining = loop_size_remaining[:-1]
                     # send the data to the corresponding processes
-                    for i in loop_size_remaining:
-                        if rank == i:
-                            # get the start/stop indices for the process (todo: is it possible that they were changed?)
-                            st0 = domain_tile_shapes[rank, :, k, 0][:local_tile_row_index].sum()
-                            sp0 = domain_tile_shapes[rank, :, k, 0][local_tile_row_index] + st0
-                            st1 = domain_tile_shapes[rank, local_tile_row_index, :k, 1].sum()
-                            sp1 = domain_tile_shapes[rank, local_tile_row_index, k, 0] + st1
+                    # for i in loop_size_remaining:  # loop over the remaining processes
+                    # if rank == i:
+                    # pr0 = rank + (procs_remaining // 2)
+                    # pr1 = rank - (procs_remaining // 2)
+                    if rank in loop_size_remaining:
+                        if rank - offset < procs_remaining // 2:
+                            # if the process is in the bottom half of the active processes
+                            send_1 = a.comm.isend(local_a[st0:sp0, st1:sp1], dest=rank + (procs_remaining // 2), tag=1)
+                            send_2 = a.comm.isend(local_a[st0:sp0, sp1:], dest=rank + (procs_remaining // 2), tag=2)
+                            upper = local_a[st0:sp0, st1:sp1]
+                            upper_rest = local_a[st0:sp0, sp1:]
+                            send_1.wait()
+                            lower_first = a.comm.irecv(source=rank + (procs_remaining // 2), tag=1)
+                            lower_req = a.comm.irecv(source=rank + (procs_remaining // 2), tag=2)
+                            lower = lower_first.wait()
+                        else:  # send from higher order procs
+                            send_1 = a.comm.isend(local_a[st0:sp0, st1:sp1], dest=rank - (procs_remaining // 2), tag=1)
+                            send_2 = a.comm.isend(local_a[st0:sp0, sp1:], dest=rank - (procs_remaining // 2), tag=2)
+                            upper_first = a.comm.irecv(source=rank - (procs_remaining // 2), tag=1)
+                            upper_req = a.comm.irecv(source=rank - (procs_remaining // 2), tag=2)
+                            lower = local_a[st0:sp0, st1:sp1]
+                            lower_rest = local_a[st0:sp0, sp1:]
+                            send_1.wait()
+                            upper = upper_first.wait()
 
-                            if i - offset < procs_remaining // 2:
-                                # if the process is in the bottom half of the active processes
-                                send_1 = a.comm.isend(local_a[st0:sp0, st1:sp1], dest=rank + (procs_remaining // 2), tag=1)
-                                send_2 = a.comm.isend(local_a[st0:sp0, sp1:], dest=rank + (procs_remaining // 2), tag=2)
-                                upper = local_a[st0:sp0, st1:sp1]
-                                upper_rest = local_a[st0:sp0, sp1:]
-                                send_1.wait()
-                                lower_first = a.comm.irecv(source=rank + (procs_remaining // 2), tag=1)
-                                lower_req = a.comm.irecv(source=rank + (procs_remaining // 2), tag=2)
-                                lower = lower_first.wait()
-                            else:  # send from higher order procs
-                                send_1 = a.comm.isend(local_a[st0:sp0, st1:sp1], dest=rank - (procs_remaining // 2), tag=1)
-                                send_2 = a.comm.isend(local_a[st0:sp0, sp1:], dest=rank - (procs_remaining // 2), tag=2)
-                                upper_first = a.comm.irecv(source=rank - (procs_remaining // 2), tag=1)
-                                upper_req = a.comm.irecv(source=rank - (procs_remaining // 2), tag=2)
-                                lower = local_a[st0:sp0, st1:sp1]
-                                lower_rest = local_a[st0:sp0, sp1:]
-                                send_1.wait()
-                                upper = upper_first.wait()
+                        # do qr on the combined data from each process
+                        q, r = torch.cat((upper, lower), dim=0).qr(some=False)
+                        send_2.wait()
 
-                            # do qr on the combined data from each process
-                            q, r = torch.cat((upper, lower), dim=0).qr(some=False)
-                            send_2.wait()
+                        if rank - offset < procs_remaining // 2:
+                            # if on top of the cat: need to save the proper data (but also need the bottom half to use q properly)
+                            # print(k, st0, sp0, st1, sp0, r.shape)
+                            local_a[st0:sp0, st1:sp1] = r[:sp0 - st0]
+                            lower_rest = lower_req.wait()
+                            local_a[st0:sp0, sp1:] = (q.T @ torch.cat((upper_rest, lower_rest), dim=0))[:sp0 - st0]
+                        else:
+                            # get the end of the other tile (in the split direction) to determine how to slice the qr results
+                            opp_index = k % tile_row_number if rank - (procs_remaining // 2) == local_tile_row_index_pr else 0
+                            sp0_prev = domain_tile_shapes[rank - (procs_remaining // 2), :, k, 0][opp_index]
+                            # print(k, st0, sp0, st1, sp1, sp0_prev, r.shape)
+                            local_a[st0:sp0, st1:sp1] = r[sp0_prev:]
+                            upper_rest = upper_req.wait()
+                            local_a[st0:sp0, sp1:] = (q.T @ torch.cat((upper_rest, lower_rest), dim=0))[sp0_prev:]
 
-                            if i - offset < procs_remaining // 2:
-                                # if on top of the cat: need to save the proper data (but also need the bottom half to use q properly)
-                                local_a[st0:sp0, st1:sp1] = r[st0:sp0]
-                                lower_rest = lower_req.wait()
-                                local_a[st0:sp0, sp1:] = (q.T @ torch.cat((upper_rest, lower_rest), dim=0))[st0:sp0]
-                            else:
-                                # get the end of the other tile (in the split direction) to determine how to slice the qr results
-                                sp0_prev = domain_tile_shapes[rank - (procs_remaining // 2), :, k, 0][local_tile_row_index]
-                                local_a[st0:sp0, st1:sp1] = r[sp0_prev:]
-                                upper_rest = upper_req.wait()
-                                local_a[st0:sp0, sp1:] = (q.T @ torch.cat((upper_rest, lower_rest), dim=0))[sp0_prev:]
-
-                    if rem1 is not None and rem2 is not None:
-                        pass
-                        # todo: test this
-                        # combine rem1 and rem2 in the same way as the other nodes, then save the results in rem1 to be used later
-                        # todo: come up with the logic for this:
-                        # need to have this happen after ever loop!! -> combine each rem with the offset node!
-
-                        # if rank not in [rem1, rem2]:
-                        #     if rank == rem1:
-                        #         st0 = domain_tile_shapes[rank, :, k, 0][:local_tile_row_index].sum()
-                        #         sp0 = domain_tile_shapes[rank, :, k, 0][local_tile_row_index] + st0
-                        #         st1 = domain_tile_shapes[rank, local_tile_row_index, :k, 1].sum()
-                        #         sp1 = domain_tile_shapes[rank, local_tile_row_index, k, 0] + st1
-                        #
-                        #         send_1 = a.comm.isend(local_a[st0:sp0, st1:sp1], dest=rem2, tag=1)
-                        #         send_2 = a.comm.isend(local_a[st0:sp0, sp1:], dest=rem2, tag=2)
-                        #         lower_first = a.comm.irecv(source=rem2, tag=1)
-                        #         lower_req = a.comm.irecv(source=rem2, tag=2)
-                        #         upper = local_a[st0:sp0, st1:sp1]
-                        #         upper_rest = local_a[st0:sp0, sp1:]
-                        #         send_1.wait()
-                        #         lower = lower_first.wait()
-                        #     else:
-                        #         st0 = domain_tile_shapes[rank, :, k, 0][:local_tile_row_index].sum()
-                        #         sp0 = domain_tile_shapes[rank, :, k, 0][local_tile_row_index] + st0
-                        #         st1 = domain_tile_shapes[rank, local_tile_row_index, :k, 1].sum()
-                        #         sp1 = domain_tile_shapes[rank, local_tile_row_index, k, 0] + st1
-                        #
-                        #         send_1 = a.comm.isend(local_a[st0:sp0, st1:sp1], dest=rem1, tag=1)
-                        #         send_2 = a.comm.isend(local_a[st0:sp0, sp1:], dest=rem1, tag=2)
-                        #         upper_first = a.comm.irecv(source=rem1, tag=1)
-                        #         upper_req = a.comm.irecv(source=rem1, tag=2)
-                        #         lower = local_a[st0:sp0, st1:sp1]
-                        #         lower_rest = local_a[st0:sp0, sp1:]
-                        #         send_1.wait()
-                        #         upper = upper_first.wait()
-                        #
-                        #     q, r = torch.cat((upper, lower), dim=0).qr(some=False)
-                        #     send_2.wait()
-                        #
-                        #     if rank == rem1:
-                        #         # if on top of the cat: need to save the proper data (but also need the bottom half to use q properly)
-                        #         local_a[st0:sp0, st1:sp1] = r[st0:sp0]
-                        #         lower_rest = lower_req.wait()
-                        #         local_a[st0:sp0, sp1:] = (q.T @ torch.cat((upper_rest, lower_rest), dim=0))[st0:sp0]
-                        #     else:
-                        #         # get the end of the other tile (in the split direction) to determine how to slice the qr results
-                        #         sp0_prev = domain_tile_shapes[rem1, :, k, 0][local_tile_row_index]
-                        #         local_a[st0:sp0, st1:sp1] = r[sp0_prev:]
-                        #         upper_rest = upper_req.wait()
-                        #         local_a[st0:sp0, sp1:] = (q.T @ torch.cat((upper_rest, lower_rest), dim=0))[sp0_prev:]
-
-                    elif rem1 is not None and rem2 is None:
-                        # combine rem1 with process 0 and set completed to True
-                        # this should be the last thing that happens
-                        pass
                     loop_size_remaining = loop_size_remaining[:-1 * (procs_remaining // 2)]
                     procs_remaining = loop_size_remaining.size()[0]
-                    completed = True if procs_remaining == 1 else False
+
+                    if rem1 is not None and rem2 is not None:
+                        # combine rem1 and rem2 in the same way as the other nodes, then save the results in rem1 to be used later
+                        merge_rows_qr(rem1, rem2)
+                        rem1 = rem2
+                        rem2 = None
+
+                    if rem1 is not None and rem2 is None and procs_remaining == 1:
+                        # combine rem1 with process 0 (offset) and set completed to True
+                        # this should be the last thing that happens
+                        merge_rows_qr(offset, rem1)
+                        rem1 = None
+
+                    completed = True if procs_remaining == 1 and rem1 is None and rem2 is None else False
 
         completed_tile_cols[k] = True
-        # break
     return a
 
 
