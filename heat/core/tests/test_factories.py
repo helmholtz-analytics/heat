@@ -157,7 +157,7 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(d.split, None)
         self.assertTrue((d._DNDarray__array == torch.tensor(vector_data).reshape(-1, 1, 1)).all())
 
-       # basic array function, unsplit data, additional dimensions
+        # basic array function, unsplit data, additional dimensions
         vector_data = [4.0, 5.0, 6.0]
         d = ht.array(vector_data, ndmin=-3)
         self.assertIsInstance(d, ht.DNDarray)
@@ -295,8 +295,6 @@ class TestFactories(unittest.TestCase):
                 [1.0, 2.0, 3.0],
                 [1.0, 2.0, 3.0]
             ], split=1, is_split=1)
-
-
 
         # non iterable type
         with self.assertRaises(TypeError):

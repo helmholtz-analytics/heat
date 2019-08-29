@@ -384,7 +384,6 @@ class TestCommunication(unittest.TestCase):
         self.assertTrue((output[0] == first_line).all())
         self.assertTrue((output[output.lshape[0]-1] == last_line).all())
 
-
     def test_allreduce(self):
         # contiguous data
         data = ht.ones((10, 2,), dtype=ht.int8)
@@ -1753,7 +1752,6 @@ class TestCommunication(unittest.TestCase):
         data.comm.Alltoall(ht.MPI.IN_PLACE, data)
         self.assertTrue((data._DNDarray__array == ht.MPI_WORLD.rank).all())
 
-
     def test_reduce(self):
         # contiguous data
         data = ht.ones((10, 2,), dtype=ht.int32)
@@ -2071,7 +2069,6 @@ class TestCommunication(unittest.TestCase):
         data[1, 2, 3] = 123
 
         result = data
-
 
         data.resplit(axis=0)
 
