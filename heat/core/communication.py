@@ -1,6 +1,5 @@
 from mpi4py import MPI
 
-import abc
 import numpy as np
 import os
 import subprocess
@@ -16,17 +15,14 @@ else:
     CUDA_AWARE_MPI = False
 
 
-class Communication(metaclass=abc.ABCMeta):
+class Communication:
     @staticmethod
-    @abc.abstractmethod
     def is_distributed():
-        pass
+        return NotImplemented
 
-    @abc.abstractmethod
     def __init__(self):
-        pass
+        return NotImplemented
 
-    @abc.abstractmethod
     def chunk(self, shape, split):
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
@@ -46,12 +42,13 @@ class Communication(metaclass=abc.ABCMeta):
         slices : tuple of slices
             the chunk slices with respect to the given shape
         """
-        pass
+        return NotImplemented
 
 
 class MPICommunication(Communication):
     # static mapping of torch types to the respective MPI type handle
     __mpi_type_mappings = {
+        torch.bool: MPI.BOOL,
         torch.uint8: MPI.UNSIGNED_CHAR,
         torch.int8: MPI.SIGNED_CHAR,
         torch.int16: MPI.SHORT_INT,
@@ -189,6 +186,7 @@ class MPICommunication(Communication):
         shape = obj.shape[1:]
         strides = [1] * len(shape)
         strides[0] = obj.stride()[-1]
+        strides = strides[::-1]
         offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
 
         # chain the types based on the
@@ -244,20 +242,23 @@ class MPICommunication(Communication):
 
         return [cls.as_mpi_memory(obj), elements, mpi_type]
 
-    def __recv_like(self, func, buf, source, tag, status):
+
+    def Irecv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG):
         if isinstance(buf, dndarray.DNDarray):
             buf = buf._DNDarray__array
         if not isinstance(buf, torch.Tensor):
-            return func(buf, source, tag, status)
+            return self.handle.Irecv(buf, source, tag)
 
-        return func(self.as_buffer(buf), source, tag, status)
-
-    def Irecv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=None):
-        return self.__recv_like(self.handle.Irecv, buf, source, tag, status)
+        return self.handle.Irecv(self.as_buffer(buf), source, tag)
     Irecv.__doc__ = MPI.Comm.Irecv.__doc__
 
     def Recv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=None):
-        return self.__recv_like(self.handle.Recv, buf, source, tag, status)
+        if isinstance(buf, dndarray.DNDarray):
+            buf = buf._DNDarray__array
+        if not isinstance(buf, torch.Tensor):
+            return self.handle.Recv(buf, source, tag, status)  
+ 
+        return self.handle.Recv(self.as_buffer(buf), source, tag, status)     
     Recv.__doc__ = MPI.Comm.Recv.__doc__
 
     def __send_like(self, func, buf, dest, tag):
@@ -378,6 +379,87 @@ class MPICommunication(Communication):
         return self.__reduce_like(self.handle.Scan, sendbuf, recvbuf, op)
     Scan.__doc__ = MPI.COMM_WORLD.Scan.__doc__
 
+    def __allgather_like(self, func, sendbuf, recvbuf, send_axis, recv_axis, **kwargs):
+        # align the output buffer in the same way as the input buffer by default
+        if recv_axis is None:
+            recv_axis = send_axis
+
+        # dummy allocation for *v calls
+        send_counts, send_displs, recv_counts, recv_displs = None, None, None, None,
+
+        # unpack the send buffer
+        if isinstance(sendbuf, tuple):
+            sendbuf, send_counts, send_displs = sendbuf
+        if isinstance(sendbuf, dndarray.DNDarray):
+            sendbuf = sendbuf._DNDarray__array
+        if not isinstance(sendbuf, torch.Tensor):
+            if send_axis != 0:
+                raise TypeError('sendbuf of type {} does not support send_axis != 0'.format(type(sendbuf)))
+
+        # unpack the receive buffer
+        if isinstance(recvbuf, tuple):
+            recvbuf, recv_counts, recv_displs = recvbuf
+        if isinstance(recvbuf, dndarray.DNDarray):
+            recvbuf = recvbuf._DNDarray__array
+        if not isinstance(recvbuf, torch.Tensor):
+            if send_axis != 0:
+                raise TypeError('recvbuf of type {} does not support send_axis != 0'.format(type(recvbuf)))
+
+        # keep a reference to the original buffer object
+        original_recvbuf = recvbuf
+
+        # permute the send_axis order so that the split send_axis is the first to be transmitted
+        if(send_axis !=0 ):
+            send_axis_permutation = list(range(sendbuf.ndimension()))
+            send_axis_permutation[0], send_axis_permutation[send_axis] = send_axis, 0
+            sendbuf = sendbuf.permute(*send_axis_permutation)
+
+        if(send_axis !=0 ):
+            recv_axis_permutation = list(range(recvbuf.ndimension()))
+            recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
+            recvbuf = recvbuf.permute(*recv_axis_permutation)
+
+        # prepare buffer objects
+        if sendbuf is  MPI.IN_PLACE or not isinstance(sendbuf, torch.Tensor):
+            mpi_sendbuf = sendbuf
+        else:
+            mpi_sendbuf = self.as_buffer(sendbuf, send_counts, send_displs)
+            if send_counts is not None:
+                mpi_sendbuf[1] = mpi_sendbuf[1][0][self.rank]
+
+        if recvbuf is MPI.IN_PLACE or not isinstance(recvbuf, torch.Tensor):
+            mpi_recvbuf = recvbuf
+        else:
+            mpi_recvbuf = self.as_buffer(recvbuf, recv_counts, recv_displs)
+            if recv_counts is None:
+                mpi_recvbuf[1] //= self.size
+
+        # perform the scatter operation
+        exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
+
+        # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
+        if recv_axis != 0:
+            recvbuf = recvbuf.permute(*recv_axis_permutation)
+            original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
+
+        return exit_code
+
+    def Allgather(self, sendbuf, recvbuf, send_axis=0, recv_axis=None):
+        return self.__allgather_like(self.handle.Allgather, sendbuf, recvbuf, send_axis, recv_axis)
+    Allgather.__doc__ = MPI.Comm.Allgather.__doc__
+
+    def Allgatherv(self, sendbuf, recvbuf, send_axis=0, recv_axis=None):
+        return self.__allgather_like(self.handle.Allgatherv, sendbuf, recvbuf, send_axis, recv_axis)
+    Allgatherv.__doc__ = MPI.Comm.Allgatherv.__doc__
+
+    def Iallgather(self, sendbuf, recvbuf, send_axis=0, recv_axis=None):
+        return self.__allgather_like(self.handle.Iallgather, sendbuf, recvbuf, send_axis, recv_axis)
+    Iallgather.__doc__ = MPI.Comm.Iallgather.__doc__
+
+    def Iallgatherv(self, sendbuf, recvbuf, send_axis=0, recv_axis=None):
+        return self.__allgather_like(self.handle.Iallgatherv, sendbuf, recvbuf, send_axis, recv_axis)
+    Iallgatherv.__doc__ = MPI.Comm.Iallgatherv.__doc__
+
     def __scatter_like(self, func, sendbuf, recvbuf, send_axis, recv_axis, send_factor=1, recv_factor=1, **kwargs):
         # align the output buffer in the same way as the input buffer by default
         if recv_axis is None:
@@ -420,11 +502,14 @@ class MPICommunication(Communication):
             mpi_sendbuf = self.as_buffer(sendbuf, send_counts, send_displs)
             if send_counts is None:
                 mpi_sendbuf[1] //= send_factor
-
+        else:
+            mpi_sendbuf = sendbuf
         if recvbuf is not MPI.IN_PLACE:
             mpi_recvbuf = self.as_buffer(recvbuf, recv_counts, recv_displs)
             if recv_counts is None:
                 mpi_recvbuf[1] //= recv_factor
+        else:
+            mpi_recvbuf = recvbuf
 
         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
@@ -435,14 +520,6 @@ class MPICommunication(Communication):
             original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
 
         return exit_code
-
-    def Allgather(self, sendbuf, recvbuf, axis=0, recv_axis=None):
-        return self.__scatter_like(self.handle.Allgather, sendbuf, recvbuf, axis, recv_axis, recv_factor=self.size)
-    Allgather.__doc__ = MPI.Comm.Allgather.__doc__
-
-    def Allgatherv(self, sendbuf, recvbuf, axis=0, recv_axis=None):
-        return self.__scatter_like(self.handle.Allgatherv, sendbuf, recvbuf, axis, recv_axis, recv_factor=self.size)
-    Allgatherv.__doc__ = MPI.Comm.Allgatherv.__doc__
 
     def Alltoall(self, sendbuf, recvbuf, axis=0, recv_axis=None):
         return self.__scatter_like(
@@ -463,14 +540,6 @@ class MPICommunication(Communication):
     def Gatherv(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
         return self.__scatter_like(self.handle.Gatherv, sendbuf, recvbuf, axis, recv_axis, root=root)
     Gatherv.__doc__ = MPI.Comm.Gatherv.__doc__
-
-    def Iallgather(self, sendbuf, recvbuf, axis=0, recv_axis=None):
-        return self.__scatter_like(self.handle.Iallgather, sendbuf, recvbuf, axis, recv_axis, recv_factor=self.size)
-    Iallgather.__doc__ = MPI.Comm.Iallgather.__doc__
-
-    def Iallgatherv(self, sendbuf, recvbuf, axis=0, recv_axis=None):
-        return self.__scatter_like(self.handle.Iallgatherv, sendbuf, recvbuf, axis, recv_axis, recv_factor=self.size)
-    Iallgatherv.__doc__ = MPI.Comm.Iallgatherv.__doc__
 
     def Ialltoall(self, sendbuf, recvbuf, axis=0, recv_axis=None):
         return self.__scatter_like(
@@ -537,6 +606,63 @@ class MPICommunication(Communication):
 
 MPI_WORLD = MPICommunication()
 MPI_SELF = MPICommunication(MPI.COMM_SELF)
+
+# set the default communicator to be MPI_WORLD
+__default_comm = MPI_WORLD
+
+
+def get_comm():
+    """
+    Retrieves the currently globally set default communication.
+
+    Returns
+    -------
+    comm : Communication
+        The currently set default communication.
+    """
+    return __default_comm
+
+
+def sanitize_comm(comm):
+    """
+    Sanitizes a device or device identifier, i.e. checks whether it is already an instance of Device or a string with
+    known device identifier and maps it to a proper Device.
+
+    Parameters
+    ----------
+    comm : Communication
+        The comm to be sanitized
+
+    Returns
+    -------
+    Communication
+        The matching Communication instance
+
+    Raises
+    ------
+    TypeError
+        If the given communication is not the proper type
+    """
+    if comm is None:
+        return get_comm()
+    elif isinstance(comm, Communication):
+        return comm
+
+    raise TypeError('Unknown communication, must be instance of {}'.format(Communication))
+
+
+def use_comm(comm=None):
+    """
+    Sets the globally used default communication.
+
+    Parameters
+    ----------
+    comm : Communication or None
+        The communication to be set
+    """
+    global __default_comm
+    __default_comm = sanitize_comm(comm)
+
 
 # tensor is imported at the very end to break circular dependency
 from . import dndarray

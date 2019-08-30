@@ -8,12 +8,19 @@ from . import dndarray
 __all__ = [
     'add',
     'div',
+    'divide',
+    'floordiv',
+    'floor_divide',
     'fmod',
     'mod',
     'mul',
+    'multiply',
     'pow',
     'prod',
+    'power',
+    'remainder',
     'sub',
+    'subtract',
     'sum'
 ]
 
@@ -93,10 +100,12 @@ def div(t1, t2):
     """
     return operations.__binary_op(torch.div, t1, t2)
 
+# Alias in compliance with numpy API
+divide = div
 
 def fmod(t1, t2):
     """
-    Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
+    Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. C Library function fmod), not commutative.
     Takes the two operands (scalar or tensor, both may contain floating point number) whose elements are to be
     divided (operand 1 by operand 2) as arguments.
 
@@ -110,7 +119,8 @@ def fmod(t1, t2):
     Returns
     -------
     result: ht.DNDarray
-        A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2.
+        A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2. 
+        It has the sign as the dividend t1.
 
     Examples:
     ---------
@@ -132,12 +142,46 @@ def fmod(t1, t2):
     return operations.__binary_op(torch.fmod, t1, t2)
 
 
+def floordiv(t1, t2):
+    """
+    Element-wise floor division of value of operand t1 by values of operands t2 (i.e. t1 // t2), not commutative.
+    Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2) as argument.
+
+    Parameters
+    ----------
+    t1: tensor or scalar
+        The first operand whose values are divided
+    t2: tensor or scalar
+        The second operand by whose values is divided
+
+    Return
+    ------
+    result: ht.DNDarray
+        A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
+    >>> ht.floordiv(T1, 1)
+    tensor([[1., 2.],
+            [1., 4.]])
+    >>> T2 = ht.float32([1.5, 2.5])
+    >>> ht.floordiv(T1, T2)
+    tensor([[1., 0.],
+            [1., 1.]])
+    """
+    return operations.__binary_op(lambda a, b: torch.div(a, b).floor(), t1, t2)
+
+# Alias in compliance with numpy API
+floor_divide = floordiv
+
 def mod(t1, t2):
     """
     Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
     Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2) as arguments.
 
-    Currently t1 and t2 are just passed to fmod.
+    Currently t1 and t2 are just passed to remainder.
 
     Parameters
     ----------
@@ -149,7 +193,8 @@ def mod(t1, t2):
     Returns
     -------
     result: ht.DNDarray
-        A tensor containing the remainder of the element-wise division of t1 by t2.
+        A tensor containing the remainder of the element-wise division of t1 by t2. 
+        It has the same sign as the devisor t2.
 
     Examples:
     ---------
@@ -168,7 +213,7 @@ def mod(t1, t2):
     tensor([[0, 0]
             [2, 2]], dtype=torch.int32)
     """
-    return fmod(t1, t2)
+    return remainder(t1, t2)
 
 
 def mul(t1, t2):
@@ -212,6 +257,8 @@ def mul(t1, t2):
     """
     return operations.__binary_op(torch.mul, t1, t2)
 
+# Alias in compliance with numpy API
+multiply = mul
 
 def pow(t1, t2):
     """
@@ -250,6 +297,45 @@ def pow(t1, t2):
     """
     return operations.__binary_op(torch.pow, t1, t2)
 
+# Alias in compliance with numpy API
+power = pow
+
+def remainder(t1, t2):
+    """
+    Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
+    Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2) as arguments.
+
+    Parameters
+    ----------
+    t1: tensor or scalar
+        The first operand whose values are divided
+    t2: tensor or scalar
+        The second operand by whose values is divided
+
+    Returns
+    -------
+    result: ht.DNDarray
+        A tensor containing the remainder of the element-wise division of t1 by t2.
+        It has the same sign as the devisor t2.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> ht.mod(2, 2)
+    tensor([0])
+
+    >>> T1 = ht.int32([[1, 2], [3, 4]])
+    >>> T2 = ht.int32([[2, 2], [2, 2]])
+    >>> ht.mod(T1, T2)
+    tensor([[1, 0],
+            [1, 0]], dtype=torch.int32)
+
+    >>> s = 2
+    >>> ht.mod(s, T1)
+    tensor([[0, 0]
+            [2, 2]], dtype=torch.int32)
+    """
+    return operations.__binary_op(torch.remainder, t1, t2)
 
 def prod(x, axis=None, out=None, keepdim=None):
     """
@@ -335,6 +421,8 @@ def sub(t1, t2):
     """
     return operations.__binary_op(torch.sub, t1, t2)
 
+# Alias in compliance with numpy API
+subtract = sub
 
 def sum(x, axis=None, out=None, keepdim=None):
     """

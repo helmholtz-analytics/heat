@@ -73,16 +73,19 @@ def __binary_op(operation, t1, t2):
                 raise TypeError('Data type not supported, input was {}'.format(type(t2)))
 
         elif isinstance(t2, dndarray.DNDarray):
-            # TODO: implement complex NUMPY rules
-            if t2.split is None or t2.split == t1.split:
-                output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
-                output_split = t1.split
-                output_device = t1.device
-                output_comm = t1.comm
-            else:
+            if t1.split is None:
+                t1 = factories.array(t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device, ndmin=-t2.numdims)
+            elif t2.split is None:
+                t2 = factories.array(t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device, ndmin=-t1.numdims)
+            elif t1.split != t2.split:
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
                 # and split=1
                 raise NotImplementedError('Not implemented for other splittings')
+
+            output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+            output_split = t1.split
+            output_device = t1.device
+            output_comm = t1.comm
 
             # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data.
             if t1.split is not None:
@@ -114,7 +117,8 @@ def __binary_op(operation, t1, t2):
             result = t1._DNDarray__array.type(promoted_type)
         else:
             result = operation(t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type))
-    elif t1.split is not None:
+    elif t2.split is not None:
+
         if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
             result = t2._DNDarray__array.type(promoted_type)
         else:
@@ -164,8 +168,12 @@ def __local_op(operation, x, out, **kwargs):
 
     # no defined output tensor, return a freshly created one
     if out is None:
+        kwargs_dtype = kwargs.get('dtype')
+        if kwargs_dtype:
+            del kwargs['dtype']
         result = operation(x._DNDarray__array.type(torch_type), **kwargs)
-        return dndarray.DNDarray(result, x.gshape, promoted_type, x.split, x.device, x.comm)
+        return dndarray.DNDarray(result, tuple(result.shape), promoted_type if kwargs_dtype is None else kwargs_dtype,
+                                 x.split, x.device, x.comm)
 
     # output buffer writing requires a bit more work
     # we need to determine whether the operands are broadcastable and the multiple of the broadcasting
@@ -195,6 +203,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
     # no further checking needed, sanitize axis will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape,  kwargs.get('axis'))
     split = x.split
+    keepdim = kwargs.get('keepdim')
 
     if axis is None:
         partial = partial_op(x._DNDarray__array).reshape(-1)
@@ -205,12 +214,20 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
 
         if isinstance(axis, tuple):
             partial = x._DNDarray__array
+            output_shape = x.gshape
             for dim in axis:
                 partial = partial_op(partial, dim=dim, keepdim=True)
-                shape_keepdim = x.gshape[:dim] + (1,) + x.gshape[dim + 1:]
-            shape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if not dim in axis)
-
-        output_shape = shape_keepdim if kwargs.get('keepdim') else shape_losedim
+                output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1:]
+        if not keepdim and not len(partial.shape) == 1:
+            gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
+            lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
+            output_shape = gshape_losedim
+            # Take care of special cases argmin and argmax: keep partial.shape[0]
+            if (0 in axis and partial.shape[0] != 1):
+                lshape_losedim = (partial.shape[0],) + lshape_losedim
+            if (not 0 in axis and partial.shape[0] != x.lshape[0]):
+                lshape_losedim = (partial.shape[0],) + lshape_losedim[1:]
+            partial = partial.reshape(lshape_losedim)
 
     # Check shape of output buffer, if any
     if out is not None and out.shape != output_shape:

@@ -1,3 +1,5 @@
+import operator
+
 import torch
 import unittest
 
@@ -30,7 +32,7 @@ class TestArithmetics(unittest.TestCase):
             [3.0, 4.0],
             [5.0, 6.0]
         ])
-        
+
         self.assertTrue(ht.equal(ht.add(self.a_scalar, self.a_scalar), ht.float32([4.0])))
         self.assertTrue(ht.equal(ht.add(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.add(self.a_scalar, self.a_tensor), result))
@@ -41,8 +43,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.add(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.add(self.a_tensor, self.a_split_tensor)
         with self.assertRaises(TypeError):
             ht.add(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -68,8 +68,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.div(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.sub(self.a_tensor, self.a_split_tensor)
         with self.assertRaises(TypeError):
             ht.div(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -111,8 +109,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.fmod(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.fmod(self.a_tensor, self.a_split_tensor)
         with self.assertRaises(TypeError):
             ht.fmod(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -156,8 +152,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.mul(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.mul(self.a_tensor, self.a_split_tensor)
         with self.assertRaises(TypeError):
             ht.mul(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -183,8 +177,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.pow(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.pow(self.a_tensor, self.a_split_tensor)
         with self.assertRaises(TypeError):
             ht.pow(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -293,10 +285,10 @@ class TestArithmetics(unittest.TestCase):
     def test_sub(self):
         result = ht.array([
             [-1.0, 0.0],
-            [ 1.0, 2.0]
+            [1.0, 2.0]
         ])
         minus_result = ht.array([
-            [ 1.0,  0.0],
+            [1.0,  0.0],
             [-1.0, -2.0]
         ])
 
@@ -310,8 +302,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.sub(self.a_tensor, self.another_vector)
-        with self.assertRaises(NotImplementedError):
-            ht.sub(self.a_tensor, self.a_split_tensor)
         with self.assertRaises(TypeError):
             ht.sub(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
@@ -416,3 +406,38 @@ class TestArithmetics(unittest.TestCase):
             ht.ones((4, 4)).sum(axis=0, out=out_noaxis)
         with self.assertRaises(TypeError):
             ht.ones(array_len).sum(axis='bad_axis_type')
+
+    def test_right_hand_side_operations(self):
+        """
+        This test ensures that for each arithmetic operation (e.g. +, -, *, ...) that is implemented in the tensor
+        class, it works both ways.
+
+        Examples
+        --------
+        >>> import heat as ht
+        >>> T = ht.float32([[1., 2.], [3., 4.]])
+        >>> assert T * 3 == 3 * T
+
+        """
+        operators = (
+            ('__add__', operator.add, True),
+            ('__sub__', operator.sub, False),
+            ('__mul__', operator.mul, True),
+            ('__truediv__', operator.truediv, False),
+            ('__floordiv__', operator.floordiv, False),
+            ('__mod__', operator.mod, False),
+            ('__pow__', operator.pow, False)
+        )
+        tensor = ht.float32([[1, 4], [2, 3]])
+        num = 3
+        for (attr, op, commutative) in operators:
+            try:
+                func = tensor.__getattribute__(attr)
+            except AttributeError:
+                continue
+            self.assertTrue(callable(func))
+            res_1 = op(tensor, num)
+            res_2 = op(num, tensor)
+            if commutative:
+                self.assertTrue(ht.equal(res_1, res_2))
+        # TODO: Test with split tensors when binary operations are working properly for split tensors

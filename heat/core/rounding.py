@@ -9,7 +9,9 @@ __all__ = [
     'absolute',
     'ceil',
     'clip',
-    'floor'
+    'fabs',
+    'floor',
+    'trunc'
 ]
 
 
@@ -19,7 +21,6 @@ def abs(x, out=None, dtype=None):
 
     Parameters
     ----------
-
     x : ht.DNDarray
         The values for which the compute the absolute value.
     out : ht.DNDarray, optional
@@ -133,6 +134,28 @@ def clip(a, a_min, a_max, out=None):
 
     return a._DNDarray__array.clamp(a_min, a_max, out=out._DNDarray__array) and out
 
+ 
+def fabs(x, out=None):
+    """
+    Calculate the absolute value element-wise and return floating-point tensor.
+    This function exists besides abs==absolute since it will be needed in case complex numbers will be introduced in the future.
+
+    Parameters
+    ----------
+    x : ht.tensor
+        The values for which the compute the absolute value.
+    out : ht.tensor, optional
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+        If not provided or None, a freshly-allocated array is returned.
+
+    Returns
+    -------
+    absolute_values : ht.tensor
+        A tensor containing the absolute value of each element in x.
+    """
+
+    return abs(x, out, dtype=None)
+    
 
 def floor(x, out=None):
     """
@@ -160,3 +183,32 @@ def floor(x, out=None):
     tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
     """
     return operations.__local_op(torch.floor, x, out)
+
+
+def trunc(x, out=None):
+    """
+    Return the trunc of the input, element-wise.
+
+    The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the 
+    fractional part of the signed number x is discarded.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The value for which to compute the trunced values.
+    out : ht.DNDarray or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    trunced : ht.DNDarray
+        A tensor of the same shape as x, containing the trunced valued of each element in this tensor. If out was
+        provided, trunced is a reference to it.
+
+    Examples
+    --------
+    >>> ht.trunc(ht.arange(-2.0, 2.0, 0.4))
+    tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
+    """
+    return operations.__local_op(torch.trunc, x, out)

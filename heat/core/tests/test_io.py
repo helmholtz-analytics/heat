@@ -19,8 +19,8 @@ class TestIO(unittest.TestCase):
         cls.NETCDF_VARIABLE = 'data'
 
         # load comparison data from csv
-        csv_path = os.path.join(os.getcwd(), 'heat/datasets/data/iris.csv')
-        cls.IRIS = torch.from_numpy(np.loadtxt(csv_path, delimiter=';')).type(torch.float32)
+        cls.CSV_PATH = os.path.join(os.getcwd(), 'heat/datasets/data/iris.csv')
+        cls.IRIS = torch.from_numpy(np.loadtxt(cls.CSV_PATH, delimiter=';')).float()
 
     def tearDown(self):
         # synchronize all nodes
@@ -76,6 +76,60 @@ class TestIO(unittest.TestCase):
             with self.assertRaises(ValueError):
                 _ = ht.load(self.NETCDF_PATH, variable=self.NETCDF_VARIABLE)
 
+    def test_load_csv(self):
+        csv_file_length = 150
+        csv_file_cols = 4
+        first_value = torch.tensor([5.1, 3.5, 1.4, 0.2], dtype=torch.float32)
+        tenth_value = torch.tensor([4.9, 3.1, 1.5, 0.1], dtype=torch.float32)
+
+        a = ht.load_csv(self.CSV_PATH, sep=';')
+        self.assertEqual(len(a), csv_file_length)
+        self.assertEqual(a.shape, (csv_file_length, csv_file_cols))
+        self.assertTrue(torch.equal(a._DNDarray__array[0], first_value))
+        self.assertTrue(torch.equal(a._DNDarray__array[9], tenth_value))
+
+        a = ht.load_csv(self.CSV_PATH, sep=';', split=0)
+        rank = a.comm.Get_rank()
+        expected_gshape = (csv_file_length, csv_file_cols)
+        self.assertEqual(a.gshape, expected_gshape)
+
+        counts, _, _ = a.comm.counts_displs_shape(expected_gshape, 0)
+        expected_lshape = (counts[rank], csv_file_cols)
+        self.assertEqual(a.lshape, expected_lshape)
+
+        if rank == 0:
+            self.assertTrue(torch.equal(a._DNDarray__array[0], first_value))
+
+        a = ht.load_csv(self.CSV_PATH, sep=';', header_lines=9, dtype=ht.float32, split=0)
+        expected_gshape = (csv_file_length - 9, csv_file_cols)
+        counts, _, _ = a.comm.counts_displs_shape(expected_gshape, 0)
+        expected_lshape = (counts[rank], csv_file_cols)
+
+        self.assertEqual(a.gshape, expected_gshape)
+        self.assertEqual(a.lshape, expected_lshape)
+        self.assertEqual(a.dtype, ht.float32)
+        if rank == 0:
+            self.assertTrue(torch.equal(a._DNDarray__array[0], tenth_value))
+
+        a = ht.load_csv(self.CSV_PATH, sep=';', split=1)
+        self.assertEqual(a.shape, (csv_file_length, csv_file_cols))
+        self.assertEqual(a.lshape[0], csv_file_length)
+
+        a = ht.load_csv(self.CSV_PATH, sep=';', split=0)
+        b = ht.load(self.CSV_PATH, sep=';', split=0)
+        self.assertTrue(ht.equal(a, b))
+
+        # Test for csv where header is longer then the first process`s share of lines
+        a = ht.load_csv(self.CSV_PATH, sep=';', header_lines=100, split=0)
+        self.assertEqual(a.shape, (50, 4))
+
+        with self.assertRaises(TypeError):
+            ht.load_csv(12314)
+        with self.assertRaises(TypeError):
+            ht.load_csv(self.CSV_PATH, sep=11)
+        with self.assertRaises(TypeError):
+            ht.load_csv(self.CSV_PATH, header_lines='3', sep=';', split=0)
+
     def test_load_exception(self):
         # correct extension, file does not exist
         if ht.io.supports_hdf5():
@@ -94,7 +148,7 @@ class TestIO(unittest.TestCase):
 
         # unknown file extension
         with self.assertRaises(ValueError):
-            ht.load(os.path.join(os.getcwd(), 'heat/datasets/data/iris.csv'), 'data')
+            ht.load(os.path.join(os.getcwd(), 'heat/datasets/data/iris.json'), 'data')
         with self.assertRaises(ValueError):
             ht.load('iris', 'data')
 

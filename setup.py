@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 import sys
 sys.path.append('./heat/core')
 import version
@@ -34,7 +34,7 @@ setup(
     install_requires=[
         'mpi4py>=3.0.0',
         'numpy>=1.13.0',
-        'torch>=1.0.0'
+        'torch>=1.2.0'
     ],
     extras_require={
         'hdf5':  ['h5py>=2.8.0'],

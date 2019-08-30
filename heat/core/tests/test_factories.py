@@ -81,7 +81,7 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(three_arg_arange_dtype_float32._DNDarray__array.dtype, torch.float32)
         self.assertEqual(three_arg_arange_dtype_float32.split, 0)
         # make an in direct check for the sequence, compare against the gaussian sum
-        self.assertEqual(three_arg_arange_dtype_float32.sum(axis=0), 20.0)
+        self.assertEqual(three_arg_arange_dtype_float32.sum(axis=0, keepdim=True), 20.0)
 
         # testing setting dtype to int16
         three_arg_arange_dtype_short = ht.arange(0, 10, 2., dtype=torch.int16)
@@ -92,7 +92,7 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(three_arg_arange_dtype_short._DNDarray__array.dtype, torch.int16)
         self.assertEqual(three_arg_arange_dtype_short.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
-        self.assertEqual(three_arg_arange_dtype_short.sum(axis=0), 20)
+        self.assertEqual(three_arg_arange_dtype_short.sum(axis=0, keepdim=True), 20)
 
         # testing setting dtype to float64
         three_arg_arange_dtype_float64 = ht.arange(
@@ -104,7 +104,7 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(three_arg_arange_dtype_float64._DNDarray__array.dtype, torch.float64)
         self.assertEqual(three_arg_arange_dtype_float64.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
-        self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0), 20.0)
+        self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0, keepdim=True), 20.0)
 
         # exceptions
         with self.assertRaises(ValueError):
@@ -157,7 +157,32 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(d.split, None)
         self.assertTrue((d._DNDarray__array == torch.tensor(vector_data).reshape(-1, 1, 1)).all())
 
-        # distributed array function
+        # basic array function, unsplit data, additional dimensions
+        vector_data = [4.0, 5.0, 6.0]
+        d = ht.array(vector_data, ndmin=-3)
+        self.assertIsInstance(d, ht.DNDarray)
+        self.assertEqual(d.dtype, ht.float32)
+        self.assertEqual(d.lshape, (1, 1, 3))
+        self.assertEqual(d.gshape, (1, 1, 3))
+        self.assertEqual(d.split, None)
+        self.assertTrue((d._DNDarray__array == torch.tensor(vector_data).reshape(1, 1, -1)).all())     
+
+        # distributed array, chunk local data (split)
+        tensor_2d = ht.array([
+            [1.0, 2.0, 3.0],
+            [1.0, 2.0, 3.0],
+            [1.0, 2.0, 3.0]
+        ], split=0)
+        self.assertIsInstance(tensor_2d, ht.DNDarray)
+        self.assertEqual(tensor_2d.dtype, ht.float32)
+        self.assertEqual(tensor_2d.gshape, (3, 3))
+        self.assertEqual(len(tensor_2d.lshape), 2)
+        self.assertLessEqual(tensor_2d.lshape[0], 3)
+        self.assertEqual(tensor_2d.lshape[1], 3)
+        self.assertEqual(tensor_2d.split, 0)
+        self.assertTrue((tensor_2d._DNDarray__array == torch.tensor([1.0, 2.0, 3.0])).all())
+
+        # distributed array, partial data (is_split)
         if ht.communication.MPI_WORLD.rank == 0:
             split_data = [
                 [4.0, 5.0, 6.0],
@@ -169,7 +194,7 @@ class TestFactories(unittest.TestCase):
                 [4.0, 5.0, 6.0],
                 [1.0, 2.0, 3.0]
             ]
-        e = ht.array(split_data, ndmin=3, split=0)
+        e = ht.array(split_data, ndmin=3, is_split=0)
 
         self.assertIsInstance(e, ht.DNDarray)
         self.assertEqual(e.dtype, ht.float32)
@@ -193,7 +218,7 @@ class TestFactories(unittest.TestCase):
 
             # this will fail as the shapes do not match
             with self.assertRaises(ValueError):
-                ht.array(split_data, split=0)
+                ht.array(split_data, is_split=0)
 
         # exception distributed shapes do not fit
         if ht.communication.MPI_WORLD.size > 1:
@@ -211,7 +236,65 @@ class TestFactories(unittest.TestCase):
 
             # this will fail as the shapes do not match on a specific axis (here: 0)
             with self.assertRaises(ValueError):
-                ht.array(split_data, split=1)
+                ht.array(split_data, is_split=1)
+
+        # check exception on mutually exclusive split and is_split
+        with self.assertRaises(ValueError):
+            ht.array([
+                [1.0, 2.0, 3.0],
+                [1.0, 2.0, 3.0]
+            ], split=0, is_split=0)
+
+        e = ht.array(split_data, ndmin=-3, is_split=1)
+
+        self.assertIsInstance(e, ht.DNDarray)
+        self.assertEqual(e.dtype, ht.float32)
+        if ht.communication.MPI_WORLD.rank == 0:
+            self.assertEqual(e.lshape, (1, 3, 3))
+        else:
+            self.assertEqual(e.lshape, (1, 2, 3))
+        self.assertEqual(e.split, 1)
+        for index, ele in enumerate(e.gshape):
+            if index != e.split:
+                self.assertEqual(ele, e.lshape[index])
+            else:
+                self.assertGreaterEqual(ele, e.lshape[index])
+
+        # exception distributed shapes do not fit
+        if ht.communication.MPI_WORLD.size > 1:
+            if ht.communication.MPI_WORLD.rank == 0:
+                split_data = [4.0, 5.0, 6.0]
+            else:
+                split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]]
+
+            # this will fail as the shapes do not match
+            with self.assertRaises(ValueError):
+                ht.array(split_data, is_split=0)
+
+        # exception distributed shapes do not fit
+        if ht.communication.MPI_WORLD.size > 1:
+            if ht.communication.MPI_WORLD.rank == 0:
+                split_data = [
+                    [4.0, 5.0, 6.0],
+                    [1.0, 2.0, 3.0],
+                    [0.0, 0.0, 0.0]
+                ]
+            else:
+                split_data = [
+                    [4.0, 5.0, 6.0],
+                    [1.0, 2.0, 3.0]
+                ]
+
+            # this will fail as the shapes do not match on a specific axis (here: 0)
+            with self.assertRaises(ValueError):
+                ht.array(split_data, is_split=1)
+
+        # check exception on mutually exclusive split and is_split
+        with self.assertRaises(ValueError):
+            ht.array([
+                [1.0, 2.0, 3.0],
+                [1.0, 2.0, 3.0]
+            ], split=1, is_split=1)
 
         # non iterable type
         with self.assertRaises(TypeError):
@@ -521,6 +604,60 @@ class TestFactories(unittest.TestCase):
             ht.linspace(-5, 3, num=-1)
         with self.assertRaises(ValueError):
             ht.linspace(-5, 3, num=0)
+        
+    def test_logspace(self):
+        # simple log space
+        ascending = ht.logspace(-3, 5)
+        self.assertIsInstance(ascending, ht.DNDarray)
+        self.assertEqual(ascending.shape, (50,))
+        self.assertLessEqual(ascending.lshape[0], 50)
+        self.assertEqual(ascending.dtype, ht.float32)
+        self.assertEqual(ascending._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(ascending.split, None)
+
+        # simple inverse log space
+        descending = ht.logspace(-5, 3, num=100)
+        self.assertIsInstance(descending, ht.DNDarray)
+        self.assertEqual(descending.shape, (100,))
+        self.assertLessEqual(descending.lshape[0], 100)
+        self.assertEqual(descending.dtype, ht.float32)
+        self.assertEqual(descending._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(descending.split, None)
+
+        # split log space
+        split = ht.logspace(-5, 3, num=70, split=0)
+        self.assertIsInstance(split, ht.DNDarray)
+        self.assertEqual(split.shape, (70,))
+        self.assertLessEqual(split.lshape[0], 70)
+        self.assertEqual(split.dtype, ht.float32)
+        self.assertEqual(split._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(split.split, 0)
+
+        # with casted type
+        casted = ht.logspace(-5, 3, num=70, dtype=ht.uint8, split=0)
+        self.assertIsInstance(casted, ht.DNDarray)
+        self.assertEqual(casted.shape, (70,))
+        self.assertLessEqual(casted.lshape[0], 70)
+        self.assertEqual(casted.dtype, ht.uint8)
+        self.assertEqual(casted._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(casted.split, 0)
+
+        # base test
+        base = ht.logspace(-5, 3, num=70, base=2.0)
+        self.assertIsInstance(base, ht.DNDarray)
+        self.assertEqual(base.shape, (70,))
+        self.assertLessEqual(base.lshape[0], 70)
+        self.assertEqual(base.dtype, ht.float32)
+        self.assertEqual(base._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(base.split, None)
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            ht.logspace(-5, 3, split=1)
+        with self.assertRaises(ValueError):
+            ht.logspace(-5, 3, num=-1)
+        with self.assertRaises(ValueError):
+            ht.logspace(-5, 3, num=0)
 
     def test_ones(self):
         # scalar input
