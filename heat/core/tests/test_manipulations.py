@@ -245,9 +245,9 @@ class TestManipulations(unittest.TestCase):
         y = ht.ones((16, 15, 14), split=2)
         # None 2 0
         res = ht.concatenate((x, y, y), axis=0)
-        self.assertEqual(res.gshape, (32+16, 15, 14))
+        self.assertEqual(res.gshape, (32 + 16, 15, 14))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((32+16, 15, 14), res.split)
+        _, _, chk = res.comm.chunk((32 + 16, 15, 14), res.split)
         lshape = [0, 0, 0]
         for i in range(3):
             lshape[i] = chk[i].stop - chk[i].start

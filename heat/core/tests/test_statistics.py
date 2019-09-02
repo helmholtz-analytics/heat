@@ -1,11 +1,10 @@
-import numpy as np
 import h5py
+import numpy as np
 import torch
 import unittest
 from itertools import combinations
 
 import heat as ht
-import numpy as np
 
 
 class TestStatistics(unittest.TestCase):
