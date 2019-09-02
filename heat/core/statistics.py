@@ -415,8 +415,7 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     # find normalization:
     if norm <= 0:
         raise ValueError('ddof >= number of elements in m, {} {}'.format(ddof, m.gnumel))
-
-    x -= avg[:, None]
+    x -= avg.expand_dims(1)
     c = linalg.dot(x, x.T)
     c /= norm
     return c
