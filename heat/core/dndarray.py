@@ -2095,7 +2095,6 @@ class DNDarray:
 
             send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-
             self.comm.Alltoallv(
                 (self.__array, send_counts, send_displs,),
                 (redistributed, recv_counts, recv_displs,),
