@@ -48,10 +48,8 @@ def dot(a, b, out=None):
         if a.split is not None or b.split is not None:
             sl = a.comm.chunk(a.shape, a.split if a.split is not None else b.split)[2]
         ret = torch.dot(a[sl]._DNDarray__array, b[sl]._DNDarray__array)
-        if a.is_distributed():
+        if a.is_distributed() or b.is_distributed():
             a.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
-        elif b.is_distributed():
-            b.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
 
         if out is not None:
             out = ret.item()
@@ -267,7 +265,6 @@ def matmul(a, b):
         if a.split == 0:
             a_block_map = torch.zeros((a.comm.size, a.shape[-2] // mB // a.comm.size, a.shape[-1] // kB, 2))
         elif a.split == 1:
-            # print('h', a.shape[-2] // mB, a.shape[-1] // kB // a.comm.size)
             a_block_map = torch.zeros((a.comm.size, a.shape[-2] // mB, a.shape[-1] // kB // a.comm.size, 2))
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
 
