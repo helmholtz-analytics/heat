@@ -18,7 +18,7 @@ class KMeans:
         # TODO: extend me with further initialization methods
         # zero-centered uniform random distribution in [-1, 1]
         ht.random.seed(seed)
-        rands = ht.random.rand((1, dimensions, k), device=device)
+        rands = ht.random.rand(1, dimensions, k, device=device)
         # change the range of the values from [0, 1) to [-1, 1)
         rands = rands * 2 - 1
         return rands
