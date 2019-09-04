@@ -197,6 +197,7 @@ class MPICommunication(Communication):
             mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
             mpi_type.Commit()
 
+
         if counts is not None:
             return mpi_type, (counts, displs,)
 
@@ -511,6 +512,7 @@ class MPICommunication(Communication):
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
 
+
         # permute the send_axis order so that the split send_axis is the first to be transmitted
         if(axis !=0 ):
             send_axis_permutation = list(range(sendbuf.ndimension()))
@@ -522,6 +524,7 @@ class MPICommunication(Communication):
             recv_axis_permutation[0], recv_axis_permutation[axis] = axis, 0
             recvbuf = recvbuf.permute(*recv_axis_permutation)
 
+
         # prepare buffer objects
         if sendbuf is  MPI.IN_PLACE or not isinstance(sendbuf, torch.Tensor):
             mpi_sendbuf = sendbuf
@@ -530,6 +533,7 @@ class MPICommunication(Communication):
             if send_counts is not None:
                 mpi_sendbuf[1] = mpi_sendbuf[1][0][self.rank]
 
+        self.Barrier()
         if recvbuf is MPI.IN_PLACE or not isinstance(recvbuf, torch.Tensor):
             mpi_recvbuf = recvbuf
         else:
@@ -537,6 +541,7 @@ class MPICommunication(Communication):
             if recv_counts is None:
                 mpi_recvbuf[1] //= self.size
 
+        self.Barrier()
         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
 

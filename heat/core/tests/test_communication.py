@@ -13,6 +13,14 @@ class TestCommunication(unittest.TestCase):
             [4, 5, 6]
         ], dtype=torch.float32)
 
+        cls.sorted3Dtensor = ht.float32([
+        [[0, 1, 2, 3, 4],
+        [10, 11, 12, 13, 14],
+        [20, 21, 22, 23, 24]],
+        [[100, 101, 102, 103, 104],
+        [110, 111, 112, 113, 114],
+        [120, 121, 122, 123, 124]]])
+
     def test_self_communicator(self):
         comm = ht.core.communication.MPI_SELF
 
@@ -2033,60 +2041,61 @@ class TestCommunication(unittest.TestCase):
         self.assertFalse(output._DNDarray__array.is_contiguous())
         self.assertTrue((output._DNDarray__array == torch.ones(output_count, 12,)).all())
 
+
     def test_allgathervSorting(self):
-        data = ht.zeros((2, 3, 4))
-        data[0, 0, 0] = 0
-        data[0, 0, 1] = 1
-        data[0, 0, 2] = 2
-        data[0, 0, 3] = 3
 
-        data[0, 1, 0] = 10
-        data[0, 1, 1] = 11
-        data[0, 1, 2] = 12
-        data[0, 1, 3] = 13
+        test1 = self.sorted3Dtensor.copy()
+        test2 = self.sorted3Dtensor.copy()
+        test3 = self.sorted3Dtensor.copy()
+        result = self.sorted3Dtensor.copy()
 
-        data[0, 2, 0] = 20
-        data[0, 2, 1] = 21
-        data[0, 2, 2] = 22
-        data[0, 2, 3] = 23
+        test1.resplit(axis=0)
+        test2.resplit(axis=1)
+        test3.resplit(axis=2)
 
-        data[1, 0, 0] = 100
-        data[1, 0, 1] = 101
-        data[1, 0, 2] = 102
-        data[1, 0, 3] = 103
+        gathered1_counts, gathered1_displs, _ = test1.comm.counts_displs_shape(test1.shape, test1.split)
+        gathered1 = torch.empty(self.sorted3Dtensor.shape)
+        gathered2_counts, gathered2_displs, _ = test2.comm.counts_displs_shape(test2.shape, test2.split)
+        gathered2 = torch.empty(self.sorted3Dtensor.shape)
+        gathered3_counts, gathered3_displs, _ = test3.comm.counts_displs_shape(test3.shape, test3.split)
+        gathered3 = torch.empty(self.sorted3Dtensor.shape)
 
-        data[1, 1, 0] = 110
-        data[1, 1, 1] = 111
-        data[1, 1, 2] = 112
-        data[1, 1, 3] = 113
+        test1.comm.Allgatherv(test1,  (gathered1, gathered1_counts, gathered1_displs,), recv_axis=test1.split)
+        self.assertTrue(torch.equal(gathered1, result._DNDarray__array))
 
-        data[1, 2, 0] = 120
-        data[1, 2, 1] = 121
-        data[1, 2, 2] = 122
-        data[1, 2, 3] = 123
+        test2.comm.Allgatherv(test2,  (gathered2, gathered2_counts, gathered2_displs,), recv_axis=test2.split)
+        self.assertTrue(torch.equal(gathered2, result._DNDarray__array))
 
-        result = data
+        test3.comm.Allgatherv(test3,  (gathered3, gathered3_counts, gathered3_displs,), recv_axis=test3.split)
+        self.assertTrue(torch.equal(gathered3, result._DNDarray__array))
 
-        data.resplit(axis=0)
+    def test_alltoallSorting(self):
+        test1 = self.sorted3Dtensor.copy()
+        test1.resplit(axis=2)
+        comparison1 = self.sorted3Dtensor.copy()
+        comparison1.resplit(axis=1)
+        redistributed1 = torch.empty(comparison1.lshape, dtype=test1.dtype.torch_type())
+        test1.comm.Alltoallv(test1._DNDarray__array, redistributed1, send_axis=comparison1.split, recv_axis=test1.split)
+        self.assertTrue(torch.equal(redistributed1, comparison1._DNDarray__array))
 
-        gathered = torch.empty(data.shape)
-        recv_counts, recv_displs, _ = data.comm.counts_displs_shape(data.shape, data.split)
-        data.comm.Allgatherv(data._DNDarray__array, (gathered, recv_counts, recv_displs,), recv_axis=data.split)
+        test2 = self.sorted3Dtensor.copy()
+        test2.resplit(axis=1)
+        comparison2 = self.sorted3Dtensor.copy()
+        comparison2.resplit(axis=0)
+        send_counts, send_displs, _ = test2.comm.counts_displs_shape(test2.lshape, comparison2.split)
+        recv_counts, recv_displs, _ = test2.comm.counts_displs_shape(test2.shape, test2.split)
+        redistributed2 = torch.empty(comparison2.lshape, dtype=test2.dtype.torch_type())
+        test2.comm.Alltoallv((test2._DNDarray__array, send_counts, send_displs,),
+                             (redistributed2, recv_counts, recv_displs,), send_axis=comparison2.split,
+                             recv_axis=test2.split)
+        self.assertTrue(torch.equal(redistributed2, comparison2._DNDarray__array))
 
-        self.assertTrue(ht.equal(data, result))
 
-        data.resplit(axis=1)
+        test3 = self.sorted3Dtensor.copy()
+        test3.resplit(axis=0)
+        comparison3 = self.sorted3Dtensor.copy()
+        comparison3.resplit(axis=2)
+        redistributed3 = torch.empty(comparison3.lshape, dtype=test3.dtype.torch_type())
+        test3.comm.Alltoallv(test3._DNDarray__array, redistributed3, send_axis=comparison3.split, recv_axis=test3.split)
+        self.assertTrue(torch.equal(redistributed3, comparison3._DNDarray__array))
 
-        gathered2 = torch.empty(data.shape)
-        recv_counts2, recv_displs2, _ = data.comm.counts_displs_shape(data.shape, data.split)
-        data.comm.Allgatherv(data._DNDarray__array, (gathered2, recv_counts2, recv_displs2,), recv_axis=data.split)
-
-        self.assertTrue(ht.equal(data, result))
-
-        data.resplit(axis=2)
-
-        gathered2 = torch.empty(data.shape)
-        recv_counts2, recv_displs2, _ = data.comm.counts_displs_shape(data.shape, data.split)
-        data.comm.Allgatherv(data._DNDarray__array, (gathered2, recv_counts2, recv_displs2,), recv_axis=data.split)
-
-        self.assertTrue(ht.equal(data, result))
