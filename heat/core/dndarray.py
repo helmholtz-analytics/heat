@@ -2115,12 +2115,12 @@ class DNDarray:
             gathered = torch.empty(self.shape, dtype=self.dtype.torch_type())
 
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), send_axis=self.split)
+            self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), recv_axis=self.split)
 
             self.__array = gathered
             self.__split = None
 
-        # tensor needs be split/sliced locally
+    # tensor needs be split/sliced locally
         elif self.split is None:
             _, _, slices = self.comm.chunk(self.shape, axis)
             temp = self.__array[slices]
@@ -2136,11 +2136,10 @@ class DNDarray:
 
             send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-
             self.comm.Alltoallv(
                 (self.__array, send_counts, send_displs,),
                 (redistributed, recv_counts, recv_displs,),
-                axis=axis, recv_axis=self.split
+                send_axis=axis, recv_axis=self.split
             )
 
             self.__array = redistributed
