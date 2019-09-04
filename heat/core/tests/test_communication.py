@@ -441,7 +441,7 @@ class TestCommunication(unittest.TestCase):
         # ensure prior invariants
         self.assertTrue(data._DNDarray__array.is_contiguous())
         self.assertTrue(output._DNDarray__array.is_contiguous())
-        data.comm.Alltoall(data, output, send_axis=0, recv_axis=None)
+        data.comm.Alltoall(data, output)
 
         # check scatter result
         self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1922,34 +1922,35 @@ class TestCommunication(unittest.TestCase):
         self.assertFalse(output._DNDarray__array.is_contiguous())
         self.assertTrue((output._DNDarray__array == torch.ones(5, 2,)).all())
 
-    # def test_scatter_like_axes(self):
-    #     # input and output are not split
-    #     data = ht.array([[ht.MPI_WORLD.rank] * ht.MPI_WORLD.size] * ht.MPI_WORLD.size)
-    #     output = ht.zeros_like(data)
-    #
-    #     # main axis send buffer, main axis receive buffer
-    #     data.comm.Alltoall(data, output, send_axis=0)
-    #     comparison = torch.arange(ht.MPI_WORLD.size).reshape(-1, 1).repeat(1, ht.MPI_WORLD.size)
-    #     self.assertTrue((output._DNDarray__array == comparison).all())
-    #
-    #     # minor axis send buffer, main axis receive buffer
-    #     data.comm.Alltoall(data, output, send_axis=1)
-    #     comparison = torch.arange(ht.MPI_WORLD.size).reshape(1, -1).repeat(ht.MPI_WORLD.size, 1)
-    #     self.assertTrue((output._DNDarray__array == comparison).all())
-    #
-    #     # main axis send buffer, minor axis receive buffer
-    #     data = ht.array([[ht.MPI_WORLD.rank] * (2 * ht.MPI_WORLD.size)] * ht.MPI_WORLD.size)
-    #     output = ht.zeros((2 * ht.MPI_WORLD.size, ht.MPI_WORLD.size), dtype=data.dtype)
-    #     data.comm.Alltoall(data, output, send_axis=0, recv_axis=1)
-    #     comparison = torch.arange(ht.MPI_WORLD.size).reshape(1, -1).repeat(2 * ht.MPI_WORLD.size, 1)
-    #     self.assertTrue((output._DNDarray__array == comparison).all())
-    #
-    #     # minor axis send buffer, minor axis receive buffer
-    #     data = ht.array([range(ht.MPI_WORLD.size)] * ht.MPI_WORLD.size)
-    #     output = ht.zeros((ht.MPI_WORLD.size, ht.MPI_WORLD.size), dtype=data.dtype)
-    #     data.comm.Alltoall(data, output, send_axis=1, recv_axis=1)
-    #     comparison = torch.arange(ht.MPI_WORLD.size).reshape(-1, 1).repeat(1, ht.MPI_WORLD.size)
-    #     self.assertTrue((output._DNDarray__array == comparison).all())
+    def test_scatter_like_axes(self):
+        # input and output are not split
+        data = ht.array([[ht.MPI_WORLD.rank] * ht.MPI_WORLD.size] * ht.MPI_WORLD.size)
+        output = ht.zeros_like(data)
+
+        # main axis send buffer, main axis receive buffer
+        data.comm.Alltoall(data, output, send_axis=0)
+        comparison = torch.arange(ht.MPI_WORLD.size).reshape(-1, 1).repeat(1, ht.MPI_WORLD.size)
+        self.assertTrue((output._DNDarray__array == comparison).all())
+
+        # minor axis send buffer, main axis receive buffer
+        data.comm.Alltoall(data, output, send_axis=1)
+        comparison = torch.arange(ht.MPI_WORLD.size).reshape(1, -1).repeat(ht.MPI_WORLD.size, 1)
+        self.assertTrue((output._DNDarray__array == comparison).all())
+
+        # main axis send buffer, minor axis receive buffer
+        data = ht.array([[ht.MPI_WORLD.rank] * (2 * ht.MPI_WORLD.size)] * ht.MPI_WORLD.size)
+        output = ht.zeros((2 * ht.MPI_WORLD.size, ht.MPI_WORLD.size), dtype=data.dtype)
+        data.comm.Alltoall(data, output, send_axis=0, recv_axis=1)
+        comparison = torch.arange(ht.MPI_WORLD.size).reshape(1, -1).repeat(2 * ht.MPI_WORLD.size, 1)
+        self.assertTrue((output._DNDarray__array == comparison).all())
+
+        # minor axis send buffer, minor axis receive buffer
+        data = ht.array([range(ht.MPI_WORLD.size)] * ht.MPI_WORLD.size)
+        output = ht.zeros((ht.MPI_WORLD.size, ht.MPI_WORLD.size), dtype=data.dtype)
+        data.comm.Alltoall(data, output, send_axis=0, recv_axis=1)
+        comparison = torch.arange(ht.MPI_WORLD.size).reshape(-1, 1).repeat(1, ht.MPI_WORLD.size)
+
+        self.assertTrue((output._DNDarray__array == comparison).all())
 
     def test_scatterv(self):
         # contiguous data buffer, contiguous output buffer
