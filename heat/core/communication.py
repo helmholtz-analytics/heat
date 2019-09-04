@@ -611,6 +611,10 @@ class MPICommunication(Communication):
         -------
         exit code: of func
         """
+        if send_axis == None:
+            raise NotImplementedError(
+                'AllToAll needs send_axis and recv_axis to be specified but was send_axis = {}, recv_axis = {}. Please set send_axis and recv_axis'.format(
+                    send_axis, recv_axis))
         # align the output buffer in the same way as the input buffer by default
         if recv_axis is None:
             recv_axis = send_axis
@@ -650,18 +654,13 @@ class MPICommunication(Communication):
             recvbuf = recvbuf.permute(*recv_axis_permutation)
 
             # prepare buffer objects
-            if sendbuf is not MPI.IN_PLACE:
-                mpi_sendbuf = self.as_buffer(sendbuf, send_counts, send_displs)
-                if send_counts is None:
-                    mpi_sendbuf[1] //= self.size
-            else:
-                mpi_sendbuf = sendbuf
-            if recvbuf is not MPI.IN_PLACE:
-                mpi_recvbuf = self.as_buffer(recvbuf, recv_counts, recv_displs)
-                if recv_counts is None:
-                    mpi_recvbuf[1] //= self.size
-            else:
-                mpi_recvbuf = recvbuf
+            mpi_sendbuf = self.as_buffer(sendbuf, send_counts, send_displs)
+            if send_counts is None:
+                mpi_sendbuf[1] //= self.size
+
+            mpi_recvbuf = self.as_buffer(recvbuf, recv_counts, recv_displs)
+            if recv_counts is None:
+                mpi_recvbuf[1] //= self.size
 
             # perform the scatter operation
             exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
@@ -679,20 +678,13 @@ class MPICommunication(Communication):
             if (recv_axis == send_axis):
                 raise NotImplementedError(
                     'AllToAll for same axes not supported. Please choose send_axis and recv_axis to be different.')
-            if ((send_axis == None) or (recv_axis == None)):
-                raise NotImplementedError(
-                    'AllToAll needs send_axis and recv_axis to be specified but was send_axis = {}, recv_axis = {}. Please set send_axis and recv_axis'.format(
-                        send_axis, recv_axis))
 
             # Send_axis-Permutation: [recv_axis, send_axis, rest ...]
             axis_permutation = list(range(recvbuf.ndimension()))
             if(send_axis == 0):
-                if(recv_axis == 1 ):
-                    axis_permutation[send_axis], axis_permutation[recv_axis] = recv_axis, send_axis
-                else:
-                    axis_permutation[1], axis_permutation[send_axis] = send_axis, 1
-                    axis_permutation[recv_axis] = axis_permutation[0]
-                    axis_permutation[0] = recv_axis
+                axis_permutation[1], axis_permutation[send_axis] = send_axis, 1
+                axis_permutation[recv_axis] = axis_permutation[0]
+                axis_permutation[0] = recv_axis
 
             else:
                 axis_permutation[0], axis_permutation[recv_axis] = recv_axis, 0

@@ -2120,7 +2120,7 @@ class DNDarray:
             self.__array = gathered
             self.__split = None
 
-        # tensor needs be split/sliced locally
+    # tensor needs be split/sliced locally
         elif self.split is None:
             _, _, slices = self.comm.chunk(self.shape, axis)
             temp = self.__array[slices]

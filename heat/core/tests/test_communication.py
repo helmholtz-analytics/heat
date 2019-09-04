@@ -502,6 +502,16 @@ class TestCommunication(unittest.TestCase):
         comparison = torch.ones((10, 2 * ht.MPI_WORLD.size,), dtype=torch.int64)
         self.assertTrue((output._DNDarray__array == comparison).all())
 
+        with self.assertRaises(TypeError):
+            data = np.array([ht.MPI_WORLD.rank] * 3)
+            output = ht.array([[0] * 3* ht.MPI_WORLD.size])
+            ht.MPI_WORLD.Alltoall(data, output, send_axis=1)
+        with self.assertRaises(TypeError):
+            data = ht.array([ht.MPI_WORLD.rank] * 3)
+            output = np.array([[0] * 3 * ht.MPI_WORLD.size])
+            ht.MPI_WORLD.Alltoall(data, output, send_axis=1)
+
+
     def test_alltoallv(self):
         # contiguous data buffer
         data = ht.array([[ht.MPI_WORLD.rank] * 10] * (ht.MPI_WORLD.size + 1))
@@ -2099,3 +2109,15 @@ class TestCommunication(unittest.TestCase):
         test3.comm.Alltoallv(test3._DNDarray__array, redistributed3, send_axis=comparison3.split, recv_axis=test3.split)
         self.assertTrue(torch.equal(redistributed3, comparison3._DNDarray__array))
 
+        test4 = self.sorted3Dtensor.copy()
+        test4.resplit(axis=2)
+        comparison4 = self.sorted3Dtensor.copy()
+        comparison4.resplit(axis=0)
+        redistributed4 = torch.empty(comparison4.lshape, dtype=test4.dtype.torch_type())
+        test4.comm.Alltoallv(test4._DNDarray__array, redistributed4, send_axis=comparison4.split, recv_axis=test4.split)
+        self.assertTrue(torch.equal(redistributed4, comparison4._DNDarray__array))
+
+        with self.assertRaises(NotImplementedError):
+            test4.comm.Alltoallv(test4._DNDarray__array, redistributed4, send_axis=2, recv_axis=2)
+        with self.assertRaises(NotImplementedError):
+            test4.comm.Alltoallv(test4._DNDarray__array, redistributed4, send_axis=None)
