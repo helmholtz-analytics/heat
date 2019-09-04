@@ -8,12 +8,19 @@ from . import dndarray
 __all__ = [
     'add',
     'div',
+    'divide',
     'floordiv',
+    'floor_divide',
     'fmod',
     'mod',
     'mul',
+    'multiply',
     'pow',
+    'prod',
+    'power',
+    'remainder',
     'sub',
+    'subtract',
     'sum'
 ]
 
@@ -93,10 +100,12 @@ def div(t1, t2):
     """
     return operations.__binary_op(torch.div, t1, t2)
 
+# Alias in compliance with numpy API
+divide = div
 
 def fmod(t1, t2):
     """
-    Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
+    Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. C Library function fmod), not commutative.
     Takes the two operands (scalar or tensor, both may contain floating point number) whose elements are to be
     divided (operand 1 by operand 2) as arguments.
 
@@ -110,7 +119,8 @@ def fmod(t1, t2):
     Returns
     -------
     result: ht.DNDarray
-        A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2.
+        A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2. 
+        It has the sign as the dividend t1.
 
     Examples:
     ---------
@@ -163,13 +173,15 @@ def floordiv(t1, t2):
     """
     return operations.__binary_op(lambda a, b: torch.div(a, b).floor(), t1, t2)
 
+# Alias in compliance with numpy API
+floor_divide = floordiv
 
 def mod(t1, t2):
     """
     Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
     Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2) as arguments.
 
-    Currently t1 and t2 are just passed to fmod.
+    Currently t1 and t2 are just passed to remainder.
 
     Parameters
     ----------
@@ -181,7 +193,8 @@ def mod(t1, t2):
     Returns
     -------
     result: ht.DNDarray
-        A tensor containing the remainder of the element-wise division of t1 by t2.
+        A tensor containing the remainder of the element-wise division of t1 by t2. 
+        It has the same sign as the devisor t2.
 
     Examples:
     ---------
@@ -200,7 +213,7 @@ def mod(t1, t2):
     tensor([[0, 0]
             [2, 2]], dtype=torch.int32)
     """
-    return fmod(t1, t2)
+    return remainder(t1, t2)
 
 
 def mul(t1, t2):
@@ -244,6 +257,8 @@ def mul(t1, t2):
     """
     return operations.__binary_op(torch.mul, t1, t2)
 
+# Alias in compliance with numpy API
+multiply = mul
 
 def pow(t1, t2):
     """
@@ -281,6 +296,92 @@ def pow(t1, t2):
             [27., 64.]])
     """
     return operations.__binary_op(torch.pow, t1, t2)
+
+# Alias in compliance with numpy API
+power = pow
+
+def remainder(t1, t2):
+    """
+    Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
+    Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2) as arguments.
+
+    Parameters
+    ----------
+    t1: tensor or scalar
+        The first operand whose values are divided
+    t2: tensor or scalar
+        The second operand by whose values is divided
+
+    Returns
+    -------
+    result: ht.DNDarray
+        A tensor containing the remainder of the element-wise division of t1 by t2.
+        It has the same sign as the devisor t2.
+
+    Examples:
+    ---------
+    >>> import heat as ht
+    >>> ht.mod(2, 2)
+    tensor([0])
+
+    >>> T1 = ht.int32([[1, 2], [3, 4]])
+    >>> T2 = ht.int32([[2, 2], [2, 2]])
+    >>> ht.mod(T1, T2)
+    tensor([[1, 0],
+            [1, 0]], dtype=torch.int32)
+
+    >>> s = 2
+    >>> ht.mod(s, T1)
+    tensor([[0, 0]
+            [2, 2]], dtype=torch.int32)
+    """
+    return operations.__binary_op(torch.remainder, t1, t2)
+
+def prod(x, axis=None, out=None, keepdim=None):
+    """
+    Return the product of array elements over a given axis.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        Input data.
+    axis : None or int or tuple of ints, optional
+        Axis or axes along which a product is performed. The default, axis=None, will calculate the product of all the
+        elements in the input array. If axis is negative it counts from the last to the first axis.
+
+        If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple instead of a single
+        axis or all the axes as before.
+    out : ndarray, optional
+        Alternative output tensor in which to place the result. It must have the same shape as the expected output, but
+        the type of the output values will be cast if necessary.
+    keepdims : bool, optional
+        If this is set to True, the axes which are reduced are left in the result as dimensions with size one. With this
+        option, the result will broadcast correctly against the input array.
+
+    Returns
+    -------
+    product_along_axis : ht.DNDarray
+        An array shaped as a but with the specified axis removed. Returns a reference to out if specified.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> ht.prod([1.,2.])
+    ht.tensor([2.0])
+
+    >>> ht.prod([
+        [1.,2.],
+        [3.,4.]
+    ])
+    ht.tensor([24.0])
+
+    >>> ht.prod([
+        [1.,2.],
+        [3.,4.]
+    ], axis=1)
+    ht.tensor([  2.,  12.])
+    """
+    return operations.__reduce_op(x, torch.prod, MPI.PROD, axis=axis, out=out, keepdim=keepdim)
 
 
 def sub(t1, t2):
@@ -320,6 +421,8 @@ def sub(t1, t2):
     """
     return operations.__binary_op(torch.sub, t1, t2)
 
+# Alias in compliance with numpy API
+subtract = sub
 
 def sum(x, axis=None, out=None, keepdim=None):
     """
@@ -336,6 +439,12 @@ def sum(x, axis=None, out=None, keepdim=None):
 
         If axis is a tuple of ints, a sum is performed on all of the axes specified
         in the tuple instead of a single axis or all the axes as before.
+    out : ndarray, optional
+        Alternative output tensor in which to place the result. It must have the same shape as the expected output, but
+        the type of the output values will be cast if necessary.
+    keepdims : bool, optional
+        If this is set to True, the axes which are reduced are left in the result as dimensions with size one. With this
+        option, the result will broadcast correctly against the input array.
 
     Returns
     -------
