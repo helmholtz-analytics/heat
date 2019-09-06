@@ -211,6 +211,6 @@ class TestTensor(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.random.set_state(('Thrfry', 12, 0xf))
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             ht.random.set_state(('Threefry', 12345))
 
