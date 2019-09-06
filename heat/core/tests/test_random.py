@@ -1,7 +1,9 @@
+import time
 import unittest
 
 import heat as ht
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class TestTensor(unittest.TestCase):
@@ -82,7 +84,21 @@ class TestTensor(unittest.TestCase):
         self.assertTrue((counts == 1).all())
 
     def test_randint(self):
-        pass
+        a = ht.random.rand(1000, 1000)
+        b = a.numpy()
+        plt.imshow(b)
+        plt.gray()
+        plt.show()
 
     def test_randn(self):
-        pass
+        t1 = time.time()
+        a = ht.random.rand(1000, 1000, split=1)
+        t2 = time.time()
+        print('time taken', t2-t1)
+        self.fail()
+
+    def test_read(self):
+        a = np.load('../../../all_rounds.npy')
+        plt.imshow(a)
+        plt.gray()
+        plt.show()
