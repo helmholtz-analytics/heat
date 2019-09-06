@@ -1,9 +1,7 @@
-import time
 import unittest
 
 import heat as ht
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 class TestTensor(unittest.TestCase):
