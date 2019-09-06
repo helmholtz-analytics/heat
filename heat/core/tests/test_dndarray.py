@@ -284,7 +284,7 @@ class TestDNDarray(unittest.TestCase):
         # splitting an unsplit tensor should result in slicing the tensor locally
         shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size,)
         data = ht.zeros(shape)
-        data.resplit(-1)
+        data.resplit(1)
 
         self.assertIsInstance(data, ht.DNDarray)
         self.assertEqual(data.shape, shape)
