@@ -90,6 +90,19 @@ class TestTensor(unittest.TestCase):
         self.assertTrue(std < 0.3)
         self.assertTrue(((0 <= c) & (c < 1)).all())
 
+        # No arguments work correctly
+        ht.random.seed(seed)
+        a = ht.random.rand()
+        ht.random.seed(seed)
+        b = ht.random.rand(1)
+        self.assertTrue(ht.equal(a, b))
+
+        # To big arrays cant be created
+        with self.assertRaises(ValueError):
+            ht.random.randn(0xffffffffffffffff * 2 + 1, comm=ht.MPI_WORLD)
+        with self.assertRaises(ValueError):
+            ht.random.rand(3, 2, -2, 5, split=1, comm=ht.MPI_WORLD)
+
     def test_randint(self):
         # Checked that the random values are in the correct range
         a = ht.random.randint(low=0, high=10, size=(10, 10))
@@ -126,6 +139,10 @@ class TestTensor(unittest.TestCase):
         b = ht.random.randint(low=0, high=10000, size=shape, split=2)
         b = b.numpy()
 
+        ht.random.seed(13579)
+        c = ht.random.randint(low=0, high=10000)
+        self.assertTrue(np.equal(b[0, 0, 0, 0, 0], c))
+
         self.assertTrue(np.array_equal(a, b))
         mean = np.mean(a)
         median = np.median(a)
@@ -135,6 +152,13 @@ class TestTensor(unittest.TestCase):
         self.assertTrue(4900 < mean < 5100)
         self.assertTrue(4900 < median < 5100)
         self.assertTrue(std < 2900)
+
+        with self.assertRaises(ValueError):
+            ht.random.randint(5, 5, size=(10, 10), split=0)
+        with self.assertRaises(ValueError):
+            ht.random.randint(low=0, high=10, size=(3, -4))
+        with self.assertRaises(ValueError):
+            ht.random.randint(low=0, high=10, size=(15, ), dtype=ht.float32)
 
     def test_randn(self):
         # Test that the random values have the correct distribution
@@ -177,3 +201,16 @@ class TestTensor(unittest.TestCase):
         a = a.numpy()
         b = b.numpy()
         self.assertTrue(np.array_equal(a, b))
+
+    def test_set_state(self):
+        ht.random.set_state(('Threefry', 12345, 0xfff))
+        self.assertEqual(ht.random.get_state(), ('Threefry', 12345, 0xfff, 0, 0.0))
+
+        ht.random.set_state(('Threefry', 55555, 0xffffffffffffff, 'for', 'compatibility'))
+        self.assertEqual(ht.random.get_state(), ('Threefry', 55555, 0xffffffffffffff, 0, 0.0))
+
+        with self.assertRaises(ValueError):
+            ht.random.set_state(('Thrfry', 12, 0xf))
+        with self.assertRaises(ValueError):
+            ht.random.set_state(('Threefry', 12345))
+
