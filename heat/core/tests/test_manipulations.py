@@ -45,7 +45,6 @@ class TestManipulations(unittest.TestCase):
         self.assertEqual(res.lshape, tuple(lshape))
 
         # None 0 1
-        # print(x.split, y.split)
         res = ht.concatenate((x, y), axis=1)
         self.assertEqual(res.gshape, (16, 30))
         self.assertEqual(res.dtype, ht.float)
@@ -607,7 +606,6 @@ class TestManipulations(unittest.TestCase):
 
         exp_axis_none = ht.array([rank], dtype=ht.int32)
         res = split_zero.unique(sorted=True)
-        print('exp', exp_axis_none, 'res', res)
         self.assertTrue((res._DNDarray__array == exp_axis_none._DNDarray__array).all())
 
         exp_axis_zero = ht.arange(size, dtype=ht.int32).expand_dims(0)
@@ -631,7 +629,6 @@ class TestManipulations(unittest.TestCase):
 
         exp_axis_one = ht.array([rank] * size, dtype=ht.int32).expand_dims(1)
         res = ht.unique(split_one, sorted=True, axis=1)
-        print('exp', exp_axis_one, 'res', res)
         self.assertTrue((res._DNDarray__array == exp_axis_one._DNDarray__array).all())
 
         torch_array = torch.tensor([

@@ -25,19 +25,19 @@ class BasicTest(TestCase):
     def get_size(self):
         return self.comm.size
 
-    def assert_array_equal(self, heat_array: dndarray.DNDarray, numpy_array):
+    def assert_array_equal(self, heat_array, expected_array):
         """
-        Check if the heat_array is equivalent to the numpy_array. Therefore first the split heat_array is compared to
-        the corresponding numpy_array slice locally and second the heat_array is combined and fully compared with the
-        numpy_array.
+        Check if the heat_array is equivalent to the expected_array. Therefore first the split heat_array is compared to
+        the corresponding expected_array slice locally and second the heat_array is combined and fully compared with the
+        expected_array.
         Note if the heat array is split it also needs to be balanced.
 
         Parameters
         ----------
         heat_array: heat.DNDarray
             The heat array which should be checked.
-        numpy_array: numpy.ndarray
-            The numpy array against which the heat_array should be checked.
+        expected_array: numpy.ndarray or torch.Tensor
+            The array against which the heat_array should be checked.
 
         Raises
         ------
@@ -58,33 +58,38 @@ class BasicTest(TestCase):
         >>> self.assert_array_equal(a, c)
         AssertionError: [...]
         """
+        if isinstance(expected_array, torch.Tensor):
+            # Does not work because heat sets an index while torch does not
+            # self.assertEqual(expected_array.device, torch.device(heat_array.device.torch_device))
+            expected_array = expected_array.numpy()
+
         # Determine with what kind of numbers we are working
-        compare_func = np.array_equal if np.issubdtype(numpy_array.dtype, np.integer) else np.allclose
+        compare_func = np.array_equal if np.issubdtype(expected_array.dtype, np.integer) else np.allclose
 
         self.assertIsInstance(heat_array, dndarray.DNDarray,
                               'The array to test was not a instance of ht.DNDarray. '
                               'Instead got {}.'.format(type(heat_array)))
-        self.assertIsInstance(numpy_array, np.ndarray,
-                              'The array to test against was not a instance of numpy.ndarray. '
-                              'Instead got {}.'.format(type(numpy_array)))
-        self.assertEqual(heat_array.shape, numpy_array.shape,
-                         'Global shapes do not match. Got {} expected {}'.format(heat_array.shape, numpy_array.shape))
+        self.assertIsInstance(expected_array, np.ndarray,
+                              'The array to test against was not a instance of numpy.ndarray or torch.Tensor '
+                              'Instead got {}.'.format(type(expected_array)))
+        self.assertEqual(heat_array.shape, expected_array.shape,
+                         'Global shapes do not match. Got {} expected {}'.format(heat_array.shape, expected_array.shape))
         split = heat_array.split
         offset, local_shape, slices = heat_array.comm.chunk(heat_array.gshape, split)
-        self.assertEqual(heat_array.lshape, numpy_array[slices].shape,
+        self.assertEqual(heat_array.lshape, expected_array[slices].shape,
                          'Local shapes do not match. '
-                         'Got {} expected {}'.format(heat_array.lshape, numpy_array[slices].shape))
+                         'Got {} expected {}'.format(heat_array.lshape, expected_array[slices].shape))
         local_numpy = heat_array._DNDarray__array.numpy()
 
         # Array is distributed correctly
-        equal_res = np.array(compare_func(local_numpy, numpy_array[slices]))
+        equal_res = np.array(compare_func(local_numpy, expected_array[slices]))
         self.comm.Allreduce(MPI.IN_PLACE, equal_res, MPI.LAND)
         self.assertTrue(equal_res, 'Local tensors do not match the corresponding numpy slices.')
-        self.assertEqual(local_numpy.dtype, numpy_array.dtype,
-                         'Resulting types do not match heat: {} numpy: {}.'.format(heat_array.dtype, numpy_array.dtype))
+        self.assertEqual(local_numpy.dtype, expected_array.dtype,
+                         'Resulting types do not match heat: {} numpy: {}.'.format(heat_array.dtype, expected_array.dtype))
 
         # Combined array is correct
-        self.assertTrue(compare_func(heat_array.numpy(), numpy_array), 'Combined tensors do not match.')
+        self.assertTrue(compare_func(heat_array.numpy(), expected_array), 'Combined tensors do not match.')
 
     def assert_func_equal(self, tensor, heat_func, numpy_func, distributed_result=True, heat_args=None, numpy_args=None):
         """
@@ -107,7 +112,7 @@ class BasicTest(TestCase):
         heat_args: dictionary, optional
             The keyword arguments that will be passed to the heat function. Array and split function don't need to be
             specified. Default is {}.
-        numpy_args:
+        numpy_args: dictionary, optional
             The keyword arguments that will be passed to the numpy function. Array doesn't need to be specified.
             Default is {}.
 
@@ -164,10 +169,8 @@ class BasicTest(TestCase):
                 self.assertTrue(np.array_equal(ht_res._DNDarray__array.numpy(), np_res))
 
     def _create_random_array(self, shape):
-        # Ensure all processes have the same initial array
-        if self.get_rank() == 0:
-            array = np.random.randn(*shape)
-        else:
-            array = np.empty(shape)
-        self.comm.Bcast(array, root=0)
+        seed = np.random.randint(1000000, size=(1, ))
+        self.comm.Bcast(seed, root=0)
+        np.random.seed(seed=seed.item())
+        array = np.random.randn(*shape)
         return array

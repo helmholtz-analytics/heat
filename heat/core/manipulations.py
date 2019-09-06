@@ -786,7 +786,6 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     a.comm.Allgather(uniques, uniques_buf)
 
     if axis is None or axis == a.split:
-        #
         is_split = None
         split = a.split
 
@@ -890,7 +889,6 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         a.comm.Bcast(indices, root=max_pos)
         gres = local_data[indices.tolist()]
 
-        # is_split = a.split
         inverse_indices = indices
 
     if axis is not None:

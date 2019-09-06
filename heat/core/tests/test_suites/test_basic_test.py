@@ -1,5 +1,6 @@
 import heat as ht
 import numpy as np
+import torch
 
 from heat.core.tests.test_suites.basic_test import BasicTest
 
@@ -14,6 +15,11 @@ class TestBasicTest(BasicTest):
         np_array[0, 1, 1] = 0
         with self.assertRaises(AssertionError):
             self.assert_array_equal(heat_array, np_array)
+
+        heat_array = ht.zeros((25, 13, self.get_size(), 20), dtype=ht.float32, split=2)
+        expected_array = torch.zeros((25, 13, self.get_size(), 20),
+                                     dtype=torch.float32, device=heat_array.device.torch_device)
+        self.assert_array_equal(heat_array, expected_array)
 
     def test_assert_func_equal(self):
         array = np.ones((self.get_size(), 20), dtype=np.int8)
