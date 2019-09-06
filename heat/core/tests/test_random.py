@@ -83,22 +83,99 @@ class TestTensor(unittest.TestCase):
         _, counts = np.unique(c, return_counts=True)
         self.assertTrue((counts == 1).all())
 
+        # Values should be spread evenly across the range [0, 1)
+        mean = np.mean(c)
+        median = np.median(c)
+        std = np.std(c)
+        self.assertTrue(0.49 < mean < 0.51)
+        self.assertTrue(0.49 < median < 0.51)
+        self.assertTrue(std < 0.3)
+        self.assertTrue(((0 <= c) & (c < 1)).all())
+
     def test_randint(self):
-        a = ht.random.rand(1000, 1000)
-        b = a.numpy()
-        plt.imshow(b)
-        plt.gray()
-        plt.show()
+        # Checked that the random values are in the correct range
+        a = ht.random.randint(low=0, high=10, size=(10, 10))
+        a = a.numpy()
+        self.assertTrue(((0 <= a) & (a < 10)).all())
+
+        a = ht.random.randint(low=100000, high=150000, size=(31, 25, 11), split=2)
+        a = a.numpy()
+        self.assertTrue(((100000 <= a) & (a < 150000)).all())
+
+        # For the range [0, 1) only the value 0 is allowed
+        a = ht.random.randint(1, size=(10, ), split=0)
+        b = ht.zeros((10, ), dtype=ht.int64, split=0)
+        self.assertTrue(ht.equal(a, b))
+
+        # Two arrays with the same seed and same number of elements have the same random values
+        ht.random.seed(13579)
+        shape = (15, 13, 9, 21, 65)
+        a = ht.random.randint(15, 100, size=shape, split=0)
+        a = a.numpy().flatten()
+
+        ht.random.seed(13579)
+        elements = np.prod(shape)
+        b = ht.random.randint(low=15, high=100, size=(elements, ))
+        b = b.numpy()
+        self.assertTrue(np.array_equal(a, b))
+
+        # Two arrays with the same seed and shape have identical values
+        ht.random.seed(13579)
+        a = ht.random.randint(10000, size=shape, split=2)
+        a = a.numpy()
+
+        ht.random.seed(13579)
+        b = ht.random.randint(low=0, high=10000, size=shape, split=2)
+        b = b.numpy()
+
+        self.assertTrue(np.array_equal(a, b))
+        mean = np.mean(a)
+        median = np.median(a)
+        std = np.std(a)
+
+        # Mean and median should be in the center while the std is very high due to an even distribution
+        self.assertTrue(4900 < mean < 5100)
+        self.assertTrue(4900 < median < 5100)
+        self.assertTrue(std < 2900)
 
     def test_randn(self):
-        t1 = time.time()
-        a = ht.random.rand(1000, 1000, split=1)
-        t2 = time.time()
-        print('time taken', t2-t1)
-        self.fail()
+        # Test that the random values have the correct distribution
+        ht.random.seed(54321)
+        shape = (5, 10, 13, 23, 15, 20)
+        a = ht.random.randn(*shape, split=0)
+        a = a.numpy()
+        mean = np.mean(a)
+        median = np.median(a)
+        std = np.std(a)
+        self.assertTrue(-0.01 < mean < 0.01)
+        self.assertTrue(-0.01 < median < 0.01)
+        self.assertTrue(0.99 < std < 1.01)
 
-    def test_read(self):
-        a = np.load('../../../all_rounds.npy')
-        plt.imshow(a)
-        plt.gray()
-        plt.show()
+        # Compare to a second array with a different shape but same number of elements and same seed
+        ht.random.seed(54321)
+        elements = np.prod(shape)
+        b = ht.random.randn(elements, split=0)
+        b = b.numpy()
+        a = a.flatten()
+        self.assertTrue(np.array_equal(a, b))
+
+        # Creating the same array two times without resetting seed results in different elements
+        c = ht.random.randn(elements, split=0)
+        c = c.numpy()
+        self.assertEqual(c.shape, b.shape)
+        self.assertFalse(np.array_equal(b, c))
+
+        # All the created values should be different
+        d = np.concatenate((b, c))
+        _, counts = np.unique(d, return_counts=True)
+        self.assertTrue((counts == 1).all())
+
+        # Two arrays are the same for same seed and split-axis != 0
+        ht.random.seed(12345)
+        a = ht.random.randn(*shape, split=5)
+        ht.random.seed(12345)
+        b = ht.random.randn(*shape, split=5)
+        self.assertTrue(ht.equal(a, b))
+        a = a.numpy()
+        b = b.numpy()
+        self.assertTrue(np.array_equal(a, b))
