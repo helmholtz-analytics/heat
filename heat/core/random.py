@@ -67,6 +67,7 @@ def __counter_sequence(shape, dtype, split, device, comm):
         c_1 = __counter & max_count
 
     total_elements = np.prod(shape)
+    print('total', hex(total_elements), 'max', hex(2*max_count))
     if total_elements > 2 * max_count:
         raise ValueError('Shape is to big with {} elements'.format(total_elements))
 
@@ -287,7 +288,8 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     """
     Random values in a given shape.
 
-    Create a tensor of the given shape and populate it with random samples from a uniform distribution over [0, 1).
+    Create a tensor of the given shape and populate it with random integer samples from a uniform distribution over
+    [low, high) or [0, low) if high is not provided.
 
     Parameters
     ----------
