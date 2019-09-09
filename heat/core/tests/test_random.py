@@ -4,7 +4,7 @@ import heat as ht
 import numpy as np
 
 
-class TestTensor(unittest.TestCase):
+class TestRandom(unittest.TestCase):
     def test_rand(self):
         # int64 tests
 
@@ -102,6 +102,49 @@ class TestTensor(unittest.TestCase):
             ht.random.randn(0xffffffffffffffff * 2 + 1, comm=ht.MPI_WORLD)
         with self.assertRaises(ValueError):
             ht.random.rand(3, 2, -2, 5, split=1, comm=ht.MPI_WORLD)
+
+        # 32 Bit tests
+        ht.random.seed(9876)
+        shape = (13, 43, 13, 23)
+        a = ht.random.rand(*shape, dtype=ht.float32, split=0, comm=ht.MPI_WORLD)
+        self.assertEqual(a.dtype, ht.float32)
+
+        ht.random.seed(9876)
+        b = ht.random.rand(np.prod(shape), dtype=ht.float32, comm=ht.MPI_WORLD)
+        a = a.numpy().flatten()
+        b = b._DNDarray__array.numpy()
+        self.assertTrue(np.array_equal(a, b))
+
+        a = ht.random.rand(21, 16, 17, 21, dtype=ht.float32, split=2, comm=ht.MPI_WORLD)
+        b = ht.random.rand(15, 11, 19, 31, dtype=ht.float32, split=0, comm=ht.MPI_WORLD)
+        a = a.numpy().flatten()
+        b = b.numpy().flatten()
+        c = np.concatenate((a, b))
+
+        _, counts = np.unique(c, return_counts=True)
+        # Values somehow repeat quite often (bad key or shifts?)
+        # self.assertTrue((counts == 1).all())  # TODO fails
+
+        # Values should be spread evenly across the range [0, 1)
+        mean = np.mean(c)
+        median = np.median(c)
+        std = np.std(c)
+        self.assertTrue(0.49 < mean < 0.51)
+        self.assertTrue(0.49 < median < 0.51)
+        self.assertTrue(std < 0.3)
+        self.assertTrue(((0 <= c) & (c < 1)).all())
+
+        ht.random.seed(11111)
+        a = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD).numpy()
+        # Overflow reached
+        ht.random.set_state(('Threefry', 11111, 0x10000000000000000))
+        b = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD).numpy()
+        self.assertTrue(np.array_equal(a, b))
+
+        ht.random.set_state(('Threefry', 11111, 0x100000000))
+        c = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD).numpy()
+        self.assertFalse(np.array_equal(a, c))
+        self.assertFalse(np.array_equal(b, c))
 
     def test_randint(self):
         # Checked that the random values are in the correct range

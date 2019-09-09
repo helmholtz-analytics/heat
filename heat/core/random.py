@@ -67,7 +67,6 @@ def __counter_sequence(shape, dtype, split, device, comm):
         c_1 = __counter & max_count
 
     total_elements = np.prod(shape)
-    print('total', hex(total_elements), 'max', hex(2*max_count))
     if total_elements > 2 * max_count:
         raise ValueError('Shape is to big with {} elements'.format(total_elements))
 
@@ -152,8 +151,8 @@ def __counter_sequence(shape, dtype, split, device, comm):
     # Correctly increase the counter variable
     used_values = int(np.ceil(total_elements / 2))
     # Increase counter but not over 128 bit
-    tmp_counter += used_values & 0xffffffffffffffffffffffffffffffff  # 128bit mask
-    __counter = tmp_counter
+    tmp_counter += used_values
+    __counter = tmp_counter & 0xffffffffffffffffffffffffffffffff  # 128bit mask
 
     return x_0, x_1, lshape, lslice
 
@@ -237,7 +236,7 @@ def __kundu_transform(values):
     return (torch.log(-torch.log(1 - values ** 0.0775)) - 1.0821) * __KUNDU_INVERSE
 
 
-def rand(*args, split=None, device=None, comm=None):
+def rand(*args, dtype=types.float64, split=None, device=None, comm=None):
     """
     Random values in a given shape.
 
@@ -275,13 +274,23 @@ def rand(*args, split=None, device=None, comm=None):
     comm = communication.sanitize_comm(comm)
 
     # generate the random sequence
-    x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int64, split, device, comm)
-    x_0, x_1 = __threefry64(x_0, x_1)
+    if dtype == types.float32:
+        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int32, split, device, comm)
+        x_0, x_1 = __threefry32(x_0, x_1)
 
-    # combine the values into one tensor and convert them to floats
-    values = __int64_to_float64(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(lshape)
+        # combine the values into one tensor and convert them to floats
+        values = __int32_to_float32(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(lshape)
+    elif dtype == types.float64:
+        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int64, split, device, comm)
+        x_0, x_1 = __threefry64(x_0, x_1)
 
-    return dndarray.DNDarray(values, shape, types.float64, split, device, comm)
+        # combine the values into one tensor and convert them to floats
+        values = __int64_to_float64(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(lshape)
+    else:
+        # Unsupported type
+        raise ValueError('dtype is none of ht.float32 or ht.float64 but was {}'.format(dtype))
+
+    return dndarray.DNDarray(values, shape, dtype, split, device, comm)
 
 
 def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm=None):
@@ -479,9 +488,12 @@ def __threefry32(X_0, X_1):
     """
     samples = len(X_0)
 
+    # Seed is > 32 bit
+    seed_32 = __seed & 0xffffffff
+
     # set up key buffer
-    ks_0 = torch.full((samples,), __seed, dtype=torch.int32)
-    ks_1 = torch.full((samples,), __seed, dtype=torch.int32)
+    ks_0 = torch.full((samples,), seed_32, dtype=torch.int32)
+    ks_1 = torch.full((samples,), seed_32, dtype=torch.int32)
     ks_2 = torch.full((samples,), 466688986, dtype=torch.int32)
     ks_2 ^= ks_0
     ks_2 ^= ks_0
