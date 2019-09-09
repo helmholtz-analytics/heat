@@ -277,8 +277,13 @@ def rand(*args, dtype=types.float64, split=None, device=None, comm=None):
 
     # generate the random sequence
     if dtype == types.float32:
-        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int32, split, device, comm)
+        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int64, split, device, comm)
         x_0, x_1 = __threefry32(x_0, x_1)
+        mask = 0x7fffffff
+        x_0 &= mask
+        x_1 &= mask
+        x_0 = torch.tensor(x_0, dtype=torch.int32)
+        x_1 = torch.tensor(x_1, dtype=torch.int32)
 
         # combine the values into one tensor and convert them to floats
         values = __int32_to_float32(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(lshape)
@@ -490,47 +495,53 @@ def __threefry32(X_0, X_1):
         Proceedings of 2011 International Conference for High Performance Computing, Networking, Storage and Analysis,
         p. 16, 2011
     """
-    samples = len(X_0)
+    # samples = len(X_0)
+    #
+    # # Seed is > 32 bit
+    # seed_32 = __seed & 0xffffffff
+    #
+    # # set up key buffer
+    # ks_0 = torch.full((samples,), seed_32, dtype=torch.int32)
+    # ks_1 = torch.full((samples,), seed_32, dtype=torch.int32)
+    # ks_2 = torch.full((samples,), 466688986, dtype=torch.int32)
+    # ks_2 ^= ks_0
+    # ks_2 ^= ks_0
+    #
+    # # initialize output using the key
+    # X_0 += ks_0
+    # X_1 += ks_1
+    #
+    # # perform rounds
+    # X_0 += X_1; X_1 = (X_1 << 13) | (X_1 >> 19); X_1 ^= X_0  # round 1
+    # X_0 += X_1; X_1 = (X_1 << 15) | (X_1 >> 17); X_1 ^= X_0  # round 2
+    # X_0 += X_1; X_1 = (X_1 << 26) | (X_1 >>  6); X_1 ^= X_0  # round 3
+    # X_0 += X_1; X_1 = (X_1 << 6)  | (X_1 >> 26); X_1 ^= X_0  # round 4
+    #
+    # # inject key
+    # X_0 += ks_1; X_1 += (ks_2 + 1)
+    #
+    # X_0 += X_1; X_1 = (X_1 << 17) | (X_1 >> 15); X_1 ^= X_0  # round 5
+    # X_0 += X_1; X_1 = (X_1 << 29) | (X_1 >>  3); X_1 ^= X_0  # round 6
+    # X_0 += X_1; X_1 = (X_1 << 16) | (X_1 >> 16); X_1 ^= X_0  # round 7
+    # X_0 += X_1; X_1 = (X_1 << 24) | (X_1 >>  8); X_1 ^= X_0  # round 8
+    #
+    # # inject key
+    # X_0 += ks_2; X_1 += (ks_0 + 2)
+    #
+    # X_0 += X_1; X_1 = (X_1 << 13) | (X_1 >> 19); X_1 ^= X_0  # round 9
+    # X_0 += X_1; X_1 = (X_1 << 15) | (X_1 >> 17); X_1 ^= X_0  # round 10
+    # X_0 += X_1; X_1 = (X_1 << 26) | (X_1 >>  6); X_1 ^= X_0  # round 11
+    # X_0 += X_1; X_1 = (X_1 <<  6) | (X_1 >> 26); X_1 ^= X_0  # round 12
+    #
+    # # inject key
+    # X_0 += ks_0; X_1 += (ks_1 + 3)
 
-    # Seed is > 32 bit
-    seed_32 = __seed & 0xffffffff
-
-    # set up key buffer
-    ks_0 = torch.full((samples,), seed_32, dtype=torch.int32)
-    ks_1 = torch.full((samples,), seed_32, dtype=torch.int32)
-    ks_2 = torch.full((samples,), 466688986, dtype=torch.int32)
-    ks_2 ^= ks_0
-    ks_2 ^= ks_0
-
-    # initialize output using the key
-    X_0 += ks_0
-    X_1 += ks_1
-
-    # perform rounds
-    X_0 += X_1; X_1 = (X_1 << 13) | (X_1 >> 19); X_1 ^= X_0  # round 1
-    X_0 += X_1; X_1 = (X_1 << 15) | (X_1 >> 17); X_1 ^= X_0  # round 2
-    X_0 += X_1; X_1 = (X_1 << 26) | (X_1 >>  6); X_1 ^= X_0  # round 3
-    X_0 += X_1; X_1 = (X_1 << 6)  | (X_1 >> 26); X_1 ^= X_0  # round 4
-
-    # inject key
-    X_0 += ks_1; X_1 += (ks_2 + 1)
-
-    X_0 += X_1; X_1 = (X_1 << 17) | (X_1 >> 15); X_1 ^= X_0  # round 5
-    X_0 += X_1; X_1 = (X_1 << 29) | (X_1 >>  3); X_1 ^= X_0  # round 6
-    X_0 += X_1; X_1 = (X_1 << 16) | (X_1 >> 16); X_1 ^= X_0  # round 7
-    X_0 += X_1; X_1 = (X_1 << 24) | (X_1 >>  8); X_1 ^= X_0  # round 8
-
-    # inject key
-    X_0 += ks_2; X_1 += (ks_0 + 2)
-
-    X_0 += X_1; X_1 = (X_1 << 13) | (X_1 >> 19); X_1 ^= X_0  # round 9
-    X_0 += X_1; X_1 = (X_1 << 15) | (X_1 >> 17); X_1 ^= X_0  # round 10
-    X_0 += X_1; X_1 = (X_1 << 26) | (X_1 >>  6); X_1 ^= X_0  # round 11
-    X_0 += X_1; X_1 = (X_1 <<  6) | (X_1 >> 26); X_1 ^= X_0  # round 12
-
-    # inject key
-    X_0 += ks_0; X_1 += (ks_1 + 3)
-
+    X_0, X_1 = __threefry64(X_0=X_0, X_1=X_1)
+    mask = 0xffffffff
+    X_0 &= mask
+    X_1 &= mask
+    X_0 = torch.tensor(X_0, dtype=torch.int32)
+    X_1 = torch.tensor(X_1, dtype=torch.int32)
     return X_0, X_1
 
 

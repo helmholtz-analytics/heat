@@ -132,7 +132,8 @@ class TestRandom(unittest.TestCase):
 
         _, counts = np.unique(c, return_counts=True)
         # Values somehow repeat quite often (bad key or shifts?)
-        # self.assertTrue((counts == 1).all())  # TODO fails
+        print('len', len(counts[np.where(counts!=1)]))
+        self.assertTrue((counts == 1).all())  # TODO fails
 
         # Values should be spread evenly across the range [0, 1)
         mean = np.mean(c)
@@ -154,6 +155,16 @@ class TestRandom(unittest.TestCase):
         c = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD).numpy()
         self.assertFalse(np.array_equal(a, c))
         self.assertFalse(np.array_equal(b, c))
+
+    def test_exp(self):
+        a = ht.random.rand(1000000, dtype=ht.float32)
+        a = a.numpy()
+        # import matplotlib.pyplot as plt
+        # plt.hist(a, bins=100000)
+        # plt.show()
+        _, counts = np.unique(a, return_counts=True)
+        print('counts', len(counts[np.where(counts!=1)]))
+        self.fail()
 
     def test_randint(self):
         # Checked that the random values are in the correct range
