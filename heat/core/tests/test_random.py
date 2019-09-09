@@ -203,6 +203,38 @@ class TestRandom(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.random.randint(low=0, high=10, size=(15, ), dtype=ht.float32)
 
+        # int32 tests
+        ht.random.seed(4545)
+        a = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0, comm=ht.MPI_WORLD)
+        ht.random.set_state(('Threefry', 4545, 0x10000000000000000))
+        b = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0, comm=ht.MPI_WORLD)
+
+        self.assertEqual(a.dtype, ht.int32)
+        self.assertEqual(b.dtype, ht.int32)
+        a = a.numpy()
+        b = b.numpy()
+        self.assertTrue(np.array_equal(a, b))
+        self.assertTrue(((50 <= a) & (a < 1000)).all())
+        self.assertTrue(((50 <= b) & (b < 1000)).all())
+
+        c = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0, comm=ht.MPI_WORLD)
+        c = c.numpy()
+        self.assertFalse(np.array_equal(a, c))
+        self.assertFalse(np.array_equal(b, c))
+        self.assertTrue(((50 <= c) & (c < 1000)).all())
+
+        ht.random.seed(0xfffffff)
+        a = ht.random.randint(10000, size=(123, 42, 13, 21), split=3, dtype=ht.int32, comm=ht.MPI_WORLD)
+        a = a.numpy()
+        mean = np.mean(a)
+        median = np.median(a)
+        std = np.std(a)
+
+        # Mean and median should be in the center while the std is very high due to an even distribution
+        self.assertTrue(4900 < mean < 5100)
+        self.assertTrue(4900 < median < 5100)
+        self.assertTrue(std < 2900)
+
     def test_randn(self):
         # Test that the random values have the correct distribution
         ht.random.seed(54321)

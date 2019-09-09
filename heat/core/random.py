@@ -356,7 +356,7 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     x_0, x_1, lshape, lslice = __counter_sequence(shape, dtype.torch_type(), split, device, comm)
     if torch_dtype is torch.int32:
         x_0, x_1 = __threefry32(x_0, x_1)
-    else:
+    else:  # torch.int64
         x_0, x_1 = __threefry64(x_0, x_1)
 
     # stack the resulting sequence and normalize to given range
