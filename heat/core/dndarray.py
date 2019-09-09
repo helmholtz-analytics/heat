@@ -2011,6 +2011,50 @@ class DNDarray:
         """
         return arithmetics.pow(self, other)
 
+    def prod(self, axis=None, out=None, keepdim=None):
+        """
+        Return the product of array elements over a given axis.
+
+        Parameters
+        ----------
+        axis : None or int or tuple of ints, optional
+            Axis or axes along which a product is performed. The default, axis=None, will calculate the product of all
+            the elements in the input array. If axis is negative it counts from the last to the first axis.
+
+            If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple instead of a
+            single axis or all the axes as before.
+        out : ndarray, optional
+            Alternative output tensor in which to place the result. It must have the same shape as the expected output,
+            but the type of the output values will be cast if necessary.
+        keepdims : bool, optional
+            If this is set to True, the axes which are reduced are left in the result as dimensions with size one. With
+            this option, the result will broadcast correctly against the input array.
+
+        Returns
+        -------
+        product_along_axis : ht.DNDarray
+            An array shaped as a but with the specified axis removed. Returns a reference to out if specified.
+
+        Examples
+        --------
+        >>> import heat as ht
+        >>> ht.array([1.,2.]).prod()
+        ht.tensor([2.0])
+
+        >>> ht.tensor([
+            [1.,2.],
+            [3.,4.]
+        ]).prod()
+        ht.tensor([24.0])
+
+        >>> ht.array([
+            [1.,2.],
+            [3.,4.]
+        ]).prod(axis=1)
+        ht.tensor([  2.,  12.])
+        """
+        return arithmetics.prod(self, axis, out, keepdim)
+
     def __repr__(self, *args):
         # TODO: document me
         # TODO: generate none-PyTorch repr
@@ -2070,12 +2114,12 @@ class DNDarray:
             gathered = torch.empty(self.shape, dtype=self.dtype.torch_type())
 
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), send_axis=self.split)
+            self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), recv_axis=self.split)
 
             self.__array = gathered
             self.__split = None
 
-        # tensor needs be split/sliced locally
+    # tensor needs be split/sliced locally
         elif self.split is None:
             _, _, slices = self.comm.chunk(self.shape, axis)
             temp = self.__array[slices]
@@ -2091,11 +2135,10 @@ class DNDarray:
 
             send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-
             self.comm.Alltoallv(
                 (self.__array, send_counts, send_displs,),
                 (redistributed, recv_counts, recv_displs,),
-                axis=axis, recv_axis=self.split
+                send_axis=axis, recv_axis=self.split
             )
 
             self.__array = redistributed
