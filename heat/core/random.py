@@ -247,6 +247,8 @@ def rand(*args, dtype=types.float64, split=None, device=None, comm=None):
     d0, d1, …, dn : int, optional
         The dimensions of the returned array, should all be positive. If no argument is given a single random samples is
         generated.
+    dtype: ht.types, optional
+        The datatype of the returned values. Has to be one of [ht.float32, ht.float64]. Default is ht.float64.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
     device : str or None, optional
@@ -256,7 +258,7 @@ def rand(*args, dtype=types.float64, split=None, device=None, comm=None):
 
     Returns
     -------
-    out : ndarray, shape (d0, d1, ..., dn)
+    out : ht.dndarray, shape (d0, d1, ..., dn)
         The uniformly distributed [0.0, 1.0)-bound random values.
     """
     # if args are not set, generate a single sample
@@ -321,7 +323,7 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
 
     Returns
     -------
-    out : ndarray, shape (d0, d1, ..., dn)
+    out : ht.dndarray, shape (d0, d1, ..., dn)
         The uniformly distributed [0.0, 1.0)-bound random values.
     """
     # determine range bounds
@@ -367,7 +369,7 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     return dndarray.DNDarray(values, shape, dtype, split, device, comm)
 
 
-def randn(*args, split=None, device=None, comm=None):
+def randn(*args, dtype=types.float64, split=None, device=None, comm=None):
     """
     Returns a tensor filled with random numbers from a standard normal distribution with zero mean and variance of one.
 
@@ -375,6 +377,8 @@ def randn(*args, split=None, device=None, comm=None):
     ----------
     d0, d1, …, dn : int, optional
         The dimensions of the returned array, should be all positive.
+    dtype: ht.types, optional
+        The datatype of the returned values. Has to be one of [ht.float32, ht.float64]. Default is ht.float64.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
     device : str or None, optional
@@ -384,8 +388,8 @@ def randn(*args, split=None, device=None, comm=None):
 
     Returns
     -------
-    broadcast_shape : tuple of ints
-        the broadcast shape
+    out : ht.dndarray, shape (d0, d1, ..., dn)
+        The normal distributed random values.
 
     Raises
     -------
@@ -406,7 +410,7 @@ def randn(*args, split=None, device=None, comm=None):
             [ 0.1260,  1.2126, -0.0804,  0.0907]])
     """
     # generate uniformly distributed random numbers first
-    normal_tensor = rand(*args, split=split, device=device, comm=comm)
+    normal_tensor = rand(*args, dtype=dtype, split=split, device=device, comm=comm)
     # convert the the values to a normal distribution using the kundu transform
     normal_tensor._DNDarray__array = __kundu_transform(normal_tensor._DNDarray__array)
 

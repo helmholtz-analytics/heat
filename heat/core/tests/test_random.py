@@ -1,5 +1,7 @@
 import unittest
 
+import torch
+
 import heat as ht
 import numpy as np
 
@@ -12,10 +14,12 @@ class TestRandom(unittest.TestCase):
         seed = 12345
         ht.random.seed(seed)
         a = ht.random.rand(2, 5, 7, 3, split=0, comm=ht.MPI_WORLD)
+        self.assertEqual(a.dtype, ht.float64)
+        self.assertEqual(a._DNDarray__array.dtype, torch.float64)
         b = ht.random.rand(2, 5, 7, 3, split=0, comm=ht.MPI_WORLD)
         self.assertFalse(ht.equal(a, b))
         ht.random.seed(seed)
-        c = ht.random.rand(2, 5, 7, 3, split=0, comm=ht.MPI_WORLD)
+        c = ht.random.rand(2, 5, 7, 3, dtype=ht.float64, split=0, comm=ht.MPI_WORLD)
         self.assertTrue(ht.equal(a, c))
 
         # Random numbers with overflow
@@ -25,6 +29,7 @@ class TestRandom(unittest.TestCase):
         b = ht.random.rand(2, 44, split=0, comm=ht.MPI_WORLD)
         a = a.numpy().flatten()
         b = b.numpy().flatten()
+        self.assertEqual(a.dtype, np.float64)
         self.assertTrue(np.array_equal(a[32:], b))
 
         # Check that random numbers don't repeat after first overflow
@@ -108,12 +113,14 @@ class TestRandom(unittest.TestCase):
         shape = (13, 43, 13, 23)
         a = ht.random.rand(*shape, dtype=ht.float32, split=0, comm=ht.MPI_WORLD)
         self.assertEqual(a.dtype, ht.float32)
+        self.assertEqual(a._DNDarray__array.dtype, torch.float32)
 
         ht.random.seed(9876)
         b = ht.random.rand(np.prod(shape), dtype=ht.float32, comm=ht.MPI_WORLD)
         a = a.numpy().flatten()
         b = b._DNDarray__array.numpy()
         self.assertTrue(np.array_equal(a, b))
+        self.assertEqual(a.dtype, np.float32)
 
         a = ht.random.rand(21, 16, 17, 21, dtype=ht.float32, split=2, comm=ht.MPI_WORLD)
         b = ht.random.rand(15, 11, 19, 31, dtype=ht.float32, split=0, comm=ht.MPI_WORLD)
@@ -149,6 +156,7 @@ class TestRandom(unittest.TestCase):
     def test_randint(self):
         # Checked that the random values are in the correct range
         a = ht.random.randint(low=0, high=10, size=(10, 10))
+        self.assertEqual(a.dtype, ht.int64)
         a = a.numpy()
         self.assertTrue(((0 <= a) & (a < 10)).all())
 
@@ -210,9 +218,11 @@ class TestRandom(unittest.TestCase):
         b = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0, comm=ht.MPI_WORLD)
 
         self.assertEqual(a.dtype, ht.int32)
+        self.assertEqual(a._DNDarray__array.dtype, torch.int32)
         self.assertEqual(b.dtype, ht.int32)
         a = a.numpy()
         b = b.numpy()
+        self.assertEqual(a.dtype, np.int32)
         self.assertTrue(np.array_equal(a, b))
         self.assertTrue(((50 <= a) & (a < 1000)).all())
         self.assertTrue(((50 <= b) & (b < 1000)).all())
@@ -240,6 +250,7 @@ class TestRandom(unittest.TestCase):
         ht.random.seed(54321)
         shape = (5, 10, 13, 23, 15, 20)
         a = ht.random.randn(*shape, split=0)
+        self.assertEqual(a.dtype, ht.float64)
         a = a.numpy()
         mean = np.mean(a)
         median = np.median(a)
@@ -276,6 +287,28 @@ class TestRandom(unittest.TestCase):
         a = a.numpy()
         b = b.numpy()
         self.assertTrue(np.array_equal(a, b))
+
+        # Tests with float32
+        ht.random.seed(54321)
+        a = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2, comm=ht.MPI_WORLD)
+        self.assertEqual(a.dtype, ht.float32)
+        self.assertEqual(a._DNDarray__array[0, 0, 0].dtype, torch.float32)
+        a = a.numpy()
+        self.assertEqual(a.dtype, np.float32)
+        mean = np.mean(a)
+        median = np.median(a)
+        std = np.std(a)
+        self.assertTrue(-0.01 < mean < 0.01)
+        self.assertTrue(-0.01 < median < 0.01)
+        self.assertTrue(0.99 < std < 1.01)
+
+        ht.random.set_state(('Threefry', 54321, 0x10000000000000000))
+        b = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2, comm=ht.MPI_WORLD).numpy()
+        self.assertTrue(np.array_equal(a, b))
+
+        c = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2, comm=ht.MPI_WORLD).numpy()
+        self.assertFalse(np.array_equal(a, c))
+        self.assertFalse(np.array_equal(b, c))
 
     def test_set_state(self):
         ht.random.set_state(('Threefry', 12345, 0xfff))
