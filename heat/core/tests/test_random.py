@@ -107,6 +107,8 @@ class TestRandom(unittest.TestCase):
             ht.random.randn(0xffffffffffffffff * 2 + 1, comm=ht.MPI_WORLD)
         with self.assertRaises(ValueError):
             ht.random.rand(3, 2, -2, 5, split=1, comm=ht.MPI_WORLD)
+        with self.assertRaises(ValueError):
+            ht.random.randn(12, 43, dtype=ht.int32, split=0, comm=ht.MPI_WORLD)
 
         # 32 Bit tests
         ht.random.seed(9876)
