@@ -14,6 +14,16 @@ Tagged releases of HeAT are made available on the Python Package Index
 
   $ pip install heat
 
+Optionally, you can enable and install HDF5 and/or NetCDF support by adding the
+respective extra requirements::
+
+  $ pip install 'heat[hdf5, netcdf]'
+
 If you want to work with the development version, you can checkout the sources using::
 
   $ git clone https://github.com/helmholtz-analytics/heat.git
+
+This version can then be installed via::
+
+  $ cd heat
+  $ pip install '.[hdf5, netcdf]'

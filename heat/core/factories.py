@@ -16,6 +16,7 @@ __all__ = [
     'full',
     'full_like',
     'linspace',
+    'logspace',
     'ones',
     'ones_like',
     'zeros',
@@ -671,6 +672,68 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, spli
         return ht_tensor, step
     return ht_tensor
 
+def logspace(start, stop, num=50, endpoint=True, base=10.0, dtype=None, split=None, device=None, comm=None):
+    """
+    Return numbers spaced evenly on a log scale.
+
+    In linear space, the sequence starts at ``base ** start``
+    (`base` to the power of `start`) and ends with ``base ** stop``
+    (see `endpoint` below).
+
+    Parameters
+    ----------
+    start : array_like
+        ``base ** start`` is the starting value of the sequence.
+    stop : array_like
+        ``base ** stop`` is the final value of the sequence, unless `endpoint`
+        is False.  In that case, ``num + 1`` values are spaced over the
+        interval in log-space, of which all but the last (a sequence of
+        length `num`) are returned.
+    num : integer, optional
+        Number of samples to generate.  Default is 50.
+    endpoint : boolean, optional
+        If true, `stop` is the last sample. Otherwise, it is not included.
+        Default is True.
+    base : float, optional
+        The base of the log space. The step size between the elements in
+        ``ln(samples) / ln(base)`` (or ``log_base(samples)``) is uniform.
+        Default is 10.0.
+    dtype : dtype
+        The type of the output array.  If `dtype` is not given, infer the data
+        type from the other input arguments.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor.
+
+    Returns
+    -------
+    samples : ht.DNDarray
+        `num` samples, equally spaced on a log scale.
+
+    See Also
+    --------
+    arange : Similar to linspace, with the step size specified instead of the
+             number of samples. Note that, when used with a float endpoint, the
+             endpoint may or may not be included.
+    linspace : Similar to logspace, but with the samples uniformly distributed
+               in linear space, instead of log space.
+    
+    Examples
+    --------
+    >>> ht.logspace(2.0, 3.0, num=4)
+    tensor([ 100.0000,  215.4434,  464.1590, 1000.0000])
+    >>> ht.logspace(2.0, 3.0, num=4, endpoint=False)
+    tensor([100.0000, 177.8279, 316.2278, 562.3413])
+    >>> ht.logspace(2.0, 3.0, num=4, base=2.0)
+    tensor([4.0000, 5.0397, 6.3496, 8.0000])
+    """
+    y = linspace(start, stop, num=num, endpoint=endpoint, split=split, device=device, comm=comm)
+    if dtype is None:
+        return pow(base, y)
+    return pow(base, y).astype(dtype, copy=False)
 
 def ones(shape, dtype=types.float32, split=None, device=None, comm=None):
     """
