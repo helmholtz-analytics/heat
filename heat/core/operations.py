@@ -11,7 +11,31 @@ from . import types
 
 __all__ = []
 
-def first_scalar(t1, t2):
+def binary_get_size_scalar(t1, t2):
+    """
+    Find the tensor size of the result after performing a binary operation with t1 and t2.
+    
+    Parameters
+    ----------
+    t1: scalar
+        The first operand involved in the operation, must be integer or boolean
+
+    t2: tensor or scalar
+        The second operand involved in the operation, must be integer or boolean
+
+    Returns
+    -------
+    t1, t2: ht.DNDarray
+        Parameters t1, t2 casted into ht.DNDarray.
+    output_shape:
+        The shape of the resulting tensor.
+    output_split:
+        The split direction of the resulting tensor.
+    output_device:
+        The device used for the resulting tensor.
+    output_comm:
+        The MPI Communicator of the resulting tensor.
+    """
     try:
         t1 = factories.array([t1])
     except (ValueError, TypeError,):
@@ -36,7 +60,31 @@ def first_scalar(t1, t2):
     
     return t1, t2, output_shape, output_split, output_device, output_comm
 
-def first_instance(t1, t2):
+def binary_get_size_tensor(t1, t2):
+    """
+    Find the tensor size of the result after performing a binary operation with t1 and t2.
+    
+    Parameters
+    ----------
+    t1: tensor
+        The first operand involved in the operation, must be integer or boolean
+
+    t2: tensor or scalar
+        The second operand involved in the operation, must be integer or boolean
+
+    Returns
+    -------
+    t1, t2: ht.DNDarray
+        Parameters t1, t2 casted into ht.DNDarrays.
+    output_shape:
+        The shape of the resulting tensor.
+    output_split:
+        The split direction of the resulting tensor.
+    output_device:
+        The device used for the resulting tensor.
+    output_comm:
+        The MPI Communicator of the resulting tensor.
+    """
     if np.isscalar(t2):
         try:
             t2 = factories.array([t2])
@@ -105,13 +153,13 @@ def __binary_bit_op(method, t1, t2):
         A tensor containing the element-wise results of bit-wise operation.
     """
     if np.isscalar(t1):
-        t1, t2, output_shape, output_split, output_device, output_comm = first_scalar(t1, t2)
+        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_scalar(t1, t2)
 
         if t1.dtype != t2.dtype:
             raise TypeError('Tensors must have the same element type, but inputs were {} and {}'.format(t1.dtype,t2.dtype))
 
     elif isinstance(t1, dndarray.DNDarray):
-        t1, t2, output_shape, output_split, output_device, output_comm = first_instance(t1, t2)
+        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_tensor(t1, t2)
 
         if t2.dtype != t1.dtype:
             raise TypeError('Arrays must have the same type, but inputs were {} and {}'.format(t1.dtype,t2.dtype))
@@ -164,13 +212,13 @@ def __binary_op(operation, t1, t2):
     """
 
     if np.isscalar(t1):
-        t1, t2, output_shape, output_split, output_device, output_comm = first_scalar(t1, t2)
+        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_scalar(t1, t2)
 
         if t1.dtype != t2.dtype:
             t1 = t1.astype(t2.dtype)
 
     elif isinstance(t1, dndarray.DNDarray):
-        t1, t2, output_shape, output_split, output_device, output_comm = first_instance(t1, t2)
+        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_tensor(t1, t2)
 
         if t2.dtype != t1.dtype:
             t2 = t2.astype(t1.dtype)
