@@ -646,11 +646,16 @@ class MPICommunication(Communication):
         if(send_axis < 2 and recv_axis < 2):
 
             send_axis_permutation = list(range(recvbuf.ndimension()))
-            send_axis_permutation[0], send_axis_permutation[send_axis] = send_axis, 0
-            sendbuf = sendbuf.permute(*send_axis_permutation)
-
             recv_axis_permutation = list(range(recvbuf.ndimension()))
-            recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
+
+            #Minimal Fix; Could possibly be improved when reworking counts, displs algorithmics
+            if(self.size>1):
+                send_axis_permutation[0], send_axis_permutation[send_axis] = send_axis, 0
+                recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
+
+            else: recv_counts = send_counts
+
+            sendbuf = sendbuf.permute(*send_axis_permutation)
             recvbuf = recvbuf.permute(*recv_axis_permutation)
 
             # prepare buffer objects
@@ -669,7 +674,6 @@ class MPICommunication(Communication):
                 recvbuf = recvbuf.permute(*recv_axis_permutation)
                 original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
 
-            return exit_code
 
 
         # slightly more difficult situation, senc and receive buffer need custom datatype preparation;
