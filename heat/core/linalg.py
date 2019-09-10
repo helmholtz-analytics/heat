@@ -532,7 +532,7 @@ def matmul(a, b):
             return factories.array(res, split=a.split if b.gshape[-1] > 1 else 0)
 
 
-def qr(a, tile_rows=2):
+def qr(a, tile_rows=2, calc_q=True):
     """
 
     :param a:
@@ -700,6 +700,7 @@ def qr(a, tile_rows=2):
             local_a[st0:sp0, st1:sp1] = r1
             local_a[st0:sp0, sp1:] = q1.T @ local_a[st0:sp0, sp1:]
             for d in range(local_tile_row_index + 1, num_local_row_tiles[rank]):  # this loop is for column tiles on a process
+                # todo: implement binary combination here
                 # todo: investigate the sign flip in the middle rows of the processes
                 # local merge
                 # get the tile indices of the rest of the tiles on a process
@@ -772,22 +773,56 @@ def qr(a, tile_rows=2):
                         rem1 = None
 
                     completed = True if procs_remaining == 1 and rem1 is None and rem2 is None else False
-        else:
-            # take the first entry and pad it with an I matrix to make it the proper shape to fit the local merge q
-
-            hold_dict = {}
-            print(k, list(q_dict))
-            for i in list(q_dict):
-                for x in list(q_dict[i]):
-                    print(i, x, q_dict[i][x].shape)
+        else:  # if the process is not calculating R (only occurs when the R for that node is done)
+            break
             # for m in range(tile_rows):
             #     for h in range(len(q_dict[m + rank * tile_rows])):
             #         print(h, m + rank * tile_rows, q_dict[m + rank * tile_rows][h].shape)
                 # hold = torch.chain_matmul(*q_dict[m + rank])
 
-
         completed_tile_cols[k] = True
         # print(len(q_dict[k]))
+    if calc_q:
+        '''
+                    this is the code for the Q calculation
+                    idea: 
+                        create a local Q of size (lshape[0], m)
+                        use the tile map to find the tile sizes for Q (these will be the same as those for the tile column)
+                        -> loop over the keys in the q_dict (this is the number of columns which can be calculated 
+
+                    '''
+        loc_q_dict = {}
+        print(k, list(q_dict))
+        for i in list(q_dict):  # this loops over the completed columns of the process
+            # need to create a 2D list for each column to hold the slices for that tile
+            # dims -> (tile_rows, tile_columns)
+            tile_slices_lists = [[[]] * tile_columns.item()] * tile_rows
+            loc_q_dict[i] = torch.zeros(a.lshape)
+            # col_slices = []
+            shape0 = q_dict[i]['0'].shape
+            print(tile_slices_lists)
+            tile_slices_lists[0][0] = (('0', (slice(None, shape0[0]), slice(None, shape0[0]))))
+            print(tile_slices_lists[0][1])
+            # loc_q_dict[i][:shape0[0], :shape0[1]] = q_dict[i]['0']
+            for x in list(q_dict[i]):
+                if len(x) == 1 and x != '0':  # single values indicate a local merge between tiles
+                    # print(int(x) - 1)
+                    if int(x) - 1 == 0:  # neighboring tiles (i.e. no gap needed between the tiles)
+                        rem = True if q_dict[i][x].shape[0] % 2 == 1 else False
+                        print(q_dict[i][x].shape)
+                        q_tile_shape = q_dict[i][x].shape
+                        tile_slices_lists[0][0].append((x, (slice(None, q_tile_shape[0]//2 + 1 if rem else q_tile_shape[0]//2),
+                                                            slice(None, q_tile_shape[0]//2 + 1 if rem else q_tile_shape[0]//2))))
+                        tile_slices_lists[0][1].append((x, (slice(None, q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2),
+                                                            slice(q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2, q_tile_shape[0]))))
+                        print(tile_slices_lists[0])
+                        # tile_slices_lists[0][0] = ('0', (slice(None, shape0[0]), slice(None, shape0[0])))
+                        # for j in range(2):  # need to set all 4 of the tiles which have data for the combined Q
+                        #     # if there is a remainder then the process with more data will be on the process with the lower rank
+                        #     pass
+                        print(x)
+                    else:  # need to add a gap between the tiles (use the tile map)
+                        pass
     return a
 
 
