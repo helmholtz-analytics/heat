@@ -466,16 +466,17 @@ def sort(a, axis=None, descending=False, out=None):
 
         # Matrix holding information which process get how many values from where
         shape = (size, ) + transposed.size()[1:]
-        send_recv_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
+        send_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
+        recv_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
 
         for i, x in enumerate(lt_partitions):
             index_matrix[x > 0] = i
-            send_recv_matrix[i] += torch.sum(x, dim=0)
+            send_matrix[i] += torch.sum(x, dim=0)
 
-        a.comm.Alltoall(MPI.IN_PLACE, send_recv_matrix)
+        a.comm.Alltoall(send_matrix, recv_matrix)
 
         scounts = local_partitions
-        rcounts = send_recv_matrix
+        rcounts = recv_matrix
 
         shape = (partition_matrix[rank].max(), ) + transposed.size()[1:]
         first_result = torch.empty(shape, dtype=local_sorted.dtype)
@@ -720,12 +721,15 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     ----------
     a : ht.DNDarray
         Input array where unique elements should be found.
-    sorted : bool
+    sorted : bool, optional
         Whether the found elements should be sorted before returning as output.
-    return_inverse:
+        Warning: sorted is not working if 'axis != None and axis != a.split'
+        Default: False
+    return_inverse : bool, optional
         Whether to also return the indices for where elements in the original input ended up in the returned
         unique list.
-    axis : int
+        Default: False
+    axis : int, optional
         Axis along which unique elements should be found. Default to None, which will return a one dimensional list of
         unique values.
 
@@ -785,28 +789,18 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     uniques_buf = torch.empty((a.comm.Get_size(), ), dtype=torch.int32)
     a.comm.Allgather(uniques, uniques_buf)
 
-    split = None
-    is_split = None
-
     if axis is None or axis == a.split:
-        # Local results can now just be added together
-        if axis is None:
-            # One dimensional vectors can't be distributed -> no split
-            output_dim = [uniques_buf.sum().item()]
-            recv_axis = 0
-        else:
-            output_dim = list(lres.shape)
-            output_dim[0] = uniques_buf.sum().item()
-            recv_axis = a.split
+        is_split = None
+        split = a.split
 
-            # Result will be split along the same axis as a
-            split = a.split
+        output_dim = list(lres.shape)
+        output_dim[0] = uniques_buf.sum().item()
 
         # Gather all unique vectors
         counts = list(uniques_buf.tolist())
         displs = list([0] + uniques_buf.cumsum(0).tolist()[:-1])
         gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
-        a.comm.Allgatherv(lres, (gres_buf, counts, displs,), send_axis=recv_axis, recv_axis=0)
+        a.comm.Allgatherv(lres, (gres_buf, counts, displs,), recv_axis=0)
 
         if return_inverse:
             # Prepare some information to generated the inverse indices list
@@ -825,7 +819,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
             # Transpose data and buffer so we can use Allgatherv along axis=0 (axis=1 does not work properly yet)
             inverse_pos = inverse_pos.transpose(0, a.split)
             inverse_buf = inverse_buf.transpose(0, a.split)
-            a.comm.Allgatherv(inverse_pos, (inverse_buf, inverse_counts, inverse_displs), send_axis=0)
+            a.comm.Allgatherv(inverse_pos, (inverse_buf, inverse_counts, inverse_displs), recv_axis=0)
             inverse_buf = inverse_buf.transpose(0, a.split)
 
         # Run unique a second time
@@ -874,41 +868,32 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
                         inverse_indices[begin + num] = g_inverse[begin + x]
 
     else:
+        # Tensor is already split and does not need to be redistributed afterward
+        split = None
+        is_split = a.split
         max_uniques, max_pos = uniques_buf.max(0)
-
         # find indices of vectors
         if a.comm.Get_rank() == max_pos.item():
-            # Get the indices of the vectors we need from each process
-            indices = []
-            found = []
-            pos_list = inverse_pos.tolist()
-            for p in pos_list:
-                if p not in found:
-                    found += [p]
-                    indices += [pos_list.index(p)]
-                if len(indices) is max_uniques.item():
-                    break
-            indices = torch.tensor(indices, dtype=a.dtype.torch_type())
+            # Get indices of the unique vectors to share with all over processes
+            indices = inverse_pos.reshape(-1).unique()
         else:
-            indices = torch.empty((max_uniques.item(),), dtype=a.dtype.torch_type())
+            indices = torch.empty((max_uniques.item(),), dtype=inverse_pos.dtype)
 
         a.comm.Bcast(indices, root=max_pos)
+
         gres = local_data[indices.tolist()]
 
-        is_split = a.split
         inverse_indices = indices
+        if sorted:
+            raise ValueError('Sorting with axis != split is not supported yet. '
+                             'See https://github.com/helmholtz-analytics/heat/issues/363')
 
     if axis is not None:
         # transpose matrix back
         gres = gres.transpose(0, axis)
 
-    # if all([g == 1 for g in gres.shape]):
-        #     gres = torch.tensor((gres.squeeze()))
-        # gres.squeeze_().unsqueeze_(0)
-    # print(gres.shape)
-    # print(a.dtype, is_split)
-    result = factories.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, is_split=is_split)
-
+    split = split if a.split < len(gres.shape) else None
+    result = factories.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, split=split, is_split=is_split)
     if split is not None:
         result.resplit(a.split)
 
