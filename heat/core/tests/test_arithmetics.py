@@ -510,7 +510,10 @@ class TestArithmetics(unittest.TestCase):
             ('__truediv__', operator.truediv, False),
             ('__floordiv__', operator.floordiv, False),
             ('__mod__', operator.mod, False),
-            ('__pow__', operator.pow, False)
+            ('__pow__', operator.pow, False),
+            ('__and__', operator.and_, True),
+            ('__or__', operator.or_, True),
+            ('__xor__', operator.xor, True)
         )
         tensor = ht.float32([[1, 4], [2, 3]])
         num = 3
