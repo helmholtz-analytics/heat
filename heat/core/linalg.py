@@ -802,8 +802,9 @@ def qr(a, tile_rows=2, calc_q=True):
             shape0 = q_dict[i]['0'].shape
             # tile_slices_lists[0][1] = tile_slices_lists[0][1] + [0]
             # print(tile_slices_lists[0])
-            print(i%tile_rows, i)
-            tile_slices_lists[i % tile_rows][i].append(('0', (slice(None, shape0[0]), slice(None, shape0[0]))))
+            i_mod_row = i % tile_rows
+            print(i_mod_row, i_mod_row + rank * tile_rows, i - (tile_rows * rank))
+            tile_slices_lists[i_mod_row][i_mod_row + rank * tile_rows].append(('0', (slice(None, shape0[0]), slice(None, shape0[0]))))
             # print(tile_slices_lists[0])
             # loc_q_dict[i][:shape0[0], :shape0[1]] = q_dict[i]['0']
             for x in list(q_dict[i]):
@@ -833,12 +834,12 @@ def qr(a, tile_rows=2, calc_q=True):
                         # need to write to the elements for each rank
                         # the 0th dim of all of the combinations is 0
                         if rank == first:
-                            tile_slices_lists[i % tile_rows][first * tile_rows + i % tile_rows].append((x, (slice(None, half), slice(None, half))))
-                            tile_slices_lists[i % tile_rows][second * tile_rows].append((x, (slice(None, half), slice(half, end))))
+                            tile_slices_lists[i_mod_row][first * tile_rows + i_mod_row].append((x, (slice(None, half), slice(None, half))))
+                            tile_slices_lists[i_mod_row][second * tile_rows].append((x, (slice(None, half), slice(half, end))))
                         if rank == second:
-                            tile_slices_lists[0][first * tile_rows + i % tile_rows].append((x, (slice(half, end), slice(None, half))))
+                            tile_slices_lists[0][first * tile_rows + i_mod_row].append((x, (slice(half, end), slice(None, half))))
                             tile_slices_lists[0][second * tile_rows].append((x, (slice(half, end), slice(half, end))))
-            print('h', i, x, tile_slices_lists[0][4])
+            print('h', i, tile_slices_lists[0][2])
             # tile_slices_lists[first][int(x) + (rank * tile_rows)].append(
             #     (x, (slice(None, q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2),
             #          slice(q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2, q_tile_shape[0]))))
