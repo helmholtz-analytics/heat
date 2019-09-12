@@ -4,6 +4,7 @@ import unittest
 import heat as ht
 import numpy as np
 
+
 class TestLinalg(unittest.TestCase):
     def test_matmul(self):
         # cases to test:
@@ -370,7 +371,6 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.shape, (n, 1))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
-
 
     def test_transpose(self):
         # vector transpose, not distributed

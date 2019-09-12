@@ -204,7 +204,7 @@ def degrees(x, out=None):
     >>> ht.degrees(ht.array([0.,0.2,0.6,0.9,1.2,2.7,3.14])) 
     tensor([  0.0000,  11.4592,  34.3775,  51.5662,  68.7549, 154.6986, 179.9088])
     """
-    return rad2deg(x, out=None)  
+    return rad2deg(x, out=out)
 
 
 def rad2deg(x, out=None):
@@ -235,7 +235,7 @@ def rad2deg(x, out=None):
             raise TypeError("Input is not a torch tensor but {}".format(type(torch_tensor)))
         return 180. * torch_tensor / pi
 
-    return local_op(torch_rad2deg, x, out)
+    return local_op(torch_rad2deg, x, out=out)
 
 
 def radians(x, out=None):
@@ -272,6 +272,9 @@ def sin(x, out=None):
     ----------
     x : ht.DNDarray
         The value for which to compute the trigonometric tangent.
+    out : ht.DNDarray or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
 
     Returns
     -------

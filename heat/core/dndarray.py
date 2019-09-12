@@ -15,6 +15,7 @@ from . import memory
 from . import relational
 from . import rounding
 from . import statistics
+from . import stride_tricks
 from . import trigonometrics
 from . import types
 
@@ -483,6 +484,78 @@ class DNDarray:
 
         return self
 
+    def average(self, axis=None, weights=None, returned=False):
+        '''
+        Compute the weighted average along the specified axis.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            Tensor containing data to be averaged. 
+
+        axis : None or int or tuple of ints, optional
+            Axis or axes along which to average x.  The default,
+            axis=None, will average over all of the elements of the input tensor.
+            If axis is negative it counts from the last to the first axis.
+
+            #TODO Issue #351: If axis is a tuple of ints, averaging is performed on all of the axes
+            specified in the tuple instead of a single axis or all the axes as
+            before.
+
+        weights : ht.tensor, optional
+            An tensor of weights associated with the values in x. Each value in
+            x contributes to the average according to its associated weight.
+            The weights tensor can either be 1D (in which case its length must be
+            the size of x along the given axis) or of the same shape as x.
+            If weights=None, then all data in x are assumed to have a
+            weight equal to one, the result is equivalent to ht.mean(x).
+
+        returned : bool, optional
+            Default is False. If True, the tuple (average, sum_of_weights)
+            is returned, otherwise only the average is returned.
+            If weights=None, sum_of_weights is equivalent to the number of
+            elements over which the average is taken.
+
+        Returns
+        -------
+        average, [sum_of_weights] : ht.tensor or tuple of ht.tensors
+            Return the average along the specified axis. When returned=True,
+            return a tuple with the average as the first element and the sum
+            of the weights as the second element. sum_of_weights is of the
+            same type as `average`. 
+
+        Raises
+        ------
+        ZeroDivisionError
+            When all weights along axis are zero. 
+
+        TypeError
+            When the length of 1D weights is not the same as the shape of x
+            along axis.
+
+
+        Examples
+        --------
+        >>> data = ht.arange(1,5, dtype=float)
+        >>> data
+        tensor([1., 2., 3., 4.])
+        >>> data.average()
+        tensor(2.5000)
+        >>> ht.arange(1,11, dtype=float).average(weights=ht.arange(10,0,-1))
+        tensor([4.])
+        >>> data = ht.array([[0, 1],
+                             [2, 3],
+                            [4, 5]], dtype=float, split=1)
+        >>> weights = ht.array([1./4, 3./4])
+        >>> data.average(axis=1, weights=weights)
+        tensor([0.7500, 2.7500, 4.7500])
+        >>> data.average(weights=weights)
+        Traceback (most recent call last):
+        ...
+        TypeError: Axis must be specified when shapes of x and weights differ.
+        '''
+        return statistics.average(self, axis=axis, weights=weights, returned=returned)
+
     def balance_(self):
         """
         Function for balancing a DNDarray between all nodes. To determine if this is needed use the is_balanced function.
@@ -553,8 +626,8 @@ class DNDarray:
                 if self.comm.rank == spr:
                     for pr in range(spr):
                         send_amt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
+                        send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
                         if send_amt:
-                            send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
                             send_slice[self.split] = slice(0, send_amt)
                             keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
 
@@ -592,8 +665,8 @@ class DNDarray:
             if self.comm.rank == spr:
                 for pr in range(self.comm.size - 1, spr, -1):
                     send_amt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
+                    send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
                     if send_amt:
-                        send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
                         send_slice[self.split] = slice(self.lshape[self.split] - send_amt, self.lshape[self.split])
                         keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
 
@@ -685,7 +758,6 @@ class DNDarray:
         """
         return rounding.ceil(self, out)
 
-
     def trunc(self, out=None):
         """
         Return the trunc of the input, element-wise.
@@ -717,7 +789,6 @@ class DNDarray:
         tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
         """
         return rounding.trunc(self, out)
-
 
     def clip(self, a_min, a_max, out=None):
         """
@@ -1019,7 +1090,6 @@ class DNDarray:
         """
         return exponential.exp(self, out)
 
-
     def expm1(self, out=None):
         """
         Calculate exp(x) - 1 for all elements in the array.
@@ -1233,6 +1303,7 @@ class DNDarray:
         l_dtype = self.dtype.torch_type()
         if isinstance(key, DNDarray) and key.gshape[-1] != len(self.gshape):
             key = tuple(x.item() for x in key)
+
         if not self.is_distributed():
             if not self.comm.size == 1:
                 if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
@@ -1266,9 +1337,13 @@ class DNDarray:
 
             if isinstance(key, int):  # if a sigular index is given and the tensor is split
                 gout = [0] * (len(self.gshape) - 1)
+                if key < 0:
+                    key += self.numdims
                 # handle the reduction of the split to accommodate for the reduced dimension
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                elif self.split > 0:
+                    new_split = self.split - 1
                 else:
                     new_split = self.split
 
@@ -1360,7 +1435,8 @@ class DNDarray:
                 # this is for a list of values
                 # it will return a 1D DNDarray of the elements on each node which are in the key (will be split in the 0th dimension
                 key.lloc[..., self.split] -= chunk_start
-                arr = self.__array[key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]]
+                key_new = [key._DNDarray__array[..., i] for i in range(len(self.gshape))]
+                arr = self.__array[tuple(key_new)]
                 gout = list(arr.shape)
                 new_split = 0
 
@@ -1556,7 +1632,7 @@ class DNDarray:
 
         Parameters
         ----------
-        x : ht.DNDarray
+        self : ht.DNDarray
             The value for which to compute the logarithm.
         out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
@@ -1581,7 +1657,7 @@ class DNDarray:
 
         Parameters
         ----------
-        x : ht.DNDarray
+        self : ht.DNDarray
             The value for which to compute the logarithm.
         out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
@@ -1606,7 +1682,7 @@ class DNDarray:
 
         Parameters
         ----------
-        x : ht.DNDarray
+        self : ht.DNDarray
             The value for which to compute the logarithm.
         out : ht.DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
@@ -1683,7 +1759,7 @@ class DNDarray:
 
         Parameters
         ----------
-        x : ht.DNDarray
+        self : ht.DNDarray
             Values for which the mean is calculated for
         axis : None, Int, iterable
             axis which the mean is taken in.
@@ -1743,37 +1819,37 @@ class DNDarray:
 
     def __mod__(self, other):
         """
-            Element-wise division remainder of values of self by values of operand other (i.e. self % other), not commutative.
-            Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2)
-            as arguments.
+        Element-wise division remainder of values of self by values of operand other (i.e. self % other), not commutative.
+        Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2)
+        as arguments.
 
-            Parameters
-            ----------
-            other: tensor or scalar
-                The second operand by whose values it self to be divided.
+        Parameters
+        ----------
+        other: tensor or scalar
+            The second operand by whose values it self to be divided.
 
-            Returns
-            -------
-            result: ht.DNDarray
-                A tensor containing the remainder of the element-wise division of self by other.
+        Returns
+        -------
+        result: ht.DNDarray
+            A tensor containing the remainder of the element-wise division of self by other.
 
-            Examples:
-            ---------
-            >>> import heat as ht
-            >>> ht.mod(2, 2)
-            tensor([0])
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> ht.mod(2, 2)
+        tensor([0])
 
-            >>> T1 = ht.int32([[1, 2], [3, 4]])
-            >>> T2 = ht.int32([[2, 2], [2, 2]])
-            >>> T1 % T2
-            tensor([[1, 0],
-                    [1, 0]], dtype=torch.int32)
+        >>> T1 = ht.int32([[1, 2], [3, 4]])
+        >>> T2 = ht.int32([[2, 2], [2, 2]])
+        >>> T1 % T2
+        tensor([[1, 0],
+                [1, 0]], dtype=torch.int32)
 
-            >>> s = ht.int32([2])
-            >>> s % T1
-            tensor([[0, 0]
-                    [2, 2]], dtype=torch.int32)
-            """
+        >>> s = ht.int32([2])
+        >>> s % T1
+        tensor([[0, 0]
+                [2, 2]], dtype=torch.int32)
+        """
         return arithmetics.mod(self, other)
 
     def __mul__(self, other):
@@ -1846,7 +1922,7 @@ class DNDarray:
 
         Parameters
         ----------
-        a: ht.DNDarray
+        self: ht.DNDarray
 
         Returns
         -------
@@ -1901,8 +1977,8 @@ class DNDarray:
         T1 = ht.random.randn((10,8))
         T1.numpy()
         """
-       
-        return self.resplit_(None)._DNDarray__array.cpu().numpy()
+        dist =  manipulations.resplit(self, axis = None)
+        return dist._DNDarray__array.cpu().numpy()
 
     def __pow__(self, other):
         """
@@ -1935,6 +2011,50 @@ class DNDarray:
                 [9., 16.]])
         """
         return arithmetics.pow(self, other)
+
+    def prod(self, axis=None, out=None, keepdim=None):
+        """
+        Return the product of array elements over a given axis.
+
+        Parameters
+        ----------
+        axis : None or int or tuple of ints, optional
+            Axis or axes along which a product is performed. The default, axis=None, will calculate the product of all
+            the elements in the input array. If axis is negative it counts from the last to the first axis.
+
+            If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple instead of a
+            single axis or all the axes as before.
+        out : ndarray, optional
+            Alternative output tensor in which to place the result. It must have the same shape as the expected output,
+            but the type of the output values will be cast if necessary.
+        keepdims : bool, optional
+            If this is set to True, the axes which are reduced are left in the result as dimensions with size one. With
+            this option, the result will broadcast correctly against the input array.
+
+        Returns
+        -------
+        product_along_axis : ht.DNDarray
+            An array shaped as a but with the specified axis removed. Returns a reference to out if specified.
+
+        Examples
+        --------
+        >>> import heat as ht
+        >>> ht.array([1.,2.]).prod()
+        ht.tensor([2.0])
+
+        >>> ht.tensor([
+            [1.,2.],
+            [3.,4.]
+        ]).prod()
+        ht.tensor([24.0])
+
+        >>> ht.array([
+            [1.,2.],
+            [3.,4.]
+        ]).prod(axis=1)
+        ht.tensor([  2.,  12.])
+        """
+        return arithmetics.prod(self, axis, out, keepdim)
 
     def __repr__(self, *args):
         # TODO: document me
@@ -1996,12 +2116,12 @@ class DNDarray:
             gathered = torch.empty(self.shape, dtype=self.dtype.torch_type())
 
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), send_axis=self.split)
+            self.comm.Allgatherv(self.__array, (gathered, recv_counts, recv_displs,), recv_axis=self.split)
 
             self.__array = gathered
             self.__split = None
 
-        # tensor needs be split/sliced locally
+    # tensor needs be split/sliced locally
         elif self.split is None:
             _, _, slices = self.comm.chunk(self.shape, axis)
             temp = self.__array[slices]
@@ -2017,18 +2137,16 @@ class DNDarray:
 
             send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-
             self.comm.Alltoallv(
                 (self.__array, send_counts, send_displs,),
                 (redistributed, recv_counts, recv_displs,),
-                axis=axis, recv_axis=self.split
+                send_axis=axis, recv_axis=self.split
             )
 
             self.__array = redistributed
             self.__split = axis
 
         return self
-
 
     def __rfloordiv__(self, other):
         """
@@ -2290,15 +2408,16 @@ class DNDarray:
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
 
-            if isinstance(key, int) and self.split == 0:
-                if key in range(chunk_start, chunk_end):
-                    self.__setter(key - chunk_start, value)
-            elif isinstance(key, int) and self.split > 0:
-                self[key, :] = value
-
-            elif isinstance(key, int) and self.split > 0:
-                self[key, :] = value
-
+            if isinstance(key, int):
+                if key < 0:
+                    key += self.numdims
+                if self.split == 0:
+                    if key in range(chunk_start, chunk_end):
+                        self.__setter(key - chunk_start, value)
+                if self.split > 0:
+                    if self[key].split is not None and isinstance(value, DNDarray) and value.split is None:
+                        value = factories.array(value, split=self[key].split)
+                    self.__setter(key, value)
             elif isinstance(key, (tuple, list, torch.Tensor)):
                 if isinstance(key[self.split], slice):
                     key = list(key)
@@ -2306,7 +2425,6 @@ class DNDarray:
                                              key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split],
                                              key[self.split].step if key[self.split].step is not None else 1))
                                    & set(range(chunk_start, chunk_end)))
-
                     if overlap:
                         overlap.sort()
                         hold = [x - chunk_start for x in overlap]
@@ -2324,8 +2442,8 @@ class DNDarray:
                     self.__setter(tuple(key), value)
 
                 elif key[self.split] < 0:
+                    key = list(key)
                     if self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
-                        key = list(key)
                         key[self.split] = key[self.split] + chunk_end - chunk_start
                         self.__setter(tuple(key), value)
 
@@ -2340,9 +2458,9 @@ class DNDarray:
             elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                 # this is the case with a list of indices to set
                 key = key.copy()
-                for i in range(key.lshape[0]):
-                    key.lloc[i][self.split] -= chunk_start
-                    self.__setter((key.lloc[i][0].item(), key.lloc[i][1].item()), value)
+                key.lloc[..., self.split] -= chunk_start
+                key_new = [key._DNDarray__array[..., i] for i in range(len(self.gshape))]
+                self.__setter(tuple(key_new), value)
             else:
                 self.__setter(key, value)
 

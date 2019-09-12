@@ -182,6 +182,106 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.pow('T', 's')
 
+    def test_prod(self):
+        array_len = 11
+
+        # check sum over all float elements of 1d tensor locally
+        shape_noaxis = ht.ones(array_len)
+        no_axis_prod = shape_noaxis.prod()
+
+        self.assertIsInstance(no_axis_prod, ht.DNDarray)
+        self.assertEqual(no_axis_prod.shape, (1,))
+        self.assertEqual(no_axis_prod.lshape, (1,))
+        self.assertEqual(no_axis_prod.dtype, ht.float32)
+        self.assertEqual(no_axis_prod._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(no_axis_prod.split, None)
+        self.assertEqual(no_axis_prod._DNDarray__array, 1)
+
+        out_noaxis = ht.zeros((1,))
+        ht.prod(shape_noaxis, out=out_noaxis)
+        self.assertEqual(out_noaxis._DNDarray__array, 1)
+
+        # check sum over all float elements of split 1d tensor
+        shape_noaxis_split = ht.arange(1, array_len, split=0)
+        shape_noaxis_split_prod = shape_noaxis_split.prod()
+
+        self.assertIsInstance(shape_noaxis_split_prod, ht.DNDarray)
+        self.assertEqual(shape_noaxis_split_prod.shape, (1,))
+        self.assertEqual(shape_noaxis_split_prod.lshape, (1,))
+        self.assertEqual(shape_noaxis_split_prod.dtype, ht.int64)
+        self.assertEqual(shape_noaxis_split_prod._DNDarray__array.dtype, torch.int64)
+        self.assertEqual(shape_noaxis_split_prod.split, None)
+        self.assertEqual(shape_noaxis_split_prod, 3628800)
+
+        out_noaxis = ht.zeros((1,))
+        ht.prod(shape_noaxis_split, out=out_noaxis)
+        self.assertEqual(out_noaxis._DNDarray__array, 3628800)
+
+        # check sum over all float elements of 3d tensor locally
+        shape_noaxis = ht.full((3, 3, 3), 2)
+        no_axis_prod = shape_noaxis.prod()
+
+        self.assertIsInstance(no_axis_prod, ht.DNDarray)
+        self.assertEqual(no_axis_prod.shape, (1,))
+        self.assertEqual(no_axis_prod.lshape, (1,))
+        self.assertEqual(no_axis_prod.dtype, ht.float32)
+        self.assertEqual(no_axis_prod._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(no_axis_prod.split, None)
+        self.assertEqual(no_axis_prod._DNDarray__array, 134217728)
+
+        out_noaxis = ht.zeros((1,))
+        ht.prod(shape_noaxis, out=out_noaxis)
+        self.assertEqual(out_noaxis._DNDarray__array, 134217728)
+
+        # check sum over all float elements of split 3d tensor
+        shape_noaxis_split_axis = ht.full((3, 3, 3), 2, split=0)
+        split_axis_prod = shape_noaxis_split_axis.prod(axis=0)
+
+        self.assertIsInstance(split_axis_prod, ht.DNDarray)
+        self.assertEqual(split_axis_prod.shape, (3, 3))
+        self.assertEqual(split_axis_prod.dtype, ht.float32)
+        self.assertEqual(split_axis_prod._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(split_axis_prod.split, None)
+
+        out_axis = ht.ones((3, 3,))
+        ht.prod(shape_noaxis, axis=0, out=out_axis)
+        self.assertTrue((out_axis._DNDarray__array == torch.full((3,), 8)).all())
+
+        # check sum over all float elements of splitted 5d tensor with negative axis
+        shape_noaxis_split_axis_neg = ht.full((1, 2, 3, 4, 5), 2, split=1)
+        shape_noaxis_split_axis_neg_prod = shape_noaxis_split_axis_neg.prod(axis=-2)
+
+        self.assertIsInstance(shape_noaxis_split_axis_neg_prod, ht.DNDarray)
+        self.assertEqual(shape_noaxis_split_axis_neg_prod.shape, (1, 2, 3, 5))
+        self.assertEqual(shape_noaxis_split_axis_neg_prod.dtype, ht.float32)
+        self.assertEqual(shape_noaxis_split_axis_neg_prod._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(shape_noaxis_split_axis_neg_prod.split, 1)
+
+        out_noaxis = ht.zeros((1, 2, 3, 5))
+        ht.prod(shape_noaxis_split_axis_neg, axis=-2, out=out_noaxis)
+
+        # check sum over all float elements of splitted 3d tensor with tuple axis
+        shape_split_axis_tuple = ht.ones((3, 4, 5), split=1)
+        shape_split_axis_tuple_prod = shape_split_axis_tuple.prod(axis=(-2, -3))
+        expected_result = ht.ones((5,))
+
+        self.assertIsInstance(shape_split_axis_tuple_prod, ht.DNDarray)
+        self.assertEqual(shape_split_axis_tuple_prod.shape, (5,))
+        self.assertEqual(shape_split_axis_tuple_prod.dtype, ht.float32)
+        self.assertEqual(shape_split_axis_tuple_prod._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(shape_split_axis_tuple_prod.split, None)
+        self.assertTrue((shape_split_axis_tuple_prod == expected_result).all())
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            ht.ones(array_len).prod(axis=1)
+        with self.assertRaises(ValueError):
+            ht.ones(array_len).prod(axis=-2)
+        with self.assertRaises(ValueError):
+            ht.ones((4, 4)).prod(axis=0, out=out_noaxis)
+        with self.assertRaises(TypeError):
+            ht.ones(array_len).prod(axis='bad_axis_type')
+
     def test_sub(self):
         result = ht.array([
             [-1.0, 0.0],
