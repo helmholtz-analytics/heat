@@ -624,7 +624,7 @@ def mean(x, axis=None):
             The calculated means.
         """
         if x.lshape[x.split] != 0:
-            mu = torch.mean(x._DNDarray__array, out=None, dim=axis)
+            mu = torch.mean(x._DNDarray__array, dim=axis)
         else:
             mu = factories.zeros(output_shape_i)
 
@@ -650,10 +650,9 @@ def mean(x, axis=None):
             return dndarray.DNDarray(ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm)
         else:
             # if x is distributed and no axis is given: return mean of the whole set
-            if x.lshape[x.split] != 0:
-                mu_in = operations.__local_op(torch.mean, x, out=None)
-            else:
-                mu_in = 0
+            mu_in = torch.mean(x._DNDarray__array)
+            if torch.isnan(mu_in):
+                mu_in = 0.0
             n = x.lnumel
             mu_tot = factories.zeros((x.comm.size, 2))
             mu_proc = factories.zeros((x.comm.size, 2))
@@ -703,7 +702,6 @@ def mean(x, axis=None):
             output_shape = output_shape if output_shape else (1, )
 
             if x.split is None:
-                # return operations.__local_op(torch.mean, x, out=None, **{'dim': axis})
                 return dndarray.DNDarray(torch.mean(x._DNDarray__array, dim=axis),
                                          tuple(output_shape), x.dtype, x.split, x.device, x.comm)
             elif axis == x.split:
@@ -1150,8 +1148,8 @@ def var(x, axis=None, bessel=True):
         """
 
         if x.lshape[x.split] != 0:
-            mu = operations.__local_op(torch.mean, x, out=None, dim=axis)
-            var = torch.var(x._DNDarray__array, out=None, dim=axis, unbiased=bessel)
+            mu = torch.mean(x._DNDarray__array, dim=axis)
+            var = torch.var(x._DNDarray__array, dim=axis, unbiased=bessel)
         else:
             mu = factories.zeros(output_shape_i)
             var = factories.zeros(output_shape_i)
@@ -1182,14 +1180,14 @@ def var(x, axis=None, bessel=True):
             return dndarray.DNDarray(ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm)
 
         else:  # case for full matrix calculation (axis is None)
-            if x.lshape[x.split] != 0:
-                mu_in = operations.__local_op(torch.mean, x, out=None)
-                var_in = operations.__local_op(torch.var, x, out=None, unbiased=bessel)
-                if torch.isnan(var_in._DNDarray__array):
-                    var_in = 0.0
-            else:
-                mu_in = 0
-                var_in = 0
+            mu_in = torch.mean(x._DNDarray__array)
+            var_in = torch.var(x._DNDarray__array, unbiased=bessel)
+            # Nan is returned when local tensor is empty
+            if torch.isnan(var_in):
+                var_in = 0.0
+            if torch.isnan(mu_in):
+                mu_in = 0.0
+
             n = x.lnumel
             var_tot = factories.zeros((x.comm.size, 3))
             var_proc = factories.zeros((x.comm.size, 3))
