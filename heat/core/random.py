@@ -521,12 +521,12 @@ def __threefry32(X_0, X_1):
     X_0 += X_1; X_1 = (X_1 << 24) | (X_1 >>  8); X_1 ^= X_0  # round 8
 
     # inject key
-    X_0 += ks_2; X_1 += (ks_0 + 2)
-
-    X_0 += X_1; X_1 = (X_1 << 13) | (X_1 >> 19); X_1 ^= X_0  # round 9
-    X_0 += X_1; X_1 = (X_1 << 15) | (X_1 >> 17); X_1 ^= X_0  # round 10
-    X_0 += X_1; X_1 = (X_1 << 26) | (X_1 >>  6); X_1 ^= X_0  # round 11
-    X_0 += X_1; X_1 = (X_1 <<  6) | (X_1 >> 26); X_1 ^= X_0  # round 12
+    # X_0 += ks_2; X_1 += (ks_0 + 2)
+    #
+    # X_0 += X_1; X_1 = (X_1 << 13) | (X_1 >> 19); X_1 ^= X_0  # round 9
+    # X_0 += X_1; X_1 = (X_1 << 15) | (X_1 >> 17); X_1 ^= X_0  # round 10
+    # X_0 += X_1; X_1 = (X_1 << 26) | (X_1 >>  6); X_1 ^= X_0  # round 11
+    # X_0 += X_1; X_1 = (X_1 <<  6) | (X_1 >> 26); X_1 ^= X_0  # round 12
 
     # inject key
     X_0 += ks_0; X_1 += (ks_1 + 3)
@@ -580,13 +580,10 @@ def __threefry64(X_0, X_1):
 
     X_0 += X_1; X_1 = (X_1 << 16) | (X_1 >> 48); X_1 ^= X_0  # round 5
     X_0 += X_1; X_1 = (X_1 << 32) | (X_1 >> 32); X_1 ^= X_0  # round 6
+    X_0 += X_1; X_1 = (X_1 << 24) | (X_1 >> 40); X_1 ^= X_0  # round 7
+    X_0 += X_1; X_1 = (X_1 << 21) | (X_1 >> 43); X_1 ^= X_0  # round 8
 
-    # With half of the iterations the "randomness" is already achieved and computation time is halved
-
-    # X_0 += X_1; X_1 = (X_1 << 24) | (X_1 >> 40); X_1 ^= X_0  # round 7
-    # X_0 += X_1; X_1 = (X_1 << 21) | (X_1 >> 43); X_1 ^= X_0  # round 8
-    #
-    # # inject key
+    # inject key
     # X_0 += ks_2; X_1 += (ks_0 + 2)
     #
     # X_0 += X_1; X_1 = (X_1 << 16) | (X_1 >> 48); X_1 ^= X_0  # round 9
