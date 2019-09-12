@@ -132,7 +132,8 @@ def __binary_op(operation, t1, t2):
 def __local_op(operation, x, out, no_cast=False, **kwargs):
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
-    argument and takes only care of buffer allocation/writing.
+    argument and takes only care of buffer allocation/writing. This function is intended to work on an element-wise bases
+    WARNING: the gshape of the result will be the same as x
 
     Parameters
     ----------
@@ -177,7 +178,7 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
         if kwargs_dtype:
             del kwargs['dtype']
         result = operation(x._DNDarray__array.type(torch_type), **kwargs)
-        return factories.array(result, is_split=x.split, dtype=types.canonical_heat_type(result.dtype), device=x.device, comm=x.comm)
+        return dndarray.DNDarray(result, x.gshape, types.canonical_heat_type(result.dtype), x.split, x.device, x.comm)
 
     # output buffer writing requires a bit more work
     # we need to determine whether the operands are broadcastable and the multiple of the broadcasting

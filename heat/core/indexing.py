@@ -66,7 +66,7 @@ def nonzero(a):
 
     if a.split is None:
         # if there is no split then just return the values from torch
-        return operations.__local_op(torch.nonzero, a, no_cast=True, out=None)
+        return factories.array(torch.nonzero(a._DNDarray__array), is_split=a.split, device=a.device, comm=a.comm)
     else:
         # a is split
         lcl_nonzero = torch.nonzero(a._DNDarray__array)
