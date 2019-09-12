@@ -802,42 +802,55 @@ def qr(a, tile_rows=2, calc_q=True):
             shape0 = q_dict[i]['0'].shape
             # tile_slices_lists[0][1] = tile_slices_lists[0][1] + [0]
             # print(tile_slices_lists[0])
-            tile_slices_lists[0][rank * tile_rows].append(('0', (slice(None, shape0[0]), slice(None, shape0[0]))))
+            print(i%tile_rows, i)
+            tile_slices_lists[i % tile_rows][i].append(('0', (slice(None, shape0[0]), slice(None, shape0[0]))))
             # print(tile_slices_lists[0])
             # loc_q_dict[i][:shape0[0], :shape0[1]] = q_dict[i]['0']
             for x in list(q_dict[i]):
                 if x != '0':
                     rem = True if q_dict[i][x].shape[0] % 2 == 1 else False
                     q_tile_shape = q_dict[i][x].shape
+                    half = q_tile_shape[0]//2 + 1 if rem else q_tile_shape[0]//2
+                    end = q_tile_shape[0]
+
                     if len(x) == 1:  # single values indicate a local merge between tiles
                         first = 0
                         # the four blocks of the merge operations are written to the corresponding tile indices in the slice lists
-                        tile_slices_lists[first][first + (rank * tile_rows)].append((x, (slice(None, q_tile_shape[0]//2 + 1 if rem else q_tile_shape[0]//2),
-                                                                                         slice(None, q_tile_shape[0]//2 + 1 if rem else q_tile_shape[0]//2))))
-                        tile_slices_lists[first][int(x) + (rank * tile_rows)].append((x, (slice(None, q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2),
-                                                                                          slice(q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2, q_tile_shape[0]))))
-                        tile_slices_lists[int(x)][first + (rank * tile_rows)].append((x, (slice(q_tile_shape[0] // 2, q_tile_shape[0]), slice(None, q_tile_shape[0] // 2))))
-                        tile_slices_lists[int(x)][int(x) + (rank * tile_rows)].append((x, (slice(q_tile_shape[0] // 2, q_tile_shape[0]),
-                                                                                           slice(q_tile_shape[0] // 2, q_tile_shape[0]))))
-                        print('h', x, tile_slices_lists[0][2])
+                        # print(i, x, first, x, 0, first + (rank * tile_rows), 0, int(x) + (rank * tile_rows), 0, half, end)
+                        tile_slices_lists[first][first + (rank * tile_rows)].append((x, (slice(None, half), slice(None, half))))
+                        tile_slices_lists[first][int(x) + (rank * tile_rows)].append((x, (slice(None, half), slice(half, end))))
+                        tile_slices_lists[int(x)][first + (rank * tile_rows)].append((x, (slice(half, end), slice(None, half))))
+                        tile_slices_lists[int(x)][int(x) + (rank * tile_rows)].append((x, (slice(half, end), slice(half, end))))
                     elif len(x) == 2:  # this is the case for the global merges
                         first = int(x[0])
                         second = int(x[1])
-                        tile_slices_lists[first][first + (rank * tile_rows)].append((x, (slice(None, q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2),
-                                                                                         slice(None,
-                                                                                               q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2))))
-                        # tile_slices_lists[first][int(x) + (rank * tile_rows)].append(
-                        #     (x, (slice(None, q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2),
-                        #          slice(q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2, q_tile_shape[0]))))
-                        # tile_slices_lists[int(x)][first + (rank * tile_rows)].append(
-                        #     (x, (slice(q_tile_shape[0] // 2, q_tile_shape[0]), slice(None, q_tile_shape[0] // 2))))
-                        # tile_slices_lists[int(x)][int(x) + (rank * tile_rows)].append((x, (slice(q_tile_shape[0] // 2, q_tile_shape[0]),
-                        #                                                                    slice(q_tile_shape[0] // 2, q_tile_shape[0]))))
-                        # tile_slices_lists[0][0] = ('0', (slice(None, shape0[0]), slice(None, shape0[0])))
-                        # for j in range(2):  # need to set all 4 of the tiles which have data for the combined Q
-                        #     # if there is a remainder then the process with more data will be on the process with the lower rank
-                        #     pass
-                        # print(x)
+                        # if rank == first:
+                        #     print(i, x, i % tile_rows, first * tile_rows + i % tile_rows, 0, half, end)
+                        #     print(i, x, i % tile_rows, second * tile_rows, 0, half, end, '\n')
+                        # if rank == second:
+                        #     print(i, x, 0, first * tile_rows, 0, half, end)
+                        #     print(i, x, 0, second * tile_rows, 0, half, end, '\n')
+                        # need to write to the elements for each rank
+                        # the 0th dim of all of the combinations is 0
+                        if rank == first:
+                            tile_slices_lists[i % tile_rows][first * tile_rows + i % tile_rows].append((x, (slice(None, half), slice(None, half))))
+                            tile_slices_lists[i % tile_rows][second * tile_rows].append((x, (slice(None, half), slice(half, end))))
+                        if rank == second:
+                            tile_slices_lists[0][first * tile_rows + i % tile_rows].append((x, (slice(half, end), slice(None, half))))
+                            tile_slices_lists[0][second * tile_rows].append((x, (slice(half, end), slice(half, end))))
+            print('h', i, x, tile_slices_lists[0][4])
+            # tile_slices_lists[first][int(x) + (rank * tile_rows)].append(
+            #     (x, (slice(None, q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2),
+            #          slice(q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2, q_tile_shape[0]))))
+            # tile_slices_lists[int(x)][first + (rank * tile_rows)].append(
+            #     (x, (slice(q_tile_shape[0] // 2, q_tile_shape[0]), slice(None, q_tile_shape[0] // 2))))
+            # tile_slices_lists[int(x)][int(x) + (rank * tile_rows)].append((x, (slice(q_tile_shape[0] // 2, q_tile_shape[0]),
+            #                                                                    slice(q_tile_shape[0] // 2, q_tile_shape[0]))))
+            # tile_slices_lists[0][0] = ('0', (slice(None, shape0[0]), slice(None, shape0[0])))
+            # for j in range(2):  # need to set all 4 of the tiles which have data for the combined Q
+            #     # if there is a remainder then the process with more data will be on the process with the lower rank
+            #     pass
+            # print(x)
     return a
 
 
