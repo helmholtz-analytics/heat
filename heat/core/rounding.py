@@ -1,4 +1,5 @@
 import torch
+import heat as ht
 
 from . import operations
 from . import dndarray
@@ -11,7 +12,8 @@ __all__ = [
     'clip',
     'fabs',
     'floor',
-    'trunc'
+    'trunc',
+    'round'
 ]
 
 
@@ -212,3 +214,62 @@ def trunc(x, out=None):
     tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
     """
     return operations.__local_op(torch.trunc, x, out)
+
+
+
+def modf(a):
+    """
+        Return the fractional and integral parts of an array, element-wise.
+        The fractional and integral parts are negative if the given number is negative.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            Input array
+        out : ht.DNDarray, optional
+            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+            If not provided or None, a freshly-allocated array is returned.
+
+        Returns
+        -------
+        tuple(array: fractionalParts, array: integralParts)
+
+        fractionalParts : ndarray
+            Fractional part of x. This is a scalar if x is a scalar.
+
+        integralParts : ndarray
+            Integral part of x. This is a scalar if x is a scalar.
+
+        Examples
+        --------
+        >>> ht.modf(ht.arrange(-2.0, 2.0, 0.4))
+            (tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.]), tensor([-0.0, -0.6, -0.2, -0.8, -0.4, 0.0,  0.4,  0.8,  0.2,  0.6]))               #TODO
+
+        """
+
+    integralParts = ht.trunc(a)
+    fractionalParts = a-integralParts
+
+    return (integralParts, fractionalParts)
+
+
+modf(ht.arange(-2.0, 2.0, 0.4))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
