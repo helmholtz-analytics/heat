@@ -511,20 +511,23 @@ class TestArithmetics(unittest.TestCase):
             ('__floordiv__', operator.floordiv, False),
             ('__mod__', operator.mod, False),
             ('__pow__', operator.pow, False),
-            ('__and__', operator.and_, True),
-            ('__or__', operator.or_, True),
-            ('__xor__', operator.xor, True)
+            ('__and__', operator.and_, False),
+            ('__or__', operator.or_, False),
+            ('__xor__', operator.xor, False)
         )
         tensor = ht.float32([[1, 4], [2, 3]])
         num = 3
         for (attr, op, commutative) in operators:
+            if attr in ['__and__', '__or__', '__xor__']:
+                tensor = ht.int64([[1, 4], [2, 3]])
             try:
                 func = tensor.__getattribute__(attr)
             except AttributeError:
                 continue
             self.assertTrue(callable(func))
             res_1 = op(tensor, num)
-            res_2 = op(num, tensor)
+            if attr not in ['__and__', '__or__', '__xor__']:
+                res_2 = op(num, tensor)
             if commutative:
                 self.assertTrue(ht.equal(res_1, res_2))
         # TODO: Test with split tensors when binary operations are working properly for split tensors
