@@ -17,8 +17,11 @@ class KMeans:
         # TODO: document me
         # TODO: extend me with further initialization methods
         # zero-centered uniform random distribution in [-1, 1]
-        ht.random.set_gseed(seed)
-        return ht.random.uniform(low=-1.0, high=1.0, size=(1, dimensions, k), device=device)
+        ht.random.seed(seed)
+        rands = ht.random.rand(1, dimensions, k, device=device)
+        # change the range of the values from [0, 1) to [-1, 1)
+        rands = rands * 2 - 1
+        return rands
 
     def fit(self, data):
         # TODO: document me
