@@ -390,9 +390,37 @@ def max(x, axis=None, out=None, keepdim=None):
             [12.]])
     """
     def local_max(*args, **kwargs):
-        result = torch.max(*args, **kwargs)
+        array = args[0]
+        dim = kwargs.get('dim')
+        if 0 in array.shape:
+            # Empty local vector would throw an error in the torch max function
+            if dim == x.split or (dim is None and x.split == 0):
+                # No distributed result
+                out_shape = list(array.shape)
+                empty_dim = next(i for i, d in enumerate(array.shape) if d == 0)
+                out_shape[empty_dim] = 1
+
+                # Lowest possible value should be neutral to the max function
+                if array.dtype is torch.int8:
+                    fill_value = -(1 << 7)
+                elif array.dtype is torch.int16:
+                    fill_value = -(1 << 15)
+                elif array.dtype is torch.int32:
+                    fill_value = -(1 << 31)
+                elif array.dtype is torch.int64:
+                    fill_value = -(1 << 63)
+                else:
+                    fill_value = float('-inf')
+
+                # Create a local result with a "neutral" value that should not affect the global result
+                result = torch.empty(out_shape, dtype=array.dtype).fill_(fill_value)
+            else:
+                # Distributed result: return an empty tensor as the local result
+                result = torch.empty_like(array)
+        else:
+            result = torch.max(*args, **kwargs)
         if isinstance(result, tuple):
-            return result[0]
+            result = result[0]
         return result
 
     return operations.__reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
@@ -496,14 +524,14 @@ def maximum(x1, x2, out=None):
 
     # locally: apply torch.max(x1, x2)
     output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
-    lresult = factories.empty(output_lshape)
+    lresult = factories.empty(output_lshape, dtype=x1.dtype)
     lresult._DNDarray__array = torch.max(x1._DNDarray__array, x2._DNDarray__array)
     lresult._DNDarray__dtype = types.promote_types(x1.dtype, x2.dtype)
     lresult._DNDarray__split = split
     if x1.split is not None or x2.split is not None:
         if x1.comm.is_distributed():  # assuming x1.comm = x2.comm
             output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
-            result = factories.empty(output_gshape)
+            result = factories.empty(output_gshape, dtype=x1.dtype)
             x1.comm.Allgather(lresult, result)
             # TODO: adopt Allgatherv() as soon as it is fixed, Issue #233
             result._DNDarray__dtype = lresult._DNDarray__dtype
@@ -596,7 +624,7 @@ def mean(x, axis=None):
             The calculated means.
         """
         if x.lshape[x.split] != 0:
-            mu = torch.mean(x._DNDarray__array, out=None, dim=axis)
+            mu = torch.mean(x._DNDarray__array, dim=axis)
         else:
             mu = factories.zeros(output_shape_i)
 
@@ -622,10 +650,9 @@ def mean(x, axis=None):
             return dndarray.DNDarray(ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm)
         else:
             # if x is distributed and no axis is given: return mean of the whole set
-            if x.lshape[x.split] != 0:
-                mu_in = operations.__local_op(torch.mean, x, out=None)
-            else:
-                mu_in = 0
+            mu_in = torch.mean(x._DNDarray__array)
+            if torch.isnan(mu_in):
+                mu_in = 0.0
             n = x.lnumel
             mu_tot = factories.zeros((x.comm.size, 2))
             mu_proc = factories.zeros((x.comm.size, 2))
@@ -675,7 +702,6 @@ def mean(x, axis=None):
             output_shape = output_shape if output_shape else (1, )
 
             if x.split is None:
-                # return operations.__local_op(torch.mean, x, out=None, **{'dim': axis})
                 return dndarray.DNDarray(torch.mean(x._DNDarray__array, dim=axis),
                                          tuple(output_shape), x.dtype, x.split, x.device, x.comm)
             elif axis == x.split:
@@ -806,9 +832,37 @@ def min(x, axis=None, out=None, keepdim=None):
     """
 
     def local_min(*args, **kwargs):
-        result = torch.min(*args, **kwargs)
+        array = args[0]
+        dim = kwargs.get('dim')
+        if 0 in array.shape:
+            # Empty local vector would throw an error in the torch min function
+            if dim == x.split or (dim is None and x.split == 0):
+                # No distributed result
+                out_shape = list(array.shape)
+                empty_dim = next(i for i, d in enumerate(array.shape) if d == 0)
+                out_shape[empty_dim] = 1
+
+                # Highest possible value should be neutral to the min function
+                if array.dtype is torch.int8:
+                    fill_value = (1 << 7) - 1
+                elif array.dtype is torch.int16:
+                    fill_value = (1 << 15) - 1
+                elif array.dtype is torch.int32:
+                    fill_value = (1 << 31) - 1
+                elif array.dtype is torch.int64:
+                    fill_value = (1 << 63) - 1
+                else:
+                    fill_value = float('inf')
+
+                # Create a local result with a "neutral" value that should not affect the global result
+                result = torch.empty(out_shape, dtype=array.dtype).fill_(fill_value)
+            else:
+                # Distributed result: return an empty tensor as the local result
+                result = torch.empty_like(array)
+        else:
+            result = torch.min(*args, **kwargs)
         if isinstance(result, tuple):
-            return result[0]
+            result = result[0]
         return result
 
     return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
@@ -912,14 +966,14 @@ def minimum(x1, x2, out=None):
 
     # locally: apply torch.min(x1, x2)
     output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
-    lresult = factories.empty(output_lshape)
+    lresult = factories.empty(output_lshape, dtype=x1.dtype)
     lresult._DNDarray__array = torch.min(x1._DNDarray__array, x2._DNDarray__array)
     lresult._DNDarray__dtype = types.promote_types(x1.dtype, x2.dtype)
     lresult._DNDarray__split = split
     if x1.split is not None or x2.split is not None:
         if x1.comm.is_distributed():  # assuming x1.comm = x2.comm
             output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
-            result = factories.empty(output_gshape)
+            result = factories.empty(output_gshape, dtype=x1.dtype)
             x1.comm.Allgather(lresult, result)
             # TODO: adopt Allgatherv() as soon as it is fixed, Issue #233
             result._DNDarray__dtype = lresult._DNDarray__dtype
@@ -1094,8 +1148,8 @@ def var(x, axis=None, bessel=True):
         """
 
         if x.lshape[x.split] != 0:
-            mu = operations.__local_op(torch.mean, x, out=None, dim=axis)
-            var = torch.var(x._DNDarray__array, out=None, dim=axis, unbiased=bessel)
+            mu = torch.mean(x._DNDarray__array, dim=axis)
+            var = torch.var(x._DNDarray__array, dim=axis, unbiased=bessel)
         else:
             mu = factories.zeros(output_shape_i)
             var = factories.zeros(output_shape_i)
@@ -1126,14 +1180,14 @@ def var(x, axis=None, bessel=True):
             return dndarray.DNDarray(ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm)
 
         else:  # case for full matrix calculation (axis is None)
-            if x.lshape[x.split] != 0:
-                mu_in = operations.__local_op(torch.mean, x, out=None)
-                var_in = operations.__local_op(torch.var, x, out=None, unbiased=bessel)
-                if torch.isnan(var_in._DNDarray__array):
-                    var_in = 0.0
-            else:
-                mu_in = 0
-                var_in = 0
+            mu_in = torch.mean(x._DNDarray__array)
+            var_in = torch.var(x._DNDarray__array, unbiased=bessel)
+            # Nan is returned when local tensor is empty
+            if torch.isnan(var_in):
+                var_in = 0.0
+            if torch.isnan(mu_in):
+                mu_in = 0.0
+
             n = x.lnumel
             var_tot = factories.zeros((x.comm.size, 3))
             var_proc = factories.zeros((x.comm.size, 3))

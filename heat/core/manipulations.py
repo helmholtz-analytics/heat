@@ -570,8 +570,6 @@ def sort(a, axis=None, descending=False, out=None):
             second_result[idx_slice] = r_val
             second_indices[idx_slice] = r_ind
 
-        # print('second_result', second_result, 'tmp_indices', second_indices)
-
         second_result, tmp_indices = second_result.sort(dim=0, descending=descending)
         final_result = second_result.transpose(0, axis)
         final_indices = torch.empty_like(second_indices)
