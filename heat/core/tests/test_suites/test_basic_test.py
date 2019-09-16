@@ -28,10 +28,10 @@ class TestBasicTest(BasicTest):
         self.assert_func_equal(array, ht_func, np_func, distributed_result=False)
 
         array = np.array([[1, 2, 4, 1, 3], [1, 4, 7, 5, 1]], dtype=np.int8)
-        ht_func = ht.unique
-        np_func = np.unique
-        ht_args = {'sorted': True, 'axis': 0}
-        np_args = {'axis': 0}
+        ht_func = ht.expand_dims
+        np_func = np.expand_dims
+        ht_args = {'axis': 1}
+        np_args = {'axis': 1}
         self.assert_func_equal(array, ht_func, np_func, heat_args=ht_args, numpy_args=np_args)
 
         # Testing with random values

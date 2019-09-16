@@ -58,6 +58,7 @@ class BasicTest(TestCase):
         >>> self.assert_array_equal(a, c)
         AssertionError: [...]
         """
+        self._comm = heat_array.comm
         if isinstance(expected_array, torch.Tensor):
             # Does not work because heat sets an index while torch does not
             # self.assertEqual(expected_array.device, torch.device(heat_array.device.torch_device))
@@ -163,6 +164,9 @@ class BasicTest(TestCase):
         for i in range(len(tensor.shape)):
             ht_array = factories.array(torch_tensor, split=i, dtype=dtype, device=self.device, comm=self.comm)
             ht_res = heat_func(ht_array, **heat_args)
+
+            self.assertEqual(ht_array.device, ht_res.device)
+            self.assertEqual(ht_array.comm, ht_res.comm)
             if distributed_result:
                 self.assert_array_equal(ht_res, np_res)
             else:
