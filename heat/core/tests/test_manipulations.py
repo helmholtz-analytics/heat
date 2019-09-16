@@ -527,8 +527,8 @@ class TestManipulations(unittest.TestCase):
         # 4D local tensor, no axis
         result = ht.squeeze(data)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.dtype, ht.float64)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
@@ -537,8 +537,8 @@ class TestManipulations(unittest.TestCase):
         # 4D local tensor, major axis
         result = ht.squeeze(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.dtype, ht.float64)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
         self.assertEqual(result.shape, (4, 5, 1))
         self.assertEqual(result.lshape, (4, 5, 1))
         self.assertEqual(result.split, None)
@@ -547,8 +547,8 @@ class TestManipulations(unittest.TestCase):
         # 4D local tensor, minor axis
         result = ht.squeeze(data, axis=-1)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.dtype, ht.float64)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
         self.assertEqual(result.shape, (1, 4, 5))
         self.assertEqual(result.lshape, (1, 4, 5))
         self.assertEqual(result.split, None)
@@ -557,8 +557,8 @@ class TestManipulations(unittest.TestCase):
         # 4D local tensor, tuple axis
         result = data.squeeze(axis=(0, -1))
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.dtype, ht.float64)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
