@@ -1374,8 +1374,11 @@ class DNDarray:
 
                 if isinstance(key[self.split], slice):  # if a slice is given in the split direction
                     # below allows for the split given to contain Nones
+                    key_stop = key[self.split].stop
+                    if key_stop is not None and key_stop < 0:
+                        key_stop = self.gshape[self.split] + key[self.split].stop
                     key_set = set(range(key[self.split].start if key[self.split].start is not None else 0,
-                                        key[self.split].stop if key[self.split].stop is not None else self.gshape[self.split],
+                                        key_stop if key_stop is not None else self.gshape[self.split],
                                         key[self.split].step if key[self.split].step else 1))
                     key = list(key)
                     overlap = list(key_set & chunk_set)
