@@ -222,6 +222,7 @@ class TestStatistics(unittest.TestCase):
 
         # check weighted average over all float elements of split 3d tensor, across split axis
         random_volume = ht.array(torch.randn((3, 3, 3), dtype=torch.float64), is_split=1)
+        # random_volume = ht.random.randn(3, 3, 3, dtype=ht.float64, split=)
         size = random_volume.comm.size
         random_weights = ht.array(torch.randn((3 * size,), dtype=torch.float64))
         avg_volume = ht.average(random_volume, weights=random_weights, axis=1)
@@ -238,10 +239,9 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(avg_volume_with_cumwgt[1], ht.DNDarray)
         self.assertEqual(avg_volume_with_cumwgt[1].gshape, avg_volume_with_cumwgt[0].gshape)
         self.assertEqual(avg_volume_with_cumwgt[1].split, avg_volume_with_cumwgt[0].split)
-        
 
         # check average over all float elements of split 3d tensor, tuple axis
-        random_volume = ht.array(ht.random.randn(3, 3, 3), split=0)
+        random_volume = ht.random.randn(3, 3, 3, split=0)
         avg_volume = ht.average(random_volume, axis=(1, 2))
         alt_avg_volume = ht.average(random_volume, axis=(2, 1))
 
@@ -253,7 +253,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(avg_volume.split, 0)
 
         # check weighted average over all float elements of split 5d tensor, along split axis
-        random_5d = ht.array(ht.random.randn(1, 2, 3, 4, 5), is_split=0)
+        random_5d = ht.random.randn(random_volume.comm.size, 2, 3, 4, 5, split=0)
         axis = 1
         random_weights = ht.random.randn(random_5d.gshape[axis])
         avg_5d = random_5d.average(weights=random_weights, axis=axis)
@@ -419,8 +419,8 @@ class TestStatistics(unittest.TestCase):
         # TODO: add check for uneven distribution of dimensions (see Issue #273)
         size = ht.MPI_WORLD.size
         torch.manual_seed(1)
-        random_volume_1 = ht.array(ht.random.randn(12, 3, 3), is_split=0)
-        random_volume_2 = ht.array(ht.random.randn(12, 1, 3), is_split=0)
+        random_volume_1 = ht.random.randn(12 * size, 3, 3, split=0)
+        random_volume_2 = ht.random.randn(12 * size, 1, 3, split=0)
         maximum_volume = ht.maximum(random_volume_1, random_volume_2)
 
         self.assertIsInstance(maximum_volume, ht.DNDarray)
@@ -432,8 +432,8 @@ class TestStatistics(unittest.TestCase):
 
         # check maximum over float elements of split 3d tensors with different split axis
         torch.manual_seed(1)
-        random_volume_1_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
-        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
+        random_volume_1_splitdiff = ht.random.randn(size*3, size*3, 4, split=0)
+        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
         maximum_volume_splitdiff = ht.maximum(random_volume_1_splitdiff, random_volume_2_splitdiff)
         self.assertIsInstance(maximum_volume_splitdiff, ht.DNDarray)
         self.assertEqual(maximum_volume_splitdiff.shape, (size*3, size*3, 4))
@@ -442,18 +442,18 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(maximum_volume_splitdiff._DNDarray__array.dtype, torch.float64)
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
-        random_volume_1_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
-        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
+        random_volume_1_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
+        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=0)
         maximum_volume_splitdiff = ht.maximum(random_volume_1_splitdiff, random_volume_2_splitdiff)
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
-        random_volume_1_split_none = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
-        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
+        random_volume_1_split_none = ht.random.randn(size*3, size*3, 4, split=None)
+        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
         maximum_volume_splitdiff = ht.maximum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(maximum_volume_splitdiff.split, 1)
 
-        random_volume_1_split_none = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
-        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
+        random_volume_1_split_none = ht.random.randn(size*3, size*3, 4, split=0)
+        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=None)
         maximum_volume_splitdiff = ht.maximum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
@@ -469,7 +469,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(output.split, random_volume_1.split)
 
         # check exceptions
-        random_volume_3 = ht.array(ht.random.randn(4, 2, 3), split=0)
+        random_volume_3 = ht.random.randn(4, 2, 3, split=0)
         with self.assertRaises(ValueError):
             ht.maximum(random_volume_1, random_volume_3)
         random_volume_3 = torch.ones(12, 3, 3)
@@ -675,8 +675,8 @@ class TestStatistics(unittest.TestCase):
         # TODO: add check for uneven distribution of dimensions (see Issue #273)
         size = ht.MPI_WORLD.size
         torch.manual_seed(1)
-        random_volume_1 = ht.array(ht.random.randn(12, 3, 3), is_split=0)
-        random_volume_2 = ht.array(ht.random.randn(12, 1, 3), is_split=0)
+        random_volume_1 = ht.random.randn(12 * size, 3, 3, split=0)
+        random_volume_2 = ht.random.randn(12 * size, 1, 3, split=0)
         minimum_volume = ht.minimum(random_volume_1, random_volume_2)
 
         self.assertIsInstance(minimum_volume, ht.DNDarray)
@@ -688,8 +688,8 @@ class TestStatistics(unittest.TestCase):
 
         # check minimum over float elements of split 3d tensors with different split axis
         torch.manual_seed(1)
-        random_volume_1_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
-        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
+        random_volume_1_splitdiff = ht.random.randn(size*3, size*3, 4, split=0)
+        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
         self.assertIsInstance(minimum_volume_splitdiff, ht.DNDarray)
         self.assertEqual(minimum_volume_splitdiff.shape, (size*3, size*3, 4))
@@ -698,18 +698,18 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum_volume_splitdiff._DNDarray__array.dtype, torch.float64)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
-        random_volume_1_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
-        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
+        random_volume_1_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
+        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=0)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
-        random_volume_1_split_none = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
-        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=1)
+        random_volume_1_split_none = ht.random.randn(size*3, size*3, 4, split=None)
+        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 1)
 
-        random_volume_1_split_none = ht.array(ht.random.randn(size*3, size*3, 4), split=0)
-        random_volume_2_splitdiff = ht.array(ht.random.randn(size*3, size*3, 4), split=None)
+        random_volume_1_split_none = ht.random.randn(size*3, size*3, 4, split=0)
+        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=None)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
@@ -725,7 +725,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(output.split, random_volume_1.split)
 
         # check exceptions
-        random_volume_3 = ht.array(ht.random.randn(4, 2, 3), split=0)
+        random_volume_3 = ht.random.randn(4, 2, 3, split=0)
         with self.assertRaises(ValueError):
             ht.minimum(random_volume_1, random_volume_3)
         random_volume_3 = torch.ones(12, 3, 3)
