@@ -273,9 +273,9 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array(a_torch @ b_torch, split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (1, k))
+            self.assertEqual(ret00.shape, (k, ))
             self.assertEqual(ret00.dtype, ht.float)
-            self.assertEqual(ret00.split, 1)
+            self.assertEqual(ret00.split, 0)
 
             # splits None 1
             a = ht.ones((m), split=None)
@@ -283,13 +283,12 @@ class TestLinalg(unittest.TestCase):
             b[0] = ht.arange(1, k + 1)
             b[:, 0] = ht.arange(1, j + 1)
             ret00 = ht.matmul(a, b)
-
-            ret_comp = ht.array(a_torch @ b_torch, split=None)
+            ret_comp = ht.array(a_torch @ b_torch, split=0)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (1, k))
+            self.assertEqual(ret00.shape, (k, ))
             self.assertEqual(ret00.dtype, ht.float)
-            self.assertEqual(ret00.split, 1)
+            self.assertEqual(ret00.split, 0)
 
             # splits 0 None
             a = ht.ones((m), split=None)
@@ -301,9 +300,9 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array(a_torch @ b_torch, split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (1, k))
+            self.assertEqual(ret00.shape, (k, ))
             self.assertEqual(ret00.dtype, ht.float)
-            self.assertEqual(ret00.split, 1)
+            self.assertEqual(ret00.split, 0)
 
             # splits 0 0
             a = ht.ones((m), split=0)
@@ -315,9 +314,9 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array(a_torch @ b_torch, split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (1, k))
+            self.assertEqual(ret00.shape, (k, ))
             self.assertEqual(ret00.dtype, ht.float)
-            self.assertEqual(ret00.split, 1)
+            self.assertEqual(ret00.split, 0)
 
             # splits 0 1
             a = ht.ones((m), split=0)
@@ -329,9 +328,9 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array(a_torch @ b_torch, split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (1, k))
+            self.assertEqual(ret00.shape, (k, ))
             self.assertEqual(ret00.dtype, ht.float)
-            self.assertEqual(ret00.split, 1)
+            self.assertEqual(ret00.split, 0)
 
             # b -> vector
             a_torch = torch.ones((n, m))
@@ -359,10 +358,10 @@ class TestLinalg(unittest.TestCase):
             a[:, -1] = ht.arange(1, n + 1)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array((a_torch @ b_torch).reshape(n, 1), split=None)
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (n, 1))
+            self.assertEqual(ret00.shape, (n, ))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
@@ -373,10 +372,10 @@ class TestLinalg(unittest.TestCase):
             a[:, -1] = ht.arange(1, n + 1)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array((a_torch @ b_torch).reshape(n, 1), split=None)
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (n, 1))
+            self.assertEqual(ret00.shape, (n, ))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
@@ -387,10 +386,10 @@ class TestLinalg(unittest.TestCase):
             a[:, -1] = ht.arange(1, n + 1)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array((a_torch @ b_torch).reshape(n, 1), split=None)
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (n, 1))
+            self.assertEqual(ret00.shape, (n, ))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
@@ -401,10 +400,10 @@ class TestLinalg(unittest.TestCase):
             a[:, -1] = ht.arange(1, n + 1)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array((a_torch @ b_torch).reshape(n, 1), split=None)
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (n, 1))
+            self.assertEqual(ret00.shape, (n, ))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
@@ -415,10 +414,10 @@ class TestLinalg(unittest.TestCase):
             a[:, -1] = ht.arange(1, n + 1)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array((a_torch @ b_torch).reshape(n, 1), split=None)
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (n, 1))
+            self.assertEqual(ret00.shape, (n, ))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 

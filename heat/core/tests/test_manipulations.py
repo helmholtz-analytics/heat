@@ -526,9 +526,8 @@ class TestManipulations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.sort(data, axis='1')
 
-        tensor = torch.rand((100, 1))
         rank = ht.MPI_WORLD.rank
-        data = ht.array(tensor, split=0)
+        data = ht.random.randn(100, 1, split=0)
         result, _ = ht.sort(data, axis=0)
         counts, _, _ = ht.get_comm().counts_displs_shape(data.gshape, axis=0)
         for i, c in enumerate(counts):
@@ -543,8 +542,8 @@ class TestManipulations(unittest.TestCase):
         # 4D local tensor, no axis
         result = ht.squeeze(data)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.dtype, ht.float64)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
@@ -553,8 +552,8 @@ class TestManipulations(unittest.TestCase):
         # 4D local tensor, major axis
         result = ht.squeeze(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.dtype, ht.float64)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
         self.assertEqual(result.shape, (4, 5, 1))
         self.assertEqual(result.lshape, (4, 5, 1))
         self.assertEqual(result.split, None)
@@ -563,8 +562,8 @@ class TestManipulations(unittest.TestCase):
         # 4D local tensor, minor axis
         result = ht.squeeze(data, axis=-1)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.dtype, ht.float64)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
         self.assertEqual(result.shape, (1, 4, 5))
         self.assertEqual(result.lshape, (1, 4, 5))
         self.assertEqual(result.split, None)
@@ -573,8 +572,8 @@ class TestManipulations(unittest.TestCase):
         # 4D local tensor, tuple axis
         result = data.squeeze(axis=(0, -1))
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.dtype, ht.float64)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)

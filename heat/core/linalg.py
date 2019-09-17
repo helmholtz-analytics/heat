@@ -158,33 +158,64 @@ def matmul(a, b):
             return c
     else:
         # if they are vectors they need to be expanded to be the proper dimensions
+        vector_flag = False  # flag to run squeeze at the end of the function
         if len(a.gshape) < 2:
             a = manipulations.expand_dims(a, axis=0)
+            vector_flag = True
         if len(b.gshape) < 2:
             b = manipulations.expand_dims(b, axis=1)
+            vector_flag = True
+
         split_0_flag = False
         split_1_flag = False
         split_01_flag = False
         split_10_flag = False
 
-        if (a.split == 0 and b.split is None) or (a.split is None and b.split == 1):
-            c = factories.zeros((a.gshape[-2], b.gshape[1]), split=a.split if a.split is not None else b.split, dtype=c_type)
+        if ((a.split == 0 and b.split is None) or (a.split is None and b.split == 1)) and not vector_flag:
+            split = a.split if a.split is not None else b.split
+            split = split if not vector_flag else 0
+            c = factories.zeros((a.gshape[-2], b.gshape[1]), split=split, dtype=c_type)
             c._DNDarray__array += a._DNDarray__array @ b._DNDarray__array
-            return c
+
+            return c if not vector_flag else c.squeeze()
 
         elif a.split == 1 and b.split is None:
             c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type())
             a_idx = a.comm.chunk(a.shape, a.split)[2]
             c += a._DNDarray__array @ b._DNDarray__array[a_idx[1].start:a_idx[1].start + a.lshape[-1], :]
             a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
-            return factories.array(c, split=a.split if b.gshape[1] > 1 else 0)
+            c = c if not vector_flag else c.squeeze()
+            c = factories.array(c, split=a.split if b.gshape[1] > 1 else 0)
+            return c
 
         elif a.split is None and b.split == 0:
             c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type())
             b_idx = b.comm.chunk(b.shape, b.split)[2]
             c += a._DNDarray__array[:, b_idx[0].start:b_idx[0].start + b.lshape[0]] @ b._DNDarray__array
             b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
-            return factories.array(c, split=b.split if a.gshape[-2] > 1 else 1)
+            c = c if not vector_flag else c.squeeze()
+            c = factories.array(c, split=b.split if a.gshape[-2] > 1 else 0)
+            return c
+
+        elif a.split == 0 and b.split is None:  # this case and the one below will only be reaching if one of them is a vector
+            c = torch.zeros((a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type())
+            a_idx = a.comm.chunk(a.shape, a.split)[2]
+            c[a_idx[0]] += a._DNDarray__array @ b._DNDarray__array  #[a_idx[1].start:a_idx[1].start + a.lshape[-1], :]
+            a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
+            c = c if not vector_flag else c.squeeze()
+            split = a.split if b.gshape[1] > 1 else 0
+            split = split if not vector_flag else 0
+            c = factories.array(c, split=split)
+            return c
+
+        elif a.split is None and b.split == 1:
+            c = torch.zeros((a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type())
+            c += a._DNDarray__array @ b._DNDarray__array
+            c = c if not vector_flag else c.squeeze()
+            split = b.split if a.gshape[1] > 1 else 0
+            split = split if not vector_flag else 0
+            c = factories.array(c, is_split=split)
+            return c
 
         elif a.split == 0 and b.split == 0:
             split_0_flag = True
@@ -430,6 +461,7 @@ def matmul(a, b):
 
                     del b_lp_data[pr]
 
+            c = c if not vector_flag else factories.array(c._DNDarray__array.squeeze(), is_split=0)
             return c
 
         elif split_1_flag:
@@ -497,6 +529,7 @@ def matmul(a, b):
                         c._DNDarray__array[:, :b_node_rem_s1.shape[1]] += a_rem @ b_node_rem_s1
 
                     del a_lp_data[pr]
+            c = c if not vector_flag else factories.array(c._DNDarray__array.squeeze(), is_split=0)
             return c
 
         elif split_01_flag:
@@ -534,6 +567,7 @@ def matmul(a, b):
                     c._DNDarray__array[:sp0-st0, st1:sp1] += a._DNDarray__array @ b_lp_data[pr]
 
                     del b_lp_data[pr]
+            c = c if not vector_flag else factories.array(c._DNDarray__array.squeeze(), is_split=0)
             return c
 
         elif split_10_flag:
@@ -547,8 +581,11 @@ def matmul(a, b):
                 res += a._DNDarray__array[:, -1, None] @ b._DNDarray__array[None, -1, :]  # these Nones are used to change the dims
 
             a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
-
-            return factories.array(res, split=a.split if b.gshape[-1] > 1 else 0)
+            split = a.split if b.gshape[1] > 1 else 0
+            split = split if not vector_flag else 0
+            res = res if not vector_flag else res.squeeze()
+            c = factories.array(res, split=split)
+            return c
 
 
 def transpose(a, axes=None):
