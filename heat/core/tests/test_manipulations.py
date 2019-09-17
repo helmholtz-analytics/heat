@@ -418,6 +418,56 @@ class TestManipulations(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.empty((3, 4, 5,)).expand_dims(-5)
 
+    def test_hstack(self):
+        # cases to test:
+        # MM===================================
+        # NN,
+        a = ht.ones((10, 12), split=None)
+        b = ht.ones((10, 12), split=None)
+        res = ht.hstack((a, b))
+        self.assertEqual(res.shape, (10, 24))
+        # 11,
+        a = ht.ones((10, 12), split=1)
+        b = ht.ones((10, 12), split=1)
+        res = ht.hstack((a, b))
+        self.assertEqual(res.shape, (10, 24))
+
+        # VM===================================
+        # NN,
+        a = ht.ones((12,), split=None)
+        b = ht.ones((12, 10), split=None)
+        res = ht.hstack((a, b))
+        self.assertEqual(res.shape, (12, 11))
+        # 00
+        a = ht.ones((12,), split=0)
+        b = ht.ones((12, 10), split=0)
+        res = ht.hstack((a, b))
+        self.assertEqual(res.shape, (12, 11))
+
+        # MV===================================
+        # NN,
+        a = ht.ones((12, 10), split=None)
+        b = ht.ones((12,), split=None)
+        res = ht.hstack((a, b))
+        self.assertEqual(res.shape, (12, 11))
+        # 00
+        a = ht.ones((12, 10), split=0)
+        b = ht.ones((12,), split=0)
+        res = ht.hstack((a, b))
+        self.assertEqual(res.shape, (12, 11))
+
+        # VV===================================
+        # NN,
+        a = ht.ones((12,), split=None)
+        b = ht.ones((12,), split=None)
+        res = ht.hstack((a, b))
+        self.assertEqual(res.shape, (24,))
+        # 00
+        a = ht.ones((12,), split=0)
+        b = ht.ones((12,), split=0)
+        res = ht.hstack((a, b))
+        self.assertEqual(res.shape, (24,))
+
     def test_sort(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
@@ -666,3 +716,53 @@ class TestManipulations(unittest.TestCase):
         data_split_zero = ht.array(torch_array, split=0)
         res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
         self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+
+    def test_vstack(self):
+        # cases to test:
+        # MM===================================
+        # NN,
+        a = ht.ones((10, 12), split=None)
+        b = ht.ones((10, 12), split=None)
+        res = ht.vstack((a, b))
+        self.assertEqual(res.shape, (20, 12))
+        # 11,
+        a = ht.ones((10, 12), split=1)
+        b = ht.ones((10, 12), split=1)
+        res = ht.vstack((a, b))
+        self.assertEqual(res.shape, (20, 12))
+
+        # VM===================================
+        # NN,
+        a = ht.ones((10,), split=None)
+        b = ht.ones((12, 10), split=None)
+        res = ht.vstack((a, b))
+        self.assertEqual(res.shape, (13, 10))
+        # 00
+        a = ht.ones((10,), split=0)
+        b = ht.ones((12, 10), split=0)
+        res = ht.vstack((a, b))
+        self.assertEqual(res.shape, (13, 10))
+
+        # MV===================================
+        # NN,
+        a = ht.ones((12, 10), split=None)
+        b = ht.ones((10,), split=None)
+        res = ht.vstack((a, b))
+        self.assertEqual(res.shape, (13, 10))
+        # 00
+        a = ht.ones((12, 10), split=0)
+        b = ht.ones((10,), split=0)
+        res = ht.vstack((a, b))
+        self.assertEqual(res.shape, (13, 10))
+
+        # VV===================================
+        # NN,
+        a = ht.ones((12,), split=None)
+        b = ht.ones((12,), split=None)
+        res = ht.vstack((a, b))
+        self.assertEqual(res.shape, (2, 12))
+        # 00
+        a = ht.ones((12,), split=0)
+        b = ht.ones((12,), split=0)
+        res = ht.vstack((a, b))
+        self.assertEqual(res.shape, (2, 12))
