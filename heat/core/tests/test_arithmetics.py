@@ -78,7 +78,7 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.bitwise_and(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.bitwise_add('T', 's')
+            ht.bitwise_and('T', 's')
     
     def test_bitwise_or(self):
         an_int_tensor = ht.array([
