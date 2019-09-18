@@ -243,10 +243,11 @@ def __binary_op(operation, t1, t2):
 
     return dndarray.DNDarray(result, output_shape, types.canonical_heat_type(t1.dtype), output_split, output_device, output_comm)
 
-def __local_op(operation, x, out, **kwargs):
+def __local_op(operation, x, out, no_cast=False, **kwargs):
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
-    argument and takes only care of buffer allocation/writing.
+    argument and takes only care of buffer allocation/writing. This function is intended to work on an element-wise bases
+    WARNING: the gshape of the result will be the same as x
 
     Parameters
     ----------
@@ -254,6 +255,8 @@ def __local_op(operation, x, out, **kwargs):
         A function implementing the element-wise local operation, e.g. torch.sqrt
     x : ht.DNDarray
         The value for which to compute 'operation'.
+    no_cast : bool
+        Flag to avoid casting to floats
     out : ht.DNDarray or None
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided or
         set to None, a fresh tensor is allocated.
@@ -277,17 +280,16 @@ def __local_op(operation, x, out, **kwargs):
 
     # infer the output type of the tensor
     # we need floating point numbers here, due to PyTorch only providing sqrt() implementation for float32/64
-    promoted_type = types.promote_types(x.dtype, types.float32)
-    torch_type = promoted_type.torch_type()
+    if not no_cast:
+        promoted_type = types.promote_types(x.dtype, types.float32)
+        torch_type = promoted_type.torch_type()
+    else:
+        torch_type = x._DNDarray__array.dtype
 
     # no defined output tensor, return a freshly created one
     if out is None:
-        kwargs_dtype = kwargs.get('dtype')
-        if kwargs_dtype:
-            del kwargs['dtype']
         result = operation(x._DNDarray__array.type(torch_type), **kwargs)
-        return dndarray.DNDarray(result, tuple(result.shape), promoted_type if kwargs_dtype is None else kwargs_dtype,
-                                 x.split, x.device, x.comm)
+        return dndarray.DNDarray(result, x.gshape, types.canonical_heat_type(result.dtype), x.split, x.device, x.comm)
 
     # output buffer writing requires a bit more work
     # we need to determine whether the operands are broadcastable and the multiple of the broadcasting
@@ -337,9 +339,9 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
             lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
             output_shape = gshape_losedim
             # Take care of special cases argmin and argmax: keep partial.shape[0]
-            if (0 in axis and partial.shape[0] != 1):
+            if 0 in axis and partial.shape[0] != 1:
                 lshape_losedim = (partial.shape[0],) + lshape_losedim
-            if (not 0 in axis and partial.shape[0] != x.lshape[0]):
+            if 0 not in axis and partial.shape[0] != x.lshape[0]:
                 lshape_losedim = (partial.shape[0],) + lshape_losedim[1:]
             partial = partial.reshape(lshape_losedim)
 
@@ -355,7 +357,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
 
     # if reduction_op is a Boolean operation, then resulting tensor is bool
     boolean_ops = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
-    tensor_type = bool if reduction_op in boolean_ops else partial[0].dtype
+    tensor_type = bool if reduction_op in boolean_ops else partial.dtype
 
     if out is not None:
         out._DNDarray__array = partial
