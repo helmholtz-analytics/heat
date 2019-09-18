@@ -167,7 +167,7 @@ def __binary_bit_op(method, t1, t2):
     else:
         raise NotImplementedError('Not implemented for non scalar')
 
-    if not ((t1.dtype == types.bool) or (t1.dtype == types.int8) or (t1.dtype == types.int16) or (t1.dtype == types.int32) or (t1.dtype == types.int64)):
+    if not ((t1.dtype == types.bool) or (t1.dtype == types.int8) or (t1.dtype == types.uint8) or (t1.dtype == types.int16) or (t1.dtype == types.int32) or (t1.dtype == types.int64)):
         raise TypeError('Arrays are not of boolean or integer type, found {}'.format(t1.dtype))
 
     if t1.split is not None:
