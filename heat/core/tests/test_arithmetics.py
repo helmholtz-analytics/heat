@@ -64,8 +64,7 @@ class TestArithmetics(unittest.TestCase):
         int16_result = ht.array([
             [0, 2],
             [2, 0],
-            dtype=ht.int16
-        ])
+        ], dtype=ht.int16)
 
         a_boolean_vector = ht.array([False, True, False, True])
         another_boolean_vector = ht.array([False, False, True, True])
@@ -104,8 +103,7 @@ class TestArithmetics(unittest.TestCase):
         int16_result = ht.array([
             [0, 2],
             [2, 0],
-            dtype=ht.int16
-        ])
+        ], dtype=ht.int16)
 
         a_boolean_vector = ht.array([False, True, False, True])
         another_boolean_vector = ht.array([False, False, True, True])
@@ -144,8 +142,8 @@ class TestArithmetics(unittest.TestCase):
         int16_result = ht.array([
             [0, 2],
             [2, 0],
-            dtype=ht.int16
-        ])
+            
+        ], dtype=ht.int16)
 
         a_boolean_vector = ht.array([False, True, False, True])
         another_boolean_vector = ht.array([False, False, True, True])
