@@ -67,20 +67,27 @@ def add(t1, t2):
 
 def diff(a, n=1, axis=-1):
     """
-    analgous to the numpy function of the same name
-    :param a:
-    :param n:
-    :param axis:
-    :return:
-    """
-    # need to pass the last n values to the next process
-    # while waiting on that data do the rest of the operation
-    # recv the data then do the last subtraction on the first n data points on the process
+    Calculate the n-th discrete difference along the given axis.
+    The first difference is given by out[i] = a[i+1] - a[i] along the given axis, higher differences are calculated by using diff recursively.
+    a : DNDarray
+        Input array
+    n : int, optional
+        The number of times values are differenced. If zero, the input is returned as-is.
+        n=2 is equivalent to ht.diff(ht.diff(a))
+    axis : int, optional
+        The axis along which the difference is taken, default is the last axis.
 
+    diff : DNDarray
+        The n-th differences. The shape of the output is the same as a except along axis where the dimension is smaller by n.
+        The type of the output is the same as the type of the difference between any two elements of a.
+        The split does not change. The outpot array is balanced.
+    """
     if n == 0:
         return a
     if n < 0:
         raise ValueError('diff requires that n be a positive number, got {}'.format(n))
+    if not isinstance(axis, int):
+        raise ValueError('axis must be an integer, is currently {}'.format(type(axis)))
     if not isinstance(a, dndarray.DNDarray):
         raise TypeError('\'a\' must be a DNDarray')
     rank = a.comm.rank
@@ -95,40 +102,34 @@ def diff(a, n=1, axis=-1):
             ret = ret[axis_slice] - ret[axis_slice_end]
         return ret
     else:
-        # axis
-        out_shape = list(a.gshape)
-        # out_shape[axis] -= 0
-        out = factories.zeros(out_shape, split=a.split, comm=a.comm, device=a.device)
-        for _ in range(n):
-            # send to next processes
+        ret = a.copy()
+        for _ in range(n):  # work loop, runs n times. using the result at the end of the loop as the starting values for each loop
             arb_slice = [slice(None)] * len(a.shape)
-            arb_slice[axis] = 0
+            arb_slice[axis] = 0  # build the slice for the first element on the specified axis
             if rank > 0:
-                snd = a.comm.Isend(a.lloc[arb_slice].clone(), dest=rank - 1, tag=rank)
-            dif = a.lloc[axis_slice] - a.lloc[axis_slice_end]
-            # print(type(diff))
-            diff_slice = [slice(x) for x in dif.shape]
-            out.lloc[diff_slice] = dif
-            # print(out)
+                snd = ret.comm.Isend(ret.lloc[arb_slice].clone(), dest=rank - 1, tag=rank)  # send the first element of the array to rank - 1
+
+            dif = ret.lloc[axis_slice] - ret.lloc[axis_slice_end]  # standard logic for the diff with the next element
+            diff_slice = [slice(x) for x in dif.shape]  # need to slice out to select the proper elements of out
+            ret.lloc[diff_slice] = dif
+
             if rank > 0:
-                snd.wait()
+                snd.wait()  # wait for the send to finish
             if rank < size - 1:
                 cr_slice = [slice(None)] * len(a.shape)
-                cr_slice[axis] = 1
-                recv_data = torch.ones(a.lloc[cr_slice].shape, dtype=a.dtype.torch_type())
-                rec = a.comm.Irecv(recv_data, source=rank + 1, tag=rank + 1)
-                rec.wait()
-                # print('rec', recv_data)
+                cr_slice[axis] = 1  # slice of 1 element in the selected axis for the shape creation
+                recv_data = torch.ones(ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type())
+                rec = ret.comm.Irecv(recv_data, source=rank + 1, tag=rank + 1)
                 axis_slice_end = [slice(None)] * len(a.shape)
-                axis_slice_end[axis] = slice(-1, None)
-                # print(a.lloc[axis_slice_end])
-                out.lloc[axis_slice_end] = recv_data - a.lloc[axis_slice_end]
+                axis_slice_end[axis] = slice(-1, None)  # select the last elements in the selected axis
+                rec.wait()
+                ret.lloc[axis_slice_end] = recv_data.reshape(ret.lloc[axis_slice_end].shape) - ret.lloc[axis_slice_end]  # diff logic
+
             axis_slice_end = [slice(None)] * len(a.shape)
             axis_slice_end[axis] = slice(None, -1, None)
-
-            out = out[axis_slice_end]
-            out.balance_()
-        return out
+            ret = ret[axis_slice_end]  # slice of the last element on the array (nonsense data)
+            ret.balance_()  # balance the array before returning
+        return ret
 
 
 def div(t1, t2):
