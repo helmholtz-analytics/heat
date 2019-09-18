@@ -75,6 +75,10 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_and(another_int_vector, a_boolean_vector)
         with self.assertRaises(ValueError):
             ht.bitwise_and(an_int_vector, another_int_vector)
+        with self.assertRaises(TypeError):
+            ht.bitwise_and(self.a_tensor, self.errorneous_type)
+        with self.assertRaises(TypeError):
+            ht.bitwise_add('T', 's')
     
     def test_bitwise_or(self):
         an_int_tensor = ht.array([
@@ -103,6 +107,10 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_or(another_int_vector, a_boolean_vector)
         with self.assertRaises(ValueError):
             ht.bitwise_or(an_int_vector, another_int_vector)
+        with self.assertRaises(TypeError):
+            ht.bitwise_or(self.a_tensor, self.errorneous_type)
+        with self.assertRaises(TypeError):
+            ht.bitwise_or('T', 's')
     
     def test_bitwise_xor(self):
         an_int_tensor = ht.array([
@@ -131,6 +139,10 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_xor(another_int_vector, a_boolean_vector)
         with self.assertRaises(ValueError):
             ht.bitwise_xor(an_int_vector, another_int_vector)
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor(self.a_tensor, self.errorneous_type)
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor('T', 's')
 
     def test_div(self):
         result = ht.array([
