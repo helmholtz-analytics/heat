@@ -61,6 +61,12 @@ class TestArithmetics(unittest.TestCase):
             [2, 0]
         ])
 
+        int16_result = ht.array([
+            [0, 2],
+            [2, 0],
+            dtype=ht.int16
+        ])
+
         a_boolean_vector = ht.array([False, True, False, True])
         another_boolean_vector = ht.array([False, False, True, True])
         boolean_result = ht.array([False, False, False, True])
@@ -79,6 +85,8 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_and(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
             ht.bitwise_and('T', 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_and(int_result, int16_result)
     
     def test_bitwise_or(self):
         an_int_tensor = ht.array([
@@ -91,6 +99,12 @@ class TestArithmetics(unittest.TestCase):
         int_result = ht.array([
             [3, 2],
             [3, 6]
+        ])
+
+        int16_result = ht.array([
+            [0, 2],
+            [2, 0],
+            dtype=ht.int16
         ])
 
         a_boolean_vector = ht.array([False, True, False, True])
@@ -111,6 +125,8 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_or(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
             ht.bitwise_or('T', 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_or(int_result, int16_result)
     
     def test_bitwise_xor(self):
         an_int_tensor = ht.array([
@@ -123,6 +139,12 @@ class TestArithmetics(unittest.TestCase):
         int_result = ht.array([
             [3, 0],
             [1, 6]
+        ])
+
+        int16_result = ht.array([
+            [0, 2],
+            [2, 0],
+            dtype=ht.int16
         ])
 
         a_boolean_vector = ht.array([False, True, False, True])
@@ -143,6 +165,8 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_xor(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
             ht.bitwise_xor('T', 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor(int_result, int16_result)
 
     def test_div(self):
         result = ht.array([
