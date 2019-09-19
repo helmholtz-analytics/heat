@@ -50,12 +50,6 @@ class TestArithmetics(unittest.TestCase):
             ht.add('T', 's')
 
     def test_diff(self):
-        # tests to run:
-        # correctness, 1d, 2d, 3d
-        # axis: 0, 1, 2
-        # split: 0, 1, 2
-        # comp with numpy
-
         ht_array = ht.random.rand(20, 20, 20, split=None)
         arb_slice = [0] * 3
         for dim in range(3):  # loop over 3 dimensions
@@ -72,7 +66,6 @@ class TestArithmetics(unittest.TestCase):
                         self.assertEqual(ht_diff.split, sp)
                         self.assertEqual(ht_diff.dtype, lp_array.dtype)
 
-        # lp_array = ht.array(ht_array, split=None)  # only generating the number once and then
         np_array = ht_array.numpy()
         ht_diff = ht.diff(ht_array, n=2)
         np_diff = ht.array(np.diff(np_array, n=2))
@@ -81,14 +74,20 @@ class TestArithmetics(unittest.TestCase):
         self.assertEqual(ht_diff.dtype, ht_array.dtype)
 
         ht_array = ht.random.rand(20, 20, 20, split=1, dtype=ht.float64)
+        np_array = ht_array.copy().numpy()
         ht_diff = ht.diff(ht_array, n=2)
         np_diff = ht.array(np.diff(np_array, n=2))
         self.assertTrue(ht.equal(ht_diff, np_diff))
         self.assertEqual(ht_diff.split, 1)
         self.assertEqual(ht_diff.dtype, ht_array.dtype)
+
         # raises
-        # with self.assertRaises()
-        pass
+        with self.assertRaises(ValueError):
+            ht.diff(ht_array, n=-2)
+        with self.assertRaises(ValueError):
+            ht.diff(ht_array, axis='string')
+        with self.assertRaises(TypeError):
+            ht.diff('string', axis=2)
 
     def test_div(self):
         result = ht.array([
