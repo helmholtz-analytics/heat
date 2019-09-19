@@ -92,18 +92,23 @@ def diff(a, n=1, axis=-1):
         raise TypeError('\'a\' must be a DNDarray')
     rank = a.comm.rank
     size = a.comm.size
-    axis_slice = [slice(None)] * len(a.shape)
-    axis_slice[axis] = slice(1, None, None)
-    axis_slice_end = [slice(None)] * len(a.shape)
-    axis_slice_end[axis] = slice(None, -1, None)
     if not a.is_distributed():
         ret = a.copy()
         for _ in range(n):
+            axis_slice = [slice(None)] * len(ret.shape)
+            axis_slice[axis] = slice(1, None, None)
+            axis_slice_end = [slice(None)] * len(ret.shape)
+            axis_slice_end[axis] = slice(None, -1, None)
             ret = ret[axis_slice] - ret[axis_slice_end]
         return ret
     else:
         ret = a.copy()
         for _ in range(n):  # work loop, runs n times. using the result at the end of the loop as the starting values for each loop
+            axis_slice = [slice(None)] * len(ret.shape)
+            axis_slice[axis] = slice(1, None, None)
+            axis_slice_end = [slice(None)] * len(ret.shape)
+            axis_slice_end[axis] = slice(None, -1, None)
+
             arb_slice = [slice(None)] * len(a.shape)
             arb_slice[axis] = 0  # build the slice for the first element on the specified axis
             if rank > 0:
