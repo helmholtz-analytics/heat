@@ -130,10 +130,10 @@ def diff(a, n=1, axis=-1):
                 rec.wait()
                 ret.lloc[axis_slice_end] = recv_data.reshape(ret.lloc[axis_slice_end].shape) - ret.lloc[axis_slice_end]  # diff logic
 
-            axis_slice_end = [slice(None)] * len(a.shape)
-            axis_slice_end[axis] = slice(None, -1, None)
-            ret = ret[axis_slice_end]  # slice of the last element on the array (nonsense data)
-            ret.balance_()  # balance the array before returning
+        axis_slice_end = [slice(None)] * len(a.shape)
+        axis_slice_end[axis] = slice(None, -1 * n, None)
+        ret = ret[axis_slice_end]  # slice of the last element on the array (nonsense data)
+        ret.balance_()  # balance the array before returning
         return ret
 
 
