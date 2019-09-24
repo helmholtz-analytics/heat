@@ -222,7 +222,6 @@ class TestStatistics(unittest.TestCase):
 
         # check weighted average over all float elements of split 3d tensor, across split axis
         random_volume = ht.array(torch.randn((3, 3, 3), dtype=torch.float64), is_split=1)
-        # random_volume = ht.random.randn(3, 3, 3, dtype=ht.float64, split=)
         size = random_volume.comm.size
         random_weights = ht.array(torch.randn((3 * size,), dtype=torch.float64))
         avg_volume = ht.average(random_volume, weights=random_weights, axis=1)
