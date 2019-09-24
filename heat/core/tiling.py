@@ -89,20 +89,34 @@ class SquareDiagTiles:
             num_local_row_tiles[-1] -= 1
 
         # =================================================================================================
-        self.__chunk_map = domain_tile_shapes
+        self.__tile_map = domain_tile_shapes
         # =================================================================================================
         self.__DNDarray = arr
 
     @property
     def tile_map(self):
-        return self.__chunk_map
+        return self.__tile_map
 
     @property
     def lsahpe_map(self):
         return self.__lshape_map
 
-    def __getitem__(self, item):
-        # default getitem will return the
+    def __getitem__(self, key):
+        # default getitem will return the data in the array!!
+        arr = self.__DNDarray
+        # cases:
+        # int,
+        if isinstance(key, int):
+            # get all the instances in a row
+            # need to change this to be a global op
+            st0 = domain_tile_shapes[arr.rank, :local_tile_row_index, 0, 0].sum()
+            sp0 = domain_tile_shapes[arr.rank, :, k, 0][local_tile_row_index] + st0
+            st1 = domain_tile_shapes[arr.rank, local_tile_row_index, :k, 1].sum()
+            sp1 = domain_tile_shapes[arr.rank, local_tile_row_index, k, 1] + st1
+            pass
+        # tuple,
+        # slice,
+        # torch indices
         pass
     # need to get:
     # tile data
