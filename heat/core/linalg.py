@@ -200,7 +200,7 @@ def matmul(a, b):
         elif a.split == 0 and b.split is None:  # this case and the one below will only be reaching if one of them is a vector
             c = torch.zeros((a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type())
             a_idx = a.comm.chunk(a.shape, a.split)[2]
-            c[a_idx[0]] += a._DNDarray__array @ b._DNDarray__array  #[a_idx[1].start:a_idx[1].start + a.lshape[-1], :]
+            c[a_idx[0]] += a._DNDarray__array @ b._DNDarray__array
             a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
             c = c if not vector_flag else c.squeeze()
             split = a.split if b.gshape[1] > 1 else 0
