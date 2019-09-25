@@ -6,7 +6,57 @@ import numpy as np
 
 
 class TestLinalg(unittest.TestCase):
+    def test_dot(self):
+        # ONLY TESTING CORRECTNESS! ALL CALLS IN DOT ARE PREVIOUSLY TESTED
+        # cases to test:
+        data2d = np.ones((10, 10))
+        data3d = np.ones((10, 10, 10))
+        data1d = np.arange(10)
+
+        a1d = ht.array(data1d, split=0)
+        b1d = ht.array(data1d, split=0)
+        # 2 1D arrays,
+        self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
+        ret = []
+        self.assertEqual(ht.dot(a1d, b1d, out=ret), np.dot(data1d, data1d))
+
+        a1d = ht.array(data1d, split=None)
+        b1d = ht.array(data1d, split=0)
+        # 2 1D arrays,
+        self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
+
+        a2d = ht.array(data2d, split=1)
+        b2d = ht.array(data2d, split=1)
+        # 2 2D arrays,
+        res = ht.dot(a2d, b2d) - ht.array(np.dot(data2d, data2d))
+        self.assertEqual(ht.equal(res, ht.zeros(res.shape)), 1)
+        ret = ht.array(data2d, split=1)
+        ht.dot(a2d, b2d, out=ret)
+        # print(ht.dot(a2d, b2d, out=ret))
+        res = ret - ht.array(np.dot(data2d, data2d))
+        self.assertEqual(ht.equal(res, ht.zeros(res.shape)), 1)
+
+        const1 = 5
+        const2 = 6
+        # a is const,
+        res = ht.dot(const1, b2d) - ht.array(np.dot(const1, data2d))
+        ret = 0
+        ht.dot(const1, b2d, out=ret)
+        self.assertEqual(ht.equal(res, ht.zeros(res.shape)), 1)
+
+        # b is const,
+        res = ht.dot(a2d, const2) - ht.array(np.dot(data2d, const2))
+        self.assertEqual(ht.equal(res, ht.zeros(res.shape)), 1)
+        # a and b and const
+        self.assertEqual(ht.dot(const2, const1), 5*6)
+
+        with self.assertRaises(NotImplementedError):
+            ht.dot(ht.array(data3d), ht.array(data1d))
+
     def test_matmul(self):
+        with self.assertRaises(ValueError):
+            ht.matmul(ht.ones((25, 25)), ht.ones((42, 42)))
+
         # cases to test:
         n, m = 21, 31
         j, k = m, 45
@@ -34,7 +84,7 @@ class TestLinalg(unittest.TestCase):
 
         if a.comm.size > 1:
             # splits 00
-            a = ht.ones((n, m), split=0)
+            a = ht.ones((n, m), split=0, dtype=ht.float64)
             b = ht.ones((j, k), split=0)
             a[0] = ht.arange(1, m + 1)
             a[:, -1] = ht.arange(1, n + 1)
@@ -46,7 +96,7 @@ class TestLinalg(unittest.TestCase):
             self.assertTrue(ht.equal(ret00, ret_comp00))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
-            self.assertEqual(ret00.dtype, ht.float)
+            self.assertEqual(ret00.dtype, ht.float64)
             self.assertEqual(ret00.split, 0)
 
             # splits 00 (numpy)
@@ -67,7 +117,7 @@ class TestLinalg(unittest.TestCase):
 
             # splits 01
             a = ht.ones((n, m), split=0)
-            b = ht.ones((j, k), split=1)
+            b = ht.ones((j, k), split=1, dtype=ht.float64)
             a[0] = ht.arange(1, m + 1)
             a[:, -1] = ht.arange(1, n + 1)
             b[0] = ht.arange(1, k + 1)
@@ -78,7 +128,7 @@ class TestLinalg(unittest.TestCase):
             self.assertTrue(ht.equal(ret00, ret_comp01))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
-            self.assertEqual(ret00.dtype, ht.float)
+            self.assertEqual(ret00.dtype, ht.float64)
             self.assertEqual(ret00.split, 0)
 
             # splits 10

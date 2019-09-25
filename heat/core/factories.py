@@ -210,8 +210,6 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     if bool(copy):
         if isinstance(obj, torch.Tensor):
             obj = obj.clone().detach()
-        elif isinstance(obj, np.ndarray):
-            obj = torch.from_numpy(obj)
         else:
             try:
                 obj = torch.tensor(obj, dtype=dtype.torch_type() if dtype is not None else None)
