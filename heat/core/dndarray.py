@@ -661,30 +661,34 @@ class DNDarray:
         send_slice = [slice(None), ] * self.numdims
         keep_slice = [slice(None), ] * self.numdims
         # need to send from the last one with data
-        for spr in range(last_pr_w_data, first_pr_w_data - 1, -1):
-            if self.comm.rank == spr:
-                for pr in range(self.comm.size - 1, spr, -1):
-                    send_amt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
-                    send_amt = send_amt if send_amt < self.lshape[self.split] else self.lshape[self.split]
-                    if send_amt:
+        # start from x then push the data to the next one. then do the same at x+1 until the last process
+        balanced_process = [False for _ in range(self.comm.size)]
+        for pr in range(self.comm.size):
+            balanced_process[pr] = True if chunk_map[pr, self.split] == lshape_map[pr, self.split] else False
+            if pr > 0:
+                if any(i is False for i in balanced_process[:pr]):
+                    balanced_process[pr] = False
+
+        for pr, b in enumerate(balanced_process[:-1]):
+            if not b:  # if the process is not balanced
+                send_amt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
+                send_amt = send_amt if send_amt < lshape_map[pr, self.split] else lshape_map[pr, self.split]
+                if send_amt:
+                    if self.comm.rank == pr:  # send data to the next process
                         send_slice[self.split] = slice(self.lshape[self.split] - send_amt, self.lshape[self.split])
                         keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
 
-                        self.comm.Isend(self.__array[send_slice].clone(), dest=pr, tag=pr + self.comm.size + spr)
+                        self.comm.Send(self.__array[send_slice].clone(), dest=pr + 1, tag=pr + self.comm.size + pr + 1)
                         self.__array = self.__array[keep_slice].clone()
 
-            for pr in range(self.comm.size - 1, spr, -1):
-                snt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
-                snt = snt if snt < lshape_map[spr, self.split] else lshape_map[spr, self.split].item()
-
-                if self.comm.rank == pr and snt:
-                    shp = list(self.gshape)
-                    shp[self.split] = snt
-                    data = torch.zeros(shp, dtype=sl_dtype)
-                    self.comm.Recv(data, source=spr, tag=pr + self.comm.size + spr)
-                    self.__array = torch.cat((data, self.__array), dim=self.split)
-                lshape_map[pr, self.split] += snt
-                lshape_map[spr, self.split] -= snt
+                    if self.comm.rank == pr + 1:  # receive data on the next process
+                        shp = list(self.gshape)
+                        shp[self.split] = send_amt
+                        data = torch.zeros(shp, dtype=sl_dtype)
+                        self.comm.Recv(data, source=pr, tag=pr + self.comm.size + pr + 1)
+                        self.__array = torch.cat((data, self.__array), dim=self.split)
+                    lshape_map[pr, self.split] -= send_amt
+                    lshape_map[pr + 1, self.split] += send_amt
 
     def __bool__(self):
         """

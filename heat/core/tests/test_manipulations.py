@@ -560,9 +560,8 @@ class TestManipulations(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.sort(data, axis='1')
 
-        tensor = torch.rand((100, 1))
         rank = ht.MPI_WORLD.rank
-        data = ht.array(tensor, split=0)
+        data = ht.random.randn(100, 1, split=0)
         result, _ = ht.sort(data, axis=0)
         counts, _, _ = ht.get_comm().counts_displs_shape(data.gshape, axis=0)
         for i, c in enumerate(counts):

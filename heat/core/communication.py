@@ -533,7 +533,6 @@ class MPICommunication(Communication):
             if send_counts is not None:
                 mpi_sendbuf[1] = mpi_sendbuf[1][0][self.rank]
 
-        self.Barrier()
         if recvbuf is MPI.IN_PLACE or not isinstance(recvbuf, torch.Tensor):
             mpi_recvbuf = recvbuf
         else:
@@ -541,7 +540,6 @@ class MPICommunication(Communication):
             if recv_counts is None:
                 mpi_recvbuf[1] //= self.size
 
-        self.Barrier()
         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
 
