@@ -299,7 +299,6 @@ class TestStatistics(unittest.TestCase):
         # check average over all float elements of split 3d tensor, tuple axis
         random_volume = ht.random.randn(3, 3, 3, split=0)
         avg_volume = ht.average(random_volume, axis=(1, 2))
-        alt_avg_volume = ht.average(random_volume, axis=(2, 1))
 
         self.assertIsInstance(avg_volume, ht.DNDarray)
         self.assertEqual(avg_volume.shape, (3,))
