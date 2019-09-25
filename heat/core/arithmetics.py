@@ -2,9 +2,8 @@ import torch
 
 from .communication import MPI
 from . import dndarray
-from . import factories
 from . import operations
-
+from . import stride_tricks
 
 __all__ = [
     'add',
@@ -90,10 +89,10 @@ def diff(a, n=1, axis=-1):
         return a
     if n < 0:
         raise ValueError('diff requires that n be a positive number, got {}'.format(n))
-    if not isinstance(axis, int):
-        raise ValueError('axis must be an integer, is currently {}'.format(type(axis)))
     if not isinstance(a, dndarray.DNDarray):
         raise TypeError('\'a\' must be a DNDarray')
+
+    axis = stride_tricks.sanitize_axis(a.gshape, axis)
 
     if not a.is_distributed():
         ret = a.copy()

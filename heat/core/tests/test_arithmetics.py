@@ -84,7 +84,7 @@ class TestArithmetics(unittest.TestCase):
         # raises
         with self.assertRaises(ValueError):
             ht.diff(ht_array, n=-2)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             ht.diff(ht_array, axis='string')
         with self.assertRaises(TypeError):
             ht.diff('string', axis=2)
