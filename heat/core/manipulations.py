@@ -11,6 +11,9 @@ from . import factories
 from . import stride_tricks
 from . import types
 
+from .communication import MPI
+
+
 __all__ = [
     'concatenate',
     'expand_dims',
@@ -88,7 +91,6 @@ def concatenate(arrays, axis=0):
     [1/1]         [1., 1.],
     [1/1]         [1., 1.]])
     """
-
     if len(arrays) < 2:
         raise ValueError('concatenate requires 2 arrays')
     elif len(arrays) > 2:

@@ -241,6 +241,19 @@ class TestManipulations(unittest.TestCase):
         for i in range(3):
             lshape[i] = chk[i].stop - chk[i].start
         self.assertEqual(res.lshape, tuple(lshape))
+
+        x = ht.zeros((16, 15, 14), split=None)
+        y = ht.ones((16, 15, 14), split=2)
+        # None 2 0
+        res = ht.concatenate((x, y, y), axis=0)
+        self.assertEqual(res.gshape, (32 + 16, 15, 14))
+        self.assertEqual(res.dtype, ht.float)
+        _, _, chk = res.comm.chunk((32 + 16, 15, 14), res.split)
+        lshape = [0, 0, 0]
+        for i in range(3):
+            lshape[i] = chk[i].stop - chk[i].start
+        self.assertEqual(res.lshape, tuple(lshape))
+
         # None 2 2
         res = ht.concatenate((x, y), axis=2)
         self.assertEqual(res.gshape, (16, 15, 28))
@@ -278,6 +291,7 @@ class TestManipulations(unittest.TestCase):
         lshape[0] = chk[0].stop - chk[0].start
         self.assertEqual(res.lshape, tuple(lshape))
         # 0 None 0
+        x = ht.ones((16,), split=0)
         y = ht.ones((16,), split=None, dtype=ht.int64)
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32,))
@@ -288,6 +302,8 @@ class TestManipulations(unittest.TestCase):
         self.assertEqual(res.lshape, tuple(lshape))
 
         # test raises
+        with self.assertRaises(ValueError):
+            ht.concatenate((ht.zeros((6, 3, 5)), ht.zeros((4, 5, 1))))
         with self.assertRaises(TypeError):
             ht.concatenate((x, '5'))
         with self.assertRaises(ValueError):

@@ -1421,7 +1421,6 @@ class DNDarray:
                     new_split = self.split
                 key_set = set(range(start, stop, step))
                 overlap = list(key_set & chunk_set)
-
                 if overlap:
                     overlap.sort()
                     hold = [x - chunk_start for x in overlap]
@@ -2437,6 +2436,8 @@ class DNDarray:
                         except TypeError as te:
                             if str(te) != "'int' object is not subscriptable":
                                 raise TypeError(te)
+                            self.__setter(tuple(key), value)
+                        except IndexError:
                             self.__setter(tuple(key), value)
 
                 elif key[self.split] in range(chunk_start, chunk_end):

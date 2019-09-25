@@ -1,9 +1,9 @@
+import numpy as np
 import torch
 import unittest
 from itertools import combinations
 
 import heat as ht
-import numpy as np
 
 
 class TestStatistics(unittest.TestCase):
@@ -175,6 +175,63 @@ class TestStatistics(unittest.TestCase):
             data.argmin(axis='y')
         with self.assertRaises(ValueError):
             ht.argmin(data, axis=-4)
+
+    def test_cov(self):
+        x = ht.array([[0, 2], [1, 1], [2, 0]], dtype=ht.float, split=1).T
+        if x.comm.size < 3:
+            cov = ht.cov(x)
+            actual = ht.array([[1, -1], [-1, 1]], split=0)
+            self.assertTrue(ht.equal(cov, actual))
+
+        data = np.loadtxt('heat/datasets/data/iris.csv', delimiter=';')
+        np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False)
+
+        htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=0)
+        ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+
+        np_cov = np.cov(data, rowvar=False)
+        ht_cov = ht.cov(htdata, rowvar=False)
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+
+        np_cov = np.cov(data, rowvar=False, ddof=1)
+        ht_cov = ht.cov(htdata, rowvar=False, ddof=1)
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+
+        np_cov = np.cov(data, rowvar=False, bias=True)
+        ht_cov = ht.cov(htdata, rowvar=False, bias=True)
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+
+        if 1 < x.comm.size < 5:
+            htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=1)
+            np_cov = np.cov(data, rowvar=False)
+            ht_cov = ht.cov(htdata, rowvar=False)
+            self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
+
+            np_cov = np.cov(data, data, rowvar=True)
+
+            htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=0)
+            ht_cov = ht.cov(htdata, htdata, rowvar=True)
+            self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
+
+            htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=0)
+            with self.assertRaises(RuntimeError):
+                ht.cov(htdata[1:], rowvar=False)
+            with self.assertRaises(RuntimeError):
+                ht.cov(htdata, htdata[1:], rowvar=False)
+
+        with self.assertRaises(TypeError):
+            ht.cov(np_cov)
+        with self.assertRaises(TypeError):
+            ht.cov(htdata, np_cov)
+        with self.assertRaises(TypeError):
+            ht.cov(htdata, ddof='str')
+        with self.assertRaises(ValueError):
+            ht.cov(ht.zeros((1, 2, 3)))
+        with self.assertRaises(ValueError):
+            ht.cov(htdata, ht.zeros((1, 2, 3)))
+        with self.assertRaises(ValueError):
+            ht.cov(htdata, ddof=10000)
 
     def test_average(self):
         data = [
@@ -488,7 +545,7 @@ class TestStatistics(unittest.TestCase):
 
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(ValueError):
-            ht.mean(x, axis=10)
+            x.mean(axis=10)
         with self.assertRaises(TypeError):
             ht.mean(x, axis='01')
         with self.assertRaises(ValueError):
