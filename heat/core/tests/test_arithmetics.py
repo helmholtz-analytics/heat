@@ -92,7 +92,13 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.bitwise_and('s', self.an_int_scalar)
         with self.assertRaises(TypeError):
+            ht.bitwise_and(self.an_int_scalar, self.a_scalar) 
+        with self.assertRaises(TypeError):
             ht.bitwise_and(int_result, int16_result)
+        with self.assertRaises(NotImplementedError):
+            ht.bitwise_and([1],2)
+        with self.assertRaises(TypeError):
+            ht.bitwise_and(1,[2])
     
     def test_bitwise_or(self):
         an_int_tensor = ht.array([
@@ -137,7 +143,13 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.bitwise_or('s', self.an_int_scalar)
         with self.assertRaises(TypeError):
+            ht.bitwise_or(self.an_int_scalar, self.a_scalar) 
+        with self.assertRaises(TypeError):
             ht.bitwise_or(int_result, int16_result)
+        with self.assertRaises(NotImplementedError):
+            ht.bitwise_or([1],2)
+        with self.assertRaises(TypeError):
+            ht.bitwise_or(1,[2])
     
     def test_bitwise_xor(self):
         an_int_tensor = ht.array([
@@ -183,7 +195,13 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.bitwise_xor('s', self.an_int_scalar)
         with self.assertRaises(TypeError):
+            ht.bitwise_xor(self.an_int_scalar, self.a_scalar) 
+        with self.assertRaises(TypeError):
             ht.bitwise_xor(int_result, int16_result)
+        with self.assertRaises(NotImplementedError):
+            ht.bitwise_xor([1],2)
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor(1,[2])
             
     def test_diff(self):
         ht_array = ht.random.rand(20, 20, 20, split=None)
