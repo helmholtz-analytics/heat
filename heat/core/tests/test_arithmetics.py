@@ -4,6 +4,7 @@ import torch
 import unittest
 
 import heat as ht
+import numpy as np
 
 
 class TestArithmetics(unittest.TestCase):
@@ -165,6 +166,46 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_xor('T', 's')
         with self.assertRaises(TypeError):
             ht.bitwise_xor(int_result, int16_result)
+            
+    def test_diff(self):
+        ht_array = ht.random.rand(20, 20, 20, split=None)
+        arb_slice = [0] * 3
+        for dim in range(3):  # loop over 3 dimensions
+            arb_slice[dim] = slice(None)
+            for ax in range(dim + 1):  # loop over the possible axis values
+                for sp in range(dim + 1):  # loop over the possible split values
+                    for nl in range(1, 4):  # loop to 3 for the number of times to do the diff
+                        lp_array = ht_array[arb_slice].resplit(sp)  # only generating the number once and then
+                        np_array = ht_array[arb_slice].numpy()
+
+                        ht_diff = ht.diff(lp_array, n=nl, axis=ax)
+                        np_diff = ht.array(np.diff(np_array, n=nl, axis=ax))
+                        self.assertTrue(ht.equal(ht_diff, np_diff))
+                        self.assertEqual(ht_diff.split, sp)
+                        self.assertEqual(ht_diff.dtype, lp_array.dtype)
+
+        np_array = ht_array.numpy()
+        ht_diff = ht.diff(ht_array, n=2)
+        np_diff = ht.array(np.diff(np_array, n=2))
+        self.assertTrue(ht.equal(ht_diff, np_diff))
+        self.assertEqual(ht_diff.split, None)
+        self.assertEqual(ht_diff.dtype, ht_array.dtype)
+
+        ht_array = ht.random.rand(20, 20, 20, split=1, dtype=ht.float64)
+        np_array = ht_array.copy().numpy()
+        ht_diff = ht.diff(ht_array, n=2)
+        np_diff = ht.array(np.diff(np_array, n=2))
+        self.assertTrue(ht.equal(ht_diff, np_diff))
+        self.assertEqual(ht_diff.split, 1)
+        self.assertEqual(ht_diff.dtype, ht_array.dtype)
+
+        # raises
+        with self.assertRaises(ValueError):
+            ht.diff(ht_array, n=-2)
+        with self.assertRaises(TypeError):
+            ht.diff(ht_array, axis='string')
+        with self.assertRaises(TypeError):
+            ht.diff('string', axis=2)
 
     def test_div(self):
         result = ht.array([
