@@ -33,6 +33,7 @@ class SquareDiagTiles:
         #     raise TypeError('self must be a DNDarray, is currently a {}'.format(type(self)))
 
         # todo: unbalance the array if there is *only* one row/column of the diagonal on a process (send it to pr - 1)
+        # todo: small bug in edge case for very small matrices with < 10 elements on a process and split = 1 with gshape[0] > gshape[1]
 
         lshape_map = torch.zeros((arr.comm.size, len(arr.gshape)), dtype=int)
         lshape_map[arr.comm.rank, :] = torch.Tensor(arr.lshape)
@@ -44,8 +45,7 @@ class SquareDiagTiles:
         # adjust for small blocks on the last diag pr:
         rem_cols_last_pr = min(arr.gshape) - lshape_map[..., arr.split].cumsum(dim=0)[last_diag_pr - 1]  # end of the process before the split
         last_tile_cols = tile_rows
-        # print(rem_cols_last_pr, last_tile_cols)
-        while rem_cols_last_pr / last_tile_cols < 10:
+        while rem_cols_last_pr / last_tile_cols < 2:  # todo: determine best value for this (prev at 10)
             # if there cannot be tiles formed which are at list ten items large then need to reduce the number of tiles
             last_tile_cols -= 1
             if last_tile_cols == 1:
@@ -68,6 +68,9 @@ class SquareDiagTiles:
         for c, x in enumerate(col_inds):  # set the row indices to be the same for all of the column indices (however many there are)
             row_inds[c] = x
 
+        if arr.gshape[0] < arr.gshape[1] and arr.split == 0:  # need to adjust the very last tile to be the remaining
+            col_inds[-1] = arr.gshape[1] - sum(col_inds[:-1])
+
         last_diag_pr_rows = tile_rows  # tile rows in the last diagonal pr
         if last_diag_pr < arr.comm.size - 1 or (last_diag_pr == arr.comm.size - 1 and row_inds[-1] == 0):
             num_tiles_last_diag_pr = len(col_inds) - (tile_rows * last_diag_pr)  # number of tiles after the diagonal on the last process
@@ -77,11 +80,13 @@ class SquareDiagTiles:
             # delete entries from row_inds (need to delete tile_rows - (num_tiles_last_diag_pr + new_tile_rows_remaining))
             last_diag_pr_rows -= num_tiles_last_diag_pr + new_tile_rows_remaining
             del row_inds[-1 * last_diag_pr_rows:]
-            if last_diag_pr_rows_rem < 2:
+
+            if last_diag_pr_rows_rem < 2 and arr.split == 0:
                 # if the number of rows after the diagonal is 1 then need to rechunk in the 0th dimension
                 for i in range(last_diag_pr_rows.item()):
                     _, lshape, _ = arr.comm.chunk(lshape_map[last_diag_pr], 0, rank=i, w_size=last_diag_pr_rows.item())
                     row_inds[(tile_rows * last_diag_pr).item() + i] = lshape[0]
+        # print(last_diag_pr_rows, len(col_inds))
 
         # need to determine the rest of the row indices
         nz = torch.nonzero(torch.Tensor(row_inds) == 0)
@@ -90,26 +95,66 @@ class SquareDiagTiles:
                 _, lshape, _ = arr.comm.chunk(lshape_map[i], 0, rank=t, w_size=tile_rows)
                 row_inds[nz[0].item()] = lshape[0]
                 nz = nz[1:]
+
         # combine the last tiles into one if there is too little data on the last one
-        if row_inds[-1] < 2:  # todo: determine if this should be larger
+        if row_inds[-1] < 2 and arr.split == 0:  # todo: determine if this should be larger
             row_inds[-2] += row_inds[-1]
             del row_inds[-1]
 
+        if arr.gshape[0] > arr.gshape[1] and arr.split == 1:  # need to adjust the very last tile to be the remaining
+            if arr.gshape[0] - arr.gshape[1] > 10:  # todo: determine best value for this
+                # use chunk and a loop over the however many tiles are desired
+                num_ex_row_tiles = 4  # todo: determine best value for this...
+                while (arr.gshape[0] - arr.gshape[1]) // num_ex_row_tiles < 2:
+                    num_ex_row_tiles -= 1
+                for i in range(num_ex_row_tiles):
+                    _, lshape, _ = arr.comm.chunk((arr.gshape[0] - arr.gshape[1],), 0, rank=i, w_size=num_ex_row_tiles)
+                    row_inds.append(lshape[0])
+            else:
+                row_inds[-1] = arr.gshape[0] - sum(row_inds[:-1])
+
         tile_map = torch.zeros([len(row_inds), len(col_inds), 3], dtype=torch.int)
-        # units -> row, column, size in each direction, process
+        # units -> row, column, start index in each direction, process
+        # if arr.split == 0 or arr.split is None:  # adjust the 1st dim to be the cumsum
+        #     col_inds = [0] + col_inds[:-1]
+        #     col_inds = torch.tensor(col_inds).cumsum(dim=0)
+        # if arr.split == 1 or arr.split is None:  # adjust the 0th dim to be the cumsum
+        #     row_inds = [0] + row_inds[:-1]
+        #     row_inds = torch.tensor(row_inds).cumsum(dim=0)
         for num, c in enumerate(col_inds):  # set columns
             tile_map[:, num, 1] = c
         for num, r, in enumerate(row_inds):  # set rows
             tile_map[num, :, 0] = r
-        for p in range(last_diag_pr.item()):  # set ranks
-            tile_map[tile_rows * p:tile_rows * (p + 1), :, 2] = p
-        # set last diag pr rank
-        tile_map[tile_rows * last_diag_pr:tile_rows * last_diag_pr + last_diag_pr_rows, :, 2] = last_diag_pr
-        # set the rest of the ranks
-        st = tile_rows * last_diag_pr + last_diag_pr_rows
-        for p in range(arr.comm.size - last_diag_pr.item() + 1):
-            tile_map[st:st + tile_rows * (p + 1), :, 2] = p + last_diag_pr.item() + 1
-            st += tile_rows
+
+        if arr.split == 0:
+            for p in range(last_diag_pr.item()):  # set ranks
+                tile_map[tile_rows * p:tile_rows * (p + 1), :, 2] = p
+            # set last diag pr rank
+            tile_map[tile_rows * last_diag_pr:tile_rows * last_diag_pr + last_diag_pr_rows, :, 2] = last_diag_pr
+            # set the rest of the ranks
+            st = tile_rows * last_diag_pr + last_diag_pr_rows
+            for p in range(arr.comm.size - last_diag_pr.item() + 1):
+                tile_map[st:st + tile_rows * (p + 1), :, 2] = p + last_diag_pr.item() + 1
+                st += tile_rows
+        elif arr.split == 1:
+            for p in range(last_diag_pr.item()):  # set ranks
+                tile_map[:, tile_rows * p:tile_rows * (p + 1), 2] = p
+            # set last diag pr rank
+            tile_map[:, tile_rows * last_diag_pr:tile_rows * last_diag_pr + last_diag_pr_rows, 2] = last_diag_pr
+            # set the rest of the ranks
+            st = tile_rows * last_diag_pr + last_diag_pr_rows
+            for p in range(arr.comm.size - last_diag_pr.item() + 1):
+                tile_map[:, st:st + tile_rows * (p + 1), 2] = p + last_diag_pr.item() + 1
+                st += tile_rows
+
+        # # todo: cumsum to use indices instead of shapes?
+        # if arr.split == 0:
+        #     for pr in range(arr.comm.size):
+        #         dim0_cumsum = tile_map[torch.where(tile_map[..., 2] == pr)][..., 0].unique().cumsum(dim=0)
+        #         dim0_cumsum = torch.cat((torch.tensor([0], dtype=dim0_cumsum.dtype), dim0_cumsum[:-1]))
+        #         for c, d in enumerate(dim0_cumsum):
+        #             tile_map[torch.where(tile_map[..., 2] == pr)][..., 0][c * tile_columns:(c + 1) * tile_columns]
+        print(tile_map)
 
         # =================================================================================================
         self.__DNDarray = arr
@@ -152,54 +197,87 @@ class SquareDiagTiles:
                 raise ValueError('Slicing across splits is not allowed')
             # print(arr.comm.rank, tile_map[key][..., 2].unique())
             if arr.comm.rank == int(tile_map[key][..., 2].unique()):
-                rank_sliced = torch.where(tile_map[..., 2] == arr.comm.rank)[0].unique()
-                st0 = tile_map[..., 1][rank_sliced][:key % rank_sliced.shape[0], 0].sum()
-                sp0 = tile_map[..., 1][rank_sliced][key % rank_sliced.shape[0], 0] + st0
+                rank_slice = torch.where(tile_map[..., 2] == arr.comm.rank)[0].unique()
+                # above is the code to get the tile map for what is all on one tile
+                st0 = tile_map[..., 1][rank_slice][:key % rank_slice.shape[0], 0].sum()
+                sp0 = tile_map[..., 1][rank_slice][key % rank_slice.shape[0], 0] + st0
                 return local_arr[st0:sp0]
             else:
                 return None
 
-        # tuple,
-        if isinstance(key, tuple) and arr.split is not None:
-            # need to
-            if all(isinstance(x, int) for x in key):
-                if arr.comm.rank == key[arr.split] // tile_rows:
-                    key = list(key)
-                    key[0] = key[0] % tile_rows
-                    st0 = tile_map[arr.comm.rank, :key[0], key[1], 0].sum()
-                    sp0 = tile_map[arr.comm.rank, :, :key[1], 0][key[0]] + st0
+        elif tile_map[key][..., 2].unique().nelement() > 1:
+            raise ValueError('Slicing across splits is not allowed')
+        else:
+            if arr.comm.rank == tile_map[key][..., 2].unique():
+                if not isinstance(key, (tuple, list, slice)):
+                    raise TypeError('key must be an int, tuple, or slice, is currently {}'.format(type(key)))
 
-                    st1 = tile_map[arr.comm.rank, key[0], key[1], 1]
-                    sp1 = tile_map[arr.comm.rank, key[0], :key[1], 1].sum() + st1
-                    return arr._DNDarray__array[st0:sp0, st1:sp1]
-                else:
-                    return None
-            elif isinstance(key[arr.split], slice):
-                if key[arr.split].stop - key[arr.split].start > tile_rows:  # need to adjust the logic for split == 1
-                    raise ValueError('Slicing across splits is not allowed')
-            elif isinstance(key[arr.split], int):
-                if arr.split == 0:
-                    if isinstance(key[1], slice):
-                        if arr.comm.rank == key[arr.split] // tile_rows:
-                            key = list(key)
-                            key[0] = key[0] % tile_rows  # adjust the row number to be the local number on that rank
+                rank_slice = torch.where(tile_map[..., 2] == arr.comm.rank)[arr.split].unique()  # gives the tile index in the split direction
+                if isinstance(key, slice):
+                    if arr.split == 0:
+                        start = key.start % rank_slice.shape[arr.split]
+                        stop = key.stop % rank_slice.shape[arr.split] if key.stop % rank_slice.shape[arr.split] != 0 else None
+                        key = slice(start, stop)
+                    key = [key, slice(None)]
+                    st0 = tile_map[rank_slice][:key[0].start, 0][..., 0].sum()
+                    sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
+                    st1 = tile_map[rank_slice][0, :key[1].start][..., 1].sum()
+                    sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
+                    return local_arr[st0:sp0, st1:sp1]
 
-                            st0 = tile_map[arr.comm.rank, :key[0], key[1], 0].sum()
-                            sp0 = tile_map[arr.comm.rank, :, :key[1], 0][key[0]] + st0
+                key = list(key)
+                if all(isinstance(x, int) for x in key):
+                    key[arr.split] = key[arr.split] % rank_slice.shape[arr.split]
 
-                            st1 = tile_map[arr.comm.rank, key[0], key[1], 1]
-                            sp1 = tile_map[arr.comm.rank, key[0], :key[1], 1].sum() + st1
-                            return arr._DNDarray__array[st0:sp0, st1:sp1]
-                    pass
-                else:  # split == 1
-                    pass
-        # slice,
-        if isinstance(key, slice):
-            if arr.split > 0:
-                raise ValueError('Slicing across splits is not allowed')
+                    st0 = tile_map[rank_slice][:key[0], 0][..., 0].sum()
+                    sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
+                    st1 = tile_map[rank_slice][0, :key[1]][..., 1].sum()
+                    sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
+
+                elif isinstance(key[arr.split], slice) and isinstance(key[(arr.split + 1) % len(arr.gshape)], int):
+                    # note: strides are not implemented! todo: add to docs
+                    start = key[arr.split].start % rank_slice.shape[arr.split]
+                    stop = key[arr.split].stop % rank_slice.shape[arr.split] if key[arr.split].stop % rank_slice.shape[arr.split] != 0 else None
+                    step = None
+                    key[arr.split] = slice(start, stop, step)
+
+                    st0 = tile_map[rank_slice][:key[0].start, 0][..., 0].sum()
+                    sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
+                    st1 = tile_map[rank_slice][0, :key[1]][..., 1].sum()
+                    sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
+                    # print(st0, sp0, st1, sp1)
+                elif isinstance(key[arr.split], int) and isinstance(key[(arr.split + 1) % len(arr.gshape)], slice):
+                    # this implies that the other axis is a slice -> key = (int, slice) for split = 0
+                    # if arr.split == 0:
+                    slice_dim = (arr.split + 1) % len(arr.gshape)
+                    # todo: does this fail for split=1? -> yes, need to fix
+                    key[arr.split] = key[arr.split] % rank_slice.shape[arr.split]
+                    start = key[slice_dim].start if key[slice_dim].start is not None else 0
+                    key[slice_dim] = slice(start, key[slice_dim].stop)
+
+                    st0 = tile_map[rank_slice][:key[0], 0][..., 0].sum()
+                    sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
+                    st1 = tile_map[rank_slice][0, :key[1].start][..., 1].sum()
+                    sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
+                    # print(st0, sp0, st1, sp1)
+                else:  # all slices
+                    # adjust slice on the split axis, then get the indices
+                    start = key[arr.split].start % rank_slice.shape[arr.split]
+                    stop = key[arr.split].stop % rank_slice.shape[arr.split] if key[arr.split].stop % rank_slice.shape[arr.split] != 0 else None
+                    step = None
+                    key[arr.split] = slice(start, stop, step)
+
+                    st0 = tile_map[rank_slice][:key[0].start, 0][..., 0].sum()
+                    sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
+                    st1 = tile_map[rank_slice][0, :key[1].start][..., 1].sum()
+                    sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
+
+                return local_arr[st0:sp0, st1:sp1]
+            else:
+                return None
         # torch indices
 
-    # need to get:
+    # todo: getitem, setitem, get_start, get_end, get_tile_size, asynce_get, async_set, docs, global->local convert, split=1
     # tile data
     # tile start
     # tile end

@@ -551,11 +551,14 @@ def qr(a, tile_rows=2, calc_q=True):
     a = a.copy()
 
     tiles = tiling.SquareDiagTiles(a, tile_rows=tile_rows)
-    domain_tile_shapes = tiles.tile_map
+    # print(tiles.tile_map)
     lshape_map = tiles.lsahpe_map
+    tile_columns = tiles.tile_columns
+    # num_local_row_tiles = tiles.num_local_row_tiles
 
     # print(lshape_map)
-    print(domain_tile_shapes)
+    # tiles[5, 1] = 0
+    # print(tiles[2])
 
     # loop over the tile columns
     completed_tile_cols = torch.tensor([False] * tile_rows * a.comm.size)
@@ -620,7 +623,7 @@ def qr(a, tile_rows=2, calc_q=True):
     #             upper_req_lp.wait()
     #             local_a[st0:sp0, sp1:] = (q.T @ torch.cat((upper_rest, lower_rest), dim=0))[sp0_0 - st0_0:]
     #         return q
-
+    #
     # q_dict = {}
     #
     # for k in range(tile_columns):  # for each tile column (need to do the last rank separately)
