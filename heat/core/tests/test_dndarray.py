@@ -59,6 +59,10 @@ class TestDNDarray(unittest.TestCase):
         data.balance_()
         self.assertTrue(data.is_balanced())
 
+        data = np.loadtxt('heat/datasets/data/iris.csv', delimiter=';')
+        htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=0)
+        self.assertTrue(ht.equal(htdata, ht.array(data, split=0, dtype=ht.float)))
+
     def test_bool_cast(self):
         # simple scalar tensor
         a = ht.ones(1)
