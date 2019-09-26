@@ -88,6 +88,10 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.bitwise_and(an_int_tensor, 's')
         with self.assertRaises(TypeError):
+            ht.bitwise_and(self.an_int_scalar, 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_and('s', self.an_int_scalar)
+        with self.assertRaises(TypeError):
             ht.bitwise_and(int_result, int16_result)
     
     def test_bitwise_or(self):
@@ -128,6 +132,10 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_or('T', 's')
         with self.assertRaises(TypeError):
             ht.bitwise_or(an_int_tensor, 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_or(self.an_int_scalar, 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_or('s', self.an_int_scalar)
         with self.assertRaises(TypeError):
             ht.bitwise_or(int_result, int16_result)
     
@@ -170,6 +178,10 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_xor('T', 's')
         with self.assertRaises(TypeError):
             ht.bitwise_xor(an_int_tensor, 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor(self.an_int_scalar, 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor('s', self.an_int_scalar)
         with self.assertRaises(TypeError):
             ht.bitwise_xor(int_result, int16_result)
             
