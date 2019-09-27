@@ -18,6 +18,7 @@ __all__ = [
     'concatenate',
     'expand_dims',
     'hstack',
+    'resplit',
     'sort',
     'squeeze',
     'unique',
@@ -947,7 +948,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     split = split if a.split < len(gres.shape) else None
     result = factories.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, split=split, is_split=is_split)
     if split is not None:
-        result.resplit(a.split)
+        result.resplit_(a.split)
 
     return_value = result
     if return_inverse:
@@ -955,7 +956,54 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
 
     return return_value
 
+def resplit(a, axis=None):
+    """
+    Out-of-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
+    nodes as well as the definition of new axis along which the tensor is split without changes to the values.
+    WARNING: this operation might involve a significant communication overhead. Use it sparingly and preferably for
+    small tensors.
 
+    Parameters
+    ----------
+    a    : ht.DNDarray
+        The tensor from which to resplit
+    axis : int
+        The new split axis, None denotes gathering, an int will set the new split axis
+
+    Returns
+    -------
+    resplit: ht.DNDarray
+        A new tensor that is a copy of 'a', but split along 'axis'
+
+    Examples
+    --------
+    a = ht.zeros((4, 5,), split=0)
+    a.lshape
+    (0/2) >>> (2, 5)
+    (1/2) >>> (2, 5)
+    b = resplit(a, None)
+    b.split
+    >>> None
+    b.lshape
+    (0/2) >>> (4, 5)
+    (1/2) >>> (4, 5)
+
+    a = ht.zeros((4, 5,), split=0)
+    a.lshape
+    (0/2) >>> (2, 5)
+    (1/2) >>> (2, 5)
+    b = resplit(a, 1)
+    b.split
+    >>> 1
+    b.lshape
+    (0/2) >>> (4, 3)
+    (1/2) >>> (4, 2)
+    """
+    # create a copy of the input tensor 'a'
+    resplit = a.copy()
+    resplit.resplit_(axis=axis)
+    return resplit
+    
 def vstack(tup):
     """
     Stack arrays in sequence vertically (row wise).
@@ -1006,6 +1054,6 @@ def vstack(tup):
     tup = list(tup)
     for cn, arr in enumerate(tup):
         if len(arr.gshape) == 1:
-            tup[cn] = arr.expand_dims(0).resplit(arr.split)
+            tup[cn] = arr.expand_dims(0).resplit_(arr.split)
 
     return concatenate(tup, axis=0)

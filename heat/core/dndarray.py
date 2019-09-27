@@ -1983,8 +1983,8 @@ class DNDarray:
         T1 = ht.random.randn((10,8))
         T1.numpy()
         """
-       
-        return self.resplit(None)._DNDarray__array.cpu().numpy()
+        dist =  manipulations.resplit(self, axis = None)
+        return dist._DNDarray__array.cpu().numpy()
 
     def __pow__(self, other):
         """
@@ -2067,9 +2067,10 @@ class DNDarray:
         # TODO: generate none-PyTorch repr
         return self.__array.__repr__(*args)
 
-    def resplit(self, axis=None):
+
+    def resplit_(self, axis=None):
         """
-        Out-of-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
+        In-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
         nodes as well as the definition of new axis along which the tensor is split without changes to the values.
 
         WARNING: this operation might involve a significant communication overhead. Use it sparingly and preferably for

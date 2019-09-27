@@ -2058,9 +2058,9 @@ class TestCommunication(unittest.TestCase):
         test3 = self.sorted3Dtensor.copy()
         result = self.sorted3Dtensor.copy()
 
-        test1.resplit(axis=0)
-        test2.resplit(axis=1)
-        test3.resplit(axis=2)
+        test1.resplit_(axis=0)
+        test2.resplit_(axis=1)
+        test3.resplit_(axis=2)
 
         gathered1_counts, gathered1_displs, _ = test1.comm.counts_displs_shape(test1.shape, test1.split)
         gathered1 = torch.empty(self.sorted3Dtensor.shape)
@@ -2080,17 +2080,17 @@ class TestCommunication(unittest.TestCase):
 
     def test_alltoallSorting(self):
         test1 = self.sorted3Dtensor.copy()
-        test1.resplit(axis=2)
+        test1.resplit_(axis=2)
         comparison1 = self.sorted3Dtensor.copy()
-        comparison1.resplit(axis=1)
+        comparison1.resplit_(axis=1)
         redistributed1 = torch.empty(comparison1.lshape, dtype=test1.dtype.torch_type())
         test1.comm.Alltoallv(test1._DNDarray__array, redistributed1, send_axis=comparison1.split, recv_axis=test1.split)
         self.assertTrue(torch.equal(redistributed1, comparison1._DNDarray__array))
 
         test2 = self.sorted3Dtensor.copy()
-        test2.resplit(axis=1)
+        test2.resplit_(axis=1)
         comparison2 = self.sorted3Dtensor.copy()
-        comparison2.resplit(axis=0)
+        comparison2.resplit_(axis=0)
         send_counts, send_displs, _ = test2.comm.counts_displs_shape(test2.lshape, comparison2.split)
         recv_counts, recv_displs, _ = test2.comm.counts_displs_shape(test2.shape, test2.split)
         redistributed2 = torch.empty(comparison2.lshape, dtype=test2.dtype.torch_type())
@@ -2101,17 +2101,17 @@ class TestCommunication(unittest.TestCase):
 
 
         test3 = self.sorted3Dtensor.copy()
-        test3.resplit(axis=0)
+        test3.resplit_(axis=0)
         comparison3 = self.sorted3Dtensor.copy()
-        comparison3.resplit(axis=2)
+        comparison3.resplit_(axis=2)
         redistributed3 = torch.empty(comparison3.lshape, dtype=test3.dtype.torch_type())
         test3.comm.Alltoallv(test3._DNDarray__array, redistributed3, send_axis=comparison3.split, recv_axis=test3.split)
         self.assertTrue(torch.equal(redistributed3, comparison3._DNDarray__array))
 
         test4 = self.sorted3Dtensor.copy()
-        test4.resplit(axis=2)
+        test4.resplit_(axis=2)
         comparison4 = self.sorted3Dtensor.copy()
-        comparison4.resplit(axis=0)
+        comparison4.resplit_(axis=0)
         redistributed4 = torch.empty(comparison4.lshape, dtype=test4.dtype.torch_type())
         test4.comm.Alltoallv(test4._DNDarray__array, redistributed4, send_axis=comparison4.split, recv_axis=test4.split)
         self.assertTrue(torch.equal(redistributed4, comparison4._DNDarray__array))
