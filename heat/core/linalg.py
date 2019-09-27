@@ -445,7 +445,7 @@ def matmul(a, b):
                             c_start1 = b_start1
                             c[c_start0:c_start0 + mB, c_start1:c_start1 + nB] += a_block @ b_block
 
-        # work loop: loop over all processes (also will incorporate the remainder calcuations)
+        # work loop: loop over all processes (also will incorporate the remainder calculations)
         c_wait.wait()
 
         if split_0_flag:
@@ -520,7 +520,11 @@ def matmul(a, b):
 
                     del b_lp_data[pr]
 
-            c = c if not vector_flag else factories.array(c._DNDarray__array.squeeze(), is_split=0)
+            if vector_flag:
+                c_loc = c._DNDarray__array.squeeze()
+                if c_loc.nelement() == 1:
+                    c = torch.tensor(c_loc)
+                c = factories.array(c_loc, is_split=0)
             return c
 
         elif split_1_flag:
@@ -647,7 +651,7 @@ def matmul(a, b):
             return c
 
 
-def qr(a, tile_rows=2, calc_q=True):
+def qr(a, calc_q=True):
     """
 
     :param a:
@@ -664,79 +668,97 @@ def qr(a, tile_rows=2, calc_q=True):
 
     a = a.copy()
 
-    tiles = tiling.SquareDiagTiles(a, tile_rows=tile_rows)
+    tiles = tiling.SquareDiagTiles(a, tile_per_proc=2)
     # print(tiles.tile_map)
     lshape_map = tiles.lsahpe_map
     tile_columns = tiles.tile_columns
+    tile_rows = tiles.tile_rows
     # num_local_row_tiles = tiles.num_local_row_tiles
 
     # print(lshape_map)
-    # tiles[5, 1] = 0
-    # print(tiles[2])
+    # tiles[5:, 1] = 1000
+    # print(a)
+    # t = tiles.async_get((2, 2), 0)
+    # b = None
+    # if t is not None:
+    #     # t = 10
+    #     b = t.wait()
+    #     # print(t.wait())
+    #     b.__setitem__(slice(None), 10)
+    #     print(b)
+    # tiles.async_set((2, 2), b, 0)
+    # # a.comm.Barrier()
+    # print(tiles[5, 4:])
+    # print(tiles.local_get(key=(slice(0, 5), slice(0, 2)), proc=2))
 
     # loop over the tile columns
-    completed_tile_cols = torch.tensor([False] * tile_rows * a.comm.size)
+    completed_tile_cols = torch.tensor([False] * tile_columns * a.comm.size)
     rank = a.comm.rank
 
-    # def merge_rows_qr(pr0, pr1):
-    #     if rank in [pr0, pr1]:
-    #         tag1 = tile_columns + (k * 5)
-    #         tag2 = tile_columns + (k * 10)
-    #         if rank == pr0:
-    #             pr1_local_tile_row_index = k % tile_rows if pr1 == local_tile_row_index_pr else 0
-    #             st0_1 = domain_tile_shapes[pr1, :pr1_local_tile_row_index, 0, 0].sum()
-    #             sp0_1 = domain_tile_shapes[pr1, :, k, 0][pr1_local_tile_row_index] + st0_1
-    #             st1_1 = domain_tile_shapes[pr1, pr1_local_tile_row_index, :k, 1].sum()
-    #             sp1_1 = domain_tile_shapes[pr1, pr1_local_tile_row_index, k, 1] + st1_1
-    #
-    #             lower = torch.zeros((sp0_1 - st0_1, sp1_1 - st1_1))
-    #             lower_rest = torch.zeros((sp0_1 - st0_1, local_a.shape[1] - sp1_1))
-    #
-    #             send_diag = a.comm.Isend(local_a[st0:sp0, st1:sp1].clone(), dest=pr1, tag=tag1)
-    #             send_rest = a.comm.Isend(local_a[st0:sp0, sp1:].clone(), dest=pr1, tag=tag2)
-    #             lower_req_lp = a.comm.Irecv(lower, source=pr1, tag=tag1)
-    #             lower_req_rest_lp = a.comm.Irecv(lower_rest, source=pr1, tag=tag2)
-    #             upper = local_a[st0:sp0, st1:sp1]
-    #             upper_rest = local_a[st0:sp0, sp1:]
-    #             send_diag.wait()
-    #             lower_req_lp.wait()
-    #             lower_req_rest_lp.wait()
-    #         elif rank == pr1:
-    #             pr0_local_tile_row_index = k % tile_rows if pr0 == local_tile_row_index_pr else 0
-    #             st0_0 = domain_tile_shapes[pr0, :pr0_local_tile_row_index, 0, 0].sum()
-    #             sp0_0 = domain_tile_shapes[pr0, :, k, 0][pr0_local_tile_row_index] + st0_0
-    #             st1_0 = domain_tile_shapes[pr0, pr0_local_tile_row_index, :k, 1].sum()
-    #             sp1_0 = domain_tile_shapes[pr0, pr0_local_tile_row_index, k, 1] + st1_0
-    #
-    #             upper = torch.zeros((sp0_0 - st0_0, sp1_0 - st1_0))
-    #             upper_rest = torch.zeros((sp0_0 - st0_0, local_a.shape[1] - sp1_0))
-    #
-    #             send_diag = a.comm.Isend(local_a[st0:sp0, st1:sp1].clone(), dest=pr0, tag=tag1)
-    #             send_rest = a.comm.Isend(local_a[st0:sp0, sp1:].clone(), dest=pr0, tag=tag2)
-    #             upper_first_lp = a.comm.Irecv(upper, source=pr0, tag=tag1)
-    #             upper_req_lp = a.comm.Irecv(upper_rest, source=pr0, tag=tag2)
-    #             lower = local_a[st0:sp0, st1:sp1]
-    #             lower_rest = local_a[st0:sp0, sp1:]
-    #             send_diag.wait()
-    #             upper_first_lp.wait()
-    #         else:
-    #             return None
-    #         tag1 += 1
-    #         tag2 += 1
-    #         q, r = torch.cat((upper, lower), dim=0).qr(some=False)
-    #         send_rest.wait()
-    #
-    #         if rank == pr0:
-    #             # if on top of the cat: need to save the proper data (but also need the bottom half to use q properly)
-    #             local_a[st0:sp0, st1:sp1] = r[:sp0 - st0]
-    #             lower_req_rest_lp.wait()
-    #             local_a[st0:sp0, sp1:] = (q.T @ torch.cat((upper_rest, lower_rest), dim=0))[:sp0 - st0]
-    #         else:
-    #             # get the end of the other tile (in the split direction) to determine how to slice the qr results
-    #             local_a[st0:sp0, st1:sp1] = r[sp0_0 - st0_0:]
-    #             upper_req_lp.wait()
-    #             local_a[st0:sp0, sp1:] = (q.T @ torch.cat((upper_rest, lower_rest), dim=0))[sp0_0 - st0_0:]
-    #         return q
+    def merge_rows_qr(pr0, pr1, column):
+        if rank in [pr0, pr1]:
+            tag1 = tile_columns + (column * 5)
+            tag2 = tile_columns + (column * 10)
+            # get the data from pr0 (need the column tile and the columns > column)
+            # need to have the data on both processes
+            # if split=0, need to determine which tile for upper, lower is always 0, column
+            # upper = tiles.local_get()
+            # todo: get tile row number on pr0....how?
+            lower = tiles.local_get(key=(0, column), proc=pr0)
+            lower_rest = tiles.local_get(key=(0, slice(column, tiles.tile_columns + 1)), proc=pr0)
+            if rank == pr0:
+                pr1_local_tile_row_index = k % tile_rows if pr1 == local_tile_row_index_pr else 0
+                st0_1 = domain_tile_shapes[pr1, :pr1_local_tile_row_index, 0, 0].sum()
+                sp0_1 = domain_tile_shapes[pr1, :, k, 0][pr1_local_tile_row_index] + st0_1
+                st1_1 = domain_tile_shapes[pr1, pr1_local_tile_row_index, :k, 1].sum()
+                sp1_1 = domain_tile_shapes[pr1, pr1_local_tile_row_index, k, 1] + st1_1
+
+                lower = torch.zeros((sp0_1 - st0_1, sp1_1 - st1_1))
+                lower_rest = torch.zeros((sp0_1 - st0_1, local_a.shape[1] - sp1_1))
+
+                send_diag = a.comm.Isend(local_a[st0:sp0, st1:sp1].clone(), dest=pr1, tag=tag1)
+                send_rest = a.comm.Isend(local_a[st0:sp0, sp1:].clone(), dest=pr1, tag=tag2)
+                lower_req_lp = a.comm.Irecv(lower, source=pr1, tag=tag1)
+                lower_req_rest_lp = a.comm.Irecv(lower_rest, source=pr1, tag=tag2)
+                upper = local_a[st0:sp0, st1:sp1]
+                upper_rest = local_a[st0:sp0, sp1:]
+                send_diag.wait()
+                lower_req_lp.wait()
+                lower_req_rest_lp.wait()
+            elif rank == pr1:
+                pr0_local_tile_row_index = k % tile_rows if pr0 == local_tile_row_index_pr else 0
+                st0_0 = domain_tile_shapes[pr0, :pr0_local_tile_row_index, 0, 0].sum()
+                sp0_0 = domain_tile_shapes[pr0, :, k, 0][pr0_local_tile_row_index] + st0_0
+                st1_0 = domain_tile_shapes[pr0, pr0_local_tile_row_index, :k, 1].sum()
+                sp1_0 = domain_tile_shapes[pr0, pr0_local_tile_row_index, k, 1] + st1_0
+
+                upper = torch.zeros((sp0_0 - st0_0, sp1_0 - st1_0))
+                upper_rest = torch.zeros((sp0_0 - st0_0, local_a.shape[1] - sp1_0))
+
+                send_diag = a.comm.Isend(local_a[st0:sp0, st1:sp1].clone(), dest=pr0, tag=tag1)
+                send_rest = a.comm.Isend(local_a[st0:sp0, sp1:].clone(), dest=pr0, tag=tag2)
+                upper_first_lp = a.comm.Irecv(upper, source=pr0, tag=tag1)
+                upper_req_lp = a.comm.Irecv(upper_rest, source=pr0, tag=tag2)
+                lower = local_a[st0:sp0, st1:sp1]
+                lower_rest = local_a[st0:sp0, sp1:]
+                send_diag.wait()
+                upper_first_lp.wait()
+            tag1 += 1
+            tag2 += 1
+            q, r = torch.cat((upper, lower), dim=0).qr(some=False)
+            send_rest.wait()
+
+            if rank == pr0:
+                # if on top of the cat: need to save the proper data (but also need the bottom half to use q properly)
+                local_a[st0:sp0, st1:sp1] = r[:sp0 - st0]
+                lower_req_rest_lp.wait()
+                local_a[st0:sp0, sp1:] = (q.T @ torch.cat((upper_rest, lower_rest), dim=0))[:sp0 - st0]
+            else:
+                # get the end of the other tile (in the split direction) to determine how to slice the qr results
+                local_a[st0:sp0, st1:sp1] = r[sp0_0 - st0_0:]
+                upper_req_lp.wait()
+                local_a[st0:sp0, sp1:] = (q.T @ torch.cat((upper_rest, lower_rest), dim=0))[sp0_0 - st0_0:]
+            return q
     #
     # q_dict = {}
     #
