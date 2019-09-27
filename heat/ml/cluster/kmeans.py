@@ -115,6 +115,8 @@ class KMeans:
             picks = ht.random.randint(0, X.shape[0], (self.n_clusters,), device=X.device, comm=X.comm)
             self._cluster_centers = X[picks].balance_().resplit_().T.expand_dims(axis=0)
 
+            print(picks, self._cluster_centers, X)
+
         # directly passed centroids
         elif isinstance(self.init, ht.DNDarray):
             if len(self.init.shape) != 2:
