@@ -63,14 +63,14 @@ class SquareDiagTiles:
         __tile_rows : int
             number of tile rows
         """
-        # tile_per_proc => in-process (local) divisions along the split axis
         # lshape_map -> rank (int), lshape (tuple of the local lshape, self.lshape)
-        # if not isinstance(self, DNDarray):
-        #     raise TypeError('self must be a DNDarray, is currently a {}'.format(type(self)))
+        if not isinstance(arr, dndarray.DNDarray):
+            raise TypeError('self must be a DNDarray, is currently a {}'.format(type(self)))
 
         # todo: unbalance the array if there is *only* one row/column of the diagonal on a process (send it to pr - 1)
         # todo: small bug in edge case for very small matrices with < 10 elements on a process and split = 1 with gshape[0] > gshape[1]
 
+        #create lshape map
         lshape_map = torch.zeros((arr.comm.size, len(arr.gshape)), dtype=int)
         lshape_map[arr.comm.rank, :] = torch.Tensor(arr.lshape)
         arr.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
@@ -87,18 +87,18 @@ class SquareDiagTiles:
             if last_tile_cols == 1:
                 break
 
-        # need to determine the proper number of tile rows
+        # need to determine the proper number of tile rows/columns
         tile_columns = tile_per_proc * last_diag_pr + last_tile_cols
         diag_crossings = lshape_map[..., arr.split].cumsum(dim=0)[:last_diag_pr + 1]
         diag_crossings[-1] = diag_crossings[-1] if diag_crossings[-1] <= min(arr.gshape) else min(arr.gshape)
         diag_crossings = torch.cat((torch.tensor([0]), diag_crossings), dim=0)
+        # create the tile columns sizes, saved to list
         col_inds = []
         for col in range(tile_columns.item()):
             _, lshape, _ = arr.comm.chunk([diag_crossings[col // tile_per_proc + 1] - diag_crossings[col // tile_per_proc]], 0,
                                           rank=int(col % tile_per_proc), w_size=tile_per_proc if col // tile_per_proc != last_diag_pr else last_tile_cols)
             col_inds.append(lshape[0])
 
-        # if there if are < 10 rows left after the diagonal need to reduce the number of tile rows for that process (same as columns)
         total_tile_rows = tile_per_proc * arr.comm.size
         row_inds = [0] * total_tile_rows
         for c, x in enumerate(col_inds):  # set the row indices to be the same for all of the column indices (however many there are)
@@ -108,6 +108,7 @@ class SquareDiagTiles:
             col_inds[-1] = arr.gshape[1] - sum(col_inds[:-1])
 
         last_diag_pr_rows = tile_per_proc  # tile rows in the last diagonal pr
+        # adjust the rows on the last process which has diagonal elements
         if last_diag_pr < arr.comm.size - 1 or (last_diag_pr == arr.comm.size - 1 and row_inds[-1] == 0):
             num_tiles_last_diag_pr = len(col_inds) - (tile_per_proc * last_diag_pr)  # number of tiles after the diagonal on the last process
             last_diag_pr_rows_rem = tile_per_proc - num_tiles_last_diag_pr  # number of rows remaining on the lshape
@@ -122,9 +123,7 @@ class SquareDiagTiles:
                 for i in range(last_diag_pr_rows.item()):
                     _, lshape, _ = arr.comm.chunk(lshape_map[last_diag_pr], 0, rank=i, w_size=last_diag_pr_rows.item())
                     row_inds[(tile_per_proc * last_diag_pr).item() + i] = lshape[0]
-        # print(last_diag_pr_rows, len(col_inds))
 
-        # need to determine the rest of the row indices
         nz = torch.nonzero(torch.Tensor(row_inds) == 0)
         for i in range(last_diag_pr.item() + 1, arr.comm.size):  # loop over all of the rest of the processes
             for t in range(tile_per_proc):
@@ -137,31 +136,29 @@ class SquareDiagTiles:
             row_inds[-2] += row_inds[-1]
             del row_inds[-1]
 
+        # add extra rows if there is place below the diagonal
         if arr.gshape[0] > arr.gshape[1] and arr.split == 1:  # need to adjust the very last tile to be the remaining
             if arr.gshape[0] - arr.gshape[1] > 10:  # todo: determine best value for this
                 # use chunk and a loop over the however many tiles are desired
-                num_ex_row_tiles = 4  # todo: determine best value for this...
+                num_ex_row_tiles = 4  # todo: determine best value for this
                 while (arr.gshape[0] - arr.gshape[1]) // num_ex_row_tiles < 2:
                     num_ex_row_tiles -= 1
                 for i in range(num_ex_row_tiles):
                     _, lshape, _ = arr.comm.chunk((arr.gshape[0] - arr.gshape[1],), 0, rank=i, w_size=num_ex_row_tiles)
                     row_inds.append(lshape[0])
             else:
+                # if there is no place for multiple tiles then combine the remainder with the last row
                 row_inds[-1] = arr.gshape[0] - sum(row_inds[:-1])
 
         tile_map = torch.zeros([len(row_inds), len(col_inds), 3], dtype=torch.int)
         # units -> row, column, start index in each direction, process
-        # if arr.split == 0 or arr.split is None:  # adjust the 1st dim to be the cumsum
-        #     col_inds = [0] + col_inds[:-1]
-        #     col_inds = torch.tensor(col_inds).cumsum(dim=0)
-        # if arr.split == 1 or arr.split is None:  # adjust the 0th dim to be the cumsum
-        #     row_inds = [0] + row_inds[:-1]
-        #     row_inds = torch.tensor(row_inds).cumsum(dim=0)
+
         for num, c in enumerate(col_inds):  # set columns
             tile_map[:, num, 1] = c
         for num, r, in enumerate(row_inds):  # set rows
             tile_map[num, :, 0] = r
 
+        # setting of rank is different for split 0 and split 1
         if arr.split == 0:
             for p in range(last_diag_pr.item()):  # set ranks
                 tile_map[tile_per_proc * p:tile_per_proc * (p + 1), :, 2] = p
@@ -182,15 +179,6 @@ class SquareDiagTiles:
             for p in range(arr.comm.size - last_diag_pr.item() + 1):
                 tile_map[:, st:st + tile_per_proc * (p + 1), 2] = p + last_diag_pr.item() + 1
                 st += tile_per_proc
-
-        # # todo: cumsum to use indices instead of shapes?
-        # if arr.split == 0:
-        #     for pr in range(arr.comm.size):
-        #         dim0_cumsum = tile_map[torch.where(tile_map[..., 2] == pr)][..., 0].unique().cumsum(dim=0)
-        #         dim0_cumsum = torch.cat((torch.tensor([0], dtype=dim0_cumsum.dtype), dim0_cumsum[:-1]))
-        #         for c, d in enumerate(dim0_cumsum):
-        #             tile_map[torch.where(tile_map[..., 2] == pr)][..., 0][c * tile_columns:(c + 1) * tile_columns]
-        # print(tile_map)
 
         # =================================================================================================
         self.__DNDarray = arr
@@ -239,6 +227,38 @@ class SquareDiagTiles:
         """
         return self.__tile_rows
 
+    def async_get(self, key, dest):
+        """
+        Call to get a tile and then send it to the specified process (dest) using Send and Irecv
+        :param key:
+        :param dest:
+        :return:
+        """
+        tile = self.__getitem__(key)
+        comm = self.__DNDarray.comm
+        src = self.tile_map[key][..., 2].unique()
+        if tile is not None:  # this will only be on one process (required by getitem)
+            comm.isend(tile.clone(), dest=dest)
+        if comm.rank == dest:
+            ret = comm.irecv(source=src)
+            return ret
+
+    def async_set(self, key, data, home):
+        """
+        Function to set the specified tile's values on the original tile's process
+        :param key:
+        :param dest:
+        :return:
+        """
+        tile = self.__getitem__(key)
+        comm = self.__DNDarray.comm
+        dest = self.get_tile_proc(key)
+        if data is not None:  # this will only be on one process (required by getitem)
+            comm.isend(data, dest=dest)
+        if comm.rank == dest:
+            ret = comm.recv(source=home)
+            tile.__setitem__(slice(None), ret)
+
     def __getitem__(self, key):
         """
         Standard getitem function for the tiles. The returned item is a view of the original DNDarray, operations which are done to this view will change
@@ -269,7 +289,7 @@ class SquareDiagTiles:
             if arr.split != 0:
                 raise ValueError('Slicing across splits is not allowed')
             # print(arr.comm.rank, tile_map[key][..., 2].unique())
-            if arr.comm.rank == int(tile_map[key][..., 2].unique()):
+            if arr.comm.rank == tile_map[key][..., 2].unique():
                 rank_slice = torch.where(tile_map[..., 2] == arr.comm.rank)[0].unique()
                 # above is the code to get the tile map for what is all on one tile
                 st0 = tile_map[..., 1][rank_slice][:key % rank_slice.shape[0], 0].sum()
@@ -300,7 +320,11 @@ class SquareDiagTiles:
 
                 key = list(key)
                 if all(isinstance(x, int) for x in key):
-                    key[arr.split] = key[arr.split] % rank_slice.shape[0]
+                    # rank_slice = torch.where(tile_map[..., 2] == arr.comm.rank)  # gives the tile index in the split direction
+                    # on(arr.split + 1) % len(arr.gshape)
+                    # print(key, )
+                    # key = list(key)
+                    key[arr.split] = key[arr.split] % tile_map[rank_slice][..., arr.split].unique().shape[0]
 
                     st0 = tile_map[rank_slice][:key[0], 0][..., 0].sum()
                     sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
@@ -309,9 +333,11 @@ class SquareDiagTiles:
 
                 elif isinstance(key[arr.split], slice) and isinstance(key[(arr.split + 1) % len(arr.gshape)], int):
                     # note: strides are not implemented! todo: add to docs
-                    start = key[arr.split].start % rank_slice.shape[0]
+                    key = list(key)
+                    mod_val = tile_map[rank_slice][..., arr.split].unique().shape[0]
+                    start = key[arr.split].start % mod_val
                     if key[arr.split].stop is not None:
-                        stop = key[arr.split].stop % rank_slice.shape[0] if key[arr.split].stop % rank_slice.shape[0] != 0 else None
+                        stop = key[arr.split].stop % mod_val if key[arr.split].stop % mod_val != 0 else None
                     else:
                         stop = None
                     step = None
@@ -332,7 +358,8 @@ class SquareDiagTiles:
                     # this implies that the other axis is a slice -> key = (int, slice) for split = 0
                     # if arr.split == 0:
                     slice_dim = (arr.split + 1) % len(arr.gshape)
-                    key[arr.split] = key[arr.split] % rank_slice.shape[0]
+                    # mod_val =
+                    key[arr.split] = key[arr.split] % tile_map[rank_slice][..., arr.split].unique().shape[0]
                     # this is to change from global to local, take the mode of how many tiles are in the split dimension
                     start = key[slice_dim].start if key[slice_dim].start is not None else 0
                     key[slice_dim] = slice(start, key[slice_dim].stop)
@@ -350,9 +377,10 @@ class SquareDiagTiles:
                         sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
                 else:  # all slices
                     # adjust slice on the split axis, then get the indices
-                    start = key[arr.split].start % rank_slice.shape[0] if key[arr.split].start % rank_slice.shape[0] is not None else 0
+                    mod_val = tile_map[rank_slice][..., arr.split].unique().shape[0]
+                    start = key[arr.split].start % mod_val if key[arr.split].start % mod_val is not None else 0
                     if key[arr.split].stop is not None:
-                        stop = key[arr.split].stop % rank_slice.shape[0] if key[0].stop % rank_slice.shape[0] != 0 else None
+                        stop = key[arr.split].stop % mod_val if key[0].stop % mod_val != 0 else None
                     else:
                         stop = None
                     step = None
@@ -507,6 +535,9 @@ class SquareDiagTiles:
                     sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
 
                 return st0, sp0, st1, sp1
+
+    def get_tile_proc(self, key):
+        return self.tile_map[key][..., 2].unique()
 
     def get_tile_size(self, key):
         """
