@@ -558,8 +558,13 @@ class DNDarray:
 
     def balance_(self):
         """
-        Function for balancing a DNDarray between all nodes. To determine if this is needed use the is_balanced function.
-        If the DNDarray is already balanced this function will do nothing. This function modifies the DNDarray itself and will not return anything.
+        Function for balancing a DNDarray between nodes. To determine if this is needed use the is_balanced function.
+        If the DNDarray is already balanced this function will do nothing. This function modifies the DNDarray in-place.
+
+        Returns
+        -------
+        self: ht.DNDarray
+            This tensor for chaining.
 
         Examples
         --------
@@ -592,7 +597,7 @@ class DNDarray:
         [2/2] (7, 2) (2, 2)
         """
         if self.is_balanced():
-            return
+            return self
         sl_dtype = self.dtype.torch_type()
         # units -> {pr, 1st index, 2nd index}
         lshape_map = factories.zeros((self.comm.size, len(self.gshape)), dtype=int)
@@ -649,7 +654,7 @@ class DNDarray:
                     lshape_map[spr, self.split] -= snt
 
         if self.is_balanced():
-            return
+            return self
 
         # now the DNDarray is balanced from 0 to x, (by pulling data from the higher ranking nodes)
         # next we balance the data from x to the self.comm.size
@@ -689,6 +694,8 @@ class DNDarray:
                         self.__array = torch.cat((data, self.__array), dim=self.split)
                     lshape_map[pr, self.split] -= send_amt
                     lshape_map[pr + 1, self.split] += send_amt
+
+        return self
 
     def __bool__(self):
         """
@@ -1107,8 +1114,8 @@ class DNDarray:
         Returns
         -------
         exponentials : ht.DNDarray
-            A tensor of the same shape as x, containing the positive exponentials minus one of each element in this tensor. If out
-            was provided, logarithms is a reference to it.
+            A tensor of the same shape as x, containing the positive exponentials minus one of each element in this
+            tensor. If out was provided, logarithms is a reference to it.
 
         Examples
         --------
@@ -1283,7 +1290,8 @@ class DNDarray:
             getter returns a new ht.DNDarray composed of the elements of the original tensor selected by the indices
             given. This does *NOT* redistribute or rebalance the resulting tensor. If the selection of values is
             unbalanced then the resultant tensor is also unbalanced!
-            To redistributed the tensor use balance() (issue #187)
+
+            To redistributed the tensor use balance_()
 
         Examples
         --------
@@ -1295,7 +1303,7 @@ class DNDarray:
         (1/2) >>> tensor([1, 2, 3, 4], dtype=torch.int32)
         (2/2) >>> tensor([5], dtype=torch.int32)
 
-        >>> a = ht.zeros((4,5), split=0)
+        >>> a = ht.zeros((4, 5), split=0)
         (1/2) >>> tensor([[0., 0., 0., 0., 0.],
                           [0., 0., 0., 0., 0.]])
         (2/2) >>> tensor([[0., 0., 0., 0., 0.],
@@ -1306,7 +1314,7 @@ class DNDarray:
         """
         l_dtype = self.dtype.torch_type()
         if isinstance(key, DNDarray) and key.gshape[-1] != len(self.gshape):
-            key = tuple(x.item() for x in key)
+            key = [x.item() for x in key]
 
         if not self.is_distributed():
             if not self.comm.size == 1:
@@ -1339,7 +1347,7 @@ class DNDarray:
 
             arr = torch.Tensor()
 
-            if isinstance(key, int):  # if a sigular index is given and the tensor is split
+            if isinstance(key, int):  # if a singular index is given and the tensor is split
                 gout = [0] * (len(self.gshape) - 1)
                 if key < 0:
                     key += self.numdims
@@ -1390,7 +1398,7 @@ class DNDarray:
                         overlap.sort()
                         hold = [x - chunk_start for x in overlap]
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
-                        arr = self.__array[tuple(key)]
+                        arr = self.__array[list(key)]
                         gout = list(arr.shape)
 
                 # if the given axes are not splits (must be ints for python)
@@ -1398,12 +1406,12 @@ class DNDarray:
                 elif key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
                     key[self.split] = key[self.split] - chunk_start
-                    arr = self.__array[tuple(key)]
+                    arr = self.__array[key]
                     gout = list(arr.shape)
                 elif key[self.split] < 0 and self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
                     key[self.split] = key[self.split] + chunk_end - chunk_start
-                    arr = self.__array[tuple(key)]
+                    arr = self.__array[key]
                     gout = list(arr.shape)
                 else:
                     warnings.warn("This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
@@ -1442,7 +1450,7 @@ class DNDarray:
                 # it will return a 1D DNDarray of the elements on each node which are in the key (will be split in the 0th dimension
                 key.lloc[..., self.split] -= chunk_start
                 key_new = [key._DNDarray__array[..., i] for i in range(len(self.gshape))]
-                arr = self.__array[tuple(key_new)]
+                arr = self.__array[key_new]
                 gout = list(arr.shape)
                 new_split = 0
 
@@ -2127,7 +2135,7 @@ class DNDarray:
             self.__array = gathered
             self.__split = None
 
-    # tensor needs be split/sliced locally
+        # tensor needs be split/sliced locally
         elif self.split is None:
             _, _, slices = self.comm.chunk(self.shape, axis)
             temp = self.__array[slices]
