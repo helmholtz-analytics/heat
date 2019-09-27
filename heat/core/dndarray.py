@@ -1366,6 +1366,7 @@ class DNDarray:
                     # arr is empty and gout is zeros
 
             elif isinstance(key, (tuple, list)):  # multi-argument gets are passed as tuples by python
+                list_flag = True if isinstance(key, list) else False
                 gout = [0] * len(self.gshape)
                 # handle the dimensional reduction for integers
                 ints = sum([isinstance(it, int) for it in key])
@@ -1390,7 +1391,7 @@ class DNDarray:
                         overlap.sort()
                         hold = [x - chunk_start for x in overlap]
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
-                        arr = self.__array[tuple(key)]
+                        arr = self.__array[tuple(key) if not list_flag else key]
                         gout = list(arr.shape)
 
                 # if the given axes are not splits (must be ints for python)
@@ -1398,12 +1399,12 @@ class DNDarray:
                 elif key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
                     key[self.split] = key[self.split] - chunk_start
-                    arr = self.__array[tuple(key)]
+                    arr = self.__array[tuple(key) if not list_flag else key]
                     gout = list(arr.shape)
                 elif key[self.split] < 0 and self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
                     key[self.split] = key[self.split] + chunk_end - chunk_start
-                    arr = self.__array[tuple(key)]
+                    arr = self.__array[tuple(key) if not list_flag else key]
                     gout = list(arr.shape)
                 else:
                     warnings.warn("This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
