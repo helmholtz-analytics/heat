@@ -92,6 +92,8 @@ def concatenate(arrays, axis=0):
     [1/1]         [1., 1.],
     [1/1]         [1., 1.]])
     """
+    if not isinstance(arrays, (tuple, list)):
+        raise TypeError('arrays must be a list or a tuple')
     if len(arrays) < 2:
         raise ValueError('concatenate requires 2 arrays')
     elif len(arrays) > 2:

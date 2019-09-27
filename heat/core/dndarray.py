@@ -1346,6 +1346,7 @@ class DNDarray:
             chunk_set = set(range(chunk_start, chunk_end))
 
             arr = torch.Tensor()
+            gout = [0] * len(self.gshape)
 
             if isinstance(key, int):  # if a singular index is given and the tensor is split
                 gout = [0] * (len(self.gshape) - 1)
@@ -1358,22 +1359,27 @@ class DNDarray:
                     new_split = self.split - 1
                 else:
                     new_split = self.split
+                gout = [0] * len(self.gshape)
 
                 if key in range(chunk_start, chunk_end) and self.split == 0:  # only need to adjust the key if split==0
-                    gout = list(self.__array[key - chunk_start].shape)
                     arr = self.__array[key - chunk_start]
+                    gout[:len(arr.shape)] = list(arr.shape)
+                    # gout = list(self.__array[key - chunk_start].shape)
                 elif self.split != 0:
                     _, _, chunk_slice2 = self.comm.chunk(self.shape, self.split)
                     # need to test if the given axis is on the node and then get the shape
                     if key in range(chunk_slice2[0].start, chunk_slice2[0].stop):
                         arr = self.__array[key]
-                        gout = list(arr.shape)
+                        # gout = list(arr.shape)
+                        gout[:len(arr.shape)] = list(arr.shape)
                 else:
                     warnings.warn("This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
                         self.comm.rank), ResourceWarning)
+                    gout = [0] * len(self.gshape)
                     # arr is empty and gout is zeros
 
             elif isinstance(key, (tuple, list)):  # multi-argument gets are passed as tuples by python
+                list_flag = True if isinstance(key, list) else False
                 gout = [0] * len(self.gshape)
                 # handle the dimensional reduction for integers
                 ints = sum([isinstance(it, int) for it in key])
@@ -1383,6 +1389,7 @@ class DNDarray:
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
                     new_split = self.split
+                gout = [0] * len(self.gshape)
 
                 if isinstance(key[self.split], slice):  # if a slice is given in the split direction
                     # below allows for the split given to contain Nones
@@ -1398,24 +1405,25 @@ class DNDarray:
                         overlap.sort()
                         hold = [x - chunk_start for x in overlap]
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
-                        arr = self.__array[list(key)]
-                        gout = list(arr.shape)
+                        arr = self.__array[tuple(key) if not list_flag else key]
+                        gout[:len(arr.shape)] = list(arr.shape)
 
                 # if the given axes are not splits (must be ints for python)
                 # this means the whole slice is on one node
                 elif key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
                     key[self.split] = key[self.split] - chunk_start
-                    arr = self.__array[key]
-                    gout = list(arr.shape)
+                    arr = self.__array[tuple(key) if not list_flag else key]
+                    gout[:len(arr.shape)] = list(arr.shape)
                 elif key[self.split] < 0 and self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
                     key[self.split] = key[self.split] + chunk_end - chunk_start
-                    arr = self.__array[key]
-                    gout = list(arr.shape)
+                    arr = self.__array[tuple(key) if not list_flag else key]
+                    gout[:len(arr.shape)] = list(arr.shape)
                 else:
                     warnings.warn("This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
                         self.comm.rank), ResourceWarning)
+                    gout = [0] * len(self.gshape)
                     # arr is empty
                     # gout is all 0s and is the proper shape
 
@@ -1437,40 +1445,50 @@ class DNDarray:
                     hold = [x - chunk_start for x in overlap]
                     key = slice(min(hold), max(hold) + 1, step)
                     arr = self.__array[key]
-                    gout = list(arr.shape)
+                    # gout = list(arr.shape) if arr.nelement() != 0 else [0] * len(self.gshape)
+                    gout[:len(arr.shape)] = list(arr.shape)
                 else:
                     warnings.warn("This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
                         self.comm.rank), ResourceWarning)
+                    gout = [0] * len(self.gshape)
                     # arr is empty
                     # gout is all 0s and is the proper shape
 
-            # elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
             elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                 # this is for a list of values
                 # it will return a 1D DNDarray of the elements on each node which are in the key (will be split in the 0th dimension
                 key.lloc[..., self.split] -= chunk_start
                 key_new = [key._DNDarray__array[..., i] for i in range(len(self.gshape))]
-                arr = self.__array[key_new]
-                gout = list(arr.shape)
+                arr = self.__array[tuple(key_new)]
+                gout[:len(arr.shape)] = list(arr.shape)
                 new_split = 0
 
             else:  # handle other cases not accounted for (one is a slice is given and the split != 0)
-                gout = [0] * len(self.gshape)
+                # gout = list(arr.shape) if arr.nelement() != 0 else [0] * len(self.gshape)
+                gout[:len(arr.shape)] = list(arr.shape)
 
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
                     new_split = self.split
 
-                gout = list(self.__array[key].shape)
                 arr = self.__array[key]
+                # gout = list(arr.shape) if arr.nelement() != 0 else [0] * len(self.gshape)
+                gout[:len(arr.shape)] = list(arr.shape)
+
+            if arr.nelement() == 1:
+                gout = [0] * len(self.gshape)
+                gout[0] = 1
 
             for e, _ in enumerate(gout):
                 if e == new_split:
                     gout[e] = self.comm.allreduce(gout[e], MPI.SUM)
                 else:
                     gout[e] = self.comm.allreduce(gout[e], MPI.MAX)
-
+            # print('g', gout)
+            # # try:
+            while gout[-1] == 0:
+                gout = gout[:-1]
             return DNDarray(arr.type(l_dtype), gout if isinstance(gout, tuple) else tuple(gout), self.dtype, new_split, self.device, self.comm)
 
     if torch.cuda.device_count() > 0:
@@ -2593,10 +2611,7 @@ class DNDarray:
 
         Examples:
         >>> import heat as ht
-        >>> import torch
-        >>> torch.manual_seed(1)
-        <torch._C.Generator object at 0x115704ad0>
-        >>> a = ht.random.randn(1,3,1,5)
+        >>> a = ht.random.randn(1, 3, 1, 5)
         >>> a
         tensor([[[[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232]],
 
