@@ -86,6 +86,10 @@ class SquareDiagTiles:
             last_tile_cols -= 1
             if last_tile_cols == 1:
                 break
+        # create lists of columns and rows for each process
+        col_per_proc_list = [tile_per_proc] * arr.comm.size
+        col_per_proc_list[-1] = last_tile_cols
+        row_per_proc_list = [tile_per_proc] * arr.comm.size
 
         # need to determine the proper number of tile rows/columns
         tile_columns = tile_per_proc * last_diag_pr + last_tile_cols
@@ -117,6 +121,7 @@ class SquareDiagTiles:
             # delete entries from row_inds (need to delete tile_per_proc - (num_tiles_last_diag_pr + new_tile_rows_remaining))
             last_diag_pr_rows -= num_tiles_last_diag_pr + new_tile_rows_remaining
             del row_inds[-1 * last_diag_pr_rows:]
+            row_per_proc_list[last_diag_pr] = last_diag_pr_rows
 
             if last_diag_pr_rows_rem < 2 and arr.split == 0:
                 # if the number of rows after the diagonal is 1 then need to rechunk in the 0th dimension
@@ -135,6 +140,7 @@ class SquareDiagTiles:
         if row_inds[-1] < 2 and arr.split == 0:  # todo: determine if this should be larger
             row_inds[-2] += row_inds[-1]
             del row_inds[-1]
+            row_per_proc_list[-1] -= 1
 
         # add extra rows if there is place below the diagonal
         if arr.gshape[0] > arr.gshape[1] and arr.split == 1:  # need to adjust the very last tile to be the remaining
@@ -152,6 +158,12 @@ class SquareDiagTiles:
 
         tile_map = torch.zeros([len(row_inds), len(col_inds), 3], dtype=torch.int)
         # units -> row, column, start index in each direction, process
+        # if arr.split == 0:  # adjust the 1st dim to be the cumsum
+        col_inds = [0] + col_inds[:-1]
+        col_inds = torch.tensor(col_inds).cumsum(dim=0)
+        # if arr.split == 1:  # adjust the 0th dim to be the cumsum
+        row_inds = [0] + row_inds[:-1]
+        row_inds = torch.tensor(row_inds).cumsum(dim=0)
 
         for num, c in enumerate(col_inds):  # set columns
             tile_map[:, num, 1] = c
@@ -181,8 +193,10 @@ class SquareDiagTiles:
                 st += tile_per_proc
 
         # =================================================================================================
+        self.__col_per_proc_list = col_per_proc_list
         self.__DNDarray = arr
         self.__lshape_map = lshape_map
+        self.__row_per_proc_list = row_per_proc_list
         self.__tile_map = tile_map
         self.__tile_columns = len(col_inds)
         self.__tile_rows = len(row_inds)
@@ -208,6 +222,15 @@ class SquareDiagTiles:
         return self.__tile_columns
 
     @property
+    def tile_columns_per_process(self):
+        """
+        Returns
+        -------
+        list : list containing the number of columns on all processes
+        """
+        return self.__col_per_proc_list
+
+    @property
     def tile_map(self):
         """
         Returns
@@ -227,9 +250,19 @@ class SquareDiagTiles:
         """
         return self.__tile_rows
 
+    @property
+    def tile_rows_per_process(self):
+        """
+        Returns
+        -------
+        list : list containing the number of rows on all processes
+        """
+        return self.__row_per_proc_list
+
     def async_get(self, key, dest):
         """
         Call to get a tile and then send it to the specified process (dest) using Send and Irecv
+
         :param key:
         :param dest:
         :return:
@@ -246,8 +279,10 @@ class SquareDiagTiles:
     def async_set(self, key, data, home):
         """
         Function to set the specified tile's values on the original tile's process
+
         :param key:
-        :param dest:
+        :param data:
+        :param home:
         :return:
         """
         tile = self.__getitem__(key)
@@ -277,27 +312,22 @@ class SquareDiagTiles:
         """
         # default getitem will return the data in the array!!
         # this is intended to return tiles which are local. it will return torch.Tensors which correspond to the tiles of the array
-        # this is a global getter, if the tile is not on the process then it will return None
         arr = self.__DNDarray
         tile_map = self.__tile_map
         local_arr = self.__DNDarray._DNDarray__array
-        # cases:
-        # int,
         if isinstance(key, int):
             # get all the instances in a row (tile column 0 -> end)
             # todo: determine the rank with the diagonal element to determine the 1st coordinate
             if arr.split != 0:
                 raise ValueError('Slicing across splits is not allowed')
-            # print(arr.comm.rank, tile_map[key][..., 2].unique())
             if arr.comm.rank == tile_map[key][..., 2].unique():
-                rank_slice = torch.where(tile_map[..., 2] == arr.comm.rank)[0].unique()
                 # above is the code to get the tile map for what is all on one tile
-                st0 = tile_map[..., 1][rank_slice][:key % rank_slice.shape[0], 0].sum()
-                sp0 = tile_map[..., 1][rank_slice][key % rank_slice.shape[0], 0] + st0
+                prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank])
+                st0 = tile_map[key, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                sp0 = tile_map[key + 1, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
                 return local_arr[st0:sp0]
             else:
                 return None
-
         elif tile_map[key][..., 2].unique().nelement() > 1:
             raise ValueError('Slicing across splits is not allowed')
         else:
@@ -305,98 +335,140 @@ class SquareDiagTiles:
                 if not isinstance(key, (tuple, list, slice)):
                     raise TypeError('key must be an int, tuple, or slice, is currently {}'.format(type(key)))
 
-                rank_slice = torch.where(tile_map[..., 2] == arr.comm.rank)[0].unique()  # gives the tile index in the split direction
                 if isinstance(key, slice):
-                    if arr.split == 0:
-                        start = key.start % rank_slice.shape[0]
-                        stop = key.stop % rank_slice.shape[arr.split] if key.stop % rank_slice.shape[arr.split] != 0 else None
-                        key = slice(start, stop)
-                    key = [key, slice(None)]
-                    st0 = tile_map[rank_slice][:key[0].start, 0][..., 0].sum()
-                    sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
-                    st1 = tile_map[rank_slice][0, :key[1].start][..., 1].sum()
-                    sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
-                    return local_arr[st0:sp0, st1:sp1]
+                    key = tuple(key, slice(0, None))
+                    self.__getitem__(key)
 
                 key = list(key)
                 if all(isinstance(x, int) for x in key):
-                    # rank_slice = torch.where(tile_map[..., 2] == arr.comm.rank)  # gives the tile index in the split direction
-                    # on(arr.split + 1) % len(arr.gshape)
-                    # print(key, )
-                    # key = list(key)
-                    key[arr.split] = key[arr.split] % tile_map[rank_slice][..., arr.split].unique().shape[0]
-
-                    st0 = tile_map[rank_slice][:key[0], 0][..., 0].sum()
-                    sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
-                    st1 = tile_map[rank_slice][0, :key[1]][..., 1].sum()
-                    sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
+                    prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank]) if arr.split == 0 else sum(self.__col_per_proc_list[:arr.comm.rank])
+                    st0 = tile_map[key[0], 0][..., 0] if arr.split == 1 else tile_map[key[0], 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                    sp0 = tile_map[key[0] + 1, 0][..., 0] if arr.split == 1 else tile_map[key[0] + 1, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                    st1 = tile_map[0, key[1]][..., 1] if arr.split == 0 else tile_map[0, key[1]][..., 1] - tile_map[0, prev_to_split][..., 1]
+                    sp1 = tile_map[0, key[1] + 1][..., 1] if arr.split == 0 else tile_map[0, key[1] + 1][..., 1] - tile_map[0, prev_to_split][..., 1]
 
                 elif isinstance(key[arr.split], slice) and isinstance(key[(arr.split + 1) % len(arr.gshape)], int):
                     # note: strides are not implemented! todo: add to docs
-                    key = list(key)
-                    mod_val = tile_map[rank_slice][..., arr.split].unique().shape[0]
-                    start = key[arr.split].start % mod_val
-                    if key[arr.split].stop is not None:
-                        stop = key[arr.split].stop % mod_val if key[arr.split].stop % mod_val != 0 else None
-                    else:
-                        stop = None
-                    step = None
-                    key[arr.split] = slice(start, stop, step)
-                    if arr.split == 0:
-                        st0 = tile_map[rank_slice][:key[0].start, 0][..., 0].sum()
-                        sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
-                        st1 = tile_map[rank_slice][0, :key[1]][..., 1].sum()
-                        sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
-                    if arr.split == 1:
-                        # print(tile_map[rank_slice])
-                        st0 = tile_map[rank_slice][:key[0], 0][..., 0].sum()
-                        sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
-                        st1 = tile_map[rank_slice][0, :key[1].start][..., 1].sum()
-                        sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
-                    # print(st0, sp0, st1, sp1)
-                elif isinstance(key[arr.split], int) and isinstance(key[(arr.split + 1) % len(arr.gshape)], slice):
-                    # this implies that the other axis is a slice -> key = (int, slice) for split = 0
-                    # if arr.split == 0:
-                    slice_dim = (arr.split + 1) % len(arr.gshape)
-                    # mod_val =
-                    key[arr.split] = key[arr.split] % tile_map[rank_slice][..., arr.split].unique().shape[0]
+                    slice_dim = arr.split
                     # this is to change from global to local, take the mode of how many tiles are in the split dimension
                     start = key[slice_dim].start if key[slice_dim].start is not None else 0
-                    key[slice_dim] = slice(start, key[slice_dim].stop)
+                    stop = key[slice_dim].stop if key[slice_dim].stop is not None else arr.gshape[slice_dim]
+                    key[slice_dim] = slice(start, stop)
 
+                    prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank]) if arr.split == 0 else sum(self.__col_per_proc_list[:arr.comm.rank])
                     if arr.split == 0:
-                        st0 = tile_map[rank_slice][:key[0], 0][..., 0].sum()
-                        sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
-                        st1 = tile_map[rank_slice][0, :key[1].start][..., 1].sum()
-                        sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
+                        st0 = tile_map[key[0].start, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                        try:
+                            sp0 = tile_map[key[0].stop, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                        except IndexError:
+                            sp0 = key[0].stop
+                        st1 = tile_map[0, key[1]][..., 1]
+                        sp1 = tile_map[0, key[1] + 1][..., 1]
                     if arr.split == 1:
-                        # print(tile_map[rank_slice])
-                        st0 = tile_map[rank_slice][:key[0].start, 0][..., 0].sum()
-                        sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
-                        st1 = tile_map[rank_slice][0, :key[1]][..., 1].sum()
-                        sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
-                else:  # all slices
-                    # adjust slice on the split axis, then get the indices
-                    mod_val = tile_map[rank_slice][..., arr.split].unique().shape[0]
-                    start = key[arr.split].start % mod_val if key[arr.split].start % mod_val is not None else 0
-                    if key[arr.split].stop is not None:
-                        stop = key[arr.split].stop % mod_val if key[0].stop % mod_val != 0 else None
-                    else:
-                        stop = None
-                    step = None
-                    start2 = key[(arr.split + 1) % len(arr.gshape)].start if key[(arr.split + 1) % len(arr.gshape)].start is not None else 0
-                    key[(arr.split + 1) % len(arr.gshape)] = slice(start2, key[(arr.split + 1) % len(arr.gshape)].stop)
-                    key[arr.split] = slice(start, stop, step)
+                        st0 = tile_map[key[0], 0][..., 0]
+                        sp0 = tile_map[key[0] + 1, 0][..., 0]
+                        st1 = tile_map[0, key[1].start][..., 1] - tile_map[0, prev_to_split][..., 1]
+                        try:
+                            sp1 = tile_map[0, key[1].stop][..., 1] - tile_map[0, prev_to_split][..., 1]
+                        except IndexError:
+                            sp1 = key[1].stop
+                elif isinstance(key[arr.split], int) and isinstance(key[(arr.split + 1) % len(arr.gshape)], slice):
+                    # this implies that the other axis is a slice -> key = (int, slice) for split = 0
+                    slice_dim = (arr.split + 1) % len(arr.gshape)
+                    # this is to change from global to local, take the mode of how many tiles are in the split dimension
+                    start = key[slice_dim].start if key[slice_dim].start is not None else 0
+                    stop = key[slice_dim].stop if key[slice_dim].stop is not None else arr.gshape[slice_dim]
+                    key[slice_dim] = slice(start, stop)
 
-                    st0 = tile_map[rank_slice][:key[0].start, 0][..., 0].sum()
-                    sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
-                    st1 = tile_map[rank_slice][0, :key[1].start][..., 1].sum()
-                    sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
+                    prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank]) if arr.split == 0 else sum(self.__col_per_proc_list[:arr.comm.rank])
+                    if arr.split == 0:
+                        st0 = tile_map[key[0], 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                        sp0 = tile_map[key[0] + 1, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                        st1 = tile_map[0, key[1].start][..., 1]
+                        try:
+                            sp1 = tile_map[0, key[1].stop][..., 1]
+                        except IndexError:
+                            sp1 = key[1].stop
+                    if arr.split == 1:
+                        st0 = tile_map[key[0].start, 0][..., 0]
+                        try:
+                            sp0 = tile_map[key[0].stop, 0][..., 1]
+                        except IndexError:
+                            sp0 = key[1].stop
+                        st1 = tile_map[0, key[1]][..., 1] - tile_map[0, prev_to_split][..., 1]
+                        sp1 = tile_map[0, key[1] + 1][..., 1] - tile_map[0, prev_to_split][..., 1]
+                else:  # all slices
+                    start = key[arr.split].start if key[arr.split].start is not None else 0
+                    stop = key[arr.split].stop if key[arr.split].stop is not None else arr.gshape[arr.split]
+                    start2 = key[(arr.split + 1) % len(arr.gshape)].start if key[(arr.split + 1) % len(arr.gshape)].start is not None else 0
+                    stop2 = key[(arr.split + 1) % len(arr.gshape)].stop if key[(arr.split + 1) % len(arr.gshape)].stop is not None \
+                        else arr.gshape[(arr.split + 1) % len(arr.gshape)]
+                    key[(arr.split + 1) % len(arr.gshape)] = slice(start2, stop2)
+                    key[arr.split] = slice(start, stop)
+
+                    # rank_slice = torch.where(tile_map[..., 2] == arr.comm.rank)
+                    # only need to know how many columns are before the start of the key on the local column
+                    prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank]) if arr.split == 0 else sum(self.__col_per_proc_list[:arr.comm.rank])
+                    st0 = tile_map[key[0].start, 0][..., 0] if arr.split == 1 else tile_map[key[0].start, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                    try:
+                        sp0 = tile_map[key[0].stop, 0][..., 0] if arr.split == 1 else tile_map[key[0].stop, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                    except IndexError:
+                        sp0 = key[0].stop
+                    st1 = tile_map[0, key[1].start][..., 1] if arr.split == 0 else tile_map[0, key[1].start][..., 1] - tile_map[0, prev_to_split][..., 1]
+                    try:
+                        sp1 = tile_map[0, key[1].stop][..., 1] if arr.split == 0 else tile_map[0, key[1].stop][..., 1] - tile_map[0, prev_to_split][..., 1]
+                    except IndexError:
+                        sp1 = key[1].stop
 
                 # print(st0, sp0, st1, sp1)
                 return local_arr[st0:sp0, st1:sp1]
             else:
                 return None
+
+    def local_get(self, key, proc=None):
+        # this is to be used with only local indices!
+        # convert from local to global?
+        proc = proc if proc is not None else self.__DNDarray.comm.rank
+        if proc == self.__DNDarray.comm.rank:
+            arr = self.__DNDarray
+            tile_map = self.__tile_map
+            rank_slice = torch.where(tile_map[..., 2] == proc)
+
+            # need to convert the key into local indices -> only needs to be done on the split dimension
+            key = list(key)
+            if isinstance(key, int):
+                key = [key, slice(0, arr.gshape[1])]
+            elif isinstance(key, slice):
+                key = [key, slice(0, arr.gshape[1])]
+
+            if arr.split == 0:
+                # need to adjust key[0] to be only on the local tensor
+                prev_rows = sum(self.__row_per_proc_list[:proc])
+                loc_rows = self.__row_per_proc_list[proc]
+                if isinstance(key[1], int):
+                    key[0] += prev_rows
+                elif isinstance(key[0], slice):
+                    start = key[0].start + prev_rows
+                    stop = key[0].stop + prev_rows
+                    if stop - start > loc_rows:
+                        # print(local_tile_map)
+                        stop = start + loc_rows
+                    key[0] = slice(start, stop)
+            if arr.split == 1:
+                # need to adjust key[0] to be only on the local tensor
+                # need the number of columns *before* the process
+                prev_cols = sum(self.__col_per_proc_list[:proc])
+                loc_cols = self.__col_per_proc_list[proc]
+                if isinstance(key[1], int):
+                    key[1] += prev_cols
+                elif isinstance(key[1], slice):
+                    start = key[1].start + prev_cols
+                    stop = key[1].stop + prev_cols
+                    if stop - start > loc_cols:
+                        # print(local_tile_map)
+                        stop = start + loc_cols
+                    key[1] = slice(start, stop)
+            self.__getitem__(key)
 
     def __setitem__(self, key, value):
         """
@@ -415,6 +487,7 @@ class SquareDiagTiles:
         """
         arr = self.__DNDarray
         tile_map = self.__tile_map
+        # print(tile_map[key][..., 2].unique())
         if arr.comm.rank == tile_map[key][..., 2].unique():
             # this will set the tile values using the torch setitem function
             self.__getitem__(key).__setitem__(slice(None), value)
@@ -438,15 +511,17 @@ class SquareDiagTiles:
         # this is a global getter, if the tile is not on the process then it will return None
         arr = self.__DNDarray
         tile_map = self.__tile_map
+        local_arr = self.__DNDarray._DNDarray__array
         if isinstance(key, int):
             # get all the instances in a row (tile column 0 -> end)
+            # todo: determine the rank with the diagonal element to determine the 1st coordinate
             if arr.split != 0:
                 raise ValueError('Slicing across splits is not allowed')
-            if arr.comm.rank == int(tile_map[key][..., 2].unique()):
-                rank_slice = torch.where(tile_map[..., 2] == arr.comm.rank)[0].unique()
+            if arr.comm.rank == tile_map[key][..., 2].unique():
                 # above is the code to get the tile map for what is all on one tile
-                st0 = tile_map[..., 1][rank_slice][:key % rank_slice.shape[0], 0].sum()
-                sp0 = tile_map[..., 1][rank_slice][key % rank_slice.shape[0], 0] + st0
+                prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank])
+                st0 = tile_map[key, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                sp0 = tile_map[key + 1, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
                 return st0, sp0, 0, arr.gshape[1]
         elif tile_map[key][..., 2].unique().nelement() > 1:
             raise ValueError('Slicing across splits is not allowed')
@@ -455,84 +530,90 @@ class SquareDiagTiles:
                 if not isinstance(key, (tuple, list, slice)):
                     raise TypeError('key must be an int, tuple, or slice, is currently {}'.format(type(key)))
 
-                rank_slice = torch.where(tile_map[..., 2] == arr.comm.rank)[0].unique()  # gives the tile index in the split direction
                 if isinstance(key, slice):
-                    if arr.split == 0:
-                        start = key.start % rank_slice.shape[0]
-                        stop = key.stop % rank_slice.shape[arr.split] if key.stop % rank_slice.shape[arr.split] != 0 else None
-                        key = slice(start, stop)
-                    key = [key, slice(None)]
-                    st0 = tile_map[rank_slice][:key[0].start, 0][..., 0].sum()
-                    sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
-                    st1 = tile_map[rank_slice][0, :key[1].start][..., 1].sum()
-                    sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
+                    key = tuple(key, slice(0, None))
+                    self.__getitem__(key)
 
                 key = list(key)
                 if all(isinstance(x, int) for x in key):
-                    key[arr.split] = key[arr.split] % rank_slice.shape[0]
-
-                    st0 = tile_map[rank_slice][:key[0], 0][..., 0].sum()
-                    sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
-                    st1 = tile_map[rank_slice][0, :key[1]][..., 1].sum()
-                    sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
+                    prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank]) if arr.split == 0 else sum(self.__col_per_proc_list[:arr.comm.rank])
+                    st0 = tile_map[key[0], 0][..., 0] if arr.split == 1 else tile_map[key[0], 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                    sp0 = tile_map[key[0] + 1, 0][..., 0] if arr.split == 1 else tile_map[key[0] + 1, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                    st1 = tile_map[0, key[1]][..., 1] if arr.split == 0 else tile_map[0, key[1]][..., 1] - tile_map[0, prev_to_split][..., 1]
+                    sp1 = tile_map[0, key[1] + 1][..., 1] if arr.split == 0 else tile_map[0, key[1] + 1][..., 1] - tile_map[0, prev_to_split][..., 1]
 
                 elif isinstance(key[arr.split], slice) and isinstance(key[(arr.split + 1) % len(arr.gshape)], int):
                     # note: strides are not implemented! todo: add to docs
-                    start = key[arr.split].start % rank_slice.shape[0]
-                    if key[arr.split].stop is not None:
-                        stop = key[arr.split].stop % rank_slice.shape[0] if key[arr.split].stop % rank_slice.shape[0] != 0 else None
-                    else:
-                        stop = None
-                    step = None
-                    key[arr.split] = slice(start, stop, step)
-                    if arr.split == 0:
-                        st0 = tile_map[rank_slice][:key[0].start, 0][..., 0].sum()
-                        sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
-                        st1 = tile_map[rank_slice][0, :key[1]][..., 1].sum()
-                        sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
-                    if arr.split == 1:
-                        # print(tile_map[rank_slice])
-                        st0 = tile_map[rank_slice][:key[0], 0][..., 0].sum()
-                        sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
-                        st1 = tile_map[rank_slice][0, :key[1].start][..., 1].sum()
-                        sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
-                    # print(st0, sp0, st1, sp1)
-                elif isinstance(key[arr.split], int) and isinstance(key[(arr.split + 1) % len(arr.gshape)], slice):
-                    # this implies that the other axis is a slice -> key = (int, slice) for split = 0
-                    # if arr.split == 0:
-                    slice_dim = (arr.split + 1) % len(arr.gshape)
-                    key[arr.split] = key[arr.split] % rank_slice.shape[0]
+                    slice_dim = arr.split
                     # this is to change from global to local, take the mode of how many tiles are in the split dimension
                     start = key[slice_dim].start if key[slice_dim].start is not None else 0
-                    key[slice_dim] = slice(start, key[slice_dim].stop)
+                    stop = key[slice_dim].stop if key[slice_dim].stop is not None else arr.gshape[slice_dim]
+                    key[slice_dim] = slice(start, stop)
 
+                    prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank]) if arr.split == 0 else sum(self.__col_per_proc_list[:arr.comm.rank])
                     if arr.split == 0:
-                        st0 = tile_map[rank_slice][:key[0], 0][..., 0].sum()
-                        sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
-                        st1 = tile_map[rank_slice][0, :key[1].start][..., 1].sum()
-                        sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
+                        st0 = tile_map[key[0].start, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                        try:
+                            sp0 = tile_map[key[0].stop, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                        except IndexError:
+                            sp0 = key[0].stop
+                        st1 = tile_map[0, key[1]][..., 1]
+                        sp1 = tile_map[0, key[1] + 1][..., 1]
                     if arr.split == 1:
-                        # print(tile_map[rank_slice])
-                        st0 = tile_map[rank_slice][:key[0].start, 0][..., 0].sum()
-                        sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
-                        st1 = tile_map[rank_slice][0, :key[1]][..., 1].sum()
-                        sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
-                else:  # all slices
-                    # adjust slice on the split axis, then get the indices
-                    start = key[arr.split].start % rank_slice.shape[0] if key[arr.split].start % rank_slice.shape[0] is not None else 0
-                    if key[arr.split].stop is not None:
-                        stop = key[arr.split].stop % rank_slice.shape[0] if key[0].stop % rank_slice.shape[0] != 0 else None
-                    else:
-                        stop = None
-                    step = None
-                    start2 = key[(arr.split + 1) % len(arr.gshape)].start if key[(arr.split + 1) % len(arr.gshape)].start is not None else 0
-                    key[(arr.split + 1) % len(arr.gshape)] = slice(start2, key[(arr.split + 1) % len(arr.gshape)].stop)
-                    key[arr.split] = slice(start, stop, step)
+                        st0 = tile_map[key[0], 0][..., 0]
+                        sp0 = tile_map[key[0] + 1, 0][..., 0]
+                        st1 = tile_map[0, key[1].start][..., 1] - tile_map[0, prev_to_split][..., 1]
+                        try:
+                            sp1 = tile_map[0, key[1].stop][..., 1] - tile_map[0, prev_to_split][..., 1]
+                        except IndexError:
+                            sp1 = key[1].stop
+                elif isinstance(key[arr.split], int) and isinstance(key[(arr.split + 1) % len(arr.gshape)], slice):
+                    # this implies that the other axis is a slice -> key = (int, slice) for split = 0
+                    slice_dim = (arr.split + 1) % len(arr.gshape)
+                    # this is to change from global to local, take the mode of how many tiles are in the split dimension
+                    start = key[slice_dim].start if key[slice_dim].start is not None else 0
+                    stop = key[slice_dim].stop if key[slice_dim].stop is not None else arr.gshape[slice_dim]
+                    key[slice_dim] = slice(start, stop)
 
-                    st0 = tile_map[rank_slice][:key[0].start, 0][..., 0].sum()
-                    sp0 = tile_map[rank_slice][key[0], 0][..., 0].sum() + st0
-                    st1 = tile_map[rank_slice][0, :key[1].start][..., 1].sum()
-                    sp1 = tile_map[rank_slice][0, key[1]][..., 1].sum() + st1
+                    prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank]) if arr.split == 0 else sum(self.__col_per_proc_list[:arr.comm.rank])
+                    if arr.split == 0:
+                        st0 = tile_map[key[0], 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                        sp0 = tile_map[key[0] + 1, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                        st1 = tile_map[0, key[1].start][..., 1]
+                        try:
+                            sp1 = tile_map[0, key[1].stop][..., 1]
+                        except IndexError:
+                            sp1 = key[1].stop
+                    if arr.split == 1:
+                        st0 = tile_map[key[0].start, 0][..., 0]
+                        try:
+                            sp0 = tile_map[key[0].stop, 0][..., 1]
+                        except IndexError:
+                            sp0 = key[1].stop
+                        st1 = tile_map[0, key[1]][..., 1] - tile_map[0, prev_to_split][..., 1]
+                        sp1 = tile_map[0, key[1] + 1][..., 1] - tile_map[0, prev_to_split][..., 1]
+                else:  # all slices
+                    start = key[arr.split].start if key[arr.split].start is not None else 0
+                    stop = key[arr.split].stop if key[arr.split].stop is not None else arr.gshape[arr.split]
+                    start2 = key[(arr.split + 1) % len(arr.gshape)].start if key[(arr.split + 1) % len(arr.gshape)].start is not None else 0
+                    stop2 = key[(arr.split + 1) % len(arr.gshape)].stop if key[(arr.split + 1) % len(arr.gshape)].stop is not None \
+                        else arr.gshape[(arr.split + 1) % len(arr.gshape)]
+                    key[(arr.split + 1) % len(arr.gshape)] = slice(start2, stop2)
+                    key[arr.split] = slice(start, stop)
+
+                    # rank_slice = torch.where(tile_map[..., 2] == arr.comm.rank)
+                    # only need to know how many columns are before the start of the key on the local column
+                    prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank]) if arr.split == 0 else sum(self.__col_per_proc_list[:arr.comm.rank])
+                    st0 = tile_map[key[0].start, 0][..., 0] if arr.split == 1 else tile_map[key[0].start, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                    try:
+                        sp0 = tile_map[key[0].stop, 0][..., 0] if arr.split == 1 else tile_map[key[0].stop, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                    except IndexError:
+                        sp0 = key[0].stop
+                    st1 = tile_map[0, key[1].start][..., 1] if arr.split == 0 else tile_map[0, key[1].start][..., 1] - tile_map[0, prev_to_split][..., 1]
+                    try:
+                        sp1 = tile_map[0, key[1].stop][..., 1] if arr.split == 0 else tile_map[0, key[1].stop][..., 1] - tile_map[0, prev_to_split][..., 1]
+                    except IndexError:
+                        sp1 = key[1].stop
 
                 return st0, sp0, st1, sp1
 
