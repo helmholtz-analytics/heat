@@ -275,6 +275,8 @@ class SquareDiagTiles:
         if comm.rank == dest:
             ret = comm.irecv(source=src)
             return ret
+        else:
+            return tile
 
     def async_set(self, key, data, home):
         """
