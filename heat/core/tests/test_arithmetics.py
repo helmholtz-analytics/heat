@@ -24,7 +24,7 @@ class TestArithmetics(unittest.TestCase):
             [2.0, 2.0],
             [2.0, 2.0]
         ])
-        cls.a_split_tensor = cls.another_tensor.copy().resplit(0)
+        cls.a_split_tensor = cls.another_tensor.copy().resplit_(0)
 
         cls.errorneous_type = (2, 2)
 
@@ -57,7 +57,7 @@ class TestArithmetics(unittest.TestCase):
             for ax in range(dim + 1):  # loop over the possible axis values
                 for sp in range(dim + 1):  # loop over the possible split values
                     for nl in range(1, 4):  # loop to 3 for the number of times to do the diff
-                        lp_array = ht_array[arb_slice].resplit(sp)  # only generating the number once and then
+                        lp_array = ht.manipulations.resplit(ht_array[arb_slice], sp)  # only generating the number once and then
                         np_array = ht_array[arb_slice].numpy()
 
                         ht_diff = ht.diff(lp_array, n=nl, axis=ax)

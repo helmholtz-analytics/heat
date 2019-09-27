@@ -500,7 +500,7 @@ class MPICommunication(Communication):
         """
 
         # dummy allocation for *v calls
-         # ToDO: Propper implementation of usage
+        # ToDO: Propper implementation of usage
         send_counts, send_displs, recv_counts, recv_displs = None, None, None, None,
 
         # unpack the send buffer
@@ -524,7 +524,6 @@ class MPICommunication(Communication):
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
 
-
         # permute the send_axis order so that the split send_axis is the first to be transmitted
         if(axis !=0 ):
             send_axis_permutation = list(range(sendbuf.ndimension()))
@@ -535,7 +534,6 @@ class MPICommunication(Communication):
             recv_axis_permutation = list(range(recvbuf.ndimension()))
             recv_axis_permutation[0], recv_axis_permutation[axis] = axis, 0
             recvbuf = recvbuf.permute(*recv_axis_permutation)
-
 
         # prepare buffer objects
         if sendbuf is  MPI.IN_PLACE or not isinstance(sendbuf, torch.Tensor):
@@ -651,14 +649,12 @@ class MPICommunication(Communication):
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
 
-
-        #simple case, continuos buffers can be transmitted as is
+        # Simple case, continuos buffers can be transmitted as is
         if(send_axis < 2 and recv_axis < 2):
-
             send_axis_permutation = list(range(recvbuf.ndimension()))
             recv_axis_permutation = list(range(recvbuf.ndimension()))
 
-            #Minimal Fix; Could possibly be improved when reworking counts, displs algorithmics
+            # Minimal Fix; Could possibly be improved when reworking counts, displs algorithmics
             if(self.size>1):
                 send_axis_permutation[0], send_axis_permutation[send_axis] = send_axis, 0
                 recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
@@ -683,8 +679,6 @@ class MPICommunication(Communication):
             if recv_axis != 0:
                 recvbuf = recvbuf.permute(*recv_axis_permutation)
                 original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
-
-
 
         # slightly more difficult situation, senc and receive buffer need custom datatype preparation;
         # operation is performed via alltoallw
