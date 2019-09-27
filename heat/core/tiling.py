@@ -52,12 +52,16 @@ class SquareDiagTiles:
 
         Initializes
         -----------
+        __col_per_proc_list : list
+            list is length of the number of processes, each element has the number of tile columns on the process whos rank equals the index
         __DNDarray = arr : DNDarray
             the whole DNDarray
         __lshape_map : torch.Tensor
             tensor filled with the shapes of the local tensors
         __tile_map : torch.Tensor
-            tensor filled with the sizes of the generated tiles
+            tensor filled with the global indices of the generated tiles
+        __row_per_proc_list : list
+            list is length of the number of processes, each element has the number of tile rows on the process whos rank equals the index
         __tile_columns : int
             number of tile columns
         __tile_rows : int
@@ -427,7 +431,17 @@ class SquareDiagTiles:
             else:
                 return None
 
+    # todo: implement local_async_get
+    def local_get_async(self, key, proc, dest):
+        pass
+
     def local_get(self, key, proc=None):
+        """
+        get the tile corresponding to the local
+        :param key:
+        :param proc:
+        :return:
+        """
         # this is to be used with only local indices!
         # convert from local to global?
         proc = proc if proc is not None else self.__DNDarray.comm.rank
@@ -629,7 +643,3 @@ class SquareDiagTiles:
         torch.Shape : uses the getitem routine then calls the torch shape function
         """
         return self.__getitem__(key).shape
-
-    # todo: get_start, get_end, asynce_get, async_set, docs, global->local convert
-    # tile start
-    # tile end
