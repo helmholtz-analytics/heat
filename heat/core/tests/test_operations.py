@@ -118,6 +118,14 @@ class TestOperations(unittest.TestCase):
         result = right_tensor ^ left_tensor
         self.assertEqual(result.shape, (2, 4, 2))
 
+        # broadcast with unequal dimensions, a scalar, and one splitted tensor
+        left_scalar = ht.np.int32(1)
+        right_tensor = ht.ones((1, 2), split=0, dtype=ht.int32)
+        result = ht.bitwise_or(left_scalar, right_tensor)
+        self.assertEqual(result.shape, (1, 2))
+        result = right_tensor | left_scalar
+        self.assertEqual(result.shape, (1, 2))
+
         # broadcast with unequal dimensions and two splitted tensors
         left_tensor = ht.ones((4, 1, 3, 1, 2), split=0, dtype=torch.uint8)
         right_tensor = ht.ones((1, 3, 1), split=0, dtype=torch.uint8)
