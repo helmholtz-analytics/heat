@@ -5,6 +5,8 @@ import warnings
 from .communication import MPI
 from . import exponential
 from . import factories
+from . import linalg
+from . import manipulations
 from . import operations
 from . import dndarray
 from . import types
@@ -16,6 +18,7 @@ __all__ = [
     'argmax',
     'argmin',
     'average',
+    'cov',
     'max',
     'maximum',
     'mean',
@@ -219,7 +222,7 @@ def average(x, axis=None, weights=None, returned=False):
     Parameters
     ----------
     x : ht.tensor
-        Tensor containing data to be averaged. 
+        Tensor containing data to be averaged.
 
     axis : None or int or tuple of ints, optional
         Axis or axes along which to average x.  The default,
@@ -250,12 +253,12 @@ def average(x, axis=None, weights=None, returned=False):
         Return the average along the specified axis. When returned=True,
         return a tuple with the average as the first element and the sum
         of the weights as the second element. sum_of_weights is of the
-        same type as `average`. 
+        same type as `average`.
 
     Raises
     ------
     ZeroDivisionError
-        When all weights along axis are zero. 
+        When all weights along axis are zero.
 
     TypeError
         When the length of 1D weights is not the same as the shape of x
@@ -320,7 +323,7 @@ def average(x, axis=None, weights=None, returned=False):
         # Broadcast weights along specified axis if necessary
         if wgt.numdims == 1 and x.numdims != 1:
             if wgt.split is not None:
-                wgt.resplit(None)
+                wgt.resplit_(None)
             weights_newshape = tuple(1 if i != axis else x.gshape[axis] for i in range(x.numdims))
             wgt._DNDarray__array = torch.reshape(wgt._DNDarray__array, weights_newshape)
             wgt._DNDarray__gshape = weights_newshape
@@ -332,7 +335,7 @@ def average(x, axis=None, weights=None, returned=False):
         # Distribution: if x is split, split to weights along same dimension if possible
         if x.split is not None and wgt.split != x.split:
             if wgt.gshape[x.split] != 1:
-                wgt.resplit(x.split)
+                wgt.resplit_(x.split)
 
         result = (x * wgt).sum(axis=axis) / cumwgt
 
@@ -344,6 +347,78 @@ def average(x, axis=None, weights=None, returned=False):
         return (result, cumwgt)
 
     return result
+
+
+def cov(m, y=None, rowvar=True, bias=False, ddof=None):
+    """
+    Estimate the covariance matrix of some data, m. For more imformation on the algorithm please see the numpy function of the same name
+
+    Parameters
+    ----------
+    m : array_like
+        A 1-D or 2-D array containing multiple variables and observations. Each row of `m` represents a variable, and each column a single
+        observation of all those variables. Also see `rowvar` below.
+    y : array_like, optional
+        An additional set of variables and observations. `y` has the same form as that of `m`.
+    rowvar : bool, optional
+        If `rowvar` is True (default), then each row represents a variable, with observations in the columns. Otherwise, the relationship
+        is transposed: each column represents a variable, while the rows contain observations.
+    bias : bool, optional
+        Default normalization (False) is by ``(N - 1)``, where ``N`` is the number of observations given (unbiased estimate). If `bias` is True,
+        then normalization is by ``N``. These values can be overridden by using the keyword ``ddof`` in numpy versions >= 1.5.
+    ddof : int, optional
+        If not ``None`` the default value implied by `bias` is overridden. Note that ``ddof=1`` will return the unbiased estimate and
+        ``ddof=0`` will return the simple average. The default value is ``None``.
+
+    Returns
+    -------
+    cov : DNDarray
+        the covariance matrix of the variables
+    """
+    if ddof is not None and not isinstance(ddof, int):
+        raise TypeError("ddof must be integer")
+    if not isinstance(m, dndarray.DNDarray):
+        raise TypeError('m must be a DNDarray')
+    if not m.is_balanced():
+        raise RuntimeError("balance is required for cov(). use balance_() to balance m")
+    if m.numdims > 2:
+        raise ValueError("m has more than 2 dimensions")
+
+    if m.numdims == 1:
+        m = m.expand_dims(1)
+    x = m.copy()
+    if not rowvar and x.shape[0] != 1:
+        x = x.T
+
+    if ddof is None:
+        if bias == 0:
+            ddof = 1
+        else:
+            ddof = 0
+
+    if y is not None:
+        if not isinstance(y, dndarray.DNDarray):
+            raise TypeError('y must be a DNDarray')
+        if y.numdims > 2:
+            raise ValueError('y has too many dimensions, max=2')
+        if y.numdims == 1:
+            y = y.expand_dims(1)
+        if not y.is_balanced():
+            raise RuntimeError("balance is required for cov(). use balance_() to balance y")
+        if not rowvar and y.shape[0] != 1:
+            y = y.T
+
+        x = manipulations.concatenate((x, y), axis=0)
+
+    avg = mean(x, axis=1)
+    norm = x.shape[1] - ddof
+    # find normalization:
+    if norm <= 0:
+        raise ValueError('ddof >= number of elements in m, {} {}'.format(ddof, m.gnumel))
+    x -= avg.expand_dims(1)
+    c = linalg.dot(x, x.T)
+    c /= norm
+    return c
 
 
 def max(x, axis=None, out=None, keepdim=None):
@@ -505,19 +580,19 @@ def maximum(x1, x2, out=None):
     # apply split semantics
     if x1.split is not None or x2.split is not None:
         if x1.split is None:
-            x1.resplit(x2.split)
+            x1.resplit_(x2.split)
         if x2.split is None:
-            x2.resplit(x1.split)
+            x2.resplit_(x1.split)
         if x1.split != x2.split:
             if np.prod(x1.gshape) < np.prod(x2.gshape):
-                x1.resplit(x2.split)
+                x1.resplit_(x2.split)
             if np.prod(x2.gshape) < np.prod(x1.gshape):
-                x2.resplit(x1.split)
+                x2.resplit_(x1.split)
             else:
                 if x1.split < x2.split:
-                    x2.resplit(x1.split)
+                    x2.resplit_(x1.split)
                 else:
-                    x1.resplit(x2.split)
+                    x1.resplit_(x2.split)
         split = x1.split
     else:
         split = None
@@ -606,7 +681,6 @@ def mean(x, axis=None):
     >>> ht.mean(a, (0,1))
     tensor(0.4730)
     """
-
     def reduce_means_elementwise(output_shape_i):
         """
         Function to combine the calculated means together.
@@ -947,19 +1021,19 @@ def minimum(x1, x2, out=None):
     # apply split semantics
     if x1.split is not None or x2.split is not None:
         if x1.split is None:
-            x1.resplit(x2.split)
+            x1.resplit_(x2.split)
         if x2.split is None:
-            x2.resplit(x1.split)
+            x2.resplit_(x1.split)
         if x1.split != x2.split:
             if np.prod(x1.gshape) < np.prod(x2.gshape):
-                x1.resplit(x2.split)
+                x1.resplit_(x2.split)
             if np.prod(x2.gshape) < np.prod(x1.gshape):
-                x2.resplit(x1.split)
+                x2.resplit_(x1.split)
             else:
                 if x1.split < x2.split:
-                    x2.resplit(x1.split)
+                    x2.resplit_(x1.split)
                 else:
-                    x1.resplit(x2.split)
+                    x1.resplit_(x2.split)
         split = x1.split
     else:
         split = None
