@@ -556,7 +556,7 @@ def load_csv(
     rank = comm.rank
     size = comm.size
 
-    if split == None:
+    if split is None:
         with open(path) as f:
             data = f.readlines()
             data = data[header_lines:]

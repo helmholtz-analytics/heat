@@ -685,7 +685,7 @@ class MPICommunication(Communication):
         -------
         exit code: of func
         """
-        if send_axis == None:
+        if send_axis is None:
             raise NotImplementedError(
                 "AllToAll needs send_axis and recv_axis to be specified but was send_axis = {}, recv_axis = {}. Please set send_axis and recv_axis".format(
                     send_axis, recv_axis
