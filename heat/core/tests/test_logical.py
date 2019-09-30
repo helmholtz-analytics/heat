@@ -148,7 +148,7 @@ class TestLogical(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.ones((4, 4)).all(axis=0, out=out_noaxis)
         with self.assertRaises(TypeError):
-            ht.ones(array_len).all(axis='bad_axis_type')
+            ht.ones(array_len).all(axis="bad_axis_type")
 
     def test_allclose(self):
         a = ht.float32([[2, 2], [2, 2]])
@@ -170,9 +170,9 @@ class TestLogical(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.allclose(a, (2, 2, 2, 2))
         with self.assertRaises(TypeError):
-            ht.allclose(a, '?')
+            ht.allclose(a, "?")
         with self.assertRaises(TypeError):
-            ht.allclose('?', a)
+            ht.allclose("?", a)
 
     def test_any(self):
         # float values, minor axis

@@ -4,7 +4,7 @@ from . import operations
 from . import dndarray
 from . import types
 
-__all__ = ['abs', 'absolute', 'ceil', 'clip', 'fabs', 'floor', 'trunc']
+__all__ = ["abs", "absolute", "ceil", "clip", "fabs", "floor", "trunc"]
 
 
 def abs(x, out=None, dtype=None):
@@ -28,7 +28,7 @@ def abs(x, out=None, dtype=None):
         A tensor containing the absolute value of each element in x.
     """
     if dtype is not None and not issubclass(dtype, types.generic):
-        raise TypeError('dtype must be a heat data type')
+        raise TypeError("dtype must be a heat data type")
 
     absolute_values = operations.__local_op(torch.abs, x, out)
     if dtype is not None:
@@ -116,9 +116,9 @@ def clip(a, a_min, a_max, out=None):
         a_max with a_max.
     """
     if not isinstance(a, dndarray.DNDarray):
-        raise TypeError('a must be a tensor')
+        raise TypeError("a must be a tensor")
     if a_min is None and a_max is None:
-        raise ValueError('either a_min or a_max must be set')
+        raise ValueError("either a_min or a_max must be set")
 
     if out is None:
         return dndarray.DNDarray(
@@ -130,7 +130,7 @@ def clip(a, a_min, a_max, out=None):
             a.comm,
         )
     if not isinstance(out, dndarray.DNDarray):
-        raise TypeError('out must be a tensor')
+        raise TypeError("out must be a tensor")
 
     return a._DNDarray__array.clamp(a_min, a_max, out=out._DNDarray__array) and out
 

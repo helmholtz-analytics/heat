@@ -15,14 +15,14 @@ from .communication import MPI
 
 
 __all__ = [
-    'concatenate',
-    'expand_dims',
-    'hstack',
-    'resplit',
-    'sort',
-    'squeeze',
-    'unique',
-    'vstack',
+    "concatenate",
+    "expand_dims",
+    "hstack",
+    "resplit",
+    "sort",
+    "squeeze",
+    "unique",
+    "vstack",
 ]
 
 
@@ -93,7 +93,7 @@ def concatenate(arrays, axis=0):
     [1/1]         [1., 1.]])
     """
     if len(arrays) < 2:
-        raise ValueError('concatenate requires 2 arrays')
+        raise ValueError("concatenate requires 2 arrays")
     elif len(arrays) > 2:
         res = concatenate((arrays[0], arrays[1]), axis=axis)
         for a in range(2, len(arrays)):
@@ -105,21 +105,21 @@ def concatenate(arrays, axis=0):
     if not isinstance(arr0, dndarray.DNDarray) or not isinstance(
         arr1, dndarray.DNDarray
     ):
-        raise TypeError('Both arrays must be DNDarrays')
+        raise TypeError("Both arrays must be DNDarrays")
     if not isinstance(axis, int):
-        raise TypeError('axis must be an integer, currently: {}'.format(type(axis)))
+        raise TypeError("axis must be an integer, currently: {}".format(type(axis)))
 
     axis = stride_tricks.sanitize_axis(arr0.gshape, axis)
 
     if arr0.numdims != arr1.numdims:
-        raise RuntimeError('DNDarrays must have the same number of dimensions')
+        raise RuntimeError("DNDarrays must have the same number of dimensions")
 
     if not all(
         [arr0.gshape[i] == arr1.gshape[i] for i in range(len(arr0.gshape)) if i != axis]
     ):
         raise ValueError(
-            'Arrays cannot be concatenated, gshapes must be the same in every axis except the selected axis:'
-            ' {}, {}'.format(arr0.gshape, arr1.gshape)
+            "Arrays cannot be concatenated, gshapes must be the same in every axis except the selected axis:"
+            " {}, {}".format(arr0.gshape, arr1.gshape)
         )
 
     s0, s1 = arr0.split, arr1.split
@@ -137,7 +137,7 @@ def concatenate(arrays, axis=0):
 
     elif s0 != s1 and all([s is not None for s in [s0, s1]]):
         raise RuntimeError(
-            'DNDarrays given have differing numerical splits, arr0 {} arr1 {}'.format(
+            "DNDarrays given have differing numerical splits, arr0 {} arr1 {}".format(
                 s0, s1
             )
         )
@@ -415,7 +415,7 @@ def expand_dims(a, axis):
     """
     # ensure type consistency
     if not isinstance(a, dndarray.DNDarray):
-        raise TypeError('expected ht.DNDarray, but was {}'.format(type(a)))
+        raise TypeError("expected ht.DNDarray, but was {}".format(type(a)))
 
     # sanitize axis, introduce arbitrary dummy dimension to model expansion
     axis = stride_tricks.sanitize_axis(a.shape + (1,), axis)
@@ -837,7 +837,7 @@ def squeeze(x, axis=None):
 
     # Sanitize input
     if not isinstance(x, dndarray.DNDarray):
-        raise TypeError('expected x to be a ht.DNDarray, but was {}'.format(type(x)))
+        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
     # Sanitize axis
     axis = stride_tricks.sanitize_axis(x.shape, axis)
     if axis is not None:
@@ -851,7 +851,7 @@ def squeeze(x, axis=None):
             )
         if not dim_is_one:
             raise ValueError(
-                'Dimension along axis {} is not 1 for shape {}'.format(axis, x.shape)
+                "Dimension along axis {} is not 1 for shape {}".format(axis, x.shape)
             )
 
     # Local squeeze
@@ -873,7 +873,7 @@ def squeeze(x, axis=None):
         if x.comm.is_distributed():
             if x.split in axis:
                 raise ValueError(
-                    'Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}'.format(
+                    "Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}".format(
                         x.split, axis, x.shape
                     )
                 )
@@ -1039,7 +1039,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
                 # Create the displacements for the flattened inverse indices array
                 local_elements = [
                     displ * elements_per_layer for displ in inverse_displs
-                ][1:] + [float('inf')]
+                ][1:] + [float("inf")]
 
                 # Flatten the inverse indices array every element can be updated to represent a global index
                 transposed = inverse_buf.transpose(0, a.split)
@@ -1091,8 +1091,8 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         inverse_indices = indices
         if sorted:
             raise ValueError(
-                'Sorting with axis != split is not supported yet. '
-                'See https://github.com/helmholtz-analytics/heat/issues/363'
+                "Sorting with axis != split is not supported yet. "
+                "See https://github.com/helmholtz-analytics/heat/issues/363"
             )
 
     if axis is not None:

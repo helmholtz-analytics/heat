@@ -7,7 +7,7 @@ from . import factories
 from . import operations
 from . import types
 
-__all__ = ['nonzero', 'where']
+__all__ = ["nonzero", "where"]
 
 
 def nonzero(a):

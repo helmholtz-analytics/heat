@@ -9,7 +9,7 @@ from . import logical
 from . import manipulations
 from . import types
 
-__all__ = ['dot', 'matmul', 'transpose', 'tril', 'triu']
+__all__ = ["dot", "matmul", "transpose", "tril", "triu"]
 
 
 def dot(a, b, out=None):
@@ -239,7 +239,7 @@ def matmul(a, b):
         elif a.split == 1 and b.split == 0:
             split_10_flag = True
         else:
-            raise NotImplementedError('splits > 1 not implemented')
+            raise NotImplementedError("splits > 1 not implemented")
 
         # block sizes dont need to be the same. thy just need the same inner dimmension (kB)
         kB = 0
@@ -777,7 +777,7 @@ def transpose(a, axes=None):
     """
     # type check the input tensor
     if not isinstance(a, dndarray.DNDarray):
-        raise TypeError('a must be of type ht.DNDarray, but was {}'.format(type(a)))
+        raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
 
     # set default value for axes permutations
     dimensions = len(a.shape)
@@ -789,14 +789,14 @@ def transpose(a, axes=None):
             # convert to a list to allow index access
             axes = list(axes)
         except TypeError:
-            raise ValueError('axes must be an iterable containing ints')
+            raise ValueError("axes must be an iterable containing ints")
 
         if len(axes) != dimensions:
-            raise ValueError('axes do not match tensor shape')
+            raise ValueError("axes do not match tensor shape")
         for index, axis in enumerate(axes):
             if not isinstance(axis, int):
                 raise TypeError(
-                    'axis must be an integer, but was {}'.format(type(axis))
+                    "axis must be an integer, but was {}".format(type(axis))
                 )
             elif axis < 0:
                 axes[index] = axis + dimensions
@@ -805,7 +805,7 @@ def transpose(a, axes=None):
     try:
         transposed_split = axes.index(a.split) if a.split is not None else None
     except ValueError:
-        raise ValueError('axes do not match tensor shape')
+        raise ValueError("axes do not match tensor shape")
 
     # try to rearrange the tensor and return a new transposed variant
     try:
@@ -854,12 +854,12 @@ def __tri_op(m, k, op):
         If the input is not a tensor or the diagonal offset cannot be converted to an integral value.
     """
     if not isinstance(m, dndarray.DNDarray):
-        raise TypeError('Expected m to be a tensor but was {}'.format(type(m)))
+        raise TypeError("Expected m to be a tensor but was {}".format(type(m)))
 
     try:
         k = int(k)
     except ValueError:
-        raise TypeError('Expected k to be integral, but was {}'.format(type(k)))
+        raise TypeError("Expected k to be integral, but was {}".format(type(k)))
 
     # chunk the global shape of the tensor to obtain the offset compared to the other ranks
     offset, _, _ = m.comm.chunk(m.shape, m.split)

@@ -65,7 +65,7 @@ class TestCommunication(unittest.TestCase):
         self.assertEqual(len(chunks), len(self.data.shape))
 
     def test_cuda_aware_mpi(self):
-        self.assertTrue(hasattr(ht.communication, 'CUDA_AWARE_MPI'))
+        self.assertTrue(hasattr(ht.communication, "CUDA_AWARE_MPI"))
         self.assertIsInstance(ht.communication.CUDA_AWARE_MPI, bool)
 
     def test_contiguous_memory_buffer(self):
@@ -212,7 +212,7 @@ class TestCommunication(unittest.TestCase):
 
         # test for proper sanitation
         with self.assertRaises(TypeError):
-            ht.use_comm('1')
+            ht.use_comm("1")
 
     def test_allgather(self):
         # contiguous data

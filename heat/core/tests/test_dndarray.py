@@ -56,8 +56,8 @@ class TestDNDarray(unittest.TestCase):
         data.balance_()
         self.assertTrue(data.is_balanced())
 
-        data = np.loadtxt('heat/datasets/data/iris.csv', delimiter=';')
-        htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=0)
+        data = np.loadtxt("heat/datasets/data/iris.csv", delimiter=";")
+        htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
         self.assertTrue(ht.equal(htdata, ht.array(data, split=0, dtype=ht.float)))
 
     def test_bool_cast(self):
@@ -257,19 +257,19 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(b.numpy().tolist(), b._DNDarray__array.numpy().tolist())
 
         a = ht.ones((10, 8), dtype=ht.float32)
-        b = np.ones((2, 2)).astype('float32')
+        b = np.ones((2, 2)).astype("float32")
         self.assertEqual(a.numpy().dtype, b.dtype)
 
         a = ht.ones((10, 8), dtype=ht.float64)
-        b = np.ones((2, 2)).astype('float64')
+        b = np.ones((2, 2)).astype("float64")
         self.assertEqual(a.numpy().dtype, b.dtype)
 
         a = ht.ones((10, 8), dtype=ht.int32)
-        b = np.ones((2, 2)).astype('int32')
+        b = np.ones((2, 2)).astype("int32")
         self.assertEqual(a.numpy().dtype, b.dtype)
 
         a = ht.ones((10, 8), dtype=ht.int64)
-        b = np.ones((2, 2)).astype('int64')
+        b = np.ones((2, 2)).astype("int64")
         self.assertEqual(a.numpy().dtype, b.dtype)
 
     def test_resplit(self):

@@ -8,19 +8,19 @@ from . import dndarray
 from . import types
 
 __all__ = [
-    'arange',
-    'array',
-    'empty',
-    'empty_like',
-    'eye',
-    'full',
-    'full_like',
-    'linspace',
-    'logspace',
-    'ones',
-    'ones_like',
-    'zeros',
-    'zeros_like',
+    "arange",
+    "array",
+    "empty",
+    "empty_like",
+    "eye",
+    "full",
+    "full_like",
+    "linspace",
+    "logspace",
+    "ones",
+    "ones_like",
+    "zeros",
+    "zeros_like",
 ]
 
 
@@ -107,7 +107,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=None):
         num = int(np.ceil((stop - start) / step))
     else:
         raise TypeError(
-            'function takes minimum one and at most 3 positional arguments ({} given)'.format(
+            "function takes minimum one and at most 3 positional arguments ({} given)".format(
                 num_of_param
             )
         )
@@ -226,7 +226,7 @@ def array(
                     obj, dtype=dtype.torch_type() if dtype is not None else None
                 )
             except RuntimeError:
-                raise TypeError('invalid data of type {}'.format(type(obj)))
+                raise TypeError("invalid data of type {}".format(type(obj)))
 
     # infer dtype from obj if not explicitly given
     if dtype is None:
@@ -234,7 +234,7 @@ def array(
 
     # sanitize minimum number of dimensions
     if not isinstance(ndmin, int):
-        raise TypeError('expected ndmin to be int, but was {}'.format(type(ndmin)))
+        raise TypeError("expected ndmin to be int, but was {}".format(type(ndmin)))
 
     # reshape the object to encompass additional dimensions
     ndmin_abs = abs(ndmin) - len(obj.shape)
@@ -247,7 +247,7 @@ def array(
     split = sanitize_axis(obj.shape, split)
     is_split = sanitize_axis(obj.shape, is_split)
     if split is not None and is_split is not None:
-        raise ValueError('split and is_split are mutually exclusive parameters')
+        raise ValueError("split and is_split are mutually exclusive parameters")
 
     # sanitize device and object
     device = devices.sanitize_device(device)
@@ -290,7 +290,7 @@ def array(
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
         if reduction_buffer < 0:
             raise ValueError(
-                'unable to construct tensor, shape of local data chunk does not match'
+                "unable to construct tensor, shape of local data chunk does not match"
             )
         ttl_shape = np.array(obj.shape)
         ttl_shape[is_split] = lshape[is_split]
@@ -678,7 +678,7 @@ def linspace(
     num = int(num)
     if num <= 0:
         raise ValueError(
-            'number of samples \'num\' must be non-negative integer, but was {}'.format(
+            "number of samples 'num' must be non-negative integer, but was {}".format(
                 num
             )
         )

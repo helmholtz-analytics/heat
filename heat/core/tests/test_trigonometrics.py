@@ -34,7 +34,7 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.rad2deg([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.rad2deg('hello world')
+            ht.rad2deg("hello world")
 
     def test_degrees(self):
         # base elements
@@ -65,7 +65,7 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.degrees([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.degrees('hello world')
+            ht.degrees("hello world")
 
     def test_deg2rad(self):
         # base elements
@@ -96,7 +96,7 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.deg2rad([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.deg2rad('hello world')
+            ht.deg2rad("hello world")
 
     def test_radians(self):
         # base elements
@@ -127,7 +127,7 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.radians([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.radians('hello world')
+            ht.radians("hello world")
 
     def test_arctan(self):
         # base elements
@@ -174,7 +174,7 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.arctan([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.arctan('hello world')
+            ht.arctan("hello world")
 
     def test_arcsin(self):
         # base elements
@@ -210,7 +210,7 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.arcsin([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.arcsin('hello world')
+            ht.arcsin("hello world")
 
     def test_arccos(self):
         # base elements
@@ -246,7 +246,7 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.arccos([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.arccos('hello world')
+            ht.arccos("hello world")
 
     def test_cos(self):
         # base elements
@@ -291,7 +291,7 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.cos([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.cos('hello world')
+            ht.cos("hello world")
 
     def test_cosh(self):
         # base elements
@@ -338,7 +338,7 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.cosh([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.cosh('hello world')
+            ht.cosh("hello world")
 
     def test_sin(self):
         # base elements
@@ -381,7 +381,7 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.sin([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.sin('hello world')
+            ht.sin("hello world")
 
     def test_sinh(self):
         # base elements
@@ -428,7 +428,7 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.sinh([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.sinh('hello world')
+            ht.sinh("hello world")
 
     def test_tan(self):
         # base elements
@@ -471,7 +471,7 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.tan([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.tan('hello world')
+            ht.tan("hello world")
 
     def test_tanh(self):
         # base elements
@@ -518,4 +518,4 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.tanh([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.tanh('hello world')
+            ht.tanh("hello world")

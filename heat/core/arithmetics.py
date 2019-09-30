@@ -6,23 +6,23 @@ from . import operations
 from . import stride_tricks
 
 __all__ = [
-    'add',
-    'diff',
-    'div',
-    'divide',
-    'floordiv',
-    'floor_divide',
-    'fmod',
-    'mod',
-    'mul',
-    'multiply',
-    'pow',
-    'prod',
-    'power',
-    'remainder',
-    'sub',
-    'subtract',
-    'sum',
+    "add",
+    "diff",
+    "div",
+    "divide",
+    "floordiv",
+    "floor_divide",
+    "fmod",
+    "mod",
+    "mul",
+    "multiply",
+    "pow",
+    "prod",
+    "power",
+    "remainder",
+    "sub",
+    "subtract",
+    "sum",
 ]
 
 
@@ -88,9 +88,9 @@ def diff(a, n=1, axis=-1):
     if n == 0:
         return a
     if n < 0:
-        raise ValueError('diff requires that n be a positive number, got {}'.format(n))
+        raise ValueError("diff requires that n be a positive number, got {}".format(n))
     if not isinstance(a, dndarray.DNDarray):
-        raise TypeError('\'a\' must be a DNDarray')
+        raise TypeError("'a' must be a DNDarray")
 
     axis = stride_tricks.sanitize_axis(a.gshape, axis)
 

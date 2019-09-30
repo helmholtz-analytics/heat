@@ -15,17 +15,17 @@ from . import logical
 
 
 __all__ = [
-    'argmax',
-    'argmin',
-    'average',
-    'cov',
-    'max',
-    'maximum',
-    'mean',
-    'min',
-    'minimum',
-    'std',
-    'var',
+    "argmax",
+    "argmin",
+    "average",
+    "cov",
+    "max",
+    "maximum",
+    "mean",
+    "min",
+    "minimum",
+    "std",
+    "var",
 ]
 
 
@@ -68,7 +68,7 @@ def argmax(x, axis=None, out=None, **kwargs):
     """
 
     def local_argmax(*args, **kwargs):
-        axis = kwargs.get('dim', -1)
+        axis = kwargs.get("dim", -1)
         shape = x.shape
 
         # case where the argmin axis is set to None
@@ -93,7 +93,7 @@ def argmax(x, axis=None, out=None, **kwargs):
 
     # axis sanitation
     if axis is not None and not isinstance(axis, int):
-        raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
+        raise TypeError("axis must be None or int, but was {}".format(type(axis)))
 
     # perform the global reduction
     reduced_result = operations.__reduce_op(
@@ -112,14 +112,14 @@ def argmax(x, axis=None, out=None, **kwargs):
             axis = (axis,)
         if 0 in axis:
             reduced_result._DNDarray__gshape = (1,) + reduced_result._DNDarray__gshape
-            if not kwargs.get('keepdim'):
+            if not kwargs.get("keepdim"):
                 reduced_result = reduced_result.squeeze(axis=0)
 
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
         if out.shape != reduced_result.shape:
             raise ValueError(
-                'Expecting output buffer of shape {}, got {}'.format(
+                "Expecting output buffer of shape {}, got {}".format(
                     reduced_result.shape, out.shape
                 )
             )
@@ -170,7 +170,7 @@ def argmin(x, axis=None, out=None, **kwargs):
     """
 
     def local_argmin(*args, **kwargs):
-        axis = kwargs.get('dim', -1)
+        axis = kwargs.get("dim", -1)
         shape = x.shape
 
         # case where the argmin axis is set to None
@@ -195,7 +195,7 @@ def argmin(x, axis=None, out=None, **kwargs):
 
     # axis sanitation
     if axis is not None and not isinstance(axis, int):
-        raise TypeError('axis must be None or int, but was {}'.format(type(axis)))
+        raise TypeError("axis must be None or int, but was {}".format(type(axis)))
 
     # perform the global reduction
     reduced_result = operations.__reduce_op(
@@ -214,14 +214,14 @@ def argmin(x, axis=None, out=None, **kwargs):
             axis = (axis,)
         if 0 in axis:
             reduced_result._DNDarray__gshape = (1,) + reduced_result._DNDarray__gshape
-            if not kwargs.get('keepdim'):
+            if not kwargs.get("keepdim"):
                 reduced_result = reduced_result.squeeze(axis=0)
 
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
         if out.shape != reduced_result.shape:
             raise ValueError(
-                'Expecting output buffer of shape {}, got {}'.format(
+                "Expecting output buffer of shape {}, got {}".format(
                     reduced_result.shape, out.shape
                 )
             )
@@ -306,10 +306,10 @@ def average(x, axis=None, weights=None, returned=False):
 
     # perform sanitation
     if not isinstance(x, dndarray.DNDarray):
-        raise TypeError('expected x to be a ht.DNDarray, but was {}'.format(type(x)))
+        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
     if weights is not None and not isinstance(weights, dndarray.DNDarray):
         raise TypeError(
-            'expected weights to be a ht.DNDarray, but was {}'.format(type(x))
+            "expected weights to be a ht.DNDarray, but was {}".format(type(x))
         )
     axis = stride_tricks.sanitize_axis(x.shape, axis)
 
@@ -405,7 +405,7 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     if ddof is not None and not isinstance(ddof, int):
         raise TypeError("ddof must be integer")
     if not isinstance(m, dndarray.DNDarray):
-        raise TypeError('m must be a DNDarray')
+        raise TypeError("m must be a DNDarray")
     if not m.is_balanced():
         raise RuntimeError("balance is required for cov(). use balance_() to balance m")
     if m.numdims > 2:
@@ -425,9 +425,9 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
 
     if y is not None:
         if not isinstance(y, dndarray.DNDarray):
-            raise TypeError('y must be a DNDarray')
+            raise TypeError("y must be a DNDarray")
         if y.numdims > 2:
-            raise ValueError('y has too many dimensions, max=2')
+            raise ValueError("y has too many dimensions, max=2")
         if y.numdims == 1:
             y = y.expand_dims(1)
         if not y.is_balanced():
@@ -444,7 +444,7 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     # find normalization:
     if norm <= 0:
         raise ValueError(
-            'ddof >= number of elements in m, {} {}'.format(ddof, m.gnumel)
+            "ddof >= number of elements in m, {} {}".format(ddof, m.gnumel)
         )
     x -= avg.expand_dims(1)
     c = linalg.dot(x, x.T)
@@ -498,7 +498,7 @@ def max(x, axis=None, out=None, keepdim=None):
 
     def local_max(*args, **kwargs):
         array = args[0]
-        dim = kwargs.get('dim')
+        dim = kwargs.get("dim")
         if 0 in array.shape:
             # Empty local vector would throw an error in the torch max function
             if dim == x.split or (dim is None and x.split == 0):
@@ -517,7 +517,7 @@ def max(x, axis=None, out=None, keepdim=None):
                 elif array.dtype is torch.int64:
                     fill_value = -(1 << 63)
                 else:
-                    fill_value = float('-inf')
+                    fill_value = float("-inf")
 
                 # Create a local result with a "neutral" value that should not affect the global result
                 result = torch.empty(out_shape, dtype=array.dtype).fill_(fill_value)
@@ -608,13 +608,13 @@ def maximum(x1, x2, out=None):
     # perform sanitation
     if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
         raise TypeError(
-            'expected x1 and x2 to be a ht.DNDarray, but were {}, {} '.format(
+            "expected x1 and x2 to be a ht.DNDarray, but were {}, {} ".format(
                 type(x1), type(x2)
             )
         )
     if out is not None and not isinstance(out, dndarray.DNDarray):
         raise TypeError(
-            'expected out to be None or an ht.DNDarray, but was {}'.format(type(out))
+            "expected out to be None or an ht.DNDarray, but was {}".format(type(out))
         )
 
     # apply split semantics
@@ -655,7 +655,7 @@ def maximum(x1, x2, out=None):
             if out is not None:
                 if out.shape != output_gshape:
                     raise ValueError(
-                        'Expecting output buffer of shape {}, got {}'.format(
+                        "Expecting output buffer of shape {}, got {}".format(
                             output_gshape, out.shape
                         )
                     )
@@ -671,7 +671,7 @@ def maximum(x1, x2, out=None):
     if out is not None:
         if out.shape != output_lshape:
             raise ValueError(
-                'Expecting output buffer of shape {}, got {}'.format(
+                "Expecting output buffer of shape {}, got {}".format(
                     output_lshape, out.shape
                 )
             )
@@ -884,7 +884,7 @@ def mean(x, axis=None):
                 )
         else:
             raise TypeError(
-                'axis (axis) must be an int or a list, ht.DNDarray, torch.Tensor, or tuple, but was {}'.format(
+                "axis (axis) must be an int or a list, ht.DNDarray, torch.Tensor, or tuple, but was {}".format(
                     type(axis)
                 )
             )
@@ -1016,7 +1016,7 @@ def min(x, axis=None, out=None, keepdim=None):
 
     def local_min(*args, **kwargs):
         array = args[0]
-        dim = kwargs.get('dim')
+        dim = kwargs.get("dim")
         if 0 in array.shape:
             # Empty local vector would throw an error in the torch min function
             if dim == x.split or (dim is None and x.split == 0):
@@ -1035,7 +1035,7 @@ def min(x, axis=None, out=None, keepdim=None):
                 elif array.dtype is torch.int64:
                     fill_value = (1 << 63) - 1
                 else:
-                    fill_value = float('inf')
+                    fill_value = float("inf")
 
                 # Create a local result with a "neutral" value that should not affect the global result
                 result = torch.empty(out_shape, dtype=array.dtype).fill_(fill_value)
@@ -1126,13 +1126,13 @@ def minimum(x1, x2, out=None):
     # perform sanitation
     if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
         raise TypeError(
-            'expected x1 and x2 to be a ht.DNDarray, but were {}, {} '.format(
+            "expected x1 and x2 to be a ht.DNDarray, but were {}, {} ".format(
                 type(x1), type(x2)
             )
         )
     if out is not None and not isinstance(out, dndarray.DNDarray):
         raise TypeError(
-            'expected out to be None or an ht.DNDarray, but was {}'.format(type(out))
+            "expected out to be None or an ht.DNDarray, but was {}".format(type(out))
         )
 
     # apply split semantics
@@ -1173,7 +1173,7 @@ def minimum(x1, x2, out=None):
             if out is not None:
                 if out.shape != output_gshape:
                     raise ValueError(
-                        'Expecting output buffer of shape {}, got {}'.format(
+                        "Expecting output buffer of shape {}, got {}".format(
                             output_gshape, out.shape
                         )
                     )
@@ -1189,7 +1189,7 @@ def minimum(x1, x2, out=None):
     if out is not None:
         if out.shape != output_lshape:
             raise ValueError(
-                'Expecting output buffer of shape {}, got {}'.format(
+                "Expecting output buffer of shape {}, got {}".format(
                     output_lshape, out.shape
                 )
             )
@@ -1327,7 +1327,7 @@ def var(x, axis=None, bessel=True):
     """
     if not isinstance(bessel, bool):
         raise TypeError(
-            'bessel must be a boolean, currently is {}'.format(type(bessel))
+            "bessel must be a boolean, currently is {}".format(type(bessel))
         )
 
     def reduce_vars_elementwise(output_shape_i):
@@ -1464,7 +1464,7 @@ def var(x, axis=None, bessel=True):
                 )
         else:
             raise TypeError(
-                'axis (axis) must be an int, currently is {}. Check if multidim var is available in PyTorch'.format(
+                "axis (axis) must be an int, currently is {}. Check if multidim var is available in PyTorch".format(
                     type(axis)
                 )
             )

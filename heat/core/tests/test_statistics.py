@@ -95,7 +95,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(TypeError):
             data.argmax(axis=1.1)
         with self.assertRaises(TypeError):
-            data.argmax(axis='y')
+            data.argmax(axis="y")
         with self.assertRaises(ValueError):
             ht.argmax(data, axis=-4)
 
@@ -188,7 +188,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(TypeError):
             data.argmin(axis=1.1)
         with self.assertRaises(TypeError):
-            data.argmin(axis='y')
+            data.argmin(axis="y")
         with self.assertRaises(ValueError):
             ht.argmin(data, axis=-4)
 
@@ -199,10 +199,10 @@ class TestStatistics(unittest.TestCase):
             actual = ht.array([[1, -1], [-1, 1]], split=0)
             self.assertTrue(ht.equal(cov, actual))
 
-        data = np.loadtxt('heat/datasets/data/iris.csv', delimiter=';')
+        data = np.loadtxt("heat/datasets/data/iris.csv", delimiter=";")
         np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False)
 
-        htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=0)
+        htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
         ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
         self.assertTrue(
             ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4)
@@ -227,7 +227,7 @@ class TestStatistics(unittest.TestCase):
         )
 
         if 1 < x.comm.size < 5:
-            htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=1)
+            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=1)
             np_cov = np.cov(data, rowvar=False)
             ht_cov = ht.cov(htdata, rowvar=False)
             self.assertTrue(
@@ -236,13 +236,13 @@ class TestStatistics(unittest.TestCase):
 
             np_cov = np.cov(data, data, rowvar=True)
 
-            htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=0)
+            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
             ht_cov = ht.cov(htdata, htdata, rowvar=True)
             self.assertTrue(
                 ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4)
             )
 
-            htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=0)
+            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
             with self.assertRaises(RuntimeError):
                 ht.cov(htdata[1:], rowvar=False)
             with self.assertRaises(RuntimeError):
@@ -253,7 +253,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.cov(htdata, np_cov)
         with self.assertRaises(TypeError):
-            ht.cov(htdata, ddof='str')
+            ht.cov(htdata, ddof="str")
         with self.assertRaises(ValueError):
             ht.cov(ht.zeros((1, 2, 3)))
         with self.assertRaises(ValueError):
@@ -378,7 +378,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht_array.average(axis=1.1)
         with self.assertRaises(TypeError):
-            ht_array.average(axis='y')
+            ht_array.average(axis="y")
         with self.assertRaises(ValueError):
             ht.average(ht_array, axis=-4)
 
@@ -477,7 +477,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht_array.max(axis=1.1)
         with self.assertRaises(TypeError):
-            ht_array.max(axis='y')
+            ht_array.max(axis="y")
         with self.assertRaises(ValueError):
             ht.max(ht_array, axis=-4)
 
@@ -589,9 +589,9 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             x.mean(axis=10)
         with self.assertRaises(TypeError):
-            ht.mean(x, axis='01')
+            ht.mean(x, axis="01")
         with self.assertRaises(ValueError):
-            ht.mean(x, axis=(0, '10'))
+            ht.mean(x, axis=(0, "10"))
 
         a = ht.arange(1, 5)
         self.assertEqual(a.mean(), 2.5)
@@ -637,7 +637,7 @@ class TestStatistics(unittest.TestCase):
                 ) in (
                     loop_list
                 ):  # loop over the different combinations of dimensions for mean
-                    lp_split = [int(q) for q in it.split(',')]
+                    lp_split = [int(q) for q in it.split(",")]
                     res = z.mean(axis=lp_split)
                     self.assertTrue((res == 1).all())
                     target_dims = [
@@ -658,7 +658,7 @@ class TestStatistics(unittest.TestCase):
         # values for the iris dataset mean measured by libreoffice calc
         ax0 = ht.array([5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667])
         for sp in [None, 0, 1]:
-            iris = ht.load('heat/datasets/data/iris.h5', 'data', split=sp)
+            iris = ht.load("heat/datasets/data/iris.h5", "data", split=sp)
             self.assertTrue(ht.allclose(ht.mean(iris), 3.46366666666667))
             self.assertTrue(ht.allclose(ht.mean(iris, axis=0), ax0))
 
@@ -757,7 +757,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht_array.min(axis=1.1)
         with self.assertRaises(TypeError):
-            ht_array.min(axis='y')
+            ht_array.min(axis="y")
         with self.assertRaises(ValueError):
             ht.min(ht_array, axis=-4)
 
@@ -868,7 +868,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.std(x, axis=10)
         with self.assertRaises(TypeError):
-            ht.std(x, axis='01')
+            ht.std(x, axis="01")
 
         # the rest of the tests are covered by var
 
@@ -884,7 +884,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.var(x, axis=10)
         with self.assertRaises(TypeError):
-            ht.var(x, axis='01')
+            ht.var(x, axis="01")
 
         a = ht.arange(1, 5)
         self.assertEqual(a.var(), 1.666666666666666)
@@ -929,5 +929,5 @@ class TestStatistics(unittest.TestCase):
 
         # values for the iris dataset var measured by libreoffice calc
         for sp in [None, 0, 1]:
-            iris = ht.load_hdf5('heat/datasets/data/iris.h5', 'data', split=sp)
+            iris = ht.load_hdf5("heat/datasets/data/iris.h5", "data", split=sp)
             self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))

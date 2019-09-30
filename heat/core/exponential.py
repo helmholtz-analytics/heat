@@ -2,7 +2,7 @@ import torch
 
 from . import operations
 
-__all__ = ['exp', 'expm1', 'exp2', 'log', 'log2', 'log10', 'log1p', 'sqrt']
+__all__ = ["exp", "expm1", "exp2", "log", "log2", "log10", "log1p", "sqrt"]
 
 
 def exp(x, out=None):

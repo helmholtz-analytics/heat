@@ -488,7 +488,7 @@ class TestLinalg(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.transpose(ht.zeros((2, 3)), axes=(-1,))
         with self.assertRaises(TypeError):
-            ht.zeros((2, 3)).transpose(axes='01')
+            ht.zeros((2, 3)).transpose(axes="01")
         with self.assertRaises(TypeError):
             ht.zeros((2, 3)).transpose(axes=(0, 1.0))
         with self.assertRaises((ValueError, IndexError)):

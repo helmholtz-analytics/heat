@@ -39,14 +39,14 @@ def __binary_op(operation, t1, t2):
         try:
             t1 = factories.array([t1])
         except (ValueError, TypeError):
-            raise TypeError('Data type not supported, input was {}'.format(type(t1)))
+            raise TypeError("Data type not supported, input was {}".format(type(t1)))
 
         if np.isscalar(t2):
             try:
                 t2 = factories.array([t2])
             except (ValueError, TypeError):
                 raise TypeError(
-                    'Only numeric scalars are supported, but input was {}'.format(
+                    "Only numeric scalars are supported, but input was {}".format(
                         type(t2)
                     )
                 )
@@ -61,7 +61,7 @@ def __binary_op(operation, t1, t2):
             output_comm = t2.comm
         else:
             raise TypeError(
-                'Only tensors and numeric scalars are supported, but input was {}'.format(
+                "Only tensors and numeric scalars are supported, but input was {}".format(
                     type(t2)
                 )
             )
@@ -79,7 +79,7 @@ def __binary_op(operation, t1, t2):
                 output_comm = t1.comm
             except (ValueError, TypeError):
                 raise TypeError(
-                    'Data type not supported, input was {}'.format(type(t2))
+                    "Data type not supported, input was {}".format(type(t2))
                 )
 
         elif isinstance(t2, dndarray.DNDarray):
@@ -104,7 +104,7 @@ def __binary_op(operation, t1, t2):
             elif t1.split != t2.split:
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
                 # and split=1
-                raise NotImplementedError('Not implemented for other splittings')
+                raise NotImplementedError("Not implemented for other splittings")
 
             output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
             output_split = t1.split
@@ -115,7 +115,7 @@ def __binary_op(operation, t1, t2):
             if t1.split is not None:
                 if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
                     warnings.warn(
-                        'Broadcasting requires transferring data of first operator between MPI ranks!'
+                        "Broadcasting requires transferring data of first operator between MPI ranks!"
                     )
                     if t1.comm.rank > 0:
                         t1._DNDarray__array = torch.zeros(
@@ -126,7 +126,7 @@ def __binary_op(operation, t1, t2):
             if t2.split is not None:
                 if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
                     warnings.warn(
-                        'Broadcasting requires transferring data of second operator between MPI ranks!'
+                        "Broadcasting requires transferring data of second operator between MPI ranks!"
                     )
                     if t2.comm.rank > 0:
                         t2._DNDarray__array = torch.zeros(
@@ -136,7 +136,7 @@ def __binary_op(operation, t1, t2):
 
         else:
             raise TypeError(
-                'Only tensors and numeric scalars are supported, but input was {}'.format(
+                "Only tensors and numeric scalars are supported, but input was {}".format(
                     type(t2)
                 )
             )
@@ -145,7 +145,7 @@ def __binary_op(operation, t1, t2):
             t2 = t2.astype(t1.dtype)
 
     else:
-        raise NotImplementedError('Not implemented for non scalar')
+        raise NotImplementedError("Not implemented for non scalar")
 
     promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
     if t1.split is not None:
@@ -212,10 +212,10 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
     """
     # perform sanitation
     if not isinstance(x, dndarray.DNDarray):
-        raise TypeError('expected x to be a ht.DNDarray, but was {}'.format(type(x)))
+        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
     if out is not None and not isinstance(out, dndarray.DNDarray):
         raise TypeError(
-            'expected out to be None or an ht.DNDarray, but was {}'.format(type(out))
+            "expected out to be None or an ht.DNDarray, but was {}".format(type(out))
         )
 
     # infer the output type of the tensor
@@ -262,17 +262,17 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
     # TODO: document me Issue #102
     # perform sanitation
     if not isinstance(x, dndarray.DNDarray):
-        raise TypeError('expected x to be a ht.DNDarray, but was {}'.format(type(x)))
-    out = kwargs.get('out')
+        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+    out = kwargs.get("out")
     if out is not None and not isinstance(out, dndarray.DNDarray):
         raise TypeError(
-            'expected out to be None or an ht.DNDarray, but was {}'.format(type(out))
+            "expected out to be None or an ht.DNDarray, but was {}".format(type(out))
         )
 
     # no further checking needed, sanitize axis will raise the proper exceptions
-    axis = stride_tricks.sanitize_axis(x.shape, kwargs.get('axis'))
+    axis = stride_tricks.sanitize_axis(x.shape, kwargs.get("axis"))
     split = x.split
-    keepdim = kwargs.get('keepdim')
+    keepdim = kwargs.get("keepdim")
 
     if axis is None:
         partial = partial_op(x._DNDarray__array).reshape(-1)
@@ -305,7 +305,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
     # Check shape of output buffer, if any
     if out is not None and out.shape != output_shape:
         raise ValueError(
-            'Expecting output buffer of shape {}, got {}'.format(
+            "Expecting output buffer of shape {}, got {}".format(
                 output_shape, out.shape
             )
         )

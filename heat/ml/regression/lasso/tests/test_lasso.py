@@ -10,10 +10,10 @@ class TestLasso(unittest.TestCase):
         # ToDo: add additional tests
         # get some test data
         X = ht.load_hdf5(
-            os.path.join(os.getcwd(), 'heat/datasets/data/diabetes.h5'), dataset='x'
+            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x"
         )
         y = ht.load_hdf5(
-            os.path.join(os.getcwd(), 'heat/datasets/data/diabetes.h5'), dataset='y'
+            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y"
         )
 
         # normalize dataset
@@ -46,10 +46,10 @@ class TestLasso(unittest.TestCase):
         self.assertEqual(yest.shape, (m,))
 
         X = ht.load_hdf5(
-            os.path.join(os.getcwd(), 'heat/datasets/data/diabetes.h5'), dataset='x'
+            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x"
         )
         y = ht.load_hdf5(
-            os.path.join(os.getcwd(), 'heat/datasets/data/diabetes.h5'), dataset='y'
+            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y"
         )
 
         # Now the same stuff again in PyTorch
@@ -86,10 +86,10 @@ class TestLasso(unittest.TestCase):
         self.assertEqual(yest.shape, (m,))
 
         X = ht.load_hdf5(
-            os.path.join(os.getcwd(), 'heat/datasets/data/diabetes.h5'), dataset='x'
+            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x"
         )
         y = ht.load_hdf5(
-            os.path.join(os.getcwd(), 'heat/datasets/data/diabetes.h5'), dataset='y'
+            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y"
         )
 
         # Now the same stuff again in PyTorch

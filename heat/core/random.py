@@ -70,7 +70,7 @@ def __counter_sequence(shape, dtype, split, device, comm):
 
     total_elements = np.prod(shape)
     if total_elements > 2 * max_count:
-        raise ValueError('Shape is to big with {} elements'.format(total_elements))
+        raise ValueError("Shape is to big with {} elements".format(total_elements))
 
     if split is None:
         values = np.ceil(total_elements / 2)
@@ -175,7 +175,7 @@ def get_state():
             4. an integer has_gauss, always set to 0 (present for compatibility with numpy) and
             5. a float cached_gaussian, always set to 0.0 (present for compatibility with numpy).
     """
-    return 'Threefry', __seed, __counter, 0, 0.0
+    return "Threefry", __seed, __counter, 0, 0.0
 
 
 def __int32_to_float32(values):
@@ -272,7 +272,7 @@ def rand(*args, dtype=types.float64, split=None, device=None, comm=None):
     # ensure that the passed dimensions are positive integer-likes
     shape = tuple(int(ele) for ele in args)
     if not all(ele > 0 for ele in shape):
-        raise ValueError('negative dimensions are not allowed')
+        raise ValueError("negative dimensions are not allowed")
 
     # make sure the remaining parameters are of proper type
     split = stride_tricks.sanitize_axis(shape, split)
@@ -303,7 +303,7 @@ def rand(*args, dtype=types.float64, split=None, device=None, comm=None):
     else:
         # Unsupported type
         raise ValueError(
-            'dtype is none of ht.float32 or ht.float64 but was {}'.format(dtype)
+            "dtype is none of ht.float32 or ht.float64 but was {}".format(dtype)
         )
 
     return dndarray.DNDarray(values, shape, dtype, split, device, comm)
@@ -346,7 +346,7 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     else:
         low, high = int(low), int(high)
     if low >= high:
-        raise ValueError('low >= high')
+        raise ValueError("low >= high")
     span = high - low
 
     # sanitize shape
@@ -354,14 +354,14 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
         size = (1,)
     shape = tuple(int(ele) for ele in size)
     if not all(ele > 0 for ele in shape):
-        raise ValueError('negative dimensions are not allowed')
+        raise ValueError("negative dimensions are not allowed")
 
     # sanitize the data type
     if dtype is None:
         dtype = types.int64
     dtype = types.canonical_heat_type(dtype)
     if dtype not in [types.int64, types.int32]:
-        raise ValueError('Unsupported dtype for randint')
+        raise ValueError("Unsupported dtype for randint")
     torch_dtype = dtype.torch_type()
 
     # make sure the remaining parameters are of proper type
@@ -473,10 +473,10 @@ def set_state(state):
         If one of the items in the state tuple is of wrong type or value.
     """
     if not isinstance(state, tuple) or (len(state) != 3 and len(state) != 5):
-        raise TypeError('state needs to be a three- or five-tuple')
+        raise TypeError("state needs to be a three- or five-tuple")
 
-    if state[0] != 'Threefry':
-        raise ValueError('algorithm must be \'Threefry\'')
+    if state[0] != "Threefry":
+        raise ValueError("algorithm must be 'Threefry'")
 
     global __seed, __counter
     __seed = int(state[1])

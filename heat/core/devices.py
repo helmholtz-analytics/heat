@@ -3,7 +3,7 @@ import torch
 from .communication import MPI_WORLD
 
 
-__all__ = ['cpu', 'get_device', 'sanitize_device', 'use_device']
+__all__ = ["cpu", "get_device", "sanitize_device", "use_device"]
 
 
 class Device:
@@ -49,14 +49,14 @@ class Device:
         return self.__torch_device
 
     def __repr__(self):
-        return 'device({})'.format(self.__str__())
+        return "device({})".format(self.__str__())
 
     def __str__(self):
-        return '{}:{}'.format(self.device_type, self.device_id)
+        return "{}:{}".format(self.device_type, self.device_id)
 
 
 # create a CPU device singleton
-cpu = Device('cpu', 0, 'cpu:0')
+cpu = Device("cpu", 0, "cpu:0")
 
 # define the default device to be the CPU
 __default_device = cpu
@@ -68,11 +68,11 @@ if torch.cuda.device_count() > 0:
     # GPUs are assigned round-robin to the MPI processes
     gpu_id = MPI_WORLD.rank % torch.cuda.device_count()
     # create a new GPU device
-    gpu = Device('gpu', gpu_id, 'cuda:{}'.format(gpu_id))
+    gpu = Device("gpu", gpu_id, "cuda:{}".format(gpu_id))
     # add a GPU device string
     __device_mapping[gpu.device_type] = gpu
     # the GPU device should be exported as global symbol
-    __all__.append('gpu')
+    __all__.append("gpu")
 
 
 def get_device():
@@ -117,8 +117,8 @@ def sanitize_device(device):
         return __device_mapping[device.strip().lower()]
     except (AttributeError, KeyError, TypeError):
         raise ValueError(
-            'Unknown device, must be one of {}'.format(
-                ', '.join(__device_mapping.keys())
+            "Unknown device, must be one of {}".format(
+                ", ".join(__device_mapping.keys())
             )
         )
 

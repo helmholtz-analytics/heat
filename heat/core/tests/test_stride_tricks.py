@@ -38,7 +38,7 @@ class TestStrideTricks(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.core.stride_tricks.sanitize_axis((5, 4), 1.0)
         with self.assertRaises(TypeError):
-            ht.core.stride_tricks.sanitize_axis((5, 4), 'axis')
+            ht.core.stride_tricks.sanitize_axis((5, 4), "axis")
 
         # invalid value ranges
         with self.assertRaises(ValueError):
@@ -62,7 +62,7 @@ class TestStrideTricks(unittest.TestCase):
 
         # invalid types
         with self.assertRaises(TypeError):
-            ht.core.stride_tricks.sanitize_shape('shape')
+            ht.core.stride_tricks.sanitize_shape("shape")
         with self.assertRaises(TypeError):
             ht.core.stride_tricks.sanitize_shape(1.0)
         with self.assertRaises(TypeError):

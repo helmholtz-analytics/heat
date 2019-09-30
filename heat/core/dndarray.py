@@ -22,9 +22,9 @@ from . import types
 from .communication import MPI
 from .stride_tricks import sanitize_axis
 
-warnings.simplefilter('always', ResourceWarning)
+warnings.simplefilter("always", ResourceWarning)
 
-__all__ = ['DNDarray']
+__all__ = ["DNDarray"]
 
 
 class LocalIndex:
@@ -485,7 +485,7 @@ class DNDarray:
         return self
 
     def average(self, axis=None, weights=None, returned=False):
-        '''
+        """
         Compute the weighted average along the specified axis.
 
         Parameters
@@ -553,7 +553,7 @@ class DNDarray:
         Traceback (most recent call last):
         ...
         TypeError: Axis must be specified when shapes of x and weights differ.
-        '''
+        """
         return statistics.average(self, axis=axis, weights=weights, returned=returned)
 
     def balance_(self):
@@ -792,7 +792,7 @@ class DNDarray:
                 None if is_empty else cast_function(self.__array), root=root
             )
 
-        raise TypeError('only size-1 arrays can be converted to Python scalars')
+        raise TypeError("only size-1 arrays can be converted to Python scalars")
 
     def ceil(self, out=None):
         """
@@ -2455,7 +2455,7 @@ class DNDarray:
 
     if io.supports_hdf5():
 
-        def save_hdf5(self, path, dataset, mode='w', **kwargs):
+        def save_hdf5(self, path, dataset, mode="w", **kwargs):
             """
             Saves data to an HDF5 file. Attempts to utilize parallel I/O if possible.
 
@@ -2485,7 +2485,7 @@ class DNDarray:
 
     if io.supports_netcdf():
 
-        def save_netcdf(self, path, variable, mode='w', **kwargs):
+        def save_netcdf(self, path, variable, mode="w", **kwargs):
             """
             Saves data to a netCDF4 file. Attempts to utilize parallel I/O if possible.
 
@@ -2655,7 +2655,7 @@ class DNDarray:
             self.__array.__setitem__(key, value.data)
         else:
             raise NotImplementedError(
-                'Not implemented for {}'.format(value.__class__.__name__)
+                "Not implemented for {}".format(value.__class__.__name__)
             )
 
     def sin(self, out=None):

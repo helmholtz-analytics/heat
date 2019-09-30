@@ -64,6 +64,6 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(result.shape, (4, 1, 3, 3, 2))
 
         with self.assertRaises(TypeError):
-            ht.add(ht.ones((1, 2)), 'wrong type')
+            ht.add(ht.ones((1, 2)), "wrong type")
         with self.assertRaises(NotImplementedError):
             ht.add(ht.ones((1, 2), split=0), ht.ones((1, 2), split=1))

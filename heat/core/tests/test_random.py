@@ -23,9 +23,9 @@ class TestRandom(unittest.TestCase):
         self.assertTrue(ht.equal(a, c))
 
         # Random numbers with overflow
-        ht.random.set_state(('Threefry', seed, 0xFFFFFFFFFFFFFFF0))
+        ht.random.set_state(("Threefry", seed, 0xFFFFFFFFFFFFFFF0))
         a = ht.random.rand(2, 3, 4, 5, split=0, comm=ht.MPI_WORLD)
-        ht.random.set_state(('Threefry', seed, 0x10000000000000000))
+        ht.random.set_state(("Threefry", seed, 0x10000000000000000))
         b = ht.random.rand(2, 44, split=0, comm=ht.MPI_WORLD)
         a = a.numpy().flatten()
         b = b.numpy().flatten()
@@ -34,7 +34,7 @@ class TestRandom(unittest.TestCase):
 
         # Check that random numbers don't repeat after first overflow
         seed = 12345
-        ht.random.set_state(('Threefry', seed, 0x10000000000000000))
+        ht.random.set_state(("Threefry", seed, 0x10000000000000000))
         a = ht.random.rand(2, 44)
         ht.random.seed(seed)
         b = ht.random.rand(2, 44)
@@ -43,7 +43,7 @@ class TestRandom(unittest.TestCase):
         # Check that we start from beginning after 128 bit overflow
         ht.random.seed(seed)
         a = ht.random.rand(2, 34, split=0)
-        ht.random.set_state(('Threefry', seed, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0))
+        ht.random.set_state(("Threefry", seed, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0))
         b = ht.random.rand(2, 50, split=0)
         a = a.numpy().flatten()
         b = b.numpy().flatten()
@@ -146,13 +146,13 @@ class TestRandom(unittest.TestCase):
             12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD
         ).numpy()
         # Overflow reached
-        ht.random.set_state(('Threefry', 11111, 0x10000000000000000))
+        ht.random.set_state(("Threefry", 11111, 0x10000000000000000))
         b = ht.random.rand(
             12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD
         ).numpy()
         self.assertTrue(np.array_equal(a, b))
 
-        ht.random.set_state(('Threefry', 11111, 0x100000000))
+        ht.random.set_state(("Threefry", 11111, 0x100000000))
         c = ht.random.rand(
             12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD
         ).numpy()
@@ -222,7 +222,7 @@ class TestRandom(unittest.TestCase):
         a = ht.random.randint(
             50, 1000, size=(13, 45), dtype=ht.int32, split=0, comm=ht.MPI_WORLD
         )
-        ht.random.set_state(('Threefry', 4545, 0x10000000000000000))
+        ht.random.set_state(("Threefry", 4545, 0x10000000000000000))
         b = ht.random.randint(
             50, 1000, size=(13, 45), dtype=ht.int32, split=0, comm=ht.MPI_WORLD
         )
@@ -316,7 +316,7 @@ class TestRandom(unittest.TestCase):
         self.assertTrue(-0.01 < median < 0.01)
         self.assertTrue(0.99 < std < 1.01)
 
-        ht.random.set_state(('Threefry', 54321, 0x10000000000000000))
+        ht.random.set_state(("Threefry", 54321, 0x10000000000000000))
         b = ht.random.randn(
             30, 30, 30, dtype=ht.float32, split=2, comm=ht.MPI_WORLD
         ).numpy()
@@ -329,17 +329,17 @@ class TestRandom(unittest.TestCase):
         self.assertFalse(np.array_equal(b, c))
 
     def test_set_state(self):
-        ht.random.set_state(('Threefry', 12345, 0xFFF))
-        self.assertEqual(ht.random.get_state(), ('Threefry', 12345, 0xFFF, 0, 0.0))
+        ht.random.set_state(("Threefry", 12345, 0xFFF))
+        self.assertEqual(ht.random.get_state(), ("Threefry", 12345, 0xFFF, 0, 0.0))
 
         ht.random.set_state(
-            ('Threefry', 55555, 0xFFFFFFFFFFFFFF, 'for', 'compatibility')
+            ("Threefry", 55555, 0xFFFFFFFFFFFFFF, "for", "compatibility")
         )
         self.assertEqual(
-            ht.random.get_state(), ('Threefry', 55555, 0xFFFFFFFFFFFFFF, 0, 0.0)
+            ht.random.get_state(), ("Threefry", 55555, 0xFFFFFFFFFFFFFF, 0, 0.0)
         )
 
         with self.assertRaises(ValueError):
-            ht.random.set_state(('Thrfry', 12, 0xF))
+            ht.random.set_state(("Thrfry", 12, 0xF))
         with self.assertRaises(TypeError):
-            ht.random.set_state(('Threefry', 12345))
+            ht.random.set_state(("Threefry", 12345))

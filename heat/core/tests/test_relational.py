@@ -35,7 +35,7 @@ class TestRelational(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.eq(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.eq('self.a_tensor', 's')
+            ht.eq("self.a_tensor", "s")
 
     def test_equal(self):
         self.assertTrue(ht.equal(self.a_tensor, self.a_tensor))
@@ -64,7 +64,7 @@ class TestRelational(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.ge(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.ge('self.a_tensor', 's')
+            ht.ge("self.a_tensor", "s")
 
     def test_gt(self):
         result = ht.uint8([[0, 0], [1, 1]])
@@ -87,7 +87,7 @@ class TestRelational(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.gt(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.gt('self.a_tensor', 's')
+            ht.gt("self.a_tensor", "s")
 
     def test_le(self):
         result = ht.uint8([[1, 1], [0, 0]])
@@ -110,7 +110,7 @@ class TestRelational(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.le(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.le('self.a_tensor', 's')
+            ht.le("self.a_tensor", "s")
 
     def test_lt(self):
         result = ht.uint8([[1, 0], [0, 0]])
@@ -133,7 +133,7 @@ class TestRelational(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.lt(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.lt('self.a_tensor', 's')
+            ht.lt("self.a_tensor", "s")
 
     def test_ne(self):
         result = ht.uint8([[1, 0], [1, 1]])
@@ -152,4 +152,4 @@ class TestRelational(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.ne(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.ne('self.a_tensor', 's')
+            ht.ne("self.a_tensor", "s")

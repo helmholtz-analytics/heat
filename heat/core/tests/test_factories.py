@@ -285,16 +285,16 @@ class TestFactories(unittest.TestCase):
             ht.array(map)
         # iterable, but unsuitable type
         with self.assertRaises(TypeError):
-            ht.array('abc')
+            ht.array("abc")
         # unknown dtype
         with self.assertRaises(TypeError):
-            ht.array((4,), dtype='a')
+            ht.array((4,), dtype="a")
         # invalid ndmin
         with self.assertRaises(TypeError):
             ht.array((4,), ndmin=3.0)
         # invalid split axis type
         with self.assertRaises(TypeError):
-            ht.array((4,), split='a')
+            ht.array((4,), split="a")
         # invalid split axis value
         with self.assertRaises(ValueError):
             ht.array((4,), split=3)
@@ -338,11 +338,11 @@ class TestFactories(unittest.TestCase):
 
         # exceptions
         with self.assertRaises(TypeError):
-            ht.empty('(2, 3,)', dtype=ht.float64)
+            ht.empty("(2, 3,)", dtype=ht.float64)
         with self.assertRaises(ValueError):
             ht.empty((-1, 3), dtype=ht.float64)
         with self.assertRaises(TypeError):
-            ht.empty((2, 3), dtype=ht.float64, split='axis')
+            ht.empty((2, 3), dtype=ht.float64, split="axis")
 
     def test_empty_like(self):
         # scalar
@@ -354,7 +354,7 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(like_int.dtype, ht.int32)
 
         # sequence
-        like_str = ht.empty_like('abc')
+        like_str = ht.empty_like("abc")
         self.assertIsInstance(like_str, ht.DNDarray)
         self.assertEqual(like_str.shape, (3,))
         self.assertEqual(like_str.lshape, (3,))
@@ -382,9 +382,9 @@ class TestFactories(unittest.TestCase):
 
         # exceptions
         with self.assertRaises(TypeError):
-            ht.empty_like(ones, dtype='abc')
+            ht.empty_like(ones, dtype="abc")
         with self.assertRaises(TypeError):
-            ht.empty_like(ones, split='axis')
+            ht.empty_like(ones, split="axis")
 
     def test_eye(self):
         def get_offset(tensor_array):
@@ -477,11 +477,11 @@ class TestFactories(unittest.TestCase):
 
         # exceptions
         with self.assertRaises(TypeError):
-            ht.full('(2, 3,)', 4, dtype=ht.float64)
+            ht.full("(2, 3,)", 4, dtype=ht.float64)
         with self.assertRaises(ValueError):
             ht.full((-1, 3), 2, dtype=ht.float64)
         with self.assertRaises(TypeError):
-            ht.full((2, 3), dtype=ht.float64, split='axis')
+            ht.full((2, 3), dtype=ht.float64, split="axis")
 
     def test_full_like(self):
         # scalar
@@ -494,7 +494,7 @@ class TestFactories(unittest.TestCase):
         self.assertTrue(ht.allclose(like_int, ht.float32(4)))
 
         # sequence
-        like_str = ht.full_like('abc', 2)
+        like_str = ht.full_like("abc", 2)
         self.assertIsInstance(like_str, ht.DNDarray)
         self.assertEqual(like_str.shape, (3,))
         self.assertEqual(like_str.lshape, (3,))
@@ -525,9 +525,9 @@ class TestFactories(unittest.TestCase):
 
         # exceptions
         with self.assertRaises(TypeError):
-            ht.ones_like(zeros, dtype='abc')
+            ht.ones_like(zeros, dtype="abc")
         with self.assertRaises(TypeError):
-            ht.ones_like(zeros, split='axis')
+            ht.ones_like(zeros, split="axis")
 
     def test_linspace(self):
         # simple linear space
@@ -683,11 +683,11 @@ class TestFactories(unittest.TestCase):
 
         # exceptions
         with self.assertRaises(TypeError):
-            ht.ones('(2, 3,)', dtype=ht.float64)
+            ht.ones("(2, 3,)", dtype=ht.float64)
         with self.assertRaises(ValueError):
             ht.ones((-1, 3), dtype=ht.float64)
         with self.assertRaises(TypeError):
-            ht.ones((2, 3), dtype=ht.float64, split='axis')
+            ht.ones((2, 3), dtype=ht.float64, split="axis")
 
     def test_ones_like(self):
         # scalar
@@ -700,7 +700,7 @@ class TestFactories(unittest.TestCase):
         self.assertEqual((like_int._DNDarray__array == 1).all().item(), 1)
 
         # sequence
-        like_str = ht.ones_like('abc')
+        like_str = ht.ones_like("abc")
         self.assertIsInstance(like_str, ht.DNDarray)
         self.assertEqual(like_str.shape, (3,))
         self.assertEqual(like_str.lshape, (3,))
@@ -731,9 +731,9 @@ class TestFactories(unittest.TestCase):
 
         # exceptions
         with self.assertRaises(TypeError):
-            ht.ones_like(zeros, dtype='abc')
+            ht.ones_like(zeros, dtype="abc")
         with self.assertRaises(TypeError):
-            ht.ones_like(zeros, split='axis')
+            ht.ones_like(zeros, split="axis")
 
     def test_zeros(self):
         # scalar input
@@ -775,11 +775,11 @@ class TestFactories(unittest.TestCase):
 
         # exceptions
         with self.assertRaises(TypeError):
-            ht.zeros('(2, 3,)', dtype=ht.float64)
+            ht.zeros("(2, 3,)", dtype=ht.float64)
         with self.assertRaises(ValueError):
             ht.zeros((-1, 3), dtype=ht.float64)
         with self.assertRaises(TypeError):
-            ht.zeros((2, 3), dtype=ht.float64, split='axis')
+            ht.zeros((2, 3), dtype=ht.float64, split="axis")
 
     def test_zeros_like(self):
         # scalar
@@ -792,7 +792,7 @@ class TestFactories(unittest.TestCase):
         self.assertEqual((like_int._DNDarray__array == 0).all().item(), 1)
 
         # sequence
-        like_str = ht.zeros_like('abc')
+        like_str = ht.zeros_like("abc")
         self.assertIsInstance(like_str, ht.DNDarray)
         self.assertEqual(like_str.shape, (3,))
         self.assertEqual(like_str.lshape, (3,))
@@ -823,6 +823,6 @@ class TestFactories(unittest.TestCase):
 
         # exceptions
         with self.assertRaises(TypeError):
-            ht.zeros_like(ones, dtype='abc')
+            ht.zeros_like(ones, dtype="abc")
         with self.assertRaises(TypeError):
-            ht.zeros_like(ones, split='axis')
+            ht.zeros_like(ones, split="axis")

@@ -67,14 +67,14 @@ class TestRounding(unittest.TestCase):
         # exceptions
         # for abs==absolute
         with self.assertRaises(TypeError):
-            ht.absolute('hello')
+            ht.absolute("hello")
         with self.assertRaises(TypeError):
             float32_tensor.abs(out=1)
         with self.assertRaises(TypeError):
             float32_tensor.absolute(out=float32_tensor, dtype=3.2)
         # for fabs
         with self.assertRaises(TypeError):
-            ht.fabs('hello')
+            ht.fabs("hello")
         with self.assertRaises(TypeError):
             float32_tensor_fabs.fabs(out=1)
 

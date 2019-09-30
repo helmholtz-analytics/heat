@@ -8,9 +8,9 @@ import torch
 from .stride_tricks import sanitize_axis
 
 # check whether OpenMPI support CUDA-aware MPI
-if 'openmpi' in os.environ.get('MPI_SUFFIX', '').lower():
-    buffer = subprocess.check_output(['ompi_info', '--parsable', '--all'])
-    CUDA_AWARE_MPI = b'mpi_built_with_cuda_support:value:true' in buffer
+if "openmpi" in os.environ.get("MPI_SUFFIX", "").lower():
+    buffer = subprocess.check_output(["ompi_info", "--parsable", "--all"])
+    CUDA_AWARE_MPI = b"mpi_built_with_cuda_support:value:true" in buffer
 else:
     CUDA_AWARE_MPI = False
 
@@ -554,7 +554,7 @@ class MPICommunication(Communication):
         if not isinstance(sendbuf, torch.Tensor):
             if axis != 0:
                 raise TypeError(
-                    'sendbuf of type {} does not support concatenation axis != 0'.format(
+                    "sendbuf of type {} does not support concatenation axis != 0".format(
                         type(sendbuf)
                     )
                 )
@@ -567,7 +567,7 @@ class MPICommunication(Communication):
         if not isinstance(recvbuf, torch.Tensor):
             if axis != 0:
                 raise TypeError(
-                    'recvbuf of type {} does not support concatenation axis != 0'.format(
+                    "recvbuf of type {} does not support concatenation axis != 0".format(
                         type(recvbuf)
                     )
                 )
@@ -687,7 +687,7 @@ class MPICommunication(Communication):
         """
         if send_axis == None:
             raise NotImplementedError(
-                'AllToAll needs send_axis and recv_axis to be specified but was send_axis = {}, recv_axis = {}. Please set send_axis and recv_axis'.format(
+                "AllToAll needs send_axis and recv_axis to be specified but was send_axis = {}, recv_axis = {}. Please set send_axis and recv_axis".format(
                     send_axis, recv_axis
                 )
             )
@@ -705,7 +705,7 @@ class MPICommunication(Communication):
             sendbuf = sendbuf._DNDarray__array
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
-                'sendbuf of type {} does not support send_axis != 0'.format(
+                "sendbuf of type {} does not support send_axis != 0".format(
                     type(sendbuf)
                 )
             )
@@ -717,7 +717,7 @@ class MPICommunication(Communication):
             recvbuf = recvbuf._DNDarray__array
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
-                'recvbuf of type {} does not support send_axis != 0'.format(
+                "recvbuf of type {} does not support send_axis != 0".format(
                     type(recvbuf)
                 )
             )
@@ -773,7 +773,7 @@ class MPICommunication(Communication):
         else:
             if recv_axis == send_axis:
                 raise NotImplementedError(
-                    'AllToAll for same axes not supported. Please choose send_axis and recv_axis to be different.'
+                    "AllToAll for same axes not supported. Please choose send_axis and recv_axis to be different."
                 )
 
             # Send_axis-Permutation: [recv_axis, send_axis, rest ...]
@@ -858,7 +858,7 @@ class MPICommunication(Communication):
             sendbuf = sendbuf._DNDarray__array
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
-                'sendbuf of type {} does not support send_axis != 0'.format(
+                "sendbuf of type {} does not support send_axis != 0".format(
                     type(sendbuf)
                 )
             )
@@ -870,7 +870,7 @@ class MPICommunication(Communication):
             recvbuf = recvbuf._DNDarray__array
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
-                'recvbuf of type {} does not support send_axis != 0'.format(
+                "recvbuf of type {} does not support send_axis != 0".format(
                     type(recvbuf)
                 )
             )
@@ -881,7 +881,7 @@ class MPICommunication(Communication):
         # permute the send_axis order so that the split send_axis is the first to be transmitted
         send_axis_permutation = list(range(recvbuf.ndimension()))
         send_axis_permutation[0], send_axis_permutation[send_axis] = send_axis, 0
-        if self.rank == kwargs.get('root', -1) or send_counts is not None:
+        if self.rank == kwargs.get("root", -1) or send_counts is not None:
             sendbuf = sendbuf.permute(*send_axis_permutation)
 
         recv_axis_permutation = list(range(recvbuf.ndimension()))
@@ -1077,7 +1077,7 @@ def sanitize_comm(comm):
         return comm
 
     raise TypeError(
-        'Unknown communication, must be instance of {}'.format(Communication)
+        "Unknown communication, must be instance of {}".format(Communication)
     )
 
 

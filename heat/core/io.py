@@ -9,13 +9,13 @@ from . import devices
 from .stride_tricks import sanitize_axis
 from . import types
 
-__VALID_WRITE_MODES = frozenset(['w', 'a', 'r+'])
-__CSV_EXTENSION = frozenset(['.csv'])
-__HDF5_EXTENSIONS = frozenset(['.h5', '.hdf5'])
-__NETCDF_EXTENSIONS = frozenset(['.nc', '.nc4', 'netcdf'])
-__NETCDF_DIM_TEMPLATE = '{}_dim_{}'
+__VALID_WRITE_MODES = frozenset(["w", "a", "r+"])
+__CSV_EXTENSION = frozenset([".csv"])
+__HDF5_EXTENSIONS = frozenset([".h5", ".hdf5"])
+__NETCDF_EXTENSIONS = frozenset([".nc", ".nc4", "netcdf"])
+__NETCDF_DIM_TEMPLATE = "{}_dim_{}"
 
-__all__ = ['load', 'load_csv', 'save']
+__all__ = ["load", "load_csv", "save"]
 
 
 try:
@@ -30,12 +30,12 @@ else:
     # warn the user about serial hdf5
     if not h5py.get_config().mpi and MPI_WORLD.rank == 0:
         warnings.warn(
-            'h5py does not support parallel I/O, falling back to slower serial I/O',
+            "h5py does not support parallel I/O, falling back to slower serial I/O",
             ImportWarning,
         )
 
     # add functions to exports
-    __all__.extend(['load_hdf5', 'save_hdf5'])
+    __all__.extend(["load_hdf5", "save_hdf5"])
 
     def supports_hdf5():
         return True
@@ -85,11 +85,11 @@ else:
         (3,)
         """
         if not isinstance(path, str):
-            raise TypeError('path must be str, not {}'.format(type(path)))
+            raise TypeError("path must be str, not {}".format(type(path)))
         if not isinstance(dataset, str):
-            raise TypeError('dataset must be str, not {}'.format(type(dataset)))
+            raise TypeError("dataset must be str, not {}".format(type(dataset)))
         if split is not None and not isinstance(split, int):
-            raise TypeError('split must be None or int, not {}'.format(type(split)))
+            raise TypeError("split must be None or int, not {}".format(type(split)))
 
         # infer the type and communicator for the loaded array
         dtype = types.canonical_heat_type(dtype)
@@ -98,7 +98,7 @@ else:
         comm = sanitize_comm(comm)
 
         # actually load the data from the HDF5 file
-        with h5py.File(path, 'r') as handle:
+        with h5py.File(path, "r") as handle:
             data = handle[dataset]
             gshape = tuple(data.shape)
             dims = len(gshape)
@@ -114,7 +114,7 @@ else:
                 )
             else:
                 warnings.warn(
-                    'More MPI ranks are used then the length of splitting dimension!'
+                    "More MPI ranks are used then the length of splitting dimension!"
                 )
                 slice1 = tuple(
                     slice(0, gshape[i]) if i != split else slice(0, 1)
@@ -131,7 +131,7 @@ else:
 
             return dndarray.DNDarray(data, gshape, dtype, split, device, comm)
 
-    def save_hdf5(data, path, dataset, mode='w', **kwargs):
+    def save_hdf5(data, path, dataset, mode="w", **kwargs):
         """
         Saves data to an HDF5 file. Attempts to utilize parallel I/O if possible.
 
@@ -161,16 +161,16 @@ else:
         >>> ht.save_hdf5(a_range, 'data.h5', dataset='DATA')
         """
         if not isinstance(data, dndarray.DNDarray):
-            raise TypeError('data must be heat tensor, not {}'.format(type(data)))
+            raise TypeError("data must be heat tensor, not {}".format(type(data)))
         if not isinstance(path, str):
-            raise TypeError('path must be str, not {}'.format(type(path)))
+            raise TypeError("path must be str, not {}".format(type(path)))
         if not isinstance(dataset, str):
-            raise TypeError('dataset must be str, not {}'.format(type(path)))
+            raise TypeError("dataset must be str, not {}".format(type(path)))
 
         # we only support a subset of possible modes
         if mode not in __VALID_WRITE_MODES:
             raise ValueError(
-                'mode was {}, not in possible modes {}'.format(
+                "mode was {}, not in possible modes {}".format(
                     mode, __VALID_WRITE_MODES
                 )
             )
@@ -181,7 +181,7 @@ else:
 
         # attempt to perform parallel I/O if possible
         if h5py.get_config().mpi:
-            with h5py.File(path, mode, driver='mpio', comm=data.comm.handle) as handle:
+            with h5py.File(path, mode, driver="mpio", comm=data.comm.handle) as handle:
                 dset = handle.create_dataset(dataset, data.shape, **kwargs)
                 dset[slices] = (
                     data._DNDarray__array.cpu()
@@ -207,7 +207,7 @@ else:
         elif is_split:
             # wait for the previous rank to finish writing its chunk, then write own part
             data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
-            with h5py.File(path, 'r+') as handle:
+            with h5py.File(path, "r+") as handle:
                 handle[dataset][slices] = data._DNDarray__array.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
@@ -225,20 +225,20 @@ except ImportError:
 
 else:
     __nc_has_par = (
-        nc.__dict__.get('__has_parallel4_support__', False)
-        or nc.__dict__.get('__has_pnetcdf_support__', False)
-        or nc.__dict__.get('__has_nc_par__', False)
+        nc.__dict__.get("__has_parallel4_support__", False)
+        or nc.__dict__.get("__has_pnetcdf_support__", False)
+        or nc.__dict__.get("__has_nc_par__", False)
     )
 
     # warn the user about serial netcdf
     if not __nc_has_par and MPI_WORLD.rank == 0:
         warnings.warn(
-            'netCDF4 does not support parallel I/O, falling back to slower serial I/O',
+            "netCDF4 does not support parallel I/O, falling back to slower serial I/O",
             ImportWarning,
         )
 
     # add functions to visible exports
-    __all__.extend(['load_netcdf', 'save_netcdf'])
+    __all__.extend(["load_netcdf", "save_netcdf"])
 
     def supports_netcdf():
         return True
@@ -288,11 +288,11 @@ else:
         (3,)
         """
         if not isinstance(path, str):
-            raise TypeError('path must be str, not {}'.format(type(path)))
+            raise TypeError("path must be str, not {}".format(type(path)))
         if not isinstance(variable, str):
-            raise TypeError('dataset must be str, not {}'.format(type(variable)))
+            raise TypeError("dataset must be str, not {}".format(type(variable)))
         if split is not None and not isinstance(split, int):
-            raise TypeError('split must be None or int, not {}'.format(type(split)))
+            raise TypeError("split must be None or int, not {}".format(type(split)))
 
         # infer the canonical heat datatype
         dtype = types.canonical_heat_type(dtype)
@@ -301,7 +301,7 @@ else:
         comm = sanitize_comm(comm)
 
         # actually load the data
-        with nc.Dataset(path, 'r', parallel=__nc_has_par, comm=comm.handle) as handle:
+        with nc.Dataset(path, "r", parallel=__nc_has_par, comm=comm.handle) as handle:
             data = handle[variable]
 
             # prepare meta information
@@ -321,7 +321,7 @@ else:
 
             return dndarray.DNDarray(data, gshape, dtype, split, device, comm)
 
-    def save_netcdf(data, path, variable, mode='w', **kwargs):
+    def save_netcdf(data, path, variable, mode="w", **kwargs):
         """
         Saves data to a netCDF4 file. Attempts to utilize parallel I/O if possible.
 
@@ -351,16 +351,16 @@ else:
         >>> ht.save_netcdf(a_range, 'data.nc', dataset='DATA')
         """
         if not isinstance(data, dndarray.DNDarray):
-            raise TypeError('data must be heat tensor, not {}'.format(type(data)))
+            raise TypeError("data must be heat tensor, not {}".format(type(data)))
         if not isinstance(path, str):
-            raise TypeError('path must be str, not {}'.format(type(path)))
+            raise TypeError("path must be str, not {}".format(type(path)))
         if not isinstance(variable, str):
-            raise TypeError('variable must be str, not {}'.format(type(path)))
+            raise TypeError("variable must be str, not {}".format(type(path)))
 
         # we only support a subset of possible modes
         if mode not in __VALID_WRITE_MODES:
             raise ValueError(
-                'mode was {}, not in possible modes {}'.format(
+                "mode was {}, not in possible modes {}".format(
                     mode, __VALID_WRITE_MODES
                 )
             )
@@ -413,7 +413,7 @@ else:
         elif is_split:
             # wait for the previous rank to finish writing its chunk, then write own part
             data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
-            with nc.Dataset(path, 'r+') as handle:
+            with nc.Dataset(path, "r+") as handle:
                 handle[variable][slices] = data._DNDarray__array.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
@@ -451,7 +451,7 @@ def load(path, *args, **kwargs):
     tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
     """
     if not isinstance(path, str):
-        raise TypeError('Expected path to be str, but was {}'.format(type(path)))
+        raise TypeError("Expected path to be str, but was {}".format(type(path)))
     extension = os.path.splitext(path)[-1].strip().lower()
 
     if extension in __CSV_EXTENSION:
@@ -461,15 +461,15 @@ def load(path, *args, **kwargs):
     elif supports_netcdf() and extension in __NETCDF_EXTENSIONS:
         return load_netcdf(path, *args, **kwargs)
     else:
-        raise ValueError('Unsupported file extension {}'.format(extension))
+        raise ValueError("Unsupported file extension {}".format(extension))
 
 
 def load_csv(
     path,
     header_lines=0,
-    sep=',',
+    sep=",",
     dtype=types.float32,
-    encoding='UTF-8',
+    encoding="UTF-8",
     split=None,
     device=None,
     comm=MPI_WORLD,
@@ -538,13 +538,13 @@ def load_csv(
     [3/3] (35, 4)
     """
     if not isinstance(path, str):
-        raise TypeError('path must be str, not {}'.format(type(path)))
+        raise TypeError("path must be str, not {}".format(type(path)))
     if not isinstance(sep, str):
-        raise TypeError('separator must be str, not {}'.format(type(sep)))
+        raise TypeError("separator must be str, not {}".format(type(sep)))
     if not isinstance(header_lines, int):
-        raise TypeError('header_lines must int, not {}'.format(type(header_lines)))
+        raise TypeError("header_lines must int, not {}".format(type(header_lines)))
     if split not in [None, 0, 1]:
-        raise ValueError('split must be in [None, 0, 1], but is {}'.format(split))
+        raise ValueError("split must be in [None, 0, 1], but is {}".format(split))
 
     # infer the type and communicator for the loaded array
     dtype = types.canonical_heat_type(dtype)
@@ -562,7 +562,7 @@ def load_csv(
             data = data[header_lines:]
             result = []
             for i, line in enumerate(data):
-                values = line.replace('\n', '').replace('\r', '').split(sep)
+                values = line.replace("\n", "").replace("\r", "").split(sep)
                 values = [float(val) for val in values]
                 result.append(values)
             resulting_tensor = factories.array(
@@ -574,18 +574,18 @@ def load_csv(
         # in case lines are terminated with '\r\n' we need to skip 2 bytes later
         lineter_len = 1
         # Read a chunk of bytes and count the linebreaks
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             f.seek(displs[rank], 0)
             line_starts = []
             r = f.read(counts[rank])
             for pos, l in enumerate(r):
-                if chr(l) == '\n':
+                if chr(l) == "\n":
                     # Check if it is part of '\r\n'
-                    if not chr(r[pos - 1]) == '\r':
+                    if not chr(r[pos - 1]) == "\r":
                         line_starts.append(pos + 1)
-                elif chr(l) == '\r':
+                elif chr(l) == "\r":
                     # check if file line is terminated by '\r\n'
-                    if pos + 1 < len(r) and chr(r[pos + 1]) == '\n':
+                    if pos + 1 < len(r) and chr(r[pos + 1]) == "\n":
                         line_starts.append(pos + 2)
                         lineter_len = 2
                     else:
@@ -673,15 +673,15 @@ def load_csv(
             for i in range(header_lines):
                 f.readline()
             line = f.readline()
-            values = line.replace('\n', '').replace('\r', '').split(sep)
+            values = line.replace("\n", "").replace("\r", "").split(sep)
             values = [float(val) for val in values]
             rows = len(values)
 
             chunk, displs, _ = comm.counts_displs_shape((1, rows), 1)
             data.append(values[displs[rank] : displs[rank] + chunk[rank]])
             # Read file line by line till EOF reached
-            for line in iter(f.readline, ''):
-                values = line.replace('\n', '').replace('\r', '').split(sep)
+            for line in iter(f.readline, ""):
+                values = line.replace("\n", "").replace("\r", "").split(sep)
                 values = [float(val) for val in values]
                 data.append(values[displs[rank] : displs[rank] + chunk[rank]])
         resulting_tensor = factories.array(
@@ -716,7 +716,7 @@ def save(data, path, *args, **kwargs):
     >>> ht.save(a_range, 'data.nc', 'DATA', mode='w')
     """
     if not isinstance(path, str):
-        raise TypeError('Expected path to be str, but was {}'.format(type(path)))
+        raise TypeError("Expected path to be str, but was {}".format(type(path)))
     extension = os.path.splitext(path)[-1].strip().lower()
 
     if supports_hdf5() and extension in __HDF5_EXTENSIONS:
@@ -724,7 +724,7 @@ def save(data, path, *args, **kwargs):
     elif supports_netcdf() and extension in __NETCDF_EXTENSIONS:
         save_netcdf(data, path, *args, **kwargs)
     else:
-        raise ValueError('Unsupported file extension {}'.format(extension))
+        raise ValueError("Unsupported file extension {}".format(extension))
 
 
 # tensor is imported at the very end to break circular dependency

@@ -40,7 +40,7 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.add(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.add('T', 's')
+            ht.add("T", "s")
 
     def test_diff(self):
         ht_array = ht.random.rand(20, 20, 20, split=None)
@@ -82,9 +82,9 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.diff(ht_array, n=-2)
         with self.assertRaises(TypeError):
-            ht.diff(ht_array, axis='string')
+            ht.diff(ht_array, axis="string")
         with self.assertRaises(TypeError):
-            ht.diff('string', axis=2)
+            ht.diff("string", axis=2)
 
     def test_div(self):
         result = ht.array([[0.5, 1.0], [1.5, 2.0]])
@@ -109,7 +109,7 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.div(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.div('T', 's')
+            ht.div("T", "s")
 
     def test_fmod(self):
         result = ht.array([[1.0, 0.0], [1.0, 0.0]])
@@ -146,7 +146,7 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.fmod(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.fmod('T', 's')
+            ht.fmod("T", "s")
 
     def test_mod(self):
         a_tensor = ht.array([[1, 4], [2, 2]])
@@ -174,7 +174,7 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.mul(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.mul('T', 's')
+            ht.mul("T", "s")
 
     def test_pow(self):
         result = ht.array([[1.0, 4.0], [9.0, 16.0]])
@@ -197,7 +197,7 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.pow(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.pow('T', 's')
+            ht.pow("T", "s")
 
     def test_prod(self):
         array_len = 11
@@ -301,7 +301,7 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.ones((4, 4)).prod(axis=0, out=out_noaxis)
         with self.assertRaises(TypeError):
-            ht.ones(array_len).prod(axis='bad_axis_type')
+            ht.ones(array_len).prod(axis="bad_axis_type")
 
     def test_sub(self):
         result = ht.array([[-1.0, 0.0], [1.0, 2.0]])
@@ -322,7 +322,7 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.sub(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
-            ht.sub('T', 's')
+            ht.sub("T", "s")
 
     def test_sum(self):
         array_len = 11
@@ -428,7 +428,7 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.ones((4, 4)).sum(axis=0, out=out_noaxis)
         with self.assertRaises(TypeError):
-            ht.ones(array_len).sum(axis='bad_axis_type')
+            ht.ones(array_len).sum(axis="bad_axis_type")
 
     def test_right_hand_side_operations(self):
         """
@@ -443,13 +443,13 @@ class TestArithmetics(unittest.TestCase):
 
         """
         operators = (
-            ('__add__', operator.add, True),
-            ('__sub__', operator.sub, False),
-            ('__mul__', operator.mul, True),
-            ('__truediv__', operator.truediv, False),
-            ('__floordiv__', operator.floordiv, False),
-            ('__mod__', operator.mod, False),
-            ('__pow__', operator.pow, False),
+            ("__add__", operator.add, True),
+            ("__sub__", operator.sub, False),
+            ("__mul__", operator.mul, True),
+            ("__truediv__", operator.truediv, False),
+            ("__floordiv__", operator.floordiv, False),
+            ("__mod__", operator.mod, False),
+            ("__pow__", operator.pow, False),
         )
         tensor = ht.float32([[1, 4], [2, 3]])
         num = 3

@@ -305,7 +305,7 @@ class TestManipulations(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.concatenate((ht.zeros((6, 3, 5)), ht.zeros((4, 5, 1))))
         with self.assertRaises(TypeError):
-            ht.concatenate((x, '5'))
+            ht.concatenate((x, "5"))
         with self.assertRaises(ValueError):
             ht.concatenate((x))
         with self.assertRaises(TypeError):
@@ -428,9 +428,9 @@ class TestManipulations(unittest.TestCase):
 
         # exceptions
         with self.assertRaises(TypeError):
-            ht.expand_dims('(3, 4, 5,)', 1)
+            ht.expand_dims("(3, 4, 5,)", 1)
         with self.assertRaises(TypeError):
-            ht.empty((3, 4, 5)).expand_dims('1')
+            ht.empty((3, 4, 5)).expand_dims("1")
         with self.assertRaises(ValueError):
             ht.empty((3, 4, 5)).expand_dims(4)
         with self.assertRaises(ValueError):
@@ -583,7 +583,7 @@ class TestManipulations(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.sort(data, axis=3)
         with self.assertRaises(TypeError):
-            ht.sort(data, axis='1')
+            ht.sort(data, axis="1")
 
         rank = ht.MPI_WORLD.rank
         data = ht.random.randn(100, 1, split=0)
@@ -683,7 +683,7 @@ class TestManipulations(unittest.TestCase):
         with self.assertRaises(TypeError):
             data.squeeze(axis=1.1)
         with self.assertRaises(TypeError):
-            data.squeeze(axis='y')
+            data.squeeze(axis="y")
         with self.assertRaises(ValueError):
             ht.argmin(data, axis=-4)
 

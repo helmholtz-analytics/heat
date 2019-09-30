@@ -4,19 +4,19 @@ from .operations import __local_op as local_op
 
 
 __all__ = [
-    'arccos',
-    'arcsin',
-    'arctan',
-    'cos',
-    'cosh',
-    'deg2rad',
-    'degrees',
-    'rad2deg',
-    'radians',
-    'sin',
-    'sinh',
-    'tan',
-    'tanh',
+    "arccos",
+    "arcsin",
+    "arctan",
+    "cos",
+    "cosh",
+    "deg2rad",
+    "degrees",
+    "rad2deg",
+    "radians",
+    "sin",
+    "sinh",
+    "tan",
+    "tanh",
 ]
 
 

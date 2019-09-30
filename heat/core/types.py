@@ -30,32 +30,32 @@ from . import factories
 
 
 __all__ = [
-    'generic',
-    'number',
-    'integer',
-    'signedinteger',
-    'unsignedinteger',
-    'bool',
-    'bool_',
-    'floating',
-    'int8',
-    'byte',
-    'int16',
-    'short',
-    'int32',
-    'int',
-    'int64',
-    'long',
-    'uint8',
-    'ubyte',
-    'float32',
-    'float',
-    'float_',
-    'float64',
-    'double',
-    'flexible',
-    'can_cast',
-    'promote_types',
+    "generic",
+    "number",
+    "integer",
+    "signedinteger",
+    "unsignedinteger",
+    "bool",
+    "bool_",
+    "floating",
+    "int8",
+    "byte",
+    "int16",
+    "short",
+    "int32",
+    "int",
+    "int64",
+    "long",
+    "uint8",
+    "ubyte",
+    "float32",
+    "float",
+    "float_",
+    "float64",
+    "double",
+    "flexible",
+    "can_cast",
+    "promote_types",
 ]
 
 
@@ -63,7 +63,7 @@ class generic:
     def __new__(cls, *value, device=None, comm=None):
         torch_type = cls.torch_type()
         if torch_type is NotImplemented:
-            raise TypeError('cannot create \'{}\' instances'.format(cls))
+            raise TypeError("cannot create '{}' instances".format(cls))
 
         value_count = len(value)
 
@@ -74,7 +74,7 @@ class generic:
         # check whether there are too many arguments
         if value_count >= 2:
             raise TypeError(
-                'function takes at most 1 argument ({} given)'.format(value_count)
+                "function takes at most 1 argument ({} given)".format(value_count)
             )
         # if no value is given, we will initialize the value to be zero
         elif value_count == 0:
@@ -118,7 +118,7 @@ class bool(generic):
 
     @classmethod
     def char(cls):
-        return 'u1'
+        return "u1"
 
 
 class number(generic):
@@ -140,7 +140,7 @@ class int8(signedinteger):
 
     @classmethod
     def char(cls):
-        return 'i1'
+        return "i1"
 
 
 class int16(signedinteger):
@@ -150,7 +150,7 @@ class int16(signedinteger):
 
     @classmethod
     def char(cls):
-        return 'i2'
+        return "i2"
 
 
 class int32(signedinteger):
@@ -160,7 +160,7 @@ class int32(signedinteger):
 
     @classmethod
     def char(cls):
-        return 'i4'
+        return "i4"
 
 
 class int64(signedinteger):
@@ -170,7 +170,7 @@ class int64(signedinteger):
 
     @classmethod
     def char(cls):
-        return 'i8'
+        return "i8"
 
 
 class unsignedinteger(integer):
@@ -184,7 +184,7 @@ class uint8(unsignedinteger):
 
     @classmethod
     def char(cls):
-        return 'u1'
+        return "u1"
 
 
 class floating(number):
@@ -198,7 +198,7 @@ class float32(floating):
 
     @classmethod
     def char(cls):
-        return 'f4'
+        return "f4"
 
 
 class float64(floating):
@@ -208,7 +208,7 @@ class float64(floating):
 
     @classmethod
     def char(cls):
-        return 'f8'
+        return "f8"
 
 
 class flexible(generic):
@@ -238,19 +238,19 @@ _exact = (uint8, int8, int16, int32, int64)
 # type mappings for type strings and builtins types
 __type_mappings = {
     # type strings
-    '?': bool,
-    'b': int8,
-    'i': int32,
-    'i1': int8,
-    'i2': int16,
-    'i4': int32,
-    'i8': int64,
-    'B': uint8,
-    'u': uint8,
-    'u1': uint8,
-    'f': float32,
-    'f4': float32,
-    'f8': float64,
+    "?": bool,
+    "b": int8,
+    "i": int32,
+    "i1": int8,
+    "i2": int16,
+    "i4": int32,
+    "i8": int64,
+    "B": uint8,
+    "u": uint8,
+    "u1": uint8,
+    "f": float32,
+    "f4": float32,
+    "f8": float64,
     # numpy types
     np.bool: bool,
     np.uint8: uint8,
@@ -307,7 +307,7 @@ def canonical_heat_type(a_type):
     try:
         return __type_mappings[a_type]
     except KeyError:
-        raise TypeError('data type {} is not understood'.format(a_type))
+        raise TypeError("data type {} is not understood".format(a_type))
 
 
 def heat_type_of(obj):
@@ -349,7 +349,7 @@ def heat_type_of(obj):
     try:
         return canonical_heat_type(type(obj[0]))
     except (KeyError, IndexError, TypeError):
-        raise TypeError('data type of {} is not understood'.format(obj))
+        raise TypeError("data type of {} is not understood".format(obj))
 
 
 # type code assignment
@@ -395,10 +395,10 @@ __same_kind = [
 
 
 # static list of possible casting methods
-__cast_kinds = ['no', 'safe', 'same_kind', 'unsafe']
+__cast_kinds = ["no", "safe", "same_kind", "unsafe"]
 
 
-def can_cast(from_, to, casting='safe'):
+def can_cast(from_, to, casting="safe"):
     """
     Returns True if cast between data types can occur according to the casting rule. If from is a scalar or array
     scalar, also returns True if the scalar value can be cast without overflow or truncation to an integer.
@@ -456,9 +456,9 @@ def can_cast(from_, to, casting='safe'):
     True
     """
     if not isinstance(casting, str):
-        raise TypeError('expected string, found {}'.format(type(casting)))
+        raise TypeError("expected string, found {}".format(type(casting)))
     if casting not in __cast_kinds:
-        raise ValueError('casting must be one of {}'.format(str(__cast_kinds)[1:-1]))
+        raise ValueError("casting must be one of {}".format(str(__cast_kinds)[1:-1]))
 
     # obtain the types codes of the canonical HeAT types
     try:
@@ -468,16 +468,16 @@ def can_cast(from_, to, casting='safe'):
     typecode_to = __type_codes[canonical_heat_type(to)]
 
     # unsafe casting allows everything
-    if casting == 'unsafe':
+    if casting == "unsafe":
         return True
 
     # types have to match exactly
-    elif casting == 'no':
+    elif casting == "no":
         return typecode_from == typecode_to
 
     # safe casting or same_kind
     can_safe_cast = __safe_cast[typecode_from][typecode_to]
-    if casting == 'safe':
+    if casting == "safe":
         return can_safe_cast
     return can_safe_cast or __same_kind[typecode_from][typecode_to]
 
@@ -571,13 +571,13 @@ class finfo:
             pass
 
         if not dtype in _inexact:
-            raise TypeError('Data type {} not inexact, not supported'.format(dtype))
+            raise TypeError("Data type {} not inexact, not supported".format(dtype))
 
         return super(finfo, cls).__new__(cls)._init(dtype)
 
     def _init(self, dtype):
         _torch_finfo = torch.finfo(dtype.torch_type())
-        for word in ['bits', 'eps', 'max', 'tiny']:
+        for word in ["bits", "eps", "max", "tiny"]:
             setattr(self, word, getattr(_torch_finfo, word))
 
         self.min = -self.max
@@ -622,13 +622,13 @@ class iinfo:
             pass
 
         if not dtype in _exact:
-            raise TypeError('Data type {} not inexact, not supported'.format(dtype))
+            raise TypeError("Data type {} not inexact, not supported".format(dtype))
 
         return super(iinfo, cls).__new__(cls)._init(dtype)
 
     def _init(self, dtype):
         _torch_iinfo = torch.iinfo(dtype.torch_type())
-        for word in ['bits', 'max']:
+        for word in ["bits", "max"]:
             setattr(self, word, getattr(_torch_iinfo, word))
 
         self.min = -(self.max + 1)

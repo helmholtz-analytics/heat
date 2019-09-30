@@ -7,7 +7,7 @@ from . import manipulations
 from . import operations
 from . import dndarray
 
-__all__ = ['all', 'allclose', 'any']
+__all__ = ["all", "allclose", "any"]
 
 
 def all(x, axis=None, out=None, keepdim=None):
@@ -110,11 +110,11 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
         try:
             x = factories.array([float(x)])
         except (ValueError, TypeError):
-            raise TypeError('Data type not supported, input was {}'.format(type(x)))
+            raise TypeError("Data type not supported, input was {}".format(type(x)))
 
     elif not isinstance(x, dndarray.DNDarray):
         raise TypeError(
-            'Only tensors and numeric scalars are supported, but input was {}'.format(
+            "Only tensors and numeric scalars are supported, but input was {}".format(
                 type(x)
             )
         )
@@ -123,11 +123,11 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
         try:
             y = factories.array([float(y)])
         except (ValueError, TypeError):
-            raise TypeError('Data type not supported, input was {}'.format(type(y)))
+            raise TypeError("Data type not supported, input was {}".format(type(y)))
 
     elif not isinstance(y, dndarray.DNDarray):
         raise TypeError(
-            'Only tensors and numeric scalars are supported, but input was {}'.format(
+            "Only tensors and numeric scalars are supported, but input was {}".format(
                 type(y)
             )
         )
