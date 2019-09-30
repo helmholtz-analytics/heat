@@ -50,7 +50,7 @@ class TestExponential(unittest.TestCase):
         actual = ht.arange(10, split=0, dtype=ht.float32).exp()
         self.assertEqual(actual.gshape, tuple(expected.shape))
         self.assertEqual(actual.split, 0)
-        actual = actual.resplit(None)
+        actual = actual.resplit_(None)
         self.assertEqual(actual.lshape, expected.shape)
         self.assertTrue(torch.equal(expected, actual._DNDarray__array))
         self.assertEqual(actual.dtype, ht.float32)

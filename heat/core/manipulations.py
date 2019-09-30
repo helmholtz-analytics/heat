@@ -11,12 +11,18 @@ from . import factories
 from . import stride_tricks
 from . import types
 
+from .communication import MPI
+
+
 __all__ = [
     'concatenate',
     'expand_dims',
+    'hstack',
+    'resplit',
     'sort',
     'squeeze',
-    'unique'
+    'unique',
+    'vstack'
 ]
 
 
@@ -86,7 +92,6 @@ def concatenate(arrays, axis=0):
     [1/1]         [1., 1.],
     [1/1]         [1., 1.]])
     """
-
     if len(arrays) < 2:
         raise ValueError('concatenate requires 2 arrays')
     elif len(arrays) > 2:
@@ -337,6 +342,56 @@ def expand_dims(a, axis):
         a.device,
         a.comm
     )
+
+
+def hstack(tup):
+    """
+    Stack arrays in sequence horizontally (column wise).
+    This is equivalent to concatenation along the second axis, except for 1-D
+    arrays where it concatenates along the first axis. Rebuilds arrays divided
+    by `hsplit`.
+
+    Parameters
+    ----------
+    tup : sequence of DNDarrays
+        The arrays must have the same shape along all but the second axis,
+        except 1-D arrays which can be any length.
+    Returns
+    -------
+    stacked : DNDarray
+        The array formed by stacking the given arrays.
+
+    Examples
+    --------
+    >>> a = ht.array((1,2,3))
+    >>> b = ht.array((2,3,4))
+    >>> ht.hstack((a,b))
+    [0] tensor([1, 2, 3, 2, 3, 4])
+    [1] tensor([1, 2, 3, 2, 3, 4])
+    >>> a = ht.array((1,2,3), split=0)
+    >>> b = ht.array((2,3,4), split=0)
+    >>> ht.hstack((a,b))
+    [0] tensor([1, 2, 3])
+    [1] tensor([2, 3, 4])
+    >>> a = ht.array([[1],[2],[3]], split=0)
+    >>> b = ht.array([[2],[3],[4]], split=0)
+    >>> ht.hstack((a,b))
+    [0] tensor([[1, 2],
+    [0]         [2, 3]])
+    [1] tensor([[3, 4]])
+    """
+    tup = list(tup)
+    axis = 1
+    all_vec = False
+    if len(tup) == 2 and all(len(x.gshape) == 1 for x in tup):
+        axis = 0
+        all_vec = True
+    if not all_vec:
+        for cn, arr in enumerate(tup):
+            if len(arr.gshape) == 1:
+                tup[cn] = arr.expand_dims(1)
+
+    return concatenate(tup, axis=axis)
 
 
 def sort(a, axis=None, descending=False, out=None):
@@ -893,10 +948,112 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     split = split if a.split < len(gres.shape) else None
     result = factories.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, split=split, is_split=is_split)
     if split is not None:
-        result.resplit(a.split)
+        result.resplit_(a.split)
 
     return_value = result
     if return_inverse:
         return_value = [return_value, inverse_indices]
 
     return return_value
+
+def resplit(a, axis=None):
+    """
+    Out-of-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
+    nodes as well as the definition of new axis along which the tensor is split without changes to the values.
+    WARNING: this operation might involve a significant communication overhead. Use it sparingly and preferably for
+    small tensors.
+
+    Parameters
+    ----------
+    a    : ht.DNDarray
+        The tensor from which to resplit
+    axis : int
+        The new split axis, None denotes gathering, an int will set the new split axis
+
+    Returns
+    -------
+    resplit: ht.DNDarray
+        A new tensor that is a copy of 'a', but split along 'axis'
+
+    Examples
+    --------
+    a = ht.zeros((4, 5,), split=0)
+    a.lshape
+    (0/2) >>> (2, 5)
+    (1/2) >>> (2, 5)
+    b = resplit(a, None)
+    b.split
+    >>> None
+    b.lshape
+    (0/2) >>> (4, 5)
+    (1/2) >>> (4, 5)
+
+    a = ht.zeros((4, 5,), split=0)
+    a.lshape
+    (0/2) >>> (2, 5)
+    (1/2) >>> (2, 5)
+    b = resplit(a, 1)
+    b.split
+    >>> 1
+    b.lshape
+    (0/2) >>> (4, 3)
+    (1/2) >>> (4, 2)
+    """
+    # create a copy of the input tensor 'a'
+    resplit = a.copy()
+    resplit.resplit_(axis=axis)
+    return resplit
+    
+def vstack(tup):
+    """
+    Stack arrays in sequence vertically (row wise).
+    This is equivalent to concatenation along the first axis.
+    This function makes most sense for arrays with up to 3 dimensions. For
+    instance, for pixel-data with a height (first axis), width (second axis),
+    and r/g/b channels (third axis). The functions `concatenate`, `stack` and
+    `block` provide more general stacking and concatenation operations.
+
+    NOTE: the split axis will be switched to 1 in the case that both elements are 1D and split=0
+    Parameters
+    ----------
+    tup : sequence of DNDarrays
+        The arrays must have the same shape along all but the first axis.
+        1-D arrays must have the same length.
+    Returns
+    -------
+    stacked : ndarray
+        The array formed by stacking the given arrays, will be at least 2-D.
+
+    Examples
+    --------
+    >>> a = ht.array([1, 2, 3])
+    >>> b = ht.array([2, 3, 4])
+    >>> ht.vstack((a,b))
+    [0] tensor([[1, 2, 3],
+    [0]         [2, 3, 4]])
+    [1] tensor([[1, 2, 3],
+    [1]         [2, 3, 4]])
+    >>> a = ht.array([1, 2, 3], split=0)
+    >>> b = ht.array([2, 3, 4], split=0)
+    >>> ht.vstack((a,b))
+    [0] tensor([[1, 2],
+    [0]         [2, 3]])
+    [1] tensor([[3],
+    [1]         [4]])
+    >>> a = ht.array([[1], [2], [3]], split=0)
+    >>> b = ht.array([[2], [3], [4]], split=0)
+    >>> ht.vstack((a,b))
+    [0] tensor([[1],
+    [0]         [2],
+    [0]         [3]])
+    [1] tensor([[2],
+    [1]         [3],
+    [1]         [4]])
+
+    """
+    tup = list(tup)
+    for cn, arr in enumerate(tup):
+        if len(arr.gshape) == 1:
+            tup[cn] = arr.expand_dims(0).resplit_(arr.split)
+
+    return concatenate(tup, axis=0)

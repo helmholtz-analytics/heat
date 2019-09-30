@@ -2,17 +2,73 @@ import itertools
 import torch
 
 from .communication import MPI
+from . import arithmetics
 from . import dndarray
 from . import factories
+from . import logical
 from . import manipulations
 from . import types
 
 __all__ = [
+    'dot',
     'matmul',
     'transpose',
     'tril',
     'triu'
 ]
+
+
+def dot(a, b, out=None):
+    """
+    Dot product of two arrays. Specifically,
+
+    1. If both a and b are 1-D arrays, it is inner product of vectors.
+    2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or `a @ b` is preferred.
+    3. If either a or b is 0-D (scalar), it is equivalent to multiply and using `ht.multiply(a, b)` or `a * b` is preferred.
+
+    Parameters
+    ----------
+    a : ht.DNDarray
+    b : ht.DNDarray
+
+    Returns
+    -------
+    ht.DNDarray or single value (float or int)
+        Returns the dot product of a and b. If a and b are both scalars or both 1-D arrays then a scalar is returned;
+        otherwise an array is returned. If out is given, then it is returned.
+    """
+    if isinstance(a, (float, int)) or isinstance(b, (float, int)) or a.numdims == 0 or b.numdims == 0:
+        # 3. If either a or b is 0-D (scalar), it is equivalent to multiply and using numpy.multiply(a, b) or a * b is preferred.
+        if out is not None:
+            out = a * b
+            return out
+        return a * b
+    elif a.numdims == 1 and b.numdims == 1:
+        # 1. If both a and b are 1-D arrays, it is inner product of vectors.
+        if a.split is not None or b.split is not None:
+            sl = a.comm.chunk(a.shape, a.split if a.split is not None else b.split)[2]
+        ret = torch.dot(a[sl]._DNDarray__array, b[sl]._DNDarray__array)
+        if a.is_distributed() or b.is_distributed():
+            a.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
+
+        if out is not None:
+            out = ret.item()
+            return out
+        return ret.item()
+    elif a.numdims == 2 and b.numdims == 2:
+        # 2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or a @ b is preferred.
+        ret = matmul(a, b)
+        if out is not None:
+            if out is not None:
+                out._DNDarray__array = ret._DNDarray__array
+                out._DNDarray__dtype = ret.dtype
+                out._DNDarray__split = ret.split
+                out._DNDarray__device = ret.device
+                out._DNDarray__comm = ret.comm
+            return out
+        return ret
+    else:
+        raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
 
 def matmul(a, b):
@@ -81,19 +137,18 @@ def matmul(a, b):
         raise ValueError("If the last dimension of a ({}) is not the same size as the second-to-last dimension of b. ({})".format(a.gshape[-1], b.gshape[-2]))
 
     # determine if a larger type is needed for c
-    if a.dtype is types.float64 or b.dtype is types.float64:
-        c_type = types.float64
-    elif (a.dtype is types.int64 and b.dtype is types.int) or (b.dtype is types.int64 and a.dtype is types.int):
-        c_type = types.int64
-    else:
-        c_type = types.float
+    c_type = types.promote_types(a.dtype, b.dtype)
+    if a.dtype != c_type:
+        a = c_type(a)
+    if b.dtype != c_type:
+        b = c_type(b)
 
     if a.split is None and b.split is None:  # matmul from torch
         if len(a.gshape) < 2 or len(b.gshape) < 2:
             # if either of A or B is a vector
             return factories.array(torch.matmul(a._DNDarray__array, b._DNDarray__array))
         else:
-            a = a.resplit(0)
+            a = a.resplit_(0)
             slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
             hold = a._DNDarray__array @ b._DNDarray__array
 
@@ -103,33 +158,64 @@ def matmul(a, b):
             return c
     else:
         # if they are vectors they need to be expanded to be the proper dimensions
+        vector_flag = False  # flag to run squeeze at the end of the function
         if len(a.gshape) < 2:
             a = manipulations.expand_dims(a, axis=0)
+            vector_flag = True
         if len(b.gshape) < 2:
             b = manipulations.expand_dims(b, axis=1)
+            vector_flag = True
+
         split_0_flag = False
         split_1_flag = False
         split_01_flag = False
         split_10_flag = False
 
-        if (a.split == 0 and b.split is None) or (a.split is None and b.split == 1):
-            c = factories.zeros((a.gshape[-2], b.gshape[1]), split=a.split if a.split is not None else b.split, dtype=c_type)
+        if ((a.split == 0 and b.split is None) or (a.split is None and b.split == 1)) and not vector_flag:
+            split = a.split if a.split is not None else b.split
+            split = split if not vector_flag else 0
+            c = factories.zeros((a.gshape[-2], b.gshape[1]), split=split, dtype=c_type)
             c._DNDarray__array += a._DNDarray__array @ b._DNDarray__array
-            return c
+
+            return c if not vector_flag else c.squeeze()
 
         elif a.split == 1 and b.split is None:
             c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type())
             a_idx = a.comm.chunk(a.shape, a.split)[2]
             c += a._DNDarray__array @ b._DNDarray__array[a_idx[1].start:a_idx[1].start + a.lshape[-1], :]
             a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
-            return factories.array(c, split=a.split if b.gshape[1] > 1 else 0)
+            c = c if not vector_flag else c.squeeze()
+            c = factories.array(c, split=a.split if b.gshape[1] > 1 else 0)
+            return c
 
         elif a.split is None and b.split == 0:
             c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type())
             b_idx = b.comm.chunk(b.shape, b.split)[2]
             c += a._DNDarray__array[:, b_idx[0].start:b_idx[0].start + b.lshape[0]] @ b._DNDarray__array
             b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
-            return factories.array(c, split=b.split if a.gshape[-2] > 1 else 1)
+            c = c if not vector_flag else c.squeeze()
+            c = factories.array(c, split=b.split if a.gshape[-2] > 1 else 0)
+            return c
+
+        elif a.split == 0 and b.split is None:  # this case and the one below will only be reaching if one of them is a vector
+            c = torch.zeros((a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type())
+            a_idx = a.comm.chunk(a.shape, a.split)[2]
+            c[a_idx[0]] += a._DNDarray__array @ b._DNDarray__array
+            a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
+            c = c if not vector_flag else c.squeeze()
+            split = a.split if b.gshape[1] > 1 else 0
+            split = split if not vector_flag else 0
+            c = factories.array(c, split=split)
+            return c
+
+        elif a.split is None and b.split == 1:
+            c = torch.zeros((a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type())
+            c += a._DNDarray__array @ b._DNDarray__array
+            c = c if not vector_flag else c.squeeze()
+            split = b.split if a.gshape[1] > 1 else 0
+            split = split if not vector_flag else 0
+            c = factories.array(c, is_split=split)
+            return c
 
         elif a.split == 0 and b.split == 0:
             split_0_flag = True
@@ -156,9 +242,9 @@ def matmul(a, b):
             kB = b.gshape[0] // b.comm.size
             kB = kB if kB < a.gshape[-1] else a.gshape[-1]
 
-        if a.lshape[-1] % kB != 0:
+        if a.lshape[-1] % kB != 0 or (kB == 1 and a.lshape[-1] != 1):
             rem_a = 1
-        if b.lshape[0] % kB != 0:
+        if b.lshape[0] % kB != 0 or (kB == 1 and b.lshape[-2] != 1):
             rem_b = 1
 
         # get the lshape map to determine what needs to be sent where as well as M and N
@@ -174,9 +260,9 @@ def matmul(a, b):
 
         # check for remaining dims in the outside dimensions
         rem_a_out, rem_b_out = 0, 0
-        if a.lshape[-2] % mB != 0:
+        if a.lshape[-2] % mB != 0 or (kB == 1 and a.lshape[-2] != 1):
             rem_a_out = 1
-        if b.lshape[-1] % nB != 0:
+        if b.lshape[-1] % nB != 0 or (kB == 1 and b.lshape[-1] != 1):
             rem_b_out = 1
 
         # get the flags from all processes
@@ -212,6 +298,14 @@ def matmul(a, b):
         elif a.split == 1:
             a_block_map = torch.zeros((a.comm.size, a.shape[-2] // mB, a.shape[-1] // kB // a.comm.size, 2))
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
+
+        # below is to handle the edge case where there is only one element in one dimension of a
+        a_d0_1s_flag, a_d1_1s_flag = False, False
+        if any(lshape_map[:, 0, :][:, 0] == 1):
+            a_d0_1s_flag = True
+        if any(lshape_map[:, 0, :][:, 1] == 1):
+            a_d1_1s_flag = True
+
         index_map_comm.wait()
         for pr in range(a.comm.size):
             start0 = index_map[pr, 0, 0, 0].item()
@@ -219,9 +313,9 @@ def matmul(a, b):
             start1 = index_map[pr, 0, 1, 0].item()
             stop1 = index_map[pr, 0, 1, 1].item()
 
-            for dim0 in range((stop0 - start0) // mB):
+            for dim0 in range((stop0 - start0) // mB // a.comm.size if a_d0_1s_flag else (stop0 - start0) // mB):
                 # loop over the number of blocks in the 0th dimension
-                for dim1 in range((stop1 - start1) // kB):
+                for dim1 in range((stop1 - start1) // kB // a.comm.size if a_d1_1s_flag else (stop1 - start1) // kB):
                     # loop over the number of blocks in the 1st dimension
                     a_block_map[pr, dim0, dim1] = torch.tensor((dim0 * mB, dim1 * kB), dtype=torch.int)
         rem_map_comm.wait()
@@ -238,15 +332,23 @@ def matmul(a, b):
         if b.split == 1:
             b_block_map = torch.zeros((b.comm.size, b.shape[-2] // kB, b.shape[-1] // nB // b.comm.size, 2))
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
+
+        # below is to handle the edge case where there is only one element in one dimension of b
+        b_d0_1s_flag, b_d1_1s_flag = False, False
+        if any(lshape_map[:, 1, :][:, 0] == 1):
+            b_d0_1s_flag = True
+        if any(lshape_map[:, 1, :][:, 1] == 1):
+            b_d1_1s_flag = True
+
         for pr in range(b.comm.size):
             start0 = index_map[pr, 1, 0, 0].item()
             stop0 = index_map[pr, 1, 0, 1].item()
             start1 = index_map[pr, 1, 1, 0].item()
             stop1 = index_map[pr, 1, 1, 1].item()
 
-            for dim0 in range((stop0 - start0) // kB):
+            for dim0 in range((stop0 - start0) // kB // b.comm.size if b_d0_1s_flag else (stop0 - start0) // kB):
                 # loop over the number of blocks in the 0th dimension
-                for dim1 in range((stop1 - start1) // nB):
+                for dim1 in range((stop1 - start1) // nB // b.comm.size if b_d1_1s_flag else (stop1 - start1) // nB):
                     # loop over the number of blocks in the 1st dimension
                     b_block_map[pr, dim0, dim1] = torch.tensor((dim0 * kB, dim1 * nB), dtype=torch.int)
 
@@ -358,6 +460,8 @@ def matmul(a, b):
                         c._DNDarray__array[:a_node_rem_s0.shape[0]] += a_node_rem_s0 @ b_rem
 
                     del b_lp_data[pr]
+
+            c = c if not vector_flag else factories.array(c._DNDarray__array.squeeze(), is_split=0)
             return c
 
         elif split_1_flag:
@@ -425,6 +529,7 @@ def matmul(a, b):
                         c._DNDarray__array[:, :b_node_rem_s1.shape[1]] += a_rem @ b_node_rem_s1
 
                     del a_lp_data[pr]
+            c = c if not vector_flag else factories.array(c._DNDarray__array.squeeze(), is_split=0)
             return c
 
         elif split_01_flag:
@@ -462,6 +567,7 @@ def matmul(a, b):
                     c._DNDarray__array[:sp0-st0, st1:sp1] += a._DNDarray__array @ b_lp_data[pr]
 
                     del b_lp_data[pr]
+            c = c if not vector_flag else factories.array(c._DNDarray__array.squeeze(), is_split=0)
             return c
 
         elif split_10_flag:
@@ -469,13 +575,17 @@ def matmul(a, b):
             a_rem_locs1 = (rem_map[:, 0, 1] == 1).nonzero()
             b_rem_locs0 = (rem_map[:, 1, 0] == 1).nonzero()  # locations of the remainders in b
             res = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type())
-            res += a._DNDarray__array[:mB, :kB] @ b._DNDarray__array[:kB, :nB]
+            for i in range(a.lshape[-1] // kB):
+                res += a._DNDarray__array[:mB, i * kB:i*kB + kB] @ b._DNDarray__array[i * kB:i*kB + kB, :nB]
             if a.comm.rank in a_rem_locs1 and b.comm.rank in b_rem_locs0:
                 res += a._DNDarray__array[:, -1, None] @ b._DNDarray__array[None, -1, :]  # these Nones are used to change the dims
 
             a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
-
-            return factories.array(res, split=a.split if b.gshape[-1] > 1 else 0)
+            split = a.split if b.gshape[1] > 1 else 0
+            split = split if not vector_flag else 0
+            res = res if not vector_flag else res.squeeze()
+            c = factories.array(res, split=split)
+            return c
 
 
 def transpose(a, axes=None):

@@ -3,6 +3,7 @@ import torch
 
 from .communication import MPI
 from . import factories
+from . import manipulations
 from . import operations
 from . import dndarray
 
@@ -125,22 +126,31 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     elif not isinstance(y, dndarray.DNDarray):
         raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(y)))
 
+    # Do redistribution out-of-place
     # If only one of the tensors is distributed, unsplit/gather it
     if (x.split is not None) and (y.split is None):
-        x.resplit(axis=None)
-    if (x.split is None) and (y.split is not None):
-        y.resplit(axis=None)
+        t1 = manipulations.resplit(x, axis=None)
+        t2 = y.copy()
+
+    elif (x.split is None) and (y.split is not None):
+        t1 = x.copy()
+        t2 = manipulations.resplit(y, axis=None)
 
     # If both x and y are split, but along different axes, y is redistributed to be split along the same axis as x
-    if (x.split is not None) and (y.split is not None) and (x.split != y.split):
-        y.resplit(axis=x.split)
+    elif (x.split is not None) and (y.split is not None) and (x.split != y.split):
+        t1 = x.copy()
+        t2 = manipulations.resplit(y, axis=x.split)
+
+    else:
+        t1 = x.copy()
+        t2 = y.copy()
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
-    _local_allclose = torch.tensor(torch.allclose(x._DNDarray__array, y._DNDarray__array, rtol, atol, equal_nan))
+    _local_allclose = torch.tensor(torch.allclose(t1._DNDarray__array, t2._DNDarray__array, rtol, atol, equal_nan))
 
     # If x is distributed, then y is also distributed along the same axis
-    if x.comm.is_distributed():
-        x.comm.Allreduce(MPI.IN_PLACE, _local_allclose, MPI.LAND)
+    if t1.comm.is_distributed():
+        t1.comm.Allreduce(MPI.IN_PLACE, _local_allclose, MPI.LAND)
 
     return bool(_local_allclose.item())
 

@@ -20,7 +20,7 @@ class TestRelational(unittest.TestCase):
             [2.0, 2.0],
             [2.0, 2.0]
         ])
-        cls.a_split_tensor = cls.another_tensor.copy().resplit(0)
+        cls.a_split_tensor = cls.another_tensor.copy().resplit_(0)
         cls.split_ones_tensor = ht.ones((2, 2), split=1)
 
         cls.errorneous_type = (2, 2)
