@@ -234,33 +234,31 @@ def modf(a):
 
         Returns
         -------
-        tuple(array: fractionalParts, array: integralParts)
+        tuple(ht.DNDarray: fractionalParts, ht.DNDarray: integralParts)
 
-        fractionalParts : ndarray
+        fractionalParts : ht.DNDdarray
             Fractional part of x. This is a scalar if x is a scalar.
 
-        integralParts : ndarray
+        integralParts : ht.DNDdarray
             Integral part of x. This is a scalar if x is a scalar.
 
         Examples
         --------
         >>> ht.modf(ht.arange(-2.0, 2.0, 0.4))
-            (tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.]), tensor([-0.0, -0.6, -0.2, -0.8, -0.4, 0.0,  0.4,  0.8,  0.2,  0.6]))               #TODO
-
+            (tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.]),
+            tensor([ 0.0000, -0.6000, -0.2000, -0.8000, -0.4000,  0.0000,  0.4000,  0.8000, 0.2000,  0.6000]))
         """
 
     integralParts = ht.trunc(a)
     fractionalParts = a-integralParts
 
-    return (integralParts, fractionalParts)
+    return (fractionalParts, integralParts)
 
 
 
 
 
-
-
-def round(x, out=None, dtype=None):
+def round(x, decimals=0, out=None, dtype=None):
     """
     Calculate the rounded value element-wise.
 
@@ -275,33 +273,35 @@ def round(x, out=None, dtype=None):
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
 
+    decimals: int, optional
+        Number of decimal places to round to (default: 0).
+        If decimals is negative, it specifies the number of positions to the left of the decimal point.
+
     Returns
     -------
     rounded_values : ht.DNDarray
         A tensor containing the rounded value of each element in x.
+
+    Examples
+    --------
+    >>> ht.round(ht.arange(-2.0, 2.0, 0.4))
+        tensor([-2., -2., -1., -1., -0.,  0.,  0.,  1.,  1.,  2.])
+
     """
     if dtype is not None and not issubclass(dtype, types.generic):
         raise TypeError('dtype must be a heat data type')
 
+    if decimals != 0:
+        x*=10**decimals
+
     rounded_values = operations.__local_op(torch.round, x, out)
+
+    if decimals !=0:
+        rounded_values/=10**decimals
+
     if dtype is not None:
         rounded_values._DNDarray__array = rounded_values._DNDarray__array.type(
             dtype.torch_type())
         rounded_values._DNDarray__dtype = dtype
 
     return rounded_values
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
