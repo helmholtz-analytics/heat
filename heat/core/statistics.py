@@ -537,8 +537,8 @@ def max(x, axis=None, out=None, keepdim=None):
 
 def maximum(x1, x2, out=None):
     """
-    Compares two tensors and returns a new tensor containing the element-wise maxima. 
-    If one of the elements being compared is a NaN, then that element is returned. TODO: Check this: If both elements are NaNs then the first is returned. 
+    Compares two tensors and returns a new tensor containing the element-wise maxima.
+    If one of the elements being compared is a NaN, then that element is returned. TODO: Check this: If both elements are NaNs then the first is returned.
     The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
 
     Parameters:
@@ -549,7 +549,7 @@ def maximum(x1, x2, out=None):
             For broadcasting semantics, see: https://pytorch.org/docs/stable/notes/broadcasting.html
 
     out : ht.DNDarray or None, optional
-        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to. 
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated tensor is returned.
 
     Returns:
@@ -559,7 +559,7 @@ def maximum(x1, x2, out=None):
             Element-wise maximum of the two input tensors.
 
     Examples:
-    ---------          
+    ---------
     >>> import heat as ht
     >>> import torch
     >>> torch.manual_seed(1)
@@ -1055,8 +1055,8 @@ def min(x, axis=None, out=None, keepdim=None):
 
 def minimum(x1, x2, out=None):
     """
-    Compares two tensors and returns a new tensor containing the element-wise minima. 
-    If one of the elements being compared is a NaN, then that element is returned. TODO: Check this: If both elements are NaNs then the first is returned. 
+    Compares two tensors and returns a new tensor containing the element-wise minima.
+    If one of the elements being compared is a NaN, then that element is returned. TODO: Check this: If both elements are NaNs then the first is returned.
     The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
 
     Parameters:
@@ -1067,7 +1067,7 @@ def minimum(x1, x2, out=None):
             For broadcasting semantics, see: https://pytorch.org/docs/stable/notes/broadcasting.html
 
     out : ht.DNDarray or None, optional
-        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to. 
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated tensor is returned.
 
     Returns:
@@ -1077,7 +1077,7 @@ def minimum(x1, x2, out=None):
             Element-wise minimum of the two input tensors.
 
     Examples:
-    ---------          
+    ---------
     >>> import heat as ht
     >>> import torch
     >>> torch.manual_seed(1)
@@ -1109,7 +1109,7 @@ def minimum(x1, x2, out=None):
             [-1.6428, -0.5107, -1.5727, -0.8206],
             [-1.6428, -1.8313, -0.0421, -1.2770]])
 
-    >>> b.__setitem__((0,1), ht.nan) 
+    >>> b.__setitem__((0,1), ht.nan)
     >>> b
     tensor([[ 0.8310,     nan, -0.8029,  0.2366],
             [ 0.2857,  0.6898, -0.6331,  0.8795],

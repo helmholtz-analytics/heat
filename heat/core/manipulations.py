@@ -584,7 +584,7 @@ def sort(a, axis=None, descending=False, out=None):
         global_pivots = torch.empty(pivot_dim, dtype=a.dtype.torch_type())
 
         # root process creates new pivots and shares them with other processes
-        if rank is 0:
+        if rank == 0:
             sorted_pivots, _ = torch.sort(pivot_buffer, descending=descending, dim=0)
             length = sorted_pivots.size()[0]
             global_partitions = [x * length // size for x in range(1, size)]

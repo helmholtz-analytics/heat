@@ -34,7 +34,7 @@ class TestLasso(unittest.TestCase):
         # check whether the results are correct
         self.assertEqual(estimator.lam, 0.1)
         self.assertIsInstance(estimator.theta, ht.DNDarray)
-        self.assertTrue(estimator.n_iter is 100)
+        self.assertEqual(estimator.n_iter, 100)
         self.assertEqual(estimator.max_iter, 100)
         self.assertEqual(estimator.coef_.shape, (n - 1, 1))
         self.assertEqual(estimator.intercept_.shape, (1,))
@@ -74,7 +74,7 @@ class TestLasso(unittest.TestCase):
         # check whether the results are correct
         self.assertEqual(estimator.lam, 0.1)
         self.assertIsInstance(estimator.theta, torch.Tensor)
-        self.assertTrue(estimator.n_iter is 100)
+        self.assertEqual(estimator.n_iter, 100)
         self.assertEqual(estimator.max_iter, 100)
         self.assertEqual(estimator.coef_.shape, (n - 1, 1))
         self.assertEqual(estimator.intercept_.shape, (1,))
@@ -114,7 +114,7 @@ class TestLasso(unittest.TestCase):
         # check whether the results are correct
         self.assertEqual(estimator.lam, 0.1)
         self.assertIsInstance(estimator.theta, np.ndarray)
-        self.assertTrue(estimator.n_iter is 100)
+        self.assertEqual(estimator.n_iter, 100)
         self.assertEqual(estimator.max_iter, 100)
         self.assertEqual(estimator.coef_.shape, (n - 1, 1))
         self.assertEqual(estimator.intercept_.shape, (1,))

@@ -417,7 +417,7 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None):
     gshape = shape
     if isinstance(gshape, int):
         gshape = (gshape, gshape)
-    if len(gshape) is 1:
+    if len(gshape) == 1:
         gshape = gshape * 2
 
     split = sanitize_axis(gshape, split)
@@ -434,8 +434,8 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None):
 
     # insert ones at the correct positions
     for i in range(min(lshape)):
-        pos_x = i if split is 0 else i + offset
-        pos_y = i if split is 1 else i + offset
+        pos_x = i if split == 0 else i + offset
+        pos_y = i if split == 1 else i + offset
         data[pos_x][pos_y] = 1
 
     return dndarray.DNDarray(
@@ -768,7 +768,7 @@ def logspace(
              endpoint may or may not be included.
     linspace : Similar to logspace, but with the samples uniformly distributed
                in linear space, instead of log space.
-    
+
     Examples
     --------
     >>> ht.logspace(2.0, 3.0, num=4)

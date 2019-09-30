@@ -221,7 +221,7 @@ def lt(t1, t2):
 def ne(t1, t2):
     """
     Element-wise rich comparison of non-equality between values from two operands, commutative.
-    Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument. 
+    Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
 
     Parameters
     ----------

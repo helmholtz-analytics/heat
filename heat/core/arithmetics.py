@@ -218,7 +218,7 @@ def fmod(t1, t2):
     Returns
     -------
     result: ht.DNDarray
-        A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2. 
+        A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2.
         It has the sign as the dividend t1.
 
     Examples:
@@ -294,7 +294,7 @@ def mod(t1, t2):
     Returns
     -------
     result: ht.DNDarray
-        A tensor containing the remainder of the element-wise division of t1 by t2. 
+        A tensor containing the remainder of the element-wise division of t1 by t2.
         It has the same sign as the devisor t2.
 
     Examples:

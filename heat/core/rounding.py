@@ -189,7 +189,7 @@ def trunc(x, out=None):
     """
     Return the trunc of the input, element-wise.
 
-    The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the 
+    The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the
     fractional part of the signed number x is discarded.
 
     Parameters

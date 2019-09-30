@@ -491,7 +491,7 @@ class DNDarray:
         Parameters
         ----------
         x : ht.tensor
-            Tensor containing data to be averaged. 
+            Tensor containing data to be averaged.
 
         axis : None or int or tuple of ints, optional
             Axis or axes along which to average x.  The default,
@@ -522,12 +522,12 @@ class DNDarray:
             Return the average along the specified axis. When returned=True,
             return a tuple with the average as the first element and the sum
             of the weights as the second element. sum_of_weights is of the
-            same type as `average`. 
+            same type as `average`.
 
         Raises
         ------
         ZeroDivisionError
-            When all weights along axis are zero. 
+            When all weights along axis are zero.
 
         TypeError
             When the length of 1D weights is not the same as the shape of x
@@ -829,7 +829,7 @@ class DNDarray:
         """
         Return the trunc of the input, element-wise.
 
-        The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the 
+        The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the
         fractional part of the signed number x is discarded.
 
         Parameters
@@ -2106,14 +2106,14 @@ class DNDarray:
 
     def numpy(self):
         """
-        Convert heat tensor to numpy tensor. If the tensor is distributed it will be merged beforehand. If the tensor 
+        Convert heat tensor to numpy tensor. If the tensor is distributed it will be merged beforehand. If the tensor
         resides on the GPU, it will be copied to the CPU first.
 
 
         Examples
         --------
-        >>> import heat as ht 
-        
+        >>> import heat as ht
+
         T1 = ht.random.randn((10,8))
         T1.numpy()
         """
