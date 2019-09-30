@@ -13,7 +13,9 @@ __all__ = [
     'fabs',
     'floor',
     'trunc',
+    'modf',
     'round'
+
 ]
 
 
@@ -242,7 +244,7 @@ def modf(a):
 
         Examples
         --------
-        >>> ht.modf(ht.arrange(-2.0, 2.0, 0.4))
+        >>> ht.modf(ht.arange(-2.0, 2.0, 0.4))
             (tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.]), tensor([-0.0, -0.6, -0.2, -0.8, -0.4, 0.0,  0.4,  0.8,  0.2,  0.6]))               #TODO
 
         """
@@ -253,11 +255,41 @@ def modf(a):
     return (integralParts, fractionalParts)
 
 
-modf(ht.arange(-2.0, 2.0, 0.4))
 
 
 
 
+
+def round(x, out=None, dtype=None):
+    """
+    Calculate the rounded value element-wise.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The values for which the compute the rounded value.
+    out : ht.DNDarray, optional
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+        If not provided or None, a freshly-allocated array is returned.
+    dtype : ht.type, optional
+        Determines the data type of the output array. The values are cast to this type with potential loss of
+        precision.
+
+    Returns
+    -------
+    rounded_values : ht.DNDarray
+        A tensor containing the rounded value of each element in x.
+    """
+    if dtype is not None and not issubclass(dtype, types.generic):
+        raise TypeError('dtype must be a heat data type')
+
+    rounded_values = operations.__local_op(torch.round, x, out)
+    if dtype is not None:
+        rounded_values._DNDarray__array = rounded_values._DNDarray__array.type(
+            dtype.torch_type())
+        rounded_values._DNDarray__dtype = dtype
+
+    return rounded_values
 
 
 
