@@ -570,7 +570,7 @@ class finfo:
             # If given type is not heat type
             pass
 
-        if not dtype in _inexact:
+        if dtype not in _inexact:
             raise TypeError("Data type {} not inexact, not supported".format(dtype))
 
         return super(finfo, cls).__new__(cls)._init(dtype)
@@ -621,7 +621,7 @@ class iinfo:
             # If given type is not heat type
             pass
 
-        if not dtype in _exact:
+        if dtype not in _exact:
             raise TypeError("Data type {} not inexact, not supported".format(dtype))
 
         return super(iinfo, cls).__new__(cls)._init(dtype)
