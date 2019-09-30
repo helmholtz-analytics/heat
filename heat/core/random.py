@@ -54,10 +54,12 @@ def __counter_sequence(shape, dtype, split, device, comm):
     """
     # get the global random state into the function, might want to factor this out into a class later
     global __counter
-    tmp_counter = __counter  # Share this initial local state to update it correctly later
+    tmp_counter = (
+        __counter
+    )  # Share this initial local state to update it correctly later
     rank = comm.Get_rank()
     size = comm.Get_size()
-    max_count = 0xffffffff if dtype == torch.int32 else 0xffffffffffffffff
+    max_count = 0xFFFFFFFF if dtype == torch.int32 else 0xFFFFFFFFFFFFFFFF
     # extract the counter state of the random number generator
     if dtype is torch.int32:
         c_0 = (__counter & (max_count << 32)) >> 32
@@ -82,12 +84,14 @@ def __counter_sequence(shape, dtype, split, device, comm):
         counts, displs, _ = comm.counts_displs_shape(shape, split)
 
         # Calculate number of local elements per process
-        local_elements = [total_elements / shape[split] * counts[i] for i in range(size)]
+        local_elements = [
+            total_elements / shape[split] * counts[i] for i in range(size)
+        ]
         cum_elements = np.cumsum(local_elements)
 
         # Calculate the correct borders and slices
-        even_start = True if rank == 0 else cum_elements[rank-1] % 2 == 0
-        start = c_1 if rank == 0 else int(cum_elements[rank-1] / 2) + c_1
+        even_start = True if rank == 0 else cum_elements[rank - 1] % 2 == 0
+        start = c_1 if rank == 0 else int(cum_elements[rank - 1] / 2) + c_1
         elements = local_elements[rank] / 2
         lslice = slice(None)
         if even_start:
@@ -114,7 +118,7 @@ def __counter_sequence(shape, dtype, split, device, comm):
 
     # Check x_1 for overflow
     lrange = [start, end]
-    signed_mask = 0x7fffffff if dtype == torch.int32 else 0x7fffffffffffffff
+    signed_mask = 0x7FFFFFFF if dtype == torch.int32 else 0x7FFFFFFFFFFFFFFF
     diff = 0 if lrange[1] <= signed_mask else lrange[1] - signed_mask
     lrange[0], lrange[1] = lrange[0] - diff, lrange[1] - diff
 
@@ -146,13 +150,13 @@ def __counter_sequence(shape, dtype, split, device, comm):
             x_0 += 1
         else:
             # x_0 changes after reaching the overflow in this process
-            x_0[-(end-max_count-1):] += 1
+            x_0[-(end - max_count - 1) :] += 1
 
     # Correctly increase the counter variable
     used_values = int(np.ceil(total_elements / 2))
     # Increase counter but not over 128 bit
     tmp_counter += used_values
-    __counter = tmp_counter & 0xffffffffffffffffffffffffffffffff  # 128bit mask
+    __counter = tmp_counter & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  # 128bit mask
 
     return x_0, x_1, lshape, lslice
 
@@ -190,7 +194,7 @@ def __int32_to_float32(values):
     floats : torch.Tensor (float32)
         Corresponding single-precision floating point numbers.
     """
-    return (values & 0x7fffff).type(torch.float32) * __INT32_TO_FLOAT32
+    return (values & 0x7FFFFF).type(torch.float32) * __INT32_TO_FLOAT32
 
 
 def __int64_to_float64(values):
@@ -209,7 +213,7 @@ def __int64_to_float64(values):
     floats : torch.Tensor (float64)
         Corresponding single-precision floating point numbers.
     """
-    return (values & 0x1fffffffffffff).type(torch.float64) * __INT64_TO_FLOAT64
+    return (values & 0x1FFFFFFFFFFFFF).type(torch.float64) * __INT64_TO_FLOAT64
 
 
 def __kundu_transform(values):
@@ -277,20 +281,30 @@ def rand(*args, dtype=types.float64, split=None, device=None, comm=None):
 
     # generate the random sequence
     if dtype == types.float32:
-        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int32, split, device, comm)
+        x_0, x_1, lshape, lslice = __counter_sequence(
+            shape, torch.int32, split, device, comm
+        )
         x_0, x_1 = __threefry32(x_0, x_1)
 
         # combine the values into one tensor and convert them to floats
-        values = __int32_to_float32(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(lshape)
+        values = __int32_to_float32(
+            torch.stack([x_0, x_1], dim=1).flatten()[lslice]
+        ).reshape(lshape)
     elif dtype == types.float64:
-        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int64, split, device, comm)
+        x_0, x_1, lshape, lslice = __counter_sequence(
+            shape, torch.int64, split, device, comm
+        )
         x_0, x_1 = __threefry64(x_0, x_1)
 
         # combine the values into one tensor and convert them to floats
-        values = __int64_to_float64(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(lshape)
+        values = __int64_to_float64(
+            torch.stack([x_0, x_1], dim=1).flatten()[lslice]
+        ).reshape(lshape)
     else:
         # Unsupported type
-        raise ValueError('dtype is none of ht.float32 or ht.float64 but was {}'.format(dtype))
+        raise ValueError(
+            'dtype is none of ht.float32 or ht.float64 but was {}'.format(dtype)
+        )
 
     return dndarray.DNDarray(values, shape, dtype, split, device, comm)
 
@@ -355,7 +369,9 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
     # generate the random sequence
-    x_0, x_1, lshape, lslice = __counter_sequence(shape, dtype.torch_type(), split, device, comm)
+    x_0, x_1, lshape, lslice = __counter_sequence(
+        shape, dtype.torch_type(), split, device, comm
+    )
     if torch_dtype is torch.int32:
         x_0, x_1 = __threefry32(x_0, x_1)
     else:  # torch.int64
@@ -493,7 +509,7 @@ def __threefry32(X_0, X_1):
     samples = len(X_0)
 
     # Seed is > 32 bit
-    seed_32 = __seed & 0x7fffffff
+    seed_32 = __seed & 0x7FFFFFFF
 
     # set up key buffer
     ks_0 = torch.full((samples,), seed_32, dtype=torch.int32)
@@ -507,18 +523,35 @@ def __threefry32(X_0, X_1):
     X_1 += ks_1
 
     # perform rounds
-    X_0 += X_1; X_1 = (X_1 << 13) | (X_1 >> 19); X_1 ^= X_0  # round 1
-    X_0 += X_1; X_1 = (X_1 << 15) | (X_1 >> 17); X_1 ^= X_0  # round 2
-    X_0 += X_1; X_1 = (X_1 << 26) | (X_1 >>  6); X_1 ^= X_0  # round 3
-    X_0 += X_1; X_1 = (X_1 << 6)  | (X_1 >> 26); X_1 ^= X_0  # round 4
+    X_0 += X_1
+    X_1 = (X_1 << 13) | (X_1 >> 19)
+    X_1 ^= X_0  # round 1
+    X_0 += X_1
+    X_1 = (X_1 << 15) | (X_1 >> 17)
+    X_1 ^= X_0  # round 2
+    X_0 += X_1
+    X_1 = (X_1 << 26) | (X_1 >> 6)
+    X_1 ^= X_0  # round 3
+    X_0 += X_1
+    X_1 = (X_1 << 6) | (X_1 >> 26)
+    X_1 ^= X_0  # round 4
 
     # inject key
-    X_0 += ks_1; X_1 += (ks_2 + 1)
+    X_0 += ks_1
+    X_1 += ks_2 + 1
 
-    X_0 += X_1; X_1 = (X_1 << 17) | (X_1 >> 15); X_1 ^= X_0  # round 5
-    X_0 += X_1; X_1 = (X_1 << 29) | (X_1 >>  3); X_1 ^= X_0  # round 6
-    X_0 += X_1; X_1 = (X_1 << 16) | (X_1 >> 16); X_1 ^= X_0  # round 7
-    X_0 += X_1; X_1 = (X_1 << 24) | (X_1 >>  8); X_1 ^= X_0  # round 8
+    X_0 += X_1
+    X_1 = (X_1 << 17) | (X_1 >> 15)
+    X_1 ^= X_0  # round 5
+    X_0 += X_1
+    X_1 = (X_1 << 29) | (X_1 >> 3)
+    X_1 ^= X_0  # round 6
+    X_0 += X_1
+    X_1 = (X_1 << 16) | (X_1 >> 16)
+    X_1 ^= X_0  # round 7
+    X_0 += X_1
+    X_1 = (X_1 << 24) | (X_1 >> 8)
+    X_1 ^= X_0  # round 8
 
     # inject key
     # X_0 += ks_2; X_1 += (ks_0 + 2)
@@ -529,7 +562,8 @@ def __threefry32(X_0, X_1):
     # X_0 += X_1; X_1 = (X_1 <<  6) | (X_1 >> 26); X_1 ^= X_0  # round 12
 
     # inject key
-    X_0 += ks_0; X_1 += (ks_1 + 3)
+    X_0 += ks_0
+    X_1 += ks_1 + 3
 
     return X_0, X_1
 
@@ -571,17 +605,34 @@ def __threefry64(X_0, X_1):
     X_1 += ks_1
 
     # perform rounds
-    X_0 += X_1; X_1 = (X_1 << 16) | (X_1 >> 48); X_1 ^= X_0  # round 1
-    X_0 += X_1; X_1 = (X_1 << 42) | (X_1 >> 22); X_1 ^= X_0  # round 2
-    X_0 += X_1; X_1 = (X_1 << 12) | (X_1 >> 52); X_1 ^= X_0  # round 3
-    X_0 += X_1; X_1 = (X_1 << 31) | (X_1 >> 33); X_1 ^= X_0  # round 4
+    X_0 += X_1
+    X_1 = (X_1 << 16) | (X_1 >> 48)
+    X_1 ^= X_0  # round 1
+    X_0 += X_1
+    X_1 = (X_1 << 42) | (X_1 >> 22)
+    X_1 ^= X_0  # round 2
+    X_0 += X_1
+    X_1 = (X_1 << 12) | (X_1 >> 52)
+    X_1 ^= X_0  # round 3
+    X_0 += X_1
+    X_1 = (X_1 << 31) | (X_1 >> 33)
+    X_1 ^= X_0  # round 4
     # inject key
-    X_0 += ks_1; X_1 += (ks_2 + 1)
+    X_0 += ks_1
+    X_1 += ks_2 + 1
 
-    X_0 += X_1; X_1 = (X_1 << 16) | (X_1 >> 48); X_1 ^= X_0  # round 5
-    X_0 += X_1; X_1 = (X_1 << 32) | (X_1 >> 32); X_1 ^= X_0  # round 6
-    X_0 += X_1; X_1 = (X_1 << 24) | (X_1 >> 40); X_1 ^= X_0  # round 7
-    X_0 += X_1; X_1 = (X_1 << 21) | (X_1 >> 43); X_1 ^= X_0  # round 8
+    X_0 += X_1
+    X_1 = (X_1 << 16) | (X_1 >> 48)
+    X_1 ^= X_0  # round 5
+    X_0 += X_1
+    X_1 = (X_1 << 32) | (X_1 >> 32)
+    X_1 ^= X_0  # round 6
+    X_0 += X_1
+    X_1 = (X_1 << 24) | (X_1 >> 40)
+    X_1 ^= X_0  # round 7
+    X_0 += X_1
+    X_1 = (X_1 << 21) | (X_1 >> 43)
+    X_1 ^= X_0  # round 8
 
     # inject key
     # X_0 += ks_2; X_1 += (ks_0 + 2)
@@ -592,7 +643,8 @@ def __threefry64(X_0, X_1):
     # X_0 += X_1; X_1 = (X_1 << 31) | (X_1 >> 33); X_1 ^= X_0  # round 12
 
     # inject key
-    X_0 += ks_0; X_1 += (ks_1 + 3)
+    X_0 += ks_0
+    X_1 += ks_1 + 3
 
     return X_0, X_1
 

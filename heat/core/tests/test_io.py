@@ -100,7 +100,9 @@ class TestIO(unittest.TestCase):
         if rank == 0:
             self.assertTrue(torch.equal(a._DNDarray__array[0], first_value))
 
-        a = ht.load_csv(self.CSV_PATH, sep=';', header_lines=9, dtype=ht.float32, split=0)
+        a = ht.load_csv(
+            self.CSV_PATH, sep=';', header_lines=9, dtype=ht.float32, split=0
+        )
         expected_gshape = (csv_file_length - 9, csv_file_cols)
         counts, _, _ = a.comm.counts_displs_shape(expected_gshape, 0)
         expected_lshape = (counts[rank], csv_file_cols)
@@ -160,7 +162,9 @@ class TestIO(unittest.TestCase):
             local_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET)
             if local_range.comm.rank == 0:
                 with ht.io.h5py.File(self.HDF5_OUT_PATH, 'r') as handle:
-                    comparison = torch.tensor(handle[self.HDF5_DATASET], dtype=torch.int32)
+                    comparison = torch.tensor(
+                        handle[self.HDF5_DATASET], dtype=torch.int32
+                    )
                 self.assertTrue((local_range._DNDarray__array == comparison).all())
 
             # split range
@@ -168,7 +172,9 @@ class TestIO(unittest.TestCase):
             split_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET)
             if split_range.comm.rank == 0:
                 with ht.io.h5py.File(self.HDF5_OUT_PATH, 'r') as handle:
-                    comparison = torch.tensor(handle[self.HDF5_DATASET], dtype=torch.int32)
+                    comparison = torch.tensor(
+                        handle[self.HDF5_DATASET], dtype=torch.int32
+                    )
                 self.assertTrue((local_range._DNDarray__array == comparison).all())
 
         if ht.io.supports_netcdf():
@@ -177,7 +183,9 @@ class TestIO(unittest.TestCase):
             local_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
             if local_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, 'r') as handle:
-                    comparison = torch.tensor(handle[self.NETCDF_VARIABLE][:], dtype=torch.int32)
+                    comparison = torch.tensor(
+                        handle[self.NETCDF_VARIABLE][:], dtype=torch.int32
+                    )
                 self.assertTrue((local_range._DNDarray__array == comparison).all())
 
             # split range
@@ -185,7 +193,9 @@ class TestIO(unittest.TestCase):
             split_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, 'r') as handle:
-                    comparison = torch.tensor(handle[self.NETCDF_VARIABLE][:], dtype=torch.int32)
+                    comparison = torch.tensor(
+                        handle[self.NETCDF_VARIABLE][:], dtype=torch.int32
+                    )
                 self.assertTrue((local_range._DNDarray__array == comparison).all())
 
     def test_save_exception(self):
@@ -373,7 +383,9 @@ class TestIO(unittest.TestCase):
         ht.save_netcdf(local_data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
         if local_data.comm.rank == 0:
             with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, 'r') as handle:
-                comparison = torch.tensor(handle[self.NETCDF_VARIABLE][:], dtype=torch.int32)
+                comparison = torch.tensor(
+                    handle[self.NETCDF_VARIABLE][:], dtype=torch.int32
+                )
             self.assertTrue((local_data._DNDarray__array == comparison).all())
 
         # distributed data range
@@ -381,7 +393,9 @@ class TestIO(unittest.TestCase):
         ht.save_netcdf(split_data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
         if split_data.comm.rank == 0:
             with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, 'r') as handle:
-                comparison = torch.tensor(handle[self.NETCDF_VARIABLE][:], dtype=torch.int32)
+                comparison = torch.tensor(
+                    handle[self.NETCDF_VARIABLE][:], dtype=torch.int32
+                )
             self.assertTrue((local_data._DNDarray__array == comparison).all())
 
     def test_save_netcdf_exception(self):

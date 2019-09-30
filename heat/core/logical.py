@@ -7,11 +7,7 @@ from . import manipulations
 from . import operations
 from . import dndarray
 
-__all__ = [
-    'all',
-    'allclose',
-    'any'
-]
+__all__ = ['all', 'allclose', 'any']
 
 
 def all(x, axis=None, out=None, keepdim=None):
@@ -70,7 +66,9 @@ def all(x, axis=None, out=None, keepdim=None):
     def local_all(t, *args, **kwargs):
         return torch.all(t != 0, *args, **kwargs)
 
-    return operations.__reduce_op(x, local_all, MPI.LAND, axis=axis, out=out, keepdim=keepdim)
+    return operations.__reduce_op(
+        x, local_all, MPI.LAND, axis=axis, out=out, keepdim=keepdim
+    )
 
 
 def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
@@ -111,20 +109,28 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     if np.isscalar(x):
         try:
             x = factories.array([float(x)])
-        except (ValueError, TypeError,):
+        except (ValueError, TypeError):
             raise TypeError('Data type not supported, input was {}'.format(type(x)))
 
     elif not isinstance(x, dndarray.DNDarray):
-        raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(x)))
+        raise TypeError(
+            'Only tensors and numeric scalars are supported, but input was {}'.format(
+                type(x)
+            )
+        )
 
     if np.isscalar(y):
         try:
             y = factories.array([float(y)])
-        except (ValueError, TypeError,):
+        except (ValueError, TypeError):
             raise TypeError('Data type not supported, input was {}'.format(type(y)))
 
     elif not isinstance(y, dndarray.DNDarray):
-        raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(y)))
+        raise TypeError(
+            'Only tensors and numeric scalars are supported, but input was {}'.format(
+                type(y)
+            )
+        )
 
     # Do redistribution out-of-place
     # If only one of the tensors is distributed, unsplit/gather it
@@ -146,7 +152,9 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
         t2 = y.copy()
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
-    _local_allclose = torch.tensor(torch.allclose(t1._DNDarray__array, t2._DNDarray__array, rtol, atol, equal_nan))
+    _local_allclose = torch.tensor(
+        torch.allclose(t1._DNDarray__array, t2._DNDarray__array, rtol, atol, equal_nan)
+    )
 
     # If x is distributed, then y is also distributed along the same axis
     if t1.comm.is_distributed():
@@ -194,7 +202,10 @@ def any(x, axis=None, out=None, keepdim=False):
     >>> res
     tensor([[0, 0, 1]], dtype=torch.uint8)
     """
+
     def local_any(t, *args, **kwargs):
         return torch.any(t != 0, *args, **kwargs)
 
-    return operations.__reduce_op(x, local_any, MPI.LOR, axis=axis, out=out, keepdim=keepdim)
+    return operations.__reduce_op(
+        x, local_any, MPI.LOR, axis=axis, out=out, keepdim=keepdim
+    )

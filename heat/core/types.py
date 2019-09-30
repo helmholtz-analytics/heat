@@ -55,7 +55,7 @@ __all__ = [
     'double',
     'flexible',
     'can_cast',
-    'promote_types'
+    'promote_types',
 ]
 
 
@@ -73,7 +73,9 @@ class generic:
 
         # check whether there are too many arguments
         if value_count >= 2:
-            raise TypeError('function takes at most 1 argument ({} given)'.format(value_count))
+            raise TypeError(
+                'function takes at most 1 argument ({} given)'.format(value_count)
+            )
         # if no value is given, we will initialize the value to be zero
         elif value_count == 0:
             value = ((0,),)
@@ -82,9 +84,13 @@ class generic:
         try:
             array = value[0]._DNDarray__array.type(torch_type)
             if value[0].split is None:
-                return factories.array(array, dtype=cls, split=None, comm=comm, device=device)
+                return factories.array(
+                    array, dtype=cls, split=None, comm=comm, device=device
+                )
             else:
-                return factories.array(array, dtype=cls, is_split=value[0].split, comm=comm, device=device)
+                return factories.array(
+                    array, dtype=cls, is_split=value[0].split, comm=comm, device=device
+                )
         except AttributeError:
             # this is the case of that the first/only element of value is not a DNDarray
             array = torch.tensor(*value, dtype=torch_type)
@@ -92,7 +98,9 @@ class generic:
             # re-raise the exception to be consistent with numpy's exception interface
             raise ValueError(str(exception))
 
-        return dndarray.DNDarray(array, tuple(array.shape), cls, split=None, device=device, comm=comm)
+        return dndarray.DNDarray(
+            array, tuple(array.shape), cls, split=None, device=device, comm=comm
+        )
 
     @classmethod
     def torch_type(cls):
@@ -222,55 +230,48 @@ double = float64
 _inexact = (
     # float16,
     float32,
-    float64,)
+    float64,
+)
 
-_exact = (
-    uint8,
-    int8,
-    int16,
-    int32,
-    int64,)
+_exact = (uint8, int8, int16, int32, int64)
 
 # type mappings for type strings and builtins types
 __type_mappings = {
     # type strings
-    '?':            bool,
-    'b':            int8,
-    'i':            int32,
-    'i1':           int8,
-    'i2':           int16,
-    'i4':           int32,
-    'i8':           int64,
-    'B':            uint8,
-    'u':            uint8,
-    'u1':           uint8,
-    'f':            float32,
-    'f4':           float32,
-    'f8':           float64,
-
+    '?': bool,
+    'b': int8,
+    'i': int32,
+    'i1': int8,
+    'i2': int16,
+    'i4': int32,
+    'i8': int64,
+    'B': uint8,
+    'u': uint8,
+    'u1': uint8,
+    'f': float32,
+    'f4': float32,
+    'f8': float64,
     # numpy types
-    np.bool:        bool,
-    np.uint8:       uint8,
-    np.int8:        int8,
-    np.int16:       int16,
-    np.int32:       int32,
-    np.int64:       int64,
-    np.float32:     float32,
-    np.float64:     float64,
-
+    np.bool: bool,
+    np.uint8: uint8,
+    np.int8: int8,
+    np.int16: int16,
+    np.int32: int32,
+    np.int64: int64,
+    np.float32: float32,
+    np.float64: float64,
     # torch types
-    torch.bool:     bool,
-    torch.uint8:    uint8,
-    torch.int8:     int8,
-    torch.int16:    int16,
-    torch.int32:    int32,
-    torch.int64:    int64,
-    torch.float32:  float32,
-    torch.float64:  float64,
-
+    torch.bool: bool,
+    torch.uint8: uint8,
+    torch.int8: int8,
+    torch.int16: int16,
+    torch.int32: int32,
+    torch.int64: int64,
+    torch.float32: float32,
+    torch.float64: float64,
     # builtins
-    builtins.bool:  bool,
-    builtins.int:   int32,
+    builtins.bool: bool,
+    builtins.int: int32,
     builtins.float: float32,
 }
 
@@ -335,7 +336,7 @@ def heat_type_of(obj):
     # attempt to access the dtype property
     try:
         return canonical_heat_type(obj.dtype)
-    except (AttributeError, TypeError,):
+    except (AttributeError, TypeError):
         pass
 
     # attempt type of object itself
@@ -347,47 +348,49 @@ def heat_type_of(obj):
     # last resort, type of the object at first position
     try:
         return canonical_heat_type(type(obj[0]))
-    except (KeyError, IndexError, TypeError,):
+    except (KeyError, IndexError, TypeError):
         raise TypeError('data type of {} is not understood'.format(obj))
 
 
 # type code assignment
-__type_codes = collections.OrderedDict([
-    (bool,    0),
-    (uint8,   1),
-    (int8,    2),
-    (int16,   3),
-    (int32,   4),
-    (int64,   5),
-    (float32, 6),
-    (float64, 7),
-])
+__type_codes = collections.OrderedDict(
+    [
+        (bool, 0),
+        (uint8, 1),
+        (int8, 2),
+        (int16, 3),
+        (int32, 4),
+        (int64, 5),
+        (float32, 6),
+        (float64, 7),
+    ]
+)
 
 # safe cast table
 __safe_cast = [
     # bool  uint8  int8   int16  int32  int64  float32 float64
-    [True,  True,  True,  True,  True,  True,  True,   True],  # bool
-    [False, True,  False, True,  True,  True,  True,   True],  # uint8
-    [False, False, True,  True,  True,  True,  True,   True],  # int8
-    [False, False, False, True,  True,  True,  True,   True],  # int16
-    [False, False, False, False, True,  True,  False,  True],  # int32
-    [False, False, False, False, False, True,  False,  True],  # int64
-    [False, False, False, False, False, False, True,   True],  # float32
-    [False, False, False, False, False, False, False,  True]   # float64
+    [True, True, True, True, True, True, True, True],  # bool
+    [False, True, False, True, True, True, True, True],  # uint8
+    [False, False, True, True, True, True, True, True],  # int8
+    [False, False, False, True, True, True, True, True],  # int16
+    [False, False, False, False, True, True, False, True],  # int32
+    [False, False, False, False, False, True, False, True],  # int64
+    [False, False, False, False, False, False, True, True],  # float32
+    [False, False, False, False, False, False, False, True],  # float64
 ]
 
 
 # same kind table
 __same_kind = [
     # bool  uint8  int8   int16  int32  int64  float32 float64
-    [True,  False, False, False, False, False, False,  False],  # bool
-    [False, True,  True,  True,  True,  True,  False,  False],  # uint8
-    [False, True,  True,  True,  True,  True,  False,  False],  # int8
-    [False, True,  True,  True,  True,  True,  False,  False],  # int16
-    [False, True,  True,  True,  True,  True,  False,  False],  # int32
-    [False, True,  True,  True,  True,  True,  False,  False],  # int64
-    [False, False, False, False, False, False, True,   True],   # float32
-    [False, False, False, False, False, False, True,   True]    # float64
+    [True, False, False, False, False, False, False, False],  # bool
+    [False, True, True, True, True, True, False, False],  # uint8
+    [False, True, True, True, True, True, False, False],  # int8
+    [False, True, True, True, True, True, False, False],  # int16
+    [False, True, True, True, True, True, False, False],  # int32
+    [False, True, True, True, True, True, False, False],  # int64
+    [False, False, False, False, False, False, True, True],  # float32
+    [False, False, False, False, False, False, True, True],  # float64
 ]
 
 
@@ -559,10 +562,11 @@ class finfo:
     1.1920928955078125e-07
 
     """
+
     def __new__(cls, dtype):
         try:
             dtype = heat_type_of(dtype)
-        except (KeyError, IndexError, TypeError,):
+        except (KeyError, IndexError, TypeError):
             # If given type is not heat type
             pass
 
@@ -609,10 +613,11 @@ class iinfo:
     32
 
     """
+
     def __new__(cls, dtype):
         try:
             dtype = heat_type_of(dtype)
-        except (KeyError, IndexError, TypeError,):
+        except (KeyError, IndexError, TypeError):
             # If given type is not heat type
             pass
 

@@ -22,7 +22,7 @@ __all__ = [
     'sort',
     'squeeze',
     'unique',
-    'vstack'
+    'vstack',
 ]
 
 
@@ -102,7 +102,9 @@ def concatenate(arrays, axis=0):
 
     arr0, arr1 = arrays[0], arrays[1]
 
-    if not isinstance(arr0, dndarray.DNDarray) or not isinstance(arr1, dndarray.DNDarray):
+    if not isinstance(arr0, dndarray.DNDarray) or not isinstance(
+        arr1, dndarray.DNDarray
+    ):
         raise TypeError('Both arrays must be DNDarrays')
     if not isinstance(axis, int):
         raise TypeError('axis must be an integer, currently: {}'.format(type(axis)))
@@ -112,9 +114,13 @@ def concatenate(arrays, axis=0):
     if arr0.numdims != arr1.numdims:
         raise RuntimeError('DNDarrays must have the same number of dimensions')
 
-    if not all([arr0.gshape[i] == arr1.gshape[i] for i in range(len(arr0.gshape)) if i != axis]):
-        raise ValueError('Arrays cannot be concatenated, gshapes must be the same in every axis except the selected axis:'
-                         ' {}, {}'.format(arr0.gshape, arr1.gshape))
+    if not all(
+        [arr0.gshape[i] == arr1.gshape[i] for i in range(len(arr0.gshape)) if i != axis]
+    ):
+        raise ValueError(
+            'Arrays cannot be concatenated, gshapes must be the same in every axis except the selected axis:'
+            ' {}, {}'.format(arr0.gshape, arr1.gshape)
+        )
 
     s0, s1 = arr0.split, arr1.split
 
@@ -125,35 +131,52 @@ def concatenate(arrays, axis=0):
         arr1 = out_dtype(arr1)
 
     if s0 is None and s1 is None:
-        return factories.array(torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis))
+        return factories.array(
+            torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
+        )
 
     elif s0 != s1 and all([s is not None for s in [s0, s1]]):
-        raise RuntimeError('DNDarrays given have differing numerical splits, arr0 {} arr1 {}'.format(s0, s1))
+        raise RuntimeError(
+            'DNDarrays given have differing numerical splits, arr0 {} arr1 {}'.format(
+                s0, s1
+            )
+        )
 
     elif (s0 is None and s1 != axis) or (s1 is None and s0 != axis):
-        out_shape = tuple(arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
-                          for x in range(len(arr1.gshape)))
+        out_shape = tuple(
+            arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
+            for x in range(len(arr1.gshape))
+        )
         out = factories.empty(out_shape, split=s1 if s1 is not None else s0)
 
         _, _, arr0_slice = arr1.comm.chunk(arr0.shape, arr1.split)
         _, _, arr1_slice = arr0.comm.chunk(arr1.shape, arr0.split)
-        out._DNDarray__array = torch.cat((arr0._DNDarray__array[arr0_slice], arr1._DNDarray__array[arr1_slice]), dim=axis)
+        out._DNDarray__array = torch.cat(
+            (arr0._DNDarray__array[arr0_slice], arr1._DNDarray__array[arr1_slice]),
+            dim=axis,
+        )
         return out
 
     elif s0 == s1 or any([s is None for s in [s0, s1]]):
         if s0 != axis and all([s is not None for s in [s0, s1]]):
             # the axis is different than the split axis, this case can be easily implemented
             # torch cat arrays together and return a new array that is_split
-            out_shape = tuple(arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
-                              for x in range(len(arr1.gshape)))
+            out_shape = tuple(
+                arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
+                for x in range(len(arr1.gshape))
+            )
             out = factories.empty(out_shape, split=s0, dtype=out_dtype)
-            out._DNDarray__array = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
+            out._DNDarray__array = torch.cat(
+                (arr0._DNDarray__array, arr1._DNDarray__array), dim=axis
+            )
             return out
         else:
             arr0 = arr0.copy()
             arr1 = arr1.copy()
             # maps are created for where the data is and the output shape is calculated
-            lshape_map = factories.zeros((2, arr0.comm.size, len(arr0.gshape)), dtype=int)
+            lshape_map = factories.zeros(
+                (2, arr0.comm.size, len(arr0.gshape)), dtype=int
+            )
             lshape_map[0, arr0.comm.rank, :] = torch.Tensor(arr0.lshape)
             lshape_map[1, arr0.comm.rank, :] = torch.Tensor(arr1.lshape)
             lshape_map_comm = arr0.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
@@ -173,62 +196,106 @@ def concatenate(arrays, axis=0):
             chunk_map_comm.wait()
 
             if s0 is not None:
-                send_slice = [slice(None), ] * arr0.numdims
-                keep_slice = [slice(None), ] * arr0.numdims
+                send_slice = [slice(None)] * arr0.numdims
+                keep_slice = [slice(None)] * arr0.numdims
                 # data is first front-loaded onto the first size/2 processes
                 for spr in range(1, arr0.comm.size):
                     if arr0.comm.rank == spr:
                         for pr in range(spr):
-                            send_amt = abs((chunk_map[pr, axis] - lshape_map[0, pr, axis]).item())
-                            send_amt = send_amt if send_amt < arr0.lshape[axis] else arr0.lshape[axis]
+                            send_amt = abs(
+                                (chunk_map[pr, axis] - lshape_map[0, pr, axis]).item()
+                            )
+                            send_amt = (
+                                send_amt
+                                if send_amt < arr0.lshape[axis]
+                                else arr0.lshape[axis]
+                            )
                             if send_amt:
                                 send_slice[arr0.split] = slice(0, send_amt)
-                                keep_slice[arr0.split] = slice(send_amt, arr0.lshape[axis])
+                                keep_slice[arr0.split] = slice(
+                                    send_amt, arr0.lshape[axis]
+                                )
 
-                                send = arr0.comm.Isend(arr0.lloc[send_slice].clone(), dest=pr, tag=pr + arr0.comm.size + spr)
+                                send = arr0.comm.Isend(
+                                    arr0.lloc[send_slice].clone(),
+                                    dest=pr,
+                                    tag=pr + arr0.comm.size + spr,
+                                )
                                 arr0._DNDarray__array = arr0.lloc[keep_slice].clone()
                                 send.wait()
                     for pr in range(spr):
                         snt = abs((chunk_map[pr, s0] - lshape_map[0, pr, s0]).item())
-                        snt = snt if snt < lshape_map[0, spr, axis] else lshape_map[0, spr, axis].item()
+                        snt = (
+                            snt
+                            if snt < lshape_map[0, spr, axis]
+                            else lshape_map[0, spr, axis].item()
+                        )
                         if arr0.comm.rank == pr and snt:
                             shp = list(arr0.gshape)
                             shp[arr0.split] = snt
                             data = torch.zeros(shp, dtype=out_dtype.torch_type())
 
-                            arr0.comm.Recv(data, source=spr, tag=pr + arr0.comm.size + spr)
-                            arr0._DNDarray__array = torch.cat((arr0._DNDarray__array, data), dim=arr0.split)
+                            arr0.comm.Recv(
+                                data, source=spr, tag=pr + arr0.comm.size + spr
+                            )
+                            arr0._DNDarray__array = torch.cat(
+                                (arr0._DNDarray__array, data), dim=arr0.split
+                            )
                         lshape_map[0, pr, arr0.split] += snt
                         lshape_map[0, spr, arr0.split] -= snt
 
             if s1 is not None:
-                send_slice = [slice(None), ] * arr0.numdims
-                keep_slice = [slice(None), ] * arr0.numdims
+                send_slice = [slice(None)] * arr0.numdims
+                keep_slice = [slice(None)] * arr0.numdims
                 # push the data backwards (arr1), making the data the proper size for arr1 on the last nodes
                 # the data is "compressed" on np/2 processes. data is sent from
                 for spr in range(arr0.comm.size - 1, -1, -1):
                     if arr0.comm.rank == spr:
                         for pr in range(arr0.comm.size - 1, spr, -1):
                             # calculate the amount of data to send from the chunk map
-                            send_amt = abs((chunk_map[pr, axis] - lshape_map[1, pr, axis]).item())
-                            send_amt = send_amt if send_amt < arr1.lshape[axis] else arr1.lshape[axis]
+                            send_amt = abs(
+                                (chunk_map[pr, axis] - lshape_map[1, pr, axis]).item()
+                            )
+                            send_amt = (
+                                send_amt
+                                if send_amt < arr1.lshape[axis]
+                                else arr1.lshape[axis]
+                            )
                             if send_amt:
-                                send_slice[axis] = slice(arr1.lshape[axis] - send_amt, arr1.lshape[axis])
-                                keep_slice[axis] = slice(0, arr1.lshape[axis] - send_amt)
+                                send_slice[axis] = slice(
+                                    arr1.lshape[axis] - send_amt, arr1.lshape[axis]
+                                )
+                                keep_slice[axis] = slice(
+                                    0, arr1.lshape[axis] - send_amt
+                                )
 
-                                send = arr1.comm.Isend(arr1.lloc[send_slice].clone(), dest=pr, tag=pr + arr1.comm.size + spr)
+                                send = arr1.comm.Isend(
+                                    arr1.lloc[send_slice].clone(),
+                                    dest=pr,
+                                    tag=pr + arr1.comm.size + spr,
+                                )
                                 arr1._DNDarray__array = arr1.lloc[keep_slice].clone()
                                 send.wait()
                     for pr in range(arr1.comm.size - 1, spr, -1):
-                        snt = abs((chunk_map[pr, axis] - lshape_map[1, pr, axis]).item())
-                        snt = snt if snt < lshape_map[1, spr, axis] else lshape_map[1, spr, axis].item()
+                        snt = abs(
+                            (chunk_map[pr, axis] - lshape_map[1, pr, axis]).item()
+                        )
+                        snt = (
+                            snt
+                            if snt < lshape_map[1, spr, axis]
+                            else lshape_map[1, spr, axis].item()
+                        )
 
                         if arr1.comm.rank == pr and snt:
                             shp = list(arr1.gshape)
                             shp[axis] = snt
                             data = torch.zeros(shp, dtype=out_dtype.torch_type())
-                            arr1.comm.Recv(data, source=spr, tag=pr + arr1.comm.size + spr)
-                            arr1._DNDarray__array = torch.cat((data, arr1._DNDarray__array), dim=axis)
+                            arr1.comm.Recv(
+                                data, source=spr, tag=pr + arr1.comm.size + spr
+                            )
+                            arr1._DNDarray__array = torch.cat(
+                                (data, arr1._DNDarray__array), dim=axis
+                            )
                         lshape_map[1, pr, axis] += snt
                         lshape_map[1, spr, axis] -= snt
 
@@ -244,14 +311,18 @@ def concatenate(arrays, axis=0):
                 if arr0.comm.rank == 0:
                     lcl_slice = [slice(None)] * arr0.numdims
                     lcl_slice[axis] = slice(chunk_map[0, axis].item())
-                    arr0._DNDarray__array = arr0._DNDarray__array[lcl_slice].clone().squeeze()
+                    arr0._DNDarray__array = (
+                        arr0._DNDarray__array[lcl_slice].clone().squeeze()
+                    )
                 ttl = chunk_map[0, axis].item()
                 for en in range(1, arr0.comm.size):
                     sz = chunk_map[en, axis]
                     if arr0.comm.rank == en:
                         lcl_slice = [slice(None)] * arr0.numdims
                         lcl_slice[axis] = slice(ttl, sz.item() + ttl, 1)
-                        arr0._DNDarray__array = arr0._DNDarray__array[lcl_slice].clone().squeeze()
+                        arr0._DNDarray__array = (
+                            arr0._DNDarray__array[lcl_slice].clone().squeeze()
+                        )
                     ttl += sz.item()
 
                 if len(arr0.lshape) < len(arr1.lshape):
@@ -266,21 +337,35 @@ def concatenate(arrays, axis=0):
                 # get the desired data in arr1 on each node with a local slice
                 if arr1.comm.rank == arr1.comm.size - 1:
                     lcl_slice = [slice(None)] * arr1.numdims
-                    lcl_slice[axis] = slice(arr1.lshape[axis] - chunk_map[-1, axis].item(), arr1.lshape[axis], 1)
-                    arr1._DNDarray__array = arr1._DNDarray__array[lcl_slice].clone().squeeze()
+                    lcl_slice[axis] = slice(
+                        arr1.lshape[axis] - chunk_map[-1, axis].item(),
+                        arr1.lshape[axis],
+                        1,
+                    )
+                    arr1._DNDarray__array = (
+                        arr1._DNDarray__array[lcl_slice].clone().squeeze()
+                    )
                 ttl = chunk_map[-1, axis].item()
                 for en in range(arr1.comm.size - 2, -1, -1):
                     sz = chunk_map[en, axis]
                     if arr1.comm.rank == en:
                         lcl_slice = [slice(None)] * arr1.numdims
-                        lcl_slice[axis] = slice(arr1.lshape[axis] - (sz.item() + ttl), arr1.lshape[axis] - ttl, 1)
-                        arr1._DNDarray__array = arr1._DNDarray__array[lcl_slice].clone().squeeze()
+                        lcl_slice[axis] = slice(
+                            arr1.lshape[axis] - (sz.item() + ttl),
+                            arr1.lshape[axis] - ttl,
+                            1,
+                        )
+                        arr1._DNDarray__array = (
+                            arr1._DNDarray__array[lcl_slice].clone().squeeze()
+                        )
                     ttl += sz.item()
                 if len(arr1.lshape) < len(arr0.lshape):
                     arr1._DNDarray__array.unsqueeze_(axis)
 
             # now that the data is in the proper shape, need to concatenate them on the nodes where they both exist for the others, just set them equal
-            out = factories.empty(out_shape, split=s0 if s0 is not None else s1, dtype=out_dtype)
+            out = factories.empty(
+                out_shape, split=s0 if s0 is not None else s1, dtype=out_dtype
+            )
             res = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
             out._DNDarray__array = res
             return out
@@ -336,11 +421,12 @@ def expand_dims(a, axis):
     axis = stride_tricks.sanitize_axis(a.shape + (1,), axis)
 
     return dndarray.DNDarray(
-        a._DNDarray__array.unsqueeze(dim=axis), a.shape[:axis] + (1,) + a.shape[axis:],
+        a._DNDarray__array.unsqueeze(dim=axis),
+        a.shape[:axis] + (1,) + a.shape[axis:],
         a.dtype,
         a.split if a.split is None or a.split < axis else a.split + 1,
         a.device,
-        a.comm
+        a.comm,
     )
 
 
@@ -453,13 +539,17 @@ def sort(a, axis=None, descending=False, out=None):
 
     if a.split is None or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
-        final_result, final_indices = torch.sort(a._DNDarray__array, dim=axis, descending=descending)
+        final_result, final_indices = torch.sort(
+            a._DNDarray__array, dim=axis, descending=descending
+        )
 
     else:
         # sorting is affected by split, processes need to communicate results
         # transpose so we can work along the 0 axis
         transposed = a._DNDarray__array.transpose(axis, 0)
-        local_sorted, local_indices = torch.sort(transposed, dim=0, descending=descending)
+        local_sorted, local_indices = torch.sort(
+            transposed, dim=0, descending=descending
+        )
 
         size = a.comm.Get_size()
         rank = a.comm.Get_rank()
@@ -471,19 +561,24 @@ def sort(a, axis=None, descending=False, out=None):
 
         # Separate the sorted tensor into size + 1 equal length partitions
         partitions = [x * length // (size + 1) for x in range(1, size + 1)]
-        local_pivots = local_sorted[partitions] if counts[rank] else torch.empty(
-            (0, ) + local_sorted.size()[1:], dtype=local_sorted.dtype)
+        local_pivots = (
+            local_sorted[partitions]
+            if counts[rank]
+            else torch.empty((0,) + local_sorted.size()[1:], dtype=local_sorted.dtype)
+        )
 
         # Only processes with elements should share their pivots
         gather_counts = [int(x > 0) * size for x in counts]
-        gather_displs = (0, ) + tuple(np.cumsum(gather_counts[:-1]))
+        gather_displs = (0,) + tuple(np.cumsum(gather_counts[:-1]))
 
         pivot_dim = list(transposed.size())
         pivot_dim[0] = size * sum([1 for x in counts if x > 0])
 
         # share the local pivots with root process
         pivot_buffer = torch.empty(pivot_dim, dtype=a.dtype.torch_type())
-        a.comm.Gatherv(local_pivots, (pivot_buffer, gather_counts, gather_displs), root=0)
+        a.comm.Gatherv(
+            local_pivots, (pivot_buffer, gather_counts, gather_displs), root=0
+        )
 
         pivot_dim[0] = size - 1
         global_pivots = torch.empty(pivot_dim, dtype=a.dtype.torch_type())
@@ -497,7 +592,7 @@ def sort(a, axis=None, descending=False, out=None):
 
         a.comm.Bcast(global_pivots, root=0)
 
-        lt_partitions = torch.empty((size, ) + local_sorted.shape, dtype=torch.int64)
+        lt_partitions = torch.empty((size,) + local_sorted.shape, dtype=torch.int64)
         last = torch.zeros_like(local_sorted, dtype=torch.int64)
         comp_op = torch.gt if descending else torch.lt
         # Iterate over all pivots and store which pivot is the first greater than the elements value
@@ -520,7 +615,7 @@ def sort(a, axis=None, descending=False, out=None):
         index_matrix = torch.empty_like(local_sorted, dtype=torch.int64)
 
         # Matrix holding information which process get how many values from where
-        shape = (size, ) + transposed.size()[1:]
+        shape = (size,) + transposed.size()[1:]
         send_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
         recv_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
 
@@ -533,7 +628,7 @@ def sort(a, axis=None, descending=False, out=None):
         scounts = local_partitions
         rcounts = recv_matrix
 
-        shape = (partition_matrix[rank].max(), ) + transposed.size()[1:]
+        shape = (partition_matrix[rank].max(),) + transposed.size()[1:]
         first_result = torch.empty(shape, dtype=local_sorted.dtype)
         first_indices = torch.empty_like(first_result)
 
@@ -549,11 +644,17 @@ def sort(a, axis=None, descending=False, out=None):
             recv_count = rcounts[idx_slice].reshape(-1).tolist()
             recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
             rcv_length = rcounts[idx_slice].sum().item()
-            r_val = torch.empty((rcv_length, ) + s_val.shape[1:], dtype=local_sorted.dtype)
+            r_val = torch.empty(
+                (rcv_length,) + s_val.shape[1:], dtype=local_sorted.dtype
+            )
             r_ind = torch.empty_like(r_val)
 
-            a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
-            a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
+            a.comm.Alltoallv(
+                (s_val, send_count, send_disp), (r_val, recv_count, recv_disp)
+            )
+            a.comm.Alltoallv(
+                (s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp)
+            )
             first_result[idx_slice][:rcv_length] = r_val
             first_indices[idx_slice][:rcv_length] = r_ind
 
@@ -567,10 +668,16 @@ def sort(a, axis=None, descending=False, out=None):
             for proc in range(size):
                 if current_cumsum[proc] > target_cumsum[proc]:
                     # process has to many values which will be sent to higher ranks
-                    first = next(i for i in range(size) if send_vec[idx][:, i].sum() < counts[i])
-                    last = next(i for i in range(size + 1) if i == size or current_cumsum[proc] < target_cumsum[i])
+                    first = next(
+                        i for i in range(size) if send_vec[idx][:, i].sum() < counts[i]
+                    )
+                    last = next(
+                        i
+                        for i in range(size + 1)
+                        if i == size or current_cumsum[proc] < target_cumsum[i]
+                    )
                     sent = 0
-                    for i, x in enumerate(counts[first: last]):
+                    for i, x in enumerate(counts[first:last]):
                         # Each following process gets as many elements as it needs
                         amount = int(x - send_vec[idx][:, first + i].sum())
                         send_vec[idx][proc][first + i] = amount
@@ -583,19 +690,38 @@ def sort(a, axis=None, descending=False, out=None):
                         current_counts[last] += int(amount - sent)
                 elif current_cumsum[proc] < target_cumsum[proc]:
                     # process needs values from higher rank
-                    first = 0 if proc == 0 else next(i for i, x in enumerate(current_cumsum)
-                                                     if target_cumsum[proc - 1] < x)
-                    last = next(i for i, x in enumerate(current_cumsum) if target_cumsum[proc] <= x)
-                    for i, x in enumerate(partition_matrix[idx_slice][first: last]):
+                    first = (
+                        0
+                        if proc == 0
+                        else next(
+                            i
+                            for i, x in enumerate(current_cumsum)
+                            if target_cumsum[proc - 1] < x
+                        )
+                    )
+                    last = next(
+                        i
+                        for i, x in enumerate(current_cumsum)
+                        if target_cumsum[proc] <= x
+                    )
+                    for i, x in enumerate(partition_matrix[idx_slice][first:last]):
                         # Taking as many elements as possible from each following process
-                        send_vec[idx][first + i][proc] = int(x - send_vec[idx][first + i].sum())
+                        send_vec[idx][first + i][proc] = int(
+                            x - send_vec[idx][first + i].sum()
+                        )
                         current_counts[first + i] = 0
                     # Taking just enough elements from the last element to fill the current processes tensor
-                    send_vec[idx][last][proc] = int(target_cumsum[proc] - current_cumsum[last - 1])
-                    current_counts[last] -= int(target_cumsum[proc] - current_cumsum[last - 1])
+                    send_vec[idx][last][proc] = int(
+                        target_cumsum[proc] - current_cumsum[last - 1]
+                    )
+                    current_counts[last] -= int(
+                        target_cumsum[proc] - current_cumsum[last - 1]
+                    )
                 else:
                     # process doesn't need more values
-                    send_vec[idx][proc][proc] = partition_matrix[proc][idx] - send_vec[idx][proc].sum()
+                    send_vec[idx][proc][proc] = (
+                        partition_matrix[proc][idx] - send_vec[idx][proc].sum()
+                    )
                 current_counts[proc] = counts[proc]
                 current_cumsum = list(np.cumsum(current_counts))
 
@@ -612,14 +738,22 @@ def sort(a, axis=None, descending=False, out=None):
             recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
 
             end = partition_matrix[rank][idx]
-            s_val, indices = first_result[0: end][idx_slice].sort(descending=descending, dim=0)
-            s_ind = first_indices[0: end][idx_slice][indices].reshape_as(s_val)
+            s_val, indices = first_result[0:end][idx_slice].sort(
+                descending=descending, dim=0
+            )
+            s_ind = first_indices[0:end][idx_slice][indices].reshape_as(s_val)
 
-            r_val = torch.empty((counts[rank], ) + s_val.shape[1:], dtype=local_sorted.dtype)
+            r_val = torch.empty(
+                (counts[rank],) + s_val.shape[1:], dtype=local_sorted.dtype
+            )
             r_ind = torch.empty_like(r_val)
 
-            a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
-            a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
+            a.comm.Alltoallv(
+                (s_val, send_count, send_disp), (r_val, recv_count, recv_disp)
+            )
+            a.comm.Alltoallv(
+                (s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp)
+            )
 
             second_result[idx_slice] = r_val
             second_indices[idx_slice] = r_ind
@@ -638,18 +772,14 @@ def sort(a, axis=None, descending=False, out=None):
         dtype=dndarray.types.int32,
         is_split=a.split,
         device=a.device,
-        comm=a.comm
+        comm=a.comm,
     )
     if out is not None:
         out._DNDarray__array = final_result
         return return_indices
     else:
         tensor = factories.array(
-            final_result,
-            dtype=a.dtype,
-            is_split=a.split,
-            device=a.device,
-            comm=a.comm
+            final_result, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
         )
         return tensor, return_indices
 
@@ -712,11 +842,17 @@ def squeeze(x, axis=None):
     axis = stride_tricks.sanitize_axis(x.shape, axis)
     if axis is not None:
         if isinstance(axis, int):
-            dim_is_one = (x.shape[axis] == 1)
+            dim_is_one = x.shape[axis] == 1
         if isinstance(axis, tuple):
-            dim_is_one = bool(factories.array(list(x.shape[dim] == 1 for dim in axis)).all()._DNDarray__array)
+            dim_is_one = bool(
+                factories.array(list(x.shape[dim] == 1 for dim in axis))
+                .all()
+                ._DNDarray__array
+            )
         if not dim_is_one:
-            raise ValueError('Dimension along axis {} is not 1 for shape {}'.format(axis, x.shape))
+            raise ValueError(
+                'Dimension along axis {} is not 1 for shape {}'.format(axis, x.shape)
+            )
 
     # Local squeeze
     if axis is None:
@@ -736,9 +872,14 @@ def squeeze(x, axis=None):
     if x.split is not None:
         if x.comm.is_distributed():
             if x.split in axis:
-                raise ValueError('Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}'.format(
-                    x.split, axis, x.shape))
-            out_gshape = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
+                raise ValueError(
+                    'Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}'.format(
+                        x.split, axis, x.shape
+                    )
+                )
+            out_gshape = tuple(
+                x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis
+            )
             x_gsqueezed = factories.empty(out_gshape, dtype=x.dtype)
             loffset = factories.zeros(1, dtype=types.int64)
             loffset.__setitem__(0, x.comm.chunk(x.gshape, x.split)[0])
@@ -746,22 +887,21 @@ def squeeze(x, axis=None):
             x.comm.Allgather(loffset, displs)
 
             # TODO: address uneven distribution of dimensions (Allgatherv). Issue #273, #233
-            x.comm.Allgather(x_lsqueezed, x_gsqueezed)  # works with evenly distributed dimensions only
+            x.comm.Allgather(
+                x_lsqueezed, x_gsqueezed
+            )  # works with evenly distributed dimensions only
             return dndarray.DNDarray(
                 x_gsqueezed,
                 out_gshape,
                 x_lsqueezed.dtype,
                 split=split,
                 device=x.device,
-                comm=x.comm)
+                comm=x.comm,
+            )
 
     return dndarray.DNDarray(
-        x_lsqueezed,
-        out_lshape,
-        x.dtype,
-        split=split,
-        device=x.device,
-        comm=x.comm)
+        x_lsqueezed, out_lshape, x.dtype, split=split, device=x.device, comm=x.comm
+    )
 
 
 def unique(a, sorted=False, return_inverse=False, axis=None):
@@ -809,7 +949,9 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     """
     if a.split is None:
         # Trivial case, result can just be forwarded
-        return torch.unique(a._DNDarray__array, sorted=sorted, return_inverse=return_inverse, dim=axis)
+        return torch.unique(
+            a._DNDarray__array, sorted=sorted, return_inverse=return_inverse, dim=axis
+        )
 
     local_data = a._DNDarray__array
     unique_axis = None
@@ -835,11 +977,13 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         inverse_pos = torch.empty(inv_shape, dtype=torch.int64)
 
     else:
-        lres, inverse_pos = torch.unique(local_data, sorted=sorted, return_inverse=True, dim=unique_axis)
+        lres, inverse_pos = torch.unique(
+            local_data, sorted=sorted, return_inverse=True, dim=unique_axis
+        )
 
     # Share and gather the results with the other processes
     uniques = torch.tensor([lres.shape[0]]).to(torch.int32)
-    uniques_buf = torch.empty((a.comm.Get_size(), ), dtype=torch.int32)
+    uniques_buf = torch.empty((a.comm.Get_size(),), dtype=torch.int32)
     a.comm.Allgather(uniques, uniques_buf)
 
     if axis is None or axis == a.split:
@@ -853,7 +997,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         counts = list(uniques_buf.tolist())
         displs = list([0] + uniques_buf.cumsum(0).tolist()[:-1])
         gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
-        a.comm.Allgatherv(lres, (gres_buf, counts, displs,), recv_axis=0)
+        a.comm.Allgatherv(lres, (gres_buf, counts, displs), recv_axis=0)
 
         if return_inverse:
             # Prepare some information to generated the inverse indices list
@@ -872,11 +1016,15 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
             # Transpose data and buffer so we can use Allgatherv along axis=0 (axis=1 does not work properly yet)
             inverse_pos = inverse_pos.transpose(0, a.split)
             inverse_buf = inverse_buf.transpose(0, a.split)
-            a.comm.Allgatherv(inverse_pos, (inverse_buf, inverse_counts, inverse_displs), recv_axis=0)
+            a.comm.Allgatherv(
+                inverse_pos, (inverse_buf, inverse_counts, inverse_displs), recv_axis=0
+            )
             inverse_buf = inverse_buf.transpose(0, a.split)
 
         # Run unique a second time
-        gres = torch.unique(gres_buf, sorted=sorted, return_inverse=return_inverse, dim=unique_axis)
+        gres = torch.unique(
+            gres_buf, sorted=sorted, return_inverse=return_inverse, dim=unique_axis
+        )
         if return_inverse:
             # Use the previously gathered information to generate global inverse_indices
             g_inverse = gres[1]
@@ -889,7 +1037,9 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
                         elements_per_layer *= val
 
                 # Create the displacements for the flattened inverse indices array
-                local_elements = [displ * elements_per_layer for displ in inverse_displs][1:] + [float('inf')]
+                local_elements = [
+                    displ * elements_per_layer for displ in inverse_displs
+                ][1:] + [float('inf')]
 
                 # Flatten the inverse indices array every element can be updated to represent a global index
                 transposed = inverse_buf.transpose(0, a.split)
@@ -906,7 +1056,9 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
                     inverse_indices[num] = g_inverse[index].tolist()
 
                 # Convert the flattened array back to the correct global shape of a
-                inverse_indices = torch.tensor(inverse_indices).reshape(transposed_shape)
+                inverse_indices = torch.tensor(inverse_indices).reshape(
+                    transposed_shape
+                )
                 inverse_indices = inverse_indices.transpose(0, a.split)
 
             else:
@@ -917,7 +1069,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
                 for i in range(len(steps) - 1):
                     begin = steps[i]
                     end = steps[i + 1]
-                    for num, x in enumerate(inverse_buf[begin: end]):
+                    for num, x in enumerate(inverse_buf[begin:end]):
                         inverse_indices[begin + num] = g_inverse[begin + x]
 
     else:
@@ -938,15 +1090,24 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
 
         inverse_indices = indices
         if sorted:
-            raise ValueError('Sorting with axis != split is not supported yet. '
-                             'See https://github.com/helmholtz-analytics/heat/issues/363')
+            raise ValueError(
+                'Sorting with axis != split is not supported yet. '
+                'See https://github.com/helmholtz-analytics/heat/issues/363'
+            )
 
     if axis is not None:
         # transpose matrix back
         gres = gres.transpose(0, axis)
 
     split = split if a.split < len(gres.shape) else None
-    result = factories.array(gres, dtype=a.dtype, device=a.device, comm=a.comm, split=split, is_split=is_split)
+    result = factories.array(
+        gres,
+        dtype=a.dtype,
+        device=a.device,
+        comm=a.comm,
+        split=split,
+        is_split=is_split,
+    )
     if split is not None:
         result.resplit_(a.split)
 
@@ -955,6 +1116,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         return_value = [return_value, inverse_indices]
 
     return return_value
+
 
 def resplit(a, axis=None):
     """
@@ -1003,7 +1165,8 @@ def resplit(a, axis=None):
     resplit = a.copy()
     resplit.resplit_(axis=axis)
     return resplit
-    
+
+
 def vstack(tup):
     """
     Stack arrays in sequence vertically (row wise).

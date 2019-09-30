@@ -16,10 +16,12 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (4, 5,))
-        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
+        self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmax(0)).all())
+        self.assertTrue(
+            (result._DNDarray__array == data._DNDarray__array.argmax(0)).all()
+        )
 
         # 3D local tensor, minor axis
         result = ht.argmax(data, axis=-1, keepdim=True)
@@ -29,7 +31,12 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.shape, (3, 4, 1))
         self.assertEqual(result.lshape, (3, 4, 1))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmax(-1, keepdim=True)).all())
+        self.assertTrue(
+            (
+                result._DNDarray__array
+                == data._DNDarray__array.argmax(-1, keepdim=True)
+            ).all()
+        )
 
         # 1D split tensor, no axis
         data = ht.arange(-10, 10, split=0)
@@ -56,7 +63,7 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
-        data = ht.tril(ht.ones((size, size,), split=0), k=-1)
+        data = ht.tril(ht.ones((size, size), split=0), k=-1)
 
         result = ht.argmax(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
@@ -69,7 +76,7 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, across the axis, output tensor
         size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((size, size,), split=0), k=-1)
+        data = ht.triu(ht.ones((size, size), split=0), k=-1)
 
         output = ht.empty((size,))
         result = ht.argmax(data, axis=0, out=output)
@@ -104,17 +111,21 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.shape, (1,))
         self.assertEqual(result.lshape, (1,))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmin()).all())
+        self.assertTrue(
+            (result._DNDarray__array == data._DNDarray__array.argmin()).all()
+        )
 
         # 3D local tensor, major axis
         result = ht.argmin(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (4, 5,))
-        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
+        self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmin(0)).all())
+        self.assertTrue(
+            (result._DNDarray__array == data._DNDarray__array.argmin(0)).all()
+        )
 
         # 3D local tensor, minor axis
         result = ht.argmin(data, axis=-1, keepdim=True)
@@ -124,7 +135,12 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.shape, (3, 4, 1))
         self.assertEqual(result.lshape, (3, 4, 1))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmin(-1, keepdim=True)).all())
+        self.assertTrue(
+            (
+                result._DNDarray__array
+                == data._DNDarray__array.argmin(-1, keepdim=True)
+            ).all()
+        )
 
         # 2D split tensor, along the axis
         data = ht.array(ht.random.randn(4, 5), is_split=0)
@@ -140,7 +156,7 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((size, size,), split=0), k=1)
+        data = ht.triu(ht.ones((size, size), split=0), k=1)
 
         result = ht.argmin(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
@@ -153,7 +169,7 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, across the axis, output tensor
         size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((size, size,), split=0), k=1)
+        data = ht.triu(ht.ones((size, size), split=0), k=1)
 
         output = ht.empty((size,))
         result = ht.argmin(data, axis=0, out=output)
@@ -188,31 +204,43 @@ class TestStatistics(unittest.TestCase):
 
         htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=0)
         ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
-        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+        self.assertTrue(
+            ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4)
+        )
 
         np_cov = np.cov(data, rowvar=False)
         ht_cov = ht.cov(htdata, rowvar=False)
-        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+        self.assertTrue(
+            ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4)
+        )
 
         np_cov = np.cov(data, rowvar=False, ddof=1)
         ht_cov = ht.cov(htdata, rowvar=False, ddof=1)
-        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+        self.assertTrue(
+            ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4)
+        )
 
         np_cov = np.cov(data, rowvar=False, bias=True)
         ht_cov = ht.cov(htdata, rowvar=False, bias=True)
-        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+        self.assertTrue(
+            ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4)
+        )
 
         if 1 < x.comm.size < 5:
             htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=1)
             np_cov = np.cov(data, rowvar=False)
             ht_cov = ht.cov(htdata, rowvar=False)
-            self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
+            self.assertTrue(
+                ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4)
+            )
 
             np_cov = np.cov(data, data, rowvar=True)
 
             htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=0)
             ht_cov = ht.cov(htdata, htdata, rowvar=True)
-            self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
+            self.assertTrue(
+                ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4)
+            )
 
             htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=0)
             with self.assertRaises(RuntimeError):
@@ -234,12 +262,7 @@ class TestStatistics(unittest.TestCase):
             ht.cov(htdata, ddof=10000)
 
     def test_average(self):
-        data = [
-            [1,   2,  3],
-            [4,   5,  6],
-            [7,   8,  9],
-            [10, 11, 12]
-        ]
+        data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
         ht_array = ht.array(data, dtype=float)
         comparison = np.asanyarray(data)
@@ -275,14 +298,20 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(avg_horizontal.split, None)
         self.assertEqual(avg_horizontal.dtype, ht.float32)
         self.assertEqual(avg_horizontal._DNDarray__array.dtype, torch.float32)
-        self.assertTrue((avg_horizontal.numpy() == np.average(comparison, axis=1)).all())
+        self.assertTrue(
+            (avg_horizontal.numpy() == np.average(comparison, axis=1)).all()
+        )
 
         # check weighted average over all float elements of split 3d tensor, across split axis
-        random_volume = ht.array(torch.randn((3, 3, 3), dtype=torch.float64), is_split=1)
+        random_volume = ht.array(
+            torch.randn((3, 3, 3), dtype=torch.float64), is_split=1
+        )
         size = random_volume.comm.size
         random_weights = ht.array(torch.randn((3 * size,), dtype=torch.float64))
         avg_volume = ht.average(random_volume, weights=random_weights, axis=1)
-        np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)
+        np_avg_volume = np.average(
+            random_volume.numpy(), weights=random_weights.numpy(), axis=1
+        )
         self.assertIsInstance(avg_volume, ht.DNDarray)
         self.assertEqual(avg_volume.shape, (3, 3))
         self.assertEqual(avg_volume.lshape, (3, 3))
@@ -290,11 +319,17 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(avg_volume._DNDarray__array.dtype, torch.float64)
         self.assertEqual(avg_volume.split, None)
         self.assertAlmostEqual(avg_volume.numpy().all(), np_avg_volume.all())
-        avg_volume_with_cumwgt = ht.average(random_volume, weights=random_weights, axis=1, returned=True)
+        avg_volume_with_cumwgt = ht.average(
+            random_volume, weights=random_weights, axis=1, returned=True
+        )
         self.assertIsInstance(avg_volume_with_cumwgt, tuple)
         self.assertIsInstance(avg_volume_with_cumwgt[1], ht.DNDarray)
-        self.assertEqual(avg_volume_with_cumwgt[1].gshape, avg_volume_with_cumwgt[0].gshape)
-        self.assertEqual(avg_volume_with_cumwgt[1].split, avg_volume_with_cumwgt[0].split)
+        self.assertEqual(
+            avg_volume_with_cumwgt[1].gshape, avg_volume_with_cumwgt[0].gshape
+        )
+        self.assertEqual(
+            avg_volume_with_cumwgt[1].split, avg_volume_with_cumwgt[0].split
+        )
 
         # check average over all float elements of split 3d tensor, tuple axis
         random_volume = ht.random.randn(3, 3, 3, split=0)
@@ -329,7 +364,9 @@ class TestStatistics(unittest.TestCase):
             ht.average(random_5d, weights=random_weights, axis=None)
         with self.assertRaises(NotImplementedError):
             ht.average(random_5d, weights=random_weights, axis=(1, 2))
-        random_weights = ht.random.randn(random_5d.gshape[axis], random_5d.gshape[axis+1])
+        random_weights = ht.random.randn(
+            random_5d.gshape[axis], random_5d.gshape[axis + 1]
+        )
         with self.assertRaises(TypeError):
             ht.average(random_5d, weights=random_weights, axis=axis)
         random_weights = ht.random.randn(random_5d.gshape[axis] + 1)
@@ -346,12 +383,7 @@ class TestStatistics(unittest.TestCase):
             ht.average(ht_array, axis=-4)
 
     def test_max(self):
-        data = [
-            [1,   2,  3],
-            [4,   5,  6],
-            [7,   8,  9],
-            [10, 11, 12]
-        ]
+        data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
         ht_array = ht.array(data)
         comparison = torch.tensor(data)
@@ -376,8 +408,12 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(maximum_vertical.split, None)
         self.assertEqual(maximum_vertical.dtype, ht.int64)
         self.assertEqual(maximum_vertical._DNDarray__array.dtype, torch.int64)
-        self.assertTrue((maximum_vertical._DNDarray__array ==
-                         comparison.max(dim=0, keepdim=True)[0]).all())
+        self.assertTrue(
+            (
+                maximum_vertical._DNDarray__array
+                == comparison.max(dim=0, keepdim=True)[0]
+            ).all()
+        )
 
         # maximum along second axis
         maximum_horizontal = ht.max(ht_array, axis=1, keepdim=True)
@@ -388,7 +424,12 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(maximum_horizontal.split, None)
         self.assertEqual(maximum_horizontal.dtype, ht.int64)
         self.assertEqual(maximum_horizontal._DNDarray__array.dtype, torch.int64)
-        self.assertTrue((maximum_horizontal._DNDarray__array == comparison.max(dim=1, keepdim=True)[0]).all())
+        self.assertTrue(
+            (
+                maximum_horizontal._DNDarray__array
+                == comparison.max(dim=1, keepdim=True)[0]
+            ).all()
+        )
 
         # check max over all float elements of split 3d tensor, across split axis
         random_volume = ht.random.randn(3, 3, 3, split=1)
@@ -441,18 +482,8 @@ class TestStatistics(unittest.TestCase):
             ht.max(ht_array, axis=-4)
 
     def test_maximum(self):
-        data1 = [
-            [1,   2,  3],
-            [4,   5,  6],
-            [7,   8,  9],
-            [10, 11, 12]
-        ]
-        data2 = [
-            [0,   3,  2],
-            [5,   4,  7],
-            [6,   9,  8],
-            [9, 10, 11]
-        ]
+        data1 = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
+        data2 = [[0, 3, 2], [5, 4, 7], [6, 9, 8], [9, 10, 11]]
 
         ht_array1 = ht.array(data1)
         ht_array2 = ht.array(data2)
@@ -468,7 +499,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(maximum.split, None)
         self.assertEqual(maximum.dtype, ht.int64)
         self.assertEqual(maximum._DNDarray__array.dtype, torch.int64)
-        self.assertTrue((maximum._DNDarray__array == torch.max(comparison1, comparison2)).all())
+        self.assertTrue(
+            (maximum._DNDarray__array == torch.max(comparison1, comparison2)).all()
+        )
 
         # check maximum over float elements of split 3d tensors
         # TODO: add check for uneven distribution of dimensions (see Issue #273)
@@ -487,33 +520,43 @@ class TestStatistics(unittest.TestCase):
 
         # check maximum over float elements of split 3d tensors with different split axis
         torch.manual_seed(1)
-        random_volume_1_splitdiff = ht.random.randn(size*3, size*3, 4, split=0)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
-        maximum_volume_splitdiff = ht.maximum(random_volume_1_splitdiff, random_volume_2_splitdiff)
+        random_volume_1_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=0)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
+        maximum_volume_splitdiff = ht.maximum(
+            random_volume_1_splitdiff, random_volume_2_splitdiff
+        )
         self.assertIsInstance(maximum_volume_splitdiff, ht.DNDarray)
-        self.assertEqual(maximum_volume_splitdiff.shape, (size*3, size*3, 4))
-        self.assertEqual(maximum_volume_splitdiff.lshape, (size*3, size*3, 4))
+        self.assertEqual(maximum_volume_splitdiff.shape, (size * 3, size * 3, 4))
+        self.assertEqual(maximum_volume_splitdiff.lshape, (size * 3, size * 3, 4))
         self.assertEqual(maximum_volume_splitdiff.dtype, ht.float64)
         self.assertEqual(maximum_volume_splitdiff._DNDarray__array.dtype, torch.float64)
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
-        random_volume_1_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=0)
-        maximum_volume_splitdiff = ht.maximum(random_volume_1_splitdiff, random_volume_2_splitdiff)
+        random_volume_1_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=0)
+        maximum_volume_splitdiff = ht.maximum(
+            random_volume_1_splitdiff, random_volume_2_splitdiff
+        )
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
-        random_volume_1_split_none = ht.random.randn(size*3, size*3, 4, split=None)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
-        maximum_volume_splitdiff = ht.maximum(random_volume_1_split_none, random_volume_2_splitdiff)
+        random_volume_1_split_none = ht.random.randn(size * 3, size * 3, 4, split=None)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
+        maximum_volume_splitdiff = ht.maximum(
+            random_volume_1_split_none, random_volume_2_splitdiff
+        )
         self.assertEqual(maximum_volume_splitdiff.split, 1)
 
-        random_volume_1_split_none = ht.random.randn(size*3, size*3, 4, split=0)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=None)
-        maximum_volume_splitdiff = ht.maximum(random_volume_1_split_none, random_volume_2_splitdiff)
+        random_volume_1_split_none = ht.random.randn(size * 3, size * 3, 4, split=0)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=None)
+        maximum_volume_splitdiff = ht.maximum(
+            random_volume_1_split_none, random_volume_2_splitdiff
+        )
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
         # check output buffer
-        out_shape = ht.stride_tricks.broadcast_shape(random_volume_1.gshape, random_volume_2.gshape)
+        out_shape = ht.stride_tricks.broadcast_shape(
+            random_volume_1.gshape, random_volume_2.gshape
+        )
         output = ht.empty(out_shape)
         ht.maximum(random_volume_1, random_volume_2, out=output)
         self.assertIsInstance(output, ht.DNDarray)
@@ -557,7 +600,7 @@ class TestStatistics(unittest.TestCase):
         dimensions = []
 
         for d in [array_0_len, array_1_len, array_2_len]:
-            dimensions.extend([d, ])
+            dimensions.extend([d])
             hold = list(range(len(dimensions)))
             hold.append(None)
             for i in hold:  # loop over the number of split dimension of the test array
@@ -565,10 +608,16 @@ class TestStatistics(unittest.TestCase):
                 res = z.mean()
                 total_dims_list = list(z.shape)
                 self.assertTrue((res == 1).all())
-                for it in range(len(z.shape)):  # loop over the different single dimensions for mean
+                for it in range(
+                    len(z.shape)
+                ):  # loop over the different single dimensions for mean
                     res = z.mean(axis=it)
                     self.assertTrue((res == 1).all())
-                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q != it]
+                    target_dims = [
+                        total_dims_list[q]
+                        for q in range(len(total_dims_list))
+                        if q != it
+                    ]
                     if not target_dims:
                         target_dims = (1,)
 
@@ -578,13 +627,24 @@ class TestStatistics(unittest.TestCase):
                             self.assertEqual(res.split, len(target_dims) - 1)
                         else:
                             self.assertEqual(res.split, z.split)
-                loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
+                loop_list = [
+                    ",".join(map(str, comb))
+                    for comb in combinations(list(range(len(z.shape))), 2)
+                ]
 
-                for it in loop_list:  # loop over the different combinations of dimensions for mean
+                for (
+                    it
+                ) in (
+                    loop_list
+                ):  # loop over the different combinations of dimensions for mean
                     lp_split = [int(q) for q in it.split(',')]
                     res = z.mean(axis=lp_split)
                     self.assertTrue((res == 1).all())
-                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q not in lp_split]
+                    target_dims = [
+                        total_dims_list[q]
+                        for q in range(len(total_dims_list))
+                        if q not in lp_split
+                    ]
                     if not target_dims:
                         target_dims = (1,)
                     if res.gshape:
@@ -603,12 +663,7 @@ class TestStatistics(unittest.TestCase):
             self.assertTrue(ht.allclose(ht.mean(iris, axis=0), ax0))
 
     def test_min(self):
-        data = [
-            [1,   2,  3],
-            [4,   5,  6],
-            [7,   8,  9],
-            [10, 11, 12]
-        ]
+        data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
         ht_array = ht.array(data)
         comparison = torch.tensor(data)
@@ -633,7 +688,12 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum_vertical.split, None)
         self.assertEqual(minimum_vertical.dtype, ht.int64)
         self.assertEqual(minimum_vertical._DNDarray__array.dtype, torch.int64)
-        self.assertTrue((minimum_vertical._DNDarray__array == comparison.min(dim=0, keepdim=True)[0]).all())
+        self.assertTrue(
+            (
+                minimum_vertical._DNDarray__array
+                == comparison.min(dim=0, keepdim=True)[0]
+            ).all()
+        )
 
         # maximum along second axis
         minimum_horizontal = ht.min(ht_array, axis=1, keepdim=True)
@@ -644,7 +704,12 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum_horizontal.split, None)
         self.assertEqual(minimum_horizontal.dtype, ht.int64)
         self.assertEqual(minimum_horizontal._DNDarray__array.dtype, torch.int64)
-        self.assertTrue((minimum_horizontal._DNDarray__array == comparison.min(dim=1, keepdim=True)[0]).all())
+        self.assertTrue(
+            (
+                minimum_horizontal._DNDarray__array
+                == comparison.min(dim=1, keepdim=True)[0]
+            ).all()
+        )
 
         # check max over all float elements of split 3d tensor, across split axis
         random_volume = ht.random.randn(3, 3, 3, split=1)
@@ -697,18 +762,8 @@ class TestStatistics(unittest.TestCase):
             ht.min(ht_array, axis=-4)
 
     def test_minimum(self):
-        data1 = [
-            [1,   2,  3],
-            [4,   5,  6],
-            [7,   8,  9],
-            [10, 11, 12]
-        ]
-        data2 = [
-            [0,   3,  2],
-            [5,   4,  7],
-            [6,   9,  8],
-            [9, 10, 11]
-        ]
+        data1 = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
+        data2 = [[0, 3, 2], [5, 4, 7], [6, 9, 8], [9, 10, 11]]
 
         ht_array1 = ht.array(data1)
         ht_array2 = ht.array(data2)
@@ -724,7 +779,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum.split, None)
         self.assertEqual(minimum.dtype, ht.int64)
         self.assertEqual(minimum._DNDarray__array.dtype, torch.int64)
-        self.assertTrue((minimum._DNDarray__array == torch.min(comparison1, comparison2)).all())
+        self.assertTrue(
+            (minimum._DNDarray__array == torch.min(comparison1, comparison2)).all()
+        )
 
         # check minimum over float elements of split 3d tensors
         # TODO: add check for uneven distribution of dimensions (see Issue #273)
@@ -743,33 +800,43 @@ class TestStatistics(unittest.TestCase):
 
         # check minimum over float elements of split 3d tensors with different split axis
         torch.manual_seed(1)
-        random_volume_1_splitdiff = ht.random.randn(size*3, size*3, 4, split=0)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
-        minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
+        random_volume_1_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=0)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
+        minimum_volume_splitdiff = ht.minimum(
+            random_volume_1_splitdiff, random_volume_2_splitdiff
+        )
         self.assertIsInstance(minimum_volume_splitdiff, ht.DNDarray)
-        self.assertEqual(minimum_volume_splitdiff.shape, (size*3, size*3, 4))
-        self.assertEqual(minimum_volume_splitdiff.lshape, (size*3, size*3, 4))
+        self.assertEqual(minimum_volume_splitdiff.shape, (size * 3, size * 3, 4))
+        self.assertEqual(minimum_volume_splitdiff.lshape, (size * 3, size * 3, 4))
         self.assertEqual(minimum_volume_splitdiff.dtype, ht.float64)
         self.assertEqual(minimum_volume_splitdiff._DNDarray__array.dtype, torch.float64)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
-        random_volume_1_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=0)
-        minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
+        random_volume_1_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=0)
+        minimum_volume_splitdiff = ht.minimum(
+            random_volume_1_splitdiff, random_volume_2_splitdiff
+        )
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
-        random_volume_1_split_none = ht.random.randn(size*3, size*3, 4, split=None)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
-        minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
+        random_volume_1_split_none = ht.random.randn(size * 3, size * 3, 4, split=None)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
+        minimum_volume_splitdiff = ht.minimum(
+            random_volume_1_split_none, random_volume_2_splitdiff
+        )
         self.assertEqual(minimum_volume_splitdiff.split, 1)
 
-        random_volume_1_split_none = ht.random.randn(size*3, size*3, 4, split=0)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=None)
-        minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
+        random_volume_1_split_none = ht.random.randn(size * 3, size * 3, 4, split=0)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=None)
+        minimum_volume_splitdiff = ht.minimum(
+            random_volume_1_split_none, random_volume_2_splitdiff
+        )
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
         # check output buffer
-        out_shape = ht.stride_tricks.broadcast_shape(random_volume_1.gshape, random_volume_2.gshape)
+        out_shape = ht.stride_tricks.broadcast_shape(
+            random_volume_1.gshape, random_volume_2.gshape
+        )
         output = ht.empty(out_shape)
         ht.minimum(random_volume_1, random_volume_2, out=output)
         self.assertIsInstance(output, ht.DNDarray)
@@ -825,7 +892,7 @@ class TestStatistics(unittest.TestCase):
         # ones
         dimensions = []
         for d in [array_0_len, array_1_len, array_2_len]:
-            dimensions.extend([d, ])
+            dimensions.extend([d])
             hold = list(range(len(dimensions)))
             hold.append(None)
             for i in hold:  # loop over the number of dimensions of the test array
@@ -833,10 +900,16 @@ class TestStatistics(unittest.TestCase):
                 res = z.var()
                 total_dims_list = list(z.shape)
                 self.assertTrue((res == 0).all())
-                for it in range(len(z.shape)):  # loop over the different single dimensions for mean
+                for it in range(
+                    len(z.shape)
+                ):  # loop over the different single dimensions for mean
                     res = z.var(axis=it)
                     self.assertTrue((res == 0).all())
-                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q != it]
+                    target_dims = [
+                        total_dims_list[q]
+                        for q in range(len(total_dims_list))
+                        if q != it
+                    ]
                     if not target_dims:
                         target_dims = (1,)
 

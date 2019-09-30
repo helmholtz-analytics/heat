@@ -22,7 +22,7 @@ __all__ = [
     'remainder',
     'sub',
     'subtract',
-    'sum'
+    'sum',
 ]
 
 
@@ -107,32 +107,51 @@ def diff(a, n=1, axis=-1):
     size = a.comm.size
     rank = a.comm.rank
     ret = a.copy()
-    for _ in range(n):  # work loop, runs n times. using the result at the end of the loop as the starting values for each loop
+    for _ in range(
+        n
+    ):  # work loop, runs n times. using the result at the end of the loop as the starting values for each loop
         axis_slice = [slice(None)] * len(ret.shape)
         axis_slice[axis] = slice(1, None, None)
         axis_slice_end = [slice(None)] * len(ret.shape)
         axis_slice_end[axis] = slice(None, -1, None)
 
         arb_slice = [slice(None)] * len(a.shape)
-        arb_slice[axis] = 0  # build the slice for the first element on the specified axis
+        arb_slice[
+            axis
+        ] = 0  # build the slice for the first element on the specified axis
         if rank > 0:
-            snd = ret.comm.Isend(ret.lloc[arb_slice].clone(), dest=rank - 1, tag=rank)  # send the first element of the array to rank - 1
+            snd = ret.comm.Isend(
+                ret.lloc[arb_slice].clone(), dest=rank - 1, tag=rank
+            )  # send the first element of the array to rank - 1
 
-        dif = ret.lloc[axis_slice] - ret.lloc[axis_slice_end]  # standard logic for the diff with the next element
-        diff_slice = [slice(x) for x in dif.shape]  # need to slice out to select the proper elements of out
+        dif = (
+            ret.lloc[axis_slice] - ret.lloc[axis_slice_end]
+        )  # standard logic for the diff with the next element
+        diff_slice = [
+            slice(x) for x in dif.shape
+        ]  # need to slice out to select the proper elements of out
         ret.lloc[diff_slice] = dif
 
         if rank > 0:
             snd.wait()  # wait for the send to finish
         if rank < size - 1:
             cr_slice = [slice(None)] * len(a.shape)
-            cr_slice[axis] = 1  # slice of 1 element in the selected axis for the shape creation
-            recv_data = torch.ones(ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type())
+            cr_slice[
+                axis
+            ] = 1  # slice of 1 element in the selected axis for the shape creation
+            recv_data = torch.ones(
+                ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type()
+            )
             rec = ret.comm.Irecv(recv_data, source=rank + 1, tag=rank + 1)
             axis_slice_end = [slice(None)] * len(a.shape)
-            axis_slice_end[axis] = slice(-1, None)  # select the last elements in the selected axis
+            axis_slice_end[axis] = slice(
+                -1, None
+            )  # select the last elements in the selected axis
             rec.wait()
-            ret.lloc[axis_slice_end] = recv_data.reshape(ret.lloc[axis_slice_end].shape) - ret.lloc[axis_slice_end]  # diff logic
+            ret.lloc[axis_slice_end] = (
+                recv_data.reshape(ret.lloc[axis_slice_end].shape)
+                - ret.lloc[axis_slice_end]
+            )  # diff logic
 
     axis_slice_end = [slice(None)] * len(a.shape)
     axis_slice_end[axis] = slice(None, -1 * n, None)
@@ -178,8 +197,10 @@ def div(t1, t2):
     """
     return operations.__binary_op(torch.div, t1, t2)
 
+
 # Alias in compliance with numpy API
 divide = div
+
 
 def fmod(t1, t2):
     """
@@ -251,8 +272,10 @@ def floordiv(t1, t2):
     """
     return operations.__binary_op(lambda a, b: torch.div(a, b).floor(), t1, t2)
 
+
 # Alias in compliance with numpy API
 floor_divide = floordiv
+
 
 def mod(t1, t2):
     """
@@ -335,8 +358,10 @@ def mul(t1, t2):
     """
     return operations.__binary_op(torch.mul, t1, t2)
 
+
 # Alias in compliance with numpy API
 multiply = mul
+
 
 def pow(t1, t2):
     """
@@ -375,8 +400,10 @@ def pow(t1, t2):
     """
     return operations.__binary_op(torch.pow, t1, t2)
 
+
 # Alias in compliance with numpy API
 power = pow
+
 
 def remainder(t1, t2):
     """
@@ -414,6 +441,7 @@ def remainder(t1, t2):
             [2, 2]], dtype=torch.int32)
     """
     return operations.__binary_op(torch.remainder, t1, t2)
+
 
 def prod(x, axis=None, out=None, keepdim=None):
     """
@@ -459,7 +487,9 @@ def prod(x, axis=None, out=None, keepdim=None):
     ], axis=1)
     ht.tensor([  2.,  12.])
     """
-    return operations.__reduce_op(x, torch.prod, MPI.PROD, axis=axis, out=out, keepdim=keepdim)
+    return operations.__reduce_op(
+        x, torch.prod, MPI.PROD, axis=axis, out=out, keepdim=keepdim
+    )
 
 
 def sub(t1, t2):
@@ -499,8 +529,10 @@ def sub(t1, t2):
     """
     return operations.__binary_op(torch.sub, t1, t2)
 
+
 # Alias in compliance with numpy API
 subtract = sub
+
 
 def sum(x, axis=None, out=None, keepdim=None):
     """
@@ -546,5 +578,6 @@ def sum(x, axis=None, out=None, keepdim=None):
              [3.]]])
     """
     # TODO: make me more numpy API complete Issue #101
-    return operations.__reduce_op(x, torch.sum, MPI.SUM, axis=axis, out=out, keepdim=keepdim)
-
+    return operations.__reduce_op(
+        x, torch.sum, MPI.SUM, axis=axis, out=out, keepdim=keepdim
+    )

@@ -4,15 +4,7 @@ from . import operations
 from . import dndarray
 from . import types
 
-__all__ = [
-    'abs',
-    'absolute',
-    'ceil',
-    'clip',
-    'fabs',
-    'floor',
-    'trunc'
-]
+__all__ = ['abs', 'absolute', 'ceil', 'clip', 'fabs', 'floor', 'trunc']
 
 
 def abs(x, out=None, dtype=None):
@@ -41,7 +33,8 @@ def abs(x, out=None, dtype=None):
     absolute_values = operations.__local_op(torch.abs, x, out)
     if dtype is not None:
         absolute_values._DNDarray__array = absolute_values._DNDarray__array.type(
-            dtype.torch_type())
+            dtype.torch_type()
+        )
         absolute_values._DNDarray__dtype = dtype
 
     return absolute_values
@@ -128,13 +121,20 @@ def clip(a, a_min, a_max, out=None):
         raise ValueError('either a_min or a_max must be set')
 
     if out is None:
-        return dndarray.DNDarray(a._DNDarray__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, a.device, a.comm)
+        return dndarray.DNDarray(
+            a._DNDarray__array.clamp(a_min, a_max),
+            a.shape,
+            a.dtype,
+            a.split,
+            a.device,
+            a.comm,
+        )
     if not isinstance(out, dndarray.DNDarray):
         raise TypeError('out must be a tensor')
 
     return a._DNDarray__array.clamp(a_min, a_max, out=out._DNDarray__array) and out
 
- 
+
 def fabs(x, out=None):
     """
     Calculate the absolute value element-wise and return floating-point tensor.
@@ -155,7 +155,7 @@ def fabs(x, out=None):
     """
 
     return abs(x, out, dtype=None)
-    
+
 
 def floor(x, out=None):
     """

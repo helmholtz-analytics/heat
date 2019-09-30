@@ -1,10 +1,11 @@
 import heat as ht
 import torch
 import numpy as np
-import time 
+import time
 import cProfile
 
-class HeatLasso():
+
+class HeatLasso:
     """
     HeAT implementation of a the ``least absolute shrinkage and selection operator``(LASSO), a linear model with 
     L1 regularization. The optimization objective for Lasso is:
@@ -36,39 +37,40 @@ class HeatLasso():
     --------
     # ToDo: example to be added
     """
-    def __init__(self, lam=.1, max_iter=100, tol=1e-6):
-        """initialize lasso parameters""" 
-        self.__lam = lam 
-        self.max_iter = max_iter 
-        self.tol = tol 
-        self.__theta = None 
-        self.n_iter = None 
+
+    def __init__(self, lam=0.1, max_iter=100, tol=1e-6):
+        """initialize lasso parameters"""
+        self.__lam = lam
+        self.max_iter = max_iter
+        self.tol = tol
+        self.__theta = None
+        self.n_iter = None
 
     @property
-    def coef_(self): 
-        if self.__theta is None:
-            return None 
-        else:
-            return self.__theta[1:]    
-
-    @property
-    def intercept_(self): 
+    def coef_(self):
         if self.__theta is None:
             return None
-        else: 
-            return self.__theta[0]      
+        else:
+            return self.__theta[1:]
 
     @property
-    def lam(self): 
-         return self.__lam
-       
-    @lam.setter 
+    def intercept_(self):
+        if self.__theta is None:
+            return None
+        else:
+            return self.__theta[0]
+
+    @property
+    def lam(self):
+        return self.__lam
+
+    @lam.setter
     def lam(self, arg):
-         self.__lam = arg
+        self.__lam = arg
 
     @property
-    def theta(self): 
-         return self.__theta
+    def theta(self):
+        return self.__theta
 
     def soft_threshold(self, rho):
         """
@@ -80,13 +82,13 @@ class HeatLasso():
             Input model data  
         out : HeAT tensor, shape (1,) 
             Thresholded model data 
-        """ 
-        if rho < - self.__lam:
-            return (rho + self.__lam)
-        elif rho >  self.__lam:
-            return (rho - self.__lam)
-        else: 
-            return 0.
+        """
+        if rho < -self.__lam:
+            return rho + self.__lam
+        elif rho > self.__lam:
+            return rho - self.__lam
+        else:
+            return 0.0
 
     def rmse(self, gt, yest):
         """
@@ -98,9 +100,9 @@ class HeatLasso():
             Input model data  
         yest : HeAT tensor, shape (1,) 
             Thresholded model data 
-        """ 
-        return ht.sqrt((ht.mean((gt-yest)**2)))._DNDarray__array.item()
-  
+        """
+        return ht.sqrt((ht.mean((gt - yest) ** 2)))._DNDarray__array.item()
+
     def fit(self, X, y):
         """
         Fit lasso model with coordinate descent
@@ -111,40 +113,40 @@ class HeatLasso():
             Input data. 
         y : HeAT tensor, shape (n_samples,) 
             Labels
-        """ 
+        """
         # Get number of model parameters
         _, n = X.shape
 
-        # Initialize model parameters 
+        # Initialize model parameters
         theta = ht.zeros((n, 1), dtype=float)
-        
-        # Looping until max number of iterations or convergence 
+
+        # Looping until max number of iterations or convergence
         for i in range(self.max_iter):
- 
+
             theta_old = theta.copy()
 
             # Looping through each coordinate
             for j in range(n):
-                
-                y_est = (X @ theta)[:, 0] 
-               
-                rho = (X[:,j]*(y - y_est + theta[j].copy() * X[:,j])).mean()
-                
-                # Intercept parameter theta[0] not be regularized 
-                if j == 0: 
-                    theta[j] = rho 
-                else:
-                    theta[j] = self.soft_threshold(rho) 
 
-            diff = self.rmse(theta, theta_old) 
+                y_est = (X @ theta)[:, 0]
+
+                rho = (X[:, j] * (y - y_est + theta[j].copy() * X[:, j])).mean()
+
+                # Intercept parameter theta[0] not be regularized
+                if j == 0:
+                    theta[j] = rho
+                else:
+                    theta[j] = self.soft_threshold(rho)
+
+            diff = self.rmse(theta, theta_old)
             if self.tol is not None:
                 if diff < self.tol:
-                    self.n_iter = i + 1 
-                    self.__theta = theta 
-                    break 
-        
+                    self.n_iter = i + 1
+                    self.__theta = theta
+                    break
+
         self.n_iter = i + 1
-        self.__theta = theta 
+        self.__theta = theta
 
     def predict(self, X):
         """
@@ -154,11 +156,11 @@ class HeatLasso():
         ----------
         X : HeAT tensor, shape (n_samples, n_features)
             Input data. 
-        """ 
-        return (X @ self.__theta)[:, 0] 
+        """
+        return (X @ self.__theta)[:, 0]
 
 
-class NumpyLasso():
+class NumpyLasso:
     """
     Numpy implementation of a the ``least absolute shrinkage and selection operator``(LASSO), 
     a linear model with L1 regularizer.
@@ -195,39 +197,40 @@ class NumpyLasso():
     --------
     # ToDo: example to be added
     """
-    def __init__(self, lam = .1, max_iter=100, tol = 1e-6):
-        """initialize lasso parameters""" 
-        self.__lam = lam 
-        self.max_iter = max_iter 
-        self.tol = tol 
-        self.__theta = None 
-        self.n_iter = None 
+
+    def __init__(self, lam=0.1, max_iter=100, tol=1e-6):
+        """initialize lasso parameters"""
+        self.__lam = lam
+        self.max_iter = max_iter
+        self.tol = tol
+        self.__theta = None
+        self.n_iter = None
 
     @property
-    def coef_(self): 
-        if self.__theta is None:
-            return None 
-        else:
-            return self.__theta[1:]    
-
-    @property
-    def intercept_(self): 
+    def coef_(self):
         if self.__theta is None:
             return None
-        else: 
-            return self.__theta[0]      
+        else:
+            return self.__theta[1:]
 
     @property
-    def lam(self): 
-         return self.__lam
-       
-    @lam.setter 
+    def intercept_(self):
+        if self.__theta is None:
+            return None
+        else:
+            return self.__theta[0]
+
+    @property
+    def lam(self):
+        return self.__lam
+
+    @lam.setter
     def lam(self, arg):
-         self.__lam = arg
+        self.__lam = arg
 
     @property
-    def theta(self): 
-         return self.__theta
+    def theta(self):
+        return self.__theta
 
     def soft_threshold(self, rho):
         """
@@ -239,13 +242,13 @@ class NumpyLasso():
             Input model data  
         out : HeAT tensor, shape (1,) 
             Thresholded model data 
-        """ 
-        if rho < - self.__lam:
-            return (rho + self.__lam)
-        elif rho >  self.__lam:
-            return (rho - self.__lam)
-        else: 
-            return 0.
+        """
+        if rho < -self.__lam:
+            return rho + self.__lam
+        elif rho > self.__lam:
+            return rho - self.__lam
+        else:
+            return 0.0
 
     def rmse(self, gt, yest):
         """
@@ -257,8 +260,8 @@ class NumpyLasso():
             Input model data  
         yest : HeAT tensor, shape (1,) 
             Thresholded model data 
-        """ 
-        return np.sqrt((np.mean((gt-yest)**2))).item()
+        """
+        return np.sqrt((np.mean((gt - yest) ** 2))).item()
 
     def fit(self, X, y):
         """
@@ -270,39 +273,39 @@ class NumpyLasso():
             Input data. 
         y : HeAT tensor, shape (n_samples,) 
             Labels
-        """ 
+        """
         # Get number of model parameters
         _, n = X.shape
 
-        # Initialize model parameters 
+        # Initialize model parameters
         theta = np.zeros((n, 1), dtype=float)
-        
+
         # Looping until max number of iterations or converegence
-        for i in range(self.max_iter): 
+        for i in range(self.max_iter):
             # Looping through each coordinate
 
             theta_old = theta.copy()
 
             for j in range(n):
-                y_est = (X @ theta)[:, 0] 
+                y_est = (X @ theta)[:, 0]
 
-                rho = (X[:, j]*(y - y_est + theta[j] * X[:, j])).mean()
+                rho = (X[:, j] * (y - y_est + theta[j] * X[:, j])).mean()
 
-                # Intercept parameter theta[0] not be regularized 
-                if j == 0: 
-                    theta[j] = rho 
+                # Intercept parameter theta[0] not be regularized
+                if j == 0:
+                    theta[j] = rho
                 else:
-                    theta[j] = self.soft_threshold(rho) 
+                    theta[j] = self.soft_threshold(rho)
 
-            diff = self.rmse(theta, theta_old) 
+            diff = self.rmse(theta, theta_old)
             if self.tol is not None:
                 if diff < self.tol:
                     self.n_iter = i + 1
-                    self.__theta = theta 
-                    break 
-        
+                    self.__theta = theta
+                    break
+
         self.n_iter = i + 1
-        self.__theta = theta 
+        self.__theta = theta
 
     def predict(self, X):
         """
@@ -312,10 +315,11 @@ class NumpyLasso():
         ----------
         X : HeAT tensor, shape (n_samples, n_features+1)
             Input data. 
-        """ 
-        return (X @ self.__theta)[:, 0] 
+        """
+        return (X @ self.__theta)[:, 0]
 
-class PytorchLasso():
+
+class PytorchLasso:
     """
     PyTorch implementation of a the ``least absolute shrinkage and selection operator``(LASSO), a linear model with 
     L1 regularization. The optimization objective for Lasso is:
@@ -347,39 +351,40 @@ class PytorchLasso():
     --------
     # ToDo: example to be added
     """
-    def __init__(self, lam=.1, max_iter=100, tol=1e-6):
-        """initialize lasso parameters""" 
-        self.__lam = lam 
-        self.max_iter = max_iter 
-        self.tol = tol 
-        self.__theta = None 
-        self.n_iter = None 
+
+    def __init__(self, lam=0.1, max_iter=100, tol=1e-6):
+        """initialize lasso parameters"""
+        self.__lam = lam
+        self.max_iter = max_iter
+        self.tol = tol
+        self.__theta = None
+        self.n_iter = None
 
     @property
-    def coef_(self): 
-        if self.__theta is None:
-            return None 
-        else:
-            return self.__theta[1:]    
-
-    @property
-    def intercept_(self): 
+    def coef_(self):
         if self.__theta is None:
             return None
-        else: 
-            return self.__theta[0]      
+        else:
+            return self.__theta[1:]
 
     @property
-    def lam(self): 
-         return self.__lam
-       
-    @lam.setter 
+    def intercept_(self):
+        if self.__theta is None:
+            return None
+        else:
+            return self.__theta[0]
+
+    @property
+    def lam(self):
+        return self.__lam
+
+    @lam.setter
     def lam(self, arg):
-         self.__lam = arg
+        self.__lam = arg
 
     @property
-    def theta(self): 
-         return self.__theta
+    def theta(self):
+        return self.__theta
 
     def soft_threshold(self, rho):
         """
@@ -391,13 +396,13 @@ class PytorchLasso():
             Input model data  
         out : HeAT tensor, shape (1,) 
             Thresholded model data 
-        """ 
-        if rho < - self.__lam:
-            return (rho + self.__lam)
-        elif rho >  self.__lam:
-            return (rho - self.__lam)
-        else: 
-            return 0.
+        """
+        if rho < -self.__lam:
+            return rho + self.__lam
+        elif rho > self.__lam:
+            return rho - self.__lam
+        else:
+            return 0.0
 
     def rmse(self, gt, yest):
         """
@@ -409,8 +414,8 @@ class PytorchLasso():
             Input model data  
         yest : HeAT tensor, shape (1,) 
             Thresholded model data 
-        """ 
-        return torch.sqrt((torch.mean((gt-yest)**2))).item()
+        """
+        return torch.sqrt((torch.mean((gt - yest) ** 2))).item()
 
     def fit(self, X, y):
         """
@@ -422,40 +427,40 @@ class PytorchLasso():
             Input data. 
         y : HeAT tensor, shape (n_samples,) 
             Labels
-        """ 
+        """
         # Get number of model parameters
         _, n = X.shape
 
-        # Initialize model parameters 
+        # Initialize model parameters
         theta = torch.zeros(n, 1)
         wwtime = np.zeros((self.max_iter, n))
-        # Looping until max number of iterations or convergence 
+        # Looping until max number of iterations or convergence
         for i in range(self.max_iter):
- 
+
             theta_old = theta.clone()
 
             # Looping through each coordinate
             for j in range(n):
-                
-                y_est = (X @ theta)[:, 0] 
-                
-                rho = (X[:,j]*(y - y_est + theta[j] * X[:,j])).mean()
-              
-                # Intercept parameter theta[0] not be regularized 
-                if j == 0: 
-                    theta[j] = rho 
-                else:
-                    theta[j] = self.soft_threshold(rho) 
 
-            diff = self.rmse(theta, theta_old) 
+                y_est = (X @ theta)[:, 0]
+
+                rho = (X[:, j] * (y - y_est + theta[j] * X[:, j])).mean()
+
+                # Intercept parameter theta[0] not be regularized
+                if j == 0:
+                    theta[j] = rho
+                else:
+                    theta[j] = self.soft_threshold(rho)
+
+            diff = self.rmse(theta, theta_old)
             if self.tol is not None:
                 if diff < self.tol:
-                    self.n_iter = i + 1 
-                    self.__theta = theta 
-                    break 
+                    self.n_iter = i + 1
+                    self.__theta = theta
+                    break
 
         self.n_iter = i + 1
-        self.__theta = theta 
+        self.__theta = theta
 
     def predict(self, X):
         """
@@ -465,6 +470,5 @@ class PytorchLasso():
         ----------
         X : HeAT tensor, shape (n_samples, n_features)
             Input data. 
-        """ 
-        return (X @ self.__theta)[:, 0] 
-        
+        """
+        return (X @ self.__theta)[:, 0]

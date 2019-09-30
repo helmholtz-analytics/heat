@@ -114,7 +114,7 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(float_volume_is_one._DNDarray__array.dtype, torch.bool)
         self.assertEqual(float_volume_is_one.split, None)
 
-        out_noaxis = ht.zeros((3, 3,))
+        out_noaxis = ht.zeros((3, 3))
         ht.all(ones_noaxis_split_axis, axis=0, out=out_noaxis)
 
         # check all over all float elements of split 3d tensor with tuple axis
@@ -153,9 +153,9 @@ class TestLogical(unittest.TestCase):
     def test_allclose(self):
         a = ht.float32([[2, 2], [2, 2]])
         b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]])
-        c = ht.zeros((4, 6,), split=0)
-        d = ht.zeros((4, 6,), split=1)
-        e = ht.zeros((4, 6,))
+        c = ht.zeros((4, 6), split=0)
+        d = ht.zeros((4, 6), split=1)
+        e = ht.zeros((4, 6))
 
         self.assertFalse(ht.allclose(a, b))
         self.assertTrue(ht.allclose(a, b, atol=1e-04))
@@ -176,9 +176,7 @@ class TestLogical(unittest.TestCase):
 
     def test_any(self):
         # float values, minor axis
-        x = ht.float32([[2.7, 0, 0],
-                        [0,   0, 0],
-                        [0, 0.3, 0]])
+        x = ht.float32([[2.7, 0, 0], [0, 0, 0], [0, 0.3, 0]])
         any_tensor = x.any(axis=1)
         res = ht.uint8([1, 0, 1])
         self.assertIsInstance(any_tensor, ht.DNDarray)
@@ -188,9 +186,7 @@ class TestLogical(unittest.TestCase):
 
         # integer values, major axis, output tensor
         any_tensor = ht.zeros((2,))
-        x = ht.int32([[0, 0],
-                      [0, 0],
-                      [0, 1]])
+        x = ht.int32([[0, 0], [0, 0], [0, 1]])
         ht.any(x, axis=0, out=any_tensor)
         res = ht.uint8([0, 1])
         self.assertIsInstance(any_tensor, ht.DNDarray)
@@ -199,8 +195,7 @@ class TestLogical(unittest.TestCase):
         self.assertTrue(ht.equal(any_tensor, res))
 
         # float values, no axis
-        x = ht.float64([[0, 0, 0],
-                        [0, 0, 0]])
+        x = ht.float64([[0, 0, 0], [0, 0, 0]])
         res = ht.zeros(1, dtype=ht.uint8)
         any_tensor = ht.any(x)
         self.assertIsInstance(any_tensor, ht.DNDarray)

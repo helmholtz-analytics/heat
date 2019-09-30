@@ -27,14 +27,19 @@ class TestTypes(unittest.TestCase):
         self.assertEqual(no_value._DNDarray__array.dtype, torch_type)
 
         # check a type constructor with a complex value
-        ground_truth = [
-            [3, 2, 1],
-            [4, 5, 6]
-        ]
+        ground_truth = [[3, 2, 1], [4, 5, 6]]
         elaborate_value = heat_type(ground_truth)
         self.assertIsInstance(elaborate_value, ht.DNDarray)
-        self.assertEqual(elaborate_value.shape, (2, 3,))
-        self.assertEqual((elaborate_value._DNDarray__array == torch.tensor(ground_truth, dtype=torch_type)).all().item(), 1)
+        self.assertEqual(elaborate_value.shape, (2, 3))
+        self.assertEqual(
+            (
+                elaborate_value._DNDarray__array
+                == torch.tensor(ground_truth, dtype=torch_type)
+            )
+            .all()
+            .item(),
+            1,
+        )
         self.assertEqual(elaborate_value._DNDarray__array.dtype, torch_type)
 
         # check exception when there is more than one parameter
@@ -195,9 +200,9 @@ class TestTypeConversion(unittest.TestCase):
     def test_finfo(self):
         info32 = ht.finfo(ht.float32)
         self.assertEqual(info32.bits, 32)
-        self.assertEqual(info32.max, (2-2**-23)*2**127)
+        self.assertEqual(info32.max, (2 - 2 ** -23) * 2 ** 127)
         self.assertEqual(info32.min, -info32.max)
-        self.assertEqual(info32.eps, 2**-23)
+        self.assertEqual(info32.eps, 2 ** -23)
 
         with self.assertRaises(TypeError):
             ht.finfo(1)
