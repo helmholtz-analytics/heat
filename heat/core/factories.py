@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from .communication import Communication, MPI, sanitize_comm
+from .communication import MPI, sanitize_comm
 from .stride_tricks import sanitize_axis, sanitize_shape
 from . import devices
 from . import dndarray

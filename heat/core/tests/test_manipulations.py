@@ -1,7 +1,6 @@
 import unittest
 import torch
 import heat as ht
-import numpy as np
 
 
 class TestManipulations(unittest.TestCase):

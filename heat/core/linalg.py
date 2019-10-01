@@ -2,10 +2,8 @@ import itertools
 import torch
 
 from .communication import MPI
-from . import arithmetics
 from . import dndarray
 from . import factories
-from . import logical
 from . import manipulations
 from . import types
 

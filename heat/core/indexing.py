@@ -1,10 +1,8 @@
 import torch
-import numpy as np
 
 from .communication import MPI
 from . import dndarray
 from . import factories
-from . import operations
 from . import types
 
 __all__ = ["nonzero", "where"]

@@ -15,7 +15,6 @@ from . import memory
 from . import relational
 from . import rounding
 from . import statistics
-from . import stride_tricks
 from . import trigonometrics
 from . import types
 

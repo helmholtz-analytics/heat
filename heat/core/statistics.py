@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import warnings
 
 from .communication import MPI
 from . import exponential
