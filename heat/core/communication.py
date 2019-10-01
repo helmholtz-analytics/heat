@@ -270,7 +270,7 @@ class MPICommunication(Communication):
              The object to be transformed into a custom MPI datatype
 
         """
-        mpi_type, elements = self.__mpi_type_mappings[obj.dtype], torch.numel(obj)
+        mpi_type, _ = self.__mpi_type_mappings[obj.dtype], torch.numel(obj)
 
         nproc = self.size
         shape = obj.shape
@@ -336,7 +336,7 @@ class MPICommunication(Communication):
              The object to be transformed into a custom MPI datatype
         """
 
-        mpi_type, elements = self.__mpi_type_mappings[obj.dtype], torch.numel(obj)
+        mpi_type, _ = self.__mpi_type_mappings[obj.dtype], torch.numel(obj)
 
         nproc = self.size
         shape = obj.shape[1:]

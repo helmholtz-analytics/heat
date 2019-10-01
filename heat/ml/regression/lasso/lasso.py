@@ -7,17 +7,17 @@ import cProfile
 
 class HeatLasso:
     """
-    HeAT implementation of a the ``least absolute shrinkage and selection operator``(LASSO), a linear model with 
+    HeAT implementation of a the ``least absolute shrinkage and selection operator``(LASSO), a linear model with
     L1 regularization. The optimization objective for Lasso is:
 
-        E(w) = (1 / (2 * m)) * ||y - Xw||^2_2 + lam * ||w_||_1 
+        E(w) = (1 / (2 * m)) * ||y - Xw||^2_2 + lam * ||w_||_1
 
     with w_=(w_1,w_2,...,w_n) and w=(w_0,w_1,w2,...,w_n), y \in M(m x 1), w \in M(n x 1), X \in M(m x n)
-    
+
     Parameters
     ----------
     lam : float, optional
-        Constant that multiplies the L1 term. Default value: 0.1 ``lam = 0.`` is equivalent to an ordinary 
+        Constant that multiplies the L1 term. Default value: 0.1 ``lam = 0.`` is equivalent to an ordinary
         least square (OLS). For numerical reasons, using ``lam = 0.,`` with the ``Lasso`` object is not advised.
     max_iter : int, optional
         The maximum number of iterations. Default value: 100
@@ -75,13 +75,13 @@ class HeatLasso:
     def soft_threshold(self, rho):
         """
         Soft threshold operator
- 
+
         Parameters
         ----------
         rho : HeAT tensor, shape (1,)
-            Input model data  
-        out : HeAT tensor, shape (1,) 
-            Thresholded model data 
+            Input model data
+        out : HeAT tensor, shape (1,)
+            Thresholded model data
         """
         if rho < -self.__lam:
             return rho + self.__lam
@@ -93,25 +93,25 @@ class HeatLasso:
     def rmse(self, gt, yest):
         """
         Root mean square error (RMSE)
- 
+
         Parameters
         ----------
         gt : HeAT tensor, shape (1,)
-            Input model data  
-        yest : HeAT tensor, shape (1,) 
-            Thresholded model data 
+            Input model data
+        yest : HeAT tensor, shape (1,)
+            Thresholded model data
         """
         return ht.sqrt((ht.mean((gt - yest) ** 2)))._DNDarray__array.item()
 
     def fit(self, X, y):
         """
         Fit lasso model with coordinate descent
- 
+
         Parameters
         ----------
         X : HeAT tensor, shape (n_samples, n_features)
-            Input data. 
-        y : HeAT tensor, shape (n_samples,) 
+            Input data.
+        y : HeAT tensor, shape (n_samples,)
             Labels
         """
         # Get number of model parameters
@@ -150,32 +150,32 @@ class HeatLasso:
 
     def predict(self, X):
         """
-        Apply lasso model to input data. First row data corresponds to interception 
- 
+        Apply lasso model to input data. First row data corresponds to interception
+
         Parameters
         ----------
         X : HeAT tensor, shape (n_samples, n_features)
-            Input data. 
+            Input data.
         """
         return (X @ self.__theta)[:, 0]
 
 
 class NumpyLasso:
     """
-    Numpy implementation of a the ``least absolute shrinkage and selection operator``(LASSO), 
+    Numpy implementation of a the ``least absolute shrinkage and selection operator``(LASSO),
     a linear model with L1 regularizer.
     The optimization objective function for Lasso is:
 
-        (1 / (2 * m)) * ||y - Xw||^2_2 + lam * ||w_||_1 
+        (1 / (2 * m)) * ||y - Xw||^2_2 + lam * ||w_||_1
 
-    with w_=(w_1,w_2,...,w_n) and w=(w_0,w_1,w2,...,w_n), 
+    with w_=(w_1,w_2,...,w_n) and w=(w_0,w_1,w2,...,w_n),
     y \in M(m x 1), w \in M(n x 1), X \in M(m x n)
-    
+
     Parameters
     ----------
     lam : float, optional
         Constant that multiplies the L1 term. Default value: 0.1
-        ``lam = 0.`` is equivalent to an ordinary least square (OLS). 
+        ``lam = 0.`` is equivalent to an ordinary least square (OLS).
         For numerical reasons, using ``lam = 0.,`` with the ``Lasso`` object is not advised.
     max_iter : int, optional
         The maximum number of iterations. Default value: 100
@@ -184,7 +184,7 @@ class NumpyLasso:
 
     Attributes
     ----------
-    __theta : array, shape (n_features + 1,), first element is the interception 
+    __theta : array, shape (n_features + 1,), first element is the interception
         parameter vector (w in the cost function formula)
     coef_ : array, shape (n_features,) | (n_targets, n_features)
         parameter vector (w in the cost function formula)
@@ -235,13 +235,13 @@ class NumpyLasso:
     def soft_threshold(self, rho):
         """
         Soft threshold operator
- 
+
         Parameters
         ----------
         rho : HeAT tensor, shape (1,)
-            Input model data  
-        out : HeAT tensor, shape (1,) 
-            Thresholded model data 
+            Input model data
+        out : HeAT tensor, shape (1,)
+            Thresholded model data
         """
         if rho < -self.__lam:
             return rho + self.__lam
@@ -253,25 +253,25 @@ class NumpyLasso:
     def rmse(self, gt, yest):
         """
         Root mean square error (RMSE)
- 
+
         Parameters
         ----------
         gt : HeAT tensor, shape (1,)
-            Input model data  
-        yest : HeAT tensor, shape (1,) 
-            Thresholded model data 
+            Input model data
+        yest : HeAT tensor, shape (1,)
+            Thresholded model data
         """
         return np.sqrt((np.mean((gt - yest) ** 2))).item()
 
     def fit(self, X, y):
         """
         Fit lasso model with coordinate descent
- 
+
         Parameters
         ----------
         X : HeAT tensor, shape (n_samples, n_features+1)
-            Input data. 
-        y : HeAT tensor, shape (n_samples,) 
+            Input data.
+        y : HeAT tensor, shape (n_samples,)
             Labels
         """
         # Get number of model parameters
@@ -310,28 +310,28 @@ class NumpyLasso:
     def predict(self, X):
         """
         Apply lasso model to input data. First row data corresponds to interception parameter
- 
+
         Parameters
         ----------
         X : HeAT tensor, shape (n_samples, n_features+1)
-            Input data. 
+            Input data.
         """
         return (X @ self.__theta)[:, 0]
 
 
 class PytorchLasso:
     """
-    PyTorch implementation of a the ``least absolute shrinkage and selection operator``(LASSO), a linear model with 
+    PyTorch implementation of a the ``least absolute shrinkage and selection operator``(LASSO), a linear model with
     L1 regularization. The optimization objective for Lasso is:
 
-        E(w) = (1 / (2 * m)) * ||y - Xw||^2_2 + lam * ||w_||_1 
+        E(w) = (1 / (2 * m)) * ||y - Xw||^2_2 + lam * ||w_||_1
 
     with w_=(w_1,w_2,...,w_n) and w=(w_0,w_1,w2,...,w_n), y \in M(m x 1), w \in M(n x 1), X \in M(m x n)
-    
+
     Parameters
     ----------
     lam : float, optional
-        Constant that multiplies the L1 term. Default value: 0.1 ``lam = 0.`` is equivalent to an ordinary 
+        Constant that multiplies the L1 term. Default value: 0.1 ``lam = 0.`` is equivalent to an ordinary
         least square (OLS). For numerical reasons, using ``lam = 0.,`` with the ``Lasso`` object is not advised.
     max_iter : int, optional
         The maximum number of iterations. Default value: 100
@@ -389,13 +389,13 @@ class PytorchLasso:
     def soft_threshold(self, rho):
         """
         Soft threshold operator
- 
+
         Parameters
         ----------
         rho : HeAT tensor, shape (1,)
-            Input model data  
-        out : HeAT tensor, shape (1,) 
-            Thresholded model data 
+            Input model data
+        out : HeAT tensor, shape (1,)
+            Thresholded model data
         """
         if rho < -self.__lam:
             return rho + self.__lam
@@ -407,25 +407,25 @@ class PytorchLasso:
     def rmse(self, gt, yest):
         """
         Root mean square error (RMSE)
- 
+
         Parameters
         ----------
         gt : HeAT tensor, shape (1,)
-            Input model data  
-        yest : HeAT tensor, shape (1,) 
-            Thresholded model data 
+            Input model data
+        yest : HeAT tensor, shape (1,)
+            Thresholded model data
         """
         return torch.sqrt((torch.mean((gt - yest) ** 2))).item()
 
     def fit(self, X, y):
         """
         Fit lasso model with coordinate descent
- 
+
         Parameters
         ----------
         X : HeAT tensor, shape (n_samples, n_features)
-            Input data. 
-        y : HeAT tensor, shape (n_samples,) 
+            Input data.
+        y : HeAT tensor, shape (n_samples,)
             Labels
         """
         # Get number of model parameters
@@ -433,7 +433,7 @@ class PytorchLasso:
 
         # Initialize model parameters
         theta = torch.zeros(n, 1)
-        wwtime = np.zeros((self.max_iter, n))
+        _ = np.zeros((self.max_iter, n))
         # Looping until max number of iterations or convergence
         for i in range(self.max_iter):
 
@@ -464,11 +464,11 @@ class PytorchLasso:
 
     def predict(self, X):
         """
-        Apply lasso model to input data. First row data corresponds to interception 
- 
+        Apply lasso model to input data. First row data corresponds to interception
+
         Parameters
         ----------
         X : HeAT tensor, shape (n_samples, n_features)
-            Input data. 
+            Input data.
         """
         return (X @ self.__theta)[:, 0]
