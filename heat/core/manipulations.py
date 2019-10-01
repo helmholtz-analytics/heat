@@ -1,8 +1,5 @@
-import operator
-
 import numpy as np
 import torch
-from mpi4py import MPI
 
 from .communication import MPI
 
@@ -10,8 +7,6 @@ from . import dndarray
 from . import factories
 from . import stride_tricks
 from . import types
-
-from .communication import MPI
 
 
 __all__ = [
