@@ -805,7 +805,7 @@ class DNDarray:
         """
         Return the ceil of the input, element-wise.
 
-        The ceil of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lceil x \rceil.
+        The ceil of the scalar x is the smallest integer i, such that i >= x. It is often denoted as :math:`\\lceil x \\rceil`.
 
         Parameters
         ----------
@@ -1267,8 +1267,8 @@ class DNDarray:
         """
         Return the floor of the input, element-wise.
 
-        The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as :math:`\lfloor x
-        \rfloor`.
+        The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as :math:`\\lfloor x
+        \\rfloor`.
 
         Parameters
         ----------

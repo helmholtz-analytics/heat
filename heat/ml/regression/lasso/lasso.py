@@ -8,9 +8,11 @@ class HeatLasso:
     HeAT implementation of a the ``least absolute shrinkage and selection operator``(LASSO), a linear model with
     L1 regularization. The optimization objective for Lasso is:
 
-        E(w) = (1 / (2 * m)) * ||y - Xw||^2_2 + lam * ||w_||_1
+    .. math:: E(w) = (1 / (2 * m)) * ||y - Xw||^2_2 + lam * ||w\\_||_1
 
-    with w_=(w_1,w_2,...,w_n) and w=(w_0,w_1,w2,...,w_n), y \in M(m x 1), w \in M(n x 1), X \in M(m x n)
+    with
+
+    .. math:: w\\_=(w_1,w_2,...,w_n) \\land w=(w_0,w_1,w_2,...,w_n), y \\in M(m \\times 1), w \\in M(n \\times 1), X \\in M(m \\times n)
 
     Parameters
     ----------
@@ -164,10 +166,11 @@ class NumpyLasso:
     a linear model with L1 regularizer.
     The optimization objective function for Lasso is:
 
-        (1 / (2 * m)) * ||y - Xw||^2_2 + lam * ||w_||_1
+    .. math:: (1 / (2 * m)) * ||y - Xw||^2_2 + lam * ||w\\_||_1
 
-    with w_=(w_1,w_2,...,w_n) and w=(w_0,w_1,w2,...,w_n),
-    y \in M(m x 1), w \in M(n x 1), X \in M(m x n)
+    with
+
+    .. math:: w\\_=(w_1,w_2,...,w_n) \\land w=(w_0,w_1,w_2,...,w_n), y \\in M(m \\times 1), w \\in M(n \\times 1), X \\in M(m \\times n)
 
     Parameters
     ----------
@@ -322,9 +325,11 @@ class PytorchLasso:
     PyTorch implementation of a the ``least absolute shrinkage and selection operator``(LASSO), a linear model with
     L1 regularization. The optimization objective for Lasso is:
 
-        E(w) = (1 / (2 * m)) * ||y - Xw||^2_2 + lam * ||w_||_1
+    .. math:: E(w) = (1 / (2 * m)) * ||y - Xw||^2_2 + lam * ||w\\_||_1
 
-    with w_=(w_1,w_2,...,w_n) and w=(w_0,w_1,w2,...,w_n), y \in M(m x 1), w \in M(n x 1), X \in M(m x n)
+    with
+
+    .. math:: w\\_=(w_1,w_2,...,w_n) \\land w=(w_0,w_1,w_2,...,w_n), y \\in M(m \\times 1), w \\in M(n \\times 1), X \\in M(m \\times n)
 
     Parameters
     ----------
