@@ -900,9 +900,8 @@ class TestStatistics(unittest.TestCase):
                 res = z.var()
                 total_dims_list = list(z.shape)
                 self.assertTrue((res == 0).all())
-                for it in range(
-                    len(z.shape)
-                ):  # loop over the different single dimensions for mean
+                # loop over the different single dimensions for mean
+                for it in range(len(z.shape)):
                     res = z.var(axis=it)
                     self.assertTrue((res == 0).all())
                     target_dims = [

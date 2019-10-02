@@ -465,9 +465,8 @@ class MPICommunication(Communication):
         # contiguous or differently strided, they have to be made matching (if possible) first.
         if isinstance(sendbuf, torch.Tensor):
             # convert the send buffer to a pointer, number of elements and type are identical to the receive buffer
-            dummy = (
-                sendbuf.contiguous()
-            )  # make a contiguous copy and reassign the storage, old will be collected
+            # make a contiguous copy and reassign the storage, old will be collected
+            dummy = sendbuf.contiguous()
             sendbuf.set_(
                 dummy.storage(),
                 dummy.storage_offset(),

@@ -113,8 +113,8 @@ def concatenate(arrays, axis=0):
         [arr0.gshape[i] == arr1.gshape[i] for i in range(len(arr0.gshape)) if i != axis]
     ):
         raise ValueError(
-            "Arrays cannot be concatenated, gshapes must be the same in every axis except the selected axis:"
-            " {}, {}".format(arr0.gshape, arr1.gshape)
+            "Arrays cannot be concatenated, gshapes must be the same in every axis "
+            "except the selected axis: {}, {}".format(arr0.gshape, arr1.gshape)
         )
 
     s0, s1 = arr0.split, arr1.split

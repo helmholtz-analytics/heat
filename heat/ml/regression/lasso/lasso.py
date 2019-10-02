@@ -436,7 +436,6 @@ class PytorchLasso:
 
         # Initialize model parameters
         theta = torch.zeros(n, 1)
-        _ = np.zeros((self.max_iter, n))
         # Looping until max number of iterations or convergence
         for i in range(self.max_iter):
 

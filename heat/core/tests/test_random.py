@@ -78,9 +78,8 @@ class TestRandom(unittest.TestCase):
         a = ht.random.rand(11, 15, 3, 7, split=2, comm=ht.MPI_WORLD)
         a = a.numpy()
         _, counts = np.unique(a, return_counts=True)
-        self.assertTrue(
-            (counts == 1).all()
-        )  # Assert that no value appears more than once
+        # Assert that no value appears more than once
+        self.assertTrue((counts == 1).all())
 
         # Two large arrays that were created after each other don't share any values
         b = ht.random.rand(14, 7, 3, 12, 18, 42, split=5, comm=ht.MPI_WORLD)

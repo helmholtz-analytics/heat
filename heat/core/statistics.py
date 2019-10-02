@@ -323,7 +323,7 @@ def average(x, axis=None, weights=None, returned=False):
         if x.gshape != weights.gshape:
             if axis is None:
                 raise TypeError(
-                    "Axis must be specified when shapes of x and weights " "differ."
+                    "Axis must be specified when shapes of x and weights differ."
                 )
             if isinstance(axis, tuple):
                 raise NotImplementedError(

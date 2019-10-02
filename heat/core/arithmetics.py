@@ -107,51 +107,45 @@ def diff(a, n=1, axis=-1):
     size = a.comm.size
     rank = a.comm.rank
     ret = a.copy()
-    for _ in range(
-        n
-    ):  # work loop, runs n times. using the result at the end of the loop as the starting values for each loop
+    # work loop, runs n times. using the result at the end of the loop as the starting values for each loop
+    for _ in range(n):
         axis_slice = [slice(None)] * len(ret.shape)
         axis_slice[axis] = slice(1, None, None)
         axis_slice_end = [slice(None)] * len(ret.shape)
         axis_slice_end[axis] = slice(None, -1, None)
 
+        # build the slice for the first element on the specified axis
         arb_slice = [slice(None)] * len(a.shape)
-        arb_slice[
-            axis
-        ] = 0  # build the slice for the first element on the specified axis
+        arb_slice[axis] = 0
+        # send the first element of the array to rank - 1
         if rank > 0:
-            snd = ret.comm.Isend(
-                ret.lloc[arb_slice].clone(), dest=rank - 1, tag=rank
-            )  # send the first element of the array to rank - 1
+            snd = ret.comm.Isend(ret.lloc[arb_slice].clone(), dest=rank - 1, tag=rank)
 
-        dif = (
-            ret.lloc[axis_slice] - ret.lloc[axis_slice_end]
-        )  # standard logic for the diff with the next element
-        diff_slice = [
-            slice(x) for x in dif.shape
-        ]  # need to slice out to select the proper elements of out
+        # standard logic for the diff with the next element
+        dif = ret.lloc[axis_slice] - ret.lloc[axis_slice_end]
+        # need to slice out to select the proper elements of out
+        diff_slice = [slice(x) for x in dif.shape]
         ret.lloc[diff_slice] = dif
 
         if rank > 0:
             snd.wait()  # wait for the send to finish
         if rank < size - 1:
             cr_slice = [slice(None)] * len(a.shape)
-            cr_slice[
-                axis
-            ] = 1  # slice of 1 element in the selected axis for the shape creation
+            # slice of 1 element in the selected axis for the shape creation
+            cr_slice[axis] = 1
             recv_data = torch.ones(
                 ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type()
             )
             rec = ret.comm.Irecv(recv_data, source=rank + 1, tag=rank + 1)
             axis_slice_end = [slice(None)] * len(a.shape)
-            axis_slice_end[axis] = slice(
-                -1, None
-            )  # select the last elements in the selected axis
+            # select the last elements in the selected axis
+            axis_slice_end[axis] = slice(-1, None)
             rec.wait()
+            # diff logic
             ret.lloc[axis_slice_end] = (
                 recv_data.reshape(ret.lloc[axis_slice_end].shape)
                 - ret.lloc[axis_slice_end]
-            )  # diff logic
+            )
 
     axis_slice_end = [slice(None)] * len(a.shape)
     axis_slice_end[axis] = slice(None, -1 * n, None)

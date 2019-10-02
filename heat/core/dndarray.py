@@ -1436,9 +1436,8 @@ class DNDarray:
 
             arr = torch.Tensor()
 
-            if isinstance(
-                key, int
-            ):  # if a sigular index is given and the tensor is split
+            # if a sigular index is given and the tensor is split
+            if isinstance(key, int):
                 gout = [0] * (len(self.gshape) - 1)
                 if key < 0:
                     key += self.numdims
@@ -1450,9 +1449,8 @@ class DNDarray:
                 else:
                     new_split = self.split
 
-                if (
-                    key in range(chunk_start, chunk_end) and self.split == 0
-                ):  # only need to adjust the key if split==0
+                # only need to adjust the key if split==0
+                if key in range(chunk_start, chunk_end) and self.split == 0:
                     gout = list(self.__array[key - chunk_start].shape)
                     arr = self.__array[key - chunk_start]
                 elif self.split != 0:
@@ -1461,18 +1459,16 @@ class DNDarray:
                     if key in range(chunk_slice2[0].start, chunk_slice2[0].stop):
                         arr = self.__array[key]
                         gout = list(arr.shape)
-                else:
+                else:  # arr is empty and gout is zeros
                     warnings.warn(
                         "This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
                             self.comm.rank
                         ),
                         ResourceWarning,
                     )
-                    # arr is empty and gout is zeros
 
-            elif isinstance(
-                key, (tuple, list)
-            ):  # multi-argument gets are passed as tuples by python
+            # multi-argument gets are passed as tuples by python
+            elif isinstance(key, (tuple, list)):
                 gout = [0] * len(self.gshape)
                 # handle the dimensional reduction for integers
                 ints = sum([isinstance(it, int) for it in key])
@@ -1483,10 +1479,9 @@ class DNDarray:
                 else:
                     new_split = self.split
 
-                if isinstance(
-                    key[self.split], slice
-                ):  # if a slice is given in the split direction
-                    # below allows for the split given to contain Nones
+                # if a slice is given in the split direction
+                # below allows for the split given to contain Nones
+                if isinstance(key[self.split], slice):
                     key_stop = key[self.split].stop
                     if key_stop is not None and key_stop < 0:
                         key_stop = self.gshape[self.split] + key[self.split].stop
@@ -1536,9 +1531,8 @@ class DNDarray:
                     # arr is empty
                     # gout is all 0s and is the proper shape
 
-            elif (
-                isinstance(key, slice) and self.split == 0
-            ):  # if the given axes are only a slice
+            # if the given axes are only a slice
+            elif isinstance(key, slice) and self.split == 0:
                 gout = [0] * len(self.gshape)
                 # reduce the dims if the slices are only one element in length
                 start = key.start if key.start is not None else 0
@@ -1567,7 +1561,6 @@ class DNDarray:
                     # arr is empty
                     # gout is all 0s and is the proper shape
 
-            # elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
             elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                 # this is for a list of values
                 # it will return a 1D DNDarray of the elements on each node which are in the key (will be split in the 0th dimension

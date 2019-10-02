@@ -49,12 +49,10 @@ class TestArithmetics(unittest.TestCase):
             arb_slice[dim] = slice(None)
             for ax in range(dim + 1):  # loop over the possible axis values
                 for sp in range(dim + 1):  # loop over the possible split values
-                    for nl in range(
-                        1, 4
-                    ):  # loop to 3 for the number of times to do the diff
-                        lp_array = ht.manipulations.resplit(
-                            ht_array[arb_slice], sp
-                        )  # only generating the number once and then
+                    # loop to 3 for the number of times to do the diff
+                    for nl in range(1, 4):
+                        # only generating the number once and then
+                        lp_array = ht.manipulations.resplit(ht_array[arb_slice], sp)
                         np_array = ht_array[arb_slice].numpy()
 
                         ht_diff = ht.diff(lp_array, n=nl, axis=ax)
