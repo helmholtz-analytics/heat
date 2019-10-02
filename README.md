@@ -86,7 +86,7 @@ also install the pre-commit hook with
 > $ pre-commit install
 
 In order to check compliance of your changes before even trying to commit anything,
-you can runs
+you can run
 
 > $ pre-commit run --all-files
 
