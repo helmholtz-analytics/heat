@@ -4,7 +4,7 @@ python:
 
 services:
   - docker
-    
+
 before_install:
   - pip install codecov
   - docker pull markusgoetz/heat
