@@ -36,6 +36,6 @@ setup(
     extras_require={
         "hdf5": ["h5py>=2.8.0"],
         "netcdf": ["netCDF4>=1.4.0"],
-        "dev": ["black>=19.3b0", "pre-commit>=1.18.3"],
+        "dev": ["pre-commit>=1.18.3"],
     },
 )
