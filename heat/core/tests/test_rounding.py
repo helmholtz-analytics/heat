@@ -162,6 +162,32 @@ class TestRounding(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.floor(object())
 
+    def test_round(self):
+        start, end, step = -5.0, 5.0, 1.4
+        comparison = torch.arange(start, end, step, dtype=torch.float64).round()
+
+        # exponential of float32
+        float32_tensor = ht.arange(start, end, step, dtype=ht.float32)
+        float32_round = float32_tensor.round()
+        self.assertIsInstance(float32_round, ht.DNDarray)
+        self.assertEqual(float32_round.dtype, ht.float32)
+        self.assertEqual(float32_round.dtype, ht.float32)
+        self.assertTrue((float32_round._DNDarray__array == comparison.float()).all())
+
+        # exponential of float64
+        float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
+        float64_round = float64_tensor.round()
+        self.assertIsInstance(float64_round, ht.DNDarray)
+        self.assertEqual(float64_round.dtype, ht.float64)
+        self.assertEqual(float64_round.dtype, ht.float64)
+        self.assertTrue((float64_round._DNDarray__array == comparison).all())
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.round([0, 1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.round(object())
+
     def test_trunc(self):
         base_array = np.random.randn(20)
 
