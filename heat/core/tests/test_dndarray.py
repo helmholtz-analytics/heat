@@ -6,6 +6,15 @@ import heat as ht
 
 
 class TestDNDarray(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        N = ht.MPI_WORLD.size
+        cls.reference_tensor = ht.zeros((N, N + 1, 2*N))
+
+        for n in range(N):
+            for m in range(N + 1):
+                cls.reference_tensor[n, m, :] = ht.arange(0, 2 * N) + m * 10 + n * 100
+
     def test_astype(self):
         data = ht.float32([
             [1, 2, 3],
@@ -268,7 +277,7 @@ class TestDNDarray(unittest.TestCase):
         # resplitting with same axis, should leave everything unchanged
         shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size,)
         data = ht.zeros(shape, split=None)
-        data.resplit(None)
+        data.resplit_(None)
 
         self.assertIsInstance(data, ht.DNDarray)
         self.assertEqual(data.shape, shape)
@@ -278,7 +287,7 @@ class TestDNDarray(unittest.TestCase):
         # resplitting with same axis, should leave everything unchanged
         shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size,)
         data = ht.zeros(shape, split=1)
-        data.resplit(1)
+        data.resplit_(1)
 
         self.assertIsInstance(data, ht.DNDarray)
         self.assertEqual(data.shape, shape)
@@ -288,7 +297,7 @@ class TestDNDarray(unittest.TestCase):
         # splitting an unsplit tensor should result in slicing the tensor locally
         shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size,)
         data = ht.zeros(shape)
-        data.resplit(1)
+        data.resplit_(-1)
 
         self.assertIsInstance(data, ht.DNDarray)
         self.assertEqual(data.shape, shape)
@@ -298,7 +307,7 @@ class TestDNDarray(unittest.TestCase):
         # unsplitting, aka gathering a tensor
         shape = (ht.MPI_WORLD.size + 1, ht.MPI_WORLD.size,)
         data = ht.ones(shape, split=0)
-        data.resplit(None)
+        data.resplit_(None)
 
         self.assertIsInstance(data, ht.DNDarray)
         self.assertEqual(data.shape, shape)
@@ -308,7 +317,7 @@ class TestDNDarray(unittest.TestCase):
         # assign and entirely new split axis
         shape = (ht.MPI_WORLD.size + 2, ht.MPI_WORLD.size + 1,)
         data = ht.ones(shape, split=0)
-        data.resplit(1)
+        data.resplit_(1)
 
         self.assertIsInstance(data, ht.DNDarray)
         self.assertEqual(data.shape, shape)
@@ -316,9 +325,50 @@ class TestDNDarray(unittest.TestCase):
         self.assertTrue(data.lshape[1] == 1 or data.lshape[1] == 2)
         self.assertEqual(data.split, 1)
 
+        # test sorting order of resplit
+        a_tensor = self.reference_tensor.copy()
+        N = ht.MPI_WORLD.size
+
+        # split along axis = 0
+        a_tensor.resplit_(axis=0)
+        local_shape = (1, N+1, 2*N)
+        local_tensor = self.reference_tensor[ht.MPI_WORLD.rank, :, :]
+        self.assertEqual(a_tensor.lshape, local_shape)
+        self.assertTrue((a_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
+
+        # unsplit
+        a_tensor.resplit_(axis=None)
+        self.assertTrue((a_tensor._DNDarray__array == self.reference_tensor._DNDarray__array).all())
+
+        # split along axis = 1
+        a_tensor.resplit_(axis=1)
+        if(ht.MPI_WORLD.rank == 0):
+            local_shape = (N, 2, 2*N)
+            local_tensor = self.reference_tensor[:, 0:2, :]
+        else:
+            local_shape = (N, 1, 2*N)
+            local_tensor = self.reference_tensor[:, ht.MPI_WORLD.rank+1:ht.MPI_WORLD.rank+2, :]
+
+        self.assertEqual(a_tensor.lshape, local_shape)
+        self.assertTrue((a_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
+
+        # unsplit
+        a_tensor.resplit_(axis=None)
+        self.assertTrue((a_tensor._DNDarray__array == self.reference_tensor._DNDarray__array).all())
+
+        # split along axis = 2
+        a_tensor.resplit_(axis=2)
+        local_shape = (N, N+1, 2)
+        local_tensor = self.reference_tensor[:, :, 2*ht.MPI_WORLD.rank : 2*ht.MPI_WORLD.rank+2]
+
+        self.assertEqual(a_tensor.lshape, local_shape)
+        self.assertTrue((a_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
+
+
+
         expected = torch.ones((ht.MPI_WORLD.size, 100), dtype=torch.int64)
         data = ht.array(expected, split=1)
-        data.resplit(None)
+        data.resplit_(None)
 
         self.assertTrue(torch.equal(data._DNDarray__array, expected))
         self.assertFalse(data.is_distributed())
@@ -328,7 +378,7 @@ class TestDNDarray(unittest.TestCase):
 
         expected = torch.zeros((100, ht.MPI_WORLD.size), dtype=torch.uint8)
         data = ht.array(expected, split=0)
-        data.resplit(None)
+        data.resplit_(None)
 
         self.assertTrue(torch.equal(data._DNDarray__array, expected))
         self.assertFalse(data.is_distributed())

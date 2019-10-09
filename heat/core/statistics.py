@@ -323,7 +323,7 @@ def average(x, axis=None, weights=None, returned=False):
         # Broadcast weights along specified axis if necessary
         if wgt.numdims == 1 and x.numdims != 1:
             if wgt.split is not None:
-                wgt.resplit(None)
+                wgt.resplit_(None)
             weights_newshape = tuple(1 if i != axis else x.gshape[axis] for i in range(x.numdims))
             wgt._DNDarray__array = torch.reshape(wgt._DNDarray__array, weights_newshape)
             wgt._DNDarray__gshape = weights_newshape
@@ -335,7 +335,7 @@ def average(x, axis=None, weights=None, returned=False):
         # Distribution: if x is split, split to weights along same dimension if possible
         if x.split is not None and wgt.split != x.split:
             if wgt.gshape[x.split] != 1:
-                wgt.resplit(x.split)
+                wgt.resplit_(x.split)
 
         result = (x * wgt).sum(axis=axis) / cumwgt
 
@@ -580,19 +580,19 @@ def maximum(x1, x2, out=None):
     # apply split semantics
     if x1.split is not None or x2.split is not None:
         if x1.split is None:
-            x1.resplit(x2.split)
+            x1.resplit_(x2.split)
         if x2.split is None:
-            x2.resplit(x1.split)
+            x2.resplit_(x1.split)
         if x1.split != x2.split:
             if np.prod(x1.gshape) < np.prod(x2.gshape):
-                x1.resplit(x2.split)
+                x1.resplit_(x2.split)
             if np.prod(x2.gshape) < np.prod(x1.gshape):
-                x2.resplit(x1.split)
+                x2.resplit_(x1.split)
             else:
                 if x1.split < x2.split:
-                    x2.resplit(x1.split)
+                    x2.resplit_(x1.split)
                 else:
-                    x1.resplit(x2.split)
+                    x1.resplit_(x2.split)
         split = x1.split
     else:
         split = None
@@ -1021,19 +1021,19 @@ def minimum(x1, x2, out=None):
     # apply split semantics
     if x1.split is not None or x2.split is not None:
         if x1.split is None:
-            x1.resplit(x2.split)
+            x1.resplit_(x2.split)
         if x2.split is None:
-            x2.resplit(x1.split)
+            x2.resplit_(x1.split)
         if x1.split != x2.split:
             if np.prod(x1.gshape) < np.prod(x2.gshape):
-                x1.resplit(x2.split)
+                x1.resplit_(x2.split)
             if np.prod(x2.gshape) < np.prod(x1.gshape):
-                x2.resplit(x1.split)
+                x2.resplit_(x1.split)
             else:
                 if x1.split < x2.split:
-                    x2.resplit(x1.split)
+                    x2.resplit_(x1.split)
                 else:
-                    x1.resplit(x2.split)
+                    x1.resplit_(x2.split)
         split = x1.split
     else:
         split = None

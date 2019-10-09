@@ -148,7 +148,7 @@ def matmul(a, b):
             # if either of A or B is a vector
             return factories.array(torch.matmul(a._DNDarray__array, b._DNDarray__array))
         else:
-            a = a.resplit(0)
+            a = a.resplit_(0)
             slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
             hold = a._DNDarray__array @ b._DNDarray__array
 
