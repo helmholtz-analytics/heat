@@ -350,9 +350,15 @@ class SquareDiagTiles:
                 if all(isinstance(x, int) for x in key):
                     prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank]) if arr.split == 0 else sum(self.__col_per_proc_list[:arr.comm.rank])
                     st0 = tile_map[key[0], 0][..., 0] if arr.split == 1 else tile_map[key[0], 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
-                    sp0 = tile_map[key[0] + 1, 0][..., 0] if arr.split == 1 else tile_map[key[0] + 1, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
                     st1 = tile_map[0, key[1]][..., 1] if arr.split == 0 else tile_map[0, key[1]][..., 1] - tile_map[0, prev_to_split][..., 1]
-                    sp1 = tile_map[0, key[1] + 1][..., 1] if arr.split == 0 else tile_map[0, key[1] + 1][..., 1] - tile_map[0, prev_to_split][..., 1]
+                    try:
+                        sp0 = tile_map[key[0] + 1, 0][..., 0] if arr.split == 1 else tile_map[key[0] + 1, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                    except IndexError:  # should only be thrown if the tile is the last one in that dimension
+                        sp0 = arr.gshape[0]
+                    try:
+                        sp1 = tile_map[0, key[1] + 1][..., 1] if arr.split == 0 else tile_map[0, key[1] + 1][..., 1] - tile_map[0, prev_to_split][..., 1]
+                    except IndexError:  # should only be thrown if the tile is the last one in that dimension
+                        sp1 = arr.gshape[1]
 
                 elif isinstance(key[arr.split], slice) and isinstance(key[(arr.split + 1) % len(arr.gshape)], int):
                     # note: strides are not implemented! todo: add to docs
@@ -390,7 +396,10 @@ class SquareDiagTiles:
                     prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank]) if arr.split == 0 else sum(self.__col_per_proc_list[:arr.comm.rank])
                     if arr.split == 0:
                         st0 = tile_map[key[0], 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
-                        sp0 = tile_map[key[0] + 1, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                        try:
+                            sp0 = tile_map[key[0] + 1, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
+                        except IndexError:
+                            sp0 = arr.gshape[0]
                         st1 = tile_map[0, key[1].start][..., 1]
                         try:
                             sp1 = tile_map[0, key[1].stop][..., 1]
@@ -403,7 +412,10 @@ class SquareDiagTiles:
                         except IndexError:
                             sp0 = key[1].stop
                         st1 = tile_map[0, key[1]][..., 1] - tile_map[0, prev_to_split][..., 1]
-                        sp1 = tile_map[0, key[1] + 1][..., 1] - tile_map[0, prev_to_split][..., 1]
+                        try:
+                            sp1 = tile_map[0, key[1] + 1][..., 1] - tile_map[0, prev_to_split][..., 1]
+                        except IndexError:  # should only be thrown if the tile is the last one in that dimension
+                            sp1 = arr.gshape[1]
                 else:  # all slices
                     start = key[arr.split].start if key[arr.split].start is not None else 0
                     stop = key[arr.split].stop if key[arr.split].stop is not None else arr.gshape[arr.split]
@@ -426,7 +438,7 @@ class SquareDiagTiles:
                         sp1 = tile_map[0, key[1].stop][..., 1] if arr.split == 0 else tile_map[0, key[1].stop][..., 1] - tile_map[0, prev_to_split][..., 1]
                     except IndexError:
                         sp1 = key[1].stop
-
+                # print('here', st0, sp0, st1, sp1)
                 return local_arr[st0:sp0, st1:sp1]
             else:
                 return None
@@ -466,16 +478,14 @@ class SquareDiagTiles:
             # print('r', tile_map[rank_slice].reshape(self.tile_rows_per_process[proc], self.tile_columns_per_process[proc], 3))
             # need to convert the key into local indices -> only needs to be done on the split dimension
             key = list(key)
-            if isinstance(key, int):
-                key = [key, slice(0, arr.gshape[1])]
-            elif isinstance(key, slice):
+            if len(key) == 1:
                 key = [key, slice(0, arr.gshape[1])]
 
             if arr.split == 0:
                 # need to adjust key[0] to be only on the local tensor
                 prev_rows = sum(self.__row_per_proc_list[:proc])
                 loc_rows = self.__row_per_proc_list[proc]
-                if isinstance(key[1], int):
+                if isinstance(key[0], int):
                     key[0] += prev_rows
                 elif isinstance(key[0], slice):
                     start = key[0].start + prev_rows
@@ -498,7 +508,7 @@ class SquareDiagTiles:
                         # print(local_tile_map)
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
-            return self.__getitem__(key)
+            return self.__getitem__(tuple(key))
 
     def local_set(self, key, data, proc=None):
         """
@@ -513,7 +523,7 @@ class SquareDiagTiles:
         if proc == self.__DNDarray.comm.rank:
             arr = self.__DNDarray
             tile_map = self.__tile_map
-            rank_slice = torch.where(tile_map[..., 2] == proc)
+            # rank_slice = torch.where(tile_map[..., 2] == proc)
             # lcl_tile_map = tile_map[rank_slice]
             # print(self.tile_columns_per_process)
             # print('r', tile_map[rank_slice].reshape(self.tile_rows_per_process[proc], self.tile_columns_per_process[proc], 3))
@@ -528,7 +538,7 @@ class SquareDiagTiles:
                 # need to adjust key[0] to be only on the local tensor
                 prev_rows = sum(self.__row_per_proc_list[:proc])
                 loc_rows = self.__row_per_proc_list[proc]
-                if isinstance(key[1], int):
+                if isinstance(key[0], int):
                     key[0] += prev_rows
                 elif isinstance(key[0], slice):
                     start = key[0].start + prev_rows
@@ -551,7 +561,7 @@ class SquareDiagTiles:
                         # print(local_tile_map)
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
-            self.__setitem__(key, data)
+            self.__setitem__(tuple(key), data)
 
     def __setitem__(self, key, value):
         """
