@@ -189,36 +189,6 @@ def floor(x, out=None):
     return operations.__local_op(torch.floor, x, out)
 
 
-def trunc(x, out=None):
-    """
-    Return the trunc of the input, element-wise.
-
-    The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the 
-    fractional part of the signed number x is discarded.
-
-    Parameters
-    ----------
-    x : ht.DNDarray
-        The value for which to compute the trunced values.
-    out : ht.DNDarray or None, optional
-        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    trunced : ht.DNDarray
-        A tensor of the same shape as x, containing the trunced valued of each element in this tensor. If out was
-        provided, trunced is a reference to it.
-
-    Examples
-    --------
-    >>> ht.trunc(ht.arange(-2.0, 2.0, 0.4))
-    tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
-    """
-    return operations.__local_op(torch.trunc, x, out)
-
-
-
 def modf(a):
     """
         Return the fractional and integral parts of an array, element-wise.
@@ -305,3 +275,38 @@ def round(x, decimals=0, out=None, dtype=None):
         rounded_values._DNDarray__dtype = dtype
 
     return rounded_values
+
+
+
+
+
+def trunc(x, out=None):
+    """
+    Return the trunc of the input, element-wise.
+
+    The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the 
+    fractional part of the signed number x is discarded.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The value for which to compute the trunced values.
+    out : ht.DNDarray or None, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    trunced : ht.DNDarray
+        A tensor of the same shape as x, containing the trunced valued of each element in this tensor. If out was
+        provided, trunced is a reference to it.
+
+    Examples
+    --------
+    >>> ht.trunc(ht.arange(-2.0, 2.0, 0.4))
+    tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
+    """
+    return operations.__local_op(torch.trunc, x, out)
+
+
+
