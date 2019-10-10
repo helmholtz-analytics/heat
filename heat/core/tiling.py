@@ -208,7 +208,7 @@ class SquareDiagTiles:
         # =================================================================================================
 
     @property
-    def lsahpe_map(self):
+    def lshape_map(self):
         """
         Returns
         -------

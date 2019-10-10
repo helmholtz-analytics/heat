@@ -671,7 +671,7 @@ def qr(a, calc_q=True):
 
     tiles = tiling.SquareDiagTiles(a, tile_per_proc=2)
     # print(tiles.tile_map)
-    lshape_map = tiles.lsahpe_map
+    lshape_map = tiles.lshape_map
     tile_columns = tiles.tile_columns
     tile_rows = tiles.tile_rows
     tile_rows_per_process = tiles.tile_rows_per_process
@@ -833,27 +833,23 @@ def qr(a, calc_q=True):
 
             q_dict[col]['0'] = q1
             tiles.local_set(key=(local_tile_row, col), data=r1, proc=rank)  # set the r1 to the tile selected with the key
-            # base_tile = r1
-            # print(base_tile)
             if col != tile_columns - 1:
                 base_rest = tiles.local_get((local_tile_row, slice(col + 1, None)), proc=rank)
                 loc_rest = q1.T @ base_rest
                 tiles.local_set(key=(local_tile_row, slice(col + 1, None)), data=loc_rest, proc=rank)
-        #     local_a[st0:sp0, st1:sp1] = r1
-        #     local_a[st0:sp0, sp1:] = q1.T @ local_a[st0:sp0, sp1:]
             # this loop is local TSQR
             for d in range(local_tile_row + 1, tile_rows_per_process[rank]):
                 # local merge todo: binary tree merge
                 # d is the row it is being merged with
                 loop_tile = tiles.local_get(key=(d, col), proc=rank)
                 q_lp, r_lp = torch.cat((base_tile, loop_tile), dim=0).qr(some=False)
-                # todo: replace the base/loop tiles with r, then multiple q_lp by the rest of them
+                # replace the base/loop tiles with r, then multiple q_lp by the rest of them
                 loop_rest = tiles.local_get((d, slice(col + 1, None)), proc=rank)
                 loop_rest_q = q_lp.T @ torch.cat((base_rest, loop_rest), dim=0)
                 # set r in both
                 tiles.local_set(key=(local_tile_row, col), data=r_lp[:base_tile.shape[0]], proc=rank)
                 tiles.local_set(key=(d, col), data=r_lp[base_tile.shape[0]:], proc=rank)
-                # # todo: set rest in both
+                # set rest in both
                 tiles.local_set(key=(local_tile_row, slice(col + 1, None)), data=loop_rest_q[:base_tile.shape[0]], proc=rank)
                 tiles.local_set(key=(d, slice(col + 1, None)), data=loop_rest_q[base_tile.shape[0]:], proc=rank)
         #     for d in range(local_tile_row_index + 1, num_local_row_tiles[rank]):  # this loop is for column tiles on a process
