@@ -49,6 +49,160 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.add('T', 's')
 
+    def test_bitwise_and(self):
+        an_int_tensor = ht.array([
+            [1, 2],
+            [3, 4]
+        ])
+        an_int_vector = ht.array([2, 2])
+        another_int_vector = ht.array([2, 2, 2, 2])
+
+        int_result = ht.array([
+            [0, 2],
+            [2, 0]
+        ])
+
+        int16_result = ht.array([
+            [0, 2],
+            [2, 0],
+        ], dtype=ht.int16)
+
+        a_boolean_vector = ht.array([False, True, False, True])
+        another_boolean_vector = ht.array([False, False, True, True])
+        boolean_result = ht.array([False, False, False, True])
+
+        self.assertTrue(ht.equal(ht.bitwise_and(an_int_tensor, self.an_int_scalar), int_result))
+        self.assertTrue(ht.equal(ht.bitwise_and(an_int_tensor, an_int_vector), int_result))
+        self.assertTrue(ht.equal(ht.bitwise_and(a_boolean_vector, another_boolean_vector), boolean_result))
+
+        with self.assertRaises(TypeError):
+            ht.bitwise_and(self.a_tensor, self.another_tensor)
+        with self.assertRaises(TypeError):
+            ht.bitwise_and(another_int_vector, a_boolean_vector)
+        with self.assertRaises(ValueError):
+            ht.bitwise_and(an_int_vector, another_int_vector)
+        with self.assertRaises(TypeError):
+            ht.bitwise_and(self.a_tensor, self.errorneous_type)
+        with self.assertRaises(TypeError):
+            ht.bitwise_and('T', 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_and(an_int_tensor, 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_and(self.an_int_scalar, 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_and('s', self.an_int_scalar)
+        with self.assertRaises(TypeError):
+            ht.bitwise_and(self.an_int_scalar, self.a_scalar) 
+        with self.assertRaises(TypeError):
+            ht.bitwise_and(int_result, int16_result)
+        with self.assertRaises(NotImplementedError):
+            ht.bitwise_and([1],2)
+        with self.assertRaises(TypeError):
+            ht.bitwise_and(1,[2])
+    
+    def test_bitwise_or(self):
+        an_int_tensor = ht.array([
+            [1, 2],
+            [3, 4]
+        ])
+        an_int_vector = ht.array([2, 2])
+        another_int_vector = ht.array([2, 2, 2, 2])
+
+        int_result = ht.array([
+            [3, 2],
+            [3, 6]
+        ])
+
+        int16_result = ht.array([
+            [0, 2],
+            [2, 0],
+        ], dtype=ht.int16)
+
+        a_boolean_vector = ht.array([False, True, False, True])
+        another_boolean_vector = ht.array([False, False, True, True])
+        boolean_result = ht.array([False, True, True, True])
+
+        self.assertTrue(ht.equal(ht.bitwise_or(an_int_tensor, self.an_int_scalar), int_result))
+        self.assertTrue(ht.equal(ht.bitwise_or(an_int_tensor, an_int_vector), int_result))
+        self.assertTrue(ht.equal(ht.bitwise_or(a_boolean_vector, another_boolean_vector), boolean_result))
+
+        with self.assertRaises(TypeError):
+            ht.bitwise_or(self.a_tensor, self.another_tensor)
+        with self.assertRaises(TypeError):
+            ht.bitwise_or(another_int_vector, a_boolean_vector)
+        with self.assertRaises(ValueError):
+            ht.bitwise_or(an_int_vector, another_int_vector)
+        with self.assertRaises(TypeError):
+            ht.bitwise_or(self.a_tensor, self.errorneous_type)
+        with self.assertRaises(TypeError):
+            ht.bitwise_or('T', 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_or(an_int_tensor, 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_or(self.an_int_scalar, 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_or('s', self.an_int_scalar)
+        with self.assertRaises(TypeError):
+            ht.bitwise_or(self.an_int_scalar, self.a_scalar) 
+        with self.assertRaises(TypeError):
+            ht.bitwise_or(int_result, int16_result)
+        with self.assertRaises(NotImplementedError):
+            ht.bitwise_or([1],2)
+        with self.assertRaises(TypeError):
+            ht.bitwise_or(1,[2])
+    
+    def test_bitwise_xor(self):
+        an_int_tensor = ht.array([
+            [1, 2],
+            [3, 4]
+        ])
+        an_int_vector = ht.array([2, 2])
+        another_int_vector = ht.array([2, 2, 2, 2])
+
+        int_result = ht.array([
+            [3, 0],
+            [1, 6]
+        ])
+
+        int16_result = ht.array([
+            [0, 2],
+            [2, 0],
+            
+        ], dtype=ht.int16)
+
+        a_boolean_vector = ht.array([False, True, False, True])
+        another_boolean_vector = ht.array([False, False, True, True])
+        boolean_result = ht.array([False, True, True, False])
+
+        self.assertTrue(ht.equal(ht.bitwise_xor(an_int_tensor, self.an_int_scalar), int_result))
+        self.assertTrue(ht.equal(ht.bitwise_xor(an_int_tensor, an_int_vector), int_result))
+        self.assertTrue(ht.equal(ht.bitwise_xor(a_boolean_vector, another_boolean_vector), boolean_result))
+
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor(self.a_tensor, self.another_tensor)
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor(another_int_vector, a_boolean_vector)
+        with self.assertRaises(ValueError):
+            ht.bitwise_xor(an_int_vector, another_int_vector)
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor(self.a_tensor, self.errorneous_type)
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor('T', 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor(an_int_tensor, 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor(self.an_int_scalar, 's')
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor('s', self.an_int_scalar)
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor(self.an_int_scalar, self.a_scalar) 
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor(int_result, int16_result)
+        with self.assertRaises(NotImplementedError):
+            ht.bitwise_xor([1],2)
+        with self.assertRaises(TypeError):
+            ht.bitwise_xor(1,[2])
+            
     def test_diff(self):
         ht_array = ht.random.rand(20, 20, 20, split=None)
         arb_slice = [0] * 3
@@ -467,18 +621,24 @@ class TestArithmetics(unittest.TestCase):
             ('__truediv__', operator.truediv, False),
             ('__floordiv__', operator.floordiv, False),
             ('__mod__', operator.mod, False),
-            ('__pow__', operator.pow, False)
+            ('__pow__', operator.pow, False),
+            ('__and__', operator.and_, False),
+            ('__or__', operator.or_, False),
+            ('__xor__', operator.xor, False)
         )
         tensor = ht.float32([[1, 4], [2, 3]])
         num = 3
         for (attr, op, commutative) in operators:
+            if attr in ['__and__', '__or__', '__xor__']:
+                tensor = ht.int64([[1, 4], [2, 3]])
             try:
                 func = tensor.__getattribute__(attr)
             except AttributeError:
                 continue
             self.assertTrue(callable(func))
             res_1 = op(tensor, num)
-            res_2 = op(num, tensor)
+            if attr not in ['__and__', '__or__', '__xor__']:
+                res_2 = op(num, tensor)
             if commutative:
                 self.assertTrue(ht.equal(res_1, res_2))
         # TODO: Test with split tensors when binary operations are working properly for split tensors
