@@ -1859,6 +1859,34 @@ class DNDarray:
         """
         return arithmetics.mod(self, other)
 
+    def modf(a):
+        """
+            Return the fractional and integral parts of an array, element-wise.
+            The fractional and integral parts are negative if the given number is negative.
+
+            Parameters
+            ----------
+            x : ht.DNDarray
+                Input array
+            out : ht.DNDarray, optional
+                A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+                If not provided or None, a freshly-allocated array is returned.
+
+            Returns
+            -------
+            tuple(ht.DNDarray: fractionalParts, ht.DNDarray: integralParts)
+
+            fractionalParts : ht.DNDdarray
+                Fractional part of x. This is a scalar if x is a scalar.
+
+            integralParts : ht.DNDdarray
+                Integral part of x. This is a scalar if x is a scalar.
+        """
+
+        return rounding.modf(a)
+
+
+
     def __mul__(self, other):
         """
         Element-wise multiplication (not matrix multiplication) with values from second operand (scalar or tensor)
