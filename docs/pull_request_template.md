@@ -13,18 +13,11 @@ Changes proposed:
 
 ## Type of change
 
-Select relevant options.
+Please delete options that are not relevant.
 
-[ ] Bug fix (non-breaking change which fixes an issue)
-[ ] New feature (non-breaking change which adds functionality)
-[ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-[ ] Documentation update
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] This change requires a documentation update
 
-Are all split configurations tested and accounted for?
-[ ] yes [ ] no
-Does this change require a documentation update outside of the changes proposed?
-[ ] yes [ ] no
-Does this change modify the behaviour of other functions?
-[ ] yes [ ] no
-Are there code practices which require justification?
-[ ] yes [ ] no
+Have you handled and tested all split configurations?
