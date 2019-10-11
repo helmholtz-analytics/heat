@@ -27,14 +27,16 @@ class TestTypes(unittest.TestCase):
         self.assertEqual(no_value._DNDarray__array.dtype, torch_type)
 
         # check a type constructor with a complex value
-        ground_truth = [
-            [3, 2, 1],
-            [4, 5, 6]
-        ]
+        ground_truth = [[3, 2, 1], [4, 5, 6]]
         elaborate_value = heat_type(ground_truth)
         self.assertIsInstance(elaborate_value, ht.DNDarray)
-        self.assertEqual(elaborate_value.shape, (2, 3,))
-        self.assertEqual((elaborate_value._DNDarray__array == torch.tensor(ground_truth, dtype=torch_type)).all().item(), 1)
+        self.assertEqual(elaborate_value.shape, (2, 3))
+        self.assertEqual(
+            (elaborate_value._DNDarray__array == torch.tensor(ground_truth, dtype=torch_type))
+            .all()
+            .item(),
+            1,
+        )
         self.assertEqual(elaborate_value._DNDarray__array.dtype, torch_type)
 
         # check exception when there is more than one parameter
@@ -101,52 +103,52 @@ class TestTypeConversion(unittest.TestCase):
         zeros_array = np.zeros((3,), dtype=np.int16)
 
         # casting - 'no'
-        self.assertTrue(ht.can_cast(ht.uint8, ht.uint8, casting='no'))
-        self.assertFalse(ht.can_cast(ht.uint8, ht.int16, casting='no'))
-        self.assertFalse(ht.can_cast(ht.uint8, ht.int8, casting='no'))
-        self.assertFalse(ht.can_cast(ht.float64, ht.bool, casting='no'))
-        self.assertTrue(ht.can_cast(1.0, ht.float32, casting='no'))
-        self.assertFalse(ht.can_cast(zeros_array, ht.float32, casting='no'))
+        self.assertTrue(ht.can_cast(ht.uint8, ht.uint8, casting="no"))
+        self.assertFalse(ht.can_cast(ht.uint8, ht.int16, casting="no"))
+        self.assertFalse(ht.can_cast(ht.uint8, ht.int8, casting="no"))
+        self.assertFalse(ht.can_cast(ht.float64, ht.bool, casting="no"))
+        self.assertTrue(ht.can_cast(1.0, ht.float32, casting="no"))
+        self.assertFalse(ht.can_cast(zeros_array, ht.float32, casting="no"))
 
         # casting - 'safe'
-        self.assertTrue(ht.can_cast(ht.uint8, ht.uint8, casting='safe'))
-        self.assertTrue(ht.can_cast(ht.uint8, ht.int16, casting='safe'))
-        self.assertFalse(ht.can_cast(ht.uint8, ht.int8, casting='safe'))
-        self.assertFalse(ht.can_cast(ht.float64, ht.bool, casting='safe'))
-        self.assertTrue(ht.can_cast(1.0, ht.float32, casting='safe'))
-        self.assertTrue(ht.can_cast(zeros_array, ht.float32, casting='safe'))
+        self.assertTrue(ht.can_cast(ht.uint8, ht.uint8, casting="safe"))
+        self.assertTrue(ht.can_cast(ht.uint8, ht.int16, casting="safe"))
+        self.assertFalse(ht.can_cast(ht.uint8, ht.int8, casting="safe"))
+        self.assertFalse(ht.can_cast(ht.float64, ht.bool, casting="safe"))
+        self.assertTrue(ht.can_cast(1.0, ht.float32, casting="safe"))
+        self.assertTrue(ht.can_cast(zeros_array, ht.float32, casting="safe"))
 
         # casting - 'same_kind'
-        self.assertTrue(ht.can_cast(ht.uint8, ht.uint8, casting='same_kind'))
-        self.assertTrue(ht.can_cast(ht.uint8, ht.int16, casting='same_kind'))
-        self.assertTrue(ht.can_cast(ht.uint8, ht.int8, casting='same_kind'))
-        self.assertFalse(ht.can_cast(ht.float64, ht.bool, casting='same_kind'))
-        self.assertTrue(ht.can_cast(1.0, ht.float32, casting='same_kind'))
-        self.assertTrue(ht.can_cast(zeros_array, ht.float32, casting='same_kind'))
+        self.assertTrue(ht.can_cast(ht.uint8, ht.uint8, casting="same_kind"))
+        self.assertTrue(ht.can_cast(ht.uint8, ht.int16, casting="same_kind"))
+        self.assertTrue(ht.can_cast(ht.uint8, ht.int8, casting="same_kind"))
+        self.assertFalse(ht.can_cast(ht.float64, ht.bool, casting="same_kind"))
+        self.assertTrue(ht.can_cast(1.0, ht.float32, casting="same_kind"))
+        self.assertTrue(ht.can_cast(zeros_array, ht.float32, casting="same_kind"))
 
         # casting - 'unsafe'
-        self.assertTrue(ht.can_cast(ht.uint8, ht.uint8, casting='unsafe'))
-        self.assertTrue(ht.can_cast(ht.uint8, ht.int16, casting='unsafe'))
-        self.assertTrue(ht.can_cast(ht.uint8, ht.int8, casting='unsafe'))
-        self.assertTrue(ht.can_cast(ht.float64, ht.bool, casting='unsafe'))
-        self.assertTrue(ht.can_cast(1.0, ht.float32, casting='unsafe'))
-        self.assertTrue(ht.can_cast(zeros_array, ht.float32, casting='unsafe'))
+        self.assertTrue(ht.can_cast(ht.uint8, ht.uint8, casting="unsafe"))
+        self.assertTrue(ht.can_cast(ht.uint8, ht.int16, casting="unsafe"))
+        self.assertTrue(ht.can_cast(ht.uint8, ht.int8, casting="unsafe"))
+        self.assertTrue(ht.can_cast(ht.float64, ht.bool, casting="unsafe"))
+        self.assertTrue(ht.can_cast(1.0, ht.float32, casting="unsafe"))
+        self.assertTrue(ht.can_cast(zeros_array, ht.float32, casting="unsafe"))
 
         # exceptions
         with self.assertRaises(TypeError):
             ht.can_cast(ht.uint8, ht.uint8, casting=1)
         with self.assertRaises(ValueError):
-            ht.can_cast(ht.uint8, ht.uint8, casting='hello world')
+            ht.can_cast(ht.uint8, ht.uint8, casting="hello world")
         with self.assertRaises(TypeError):
-            ht.can_cast({}, ht.uint8, casting='unsafe')
+            ht.can_cast({}, ht.uint8, casting="unsafe")
         with self.assertRaises(TypeError):
-            ht.can_cast(ht.uint8, {}, casting='unsafe')
+            ht.can_cast(ht.uint8, {}, casting="unsafe")
 
     def test_canonical_heat_type(self):
         self.assertEqual(ht.core.types.canonical_heat_type(ht.float32), ht.float32)
-        self.assertEqual(ht.core.types.canonical_heat_type('?'), ht.bool)
+        self.assertEqual(ht.core.types.canonical_heat_type("?"), ht.bool)
         self.assertEqual(ht.core.types.canonical_heat_type(int), ht.int32)
-        self.assertEqual(ht.core.types.canonical_heat_type('u1'), ht.uint8)
+        self.assertEqual(ht.core.types.canonical_heat_type("u1"), ht.uint8)
         self.assertEqual(ht.core.types.canonical_heat_type(np.int8), ht.int8)
         self.assertEqual(ht.core.types.canonical_heat_type(torch.short), ht.int16)
 
@@ -157,7 +159,7 @@ class TestTypeConversion(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.core.types.canonical_heat_type(1)
         with self.assertRaises(TypeError):
-            ht.core.types.canonical_heat_type('i7')
+            ht.core.types.canonical_heat_type("i7")
 
     def test_heat_type_of(self):
         ht_tensor = ht.zeros((1,), dtype=ht.bool)
@@ -169,7 +171,7 @@ class TestTypeConversion(unittest.TestCase):
         scalar = 2.0
         self.assertEqual(ht.core.types.heat_type_of(scalar), ht.float32)
 
-        iterable = [3, 'hello world']
+        iterable = [3, "hello world"]
         self.assertEqual(ht.core.types.heat_type_of(iterable), ht.int32)
 
         with self.assertRaises(TypeError):
@@ -181,23 +183,21 @@ class TestTypeConversion(unittest.TestCase):
         self.assertEqual(ht.promote_types(ht.uint8, ht.uint8), ht.uint8)
         self.assertEqual(ht.promote_types(ht.int8, ht.uint8), ht.int16)
         self.assertEqual(ht.promote_types(ht.int32, ht.float32), ht.float64)
-        self.assertEqual(ht.promote_types('f4', ht.float), ht.float32)
-        self.assertEqual(ht.promote_types(ht.bool_, '?'), ht.bool)
+        self.assertEqual(ht.promote_types("f4", ht.float), ht.float32)
+        self.assertEqual(ht.promote_types(ht.bool_, "?"), ht.bool)
 
         # exceptions
         with self.assertRaises(TypeError):
-            ht.promote_types(1, '?')
+            ht.promote_types(1, "?")
         with self.assertRaises(TypeError):
-            ht.promote_types(ht.float32, 'hello world')
+            ht.promote_types(ht.float32, "hello world")
 
-
-class TestTypeConversion(unittest.TestCase):
     def test_finfo(self):
         info32 = ht.finfo(ht.float32)
         self.assertEqual(info32.bits, 32)
-        self.assertEqual(info32.max, (2-2**-23)*2**127)
+        self.assertEqual(info32.max, (2 - 2 ** -23) * 2 ** 127)
         self.assertEqual(info32.min, -info32.max)
-        self.assertEqual(info32.eps, 2**-23)
+        self.assertEqual(info32.eps, 2 ** -23)
 
         with self.assertRaises(TypeError):
             ht.finfo(1)
@@ -206,7 +206,7 @@ class TestTypeConversion(unittest.TestCase):
             ht.finfo(ht.int32)
 
         with self.assertRaises(TypeError):
-            ht.finfo('float16')
+            ht.finfo("float16")
 
     def test_iinfo(self):
         info32 = ht.iinfo(ht.int32)
@@ -221,4 +221,4 @@ class TestTypeConversion(unittest.TestCase):
             ht.iinfo(ht.float64)
 
         with self.assertRaises(TypeError):
-            ht.iinfo('int16')
+            ht.iinfo("int16")

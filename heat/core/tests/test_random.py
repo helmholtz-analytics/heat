@@ -23,9 +23,9 @@ class TestRandom(unittest.TestCase):
         self.assertTrue(ht.equal(a, c))
 
         # Random numbers with overflow
-        ht.random.set_state(('Threefry', seed, 0xfffffffffffffff0))
+        ht.random.set_state(("Threefry", seed, 0xFFFFFFFFFFFFFFF0))
         a = ht.random.rand(2, 3, 4, 5, split=0, comm=ht.MPI_WORLD)
-        ht.random.set_state(('Threefry', seed, 0x10000000000000000))
+        ht.random.set_state(("Threefry", seed, 0x10000000000000000))
         b = ht.random.rand(2, 44, split=0, comm=ht.MPI_WORLD)
         a = a.numpy().flatten()
         b = b.numpy().flatten()
@@ -34,7 +34,7 @@ class TestRandom(unittest.TestCase):
 
         # Check that random numbers don't repeat after first overflow
         seed = 12345
-        ht.random.set_state(('Threefry', seed, 0x10000000000000000))
+        ht.random.set_state(("Threefry", seed, 0x10000000000000000))
         a = ht.random.rand(2, 44)
         ht.random.seed(seed)
         b = ht.random.rand(2, 44)
@@ -43,10 +43,10 @@ class TestRandom(unittest.TestCase):
         # Check that we start from beginning after 128 bit overflow
         ht.random.seed(seed)
         a = ht.random.rand(2, 34, split=0)
-        ht.random.set_state(('Threefry', seed, 0xfffffffffffffffffffffffffffffff0))
+        ht.random.set_state(("Threefry", seed, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0))
         b = ht.random.rand(2, 50, split=0)
         a = a.numpy().flatten()
-        b = b.numpy(). flatten()
+        b = b.numpy().flatten()
         self.assertTrue(np.array_equal(a, b[32:]))
 
         # different split axis with resetting seed
@@ -78,7 +78,8 @@ class TestRandom(unittest.TestCase):
         a = ht.random.rand(11, 15, 3, 7, split=2, comm=ht.MPI_WORLD)
         a = a.numpy()
         _, counts = np.unique(a, return_counts=True)
-        self.assertTrue((counts == 1).all())    # Assert that no value appears more than once
+        # Assert that no value appears more than once
+        self.assertTrue((counts == 1).all())
 
         # Two large arrays that were created after each other don't share any values
         b = ht.random.rand(14, 7, 3, 12, 18, 42, split=5, comm=ht.MPI_WORLD)
@@ -104,7 +105,7 @@ class TestRandom(unittest.TestCase):
 
         # To big arrays cant be created
         with self.assertRaises(ValueError):
-            ht.random.randn(0xffffffffffffffff * 2 + 1, comm=ht.MPI_WORLD)
+            ht.random.randn(0xFFFFFFFFFFFFFFFF * 2 + 1, comm=ht.MPI_WORLD)
         with self.assertRaises(ValueError):
             ht.random.rand(3, 2, -2, 5, split=1, comm=ht.MPI_WORLD)
         with self.assertRaises(ValueError):
@@ -142,11 +143,11 @@ class TestRandom(unittest.TestCase):
         ht.random.seed(11111)
         a = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD).numpy()
         # Overflow reached
-        ht.random.set_state(('Threefry', 11111, 0x10000000000000000))
+        ht.random.set_state(("Threefry", 11111, 0x10000000000000000))
         b = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD).numpy()
         self.assertTrue(np.array_equal(a, b))
 
-        ht.random.set_state(('Threefry', 11111, 0x100000000))
+        ht.random.set_state(("Threefry", 11111, 0x100000000))
         c = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD).numpy()
         self.assertFalse(np.array_equal(a, c))
         self.assertFalse(np.array_equal(b, c))
@@ -163,8 +164,8 @@ class TestRandom(unittest.TestCase):
         self.assertTrue(((100000 <= a) & (a < 150000)).all())
 
         # For the range [0, 1) only the value 0 is allowed
-        a = ht.random.randint(1, size=(10, ), split=0)
-        b = ht.zeros((10, ), dtype=ht.int64, split=0)
+        a = ht.random.randint(1, size=(10,), split=0)
+        b = ht.zeros((10,), dtype=ht.int64, split=0)
         self.assertTrue(ht.equal(a, b))
 
         # Two arrays with the same seed and same number of elements have the same random values
@@ -175,7 +176,7 @@ class TestRandom(unittest.TestCase):
 
         ht.random.seed(13579)
         elements = np.prod(shape)
-        b = ht.random.randint(low=15, high=100, size=(elements, ))
+        b = ht.random.randint(low=15, high=100, size=(elements,))
         b = b.numpy()
         self.assertTrue(np.array_equal(a, b))
 
@@ -207,12 +208,12 @@ class TestRandom(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.random.randint(low=0, high=10, size=(3, -4))
         with self.assertRaises(ValueError):
-            ht.random.randint(low=0, high=10, size=(15, ), dtype=ht.float32)
+            ht.random.randint(low=0, high=10, size=(15,), dtype=ht.float32)
 
         # int32 tests
         ht.random.seed(4545)
         a = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0, comm=ht.MPI_WORLD)
-        ht.random.set_state(('Threefry', 4545, 0x10000000000000000))
+        ht.random.set_state(("Threefry", 4545, 0x10000000000000000))
         b = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0, comm=ht.MPI_WORLD)
 
         self.assertEqual(a.dtype, ht.int32)
@@ -231,8 +232,10 @@ class TestRandom(unittest.TestCase):
         self.assertFalse(np.array_equal(b, c))
         self.assertTrue(((50 <= c) & (c < 1000)).all())
 
-        ht.random.seed(0xfffffff)
-        a = ht.random.randint(10000, size=(123, 42, 13, 21), split=3, dtype=ht.int32, comm=ht.MPI_WORLD)
+        ht.random.seed(0xFFFFFFF)
+        a = ht.random.randint(
+            10000, size=(123, 42, 13, 21), split=3, dtype=ht.int32, comm=ht.MPI_WORLD
+        )
         a = a.numpy()
         mean = np.mean(a)
         median = np.median(a)
@@ -300,7 +303,7 @@ class TestRandom(unittest.TestCase):
         self.assertTrue(-0.01 < median < 0.01)
         self.assertTrue(0.99 < std < 1.01)
 
-        ht.random.set_state(('Threefry', 54321, 0x10000000000000000))
+        ht.random.set_state(("Threefry", 54321, 0x10000000000000000))
         b = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2, comm=ht.MPI_WORLD).numpy()
         self.assertTrue(np.array_equal(a, b))
 
@@ -309,14 +312,13 @@ class TestRandom(unittest.TestCase):
         self.assertFalse(np.array_equal(b, c))
 
     def test_set_state(self):
-        ht.random.set_state(('Threefry', 12345, 0xfff))
-        self.assertEqual(ht.random.get_state(), ('Threefry', 12345, 0xfff, 0, 0.0))
+        ht.random.set_state(("Threefry", 12345, 0xFFF))
+        self.assertEqual(ht.random.get_state(), ("Threefry", 12345, 0xFFF, 0, 0.0))
 
-        ht.random.set_state(('Threefry', 55555, 0xffffffffffffff, 'for', 'compatibility'))
-        self.assertEqual(ht.random.get_state(), ('Threefry', 55555, 0xffffffffffffff, 0, 0.0))
+        ht.random.set_state(("Threefry", 55555, 0xFFFFFFFFFFFFFF, "for", "compatibility"))
+        self.assertEqual(ht.random.get_state(), ("Threefry", 55555, 0xFFFFFFFFFFFFFF, 0, 0.0))
 
         with self.assertRaises(ValueError):
-            ht.random.set_state(('Thrfry', 12, 0xf))
+            ht.random.set_state(("Thrfry", 12, 0xF))
         with self.assertRaises(TypeError):
-            ht.random.set_state(('Threefry', 12345))
-
+            ht.random.set_state(("Threefry", 12345))
