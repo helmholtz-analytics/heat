@@ -195,6 +195,16 @@ class SquareDiagTiles:
             for p in range(arr.comm.size - last_diag_pr.item() + 1):
                 tile_map[:, st:st + tile_per_proc * (p + 1), 2] = p + last_diag_pr.item() + 1
                 st += tile_per_proc
+        for c, i in enumerate(row_per_proc_list):
+            try:
+                row_per_proc_list[c] = i.item()
+            except AttributeError:
+                pass
+        for c, i in enumerate(col_per_proc_list):
+            try:
+                col_per_proc_list[c] = i.item()
+            except AttributeError:
+                pass
 
         # =================================================================================================
         # col_per_proc_list = col_per_proc_list /
@@ -274,9 +284,9 @@ class SquareDiagTiles:
         """
         tile = self.__getitem__(key)
         comm = self.__DNDarray.comm
-        src = self.tile_map[key][..., 2].unique()
+        src = self.tile_map[key][..., 2].unique().item()
         if tile is not None:  # this will only be on one process (required by getitem)
-            comm.isend(tile.clone(), dest=dest)
+            comm.send(tile.clone(), dest=dest)
         if comm.rank == dest:
             ret = comm.irecv(source=src)
             return ret
@@ -446,7 +456,10 @@ class SquareDiagTiles:
     # todo: implement local_async_get
     def local_get_async(self, key, src, dest):
         if not isinstance(src, int):
-            raise TypeError('src must be an int, is currently {}'.format(type(src)))
+            try:
+                src = src.item()
+            except AttributeError:
+                raise TypeError('src must be an int, is currently {}'.format(type(src)))
         if not src < self.__DNDarray.comm.size or not dest < self.__DNDarray.comm.size:
             raise ValueError('src and dest must be less than the size, currently {} and {} respectively'.format(src, dest))
 
@@ -456,8 +469,7 @@ class SquareDiagTiles:
             comm.send(tile.clone(), dest=dest)
             return tile
         if comm.rank == dest:
-            ret = comm.irecv(source=src)
-            return ret
+            return comm.irecv(source=src)
 
     def local_get(self, key, proc=None):
         """
