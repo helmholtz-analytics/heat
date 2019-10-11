@@ -575,7 +575,9 @@ class SquareDiagTiles:
 
     def __setitem__(self, key, value):
         """
-        Item setter, this uses the torch item setter and the getitem routines to set the values of the original array (arr in __init__)
+        Item setter,
+        uses the torch item setter and the getitem routines to set the values of the original array
+        (arr in __init__)
 
         Parameters
         ----------
@@ -597,7 +599,8 @@ class SquareDiagTiles:
 
     def get_start_stop(self, key):
         """
-        Very similar to the getitem routine, returns the start and stop indices which correspond to the selected tile
+        Very similar to the getitem routine,
+        returns the start and stop indices which correspond to the selected tile
 
         Parameters
         ----------
@@ -610,7 +613,8 @@ class SquareDiagTiles:
         tuple : dim0 start, dim0 stop, dim1 start, dim1 stop
         """
         # default getitem will return the data in the array!!
-        # this is intended to return tiles which are local. it will return torch.Tensors which correspond to the tiles of the array
+        # this is intended to return tiles which are local.
+        # it will return torch.Tensors which correspond to the tiles of the array
         # this is a global getter, if the tile is not on the process then it will return None
         arr = self.__DNDarray
         tile_map = self.__tile_map
@@ -677,7 +681,7 @@ class SquareDiagTiles:
                     stop = key[slice_dim].stop if key[slice_dim].stop is not None else arr.gshape[slice_dim]
                     key[slice_dim] = slice(start, stop)
 
-                    prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank]) if arr.split == 0 else sum(self.__col_per_proc_list[:arr.comm.rank])
+                    prev_to_split = sum(self.__row_per_proc_list[: arr.comm.rank]) if arr.split == 0 else sum(self.__col_per_proc_list[:arr.comm.rank])
                     if arr.split == 0:
                         st0 = tile_map[key[0], 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
                         sp0 = tile_map[key[0] + 1, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]

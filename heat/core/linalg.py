@@ -983,11 +983,12 @@ def __merge_rows_qr(pr0, pr1, column, rank, tiles, diag_process):
     if rank == pr0:
         # need to set the new upper_rest
         # the data for upper rest is a slice of the new_rest, need to slice only the 0th dim
-        tiles.local_set(key=(upper_row, slice(column + 1, None)), data=new_rest[:upper_rest.shape[0]], proc=pr0)
+        tiles.local_set(key=(upper_row, slice(column + 1, None)),
+                        data=new_rest[:upper_rest.shape[0]], proc=pr0)
     else:
         # set the lower rest
-        # get the end of the other tile (in the split direction) to determine how to slice the qr results
-        tiles.local_set(key=(lower_row, slice(column + 1, None)), data=new_rest[upper_rest.shape[0]:], proc=pr0)
+        tiles.local_set(key=(lower_row, slice(column + 1, None)),
+                        data=new_rest[upper_rest.shape[0]:], proc=pr1)
     return q_merge
 
 
@@ -1005,10 +1006,12 @@ def qr_old(a, copy=True, return_q=True, output=None):
 
     References
     ----------
-    [0] Jaeyoung Choi, Jack J. Dongarra, L. Susan Ostrouchov, Antoine P. Petitet, David W. Walker, and R. Clint Whaley,
-        “Design and Implementation of the ScaLAPACK LU, QR, and Cholesky Factorization Routines,” Scientific Programming,
-        vol. 5, no. 3, pp. 173-184, 1996. https://doi.org/10.1155/1996/483083.
-    [1] Gene H. Golub and Charles F. Van Loan. 1996. Matrix Computations (3rd Ed.). Johns Hopkins University Press, Baltimore, MD, USA.
+    [0] Jaeyoung Choi, Jack J. Dongarra, L. Susan Ostrouchov, Antoine P. Petitet, David W. Walker,
+        and R. Clint Whaley, “Design and Implementation of the ScaLAPACK LU, QR, and Cholesky
+        Factorization Routines,” Scientific Programming, vol. 5, no. 3, pp. 173-184, 1996.
+        https://doi.org/10.1155/1996/483083.
+    [1] Gene H. Golub and Charles F. Van Loan. 1996. Matrix Computations (3rd Ed.).
+    Johns Hopkins University Press, Baltimore, MD, USA.
     """
     if not isinstance(a, dndarray.DNDarray):
         raise TypeError('\'a\' must be a DNDarray')
