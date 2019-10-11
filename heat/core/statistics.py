@@ -100,9 +100,7 @@ def argmax(x, axis=None, out=None, **kwargs):
     )
 
     # correct the tensor
-    reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(
-        torch.int64
-    )
+    reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(torch.int64)
     reduced_result._DNDarray__dtype = types.int64
 
     # address lshape/gshape mismatch when axis is 0
@@ -202,9 +200,7 @@ def argmin(x, axis=None, out=None, **kwargs):
     )
 
     # correct the tensor
-    reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(
-        torch.int64
-    )
+    reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(torch.int64)
     reduced_result._DNDarray__dtype = types.int64
 
     # address lshape/gshape mismatch when axis is 0
@@ -307,9 +303,7 @@ def average(x, axis=None, weights=None, returned=False):
     if not isinstance(x, dndarray.DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
     if weights is not None and not isinstance(weights, dndarray.DNDarray):
-        raise TypeError(
-            "expected weights to be a ht.DNDarray, but was {}".format(type(x))
-        )
+        raise TypeError("expected weights to be a ht.DNDarray, but was {}".format(type(x)))
     axis = stride_tricks.sanitize_axis(x.shape, axis)
 
     if weights is None:
@@ -322,21 +316,13 @@ def average(x, axis=None, weights=None, returned=False):
         # weights (global) is either same size as x (global), or it is 1D and same size as x along chosen axis
         if x.gshape != weights.gshape:
             if axis is None:
-                raise TypeError(
-                    "Axis must be specified when shapes of x and weights differ."
-                )
+                raise TypeError("Axis must be specified when shapes of x and weights differ.")
             if isinstance(axis, tuple):
-                raise NotImplementedError(
-                    "Weighted average over tuple axis not implemented yet."
-                )
+                raise NotImplementedError("Weighted average over tuple axis not implemented yet.")
             if weights.numdims != 1:
-                raise TypeError(
-                    "1D weights expected when shapes of x and weights differ."
-                )
+                raise TypeError("1D weights expected when shapes of x and weights differ.")
             if weights.gshape[0] != x.gshape[axis]:
-                raise ValueError(
-                    "Length of weights not compatible with specified axis."
-                )
+                raise ValueError("Length of weights not compatible with specified axis.")
 
         wgt = factories.empty_like(weights)
         wgt._DNDarray__array = weights._DNDarray__array
@@ -346,9 +332,7 @@ def average(x, axis=None, weights=None, returned=False):
         if wgt.numdims == 1 and x.numdims != 1:
             if wgt.split is not None:
                 wgt.resplit_(None)
-            weights_newshape = tuple(
-                1 if i != axis else x.gshape[axis] for i in range(x.numdims)
-            )
+            weights_newshape = tuple(1 if i != axis else x.gshape[axis] for i in range(x.numdims))
             wgt._DNDarray__array = torch.reshape(wgt._DNDarray__array, weights_newshape)
             wgt._DNDarray__gshape = weights_newshape
 
@@ -430,9 +414,7 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
         if y.numdims == 1:
             y = y.expand_dims(1)
         if not y.is_balanced():
-            raise RuntimeError(
-                "balance is required for cov(). use balance_() to balance y"
-            )
+            raise RuntimeError("balance is required for cov(). use balance_() to balance y")
         if not rowvar and y.shape[0] != 1:
             y = y.T
 
@@ -442,9 +424,7 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     norm = x.shape[1] - ddof
     # find normalization:
     if norm <= 0:
-        raise ValueError(
-            "ddof >= number of elements in m, {} {}".format(ddof, m.gnumel)
-        )
+        raise ValueError("ddof >= number of elements in m, {} {}".format(ddof, m.gnumel))
     x -= avg.expand_dims(1)
     c = linalg.dot(x, x.T)
     c /= norm
@@ -529,9 +509,7 @@ def max(x, axis=None, out=None, keepdim=None):
             result = result[0]
         return result
 
-    return operations.__reduce_op(
-        x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim
-    )
+    return operations.__reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
 
 
 def maximum(x1, x2, out=None):
@@ -607,14 +585,10 @@ def maximum(x1, x2, out=None):
     # perform sanitation
     if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
         raise TypeError(
-            "expected x1 and x2 to be a ht.DNDarray, but were {}, {} ".format(
-                type(x1), type(x2)
-            )
+            "expected x1 and x2 to be a ht.DNDarray, but were {}, {} ".format(type(x1), type(x2))
         )
     if out is not None and not isinstance(out, dndarray.DNDarray):
-        raise TypeError(
-            "expected out to be None or an ht.DNDarray, but was {}".format(type(out))
-        )
+        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
     # apply split semantics
     if x1.split is not None or x2.split is not None:
@@ -670,9 +644,7 @@ def maximum(x1, x2, out=None):
     if out is not None:
         if out.shape != output_lshape:
             raise ValueError(
-                "Expecting output buffer of shape {}, got {}".format(
-                    output_lshape, out.shape
-                )
+                "Expecting output buffer of shape {}, got {}".format(output_lshape, out.shape)
             )
         out._DNDarray__array = lresult._DNDarray__array
         out._DNDarray__dtype = lresult._DNDarray__dtype
@@ -760,9 +732,7 @@ def mean(x, axis=None):
         x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
-            mu_tot[0, :], n_tot[0] = merge_means(
-                mu_tot[0, :], n_tot[0], mu_tot[i, :], n_tot[i]
-            )
+            mu_tot[0, :], n_tot[0] = merge_means(mu_tot[0, :], n_tot[0], mu_tot[i, :], n_tot[i])
 
         return mu_tot[0]
 
@@ -772,12 +742,7 @@ def mean(x, axis=None):
             # if x is not distributed do a torch.mean on x
             ret = torch.mean(x._DNDarray__array.float())
             return dndarray.DNDarray(
-                ret,
-                tuple(ret.shape),
-                types.canonical_heat_type(ret.dtype),
-                None,
-                x.device,
-                x.comm,
+                ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm
             )
         else:
             # if x is distributed and no axis is given: return mean of the whole set
@@ -792,9 +757,7 @@ def mean(x, axis=None):
             x.comm.Allreduce(mu_proc, mu_tot, MPI.SUM)
 
             for i in range(1, x.comm.size):
-                merged = merge_means(
-                    mu_tot[0, 0], mu_tot[0, 1], mu_tot[i, 0], mu_tot[i, 1]
-                )
+                merged = merge_means(mu_tot[0, 0], mu_tot[0, 1], mu_tot[i, 0], mu_tot[i, 1])
                 mu_tot[0, 0] = merged[0]
                 mu_tot[0, 1] = merged[1]
 
@@ -810,16 +773,12 @@ def mean(x, axis=None):
                 )
             if any(d > len(x.shape) for d in axis):
                 raise ValueError(
-                    "axes (axis) must be < {}, currently are {}".format(
-                        len(x.shape), axis
-                    )
+                    "axes (axis) must be < {}, currently are {}".format(len(x.shape), axis)
                 )
             if any(d < 0 for d in axis):
                 axis = [j % len(x.shape) for j in axis]
 
-            output_shape = [
-                output_shape[it] for it in range(len(output_shape)) if it not in axis
-            ]
+            output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
             # multiple dimensions
             if x.split is None:
                 return dndarray.DNDarray(
@@ -848,16 +807,12 @@ def mean(x, axis=None):
         elif isinstance(axis, int):
             if axis >= len(x.shape):
                 raise ValueError(
-                    "axis (axis) must be < {}, currently is {}".format(
-                        len(x.shape), axis
-                    )
+                    "axis (axis) must be < {}, currently is {}".format(len(x.shape), axis)
                 )
             axis = axis if axis > 0 else axis % len(x.shape)
 
             # only one axis given
-            output_shape = [
-                output_shape[it] for it in range(len(output_shape)) if it != axis
-            ]
+            output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
             output_shape = output_shape if output_shape else (1,)
 
             if x.split is None:
@@ -1047,9 +1002,7 @@ def min(x, axis=None, out=None, keepdim=None):
             result = result[0]
         return result
 
-    return operations.__reduce_op(
-        x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim
-    )
+    return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
 
 
 def minimum(x1, x2, out=None):
@@ -1125,14 +1078,10 @@ def minimum(x1, x2, out=None):
     # perform sanitation
     if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
         raise TypeError(
-            "expected x1 and x2 to be a ht.DNDarray, but were {}, {} ".format(
-                type(x1), type(x2)
-            )
+            "expected x1 and x2 to be a ht.DNDarray, but were {}, {} ".format(type(x1), type(x2))
         )
     if out is not None and not isinstance(out, dndarray.DNDarray):
-        raise TypeError(
-            "expected out to be None or an ht.DNDarray, but was {}".format(type(out))
-        )
+        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
     # apply split semantics
     if x1.split is not None or x2.split is not None:
@@ -1188,9 +1137,7 @@ def minimum(x1, x2, out=None):
     if out is not None:
         if out.shape != output_lshape:
             raise ValueError(
-                "Expecting output buffer of shape {}, got {}".format(
-                    output_lshape, out.shape
-                )
+                "Expecting output buffer of shape {}, got {}".format(output_lshape, out.shape)
             )
         out._DNDarray__array = lresult._DNDarray__array
         out._DNDarray__dtype = lresult._DNDarray__dtype
@@ -1325,9 +1272,7 @@ def var(x, axis=None, bessel=True):
     tensor([1.0218, 2.4422, 0.1085, 0.9032])
     """
     if not isinstance(bessel, bool):
-        raise TypeError(
-            "bessel must be a boolean, currently is {}".format(type(bessel))
-        )
+        raise TypeError("bessel must be a boolean, currently is {}".format(type(bessel)))
 
     def reduce_vars_elementwise(output_shape_i):
         """
@@ -1384,12 +1329,7 @@ def var(x, axis=None, bessel=True):
         if not x.is_distributed():  # not distributed (full tensor on one node)
             ret = torch.var(x._DNDarray__array.float(), unbiased=bessel)
             return dndarray.DNDarray(
-                ret,
-                tuple(ret.shape),
-                types.canonical_heat_type(ret.dtype),
-                None,
-                x.device,
-                x.comm,
+                ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm
             )
 
         else:  # case for full matrix calculation (axis is None)
@@ -1429,14 +1369,10 @@ def var(x, axis=None, bessel=True):
         output_shape = list(x.shape)
         if isinstance(axis, int):
             if axis >= len(x.shape):
-                raise ValueError(
-                    "axis must be < {}, currently is {}".format(len(x.shape), axis)
-                )
+                raise ValueError("axis must be < {}, currently is {}".format(len(x.shape), axis))
             axis = axis if axis > 0 else axis % len(x.shape)
             # only one axis given
-            output_shape = [
-                output_shape[it] for it in range(len(output_shape)) if it != axis
-            ]
+            output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
             output_shape = output_shape if output_shape else (1,)
 
             if x.split is None:  # x is *not* distributed -> no need to distributed

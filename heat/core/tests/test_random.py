@@ -141,20 +141,14 @@ class TestRandom(unittest.TestCase):
         self.assertTrue(((0 <= c) & (c < 1)).all())
 
         ht.random.seed(11111)
-        a = ht.random.rand(
-            12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD
-        ).numpy()
+        a = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD).numpy()
         # Overflow reached
         ht.random.set_state(("Threefry", 11111, 0x10000000000000000))
-        b = ht.random.rand(
-            12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD
-        ).numpy()
+        b = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD).numpy()
         self.assertTrue(np.array_equal(a, b))
 
         ht.random.set_state(("Threefry", 11111, 0x100000000))
-        c = ht.random.rand(
-            12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD
-        ).numpy()
+        c = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, comm=ht.MPI_WORLD).numpy()
         self.assertFalse(np.array_equal(a, c))
         self.assertFalse(np.array_equal(b, c))
 
@@ -218,13 +212,9 @@ class TestRandom(unittest.TestCase):
 
         # int32 tests
         ht.random.seed(4545)
-        a = ht.random.randint(
-            50, 1000, size=(13, 45), dtype=ht.int32, split=0, comm=ht.MPI_WORLD
-        )
+        a = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0, comm=ht.MPI_WORLD)
         ht.random.set_state(("Threefry", 4545, 0x10000000000000000))
-        b = ht.random.randint(
-            50, 1000, size=(13, 45), dtype=ht.int32, split=0, comm=ht.MPI_WORLD
-        )
+        b = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0, comm=ht.MPI_WORLD)
 
         self.assertEqual(a.dtype, ht.int32)
         self.assertEqual(a._DNDarray__array.dtype, torch.int32)
@@ -236,9 +226,7 @@ class TestRandom(unittest.TestCase):
         self.assertTrue(((50 <= a) & (a < 1000)).all())
         self.assertTrue(((50 <= b) & (b < 1000)).all())
 
-        c = ht.random.randint(
-            50, 1000, size=(13, 45), dtype=ht.int32, split=0, comm=ht.MPI_WORLD
-        )
+        c = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0, comm=ht.MPI_WORLD)
         c = c.numpy()
         self.assertFalse(np.array_equal(a, c))
         self.assertFalse(np.array_equal(b, c))
@@ -316,14 +304,10 @@ class TestRandom(unittest.TestCase):
         self.assertTrue(0.99 < std < 1.01)
 
         ht.random.set_state(("Threefry", 54321, 0x10000000000000000))
-        b = ht.random.randn(
-            30, 30, 30, dtype=ht.float32, split=2, comm=ht.MPI_WORLD
-        ).numpy()
+        b = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2, comm=ht.MPI_WORLD).numpy()
         self.assertTrue(np.array_equal(a, b))
 
-        c = ht.random.randn(
-            30, 30, 30, dtype=ht.float32, split=2, comm=ht.MPI_WORLD
-        ).numpy()
+        c = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2, comm=ht.MPI_WORLD).numpy()
         self.assertFalse(np.array_equal(a, c))
         self.assertFalse(np.array_equal(b, c))
 
@@ -331,12 +315,8 @@ class TestRandom(unittest.TestCase):
         ht.random.set_state(("Threefry", 12345, 0xFFF))
         self.assertEqual(ht.random.get_state(), ("Threefry", 12345, 0xFFF, 0, 0.0))
 
-        ht.random.set_state(
-            ("Threefry", 55555, 0xFFFFFFFFFFFFFF, "for", "compatibility")
-        )
-        self.assertEqual(
-            ht.random.get_state(), ("Threefry", 55555, 0xFFFFFFFFFFFFFF, 0, 0.0)
-        )
+        ht.random.set_state(("Threefry", 55555, 0xFFFFFFFFFFFFFF, "for", "compatibility"))
+        self.assertEqual(ht.random.get_state(), ("Threefry", 55555, 0xFFFFFFFFFFFFFF, 0, 0.0))
 
         with self.assertRaises(ValueError):
             ht.random.set_state(("Thrfry", 12, 0xF))

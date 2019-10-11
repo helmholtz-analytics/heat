@@ -73,9 +73,7 @@ class generic:
 
         # check whether there are too many arguments
         if value_count >= 2:
-            raise TypeError(
-                "function takes at most 1 argument ({} given)".format(value_count)
-            )
+            raise TypeError("function takes at most 1 argument ({} given)".format(value_count))
         # if no value is given, we will initialize the value to be zero
         elif value_count == 0:
             value = ((0,),)
@@ -84,9 +82,7 @@ class generic:
         try:
             array = value[0]._DNDarray__array.type(torch_type)
             if value[0].split is None:
-                return factories.array(
-                    array, dtype=cls, split=None, comm=comm, device=device
-                )
+                return factories.array(array, dtype=cls, split=None, comm=comm, device=device)
             else:
                 return factories.array(
                     array, dtype=cls, is_split=value[0].split, comm=comm, device=device

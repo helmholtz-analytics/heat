@@ -32,9 +32,7 @@ def abs(x, out=None, dtype=None):
 
     absolute_values = operations.__local_op(torch.abs, x, out)
     if dtype is not None:
-        absolute_values._DNDarray__array = absolute_values._DNDarray__array.type(
-            dtype.torch_type()
-        )
+        absolute_values._DNDarray__array = absolute_values._DNDarray__array.type(dtype.torch_type())
         absolute_values._DNDarray__dtype = dtype
 
     return absolute_values
@@ -122,12 +120,7 @@ def clip(a, a_min, a_max, out=None):
 
     if out is None:
         return dndarray.DNDarray(
-            a._DNDarray__array.clamp(a_min, a_max),
-            a.shape,
-            a.dtype,
-            a.split,
-            a.device,
-            a.comm,
+            a._DNDarray__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, a.device, a.comm
         )
     if not isinstance(out, dndarray.DNDarray):
         raise TypeError("out must be a tensor")

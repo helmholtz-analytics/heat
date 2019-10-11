@@ -78,9 +78,7 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(three_arg_arange_dtype_float32.shape, (5,))
         self.assertLessEqual(three_arg_arange_dtype_float32.lshape[0], 5)
         self.assertEqual(three_arg_arange_dtype_float32.dtype, ht.float32)
-        self.assertEqual(
-            three_arg_arange_dtype_float32._DNDarray__array.dtype, torch.float32
-        )
+        self.assertEqual(three_arg_arange_dtype_float32._DNDarray__array.dtype, torch.float32)
         self.assertEqual(three_arg_arange_dtype_float32.split, 0)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_dtype_float32.sum(axis=0, keepdim=True), 20.0)
@@ -91,9 +89,7 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(three_arg_arange_dtype_short.shape, (5,))
         self.assertLessEqual(three_arg_arange_dtype_short.lshape[0], 5)
         self.assertEqual(three_arg_arange_dtype_short.dtype, ht.int16)
-        self.assertEqual(
-            three_arg_arange_dtype_short._DNDarray__array.dtype, torch.int16
-        )
+        self.assertEqual(three_arg_arange_dtype_short._DNDarray__array.dtype, torch.int16)
         self.assertEqual(three_arg_arange_dtype_short.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_dtype_short.sum(axis=0, keepdim=True), 20)
@@ -104,9 +100,7 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(three_arg_arange_dtype_float64.shape, (5,))
         self.assertLessEqual(three_arg_arange_dtype_float64.lshape[0], 5)
         self.assertEqual(three_arg_arange_dtype_float64.dtype, ht.float64)
-        self.assertEqual(
-            three_arg_arange_dtype_float64._DNDarray__array.dtype, torch.float64
-        )
+        self.assertEqual(three_arg_arange_dtype_float64._DNDarray__array.dtype, torch.float64)
         self.assertEqual(three_arg_arange_dtype_float64.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0, keepdim=True), 20.0)
@@ -139,9 +133,7 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(b.lshape, (2, 2))
         self.assertEqual(b.gshape, (2, 2))
         self.assertEqual(b.split, None)
-        self.assertTrue(
-            (b._DNDarray__array == torch.tensor(tuple_data, dtype=torch.int8)).all()
-        )
+        self.assertTrue((b._DNDarray__array == torch.tensor(tuple_data, dtype=torch.int8)).all())
 
         # basic array function, unsplit data, no copy
         torch_tensor = torch.tensor([6, 5, 4, 3, 2, 1])
@@ -162,9 +154,7 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(d.lshape, (3, 1, 1))
         self.assertEqual(d.gshape, (3, 1, 1))
         self.assertEqual(d.split, None)
-        self.assertTrue(
-            (d._DNDarray__array == torch.tensor(vector_data).reshape(-1, 1, 1)).all()
-        )
+        self.assertTrue((d._DNDarray__array == torch.tensor(vector_data).reshape(-1, 1, 1)).all())
 
         # basic array function, unsplit data, additional dimensions
         vector_data = [4.0, 5.0, 6.0]
@@ -174,14 +164,10 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(d.lshape, (1, 1, 3))
         self.assertEqual(d.gshape, (1, 1, 3))
         self.assertEqual(d.split, None)
-        self.assertTrue(
-            (d._DNDarray__array == torch.tensor(vector_data).reshape(1, 1, -1)).all()
-        )
+        self.assertTrue((d._DNDarray__array == torch.tensor(vector_data).reshape(1, 1, -1)).all())
 
         # distributed array, chunk local data (split)
-        tensor_2d = ht.array(
-            [[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]], split=0
-        )
+        tensor_2d = ht.array([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]], split=0)
         self.assertIsInstance(tensor_2d, ht.DNDarray)
         self.assertEqual(tensor_2d.dtype, ht.float32)
         self.assertEqual(tensor_2d.gshape, (3, 3))
@@ -189,9 +175,7 @@ class TestFactories(unittest.TestCase):
         self.assertLessEqual(tensor_2d.lshape[0], 3)
         self.assertEqual(tensor_2d.lshape[1], 3)
         self.assertEqual(tensor_2d.split, 0)
-        self.assertTrue(
-            (tensor_2d._DNDarray__array == torch.tensor([1.0, 2.0, 3.0])).all()
-        )
+        self.assertTrue((tensor_2d._DNDarray__array == torch.tensor([1.0, 2.0, 3.0])).all())
 
         # distributed array, partial data (is_split)
         if ht.communication.MPI_WORLD.rank == 0:

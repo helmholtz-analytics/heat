@@ -193,9 +193,7 @@ class TestDNDarray(unittest.TestCase):
         self.assertFalse(data.is_distributed())
 
         data = ht.zeros((4, 4), split=0)
-        self.assertTrue(
-            data.comm.size > 1 and data.is_distributed() or not data.is_distributed()
-        )
+        self.assertTrue(data.comm.size > 1 and data.is_distributed() or not data.is_distributed())
 
     def test_item(self):
         x = ht.zeros((1,))
@@ -333,15 +331,11 @@ class TestDNDarray(unittest.TestCase):
         local_shape = (1, N + 1, 2 * N)
         local_tensor = self.reference_tensor[ht.MPI_WORLD.rank, :, :]
         self.assertEqual(a_tensor.lshape, local_shape)
-        self.assertTrue(
-            (a_tensor._DNDarray__array == local_tensor._DNDarray__array).all()
-        )
+        self.assertTrue((a_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
 
         # unsplit
         a_tensor.resplit_(axis=None)
-        self.assertTrue(
-            (a_tensor._DNDarray__array == self.reference_tensor._DNDarray__array).all()
-        )
+        self.assertTrue((a_tensor._DNDarray__array == self.reference_tensor._DNDarray__array).all())
 
         # split along axis = 1
         a_tensor.resplit_(axis=1)
@@ -355,15 +349,11 @@ class TestDNDarray(unittest.TestCase):
             ]
 
         self.assertEqual(a_tensor.lshape, local_shape)
-        self.assertTrue(
-            (a_tensor._DNDarray__array == local_tensor._DNDarray__array).all()
-        )
+        self.assertTrue((a_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
 
         # unsplit
         a_tensor.resplit_(axis=None)
-        self.assertTrue(
-            (a_tensor._DNDarray__array == self.reference_tensor._DNDarray__array).all()
-        )
+        self.assertTrue((a_tensor._DNDarray__array == self.reference_tensor._DNDarray__array).all())
 
         # split along axis = 2
         a_tensor.resplit_(axis=2)
@@ -373,9 +363,7 @@ class TestDNDarray(unittest.TestCase):
         ]
 
         self.assertEqual(a_tensor.lshape, local_shape)
-        self.assertTrue(
-            (a_tensor._DNDarray__array == local_tensor._DNDarray__array).all()
-        )
+        self.assertTrue((a_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
 
         expected = torch.ones((ht.MPI_WORLD.size, 100), dtype=torch.int64)
         data = ht.array(expected, split=1)

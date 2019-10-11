@@ -482,9 +482,7 @@ class DNDarray:
         dtype = types.canonical_heat_type(dtype)
         casted_array = self.__array.type(dtype.torch_type())
         if copy:
-            return DNDarray(
-                casted_array, self.shape, dtype, self.split, self.device, self.comm
-            )
+            return DNDarray(casted_array, self.shape, dtype, self.split, self.device, self.comm)
 
         self.__array = casted_array
         self.__dtype = dtype
@@ -646,9 +644,7 @@ class DNDarray:
                 if self.comm.rank == spr:
                     for pr in range(spr):
                         send_amt = abs(
-                            (
-                                chunk_map[pr, self.split] - lshape_map[pr, self.split]
-                            ).item()
+                            (chunk_map[pr, self.split] - lshape_map[pr, self.split]).item()
                         )
                         send_amt = (
                             send_amt
@@ -657,9 +653,7 @@ class DNDarray:
                         )
                         if send_amt:
                             send_slice[self.split] = slice(0, send_amt)
-                            keep_slice[self.split] = slice(
-                                send_amt, self.lshape[self.split]
-                            )
+                            keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
 
                             self.comm.Isend(
                                 self.__array[send_slice].clone(),
@@ -670,9 +664,7 @@ class DNDarray:
 
                 # else:
                 for pr in range(spr):
-                    snt = abs(
-                        (chunk_map[pr, self.split] - lshape_map[pr, self.split]).item()
-                    )
+                    snt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
                     snt = (
                         snt
                         if snt < lshape_map[spr, self.split]
@@ -713,9 +705,7 @@ class DNDarray:
         balanced_process = [False for _ in range(self.comm.size)]
         for pr in range(self.comm.size):
             balanced_process[pr] = (
-                True
-                if chunk_map[pr, self.split] == lshape_map[pr, self.split]
-                else False
+                True if chunk_map[pr, self.split] == lshape_map[pr, self.split] else False
             )
             if pr > 0:
                 if any(i is False for i in balanced_process[:pr]):
@@ -723,9 +713,7 @@ class DNDarray:
 
         for pr, b in enumerate(balanced_process[:-1]):
             if not b:  # if the process is not balanced
-                send_amt = abs(
-                    (chunk_map[pr, self.split] - lshape_map[pr, self.split]).item()
-                )
+                send_amt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
                 send_amt = (
                     send_amt
                     if send_amt < lshape_map[pr, self.split]
@@ -736,9 +724,7 @@ class DNDarray:
                         send_slice[self.split] = slice(
                             self.lshape[self.split] - send_amt, self.lshape[self.split]
                         )
-                        keep_slice[self.split] = slice(
-                            0, self.lshape[self.split] - send_amt
-                        )
+                        keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
 
                         self.comm.Send(
                             self.__array[send_slice].clone(),
@@ -751,9 +737,7 @@ class DNDarray:
                         shp = list(self.gshape)
                         shp[self.split] = send_amt
                         data = torch.zeros(shp, dtype=sl_dtype)
-                        self.comm.Recv(
-                            data, source=pr, tag=pr + self.comm.size + pr + 1
-                        )
+                        self.comm.Recv(data, source=pr, tag=pr + self.comm.size + pr + 1)
                         self.__array = torch.cat((data, self.__array), dim=self.split)
                     lshape_map[pr, self.split] -= send_amt
                     lshape_map[pr + 1, self.split] += send_amt
@@ -795,9 +779,7 @@ class DNDarray:
             is_empty = np.prod(self.__array.shape) == 0
             root = self.comm.allreduce(0 if is_empty else self.comm.rank, op=MPI.SUM)
 
-            return self.comm.bcast(
-                None if is_empty else cast_function(self.__array), root=root
-            )
+            return self.comm.bcast(None if is_empty else cast_function(self.__array), root=root)
 
         raise TypeError("only size-1 arrays can be converted to Python scalars")
 
@@ -1382,16 +1364,9 @@ class DNDarray:
             if not self.comm.size == 1:
                 if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                     # this will return a 1D array as the shape cannot be determined automatically
-                    arr = self.__array[
-                        key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]
-                    ]
+                    arr = self.__array[key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]]
                     return DNDarray(
-                        arr,
-                        tuple(arr.shape),
-                        self.dtype,
-                        self.split,
-                        self.device,
-                        self.comm,
+                        arr, tuple(arr.shape), self.dtype, self.split, self.device, self.comm
                     )
                 else:
                     return DNDarray(
@@ -1405,12 +1380,8 @@ class DNDarray:
             else:
                 if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                     # this will return a 1D array as the shape cannot be determined automatically
-                    arr = self.__array[
-                        key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]
-                    ]
-                    return DNDarray(
-                        arr, tuple(arr.shape), self.dtype, 0, self.device, self.comm
-                    )
+                    arr = self.__array[key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]]
+                    return DNDarray(arr, tuple(arr.shape), self.dtype, 0, self.device, self.comm)
 
                 else:
                     gout = tuple(self.__array[key].shape)
@@ -1420,12 +1391,7 @@ class DNDarray:
                         new_split = self.split
 
                     return DNDarray(
-                        self.__array[key],
-                        gout,
-                        self.dtype,
-                        new_split,
-                        self.device,
-                        self.comm,
+                        self.__array[key], gout, self.dtype, new_split, self.device, self.comm
                     )
 
         else:
@@ -1487,12 +1453,8 @@ class DNDarray:
                         key_stop = self.gshape[self.split] + key[self.split].stop
                     key_set = set(
                         range(
-                            key[self.split].start
-                            if key[self.split].start is not None
-                            else 0,
-                            key_stop
-                            if key_stop is not None
-                            else self.gshape[self.split],
+                            key[self.split].start if key[self.split].start is not None else 0,
+                            key_stop if key_stop is not None else self.gshape[self.split],
                             key[self.split].step if key[self.split].step else 1,
                         )
                     )
@@ -1501,9 +1463,7 @@ class DNDarray:
                     if overlap:  # if the slice is requesting data on the nodes
                         overlap.sort()
                         hold = [x - chunk_start for x in overlap]
-                        key[self.split] = slice(
-                            min(hold), max(hold) + 1, key[self.split].step
-                        )
+                        key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
                         arr = self.__array[tuple(key)]
                         gout = list(arr.shape)
 
@@ -1514,9 +1474,9 @@ class DNDarray:
                     key[self.split] = key[self.split] - chunk_start
                     arr = self.__array[tuple(key)]
                     gout = list(arr.shape)
-                elif key[self.split] < 0 and self.gshape[self.split] + key[
-                    self.split
-                ] in range(chunk_start, chunk_end):
+                elif key[self.split] < 0 and self.gshape[self.split] + key[self.split] in range(
+                    chunk_start, chunk_end
+                ):
                     key = list(key)
                     key[self.split] = key[self.split] + chunk_end - chunk_start
                     arr = self.__array[tuple(key)]
@@ -1565,9 +1525,7 @@ class DNDarray:
                 # this is for a list of values
                 # it will return a 1D DNDarray of the elements on each node which are in the key (will be split in the 0th dimension
                 key.lloc[..., self.split] -= chunk_start
-                key_new = [
-                    key._DNDarray__array[..., i] for i in range(len(self.gshape))
-                ]
+                key_new = [key._DNDarray__array[..., i] for i in range(len(self.gshape))]
                 arr = self.__array[tuple(key_new)]
                 gout = list(arr.shape)
                 new_split = 0
@@ -2193,9 +2151,7 @@ class DNDarray:
         if axis is None:
             gathered = torch.empty(self.shape, dtype=self.dtype.torch_type())
 
-            recv_counts, recv_displs, _ = self.comm.counts_displs_shape(
-                self.shape, self.split
-            )
+            recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
             self.comm.Allgatherv(
                 self.__array, (gathered, recv_counts, recv_displs), recv_axis=self.split
             )
@@ -2217,12 +2173,8 @@ class DNDarray:
             _, output_shape, _ = self.comm.chunk(self.shape, axis)
             redistributed = torch.empty(output_shape, dtype=self.dtype.torch_type())
 
-            send_counts, send_displs, _ = self.comm.counts_displs_shape(
-                self.lshape, axis
-            )
-            recv_counts, recv_displs, _ = self.comm.counts_displs_shape(
-                self.shape, self.split
-            )
+            send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
+            recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
             self.comm.Alltoallv(
                 (self.__array, send_counts, send_displs),
                 (redistributed, recv_counts, recv_displs),
@@ -2517,15 +2469,11 @@ class DNDarray:
                     overlap = list(
                         set(
                             range(
-                                key[self.split].start
-                                if key[self.split].start is not None
-                                else 0,
+                                key[self.split].start if key[self.split].start is not None else 0,
                                 key[self.split].stop
                                 if key[self.split].stop is not None
                                 else self.gshape[self.split],
-                                key[self.split].step
-                                if key[self.split].step is not None
-                                else 1,
+                                key[self.split].step if key[self.split].step is not None else 1,
                             )
                         )
                         & set(range(chunk_start, chunk_end))
@@ -2533,9 +2481,7 @@ class DNDarray:
                     if overlap:
                         overlap.sort()
                         hold = [x - chunk_start for x in overlap]
-                        key[self.split] = slice(
-                            min(hold), max(hold) + 1, key[self.split].step
-                        )
+                        key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
                         try:
                             self.__setter(tuple(key), value[overlap])
                         except TypeError as te:
@@ -2552,16 +2498,12 @@ class DNDarray:
 
                 elif key[self.split] < 0:
                     key = list(key)
-                    if self.gshape[self.split] + key[self.split] in range(
-                        chunk_start, chunk_end
-                    ):
+                    if self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
                         key[self.split] = key[self.split] + chunk_end - chunk_start
                         self.__setter(tuple(key), value)
 
             elif isinstance(key, slice) and self.split == 0:
-                overlap = list(
-                    set(range(key.start, key.stop)) & set(range(chunk_start, chunk_end))
-                )
+                overlap = list(set(range(key.start, key.stop)) & set(range(chunk_start, chunk_end)))
                 if overlap:
                     overlap.sort()
                     hold = [x - chunk_start for x in overlap]
@@ -2572,9 +2514,7 @@ class DNDarray:
                 # this is the case with a list of indices to set
                 key = key.copy()
                 key.lloc[..., self.split] -= chunk_start
-                key_new = [
-                    key._DNDarray__array[..., i] for i in range(len(self.gshape))
-                ]
+                key_new = [key._DNDarray__array[..., i] for i in range(len(self.gshape))]
                 self.__setter(tuple(key_new), value)
             else:
                 self.__setter(key, value)
@@ -2593,9 +2533,7 @@ class DNDarray:
             value = torch.from_numpy(value)
             self.__array.__setitem__(key, value.data)
         else:
-            raise NotImplementedError(
-                "Not implemented for {}".format(value.__class__.__name__)
-            )
+            raise NotImplementedError("Not implemented for {}".format(value.__class__.__name__))
 
     def sin(self, out=None):
         """

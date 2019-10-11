@@ -30,8 +30,7 @@ else:
     # warn the user about serial hdf5
     if not h5py.get_config().mpi and MPI_WORLD.rank == 0:
         warnings.warn(
-            "h5py does not support parallel I/O, falling back to slower serial I/O",
-            ImportWarning,
+            "h5py does not support parallel I/O, falling back to slower serial I/O", ImportWarning
         )
 
     # add functions to exports
@@ -40,9 +39,7 @@ else:
     def supports_hdf5():
         return True
 
-    def load_hdf5(
-        path, dataset, dtype=types.float32, split=None, device=None, comm=None
-    ):
+    def load_hdf5(path, dataset, dtype=types.float32, split=None, device=None, comm=None):
         """
         Loads data from an HDF5 file. The data may be distributed among multiple processing nodes via the split flag.
 
@@ -113,16 +110,12 @@ else:
                     data[indices], dtype=dtype.torch_type(), device=device.torch_device
                 )
             else:
-                warnings.warn(
-                    "More MPI ranks are used then the length of splitting dimension!"
-                )
+                warnings.warn("More MPI ranks are used then the length of splitting dimension!")
                 slice1 = tuple(
-                    slice(0, gshape[i]) if i != split else slice(0, 1)
-                    for i in range(dims)
+                    slice(0, gshape[i]) if i != split else slice(0, 1) for i in range(dims)
                 )
                 slice2 = tuple(
-                    slice(0, gshape[i]) if i != split else slice(0, 0)
-                    for i in range(dims)
+                    slice(0, gshape[i]) if i != split else slice(0, 0) for i in range(dims)
                 )
                 data = torch.tensor(
                     data[slice1], dtype=dtype.torch_type(), device=device.torch_device
@@ -170,9 +163,7 @@ else:
         # we only support a subset of possible modes
         if mode not in __VALID_WRITE_MODES:
             raise ValueError(
-                "mode was {}, not in possible modes {}".format(
-                    mode, __VALID_WRITE_MODES
-                )
+                "mode was {}, not in possible modes {}".format(mode, __VALID_WRITE_MODES)
             )
 
         # chunk the data, if no split is set maximize parallel I/O and chunk first axis
@@ -184,9 +175,7 @@ else:
             with h5py.File(path, mode, driver="mpio", comm=data.comm.handle) as handle:
                 dset = handle.create_dataset(dataset, data.shape, **kwargs)
                 dset[slices] = (
-                    data._DNDarray__array.cpu()
-                    if is_split
-                    else data._DNDarray__array[slices].cpu()
+                    data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
                 )
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
@@ -243,9 +232,7 @@ else:
     def supports_netcdf():
         return True
 
-    def load_netcdf(
-        path, variable, dtype=types.float32, split=None, device=None, comm=None
-    ):
+    def load_netcdf(path, variable, dtype=types.float32, split=None, device=None, comm=None):
         """
         Loads data from a NetCDF4 file. The data may be distributed among multiple processing nodes via the split flag.
 
@@ -360,9 +347,7 @@ else:
         # we only support a subset of possible modes
         if mode not in __VALID_WRITE_MODES:
             raise ValueError(
-                "mode was {}, not in possible modes {}".format(
-                    mode, __VALID_WRITE_MODES
-                )
+                "mode was {}, not in possible modes {}".format(mode, __VALID_WRITE_MODES)
             )
 
         # chunk the data, if no split is set maximize parallel I/O and chunk first axis
@@ -378,13 +363,9 @@ else:
                     handle.createDimension(name, elements)
                     dimension_names.append(name)
 
-                var = handle.createVariable(
-                    variable, data.dtype.char(), dimension_names, **kwargs
-                )
+                var = handle.createVariable(variable, data.dtype.char(), dimension_names, **kwargs)
                 var[slices] = (
-                    data._DNDarray__array.cpu()
-                    if is_split
-                    else data._DNDarray__array[slices].cpu()
+                    data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
                 )
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
@@ -596,9 +577,7 @@ def load_csv(
 
             # Find the correct starting point
             total_lines = torch.empty(size, dtype=torch.int32)
-            comm.Allgather(
-                torch.tensor([len(line_starts)], dtype=torch.int32), total_lines
-            )
+            comm.Allgather(torch.tensor([len(line_starts)], dtype=torch.int32), total_lines)
 
             cumsum = total_lines.cumsum(dim=0).tolist()
             start = next(i for i in range(size) if cumsum[i] > header_lines)
@@ -627,15 +606,11 @@ def load_csv(
                     last_line = torch.empty(1, dtype=torch.int32)
                     comm.Recv(last_line, source=rank + 1)
                 elif rank == size - 1:
-                    first_line = torch.tensor(
-                        displs[rank] + line_starts[0] - 1, dtype=torch.int32
-                    )
+                    first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
                     comm.Send(first_line, dest=rank - 1)
                 elif start < rank < size - 1:
                     last_line = torch.empty(1, dtype=torch.int32)
-                    first_line = torch.tensor(
-                        displs[rank] + line_starts[0] - 1, dtype=torch.int32
-                    )
+                    first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
                     comm.Send(first_line, dest=rank - 1)
                     comm.Recv(last_line, source=rank + 1)
 
@@ -653,9 +628,7 @@ def load_csv(
                 line = line.decode(encoding)
                 if len(line) > 0:
                     sep_values = [float(val) for val in line.split(sep)]
-                    local_tensor[actual_length] = torch.tensor(
-                        sep_values, dtype=dtype.torch_type()
-                    )
+                    local_tensor[actual_length] = torch.tensor(sep_values, dtype=dtype.torch_type())
                     actual_length += 1
 
         # In case there are some empty lines in the csv file
@@ -684,9 +657,7 @@ def load_csv(
                 values = line.replace("\n", "").replace("\r", "").split(sep)
                 values = [float(val) for val in values]
                 data.append(values[displs[rank] : displs[rank] + chunk[rank]])
-        resulting_tensor = factories.array(
-            data, dtype=dtype, is_split=1, device=device, comm=comm
-        )
+        resulting_tensor = factories.array(data, dtype=dtype, is_split=1, device=device, comm=comm)
 
     return resulting_tensor
 

@@ -115,10 +115,7 @@ class MPICommunication(Communication):
         return (
             start,
             tuple(shape[i] if i != split else end - start for i in range(dims)),
-            tuple(
-                slice(0, shape[i]) if i != split else slice(start, end)
-                for i in range(dims)
-            ),
+            tuple(slice(0, shape[i]) if i != split else slice(start, end) for i in range(dims)),
         )
 
     def counts_displs_shape(self, shape, axis):
@@ -205,9 +202,7 @@ class MPICommunication(Communication):
 
         # chain the types based on the
         for i in range(len(shape) - 1, -1, -1):
-            mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(
-                0, offsets[i]
-            )
+            mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
             mpi_type.Commit()
 
         if counts is not None:
@@ -281,9 +276,7 @@ class MPICommunication(Communication):
 
         # Step 1: Wrap along axes > 1 (all axes except send_axis and recv_axis
         for i in range(len(shape) - 1, 1, -1):
-            mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(
-                0, offsets[i]
-            )
+            mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
             mpi_type.Commit()
 
         # Step 2: Create Custom sized vector datatypes, according to rank-specific size along send_axis
@@ -292,24 +285,24 @@ class MPICommunication(Communication):
         send_elements[: obj.shape[1] % nproc] += 1
 
         # Create short_Type from the last entry of send_elements
-        mpi_short_type = mpi_type.Create_vector(
-            send_elements[-1], 1, strides[1]
-        ).Create_resized(0, offsets[1])
+        mpi_short_type = mpi_type.Create_vector(send_elements[-1], 1, strides[1]).Create_resized(
+            0, offsets[1]
+        )
         mpi_short_type.Commit()
         # Create long_Type from the first entry of send_elements (wraps one more mpi_type vector than short_Type
-        mpi_long_type = mpi_type.Create_vector(
-            send_elements[0], 1, strides[1]
-        ).Create_resized(0, offsets[1])
+        mpi_long_type = mpi_type.Create_vector(send_elements[0], 1, strides[1]).Create_resized(
+            0, offsets[1]
+        )
         mpi_long_type.Commit()
 
         # Step 3: Pack short_type and long_type along the recv_axis
-        mpi_short_type = mpi_short_type.Create_vector(
-            shape[0], 1, strides[0]
-        ).Create_resized(0, send_elements[-1] * obj.stride()[1] * obj.element_size())
+        mpi_short_type = mpi_short_type.Create_vector(shape[0], 1, strides[0]).Create_resized(
+            0, send_elements[-1] * obj.stride()[1] * obj.element_size()
+        )
         mpi_short_type.Commit()
-        mpi_long_type = mpi_long_type.Create_vector(
-            shape[0], 1, strides[0]
-        ).Create_resized(0, send_elements[0] * obj.stride()[1] * obj.element_size())
+        mpi_long_type = mpi_long_type.Create_vector(shape[0], 1, strides[0]).Create_resized(
+            0, send_elements[0] * obj.stride()[1] * obj.element_size()
+        )
         mpi_long_type.Commit()
 
         # Step 4: Prepare sencounts, senddispls and sendtypes for alltoallw
@@ -347,9 +340,7 @@ class MPICommunication(Communication):
 
         # Step 1: Wrap along axes > 0 (all axes except recv_axis)
         for i in range(len(shape) - 1, -1, -1):
-            mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(
-                0, offsets[i]
-            )
+            mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
             mpi_type.Commit()
 
         # Step 2: Receive blocks along the recv axis
@@ -468,20 +459,14 @@ class MPICommunication(Communication):
             # make a contiguous copy and reassign the storage, old will be collected
             dummy = sendbuf.contiguous()
             sendbuf.set_(
-                dummy.storage(),
-                dummy.storage_offset(),
-                size=dummy.shape,
-                stride=dummy.stride(),
+                dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride()
             )
             sendbuf = self.as_buffer(sendbuf)
         if isinstance(recvbuf, torch.Tensor):
             # nothing matches, the buffers have to be made contiguous
             dummy = recvbuf.contiguous()
             recvbuf.set_(
-                dummy.storage(),
-                dummy.storage_offset(),
-                size=dummy.shape,
-                stride=dummy.stride(),
+                dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride()
             )
             if sendbuf is MPI.IN_PLACE:
                 recvbuf = self.as_buffer(recvbuf)
@@ -607,10 +592,7 @@ class MPICommunication(Communication):
         if axis != 0:
             recvbuf = recvbuf.permute(*recv_axis_permutation)
             original_recvbuf.set_(
-                recvbuf.storage(),
-                recvbuf.storage_offset(),
-                recvbuf.shape,
-                recvbuf.stride(),
+                recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride()
             )
 
         return exit_code
@@ -635,9 +617,7 @@ class MPICommunication(Communication):
         recvbuf: Input Receivebuffer
         recv_axis: concatenation axis: The axis among which sendbuffer is distributed before allgather is performed
         """
-        return self.__allgather_like(
-            self.handle.Allgatherv, sendbuf, recvbuf, recv_axis
-        )
+        return self.__allgather_like(self.handle.Allgatherv, sendbuf, recvbuf, recv_axis)
 
     Allgatherv.__doc__ = MPI.Comm.Allgatherv.__doc__
 
@@ -649,9 +629,7 @@ class MPICommunication(Communication):
         recvbuf: Input Receivebuffer
         recv_axis: concatenation axis: The axis among which sendbuffer is distributed before allgather is performed
         """
-        return self.__allgather_like(
-            self.handle.Iallgather, sendbuf, recvbuf, recv_axis
-        )
+        return self.__allgather_like(self.handle.Iallgather, sendbuf, recvbuf, recv_axis)
 
     Iallgather.__doc__ = MPI.Comm.Iallgather.__doc__
 
@@ -663,9 +641,7 @@ class MPICommunication(Communication):
         recvbuf: Input Receivebuffer
         recv_axis: concatenation axis: The axis among which sendbuffer is distributed before allgather is performed
         """
-        return self.__allgather_like(
-            self.handle.Iallgatherv, sendbuf, recvbuf, recv_axis
-        )
+        return self.__allgather_like(self.handle.Iallgatherv, sendbuf, recvbuf, recv_axis)
 
     Iallgatherv.__doc__ = MPI.Comm.Iallgatherv.__doc__
 
@@ -704,9 +680,7 @@ class MPICommunication(Communication):
             sendbuf = sendbuf._DNDarray__array
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
-                "sendbuf of type {} does not support send_axis != 0".format(
-                    type(sendbuf)
-                )
+                "sendbuf of type {} does not support send_axis != 0".format(type(sendbuf))
             )
 
         # unpack the receive buffer
@@ -716,9 +690,7 @@ class MPICommunication(Communication):
             recvbuf = recvbuf._DNDarray__array
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
-                "recvbuf of type {} does not support send_axis != 0".format(
-                    type(recvbuf)
-                )
+                "recvbuf of type {} does not support send_axis != 0".format(type(recvbuf))
             )
 
         # keep a reference to the original buffer object
@@ -731,14 +703,8 @@ class MPICommunication(Communication):
 
             # Minimal Fix; Could possibly be improved when reworking counts, displs algorithmics
             if self.size > 1:
-                send_axis_permutation[0], send_axis_permutation[send_axis] = (
-                    send_axis,
-                    0,
-                )
-                recv_axis_permutation[0], recv_axis_permutation[recv_axis] = (
-                    recv_axis,
-                    0,
-                )
+                send_axis_permutation[0], send_axis_permutation[send_axis] = (send_axis, 0)
+                recv_axis_permutation[0], recv_axis_permutation[recv_axis] = (recv_axis, 0)
 
             else:
                 recv_counts = send_counts
@@ -761,10 +727,7 @@ class MPICommunication(Communication):
             if recv_axis != 0:
                 recvbuf = recvbuf.permute(*recv_axis_permutation)
                 original_recvbuf.set_(
-                    recvbuf.storage(),
-                    recvbuf.storage_offset(),
-                    recvbuf.shape,
-                    recvbuf.stride(),
+                    recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride()
                 )
 
         # slightly more difficult situation, senc and receive buffer need custom datatype preparation;
@@ -805,43 +768,27 @@ class MPICommunication(Communication):
         return exit_code
 
     def Alltoall(self, sendbuf, recvbuf, send_axis=0, recv_axis=None):
-        return self.__alltoall_like(
-            self.handle.Alltoall, sendbuf, recvbuf, send_axis, recv_axis
-        )
+        return self.__alltoall_like(self.handle.Alltoall, sendbuf, recvbuf, send_axis, recv_axis)
 
     Alltoall.__doc__ = MPI.Comm.Alltoall.__doc__
 
     def Alltoallv(self, sendbuf, recvbuf, send_axis=0, recv_axis=None):
-        return self.__alltoall_like(
-            self.handle.Alltoallv, sendbuf, recvbuf, send_axis, recv_axis
-        )
+        return self.__alltoall_like(self.handle.Alltoallv, sendbuf, recvbuf, send_axis, recv_axis)
 
     Alltoallv.__doc__ = MPI.Comm.Alltoallv.__doc__
 
     def Ialltoall(self, sendbuf, recvbuf, send_axis=0, recv_axis=None):
-        return self.__alltoall_like(
-            self.handle.Ialltoall, sendbuf, recvbuf, send_axis, recv_axis
-        )
+        return self.__alltoall_like(self.handle.Ialltoall, sendbuf, recvbuf, send_axis, recv_axis)
 
     Ialltoall.__doc__ = MPI.Comm.Ialltoall.__doc__
 
     def Ialltoallv(self, sendbuf, recvbuf, send_axis=0, recv_axis=None):
-        return self.__alltoall_like(
-            self.handle.Ialltoallv, sendbuf, recvbuf, send_axis, recv_axis
-        )
+        return self.__alltoall_like(self.handle.Ialltoallv, sendbuf, recvbuf, send_axis, recv_axis)
 
     Ialltoallv.__doc__ = MPI.Comm.Ialltoallv.__doc__
 
     def __scatter_like(
-        self,
-        func,
-        sendbuf,
-        recvbuf,
-        send_axis,
-        recv_axis,
-        send_factor=1,
-        recv_factor=1,
-        **kwargs
+        self, func, sendbuf, recvbuf, send_axis, recv_axis, send_factor=1, recv_factor=1, **kwargs
     ):
         # align the output buffer in the same way as the input buffer by default
         if recv_axis is None:
@@ -857,9 +804,7 @@ class MPICommunication(Communication):
             sendbuf = sendbuf._DNDarray__array
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
-                "sendbuf of type {} does not support send_axis != 0".format(
-                    type(sendbuf)
-                )
+                "sendbuf of type {} does not support send_axis != 0".format(type(sendbuf))
             )
 
         # unpack the receive buffer
@@ -869,9 +814,7 @@ class MPICommunication(Communication):
             recvbuf = recvbuf._DNDarray__array
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
-                "recvbuf of type {} does not support send_axis != 0".format(
-                    type(recvbuf)
-                )
+                "recvbuf of type {} does not support send_axis != 0".format(type(recvbuf))
             )
 
         # keep a reference to the original buffer object
@@ -908,23 +851,14 @@ class MPICommunication(Communication):
         if recv_axis != 0:
             recvbuf = recvbuf.permute(*recv_axis_permutation)
             original_recvbuf.set_(
-                recvbuf.storage(),
-                recvbuf.storage_offset(),
-                recvbuf.shape,
-                recvbuf.stride(),
+                recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride()
             )
 
         return exit_code
 
     def Gather(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
         return self.__scatter_like(
-            self.handle.Gather,
-            sendbuf,
-            recvbuf,
-            axis,
-            recv_axis,
-            root=root,
-            recv_factor=self.size,
+            self.handle.Gather, sendbuf, recvbuf, axis, recv_axis, root=root, recv_factor=self.size
         )
 
     Gather.__doc__ = MPI.Comm.Gather.__doc__
@@ -938,13 +872,7 @@ class MPICommunication(Communication):
 
     def Igather(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
         return self.__scatter_like(
-            self.handle.Igather,
-            sendbuf,
-            recvbuf,
-            axis,
-            recv_axis,
-            root=root,
-            recv_factor=self.size,
+            self.handle.Igather, sendbuf, recvbuf, axis, recv_axis, root=root, recv_factor=self.size
         )
 
     Igather.__doc__ = MPI.Comm.Igather.__doc__
@@ -990,13 +918,7 @@ class MPICommunication(Communication):
 
     def Scatter(self, sendbuf, recvbuf, root=0, axis=0, recv_axis=None):
         return self.__scatter_like(
-            self.handle.Scatter,
-            sendbuf,
-            recvbuf,
-            axis,
-            recv_axis,
-            root=root,
-            send_factor=self.size,
+            self.handle.Scatter, sendbuf, recvbuf, axis, recv_axis, root=root, send_factor=self.size
         )
 
     Scatter.__doc__ = MPI.Comm.Scatter.__doc__
@@ -1075,9 +997,7 @@ def sanitize_comm(comm):
     elif isinstance(comm, Communication):
         return comm
 
-    raise TypeError(
-        "Unknown communication, must be instance of {}".format(Communication)
-    )
+    raise TypeError("Unknown communication, must be instance of {}".format(Communication))
 
 
 def use_comm(comm=None):

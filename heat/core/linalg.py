@@ -331,9 +331,7 @@ def matmul(a, b):
             stop1 = index_map[pr, 0, 1, 1].item()
 
             for dim0 in range(
-                (stop0 - start0) // mB // a.comm.size
-                if a_d0_1s_flag
-                else (stop0 - start0) // mB
+                (stop0 - start0) // mB // a.comm.size if a_d0_1s_flag else (stop0 - start0) // mB
             ):
                 # loop over the number of blocks in the 0th dimension
                 for dim1 in range(
@@ -379,9 +377,7 @@ def matmul(a, b):
 
             # loop over the number of blocks in the 0th dimension
             for dim0 in range(
-                (stop0 - start0) // kB // b.comm.size
-                if b_d0_1s_flag
-                else (stop0 - start0) // kB
+                (stop0 - start0) // kB // b.comm.size if b_d0_1s_flag else (stop0 - start0) // kB
             ):
                 # loop over the number of blocks in the 1st dimension
                 for dim1 in range(
@@ -422,25 +418,13 @@ def matmul(a, b):
                             else range(b_block_map[b_proc].shape[0])
                         ):
                             # this offset is the same as before but for b
-                            a_start1 = int(
-                                a_block_map[a_proc, bl_0_a, bl_1_a, 1].item()
-                            )
-                            a_start0 = int(
-                                a_block_map[a_proc, bl_0_a, bl_1_a, 0].item()
-                            )
-                            a_block = a_data[
-                                a_start0 : a_start0 + mB, a_start1 : a_start1 + kB
-                            ]
+                            a_start1 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 1].item())
+                            a_start0 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 0].item())
+                            a_block = a_data[a_start0 : a_start0 + mB, a_start1 : a_start1 + kB]
 
-                            b_start0 = int(
-                                b_block_map[b_proc, bl_0_b, bl_1_b, 0].item()
-                            )
-                            b_start1 = int(
-                                b_block_map[b_proc, bl_0_b, bl_1_b, 1].item()
-                            )
-                            b_block = b_data[
-                                b_start0 : b_start0 + kB, b_start1 : b_start1 + nB
-                            ]
+                            b_start0 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 0].item())
+                            b_start1 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 1].item())
+                            b_block = b_data[b_start0 : b_start0 + kB, b_start1 : b_start1 + nB]
 
                             c_start0 = a_start0
                             c_start1 = b_start1
@@ -458,22 +442,14 @@ def matmul(a, b):
             b_rem_locs0 = (rem_map[:, 1, 0] == 1).nonzero()
             a_rem_locs0 = (rem_map[:, 0, 0] == 1).nonzero()
             # remainders for a in the
-            a_node_rem_s0 = a._DNDarray__array[
-                :mB, kB : (kB + 1) * b_rem_locs0.numel() : kB + 1
-            ]
-            b_rem = torch.empty(
-                b_rem_locs0.numel(), b.lshape[-1], dtype=a.dtype.torch_type()
-            )
+            a_node_rem_s0 = a._DNDarray__array[:mB, kB : (kB + 1) * b_rem_locs0.numel() : kB + 1]
+            b_rem = torch.empty(b_rem_locs0.numel(), b.lshape[-1], dtype=a.dtype.torch_type())
 
             # this if/elif/else loop is for the handling of
             if a.comm.rank in a_rem_locs0:
                 # if A is split in dim0 and the rank has a remainder in this direction
                 r = a._DNDarray__array[-1]
-                r_loc = (
-                    index_map[a.comm.rank, 0, 0, 1]
-                    - index_map[a.comm.rank, 0, 0, 0]
-                    - 1
-                )
+                r_loc = index_map[a.comm.rank, 0, 0, 1] - index_map[a.comm.rank, 0, 0, 0] - 1
             else:
                 r = None
                 r_loc = None
@@ -515,9 +491,7 @@ def matmul(a, b):
                         if r_loc is not None:
                             st = index_map[pr - 1, 1, 0, 0].item()
                             sp = index_map[pr - 1, 1, 0, 1].item()
-                            c._DNDarray__array[r_loc.item(), :] += (
-                                r[st:sp] @ b_lp_data[pr - 1]
-                            )
+                            c._DNDarray__array[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr - 1]
 
                     del b_lp_data[pr - 1]
 
@@ -548,23 +522,15 @@ def matmul(a, b):
                                     r[st:sp] @ b_lp_data[pr]
                                 )
                             else:
-                                c._DNDarray__array[r_loc.item(), :] += (
-                                    r[st:sp] @ b_lp_data[pr]
-                                )
+                                c._DNDarray__array[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr]
 
                     # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
                     if b_rem_locs0.numel():
-                        c._DNDarray__array[: a_node_rem_s0.shape[0]] += (
-                            a_node_rem_s0 @ b_rem
-                        )
+                        c._DNDarray__array[: a_node_rem_s0.shape[0]] += a_node_rem_s0 @ b_rem
 
                     del b_lp_data[pr]
 
-            c = (
-                c
-                if not vector_flag
-                else factories.array(c._DNDarray__array.squeeze(), is_split=0)
-            )
+            c = c if not vector_flag else factories.array(c._DNDarray__array.squeeze(), is_split=0)
             return c
 
         elif split_1_flag:
@@ -573,22 +539,14 @@ def matmul(a, b):
             b_rem_locs1 = (rem_map[:, 1, 1] == 1).nonzero()
             a_rem_locs1 = (rem_map[:, 0, 1] == 1).nonzero()
             # remainders for a in the
-            b_node_rem_s1 = b._DNDarray__array[
-                kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB
-            ]
-            a_rem = torch.empty(
-                a.lshape[-2], a_rem_locs1.numel(), dtype=b.dtype.torch_type()
-            )
+            b_node_rem_s1 = b._DNDarray__array[kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB]
+            a_rem = torch.empty(a.lshape[-2], a_rem_locs1.numel(), dtype=b.dtype.torch_type())
 
             # this if/elif/else loop is for the handling of
             if b.comm.rank in b_rem_locs1:
                 # if b is split in dim1 and the rank has a remainder in this direction
                 r = b._DNDarray__array[:, -1]
-                r_loc = (
-                    index_map[a.comm.rank, 1, 1, 1]
-                    - index_map[a.comm.rank, 1, 1, 0]
-                    - 1
-                )
+                r_loc = index_map[a.comm.rank, 1, 1, 1] - index_map[a.comm.rank, 1, 1, 0] - 1
             else:
                 r = None
                 r_loc = None
@@ -661,16 +619,10 @@ def matmul(a, b):
 
                     # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
                     if a_rem_locs1.numel():
-                        c._DNDarray__array[:, : b_node_rem_s1.shape[1]] += (
-                            a_rem @ b_node_rem_s1
-                        )
+                        c._DNDarray__array[:, : b_node_rem_s1.shape[1]] += a_rem @ b_node_rem_s1
 
                     del a_lp_data[pr]
-            c = (
-                c
-                if not vector_flag
-                else factories.array(c._DNDarray__array.squeeze(), is_split=0)
-            )
+            c = c if not vector_flag else factories.array(c._DNDarray__array.squeeze(), is_split=0)
             return c
 
         elif split_01_flag:
@@ -710,16 +662,10 @@ def matmul(a, b):
                     sp0 = index_map[pr, 0, 0, 1].item() + 1
                     st1 = index_map[pr, 1, 1, 0].item()
                     sp1 = index_map[pr, 1, 1, 1].item()
-                    c._DNDarray__array[: sp0 - st0, st1:sp1] += (
-                        a._DNDarray__array @ b_lp_data[pr]
-                    )
+                    c._DNDarray__array[: sp0 - st0, st1:sp1] += a._DNDarray__array @ b_lp_data[pr]
 
                     del b_lp_data[pr]
-            c = (
-                c
-                if not vector_flag
-                else factories.array(c._DNDarray__array.squeeze(), is_split=0)
-            )
+            c = c if not vector_flag else factories.array(c._DNDarray__array.squeeze(), is_split=0)
             return c
 
         elif split_10_flag:
@@ -781,9 +727,7 @@ def transpose(a, axes=None):
             raise ValueError("axes do not match tensor shape")
         for index, axis in enumerate(axes):
             if not isinstance(axis, int):
-                raise TypeError(
-                    "axis must be an integer, but was {}".format(type(axis))
-                )
+                raise TypeError("axis must be an integer, but was {}".format(type(axis)))
             elif axis < 0:
                 axes[index] = axis + dimensions
 
@@ -799,12 +743,7 @@ def transpose(a, axes=None):
         transposed_shape = tuple(a.shape[axis] for axis in axes)
 
         return dndarray.DNDarray(
-            transposed_data,
-            transposed_shape,
-            a.dtype,
-            transposed_split,
-            a.device,
-            a.comm,
+            transposed_data, transposed_shape, a.dtype, transposed_split, a.device, a.comm
         )
     # if not possible re- raise any torch exception as ValueError
     except (RuntimeError, IndexError) as exception:

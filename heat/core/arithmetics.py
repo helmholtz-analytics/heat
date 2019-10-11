@@ -133,9 +133,7 @@ def diff(a, n=1, axis=-1):
             cr_slice = [slice(None)] * len(a.shape)
             # slice of 1 element in the selected axis for the shape creation
             cr_slice[axis] = 1
-            recv_data = torch.ones(
-                ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type()
-            )
+            recv_data = torch.ones(ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type())
             rec = ret.comm.Irecv(recv_data, source=rank + 1, tag=rank + 1)
             axis_slice_end = [slice(None)] * len(a.shape)
             # select the last elements in the selected axis
@@ -143,8 +141,7 @@ def diff(a, n=1, axis=-1):
             rec.wait()
             # diff logic
             ret.lloc[axis_slice_end] = (
-                recv_data.reshape(ret.lloc[axis_slice_end].shape)
-                - ret.lloc[axis_slice_end]
+                recv_data.reshape(ret.lloc[axis_slice_end].shape) - ret.lloc[axis_slice_end]
             )
 
     axis_slice_end = [slice(None)] * len(a.shape)
@@ -481,9 +478,7 @@ def prod(x, axis=None, out=None, keepdim=None):
     ], axis=1)
     ht.tensor([  2.,  12.])
     """
-    return operations.__reduce_op(
-        x, torch.prod, MPI.PROD, axis=axis, out=out, keepdim=keepdim
-    )
+    return operations.__reduce_op(x, torch.prod, MPI.PROD, axis=axis, out=out, keepdim=keepdim)
 
 
 def sub(t1, t2):
@@ -572,6 +567,4 @@ def sum(x, axis=None, out=None, keepdim=None):
              [3.]]])
     """
     # TODO: make me more numpy API complete Issue #101
-    return operations.__reduce_op(
-        x, torch.sum, MPI.SUM, axis=axis, out=out, keepdim=keepdim
-    )
+    return operations.__reduce_op(x, torch.sum, MPI.SUM, axis=axis, out=out, keepdim=keepdim)

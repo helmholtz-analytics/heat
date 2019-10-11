@@ -117,9 +117,7 @@ def sanitize_device(device):
         return __device_mapping[device.strip().lower()]
     except (AttributeError, KeyError, TypeError):
         raise ValueError(
-            "Unknown device, must be one of {}".format(
-                ", ".join(__device_mapping.keys())
-            )
+            "Unknown device, must be one of {}".format(", ".join(__device_mapping.keys()))
         )
 
 

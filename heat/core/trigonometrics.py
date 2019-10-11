@@ -176,9 +176,7 @@ def deg2rad(x, out=None):
     # deg2rad torch version
     def torch_deg2rad(torch_tensor):
         if not torch.is_tensor(torch_tensor):
-            raise TypeError(
-                "Input is not a torch tensor but {}".format(type(torch_tensor))
-            )
+            raise TypeError("Input is not a torch tensor but {}".format(type(torch_tensor)))
         return torch_tensor * pi / 180.0
 
     return local_op(torch_deg2rad, x, out)
@@ -234,9 +232,7 @@ def rad2deg(x, out=None):
     # rad2deg torch version
     def torch_rad2deg(torch_tensor):
         if not torch.is_tensor(torch_tensor):
-            raise TypeError(
-                "Input is not a torch tensor but {}".format(type(torch_tensor))
-            )
+            raise TypeError("Input is not a torch tensor but {}".format(type(torch_tensor)))
         return 180.0 * torch_tensor / pi
 
     return local_op(torch_rad2deg, x, out=out)

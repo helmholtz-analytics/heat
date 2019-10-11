@@ -131,16 +131,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=None):
     return dndarray.DNDarray(data, gshape, htype, split, device, comm)
 
 
-def array(
-    obj,
-    dtype=None,
-    copy=True,
-    ndmin=0,
-    split=None,
-    is_split=None,
-    device=None,
-    comm=None,
-):
+def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device=None, comm=None):
     """
     Create a tensor.
     Parameters
@@ -222,9 +213,7 @@ def array(
             obj = obj.clone().detach()
         else:
             try:
-                obj = torch.tensor(
-                    obj, dtype=dtype.torch_type() if dtype is not None else None
-                )
+                obj = torch.tensor(obj, dtype=dtype.torch_type() if dtype is not None else None)
             except RuntimeError:
                 raise TypeError("invalid data of type {}".format(type(obj)))
 
@@ -289,18 +278,14 @@ def array(
         reduction_buffer = np.array(gshape[is_split])
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
         if reduction_buffer < 0:
-            raise ValueError(
-                "unable to construct tensor, shape of local data chunk does not match"
-            )
+            raise ValueError("unable to construct tensor, shape of local data chunk does not match")
         ttl_shape = np.array(obj.shape)
         ttl_shape[is_split] = lshape[is_split]
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
         gshape[is_split] = ttl_shape[is_split]
         split = is_split
 
-    return dndarray.DNDarray(
-        obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm
-    )
+    return dndarray.DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
 
 
 def empty(shape, dtype=types.float32, split=None, device=None, comm=None):
@@ -427,9 +412,7 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None):
 
     # start by creating tensor filled with zeroes
     data = torch.zeros(
-        lshape,
-        dtype=types.canonical_heat_type(dtype).torch_type(),
-        device=device.torch_device,
+        lshape, dtype=types.canonical_heat_type(dtype).torch_type(), device=device.torch_device
     )
 
     # insert ones at the correct positions
@@ -477,9 +460,7 @@ def __factory(shape, dtype, split, local_factory, device, comm):
     # chunk the shape if necessary
     _, local_shape, _ = comm.chunk(shape, split)
     # create the torch data using the factory function
-    data = local_factory(
-        local_shape, dtype=dtype.torch_type(), device=device.torch_device
-    )
+    data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
 
     return dndarray.DNDarray(data, shape, dtype, split, device, comm)
 
@@ -678,9 +659,7 @@ def linspace(
     num = int(num)
     if num <= 0:
         raise ValueError(
-            "number of samples 'num' must be non-negative integer, but was {}".format(
-                num
-            )
+            "number of samples 'num' must be non-negative integer, but was {}".format(num)
         )
     step = (stop - start) / max(1, num - 1 if endpoint else num)
 
@@ -711,15 +690,7 @@ def linspace(
 
 
 def logspace(
-    start,
-    stop,
-    num=50,
-    endpoint=True,
-    base=10.0,
-    dtype=None,
-    split=None,
-    device=None,
-    comm=None,
+    start, stop, num=50, endpoint=True, base=10.0, dtype=None, split=None, device=None, comm=None
 ):
     """
     Return numbers spaced evenly on a log scale.
@@ -778,9 +749,7 @@ def logspace(
     >>> ht.logspace(2.0, 3.0, num=4, base=2.0)
     tensor([4.0000, 5.0397, 6.3496, 8.0000])
     """
-    y = linspace(
-        start, stop, num=num, endpoint=endpoint, split=split, device=device, comm=comm
-    )
+    y = linspace(start, stop, num=num, endpoint=endpoint, split=split, device=device, comm=comm)
     if dtype is None:
         return pow(base, y)
     return pow(base, y).astype(dtype, copy=False)

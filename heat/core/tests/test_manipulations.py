@@ -314,9 +314,7 @@ class TestManipulations(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.concatenate((ht.zeros((12, 12)), ht.zeros((2, 2))), axis=0)
         with self.assertRaises(RuntimeError):
-            ht.concatenate(
-                (ht.zeros((2, 2), split=0), ht.zeros((2, 2), split=1)), axis=0
-            )
+            ht.concatenate((ht.zeros((2, 2), split=0), ht.zeros((2, 2), split=1)), axis=0)
 
     def test_expand_dims(self):
         # vector data
@@ -509,9 +507,7 @@ class TestManipulations(unittest.TestCase):
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_zero))
         self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices))
 
-        exp_axis_one, exp_indices = (
-            torch.arange(size).reshape(1, size).sort(dim=1, descending=True)
-        )
+        exp_axis_one, exp_indices = torch.arange(size).reshape(1, size).sort(dim=1, descending=True)
         result, result_indices = ht.sort(data, descending=True, axis=1)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_one))
         self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices))
@@ -593,8 +589,7 @@ class TestManipulations(unittest.TestCase):
                 if rank == i:
                     self.assertTrue(
                         torch.lt(
-                            result._DNDarray__array[idx],
-                            result._DNDarray__array[idx + 1],
+                            result._DNDarray__array[idx], result._DNDarray__array[idx + 1]
                         ).all()
                     )
 
@@ -610,9 +605,7 @@ class TestManipulations(unittest.TestCase):
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue(
-            (result._DNDarray__array == data._DNDarray__array.squeeze()).all()
-        )
+        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze()).all())
 
         # 4D local tensor, major axis
         result = ht.squeeze(data, axis=0)
@@ -622,9 +615,7 @@ class TestManipulations(unittest.TestCase):
         self.assertEqual(result.shape, (4, 5, 1))
         self.assertEqual(result.lshape, (4, 5, 1))
         self.assertEqual(result.split, None)
-        self.assertTrue(
-            (result._DNDarray__array == data._DNDarray__array.squeeze(0)).all()
-        )
+        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze(0)).all())
 
         # 4D local tensor, minor axis
         result = ht.squeeze(data, axis=-1)
@@ -634,9 +625,7 @@ class TestManipulations(unittest.TestCase):
         self.assertEqual(result.shape, (1, 4, 5))
         self.assertEqual(result.lshape, (1, 4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue(
-            (result._DNDarray__array == data._DNDarray__array.squeeze(-1)).all()
-        )
+        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze(-1)).all())
 
         # 4D local tensor, tuple axis
         result = data.squeeze(axis=(0, -1))
@@ -646,9 +635,7 @@ class TestManipulations(unittest.TestCase):
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue(
-            (result._DNDarray__array == data._DNDarray__array.squeeze()).all()
-        )
+        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze()).all())
 
         # 4D split tensor, along the axis
         # TODO: reinstate this test of uneven dimensions distribution
@@ -719,9 +706,7 @@ class TestManipulations(unittest.TestCase):
         res = ht.unique(split_one, sorted=True, axis=1)
         self.assertTrue((res._DNDarray__array == exp_axis_one._DNDarray__array).all())
 
-        torch_array = torch.tensor(
-            [[1, 2], [2, 3], [1, 2], [2, 3], [1, 2]], dtype=torch.int32
-        )
+        torch_array = torch.tensor([[1, 2], [2, 3], [1, 2], [2, 3], [1, 2]], dtype=torch.int32)
         data = ht.array(torch_array, split=0)
 
         res, inv = ht.unique(data, return_inverse=True, axis=0)
@@ -810,9 +795,7 @@ class TestManipulations(unittest.TestCase):
         local_shape = (1, N + 1, 2 * N)
         local_tensor = reference_tensor[ht.MPI_WORLD.rank, :, :]
         self.assertEqual(resplit_tensor.lshape, local_shape)
-        self.assertTrue(
-            (resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all()
-        )
+        self.assertTrue((resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
 
         # unsplit
         unsplit_tensor = ht.resplit(resplit_tensor, axis=None)
@@ -827,14 +810,10 @@ class TestManipulations(unittest.TestCase):
             local_tensor = reference_tensor[:, 0:2, :]
         else:
             local_shape = (N, 1, 2 * N)
-            local_tensor = reference_tensor[
-                :, ht.MPI_WORLD.rank + 1 : ht.MPI_WORLD.rank + 2, :
-            ]
+            local_tensor = reference_tensor[:, ht.MPI_WORLD.rank + 1 : ht.MPI_WORLD.rank + 2, :]
 
         self.assertEqual(resplit_tensor.lshape, local_shape)
-        self.assertTrue(
-            (resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all()
-        )
+        self.assertTrue((resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
 
         # unsplit
         unsplit_tensor = ht.resplit(resplit_tensor, axis=None)
@@ -845,14 +824,10 @@ class TestManipulations(unittest.TestCase):
         # split along axis = 2
         resplit_tensor = ht.resplit(unsplit_tensor, axis=2)
         local_shape = (N, N + 1, 2)
-        local_tensor = reference_tensor[
-            :, :, 2 * ht.MPI_WORLD.rank : 2 * ht.MPI_WORLD.rank + 2
-        ]
+        local_tensor = reference_tensor[:, :, 2 * ht.MPI_WORLD.rank : 2 * ht.MPI_WORLD.rank + 2]
 
         self.assertEqual(resplit_tensor.lshape, local_shape)
-        self.assertTrue(
-            (resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all()
-        )
+        self.assertTrue((resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
 
     def test_vstack(self):
         # cases to test:

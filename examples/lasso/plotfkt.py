@@ -2,9 +2,7 @@ from matplotlib import pyplot as plt
 
 
 # plotting function for lasso paths
-def plot_lasso_path(
-    lamda, theta_lasso, feature_names, title="Lasso Paths - Numpy implementation"
-):
+def plot_lasso_path(lamda, theta_lasso, feature_names, title="Lasso Paths - Numpy implementation"):
     # Plot results
     n, _ = theta_lasso.shape
 

@@ -83,9 +83,7 @@ def __counter_sequence(shape, dtype, split, device, comm):
         counts, displs, _ = comm.counts_displs_shape(shape, split)
 
         # Calculate number of local elements per process
-        local_elements = [
-            total_elements / shape[split] * counts[i] for i in range(size)
-        ]
+        local_elements = [total_elements / shape[split] * counts[i] for i in range(size)]
         cum_elements = np.cumsum(local_elements)
 
         # Calculate the correct borders and slices
@@ -280,30 +278,24 @@ def rand(*args, dtype=types.float64, split=None, device=None, comm=None):
 
     # generate the random sequence
     if dtype == types.float32:
-        x_0, x_1, lshape, lslice = __counter_sequence(
-            shape, torch.int32, split, device, comm
-        )
+        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int32, split, device, comm)
         x_0, x_1 = __threefry32(x_0, x_1)
 
         # combine the values into one tensor and convert them to floats
-        values = __int32_to_float32(
-            torch.stack([x_0, x_1], dim=1).flatten()[lslice]
-        ).reshape(lshape)
-    elif dtype == types.float64:
-        x_0, x_1, lshape, lslice = __counter_sequence(
-            shape, torch.int64, split, device, comm
+        values = __int32_to_float32(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(
+            lshape
         )
+    elif dtype == types.float64:
+        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int64, split, device, comm)
         x_0, x_1 = __threefry64(x_0, x_1)
 
         # combine the values into one tensor and convert them to floats
-        values = __int64_to_float64(
-            torch.stack([x_0, x_1], dim=1).flatten()[lslice]
-        ).reshape(lshape)
+        values = __int64_to_float64(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(
+            lshape
+        )
     else:
         # Unsupported type
-        raise ValueError(
-            "dtype is none of ht.float32 or ht.float64 but was {}".format(dtype)
-        )
+        raise ValueError("dtype is none of ht.float32 or ht.float64 but was {}".format(dtype))
 
     return dndarray.DNDarray(values, shape, dtype, split, device, comm)
 
@@ -368,9 +360,7 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
     # generate the random sequence
-    x_0, x_1, lshape, lslice = __counter_sequence(
-        shape, dtype.torch_type(), split, device, comm
-    )
+    x_0, x_1, lshape, lslice = __counter_sequence(shape, dtype.torch_type(), split, device, comm)
     if torch_dtype is torch.int32:
         x_0, x_1 = __threefry32(x_0, x_1)
     else:  # torch.int64

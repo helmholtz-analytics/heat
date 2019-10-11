@@ -43,14 +43,10 @@ class TestIndexing(unittest.TestCase):
 
         # not split cond
         a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=None)
-        res = ht.array(
-            [[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=None
-        )
+        res = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=None)
         wh = ht.where(a < 4.0, a, -1.0)
         self.assertTrue(
-            ht.equal(
-                a[ht.nonzero(a < 4)], ht.array([0.0, 1.0, 2.0, 0.0, 2.0, 0.0, 3.0])
-            )
+            ht.equal(a[ht.nonzero(a < 4)], ht.array([0.0, 1.0, 2.0, 0.0, 2.0, 0.0, 3.0]))
         )
         self.assertTrue(ht.equal(wh, res))
         self.assertEqual(wh.gshape, (3, 3))

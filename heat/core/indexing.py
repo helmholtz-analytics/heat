@@ -62,10 +62,7 @@ def nonzero(a):
     if a.split is None:
         # if there is no split then just return the values from torch
         return factories.array(
-            torch.nonzero(a._DNDarray__array),
-            is_split=a.split,
-            device=a.device,
-            comm=a.comm,
+            torch.nonzero(a._DNDarray__array), is_split=a.split, device=a.device, comm=a.comm
         )
     else:
         # a is split
@@ -119,9 +116,7 @@ def where(cond, x=None, y=None):
         if (isinstance(x, dndarray.DNDarray) and cond.split != x.split) or (
             isinstance(y, dndarray.DNDarray) and cond.split != y.split
         ):
-            raise NotImplementedError(
-                "binary op not implemented for different split axes"
-            )
+            raise NotImplementedError("binary op not implemented for different split axes")
     if isinstance(x, (dndarray.DNDarray, int, float)) and isinstance(
         y, (dndarray.DNDarray, int, float)
     ):

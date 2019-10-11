@@ -28,9 +28,7 @@ class TestStrideTricks(unittest.TestCase):
         self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4, 4), -1), 2)
         self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4, 4), 2), 2)
         self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4, 4), (0, 1)), (0, 1))
-        self.assertEqual(
-            ht.core.stride_tricks.sanitize_axis((5, 4, 4), (-2, -3)), (1, 0)
-        )
+        self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4, 4), (-2, -3)), (1, 0))
         self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4), 0), 0)
         self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4), None), None)
 

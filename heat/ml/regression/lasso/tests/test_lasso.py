@@ -9,12 +9,8 @@ class TestLasso(unittest.TestCase):
     def test_lasso(self):
         # ToDo: add additional tests
         # get some test data
-        X = ht.load_hdf5(
-            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x"
-        )
-        y = ht.load_hdf5(
-            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y"
-        )
+        X = ht.load_hdf5(os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x")
+        y = ht.load_hdf5(os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y")
 
         # normalize dataset
         X = X / ht.sqrt((ht.mean(X ** 2, axis=0)))
@@ -45,12 +41,8 @@ class TestLasso(unittest.TestCase):
         self.assertIsInstance(yest, ht.DNDarray)
         self.assertEqual(yest.shape, (m,))
 
-        X = ht.load_hdf5(
-            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x"
-        )
-        y = ht.load_hdf5(
-            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y"
-        )
+        X = ht.load_hdf5(os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x")
+        y = ht.load_hdf5(os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y")
 
         # Now the same stuff again in PyTorch
         X = torch.tensor(X._DNDarray__array)
@@ -85,12 +77,8 @@ class TestLasso(unittest.TestCase):
         self.assertIsInstance(yest, torch.Tensor)
         self.assertEqual(yest.shape, (m,))
 
-        X = ht.load_hdf5(
-            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x"
-        )
-        y = ht.load_hdf5(
-            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y"
-        )
+        X = ht.load_hdf5(os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x")
+        y = ht.load_hdf5(os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y")
 
         # Now the same stuff again in PyTorch
         X = X._DNDarray__array.numpy()

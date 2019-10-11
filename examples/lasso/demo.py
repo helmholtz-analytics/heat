@@ -45,10 +45,7 @@ theta_lasso = np.stack(theta_list).T[1:, :]
 # plot lasso paths
 plt.subplot(3, 1, 1)
 plotfkt.plot_lasso_path(
-    lamda,
-    theta_lasso,
-    diabetes.feature_names,
-    title="Lasso Paths - HeAT implementation",
+    lamda, theta_lasso, diabetes.feature_names, title="Lasso Paths - HeAT implementation"
 )
 
 if X.is_distributed():
@@ -90,10 +87,7 @@ theta_lasso = np.stack(theta_list).T[1:, :]
 # plot lasso paths
 plt.subplot(3, 1, 2)
 plotfkt.plot_lasso_path(
-    lamda,
-    theta_lasso,
-    diabetes.feature_names,
-    title="Lasso Paths - Numpy implementation",
+    lamda, theta_lasso, diabetes.feature_names, title="Lasso Paths - Numpy implementation"
 )
 
 # Now the same stuff again in PyTorch
@@ -124,10 +118,7 @@ theta_lasso = np.stack(theta_list).T[1:, :]
 # plot lasso paths
 plt.subplot(3, 1, 3)
 plotfkt.plot_lasso_path(
-    lamda,
-    theta_lasso,
-    diabetes.feature_names,
-    title="Lasso Paths - PyTorch implementation",
+    lamda, theta_lasso, diabetes.feature_names, title="Lasso Paths - PyTorch implementation"
 )
 
 # plot only with first rank
