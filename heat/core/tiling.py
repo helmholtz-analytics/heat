@@ -207,7 +207,6 @@ class SquareDiagTiles:
                 pass
 
         # =================================================================================================
-        # col_per_proc_list = col_per_proc_list /
         self.__col_per_proc_list = col_per_proc_list if arr.split == 1 else [sum(col_per_proc_list)] * len(col_per_proc_list)
         self.__DNDarray = arr
         self.__lshape_map = lshape_map
@@ -465,11 +464,15 @@ class SquareDiagTiles:
 
         tile = self.local_get(key, proc=src)
         comm = self.__DNDarray.comm
+
         if comm.rank == src:  # this will only be on one process (required by getitem)
-            comm.send(tile.clone(), dest=dest)
-            return tile
+            comm.send(tuple(tile.shape), dest=dest, tag=1111)
+            comm.Send(tile.clone(), dest=dest)
+            return tile, None
         if comm.rank == dest:
-            return comm.irecv(source=src)
+            sz = comm.recv(source=src, tag=1111)
+            hld = torch.empty(sz)
+            return hld, comm.Irecv(hld, source=src)
 
     def local_get(self, key, proc=None):
         """
@@ -484,10 +487,6 @@ class SquareDiagTiles:
         if proc == self.__DNDarray.comm.rank:
             arr = self.__DNDarray
             tile_map = self.__tile_map
-            rank_slice = torch.where(tile_map[..., 2] == proc)
-            # lcl_tile_map = tile_map[rank_slice]
-            # print(self.tile_columns_per_process)
-            # print('r', tile_map[rank_slice].reshape(self.tile_rows_per_process[proc], self.tile_columns_per_process[proc], 3))
             # need to convert the key into local indices -> only needs to be done on the split dimension
             key = list(key)
             if len(key) == 1:
@@ -517,7 +516,6 @@ class SquareDiagTiles:
                     start = key[1].start + prev_cols
                     stop = key[1].stop + prev_cols
                     if stop - start > loc_cols:
-                        # print(local_tile_map)
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
             return self.__getitem__(tuple(key))

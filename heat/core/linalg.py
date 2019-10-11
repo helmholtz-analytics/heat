@@ -669,23 +669,13 @@ def qr(a, calc_q=True):
 
     a = a.copy()
 
-    tiles = tiling.SquareDiagTiles(a, tile_per_proc=2)
-    # print(tiles.tile_map)
-    lshape_map = tiles.lshape_map
+    tiles = tiling.SquareDiagTiles(a, tile_per_proc=5)
     tile_columns = tiles.tile_columns
-    tile_rows = tiles.tile_rows
-    tile_rows_per_process = tiles.tile_rows_per_process
-    # num_local_row_tiles = tiles.num_local_row_tiles
 
     # loop over the tile columns
-    completed_tile_cols = torch.tensor([False] * tile_columns * a.comm.size)
     rank = a.comm.rank
-
     q_dict = {}
-
     for col in range(tile_columns):  # for each tile column (need to do the last rank separately)
-        # todo: fix the different tiling of the data on the last process
-        size_remaining = a.comm.size - (col // tile_rows)
         # for each process need to do local qr
         # need to start the process at the 1st row (block number / iteration number
 
@@ -702,40 +692,18 @@ def qr(a, calc_q=True):
         if rank in not_completed_processes:
             # only work on the processes which have not computed the final result
             q_dict[col] = {}
-            __local_tsqr(col=col, rank=rank, tiles=tiles, local_tile_row=local_tile_row, q_dict=q_dict)
+            __local_tsqr(col=col, rank=rank, tiles=tiles,
+                         local_tile_row=local_tile_row, q_dict=q_dict)
 
-            # for d in range(local_tile_row_index + 1, num_local_row_tiles[rank]):  # this loop is for column tiles on a process
-            #     # todo: implement binary combination here
-            #     # todo: investigate the sign flip in the middle rows of the processes
-            #     # local merge
-            #     # get the tile indices of the rest of the tiles on a process
-            #     st0_new = domain_tile_shapes[rank, :d, k, 0][:d].sum()
-            #     sp0_new = domain_tile_shapes[rank, d, k, 0] + st0_new
-            #     # save q/r in the dicts
-            #     q_loc, r_loc = torch.cat((local_a[st0:sp0, st1:sp1], local_a[st0_new:sp0_new, st1:sp1]), dim=0).qr(some=False)
-            #     # print(q_loc.shape)
-            #     # todo: need to slice this to be the shape of the reduced Q (should be the diag length in both direction)
-            #     q_dict[k][str(d)] = q_loc
-            #     # save the calculated r in the tiles which it was calculated for
-            #     local_a[st0:sp0, st1:sp1] = r_loc[:sp0 - st0]
-            #     local_a[st0_new:sp0_new, st1:sp1] = r_loc[sp0 - st0:]
-            #
-            #     # NEXT STEP: apply the q from the combined matrices to the rest of the tile rows
-            #     hold = q_loc.T @ torch.cat((local_a[st0:sp0, sp1:], local_a[st0_new:sp0_new, sp1:]), dim=0)
-            #     local_a[st0:sp0, sp1:] = hold[:sp0 - st0]  # setting of the top half
-            #     local_a[st0_new:sp0_new, sp1:] = hold[sp0 - st0:]
-
-            # next is the binary tree reduction
-            # todo: rewrite global reduction to use the tiles
-            __binary_tree_merge_qr(tiles=tiles, rank=rank, q_dict=q_dict, col=col, diag_process=diag_process,
+            __binary_tree_merge_qr(tiles=tiles, rank=rank, q_dict=q_dict,
+                                   col=col, diag_process=diag_process,
                                    not_completed_processes=not_completed_processes)
         else:  # if the process is not calculating R (only occurs when the R for that node is done)
             break
             # for m in range(tile_rows):
             #     for h in range(len(q_dict[m + rank * tile_rows])):
             #         print(h, m + rank * tile_rows, q_dict[m + rank * tile_rows][h].shape)
-                # hold = torch.chain_matmul(*q_dict[m + rank])
-        completed_tile_cols[col] = True
+            #     hold = torch.chain_matmul(*q_dict[m + rank])
     #     # print(len(q_dict[k]))
     # if calc_q:
     #     '''
@@ -881,6 +849,7 @@ def qr(a, calc_q=True):
 
 
 def __local_tsqr(col, rank, tiles, local_tile_row, q_dict):
+    # todo: jit this
     """
 
     :return:
@@ -900,13 +869,14 @@ def __local_tsqr(col, rank, tiles, local_tile_row, q_dict):
         base_rest = tiles.local_get((local_tile_row, slice(col + 1, None)), proc=rank)
         loc_rest = q1.T @ base_rest
         tiles.local_set(key=(local_tile_row, slice(col + 1, None)), data=loc_rest, proc=rank)
-    # this loop is local TSQR
+
     for d in range(local_tile_row + 1, tiles.tile_rows_per_process[rank]):
-        # local merge todo: binary tree merge
+        # local merge
         # d is the row it is being merged with
         loop_tile = tiles.local_get(key=(d, col), proc=rank)
         q_lp, r_lp = torch.cat((base_tile, loop_tile), dim=0).qr(some=False)
         q_dict[col][str(d)] = q_lp
+
         # replace the base/loop tiles with r, then multiple q_lp by the rest of them
         loop_rest = tiles.local_get((d, slice(col + 1, None)), proc=rank)
         loop_rest_q = q_lp.T @ torch.cat((base_rest, loop_rest), dim=0)
@@ -943,18 +913,19 @@ def __binary_tree_merge_qr(tiles, rank, q_dict, col, diag_process, not_completed
             else:  # send from higher order procs
                 pr1 = rank
             if rank in [pr0, pr1]:
-                q_dict[col][str(pr0) + str(pr1)] = __merge_rows_qr(pr0=pr0, pr1=pr1, column=col,
-                                                                   rank=rank, tiles=tiles, diag_process=diag_process)
+                q = __merge_rows_qr(pr0=pr0, pr1=pr1, column=col, rank=rank,
+                                    tiles=tiles, diag_process=diag_process)
+                q_dict[col][str(pr0) + str(pr1)] = q
         loop_size_remaining = loop_size_remaining[:-1 * (procs_remaining // 2)]
         procs_remaining = loop_size_remaining.size()[0]
-        # a.comm.Barrier()
 
         if rem1 is not None and rem2 is not None:
-            # combine rem1 and rem2 in the same way as the other nodes, then save the results in rem1 to be used later
+            # combine rem1 and rem2 in the same way as the other nodes,
+            # then save the results in rem1 to be used later
             if rank in [rem1, rem2]:
-                q_dict[col][str(int(rem1)) + str(int(rem2))] = __merge_rows_qr(pr0=rem1, pr1=rem2,
-                                                                               column=col, rank=rank,
-                                                                               tiles=tiles, diag_process=diag_process)
+                q = __merge_rows_qr(pr0=rem1, pr1=rem2, column=col, rank=rank,
+                                    tiles=tiles, diag_process=diag_process)
+                q_dict[col][str(int(rem1)) + str(int(rem2))] = q
             rem1 = rem2
             rem2 = None
 
@@ -962,7 +933,8 @@ def __binary_tree_merge_qr(tiles, rank, q_dict, col, diag_process, not_completed
             # combine rem1 with process 0 (offset) and set completed to True
             # this should be the last thing that happens
             if rank in [offset, rem1]:
-                q = __merge_rows_qr(pr0=offset, pr1=rem1, column=col, rank=rank, tiles=tiles, diag_process=diag_process)
+                q = __merge_rows_qr(pr0=offset, pr1=rem1, column=col, rank=rank,
+                                    tiles=tiles, diag_process=diag_process)
                 q_dict[col][str(int(offset)) + str(int(rem1))] = q
             rem1 = None
 
@@ -991,17 +963,21 @@ def __merge_rows_qr(pr0, pr1, column, rank, tiles, diag_process):
     lower = tiles.local_get_async(key=(lower_row, column), src=pr1, dest=pr0)
     lower_rest = tiles.local_get_async(key=(lower_row, slice(column + 1, None)), src=pr1, dest=pr0)
     if pr1 == rank:
-        upper = upper.wait()
+        upper[1].wait()
     if pr0 == rank:
-        lower = lower.wait()
+        lower[1].wait()
 
+    upper = upper[0]
+    lower = lower[0]
     q_merge, r = torch.cat((upper, lower), dim=0).qr(some=False)
     if rank == pr0:
         tiles.local_set(key=(upper_row, column), data=r[:upper.shape[0]], proc=rank)
-        lower_rest = lower_rest.wait()
+        lower_rest[1].wait()
     if rank == pr1:
         tiles.local_set(key=(lower_row, column), data=r[upper.shape[0]:], proc=rank)
-        upper_rest = upper_rest.wait()
+        upper_rest[1].wait()
+    lower_rest = lower_rest[0]
+    upper_rest = upper_rest[0]
 
     new_rest = q_merge.T @ torch.cat((upper_rest, lower_rest), dim=0)
     if rank == pr0:
