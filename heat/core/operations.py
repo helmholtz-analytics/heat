@@ -11,10 +11,11 @@ from . import types
 
 __all__ = []
 
+
 def binary_get_size_scalar(t1, t2):
     """
     Find the tensor size of the result after performing a binary operation with t1 and t2.
-    
+
     Parameters
     ----------
     t1: scalar
@@ -38,14 +39,14 @@ def binary_get_size_scalar(t1, t2):
     """
     try:
         t1 = factories.array([t1])
-    except (ValueError, TypeError,):
-        raise TypeError('Data type not supported, input was {}'.format(type(t1)))
+    except (ValueError, TypeError):
+        raise TypeError("Data type not supported, input was {}".format(type(t1)))
 
     if np.isscalar(t2):
         try:
             t2 = factories.array([t2])
-        except (ValueError, TypeError,):
-            raise TypeError('Only numeric scalars are supported, but input was {}'.format(type(t2)))
+        except (ValueError, TypeError):
+            raise TypeError("Only numeric scalars are supported, but input was {}".format(type(t2)))
         output_shape = (1,)
         output_split = None
         output_device = None
@@ -56,14 +57,17 @@ def binary_get_size_scalar(t1, t2):
         output_device = t2.device
         output_comm = t2.comm
     else:
-        raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
-    
+        raise TypeError(
+            "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
+        )
+
     return t1, t2, output_shape, output_split, output_device, output_comm
+
 
 def binary_get_size_tensor(t1, t2):
     """
     Find the tensor size of the result after performing a binary operation with t1 and t2.
-    
+
     Parameters
     ----------
     t1: tensor
@@ -92,18 +96,22 @@ def binary_get_size_tensor(t1, t2):
             output_split = t1.split
             output_device = t1.device
             output_comm = t1.comm
-        except (ValueError, TypeError,):
-            raise TypeError('Data type not supported, input was {}'.format(type(t2)))
+        except (ValueError, TypeError):
+            raise TypeError("Data type not supported, input was {}".format(type(t2)))
 
     elif isinstance(t2, dndarray.DNDarray):
         if t1.split is None:
-            t1 = factories.array(t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device, ndmin=-t2.numdims)
+            t1 = factories.array(
+                t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device, ndmin=-t2.numdims
+            )
         elif t2.split is None:
-            t2 = factories.array(t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device, ndmin=-t1.numdims)
+            t2 = factories.array(
+                t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device, ndmin=-t1.numdims
+            )
         elif t1.split != t2.split:
             # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
             # and split=1
-            raise NotImplementedError('Not implemented for other splittings')
+            raise NotImplementedError("Not implemented for other splittings")
 
         output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
         output_split = t1.split
@@ -113,22 +121,29 @@ def binary_get_size_tensor(t1, t2):
         # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data.
         if t1.split is not None:
             if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
-                warnings.warn('Broadcasting requires transferring data of first operator between MPI ranks!')
+                warnings.warn(
+                    "Broadcasting requires transferring data of first operator between MPI ranks!"
+                )
                 if t1.comm.rank > 0:
                     t1._DNDarray__array = torch.zeros(t1.shape, dtype=t1.dtype.torch_type())
                 t1.comm.Bcast(t1)
 
         if t2.split is not None:
             if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
-                warnings.warn('Broadcasting requires transferring data of second operator between MPI ranks!')
+                warnings.warn(
+                    "Broadcasting requires transferring data of second operator between MPI ranks!"
+                )
                 if t2.comm.rank > 0:
                     t2._DNDarray__array = torch.zeros(t2.shape, dtype=t2.dtype.torch_type())
                 t2.comm.Bcast(t2)
 
     else:
-        raise TypeError('Only tensors and numeric scalars are supported, but input was {}'.format(type(t2)))
+        raise TypeError(
+            "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
+        )
 
     return t1, t2, output_shape, output_split, output_device, output_comm
+
 
 def __binary_bit_op(method, t1, t2):
     """
@@ -153,22 +168,41 @@ def __binary_bit_op(method, t1, t2):
         A tensor containing the element-wise results of bit-wise operation.
     """
     if np.isscalar(t1):
-        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_scalar(t1, t2)
+        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_scalar(
+            t1, t2
+        )
 
         if t1.dtype != t2.dtype:
-            raise TypeError('Tensors must have the same element type, but inputs were {} and {}'.format(t1.dtype,t2.dtype))
+            raise TypeError(
+                "Tensors must have the same element type, but inputs were {} and {}".format(
+                    t1.dtype, t2.dtype
+                )
+            )
 
     elif isinstance(t1, dndarray.DNDarray):
-        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_tensor(t1, t2)
+        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_tensor(
+            t1, t2
+        )
 
         if t2.dtype != t1.dtype:
-            raise TypeError('Arrays must have the same type, but inputs were {} and {}'.format(t1.dtype,t2.dtype))
+            raise TypeError(
+                "Arrays must have the same type, but inputs were {} and {}".format(
+                    t1.dtype, t2.dtype
+                )
+            )
 
     else:
-        raise NotImplementedError('Not implemented for non scalar')
+        raise NotImplementedError("Not implemented for non scalar")
 
-    if not ((t1.dtype == types.bool) or (t1.dtype == types.int8) or (t1.dtype == types.uint8) or (t1.dtype == types.int16) or (t1.dtype == types.int32) or (t1.dtype == types.int64)):
-        raise TypeError('Arrays are not of boolean or integer type, found {}'.format(t1.dtype))
+    if not (
+        (t1.dtype == types.bool)
+        or (t1.dtype == types.int8)
+        or (t1.dtype == types.uint8)
+        or (t1.dtype == types.int16)
+        or (t1.dtype == types.int32)
+        or (t1.dtype == types.int64)
+    ):
+        raise TypeError("Arrays are not of boolean or integer type, found {}".format(t1.dtype))
 
     if t1.split is not None:
         operation = getattr(t1._DNDarray__array, method)
@@ -186,7 +220,15 @@ def __binary_bit_op(method, t1, t2):
         operation = getattr(t1._DNDarray__array, method)
         result = operation(t2._DNDarray__array)
 
-    return dndarray.DNDarray(result, output_shape, types.canonical_heat_type(t1.dtype), output_split, output_device, output_comm)
+    return dndarray.DNDarray(
+        result,
+        output_shape,
+        types.canonical_heat_type(t1.dtype),
+        output_split,
+        output_device,
+        output_comm,
+    )
+
 
 def __binary_op(operation, t1, t2):
     """
@@ -212,36 +254,54 @@ def __binary_op(operation, t1, t2):
     """
 
     if np.isscalar(t1):
-        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_scalar(t1, t2)
+        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_scalar(
+            t1, t2
+        )
 
         if t1.dtype != t2.dtype:
             t1 = t1.astype(t2.dtype)
 
     elif isinstance(t1, dndarray.DNDarray):
-        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_tensor(t1, t2)
+        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_tensor(
+            t1, t2
+        )
 
         if t2.dtype != t1.dtype:
             t2 = t2.astype(t1.dtype)
 
     else:
-        raise NotImplementedError('Not implemented for non scalar')
+        raise NotImplementedError("Not implemented for non scalar")
 
     promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
     if t1.split is not None:
         if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
             result = t1._DNDarray__array.type(promoted_type)
         else:
-            result = operation(t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type))
+            result = operation(
+                t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type)
+            )
     elif t2.split is not None:
 
         if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
             result = t2._DNDarray__array.type(promoted_type)
         else:
-            result = operation(t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type))
+            result = operation(
+                t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type)
+            )
     else:
-        result = operation(t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type))
+        result = operation(
+            t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type)
+        )
 
-    return dndarray.DNDarray(result, output_shape, types.canonical_heat_type(t1.dtype), output_split, output_device, output_comm)
+    return dndarray.DNDarray(
+        result,
+        output_shape,
+        types.canonical_heat_type(t1.dtype),
+        output_split,
+        output_device,
+        output_comm,
+    )
+
 
 def __local_op(operation, x, out, no_cast=False, **kwargs):
     """
@@ -274,9 +334,9 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
     """
     # perform sanitation
     if not isinstance(x, dndarray.DNDarray):
-        raise TypeError('expected x to be a ht.DNDarray, but was {}'.format(type(x)))
+        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
     if out is not None and not isinstance(out, dndarray.DNDarray):
-        raise TypeError('expected out to be None or an ht.DNDarray, but was {}'.format(type(out)))
+        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
     # infer the output type of the tensor
     # we need floating point numbers here, due to PyTorch only providing sqrt() implementation for float32/64
@@ -289,7 +349,9 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
     # no defined output tensor, return a freshly created one
     if out is None:
         result = operation(x._DNDarray__array.type(torch_type), **kwargs)
-        return dndarray.DNDarray(result, x.gshape, types.canonical_heat_type(result.dtype), x.split, x.device, x.comm)
+        return dndarray.DNDarray(
+            result, x.gshape, types.canonical_heat_type(result.dtype), x.split, x.device, x.comm
+        )
 
     # output buffer writing requires a bit more work
     # we need to determine whether the operands are broadcastable and the multiple of the broadcasting
@@ -302,7 +364,9 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
 
     # do an inplace operation into a provided buffer
     casted = x._DNDarray__array.type(torch_type)
-    operation(casted.repeat(multiples) if needs_repetition else casted, out=out._DNDarray__array, **kwargs)
+    operation(
+        casted.repeat(multiples) if needs_repetition else casted, out=out._DNDarray__array, **kwargs
+    )
 
     return out
 
@@ -311,15 +375,15 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
     # TODO: document me Issue #102
     # perform sanitation
     if not isinstance(x, dndarray.DNDarray):
-        raise TypeError('expected x to be a ht.DNDarray, but was {}'.format(type(x)))
-    out = kwargs.get('out')
+        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+    out = kwargs.get("out")
     if out is not None and not isinstance(out, dndarray.DNDarray):
-        raise TypeError('expected out to be None or an ht.DNDarray, but was {}'.format(type(out)))
+        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
     # no further checking needed, sanitize axis will raise the proper exceptions
-    axis = stride_tricks.sanitize_axis(x.shape,  kwargs.get('axis'))
+    axis = stride_tricks.sanitize_axis(x.shape, kwargs.get("axis"))
     split = x.split
-    keepdim = kwargs.get('keepdim')
+    keepdim = kwargs.get("keepdim")
 
     if axis is None:
         partial = partial_op(x._DNDarray__array).reshape(-1)
@@ -333,7 +397,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
             output_shape = x.gshape
             for dim in axis:
                 partial = partial_op(partial, dim=dim, keepdim=True)
-                output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1:]
+                output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1 :]
         if not keepdim and not len(partial.shape) == 1:
             gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
             lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
@@ -347,7 +411,9 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
 
     # Check shape of output buffer, if any
     if out is not None and out.shape != output_shape:
-        raise ValueError('Expecting output buffer of shape {}, got {}'.format(output_shape, out.shape))
+        raise ValueError(
+            "Expecting output buffer of shape {}, got {}".format(output_shape, out.shape)
+        )
 
     # perform a reduction operation in case the tensor is distributed across the reduction axis
     if x.split is not None and (axis is None or (x.split in axis)):
@@ -374,5 +440,5 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
         types.canonical_heat_type(tensor_type),
         split=split,
         device=x.device,
-        comm=x.comm
+        comm=x.comm,
     )

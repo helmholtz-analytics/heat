@@ -4,15 +4,7 @@ from . import operations
 from . import dndarray
 from . import types
 
-__all__ = [
-    'abs',
-    'absolute',
-    'ceil',
-    'clip',
-    'fabs',
-    'floor',
-    'trunc'
-]
+__all__ = ["abs", "absolute", "ceil", "clip", "fabs", "floor", "trunc"]
 
 
 def abs(x, out=None, dtype=None):
@@ -36,12 +28,11 @@ def abs(x, out=None, dtype=None):
         A tensor containing the absolute value of each element in x.
     """
     if dtype is not None and not issubclass(dtype, types.generic):
-        raise TypeError('dtype must be a heat data type')
+        raise TypeError("dtype must be a heat data type")
 
     absolute_values = operations.__local_op(torch.abs, x, out)
     if dtype is not None:
-        absolute_values._DNDarray__array = absolute_values._DNDarray__array.type(
-            dtype.torch_type())
+        absolute_values._DNDarray__array = absolute_values._DNDarray__array.type(dtype.torch_type())
         absolute_values._DNDarray__dtype = dtype
 
     return absolute_values
@@ -76,7 +67,7 @@ def ceil(x, out=None):
     """
     Return the ceil of the input, element-wise.
 
-    The ceil of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lceil x \rceil.
+    The ceil of the scalar x is the smallest integer i, such that i >= x. It is often denoted as :math:`\\lceil x \\rceil`.
 
     Parameters
     ----------
@@ -123,18 +114,20 @@ def clip(a, a_min, a_max, out=None):
         a_max with a_max.
     """
     if not isinstance(a, dndarray.DNDarray):
-        raise TypeError('a must be a tensor')
+        raise TypeError("a must be a tensor")
     if a_min is None and a_max is None:
-        raise ValueError('either a_min or a_max must be set')
+        raise ValueError("either a_min or a_max must be set")
 
     if out is None:
-        return dndarray.DNDarray(a._DNDarray__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, a.device, a.comm)
+        return dndarray.DNDarray(
+            a._DNDarray__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, a.device, a.comm
+        )
     if not isinstance(out, dndarray.DNDarray):
-        raise TypeError('out must be a tensor')
+        raise TypeError("out must be a tensor")
 
     return a._DNDarray__array.clamp(a_min, a_max, out=out._DNDarray__array) and out
 
- 
+
 def fabs(x, out=None):
     """
     Calculate the absolute value element-wise and return floating-point tensor.
@@ -155,13 +148,13 @@ def fabs(x, out=None):
     """
 
     return abs(x, out, dtype=None)
-    
+
 
 def floor(x, out=None):
     """
     Return the floor of the input, element-wise.
 
-    The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as \lfloor x \rfloor.
+    The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as :math:`\\lfloor x \\rfloor`.
 
     Parameters
     ----------
@@ -189,7 +182,7 @@ def trunc(x, out=None):
     """
     Return the trunc of the input, element-wise.
 
-    The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the 
+    The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the
     fractional part of the signed number x is discarded.
 
     Parameters
