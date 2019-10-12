@@ -877,3 +877,87 @@ def triu(m, k=0):
         Upper triangle of the input tensor.
     """
     return __tri_op(m, k, torch.triu)
+
+def norm(w,norm_order=2):
+    """
+        Calculates the norm of a given vector
+    """
+    beta = abs(max(w[0], key=abs))
+    if beta == 0:
+        beta = 1
+    v = [element/beta for element in w[0]]
+
+    v_norm = (sum(element**norm_order for element in v))**(1/norm_order)
+    x_norm = v_norm * beta
+
+    return x_norm
+
+def householder_reflect(w):
+    """
+        Calculates the reflection of a vector w using the householder reflector
+    """
+    tau = norm(w.T)
+
+    if tau == 0 or w.shape[0] == 1:
+        return 0, np.zeros((w.shape)), 0, np.identity((w.shape[0]))
+
+    tau_vec = np.zeros((w.shape))
+    tau_vec[0][0] = -tau
+
+
+    v = w - tau_vec
+
+    gamma = 2 / norm(v.T)**2
+
+    matrix = np.identity(w.shape[0]) - gamma*(v.dot(v.T))
+
+    return gamma, v.T, tau, matrix
+
+def qr_decompose(A):
+    """
+        Decomposes a matrix A in the matrixes Q and R such that Q*R = A and R is a right superior triangular matrix
+    """
+    # Getting the matrix shape
+    n, m = A.shape
+    # Initializing Q as an identity matrix
+    q = np.identity(n)
+    # Initializing R as a copy of A
+    r = np.copy(A)
+    
+    def make_q(q, r, i):
+        """
+            Recursive function to generate the Q matrix.
+            
+            Args: 
+                q: What Q looks like at the i'th iteration (after being multiplied by all
+                the Qs before it) 
+                r: What R looks like at the i'th iteration (after being multiplied by all
+                the Qs before it) 
+                A: The original matrix
+                i: The number of the iteration
+        """
+        # The submatrix that must be treated now
+        aux_A = r[i:,i:]
+        # Reflector that will turn elements bellow first column's diagonal 
+        # element into 0s. 
+        _,_,_,q_i = householder_reflect(aux_A[:,[0]])
+        # Since the full reflector's matrix would be filled with identity and 0s
+        # for the previous elements of the matrix, we can only modify the 
+        # elements that would be modified by the multiplication.
+        q[:,i:] = q[:,i:].dot(q_i)
+        r[i:,:] = q_i.dot(r[i:,:])
+        # If that bit of matrix was already minimal, since in the next iteration
+        # both dimensions will decrease elements by one this is the last 
+        # iteration
+        if aux_A.shape[0] == 1 or aux_A.shape[1] == 1:
+            return q, r
+        else:
+            return make_q(q, r, i+1)
+            
+    # This way , Q and R initialized satisfying Q times R = A , now the 
+    # iterative part of the function begins, with the first column
+    return make_q(q,r,0)
+    
+    
+            
+        
