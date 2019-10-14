@@ -9,7 +9,7 @@ from . import manipulations
 from . import tiling
 from . import types
 
-__all__ = ["dot", "matmul", "transpose", "tril", "triu"]
+__all__ = ["dot", "matmul", "qr", "transpose", "tril", "triu"]
 
 
 def larft(v, tau):
@@ -779,6 +779,7 @@ def qr(a, calc_q=True):
         # local_tile_row_index_pr = len(torch.nonzero(completed_tile_cols == True)) // tile_rows
         # local_tile_row_index = k % tile_rows if rank == local_tile_row_index_pr else 0
         not_completed_processes = torch.nonzero(col < torch.cumsum(torch.tensor(tiles.tile_rows_per_process), dim=0))
+        # print(torch.cumsum(torch.tensor(tiles.tile_rows_per_process), dim=0))
         diag_process = not_completed_processes[0]
         local_tile_row = 0
         if rank == diag_process:
@@ -944,7 +945,7 @@ def qr(a, calc_q=True):
 
 
 def __local_tsqr(col, rank, tiles, local_tile_row, q_dict):
-    # todo: jit this
+    # todo: jit this?
     """
 
     :return:
