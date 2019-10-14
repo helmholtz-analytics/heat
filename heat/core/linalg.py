@@ -456,21 +456,23 @@ def matmul(a, b):
             shp_a = a_block_map.shape
             offset_b = a_proc * shp_a[2] if a_proc != 0 else 0
             # offsets are the number of blocks in the multiplication direction on previous nodes
-
+            # print(a_block_map[a_proc].shape[0])
             for bl_1_a in (
-                range(offset_a, offset_a + shp_b[1])
-                if b.split == 0
-                else range(a_block_map[a_proc].shape[0])
+                torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long)
+                if b_split == 0
+                else torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long)
             ):
                 # this offset is the number of blocks on the previous node in the direction of multiplication
-                for bl_0_a in range(a_block_map[a_proc].shape[0]):  # dim0
-                    for bl_1_b in range(b_block_map[b_proc].shape[1]):
+                for bl_0_a in torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long):  # dim0
+                    for bl_1_b in torch.arange(b_block_map[b_proc].shape[1], dtype=torch.long):
                         for bl_0_b in (
-                            range(offset_b, offset_b + shp_a[1])
-                            if a.split == 1
-                            else range(b_block_map[b_proc].shape[0])
+                            torch.arange(offset_b, offset_b + shp_a[1], dtype=torch.long)
+                            if a_split == 1
+                            else torch.arange(b_block_map[b_proc].shape[0], dtype=torch.long)
                         ):
                             # this offset is the same as before but for b
+                            # print('h', a_block_map[a_proc, bl_0_a, bl_1_a, 1])
+                            # print('h', a_block_map[a_proc, bl_0_a, 0, 1])
                             a_start1 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 1].item())
                             a_start0 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 0].item())
                             a_block = a_data[a_start0 : a_start0 + mB, a_start1 : a_start1 + kB]
@@ -481,9 +483,8 @@ def matmul(a, b):
 
                             c_start0 = a_start0
                             c_start1 = b_start1
-                            c._DNDarray__array[
-                                c_start0 : c_start0 + mB, c_start1 : c_start1 + nB
-                            ] += (a_block @ b_block)
+                            # print(c_start0, c_start1, mB, nB)
+                            c[c_start0 : c_start0 + mB, c_start1 : c_start1 + nB] += (a_block @ b_block)
 
         # work loop: loop over all processes (also will incorporate the remainder calculations)
         c_wait.wait()
@@ -757,191 +758,199 @@ def qr(a, calc_q=True):
     """
     # TODO: determine the following:
     # D (number of domains to use) -> must be found with some testing on the HPC machines
-    # blocking scheme - should have multiple blocks per column, should have a comperable number of columns tiles
-    #   need to test for the optimal number/shape of blocks in each direction
+    # blocking scheme - should have multiple blocks per column,
+    #   should have a comperable number of columns tiles
+    # need to test for the optimal number/shape of blocks in each direction
     if not isinstance(a, dndarray.DNDarray):
         raise TypeError('\'a\' must be a DNDarray')
 
     a = a.copy()
-
-    tiles = tiling.SquareDiagTiles(a, tile_per_proc=5)
+    tiles = tiling.SquareDiagTiles(a, tile_per_proc=2)
     tile_columns = tiles.tile_columns
+    # print(tiles.tile_map)
+    # print(tiles.lshape_map)
+
+    q = factories.zeros((a.gshape[0], a.gshape[0]), split=a.split, dtype=a.dtype, comm=a.comm)
+    q_tiles = tiling.SquareDiagTiles(q, tile_per_proc=2)
+    q_tiles.match_tiles(tiles)
+    # print(q_tiles.tile_map)
+    print(q_tiles.tile_map)
+    # print(q_tiles.lshape_map)
 
     # loop over the tile columns
-    rank = a.comm.rank
-    q_dict = {}
-    for col in range(tile_columns):  # for each tile column (need to do the last rank separately)
-        # for each process need to do local qr
-        # need to start the process at the 1st row (block number / iteration number
-
-        # if the process isnt completed and the completed tiles are not done yet?
-        # get the number of True's moded with the tile_rows, this will tell which process only needs to do it on the second chunk
-        # local_tile_row_index_pr = len(torch.nonzero(completed_tile_cols == True)) // tile_rows
-        # local_tile_row_index = k % tile_rows if rank == local_tile_row_index_pr else 0
-        not_completed_processes = torch.nonzero(col < torch.cumsum(torch.tensor(tiles.tile_rows_per_process), dim=0))
-        # print(torch.cumsum(torch.tensor(tiles.tile_rows_per_process), dim=0))
-        diag_process = not_completed_processes[0]
-        local_tile_row = 0
-        if rank == diag_process:
-            local_tile_row = col % tiles.tile_rows_per_process[diag_process]
-
-        if rank in not_completed_processes:
-            # only work on the processes which have not computed the final result
-            q_dict[col] = {}
-            __local_tsqr(col=col, rank=rank, tiles=tiles,
-                         local_tile_row=local_tile_row, q_dict=q_dict)
-
-            __binary_tree_merge_qr(tiles=tiles, rank=rank, q_dict=q_dict,
-                                   col=col, diag_process=diag_process,
-                                   not_completed_processes=not_completed_processes)
-        else:  # if the process is not calculating R (only occurs when the R for that node is done)
-            break
-            # for m in range(tile_rows):
-            #     for h in range(len(q_dict[m + rank * tile_rows])):
-            #         print(h, m + rank * tile_rows, q_dict[m + rank * tile_rows][h].shape)
-            #     hold = torch.chain_matmul(*q_dict[m + rank])
-    #     # print(len(q_dict[k]))
-    # if calc_q:
-    #     '''
-    #                 this is the code for the Q calculation
-    #                 idea:
-    #                     create a local Q of size (lshape[0], m)
-    #                     use the tile map to find the tile sizes for Q (these will be the same as those for the tile column)
-    #                     -> loop over the keys in the q_dict (this is the number of columns which can be calculated
+    # rank = a.comm.rank
+    # q_dict = {}
+    # for col in range(tile_columns):  # for each tile column (need to do the last rank separately)
+    #     # for each process need to do local qr
+    #     # need to start the process at the 1st row (block number / iteration number
     #
-    #                 '''
-    #     loc_q_dict = {}
-    #     print(k, list(q_dict))
-    #     for i in list(q_dict):  # this loops over the completed columns of the process
-    #         # need to create a 2D list for each column to hold the slices for that tile
-    #         # dims -> (tile_rows, tile_columns)
-    #         tile_slices_lists = [[[] for _ in range(tile_columns.item())] for _ in range(tile_rows)]
-    #         full_q = factories.eye(a.gshape[0], dtype=a.dtype, split=a.split, device=a.device, comm=a.comm)
-    #         loc_q = full_q._DNDarray__array
-    #         # col_slices = []
-    #         shape0 = q_dict[i]['0'].shape
-    #         # tile_slices_lists[0][1] = tile_slices_lists[0][1] + [0]
-    #         row_start = 0 if i - (tile_rows * rank) < 0 else i % tile_rows
-    #         # print('here', shape0, row_start, row_start + rank * tile_rows)
-    #         q_blocks = {}
-    #         q_blocks[0] = torch.eye(a.lshape[0])
-    #         q_blocks[0][:shape0[0], :shape0[0]] = q_dict[i]['0']
-    #         tile_slices_lists[row_start][row_start + rank * tile_rows].append(('0', (slice(None, shape0[0]), slice(None, shape0[0]))))
+    #     # if the process isnt completed and the completed tiles are not done yet?
+    #     # get the number of True's moded with the tile_rows,
+    #     # this will tell which process only needs to do it on the second chunk
+    #     not_completed_processes = torch.nonzero(col < torch.cumsum(torch.tensor(tiles.tile_rows_per_process), dim=0))
     #
-    #         for x in list(q_dict[i]):
-    #             if x != '0':
-    #                 rem = True if q_dict[i][x].shape[0] % 2 == 1 else False
-    #                 q_tile_shape = q_dict[i][x].shape
-    #                 half = q_tile_shape[0]//2 + 1 if rem else q_tile_shape[0]//2
-    #                 end = q_tile_shape[0]
+    #     diag_process = not_completed_processes[0]
+    #     local_tile_row = 0
+    #     if rank == diag_process:
+    #         local_tile_row = col % tiles.tile_rows_per_process[diag_process]
     #
-    #                 if len(x) == 1:  # single values indicate a local merge between tiles
-    #                     first = i % tile_rows
-    #                     q_blocks[int(x)] = torch.eye(a.lshape[0])
+    #     if rank in not_completed_processes:
+    #         # only work on the processes which have not computed the final result
+    #         q_dict[col] = {}
+    #         __local_tsqr(col=col, rank=rank, tiles=tiles,
+    #                      local_tile_row=local_tile_row, q_dict=q_dict)
     #
-    #                     st0_0 = domain_tile_shapes[rank, :row_start, 0, 0].sum()
-    #                     sp0_0 = domain_tile_shapes[rank, :, i, 0][row_start] + st0_0
-    #
-    #                     st0 = domain_tile_shapes[rank, :int(x), 0, 0].sum()
-    #                     sp0 = domain_tile_shapes[rank, :, i, 0][int(x)] + st0
-    #
-    #                     half = sp0_0 - st0_0
-    #                     # print(i, x, a.lshape, st0_0, sp0_0, st1_0, sp1_0, 'x', st0, sp0, st1, sp1, half, end, q_dict[i][x].shape)
-    #                     # halfway point in the block is [:sp0_0 - st0_0, :sp0_0 - st0_0] (0 -> the stop in dim0 minus where it started)
-    #                     # note: blocks are square
-    #                     q_blocks[int(x)][st0_0:sp0_0, st0_0:sp0_0] = q_dict[i][x][:half, :half]  # 00
-    #                     q_blocks[int(x)][st0_0:sp0_0, st0:sp0] = q_dict[i][x][:half, half:]  # 01
-    #                     q_blocks[int(x)][st0:sp0, st0_0:sp0_0] = q_dict[i][x][half:, :half]  # 10
-    #                     q_blocks[int(x)][st0:sp0, st0:sp0] = q_dict[i][x][half:, half:]  # 11
-    #                     # spx = domain_tile_shapes[rank, int(x), i, 1]
-    #                     # sp0 = domain_tile_shapes[rank, 0, i, 1]
-    #
-    #                     # the four blocks of the merge operations are written to the corresponding tile indices in the slice lists
-    #                     # print(i, x, first, x, 0, first + (rank * tile_rows), 0, int(x) + (rank * tile_rows), 0, half, end)
-    #                     # tile_slices_lists[first][first + (rank * tile_rows)].append((x, (slice(None, half), slice(None, half))))
-    #                     # tile_slices_lists[first][int(x) + (rank * tile_rows)].append((x, (slice(None, half), slice(half, end))))
-    #                     # tile_slices_lists[int(x)][first + (rank * tile_rows)].append((x, (slice(half, end), slice(None, half))))
-    #                     # tile_slices_lists[int(x)][int(x) + (rank * tile_rows)].append((x, (slice(half, end), slice(half, end))))
-    #                 elif len(x) == 2:  # this is the case for the global merges
-    #                     first = int(x[0])
-    #                     second = int(x[1])
-    #
-    #                     st0_0 = domain_tile_shapes[first, :row_start, 0, 0].sum()
-    #                     sp0_0 = domain_tile_shapes[first, :, i, 0][row_start] + st0_0
-    #                     st1_0 = domain_tile_shapes[first, :row_start, 0, 1].sum()
-    #                     sp1_0 = domain_tile_shapes[first, :, i, 1][row_start] + st1_0
-    #
-    #                     st0 = domain_tile_shapes[second, :row_start, 0, 0].sum()
-    #                     sp0 = domain_tile_shapes[second, :, i, 0][row_start] + st0
-    #                     st1 = domain_tile_shapes[second, :row_start, 0, 1].sum()
-    #                     sp1 = domain_tile_shapes[second, :, i, 1][row_start] + st1
-    #                     half = sp0_0 - st0_0
-    #                     prev_lshapes = lshape_map[:second, 0].sum()
-    #                     sp1_old = domain_tile_shapes[second, row_start, i, 1]
-    #                     # print(i, x, a.lshape, st0_0, sp0_0, st1_0, sp1_0, 'sec', st0, sp0, prev_lshapes, sp1_old + prev_lshapes, half)
-    #
-    #                     # may be too large for the home process, but that is the only one with all of the data
-    #                     if rank == first:
-    #                         loc_q[st0_0:sp0_0, st0_0:sp0_0] = loc_q[st0_0:sp0_0, st0_0:sp0_0] @ q_dict[i][x][:half, :half]
-    #                         loc_q[st0_0:sp0_0, prev_lshapes:sp0 + prev_lshapes] = loc_q[st0_0:sp0_0, prev_lshapes:sp0 + prev_lshapes] \
-    #                                                                                   @ q_dict[i][x][:half, half:]
-    #                     if rank == second:
-    #                         # print(i, x, a.lshape, st0_0, sp0_0, st1_0, sp1_0, 'sec', st0, sp0, st1, sp1, sp1_old, half, q_tile_shape)
-    #                         loc_q[st0:sp0, st0:sp0] = loc_q[st0:sp0, st0:sp0] @ q_dict[i][x][half:, :half]
-    #                         loc_q[st0:sp0, prev_lshapes:sp0 + prev_lshapes] = loc_q[st0:sp0, prev_lshapes:sp0 + prev_lshapes] \
-    #                                                                                   @ q_dict[i][x][half:, half:]
-    #
-    #                     '''
-    #                     the top half of the merge Q needs to be put in the chain matmul dict for the following rules:
-    #                     if its q -> '14' and this is [[A, B], [C, D]]:
-    #                         # applied is code for matmul, if there is zeros there then it is set to the matrix in question
-    #                         element A is applied to the kth column across processes 1, 2, and 3
-    #                         element B is applied to the column equal to the row number of the top tile on the 4th process
-    #                             this is multiplied by the initial value of the local Q_0k and applied to processes 1, 2, 3
-    #                                 if local_Q_0k doesnt exist than this is treated as I
-    #                         element C is applied to local Q_0k
-    #                         element D is applied to the column equal to the row number of the top tile on the 4th process on the local Q
-    #
-    #                     '''
-    #                     # if rank == first:
-    #                     #     print(i, x, i % tile_rows, first * tile_rows + i % tile_rows, 0, half, end)
-    #                     #     print(i, x, i % tile_rows, second * tile_rows, 0, half, end, '\n')
-    #                     # if rank == second:
-    #                     #     print(i, x, 0, first * tile_rows, 0, half, end)
-    #                     #     print(i, x, 0, second * tile_rows, 0, half, end, '\n')
-    #                     # need to write to the elements for each rank
-    #                     # the 0th dim of all of the combinations is 0
-    #                     # if rank == first:
-    #                     #     tile_slices_lists[row_start][first * tile_rows + i % tile_rows].append((x, (slice(None, sp1), slice(None, sp1))))
-    #                     #     tile_slices_lists[row_start][second * tile_rows].append((x, (slice(None, shape0[0]), slice(shape0[0], end))))
-    #                     #     # print(i, x, shape0)
-    #                     # if rank == second:
-    #                     #     tile_slices_lists[0][first * tile_rows + i % tile_rows].append((x, (slice(sp1, end), slice(None, sp1))))
-    #                     #     tile_slices_lists[0][second * tile_rows].append((x, (slice(sp1, end), slice(sp1, end))))
-    #         # print('h', i, tile_slices_lists[1][5])
-    #
-    #         # for rows in range(tile_rows):
-    #         #     for cols in range(tile_columns):
-    #         #         q_list = [q_dict[i][k][sl].shape for k, sl in tile_slices_lists[rows][cols]]
-    #         #         # print(i, rank * tile_rows + rows, cols, tile_slices_lists[rows][cols], q_list)
-    #         #         if tile_slices_lists[rows][cols]:
-    #         #             loc_q_dict[(cols, rows)] = torch.chain_matmul(*[q_dict[i][k][sl] for k, sl in tile_slices_lists[rows][cols]])
-    #
-    #
-    #         # tile_slices_lists[first][int(x) + (rank * tile_rows)].append(
-    #         #     (x, (slice(None, q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2),
-    #         #          slice(q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2, q_tile_shape[0]))))
-    #         # tile_slices_lists[int(x)][first + (rank * tile_rows)].append(
-    #         #     (x, (slice(q_tile_shape[0] // 2, q_tile_shape[0]), slice(None, q_tile_shape[0] // 2))))
-    #         # tile_slices_lists[int(x)][int(x) + (rank * tile_rows)].append((x, (slice(q_tile_shape[0] // 2, q_tile_shape[0]),
-    #         #                                                                    slice(q_tile_shape[0] // 2, q_tile_shape[0]))))
-    #         # tile_slices_lists[0][0] = ('0', (slice(None, shape0[0]), slice(None, shape0[0])))
-    #         # for j in range(2):  # need to set all 4 of the tiles which have data for the combined Q
-    #         #     # if there is a remainder then the process with more data will be on the process with the lower rank
-    #         #     pass
-    #         # print(x)
-    # print(a)
-    return a
+    #         __binary_tree_merge_qr(tiles=tiles, rank=rank, q_dict=q_dict,
+    #                                col=col, diag_process=diag_process,
+    #                                not_completed_processes=not_completed_processes)
+    #     else:  # if the process is not calculating R (only occurs when the R for that node is done)
+    #         break
+    #         # for m in range(tile_rows):
+    #         #     for h in range(len(q_dict[m + rank * tile_rows])):
+    #         #         print(h, m + rank * tile_rows, q_dict[m + rank * tile_rows][h].shape)
+    #         #     hold = torch.chain_matmul(*q_dict[m + rank])
+    # #     # print(len(q_dict[k]))
+    # # if calc_q:
+    # #     '''
+    # #                 this is the code for the Q calculation
+    # #                 idea:
+    # #                     create a local Q of size (lshape[0], m)
+    # #                     use the tile map to find the tile sizes for Q (these will be the same as those for the tile column)
+    # #                     -> loop over the keys in the q_dict (this is the number of columns which can be calculated
+    # #
+    # #                 '''
+    # #     loc_q_dict = {}
+    # #     print(k, list(q_dict))
+    # #     for i in list(q_dict):  # this loops over the completed columns of the process
+    # #         # need to create a 2D list for each column to hold the slices for that tile
+    # #         # dims -> (tile_rows, tile_columns)
+    # #         tile_slices_lists = [[[] for _ in range(tile_columns.item())] for _ in range(tile_rows)]
+    # #         full_q = factories.eye(a.gshape[0], dtype=a.dtype, split=a.split, device=a.device, comm=a.comm)
+    # #         loc_q = full_q._DNDarray__array
+    # #         # col_slices = []
+    # #         shape0 = q_dict[i]['0'].shape
+    # #         # tile_slices_lists[0][1] = tile_slices_lists[0][1] + [0]
+    # #         row_start = 0 if i - (tile_rows * rank) < 0 else i % tile_rows
+    # #         # print('here', shape0, row_start, row_start + rank * tile_rows)
+    # #         q_blocks = {}
+    # #         q_blocks[0] = torch.eye(a.lshape[0])
+    # #         q_blocks[0][:shape0[0], :shape0[0]] = q_dict[i]['0']
+    # #         tile_slices_lists[row_start][row_start + rank * tile_rows].append(('0', (slice(None, shape0[0]), slice(None, shape0[0]))))
+    # #
+    # #         for x in list(q_dict[i]):
+    # #             if x != '0':
+    # #                 rem = True if q_dict[i][x].shape[0] % 2 == 1 else False
+    # #                 q_tile_shape = q_dict[i][x].shape
+    # #                 half = q_tile_shape[0]//2 + 1 if rem else q_tile_shape[0]//2
+    # #                 end = q_tile_shape[0]
+    # #
+    # #                 if len(x) == 1:  # single values indicate a local merge between tiles
+    # #                     first = i % tile_rows
+    # #                     q_blocks[int(x)] = torch.eye(a.lshape[0])
+    # #
+    # #                     st0_0 = domain_tile_shapes[rank, :row_start, 0, 0].sum()
+    # #                     sp0_0 = domain_tile_shapes[rank, :, i, 0][row_start] + st0_0
+    # #
+    # #                     st0 = domain_tile_shapes[rank, :int(x), 0, 0].sum()
+    # #                     sp0 = domain_tile_shapes[rank, :, i, 0][int(x)] + st0
+    # #
+    # #                     half = sp0_0 - st0_0
+    # #                     # print(i, x, a.lshape, st0_0, sp0_0, st1_0, sp1_0, 'x', st0, sp0, st1, sp1, half, end, q_dict[i][x].shape)
+    # #                     # halfway point in the block is [:sp0_0 - st0_0, :sp0_0 - st0_0] (0 -> the stop in dim0 minus where it started)
+    # #                     # note: blocks are square
+    # #                     q_blocks[int(x)][st0_0:sp0_0, st0_0:sp0_0] = q_dict[i][x][:half, :half]  # 00
+    # #                     q_blocks[int(x)][st0_0:sp0_0, st0:sp0] = q_dict[i][x][:half, half:]  # 01
+    # #                     q_blocks[int(x)][st0:sp0, st0_0:sp0_0] = q_dict[i][x][half:, :half]  # 10
+    # #                     q_blocks[int(x)][st0:sp0, st0:sp0] = q_dict[i][x][half:, half:]  # 11
+    # #                     # spx = domain_tile_shapes[rank, int(x), i, 1]
+    # #                     # sp0 = domain_tile_shapes[rank, 0, i, 1]
+    # #
+    # #                     # the four blocks of the merge operations are written to the corresponding tile indices in the slice lists
+    # #                     # print(i, x, first, x, 0, first + (rank * tile_rows), 0, int(x) + (rank * tile_rows), 0, half, end)
+    # #                     # tile_slices_lists[first][first + (rank * tile_rows)].append((x, (slice(None, half), slice(None, half))))
+    # #                     # tile_slices_lists[first][int(x) + (rank * tile_rows)].append((x, (slice(None, half), slice(half, end))))
+    # #                     # tile_slices_lists[int(x)][first + (rank * tile_rows)].append((x, (slice(half, end), slice(None, half))))
+    # #                     # tile_slices_lists[int(x)][int(x) + (rank * tile_rows)].append((x, (slice(half, end), slice(half, end))))
+    # #                 elif len(x) == 2:  # this is the case for the global merges
+    # #                     first = int(x[0])
+    # #                     second = int(x[1])
+    # #
+    # #                     st0_0 = domain_tile_shapes[first, :row_start, 0, 0].sum()
+    # #                     sp0_0 = domain_tile_shapes[first, :, i, 0][row_start] + st0_0
+    # #                     st1_0 = domain_tile_shapes[first, :row_start, 0, 1].sum()
+    # #                     sp1_0 = domain_tile_shapes[first, :, i, 1][row_start] + st1_0
+    # #
+    # #                     st0 = domain_tile_shapes[second, :row_start, 0, 0].sum()
+    # #                     sp0 = domain_tile_shapes[second, :, i, 0][row_start] + st0
+    # #                     st1 = domain_tile_shapes[second, :row_start, 0, 1].sum()
+    # #                     sp1 = domain_tile_shapes[second, :, i, 1][row_start] + st1
+    # #                     half = sp0_0 - st0_0
+    # #                     prev_lshapes = lshape_map[:second, 0].sum()
+    # #                     sp1_old = domain_tile_shapes[second, row_start, i, 1]
+    # #                     # print(i, x, a.lshape, st0_0, sp0_0, st1_0, sp1_0, 'sec', st0, sp0, prev_lshapes, sp1_old + prev_lshapes, half)
+    # #
+    # #                     # may be too large for the home process, but that is the only one with all of the data
+    # #                     if rank == first:
+    # #                         loc_q[st0_0:sp0_0, st0_0:sp0_0] = loc_q[st0_0:sp0_0, st0_0:sp0_0] @ q_dict[i][x][:half, :half]
+    # #                         loc_q[st0_0:sp0_0, prev_lshapes:sp0 + prev_lshapes] = loc_q[st0_0:sp0_0, prev_lshapes:sp0 + prev_lshapes] \
+    # #                                                                                   @ q_dict[i][x][:half, half:]
+    # #                     if rank == second:
+    # #                         # print(i, x, a.lshape, st0_0, sp0_0, st1_0, sp1_0, 'sec', st0, sp0, st1, sp1, sp1_old, half, q_tile_shape)
+    # #                         loc_q[st0:sp0, st0:sp0] = loc_q[st0:sp0, st0:sp0] @ q_dict[i][x][half:, :half]
+    # #                         loc_q[st0:sp0, prev_lshapes:sp0 + prev_lshapes] = loc_q[st0:sp0, prev_lshapes:sp0 + prev_lshapes] \
+    # #                                                                                   @ q_dict[i][x][half:, half:]
+    # #
+    # #                     '''
+    # #                     the top half of the merge Q needs to be put in the chain matmul dict for the following rules:
+    # #                     if its q -> '14' and this is [[A, B], [C, D]]:
+    # #                         # applied is code for matmul, if there is zeros there then it is set to the matrix in question
+    # #                         element A is applied to the kth column across processes 1, 2, and 3
+    # #                         element B is applied to the column equal to the row number of the top tile on the 4th process
+    # #                             this is multiplied by the initial value of the local Q_0k and applied to processes 1, 2, 3
+    # #                                 if local_Q_0k doesnt exist than this is treated as I
+    # #                         element C is applied to local Q_0k
+    # #                         element D is applied to the column equal to the row number of the top tile on the 4th process on the local Q
+    # #
+    # #                     '''
+    # #                     # if rank == first:
+    # #                     #     print(i, x, i % tile_rows, first * tile_rows + i % tile_rows, 0, half, end)
+    # #                     #     print(i, x, i % tile_rows, second * tile_rows, 0, half, end, '\n')
+    # #                     # if rank == second:
+    # #                     #     print(i, x, 0, first * tile_rows, 0, half, end)
+    # #                     #     print(i, x, 0, second * tile_rows, 0, half, end, '\n')
+    # #                     # need to write to the elements for each rank
+    # #                     # the 0th dim of all of the combinations is 0
+    # #                     # if rank == first:
+    # #                     #     tile_slices_lists[row_start][first * tile_rows + i % tile_rows].append((x, (slice(None, sp1), slice(None, sp1))))
+    # #                     #     tile_slices_lists[row_start][second * tile_rows].append((x, (slice(None, shape0[0]), slice(shape0[0], end))))
+    # #                     #     # print(i, x, shape0)
+    # #                     # if rank == second:
+    # #                     #     tile_slices_lists[0][first * tile_rows + i % tile_rows].append((x, (slice(sp1, end), slice(None, sp1))))
+    # #                     #     tile_slices_lists[0][second * tile_rows].append((x, (slice(sp1, end), slice(sp1, end))))
+    # #         # print('h', i, tile_slices_lists[1][5])
+    # #
+    # #         # for rows in range(tile_rows):
+    # #         #     for cols in range(tile_columns):
+    # #         #         q_list = [q_dict[i][k][sl].shape for k, sl in tile_slices_lists[rows][cols]]
+    # #         #         # print(i, rank * tile_rows + rows, cols, tile_slices_lists[rows][cols], q_list)
+    # #         #         if tile_slices_lists[rows][cols]:
+    # #         #             loc_q_dict[(cols, rows)] = torch.chain_matmul(*[q_dict[i][k][sl] for k, sl in tile_slices_lists[rows][cols]])
+    # #
+    # #
+    # #         # tile_slices_lists[first][int(x) + (rank * tile_rows)].append(
+    # #         #     (x, (slice(None, q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2),
+    # #         #          slice(q_tile_shape[0] // 2 + 1 if rem else q_tile_shape[0] // 2, q_tile_shape[0]))))
+    # #         # tile_slices_lists[int(x)][first + (rank * tile_rows)].append(
+    # #         #     (x, (slice(q_tile_shape[0] // 2, q_tile_shape[0]), slice(None, q_tile_shape[0] // 2))))
+    # #         # tile_slices_lists[int(x)][int(x) + (rank * tile_rows)].append((x, (slice(q_tile_shape[0] // 2, q_tile_shape[0]),
+    # #         #                                                                    slice(q_tile_shape[0] // 2, q_tile_shape[0]))))
+    # #         # tile_slices_lists[0][0] = ('0', (slice(None, shape0[0]), slice(None, shape0[0])))
+    # #         # for j in range(2):  # need to set all 4 of the tiles which have data for the combined Q
+    # #         #     # if there is a remainder then the process with more data will be on the process with the lower rank
+    # #         #     pass
+    # #         # print(x)
+    # # print(a)
+    # return a
 
 
 def __local_tsqr(col, rank, tiles, local_tile_row, q_dict):
