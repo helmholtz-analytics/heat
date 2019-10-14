@@ -86,7 +86,7 @@ def argmax(x, axis=None, out=None, **kwargs):
         # add offset of data chunks if reduction is computed across split axis
         if axis == x.split:
             offset, _, _ = x.comm.chunk(shape, x.split)
-            indices += offset
+            indices += torch.tensor(offset, dtype=indices.dtype)
 
         return torch.cat([maxima.double(), indices.double()])
 
@@ -186,7 +186,7 @@ def argmin(x, axis=None, out=None, **kwargs):
         # add offset of data chunks if reduction is computed across split axis
         if axis == x.split:
             offset, _, _ = x.comm.chunk(shape, x.split)
-            indices += offset
+            indices += torch.tensor(offset, dtype=indices.dtype)
 
         return torch.cat([minimums.double(), indices.double()])
 
