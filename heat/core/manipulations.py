@@ -578,7 +578,7 @@ def sort(a, axis=None, descending=False, out=None):
             send_count = scounts[idx_slice].reshape(-1).tolist()
             send_disp = [0] + list(np.cumsum(send_count[:-1]))
             s_val = torch.tensor(local_sorted[idx_slice])
-            s_ind = torch.tensor(actual_indices[idx_slice])
+            s_ind = torch.tensor(actual_indices[idx_slice], dtype=local_sorted.dtype)
 
             recv_count = rcounts[idx_slice].reshape(-1).tolist()
             recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
@@ -675,7 +675,7 @@ def sort(a, axis=None, descending=False, out=None):
         # Update the indices in case the ordering changed during the last sort
         for idx in np.ndindex(tmp_indices.shape):
             val = tmp_indices[idx]
-            final_indices[idx] = second_indices[val][idx[1:]]
+            final_indices[idx] = second_indices[val.item()][idx[1:]]
         final_indices = final_indices.transpose(0, axis)
 
     return_indices = factories.array(

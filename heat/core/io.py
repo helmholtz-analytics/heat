@@ -605,6 +605,7 @@ def load_csv(
                 if rank == start:
                     last_line = torch.empty(1, dtype=torch.int32)
                     comm.Recv(last_line, source=rank + 1)
+                    last_line = last_line.item()
                 elif rank == size - 1:
                     first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
                     comm.Send(first_line, dest=rank - 1)
@@ -613,6 +614,7 @@ def load_csv(
                     first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
                     comm.Send(first_line, dest=rank - 1)
                     comm.Recv(last_line, source=rank + 1)
+                    last_line = last_line.item()
 
             # Create empty tensor and iteratively fill it with the values
             local_shape = (len(line_starts), columns)
