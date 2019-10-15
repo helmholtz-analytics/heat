@@ -416,7 +416,10 @@ class SquareDiagTiles:
                         except IndexError:
                             sp0 = key[0].stop
                         st1 = tile_map[0, key[1]][..., 1]
-                        sp1 = tile_map[0, key[1] + 1][..., 1]
+                        try:
+                            sp1 = tile_map[0, key[1] + 1][..., 1]
+                        except IndexError:
+                            sp1 = arr.gshape[0]
                     if arr.split == 1:
                         st0 = tile_map[key[0], 0][..., 0]
                         sp0 = tile_map[key[0] + 1, 0][..., 0]
@@ -530,8 +533,8 @@ class SquareDiagTiles:
                 if isinstance(key[0], int):
                     key[0] += prev_rows
                 elif isinstance(key[0], slice):
-                    start = key[0].start + prev_rows
-                    stop = key[0].stop + prev_rows
+                    start = key[0].start + prev_rows if key[0].start is not None else prev_rows
+                    stop = key[0].stop + prev_rows if key[0].stop is not None else start + loc_rows
                     if stop - start > loc_rows:
                         # print(local_tile_map)
                         stop = start + loc_rows
@@ -648,7 +651,7 @@ class SquareDiagTiles:
         # and only if the last diag pr is not the last one
         if (tiles_to_match.last_diagonal_process != base_dnd.comm.size - 1 and
                 base_dnd.split == 0):
-            print('here', self_diag_end, match_diag_end)
+            # print('here', self_diag_end, match_diag_end)
             if self_diag_end - match_diag_end >= 2:
                 new_row_inds.insert(last_col_row, match_diag_end)
                 new_rows[tiles_to_match.last_diagonal_process] += 1
@@ -673,7 +676,7 @@ class SquareDiagTiles:
         new_tile_map[0][..., 1] = 1
         proc_list = torch.cumsum(torch.tensor(new_rows), dim=0)
         pr, pr_hold = 0, 0
-        print(new_rows, new_col_inds)
+        # print(new_rows, new_col_inds)
         for c in range(sum(new_rows)):
             new_tile_map[..., 1][c] = torch.tensor(new_col_inds)
             new_tile_map[c][..., 0] = new_col_inds[c]

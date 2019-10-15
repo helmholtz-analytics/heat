@@ -774,37 +774,45 @@ def qr(a, calc_q=True):
     q_tiles = tiling.SquareDiagTiles(q, tile_per_proc=2)
     q_tiles.match_tiles(tiles)
     # print(q_tiles.tile_map)
-    print(q_tiles.tile_map)
+    # print(q_tiles.tile_map)
     # print(q_tiles.lshape_map)
 
     # loop over the tile columns
-    # rank = a.comm.rank
-    # q_dict = {}
-    # for col in range(tile_columns):  # for each tile column (need to do the last rank separately)
-    #     # for each process need to do local qr
-    #     # need to start the process at the 1st row (block number / iteration number
-    #
-    #     # if the process isnt completed and the completed tiles are not done yet?
-    #     # get the number of True's moded with the tile_rows,
-    #     # this will tell which process only needs to do it on the second chunk
-    #     not_completed_processes = torch.nonzero(col < torch.cumsum(torch.tensor(tiles.tile_rows_per_process), dim=0))
-    #
-    #     diag_process = not_completed_processes[0]
-    #     local_tile_row = 0
-    #     if rank == diag_process:
-    #         local_tile_row = col % tiles.tile_rows_per_process[diag_process]
-    #
-    #     if rank in not_completed_processes:
-    #         # only work on the processes which have not computed the final result
-    #         q_dict[col] = {}
-    #         __local_tsqr(col=col, rank=rank, tiles=tiles,
-    #                      local_tile_row=local_tile_row, q_dict=q_dict)
-    #
-    #         __binary_tree_merge_qr(tiles=tiles, rank=rank, q_dict=q_dict,
-    #                                col=col, diag_process=diag_process,
-    #                                not_completed_processes=not_completed_processes)
-    #     else:  # if the process is not calculating R (only occurs when the R for that node is done)
-    #         break
+    rank = a.comm.rank
+    q_dict = {}
+    for col in range(tile_columns):  # for each tile column (need to do the last rank separately)
+        # for each process need to do local qr
+        # need to start the process at the 1st row (block number / iteration number
+
+        # if the process isnt completed and the completed tiles are not done yet?
+        # get the number of True's moded with the tile_rows,
+        # this will tell which process only needs to do it on the second chunk
+        not_completed_processes = torch.nonzero(col < torch.cumsum(torch.tensor(tiles.tile_rows_per_process), dim=0))
+
+        diag_process = not_completed_processes[0]
+        local_tile_row = 0
+        if rank == diag_process:
+            local_tile_row = col % tiles.tile_rows_per_process[diag_process]
+
+        if rank in not_completed_processes:
+            # only work on the processes which have not computed the final result
+            q_dict[col] = {}
+            __local_tsqr(col=col, rank=rank, tiles=tiles,
+                         local_tile_row=local_tile_row, q_dict=q_dict)
+
+            __binary_tree_merge_qr(tiles=tiles, rank=rank, q_dict=q_dict,
+                                   col=col, diag_process=diag_process,
+                                   not_completed_processes=not_completed_processes)
+        else:  # if the process is not calculating R (only occurs when the R for that node is done)
+            break
+    # find the rows on each process, loop over the corresponding columns
+    comp_rows = torch.cumsum(torch.tensor(tiles.tile_rows_per_process), dim=0)
+    # comp_rows = torch.cat((torch.tensor([0]), comp_rows), dim=0)
+    # print(comp_rows)
+    for col in range(0, comp_rows[rank]):
+        # need to tell tsqr what the diagonal offset is.
+        # the offset is where this starts,
+        __local_tsqr_q_merge(q_dict_local=q_dict[col], col=col, rank=rank, q_tiles=q_tiles)
     #         # for m in range(tile_rows):
     #         #     for h in range(len(q_dict[m + rank * tile_rows])):
     #         #         print(h, m + rank * tile_rows, q_dict[m + rank * tile_rows][h].shape)
@@ -968,7 +976,7 @@ def __local_tsqr(col, rank, tiles, local_tile_row, q_dict):
     base_tile = tiles.local_get((local_tile_row, col), proc=rank)
     q1, r1 = base_tile.qr(some=False)
 
-    q_dict[col]['0'] = q1
+    q_dict[col]['0'] = [q1, base_tile.shape]
     tiles.local_set(key=(local_tile_row, col), data=r1, proc=rank)  # set the r1 to the tile selected with the key
     if col != tiles.tile_columns - 1:
         base_rest = tiles.local_get((local_tile_row, slice(col + 1, None)), proc=rank)
@@ -980,7 +988,7 @@ def __local_tsqr(col, rank, tiles, local_tile_row, q_dict):
         # d is the row it is being merged with
         loop_tile = tiles.local_get(key=(d, col), proc=rank)
         q_lp, r_lp = torch.cat((base_tile, loop_tile), dim=0).qr(some=False)
-        q_dict[col][str(d)] = q_lp
+        q_dict[col][str(d)] = [q_lp, base_tile.shape]
 
         # replace the base/loop tiles with r, then multiple q_lp by the rest of them
         loop_rest = tiles.local_get((d, slice(col + 1, None)), proc=rank)
@@ -991,6 +999,24 @@ def __local_tsqr(col, rank, tiles, local_tile_row, q_dict):
         # set rest in both
         tiles.local_set(key=(local_tile_row, slice(col + 1, None)), data=loop_rest_q[:base_tile.shape[0]], proc=rank)
         tiles.local_set(key=(d, slice(col + 1, None)), data=loop_rest_q[base_tile.shape[0]:], proc=rank)
+
+
+def __local_tsqr_q_merge(q_dict_local, col, rank, q_tiles):
+    """
+    function to merge the Qs calculated by the local_tsqr function FOR ONE COLUMN!
+    this function is only to be used for merging the TSQR Qs for one column
+    these are the single number entries of the q_dict[col]
+    :param q_dict:
+    :param col:
+    :param rank:
+    :return:
+    """
+    # q_dict_local = q_dict[col]
+    # get keys
+    tsqr_keys = [i for i in q_dict_local.keys() if len(i) == 1]
+    print('here')
+    lcl_col_shape = q_tiles.local_get(key=(slice(None), col)).shape
+    print(lcl_col_shape)
 
 
 def __binary_tree_merge_qr(tiles, rank, q_dict, col, diag_process, not_completed_processes):
@@ -1018,9 +1044,9 @@ def __binary_tree_merge_qr(tiles, rank, q_dict, col, diag_process, not_completed
             else:  # send from higher order procs
                 pr1 = rank
             if rank in [pr0, pr1]:
-                q = __merge_rows_qr(pr0=pr0, pr1=pr1, column=col, rank=rank,
+                q, upper_shape = __merge_rows_qr(pr0=pr0, pr1=pr1, column=col, rank=rank,
                                     tiles=tiles, diag_process=diag_process)
-                q_dict[col][str(pr0) + str(pr1)] = q
+                q_dict[col][str(pr0) + str(pr1)] = [q, upper_shape]
         loop_size_remaining = loop_size_remaining[:-1 * (procs_remaining // 2)]
         procs_remaining = loop_size_remaining.size()[0]
 
@@ -1028,9 +1054,9 @@ def __binary_tree_merge_qr(tiles, rank, q_dict, col, diag_process, not_completed
             # combine rem1 and rem2 in the same way as the other nodes,
             # then save the results in rem1 to be used later
             if rank in [rem1, rem2]:
-                q = __merge_rows_qr(pr0=rem1, pr1=rem2, column=col, rank=rank,
+                q, upper_shape = __merge_rows_qr(pr0=rem1, pr1=rem2, column=col, rank=rank,
                                     tiles=tiles, diag_process=diag_process)
-                q_dict[col][str(int(rem1)) + str(int(rem2))] = q
+                q_dict[col][str(int(rem1)) + str(int(rem2))] = [q, upper_shape]
             rem1 = rem2
             rem2 = None
 
@@ -1038,9 +1064,9 @@ def __binary_tree_merge_qr(tiles, rank, q_dict, col, diag_process, not_completed
             # combine rem1 with process 0 (offset) and set completed to True
             # this should be the last thing that happens
             if rank in [offset, rem1]:
-                q = __merge_rows_qr(pr0=offset, pr1=rem1, column=col, rank=rank,
+                q, upper_shape = __merge_rows_qr(pr0=offset, pr1=rem1, column=col, rank=rank,
                                     tiles=tiles, diag_process=diag_process)
-                q_dict[col][str(int(offset)) + str(int(rem1))] = q
+                q_dict[col][str(int(offset)) + str(int(rem1))] = [q, upper_shape]
             rem1 = None
 
         completed = True if procs_remaining == 1 and rem1 is None and rem2 is None else False
@@ -1094,7 +1120,7 @@ def __merge_rows_qr(pr0, pr1, column, rank, tiles, diag_process):
         # set the lower rest
         tiles.local_set(key=(lower_row, slice(column + 1, None)),
                         data=new_rest[upper_rest.shape[0]:], proc=pr1)
-    return q_merge
+    return q_merge, upper.shape
 
 
 def qr_old(a, copy=True, return_q=True, output=None):
