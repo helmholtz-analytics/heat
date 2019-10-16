@@ -188,7 +188,7 @@ def modf(x, out=None):
         ----------
         x : ht.DNDarray
             Input tensor
-        out : ht.DNDarray, optional
+        out : tuple(ht.DNDarray, ht.DNDarray), optional
             A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
             If not provided or None, a freshly-allocated tensor is returned.
 
@@ -226,6 +226,7 @@ def modf(x, out=None):
     return (fractionalParts, integralParts)
 
 
+
 def round(x, decimals=0, out=None, dtype=None):
     """
     Calculate the rounded value element-wise.
@@ -234,6 +235,9 @@ def round(x, decimals=0, out=None, dtype=None):
     ----------
     x : ht.DNDarray
         The values for which the compute the rounded value.
+    decimals: int, optional
+        Number of decimal places to round to (default: 0).
+        If decimals is negative, it specifies the number of positions to the left of the decimal point.
     out : ht.DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated array is returned.
@@ -241,9 +245,6 @@ def round(x, decimals=0, out=None, dtype=None):
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
 
-    decimals: int, optional
-        Number of decimal places to round to (default: 0).
-        If decimals is negative, it specifies the number of positions to the left of the decimal point.
 
     Returns
     -------
@@ -275,6 +276,9 @@ def round(x, decimals=0, out=None, dtype=None):
     return rounded_values
 
 
+
+
+
 def trunc(x, out=None):
     """
     Return the trunc of the input, element-wise.
@@ -302,3 +306,6 @@ def trunc(x, out=None):
     tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
     """
     return operations.__local_op(torch.trunc, x, out)
+
+
+
