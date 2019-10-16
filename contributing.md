@@ -20,7 +20,7 @@ cd heat
 
 * Add the original HeAT repository as your upstream:
 
-```        
+```
 git remote add upstream https://github.com/helmholtz-analytics/heat.git
 ```
 
@@ -60,15 +60,15 @@ git push origin features/123-boolean-operators
 * If your commit introduces a new feature or changes functionality, please explain your changes. For bug fixes, documentation updates, etc., this is generally not necessary, though if you do not get any reaction, do feel free to ask for review.
 
 #### Review Process
-        
-* Reviewers (the other developers and interested community members) will write inline and/or general comments on your Pull Request (PR) to help you improve its implementation, documentation and style. Every single developer working on the project has their code reviewed, and we’ve come to see it as friendly conversation from which we all learn and the overall code quality benefits. Therefore, please don’t let the review discourage you from contributing: its only aim is to improve the quality of project, not to criticize (we are, after all, very grateful for the time you’re donating!). 
-        
+
+* Reviewers (the other developers and interested community members) will write inline and/or general comments on your Pull Request (PR) to help you improve its implementation, documentation and style. Every single developer working on the project has their code reviewed, and we’ve come to see it as friendly conversation from which we all learn and the overall code quality benefits. Therefore, please don’t let the review discourage you from contributing: its only aim is to improve the quality of project, not to criticize (we are, after all, very grateful for the time you’re donating!).
+
 * To update your PR, make your changes on your local repository, commit, run tests and push to your fork. As soon as those changes are pushed up (to the same branch as before) the PR will update automatically. If you have no idea how to fix the test failures, you may push your changes anyway and ask for help in a PR comment.
-        
-* Various continuous integration (CI) services are triggered after each PR update to build the code, run unit tests, measure code coverage and check coding style of your branch. The CI tests must pass before your PR can be merged. If CI fails, you can find out why by clicking on the “failed” icon (red cross) and inspecting the build and test log. To avoid overuse and waste of this resource, test your work locally before committing. 
+
+* Various continuous integration (CI) services are triggered after each PR update to build the code, run unit tests, measure code coverage and check coding style of your branch. The CI tests must pass before your PR can be merged. If CI fails, you can find out why by clicking on the “failed” icon (red cross) and inspecting the build and test log. To avoid overuse and waste of this resource, test your work locally before committing.
 
 * There might also be a "failed" red cross, if the test coverage (i.e. the test code lines) is not high enough. There might be good reasons for this that should be properly described in the PR message. In most cases however, a sufficient test coverage should be achieved through adequate unit tests.
-        
+
 * A PR must be approved by at least one core team member before merging. Approval means the core team member has carefully reviewed the changes, and the PR is ready for merging.
 
 * If the PR relates to any issues, you can add the text `#<ISSUE-NUMBER>` to insert a link to the original issue and/or another PR. Please do so for all relevant topics known to you.
@@ -88,7 +88,7 @@ If GitHub indicates that the branch of your PR can no longer be merged automatic
 * All code should have tests (see test coverage below for more details).
 
 * All code should be documented.
-    
+
 * No changes are ever merged without review and approval by a core team member. Please ask politely on the PR if you get no response to your pull request within a week.
 
 ## Stylistic Guidelines
@@ -113,7 +113,7 @@ If GitHub indicates that the branch of your PR can no longer be merged automatic
 * To measure the test coverage, install [codecov](https://github.com/codecov/codecov-python) and then run:
 
 ```
-mpirun -np <PROCESSES coverage run --source=heat --parallel-mode -m pytest heat/ && \ 
+mpirun -np <PROCESSES coverage run --source=heat --parallel-mode -m pytest heat/ && \
     coverage combine && \
     coverage report && \
     coverage xml'

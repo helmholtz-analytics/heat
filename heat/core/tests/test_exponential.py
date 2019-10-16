@@ -43,7 +43,7 @@ class TestExponential(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.exp([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.exp('hello world')
+            ht.exp("hello world")
 
         # Tests with split
         expected = torch.arange(10, dtype=torch.float32).exp()
@@ -92,7 +92,7 @@ class TestExponential(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.expm1([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.expm1('hello world')
+            ht.expm1("hello world")
 
     def test_exp2(self):
         elements = 10
@@ -135,7 +135,7 @@ class TestExponential(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.exp2([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.exp2('hello world')
+            ht.exp2("hello world")
 
     def test_log(self):
         elements = 15
@@ -178,7 +178,7 @@ class TestExponential(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.log([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.log('hello world')
+            ht.log("hello world")
 
     def test_log2(self):
         elements = 15
@@ -221,7 +221,7 @@ class TestExponential(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.log2([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.log2('hello world')
+            ht.log2("hello world")
 
     def test_log10(self):
         elements = 15
@@ -264,7 +264,7 @@ class TestExponential(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.log10([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.log10('hello world')
+            ht.log10("hello world")
 
     def test_log1p(self):
         elements = 15
@@ -307,7 +307,7 @@ class TestExponential(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.log1p([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.log1p('hello world')
+            ht.log1p("hello world")
 
     def test_sqrt(self):
         elements = 25
@@ -350,7 +350,7 @@ class TestExponential(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.sqrt([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.sqrt('hello world')
+            ht.sqrt("hello world")
 
     def test_sqrt_method(self):
         elements = 25
@@ -389,7 +389,7 @@ class TestExponential(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.sqrt([1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.sqrt('hello world')
+            ht.sqrt("hello world")
 
     def test_sqrt_out_of_place(self):
         elements = 30
@@ -415,4 +415,4 @@ class TestExponential(unittest.TestCase):
 
         # exception
         with self.assertRaises(TypeError):
-            ht.sqrt(number_range, 'hello world')
+            ht.sqrt(number_range, "hello world")

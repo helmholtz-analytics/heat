@@ -48,7 +48,7 @@ class TestLinalg(unittest.TestCase):
         res = ht.dot(a2d, const2) - ht.array(np.dot(data2d, const2))
         self.assertEqual(ht.equal(res, ht.zeros(res.shape)), 1)
         # a and b and const
-        self.assertEqual(ht.dot(const2, const1), 5*6)
+        self.assertEqual(ht.dot(const2, const1), 5 * 6)
 
         with self.assertRaises(NotImplementedError):
             ht.dot(ht.array(data3d), ht.array(data1d))
@@ -273,7 +273,7 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array(a_torch @ b_torch, split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (k, ))
+            self.assertEqual(ret00.shape, (k,))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
@@ -286,7 +286,7 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array(a_torch @ b_torch, split=0)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (k, ))
+            self.assertEqual(ret00.shape, (k,))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
@@ -300,7 +300,7 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array(a_torch @ b_torch, split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (k, ))
+            self.assertEqual(ret00.shape, (k,))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
@@ -314,7 +314,7 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array(a_torch @ b_torch, split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (k, ))
+            self.assertEqual(ret00.shape, (k,))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
@@ -328,7 +328,7 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array(a_torch @ b_torch, split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (k, ))
+            self.assertEqual(ret00.shape, (k,))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
@@ -347,7 +347,7 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array(a_torch @ b_torch, split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (n, ))
+            self.assertEqual(ret00.shape, (n,))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, None)
 
@@ -361,7 +361,7 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array((a_torch @ b_torch), split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (n, ))
+            self.assertEqual(ret00.shape, (n,))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
@@ -375,7 +375,7 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array((a_torch @ b_torch), split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (n, ))
+            self.assertEqual(ret00.shape, (n,))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
@@ -389,7 +389,7 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array((a_torch @ b_torch), split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (n, ))
+            self.assertEqual(ret00.shape, (n,))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
@@ -403,7 +403,7 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array((a_torch @ b_torch), split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (n, ))
+            self.assertEqual(ret00.shape, (n,))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
@@ -417,7 +417,7 @@ class TestLinalg(unittest.TestCase):
             ret_comp = ht.array((a_torch @ b_torch), split=None)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
-            self.assertEqual(ret00.shape, (n, ))
+            self.assertEqual(ret00.shape, (n,))
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
@@ -436,8 +436,8 @@ class TestLinalg(unittest.TestCase):
         self.assertIsInstance(simple_matrix_t, ht.DNDarray)
         self.assertEqual(simple_matrix_t.dtype, ht.float32)
         self.assertEqual(simple_matrix_t.split, None)
-        self.assertEqual(simple_matrix_t.shape, (4, 2,))
-        self.assertEqual(simple_matrix_t._DNDarray__array.shape, (4, 2,))
+        self.assertEqual(simple_matrix_t.shape, (4, 2))
+        self.assertEqual(simple_matrix_t._DNDarray__array.shape, (4, 2))
 
         # 4D array, not distributed, with given axis
         array_4d = ht.zeros((2, 3, 4, 5))
@@ -445,8 +445,8 @@ class TestLinalg(unittest.TestCase):
         self.assertIsInstance(array_4d_t, ht.DNDarray)
         self.assertEqual(array_4d_t.dtype, ht.float32)
         self.assertEqual(array_4d_t.split, None)
-        self.assertEqual(array_4d_t.shape, (5, 2, 4, 3,))
-        self.assertEqual(array_4d_t._DNDarray__array.shape, (5, 2, 4, 3,))
+        self.assertEqual(array_4d_t.shape, (5, 2, 4, 3))
+        self.assertEqual(array_4d_t._DNDarray__array.shape, (5, 2, 4, 3))
 
         # vector transpose, distributed
         vector_split = ht.arange(10, split=0)
@@ -458,22 +458,22 @@ class TestLinalg(unittest.TestCase):
         self.assertLessEqual(vector_split_t.lshape[0], 10)
 
         # matrix transpose, distributed
-        matrix_split = ht.ones((10, 20,), split=1)
+        matrix_split = ht.ones((10, 20), split=1)
         matrix_split_t = matrix_split.transpose()
         self.assertIsInstance(matrix_split_t, ht.DNDarray)
         self.assertEqual(matrix_split_t.dtype, ht.float32)
         self.assertEqual(matrix_split_t.split, 0)
-        self.assertEqual(matrix_split_t.shape, (20, 10,))
+        self.assertEqual(matrix_split_t.shape, (20, 10))
         self.assertLessEqual(matrix_split_t.lshape[0], 20)
         self.assertEqual(matrix_split_t.lshape[1], 10)
 
         # 4D array, distributed
-        array_4d_split = ht.ones((3, 4, 5, 6,), split=3)
-        array_4d_split_t = ht.transpose(array_4d_split, axes=(1, 0, 3, 2,))
+        array_4d_split = ht.ones((3, 4, 5, 6), split=3)
+        array_4d_split_t = ht.transpose(array_4d_split, axes=(1, 0, 3, 2))
         self.assertIsInstance(array_4d_t, ht.DNDarray)
         self.assertEqual(array_4d_split_t.dtype, ht.float32)
         self.assertEqual(array_4d_split_t.split, 2)
-        self.assertEqual(array_4d_split_t.shape, (4, 3, 6, 5,))
+        self.assertEqual(array_4d_split_t.shape, (4, 3, 6, 5))
 
         self.assertEqual(array_4d_split_t.lshape[0], 4)
         self.assertEqual(array_4d_split_t.lshape[1], 3)
@@ -484,72 +484,72 @@ class TestLinalg(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.transpose(1)
         with self.assertRaises(ValueError):
-            ht.transpose(ht.zeros((2, 3,)), axes=1.0)
+            ht.transpose(ht.zeros((2, 3)), axes=1.0)
         with self.assertRaises(ValueError):
-            ht.transpose(ht.zeros((2, 3,)), axes=(-1,))
+            ht.transpose(ht.zeros((2, 3)), axes=(-1,))
         with self.assertRaises(TypeError):
-            ht.zeros((2, 3,)).transpose(axes='01')
+            ht.zeros((2, 3)).transpose(axes="01")
         with self.assertRaises(TypeError):
-            ht.zeros((2, 3,)).transpose(axes=(0, 1.0))
-        with self.assertRaises((ValueError, IndexError,)):
-            ht.zeros((2, 3,)).transpose(axes=(0, 3))
+            ht.zeros((2, 3)).transpose(axes=(0, 1.0))
+        with self.assertRaises((ValueError, IndexError)):
+            ht.zeros((2, 3)).transpose(axes=(0, 3))
 
     def test_tril(self):
         local_ones = ht.ones((5,))
 
         # 1D case, no offset, data is not split, module-level call
         result = ht.tril(local_ones)
-        comparison = torch.ones((5, 5,)).tril()
+        comparison = torch.ones((5, 5)).tril()
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (5, 5,))
-        self.assertEqual(result.lshape, (5, 5,))
+        self.assertEqual(result.shape, (5, 5))
+        self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
         # 1D case, positive offset, data is not split, module-level call
         result = ht.tril(local_ones, k=2)
-        comparison = torch.ones((5, 5,)).tril(diagonal=2)
+        comparison = torch.ones((5, 5)).tril(diagonal=2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (5, 5,))
-        self.assertEqual(result.lshape, (5, 5,))
+        self.assertEqual(result.shape, (5, 5))
+        self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
         # 1D case, negative offset, data is not split, module-level call
         result = ht.tril(local_ones, k=-2)
-        comparison = torch.ones((5, 5,)).tril(diagonal=-2)
+        comparison = torch.ones((5, 5)).tril(diagonal=-2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (5, 5,))
-        self.assertEqual(result.lshape, (5, 5,))
+        self.assertEqual(result.shape, (5, 5))
+        self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
-        local_ones = ht.ones((4, 5,))
+        local_ones = ht.ones((4, 5))
 
         # 2D case, no offset, data is not split, method
         result = local_ones.tril()
-        comparison = torch.ones((4, 5,)).tril()
+        comparison = torch.ones((4, 5)).tril()
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
-        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
+        self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
         # 2D case, positive offset, data is not split, method
         result = local_ones.tril(k=2)
-        comparison = torch.ones((4, 5,)).tril(diagonal=2)
+        comparison = torch.ones((4, 5)).tril(diagonal=2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
-        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
+        self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
         # 2D case, negative offset, data is not split, method
         result = local_ones.tril(k=-2)
-        comparison = torch.ones((4, 5,)).tril(diagonal=-2)
+        comparison = torch.ones((4, 5)).tril(diagonal=-2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
-        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
+        self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
@@ -557,10 +557,10 @@ class TestLinalg(unittest.TestCase):
 
         # 2D+ case, no offset, data is not split, module-level call
         result = local_ones.tril()
-        comparison = torch.ones((5, 6,)).tril()
+        comparison = torch.ones((5, 6)).tril()
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (3, 4, 5, 6,))
-        self.assertEqual(result.lshape, (3, 4, 5, 6,))
+        self.assertEqual(result.shape, (3, 4, 5, 6))
+        self.assertEqual(result.lshape, (3, 4, 5, 6))
         self.assertEqual(result.split, None)
         for i in range(3):
             for j in range(4):
@@ -568,10 +568,10 @@ class TestLinalg(unittest.TestCase):
 
         # 2D+ case, positive offset, data is not split, module-level call
         result = local_ones.tril(k=2)
-        comparison = torch.ones((5, 6,)).tril(diagonal=2)
+        comparison = torch.ones((5, 6)).tril(diagonal=2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (3, 4, 5, 6,))
-        self.assertEqual(result.lshape, (3, 4, 5, 6,))
+        self.assertEqual(result.shape, (3, 4, 5, 6))
+        self.assertEqual(result.lshape, (3, 4, 5, 6))
         self.assertEqual(result.split, None)
         for i in range(3):
             for j in range(4):
@@ -579,10 +579,10 @@ class TestLinalg(unittest.TestCase):
 
         # # 2D+ case, negative offset, data is not split, module-level call
         result = local_ones.tril(k=-2)
-        comparison = torch.ones((5, 6,)).tril(diagonal=-2)
+        comparison = torch.ones((5, 6)).tril(diagonal=-2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (3, 4, 5, 6,))
-        self.assertEqual(result.lshape, (3, 4, 5, 6,))
+        self.assertEqual(result.shape, (3, 4, 5, 6))
+        self.assertEqual(result.lshape, (3, 4, 5, 6))
         self.assertEqual(result.split, None)
         for i in range(3):
             for j in range(4):
@@ -593,7 +593,7 @@ class TestLinalg(unittest.TestCase):
         # 1D case, no offset, data is split, method
         result = distributed_ones.tril()
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.split, 1)
         self.assertTrue(result.lshape[0] == 5 or result.lshape[0] == 0)
         self.assertLessEqual(result.lshape[1], 5)
@@ -606,7 +606,7 @@ class TestLinalg(unittest.TestCase):
         # 1D case, positive offset, data is split, method
         result = distributed_ones.tril(k=2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.split, 1)
         self.assertEqual(result.lshape[0], 5)
         self.assertLessEqual(result.lshape[1], 5)
@@ -619,7 +619,7 @@ class TestLinalg(unittest.TestCase):
         # 1D case, negative offset, data is split, method
         result = distributed_ones.tril(k=-2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.split, 1)
         self.assertEqual(result.lshape[0], 5)
         self.assertLessEqual(result.lshape[1], 5)
@@ -629,12 +629,12 @@ class TestLinalg(unittest.TestCase):
         if result.comm.rank == result.shape[0] - 1:
             self.assertTrue(result._DNDarray__array[0, -1] == 0)
 
-        distributed_ones = ht.ones((4, 5,), split=0)
+        distributed_ones = ht.ones((4, 5), split=0)
 
         # 2D case, no offset, data is horizontally split, method
         result = distributed_ones.tril()
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.split, 0)
         self.assertLessEqual(result.lshape[0], 4)
         self.assertEqual(result.lshape[1], 5)
@@ -647,7 +647,7 @@ class TestLinalg(unittest.TestCase):
         # 2D case, positive offset, data is horizontally split, method
         result = distributed_ones.tril(k=2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.split, 0)
         self.assertLessEqual(result.lshape[0], 4)
         self.assertEqual(result.lshape[1], 5)
@@ -660,7 +660,7 @@ class TestLinalg(unittest.TestCase):
         # 2D case, negative offset, data is horizontally split, method
         result = distributed_ones.tril(k=-2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.split, 0)
         self.assertLessEqual(result.lshape[0], 4)
         self.assertEqual(result.lshape[1], 5)
@@ -670,12 +670,12 @@ class TestLinalg(unittest.TestCase):
         if result.comm.rank == result.shape[0] - 1:
             self.assertTrue(result._DNDarray__array[-1, 0] == 1)
 
-        distributed_ones = ht.ones((4, 5,), split=1)
+        distributed_ones = ht.ones((4, 5), split=1)
 
         # 2D case, no offset, data is vertically split, method
         result = distributed_ones.tril()
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.split, 1)
         self.assertEqual(result.lshape[0], 4)
         self.assertLessEqual(result.lshape[1], 5)
@@ -688,7 +688,7 @@ class TestLinalg(unittest.TestCase):
         # 2D case, positive offset, data is horizontally split, method
         result = distributed_ones.tril(k=2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.split, 1)
         self.assertEqual(result.lshape[0], 4)
         self.assertLessEqual(result.lshape[1], 5)
@@ -701,7 +701,7 @@ class TestLinalg(unittest.TestCase):
         # 2D case, negative offset, data is horizontally split, method
         result = distributed_ones.tril(k=-2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.split, 1)
         self.assertEqual(result.lshape[0], 4)
         self.assertLessEqual(result.lshape[1], 5)
@@ -716,57 +716,57 @@ class TestLinalg(unittest.TestCase):
 
         # 1D case, no offset, data is not split, module-level call
         result = ht.triu(local_ones)
-        comparison = torch.ones((5, 5,)).triu()
+        comparison = torch.ones((5, 5)).triu()
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (5, 5,))
-        self.assertEqual(result.lshape, (5, 5,))
+        self.assertEqual(result.shape, (5, 5))
+        self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
         # 1D case, positive offset, data is not split, module-level call
         result = ht.triu(local_ones, k=2)
-        comparison = torch.ones((5, 5,)).triu(diagonal=2)
+        comparison = torch.ones((5, 5)).triu(diagonal=2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (5, 5,))
-        self.assertEqual(result.lshape, (5, 5,))
+        self.assertEqual(result.shape, (5, 5))
+        self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
         # 1D case, negative offset, data is not split, module-level call
         result = ht.triu(local_ones, k=-2)
-        comparison = torch.ones((5, 5,)).triu(diagonal=-2)
+        comparison = torch.ones((5, 5)).triu(diagonal=-2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (5, 5,))
-        self.assertEqual(result.lshape, (5, 5,))
+        self.assertEqual(result.shape, (5, 5))
+        self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
-        local_ones = ht.ones((4, 5,))
+        local_ones = ht.ones((4, 5))
 
         # 2D case, no offset, data is not split, method
         result = local_ones.triu()
-        comparison = torch.ones((4, 5,)).triu()
+        comparison = torch.ones((4, 5)).triu()
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
-        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
+        self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
         # 2D case, positive offset, data is not split, method
         result = local_ones.triu(k=2)
-        comparison = torch.ones((4, 5,)).triu(diagonal=2)
+        comparison = torch.ones((4, 5)).triu(diagonal=2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
-        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
+        self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
         # 2D case, negative offset, data is not split, method
         result = local_ones.triu(k=-2)
-        comparison = torch.ones((4, 5,)).triu(diagonal=-2)
+        comparison = torch.ones((4, 5)).triu(diagonal=-2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
-        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
+        self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
@@ -774,10 +774,10 @@ class TestLinalg(unittest.TestCase):
 
         # 2D+ case, no offset, data is not split, module-level call
         result = local_ones.triu()
-        comparison = torch.ones((5, 6,)).triu()
+        comparison = torch.ones((5, 6)).triu()
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (3, 4, 5, 6,))
-        self.assertEqual(result.lshape, (3, 4, 5, 6,))
+        self.assertEqual(result.shape, (3, 4, 5, 6))
+        self.assertEqual(result.lshape, (3, 4, 5, 6))
         self.assertEqual(result.split, None)
         for i in range(3):
             for j in range(4):
@@ -785,10 +785,10 @@ class TestLinalg(unittest.TestCase):
 
         # 2D+ case, positive offset, data is not split, module-level call
         result = local_ones.triu(k=2)
-        comparison = torch.ones((5, 6,)).triu(diagonal=2)
+        comparison = torch.ones((5, 6)).triu(diagonal=2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (3, 4, 5, 6,))
-        self.assertEqual(result.lshape, (3, 4, 5, 6,))
+        self.assertEqual(result.shape, (3, 4, 5, 6))
+        self.assertEqual(result.lshape, (3, 4, 5, 6))
         self.assertEqual(result.split, None)
         for i in range(3):
             for j in range(4):
@@ -796,10 +796,10 @@ class TestLinalg(unittest.TestCase):
 
         # # 2D+ case, negative offset, data is not split, module-level call
         result = local_ones.triu(k=-2)
-        comparison = torch.ones((5, 6,)).triu(diagonal=-2)
+        comparison = torch.ones((5, 6)).triu(diagonal=-2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (3, 4, 5, 6,))
-        self.assertEqual(result.lshape, (3, 4, 5, 6,))
+        self.assertEqual(result.shape, (3, 4, 5, 6))
+        self.assertEqual(result.lshape, (3, 4, 5, 6))
         self.assertEqual(result.split, None)
         for i in range(3):
             for j in range(4):
@@ -810,7 +810,7 @@ class TestLinalg(unittest.TestCase):
         # 1D case, no offset, data is split, method
         result = distributed_ones.triu()
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.split, 1)
         self.assertEqual(result.lshape[0], 5)
         self.assertLessEqual(result.lshape[1], 5)
@@ -823,7 +823,7 @@ class TestLinalg(unittest.TestCase):
         # 1D case, positive offset, data is split, method
         result = distributed_ones.triu(k=2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.split, 1)
         self.assertEqual(result.lshape[0], 5)
         self.assertLessEqual(result.lshape[1], 5)
@@ -836,7 +836,7 @@ class TestLinalg(unittest.TestCase):
         # 1D case, negative offset, data is split, method
         result = distributed_ones.triu(k=-2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (5, 5,))
+        self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.split, 1)
         self.assertEqual(result.lshape[0], 5)
         self.assertLessEqual(result.lshape[1], 5)
@@ -846,12 +846,12 @@ class TestLinalg(unittest.TestCase):
         if result.comm.rank == result.shape[0] - 1:
             self.assertTrue(result._DNDarray__array[0, -1] == 1)
 
-        distributed_ones = ht.ones((4, 5,), split=0)
+        distributed_ones = ht.ones((4, 5), split=0)
 
         # 2D case, no offset, data is horizontally split, method
         result = distributed_ones.triu()
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.split, 0)
         self.assertLessEqual(result.lshape[0], 4)
         self.assertEqual(result.lshape[1], 5)
@@ -864,7 +864,7 @@ class TestLinalg(unittest.TestCase):
         # # 2D case, positive offset, data is horizontally split, method
         result = distributed_ones.triu(k=2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.split, 0)
         self.assertLessEqual(result.lshape[0], 4)
         self.assertEqual(result.lshape[1], 5)
@@ -877,7 +877,7 @@ class TestLinalg(unittest.TestCase):
         # # 2D case, negative offset, data is horizontally split, method
         result = distributed_ones.triu(k=-2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.split, 0)
         self.assertLessEqual(result.lshape[0], 4)
         self.assertEqual(result.lshape[1], 5)
@@ -887,12 +887,12 @@ class TestLinalg(unittest.TestCase):
         if result.comm.rank == result.shape[0] - 1:
             self.assertTrue(result._DNDarray__array[-1, 0] == 0)
 
-        distributed_ones = ht.ones((4, 5,), split=1)
+        distributed_ones = ht.ones((4, 5), split=1)
 
         # 2D case, no offset, data is vertically split, method
         result = distributed_ones.triu()
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.split, 1)
         self.assertEqual(result.lshape[0], 4)
         self.assertLessEqual(result.lshape[1], 5)
@@ -905,7 +905,7 @@ class TestLinalg(unittest.TestCase):
         # 2D case, positive offset, data is horizontally split, method
         result = distributed_ones.triu(k=2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.split, 1)
         self.assertEqual(result.lshape[0], 4)
         self.assertLessEqual(result.lshape[1], 5)
@@ -918,7 +918,7 @@ class TestLinalg(unittest.TestCase):
         # 2D case, negative offset, data is horizontally split, method
         result = distributed_ones.triu(k=-2)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.split, 1)
         self.assertEqual(result.lshape[0], 4)
         self.assertLessEqual(result.lshape[1], 5)

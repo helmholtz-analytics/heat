@@ -4,6 +4,6 @@ micro = 0
 extension = None
 
 if not extension:
-    __version__ = '{}.{}.{}'.format(major, minor, micro)
+    __version__ = "{}.{}.{}".format(major, minor, micro)
 else:
-    __version__ = '{}.{}.{}-{}'.format(major, minor, micro, extension)
+    __version__ = "{}.{}.{}-{}".format(major, minor, micro, extension)

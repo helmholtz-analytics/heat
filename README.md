@@ -50,8 +50,9 @@ Requirements
 ------------
 
 HeAT is based on [PyTorch](https://pytorch.org/). Specifially, we are exploiting
-PyTorch's support for GPUs *and* MPI parallelism. For MPI support we utilize 
-[mpi4py](https://mpi4py.readthedocs.io). Both packages can be installed via pip or automatically using the setup.py.
+PyTorch's support for GPUs *and* MPI parallelism. For MPI support we utilize
+[mpi4py](https://mpi4py.readthedocs.io). Both packages can be installed via pip
+or automatically using the setup.py.
 
 
 Installation
@@ -66,13 +67,28 @@ install the latest version with
 where the part in brackets is a list of optional dependencies. You can omit
 it, if you do not need HDF5 or NetCDF support.
 
+Hacking
+-------
+
 If you want to work with the development version, you can checkout the sources using
 
 > $ git clone https://github.com/helmholtz-analytics/heat.git
 
 The installation can then be done from the checked out sources with
 
-> $ pip install .[hdf5, netcdf]
+> $ pip install .[hdf5, netcdf, dev]
+
+The extra `dev` dependency pulls in additional tools to support the enforcement
+of coding conventions ([Black](https://github.com/psf/black)) and to support a
+pre-commit hook to do the same. In order to fully use this framework, please
+also install the pre-commit hook with
+
+> $ pre-commit install
+
+In order to check compliance of your changes before even trying to commit anything,
+you can run
+
+> $ pre-commit run --all-files
 
 License
 -------

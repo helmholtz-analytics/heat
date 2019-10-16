@@ -1,23 +1,25 @@
 language: python
 python:
-  - "3.5"
+  - "3.6"
 
 services:
   - docker
-    
+
 before_install:
   - pip install codecov
   - docker pull markusgoetz/heat
   - docker run -dt --name unittest -v $PWD:/heat markusgoetz/heat
+  - pip install pre-commit
 
 install:
+  - pre-commit run --all-files
   - docker exec -t unittest /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf] && pip list'
 
 script:
   # Running multiple mpi process count, generate a unique coverage report for each one and merge into one report
   - |
     docker exec -t unittest /bin/bash -c '. /root/.bashrc && \
-      for i in {1..4}; do mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/; done && \
+      for i in {1..4}; do mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ || exit; done && \
       mpirun --allow-run-as-root -np 7 coverage run --source=heat --parallel-mode -m pytest heat/ && \
       coverage combine && \
       coverage report && \
