@@ -138,7 +138,7 @@ def clip(a, a_min, a_max, out=None):
 
     return a._DNDarray__array.clamp(a_min, a_max, out=out._DNDarray__array) and out
 
- 
+
 def fabs(x, out=None):
     """
     Calculate the absolute value element-wise and return floating-point tensor.
@@ -159,7 +159,7 @@ def fabs(x, out=None):
     """
 
     return abs(x, out, dtype=None)
-    
+
 
 def floor(x, out=None):
     """
@@ -189,18 +189,18 @@ def floor(x, out=None):
     return operations.__local_op(torch.floor, x, out)
 
 
-def modf(a):
+def modf(x, out=None):
     """
-        Return the fractional and integral parts of an array, element-wise.
+        Return the fractional and integral parts of a tensor, element-wise.
         The fractional and integral parts are negative if the given number is negative.
 
         Parameters
         ----------
         x : ht.DNDarray
-            Input array
+            Input tensor
         out : ht.DNDarray, optional
             A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-            If not provided or None, a freshly-allocated array is returned.
+            If not provided or None, a freshly-allocated tensor is returned.
 
         Returns
         -------
@@ -219,13 +219,21 @@ def modf(a):
             tensor([ 0.0000, -0.6000, -0.2000, -0.8000, -0.4000,  0.0000,  0.4000,  0.8000, 0.2000,  0.6000]))
         """
 
-    integralParts = ht.trunc(a)
-    fractionalParts = a-integralParts
+    integralParts = ht.trunc(x)
+    fractionalParts = x - integralParts
+
+    if out is not None:
+        if not isinstance(out, tuple):
+            raise TypeError('expected out to be None or a tuple of ht.DNDarray, but was {}'.format(type(out)))
+        if len(out) != 2:
+            raise ValueError('expected out to be a tuple of length 2, but was of length {}'.format(len(out)))
+        if (not isinstance(out[0], ht.DNDarray)) or (not isinstance(out[1], ht.DNDarray)):
+            raise TypeError('expected out to be None or a tuple of ht.DNDarray, but was ({}, {})'.format(type(out[0]), type(out[1])))
+        out[0]._DNDarray__array = fractionalParts._DNDarray__array
+        out[1]._DNDarray__array = integralParts._DNDarray__array
+        return out
 
     return (fractionalParts, integralParts)
-
-
-
 
 
 def round(x, decimals=0, out=None, dtype=None):
@@ -262,12 +270,12 @@ def round(x, decimals=0, out=None, dtype=None):
         raise TypeError('dtype must be a heat data type')
 
     if decimals != 0:
-        x*=10**decimals
+        x *= 10**decimals
 
     rounded_values = operations.__local_op(torch.round, x, out)
 
-    if decimals !=0:
-        rounded_values/=10**decimals
+    if decimals != 0:
+        rounded_values /= 10**decimals
 
     if dtype is not None:
         rounded_values._DNDarray__array = rounded_values._DNDarray__array.type(
@@ -275,9 +283,6 @@ def round(x, decimals=0, out=None, dtype=None):
         rounded_values._DNDarray__dtype = dtype
 
     return rounded_values
-
-
-
 
 
 def trunc(x, out=None):
@@ -307,6 +312,3 @@ def trunc(x, out=None):
     tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
     """
     return operations.__local_op(torch.trunc, x, out)
-
-
-
