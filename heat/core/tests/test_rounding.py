@@ -196,6 +196,12 @@ class TestRounding(unittest.TestCase):
             ht.modf([0, 1, 2, 3])
         with self.assertRaises(TypeError):
             ht.modf(object())
+        with self.assertRaises(TypeError):
+            ht.modf(float32_tensor, 1)
+        with self.assertRaises(ValueError):
+            ht.modf(float32_tensor, (float32_tensor, float32_tensor, float64_tensor))
+        with self.assertRaises(TypeError):
+            ht.modf(float32_tensor, (float32_tensor, 2))
 
 
     def test_round(self):
