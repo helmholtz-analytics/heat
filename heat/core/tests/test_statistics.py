@@ -16,8 +16,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (4, 5,))
-        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
+        self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmax(0)).all())
 
@@ -29,7 +29,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.shape, (3, 4, 1))
         self.assertEqual(result.lshape, (3, 4, 1))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmax(-1, keepdim=True)).all())
+        self.assertTrue(
+            (result._DNDarray__array == data._DNDarray__array.argmax(-1, keepdim=True)).all()
+        )
 
         # 1D split tensor, no axis
         data = ht.arange(-10, 10, split=0)
@@ -56,7 +58,7 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
-        data = ht.tril(ht.ones((size, size,), split=0), k=-1)
+        data = ht.tril(ht.ones((size, size), split=0), k=-1)
 
         result = ht.argmax(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
@@ -69,7 +71,7 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, across the axis, output tensor
         size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((size, size,), split=0), k=-1)
+        data = ht.triu(ht.ones((size, size), split=0), k=-1)
 
         output = ht.empty((size,))
         result = ht.argmax(data, axis=0, out=output)
@@ -88,7 +90,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(TypeError):
             data.argmax(axis=1.1)
         with self.assertRaises(TypeError):
-            data.argmax(axis='y')
+            data.argmax(axis="y")
         with self.assertRaises(ValueError):
             ht.argmax(data, axis=-4)
 
@@ -111,8 +113,8 @@ class TestStatistics(unittest.TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (4, 5,))
-        self.assertEqual(result.lshape, (4, 5,))
+        self.assertEqual(result.shape, (4, 5))
+        self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmin(0)).all())
 
@@ -124,7 +126,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.shape, (3, 4, 1))
         self.assertEqual(result.lshape, (3, 4, 1))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmin(-1, keepdim=True)).all())
+        self.assertTrue(
+            (result._DNDarray__array == data._DNDarray__array.argmin(-1, keepdim=True)).all()
+        )
 
         # 2D split tensor, along the axis
         data = ht.array(ht.random.randn(4, 5), is_split=0)
@@ -140,7 +144,7 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((size, size,), split=0), k=1)
+        data = ht.triu(ht.ones((size, size), split=0), k=1)
 
         result = ht.argmin(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
@@ -153,7 +157,7 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, across the axis, output tensor
         size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((size, size,), split=0), k=1)
+        data = ht.triu(ht.ones((size, size), split=0), k=1)
 
         output = ht.empty((size,))
         result = ht.argmin(data, axis=0, out=output)
@@ -172,7 +176,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(TypeError):
             data.argmin(axis=1.1)
         with self.assertRaises(TypeError):
-            data.argmin(axis='y')
+            data.argmin(axis="y")
         with self.assertRaises(ValueError):
             ht.argmin(data, axis=-4)
 
@@ -183,10 +187,10 @@ class TestStatistics(unittest.TestCase):
             actual = ht.array([[1, -1], [-1, 1]], split=0)
             self.assertTrue(ht.equal(cov, actual))
 
-        data = np.loadtxt('heat/datasets/data/iris.csv', delimiter=';')
+        data = np.loadtxt("heat/datasets/data/iris.csv", delimiter=";")
         np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False)
 
-        htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=0)
+        htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
         ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
         self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
 
@@ -203,18 +207,18 @@ class TestStatistics(unittest.TestCase):
         self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
 
         if 1 < x.comm.size < 5:
-            htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=1)
+            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=1)
             np_cov = np.cov(data, rowvar=False)
             ht_cov = ht.cov(htdata, rowvar=False)
             self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
 
             np_cov = np.cov(data, data, rowvar=True)
 
-            htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=0)
+            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
             ht_cov = ht.cov(htdata, htdata, rowvar=True)
             self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
 
-            htdata = ht.load('heat/datasets/data/iris.csv', sep=';', split=0)
+            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
             with self.assertRaises(RuntimeError):
                 ht.cov(htdata[1:], rowvar=False)
             with self.assertRaises(RuntimeError):
@@ -225,7 +229,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.cov(htdata, np_cov)
         with self.assertRaises(TypeError):
-            ht.cov(htdata, ddof='str')
+            ht.cov(htdata, ddof="str")
         with self.assertRaises(ValueError):
             ht.cov(ht.zeros((1, 2, 3)))
         with self.assertRaises(ValueError):
@@ -234,12 +238,7 @@ class TestStatistics(unittest.TestCase):
             ht.cov(htdata, ddof=10000)
 
     def test_average(self):
-        data = [
-            [1,   2,  3],
-            [4,   5,  6],
-            [7,   8,  9],
-            [10, 11, 12]
-        ]
+        data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
         ht_array = ht.array(data, dtype=float)
         comparison = np.asanyarray(data)
@@ -290,7 +289,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(avg_volume._DNDarray__array.dtype, torch.float64)
         self.assertEqual(avg_volume.split, None)
         self.assertAlmostEqual(avg_volume.numpy().all(), np_avg_volume.all())
-        avg_volume_with_cumwgt = ht.average(random_volume, weights=random_weights, axis=1, returned=True)
+        avg_volume_with_cumwgt = ht.average(
+            random_volume, weights=random_weights, axis=1, returned=True
+        )
         self.assertIsInstance(avg_volume_with_cumwgt, tuple)
         self.assertIsInstance(avg_volume_with_cumwgt[1], ht.DNDarray)
         self.assertEqual(avg_volume_with_cumwgt[1].gshape, avg_volume_with_cumwgt[0].gshape)
@@ -329,7 +330,7 @@ class TestStatistics(unittest.TestCase):
             ht.average(random_5d, weights=random_weights, axis=None)
         with self.assertRaises(NotImplementedError):
             ht.average(random_5d, weights=random_weights, axis=(1, 2))
-        random_weights = ht.random.randn(random_5d.gshape[axis], random_5d.gshape[axis+1])
+        random_weights = ht.random.randn(random_5d.gshape[axis], random_5d.gshape[axis + 1])
         with self.assertRaises(TypeError):
             ht.average(random_5d, weights=random_weights, axis=axis)
         random_weights = ht.random.randn(random_5d.gshape[axis] + 1)
@@ -341,17 +342,12 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht_array.average(axis=1.1)
         with self.assertRaises(TypeError):
-            ht_array.average(axis='y')
+            ht_array.average(axis="y")
         with self.assertRaises(ValueError):
             ht.average(ht_array, axis=-4)
 
     def test_max(self):
-        data = [
-            [1,   2,  3],
-            [4,   5,  6],
-            [7,   8,  9],
-            [10, 11, 12]
-        ]
+        data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
         ht_array = ht.array(data)
         comparison = torch.tensor(data)
@@ -376,8 +372,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(maximum_vertical.split, None)
         self.assertEqual(maximum_vertical.dtype, ht.int64)
         self.assertEqual(maximum_vertical._DNDarray__array.dtype, torch.int64)
-        self.assertTrue((maximum_vertical._DNDarray__array ==
-                         comparison.max(dim=0, keepdim=True)[0]).all())
+        self.assertTrue(
+            (maximum_vertical._DNDarray__array == comparison.max(dim=0, keepdim=True)[0]).all()
+        )
 
         # maximum along second axis
         maximum_horizontal = ht.max(ht_array, axis=1, keepdim=True)
@@ -388,7 +385,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(maximum_horizontal.split, None)
         self.assertEqual(maximum_horizontal.dtype, ht.int64)
         self.assertEqual(maximum_horizontal._DNDarray__array.dtype, torch.int64)
-        self.assertTrue((maximum_horizontal._DNDarray__array == comparison.max(dim=1, keepdim=True)[0]).all())
+        self.assertTrue(
+            (maximum_horizontal._DNDarray__array == comparison.max(dim=1, keepdim=True)[0]).all()
+        )
 
         # check max over all float elements of split 3d tensor, across split axis
         random_volume = ht.random.randn(3, 3, 3, split=1)
@@ -436,23 +435,13 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht_array.max(axis=1.1)
         with self.assertRaises(TypeError):
-            ht_array.max(axis='y')
+            ht_array.max(axis="y")
         with self.assertRaises(ValueError):
             ht.max(ht_array, axis=-4)
 
     def test_maximum(self):
-        data1 = [
-            [1,   2,  3],
-            [4,   5,  6],
-            [7,   8,  9],
-            [10, 11, 12]
-        ]
-        data2 = [
-            [0,   3,  2],
-            [5,   4,  7],
-            [6,   9,  8],
-            [9, 10, 11]
-        ]
+        data1 = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
+        data2 = [[0, 3, 2], [5, 4, 7], [6, 9, 8], [9, 10, 11]]
 
         ht_array1 = ht.array(data1)
         ht_array2 = ht.array(data2)
@@ -487,28 +476,28 @@ class TestStatistics(unittest.TestCase):
 
         # check maximum over float elements of split 3d tensors with different split axis
         torch.manual_seed(1)
-        random_volume_1_splitdiff = ht.random.randn(size*3, size*3, 4, split=0)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
+        random_volume_1_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=0)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
         maximum_volume_splitdiff = ht.maximum(random_volume_1_splitdiff, random_volume_2_splitdiff)
         self.assertIsInstance(maximum_volume_splitdiff, ht.DNDarray)
-        self.assertEqual(maximum_volume_splitdiff.shape, (size*3, size*3, 4))
-        self.assertEqual(maximum_volume_splitdiff.lshape, (size*3, size*3, 4))
+        self.assertEqual(maximum_volume_splitdiff.shape, (size * 3, size * 3, 4))
+        self.assertEqual(maximum_volume_splitdiff.lshape, (size * 3, size * 3, 4))
         self.assertEqual(maximum_volume_splitdiff.dtype, ht.float64)
         self.assertEqual(maximum_volume_splitdiff._DNDarray__array.dtype, torch.float64)
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
-        random_volume_1_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=0)
+        random_volume_1_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=0)
         maximum_volume_splitdiff = ht.maximum(random_volume_1_splitdiff, random_volume_2_splitdiff)
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
-        random_volume_1_split_none = ht.random.randn(size*3, size*3, 4, split=None)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
+        random_volume_1_split_none = ht.random.randn(size * 3, size * 3, 4, split=None)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
         maximum_volume_splitdiff = ht.maximum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(maximum_volume_splitdiff.split, 1)
 
-        random_volume_1_split_none = ht.random.randn(size*3, size*3, 4, split=0)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=None)
+        random_volume_1_split_none = ht.random.randn(size * 3, size * 3, 4, split=0)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=None)
         maximum_volume_splitdiff = ht.maximum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
@@ -546,9 +535,9 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             x.mean(axis=10)
         with self.assertRaises(TypeError):
-            ht.mean(x, axis='01')
+            ht.mean(x, axis="01")
         with self.assertRaises(ValueError):
-            ht.mean(x, axis=(0, '10'))
+            ht.mean(x, axis=(0, "10"))
 
         a = ht.arange(1, 5)
         self.assertEqual(a.mean(), 2.5)
@@ -557,7 +546,7 @@ class TestStatistics(unittest.TestCase):
         dimensions = []
 
         for d in [array_0_len, array_1_len, array_2_len]:
-            dimensions.extend([d, ])
+            dimensions.extend([d])
             hold = list(range(len(dimensions)))
             hold.append(None)
             for i in hold:  # loop over the number of split dimension of the test array
@@ -568,7 +557,9 @@ class TestStatistics(unittest.TestCase):
                 for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     res = z.mean(axis=it)
                     self.assertTrue((res == 1).all())
-                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q != it]
+                    target_dims = [
+                        total_dims_list[q] for q in range(len(total_dims_list)) if q != it
+                    ]
                     if not target_dims:
                         target_dims = (1,)
 
@@ -578,13 +569,17 @@ class TestStatistics(unittest.TestCase):
                             self.assertEqual(res.split, len(target_dims) - 1)
                         else:
                             self.assertEqual(res.split, z.split)
-                loop_list = [",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)]
+                loop_list = [
+                    ",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)
+                ]
 
                 for it in loop_list:  # loop over the different combinations of dimensions for mean
-                    lp_split = [int(q) for q in it.split(',')]
+                    lp_split = [int(q) for q in it.split(",")]
                     res = z.mean(axis=lp_split)
                     self.assertTrue((res == 1).all())
-                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q not in lp_split]
+                    target_dims = [
+                        total_dims_list[q] for q in range(len(total_dims_list)) if q not in lp_split
+                    ]
                     if not target_dims:
                         target_dims = (1,)
                     if res.gshape:
@@ -598,17 +593,12 @@ class TestStatistics(unittest.TestCase):
         # values for the iris dataset mean measured by libreoffice calc
         ax0 = ht.array([5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667])
         for sp in [None, 0, 1]:
-            iris = ht.load('heat/datasets/data/iris.h5', 'data', split=sp)
+            iris = ht.load("heat/datasets/data/iris.h5", "data", split=sp)
             self.assertTrue(ht.allclose(ht.mean(iris), 3.46366666666667))
             self.assertTrue(ht.allclose(ht.mean(iris, axis=0), ax0))
 
     def test_min(self):
-        data = [
-            [1,   2,  3],
-            [4,   5,  6],
-            [7,   8,  9],
-            [10, 11, 12]
-        ]
+        data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
         ht_array = ht.array(data)
         comparison = torch.tensor(data)
@@ -633,7 +623,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum_vertical.split, None)
         self.assertEqual(minimum_vertical.dtype, ht.int64)
         self.assertEqual(minimum_vertical._DNDarray__array.dtype, torch.int64)
-        self.assertTrue((minimum_vertical._DNDarray__array == comparison.min(dim=0, keepdim=True)[0]).all())
+        self.assertTrue(
+            (minimum_vertical._DNDarray__array == comparison.min(dim=0, keepdim=True)[0]).all()
+        )
 
         # maximum along second axis
         minimum_horizontal = ht.min(ht_array, axis=1, keepdim=True)
@@ -644,7 +636,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum_horizontal.split, None)
         self.assertEqual(minimum_horizontal.dtype, ht.int64)
         self.assertEqual(minimum_horizontal._DNDarray__array.dtype, torch.int64)
-        self.assertTrue((minimum_horizontal._DNDarray__array == comparison.min(dim=1, keepdim=True)[0]).all())
+        self.assertTrue(
+            (minimum_horizontal._DNDarray__array == comparison.min(dim=1, keepdim=True)[0]).all()
+        )
 
         # check max over all float elements of split 3d tensor, across split axis
         random_volume = ht.random.randn(3, 3, 3, split=1)
@@ -692,23 +686,13 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht_array.min(axis=1.1)
         with self.assertRaises(TypeError):
-            ht_array.min(axis='y')
+            ht_array.min(axis="y")
         with self.assertRaises(ValueError):
             ht.min(ht_array, axis=-4)
 
     def test_minimum(self):
-        data1 = [
-            [1,   2,  3],
-            [4,   5,  6],
-            [7,   8,  9],
-            [10, 11, 12]
-        ]
-        data2 = [
-            [0,   3,  2],
-            [5,   4,  7],
-            [6,   9,  8],
-            [9, 10, 11]
-        ]
+        data1 = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
+        data2 = [[0, 3, 2], [5, 4, 7], [6, 9, 8], [9, 10, 11]]
 
         ht_array1 = ht.array(data1)
         ht_array2 = ht.array(data2)
@@ -743,28 +727,28 @@ class TestStatistics(unittest.TestCase):
 
         # check minimum over float elements of split 3d tensors with different split axis
         torch.manual_seed(1)
-        random_volume_1_splitdiff = ht.random.randn(size*3, size*3, 4, split=0)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
+        random_volume_1_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=0)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
         self.assertIsInstance(minimum_volume_splitdiff, ht.DNDarray)
-        self.assertEqual(minimum_volume_splitdiff.shape, (size*3, size*3, 4))
-        self.assertEqual(minimum_volume_splitdiff.lshape, (size*3, size*3, 4))
+        self.assertEqual(minimum_volume_splitdiff.shape, (size * 3, size * 3, 4))
+        self.assertEqual(minimum_volume_splitdiff.lshape, (size * 3, size * 3, 4))
         self.assertEqual(minimum_volume_splitdiff.dtype, ht.float64)
         self.assertEqual(minimum_volume_splitdiff._DNDarray__array.dtype, torch.float64)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
-        random_volume_1_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=0)
+        random_volume_1_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=0)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
-        random_volume_1_split_none = ht.random.randn(size*3, size*3, 4, split=None)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=1)
+        random_volume_1_split_none = ht.random.randn(size * 3, size * 3, 4, split=None)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 1)
 
-        random_volume_1_split_none = ht.random.randn(size*3, size*3, 4, split=0)
-        random_volume_2_splitdiff = ht.random.randn(size*3, size*3, 4, split=None)
+        random_volume_1_split_none = ht.random.randn(size * 3, size * 3, 4, split=0)
+        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=None)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
@@ -801,7 +785,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.std(x, axis=10)
         with self.assertRaises(TypeError):
-            ht.std(x, axis='01')
+            ht.std(x, axis="01")
 
         # the rest of the tests are covered by var
 
@@ -817,7 +801,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.var(x, axis=10)
         with self.assertRaises(TypeError):
-            ht.var(x, axis='01')
+            ht.var(x, axis="01")
 
         a = ht.arange(1, 5)
         self.assertEqual(a.var(), 1.666666666666666)
@@ -825,7 +809,7 @@ class TestStatistics(unittest.TestCase):
         # ones
         dimensions = []
         for d in [array_0_len, array_1_len, array_2_len]:
-            dimensions.extend([d, ])
+            dimensions.extend([d])
             hold = list(range(len(dimensions)))
             hold.append(None)
             for i in hold:  # loop over the number of dimensions of the test array
@@ -833,10 +817,13 @@ class TestStatistics(unittest.TestCase):
                 res = z.var()
                 total_dims_list = list(z.shape)
                 self.assertTrue((res == 0).all())
-                for it in range(len(z.shape)):  # loop over the different single dimensions for mean
+                # loop over the different single dimensions for mean
+                for it in range(len(z.shape)):
                     res = z.var(axis=it)
                     self.assertTrue((res == 0).all())
-                    target_dims = [total_dims_list[q] for q in range(len(total_dims_list)) if q != it]
+                    target_dims = [
+                        total_dims_list[q] for q in range(len(total_dims_list)) if q != it
+                    ]
                     if not target_dims:
                         target_dims = (1,)
 
@@ -856,5 +843,5 @@ class TestStatistics(unittest.TestCase):
 
         # values for the iris dataset var measured by libreoffice calc
         for sp in [None, 0, 1]:
-            iris = ht.load_hdf5('heat/datasets/data/iris.h5', 'data', split=sp)
+            iris = ht.load_hdf5("heat/datasets/data/iris.h5", "data", split=sp)
             self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))

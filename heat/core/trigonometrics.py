@@ -4,19 +4,19 @@ from .operations import __local_op as local_op
 
 
 __all__ = [
-    'arccos',
-    'arcsin',
-    'arctan',
-    'cos',
-    'cosh',
-    'deg2rad',
-    'degrees',
-    'rad2deg',
-    'radians',
-    'sin',
-    'sinh',
-    'tan',
-    'tanh'
+    "arccos",
+    "arcsin",
+    "arctan",
+    "cos",
+    "cosh",
+    "deg2rad",
+    "degrees",
+    "rad2deg",
+    "radians",
+    "sin",
+    "sinh",
+    "tan",
+    "tanh",
 ]
 
 
@@ -168,16 +168,16 @@ def deg2rad(x, out=None):
     y : ht.DNDarray
         The corresponding angle in radians
 
-    Examples elements = 
+    Examples elements =
     --------
-    >>> ht.deg2rad(ht.array([0.,20.,45.,78.,94.,120.,180., 270., 311.])) 
+    >>> ht.deg2rad(ht.array([0.,20.,45.,78.,94.,120.,180., 270., 311.]))
     tensor([0.0000, 0.3491, 0.7854, 1.3614, 1.6406, 2.0944, 3.1416, 4.7124, 5.4280])
     """
     # deg2rad torch version
     def torch_deg2rad(torch_tensor):
         if not torch.is_tensor(torch_tensor):
             raise TypeError("Input is not a torch tensor but {}".format(type(torch_tensor)))
-        return torch_tensor * pi / 180.
+        return torch_tensor * pi / 180.0
 
     return local_op(torch_deg2rad, x, out)
 
@@ -201,7 +201,7 @@ def degrees(x, out=None):
 
     Examples
     --------
-    >>> ht.degrees(ht.array([0.,0.2,0.6,0.9,1.2,2.7,3.14])) 
+    >>> ht.degrees(ht.array([0.,0.2,0.6,0.9,1.2,2.7,3.14]))
     tensor([  0.0000,  11.4592,  34.3775,  51.5662,  68.7549, 154.6986, 179.9088])
     """
     return rad2deg(x, out=out)
@@ -226,14 +226,14 @@ def rad2deg(x, out=None):
 
     Examples
     --------
-    >>> ht.rad2deg(ht.array([0.,0.2,0.6,0.9,1.2,2.7,3.14])) 
+    >>> ht.rad2deg(ht.array([0.,0.2,0.6,0.9,1.2,2.7,3.14]))
     tensor([  0.0000,  11.4592,  34.3775,  51.5662,  68.7549, 154.6986, 179.9088])
     """
     # rad2deg torch version
     def torch_rad2deg(torch_tensor):
         if not torch.is_tensor(torch_tensor):
             raise TypeError("Input is not a torch tensor but {}".format(type(torch_tensor)))
-        return 180. * torch_tensor / pi
+        return 180.0 * torch_tensor / pi
 
     return local_op(torch_rad2deg, x, out=out)
 
@@ -257,7 +257,7 @@ def radians(x, out=None):
 
     Examples
     --------
-    >>> ht.radians(ht.array([0., 20., 45., 78., 94., 120., 180., 270., 311.])) 
+    >>> ht.radians(ht.array([0., 20., 45., 78., 94., 120., 180., 270., 311.]))
     tensor([0.0000, 0.3491, 0.7854, 1.3614, 1.6406, 2.0944, 3.1416, 4.7124, 5.4280])
     """
 

@@ -6,23 +6,26 @@ from . import operations
 from . import stride_tricks
 
 __all__ = [
-    'add',
-    'diff',
-    'div',
-    'divide',
-    'floordiv',
-    'floor_divide',
-    'fmod',
-    'mod',
-    'mul',
-    'multiply',
-    'pow',
-    'prod',
-    'power',
-    'remainder',
-    'sub',
-    'subtract',
-    'sum'
+    "add",
+    "bitwise_and",
+    "bitwise_or",
+    "bitwise_xor",
+    "diff",
+    "div",
+    "divide",
+    "floordiv",
+    "floor_divide",
+    "fmod",
+    "mod",
+    "mul",
+    "multiply",
+    "pow",
+    "prod",
+    "power",
+    "remainder",
+    "sub",
+    "subtract",
+    "sum",
 ]
 
 
@@ -64,6 +67,113 @@ def add(t1, t2):
     return operations.__binary_op(torch.add, t1, t2)
 
 
+def bitwise_and(t1, t2):
+    """
+    Compute the bit-wise AND of two arrays element-wise.
+
+    Parameters
+    ----------
+    t1, t2: tensor or scalar
+        Only integer and boolean types are handled. If x1.shape != x2.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
+
+    Returns
+    -------
+    result: ht.DNDarray
+        A tensor containing the results of element-wise AND of t1 and t2.
+
+    Examples:
+    ---------
+    import heat as ht
+    >>> ht.bitwise_and(13, 17)
+    tensor([1])
+    >>> np.bitwise_and(14, 13)
+    tensor([12])
+
+    >>> ht.bitwise_and(ht.array([14,3]), 13)
+    tensor([12,  1])
+
+    >>> ht.bitwise_and(ht.array([11,7]), ht.array([4,25]))
+    tensor([0, 1])
+    >>> ht.bitwise_and(ht.array([2,5,255]), ht.array([3,14,16]))
+    tensor([ 2,  4, 16])
+
+    >>> ht.bitwise_and(ht.array([True, True]), ht.array([False, True]))
+    tensor([False,  True])
+    """
+    return operations.__binary_bit_op("__and__", t1, t2)
+
+
+def bitwise_or(t1, t2):
+    """
+    Compute the bit-wise OR of two arrays element-wise.
+
+    Parameters
+    ----------
+    t1, t2: tensor or scalar
+       Only integer and boolean types are handled. If x1.shape != x2.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
+
+    Returns
+    -------
+    result: ht.DNDArray
+       A tensor containing the results of element-wise OR of t1 and t2.
+
+    Examples:
+    ---------
+    import heat as ht
+    >>> ht.bitwise_or(13, 16)
+    tensor([29])
+
+    >>> ht.bitwise_or(32, 2)
+    tensor([34])
+    >>> ht.bitwise_or(ht.array([33, 4]), 1)
+    tensor([33,  5])
+    >>> ht.bitwise_or(ht.array([33, 4]), ht.array([1, 2]))
+    tensor([33,  6])
+
+    >>> ht.bitwise_or(ht.array([2, 5, 255]), ht.array([4, 4, 4]))
+    tensor([  6,   5, 255])
+    >>> ht.bitwise_or(ht.array([2, 5, 255, 2147483647], dtype=ht.int32),
+    ...               ht.array([4, 4, 4, 2147483647], dtype=ht.int32))
+    tensor([         6,          5,        255, 2147483647])
+    >>> ht.bitwise_or(ht.array([True, True]), ht.array([False, True]))
+    tensor([ True,  True])
+    """
+    return operations.__binary_bit_op("__or__", t1, t2)
+
+
+def bitwise_xor(t1, t2):
+    """
+    Compute the bit-wise XOR of two arrays element-wise.
+
+    Parameters
+    ----------
+    t1, t2: tensor or scalar
+       Only integer and boolean types are handled. If x1.shape != x2.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
+
+    Returns
+    -------
+    result: ht.DNDArray
+       A tensor containing the results of element-wise OR of t1 and t2.
+
+    Examples:
+    ---------
+    import heat as ht
+    >>> ht.bitwise_xor(13, 17)
+    tensor([28])
+
+    >>> ht.bitwise_xor(31, 5)
+    tensor([26])
+    >>> ht.bitwise_xor(ht.array[31,3], 5)
+    tensor([26,  6])
+
+    >>> ht.bitwise_xor(ht.array([31,3]), ht.array([5,6]))
+    tensor([26,  5])
+    >>> ht.bitwise_xor(ht.array([True, True]), ht.array([False, True]))
+    tensor([ True, False])
+    """
+    return operations.__binary_bit_op("__xor__", t1, t2)
+
+
 def diff(a, n=1, axis=-1):
     """
     Calculate the n-th discrete difference along the given axis.
@@ -88,9 +198,9 @@ def diff(a, n=1, axis=-1):
     if n == 0:
         return a
     if n < 0:
-        raise ValueError('diff requires that n be a positive number, got {}'.format(n))
+        raise ValueError("diff requires that n be a positive number, got {}".format(n))
     if not isinstance(a, dndarray.DNDarray):
-        raise TypeError('\'a\' must be a DNDarray')
+        raise TypeError("'a' must be a DNDarray")
 
     axis = stride_tricks.sanitize_axis(a.gshape, axis)
 
@@ -107,32 +217,42 @@ def diff(a, n=1, axis=-1):
     size = a.comm.size
     rank = a.comm.rank
     ret = a.copy()
-    for _ in range(n):  # work loop, runs n times. using the result at the end of the loop as the starting values for each loop
+    # work loop, runs n times. using the result at the end of the loop as the starting values for each loop
+    for _ in range(n):
         axis_slice = [slice(None)] * len(ret.shape)
         axis_slice[axis] = slice(1, None, None)
         axis_slice_end = [slice(None)] * len(ret.shape)
         axis_slice_end[axis] = slice(None, -1, None)
 
+        # build the slice for the first element on the specified axis
         arb_slice = [slice(None)] * len(a.shape)
-        arb_slice[axis] = 0  # build the slice for the first element on the specified axis
+        arb_slice[axis] = 0
+        # send the first element of the array to rank - 1
         if rank > 0:
-            snd = ret.comm.Isend(ret.lloc[arb_slice].clone(), dest=rank - 1, tag=rank)  # send the first element of the array to rank - 1
+            snd = ret.comm.Isend(ret.lloc[arb_slice].clone(), dest=rank - 1, tag=rank)
 
-        dif = ret.lloc[axis_slice] - ret.lloc[axis_slice_end]  # standard logic for the diff with the next element
-        diff_slice = [slice(x) for x in dif.shape]  # need to slice out to select the proper elements of out
+        # standard logic for the diff with the next element
+        dif = ret.lloc[axis_slice] - ret.lloc[axis_slice_end]
+        # need to slice out to select the proper elements of out
+        diff_slice = [slice(x) for x in dif.shape]
         ret.lloc[diff_slice] = dif
 
         if rank > 0:
             snd.wait()  # wait for the send to finish
         if rank < size - 1:
             cr_slice = [slice(None)] * len(a.shape)
-            cr_slice[axis] = 1  # slice of 1 element in the selected axis for the shape creation
+            # slice of 1 element in the selected axis for the shape creation
+            cr_slice[axis] = 1
             recv_data = torch.ones(ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type())
             rec = ret.comm.Irecv(recv_data, source=rank + 1, tag=rank + 1)
             axis_slice_end = [slice(None)] * len(a.shape)
-            axis_slice_end[axis] = slice(-1, None)  # select the last elements in the selected axis
+            # select the last elements in the selected axis
+            axis_slice_end[axis] = slice(-1, None)
             rec.wait()
-            ret.lloc[axis_slice_end] = recv_data.reshape(ret.lloc[axis_slice_end].shape) - ret.lloc[axis_slice_end]  # diff logic
+            # diff logic
+            ret.lloc[axis_slice_end] = (
+                recv_data.reshape(ret.lloc[axis_slice_end].shape) - ret.lloc[axis_slice_end]
+            )
 
     axis_slice_end = [slice(None)] * len(a.shape)
     axis_slice_end[axis] = slice(None, -1 * n, None)
@@ -178,8 +298,10 @@ def div(t1, t2):
     """
     return operations.__binary_op(torch.div, t1, t2)
 
+
 # Alias in compliance with numpy API
 divide = div
+
 
 def fmod(t1, t2):
     """
@@ -197,7 +319,7 @@ def fmod(t1, t2):
     Returns
     -------
     result: ht.DNDarray
-        A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2. 
+        A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2.
         It has the sign as the dividend t1.
 
     Examples:
@@ -251,8 +373,10 @@ def floordiv(t1, t2):
     """
     return operations.__binary_op(lambda a, b: torch.div(a, b).floor(), t1, t2)
 
+
 # Alias in compliance with numpy API
 floor_divide = floordiv
+
 
 def mod(t1, t2):
     """
@@ -271,7 +395,7 @@ def mod(t1, t2):
     Returns
     -------
     result: ht.DNDarray
-        A tensor containing the remainder of the element-wise division of t1 by t2. 
+        A tensor containing the remainder of the element-wise division of t1 by t2.
         It has the same sign as the devisor t2.
 
     Examples:
@@ -335,8 +459,10 @@ def mul(t1, t2):
     """
     return operations.__binary_op(torch.mul, t1, t2)
 
+
 # Alias in compliance with numpy API
 multiply = mul
+
 
 def pow(t1, t2):
     """
@@ -375,8 +501,10 @@ def pow(t1, t2):
     """
     return operations.__binary_op(torch.pow, t1, t2)
 
+
 # Alias in compliance with numpy API
 power = pow
+
 
 def remainder(t1, t2):
     """
@@ -414,6 +542,7 @@ def remainder(t1, t2):
             [2, 2]], dtype=torch.int32)
     """
     return operations.__binary_op(torch.remainder, t1, t2)
+
 
 def prod(x, axis=None, out=None, keepdim=None):
     """
@@ -499,8 +628,10 @@ def sub(t1, t2):
     """
     return operations.__binary_op(torch.sub, t1, t2)
 
+
 # Alias in compliance with numpy API
 subtract = sub
+
 
 def sum(x, axis=None, out=None, keepdim=None):
     """
@@ -547,4 +678,3 @@ def sum(x, axis=None, out=None, keepdim=None):
     """
     # TODO: make me more numpy API complete Issue #101
     return operations.__reduce_op(x, torch.sum, MPI.SUM, axis=axis, out=out, keepdim=keepdim)
-

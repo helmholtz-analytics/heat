@@ -45,7 +45,9 @@ def broadcast_shape(shape_a, shape_b):
         if a == 1 or b == 1 or a == b:
             resulting_shape[i] = max(a, b)
         else:
-            raise ValueError('operands could not be broadcast, input shapes {} {}'.format(shape_a, shape_b))
+            raise ValueError(
+                "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
+            )
 
     return tuple(resulting_shape[::-1])
 
@@ -90,12 +92,12 @@ def sanitize_axis(shape, axis):
     """
     if axis is not None:
         if not isinstance(axis, int) and not isinstance(axis, tuple):
-            raise TypeError('axis must be None or int or tuple, but was {}'.format(type(axis)))
+            raise TypeError("axis must be None or int or tuple, but was {}".format(type(axis)))
     if isinstance(axis, tuple):
-        axis = tuple(dim+len(shape) if dim < 0 else dim for dim in axis)
+        axis = tuple(dim + len(shape) if dim < 0 else dim for dim in axis)
         for dim in axis:
             if dim < 0 or dim >= len(shape):
-                raise ValueError('axis {} is out of bounds for shape {}'.format(axis, shape))
+                raise ValueError("axis {} is out of bounds for shape {}".format(axis, shape))
         return axis
 
     if axis is None or 0 <= axis < len(shape):
@@ -104,7 +106,7 @@ def sanitize_axis(shape, axis):
         axis += len(shape)
 
     if axis < 0 or axis >= len(shape):
-        raise ValueError('axis {} is out of bounds for shape {}'.format(axis, shape))
+        raise ValueError("axis {} is out of bounds for shape {}".format(axis, shape))
 
     return axis
 
@@ -141,14 +143,14 @@ def sanitize_shape(shape):
     >>> sanitize_shape(1.0)
     TypeError
     """
-    shape = (shape,) if not hasattr(shape, '__iter__') else tuple(shape)
+    shape = (shape,) if not hasattr(shape, "__iter__") else tuple(shape)
 
     for dimension in shape:
         if issubclass(type(dimension), np.integer):
             dimension = int(dimension)
         if not isinstance(dimension, int):
-            raise TypeError('expected sequence object with length >= 0 or a single integer')
+            raise TypeError("expected sequence object with length >= 0 or a single integer")
         if dimension < 0:
-            raise ValueError('negative dimensions are not allowed')
+            raise ValueError("negative dimensions are not allowed")
 
     return shape
