@@ -316,6 +316,15 @@ class TestManipulations(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             ht.concatenate((ht.zeros((2, 2), split=0), ht.zeros((2, 2), split=1)), axis=0)
 
+    def test_diagonal(self):
+        data = torch.arange(8).reshape(2, 2, 2)
+        a = ht.array(data, split=0)
+        res = ht.diagonal(a, 0, 1, 2)
+        print('a', a, a.shape)
+        print('res', res, res.shape, res.lshape)
+        print('numpy', res.numpy())
+        self.fail()
+
     def test_expand_dims(self):
         # vector data
         a = ht.arange(10)

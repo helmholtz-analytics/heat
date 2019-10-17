@@ -3,13 +3,23 @@ import torch
 
 from .communication import MPI
 
-from . import dndarray
+from . import dndarray, linalg, communication
 from . import factories
 from . import stride_tricks
 from . import types
 
 
-__all__ = ["concatenate", "expand_dims", "hstack", "resplit", "sort", "squeeze", "unique", "vstack"]
+__all__ = [
+    "concatenate",
+    "diagonal",
+    "expand_dims",
+    "hstack",
+    "resplit",
+    "sort",
+    "squeeze",
+    "unique",
+    "vstack",
+]
 
 
 def concatenate(arrays, axis=0):
@@ -312,6 +322,35 @@ def concatenate(arrays, axis=0):
             res = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
             out._DNDarray__array = res
             return out
+
+
+def diagonal(a, offset=0, dim1=0, dim2=1):
+    shape = a.gshape
+    ax1 = shape[dim1]
+    ax2 = shape[dim2]
+    # determine the number of diagonal elements that will be retrieved
+    length = min(ax1, ax2 - offset) if offset >= 0 else min(ax2, ax1 + offset)
+    # Remove dim1 and dim2 from shape and append resulting length
+    shape = tuple([x for ind, x in enumerate(shape) if ind not in (dim1, dim2)]) + (length,)
+    x, y = min(dim1, dim2), max(dim1, dim2)
+
+    if a.split < x < y:
+        split = a.split
+    elif x < a.split < y:
+        split = a.split - 1
+    elif x < y < a.split:
+        split = a.split - 2
+    else:
+        split = None
+
+    if a.split is None or a.split not in (dim1, dim2):
+        result = torch.diagonal(a._DNDarray__array, offset=offset, dim1=dim1, dim2=dim2)
+    else:
+        split = len(shape) - 1
+        off, _, _ = a.comm.chunk(a.shape, a.split)
+        result = torch.diagonal(a._DNDarray__array, offset=offset + off, dim1=dim1, dim2=dim2)
+
+    return dndarray.DNDarray(result, shape, a.dtype, split, a.device, a.comm)
 
 
 def expand_dims(a, axis):
