@@ -414,7 +414,7 @@ class SquareDiagTiles:
                         try:
                             sp0 = tile_map[key[0].stop, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
                         except IndexError:
-                            sp0 = key[0].stop
+                            sp0 = arr.gshape[0]
                         st1 = tile_map[0, key[1]][..., 1]
                         try:
                             sp1 = tile_map[0, key[1] + 1][..., 1]
@@ -427,7 +427,7 @@ class SquareDiagTiles:
                         try:
                             sp1 = tile_map[0, key[1].stop][..., 1] - tile_map[0, prev_to_split][..., 1]
                         except IndexError:
-                            sp1 = key[1].stop
+                            sp1 = arr.gshape[1]
                 elif isinstance(key[arr.split], int) and isinstance(key[(arr.split + 1) % len(arr.gshape)], slice):
                     # this implies that the other axis is a slice -> key = (int, slice) for split = 0
                     slice_dim = (arr.split + 1) % len(arr.gshape)
@@ -494,19 +494,20 @@ class SquareDiagTiles:
             except AttributeError:
                 raise TypeError('src must be an int, is currently {}'.format(type(src)))
         if not src < self.__DNDarray.comm.size or not dest < self.__DNDarray.comm.size:
-            raise ValueError('src and dest must be less than the size, currently {} and {} respectively'.format(src, dest))
+            raise ValueError('src and dest must be less than the size, '
+                             'currently {} and {} respectively'.format(src, dest))
 
         tile = self.local_get(key, proc=src)
         comm = self.__DNDarray.comm
 
         if comm.rank == src:  # this will only be on one process (required by getitem)
             comm.send(tuple(tile.shape), dest=dest, tag=1111)
-            comm.Send(tile.clone(), dest=dest)
+            comm.Send(tile.clone(), dest=dest, tag=2222)
             return tile, None
         if comm.rank == dest:
             sz = comm.recv(source=src, tag=1111)
             hld = torch.empty(sz)
-            return hld, comm.Irecv(hld, source=src)
+            return hld, comm.Irecv(hld, source=src, tag=2222)
 
     def local_get(self, key, proc=None):
         """
@@ -538,6 +539,7 @@ class SquareDiagTiles:
                     if stop - start > loc_rows:
                         # print(local_tile_map)
                         stop = start + loc_rows
+                    # print(start, stop)
                     key[0] = slice(start, stop)
             if arr.split == 1:
                 # need to adjust key[0] to be only on the local tensor
@@ -735,6 +737,10 @@ class SquareDiagTiles:
         -------
         tuple : dim0 start, dim0 stop, dim1 start, dim1 stop
         """
+        row_ind = self.row_indices
+        col_ind = self.col_indices
+
+        # todo: change this to use the row/col indices
         # default getitem will return the data in the array!!
         # this is intended to return tiles which are local.
         # it will return torch.Tensors which correspond to the tiles of the array
