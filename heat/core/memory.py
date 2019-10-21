@@ -1,8 +1,6 @@
 from . import dndarray
 
-__all__ = [
-    'copy'
-]
+__all__ = ["copy"]
 
 
 def copy(a):
@@ -20,5 +18,7 @@ def copy(a):
         A copy of the original
     """
     if not isinstance(a, dndarray.DNDarray):
-        raise TypeError('input needs to be a tensor')
-    return dndarray.DNDarray(a._DNDarray__array.clone(), a.shape, a.dtype, a.split, a.device, a.comm)
+        raise TypeError("input needs to be a tensor")
+    return dndarray.DNDarray(
+        a._DNDarray__array.clone(), a.shape, a.dtype, a.split, a.device, a.comm
+    )

@@ -7,7 +7,7 @@ import heat as ht
 class TestKMeans(unittest.TestCase):
     def test_fit_iris(self):
         # get some test data
-        iris = ht.load_hdf5(os.path.join(os.getcwd(), 'heat/datasets/data/iris.h5'), 'data')
+        iris = ht.load_hdf5(os.path.join(os.getcwd(), "heat/datasets/data/iris.h5"), "data")
 
         # fit the clusters
         k = 3
