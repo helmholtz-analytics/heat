@@ -80,7 +80,7 @@ The installation can then be done from the checked out sources with
 
 The extra `dev` dependency pulls in additional tools to support the enforcement
 of coding conventions ([Black](https://github.com/psf/black)) and to support a
-pre-commit hook to do the same. In order to fully use this framework, please
+pre-commit hook to do the same. In order to fully use this framework, please 
 also install the pre-commit hook with
 
 > $ pre-commit install
