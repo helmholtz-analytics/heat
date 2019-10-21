@@ -113,7 +113,7 @@ class KMeans:
             # Samples will be equally distributed drawn from all involved processes
 
             _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
-            centroids = ht.empty((1, X.shape[1], self.n_clusters), split=None)
+            centroids = ht.empty((X.shape[1], self.n_clusters), split=None)
 
             if (X.split is None) or (X.split == 0):
                 for i in range(self.n_clusters):
@@ -132,12 +132,13 @@ class KMeans:
                         idx = sample - displ[proc]
                         xi = ht.array(X.lloc[idx, :, 0])
                     xi.comm.Bcast(xi, root=proc)
-                    centroids[0, :, i] = xi
+                    centroids[:, i] = xi
 
             else:
                 raise NotImplementedError("Not implemented for other splitting-axes")
 
-            self._cluster_centers = centroids
+
+            self._cluster_centers = centroids.T.expand_dims(axis=0)
 
         # directly passed centroids
         elif isinstance(self.init, ht.DNDarray):
@@ -152,7 +153,7 @@ class KMeans:
         # kmeans++, smart centroid guessing
         elif self.init == "kmeans++":
             if (X.split is None) or (X.split == 0):
-                centroids = ht.empty((1, X.shape[1], self.n_clusters), split=None)
+                centroids = ht.empty((X.shape[1], self.n_clusters), split=None)
                 sample = ht.random.randint(0, X.shape[0] - 1).item()
                 _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
                 proc = 0
@@ -167,7 +168,7 @@ class KMeans:
                     idx = sample - displ[proc]
                     x0 = ht.array(X.lloc[idx, :, 0])
                 x0.comm.Bcast(x0, root=proc)
-                centroids[0, :, 0] = x0
+                centroids[:, 0] = x0
 
                 for i in range(1, self.n_clusters):
                     distances = ((X - centroids[:, :, :i]) ** 2).sum(axis=1, keepdim=True)
@@ -192,12 +193,12 @@ class KMeans:
                     if X.comm.rank == proc:
                         idx = sample - displ[proc]
                         xi = ht.array(X.lloc[idx, :, 0])
-                    xi.comm.Bcast(xi, root=proc)
-                    centroids[0, :, i] = xi
+                    xi.comm.Ibcast(xi, root=proc)
+                    centroids[:, i] = xi
             else:
                 raise NotImplementedError("Not implemented for other splitting-axes")
 
-            self._cluster_centers = centroids
+            self._cluster_centers = centroids.T.expand_dims(axis=0)
 
         else:
             raise ValueError(
