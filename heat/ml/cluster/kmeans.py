@@ -115,7 +115,7 @@ class KMeans:
             _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
             centroids = ht.empty((1, X.shape[1], self.n_clusters), split=None)
 
-            if (X.split == None) or (X.split == 0):
+            if (X.split is None) or (X.split == 0):
                 for i in range(self.n_clusters):
                     samplerange = (
                         X.gshape[0] // self.n_clusters * i,
@@ -151,7 +151,7 @@ class KMeans:
 
         # kmeans++, smart centroid guessing
         elif self.init == "kmeans++":
-            if (X.split == None) or (X.split == 0):
+            if (X.split is None) or (X.split == 0):
                 centroids = ht.empty((1, X.shape[1], self.n_clusters), split=None)
                 sample = ht.random.randint(0, X.shape[0] - 1).item()
                 _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
