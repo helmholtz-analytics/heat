@@ -16,4 +16,4 @@ class TestKMeans(unittest.TestCase):
 
         # check whether the results are correct
         self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
-        self.assertEqual(kmeans.cluster_centers_.shape, (k, iris.shape[1],))
+        self.assertEqual(kmeans.cluster_centers_.shape, (k, iris.shape[1]))

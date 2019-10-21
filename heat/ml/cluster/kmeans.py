@@ -4,7 +4,7 @@ import heat as ht
 
 
 class KMeans:
-    def __init__(self, n_clusters=8, init='random', max_iter=300, tol=1e-4, random_state=None):
+    def __init__(self, n_clusters=8, init="random", max_iter=300, tol=1e-4, random_state=None):
         """
         K-Means clustering algorithm. An implementation of Lloyd's algorithm [1].
 
@@ -109,7 +109,7 @@ class KMeans:
             ht.random.seed(self.random_state)
 
         # initialize the centroids by randomly picking some of the points
-        if self.init == 'random':
+        if self.init == "random":
             # Samples will be equally distributed drawn from all involved processes
 
             _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
@@ -117,7 +117,10 @@ class KMeans:
 
             if (X.split == None) or (X.split == 0):
                 for i in range(self.n_clusters):
-                    samplerange = (X.gshape[0] // self.n_clusters * i, X.gshape[0] // self.n_clusters * (i + 1))
+                    samplerange = (
+                        X.gshape[0] // self.n_clusters * i,
+                        X.gshape[0] // self.n_clusters * (i + 1),
+                    )
                     sample = ht.random.randint(samplerange[0], samplerange[1]).item()
                     proc = 0
                     for p in range(X.comm.size):
@@ -132,20 +135,22 @@ class KMeans:
                     centroids[0, :, i] = xi
 
             else:
-                raise NotImplementedError('Not implemented for other splitting-axes')
+                raise NotImplementedError("Not implemented for other splitting-axes")
 
             self._cluster_centers = centroids
 
         # directly passed centroids
         elif isinstance(self.init, ht.DNDarray):
             if len(self.init.shape) != 2:
-                raise ValueError('passed centroids need to be two-dimensional, but are {}'.format(len(self.init)))
+                raise ValueError(
+                    "passed centroids need to be two-dimensional, but are {}".format(len(self.init))
+                )
             if self.init.shape[0] != self.n_clusters or self.init.shape[1] != X.shape[1]:
-                raise ValueError('passed centroids do not match cluster count or data shape')
+                raise ValueError("passed centroids do not match cluster count or data shape")
             self._cluster_centers = self.init.resplit(None).T.expand_dims(axis=0)
 
         # kmeans++, smart centroid guessing
-        elif self.init == 'kmeans++':
+        elif self.init == "kmeans++":
             if (X.split == None) or (X.split == 0):
                 centroids = ht.empty((1, X.shape[1], self.n_clusters), split=None)
                 sample = ht.random.randint(0, X.shape[0] - 1).item()
@@ -156,7 +161,8 @@ class KMeans:
                         break
                     proc = p
                 x0 = ht.zeros(X.shape[1])
-                if X.comm.rank == 0: print("".format(proc))
+                if X.comm.rank == 0:
+                    print("".format(proc))
                 if X.comm.rank == proc:
                     idx = sample - displ[proc]
                     x0 = ht.array(X.lloc[idx, :, 0])
@@ -189,12 +195,16 @@ class KMeans:
                     xi.comm.Bcast(xi, root=proc)
                     centroids[0, :, i] = xi
             else:
-                raise NotImplementedError('Not implemented for other splitting-axes')
+                raise NotImplementedError("Not implemented for other splitting-axes")
 
             self._cluster_centers = centroids
 
         else:
-            raise ValueError('init needs to be one of "random", ht.DNDarray or "kmeans++", but was {}'.format(self.init))
+            raise ValueError(
+                'init needs to be one of "random", ht.DNDarray or "kmeans++", but was {}'.format(
+                    self.init
+                )
+            )
 
     def _fit_to_cluster(self, X):
         """
@@ -222,7 +232,7 @@ class KMeans:
         """
         # input sanitation
         if not isinstance(X, ht.DNDarray):
-            raise ValueError('input needs to be a ht.DNDarray, but was {}'.format(type(X)))
+            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
 
         # initialize the clustering
         self._initialize_cluster_centers(X)
@@ -246,10 +256,12 @@ class KMeans:
 
                 # accumulate points and total number of points in cluster
                 assigned_points = (X * selection).sum(axis=0, keepdim=True)
-                points_in_cluster = selection.sum(axis=0, keepdim=True).clip(1.0, ht.iinfo(ht.int64).max)
+                points_in_cluster = selection.sum(axis=0, keepdim=True).clip(
+                    1.0, ht.iinfo(ht.int64).max
+                )
 
                 # compute the new centroids
-                new_cluster_centers[:, :, i:i + 1] = assigned_points / points_in_cluster
+                new_cluster_centers[:, :, i : i + 1] = assigned_points / points_in_cluster
 
             # check whether centroid movement has converged
             self._inertia = ((self._cluster_centers - new_cluster_centers) ** 2).sum()
@@ -299,11 +311,11 @@ class KMeans:
         _ = deep
 
         return {
-            'init': self.init,
-            'max_iter': self.max_iter,
-            'n_clusters': self.n_clusters,
-            'random_state': self.random_state,
-            'tol': self.tol
+            "init": self.init,
+            "max_iter": self.max_iter,
+            "n_clusters": self.n_clusters,
+            "random_state": self.random_state,
+            "tol": self.tol,
         }
 
     def predict(self, X):
@@ -325,7 +337,7 @@ class KMeans:
         """
         # input sanitation
         if not isinstance(X, ht.DNDarray):
-            raise ValueError('input needs to be a ht.DNDarray, but was {}'.format(type(X)))
+            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
 
         # determine the centroids
         return self._fit_to_cluster(X.expand_dims(axis=2)).squeeze()
@@ -344,11 +356,10 @@ class KMeans:
         self : ht.ml.KMeans
             This estimator instance for chaining.
         """
-        self.init = params.get(params['init'], self.init)
-        self.max_iter = params.get(params['max_iter'], self.max_iter)
-        self.n_clusters = params.get(params['n_clusters'], self.n_clusters)
-        self.random_state = params.get(params['random_state'], self.random_state)
-        self.tol = params.get(params['tol'], self.tol)
+        self.init = params.get(params["init"], self.init)
+        self.max_iter = params.get(params["max_iter"], self.max_iter)
+        self.n_clusters = params.get(params["n_clusters"], self.n_clusters)
+        self.random_state = params.get(params["random_state"], self.random_state)
+        self.tol = params.get(params["tol"], self.tol)
 
         return self
-
