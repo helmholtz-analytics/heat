@@ -110,10 +110,31 @@ class KMeans:
 
         # initialize the centroids by randomly picking some of the points
         if self.init == 'random':
-            # this may result in double picks, but we do not mind
-            # after a single k-means iteration they are separate as the centroids are apart
-            picks = ht.random.randint(0, X.shape[0], (self.n_clusters,), device=X.device, comm=X.comm)
-            self._cluster_centers = X[picks].balance_().resplit_().T.expand_dims(axis=0)
+            # Samples will be equally distributed drawn from all involved processes
+
+            _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
+            centroids = ht.empty((1, X.shape[1], self.n_clusters), split=None)
+
+            if (X.split == None) or (X.split == 0):
+                for i in range(self.n_clusters):
+                    samplerange = (X.gshape[0] // self.n_clusters * i, X.gshape[0] // self.n_clusters * (i + 1))
+                    sample = ht.random.randint(samplerange[0], samplerange[1]).item()
+                    proc = 0
+                    for p in range(X.comm.size):
+                        if displ[p] > sample:
+                            break
+                        proc = p
+                    xi = ht.zeros(X.shape[1])
+                    if X.comm.rank == proc:
+                        idx = sample - displ[proc]
+                        xi = ht.array(X.lloc[idx, :, 0])
+                    xi.comm.Bcast(xi, root=proc)
+                    centroids[0, :, i] = xi
+
+            else:
+                raise NotImplementedError('Not implemented for other splitting-axes')
+
+            self._cluster_centers = centroids
 
         # directly passed centroids
         elif isinstance(self.init, ht.DNDarray):
@@ -125,8 +146,52 @@ class KMeans:
 
         # kmeans++, smart centroid guessing
         elif self.init == 'kmeans++':
-            # TODO: kmeans++ missing
-            return NotImplemented
+            if (X.split == None) or (X.split == 0):
+                centroids = ht.empty((1, X.shape[1], self.n_clusters), split=None)
+                sample = ht.random.randint(0, X.shape[0] - 1).item()
+                _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
+                proc = 0
+                for p in range(X.comm.size):
+                    if displ[p] > sample:
+                        break
+                    proc = p
+                x0 = ht.zeros(X.shape[1])
+                if X.comm.rank == 0: print("".format(proc))
+                if X.comm.rank == proc:
+                    idx = sample - displ[proc]
+                    x0 = ht.array(X.lloc[idx, :, 0])
+                x0.comm.Bcast(x0, root=proc)
+                centroids[0, :, 0] = x0
+
+                for i in range(1, self.n_clusters):
+                    distances = ((X - centroids[:, :, :i]) ** 2).sum(axis=1, keepdim=True)
+                    D2 = distances.min(axis=2)
+                    D2.resplit_(axis=None)
+                    D2 = D2.squeeze()
+                    prob = D2 / D2.sum()
+                    x = ht.random.rand().item()
+                    sample = 0
+                    sum = 0
+                    for j in range(len(prob)):
+                        if sum > x:
+                            break
+                        sum += prob[j].item()
+                        sample = j
+                    proc = 0
+                    for p in range(X.comm.size):
+                        if displ[p] > sample:
+                            break
+                        proc = p
+                    xi = ht.zeros(X.shape[1])
+                    if X.comm.rank == proc:
+                        idx = sample - displ[proc]
+                        xi = ht.array(X.lloc[idx, :, 0])
+                    xi.comm.Bcast(xi, root=proc)
+                    centroids[0, :, i] = xi
+            else:
+                raise NotImplementedError('Not implemented for other splitting-axes')
+
+            self._cluster_centers = centroids
 
         else:
             raise ValueError('init needs to be one of "random", ht.DNDarray or "kmeans++", but was {}'.format(self.init))
