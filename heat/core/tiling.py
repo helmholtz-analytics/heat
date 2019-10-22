@@ -218,7 +218,8 @@ class SquareDiagTiles:
                 pass
 
         # =================================================================================================
-        self.__col_per_proc_list = col_per_proc_list if arr.split == 1 else [sum(col_per_proc_list)] * len(col_per_proc_list)
+        self.__col_per_proc_list = col_per_proc_list if arr.split == 1 \
+            else [sum(col_per_proc_list)] * len(col_per_proc_list)
         self.__DNDarray = arr
         self.__lshape_map = lshape_map
         self.__last_diag_pr = last_diag_pr.item()
@@ -658,77 +659,107 @@ class SquareDiagTiles:
         last_col_row = tiles_to_match.tile_rows_per_process[-1] if base_dnd.split == 1 \
             else tiles_to_match.tile_columns_per_process[-1]
         # working with only split=0 for now todo: split=1
-        # **the number of tiles on rows and columns will be equal for this new tile map**
-        if base_dnd.split == 0:
-            new_rows = tiles_to_match.tile_rows_per_process
-        else:
-            # this is assuming that the array is split
-            new_rows = tiles_to_match.tile_cols_per_process
+        if base_dnd.split == tiles_to_match.__DNDarray.split == 0:
+            # **the number of tiles on rows and columns will be equal for this new tile map**
+            if base_dnd.split == 0:
+                new_rows = tiles_to_match.tile_rows_per_process
+            else:
+                # this is assuming that the array is split
+                new_rows = tiles_to_match.tile_columns_per_process
 
-        # set the columns which are less than the last col_row to be the same as the last one
-        # for i in range(last_col_row):
-        # if split=0 then can just set the columns easily
-        new_row_inds = []
-        new_col_inds = []
-        new_row_inds.extend(tiles_to_match.row_indices)
-        new_col_inds.extend(tiles_to_match.col_indices)
+            # set the columns which are less than the last col_row to be the same as the last one
+            # for i in range(last_col_row):
+            # if split=0 then can just set the columns easily
+            new_row_inds = []
+            new_col_inds = []
+            new_row_inds.extend(tiles_to_match.row_indices)
+            new_col_inds.extend(tiles_to_match.col_indices)
 
-        match_shape = tiles_to_match.__DNDarray.shape
-        match_end_dim = 0 if match_shape[0] <= match_shape[1] else 1
-        match_diag_end = tiles_to_match.__DNDarray.shape[match_end_dim]
-        self_diag_end = sum(self.lshape_map[:tiles_to_match.last_diagonal_process + 1]
-                          [..., base_dnd.split])
-        # print(match_diag_end, self_lshape)
+            match_shape = tiles_to_match.__DNDarray.shape
+            match_end_dim = 0 if match_shape[0] <= match_shape[1] else 1
+            match_diag_end = tiles_to_match.__DNDarray.shape[match_end_dim]
+            self_diag_end = sum(self.lshape_map[:tiles_to_match.last_diagonal_process + 1]
+                              [..., base_dnd.split])
+            # print(match_diag_end, self_lshape)
 
-        # match_end = sum(match_lshape[..., base_dnd.split])
-        # below only needs to run if there is enough space for another block (>=2 entries)
-        # and only if the last diag pr is not the last one
-        if (tiles_to_match.last_diagonal_process != base_dnd.comm.size - 1 and
-                base_dnd.split == 0):
-            # print('here', self_diag_end, match_diag_end)
-            if self_diag_end - match_diag_end >= 2:
-                new_row_inds.insert(last_col_row, match_diag_end)
+            # match_end = sum(match_lshape[..., base_dnd.split])
+            # below only needs to run if there is enough space for another block (>=2 entries)
+            # and only if the last diag pr is not the last one
+            if (tiles_to_match.last_diagonal_process != base_dnd.comm.size - 1 and
+                    base_dnd.split == 0):
+                # print('here', self_diag_end, match_diag_end)
+                if self_diag_end - match_diag_end >= 2:
+                    new_row_inds.insert(last_col_row, match_diag_end)
+                    new_rows[tiles_to_match.last_diagonal_process] += 1
+                    # new_col_inds = new_row_inds.copy()
+                if self_diag_end - match_end_dim < 2:
+                    new_row_inds[last_col_row] = match_diag_end
+                    # new_row_inds.insert(last_col_row - 1, torch.tensor(match_end))
+                    # new_rows[tiles_to_match.last_diagonal_process] += 1
+                new_col_inds = new_row_inds.copy()
+
+            if (tiles_to_match.last_diagonal_process != base_dnd.comm.size - 1 and
+                    base_dnd.split == 1 and
+                    self_diag_end - match_diag_end >= 2):
+                new_col_inds.insert(last_col_row, match_diag_end)
                 new_rows[tiles_to_match.last_diagonal_process] += 1
-                # new_col_inds = new_row_inds.copy()
-            if self_diag_end - match_end_dim < 2:
-                new_row_inds[last_col_row] = match_diag_end
-                # new_row_inds.insert(last_col_row - 1, torch.tensor(match_end))
-                # new_rows[tiles_to_match.last_diagonal_process] += 1
-            new_col_inds = new_row_inds.copy()
+                new_row_inds = new_col_inds.copy()
 
-        if (tiles_to_match.last_diagonal_process != base_dnd.comm.size - 1 and
-                base_dnd.split == 1 and
-                self_diag_end - match_diag_end >= 2):
-            new_col_inds.insert(last_col_row, match_diag_end)
-            new_rows[tiles_to_match.last_diagonal_process] += 1
-            new_row_inds = new_col_inds.copy()
+            # # create the new tile_map of all zeros
+            # # units -> row, column, start index in each direction, process
+            new_tile_map = torch.zeros([sum(new_rows), sum(new_rows), 3], dtype=torch.int)
 
-        # # create the new tile_map of all zeros
-        # # units -> row, column, start index in each direction, process
-        new_tile_map = torch.zeros([sum(new_rows), sum(new_rows), 3], dtype=torch.int)
+            new_tile_map[0][..., 1] = 1
+            proc_list = torch.cumsum(torch.tensor(new_rows), dim=0)
+            pr, pr_hold = 0, 0
+            # print(new_rows, new_col_inds)
+            for c in range(sum(new_rows)):
+                new_tile_map[..., 1][c] = torch.tensor(new_col_inds)
+                new_tile_map[c][..., 0] = new_col_inds[c]
+                if pr_hold == proc_list[0]:
+                    pr += 1
+                    proc_list = proc_list[1:]
+                pr_hold += 1
+                new_tile_map[c][..., 2] = pr
+            self.__tile_map = new_tile_map
+            # other things to set:
+            self.__col_per_proc_list = new_rows
+            self.__row_per_proc_list = new_rows
+            self.__last_diag_pr = tiles_to_match.last_diagonal_process
+            self.__row_inds = new_row_inds
+            self.__col_inds = new_col_inds
+            self.__tile_columns = len(new_col_inds)
+            self.__tile_rows = len(new_row_inds)
+        # case for different splits:
+        if base_dnd.split != tiles_to_match.__DNDarray.split and \
+                base_dnd.shape == tiles_to_match.__DNDarray.shape:
+            # if the shapes are the same (also both are square)
+            # then only need to change the processes indices
+            # flipping rows and columns for an array that is the same size with a different split
+            self.__col_per_proc_list = tiles_to_match.__row_per_proc_list
+            self.__row_per_proc_list = tiles_to_match.__col_per_proc_list
+            self.__row_inds = tiles_to_match.__col_inds
+            self.__col_inds = tiles_to_match.__row_inds
+            self.__last_diag_pr = tiles_to_match.last_diagonal_process  # shapes are equal
+            # need to create the new tile map
+            new_tile_map = tiles_to_match.tile_map.clone()
+            tile_per_proc = self.__col_per_proc_list[0]
+            last_diag_pr_rows = self.__row_per_proc_list[self.__last_diag_pr]
+            for p in range(self.__last_diag_pr):  # set ranks
+                new_tile_map[:, tile_per_proc * p:tile_per_proc * (p + 1), 2] = p
+            # set last diag pr rank
+            new_tile_map[:, tile_per_proc * self.__last_diag_pr:tile_per_proc * self.__last_diag_pr + last_diag_pr_rows, 2] = self.__last_diag_pr
+            # set the rest of the ranks
+            st = tile_per_proc * self.__last_diag_pr + last_diag_pr_rows
+            for p in range(base_dnd.comm.size - self.__last_diag_pr + 1):
+                new_tile_map[:, st:st + tile_per_proc * (p + 1), 2] = p + self.__last_diag_pr + 1
+                st += tile_per_proc
+            self.__tile_map = new_tile_map
+            # other things to set:
+            self.__tile_columns = tiles_to_match.__tile_rows
+            self.__tile_rows = tiles_to_match.__tile_columns
 
-        new_tile_map[0][..., 1] = 1
-        proc_list = torch.cumsum(torch.tensor(new_rows), dim=0)
-        pr, pr_hold = 0, 0
-        # print(new_rows, new_col_inds)
-        for c in range(sum(new_rows)):
-            new_tile_map[..., 1][c] = torch.tensor(new_col_inds)
-            new_tile_map[c][..., 0] = new_col_inds[c]
-            if pr_hold == proc_list[0]:
-                pr += 1
-                proc_list = proc_list[1:]
-            pr_hold += 1
-            new_tile_map[c][..., 2] = pr
 
-        self.__tile_map = new_tile_map
-        # other things to set:
-        self.__col_per_proc_list = new_rows
-        self.__row_per_proc_list = new_rows
-        self.__last_diag_pr = tiles_to_match.last_diagonal_process
-        self.__row_inds = new_row_inds
-        self.__col_inds = new_col_inds
-        self.__tile_columns = len(new_col_inds)
-        self.__tile_rows = len(new_row_inds)
 
     def __setitem__(self, key, value):
         """

@@ -766,14 +766,15 @@ def qr(a, calc_q=True):
         raise TypeError('\'a\' must be a DNDarray')
     a_old = a
     a = a.copy()
-    tiles = tiling.SquareDiagTiles(a, tile_per_proc=2)
+    tiles_per_proc = 2
+    tiles = tiling.SquareDiagTiles(a, tile_per_proc=tiles_per_proc)
     tile_columns = tiles.tile_columns
     # print(tiles.tile_map)
     # print(tiles.lshape_map)
 
-    q = factories.eye((a.gshape[0], a.gshape[0]), split=a.split, dtype=a.dtype, comm=a.comm)
-    q_tiles = tiling.SquareDiagTiles(q, tile_per_proc=2)
-    q_tiles.match_tiles(tiles)
+    q0 = factories.eye((a.gshape[0], a.gshape[0]), split=0, dtype=a.dtype, comm=a.comm)
+    q0_tiles = tiling.SquareDiagTiles(q0, tile_per_proc=tiles_per_proc)
+    q0_tiles.match_tiles(tiles)
     # print(q_tiles.tile_map)
     # print(q_tiles.tile_map)
     # print(q_tiles.lshape_map)
@@ -783,7 +784,7 @@ def qr(a, calc_q=True):
     q_dict = {}
     q_dict_waits = {}
     # todo: change range to tile_columns
-    for col in range(0, 1):  # for each tile column (need to do the last rank separately)
+    for col in range(tile_columns):  # for each tile column (need to do the last rank separately)
         # for each process need to do local qr
         # need to start the process at the 1st row (block number / iteration number
 
@@ -812,11 +813,58 @@ def qr(a, calc_q=True):
     # find the rows on each process, loop over the corresponding columns
     comp_rows = torch.cumsum(torch.tensor(tiles.tile_rows_per_process), dim=0)
     # comp_rows = torch.cat((torch.tensor([0]), comp_rows), dim=0)
-    # print(comp_rows)
-    for col in range(0, 1):  # only working on the first 2 columns todo: 0 -> tile columns
+
+    # for q generation:
+    # 1. build q for the 0th column in split=0
+    # ----------------------------------------------------------------------------------------------
+    # this assumes a.split=0
+    col = 0
+    tsqr_q = __local_tsqr_q_merge(q_dict_local=q_dict[col], col=col,
+                                  tiles=tiles, rank=rank)
+
+    # add to the q_dict with the q_dict waits
+    # q dict waits is to have all of the q matrix on the diagonal process
+    for key in q_dict_waits[col].keys():
+        if key in [i[1:] for i in q_dict[col].keys()]:
+            raise KeyError("keys in q_dict_waits should not be in q_dict[col] for each col")
+        # print(q_dict_waits[col][key][3])
+        new_key = q_dict_waits[col][key][3].wait() + key
+        q_dict_waits[col][key][0][1].wait()
+        q_dict[col][new_key] = [q_dict_waits[col][key][0][0],
+                                q_dict_waits[col][key][1].wait(),
+                                q_dict_waits[col][key][2].wait()]
+    if 0 != a.comm.size - 1:
+        if rank == 0:
+            caqr_dict = __caqr_q_merge(q_dict_col=q_dict[col], col=col, tiles=tiles,
+                                       q_tiles=q0_tiles, rank=rank)
+
+        for r in range(1, a.comm.size):
+            # send the relevant tiles to the other processes
+            # 1. get the relevant tiles/keys
+            if rank == 0:  # todo: change this to the diagonal process
+                keys = list(caqr_dict.keys())
+                a.comm.isend(keys.copy(), dest=r, tag=9999)
+            if rank == r:
+                keys = a.comm.recv(source=0, tag=9999)
+
+        if rank != 0:
+            caqr_dict = {}
+        for k in keys:
+            q0_tiles.send_and_set(key=k, data=caqr_dict[k] if rank == 0 else None, home=0)
+
+    loc_q = q0_tiles.local_get(key=(slice(0, None), slice(col, None)))
+    q0_tiles.local_set(key=(slice(0, None), slice(col, None)),
+                       data=tsqr_q @ loc_q)  # set should be the data on the whole row
+    # q0 is formed here
+    # ----------------------------------------------------------------------------------------------
+    # 2. build q for the other columns in split=1
+    # ----------------------------------------------------------------------------------------------
+    proc_tile_start = torch.cumsum(torch.tensor(tiles.tile_rows_per_process), dim=0)
+    for col in range(1, tile_columns):
+        qi = factories.zeros_like(q0, split=1)
+        qi_tiles = tiling.SquareDiagTiles(qi, tile_per_proc=tiles_per_proc)
+        qi_tiles.match_tiles(q0_tiles)
         # need to tell tsqr what the diagonal offset is.
-        # todo: rank selection for columns > tiles on 0th proc
-        proc_tile_start = torch.cumsum(torch.tensor(tiles.tile_rows_per_process), dim=0)
         diag_process = torch.nonzero(proc_tile_start > col)[0].item()
         if rank >= diag_process:
             tsqr_q = __local_tsqr_q_merge(q_dict_local=q_dict[col], col=col,
@@ -836,8 +884,7 @@ def qr(a, calc_q=True):
             if diag_process != a.comm.size - 1:
                 if rank == diag_process:
                     caqr_dict = __caqr_q_merge(q_dict_col=q_dict[col], col=col, tiles=tiles,
-                                               q_tiles=q_tiles, rank=rank)
-
+                                               q_tiles=qi_tiles, rank=rank)
                 for r in range(diag_process + 1, a.comm.size):
                     # send the relevant tiles to the other processes
                     # 1. get the relevant tiles/keys
@@ -849,22 +896,21 @@ def qr(a, calc_q=True):
 
                 if rank != diag_process:
                     caqr_dict = {}
-                # print(keys)
-                # (0, 0), (0, 2), (2, 0), (2, 2), (2, 4), (0, 4), (4, 0), (4, 4)
                 for k in keys:
-                    q_tiles.send_and_set(key=k, data=caqr_dict[k] if rank == diag_process else None,
-                                         home=diag_process)
-                    # NOTE: this has been checked -> passed
+                    qi_tiles.send_and_set(key=k, data=caqr_dict[k] if rank == diag_process else None,
+                                          home=diag_process)
 
-            loc_q = q_tiles.local_get(key=(slice(0, None), slice(col, None)))
-            # print(q.nonzero())
-            q_tiles.local_set(key=(slice(0, None), slice(col, None)),
-                              data=tsqr_q @ loc_q)  # set should be the data on the whole row
-        # this was checked -> passed
+        #     loc_q = q_tiles.local_get(key=(slice(0, None), slice(col, None)))
+        #     q_tiles.local_set(key=(slice(0, None), slice(col, None)),
+        #                       data=tsqr_q @ loc_q)  # set should be the data on the whole row
+        break
 
+    # ----------------------------------------------------------------------------------------------
+
+    # 3. multiply q_0 every loop with q_i and overwrite q_0
     # print(q)
 
-    return q, a
+    return q0, a
 
 
 def __local_tsqr(col, rank, tiles, local_tile_row, q_dict):
