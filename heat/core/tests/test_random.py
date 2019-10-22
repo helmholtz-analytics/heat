@@ -266,13 +266,13 @@ class TestRandom(unittest.TestCase):
         b = ht.random.randn(elements, split=0)
         b = b.numpy()
         a = a.flatten()
-        self.assertTrue(np.array_equal(a, b))
+        self.assertTrue(np.allclose(a, b))
 
         # Creating the same array two times without resetting seed results in different elements
         c = ht.random.randn(elements, split=0)
         c = c.numpy()
         self.assertEqual(c.shape, b.shape)
-        self.assertFalse(np.array_equal(b, c))
+        self.assertFalse(np.allclose(b, c))
 
         # All the created values should be different
         d = np.concatenate((b, c))
@@ -287,7 +287,7 @@ class TestRandom(unittest.TestCase):
         self.assertTrue(ht.equal(a, b))
         a = a.numpy()
         b = b.numpy()
-        self.assertTrue(np.array_equal(a, b))
+        self.assertTrue(np.allclose(a, b))
 
         # Tests with float32
         ht.random.seed(54321)
@@ -305,11 +305,11 @@ class TestRandom(unittest.TestCase):
 
         ht.random.set_state(("Threefry", 54321, 0x10000000000000000))
         b = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2, comm=ht.MPI_WORLD).numpy()
-        self.assertTrue(np.array_equal(a, b))
+        self.assertTrue(np.allclose(a, b))
 
         c = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2, comm=ht.MPI_WORLD).numpy()
-        self.assertFalse(np.array_equal(a, c))
-        self.assertFalse(np.array_equal(b, c))
+        self.assertFalse(np.allclose(a, c))
+        self.assertFalse(np.allclose(b, c))
 
     def test_set_state(self):
         ht.random.set_state(("Threefry", 12345, 0xFFF))
