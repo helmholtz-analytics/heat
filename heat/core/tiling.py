@@ -218,7 +218,6 @@ class SquareDiagTiles:
                 pass
 
         # =================================================================================================
-        # print(row_inds, col_inds)
         self.__col_per_proc_list = col_per_proc_list if arr.split == 1 else [sum(col_per_proc_list)] * len(col_per_proc_list)
         self.__DNDarray = arr
         self.__lshape_map = lshape_map
@@ -304,6 +303,7 @@ class SquareDiagTiles:
         """
         return self.__row_per_proc_list
 
+    # todo: use dummy class to get square bracket availability
     def async_get(self, key, dest):
         """
         Call to get a tile and then send it to the specified process (dest) using Send and Irecv
@@ -316,7 +316,7 @@ class SquareDiagTiles:
         comm = self.__DNDarray.comm
         src = self.tile_map[key][..., 2].unique().item()
         if tile is not None:  # this will only be on one process (required by getitem)
-            comm.send(tile.clone(), dest=dest)
+            comm.isend(tile.clone(), dest=dest)
         if comm.rank == dest:
             ret = comm.irecv(source=src)
             return ret
@@ -336,10 +336,42 @@ class SquareDiagTiles:
         comm = self.__DNDarray.comm
         dest = self.get_tile_proc(key)
         if data is not None:  # this will only be on one process (required by getitem)
-            comm.isend(data, dest=dest)
+            comm.isend(data.copy(), dest=dest)
         if comm.rank == dest:
             ret = comm.recv(source=home)
             tile.__setitem__(slice(None), ret)
+
+    def send_and_set(self, key, data, home):
+        """
+        send data from process=home and set it on tile[key]
+        :param key: place to set data on the process which that key corresponds to
+        :param data:
+        :param home:
+        :return:
+        """
+        # send data shape (blocking)
+        comm = self.__DNDarray.comm
+        rank = comm.rank
+        recv_proc = self.tile_map[key][..., 2].unique().item()
+        if recv_proc == home == rank:
+            # print('set', key)
+            self.__setitem__(key=key, value=data)
+            return
+        if rank == home:
+            # print('send', recv_proc, home)
+            comm.isend(data.shape, dest=recv_proc, tag=548)
+            # print(data.shape, data.dtype)
+            comm.Isend(data.clone(), dest=recv_proc, tag=8937)
+        # create empty, then recv with wait
+        elif rank == recv_proc:
+            # print('recv', home, recv_proc)
+            # print(key)
+            sh = comm.recv(source=home, tag=548)
+            # print(sh)
+            hld = torch.empty(sh)
+            comm.Recv(hld, source=home, tag=8937)
+            # print('set', key)
+            self.__setitem__(key=key, value=hld)
 
     def __getitem__(self, key):
         """
@@ -447,6 +479,7 @@ class SquareDiagTiles:
                         try:
                             sp1 = tile_map[0, key[1].stop][..., 1]
                         except IndexError:
+                            # todo: address this?
                             sp1 = key[1].stop
                     if arr.split == 1:
                         st0 = tile_map[key[0].start, 0][..., 0]
@@ -475,18 +508,17 @@ class SquareDiagTiles:
                     try:
                         sp0 = tile_map[key[0].stop, 0][..., 0] if arr.split == 1 else tile_map[key[0].stop, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
                     except IndexError:
-                        sp0 = key[0].stop
+                        sp0 = arr.gshape[0]
                     st1 = tile_map[0, key[1].start][..., 1] if arr.split == 0 else tile_map[0, key[1].start][..., 1] - tile_map[0, prev_to_split][..., 1]
                     try:
                         sp1 = tile_map[0, key[1].stop][..., 1] if arr.split == 0 else tile_map[0, key[1].stop][..., 1] - tile_map[0, prev_to_split][..., 1]
                     except IndexError:
-                        sp1 = key[1].stop
+                        sp1 = arr.gshape[1]
                 # print('here', st0, sp0, st1, sp1)
                 return local_arr[st0:sp0, st1:sp1]
             else:
                 return None
 
-    # todo: implement local_async_get
     def local_get_async(self, key, src, dest):
         if not isinstance(src, int):
             try:
@@ -501,8 +533,8 @@ class SquareDiagTiles:
         comm = self.__DNDarray.comm
 
         if comm.rank == src:  # this will only be on one process (required by getitem)
-            comm.send(tuple(tile.shape), dest=dest, tag=1111)
-            comm.Send(tile.clone(), dest=dest, tag=2222)
+            comm.isend(tuple(tile.shape), dest=dest, tag=1111)
+            comm.Isend(tile.clone(), dest=dest, tag=2222)
             return tile, None
         if comm.rank == dest:
             sz = comm.recv(source=src, tag=1111)
@@ -521,8 +553,7 @@ class SquareDiagTiles:
         proc = proc if proc is not None else self.__DNDarray.comm.rank
         if proc == self.__DNDarray.comm.rank:
             arr = self.__DNDarray
-            tile_map = self.__tile_map
-            # need to convert the key into local indices -> only needs to be done on the split dimension
+            # need to convert the key into local indices -> only done on the split dimension
             key = list(key)
             if len(key) == 1:
                 key = [key, slice(0, arr.gshape[1])]
@@ -544,6 +575,7 @@ class SquareDiagTiles:
             if arr.split == 1:
                 # need to adjust key[0] to be only on the local tensor
                 # need the number of columns *before* the process
+                # todo: adjust slices in split=1 case
                 prev_cols = sum(self.__col_per_proc_list[:proc])
                 loc_cols = self.__col_per_proc_list[proc]
                 if isinstance(key[1], int):
@@ -554,6 +586,7 @@ class SquareDiagTiles:
                     if stop - start > loc_cols:
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
+            # print(key)
             return self.__getitem__(tuple(key))
 
     def local_set(self, key, data, proc=None):
@@ -568,12 +601,10 @@ class SquareDiagTiles:
         proc = proc if proc is not None else self.__DNDarray.comm.rank
         if proc == self.__DNDarray.comm.rank:
             arr = self.__DNDarray
-            tile_map = self.__tile_map
             # rank_slice = torch.where(tile_map[..., 2] == proc)
             # lcl_tile_map = tile_map[rank_slice]
             # print(self.tile_columns_per_process)
-            # print('r', tile_map[rank_slice].reshape(self.tile_rows_per_process[proc], self.tile_columns_per_process[proc], 3))
-            # need to convert the key into local indices -> only needs to be done on the split dimension
+            # need to convert the key into local indices -> only done on the split dimension
             key = list(key)
             if isinstance(key, int):
                 key = [key, slice(0, arr.gshape[1])]
@@ -587,8 +618,8 @@ class SquareDiagTiles:
                 if isinstance(key[0], int):
                     key[0] += prev_rows
                 elif isinstance(key[0], slice):
-                    start = key[0].start + prev_rows
-                    stop = key[0].stop + prev_rows
+                    start = key[0].start + prev_rows if key[0].start is not None else prev_rows
+                    stop = key[0].stop + prev_rows if key[0].stop is not None else start + loc_rows
                     if stop - start > loc_rows:
                         # print(local_tile_map)
                         stop = start + loc_rows
@@ -607,6 +638,7 @@ class SquareDiagTiles:
                         # print(local_tile_map)
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
+            # print('from local', key)
             self.__setitem__(tuple(key), data)
 
     def match_tiles(self, tiles_to_match):
@@ -717,9 +749,11 @@ class SquareDiagTiles:
         """
         arr = self.__DNDarray
         tile_map = self.__tile_map
-        # print(tile_map[key][..., 2].unique())
+        # print(key, tile_map[key][..., 2].unique())
         if arr.comm.rank == tile_map[key][..., 2].unique():
             # this will set the tile values using the torch setitem function
+            # print(key)
+            # print(self.__getitem__(key).shape)
             self.__getitem__(key).__setitem__(slice(None), value)
 
     def get_start_stop(self, key):
