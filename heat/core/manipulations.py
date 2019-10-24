@@ -577,8 +577,8 @@ def sort(a, axis=None, descending=False, out=None):
 
             send_count = scounts[idx_slice].reshape(-1).tolist()
             send_disp = [0] + list(np.cumsum(send_count[:-1]))
-            s_val = local_sorted[idx_slice].clone().detach()
-            s_ind = actual_indices[idx_slice].clone().detach().to(dtype=local_sorted.dtype)
+            s_val = local_sorted[idx_slice].clone()
+            s_ind = actual_indices[idx_slice].clone().to(dtype=local_sorted.dtype)
 
             recv_count = rcounts[idx_slice].reshape(-1).tolist()
             recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
