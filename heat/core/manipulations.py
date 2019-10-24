@@ -325,6 +325,15 @@ def concatenate(arrays, axis=0):
 
 
 def diagonal(a, offset=0, dim1=0, dim2=1):
+    dim1, dim2 = stride_tricks.sanitize_axis(a.shape, (dim1, dim2))
+
+    if dim1 == dim2:
+        raise ValueError("Dim1 and dim2 need to be different")
+    if not isinstance(a, dndarray.DNDarray):
+        raise ValueError("a must be a DNDarray, got", type(a))
+    if not isinstance(offset, int):
+        raise ValueError("offset must be an integer, got", type(offset))
+
     shape = a.gshape
     ax1 = shape[dim1]
     ax2 = shape[dim2]
@@ -334,21 +343,23 @@ def diagonal(a, offset=0, dim1=0, dim2=1):
     shape = tuple([x for ind, x in enumerate(shape) if ind not in (dim1, dim2)]) + (length,)
     x, y = min(dim1, dim2), max(dim1, dim2)
 
-    if a.split < x < y:
+    if a.split is None:
+        split = None
+    elif a.split < x < y:
         split = a.split
     elif x < a.split < y:
         split = a.split - 1
     elif x < y < a.split:
         split = a.split - 2
     else:
-        split = None
+        split = len(shape) - 1
 
     if a.split is None or a.split not in (dim1, dim2):
         result = torch.diagonal(a._DNDarray__array, offset=offset, dim1=dim1, dim2=dim2)
     else:
-        split = len(shape) - 1
+        vz = 1 if a.split == dim1 else -1
         off, _, _ = a.comm.chunk(a.shape, a.split)
-        result = torch.diagonal(a._DNDarray__array, offset=offset + off, dim1=dim1, dim2=dim2)
+        result = torch.diagonal(a._DNDarray__array, offset=offset + vz * off, dim1=dim1, dim2=dim2)
 
     return dndarray.DNDarray(result, shape, a.dtype, split, a.device, a.comm)
 

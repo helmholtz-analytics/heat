@@ -317,13 +317,176 @@ class TestManipulations(unittest.TestCase):
             ht.concatenate((ht.zeros((2, 2), split=0), ht.zeros((2, 2), split=1)), axis=0)
 
     def test_diagonal(self):
-        data = torch.arange(8).reshape(2, 2, 2)
+        size = ht.MPI_WORLD.size
+        rank = ht.MPI_WORLD.rank
+
+        data = torch.arange(size).repeat(size).reshape(size, size)
+        a = ht.array(data)
+        res = ht.diagonal(a)
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(size)))
+        self.assertEqual(res.split, None)
+
         a = ht.array(data, split=0)
-        res = ht.diagonal(a, 0, 1, 2)
-        print('a', a, a.shape)
-        print('res', res, res.shape, res.lshape)
-        print('numpy', res.numpy())
-        self.fail()
+        res = ht.diagonal(a)
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank])))
+        self.assertEqual(res.split, 0)
+
+        a = ht.array(data, split=1)
+        res2 = ht.diagonal(a, dim1=1, dim2=0)
+        self.assertTrue(ht.equal(res, res2))
+
+        res = ht.diagonal(a)
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank])))
+        self.assertEqual(res.split, 0)
+
+        a = ht.array(data, split=0)
+        res2 = ht.diagonal(a, dim1=1, dim2=0)
+        self.assertTrue(ht.equal(res, res2))
+
+        data = torch.arange(size + 1).repeat(size + 1).reshape(size + 1, size + 1)
+        a = ht.array(data)
+        res = ht.diagonal(a, offset=0)
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(size + 1)))
+        res = ht.diagonal(a, offset=1)
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(1, size + 1)))
+        res = ht.diagonal(a, offset=-1)
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(0, size)))
+
+        a = ht.array(data, split=0)
+        res = ht.diagonal(a, offset=1)
+        res.balance_()
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank + 1])))
+        res = ht.diagonal(a, offset=-1)
+        res.balance_()
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank])))
+
+        a = ht.array(data, split=1)
+        res = ht.diagonal(a, offset=1)
+        res.balance_()
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank + 1])))
+        res = ht.diagonal(a, offset=-1)
+        res.balance_()
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank])))
+
+        data = (
+            torch.arange(size * 2 + 10).repeat(size * 2 + 10).reshape(size * 2 + 10, size * 2 + 10)
+        )
+        a = ht.array(data)
+        res = ht.diagonal(a, offset=10)
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(10, 10 + size * 2)))
+        res = ht.diagonal(a, offset=-10)
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(0, size * 2)))
+
+        a = ht.array(data, split=0)
+        res = ht.diagonal(a, offset=10)
+        res.balance_()
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.tensor([10 + rank * 2, 11 + rank * 2]))
+        )
+        res = ht.diagonal(a, offset=-10)
+        res.balance_()
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank * 2, 1 + rank * 2])))
+
+        a = ht.array(data, split=1)
+        res = ht.diagonal(a, offset=10)
+        res.balance_()
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.tensor([10 + rank * 2, 11 + rank * 2]))
+        )
+        res = ht.diagonal(a, offset=-10)
+        res.balance_()
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank * 2, 1 + rank * 2])))
+
+        data = (
+            torch.arange(size + 1)
+            .repeat((size + 1) * (size + 1))
+            .reshape(size + 1, size + 1, size + 1)
+        )
+        a = ht.array(data)
+        res = ht.diagonal(a)
+        self.assertTrue(
+            torch.equal(
+                res._DNDarray__array,
+                torch.arange(size + 1).repeat(size + 1).reshape(size + 1, size + 1).t(),
+            )
+        )
+        res = ht.diagonal(a, offset=1)
+        self.assertTrue(
+            torch.equal(
+                res._DNDarray__array,
+                torch.arange(size + 1).repeat(size).reshape(size, size + 1).t(),
+            )
+        )
+        res = ht.diagonal(a, offset=-1)
+        self.assertTrue(
+            torch.equal(
+                res._DNDarray__array,
+                torch.arange(size + 1).repeat(size).reshape(size, size + 1).t(),
+            )
+        )
+
+        res = ht.diagonal(a, dim1=1, dim2=2)
+        self.assertTrue(
+            torch.equal(
+                res._DNDarray__array,
+                torch.arange(size + 1).repeat(size + 1).reshape(size + 1, size + 1),
+            )
+        )
+        res = ht.diagonal(a, offset=1, dim1=1, dim2=2)
+        self.assertTrue(
+            torch.equal(
+                res._DNDarray__array,
+                torch.arange(1, size + 1).repeat(size + 1).reshape(size + 1, size),
+            )
+        )
+        res = ht.diagonal(a, offset=-1, dim1=1, dim2=2)
+        self.assertTrue(
+            torch.equal(
+                res._DNDarray__array, torch.arange(size).repeat(size + 1).reshape(size + 1, size)
+            )
+        )
+
+        res = ht.diagonal(a, dim1=0, dim2=2)
+        self.assertTrue(
+            torch.equal(
+                res._DNDarray__array,
+                torch.arange(size + 1).repeat(size + 1).reshape(size + 1, size + 1),
+            )
+        )
+
+        a = ht.array(data, split=0)
+        res = ht.diagonal(a, offset=1, dim1=0, dim2=1)
+        res.balance_()
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.arange(size + 1).reshape(size + 1, 1))
+        )
+        self.assertEqual(res.split, 1)
+
+        res = ht.diagonal(a, offset=-1, dim1=0, dim2=1)
+        res.balance_()
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.arange(size + 1).reshape(size + 1, 1))
+        )
+        self.assertEqual(res.split, 1)
+
+        res = ht.diagonal(a, offset=size + 1, dim1=0, dim2=1)
+        res.balance_()
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.empty((size + 1, 0), dtype=torch.int64))
+        )
+        self.assertTrue(res.shape[res.split] == 0)
+
+        with self.assertRaises(ValueError):
+            ht.diagonal(a, offset=None)
+
+        with self.assertRaises(ValueError):
+            ht.diagonal(a, dim1=1, dim2=1)
+
+        with self.assertRaises(ValueError):
+            ht.diagonal(a, dim1=1, dim2=-2)
+
+        with self.assertRaises(ValueError):
+            ht.diagonal(data)
 
     def test_expand_dims(self):
         # vector data
