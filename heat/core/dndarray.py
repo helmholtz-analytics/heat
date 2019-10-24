@@ -51,7 +51,6 @@ class DNDarray:
         self.__device = device
         self.__comm = comm
 
-
     @property
     def comm(self):
         return self.__comm
@@ -1927,7 +1926,7 @@ class DNDarray:
         """
         return arithmetics.mod(self, other)
 
-    def modf(a):
+    def modf(a, out=None):
         """
             Return the fractional and integral parts of an array, element-wise.
             The fractional and integral parts are negative if the given number is negative.
@@ -1951,9 +1950,7 @@ class DNDarray:
                 Integral part of x. This is a scalar if x is a scalar.
         """
 
-        return rounding.modf(a)
-
-
+        return rounding.modf(a, out)
 
     def __mul__(self, other):
         """
@@ -2342,7 +2339,6 @@ class DNDarray:
         """
         return arithmetics.mod(other, self)
 
-
     def round(x, decimals=0, out=None, dtype=None):
         """
         Calculate the rounded value element-wise.
@@ -2369,7 +2365,6 @@ class DNDarray:
         """
 
         return rounding.round(x, decimals, out, dtype)
-
 
     def __rpow__(self, other):
         """

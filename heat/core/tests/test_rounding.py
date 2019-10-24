@@ -162,7 +162,6 @@ class TestRounding(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.floor(object())
 
-
     def test_modf(self):
         start, end, step = -5.0, 5.0, 1.4
         comparison = np.modf(np.arange(start, end, step, np.float32))
@@ -177,7 +176,6 @@ class TestRounding(unittest.TestCase):
         self.assertTrue((x for x in float32_modf[0]._DNDarray__array) == y for y in comparison[0])
         self.assertTrue((x for x in float32_modf[1]._DNDarray__array) == y for y in comparison[1])
 
-
         # exponential of float64
         comparison = np.modf(np.arange(start, end, step, np.float64))
 
@@ -190,7 +188,6 @@ class TestRounding(unittest.TestCase):
         self.assertTrue((x for x in float32_modf[0]._DNDarray__array) == y for y in comparison[0])
         self.assertTrue((x for x in float32_modf[1]._DNDarray__array) == y for y in comparison[1])
 
-
         # check exceptions
         with self.assertRaises(TypeError):
             ht.modf([0, 1, 2, 3])
@@ -202,7 +199,6 @@ class TestRounding(unittest.TestCase):
             ht.modf(float32_tensor, (float32_tensor, float32_tensor, float64_tensor))
         with self.assertRaises(TypeError):
             ht.modf(float32_tensor, (float32_tensor, 2))
-
 
     def test_round(self):
         start, end, step = -5.0, 5.0, 1.4
@@ -230,7 +226,6 @@ class TestRounding(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.round(object())
 
-
     def test_trunc(self):
         base_array = np.random.randn(20)
 
@@ -255,6 +250,3 @@ class TestRounding(unittest.TestCase):
             ht.trunc([0, 1, 2, 3])
         with self.assertRaises(TypeError):
             ht.trunc(object())
-
-
-
