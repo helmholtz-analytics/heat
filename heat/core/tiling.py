@@ -26,7 +26,7 @@ def mm_tiles(arr):
 
 class SquareDiagTiles:
     # designed for QR tile scheme
-    def __init__(self, arr, tile_per_proc=2):
+    def __init__(self, arr, tile_per_proc=2, lshape_map=None):
         """
         Generate the tile map and the other objects which may be useful.
         The tiles generated here are based of square tiles along the diagonal. The size of these tiles along the diagonal dictate the divisions accross
@@ -73,11 +73,11 @@ class SquareDiagTiles:
 
         # todo: unbalance the array if there is *only* one row/column of the diagonal on a process (send it to pr - 1)
         # todo: small bug in edge case for very small matrices with < 10 elements on a process and split = 1 with gshape[0] > gshape[1]
-
-        #create lshape map
-        lshape_map = torch.zeros((arr.comm.size, len(arr.gshape)), dtype=int)
-        lshape_map[arr.comm.rank, :] = torch.Tensor(arr.lshape)
-        arr.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+        if lshape_map is None:
+            #create lshape map
+            lshape_map = torch.zeros((arr.comm.size, len(arr.gshape)), dtype=int)
+            lshape_map[arr.comm.rank, :] = torch.Tensor(arr.lshape)
+            arr.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
         # chunk map
         # is the diagonal crossed by a division between processes/where
@@ -233,6 +233,10 @@ class SquareDiagTiles:
         # =================================================================================================
 
     @property
+    def arr(self):
+        return self.__DNDarray
+
+    @property
     def col_indices(self):
         return self.__col_inds
 
@@ -343,7 +347,7 @@ class SquareDiagTiles:
             ret = comm.recv(source=home)
             tile.__setitem__(slice(None), ret)
 
-    def send_and_set(self, key, data, home):
+    def send_and_set(self, key, data, home, irecv=False):
         """
         send data from process=home and set it on tile[key]
         :param key: place to set data on the process which that key corresponds to
@@ -355,25 +359,22 @@ class SquareDiagTiles:
         comm = self.__DNDarray.comm
         rank = comm.rank
         recv_proc = self.tile_map[key][..., 2].unique().item()
+        shape = self.get_tile_size(key)
         if recv_proc == home == rank:
-            # print('set', key)
             self.__setitem__(key=key, value=data)
             return
         if rank == home:
-            # print('send', recv_proc, home)
-            comm.isend(data.shape, dest=recv_proc, tag=548)
-            # print(data.shape, data.dtype)
             comm.Isend(data.clone(), dest=recv_proc, tag=8937)
         # create empty, then recv with wait
         elif rank == recv_proc:
-            # print('recv', home, recv_proc)
-            # print(key)
-            sh = comm.recv(source=home, tag=548)
-            # print(sh)
-            hld = torch.empty(sh)
+            hld = torch.empty(shape)
             comm.Recv(hld, source=home, tag=8937)
-            # print('set', key)
-            self.__setitem__(key=key, value=hld)
+            # self.__getitem__(key).__setitem__(slice(None), hld)
+            # print(self.arr)
+            self.__setitem__(key=key, value=hld.clone())
+
+    def overwrite_arr(self, arr):
+        self.__DNDarray = arr
 
     def __getitem__(self, key):
         """
@@ -476,13 +477,12 @@ class SquareDiagTiles:
 
         tile = self.local_get(key, proc=src)
         comm = self.__DNDarray.comm
+        sz = self.get_tile_size(key)
 
         if comm.rank == src:  # this will only be on one process (required by getitem)
-            comm.isend(tuple(tile.shape), dest=dest, tag=1111)
             comm.Isend(tile.clone(), dest=dest, tag=2222)
             return tile, None
         if comm.rank == dest:
-            sz = comm.recv(source=src, tag=1111)
             hld = torch.empty(sz)
             return hld, comm.Irecv(hld, source=src, tag=2222)
 
@@ -733,7 +733,10 @@ class SquareDiagTiles:
         tile_map = self.__tile_map
         if arr.comm.rank == tile_map[key][..., 2].unique():
             # this will set the tile values using the torch setitem function
-            self.__getitem__(key).__setitem__(slice(None), value)
+            # print('here')
+            # print(key, value.shape, self.__getitem__(key).__getitem__(slice(0, None)).shape)
+            self.__getitem__(key).__setitem__(slice(0, None), value)
+            # print(self.__getitem__(key))
 
     def get_start_stop(self, key):
         """
@@ -750,9 +753,6 @@ class SquareDiagTiles:
         -------
         tuple : dim0 start, dim0 stop, dim1 start, dim1 stop
         """
-        row_ind = self.row_indices
-        col_ind = self.col_indices
-
         # todo: change this to use the row/col indices
         # default getitem will return the data in the array!!
         # this is intended to return tiles which are local.
@@ -761,72 +761,54 @@ class SquareDiagTiles:
         arr = self.__DNDarray
         tile_map = self.__tile_map
         local_arr = self.__DNDarray._DNDarray__array
-        if isinstance(key, int):
-            # get all the instances in a row (tile column 0 -> end)
-            # todo: determine the rank with the diagonal element to determine the 1st coordinate
-            if arr.split != 0:
-                raise ValueError('Slicing across splits is not allowed')
-            if arr.comm.rank == tile_map[key][..., 2].unique():
-                # above is the code to get the tile map for what is all on one tile
-                prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank])
-                st0 = tile_map[key, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
-                sp0 = tile_map[key + 1, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
-                return local_arr[st0:sp0]
-            else:
-                return None
-        elif tile_map[key][..., 2].unique().nelement() > 1:
-            raise ValueError('Slicing across splits is not allowed')
-        else:
-            if arr.comm.rank == tile_map[key][..., 2].unique():
-                if not isinstance(key, (tuple, list, slice)):
-                    raise TypeError(
-                        'key must be an int, tuple, or slice, is currently {}'.format(type(key)))
+        split = self.__DNDarray.split
+        rank = arr.comm.rank
+        row_inds = self.row_indices + [self.__DNDarray.gshape[0]]
+        col_inds = self.col_indices + [self.__DNDarray.gshape[1]]
+        row_start = row_inds[sum(self.tile_rows_per_process[:rank]) if split == 0 else 0]
+        col_start = col_inds[sum(self.tile_columns_per_process[:rank]) if split == 1 else 0]
 
-                if isinstance(key, slice):
-                    key = tuple(key, slice(0, None))
-                    self.__getitem__(key)
+        if not isinstance(key, (tuple, list, slice, int)):
+            raise TypeError(
+                'key must be an int, tuple, or slice, is currently {}'.format(type(key)))
 
-                key = list(key)
-                split = self.__DNDarray.split
-                rank = arr.comm.rank
-                row_inds = self.row_indices + [self.__DNDarray.gshape[0]]
-                col_inds = self.col_indices + [self.__DNDarray.gshape[1]]
-                row_start = row_inds[sum(self.tile_rows_per_process[:rank]) if split == 0 else 0]
-                col_start = col_inds[
-                    sum(self.tile_columnss_per_process[:rank]) if split == 1 else 0]
+        if isinstance(key, (slice, int)):
+            key = tuple(key, slice(0, None))
 
-                if all(isinstance(x, int) for x in key):
-                    st0 = row_inds[key[0]] - row_start
-                    sp0 = row_inds[key[0] + 1] - row_start
-                    st1 = col_inds[key[1]] - col_start
-                    sp1 = col_inds[key[1] + 1] - col_start
+        key = list(key)
 
-                elif all(isinstance(x, slice) for x in key):
-                    # need to set the values of start and stop if they are None
-                    start = col_inds[key[1].start] if key[1].start is not None else 0
-                    stop = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
-                    st1, sp1 = start - col_start, stop - col_start
+        if all(isinstance(x, int) for x in key):
+            st0 = row_inds[key[0]] - row_start
+            sp0 = row_inds[key[0] + 1] - row_start
+            st1 = col_inds[key[1]] - col_start
+            sp1 = col_inds[key[1] + 1] - col_start
 
-                    # need to adjust the indices from tiles to local for dim0
-                    start = row_inds[key[0].start] if key[0].start is not None else 0
-                    stop = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
-                    st0, sp0 = start - row_start, stop - row_start
+        elif all(isinstance(x, slice) for x in key):
+            # need to adjust the indices from tiles to local for dim0
+            start = row_inds[key[0].start] if key[0].start is not None else 0
+            stop = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
+            st0, sp0 = start - row_start, stop - row_start
 
-                elif isinstance(key[0], split) and isinstance(key[1], int):
-                    start = row_inds[key[0].start] if key[0].start is not None else 0
-                    stop = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
-                    st0, sp0 = start - row_start, stop - row_start
-                    st1 = col_inds[key[1]] - col_start
-                    sp1 = col_inds[key[1] + 1] - col_start
+            # need to set the values of start and stop if they are None
+            start = col_inds[key[1].start] if key[1].start is not None else 0
+            stop = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
+            st1, sp1 = start - col_start, stop - col_start
 
-                elif isinstance(key[1], split) and isinstance(key[0], int):
-                    start = col_inds[key[1].start] if key[1].start is not None else 0
-                    stop = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
-                    st1, sp1 = start - col_start, stop - col_start
-                    st0 = row_inds[key[0]] - row_start
-                    sp0 = row_inds[key[0] + 1] - row_start
+        elif isinstance(key[0], slice) and isinstance(key[1], int):
+            start = row_inds[key[0].start] if key[0].start is not None else 0
+            stop = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
+            st0, sp0 = start - row_start, stop - row_start
+            st1 = col_inds[key[1]] - col_start
+            sp1 = col_inds[key[1] + 1] - col_start
 
-                return st0, sp0, st1, sp1
+        elif isinstance(key[1], slice) and isinstance(key[0], int):
+            st0 = row_inds[key[0]] - row_start
+            sp0 = row_inds[key[0] + 1] - row_start
+            start = col_inds[key[1].start] if key[1].start is not None else 0
+            stop = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
+            st1, sp1 = start - col_start, stop - col_start
+
+        return st0, sp0, st1, sp1
 
     def get_tile_proc(self, key):
         return self.tile_map[key][..., 2].unique()
@@ -837,4 +819,5 @@ class SquareDiagTiles:
         -------
         torch.Shape : uses the getitem routine then calls the torch shape function
         """
-        return self.__getitem__(key).shape
+        tup = self.get_start_stop(key)
+        return tup[1] - tup[0], tup[3] - tup[2]
