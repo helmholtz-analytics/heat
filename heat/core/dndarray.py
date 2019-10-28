@@ -165,6 +165,15 @@ class DNDarray:
         int : the axis on which the tensor split
         """
         return self.__split
+    
+    @property
+    def stride(self):
+        """
+        Returns
+        -------
+        tuple of ints: steps in each dimension when traversing the tensor on each node
+        """
+        return self.__array.stride
 
     @property
     def T(self, axes=None):
