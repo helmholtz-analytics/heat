@@ -560,7 +560,7 @@ class SquareDiagTiles:
                     st0 = row_inds[key[0]] - row_start
                     sp0 = row_inds[key[0] + 1] - row_start
 
-                # print('here2', st0, sp0, st1, sp1)
+                print('getitem end', st0, sp0, st1, sp1)
                 return local_arr[st0:sp0, st1:sp1]
             else:
                 return None
@@ -595,12 +595,11 @@ class SquareDiagTiles:
 
         comm = self.__DNDarray.comm
         tile = self[key].clone() if comm.rank == src else None
+        sz = self.get_tile_size(key=key)
         if comm.rank == src:  # this will only be on one process (required by getitem)
-            comm.isend(tile.shape, dest=dest, tag=int("221" + str(src) + str(dest)))
             comm.Isend(tile, dest=dest, tag=int("2222" + str(src) + str(dest)))
             return tile, None
         if comm.rank == dest:
-            sz = comm.recv(source=src, tag=int("221" + str(src) + str(dest)))
             hld = torch.zeros(sz)
             wait = comm.Irecv(hld, source=src, tag=int("2222" + str(src) + str(dest)))
             return hld, wait
@@ -889,7 +888,9 @@ class SquareDiagTiles:
         if arr.comm.rank == tile_map[key][..., 2].unique():
             # this will set the tile values using the torch setitem function
             # print('here')
-            # print(key, value.shape, self.__getitem__(key).__getitem__(slice(0, None)).shape)
-            self.__getitem__(key).__setitem__(slice(0, None), value)
+            print('entering getitem')
+            arr = self.__getitem__(key)
+            print('setting item')
+            arr.__setitem__(slice(0, None), value)
             # print(self.__getitem__(key))
 
