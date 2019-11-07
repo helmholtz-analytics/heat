@@ -14,6 +14,22 @@ __all__ = [
 ]
 
 
+# class LocalTileIndex:
+#     """
+#     Indexing class for local operations (primarily for lloc function)
+#     For docs on __getitem__ and __setitem__ see lloc(self)
+#     """
+#
+#     # def __init__(self, tiles):
+#     #     self.tiles = tiles
+#
+#     def __getitem__(self, key):
+#         return self.__getitem__(key=key)
+#
+#     def __setitem__(self, key, value):
+#         self.__setitem__(key=key, value=value)
+
+
 def mm_tiles(arr):
     if not isinstance(arr, dndarray.DNDarray):
         raise TypeError('arr must be a DNDarray, is currently a {}'.format(type(arr)))
@@ -240,6 +256,10 @@ class SquareDiagTiles:
     def col_indices(self):
         return self.__col_inds
 
+    # @property
+    # def lloc(self):
+    #     return LocalTileIndex()
+
     @property
     def lshape_map(self):
         """
@@ -347,34 +367,114 @@ class SquareDiagTiles:
             ret = comm.recv(source=home)
             tile.__setitem__(slice(None), ret)
 
-    def send_and_set(self, key, data, home, irecv=False):
+    def convert_local_key_to_global(self, key, proc):
         """
-        send data from process=home and set it on tile[key]
-        :param key: place to set data on the process which that key corresponds to
-        :param data:
-        :param home:
+        conver a key from local indices to global indices
+        :param key: key to convert
+        :param proc: process on which the key is indended for
         :return:
         """
-        # send data shape (blocking)
-        comm = self.__DNDarray.comm
-        rank = comm.rank
-        recv_proc = self.tile_map[key][..., 2].unique().item()
-        shape = self.get_tile_size(key)
-        if recv_proc == home == rank:
-            self.__setitem__(key=key, value=data)
-            return
-        if rank == home:
-            comm.Isend(data.clone(), dest=recv_proc, tag=8937)
-        # create empty, then recv with wait
-        elif rank == recv_proc:
-            hld = torch.empty(shape)
-            comm.Recv(hld, source=home, tag=8937)
-            # self.__getitem__(key).__setitem__(slice(None), hld)
-            # print(self.arr)
-            self.__setitem__(key=key, value=hld.clone())
+        arr = self.__DNDarray
+        # need to convert the key into local indices -> only done on the split dimension
+        key = list(key)
+        if len(key) == 1:
+            key = [key, slice(0, arr.gshape[1])]
 
-    def overwrite_arr(self, arr):
-        self.__DNDarray = arr
+        if arr.split == 0:
+            # need to adjust key[0] to be only on the local tensor
+            prev_rows = sum(self.__row_per_proc_list[:proc])
+            loc_rows = self.__row_per_proc_list[proc]
+            if isinstance(key[0], int):
+                key[0] += prev_rows
+            elif isinstance(key[0], slice):
+                start = key[0].start + prev_rows if key[0].start is not None else prev_rows
+                stop = key[0].stop + prev_rows if key[0].stop is not None else start + loc_rows
+                if stop - start > loc_rows:
+                    stop = start + loc_rows
+                key[0] = slice(start, stop)
+        if arr.split == 1:
+            # need to adjust key[0] to be only on the local tensor
+            # need the number of columns *before* the process
+            # todo: adjust slices in split=1 case
+            prev_cols = sum(self.__col_per_proc_list[:proc])
+            loc_cols = self.__col_per_proc_list[proc]
+            if isinstance(key[1], int):
+                key[1] += prev_cols
+            elif isinstance(key[1], slice):
+                start = key[1].start + prev_cols
+                stop = key[1].stop + prev_cols
+                if stop - start > loc_cols:
+                    stop = start + loc_cols
+                key[1] = slice(start, stop)
+
+        return tuple(key)
+
+    def get_start_stop(self, key):
+        """
+        NOTE: this uses global indices!
+        returns the start and stop indices which correspond to the selected tile
+
+        Parameters
+        ----------
+        key : int, tuple, list, slice
+            indices to select the tile
+            STRIDES ARE NOT ALLOWED
+
+        Returns
+        -------
+        tuple : dim0 start, dim0 stop, dim1 start, dim1 stop
+        """
+        # todo: change this to use the row/col indices
+        # default getitem will return the data in the array!!
+        # this is intended to return tiles which are local.
+        # it will return torch.Tensors which correspond to the tiles of the array
+        # this is a global getter, if the tile is not on the process then it will return None
+        split = self.__DNDarray.split
+        pr = self.tile_map[key][..., 2].unique()
+        row_inds = self.row_indices + [self.__DNDarray.gshape[0]]
+        col_inds = self.col_indices + [self.__DNDarray.gshape[1]]
+        row_start = row_inds[sum(self.tile_rows_per_process[:pr]) if split == 0 else 0]
+        col_start = col_inds[sum(self.tile_columns_per_process[:pr]) if split == 1 else 0]
+
+        if not isinstance(key, (tuple, list, slice, int)):
+            raise TypeError(
+                'key must be an int, tuple, or slice, is currently {}'.format(type(key)))
+
+        if isinstance(key, (slice, int)):
+            key = tuple(key, slice(0, None))
+
+        key = list(key)
+
+        if isinstance(key[0], int):
+            st0 = row_inds[key[0]] - row_start
+            sp0 = row_inds[key[0] + 1] - row_start
+        if isinstance(key[0], slice):
+            start = row_inds[key[0].start] if key[0].start is not None else 0
+            stop = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
+            st0, sp0 = start - row_start, stop - row_start
+        if isinstance(key[1], int):
+            st1 = col_inds[key[1]] - col_start
+            sp1 = col_inds[key[1] + 1] - col_start
+        if isinstance(key[1], slice):
+            start = col_inds[key[1].start] if key[1].start is not None else 0
+            stop = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
+            st1, sp1 = start - col_start, stop - col_start
+
+        return st0, sp0, st1, sp1
+
+    def get_tile_proc(self, key):
+        # NOTE: this uses global indices!
+        return self.tile_map[key][..., 2].unique()
+
+    def get_tile_size(self, key):
+        """
+        NOTE: this uses global indices!
+        Returns
+        -------
+        torch.Shape : uses the getitem routine then calls the torch shape function
+        """
+        tup = self.get_start_stop(key)
+        return tup[1] - tup[0], tup[3] - tup[2]
 
     def __getitem__(self, key):
         """
@@ -460,50 +560,69 @@ class SquareDiagTiles:
                     st0 = row_inds[key[0]] - row_start
                     sp0 = row_inds[key[0] + 1] - row_start
 
-                # print('here', st0, sp0, st1, sp1)
+                # print('here2', st0, sp0, st1, sp1)
                 return local_arr[st0:sp0, st1:sp1]
             else:
                 return None
 
     def local_get_async(self, key, src, dest):
+        """
+        this should be renamed... it doesnt correspond with the local get function
+        This function sends the tile on src with the local indices given by the key
+        :param key:
+        :param src:
+        :param dest:
+        :return:
+        """
+        # note: this uses local indices!
         if not isinstance(src, int):
             try:
                 src = src.item()
             except AttributeError:
-                raise TypeError('src must be an int, is currently {}'.format(type(src)))
+                raise TypeError('src must be an int or a single element tensor, '
+                                'is currently {}'.format(type(src)))
+        if not isinstance(dest, int):
+            try:
+                dest = dest.item()
+            except AttributeError:
+                raise TypeError('dest must be an int or a single element tensor'
+                                ', is currently {}'.format(type(src)))
         if not src < self.__DNDarray.comm.size or not dest < self.__DNDarray.comm.size:
             raise ValueError('src and dest must be less than the size, '
                              'currently {} and {} respectively'.format(src, dest))
 
-        tile = self.local_get(key, proc=src)
-        comm = self.__DNDarray.comm
-        sz = self.get_tile_size(key)
+        key = self.convert_local_key_to_global(key, proc=src)
 
+        comm = self.__DNDarray.comm
+        tile = self[key].clone() if comm.rank == src else None
         if comm.rank == src:  # this will only be on one process (required by getitem)
-            comm.Isend(tile.clone(), dest=dest, tag=2222)
+            comm.isend(tile.shape, dest=dest, tag=int("221" + str(src) + str(dest)))
+            comm.Isend(tile, dest=dest, tag=int("2222" + str(src) + str(dest)))
             return tile, None
         if comm.rank == dest:
-            hld = torch.empty(sz)
-            return hld, comm.Irecv(hld, source=src, tag=2222)
+            sz = comm.recv(source=src, tag=int("221" + str(src) + str(dest)))
+            hld = torch.zeros(sz)
+            wait = comm.Irecv(hld, source=src, tag=int("2222" + str(src) + str(dest)))
+            return hld, wait
 
     def local_get(self, key, proc=None):
         """
-        get the tile corresponding to the local
+        get the tile corresponding to the local indices given in the key
         :param key:
         :param proc:
         :return:
         """
         # this is to be used with only local indices!
-        # convert from local to global?
+        # convert from local to global
         proc = proc if proc is not None else self.__DNDarray.comm.rank
         if proc == self.__DNDarray.comm.rank:
             arr = self.__DNDarray
             # need to convert the key into local indices -> only done on the split dimension
             key = list(key)
-            if len(key) == 1:
-                key = [key, slice(0, arr.gshape[1])]
 
             if arr.split == 0:
+                if len(key) == 1:
+                    key = [key, slice(0, None)]
                 # need to adjust key[0] to be only on the local tensor
                 prev_rows = sum(self.__row_per_proc_list[:proc])
                 loc_rows = self.__row_per_proc_list[proc]
@@ -517,21 +636,23 @@ class SquareDiagTiles:
                         stop = start + loc_rows
                     # print(start, stop)
                     key[0] = slice(start, stop)
+
             if arr.split == 1:
+                loc_cols = self.__col_per_proc_list[proc]
+                prev_cols = sum(self.__col_per_proc_list[:proc])
+                if len(key) == 1:
+                    key = [key, slice(0, None)]
                 # need to adjust key[0] to be only on the local tensor
                 # need the number of columns *before* the process
-                # todo: adjust slices in split=1 case
-                prev_cols = sum(self.__col_per_proc_list[:proc])
-                loc_cols = self.__col_per_proc_list[proc]
                 if isinstance(key[1], int):
                     key[1] += prev_cols
                 elif isinstance(key[1], slice):
-                    start = key[1].start + prev_cols
-                    stop = key[1].stop + prev_cols
+                    start = key[1].start + prev_cols if key[1].start is not None else prev_cols
+                    stop = key[1].stop + prev_cols if key[1].stop is not None else start + prev_cols
                     if stop - start > loc_cols:
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
-            # print(key)
+            # print('moving to getitem')
             return self.__getitem__(tuple(key))
 
     def local_set(self, key, data, proc=None):
@@ -581,7 +702,9 @@ class SquareDiagTiles:
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
             # print('from local', key)
-            self.__setitem__(tuple(key), data)
+            # self.__setitem__(tuple(key), data)
+            # print(len(torch.where(torch.isnan(data))[0]))
+            self.__getitem__(tuple(key)).__setitem__(slice(0, None), data)
 
     def match_tiles(self, tiles_to_match):
         """
@@ -712,6 +835,38 @@ class SquareDiagTiles:
             self.__tile_columns = tiles_to_match.__tile_columns
             self.__tile_rows = tiles_to_match.__tile_rows
 
+    def overwrite_arr(self, arr):
+        self.__DNDarray = arr
+
+    def send_and_set(self, key, data, home, irecv=False):
+        """
+        send data from process=home and set it on tile[key]
+        :param key: place to set data on the process which that key corresponds to
+        :param data:
+        :param home:
+        :return:
+        """
+        # send data shape (blocking)
+        comm = self.__DNDarray.comm
+        rank = comm.rank
+        recv_proc = self.tile_map[key][..., 2].unique().item()
+        shape = self.get_tile_size(key)
+        # print('1', key, shape)
+        if recv_proc == home == rank:
+            self.__setitem__(key=key, value=data)
+            return
+        if rank == home:
+            # print('2', key, recv_proc, data.shape)
+            comm.Isend(data.clone(), dest=recv_proc, tag=8937)
+        # create empty, then recv with wait
+        elif rank == recv_proc:
+            hld = torch.empty(shape)
+            # print('3', key, self.__getitem__(key).shape)
+            comm.Recv(hld, source=home, tag=8937)
+            # self.__getitem__(key).__setitem__(slice(None), hld)
+            # print(self.arr)
+            self.__setitem__(key=key, value=hld.clone())
+
     def __setitem__(self, key, value):
         """
         Item setter,
@@ -738,86 +893,3 @@ class SquareDiagTiles:
             self.__getitem__(key).__setitem__(slice(0, None), value)
             # print(self.__getitem__(key))
 
-    def get_start_stop(self, key):
-        """
-        Very similar to the getitem routine,
-        returns the start and stop indices which correspond to the selected tile
-
-        Parameters
-        ----------
-        key : int, tuple, list, slice
-            indices to select the tile
-            STRIDES ARE NOT ALLOWED
-
-        Returns
-        -------
-        tuple : dim0 start, dim0 stop, dim1 start, dim1 stop
-        """
-        # todo: change this to use the row/col indices
-        # default getitem will return the data in the array!!
-        # this is intended to return tiles which are local.
-        # it will return torch.Tensors which correspond to the tiles of the array
-        # this is a global getter, if the tile is not on the process then it will return None
-        arr = self.__DNDarray
-        tile_map = self.__tile_map
-        local_arr = self.__DNDarray._DNDarray__array
-        split = self.__DNDarray.split
-        rank = arr.comm.rank
-        row_inds = self.row_indices + [self.__DNDarray.gshape[0]]
-        col_inds = self.col_indices + [self.__DNDarray.gshape[1]]
-        row_start = row_inds[sum(self.tile_rows_per_process[:rank]) if split == 0 else 0]
-        col_start = col_inds[sum(self.tile_columns_per_process[:rank]) if split == 1 else 0]
-
-        if not isinstance(key, (tuple, list, slice, int)):
-            raise TypeError(
-                'key must be an int, tuple, or slice, is currently {}'.format(type(key)))
-
-        if isinstance(key, (slice, int)):
-            key = tuple(key, slice(0, None))
-
-        key = list(key)
-
-        if all(isinstance(x, int) for x in key):
-            st0 = row_inds[key[0]] - row_start
-            sp0 = row_inds[key[0] + 1] - row_start
-            st1 = col_inds[key[1]] - col_start
-            sp1 = col_inds[key[1] + 1] - col_start
-
-        elif all(isinstance(x, slice) for x in key):
-            # need to adjust the indices from tiles to local for dim0
-            start = row_inds[key[0].start] if key[0].start is not None else 0
-            stop = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
-            st0, sp0 = start - row_start, stop - row_start
-
-            # need to set the values of start and stop if they are None
-            start = col_inds[key[1].start] if key[1].start is not None else 0
-            stop = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
-            st1, sp1 = start - col_start, stop - col_start
-
-        elif isinstance(key[0], slice) and isinstance(key[1], int):
-            start = row_inds[key[0].start] if key[0].start is not None else 0
-            stop = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
-            st0, sp0 = start - row_start, stop - row_start
-            st1 = col_inds[key[1]] - col_start
-            sp1 = col_inds[key[1] + 1] - col_start
-
-        elif isinstance(key[1], slice) and isinstance(key[0], int):
-            st0 = row_inds[key[0]] - row_start
-            sp0 = row_inds[key[0] + 1] - row_start
-            start = col_inds[key[1].start] if key[1].start is not None else 0
-            stop = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
-            st1, sp1 = start - col_start, stop - col_start
-
-        return st0, sp0, st1, sp1
-
-    def get_tile_proc(self, key):
-        return self.tile_map[key][..., 2].unique()
-
-    def get_tile_size(self, key):
-        """
-        Returns
-        -------
-        torch.Shape : uses the getitem routine then calls the torch shape function
-        """
-        tup = self.get_start_stop(key)
-        return tup[1] - tup[0], tup[3] - tup[2]
