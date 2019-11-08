@@ -749,7 +749,7 @@ def matmul(a, b):
             return c
 
 
-def qr(a, tiles_per_proc=2, calc_q=True):
+def qr(a, tiles_per_proc=1, calc_q=True, overrite_a=False):
     """
 
     :param a:
@@ -761,8 +761,8 @@ def qr(a, tiles_per_proc=2, calc_q=True):
     # D (number of domains to use) -> must be found with some testing on the HPC machines
     if not isinstance(a, dndarray.DNDarray):
         raise TypeError('\'a\' must be a DNDarray')
-    a = a.copy()
-    # tiles_per_proc = 2
+    if not overrite_a:
+        a = a.copy()
     a_tiles = tiling.SquareDiagTiles(a, tile_per_proc=tiles_per_proc)
     tile_columns = a_tiles.tile_columns
     tile_rows_proc = a_tiles.tile_rows_per_process
@@ -777,18 +777,10 @@ def qr(a, tiles_per_proc=2, calc_q=True):
     q_dict_waits = {}
     proc_tile_start = torch.cumsum(torch.tensor(a_tiles.tile_rows_per_process), dim=0)
     for col in range(tile_columns):  # for each tile column (need to do the last rank separately)
-        if len(torch.where(torch.isnan(a._DNDarray__array))[0]):
-            print('beginning of col', col, len(torch.where(torch.isnan(a._DNDarray__array))[0]))
-            raise ValueError("nans in A")
-
         # for each process need to do local qr
-        # need to start the process at the 1st row (block number / iteration number
-
-        # if the process isnt completed and the completed tiles are not done yet?
-        # get the number of True's moded with the tile_rows,
-        # this will tell which process only needs to do it on the second chunk
         not_completed_processes = torch.nonzero(col < proc_tile_start).flatten()
         if rank not in not_completed_processes:
+            # if the process is done calculating R the break the loop
             break
         diag_process = not_completed_processes[0]
         local_tile_row = 0 if rank != diag_process else col - sum(tile_rows_proc[:rank])
