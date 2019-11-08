@@ -560,7 +560,7 @@ class SquareDiagTiles:
                     st0 = row_inds[key[0]] - row_start
                     sp0 = row_inds[key[0] + 1] - row_start
 
-                print('getitem end', st0, sp0, st1, sp1)
+                # print('getitem end', st0, sp0, st1, sp1)
                 return local_arr[st0:sp0, st1:sp1]
             else:
                 return None
@@ -683,7 +683,6 @@ class SquareDiagTiles:
                     start = key[0].start + prev_rows if key[0].start is not None else prev_rows
                     stop = key[0].stop + prev_rows if key[0].stop is not None else start + loc_rows
                     if stop - start > loc_rows:
-                        # print(local_tile_map)
                         stop = start + loc_rows
                     key[0] = slice(start, stop)
             if arr.split == 1:
@@ -697,12 +696,8 @@ class SquareDiagTiles:
                     start = key[1].start + prev_cols
                     stop = key[1].stop + prev_cols
                     if stop - start > loc_cols:
-                        # print(local_tile_map)
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
-            # print('from local', key)
-            # self.__setitem__(tuple(key), data)
-            # print(len(torch.where(torch.isnan(data))[0]))
             self.__getitem__(tuple(key)).__setitem__(slice(0, None), data)
 
     def match_tiles(self, tiles_to_match):
@@ -837,35 +832,6 @@ class SquareDiagTiles:
     def overwrite_arr(self, arr):
         self.__DNDarray = arr
 
-    def send_and_set(self, key, data, home, irecv=False):
-        """
-        send data from process=home and set it on tile[key]
-        :param key: place to set data on the process which that key corresponds to
-        :param data:
-        :param home:
-        :return:
-        """
-        # send data shape (blocking)
-        comm = self.__DNDarray.comm
-        rank = comm.rank
-        recv_proc = self.tile_map[key][..., 2].unique().item()
-        shape = self.get_tile_size(key)
-        # print('1', key, shape)
-        if recv_proc == home == rank:
-            self.__setitem__(key=key, value=data)
-            return
-        if rank == home:
-            # print('2', key, recv_proc, data.shape)
-            comm.Isend(data.clone(), dest=recv_proc, tag=8937)
-        # create empty, then recv with wait
-        elif rank == recv_proc:
-            hld = torch.empty(shape)
-            # print('3', key, self.__getitem__(key).shape)
-            comm.Recv(hld, source=home, tag=8937)
-            # self.__getitem__(key).__setitem__(slice(None), hld)
-            # print(self.arr)
-            self.__setitem__(key=key, value=hld.clone())
-
     def __setitem__(self, key, value):
         """
         Item setter,
@@ -887,10 +853,6 @@ class SquareDiagTiles:
         tile_map = self.__tile_map
         if arr.comm.rank == tile_map[key][..., 2].unique():
             # this will set the tile values using the torch setitem function
-            # print('here')
-            print('entering getitem')
             arr = self.__getitem__(key)
-            print('setting item')
             arr.__setitem__(slice(0, None), value)
-            # print(self.__getitem__(key))
 
