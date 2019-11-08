@@ -164,7 +164,7 @@ class KMeans:
                     if displ[p] > sample:
                         break
                     proc = p
-                x0 = ht.zeros(X.shape[1], device=X.device, comm=X.comm)
+                x0 = ht.zeros(X.shape[1], dtype=X.dtype, device=X.device, comm=X.comm)
                 if X.comm.rank == proc:
                     idx = sample - displ[proc]
                     x0 = ht.array(X.lloc[idx, :, 0], device=X.device, comm=X.comm)
@@ -190,7 +190,7 @@ class KMeans:
                         if displ[p] > sample:
                             break
                         proc = p
-                    xi = ht.zeros(X.shape[1])
+                    xi = ht.zeros(X.shape[1], dtype=X.dtype)
                     if X.comm.rank == proc:
                         idx = sample - displ[proc]
                         xi = ht.array(X.lloc[idx, :, 0], device=X.device, comm=X.comm)
