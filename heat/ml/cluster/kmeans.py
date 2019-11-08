@@ -131,7 +131,7 @@ class KMeans:
                     if X.comm.rank == proc:
                         idx = sample - displ[proc]
                         xi = ht.array(X.lloc[idx, :], device=X.device, comm=X.comm)
-                    X.comm.Bcast(xi, root=proc)
+                    xi.comm.Bcast(xi, root=proc)
                     centroids[:, i] = xi
 
             else:
@@ -198,7 +198,7 @@ class KMeans:
             else:
                 raise NotImplementedError("Not implemented for other splitting-axes")
 
-            self._cluster_centers = centroids.T.expand_dims(axis=0)
+            self._cluster_centers = centroids
 
         else:
             raise ValueError(
