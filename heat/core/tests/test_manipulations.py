@@ -304,7 +304,7 @@ class TestManipulations(unittest.TestCase):
             ht.concatenate((ht.zeros((6, 3, 5)), ht.zeros((4, 5, 1))))
         with self.assertRaises(TypeError):
             ht.concatenate((x, "5"))
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             ht.concatenate((x))
         with self.assertRaises(TypeError):
             ht.concatenate((x, x), axis=x)

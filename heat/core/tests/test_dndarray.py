@@ -500,7 +500,7 @@ class TestDNDarray(unittest.TestCase):
         for c, i in enumerate(range(4)):
             self.assertEqual(a[1, c], i)
 
-        ####################################################
+        ###################################################
         a = ht.zeros((13, 5), split=1)
         # # set value on one node
         a[10] = 1
