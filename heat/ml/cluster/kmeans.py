@@ -115,7 +115,6 @@ class KMeans:
             centroids = ht.empty(
                 (X.shape[1], self.n_clusters), split=None, device=X.device, comm=X.comm
             )
-
             if (X.split is None) or (X.split == 0):
                 for i in range(self.n_clusters):
                     samplerange = (
@@ -128,7 +127,7 @@ class KMeans:
                         if displ[p] > sample:
                             break
                         proc = p
-                    xi = ht.zeros(X.shape[1])
+                    xi = ht.zeros(X.shape[1], dtype=X.dtype)
                     if X.comm.rank == proc:
                         idx = sample - displ[proc]
                         xi = ht.array(X.lloc[idx, :], device=X.device, comm=X.comm)
