@@ -1,5 +1,4 @@
 import torch
-import heat as ht
 
 from . import operations
 from . import dndarray
@@ -209,7 +208,10 @@ def modf(x, out=None):
             tensor([ 0.0000, -0.6000, -0.2000, -0.8000, -0.4000,  0.0000,  0.4000,  0.8000, 0.2000,  0.6000]))
         """
 
-    integralParts = ht.trunc(x)
+    if not isinstance(x, dndarray.DNDarray):
+        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(out)))
+
+    integralParts = trunc(x)
     fractionalParts = x - integralParts
 
     if out is not None:
@@ -221,7 +223,7 @@ def modf(x, out=None):
             raise ValueError(
                 "expected out to be a tuple of length 2, but was of length {}".format(len(out))
             )
-        if (not isinstance(out[0], ht.DNDarray)) or (not isinstance(out[1], ht.DNDarray)):
+        if (not isinstance(out[0], dndarray.DNDarray)) or (not isinstance(out[1], dndarray.DNDarray)):
             raise TypeError(
                 "expected out to be None or a tuple of ht.DNDarray, but was ({}, {})".format(
                     type(out[0]), type(out[1])

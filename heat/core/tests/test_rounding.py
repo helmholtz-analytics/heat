@@ -173,8 +173,17 @@ class TestRounding(unittest.TestCase):
         self.assertIsInstance(float32_modf[1], ht.DNDarray)
         self.assertEqual(float32_modf[0].dtype, ht.float32)
         self.assertEqual(float32_modf[1].dtype, ht.float32)
-        self.assertTrue((x for x in float32_modf[0]._DNDarray__array) == y for y in comparison[0])
-        self.assertTrue((x for x in float32_modf[1]._DNDarray__array) == y for y in comparison[1])
+
+
+
+        self.assertAlmostEqual(float32_modf[0].numpy().all(), comparison[0].all())
+        self.assertAlmostEqual(float32_modf[1].numpy().all(), comparison[1].all())
+
+
+        self.assertAlmostEqual(ht.all(float32_modf[0]), ht.all(ht.array(comparison[0])))
+        self.assertAlmostEqual(ht.all(float32_modf[1]), ht.all(ht.array(comparison[1])))
+
+
 
         # exponential of float64
         comparison = np.modf(np.arange(start, end, step, np.float64))
@@ -185,8 +194,14 @@ class TestRounding(unittest.TestCase):
         self.assertIsInstance(float64_modf[1], ht.DNDarray)
         self.assertEqual(float64_modf[0].dtype, ht.float64)
         self.assertEqual(float64_modf[1].dtype, ht.float64)
-        self.assertTrue((x for x in float32_modf[0]._DNDarray__array) == y for y in comparison[0])
-        self.assertTrue((x for x in float32_modf[1]._DNDarray__array) == y for y in comparison[1])
+
+        self.assertAlmostEqual(float64_modf[0].numpy().all(), comparison[0].all())
+        self.assertAlmostEqual(float64_modf[1].numpy().all(), comparison[1].all())
+
+        self.assertAlmostEqual(ht.all(float64_modf[0]), ht.all(ht.array(comparison[0])))
+        self.assertAlmostEqual(ht.all(float64_modf[1]), ht.all(ht.array(comparison[1])))
+
+
 
         # check exceptions
         with self.assertRaises(TypeError):
