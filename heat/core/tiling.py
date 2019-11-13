@@ -511,6 +511,7 @@ class SquareDiagTiles:
             else:
                 return None
         elif tile_map[key][..., 2].unique().nelement() > 1:
+            print(key, tile_map[key])
             raise ValueError('Slicing across splits is not allowed')
         else:
             if arr.comm.rank == tile_map[key][..., 2].unique():
@@ -647,11 +648,10 @@ class SquareDiagTiles:
                     key[1] += prev_cols
                 elif isinstance(key[1], slice):
                     start = key[1].start + prev_cols if key[1].start is not None else prev_cols
-                    stop = key[1].stop + prev_cols if key[1].stop is not None else start + prev_cols
+                    stop = key[1].stop + prev_cols if key[1].stop is not None else prev_cols + loc_cols
                     if stop - start > loc_cols:
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
-            # print('moving to getitem')
             return self.__getitem__(tuple(key))
 
     def local_set(self, key, data, proc=None):
@@ -693,8 +693,8 @@ class SquareDiagTiles:
                 if isinstance(key[1], int):
                     key[1] += prev_cols
                 elif isinstance(key[1], slice):
-                    start = key[1].start + prev_cols
-                    stop = key[1].stop + prev_cols
+                    start = key[1].start + prev_cols if key[1].start is not None else prev_cols
+                    stop = key[1].stop + prev_cols if key[1].stop is not None else prev_cols + loc_cols
                     if stop - start > loc_cols:
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
