@@ -91,6 +91,8 @@ def concatenate(arrays, axis=0):
     [1/1]         [1., 1.],
     [1/1]         [1., 1.]])
     """
+    if not isinstance(arrays, (tuple, list)):
+        raise TypeError("arrays must be a list or a tuple")
     if len(arrays) < 2:
         raise ValueError("concatenate requires 2 arrays")
     elif len(arrays) > 2:
@@ -656,8 +658,8 @@ def sort(a, axis=None, descending=False, out=None):
 
             send_count = scounts[idx_slice].reshape(-1).tolist()
             send_disp = [0] + list(np.cumsum(send_count[:-1]))
-            s_val = torch.tensor(local_sorted[idx_slice])
-            s_ind = torch.tensor(actual_indices[idx_slice], dtype=local_sorted.dtype)
+            s_val = local_sorted[idx_slice].clone()
+            s_ind = actual_indices[idx_slice].clone().to(dtype=local_sorted.dtype)
 
             recv_count = rcounts[idx_slice].reshape(-1).tolist()
             recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
