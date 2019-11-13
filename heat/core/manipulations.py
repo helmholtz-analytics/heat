@@ -1,9 +1,11 @@
+import warnings
+
 import numpy as np
 import torch
 
 from .communication import MPI
 
-from . import dndarray, linalg, communication
+from . import dndarray
 from . import factories
 from . import stride_tricks
 from . import types
@@ -11,6 +13,7 @@ from . import types
 
 __all__ = [
     "concatenate",
+    "diag",
     "diagonal",
     "expand_dims",
     "hstack",
@@ -322,6 +325,32 @@ def concatenate(arrays, axis=0):
             res = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
             out._DNDarray__array = res
             return out
+
+
+def diag(a, offset=0):
+    if len(a.shape) > 1:
+        return diagonal(a, offset=offset)
+    elif len(a.shape) < 1:
+        raise ValueError("input array must be of dimension 1 or greater")
+
+    # 1-dimensional array, must be extended to a square diagonal matrix
+    gshape = (a.shape[0] + offset,) * 2
+    print("gshape", gshape)
+    if not a.is_balanced():
+        warnings.warn("Unbalanced array - will now be balanced")
+        a.balance_()
+
+    off, lshape, _ = a.comm.chunk(gshape, a.split)
+    print("lshape", lshape)
+    local = torch.zeros(lshape, dtype=a.dtype.torch_type(), device=a.device.torch_device)
+    indices_x = np.arange(0, a.lshape[0])
+    indices_y = np.arange(off + offset, off + offset + a.lshape[0])
+    print("x", indices_x)
+    print("y", indices_y)
+    local[indices_x, indices_y] = a._DNDarray__array
+    # local = torch.diag(a._DNDarray__array, offset - off)
+
+    return dndarray.DNDarray(local, gshape, a.dtype, a.split, a.device, a.comm)
 
 
 def diagonal(a, offset=0, dim1=0, dim2=1):
