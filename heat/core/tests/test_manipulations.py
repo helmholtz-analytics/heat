@@ -316,6 +316,37 @@ class TestManipulations(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             ht.concatenate((ht.zeros((2, 2), split=0), ht.zeros((2, 2), split=1)), axis=0)
 
+    def test_diag(self):
+        size = ht.MPI_WORLD.size
+        rank = ht.MPI_WORLD.rank
+
+        data = torch.arange(size * 2)
+        a = ht.array(data)
+        res = ht.diag(a)
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.diag(data)))
+
+        a = ht.array(data, split=0)
+        res = ht.diag(a)
+        self.assertEqual(res.split, a.split)
+        self.assertEqual(res.shape, (size * 2, size * 2))
+        self.assertEqual(res.lshape[res.split], 2)
+        exp = torch.diag(data)
+        for i in range(rank * 2, (rank + 1) * 2):
+            self.assertTrue(torch.equal(res[i, i]._DNDarray__array, exp[i, i]))
+
+        res = ht.diag(a, offset=size)
+        print("data", data)
+        print("a", a)
+        print("res", res)
+
+        self.assertEqual(res.split, a.split)
+        self.assertEqual(res.shape, (size * 2 + size, size * 2 + size))
+        self.assertEqual(res.lshape[res.split], 3)
+        exp = torch.diag(data)
+        for i in range(rank * 2, (rank + 1) * 2):
+            self.assertTrue(torch.equal(res[i, i]._DNDarray__array, exp[i, i]))
+        self.fail()
+
     def test_diagonal(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
