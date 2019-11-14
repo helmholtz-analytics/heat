@@ -768,98 +768,132 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     tile_rows = a_tiles.tile_rows
     tile_row_inds = a_tiles.row_indices + [torch.Tensor(a.gshape[0])]
 
-    # q0 = factories.eye((a.gshape[0], a.gshape[0]), split=0, dtype=a.dtype, comm=a.comm)
-    # q0_tiles = tiling.SquareDiagTiles(q0, tile_per_proc=tiles_per_proc)
-    # q0_tiles.match_tiles(a_tiles)
+    q0 = factories.eye((a.gshape[0], a.gshape[0]), split=0, dtype=a.dtype, comm=a.comm)
+    q0_tiles = tiling.SquareDiagTiles(q0, tile_per_proc=tiles_per_proc)
+    q0_tiles.match_tiles(a_tiles)
+    #
+    # # loop over the tile columns
+    # rank = a.comm.rank
+    # q_dict = {}
+    # cols_on_proc = torch.cumsum(torch.tensor(a_tiles.tile_rows_per_process), dim=0)
+    # # ==================================== R Calculation ===========================================
+    # for dcol in range(tile_columns):  # dcol is the diagonal column
+    #     # loop over each column, need to do the QR for each tile in the column(should be rows)
+    #     # need to get the diagonal process
+    #     not_completed_processes = torch.nonzero(dcol < cols_on_proc).flatten()
+    #     if rank not in not_completed_processes:
+    #         # if the process is done calculating R the break the loop
+    #         break
+    #     diag_process = not_completed_processes[0].item()
+    #     # get the diagonal tile and do qr on it
+    #     # send q to the other processes
+    #     # 1st qr: only on diagonal tile + apply to the row
+    #     q_dict[dcol] = {}
+    #     if rank == diag_process:
+    #         q1, r1 = a_tiles[dcol, dcol].qr(some=False)
+    #         q_dict[dcol][0] = q1
+    #         # todo: this only needs to happen on the next tiles in that row
+    #         for r in range(diag_process + 1, a.comm.size):
+    #             a.comm.Isend(q1.clone(), dest=r, tag=int("123" + str(diag_process) + str(r)))
+    #         a_tiles[dcol, dcol] = r1
+    #         col_start_index = dcol - sum(a_tiles.tile_rows_per_process[:rank]) + 1
+    #         if col_start_index < a_tiles.tile_rows_per_process[rank]:
+    #             hold = a_tiles.local_get(key=(dcol, slice(col_start_index, None)))
+    #             a_tiles.local_set(key=(dcol, slice(col_start_index, None)),
+    #                               data=torch.matmul(q1.T, hold))
+    #         # ======================== q calc stuff ========================
+    #         sz = q0_tiles.get_tile_size(key=(dcol, slice(dcol, None)))
+    #         hld = torch.zeros(sz[1], sz[0])
+    #         print(dcol, hld[:q1.shape[0]].shape, hld.shape, q1.shape, q0.lshape)
+    #         # hld[:q1.shape[0]] = q1
+    #         # hld =
+    #         # q0_tiles.local_set(key=(dcol))
+    #         # for c in range(tile_columns):
+    #         #     q0._DNDarray__array = q0._DNDarray__array @ hld
+    #     else:
+    #         sz = a_tiles.get_tile_size(key=(dcol, dcol))
+    #         q1 = torch.empty((sz[0], sz[0]))
+    #         a.comm.Recv(q1, source=diag_process, tag=int("123" + str(diag_process) + str(rank)))
+    #         hold = a_tiles.local_get(key=(dcol, slice(0, None)))
+    #         a_tiles.local_set(key=(dcol, slice(0, None)),
+    #                           data=torch.matmul(q1.T, hold))
+    #
+    #     # loop over the rest of the rows, combine the tiles, then apply the result to the rest
+    #     # 2nd step: merged QR on the rows
+    #     diag_tile = a_tiles[dcol, dcol]
+    #     diag_sz = a_tiles.get_tile_size(key=(dcol, dcol))
+    #     for row in range(dcol + 1, tile_rows):
+    #         if rank == diag_process:
+    #             # cat diag tile and loop tile
+    #             loop_tile = a_tiles[row, dcol]
+    #             loop_cat = torch.cat((diag_tile, loop_tile), dim=0)
+    #             # qr
+    #             ql, rl = loop_cat.qr(some=False)
+    #             # send ql to all
+    #             for r in range(diag_process + 1, a.comm.size):
+    #                 a.comm.Isend(ql.clone(), dest=r, tag=int("321" + str(diag_process) + str(r)
+    #                                                          + str(row)))
+    #             # save ql
+    #             # print(dcol, row, diag_sz)
+    #             q_dict[dcol][row] = [ql, diag_sz]
+    #             # set rs
+    #             a_tiles[dcol, dcol] = rl[:diag_sz[0]]
+    #             a_tiles[row, dcol] = rl[diag_sz[0]:]
+    #             # apply q to rest
+    #             if col_start_index < a_tiles.tile_rows_per_process[rank]:
+    #                 upp = a_tiles.local_get(key=(dcol, slice(col_start_index, None)))
+    #                 low = a_tiles.local_get(key=(row, slice(col_start_index, None)))
+    #                 hold = torch.matmul(ql.T, torch.cat((upp, low), dim=0))
+    #                 # set upper
+    #                 a_tiles.local_set(key=(dcol, slice(col_start_index, None)),
+    #                                   data=hold[:diag_sz[0]])
+    #                 # set lower
+    #                 a_tiles.local_set(key=(row, slice(col_start_index, None)),
+    #                                   data=hold[diag_sz[0]:])
+    #         else:
+    #             lp_sz = a_tiles.get_tile_size(key=(row, dcol))
+    #             ql = torch.empty([lp_sz[0] + diag_sz[0]] * 2)
+    #             a.comm.Recv(ql, source=diag_process, tag=int("321" + str(diag_process) + str(rank)
+    #                                                          + str(row)))
+    #             upp = a_tiles.local_get(key=(dcol, slice(0, None)))
+    #             low = a_tiles.local_get(key=(row, slice(0, None)))
+    #             hold = torch.matmul(ql.T, torch.cat((upp, low), dim=0))
+    #             # set upper
+    #             a_tiles.local_set(key=(dcol, slice(0, None)),
+    #                               data=hold[:diag_sz[0]])
+    #             # set lower
+    #             a_tiles.local_set(key=(row, slice(0, None)),
+    #                               data=hold[diag_sz[0]:])
+    # if not calc_q:
+    #     return None, a
+    # # ===================================== Q calculation ==========================================
+    # for dcol in range(tile_columns):
+    #     if 0 in q_dict[dcol].keys():
+    #         global_merge_dict = {(dcol, dcol): q_dict[dcol][0]}
+    #         del q_dict[dcol][0]
+    #     else:
+    #         global_merge_dict = {}
+    #     l = list(q_dict[dcol].keys())
+    #     l.sort()
+    #     print(l, len(l))
+    #     # apply [0] to the diagonal row of q0
+    #     # loop over the keys in q_dict[dcol]
+    #     # send the loop q to all processes - (send whole dictionary? or save it before?)
+    #     # split the loop q into 4 pieces
+    #     # apply the
+    #
+    #
+    #     # global_merge_dict = __qr_global_q_dict_set(q_dict_col=q_dict[dcol], col=dcol,
+    #     #                                            a_tiles=a_tiles, q_tiles=q0_tiles,
+    #     #                                            global_merge_dict=global_merge_dict, split1=True)
+    #
+    #     # todo: the global merge dict may be too large for one node...
+    #
+    #     del q_dict[dcol]
+    #     if len(q_dict.keys()) is 0:
+    #         break
+    # print(a)
 
-    # loop over the tile columns
-    rank = a.comm.rank
-    q_dict = {}
-    q_dict_waits = {}
-    cols_on_proc = torch.cumsum(torch.tensor(a_tiles.tile_rows_per_process), dim=0)
-    # print(cols_on_proc)
-    for dcol in range(tile_columns):  # dcol is the diagonal column
-        q_dict[dcol] = {}
-        # loop over each column, need to do the QR for each tile in the column(should be rows)
-        # need to get the diagonal process
-        not_completed_processes = torch.nonzero(dcol < cols_on_proc).flatten()
-        if rank not in not_completed_processes:
-            # if the process is done calculating R the break the loop
-            break
-        diag_process = not_completed_processes[0].item()
-        # get the diagonal tile and do qr on it
-        # send q to the other processes
-        # 1st qr: only on diagonal tile + apply to the row
-        if rank == diag_process:
-            q1, r1 = a_tiles[dcol, dcol].qr(some=False)
-            q_dict[dcol][0] = q1
-            # todo: this only needs to happen on the next tiles in that row
-            for r in range(diag_process + 1, a.comm.size):
-                a.comm.Isend(q1.clone(), dest=r, tag=int("123" + str(diag_process) + str(r)))
-            a_tiles[dcol, dcol] = r1
-            col_start_index = dcol - sum(a_tiles.tile_rows_per_process[:rank]) + 1
-            if col_start_index < a_tiles.tile_rows_per_process[rank]:
-                hold = a_tiles.local_get(key=(dcol, slice(col_start_index, None)))
-                a_tiles.local_set(key=(dcol, slice(col_start_index, None)),
-                                  data=torch.matmul(q1.T, hold))
-        else:
-            sz = a_tiles.get_tile_size(key=(dcol, dcol))
-            q1 = torch.empty((sz[0], sz[0]))
-            a.comm.Recv(q1, source=diag_process, tag=int("123" + str(diag_process) + str(rank)))
-            hold = a_tiles.local_get(key=(dcol, slice(0, None)))
-            a_tiles.local_set(key=(dcol, slice(0, None)),
-                              data=torch.matmul(q1.T, hold))
-
-        # loop over the rest of the rows, combine the tiles, then apply the result to the rest
-        # 2nd step: merged QR on the rows
-        diag_tile = a_tiles[dcol, dcol]
-        diag_sz = a_tiles.get_tile_size(key=(dcol, dcol))
-        for row in range(dcol + 1, tile_rows):
-            if rank == diag_process:
-                # cat diag tile and loop tile
-                loop_tile = a_tiles[row, dcol]
-                loop_cat = torch.cat((diag_tile, loop_tile), dim=0)
-                # qr
-                ql, rl = loop_cat.qr(some=False)
-                # send ql to all
-                for r in range(diag_process + 1, a.comm.size):
-                    a.comm.Isend(ql.clone(), dest=r, tag=int("321" + str(diag_process) + str(r)
-                                                             + str(row)))
-                # save ql
-                q_dict[dcol][row] = ql
-                # set rs
-                a_tiles[dcol, dcol] = rl[:diag_sz[0]]
-                a_tiles[row, dcol] = rl[diag_sz[0]:]
-                # apply q to rest
-                if col_start_index < a_tiles.tile_rows_per_process[rank]:
-                    upp = a_tiles.local_get(key=(dcol, slice(col_start_index, None)))
-                    low = a_tiles.local_get(key=(row, slice(col_start_index, None)))
-                    hold = torch.matmul(ql.T, torch.cat((upp, low), dim=0))
-                    # set upper
-                    a_tiles.local_set(key=(dcol, slice(col_start_index, None)),
-                                      data=hold[:diag_sz[0]])
-                    # set lower
-                    a_tiles.local_set(key=(row, slice(col_start_index, None)),
-                                      data=hold[diag_sz[0]:])
-            else:
-                lp_sz = a_tiles.get_tile_size(key=(row, dcol))
-                ql = torch.empty([lp_sz[0] + diag_sz[0]] * 2)
-                a.comm.Recv(ql, source=diag_process, tag=int("321" + str(diag_process) + str(rank)
-                                                             + str(row)))
-                upp = a_tiles.local_get(key=(dcol, slice(0, None)))
-                low = a_tiles.local_get(key=(row, slice(0, None)))
-                hold = torch.matmul(ql.T, torch.cat((upp, low), dim=0))
-                # set upper
-                a_tiles.local_set(key=(dcol, slice(0, None)),
-                                  data=hold[:diag_sz[0]])
-                # set lower
-                a_tiles.local_set(key=(row, slice(0, None)),
-                                  data=hold[diag_sz[0]:])
-    if not calc_q:
-        return None, a
-    # ===================================== Q calculation ==========================================
-
-    print(a)
 
 def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     """
@@ -888,6 +922,7 @@ def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     q_dict = {}
     q_dict_waits = {}
     proc_tile_start = torch.cumsum(torch.tensor(a_tiles.tile_rows_per_process), dim=0)
+    # ==================================== R Calculation ===========================================
     for col in range(tile_columns):  # for each tile column (need to do the last rank separately)
         # for each process need to do local qr
         not_completed_processes = torch.nonzero(col < proc_tile_start).flatten()
@@ -908,23 +943,25 @@ def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         __qr_global_qr_calc(a_tiles=a_tiles, rank=rank, q_dict=q_dict, q_dict_waits=q_dict_waits,
                             col=col, diag_process=diag_process, comm=a.comm,
                             not_completed_processes=not_completed_processes)
-    # ==============================================================================================
-    # return statement if dont need to calculate q
+
     if not calc_q:
+        # return statement if not calculating q
         return None, a
-    # ==============================================================================================
-    # Q:
+    # ===================================== Q Calculation ==========================================
     for col in range(tile_columns):
         diag_process = torch.nonzero(proc_tile_start > col)[0].item() if col != tile_columns \
             else a.comm.size - 1
 
+        # local q merge
         __qr_q_waits(q_dict_waits, q_dict, col)
         __qr_apply_local_q_to_q0(rank=rank, q_dict=q_dict, col=col, a_tiles=a_tiles,
                                  q_tiles=q0_tiles, comm=a.comm, diag=diag_process)
-        # ------------------------------------------------------------------------------------------
-        # beginning of global merge stuff
-        __qr_global_q_merge(q_dict=q_dict, col=col, a_tiles=a_tiles, q_tiles=q0_tiles,
-                            rank=rank, comm=a.comm, diag=diag_process)
+
+        # global q merge
+        global_merge_dict = __qr_global_q_dict_set(q_dict_col=q_dict[col], col=col, a_tiles=a_tiles,
+                                                   q_tiles=q0_tiles) if rank == diag_process else {}
+        __qr_apply_global_q_to_q0(global_merge_dict=global_merge_dict, col=col, q_tiles=q0_tiles,
+                                  rank=rank, comm=a.comm, diag=diag_process)
         if col in q_dict.keys():
             del q_dict[col]
     return q0, a
@@ -959,7 +996,7 @@ def __qr_q_waits(q_dict_waits, q_dict, col):
     if col not in q_dict_waits.keys():
         return
     for key in q_dict_waits[col].keys():
-        new_key = q_dict_waits[col][key][3].wait() + key
+        new_key = q_dict_waits[col][key][3].wait() + key + 'e'
         q_dict_waits[col][key][0][1].wait()
         q_dict[col][new_key] = [q_dict_waits[col][key][0][0],
                                 q_dict_waits[col][key][1].wait(),
@@ -1029,17 +1066,14 @@ def __qr_apply_local_q_to_q0(rank, q_dict, col, a_tiles, q_tiles, comm, diag):
         del local_merge_q[r]
 
 
-def __qr_global_q_merge(q_dict, col, a_tiles, q_tiles, rank, comm, diag):
+def __qr_apply_global_q_to_q0(global_merge_dict, col, q_tiles, rank, comm, diag):
     """
     function for the multiplication of Q with the dictionary holding the global merge q tensors
     :return:
     """
 
-    caqr_dict = __qr_global_q_dict_set(q_dict_col=q_dict[col], col=col, a_tiles=a_tiles,
-                                       q_tiles=q_tiles) if rank == diag else {}
-
-    if rank == diag:  # todo: change this to the diagonal process
-        merge_dict_keys = set(caqr_dict.keys())
+    if rank == diag:
+        merge_dict_keys = set(global_merge_dict.keys())
     else:
         merge_dict_keys = None
     merge_dict_keys = comm.bcast(merge_dict_keys, root=diag)
@@ -1047,7 +1081,7 @@ def __qr_global_q_merge(q_dict, col, a_tiles, q_tiles, rank, comm, diag):
     # send the caqr dictionary to all processes
     for k in merge_dict_keys:
         if rank == diag:
-            snd = caqr_dict[k].clone()
+            snd = global_merge_dict[k].clone()
             snd_shape = snd.shape
             comm.bcast(snd_shape, root=diag)
         else:
@@ -1056,7 +1090,7 @@ def __qr_global_q_merge(q_dict, col, a_tiles, q_tiles, rank, comm, diag):
             snd = torch.empty(snd_shape)
 
         wait = comm.Ibcast(snd, root=diag)
-        caqr_dict[k] = [snd, wait]
+        global_merge_dict[k] = [snd, wait]
 
     qi_mult = {}
     for c in range(q_tiles.tile_columns):
@@ -1081,9 +1115,9 @@ def __qr_global_q_merge(q_dict, col, a_tiles, q_tiles, rank, comm, diag):
                 # ind is the index of the merge_dict
                 # next, get the qi tile
                 for ind in qi_mult[qi_col]:
-                    if caqr_dict[ind][1] is not None:
-                        caqr_dict[ind][1].wait()
-                    mult_qi_col[row_inds[ind[0]]:row_inds[ind[0] + 1], :] = caqr_dict[ind][0]
+                    if global_merge_dict[ind][1] is not None:
+                        global_merge_dict[ind][1].wait()
+                    mult_qi_col[row_inds[ind[0]]:row_inds[ind[0] + 1], :] = global_merge_dict[ind][0]
                 hold = torch.matmul(q_copy, mult_qi_col)
                 q_tiles[q0_row, qi_col] = hold
 
@@ -1207,7 +1241,7 @@ def __qr_local_q_merge(q_dict_local, col, a_tiles, rank):
     return base_q
 
 
-def __qr_global_q_dict_set(q_dict_col, col, a_tiles, q_tiles):
+def __qr_global_q_dict_set(q_dict_col, col, a_tiles, q_tiles, split1=False, global_merge_dict=None):
     """
     The function takes the orginial Q tensors from the global QR calculation and sets them to
     the keys which corresponds with their tile coordinates in Q. this returns a separate dictionary,
@@ -1220,6 +1254,7 @@ def __qr_global_q_dict_set(q_dict_col, col, a_tiles, q_tiles):
     a_tiles : tiling.SquarDiagTiles
     q_tiles : tiling.SquarDiagTiles
     rank : int
+    split1 : Bool
 
     :return: none
         q_dict_col will look like [cords] = tensor
@@ -1234,7 +1269,8 @@ def __qr_global_q_dict_set(q_dict_col, col, a_tiles, q_tiles):
 
     # 1: create caqr dictionary
     # need to have empty lists for all tiles in q
-    global_merge_dict = {}
+    global_merge_dict = {} if global_merge_dict is None else global_merge_dict
+
     # intended to be used as [row][column] -> data
     # 2: loop over keys in the dictionary
     merge_list = list(q_dict_col.keys())
@@ -1242,12 +1278,13 @@ def __qr_global_q_dict_set(q_dict_col, col, a_tiles, q_tiles):
     # todo: possible improvement -> make the keys have the process they are on as well,
     #  then can async get them if they are not on the diagonal process
     for key in merge_list:
-       # print(col, key)
+        # print(col, key)
         # this loops over all of the Qs for col and creates the dictionary for the pr Q merges
         p0 = key.find('p0')
         p1 = key.find('p1')
+        end = key.find('e')
         r0 = int(key[p0 + 2: p1])
-        r1 = int(key[p1 + 2:])
+        r1 = int(key[p1 + 2: end])
         lp_q = q_dict_col[key][0].clone()
         base_size = q_dict_col[key][1]
         # cut the q into 4 bits (end of base array)
@@ -1260,10 +1297,14 @@ def __qr_global_q_dict_set(q_dict_col, col, a_tiles, q_tiles):
         # need to adjust the keys to be the global row
         if diag_proc == r0:
             col0 = col
-            pass
         else:
             col0 = proc_tile_start[r0].item()
         col1 = proc_tile_start[r1].item()
+        if split1:
+            u = key.find('u')
+            l = key.find('l')
+            col0 = int(key[u + 1: l])
+            col1 = int(key[l + 1:])
         # col0 and col1 are the columns numbers
         # r0 and r1 are the ranks
 
@@ -1376,7 +1417,7 @@ def __qr_global_qr_calc(a_tiles, rank, q_dict, q_dict_waits, col,
                     q, upper_shape, lower_shape = __qr_merge_tile_rows_qr(pr0=pr0, pr1=pr1, column=col,
                                                                           rank=rank, a_tiles=a_tiles,
                                                                           diag_process=diag_process)
-                    q_dict[col][str(l) + 'p0' + str(pr0) + 'p1' + str(pr1)] = \
+                    q_dict[col][str(l) + 'p0' + str(pr0) + 'p1' + str(pr1) + 'e'] = \
                         [q, upper_shape, lower_shape]
 
                 # send [q, upper_shape, lower_shape] if pr0 / pr1 are not diag_proc
@@ -1398,7 +1439,7 @@ def __qr_global_qr_calc(a_tiles, rank, q_dict, q_dict_waits, col,
                 q, upper_shape, lower_shape = __qr_merge_tile_rows_qr(pr0=rem1, pr1=rem2, column=col,
                                                                       rank=rank, a_tiles=a_tiles,
                                                                       diag_process=diag_process)
-                q_dict[col][str(l) + 'p0' + str(int(rem1)) + 'p1' + str(int(rem2))] = \
+                q_dict[col][str(l) + 'p0' + str(int(rem1)) + 'p1' + str(int(rem2)) + 'e'] = \
                     [q, upper_shape, lower_shape]
             if diag_process not in (rem1, rem2):
                 rem1, rem2 = int(rem1), int(rem2)
@@ -1418,7 +1459,7 @@ def __qr_global_qr_calc(a_tiles, rank, q_dict, q_dict_waits, col,
                 q, upper_shape, lower_shape = __qr_merge_tile_rows_qr(pr0=offset, pr1=rem1, column=col,
                                                                       rank=rank, a_tiles=a_tiles,
                                                                       diag_process=diag_process)
-                q_dict[col][str(l) + 'p0' + str(int(offset)) + 'p1' + str(int(rem1))] = \
+                q_dict[col][str(l) + 'p0' + str(int(offset)) + 'p1' + str(int(rem1)) + 'e'] = \
                     [q, upper_shape, lower_shape]
             if diag_process not in (offset, rem1):
                 offset, rem1 = int(offset), int(rem1)
