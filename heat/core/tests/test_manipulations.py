@@ -325,6 +325,12 @@ class TestManipulations(unittest.TestCase):
         res = ht.diag(a)
         self.assertTrue(torch.equal(res._DNDarray__array, torch.diag(data)))
 
+        res = ht.diag(a, offset=size)
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.diag(data, diagonal=size)))
+
+        res = ht.diag(a, offset=-size)
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.diag(data, diagonal=-size)))
+
         a = ht.array(data, split=0)
         res = ht.diag(a)
         self.assertEqual(res.split, a.split)
@@ -342,20 +348,30 @@ class TestManipulations(unittest.TestCase):
         for i in range(rank * 3, min((rank + 1) * 3, a.shape[0])):
             self.assertTrue(torch.equal(res[i, i + size]._DNDarray__array, exp[i, i + size]))
 
-        print("rank", rank)
         res = ht.diag(a, offset=-size)
-        print("data", data)
-        print("a", a)
-        print("res", res)
-
         self.assertEqual(res.split, a.split)
         self.assertEqual(res.shape, (size * 3, size * 3))
         self.assertEqual(res.lshape[res.split], 3)
         exp = torch.diag(data, diagonal=-size)
-        for i in range():
-            print("i", i, res[i + size, i]._DNDarray__array, exp[i + size, i])
-            self.assertTrue(torch.equal(res[i + size, i]._DNDarray__array, exp[i + size, i]))
-        self.fail()
+        for i in range(max(size, rank * 3), (rank + 1) * 3):
+            self.assertTrue(torch.equal(res[i, i - size]._DNDarray__array, exp[i, i - size]))
+
+        self.assertTrue(ht.equal(ht.diag(ht.diag(a)), a))
+
+        a = ht.random.rand(15, 20, 5, split=1)
+        res_1 = ht.diag(a)
+        res_2 = ht.diagonal(a)
+        self.assertTrue(ht.equal(res_1, res_2))
+
+        with self.assertRaises(ValueError):
+            ht.diag(data)
+
+        with self.assertRaises(ValueError):
+            ht.diag(a, offset=None)
+
+        a = ht.empty([])
+        with self.assertRaises(ValueError):
+            ht.diag(a)
 
     def test_diagonal(self):
         size = ht.MPI_WORLD.size

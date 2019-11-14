@@ -330,15 +330,56 @@ def concatenate(arrays, axis=0):
 
 
 def diag(a, offset=0):
+    """
+    Extract a diagonal or construct a diagonal array.
+    See the documentation for `heat.diagonal` for more information about extracting the diagonal.
+
+    Parameters
+    ----------
+    a: ht.DNDarray
+        The array holding data for creating a diagonal array or extracting a diagonal.
+        If a is a 1-dimensional array a diagonal 2d-array will be returned.
+        If a is a n-dimensional array with n > 1 the diagonal entries will be returned in an n-1 dimensional array.
+    offset: int, optional
+        The offset from the main diagonal.
+        Offset greater zero means above the main diagonal, below zero is below the main diagonal.
+
+    Returns
+    -------
+    res: ht.DNDarray
+        The extracted diagonal or the constructed diagonal array
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.array([1, 2])
+    >>> ht.diag(a)
+    array([[1, 0],
+           [0, 2]])
+
+    >>> ht.diag(a, offset=1)
+    array([[0, 1, 0],
+           [0, 0, 2],
+           [0, 0, 0]])
+
+    >>> ht.equal(ht.diag(ht.diag(a)), a)
+    True
+    >>> a = ht.array([[1, 2], [3, 4]])
+    >>> ht.diag(a)
+    array([1, 4])
+    """
     if len(a.shape) > 1:
         return diagonal(a, offset=offset)
     elif len(a.shape) < 1:
         raise ValueError("input array must be of dimension 1 or greater")
+    if not isinstance(offset, int):
+        raise ValueError("offset must be an integer, got", type(offset))
+    if not isinstance(a, dndarray.DNDarray):
+        raise ValueError("a must be a DNDarray, got", type(a))
 
     # 1-dimensional array, must be extended to a square diagonal matrix
     gshape = (a.shape[0] + abs(offset),) * 2
     off, lshape, _ = a.comm.chunk(gshape, a.split)
-    print("gshape", gshape)
 
     # This ensures that the data is on the correct nodes
     padding = factories.empty(
@@ -358,19 +399,60 @@ def diag(a, offset=0):
         indices_y = np.arange(off + offset, min(off + offset + a.lshape[0], gshape[0]))
     else:
         indices_x = np.arange(max(0, abs(offset) - off), a.lshape[0])
-        indices_y = np.arange(off + offset, off + offset + a.lshape[0])
+        indices_y = np.arange(max(0, off + offset), off + offset + a.lshape[0])
 
-    print("lshape", lshape)
     local = torch.zeros(lshape, dtype=a.dtype.torch_type(), device=a.device.torch_device)
-
-    print("x", indices_x)
-    print("y", indices_y)
     local[indices_x, indices_y] = a._DNDarray__array[indices_x]
 
     return dndarray.DNDarray(local, gshape, a.dtype, a.split, a.device, a.comm)
 
 
 def diagonal(a, offset=0, dim1=0, dim2=1):
+    """
+    Extract a diagonal of an n-dimensional array with n > 1.
+    The returned array will be of dimension n-1.
+
+    Parameters
+    ----------
+    a: ht.DNDarray
+        The array of which the diagonal should be extracted.
+    offset: int, optional
+        The offset from the main diagonal.
+        Offset greater that zero means above the main diagonal, smaller zero is below the main diagonal.
+        Default is 0 which means the main diagonal will be selected.
+    dim1: int, optional
+        First dimension with respect to which to take the diagonal.
+        Default is 0.
+    dim2: int, optional
+        Second dimension with respect to which to take the diagonal.
+        Default is 1.
+    Returns
+    -------
+    res: ht.DNDarray
+        An array holding the extracted diagonal.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.array([[1, 2], [3, 4]])
+    >>> ht.diagonal(a)
+    array([1, 4])
+
+    >>> ht.diagonal(a, offset=1)
+    array([2])
+
+    >>> ht.diagonal(a, offset=-1)
+    array([3])
+
+    >>> a = ht.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
+    >>> ht.diagonal(a)
+    array([[0, 6],
+           [1, 7]])
+
+    >>> ht.diagonal(a, dim2=2)
+    array([[0, 5],
+           [2, 7]])
+    """
     dim1, dim2 = stride_tricks.sanitize_axis(a.shape, (dim1, dim2))
 
     if dim1 == dim2:
