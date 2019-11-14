@@ -336,21 +336,36 @@ def diag(a, offset=0):
         raise ValueError("input array must be of dimension 1 or greater")
 
     # 1-dimensional array, must be extended to a square diagonal matrix
-    gshape = (a.shape[0] + offset,) * 2
+    gshape = (a.shape[0] + abs(offset),) * 2
+    off, lshape, _ = a.comm.chunk(gshape, a.split)
     print("gshape", gshape)
+
+    # This ensures that the data is on the correct nodes
+    padding = factories.empty(
+        (abs(offset),), dtype=a.dtype, split=None, device=a.device, comm=a.comm
+    )
+    print("a", a)
+    if offset > 0:
+        a = concatenate((a, padding))
+    else:
+        a = concatenate((padding, a))
     if not a.is_balanced():
         warnings.warn("Unbalanced array - will now be balanced")
         a.balance_()
 
-    off, lshape, _ = a.comm.chunk(gshape, a.split)
+    if offset > 0:
+        indices_x = np.arange(0, min(a.lshape[0], gshape[0] - off - offset))
+        indices_y = np.arange(off + offset, min(off + offset + a.lshape[0], gshape[0]))
+    else:
+        indices_x = np.arange(max(0, abs(offset) - off), a.lshape[0])
+        indices_y = np.arange(off + offset, off + offset + a.lshape[0])
+
     print("lshape", lshape)
     local = torch.zeros(lshape, dtype=a.dtype.torch_type(), device=a.device.torch_device)
-    indices_x = np.arange(0, a.lshape[0])
-    indices_y = np.arange(off + offset, off + offset + a.lshape[0])
+
     print("x", indices_x)
     print("y", indices_y)
-    local[indices_x, indices_y] = a._DNDarray__array
-    # local = torch.diag(a._DNDarray__array, offset - off)
+    local[indices_x, indices_y] = a._DNDarray__array[indices_x]
 
     return dndarray.DNDarray(local, gshape, a.dtype, a.split, a.device, a.comm)
 

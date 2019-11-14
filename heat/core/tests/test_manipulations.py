@@ -335,16 +335,26 @@ class TestManipulations(unittest.TestCase):
             self.assertTrue(torch.equal(res[i, i]._DNDarray__array, exp[i, i]))
 
         res = ht.diag(a, offset=size)
+        self.assertEqual(res.split, a.split)
+        self.assertEqual(res.shape, (size * 3, size * 3))
+        self.assertEqual(res.lshape[res.split], 3)
+        exp = torch.diag(data, diagonal=size)
+        for i in range(rank * 3, min((rank + 1) * 3, a.shape[0])):
+            self.assertTrue(torch.equal(res[i, i + size]._DNDarray__array, exp[i, i + size]))
+
+        print("rank", rank)
+        res = ht.diag(a, offset=-size)
         print("data", data)
         print("a", a)
         print("res", res)
 
         self.assertEqual(res.split, a.split)
-        self.assertEqual(res.shape, (size * 2 + size, size * 2 + size))
+        self.assertEqual(res.shape, (size * 3, size * 3))
         self.assertEqual(res.lshape[res.split], 3)
-        exp = torch.diag(data)
-        for i in range(rank * 2, (rank + 1) * 2):
-            self.assertTrue(torch.equal(res[i, i]._DNDarray__array, exp[i, i]))
+        exp = torch.diag(data, diagonal=-size)
+        for i in range():
+            print("i", i, res[i + size, i]._DNDarray__array, exp[i + size, i])
+            self.assertTrue(torch.equal(res[i + size, i]._DNDarray__array, exp[i + size, i]))
         self.fail()
 
     def test_diagonal(self):
