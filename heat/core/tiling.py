@@ -712,6 +712,7 @@ class SquareDiagTiles:
             raise TypeError("tiles_to_match must be a SquareDiagTiles object, currently: {}"
                             .format(type(tiles_to_match)))
         base_dnd = self.__DNDarray
+        match_dnd = tiles_to_match.__DNDarray
         # this map will take the same tile row and column sizes up to the last diagonal row/column
         # the last row/column is determined by the number of rows/columns on the non-split dimension
         last_col_row = tiles_to_match.tile_rows_per_process[-1] if base_dnd.split == 1 \
@@ -828,6 +829,10 @@ class SquareDiagTiles:
             self.__col_inds = tiles_to_match.__col_inds
             self.__tile_columns = tiles_to_match.__tile_columns
             self.__tile_rows = tiles_to_match.__tile_rows
+
+        if base_dnd.gshape != match_dnd.gshape and base_dnd.split == 0 and match_dnd == 1:
+            # set the row and col indices to be the same 
+            pass
 
     def overwrite_arr(self, arr):
         self.__DNDarray = arr
