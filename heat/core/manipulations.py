@@ -385,7 +385,6 @@ def diag(a, offset=0):
     padding = factories.empty(
         (abs(offset),), dtype=a.dtype, split=None, device=a.device, comm=a.comm
     )
-    print("a", a)
     if offset > 0:
         a = concatenate((a, padding))
     else:
