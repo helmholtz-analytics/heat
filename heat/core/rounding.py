@@ -223,7 +223,9 @@ def modf(x, out=None):
             raise ValueError(
                 "expected out to be a tuple of length 2, but was of length {}".format(len(out))
             )
-        if (not isinstance(out[0], dndarray.DNDarray)) or (not isinstance(out[1], dndarray.DNDarray)):
+        if (not isinstance(out[0], dndarray.DNDarray)) or (
+            not isinstance(out[1], dndarray.DNDarray)
+        ):
             raise TypeError(
                 "expected out to be None or a tuple of ht.DNDarray, but was ({}, {})".format(
                     type(out[0]), type(out[1])

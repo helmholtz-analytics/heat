@@ -174,16 +174,11 @@ class TestRounding(unittest.TestCase):
         self.assertEqual(float32_modf[0].dtype, ht.float32)
         self.assertEqual(float32_modf[1].dtype, ht.float32)
 
-
-
         self.assertAlmostEqual(float32_modf[0].numpy().all(), comparison[0].all())
         self.assertAlmostEqual(float32_modf[1].numpy().all(), comparison[1].all())
 
-
         self.assertAlmostEqual(ht.all(float32_modf[0]), ht.all(ht.array(comparison[0])))
         self.assertAlmostEqual(ht.all(float32_modf[1]), ht.all(ht.array(comparison[1])))
-
-
 
         # exponential of float64
         comparison = np.modf(np.arange(start, end, step, np.float64))
@@ -200,8 +195,6 @@ class TestRounding(unittest.TestCase):
 
         self.assertAlmostEqual(ht.all(float64_modf[0]), ht.all(ht.array(comparison[0])))
         self.assertAlmostEqual(ht.all(float64_modf[1]), ht.all(ht.array(comparison[1])))
-
-
 
         # check exceptions
         with self.assertRaises(TypeError):
