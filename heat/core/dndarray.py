@@ -600,8 +600,10 @@ class DNDarray:
 
     def balance_(self):
         """
-        Function for balancing a DNDarray between all nodes. To determine if this is needed use the is_balanced function.
-        If the DNDarray is already balanced this function will do nothing. This function modifies the DNDarray itself and will not return anything.
+        Function for balancing a DNDarray between all nodes.
+        To determine if this is needed use the is_balanced() function.
+        If the DNDarray is already balanced this function will do nothing.
+        This function modifies the DNDarray itself and does not return anything.
 
         Examples
         --------
@@ -637,11 +639,11 @@ class DNDarray:
             return
         sl_dtype = self.dtype.torch_type()
         # units -> {pr, 1st index, 2nd index}
-        lshape_map = factories.zeros((self.comm.size, len(self.gshape)), dtype=int)
-        lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
+        lshape_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
+        lshape_map[self.comm.rank, :] = torch.tensor(self.lshape)
         lshape_map_comm = self.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
-        chunk_map = factories.zeros((self.comm.size, len(self.gshape)), dtype=int)
+        chunk_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
         _, _, chk = self.comm.chunk(self.shape, self.split)
         for i in range(len(self.gshape)):
             chunk_map[self.comm.rank, i] = chk[i].stop - chk[i].start
@@ -649,135 +651,100 @@ class DNDarray:
 
         lshape_map_comm.wait()
         chunk_map_comm.wait()
+        lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
+        chunk_cumsum = torch.cat((torch.tensor([0]),
+                                  torch.cumsum(chunk_map[..., self.split], dim=0)), dim=0)
+        lshape_cumsum_old = lshape_cumsum.clone()
+        data_start = torch.nonzero(lshape_map[..., self.split])
+        data_start = data_start[0].item() if data_start.numel() > 0 else 0
+        # # need the data start as well for process 0
+        rank = self.comm.rank
+        for rcv_pr in range(self.comm.size):
+            st = chunk_cumsum[rcv_pr].item()
+            sp = chunk_cumsum[rcv_pr + 1].item()
+            hld = torch.nonzero(st <= lshape_cumsum_old).flatten()
+            st_pr = hld[0].item() if hld.numel() > 0 else -1
+            st_pr = st_pr if rcv_pr != 0 else data_start
+            hld = torch.nonzero(sp <= lshape_cumsum_old).flatten()
+            sp_pr = hld[0].item() if hld.numel() > 0 else -1
+            # st_pr and sp_pr are the processes on which the data sits at the beginning
+            # need to loop from st_pr to sp_pr + 1 and send the pr
+            for snd_pr in range(st_pr, sp_pr + 1):
+                data_required = abs(sp - st - lshape_map[rcv_pr, self.split].item())
+                send_slice = [slice(None)] * self.numdims
+                keep_slice = [slice(None)] * self.numdims
+                # send amount
+                send_amt = data_required if data_required <= lshape_map[snd_pr, self.split] \
+                    else lshape_map[snd_pr, self.split]
+                if (sp - st) <= lshape_map[rcv_pr, self.split].item() or snd_pr == rcv_pr:
+                    send_amt = 0
 
-        # create list of which processes need to send data to lower ranked nodes
-        send_list = [
-            True
-            if lshape_map[pr, self.split] != (chunk_map[pr, self.split])
-            and lshape_map[pr, self.split] != 0
-            else False
-            for pr in range(1, self.comm.size)
-        ]
-        send_list.insert(
-            0, True if lshape_map[0, self.split] > (chunk_map[0, self.split]) else False
-        )
-        first_pr_w_data = send_list.index(True)  # first process with *too much* data
-        last_pr_w_data = next(
-            (
-                i
-                for i in reversed(range(len(lshape_map[:, self.split])))
-                if lshape_map[i, self.split] > chunk_map[i, self.split]
-            )
-        )
-
-        # create arbitrary slices for which data to send and which data to keep
-        send_slice = [slice(None)] * self.numdims
-        keep_slice = [slice(None)] * self.numdims
-
-        # first send the first entries of the data to the 0th node and then the next data to the 1st ...
-        # this will redistributed the data forward
-        if first_pr_w_data != 0:
-            for spr in range(first_pr_w_data, last_pr_w_data + 1):
-                if self.comm.rank == spr:
-                    for pr in range(spr):
-                        send_amt = abs(
-                            (chunk_map[pr, self.split] - lshape_map[pr, self.split]).item()
+                if snd_pr > rcv_pr and send_amt != 0:  # data passed to a lower rank (off the top)
+                    if rank == snd_pr:
+                        send_slice[self.split] = slice(0, send_amt)
+                        keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
+                        self.comm.Isend(
+                            self.__array[send_slice].clone(),
+                            dest=rcv_pr,
+                            tag=rcv_pr + self.comm.size + snd_pr
                         )
-                        send_amt = (
-                            send_amt
-                            if send_amt < self.lshape[self.split]
-                            else self.lshape[self.split]
-                        )
-                        if send_amt:
-                            send_slice[self.split] = slice(0, send_amt)
-                            keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
-
-                            self.comm.Isend(
-                                self.__array[send_slice].clone(),
-                                dest=pr,
-                                tag=pr + self.comm.size + spr,
-                            )
-                            self.__array = self.__array[keep_slice].clone()
-
-                # else:
-                for pr in range(spr):
-                    snt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
-                    snt = (
-                        snt
-                        if snt < lshape_map[spr, self.split]
-                        else lshape_map[spr, self.split].item()
-                    )
-
-                    if self.comm.rank == pr and snt:
+                        self.__array = self.__array[keep_slice].clone()
+                    if rank == rcv_pr:
                         shp = list(self.gshape)
-                        shp[self.split] = snt
+                        shp[self.split] = send_amt
                         data = torch.zeros(shp, dtype=sl_dtype)
-                        self.comm.Recv(data, source=spr, tag=pr + self.comm.size + spr)
+                        self.comm.Recv(data, source=snd_pr, tag=rcv_pr + self.comm.size + snd_pr)
                         self.__array = torch.cat((self.__array, data), dim=self.split)
-                    lshape_map[pr, self.split] += snt
-                    lshape_map[spr, self.split] -= snt
-
-        if self.is_balanced():
-            return
-
-        # now the DNDarray is balanced from 0 to x, (by pulling data from the higher ranking nodes)
-        # next we balance the data from x to the self.comm.size
-        send_list = [
-            True if lshape_map[pr, self.split] > (chunk_map[pr, self.split]) else False
-            for pr in range(self.comm.size)
-        ]
-        first_pr_w_data = send_list.index(True)  # first process with *too much* data
-        last_pr_w_data = next(
-            (
-                i
-                for i in reversed(range(len(lshape_map[:, self.split])))
-                if lshape_map[i, self.split] > chunk_map[i, self.split]
-            )
-        )
-
-        send_slice = [slice(None)] * self.numdims
-        keep_slice = [slice(None)] * self.numdims
-        # need to send from the last one with data
-        # start from x then push the data to the next one. then do the same at x+1 until the last process
-        balanced_process = [False for _ in range(self.comm.size)]
-        for pr in range(self.comm.size):
-            balanced_process[pr] = (
-                True if chunk_map[pr, self.split] == lshape_map[pr, self.split] else False
-            )
-            if pr > 0:
-                if any(i is False for i in balanced_process[:pr]):
-                    balanced_process[pr] = False
-
-        for pr, b in enumerate(balanced_process[:-1]):
-            if not b:  # if the process is not balanced
-                send_amt = abs((chunk_map[pr, self.split] - lshape_map[pr, self.split]).item())
-                send_amt = (
-                    send_amt
-                    if send_amt < lshape_map[pr, self.split]
-                    else lshape_map[pr, self.split]
-                )
-                if send_amt:
-                    if self.comm.rank == pr:  # send data to the next process
+                if snd_pr < rcv_pr and send_amt != 0:  # data passed from the bottom
+                    if rank == snd_pr:
                         send_slice[self.split] = slice(
                             self.lshape[self.split] - send_amt, self.lshape[self.split]
                         )
                         keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
-
-                        self.comm.Send(
+                        self.comm.Isend(
                             self.__array[send_slice].clone(),
-                            dest=pr + 1,
-                            tag=pr + self.comm.size + pr + 1,
+                            dest=rcv_pr,
+                            tag=rcv_pr + self.comm.size + snd_pr
                         )
                         self.__array = self.__array[keep_slice].clone()
-
-                    if self.comm.rank == pr + 1:  # receive data on the next process
+                    if rank == rcv_pr:
                         shp = list(self.gshape)
                         shp[self.split] = send_amt
                         data = torch.zeros(shp, dtype=sl_dtype)
-                        self.comm.Recv(data, source=pr, tag=pr + self.comm.size + pr + 1)
+                        self.comm.Recv(data, source=snd_pr, tag=rcv_pr + self.comm.size + snd_pr)
                         self.__array = torch.cat((data, self.__array), dim=self.split)
-                    lshape_map[pr, self.split] -= send_amt
-                    lshape_map[pr + 1, self.split] += send_amt
+                lshape_cumsum[snd_pr] -= send_amt
+                lshape_cumsum[rcv_pr] += send_amt
+                lshape_map[rcv_pr, self.split] += send_amt
+                lshape_map[snd_pr, self.split] -= send_amt
+            if lshape_map[rcv_pr, self.split] > chunk_map[rcv_pr, self.split]:
+                # if there is still some data left on the process then move it to the next one
+                send_slice = [slice(None)] * self.numdims
+                keep_slice = [slice(None)] * self.numdims
+                send_amt = lshape_map[rcv_pr, self.split] - chunk_map[rcv_pr, self.split]
+                snd = rcv_pr
+                rcv = rcv_pr + 1
+                if rank == snd:
+                    send_slice[self.split] = slice(
+                        self.lshape[self.split] - send_amt, self.lshape[self.split]
+                    )
+                    keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
+                    self.comm.Isend(
+                        self.__array[send_slice].clone(),
+                        dest=rcv,
+                        tag=rcv + self.comm.size + snd
+                    )
+                    self.__array = self.__array[keep_slice].clone()
+                if rank == rcv:
+                    shp = list(self.gshape)
+                    shp[self.split] = send_amt
+                    data = torch.zeros(shp, dtype=sl_dtype)
+                    self.comm.Recv(data, source=snd, tag=rcv + self.comm.size + snd)
+                    self.__array = torch.cat((data, self.__array), dim=self.split)
+                lshape_cumsum[rcv_pr] -= send_amt
+                lshape_cumsum[rcv_pr + 1] += send_amt
+                lshape_map[rcv_pr, self.split] -= send_amt
+                lshape_map[rcv_pr + 1, self.split] += send_amt
 
     def __bool__(self):
         """
