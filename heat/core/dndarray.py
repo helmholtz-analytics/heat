@@ -655,8 +655,7 @@ class DNDarray:
         )
         data_start = torch.nonzero(lshape_map[..., self.split])
         data_start = data_start[0].item() if data_start.numel() > 0 else 0
-        # # need the data start as well for process 0
-        rank = self.comm.rank
+        # need the data start as well for process 0
         for rcv_pr in range(self.comm.size):
             st = chunk_cumsum[rcv_pr].item()
             sp = chunk_cumsum[rcv_pr + 1].item()
@@ -671,8 +670,6 @@ class DNDarray:
                 if snd_pr == self.comm.size:
                     break
                 data_required = abs(sp - st - lshape_map[rcv_pr, self.split].item())
-                send_slice = [slice(None)] * self.numdims
-                keep_slice = [slice(None)] * self.numdims
                 send_amt = (
                     data_required
                     if data_required <= lshape_map[snd_pr, self.split]
@@ -681,72 +678,67 @@ class DNDarray:
                 if (sp - st) <= lshape_map[rcv_pr, self.split].item() or snd_pr == rcv_pr:
                     send_amt = 0
                 # send amount is the data still needed by recv if that is available on the snd
-                if snd_pr > rcv_pr and send_amt != 0:  # data passed to a lower rank (off the top)
-                    if rank == snd_pr:
-                        send_slice[self.split] = slice(0, send_amt)
-                        keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
-                        self.comm.Isend(
-                            self.__array[send_slice].clone(),
-                            dest=rcv_pr,
-                            tag=rcv_pr + self.comm.size + snd_pr,
-                        )
-                        self.__array = self.__array[keep_slice].clone()
-                    if rank == rcv_pr:
-                        shp = list(self.gshape)
-                        shp[self.split] = send_amt
-                        data = torch.zeros(shp, dtype=sl_dtype)
-                        self.comm.Recv(data, source=snd_pr, tag=rcv_pr + self.comm.size + snd_pr)
-                        self.__array = torch.cat((self.__array, data), dim=self.split)
-                if (
-                    snd_pr < rcv_pr and send_amt != 0
-                ):  # data passed to a high rank (from the bottom)
-                    if rank == snd_pr:
-                        send_slice[self.split] = slice(
-                            self.lshape[self.split] - send_amt, self.lshape[self.split]
-                        )
-                        keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
-                        self.comm.Isend(
-                            self.__array[send_slice].clone(),
-                            dest=rcv_pr,
-                            tag=rcv_pr + self.comm.size + snd_pr,
-                        )
-                        self.__array = self.__array[keep_slice].clone()
-                    if rank == rcv_pr:
-                        shp = list(self.gshape)
-                        shp[self.split] = send_amt
-                        data = torch.zeros(shp, dtype=sl_dtype)
-                        self.comm.Recv(data, source=snd_pr, tag=rcv_pr + self.comm.size + snd_pr)
-                        self.__array = torch.cat((data, self.__array), dim=self.split)
+                if send_amt != 0:
+                    self.__balance_shuffle(snd_pr, send_amt, rcv_pr, sl_dtype)
                 lshape_cumsum[snd_pr] -= send_amt
                 lshape_cumsum[rcv_pr] += send_amt
                 lshape_map[rcv_pr, self.split] += send_amt
                 lshape_map[snd_pr, self.split] -= send_amt
             if lshape_map[rcv_pr, self.split] > chunk_map[rcv_pr, self.split]:
                 # if there is any data left on the process then send it to the next one
-                send_slice = [slice(None)] * self.numdims
-                keep_slice = [slice(None)] * self.numdims
                 send_amt = lshape_map[rcv_pr, self.split] - chunk_map[rcv_pr, self.split]
-                snd = rcv_pr
-                rcv = rcv_pr + 1
-                if rank == snd:
-                    send_slice[self.split] = slice(
-                        self.lshape[self.split] - send_amt, self.lshape[self.split]
-                    )
-                    keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
-                    self.comm.Isend(
-                        self.__array[send_slice].clone(), dest=rcv, tag=rcv + self.comm.size + snd
-                    )
-                    self.__array = self.__array[keep_slice].clone()
-                if rank == rcv:
-                    shp = list(self.gshape)
-                    shp[self.split] = send_amt
-                    data = torch.zeros(shp, dtype=sl_dtype)
-                    self.comm.Recv(data, source=snd, tag=rcv + self.comm.size + snd)
-                    self.__array = torch.cat((data, self.__array), dim=self.split)
+                self.__balance_shuffle(
+                    snd_pr=rcv_pr, send_amt=send_amt, rcv_pr=rcv_pr + 1, sl_dtype=sl_dtype
+                )
                 lshape_cumsum[rcv_pr] -= send_amt
                 lshape_cumsum[rcv_pr + 1] += send_amt
                 lshape_map[rcv_pr, self.split] -= send_amt
                 lshape_map[rcv_pr + 1, self.split] += send_amt
+
+    def __balance_shuffle(self, snd_pr, send_amt, rcv_pr, sl_dtype):
+        """
+        Function to abstract the function used during balance for shuffling data between processes
+
+        Parameters
+        ----------
+        snd_pr : int, single element torch.Tensor
+            Sending process
+        send_amt : int, single element torch.Tensor
+            Amount of data to be sent by the sending process
+        rcv_pr : int, single element torch.Tensor
+            Recieving process
+        sl_dtype : torch.type
+            Torch type of the data in question
+
+        Returns
+        -------
+        None
+        """
+        rank = self.comm.rank
+        send_slice = [slice(None)] * self.numdims
+        keep_slice = [slice(None)] * self.numdims
+        if rank == snd_pr:
+            if snd_pr < rcv_pr:  # data passed to a higher rank (off the bottom)
+                send_slice[self.split] = slice(
+                    self.lshape[self.split] - send_amt, self.lshape[self.split]
+                )
+                keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
+            if snd_pr > rcv_pr:  # data passed to a lower rank (off the top)
+                send_slice[self.split] = slice(0, send_amt)
+                keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
+            self.comm.Isend(
+                self.__array[send_slice].clone(), dest=rcv_pr, tag=rcv_pr + self.comm.size + snd_pr
+            )
+            self.__array = self.__array[keep_slice].clone()
+        if rank == rcv_pr:
+            shp = list(self.gshape)
+            shp[self.split] = send_amt
+            data = torch.zeros(shp, dtype=sl_dtype)
+            self.comm.Recv(data, source=snd_pr, tag=rcv_pr + self.comm.size + snd_pr)
+            if snd_pr < rcv_pr:  # data passed from a lower rank (append to top)
+                self.__array = torch.cat((data, self.__array), dim=self.split)
+            if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
+                self.__array = torch.cat((self.__array, data), dim=self.split)
 
     def __bool__(self):
         """
