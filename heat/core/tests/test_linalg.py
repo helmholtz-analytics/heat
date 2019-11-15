@@ -1,8 +1,15 @@
 import torch
 import unittest
-
+import os
 import heat as ht
 import numpy as np
+
+if os.environ.get("DEVICE") == "gpu":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ht.use_device("gpu" if torch.cuda.is_available() else "cpu")
+else:
+    device = torch.device("cpu")
+    ht.use_device("cpu")
 
 
 class TestLinalg(unittest.TestCase):
@@ -13,15 +20,16 @@ class TestLinalg(unittest.TestCase):
         data3d = np.ones((10, 10, 10))
         data1d = np.arange(10)
 
-        a1d = ht.array(data1d, split=0)
-        b1d = ht.array(data1d, split=0)
+        a1d = ht.array(data1d, dtype=ht.float32, split=0)
+        b1d = ht.array(data1d, dtype=ht.float32, split=0)
+
         # 2 1D arrays,
         self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
         ret = []
         self.assertEqual(ht.dot(a1d, b1d, out=ret), np.dot(data1d, data1d))
 
-        a1d = ht.array(data1d, split=None)
-        b1d = ht.array(data1d, split=0)
+        a1d = ht.array(data1d, dtype=ht.float32, split=None)
+        b1d = ht.array(data1d, dtype=ht.float32, split=0)
         # 2 1D arrays,
         self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
 
@@ -60,12 +68,12 @@ class TestLinalg(unittest.TestCase):
         # cases to test:
         n, m = 21, 31
         j, k = m, 45
-        a_torch = torch.ones((n, m))
-        a_torch[0] = torch.arange(1, m + 1)
-        a_torch[:, -1] = torch.arange(1, n + 1)
-        b_torch = torch.ones((j, k))
-        b_torch[0] = torch.arange(1, k + 1)
-        b_torch[:, 0] = torch.arange(1, j + 1)
+        a_torch = torch.ones((n, m), device=device)
+        a_torch[0] = torch.arange(1, m + 1, device=device)
+        a_torch[:, -1] = torch.arange(1, n + 1, device=device)
+        b_torch = torch.ones((j, k), device=device)
+        b_torch[0] = torch.arange(1, k + 1, device=device)
+        b_torch[:, 0] = torch.arange(1, j + 1, device=device)
 
         # splits None None
         a = ht.ones((n, m), split=None)
@@ -164,8 +172,8 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 1)
 
             # splits 11 (torch)
-            a = ht.array(torch.ones((n, m)), split=1)
-            b = ht.array(torch.ones((j, k)), split=1)
+            a = ht.array(torch.ones((n, m), device=device), split=1)
+            b = ht.array(torch.ones((j, k), device=device), split=1)
             a[0] = ht.arange(1, m + 1)
             a[:, -1] = ht.arange(1, n + 1)
             b[0] = ht.arange(1, k + 1)
@@ -245,10 +253,10 @@ class TestLinalg(unittest.TestCase):
 
             # vector matrix mult:
             # a -> vector
-            a_torch = torch.ones((m))
-            b_torch = torch.ones((j, k))
-            b_torch[0] = torch.arange(1, k + 1)
-            b_torch[:, 0] = torch.arange(1, j + 1)
+            a_torch = torch.ones((m), device=device)
+            b_torch = torch.ones((j, k), device=device)
+            b_torch[0] = torch.arange(1, k + 1, device=device)
+            b_torch[:, 0] = torch.arange(1, j + 1, device=device)
             # splits None None
             a = ht.ones((m), split=None)
             b = ht.ones((j, k), split=None)
@@ -333,10 +341,10 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 0)
 
             # b -> vector
-            a_torch = torch.ones((n, m))
-            a_torch[0] = torch.arange(1, m + 1)
-            a_torch[:, -1] = torch.arange(1, n + 1)
-            b_torch = torch.ones((j))
+            a_torch = torch.ones((n, m), device=device)
+            a_torch[0] = torch.arange(1, m + 1, device=device)
+            a_torch[:, -1] = torch.arange(1, n + 1, device=device)
+            b_torch = torch.ones((j), device=device)
             # splits None None
             a = ht.ones((n, m), split=None)
             b = ht.ones((j), split=None)
@@ -499,7 +507,7 @@ class TestLinalg(unittest.TestCase):
 
         # 1D case, no offset, data is not split, module-level call
         result = ht.tril(local_ones)
-        comparison = torch.ones((5, 5)).tril()
+        comparison = torch.ones((5, 5), device=device).tril()
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
@@ -508,7 +516,7 @@ class TestLinalg(unittest.TestCase):
 
         # 1D case, positive offset, data is not split, module-level call
         result = ht.tril(local_ones, k=2)
-        comparison = torch.ones((5, 5)).tril(diagonal=2)
+        comparison = torch.ones((5, 5), device=device).tril(diagonal=2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
@@ -517,7 +525,7 @@ class TestLinalg(unittest.TestCase):
 
         # 1D case, negative offset, data is not split, module-level call
         result = ht.tril(local_ones, k=-2)
-        comparison = torch.ones((5, 5)).tril(diagonal=-2)
+        comparison = torch.ones((5, 5), device=device).tril(diagonal=-2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
@@ -528,7 +536,7 @@ class TestLinalg(unittest.TestCase):
 
         # 2D case, no offset, data is not split, method
         result = local_ones.tril()
-        comparison = torch.ones((4, 5)).tril()
+        comparison = torch.ones((4, 5), device=device).tril()
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
@@ -537,7 +545,7 @@ class TestLinalg(unittest.TestCase):
 
         # 2D case, positive offset, data is not split, method
         result = local_ones.tril(k=2)
-        comparison = torch.ones((4, 5)).tril(diagonal=2)
+        comparison = torch.ones((4, 5), device=device).tril(diagonal=2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
@@ -546,7 +554,7 @@ class TestLinalg(unittest.TestCase):
 
         # 2D case, negative offset, data is not split, method
         result = local_ones.tril(k=-2)
-        comparison = torch.ones((4, 5)).tril(diagonal=-2)
+        comparison = torch.ones((4, 5), device=device).tril(diagonal=-2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
@@ -557,7 +565,7 @@ class TestLinalg(unittest.TestCase):
 
         # 2D+ case, no offset, data is not split, module-level call
         result = local_ones.tril()
-        comparison = torch.ones((5, 6)).tril()
+        comparison = torch.ones((5, 6), device=device).tril()
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (3, 4, 5, 6))
         self.assertEqual(result.lshape, (3, 4, 5, 6))
@@ -568,7 +576,7 @@ class TestLinalg(unittest.TestCase):
 
         # 2D+ case, positive offset, data is not split, module-level call
         result = local_ones.tril(k=2)
-        comparison = torch.ones((5, 6)).tril(diagonal=2)
+        comparison = torch.ones((5, 6), device=device).tril(diagonal=2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (3, 4, 5, 6))
         self.assertEqual(result.lshape, (3, 4, 5, 6))
@@ -579,7 +587,7 @@ class TestLinalg(unittest.TestCase):
 
         # # 2D+ case, negative offset, data is not split, module-level call
         result = local_ones.tril(k=-2)
-        comparison = torch.ones((5, 6)).tril(diagonal=-2)
+        comparison = torch.ones((5, 6), device=device).tril(diagonal=-2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (3, 4, 5, 6))
         self.assertEqual(result.lshape, (3, 4, 5, 6))
@@ -716,7 +724,7 @@ class TestLinalg(unittest.TestCase):
 
         # 1D case, no offset, data is not split, module-level call
         result = ht.triu(local_ones)
-        comparison = torch.ones((5, 5)).triu()
+        comparison = torch.ones((5, 5), device=device).triu()
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
@@ -725,7 +733,7 @@ class TestLinalg(unittest.TestCase):
 
         # 1D case, positive offset, data is not split, module-level call
         result = ht.triu(local_ones, k=2)
-        comparison = torch.ones((5, 5)).triu(diagonal=2)
+        comparison = torch.ones((5, 5), device=device).triu(diagonal=2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
@@ -734,7 +742,7 @@ class TestLinalg(unittest.TestCase):
 
         # 1D case, negative offset, data is not split, module-level call
         result = ht.triu(local_ones, k=-2)
-        comparison = torch.ones((5, 5)).triu(diagonal=-2)
+        comparison = torch.ones((5, 5), device=device).triu(diagonal=-2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
@@ -745,7 +753,7 @@ class TestLinalg(unittest.TestCase):
 
         # 2D case, no offset, data is not split, method
         result = local_ones.triu()
-        comparison = torch.ones((4, 5)).triu()
+        comparison = torch.ones((4, 5), device=device).triu()
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
@@ -754,7 +762,7 @@ class TestLinalg(unittest.TestCase):
 
         # 2D case, positive offset, data is not split, method
         result = local_ones.triu(k=2)
-        comparison = torch.ones((4, 5)).triu(diagonal=2)
+        comparison = torch.ones((4, 5), device=device).triu(diagonal=2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
@@ -763,7 +771,7 @@ class TestLinalg(unittest.TestCase):
 
         # 2D case, negative offset, data is not split, method
         result = local_ones.triu(k=-2)
-        comparison = torch.ones((4, 5)).triu(diagonal=-2)
+        comparison = torch.ones((4, 5), device=device).triu(diagonal=-2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
@@ -774,7 +782,7 @@ class TestLinalg(unittest.TestCase):
 
         # 2D+ case, no offset, data is not split, module-level call
         result = local_ones.triu()
-        comparison = torch.ones((5, 6)).triu()
+        comparison = torch.ones((5, 6), device=device).triu()
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (3, 4, 5, 6))
         self.assertEqual(result.lshape, (3, 4, 5, 6))
@@ -785,7 +793,7 @@ class TestLinalg(unittest.TestCase):
 
         # 2D+ case, positive offset, data is not split, module-level call
         result = local_ones.triu(k=2)
-        comparison = torch.ones((5, 6)).triu(diagonal=2)
+        comparison = torch.ones((5, 6), device=device).triu(diagonal=2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (3, 4, 5, 6))
         self.assertEqual(result.lshape, (3, 4, 5, 6))
@@ -796,7 +804,7 @@ class TestLinalg(unittest.TestCase):
 
         # # 2D+ case, negative offset, data is not split, module-level call
         result = local_ones.triu(k=-2)
-        comparison = torch.ones((5, 6)).triu(diagonal=-2)
+        comparison = torch.ones((5, 6), device=device).triu(diagonal=-2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (3, 4, 5, 6))
         self.assertEqual(result.lshape, (3, 4, 5, 6))

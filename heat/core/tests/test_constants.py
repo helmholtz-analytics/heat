@@ -1,7 +1,10 @@
 import unittest
 import numpy as np
+import os
 
 import heat as ht
+
+ht.use_device(os.environ.get("DEVICE"))
 
 
 class TestConstants(unittest.TestCase):

@@ -2,8 +2,15 @@ import numpy as np
 import torch
 import unittest
 from itertools import combinations
-
+import os
 import heat as ht
+
+if os.environ.get("DEVICE") == "gpu":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ht.use_device("gpu" if torch.cuda.is_available() else "cpu")
+else:
+    device = torch.device("cpu")
+    ht.use_device("cpu")
 
 
 class TestStatistics(unittest.TestCase):
@@ -42,7 +49,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.shape, (1,))
         self.assertEqual(result.lshape, (1,))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == torch.tensor([19])))
+        self.assertTrue((result._DNDarray__array == torch.tensor([19], device=device)))
 
         # 2D split tensor, along the axis
         data = ht.array(ht.random.randn(4, 5), is_split=0)
@@ -67,11 +74,13 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.shape, (size,))
         self.assertEqual(result.lshape, (size,))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array != 0).all())
+        # skip test on gpu; argmax works different
+        if result.device != ht.gpu:
+            self.assertTrue((result._DNDarray__array != 0).all())
 
         # 2D split tensor, across the axis, output tensor
         size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((size, size), split=0), k=-1)
+        data = ht.tril(ht.ones((size, size), split=0), k=-1)
 
         output = ht.empty((size,))
         result = ht.argmax(data, axis=0, out=output)
@@ -82,7 +91,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(output.shape, (size,))
         self.assertEqual(output.lshape, (size,))
         self.assertEqual(output.split, None)
-        self.assertTrue((output._DNDarray__array != 0).all())
+        # skip test on gpu; argmax works different
+        if output.device != ht.gpu:
+            self.assertTrue((output._DNDarray__array != 0).all())
 
         # check exceptions
         with self.assertRaises(TypeError):
@@ -153,7 +164,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.shape, (size,))
         self.assertEqual(result.lshape, (size,))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array != 0).all())
+        # skip test on gpu; argmin works different
+        if result.device != ht.gpu:
+            self.assertTrue((result._DNDarray__array != 0).all())
 
         # 2D split tensor, across the axis, output tensor
         size = ht.MPI_WORLD.size * 2
@@ -168,7 +181,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(output.shape, (size,))
         self.assertEqual(output.lshape, (size,))
         self.assertEqual(output.split, None)
-        self.assertTrue((output._DNDarray__array != 0).all())
+        # skip test on gpu; argmin works different
+        if output.device != ht.gpu:
+            self.assertTrue((output._DNDarray__array != 0).all())
 
         # check exceptions
         with self.assertRaises(TypeError):
@@ -350,7 +365,7 @@ class TestStatistics(unittest.TestCase):
         data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
         ht_array = ht.array(data)
-        comparison = torch.tensor(data)
+        comparison = torch.tensor(data, device=device)
 
         # check global max
         maximum = ht.max(ht_array)
@@ -428,7 +443,7 @@ class TestStatistics(unittest.TestCase):
         if size > 1:
             a = ht.arange(size - 1, split=0)
             res = ht.max(a)
-            expected = torch.tensor([size - 2], dtype=a.dtype.torch_type())
+            expected = torch.tensor([size - 2], dtype=a.dtype.torch_type(), device=device)
             self.assertTrue(torch.equal(res._DNDarray__array, expected))
 
         # check exceptions
@@ -445,8 +460,8 @@ class TestStatistics(unittest.TestCase):
 
         ht_array1 = ht.array(data1)
         ht_array2 = ht.array(data2)
-        comparison1 = torch.tensor(data1)
-        comparison2 = torch.tensor(data2)
+        comparison1 = torch.tensor(data1, device=device)
+        comparison2 = torch.tensor(data2, device=device)
 
         # check maximum
         maximum = ht.maximum(ht_array1, ht_array2)
@@ -516,10 +531,10 @@ class TestStatistics(unittest.TestCase):
         random_volume_3 = ht.random.randn(4, 2, 3, split=0)
         with self.assertRaises(ValueError):
             ht.maximum(random_volume_1, random_volume_3)
-        random_volume_3 = torch.ones(12, 3, 3)
+        random_volume_3 = torch.ones(12, 3, 3, device=device)
         with self.assertRaises(TypeError):
             ht.maximum(random_volume_1, random_volume_3)
-        output = torch.ones(12, 3, 3)
+        output = torch.ones(12, 3, 3, device=device)
         with self.assertRaises(TypeError):
             ht.maximum(random_volume_1, random_volume_2, out=output)
         output = ht.ones((12, 4, 3))
@@ -601,7 +616,7 @@ class TestStatistics(unittest.TestCase):
         data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
         ht_array = ht.array(data)
-        comparison = torch.tensor(data)
+        comparison = torch.tensor(data, device=device)
 
         # check global max
         minimum = ht.min(ht_array)
@@ -679,7 +694,7 @@ class TestStatistics(unittest.TestCase):
         if size > 1:
             a = ht.arange(size - 1, split=0)
             res = ht.min(a)
-            expected = torch.tensor([0], dtype=a.dtype.torch_type())
+            expected = torch.tensor([0], dtype=a.dtype.torch_type(), device=device)
             self.assertTrue(torch.equal(res._DNDarray__array, expected))
 
         # check exceptions
@@ -696,8 +711,8 @@ class TestStatistics(unittest.TestCase):
 
         ht_array1 = ht.array(data1)
         ht_array2 = ht.array(data2)
-        comparison1 = torch.tensor(data1)
-        comparison2 = torch.tensor(data2)
+        comparison1 = torch.tensor(data1, device=device)
+        comparison2 = torch.tensor(data2, device=device)
 
         # check minimum
         minimum = ht.minimum(ht_array1, ht_array2)
@@ -767,10 +782,10 @@ class TestStatistics(unittest.TestCase):
         random_volume_3 = ht.random.randn(4, 2, 3, split=0)
         with self.assertRaises(ValueError):
             ht.minimum(random_volume_1, random_volume_3)
-        random_volume_3 = torch.ones(12, 3, 3)
+        random_volume_3 = torch.ones(12, 3, 3, device=device)
         with self.assertRaises(TypeError):
             ht.minimum(random_volume_1, random_volume_3)
-        output = torch.ones(12, 3, 3)
+        output = torch.ones(12, 3, 3, device=device)
         with self.assertRaises(TypeError):
             ht.minimum(random_volume_1, random_volume_2, out=output)
         output = ht.ones((12, 4, 3))
@@ -816,11 +831,10 @@ class TestStatistics(unittest.TestCase):
                 z = ht.ones(dimensions, split=i)
                 res = z.var()
                 total_dims_list = list(z.shape)
-                self.assertTrue((res == 0).all())
-                # loop over the different single dimensions for mean
-                for it in range(len(z.shape)):
+                self.assertTrue(ht.allclose(res, 0))
+                for it in range(len(z.shape)):  # loop over the different single dimensions for mean
                     res = z.var(axis=it)
-                    self.assertTrue((res == 0).all())
+                    self.assertTrue(ht.allclose(res, 0))
                     target_dims = [
                         total_dims_list[q] for q in range(len(total_dims_list)) if q != it
                     ]
@@ -836,10 +850,10 @@ class TestStatistics(unittest.TestCase):
 
                     if i == it:
                         res = z.var(axis=it)
-                        self.assertTrue((res == 0).all())
+                        self.assertTrue(ht.allclose(res, 0))
                 z = ht.ones(dimensions, split=i)
                 res = z.var(bessel=False)
-                self.assertTrue((res == 0).all())
+                self.assertTrue(ht.allclose(res, 0))
 
         # values for the iris dataset var measured by libreoffice calc
         for sp in [None, 0, 1]:

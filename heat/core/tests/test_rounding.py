@@ -2,6 +2,14 @@ import torch
 import unittest
 import numpy as np
 import heat as ht
+import os
+
+if os.environ.get("DEVICE") == "gpu":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ht.use_device("gpu" if torch.cuda.is_available() else "cpu")
+else:
+    device = torch.device("cpu")
+    ht.use_device("cpu")
 
 
 class TestRounding(unittest.TestCase):
@@ -87,7 +95,7 @@ class TestRounding(unittest.TestCase):
 
     def test_ceil(self):
         start, end, step = -5.0, 5.0, 1.4
-        comparison = torch.arange(start, end, step, dtype=torch.float64).ceil()
+        comparison = torch.arange(start, end, step, dtype=torch.float64, device=device).ceil()
 
         # exponential of float32
         float32_tensor = ht.arange(start, end, step, dtype=ht.float32)
@@ -130,15 +138,15 @@ class TestRounding(unittest.TestCase):
 
         # test the exceptions
         with self.assertRaises(TypeError):
-            ht.clip(torch.arange(10), 2, 5)
+            ht.clip(torch.arange(10, device=device), 2, 5)
         with self.assertRaises(ValueError):
             ht.arange(20).clip(None, None)
         with self.assertRaises(TypeError):
-            ht.clip(ht.arange(20), 5, 15, out=torch.arange(20))
+            ht.clip(ht.arange(20), 5, 15, out=torch.arange(20, device=device))
 
     def test_floor(self):
         start, end, step = -5.0, 5.0, 1.4
-        comparison = torch.arange(start, end, step, dtype=torch.float64).floor()
+        comparison = torch.arange(start, end, step, dtype=torch.float64, device=device).floor()
 
         # exponential of float32
         float32_tensor = ht.arange(start, end, step, dtype=ht.float32)
@@ -165,7 +173,7 @@ class TestRounding(unittest.TestCase):
     def test_trunc(self):
         base_array = np.random.randn(20)
 
-        comparison = torch.tensor(base_array, dtype=torch.float64).trunc()
+        comparison = torch.tensor(base_array, dtype=torch.float64, device=device).trunc()
 
         # trunc of float32
         float32_tensor = ht.array(base_array, dtype=ht.float32)

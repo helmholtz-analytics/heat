@@ -1,6 +1,15 @@
 import unittest
 import torch
 import heat as ht
+import numpy as np
+import os
+
+if os.environ.get("DEVICE") == "gpu":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ht.use_device("gpu" if torch.cuda.is_available() else "cpu")
+else:
+    device = torch.device("cpu")
+    ht.use_device("cpu")
 
 
 class TestManipulations(unittest.TestCase):
@@ -486,7 +495,7 @@ class TestManipulations(unittest.TestCase):
     def test_sort(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
-        tensor = torch.arange(size).repeat(size).reshape(size, size)
+        tensor = torch.arange(size, device=device).repeat(size).reshape(size, size)
 
         data = ht.array(tensor, split=None)
         result, result_indices = ht.sort(data, axis=0, descending=True)
@@ -501,13 +510,15 @@ class TestManipulations(unittest.TestCase):
 
         data = ht.array(tensor, split=0)
 
-        exp_axis_zero = torch.arange(size).reshape(1, size)
-        exp_indices = torch.tensor([[rank] * size])
+        exp_axis_zero = torch.arange(size, device=device).reshape(1, size)
+        exp_indices = torch.tensor([[rank] * size], device=device)
         result, result_indices = ht.sort(data, descending=True, axis=0)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_zero))
         self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices))
 
-        exp_axis_one, exp_indices = torch.arange(size).reshape(1, size).sort(dim=1, descending=True)
+        exp_axis_one, exp_indices = (
+            torch.arange(size, device=device).reshape(1, size).sort(dim=1, descending=True)
+        )
         result, result_indices = ht.sort(data, descending=True, axis=1)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_one))
         self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices))
@@ -519,13 +530,15 @@ class TestManipulations(unittest.TestCase):
 
         data = ht.array(tensor, split=1)
 
-        exp_axis_zero = torch.tensor(rank).repeat(size).reshape(size, 1)
-        indices_axis_zero = torch.arange(size, dtype=torch.int64).reshape(size, 1)
+        exp_axis_zero = torch.tensor(rank, device=device).repeat(size).reshape(size, 1)
+        indices_axis_zero = torch.arange(size, dtype=torch.int64, device=device).reshape(size, 1)
         result, result_indices = ht.sort(data, axis=0, descending=True)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_zero))
-        self.assertTrue(torch.equal(result_indices._DNDarray__array, indices_axis_zero))
+        # comparison value is only true on CPU
+        if result_indices._DNDarray__array.is_cuda is False:
+            self.assertTrue(torch.equal(result_indices._DNDarray__array, indices_axis_zero))
 
-        exp_axis_one = torch.tensor(size - rank - 1).repeat(size).reshape(size, 1)
+        exp_axis_one = torch.tensor(size - rank - 1, device=device).repeat(size).reshape(size, 1)
         result, result_indices = ht.sort(data, descending=True, axis=1)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_one))
         self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_axis_one))
@@ -538,11 +551,19 @@ class TestManipulations(unittest.TestCase):
                 [[8, 4, 7], [0, 8, 9]],
             ],
             dtype=torch.int32,
+            device=device,
         )
 
         data = ht.array(tensor, split=0)
-        exp_axis_zero = torch.tensor([[2, 3, 0], [0, 2, 3]], dtype=torch.int32)
-        indices_axis_zero = torch.tensor([[0, 2, 2], [3, 0, 0]], dtype=torch.int32)
+        exp_axis_zero = torch.tensor([[2, 3, 0], [0, 2, 3]], dtype=torch.int32, device=device)
+        if torch.cuda.is_available() and data.device == ht.gpu and size < 4:
+            indices_axis_zero = torch.tensor(
+                [[0, 2, 2], [3, 2, 0]], dtype=torch.int32, device=device
+            )
+        else:
+            indices_axis_zero = torch.tensor(
+                [[0, 2, 2], [3, 0, 0]], dtype=torch.int32, device=device
+            )
         result, result_indices = ht.sort(data, axis=0)
         first = result[0]._DNDarray__array
         first_indices = result_indices[0]._DNDarray__array
@@ -551,8 +572,8 @@ class TestManipulations(unittest.TestCase):
             self.assertTrue(torch.equal(first_indices, indices_axis_zero))
 
         data = ht.array(tensor, split=1)
-        exp_axis_one = torch.tensor([[2, 2, 3]], dtype=torch.int32)
-        indices_axis_one = torch.tensor([[0, 1, 1]], dtype=torch.int32)
+        exp_axis_one = torch.tensor([[2, 2, 3]], dtype=torch.int32, device=device)
+        indices_axis_one = torch.tensor([[0, 1, 1]], dtype=torch.int32, device=device)
         result, result_indices = ht.sort(data, axis=1)
         first = result[0]._DNDarray__array[:1]
         first_indices = result_indices[0]._DNDarray__array[:1]
@@ -561,8 +582,8 @@ class TestManipulations(unittest.TestCase):
             self.assertTrue(torch.equal(first_indices, indices_axis_one))
 
         data = ht.array(tensor, split=2)
-        exp_axis_two = torch.tensor([[2], [2]], dtype=torch.int32)
-        indices_axis_two = torch.tensor([[0], [1]], dtype=torch.int32)
+        exp_axis_two = torch.tensor([[2], [2]], dtype=torch.int32, device=device)
+        indices_axis_two = torch.tensor([[0], [1]], dtype=torch.int32, device=device)
         result, result_indices = ht.sort(data, axis=2)
         first = result[0]._DNDarray__array[:, :1]
         first_indices = result_indices[0]._DNDarray__array[:, :1]
@@ -676,7 +697,7 @@ class TestManipulations(unittest.TestCase):
     def test_unique(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
-        torch_array = torch.arange(size, dtype=torch.int32).expand(size, size)
+        torch_array = torch.arange(size, dtype=torch.int32, device=device).expand(size, size)
         split_zero = ht.array(torch_array, split=0)
 
         exp_axis_none = ht.array([rank], dtype=ht.int32)
@@ -706,7 +727,9 @@ class TestManipulations(unittest.TestCase):
         res = ht.unique(split_one, sorted=True, axis=1)
         self.assertTrue((res._DNDarray__array == exp_axis_one._DNDarray__array).all())
 
-        torch_array = torch.tensor([[1, 2], [2, 3], [1, 2], [2, 3], [1, 2]], dtype=torch.int32)
+        torch_array = torch.tensor(
+            [[1, 2], [2, 3], [1, 2], [2, 3], [1, 2]], dtype=torch.int32, device=device
+        )
         data = ht.array(torch_array, split=0)
 
         res, inv = ht.unique(data, return_inverse=True, axis=0)
@@ -718,7 +741,9 @@ class TestManipulations(unittest.TestCase):
         self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
 
         torch_array = torch.tensor(
-            [[1, 1, 2], [1, 2, 2], [2, 1, 2], [1, 3, 2], [0, 1, 2]], dtype=torch.int32
+            [[1, 1, 2], [1, 2, 2], [2, 1, 2], [1, 3, 2], [0, 1, 2]],
+            dtype=torch.int32,
+            device=device,
         )
         exp_res, exp_inv = torch_array.unique(return_inverse=True, sorted=True)
 

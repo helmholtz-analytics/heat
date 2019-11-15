@@ -1,8 +1,15 @@
 import numpy as np
 import torch
 import unittest
-
+import os
 import heat as ht
+
+if os.environ.get("DEVICE") == "gpu":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ht.use_device("gpu" if torch.cuda.is_available() else "cpu")
+else:
+    device = torch.device("cpu")
+    ht.use_device("cpu")
 
 
 class TestTypes(unittest.TestCase):
@@ -32,7 +39,10 @@ class TestTypes(unittest.TestCase):
         self.assertIsInstance(elaborate_value, ht.DNDarray)
         self.assertEqual(elaborate_value.shape, (2, 3))
         self.assertEqual(
-            (elaborate_value._DNDarray__array == torch.tensor(ground_truth, dtype=torch_type))
+            (
+                elaborate_value._DNDarray__array
+                == torch.tensor(ground_truth, dtype=torch_type, device=device)
+            )
             .all()
             .item(),
             1,

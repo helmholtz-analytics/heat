@@ -125,7 +125,9 @@ def binary_get_size_tensor(t1, t2):
                     "Broadcasting requires transferring data of first operator between MPI ranks!"
                 )
                 if t1.comm.rank > 0:
-                    t1._DNDarray__array = torch.zeros(t1.shape, dtype=t1.dtype.torch_type())
+                    t1._DNDarray__array = torch.zeros(
+                        t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
+                    )
                 t1.comm.Bcast(t1)
 
         if t2.split is not None:
@@ -134,7 +136,9 @@ def binary_get_size_tensor(t1, t2):
                     "Broadcasting requires transferring data of second operator between MPI ranks!"
                 )
                 if t2.comm.rank > 0:
-                    t2._DNDarray__array = torch.zeros(t2.shape, dtype=t2.dtype.torch_type())
+                    t2._DNDarray__array = torch.zeros(
+                        t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
+                    )
                 t2.comm.Bcast(t2)
 
     else:
@@ -252,7 +256,6 @@ def __binary_op(operation, t1, t2):
     result: ht.DNDarray
         A tensor containing the results of element-wise operation.
     """
-
     if np.isscalar(t1):
         t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_scalar(
             t1, t2

@@ -1,8 +1,15 @@
 import numpy as np
 import torch
 import unittest
-
+import os
 import heat as ht
+
+if os.environ.get("DEVICE") == "gpu":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ht.use_device("gpu" if torch.cuda.is_available() else "cpu")
+else:
+    device = torch.device("cpu")
+    ht.use_device("cpu")
 
 
 class TestDNDarray(unittest.TestCase):
@@ -252,7 +259,7 @@ class TestDNDarray(unittest.TestCase):
         b = ht.array(a)
         self.assertIsInstance(b.numpy(), np.ndarray)
         self.assertEqual(b.numpy().shape, a.shape)
-        self.assertEqual(b.numpy().tolist(), b._DNDarray__array.numpy().tolist())
+        self.assertEqual(b.numpy().tolist(), b._DNDarray__array.cpu().numpy().tolist())
 
         a = ht.ones((10, 8), dtype=ht.float32)
         b = np.ones((2, 2)).astype("float32")
@@ -365,7 +372,7 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(a_tensor.lshape, local_shape)
         self.assertTrue((a_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
 
-        expected = torch.ones((ht.MPI_WORLD.size, 100), dtype=torch.int64)
+        expected = torch.ones((ht.MPI_WORLD.size, 100), dtype=torch.int64, device=device)
         data = ht.array(expected, split=1)
         data.resplit_(None)
 
@@ -375,7 +382,7 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(data.dtype, ht.int64)
         self.assertEqual(data._DNDarray__array.dtype, expected.dtype)
 
-        expected = torch.zeros((100, ht.MPI_WORLD.size), dtype=torch.uint8)
+        expected = torch.zeros((100, ht.MPI_WORLD.size), dtype=torch.uint8, device=device)
         data = ht.array(expected, split=0)
         data.resplit_(None)
 
@@ -495,7 +502,7 @@ class TestDNDarray(unittest.TestCase):
 
         # setting with torch tensor
         a = ht.zeros((4, 5), split=0)
-        a[1, 0:4] = torch.arange(4)
+        a[1, 0:4] = torch.arange(4, device=device)
         # if a.comm.size == 2:
         for c, i in enumerate(range(4)):
             self.assertEqual(a[1, c], i)
@@ -590,7 +597,7 @@ class TestDNDarray(unittest.TestCase):
 
         # setting with torch tensor
         a = ht.zeros((4, 5), split=1)
-        a[1, 0:4] = torch.arange(4)
+        a[1, 0:4] = torch.arange(4, device=device)
         for c, i in enumerate(range(4)):
             self.assertEqual(a[1, c], i)
 

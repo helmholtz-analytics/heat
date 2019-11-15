@@ -51,6 +51,13 @@ class DNDarray:
         self.__device = device
         self.__comm = comm
 
+        if (
+            isinstance(self.__array, torch.Tensor)
+            and isinstance(device, devices.Device)
+            and self.__array.device.type not in self.__device.torch_device
+        ):
+            self.__array = self.__array.to(devices.sanitize_device(self.__device).torch_device)
+
     @property
     def comm(self):
         return self.__comm
@@ -711,7 +718,7 @@ class DNDarray:
                     if self.comm.rank == pr and snt:
                         shp = list(self.gshape)
                         shp[self.split] = snt
-                        data = torch.zeros(shp, dtype=sl_dtype)
+                        data = torch.zeros(shp, dtype=sl_dtype, device=self.device.torch_device)
                         self.comm.Recv(data, source=spr, tag=pr + self.comm.size + spr)
                         self.__array = torch.cat((self.__array, data), dim=self.split)
                     lshape_map[pr, self.split] += snt
@@ -773,7 +780,7 @@ class DNDarray:
                     if self.comm.rank == pr + 1:  # receive data on the next process
                         shp = list(self.gshape)
                         shp[self.split] = send_amt
-                        data = torch.zeros(shp, dtype=sl_dtype)
+                        data = torch.zeros(shp, dtype=sl_dtype, device=self.device.torch_device)
                         self.comm.Recv(data, source=pr, tag=pr + self.comm.size + pr + 1)
                         self.__array = torch.cat((data, self.__array), dim=self.split)
                     lshape_map[pr, self.split] -= send_amt
@@ -1605,7 +1612,7 @@ class DNDarray:
             tensor_on_device : ht.DNDarray
                 A copy of this object on the GPU.
             """
-            self.__array = self.__array.cuda(devices.gpu_index())
+            self.__array = self.__array.cuda(devices.gpu.torch_device)
             return self
 
     def __gt__(self, other):
@@ -2222,7 +2229,9 @@ class DNDarray:
 
         # unsplit the tensor
         if axis is None:
-            gathered = torch.empty(self.shape, dtype=self.dtype.torch_type())
+            gathered = torch.empty(
+                self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
+            )
 
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
             self.comm.Allgatherv(
@@ -2236,7 +2245,7 @@ class DNDarray:
         elif self.split is None:
             _, _, slices = self.comm.chunk(self.shape, axis)
             temp = self.__array[slices]
-            self.__array = torch.empty((1,))
+            self.__array = torch.empty((1,), device=self.device.torch_device)
             # necessary to clear storage of local __array
             self.__array = temp.clone().detach()
             self.__split = axis
@@ -2244,7 +2253,9 @@ class DNDarray:
         # entirely new split axis, need to redistribute
         else:
             _, output_shape, _ = self.comm.chunk(self.shape, axis)
-            redistributed = torch.empty(output_shape, dtype=self.dtype.torch_type())
+            redistributed = torch.empty(
+                output_shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
+            )
 
             send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
             recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
@@ -2600,7 +2611,7 @@ class DNDarray:
         elif isinstance(value, torch.Tensor):
             self.__array.__setitem__(key, value.data)
         elif isinstance(value, (list, tuple)):
-            value = torch.Tensor(value)
+            value = torch.tensor(value, device=self.device.torch_device)
             self.__array.__setitem__(key, value.data)
         elif isinstance(value, np.ndarray):
             value = torch.from_numpy(value)

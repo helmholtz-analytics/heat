@@ -1,7 +1,14 @@
 import unittest
 import torch
-
+import os
 import heat as ht
+
+if os.environ.get("DEVICE") == "gpu":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ht.use_device("gpu" if torch.cuda.is_available() else "cpu")
+else:
+    device = torch.device("cpu")
+    ht.use_device("cpu")
 
 
 class TestFactories(unittest.TestCase):
@@ -122,7 +129,7 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(a.lshape, (2, 3))
         self.assertEqual(a.gshape, (2, 3))
         self.assertEqual(a.split, None)
-        self.assertTrue((a._DNDarray__array == torch.tensor(unsplit_data)).all())
+        self.assertTrue((a._DNDarray__array == torch.tensor(unsplit_data, device=device)).all())
 
         # basic array function, unsplit data, different datatype
         tuple_data = ((0, 0), (1, 1))
@@ -133,10 +140,12 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(b.lshape, (2, 2))
         self.assertEqual(b.gshape, (2, 2))
         self.assertEqual(b.split, None)
-        self.assertTrue((b._DNDarray__array == torch.tensor(tuple_data, dtype=torch.int8)).all())
+        self.assertTrue(
+            (b._DNDarray__array == torch.tensor(tuple_data, dtype=torch.int8, device=device)).all()
+        )
 
         # basic array function, unsplit data, no copy
-        torch_tensor = torch.tensor([6, 5, 4, 3, 2, 1])
+        torch_tensor = torch.tensor([6, 5, 4, 3, 2, 1], device=device)
         c = ht.array(torch_tensor, copy=False)
         self.assertIsInstance(c, ht.DNDarray)
         self.assertEqual(c.dtype, ht.int64)
@@ -154,7 +163,9 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(d.lshape, (3, 1, 1))
         self.assertEqual(d.gshape, (3, 1, 1))
         self.assertEqual(d.split, None)
-        self.assertTrue((d._DNDarray__array == torch.tensor(vector_data).reshape(-1, 1, 1)).all())
+        self.assertTrue(
+            (d._DNDarray__array == torch.tensor(vector_data, device=device).reshape(-1, 1, 1)).all()
+        )
 
         # basic array function, unsplit data, additional dimensions
         vector_data = [4.0, 5.0, 6.0]
@@ -164,7 +175,9 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(d.lshape, (1, 1, 3))
         self.assertEqual(d.gshape, (1, 1, 3))
         self.assertEqual(d.split, None)
-        self.assertTrue((d._DNDarray__array == torch.tensor(vector_data).reshape(1, 1, -1)).all())
+        self.assertTrue(
+            (d._DNDarray__array == torch.tensor(vector_data, device=device).reshape(1, 1, -1)).all()
+        )
 
         # distributed array, chunk local data (split)
         tensor_2d = ht.array([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]], split=0)
@@ -175,7 +188,9 @@ class TestFactories(unittest.TestCase):
         self.assertLessEqual(tensor_2d.lshape[0], 3)
         self.assertEqual(tensor_2d.lshape[1], 3)
         self.assertEqual(tensor_2d.split, 0)
-        self.assertTrue((tensor_2d._DNDarray__array == torch.tensor([1.0, 2.0, 3.0])).all())
+        self.assertTrue(
+            (tensor_2d._DNDarray__array == torch.tensor([1.0, 2.0, 3.0], device=device)).all()
+        )
 
         # distributed array, partial data (is_split)
         if ht.communication.MPI_WORLD.rank == 0:

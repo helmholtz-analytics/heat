@@ -2,9 +2,17 @@ import operator
 
 import torch
 import unittest
+import os
 
 import heat as ht
 import numpy as np
+
+if os.environ.get("DEVICE") == "gpu":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ht.use_device("gpu" if torch.cuda.is_available() else "cpu")
+else:
+    device = torch.device("cpu")
+    ht.use_device("cpu")
 
 
 class TestArithmetics(unittest.TestCase):
@@ -372,7 +380,7 @@ class TestArithmetics(unittest.TestCase):
 
         out_axis = ht.ones((3, 3))
         ht.prod(shape_noaxis, axis=0, out=out_axis)
-        self.assertTrue((out_axis._DNDarray__array == torch.full((3,), 8)).all())
+        self.assertTrue((out_axis._DNDarray__array == torch.full((3,), 8, device=device)).all())
 
         # check sum over all float elements of splitted 5d tensor with negative axis
         shape_noaxis_split_axis_neg = ht.full((1, 2, 3, 4, 5), 2, split=1)
@@ -491,7 +499,7 @@ class TestArithmetics(unittest.TestCase):
 
         out_noaxis = ht.zeros((3, 3))
         ht.sum(shape_noaxis, axis=0, out=out_noaxis)
-        self.assertTrue((out_noaxis._DNDarray__array == torch.full((3, 3), 3)).all())
+        self.assertTrue((out_noaxis._DNDarray__array == torch.full((3, 3), 3, device=device)).all())
 
         # check sum over all float elements of splitted 5d tensor with negative axis
         shape_noaxis_split_axis_neg = ht.ones((1, 2, 3, 4, 5), split=1)
@@ -538,7 +546,6 @@ class TestArithmetics(unittest.TestCase):
         >>> import heat as ht
         >>> T = ht.float32([[1., 2.], [3., 4.]])
         >>> assert T * 3 == 3 * T
-
         """
         operators = (
             ("__add__", operator.add, True),

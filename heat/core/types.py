@@ -89,7 +89,7 @@ class generic:
                 )
         except AttributeError:
             # this is the case of that the first/only element of value is not a DNDarray
-            array = torch.tensor(*value, dtype=torch_type)
+            array = torch.tensor(*value, dtype=torch_type, device=device.torch_device)
         except TypeError as exception:
             # re-raise the exception to be consistent with numpy's exception interface
             raise ValueError(str(exception))

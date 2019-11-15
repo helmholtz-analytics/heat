@@ -3,6 +3,8 @@ import unittest
 
 import heat as ht
 
+ht.use_device(os.environ.get("DEVICE"))
+
 
 class TestKMeans(unittest.TestCase):
     def test_fit_iris(self):
