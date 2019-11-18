@@ -8,10 +8,7 @@ from . import manipulations
 from . import types
 
 
-__all__ = [
-    'mm_tiles',
-    'SquareDiagTiles'
-]
+__all__ = ["mm_tiles", "SquareDiagTiles"]
 
 
 # class LocalTileIndex:
@@ -32,7 +29,7 @@ __all__ = [
 
 def mm_tiles(arr):
     if not isinstance(arr, dndarray.DNDarray):
-        raise TypeError('arr must be a DNDarray, is currently a {}'.format(type(arr)))
+        raise TypeError("arr must be a DNDarray, is currently a {}".format(type(arr)))
 
     lshape_map = torch.zeros((arr.comm.size, len(arr.gshape)), dtype=int)
     lshape_map[arr.comm.rank, :] = torch.Tensor(arr.lshape)
@@ -85,23 +82,29 @@ class SquareDiagTiles:
         """
         # lshape_map -> rank (int), lshape (tuple of the local lshape, self.lshape)
         if not isinstance(arr, dndarray.DNDarray):
-            raise TypeError('self must be a DNDarray, is currently a {}'.format(type(self)))
+            raise TypeError("self must be a DNDarray, is currently a {}".format(type(self)))
 
         # todo: unbalance the array if there is *only* one row/column of the diagonal on a process (send it to pr - 1)
         # todo: small bug in edge case for very small matrices with < 10 elements on a process and split = 1 with gshape[0] > gshape[1]
         if lshape_map is None:
-            #create lshape map
+            # create lshape map
             lshape_map = torch.zeros((arr.comm.size, len(arr.gshape)), dtype=int)
             lshape_map[arr.comm.rank, :] = torch.Tensor(arr.lshape)
             arr.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
         # chunk map
         # is the diagonal crossed by a division between processes/where
-        last_diag_pr = torch.where(lshape_map[..., arr.split].cumsum(dim=0) >= min(arr.gshape))[0][0]
+        last_diag_pr = torch.where(lshape_map[..., arr.split].cumsum(dim=0) >= min(arr.gshape))[0][
+            0
+        ]
         # adjust for small blocks on the last diag pr:
-        rem_cols_last_pr = min(arr.gshape) - lshape_map[..., arr.split].cumsum(dim=0)[last_diag_pr - 1]  # end of the process before the split
+        rem_cols_last_pr = (
+            min(arr.gshape) - lshape_map[..., arr.split].cumsum(dim=0)[last_diag_pr - 1]
+        )  # end of the process before the split
         last_tile_cols = tile_per_proc
-        while rem_cols_last_pr / last_tile_cols < 2:  # todo: determine best value for this (prev at 10)
+        while (
+            rem_cols_last_pr / last_tile_cols < 2
+        ):  # todo: determine best value for this (prev at 10)
             # if there cannot be tiles formed which are at list ten items large then need to reduce the number of tiles
             last_tile_cols -= 1
             if last_tile_cols == 1:
@@ -113,14 +116,20 @@ class SquareDiagTiles:
 
         # need to determine the proper number of tile rows/columns
         tile_columns = tile_per_proc * last_diag_pr + last_tile_cols
-        diag_crossings = lshape_map[..., arr.split].cumsum(dim=0)[:last_diag_pr + 1]
-        diag_crossings[-1] = diag_crossings[-1] if diag_crossings[-1] <= min(arr.gshape) else min(arr.gshape)
+        diag_crossings = lshape_map[..., arr.split].cumsum(dim=0)[: last_diag_pr + 1]
+        diag_crossings[-1] = (
+            diag_crossings[-1] if diag_crossings[-1] <= min(arr.gshape) else min(arr.gshape)
+        )
         diag_crossings = torch.cat((torch.tensor([0]), diag_crossings), dim=0)
         # create the tile columns sizes, saved to list
         col_inds = []
         for col in range(tile_columns.item()):
-            _, lshape, _ = arr.comm.chunk([diag_crossings[col // tile_per_proc + 1] - diag_crossings[col // tile_per_proc]], 0,
-                                          rank=int(col % tile_per_proc), w_size=tile_per_proc if col // tile_per_proc != last_diag_pr else last_tile_cols)
+            _, lshape, _ = arr.comm.chunk(
+                [diag_crossings[col // tile_per_proc + 1] - diag_crossings[col // tile_per_proc]],
+                0,
+                rank=int(col % tile_per_proc),
+                w_size=tile_per_proc if col // tile_per_proc != last_diag_pr else last_tile_cols,
+            )
             col_inds.append(lshape[0])
 
         total_tile_rows = tile_per_proc * arr.comm.size
@@ -135,7 +144,9 @@ class SquareDiagTiles:
 
         last_diag_pr_rows = tile_per_proc  # tile rows in the last diagonal pr
         # adjust the rows on the last process which has diagonal elements
-        if last_diag_pr < arr.comm.size - 1 or (last_diag_pr == arr.comm.size - 1 and row_inds[-1] == 0):
+        if last_diag_pr < arr.comm.size - 1 or (
+            last_diag_pr == arr.comm.size - 1 and row_inds[-1] == 0
+        ):
             num_tiles_last_diag_pr = len(col_inds) - (tile_per_proc * last_diag_pr)
             # num_tiles_last_diag_pr = number of tiles after the diagonal on the last process
             last_diag_pr_rows_rem = tile_per_proc - num_tiles_last_diag_pr
@@ -146,14 +157,16 @@ class SquareDiagTiles:
             # delete entries from row_inds
             # (need to delete tile_per_proc - (num_tiles_last_diag_pr + new_tile_rows_remaining))
             last_diag_pr_rows -= num_tiles_last_diag_pr + new_tile_rows_remaining
-            del row_inds[-1 * last_diag_pr_rows:]
+            del row_inds[-1 * last_diag_pr_rows :]
             row_per_proc_list[last_diag_pr] = last_diag_pr_rows
 
             if last_diag_pr_rows_rem < 2 and arr.split == 0:
                 # if the number of rows after the diagonal is 1
                 # then need to rechunk in the 0th dimension
                 for i in range(last_diag_pr_rows.item()):
-                    _, lshape, _ = arr.comm.chunk(lshape_map[last_diag_pr], 0, rank=i, w_size=last_diag_pr_rows.item())
+                    _, lshape, _ = arr.comm.chunk(
+                        lshape_map[last_diag_pr], 0, rank=i, w_size=last_diag_pr_rows.item()
+                    )
                     row_inds[(tile_per_proc * last_diag_pr).item() + i] = lshape[0]
 
         nz = torch.nonzero(torch.Tensor(row_inds) == 0)
@@ -179,8 +192,9 @@ class SquareDiagTiles:
                 while (arr.gshape[0] - arr.gshape[1]) // num_ex_row_tiles < 2:
                     num_ex_row_tiles -= 1
                 for i in range(num_ex_row_tiles):
-                    _, lshape, _ = arr.comm.chunk((arr.gshape[0] - arr.gshape[1],), 0,
-                                                  rank=i, w_size=num_ex_row_tiles)
+                    _, lshape, _ = arr.comm.chunk(
+                        (arr.gshape[0] - arr.gshape[1],), 0, rank=i, w_size=num_ex_row_tiles
+                    )
                     row_inds.append(lshape[0])
             else:
                 # if there is no place for multiple tiles, combine the remainder with the last row
@@ -197,29 +211,37 @@ class SquareDiagTiles:
 
         for num, c in enumerate(col_inds):  # set columns
             tile_map[:, num, 1] = c
-        for num, r, in enumerate(row_inds):  # set rows
+        for num, r in enumerate(row_inds):  # set rows
             tile_map[num, :, 0] = r
 
         # setting of rank is different for split 0 and split 1
         if arr.split == 0:
             for p in range(last_diag_pr.item()):  # set ranks
-                tile_map[tile_per_proc * p:tile_per_proc * (p + 1), :, 2] = p
+                tile_map[tile_per_proc * p : tile_per_proc * (p + 1), :, 2] = p
             # set last diag pr rank
-            tile_map[tile_per_proc * last_diag_pr:tile_per_proc * last_diag_pr + last_diag_pr_rows, :, 2] = last_diag_pr
+            tile_map[
+                tile_per_proc * last_diag_pr : tile_per_proc * last_diag_pr + last_diag_pr_rows,
+                :,
+                2,
+            ] = last_diag_pr
             # set the rest of the ranks
             st = tile_per_proc * last_diag_pr + last_diag_pr_rows
             for p in range(arr.comm.size - last_diag_pr.item() + 1):
-                tile_map[st:st + tile_per_proc * (p + 1), :, 2] = p + last_diag_pr.item() + 1
+                tile_map[st : st + tile_per_proc * (p + 1), :, 2] = p + last_diag_pr.item() + 1
                 st += tile_per_proc
         elif arr.split == 1:
             for p in range(last_diag_pr.item()):  # set ranks
-                tile_map[:, tile_per_proc * p:tile_per_proc * (p + 1), 2] = p
+                tile_map[:, tile_per_proc * p : tile_per_proc * (p + 1), 2] = p
             # set last diag pr rank
-            tile_map[:, tile_per_proc * last_diag_pr:tile_per_proc * last_diag_pr + last_diag_pr_rows, 2] = last_diag_pr
+            tile_map[
+                :,
+                tile_per_proc * last_diag_pr : tile_per_proc * last_diag_pr + last_diag_pr_rows,
+                2,
+            ] = last_diag_pr
             # set the rest of the ranks
             st = tile_per_proc * last_diag_pr + last_diag_pr_rows
             for p in range(arr.comm.size - last_diag_pr.item() + 1):
-                tile_map[:, st:st + tile_per_proc * (p + 1), 2] = p + last_diag_pr.item() + 1
+                tile_map[:, st : st + tile_per_proc * (p + 1), 2] = p + last_diag_pr.item() + 1
                 st += tile_per_proc
 
         for c, i in enumerate(row_per_proc_list):
@@ -234,8 +256,11 @@ class SquareDiagTiles:
                 pass
 
         # =================================================================================================
-        self.__col_per_proc_list = col_per_proc_list if arr.split == 1 \
+        self.__col_per_proc_list = (
+            col_per_proc_list
+            if arr.split == 1
             else [sum(col_per_proc_list)] * len(col_per_proc_list)
+        )
         self.__DNDarray = arr
         self.__lshape_map = lshape_map
         self.__last_diag_pr = last_diag_pr.item()
@@ -438,7 +463,8 @@ class SquareDiagTiles:
 
         if not isinstance(key, (tuple, list, slice, int)):
             raise TypeError(
-                'key must be an int, tuple, or slice, is currently {}'.format(type(key)))
+                "key must be an int, tuple, or slice, is currently {}".format(type(key))
+            )
 
         if isinstance(key, (slice, int)):
             key = tuple(key, slice(0, None))
@@ -501,10 +527,10 @@ class SquareDiagTiles:
             # get all the instances in a row (tile column 0 -> end)
             # todo: determine the rank with the diagonal element to determine the 1st coordinate
             if arr.split != 0:
-                raise ValueError('Slicing across splits is not allowed')
+                raise ValueError("Slicing across splits is not allowed")
             if arr.comm.rank == tile_map[key][..., 2].unique():
                 # above is the code to get the tile map for what is all on one tile
-                prev_to_split = sum(self.__row_per_proc_list[:arr.comm.rank])
+                prev_to_split = sum(self.__row_per_proc_list[: arr.comm.rank])
                 st0 = tile_map[key, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
                 sp0 = tile_map[key + 1, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
                 return local_arr[st0:sp0]
@@ -512,11 +538,13 @@ class SquareDiagTiles:
                 return None
         elif tile_map[key][..., 2].unique().nelement() > 1:
             print(key, tile_map[key])
-            raise ValueError('Slicing across splits is not allowed')
+            raise ValueError("Slicing across splits is not allowed")
         else:
             if arr.comm.rank == tile_map[key][..., 2].unique():
                 if not isinstance(key, (int, tuple, list, slice)):
-                    raise TypeError('key must be an int, tuple, or slice, is currently {}'.format(type(key)))
+                    raise TypeError(
+                        "key must be an int, tuple, or slice, is currently {}".format(type(key))
+                    )
 
                 key = list(key)
                 split = self.__DNDarray.split
@@ -580,17 +608,23 @@ class SquareDiagTiles:
             try:
                 src = src.item()
             except AttributeError:
-                raise TypeError('src must be an int or a single element tensor, '
-                                'is currently {}'.format(type(src)))
+                raise TypeError(
+                    "src must be an int or a single element tensor, "
+                    "is currently {}".format(type(src))
+                )
         if not isinstance(dest, int):
             try:
                 dest = dest.item()
             except AttributeError:
-                raise TypeError('dest must be an int or a single element tensor'
-                                ', is currently {}'.format(type(src)))
+                raise TypeError(
+                    "dest must be an int or a single element tensor"
+                    ", is currently {}".format(type(src))
+                )
         if not src < self.__DNDarray.comm.size or not dest < self.__DNDarray.comm.size:
-            raise ValueError('src and dest must be less than the size, '
-                             'currently {} and {} respectively'.format(src, dest))
+            raise ValueError(
+                "src and dest must be less than the size, "
+                "currently {} and {} respectively".format(src, dest)
+            )
 
         key = self.convert_local_key_to_global(key, proc=src)
 
@@ -648,7 +682,9 @@ class SquareDiagTiles:
                     key[1] += prev_cols
                 elif isinstance(key[1], slice):
                     start = key[1].start + prev_cols if key[1].start is not None else prev_cols
-                    stop = key[1].stop + prev_cols if key[1].stop is not None else prev_cols + loc_cols
+                    stop = (
+                        key[1].stop + prev_cols if key[1].stop is not None else prev_cols + loc_cols
+                    )
                     if stop - start > loc_cols:
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
@@ -694,7 +730,9 @@ class SquareDiagTiles:
                     key[1] += prev_cols
                 elif isinstance(key[1], slice):
                     start = key[1].start + prev_cols if key[1].start is not None else prev_cols
-                    stop = key[1].stop + prev_cols if key[1].stop is not None else prev_cols + loc_cols
+                    stop = (
+                        key[1].stop + prev_cols if key[1].stop is not None else prev_cols + loc_cols
+                    )
                     if stop - start > loc_cols:
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
@@ -709,14 +747,20 @@ class SquareDiagTiles:
         :return:
         """
         if not isinstance(tiles_to_match, SquareDiagTiles):
-            raise TypeError("tiles_to_match must be a SquareDiagTiles object, currently: {}"
-                            .format(type(tiles_to_match)))
+            raise TypeError(
+                "tiles_to_match must be a SquareDiagTiles object, currently: {}".format(
+                    type(tiles_to_match)
+                )
+            )
         base_dnd = self.__DNDarray
         match_dnd = tiles_to_match.__DNDarray
         # this map will take the same tile row and column sizes up to the last diagonal row/column
         # the last row/column is determined by the number of rows/columns on the non-split dimension
-        last_col_row = tiles_to_match.tile_rows_per_process[-1] if base_dnd.split == 1 \
+        last_col_row = (
+            tiles_to_match.tile_rows_per_process[-1]
+            if base_dnd.split == 1
             else tiles_to_match.tile_columns_per_process[-1]
+        )
         # working with only split=0 for now todo: split=1
         if base_dnd.split == tiles_to_match.__DNDarray.split == 0:
             # **the number of tiles on rows and columns will be equal for this new tile map**
@@ -737,15 +781,18 @@ class SquareDiagTiles:
             match_shape = tiles_to_match.__DNDarray.shape
             match_end_dim = 0 if match_shape[0] <= match_shape[1] else 1
             match_diag_end = tiles_to_match.__DNDarray.shape[match_end_dim]
-            self_diag_end = sum(self.lshape_map[:tiles_to_match.last_diagonal_process + 1]
-                              [..., base_dnd.split])
+            self_diag_end = sum(
+                self.lshape_map[: tiles_to_match.last_diagonal_process + 1][..., base_dnd.split]
+            )
             # print(match_diag_end, self_lshape)
 
             # match_end = sum(match_lshape[..., base_dnd.split])
             # below only needs to run if there is enough space for another block (>=2 entries)
             # and only if the last diag pr is not the last one
-            if (tiles_to_match.last_diagonal_process != base_dnd.comm.size - 1 and
-                    base_dnd.split == 0):
+            if (
+                tiles_to_match.last_diagonal_process != base_dnd.comm.size - 1
+                and base_dnd.split == 0
+            ):
                 # print('here', self_diag_end, match_diag_end)
                 if self_diag_end - match_diag_end >= 2:
                     new_row_inds.insert(last_col_row, match_diag_end)
@@ -757,9 +804,11 @@ class SquareDiagTiles:
                     # new_rows[tiles_to_match.last_diagonal_process] += 1
                 new_col_inds = new_row_inds.copy()
 
-            if (tiles_to_match.last_diagonal_process != base_dnd.comm.size - 1 and
-                    base_dnd.split == 1 and
-                    self_diag_end - match_diag_end >= 2):
+            if (
+                tiles_to_match.last_diagonal_process != base_dnd.comm.size - 1
+                and base_dnd.split == 1
+                and self_diag_end - match_diag_end >= 2
+            ):
                 new_col_inds.insert(last_col_row, match_diag_end)
                 new_rows[tiles_to_match.last_diagonal_process] += 1
                 new_row_inds = new_col_inds.copy()
@@ -790,8 +839,10 @@ class SquareDiagTiles:
             self.__tile_columns = len(new_col_inds)
             self.__tile_rows = len(new_row_inds)
         # case for different splits:
-        if base_dnd.split != tiles_to_match.__DNDarray.split and \
-                base_dnd.shape == tiles_to_match.__DNDarray.shape:
+        if (
+            base_dnd.split != tiles_to_match.__DNDarray.split
+            and base_dnd.shape == tiles_to_match.__DNDarray.shape
+        ):
             # if the shapes are the same (also both are square)
             # then only need to change the processes indices
             # flipping rows and columns for an array that is the same size with a different split
@@ -805,21 +856,28 @@ class SquareDiagTiles:
             tile_per_proc = self.__col_per_proc_list[0]
             last_diag_pr_rows = self.__row_per_proc_list[self.__last_diag_pr]
             for p in range(self.__last_diag_pr):  # set ranks
-                new_tile_map[:, tile_per_proc * p:tile_per_proc * (p + 1), 2] = p
+                new_tile_map[:, tile_per_proc * p : tile_per_proc * (p + 1), 2] = p
             # set last diag pr rank
-            new_tile_map[:, tile_per_proc * self.__last_diag_pr:tile_per_proc * self.__last_diag_pr + last_diag_pr_rows, 2] = self.__last_diag_pr
+            new_tile_map[
+                :,
+                tile_per_proc * self.__last_diag_pr : tile_per_proc * self.__last_diag_pr
+                + last_diag_pr_rows,
+                2,
+            ] = self.__last_diag_pr
             # set the rest of the ranks
             st = tile_per_proc * self.__last_diag_pr + last_diag_pr_rows
             for p in range(base_dnd.comm.size - self.__last_diag_pr + 1):
-                new_tile_map[:, st:st + tile_per_proc * (p + 1), 2] = p + self.__last_diag_pr + 1
+                new_tile_map[:, st : st + tile_per_proc * (p + 1), 2] = p + self.__last_diag_pr + 1
                 st += tile_per_proc
             self.__tile_map = new_tile_map
             # other things to set:
             self.__tile_columns = tiles_to_match.__tile_rows
             self.__tile_rows = tiles_to_match.__tile_columns
 
-        if base_dnd.gshape == tiles_to_match.__DNDarray.gshape and \
-                base_dnd.split == tiles_to_match.__DNDarray.split:
+        if (
+            base_dnd.gshape == tiles_to_match.__DNDarray.gshape
+            and base_dnd.split == tiles_to_match.__DNDarray.split
+        ):
             self.__tile_map = tiles_to_match.tile_map
             # other things to set:
             self.__col_per_proc_list = tiles_to_match.__col_per_proc_list
@@ -830,9 +888,26 @@ class SquareDiagTiles:
             self.__tile_columns = tiles_to_match.__tile_columns
             self.__tile_rows = tiles_to_match.__tile_rows
 
-        if base_dnd.gshape != match_dnd.gshape and base_dnd.split == 0 and match_dnd == 1:
-            # set the row and col indices to be the same 
-            pass
+        if base_dnd.gshape != match_dnd.gshape and base_dnd.split == 0 and match_dnd.split == 1:
+            # set the row and col indices to be the same
+            # in this case the problem is that the
+            # case set the cols without any shifting (because split on the base dnd = 0)
+            self.__col_inds = tiles_to_match.__col_inds
+            self.__col_per_proc_list = tiles_to_match.__col_per_proc_list
+            self.__tile_columns = tiles_to_match.__tile_columns
+            # for the rows: need to get the indices and shift the data around
+            # can set the row inds but need to make the lshape match after setting them
+            self.__row_inds = tiles_to_match.__row_inds
+            self.__row_per_proc_list = tiles_to_match.__row_per_proc_list
+            self.__tile_rows = tiles_to_match.__tile_rows
+            print(self.__row_inds)
+            # if the beginning of the next process is < the lshape of the current process
+            # then send the difference (+ update lshape map)
+            # lshape_cumsum = torch.cumsum(self.lshape_map[..., 0], dim=0)
+            print(self.__row_per_proc_list)
+            # for pr in range(base_dnd.comm.size - 1):
+            #     if lshape_cumsum[pr + 1]
+            # todo: last diag pr needs to be set still
 
     def overwrite_arr(self, arr):
         self.__DNDarray = arr
@@ -860,4 +935,3 @@ class SquareDiagTiles:
             # this will set the tile values using the torch setitem function
             arr = self.__getitem__(key)
             arr.__setitem__(slice(0, None), value)
-
