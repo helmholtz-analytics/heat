@@ -187,7 +187,7 @@ class TestArithmetics(unittest.TestCase):
 
                         ht_diff = ht.float(ht.diff(lp_array, n=nl, axis=ax))
                         np_diff = ht.array(np.diff(np_array, n=nl, axis=ax), dtype=ht_array.dtype)
-                        print(ht.allclose((ht_diff - np_diff), 0))
+                        print(dim, ax, sp, nl, ht.allclose((ht_diff - np_diff), 0))
                         self.assertTrue(ht.equal(ht_diff, np_diff))
                         self.assertEqual(ht_diff.split, sp)
                         # self.assertEqual(ht_diff.dtype, lp_array.dtype)
