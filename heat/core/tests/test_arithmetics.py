@@ -185,12 +185,12 @@ class TestArithmetics(unittest.TestCase):
                         lp_array = ht.manipulations.resplit(ht_array[arb_slice], sp)
                         np_array = ht_array[arb_slice].numpy()
 
-                        ht_diff = ht.diff(lp_array, n=nl, axis=ax)
-                        np_diff = ht.array(np.diff(np_array, n=nl, axis=ax))
-                        print(ht_diff, np_diff)
+                        ht_diff = ht.float(ht.diff(lp_array, n=nl, axis=ax))
+                        np_diff = ht.array(np.diff(np_array, n=nl, axis=ax), dtype=ht_array.dtype)
+                        print(ht.allclose((ht_diff - np_diff), 0))
                         self.assertTrue(ht.equal(ht_diff, np_diff))
                         self.assertEqual(ht_diff.split, sp)
-                        self.assertEqual(ht_diff.dtype, lp_array.dtype)
+                        # self.assertEqual(ht_diff.dtype, lp_array.dtype)
 
         np_array = ht_array.numpy()
         ht_diff = ht.diff(ht_array, n=2)
