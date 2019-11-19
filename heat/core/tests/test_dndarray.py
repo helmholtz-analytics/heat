@@ -60,6 +60,22 @@ class TestDNDarray(unittest.TestCase):
         htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
         self.assertTrue(ht.equal(htdata, ht.array(data, split=0, dtype=ht.float)))
 
+        if ht.MPI_WORLD.size > 4:
+            rank = ht.MPI_WORLD.rank
+            if rank == 2:
+                arr = torch.tensor([0, 1])
+            elif rank == 3:
+                arr = torch.tensor([2, 3, 4, 5])
+            elif rank == 4:
+                arr = torch.tensor([6, 7, 8, 9])
+            else:
+                arr = torch.empty([0], dtype=torch.int64)
+            a = ht.array(arr, is_split=0)
+            a.balance_()
+            comp = ht.arange(10, split=0)
+
+            self.assertTrue(ht.equal(a, comp))
+
     def test_bool_cast(self):
         # simple scalar tensor
         a = ht.ones(1)
