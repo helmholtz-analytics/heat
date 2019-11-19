@@ -187,16 +187,10 @@ class TestArithmetics(unittest.TestCase):
 
                         ht_diff = ht.float(ht.diff(lp_array, n=nl, axis=ax))
                         np_diff = ht.array(np.diff(np_array, n=nl, axis=ax))
-                        # print(ht_diff._DNDarray__array.dtype, np_diff._DNDarray__array.dtype)
-                        # print(dim, ax, sp, nl, ht.allclose((ht_diff - np_diff), 0))
-                        print(ht_diff.comm.rank, dim, ax, sp, nl, ht.nonzero(ht_diff - np_diff))
-                        nz = torch.nonzero((ht_diff - np_diff)._DNDarray__array)
-                        if nz.numel() > 0:
-                            print("h", ht_diff._DNDarray__array[nz], np_diff._DNDarray__array[nz])
 
                         self.assertTrue(ht.equal(ht_diff, np_diff))
                         self.assertEqual(ht_diff.split, sp)
-                        # self.assertEqual(ht_diff.dtype, lp_array.dtype)
+                        self.assertEqual(ht_diff.dtype, lp_array.dtype)
 
         np_array = ht_array.numpy()
         ht_diff = ht.diff(ht_array, n=2)
