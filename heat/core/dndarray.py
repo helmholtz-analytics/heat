@@ -635,7 +635,7 @@ class DNDarray:
         """
         if self.is_balanced():
             return
-        sl_dtype = self.dtype.torch_type()
+        snd_dtype = self.dtype.torch_type()
         # units -> {pr, 1st index, 2nd index}
         lshape_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
         lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
@@ -679,7 +679,9 @@ class DNDarray:
                     send_amt = 0
                 # send amount is the data still needed by recv if that is available on the snd
                 if send_amt != 0:
-                    self.__balance_shuffle(snd_pr, send_amt, rcv_pr, sl_dtype)
+                    self.__balance_shuffle(
+                        snd_pr=snd_pr, send_amt=send_amt, rcv_pr=rcv_pr, snd_dtype=snd_dtype
+                    )
                 lshape_cumsum[snd_pr] -= send_amt
                 lshape_cumsum[rcv_pr] += send_amt
                 lshape_map[rcv_pr, self.split] += send_amt
@@ -688,14 +690,14 @@ class DNDarray:
                 # if there is any data left on the process then send it to the next one
                 send_amt = lshape_map[rcv_pr, self.split] - chunk_map[rcv_pr, self.split]
                 self.__balance_shuffle(
-                    snd_pr=rcv_pr, send_amt=send_amt, rcv_pr=rcv_pr + 1, sl_dtype=sl_dtype
+                    snd_pr=rcv_pr, send_amt=send_amt, rcv_pr=rcv_pr + 1, snd_dtype=snd_dtype
                 )
                 lshape_cumsum[rcv_pr] -= send_amt
                 lshape_cumsum[rcv_pr + 1] += send_amt
                 lshape_map[rcv_pr, self.split] -= send_amt
                 lshape_map[rcv_pr + 1, self.split] += send_amt
 
-    def __balance_shuffle(self, snd_pr, send_amt, rcv_pr, sl_dtype):
+    def __balance_shuffle(self, snd_pr, send_amt, rcv_pr, snd_dtype):
         """
         Function to abstract the function used during balance for shuffling data between processes
 
@@ -707,7 +709,7 @@ class DNDarray:
             Amount of data to be sent by the sending process
         rcv_pr : int, single element torch.Tensor
             Recieving process
-        sl_dtype : torch.type
+        snd_dtype : torch.type
             Torch type of the data in question
 
         Returns
@@ -732,7 +734,7 @@ class DNDarray:
         if rank == rcv_pr:
             shp = list(self.gshape)
             shp[self.split] = send_amt
-            data = torch.zeros(shp, dtype=sl_dtype)
+            data = torch.zeros(shp, dtype=snd_dtype)
             self.comm.Recv(data, source=snd_pr, tag=685)
             if snd_pr < rcv_pr:  # data passed from a lower rank (append to top)
                 self.__array = torch.cat((data, self.__array), dim=self.split)
