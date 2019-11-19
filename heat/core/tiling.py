@@ -188,7 +188,7 @@ class SquareDiagTiles:
             # need to adjust the very last tile to be the remaining
             if arr.gshape[0] - arr.gshape[1] > 10:  # todo: determine best value for this
                 # use chunk and a loop over the however many tiles are desired
-                num_ex_row_tiles = 4  # todo: determine best value for this
+                num_ex_row_tiles = 1  # todo: determine best value for this
                 while (arr.gshape[0] - arr.gshape[1]) // num_ex_row_tiles < 2:
                     num_ex_row_tiles -= 1
                 for i in range(num_ex_row_tiles):
@@ -208,6 +208,7 @@ class SquareDiagTiles:
         # if arr.split == 1:  # adjust the 0th dim to be the cumsum
         row_inds = [0] + row_inds[:-1]
         row_inds = torch.tensor(row_inds).cumsum(dim=0)
+        # print(row_inds, len(row_inds))
 
         for num, c in enumerate(col_inds):  # set columns
             tile_map[:, num, 1] = c
@@ -241,6 +242,7 @@ class SquareDiagTiles:
             # set the rest of the ranks
             st = tile_per_proc * last_diag_pr + last_diag_pr_rows
             for p in range(arr.comm.size - last_diag_pr.item() + 1):
+                # print('here', st)
                 tile_map[:, st : st + tile_per_proc * (p + 1), 2] = p + last_diag_pr.item() + 1
                 st += tile_per_proc
 
@@ -265,6 +267,9 @@ class SquareDiagTiles:
         self.__lshape_map = lshape_map
         self.__last_diag_pr = last_diag_pr.item()
         self.__row_per_proc_list = row_per_proc_list
+        self.__row_per_proc_list = (
+            row_per_proc_list if arr.split == 0 else [len(row_inds)] * len(row_per_proc_list)
+        )
         self.__tile_map = tile_map
         # print(type(row_inds), t?ype(col_inds))
         self.__row_inds = list(row_inds)
@@ -523,76 +528,64 @@ class SquareDiagTiles:
         arr = self.__DNDarray
         tile_map = self.__tile_map
         local_arr = self.__DNDarray._DNDarray__array
-        if isinstance(key, int):
-            # get all the instances in a row (tile column 0 -> end)
-            # todo: determine the rank with the diagonal element to determine the 1st coordinate
-            if arr.split != 0:
-                raise ValueError("Slicing across splits is not allowed")
-            if arr.comm.rank == tile_map[key][..., 2].unique():
-                # above is the code to get the tile map for what is all on one tile
-                prev_to_split = sum(self.__row_per_proc_list[: arr.comm.rank])
-                st0 = tile_map[key, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
-                sp0 = tile_map[key + 1, 0][..., 0] - tile_map[prev_to_split, 0][..., 0]
-                return local_arr[st0:sp0]
-            else:
-                return None
-        elif tile_map[key][..., 2].unique().nelement() > 1:
+        if tile_map[key][..., 2].unique().nelement() > 1:
             print(key, tile_map[key])
             raise ValueError("Slicing across splits is not allowed")
+        if arr.comm.rank != tile_map[key][..., 2].unique():
+            return None
+
+        if not isinstance(key, (int, tuple, list, slice)):
+            raise TypeError(
+                "key must be an int, tuple, or slice, is currently {}".format(type(key))
+            )
+        if isinstance(key, int):
+            key = [key]
         else:
-            if arr.comm.rank == tile_map[key][..., 2].unique():
-                if not isinstance(key, (int, tuple, list, slice)):
-                    raise TypeError(
-                        "key must be an int, tuple, or slice, is currently {}".format(type(key))
-                    )
+            key = list(key)
+        split = self.__DNDarray.split
+        rank = arr.comm.rank
+        # print(key)
+        row_inds = self.row_indices + [self.__DNDarray.gshape[0]]
+        col_inds = self.col_indices + [self.__DNDarray.gshape[1]]
+        row_start = row_inds[sum(self.tile_rows_per_process[:rank]) if split == 0 else 0]
+        col_start = col_inds[sum(self.tile_columns_per_process[:rank]) if split == 1 else 0]
 
-                key = list(key)
-                split = self.__DNDarray.split
-                rank = arr.comm.rank
-                # print(key)
-                row_inds = self.row_indices + [self.__DNDarray.gshape[0]]
-                col_inds = self.col_indices + [self.__DNDarray.gshape[1]]
-                row_start = row_inds[sum(self.tile_rows_per_process[:rank]) if split == 0 else 0]
-                col_start = col_inds[sum(self.tile_columns_per_process[:rank]) if split == 1 else 0]
+        if len(key) == 1:
+            key.append(slice(0, None))
 
-                if len(key) == 1:
-                    key.append(slice(0, None))
+        if all(isinstance(x, int) for x in key):
+            st0 = row_inds[key[0]] - row_start
+            sp0 = row_inds[key[0] + 1] - row_start
+            st1 = col_inds[key[1]] - col_start
+            sp1 = col_inds[key[1] + 1] - col_start
 
-                if all(isinstance(x, int) for x in key):
-                    st0 = row_inds[key[0]] - row_start
-                    sp0 = row_inds[key[0] + 1] - row_start
-                    st1 = col_inds[key[1]] - col_start
-                    sp1 = col_inds[key[1] + 1] - col_start
+        elif all(isinstance(x, slice) for x in key):
+            # need to set the values of start and stop if they are None
+            start = col_inds[key[1].start] if key[1].start is not None else 0
+            stop = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
+            st1, sp1 = start - col_start, stop - col_start
 
-                elif all(isinstance(x, slice) for x in key):
-                    # need to set the values of start and stop if they are None
-                    start = col_inds[key[1].start] if key[1].start is not None else 0
-                    stop = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
-                    st1, sp1 = start - col_start, stop - col_start
+            # need to adjust the indices from tiles to local for dim0
+            start = row_inds[key[0].start] if key[0].start is not None else 0
+            stop = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
+            st0, sp0 = start - row_start, stop - row_start
 
-                    # need to adjust the indices from tiles to local for dim0
-                    start = row_inds[key[0].start] if key[0].start is not None else 0
-                    stop = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
-                    st0, sp0 = start - row_start, stop - row_start
+        elif isinstance(key[0], slice) and isinstance(key[1], int):
+            start = row_inds[key[0].start] if key[0].start is not None else 0
+            stop = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
+            st0, sp0 = start - row_start, stop - row_start
+            st1 = col_inds[key[1]] - col_start
+            sp1 = col_inds[key[1] + 1] - col_start
 
-                elif isinstance(key[0], slice) and isinstance(key[1], int):
-                    start = row_inds[key[0].start] if key[0].start is not None else 0
-                    stop = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
-                    st0, sp0 = start - row_start, stop - row_start
-                    st1 = col_inds[key[1]] - col_start
-                    sp1 = col_inds[key[1] + 1] - col_start
+        elif isinstance(key[1], slice) and isinstance(key[0], int):
+            start = col_inds[key[1].start] if key[1].start is not None else 0
+            stop = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
+            st1, sp1 = start - col_start, stop - col_start
+            st0 = row_inds[key[0]] - row_start
+            sp0 = row_inds[key[0] + 1] - row_start
 
-                elif isinstance(key[1], slice) and isinstance(key[0], int):
-                    start = col_inds[key[1].start] if key[1].start is not None else 0
-                    stop = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
-                    st1, sp1 = start - col_start, stop - col_start
-                    st0 = row_inds[key[0]] - row_start
-                    sp0 = row_inds[key[0] + 1] - row_start
-
-                # print('getitem end', st0, sp0, st1, sp1)
-                return local_arr[st0:sp0, st1:sp1]
-            else:
-                return None
+        # print('getitem end', st0, sp0, st1, sp1)
+        return local_arr[st0:sp0, st1:sp1]
 
     def local_get_async(self, key, src, dest):
         """
@@ -674,6 +667,7 @@ class SquareDiagTiles:
             if arr.split == 1:
                 loc_cols = self.__col_per_proc_list[proc]
                 prev_cols = sum(self.__col_per_proc_list[:proc])
+                # print(self.__col_per_proc_list)
                 if len(key) == 1:
                     key = [key, slice(0, None)]
                 # need to adjust key[0] to be only on the local tensor
@@ -688,6 +682,7 @@ class SquareDiagTiles:
                     if stop - start > loc_cols:
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
+            # print(key)
             return self.__getitem__(tuple(key))
 
     def local_set(self, key, data, proc=None):
@@ -893,21 +888,63 @@ class SquareDiagTiles:
             # in this case the problem is that the
             # case set the cols without any shifting (because split on the base dnd = 0)
             self.__col_inds = tiles_to_match.__col_inds
-            self.__col_per_proc_list = tiles_to_match.__col_per_proc_list
+            self.__col_per_proc_list = tiles_to_match.__row_per_proc_list  # this matches col to row
             self.__tile_columns = tiles_to_match.__tile_columns
             # for the rows: need to get the indices and shift the data around
             # can set the row inds but need to make the lshape match after setting them
             self.__row_inds = tiles_to_match.__row_inds
-            self.__row_per_proc_list = tiles_to_match.__row_per_proc_list
-            self.__tile_rows = tiles_to_match.__tile_rows
+            self.__row_per_proc_list = tiles_to_match.__col_per_proc_list  # this matches col to row
             print(self.__row_inds)
+            print(self.__row_per_proc_list)
+            self.__tile_rows = tiles_to_match.__tile_rows
+            # print(self.__row_inds)
             # if the beginning of the next process is < the lshape of the current process
             # then send the difference (+ update lshape map)
-            # lshape_cumsum = torch.cumsum(self.lshape_map[..., 0], dim=0)
-            print(self.__row_per_proc_list)
-            # for pr in range(base_dnd.comm.size - 1):
-            #     if lshape_cumsum[pr + 1]
-            # todo: last diag pr needs to be set still
+            lshape_cumsum = torch.cumsum(self.lshape_map[..., 0], dim=0)
+            row_cumsum = torch.cumsum(torch.tensor(self.__row_per_proc_list), dim=0)
+            # print(lshape_cumsum)
+            # print(row_cumsum)
+            # print(self.__row_inds)
+            for pr in range(base_dnd.comm.size - 1):
+                # print(lshape_cumsum[pr], self.__row_inds[row_cumsum[pr]])
+                if lshape_cumsum[pr] > self.__row_inds[row_cumsum[pr]]:
+                    # send the difference to the next pr
+                    amt = lshape_cumsum[pr] - self.__row_inds[row_cumsum[pr]]
+                    if base_dnd.comm.rank == pr:
+                        # the slice can be hardcoded (splits are fixed)
+                        amt *= -1
+                        data = base_dnd._DNDarray__array[amt:].clone()
+                        base_dnd.comm.Send(data, dest=pr + 1, tag=int("6" + str(pr) + str(pr + 1)))
+                        base_dnd._DNDarray__array = base_dnd._DNDarray__array[:amt]
+                    if base_dnd.comm.rank == pr + 1:
+                        amt = lshape_cumsum[pr] - self.__row_inds[row_cumsum[pr]]
+                        buf = torch.empty(amt, base_dnd.gshape[1])
+                        base_dnd.comm.Recv(buf, source=pr, tag=int("6" + str(pr) + str(pr + 1)))
+                        base_dnd._DNDarray__array = torch.cat(
+                            (buf, base_dnd._DNDarray__array), dim=0
+                        )
+                    lshape_cumsum[pr] -= amt
+                    self.lshape_map[pr, base_dnd.split] -= amt
+                    lshape_cumsum[pr + 1] -= amt
+                    self.lshape_map[pr + 1, base_dnd.split] += amt
+            self.__tile_map = tiles_to_match.tile_map * 0
+            # print(self.tile_rows)
+            for i in range(self.tile_rows):
+                self.__tile_map[..., 0][i] = self.__row_inds[i]
+            for i in range(self.tile_columns):
+                self.__tile_map[..., 1][:, i] = self.__col_inds[i]
+            for i in range(self.arr.comm.size - 1):
+                scale = self.__row_per_proc_list[i]
+                self.__tile_map[..., 2][i * scale : (i + 1) * scale] = i
+            # to adjust if the last process has more tiles
+            i = self.arr.comm.size - 1
+            scale = self.__row_per_proc_list[i]
+            self.__tile_map[..., 2][i * scale :] = i
+            # print(self.__tile_map)
+
+            # print(self.tile_map)
+            # self.tile_map[..., 0] = self.__row_inds
+            self.__last_diag_pr = base_dnd.comm.size - 1
 
     def overwrite_arr(self, arr):
         self.__DNDarray = arr
