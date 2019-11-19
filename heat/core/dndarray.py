@@ -727,13 +727,13 @@ class DNDarray:
                 send_slice[self.split] = slice(0, send_amt)
                 keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
             data = self.__array[send_slice].clone()
-            self.comm.Isend(data, dest=rcv_pr, tag=rcv_pr + self.comm.size + snd_pr)
+            self.comm.Send(data, dest=rcv_pr, tag=685)
             self.__array = self.__array[keep_slice]
         if rank == rcv_pr:
             shp = list(self.gshape)
             shp[self.split] = send_amt
             data = torch.zeros(shp, dtype=sl_dtype)
-            self.comm.Recv(data, source=snd_pr, tag=rcv_pr + self.comm.size + snd_pr)
+            self.comm.Recv(data, source=snd_pr, tag=685)
             if snd_pr < rcv_pr:  # data passed from a lower rank (append to top)
                 self.__array = torch.cat((data, self.__array), dim=self.split)
             if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
