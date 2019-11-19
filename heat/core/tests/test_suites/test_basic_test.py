@@ -41,3 +41,12 @@ class TestBasicTest(BasicTest):
         ht_func = ht.exp
         np_func = np.exp
         self.assert_func_equal(shape, heat_func=ht_func, numpy_func=np_func)
+
+        array = torch.randn(15, 15)
+        ht_func = ht.exp
+        np_func = np.exp
+        self.assert_func_equal(array, heat_func=ht_func, numpy_func=np_func)
+
+        array = ht.ones((15, 15))
+        with self.assertRaises(TypeError):
+            self.assert_func_equal(array, heat_func=ht_func, numpy_func=np_func)
