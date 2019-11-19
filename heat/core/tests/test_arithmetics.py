@@ -185,7 +185,7 @@ class TestArithmetics(unittest.TestCase):
                         lp_array = ht.manipulations.resplit(ht_array[arb_slice], sp)
                         np_array = ht_array[arb_slice].numpy()
 
-                        ht_diff = ht.float(ht.diff(lp_array, n=nl, axis=ax))
+                        ht_diff = ht.diff(lp_array, n=nl, axis=ax)
                         np_diff = ht.array(np.diff(np_array, n=nl, axis=ax))
 
                         self.assertTrue(ht.equal(ht_diff, np_diff))
