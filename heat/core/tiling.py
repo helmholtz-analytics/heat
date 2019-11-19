@@ -947,6 +947,16 @@ class SquareDiagTiles:
             self.__last_diag_pr = base_dnd.comm.size - 1
 
     def overwrite_arr(self, arr):
+        """
+
+        Parameters
+        ----------
+        arr
+
+        Returns
+        -------
+
+        """
         self.__DNDarray = arr
 
     def __setitem__(self, key, value):

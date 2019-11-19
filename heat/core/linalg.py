@@ -832,16 +832,9 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
             # q0_row = q0_tiles[dcol, dcol:]
             print(q0_tiles.tile_map.shape)
             for row in range(q0_tiles.tile_rows_per_process[rank]):
-                q0_row = q0_tiles.local_get(key=(row, slice(dcol, None)))
+                # q0_row = q0_tiles.local_get(key=(row, slice(dcol, None)))
                 # set each local row using the row from
-                print(
-                    dcol,
-                    row,
-                    q0_row.shape,
-                    hld.shape,
-                    q0_tiles.local_get(key=(row, dcol)).shape,
-                    a.lshape,
-                )
+                print(dcol, row, q0_tiles.local_get(key=(row, dcol)).shape, q1.shape, a.lshape)
                 # q0_tiles.local_set(key=(row, dcol), data=q0_row @ hld)
         del q1
         # ======================== end q calc for single tile QR ==========================
@@ -1140,8 +1133,19 @@ def __qr_apply_local_q_to_q0(rank, q_dict, col, a_tiles, q_tiles, comm, diag):
 
 def __qr_apply_global_q_to_q0(global_merge_dict, col, q_tiles, rank, comm, diag):
     """
-    function for the multiplication of Q with the dictionary holding the global merge q tensors
-    :return:
+
+    Parameters
+    ----------
+    global_merge_dict
+    col
+    q_tiles
+    rank
+    comm
+    diag
+
+    Returns
+    -------
+
     """
 
     if rank == diag:
@@ -1197,12 +1201,22 @@ def __qr_apply_global_q_to_q0(global_merge_dict, col, q_tiles, rank, comm, diag)
 
 
 def __qr_local_qr_calc(col, rank, a_tiles, local_tile_row, q_dict):
-    # todo: jit this? cant in current form -> dictionary is use. possible chance for list instead
-    # todo: binary merge
     """
 
-    :return:
+    Parameters
+    ----------
+    col
+    rank
+    a_tiles
+    local_tile_row
+    q_dict
+
+    Returns
+    -------
+
     """
+    # todo: jit this? cant in current form -> dictionary is use. possible chance for list instead
+    # todo: binary merge
     # 1: operate on either 0, column (not diag_pr) or row, column (row is adjusted with column)
     # need to determine which process is operating on a partial -> local_tile_row_index_pr
 
