@@ -726,10 +726,9 @@ class DNDarray:
             if snd_pr > rcv_pr:  # data passed to a lower rank (off the top)
                 send_slice[self.split] = slice(0, send_amt)
                 keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
-            self.comm.Isend(
-                self.__array[send_slice].clone(), dest=rcv_pr, tag=rcv_pr + self.comm.size + snd_pr
-            )
-            self.__array = self.__array[keep_slice].clone()
+            data = self.__array[send_slice].clone()
+            self.comm.Isend(data, dest=rcv_pr, tag=rcv_pr + self.comm.size + snd_pr)
+            self.__array = self.__array[keep_slice]
         if rank == rcv_pr:
             shp = list(self.gshape)
             shp[self.split] = send_amt
