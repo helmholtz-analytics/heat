@@ -171,9 +171,20 @@ class DNDarray:
         """
         Returns
         -------
-        tuple of ints: steps in each dimension when traversing the tensor on each node
+        tuple of ints: steps in each dimension when traversing a tensor.
+        torch-like usage: self.stride()
         """
         return self.__array.stride
+
+    @property
+    def strides(self):
+        """
+        Returns
+        -------
+        tuple of ints: bytes to step in each dimension when traversing a tensor.
+        numpy-like usage: self.strides
+        """
+        return self.numpy().strides
 
     @property
     def T(self, axes=None):
