@@ -805,9 +805,9 @@ class TestStatistics(unittest.TestCase):
         # the rest of the tests are covered by var
 
     def test_var(self):
-        array_0_len = 14
-        array_1_len = 14
-        array_2_len = 14
+        array_0_len = ht.MPI_WORLD.size * 2
+        array_1_len = ht.MPI_WORLD.size * 2
+        array_2_len = ht.MPI_WORLD.size * 2
 
         # test raises
         x = ht.zeros((2, 3, 4))

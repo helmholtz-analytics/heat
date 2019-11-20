@@ -54,7 +54,6 @@ class TestManipulations(unittest.TestCase):
         self.assertEqual(res.lshape, tuple(lshape))
 
         # None 0 1
-        # print(x.split, y.split)
         res = ht.concatenate((x, y), axis=1)
         self.assertEqual(res.gshape, (16, 30))
         self.assertEqual(res.dtype, ht.float)

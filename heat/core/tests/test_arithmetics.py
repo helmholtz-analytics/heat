@@ -195,6 +195,7 @@ class TestArithmetics(unittest.TestCase):
 
                         ht_diff = ht.diff(lp_array, n=nl, axis=ax)
                         np_diff = ht.array(np.diff(np_array, n=nl, axis=ax))
+
                         self.assertTrue(ht.equal(ht_diff, np_diff))
                         self.assertEqual(ht_diff.split, sp)
                         self.assertEqual(ht_diff.dtype, lp_array.dtype)
