@@ -228,7 +228,7 @@ class TestRounding(unittest.TestCase):
         # exponential of float64
         comparison = np.modf(np.arange(start, end, step, np.float64))
 
-        float64_tensor_distrbd = ht.arange(start, end, step, dtype=ht.float32, split=0)
+        float64_tensor_distrbd = ht.arange(start, end, step, dtype=ht.float64, split=0)
         float64_modf_distrbd = float64_tensor_distrbd.modf()
         self.assertIsInstance(float64_modf_distrbd[0], ht.DNDarray)
         self.assertIsInstance(float64_modf_distrbd[1], ht.DNDarray)
