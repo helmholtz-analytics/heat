@@ -75,7 +75,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.lshape, (size,))
         self.assertEqual(result.split, None)
         # skip test on gpu; argmax works different
-        if result.device != ht.gpu:
+        if not (torch.cuda.is_available() and result.device == ht.gpu):
             self.assertTrue((result._DNDarray__array != 0).all())
 
         # 2D split tensor, across the axis, output tensor
@@ -92,7 +92,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(output.lshape, (size,))
         self.assertEqual(output.split, None)
         # skip test on gpu; argmax works different
-        if output.device != ht.gpu:
+        if not (torch.cuda.is_available() and output.device == ht.gpu):
             self.assertTrue((output._DNDarray__array != 0).all())
 
         # check exceptions
@@ -165,7 +165,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(result.lshape, (size,))
         self.assertEqual(result.split, None)
         # skip test on gpu; argmin works different
-        if result.device != ht.gpu:
+        if not (torch.cuda.is_available() and result.device == ht.gpu):
             self.assertTrue((result._DNDarray__array != 0).all())
 
         # 2D split tensor, across the axis, output tensor
@@ -182,7 +182,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(output.lshape, (size,))
         self.assertEqual(output.split, None)
         # skip test on gpu; argmin works different
-        if output.device != ht.gpu:
+        if not (torch.cuda.is_available() and output.device == ht.gpu):
             self.assertTrue((output._DNDarray__array != 0).all())
 
         # check exceptions
