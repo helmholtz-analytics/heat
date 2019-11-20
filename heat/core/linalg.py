@@ -1,6 +1,4 @@
-from collections import OrderedDict
 import itertools
-import numpy as np
 import torch
 
 from .communication import MPI
@@ -779,19 +777,25 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         a = a.copy()
     # for R calc need to do it all like TSQR
     # do comm when applying the Q to the trailing matrix
-    a_tiles = tiling.SquareDiagTiles(a, tile_per_proc=tiles_per_proc)
+    a_tiles = tiling.SquareDiagTiles(
+        a, tile_per_proc=tiles_per_proc
+    )  # type: tiling.SquareDiagTiles
     tile_columns = a_tiles.tile_columns
     tile_rows = a_tiles.tile_rows
     # tile_row_inds = a_tiles.row_indices + [torch.Tensor(a.gshape[0])]
 
     q0 = factories.eye((a.gshape[0], a.gshape[0]), split=0, dtype=a.dtype, comm=a.comm)
-    q0_tiles = tiling.SquareDiagTiles(q0, tile_per_proc=tiles_per_proc)
+    q0_tiles = tiling.SquareDiagTiles(
+        q0, tile_per_proc=tiles_per_proc
+    )  # type: tiling.SquareDiagTiles
     q0_tiles.match_tiles(a_tiles)
 
     # loop over the tile columns
     rank = a.comm.rank
     q_dict = {}
     cols_on_proc = torch.cumsum(torch.tensor(a_tiles.tile_columns_per_process), dim=0)
+    q0_row_cumsum = torch.cumsum(torch.tensor(q0_tiles.tile_rows_per_process), dim=0)
+    # print(cols_on_proc)
     # print([x for x in range(a_tiles.tile_columns)], q0_tiles.tile_columns)
     # ==================================== R Calculation ===========================================
     for dcol in range(tile_columns):  # dcol is the diagonal column
@@ -826,16 +830,20 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
             a_tiles.local_set(key=(dcol, slice(0, None)), data=torch.matmul(q1.T, hold))
         # ======================== begin q calc for single tile QR ========================
         if calc_q:
-            sz = q0_tiles.get_tile_size(key=(dcol, slice(dcol, None)))
-            hld = torch.zeros(sz[1], sz[0])
-            hld[: q1.shape[0]] = q1
+            # sz = q0_tiles.get_tile_size(key=(dcol, slice(dcol, None)))
+            # hld = torch.zeros(sz[1], sz[0])
+            # hld[: q1.shape[0]] = q1
             # q0_row = q0_tiles[dcol, dcol:]
-            print(q0_tiles.tile_map.shape)
+            # print(q0_tiles.tile_map.shape)
             for row in range(q0_tiles.tile_rows_per_process[rank]):
                 # q0_row = q0_tiles.local_get(key=(row, slice(dcol, None)))
                 # set each local row using the row from
-                print(dcol, row, q0_tiles.local_get(key=(row, dcol)).shape, q1.shape, a.lshape)
-                # q0_tiles.local_set(key=(row, dcol), data=q0_row @ hld)
+                # print(dcol, row, q0_tiles.local_get(key=(row, dcol)).shape, q1.shape, a.lshape)
+                # print(q0_tiles.col_indices)
+                # print(dcol, row, q0_tiles.get_start_stop(key=(row, dcol)))
+                q0_tiles.local_set(
+                    key=(row, dcol), data=torch.matmul(q0_tiles.local_get(key=(row, dcol)), q1)
+                )
         del q1
         # ======================== end q calc for single tile QR ==========================
 
@@ -843,6 +851,8 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         # 2nd step: merged QR on the rows
         diag_tile = a_tiles[dcol, dcol]
         diag_sz = a_tiles.get_tile_size(key=(dcol, dcol))
+        # (Q) need to get the start stop of diag tial
+        diag_st_sp = a_tiles.get_start_stop(key=(dcol, dcol))
         for row in range(dcol + 1, tile_rows):
             if rank == diag_process:
                 # cat diag tile and loop tile
@@ -889,11 +899,52 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
                 # set lower
                 a_tiles.local_set(key=(row, slice(0, None)), data=hold[diag_sz[0] :])
             # ======================== begin q calc for merged tile QR ==========================
-            # if calc_q:
-            #     top_left = ql[: diag_sz[0], : diag_sz[0]]
-            #     top_right = ql[: diag_sz[0], diag_sz[0] :]
-            #     bottom_left = ql[diag_sz[0] :, : diag_sz[0]]
-            #     bottom_right = ql[diag_sz[0] :, diag_sz[0] :]
+            if calc_q:
+                top_left = ql[: diag_sz[0], : diag_sz[0]]
+                top_right = ql[: diag_sz[0], diag_sz[0] :]
+                bottom_left = ql[diag_sz[0] :, : diag_sz[0]]
+                bottom_right = ql[diag_sz[0] :, diag_sz[0] :]
+                # two multiplications: one for the left tiles and one for the right
+                # left tiles --------------------------------------------------------------------
+                # create a column of the same size as the tile row of q0
+                qloop_col = torch.zeros(a_tiles.get_tile_size(key=(slice(dcol, None), dcol)))
+                # top left starts at 0 and goes until diag_sz[1]
+                qloop_col[: diag_sz[0]] = top_left
+                # bottom left starts at ? and goes until ? (only care about 0th dim)
+                st, sp, _, _ = a_tiles.get_start_stop(key=(row, 0))
+                st -= diag_st_sp[0]  # adjust these by subtracting the start index of the diag tile
+                sp -= diag_st_sp[0]
+                qloop_col[st:sp] = bottom_left
+                # @ qloop_col with the local tensor (from row=dcol to end)
+                # need to convert dcol to local index
+                if diag_process == 0:
+                    dcol_loc = dcol if rank == 0 else 0
+                else:
+                    dcol_loc = dcol - q0_row_cumsum[diag_process - 1] if rank == diag_process else 0
+                q0_row = q0_tiles.local_get(key=slice(dcol_loc, None))
+                q0_tiles.local_set(
+                    key=(slice(dcol_loc, None), dcol), data=torch.matmul(q0_row, qloop_col)
+                )
+                # right tiles --------------------------------------------------------------------
+                qloop_col = torch.zeros(a_tiles.get_tile_size(key=(slice(row, None), dcol)))
+                # top left starts at 0 and goes until diag_sz[1]
+                qloop_col[: diag_sz[0]] = top_right
+                # bottom left starts at ? and goes until ? (only care about 0th dim)
+                st, sp, _, _ = a_tiles.get_start_stop(key=(row, 0))
+                st -= diag_st_sp[0]  # adjust these by subtracting the start index of the diag tile
+                sp -= diag_st_sp[0]
+                qloop_col[st:sp] = bottom_right
+                # @ qloop_col with the local tensor (from row=dcol to end)
+                # need to convert dcol to local index
+                if diag_process == 0:
+                    dcol_loc = dcol if rank == 0 else 0
+                else:
+                    dcol_loc = dcol - q0_row_cumsum[diag_process - 1] if rank == diag_process else 0
+                q0_row = q0_tiles.local_get(key=slice(dcol_loc, None))
+                q0_tiles.local_set(
+                    key=(slice(dcol_loc, None), row), data=torch.matmul(q0_row, qloop_col)
+                )
+
             # ======================== end q calc for merged tile QR ============================
     if not calc_q:
         return None, a

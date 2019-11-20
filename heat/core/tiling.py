@@ -7,8 +7,7 @@ from . import factories
 from . import manipulations
 from . import types
 
-
-__all__ = ["mm_tiles", "SquareDiagTiles"]
+__all__ = ["SquareDiagTiles"]
 
 
 # class LocalTileIndex:
@@ -27,18 +26,7 @@ __all__ = ["mm_tiles", "SquareDiagTiles"]
 #         self.__setitem__(key=key, value=value)
 
 
-def mm_tiles(arr):
-    if not isinstance(arr, dndarray.DNDarray):
-        raise TypeError("arr must be a DNDarray, is currently a {}".format(type(arr)))
-
-    lshape_map = torch.zeros((arr.comm.size, len(arr.gshape)), dtype=int)
-    lshape_map[arr.comm.rank, :] = torch.Tensor(arr.lshape)
-    arr.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
-    return None, lshape_map
-
-
 class SquareDiagTiles:
-    # designed for QR tile scheme
     def __init__(self, arr, tile_per_proc=2, lshape_map=None):
         """
         Generate the tile map and the other objects which may be useful.
@@ -72,6 +60,7 @@ class SquareDiagTiles:
         __lshape_map : torch.Tensor
             tensor filled with the shapes of the local tensors
         __tile_map : torch.Tensor
+            units -> row, column, start index in each direction, process
             tensor filled with the global indices of the generated tiles
         __row_per_proc_list : list
             list is length of the number of processes, each element has the number of tile rows on the process whos rank equals the index
@@ -257,16 +246,16 @@ class SquareDiagTiles:
             except AttributeError:
                 pass
 
-        # =================================================================================================
+        # =========================================================================================
+        # : Tuple[None, Any, Any, Iterable, Tensor, Tensor, Iterable, int, int]
+        self.__DNDarray = arr
         self.__col_per_proc_list = (
             col_per_proc_list
             if arr.split == 1
             else [sum(col_per_proc_list)] * len(col_per_proc_list)
         )
-        self.__DNDarray = arr
         self.__lshape_map = lshape_map
         self.__last_diag_pr = last_diag_pr.item()
-        self.__row_per_proc_list = row_per_proc_list
         self.__row_per_proc_list = (
             row_per_proc_list if arr.split == 0 else [len(row_inds)] * len(row_per_proc_list)
         )
@@ -276,7 +265,7 @@ class SquareDiagTiles:
         self.__col_inds = list(col_inds)
         self.__tile_columns = len(col_inds)
         self.__tile_rows = len(row_inds)
-        # =================================================================================================
+        # =========================================================================================
 
     @property
     def arr(self):
@@ -285,10 +274,6 @@ class SquareDiagTiles:
     @property
     def col_indices(self):
         return self.__col_inds
-
-    # @property
-    # def lloc(self):
-    #     return LocalTileIndex()
 
     @property
     def lshape_map(self):
@@ -528,9 +513,12 @@ class SquareDiagTiles:
         arr = self.__DNDarray
         tile_map = self.__tile_map
         local_arr = self.__DNDarray._DNDarray__array
+        # print(key)
         if tile_map[key][..., 2].unique().nelement() > 1:
-            print(key, tile_map[key])
+            print(key)
             raise ValueError("Slicing across splits is not allowed")
+        if tile_map[key][..., 2].unique().nelement() == 0:
+            return None
         if arr.comm.rank != tile_map[key][..., 2].unique():
             return None
 
@@ -645,11 +633,12 @@ class SquareDiagTiles:
         if proc == self.__DNDarray.comm.rank:
             arr = self.__DNDarray
             # need to convert the key into local indices -> only done on the split dimension
-            key = list(key)
+            if isinstance(key, (int, slice)):
+                key = [key, slice(0, None)]
+            else:
+                key = list(key)
 
             if arr.split == 0:
-                if len(key) == 1:
-                    key = [key, slice(0, None)]
                 # need to adjust key[0] to be only on the local tensor
                 prev_rows = sum(self.__row_per_proc_list[:proc])
                 loc_rows = self.__row_per_proc_list[proc]
@@ -657,7 +646,10 @@ class SquareDiagTiles:
                     key[0] += prev_rows
                 elif isinstance(key[0], slice):
                     start = key[0].start + prev_rows if key[0].start is not None else prev_rows
-                    stop = key[0].stop + prev_rows if key[0].stop is not None else start + loc_rows
+                    stop = (
+                        key[0].stop + prev_rows if key[0].stop is not None else prev_rows + loc_rows
+                    )
+                    # print(start, prev_rows, loc_rows, stop)
                     if stop - start > loc_rows:
                         # print(local_tile_map)
                         stop = start + loc_rows
@@ -667,9 +659,6 @@ class SquareDiagTiles:
             if arr.split == 1:
                 loc_cols = self.__col_per_proc_list[proc]
                 prev_cols = sum(self.__col_per_proc_list[:proc])
-                # print(self.__col_per_proc_list)
-                if len(key) == 1:
-                    key = [key, slice(0, None)]
                 # need to adjust key[0] to be only on the local tensor
                 # need the number of columns *before* the process
                 if isinstance(key[1], int):
@@ -682,7 +671,6 @@ class SquareDiagTiles:
                     if stop - start > loc_cols:
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
-            # print(key)
             return self.__getitem__(tuple(key))
 
     def local_set(self, key, data, proc=None):
@@ -887,21 +875,36 @@ class SquareDiagTiles:
             # set the row and col indices to be the same
             # in this case the problem is that the
             # case set the cols without any shifting (because split on the base dnd = 0)
-            self.__col_inds = tiles_to_match.__col_inds
             self.__col_per_proc_list = tiles_to_match.__row_per_proc_list  # this matches col to row
-            self.__tile_columns = tiles_to_match.__tile_columns
             # for the rows: need to get the indices and shift the data around
             # can set the row inds but need to make the lshape match after setting them
-            self.__row_inds = tiles_to_match.__row_inds
-            self.__row_per_proc_list = tiles_to_match.__col_per_proc_list  # this matches col to row
-            print(self.__row_inds)
-            print(self.__row_per_proc_list)
+            self.__row_per_proc_list = (
+                tiles_to_match.__col_per_proc_list
+            )  # this matches col to rowl
+
+            # row inds is longer because dim0>1 for match
+            # rows determine the q sizes -> cols = rows
+            self.__col_inds = tiles_to_match.__row_inds.copy()
+            self.__row_inds = tiles_to_match.__row_inds.copy()
+            # next is the number of rows / columns
+            # logic is the same -> both equal to rows
             self.__tile_rows = tiles_to_match.__tile_rows
-            # print(self.__row_inds)
+            self.__tile_columns = tiles_to_match.__tile_rows
+            # rows per proc:
+            # now use columns
+            self.__row_per_proc_list = tiles_to_match.__col_per_proc_list.copy()
+            row_cumsum = torch.cumsum(torch.tensor(self.__row_per_proc_list), dim=0)
+            # the last element needs to be adjusted if the sum is not the total number of rows
+            if row_cumsum[-1] < self.tile_rows:
+                self.__row_per_proc_list[-1] = self.tile_rows - row_cumsum[-2]
+                row_cumsum[-1] = self.tile_rows
+            # cols per proc
+            self.__col_per_proc_list = [self.tile_rows] * base_dnd.comm.size
+
             # if the beginning of the next process is < the lshape of the current process
             # then send the difference (+ update lshape map)
             lshape_cumsum = torch.cumsum(self.lshape_map[..., 0], dim=0)
-            row_cumsum = torch.cumsum(torch.tensor(self.__row_per_proc_list), dim=0)
+
             # print(lshape_cumsum)
             # print(row_cumsum)
             # print(self.__row_inds)
@@ -927,7 +930,7 @@ class SquareDiagTiles:
                     self.lshape_map[pr, base_dnd.split] -= amt
                     lshape_cumsum[pr + 1] -= amt
                     self.lshape_map[pr + 1, base_dnd.split] += amt
-            self.__tile_map = tiles_to_match.tile_map * 0
+            self.__tile_map = torch.zeros((self.tile_rows, self.tile_columns, 3), dtype=torch.int)
             # print(self.tile_rows)
             for i in range(self.tile_rows):
                 self.__tile_map[..., 0][i] = self.__row_inds[i]
@@ -938,11 +941,11 @@ class SquareDiagTiles:
                 self.__tile_map[..., 2][i * scale : (i + 1) * scale] = i
             # to adjust if the last process has more tiles
             i = self.arr.comm.size - 1
-            scale = self.__row_per_proc_list[i]
-            self.__tile_map[..., 2][i * scale :] = i
+            self.__tile_map[..., 2][row_cumsum[i - 1] :] = i
+            self.__row_per_proc_list[-1] = (self.__tile_map.shape[0] - row_cumsum[-2]).item()
             # print(self.__tile_map)
+            # print(self.__row_per_proc_list)
 
-            # print(self.tile_map)
             # self.tile_map[..., 0] = self.__row_inds
             self.__last_diag_pr = base_dnd.comm.size - 1
 
