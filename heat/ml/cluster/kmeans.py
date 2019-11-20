@@ -115,7 +115,6 @@ class KMeans:
             centroids = ht.empty(
                 (X.shape[1], self.n_clusters), split=None, device=X.device, comm=X.comm
             )
-
             if (X.split is None) or (X.split == 0):
                 for i in range(self.n_clusters):
                     samplerange = (
@@ -128,11 +127,11 @@ class KMeans:
                         if displ[p] > sample:
                             break
                         proc = p
-                    xi = ht.zeros(X.shape[1])
+                    xi = ht.zeros(X.shape[1], dtype=X.dtype)
                     if X.comm.rank == proc:
                         idx = sample - displ[proc]
                         xi = ht.array(X.lloc[idx, :], device=X.device, comm=X.comm)
-                    X.comm.Bcast(xi, root=proc)
+                    xi.comm.Bcast(xi, root=proc)
                     centroids[:, i] = xi
 
             else:
@@ -164,7 +163,7 @@ class KMeans:
                     if displ[p] > sample:
                         break
                     proc = p
-                x0 = ht.zeros(X.shape[1], device=X.device, comm=X.comm)
+                x0 = ht.zeros(X.shape[1], dtype=X.dtype, device=X.device, comm=X.comm)
                 if X.comm.rank == proc:
                     idx = sample - displ[proc]
                     x0 = ht.array(X.lloc[idx, :, 0], device=X.device, comm=X.comm)
@@ -190,7 +189,7 @@ class KMeans:
                         if displ[p] > sample:
                             break
                         proc = p
-                    xi = ht.zeros(X.shape[1])
+                    xi = ht.zeros(X.shape[1], dtype=X.dtype)
                     if X.comm.rank == proc:
                         idx = sample - displ[proc]
                         xi = ht.array(X.lloc[idx, :, 0], device=X.device, comm=X.comm)
@@ -199,7 +198,7 @@ class KMeans:
             else:
                 raise NotImplementedError("Not implemented for other splitting-axes")
 
-            self._cluster_centers = centroids.T.expand_dims(axis=0)
+            self._cluster_centers = centroids
 
         else:
             raise ValueError(
