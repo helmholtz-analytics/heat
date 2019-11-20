@@ -741,7 +741,7 @@ class DNDarray:
         if rank == rcv_pr:
             shp = list(self.gshape)
             shp[self.split] = send_amt
-            data = torch.zeros(shp, dtype=snd_dtype)
+            data = torch.zeros(shp, dtype=snd_dtype, device=self.device.torch_device)
             self.comm.Recv(data, source=snd_pr, tag=685)
             if snd_pr < rcv_pr:  # data passed from a lower rank (append to top)
                 self.__array = torch.cat((data, self.__array), dim=self.split)
