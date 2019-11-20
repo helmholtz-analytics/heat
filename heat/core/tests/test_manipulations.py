@@ -368,9 +368,23 @@ class TestManipulations(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.diag(a, offset=None)
 
+        a = ht.arange(size)
+        with self.assertRaises(ValueError):
+            ht.diag(a, offset="3")
+
         a = ht.empty([])
         with self.assertRaises(ValueError):
             ht.diag(a)
+
+        if rank == 0:
+            data = torch.ones(size, dtype=torch.int32)
+        else:
+            data = torch.empty(0, dtype=torch.int32)
+        a = ht.array(data, is_split=0)
+        res = ht.diag(a)
+        self.assertTrue(
+            torch.equal(res[rank, rank]._DNDarray__array, torch.tensor(1, dtype=torch.int32))
+        )
 
     def test_diagonal(self):
         size = ht.MPI_WORLD.size
