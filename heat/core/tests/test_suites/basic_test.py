@@ -1,7 +1,5 @@
 from unittest import TestCase
 
-from py._log import warning
-
 from heat.core import dndarray, MPICommunication, MPI, types, factories
 import heat as ht
 
