@@ -382,15 +382,17 @@ def diag(a, offset=0):
     off, lshape, _ = a.comm.chunk(gshape, a.split)
 
     # This ensures that the data is on the correct nodes
-    padding = factories.empty(
-        (abs(offset),), dtype=a.dtype, split=None, device=a.device, comm=a.comm
-    )
     if offset > 0:
+        padding = factories.empty(
+            (offset,), dtype=a.dtype, split=None, device=a.device, comm=a.comm
+        )
         a = concatenate((a, padding))
-    else:
+    elif offset < 0:
+        padding = factories.empty(
+            (abs(offset),), dtype=a.dtype, split=None, device=a.device, comm=a.comm
+        )
         a = concatenate((padding, a))
     if not a.is_balanced():
-        warnings.warn("Unbalanced array - will now be balanced")
         a.balance_()
 
     if offset > 0:
@@ -487,7 +489,6 @@ def diagonal(a, offset=0, dim1=0, dim2=1):
         vz = 1 if a.split == dim1 else -1
         off, _, _ = a.comm.chunk(a.shape, a.split)
         result = torch.diagonal(a._DNDarray__array, offset=offset + vz * off, dim1=dim1, dim2=dim2)
-
     return dndarray.DNDarray(result, shape, a.dtype, split, a.device, a.comm)
 
 

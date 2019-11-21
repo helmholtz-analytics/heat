@@ -1,9 +1,10 @@
-import unittest
+import numpy as np
 import torch
 import heat as ht
+from heat.core.tests.test_suites.basic_test import BasicTest
 
 
-class TestManipulations(unittest.TestCase):
+class TestManipulations(BasicTest):
     def test_concatenate(self):
         # cases to test:
         # Matrices / Vectors
@@ -385,6 +386,7 @@ class TestManipulations(unittest.TestCase):
         self.assertTrue(
             torch.equal(res[rank, rank]._DNDarray__array, torch.tensor(1, dtype=torch.int32))
         )
+        self.fail()
 
     def test_diagonal(self):
         size = ht.MPI_WORLD.size
@@ -557,6 +559,31 @@ class TestManipulations(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             ht.diagonal(data)
+
+        self.assert_func_equal(
+            (5, 5, 5),
+            heat_func=ht.diagonal,
+            numpy_func=np.diagonal,
+            heat_args={"dim1": 0, "dim2": 2},
+            numpy_args={"axis1": 0, "axis2": 2},
+        )
+
+        self.assert_func_equal(
+            (5, 4, 3, 2),
+            heat_func=ht.diagonal,
+            numpy_func=np.diagonal,
+            heat_args={"dim1": 1, "dim2": 2},
+            numpy_args={"axis1": 1, "axis2": 2},
+        )
+
+        self.assert_func_equal(
+            (4, 6, 3),
+            heat_func=ht.diagonal,
+            numpy_func=np.diagonal,
+            heat_args={"dim1": 0, "dim2": 1},
+            numpy_args={"axis1": 0, "axis2": 1},
+        )
+        self.fail()
 
     def test_expand_dims(self):
         # vector data
