@@ -58,6 +58,7 @@ class SquareDiagTiles:
         __DNDarray = arr : DNDarray
             the whole DNDarray
         __lshape_map : torch.Tensor
+            unit -> [rank, row size, column size]
             tensor filled with the shapes of the local tensors
         __tile_map : torch.Tensor
             units -> row, column, start index in each direction, process
@@ -91,13 +92,14 @@ class SquareDiagTiles:
             min(arr.gshape) - lshape_map[..., arr.split].cumsum(dim=0)[last_diag_pr - 1]
         )  # end of the process before the split
         last_tile_cols = tile_per_proc
-        while (
-            rem_cols_last_pr / last_tile_cols < 2
-        ):  # todo: determine best value for this (prev at 10)
-            # if there cannot be tiles formed which are at list ten items large then need to reduce the number of tiles
+        while rem_cols_last_pr / last_tile_cols < 2:
+            # todo: determine best value for this (prev at 2)
+            # if there cannot be tiles formed which are at list ten items larger than 2
+            #   then need to reduce the number of tiles
             last_tile_cols -= 1
             if last_tile_cols == 1:
                 break
+
         # create lists of columns and rows for each process
         col_per_proc_list = [tile_per_proc] * (last_diag_pr.item() + 1)
         col_per_proc_list[-1] = last_tile_cols
@@ -124,7 +126,8 @@ class SquareDiagTiles:
         total_tile_rows = tile_per_proc * arr.comm.size
         row_inds = [0] * total_tile_rows
         for c, x in enumerate(col_inds):
-            # set the row indices to be the same for all of the column indices (however many there are)
+            # set the row indices to be the same for all of the column indices
+            #   (however many there are)
             row_inds[c] = x
 
         if arr.gshape[0] < arr.gshape[1] and arr.split == 0:
@@ -190,14 +193,12 @@ class SquareDiagTiles:
                 row_inds[-1] = arr.gshape[0] - sum(row_inds[:-1])
 
         tile_map = torch.zeros([len(row_inds), len(col_inds), 3], dtype=torch.int)
-        # units -> row, column, start index in each direction, process
         # if arr.split == 0:  # adjust the 1st dim to be the cumsum
         col_inds = [0] + col_inds[:-1]
         col_inds = torch.tensor(col_inds).cumsum(dim=0)
         # if arr.split == 1:  # adjust the 0th dim to be the cumsum
         row_inds = [0] + row_inds[:-1]
         row_inds = torch.tensor(row_inds).cumsum(dim=0)
-        # print(row_inds, len(row_inds))
 
         for num, c in enumerate(col_inds):  # set columns
             tile_map[:, num, 1] = c
@@ -231,7 +232,6 @@ class SquareDiagTiles:
             # set the rest of the ranks
             st = tile_per_proc * last_diag_pr + last_diag_pr_rows
             for p in range(arr.comm.size - last_diag_pr.item() + 1):
-                # print('here', st)
                 tile_map[:, st : st + tile_per_proc * (p + 1), 2] = p + last_diag_pr.item() + 1
                 st += tile_per_proc
 
@@ -260,7 +260,6 @@ class SquareDiagTiles:
             row_per_proc_list if arr.split == 0 else [len(row_inds)] * len(row_per_proc_list)
         )
         self.__tile_map = tile_map
-        # print(type(row_inds), t?ype(col_inds))
         self.__row_inds = list(row_inds)
         self.__col_inds = list(col_inds)
         self.__tile_columns = len(col_inds)
@@ -344,86 +343,6 @@ class SquareDiagTiles:
         """
         return self.__row_per_proc_list
 
-    # todo: use dummy class to get square bracket availability
-    def async_get(self, key, dest):
-        """
-        Call to get a tile and then send it to the specified process (dest) using Send and Irecv
-
-        :param key:
-        :param dest:
-        :return:
-        """
-        tile = self.__getitem__(key)
-        comm = self.__DNDarray.comm
-        src = self.tile_map[key][..., 2].unique().item()
-        if tile is not None:  # this will only be on one process (required by getitem)
-            comm.isend(tile.clone(), dest=dest)
-        if comm.rank == dest:
-            ret = comm.irecv(source=src)
-            return ret
-        else:
-            return tile
-
-    def async_set(self, key, data, home):
-        """
-        Function to set the specified tile's values on the original tile's process
-
-        :param key:
-        :param data:
-        :param home:
-        :return:
-        """
-        tile = self.__getitem__(key)
-        comm = self.__DNDarray.comm
-        dest = self.get_tile_proc(key)
-        if data is not None:  # this will only be on one process (required by getitem)
-            comm.isend(data.copy(), dest=dest)
-        if comm.rank == dest:
-            ret = comm.recv(source=home)
-            tile.__setitem__(slice(None), ret)
-
-    def convert_local_key_to_global(self, key, proc):
-        """
-        conver a key from local indices to global indices
-        :param key: key to convert
-        :param proc: process on which the key is indended for
-        :return:
-        """
-        arr = self.__DNDarray
-        # need to convert the key into local indices -> only done on the split dimension
-        key = list(key)
-        if len(key) == 1:
-            key = [key, slice(0, arr.gshape[1])]
-
-        if arr.split == 0:
-            # need to adjust key[0] to be only on the local tensor
-            prev_rows = sum(self.__row_per_proc_list[:proc])
-            loc_rows = self.__row_per_proc_list[proc]
-            if isinstance(key[0], int):
-                key[0] += prev_rows
-            elif isinstance(key[0], slice):
-                start = key[0].start + prev_rows if key[0].start is not None else prev_rows
-                stop = key[0].stop + prev_rows if key[0].stop is not None else start + loc_rows
-                if stop - start > loc_rows:
-                    stop = start + loc_rows
-                key[0] = slice(start, stop)
-        if arr.split == 1:
-            # need to adjust key[0] to be only on the local tensor
-            # need the number of columns *before* the process
-            # todo: adjust slices in split=1 case
-            prev_cols = sum(self.__col_per_proc_list[:proc])
-            loc_cols = self.__col_per_proc_list[proc]
-            if isinstance(key[1], int):
-                key[1] += prev_cols
-            elif isinstance(key[1], slice):
-                start = key[1].start + prev_cols
-                stop = key[1].stop + prev_cols
-                if stop - start > loc_cols:
-                    stop = start + loc_cols
-                key[1] = slice(start, stop)
-
-        return tuple(key)
-
     def get_start_stop(self, key):
         """
         NOTE: this uses global indices!
@@ -439,13 +358,11 @@ class SquareDiagTiles:
         -------
         tuple : dim0 start, dim0 stop, dim1 start, dim1 stop
         """
-        # todo: change this to use the row/col indices
         # default getitem will return the data in the array!!
         # this is intended to return tiles which are local.
         # it will return torch.Tensors which correspond to the tiles of the array
         # this is a global getter, if the tile is not on the process then it will return None
         split = self.__DNDarray.split
-        # print(key)
         pr = self.tile_map[key][..., 2].unique()
         if pr.numel() > 1:
             raise ValueError("Tile/s must be located on one process. currently on: {}".format(pr))
@@ -512,18 +429,16 @@ class SquareDiagTiles:
             A local selection of the DNDarray corresponding to the tile/s desired
         """
         # default getitem will return the data in the array!!
-        # this is intended to return tiles which are local. it will return torch.Tensors which correspond to the tiles of the array
+        # this is intended to return tiles which are local.
+        # it will return torch.Tensors which correspond to the tiles of the array
         arr = self.__DNDarray
         tile_map = self.__tile_map
         local_arr = self.__DNDarray._DNDarray__array
-        # print(key)
         if tile_map[key][..., 2].unique().nelement() > 1:
-            # print(key)
             raise ValueError("Slicing across splits is not allowed")
         if tile_map[key][..., 2].unique().nelement() == 0:
             return None
         if arr.comm.rank != tile_map[key][..., 2].unique():
-            # print('here', key)
             return None
 
         if not isinstance(key, (int, tuple, list, slice)):
@@ -579,51 +494,6 @@ class SquareDiagTiles:
         # print('getitem end', st0, sp0, st1, sp1)
         return local_arr[st0:sp0, st1:sp1]
 
-    def local_get_async(self, key, src, dest):
-        """
-        this should be renamed... it doesnt correspond with the local get function
-        This function sends the tile on src with the local indices given by the key
-        :param key:
-        :param src:
-        :param dest:
-        :return:
-        """
-        # note: this uses local indices!
-        if not isinstance(src, int):
-            try:
-                src = src.item()
-            except AttributeError:
-                raise TypeError(
-                    "src must be an int or a single element tensor, "
-                    "is currently {}".format(type(src))
-                )
-        if not isinstance(dest, int):
-            try:
-                dest = dest.item()
-            except AttributeError:
-                raise TypeError(
-                    "dest must be an int or a single element tensor"
-                    ", is currently {}".format(type(src))
-                )
-        if not src < self.__DNDarray.comm.size or not dest < self.__DNDarray.comm.size:
-            raise ValueError(
-                "src and dest must be less than the size, "
-                "currently {} and {} respectively".format(src, dest)
-            )
-
-        key = self.convert_local_key_to_global(key, proc=src)
-
-        comm = self.__DNDarray.comm
-        tile = self[key].clone() if comm.rank == src else None
-        sz = self.get_tile_size(key=key)
-        if comm.rank == src:  # this will only be on one process (required by getitem)
-            comm.Isend(tile, dest=dest, tag=int("2222" + str(src) + str(dest)))
-            return tile, None
-        if comm.rank == dest:
-            hld = torch.zeros(sz)
-            wait = comm.Irecv(hld, source=src, tag=int("2222" + str(src) + str(dest)))
-            return hld, wait
-
     def local_get(self, key, proc=None):
         """
         get the tile corresponding to the local indices given in the key
@@ -632,11 +502,9 @@ class SquareDiagTiles:
         :return:
         """
         # this is to be used with only local indices!
-        # convert from local to global
         proc = proc if proc is not None else self.__DNDarray.comm.rank
         if proc == self.__DNDarray.comm.rank:
             arr = self.__DNDarray
-            # need to convert the key into local indices -> only done on the split dimension
             if isinstance(key, (int, slice)):
                 key = [key, slice(0, None)]
             else:
@@ -653,11 +521,8 @@ class SquareDiagTiles:
                     stop = (
                         key[0].stop + prev_rows if key[0].stop is not None else prev_rows + loc_rows
                     )
-                    # print(start, prev_rows, loc_rows, stop)
                     if stop - start > loc_rows:
-                        # print(local_tile_map)
                         stop = start + loc_rows
-                    # print(start, stop)
                     key[0] = slice(start, stop)
 
             if arr.split == 1:
@@ -685,17 +550,9 @@ class SquareDiagTiles:
         :return:
         """
         # this is to be used with only local indices!
-        # convert from local to global?
         proc = proc if proc is not None else self.__DNDarray.comm.rank
         if proc == self.__DNDarray.comm.rank:
             arr = self.__DNDarray
-            # rank_slice = torch.where(tile_map[..., 2] == proc)
-            # lcl_tile_map = tile_map[rank_slice]
-            # print(self.tile_columns_per_process)
-            # need to convert the key into local indices -> only done on the split dimension
-            # key = list(key)
-            # key = [key, slice(0, arr.gshape[1])] if len(key) == 1 else key
-
             if isinstance(key, (int, slice)):
                 key = [key, slice(0, None)]
             else:
@@ -730,7 +587,6 @@ class SquareDiagTiles:
                     if stop - start > loc_cols:
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
-            # print(key)
             self.__getitem__(tuple(key)).__setitem__(slice(0, None), data)
 
     def match_tiles(self, tiles_to_match):
@@ -915,11 +771,6 @@ class SquareDiagTiles:
 
             # if the beginning of the next process is < the lshape of the current process
             # then send the difference (+ update lshape map)
-            lshape_cumsum = torch.cumsum(self.lshape_map[..., 0], dim=0)
-
-            # print(lshape_cumsum)
-            # print(row_cumsum)
-            # print(self.__row_inds)
             for pr in range(base_dnd.comm.size - 1):
                 lshape_cumsum = torch.cumsum(self.lshape_map[..., 0], dim=0)
                 if lshape_cumsum[pr] > self.__row_inds[row_cumsum[pr]]:
@@ -940,7 +791,6 @@ class SquareDiagTiles:
                     self.lshape_map[pr, base_dnd.split] -= amt
                     self.lshape_map[pr + 1, base_dnd.split] += amt
             self.__tile_map = torch.zeros((self.tile_rows, self.tile_columns, 3), dtype=torch.int)
-            # print(self.tile_rows)
             for i in range(self.tile_rows):
                 self.__tile_map[..., 0][i] = self.__row_inds[i]
             for i in range(self.tile_columns):
@@ -952,14 +802,7 @@ class SquareDiagTiles:
             i = self.arr.comm.size - 1
             self.__tile_map[..., 2][row_cumsum[i - 1] :] = i
             self.__row_per_proc_list[-1] = (self.__tile_map.shape[0] - row_cumsum[-2]).item()
-            # print(self.__tile_map)
-            # print(self.__row_per_proc_list)
-
-            # self.tile_map[..., 0] = self.__row_inds
             self.__last_diag_pr = base_dnd.comm.size - 1
-            # print(self.lshape_map)
-            # print(tiles_to_match.lshape_map)
-            # print(self.arr.lshape)
 
     def overwrite_arr(self, arr):
         """
