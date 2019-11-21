@@ -673,17 +673,23 @@ class DNDarray:
         chunk_cumsum = torch.cat(
             (torch.tensor([0]), torch.cumsum(chunk_map[..., self.split], dim=0)), dim=0
         )
-        data_start = torch.nonzero(lshape_map[..., self.split])
-        data_start = data_start[0].item() if data_start.numel() > 0 else 0
         # need the data start as well for process 0
-        for rcv_pr in range(self.comm.size):
+        for rcv_pr in range(self.comm.size - 1):
             st = chunk_cumsum[rcv_pr].item()
             sp = chunk_cumsum[rcv_pr + 1].item()
-            hld = torch.nonzero(st <= lshape_cumsum[rcv_pr:]).flatten() + rcv_pr
-            st_pr = hld[0].item() if hld.numel() > 0 else -1
-            st_pr = st_pr if rcv_pr != 0 else data_start
-            hld = torch.nonzero(sp <= lshape_cumsum[rcv_pr:]).flatten() + rcv_pr
-            sp_pr = hld[0].item() if hld.numel() > 0 else self.comm.size
+            # start pr should be the next process with data
+            if lshape_map[rcv_pr, self.split] >= chunk_map[rcv_pr, self.split]:
+                # if there is more data on the process than the start process than start == stop
+                st_pr = rcv_pr
+                sp_pr = rcv_pr
+            else:
+                # if there is less data on the process than need to get the data from the next data
+                # with data
+                # need processes > rcv_pr with lshape > 0
+                st_pr = torch.nonzero(lshape_map[rcv_pr:, self.split] > 0)[0].item() + rcv_pr
+                hld = torch.nonzero(sp <= lshape_cumsum[rcv_pr:]).flatten() + rcv_pr
+                sp_pr = hld[0].item() if hld.numel() > 0 else self.comm.size
+
             # st_pr and sp_pr are the processes on which the data sits at the beginning
             # need to loop from st_pr to sp_pr + 1 and send the pr
             for snd_pr in range(st_pr, sp_pr + 1):
@@ -710,7 +716,7 @@ class DNDarray:
                 # if there is any data left on the process then send it to the next one
                 send_amt = lshape_map[rcv_pr, self.split] - chunk_map[rcv_pr, self.split]
                 self.__balance_shuffle(
-                    snd_pr=rcv_pr, send_amt=send_amt, rcv_pr=rcv_pr + 1, snd_dtype=snd_dtype
+                    snd_pr=rcv_pr, send_amt=send_amt.item(), rcv_pr=rcv_pr + 1, snd_dtype=snd_dtype
                 )
                 lshape_cumsum[rcv_pr] -= send_amt
                 lshape_cumsum[rcv_pr + 1] += send_amt
