@@ -386,7 +386,6 @@ class TestManipulations(BasicTest):
         self.assertTrue(
             torch.equal(res[rank, rank]._DNDarray__array, torch.tensor(1, dtype=torch.int32))
         )
-        self.fail()
 
     def test_diagonal(self):
         size = ht.MPI_WORLD.size
@@ -583,7 +582,6 @@ class TestManipulations(BasicTest):
             heat_args={"dim1": 0, "dim2": 1},
             numpy_args={"axis1": 0, "axis2": 1},
         )
-        self.fail()
 
     def test_expand_dims(self):
         # vector data
