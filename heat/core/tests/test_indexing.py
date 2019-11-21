@@ -4,11 +4,11 @@ import heat as ht
 import torch
 
 if os.environ.get("DEVICE") == "gpu":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     ht.use_device("gpu" if torch.cuda.is_available() else "cpu")
+    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
 else:
-    device = torch.device("cpu")
     ht.use_device("cpu")
+device = ht.get_device().torch_device
 
 
 class TestIndexing(unittest.TestCase):

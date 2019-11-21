@@ -1,6 +1,14 @@
+import os
 import heat as ht
 import numpy as np
 import torch
+
+if os.environ.get("DEVICE") == "gpu":
+    ht.use_device("gpu" if torch.cuda.is_available() else "cpu")
+    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
+else:
+    ht.use_device("cpu")
+device = ht.get_device().torch_device
 
 from heat.core.tests.test_suites.basic_test import BasicTest
 

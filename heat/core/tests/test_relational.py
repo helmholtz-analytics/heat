@@ -2,7 +2,12 @@ import unittest
 import os
 import heat as ht
 
-ht.use_device(os.environ.get("DEVICE"))
+if os.environ.get("DEVICE") == "gpu":
+    ht.use_device("gpu" if ht.torch.cuda.is_available() else "cpu")
+    ht.torch.cuda.set_device(ht.torch.device(ht.get_device().torch_device))
+else:
+    ht.use_device("cpu")
+device = ht.get_device().torch_device
 
 
 class TestRelational(unittest.TestCase):

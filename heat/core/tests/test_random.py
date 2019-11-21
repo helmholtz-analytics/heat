@@ -6,7 +6,12 @@ import torch
 import heat as ht
 import numpy as np
 
-ht.use_device(os.environ.get("DEVICE"))
+if os.environ.get("DEVICE") == "gpu":
+    ht.use_device("gpu" if torch.cuda.is_available() else "cpu")
+    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
+else:
+    ht.use_device("cpu")
+device = ht.get_device().torch_device
 
 
 class TestRandom(unittest.TestCase):
