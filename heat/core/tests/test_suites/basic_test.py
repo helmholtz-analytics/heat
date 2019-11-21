@@ -1,4 +1,7 @@
 from unittest import TestCase
+
+from py._log import warning
+
 from heat.core import dndarray, MPICommunication, MPI, types, factories
 import heat as ht
 
@@ -89,6 +92,12 @@ class BasicTest(TestCase):
                 heat_array.shape, expected_array.shape
             ),
         )
+
+        if not heat_array.is_balanced():
+            # Array is distributed correctly
+            print("Heat array is unbalanced, balancing now")
+            heat_array.balance_()
+
         split = heat_array.split
         offset, local_shape, slices = heat_array.comm.chunk(heat_array.gshape, split)
         self.assertEqual(
@@ -99,7 +108,6 @@ class BasicTest(TestCase):
         )
         local_numpy = heat_array._DNDarray__array.numpy()
 
-        # Array is distributed correctly
         equal_res = np.array(compare_func(local_numpy, expected_array[slices]))
         self.comm.Allreduce(MPI.IN_PLACE, equal_res, MPI.LAND)
         self.assertTrue(equal_res, "Local tensors do not match the corresponding numpy slices.")
@@ -211,6 +219,7 @@ class BasicTest(TestCase):
 
     def _create_random_array(self, shape):
         seed = np.random.randint(1000000, size=(1,))
+        print("using seed {} for random values".format(seed))
         self.comm.Bcast(seed, root=0)
         np.random.seed(seed=seed.item())
         array = np.random.randn(*shape)
