@@ -445,7 +445,10 @@ class SquareDiagTiles:
         # it will return torch.Tensors which correspond to the tiles of the array
         # this is a global getter, if the tile is not on the process then it will return None
         split = self.__DNDarray.split
+        # print(key)
         pr = self.tile_map[key][..., 2].unique()
+        if pr.numel() > 1:
+            raise ValueError("Tile/s must be located on one process. currently on: {}".format(pr))
         row_inds = self.row_indices + [self.__DNDarray.gshape[0]]
         col_inds = self.col_indices + [self.__DNDarray.gshape[1]]
         row_start = row_inds[sum(self.tile_rows_per_process[:pr]) if split == 0 else 0]
@@ -515,11 +518,12 @@ class SquareDiagTiles:
         local_arr = self.__DNDarray._DNDarray__array
         # print(key)
         if tile_map[key][..., 2].unique().nelement() > 1:
-            print(key)
+            # print(key)
             raise ValueError("Slicing across splits is not allowed")
         if tile_map[key][..., 2].unique().nelement() == 0:
             return None
         if arr.comm.rank != tile_map[key][..., 2].unique():
+            # print('here', key)
             return None
 
         if not isinstance(key, (int, tuple, list, slice)):
@@ -689,8 +693,13 @@ class SquareDiagTiles:
             # lcl_tile_map = tile_map[rank_slice]
             # print(self.tile_columns_per_process)
             # need to convert the key into local indices -> only done on the split dimension
-            key = list(key)
-            key = [key, slice(0, arr.gshape[1])] if len(key) == 1 else key
+            # key = list(key)
+            # key = [key, slice(0, arr.gshape[1])] if len(key) == 1 else key
+
+            if isinstance(key, (int, slice)):
+                key = [key, slice(0, None)]
+            else:
+                key = list(key)
 
             if arr.split == 0:
                 # need to adjust key[0] to be only on the local tensor
@@ -700,7 +709,9 @@ class SquareDiagTiles:
                     key[0] += prev_rows
                 elif isinstance(key[0], slice):
                     start = key[0].start + prev_rows if key[0].start is not None else prev_rows
-                    stop = key[0].stop + prev_rows if key[0].stop is not None else start + loc_rows
+                    stop = (
+                        key[0].stop + prev_rows if key[0].stop is not None else prev_rows + loc_rows
+                    )
                     if stop - start > loc_rows:
                         stop = start + loc_rows
                     key[0] = slice(start, stop)
@@ -719,6 +730,7 @@ class SquareDiagTiles:
                     if stop - start > loc_cols:
                         stop = start + loc_cols
                     key[1] = slice(start, stop)
+            # print(key)
             self.__getitem__(tuple(key)).__setitem__(slice(0, None), data)
 
     def match_tiles(self, tiles_to_match):
@@ -871,7 +883,7 @@ class SquareDiagTiles:
             self.__tile_columns = tiles_to_match.__tile_columns
             self.__tile_rows = tiles_to_match.__tile_rows
 
-        if base_dnd.gshape != match_dnd.gshape and base_dnd.split == 0 and match_dnd.split == 1:
+        if base_dnd.split == 0 and match_dnd.split == 1:
             # set the row and col indices to be the same
             # in this case the problem is that the
             # case set the cols without any shifting (because split on the base dnd = 0)
@@ -909,26 +921,23 @@ class SquareDiagTiles:
             # print(row_cumsum)
             # print(self.__row_inds)
             for pr in range(base_dnd.comm.size - 1):
-                # print(lshape_cumsum[pr], self.__row_inds[row_cumsum[pr]])
+                lshape_cumsum = torch.cumsum(self.lshape_map[..., 0], dim=0)
                 if lshape_cumsum[pr] > self.__row_inds[row_cumsum[pr]]:
                     # send the difference to the next pr
                     amt = lshape_cumsum[pr] - self.__row_inds[row_cumsum[pr]]
                     if base_dnd.comm.rank == pr:
                         # the slice can be hardcoded (splits are fixed)
-                        amt *= -1
-                        data = base_dnd._DNDarray__array[amt:].clone()
+                        amt_n = amt * -1
+                        data = base_dnd._DNDarray__array[amt_n:].clone()
                         base_dnd.comm.Send(data, dest=pr + 1, tag=int("6" + str(pr) + str(pr + 1)))
-                        base_dnd._DNDarray__array = base_dnd._DNDarray__array[:amt]
+                        base_dnd._DNDarray__array = base_dnd._DNDarray__array[:amt_n]
                     if base_dnd.comm.rank == pr + 1:
-                        amt = lshape_cumsum[pr] - self.__row_inds[row_cumsum[pr]]
                         buf = torch.empty(amt, base_dnd.gshape[1])
                         base_dnd.comm.Recv(buf, source=pr, tag=int("6" + str(pr) + str(pr + 1)))
                         base_dnd._DNDarray__array = torch.cat(
                             (buf, base_dnd._DNDarray__array), dim=0
                         )
-                    lshape_cumsum[pr] -= amt
                     self.lshape_map[pr, base_dnd.split] -= amt
-                    lshape_cumsum[pr + 1] -= amt
                     self.lshape_map[pr + 1, base_dnd.split] += amt
             self.__tile_map = torch.zeros((self.tile_rows, self.tile_columns, 3), dtype=torch.int)
             # print(self.tile_rows)
@@ -948,6 +957,9 @@ class SquareDiagTiles:
 
             # self.tile_map[..., 0] = self.__row_inds
             self.__last_diag_pr = base_dnd.comm.size - 1
+            # print(self.lshape_map)
+            # print(tiles_to_match.lshape_map)
+            # print(self.arr.lshape)
 
     def overwrite_arr(self, arr):
         """
