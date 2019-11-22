@@ -131,7 +131,17 @@ def arange(*args, dtype=None, split=None, device=None, comm=None):
     return dndarray.DNDarray(data, gshape, htype, split, device, comm)
 
 
-def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device=None, comm=None):
+def array(
+    obj,
+    dtype=None,
+    copy=True,
+    ndmin=0,
+    order="C",
+    split=None,
+    is_split=None,
+    device=None,
+    comm=None,
+):
     """
     Create a tensor.
     Parameters
@@ -149,6 +159,17 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     ndmin : int, optional
         Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be
         attached to the shape if  ndim>0  and prefaced in case of ndim<0 to meet the requirement.
+    order: str, optional
+            #TODO: make sure all options are covered
+            Specify the memory layout of the array. If object is not an array, the newly created array will be in C order (row major) unless ‘F’ is specified, in which case it will be in Fortran order (column major). If object is an array the following holds.
+            order 	no copy 	copy=True
+            #TODO‘K’ 	unchanged 	F & C order preserved, otherwise most similar order
+            #TODO‘A’ 	unchanged 	F order if input is F and not C, otherwise C order
+            #TODO‘C’ 	C order 	C order
+            #TODO‘F’ 	F order 	F order
+
+            #TODO: When copy=False and a copy is made for other reasons, the result is the same as if copy=True, with some exceptions for A, see the Notes section. The default order is ‘K’.
+
     split : None or int, optional
         The axis along which the passed array content obj is split and distributed in memory. Mutually exclusive with
         is_split.
@@ -198,6 +219,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     (1/2) >>> ht.array([3, 4], is_split=0)
     (0/2) tensor([1, 2, 3, 4])
     (1/2) tensor([1, 2, 3, 4])
+
+    #TODO: example with C or F order
     """
     # extract the internal tensor in case of a heat tensor
     if isinstance(obj, dndarray.DNDarray):
@@ -210,7 +233,9 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     # initialize the array
     if bool(copy):
         if isinstance(obj, torch.Tensor):
+            print("BEFORE CLONE.DETACH: ", obj.storage())
             obj = obj.clone().detach()
+            print("AFTER CLONE.DETACH: ", obj.storage())
         else:
             try:
                 obj = torch.tensor(obj, dtype=dtype.torch_type() if dtype is not None else None)
@@ -245,6 +270,22 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     # determine the local and the global shape, if not split is given, they are identical
     lshape = np.array(obj.shape)
     gshape = lshape.copy()
+
+    # assign memory layout before splitting
+    print("ORIGINAL LAYOUT: ", obj, obj.storage(), obj.stride())
+    if order == "F" and obj.stride()[0] != 1:
+        print("CALCULATING NEW_STRIDE")
+        # column-major memory layout
+        new_stride = (1,) + tuple(
+            np.prod(gshape[-len(gshape) : -len(gshape) + i]) for i in range(1, len(gshape))
+        )
+        dims = list(range(obj.ndim))
+        dims[0], dims[-1] = dims[-1], dims[0]
+        permutation = tuple(dims)
+        obj = obj.permute(permutation).contiguous()
+        obj = obj.set_(obj.storage(), obj.storage_offset(), tuple(gshape), new_stride)
+
+    print("MODIFIED LAYOUT: ", obj, obj.storage(), obj.stride())
 
     # content shall be split, chunk the passed data object up
     if split is not None:
