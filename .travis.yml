@@ -7,15 +7,13 @@ services:
 
 before_install:
   - pip install codecov
-  - docker pull markusgoetz/heat
+  - docker pull simonsdockerid/heat
   - docker run -dt --name unittest -v $PWD:/heat markusgoetz/heat
   - pip install pre-commit
 
 install:
   - pre-commit run --all-files
   - docker exec -t unittest /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf] && pip list'
-  # See https://github.com/open-mpi/ompi/issues/4948 for more information
-  - docker exec -t unittest /bin/bash -c 'export OMPI_MCA_btl_vader_single_copy_mechanism=none'
 
 script:
   # Running multiple mpi process count, generate a unique coverage report for each one and merge into one report
