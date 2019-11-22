@@ -658,24 +658,17 @@ class SquareDiagTiles:
             self_diag_end = sum(
                 self.lshape_map[: tiles_to_match.last_diagonal_process + 1][..., base_dnd.split]
             )
-            # print(match_diag_end, self_lshape)
-
-            # match_end = sum(match_lshape[..., base_dnd.split])
             # below only needs to run if there is enough space for another block (>=2 entries)
             # and only if the last diag pr is not the last one
             if (
                 tiles_to_match.last_diagonal_process != base_dnd.comm.size - 1
                 and base_dnd.split == 0
             ):
-                # print('here', self_diag_end, match_diag_end)
                 if self_diag_end - match_diag_end >= 2:
                     new_row_inds.insert(last_col_row, match_diag_end)
                     new_rows[tiles_to_match.last_diagonal_process] += 1
-                    # new_col_inds = new_row_inds.copy()
                 if self_diag_end - match_end_dim < 2:
                     new_row_inds[last_col_row] = match_diag_end
-                    # new_row_inds.insert(last_col_row - 1, torch.tensor(match_end))
-                    # new_rows[tiles_to_match.last_diagonal_process] += 1
                 new_col_inds = new_row_inds.copy()
 
             if (
@@ -694,7 +687,6 @@ class SquareDiagTiles:
             new_tile_map[0][..., 1] = 1
             proc_list = torch.cumsum(torch.tensor(new_rows), dim=0)
             pr, pr_hold = 0, 0
-            # print(new_rows, new_col_inds)
             for c in range(sum(new_rows)):
                 new_tile_map[..., 1][c] = torch.tensor(new_col_inds)
                 new_tile_map[c][..., 0] = new_col_inds[c]
@@ -712,7 +704,7 @@ class SquareDiagTiles:
             self.__col_inds = new_col_inds
             self.__tile_columns = len(new_col_inds)
             self.__tile_rows = len(new_row_inds)
-        # case for different splits:
+
         if (
             base_dnd.split != tiles_to_match.__DNDarray.split
             and base_dnd.shape == tiles_to_match.__DNDarray.shape

@@ -773,16 +773,16 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
 
 
 def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
+    if not isinstance(a, dndarray.DNDarray):
+        raise TypeError("'a' must be a DNDarray")
     if not overwrite_a:
         a = a.copy()
-    # for R calc need to do it all like TSQR
     # do comm when applying the Q to the trailing matrix
     a_tiles = tiling.SquareDiagTiles(
         a, tile_per_proc=tiles_per_proc
     )  # type: tiling.SquareDiagTiles
     tile_columns = a_tiles.tile_columns
     tile_rows = a_tiles.tile_rows
-    # tile_row_inds = a_tiles.row_indices + [torch.Tensor(a.gshape[0])]
 
     q0 = factories.eye((a.gshape[0], a.gshape[0]), split=0, dtype=a.dtype, comm=a.comm)
     q0_tiles = tiling.SquareDiagTiles(
@@ -792,7 +792,7 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
 
     # loop over the tile columns
     rank = a.comm.rank
-    q_dict = {}
+    # q_dict = {}
     cols_on_proc = torch.cumsum(torch.tensor(a_tiles.tile_columns_per_process), dim=0)
     # ==================================== R Calculation ===========================================
     for dcol in range(tile_columns):  # dcol is the diagonal column
@@ -803,7 +803,7 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         # get the diagonal tile and do qr on it
         # send q to the other processes
         # 1st qr: only on diagonal tile + apply to the row
-        q_dict[dcol] = {}
+        # q_dict[dcol] = {}
         if rank == diag_process:
             q1, r1 = a_tiles[dcol, dcol].qr(some=False)
             a.comm.Bcast(q1.clone(), root=diag_process)
@@ -840,7 +840,6 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
                 )
         del q1
         # ======================== end q calc for single tile QR ==========================
-
         # loop over the rest of the rows, combine the tiles, then apply the result to the rest
         # 2nd step: merged QR on the rows
         diag_tile = a_tiles[dcol, dcol]
@@ -857,7 +856,7 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
                 # send ql to all
                 a.comm.Bcast(ql.clone(), root=diag_process)
                 # save ql
-                q_dict[dcol][row] = [ql, diag_sz]
+                # q_dict[dcol][row] = [ql, diag_sz]
                 # set rs
                 a_tiles[dcol, dcol] = rl[: diag_sz[0]]
                 a_tiles[row, dcol] = rl[diag_sz[0] :]
@@ -919,6 +918,7 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
                     q0_row = q0_tiles.local_get(key=(qrow, slice(dcol, None))).clone()
                     q0_tiles.local_set(key=(qrow, dcol), data=torch.matmul(q0_row, qloop_col_left))
                     q0_tiles.local_set(key=(qrow, row), data=torch.matmul(q0_row, qloop_col_right))
+            del ql
             # ======================== end q calc for merged tile QR ============================
     if not calc_q:
         return None, a_tiles.arr
@@ -940,12 +940,16 @@ def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         raise TypeError("'a' must be a DNDarray")
     if not overwrite_a:
         a = a.copy()
-    a_tiles = tiling.SquareDiagTiles(a, tile_per_proc=tiles_per_proc)
+    a_tiles = tiling.SquareDiagTiles(
+        a, tile_per_proc=tiles_per_proc
+    )  # type: tiling.SquareDiagTiles
     tile_columns = a_tiles.tile_columns
     tile_rows_proc = a_tiles.tile_rows_per_process
 
     q0 = factories.eye((a.gshape[0], a.gshape[0]), split=0, dtype=a.dtype, comm=a.comm)
-    q0_tiles = tiling.SquareDiagTiles(q0, tile_per_proc=tiles_per_proc)
+    q0_tiles = tiling.SquareDiagTiles(
+        q0, tile_per_proc=tiles_per_proc
+    )  # type: tiling.SquareDiagTiles
     q0_tiles.match_tiles(a_tiles)
 
     # loop over the tile columns
@@ -1221,7 +1225,7 @@ def __qr_local_qr_calc(col, rank, a_tiles, local_tile_row, q_dict):
 
     # first is the QR of tiles which lay on the same column as the diagonal
     # first qr is on the tile corresponding with local_tile_row, col
-    base_tile = a_tiles.local_get((local_tile_row, col), proc=rank)
+    base_tile = a_tiles.local_get((local_tile_row, col))
     # print('begin local tqsr', col, len(torch.where(torch.isnan(base_tile))[0]))
     # print(rank, (local_tile_row, col))
     q1, r1 = base_tile.qr(some=False)
@@ -1237,34 +1241,30 @@ def __qr_local_qr_calc(col, rank, a_tiles, local_tile_row, q_dict):
     q_dict[col]["l0"] = [q1, base_tile.shape]
 
     # set the r1 to the tile selected with the key
-    a_tiles.local_set(key=(local_tile_row, col), data=r1, proc=rank)
+    a_tiles.local_set(key=(local_tile_row, col), data=r1)
     if col != a_tiles.tile_columns - 1:
-        base_rest = a_tiles.local_get((local_tile_row, slice(col + 1, None)), proc=rank)
+        base_rest = a_tiles.local_get((local_tile_row, slice(col + 1, None)))
         loc_rest = torch.matmul(q1.T, base_rest.clone())
-        a_tiles.local_set(key=(local_tile_row, slice(col + 1, None)), data=loc_rest, proc=rank)
+        a_tiles.local_set(key=(local_tile_row, slice(col + 1, None)), data=loc_rest)
 
     for d in range(local_tile_row + 1, a_tiles.tile_rows_per_process[rank]):
         # local merge
         # d is the row it is being merged with
-        loop_tile = a_tiles.local_get(key=(d, col), proc=rank)
+        loop_tile = a_tiles.local_get(key=(d, col))
         q_lp, r_lp = torch.cat((base_tile, loop_tile), dim=0).qr(some=False)
         q_dict[col]["l" + str(d)] = [q_lp, base_tile.shape, loop_tile.shape]
 
         # replace the base/loop a_tiles with r, then multiple q_lp by the rest of them
-        loop_rest = a_tiles.local_get((d, slice(col + 1, None)), proc=rank)
+        loop_rest = a_tiles.local_get((d, slice(col + 1, None)))
         loop_rest_q = torch.matmul(q_lp.t(), torch.cat((base_rest, loop_rest), dim=0))
         # set r in both
-        a_tiles.local_set(key=(local_tile_row, col), data=r_lp[: base_tile.shape[0]], proc=rank)
-        a_tiles.local_set(key=(d, col), data=r_lp[base_tile.shape[0] :], proc=rank)
+        a_tiles.local_set(key=(local_tile_row, col), data=r_lp[: base_tile.shape[0]])
+        a_tiles.local_set(key=(d, col), data=r_lp[base_tile.shape[0] :])
         # set rest in both
         a_tiles.local_set(
-            key=(local_tile_row, slice(col + 1, None)),
-            data=loop_rest_q[: base_tile.shape[0]],
-            proc=rank,
+            key=(local_tile_row, slice(col + 1, None)), data=loop_rest_q[: base_tile.shape[0]]
         )
-        a_tiles.local_set(
-            key=(d, slice(col + 1, None)), data=loop_rest_q[base_tile.shape[0] :], proc=rank
-        )
+        a_tiles.local_set(key=(d, slice(col + 1, None)), data=loop_rest_q[base_tile.shape[0] :])
 
 
 def __qr_local_q_merge(q_dict_local, col, a_tiles, rank):
