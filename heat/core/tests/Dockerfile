@@ -12,4 +12,5 @@ RUN python3 -m venv ~/.virtualenvs/heat && \
 
 RUN echo "cd /heat && \
     . ~/.virtualenvs/heat/bin/activate && \
-    module load mpi" >> /root/.bashrc
+    module load mpi && \
+    export OMPI_MCA_btl_vader_single_copy_mechanism=none" >> /root/.bashrc
