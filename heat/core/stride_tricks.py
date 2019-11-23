@@ -111,6 +111,40 @@ def sanitize_axis(shape, axis):
     return axis
 
 
+def sanitize_memory_layout(x, order="K"):
+    """
+    x: torch.tensor
+    order: str, optional. can be "K"?, "A"?, "C", "F". #TODO NotImplementedError for "A" 
+   
+    """
+    dims = list(range(x.ndim))
+    shape = x.shape
+    #assess current layout
+    row_major = bool(x.stride()[i] > x.stride()[i + 1] for i in dims)
+    if not row_major:
+        column_major = bool(x.stride()[i] < x.stride()[i + 1] for i in dims)
+        if not column_major:
+            #TODO: NotImplementedError, only row-major or column-major memory layout allowed for now
+            pass
+    if order == "K":
+        # TODO: return NotImplementedError, usage of clone() means losing original layout for now
+        pass
+    if (order == "F" and not column_major) or (order == "C" and not row-major):
+        if order == "F":
+            new_stride = (1,) + tuple(
+            np.prod(shape[-x.ndim : -x.ndim + i]) for i in dims[1:])
+            )
+        if order == "C":
+            new_stride = tuple(
+                np.prod(shape[i+1:]) for i in dims[:-1]
+            ) + (1,)
+        dims[0], dims[-1] = dims[-1], dims[0]
+        permutation = tuple(dims)
+        x = x.permute(permutation).contiguous()
+        x = x.set_(x.storage(), x.storage_offset(), shape, new_stride)
+    return x
+
+
 def sanitize_shape(shape):
     """
     Verifies and normalizes the given shape.
