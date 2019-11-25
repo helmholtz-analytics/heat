@@ -242,11 +242,13 @@ class TestRounding(unittest.TestCase):
         self.assertAlmostEqual(ht.all(float64_modf_distrbd[1]), ht.all(ht.array(comparison[1])))
 
     def test_round(self):
+        print("DEBUG: test_round, size = ")
         start, end, step = -5.0, 5.0, 1.4
         comparison = torch.arange(start, end, step, dtype=torch.float32).round()
 
         # exponential of float32
         float32_tensor = ht.arange(start, end, step, dtype=ht.float32)
+        print("DEBUG: test_round. split, size = ", float32_tensor.split, float32_tensor.comm.size)
         float32_round = float32_tensor.round()
         self.assertIsInstance(float32_round, ht.DNDarray)
         self.assertEqual(float32_round.dtype, ht.float32)
@@ -276,6 +278,12 @@ class TestRounding(unittest.TestCase):
         comparison = torch.arange(start, end, step, dtype=torch.float32).round()
         float32_tensor_distrbd = ht.arange(start, end, step, dtype=ht.float32, split=0)
         float32_round_distrbd = float32_tensor_distrbd.round()
+        print(
+            "DEBUG: test_round. split, dtype, size = ",
+            float32_tensor.split,
+            float32_tensor.dtype,
+            float32_tensor.comm.size,
+        )
         self.assertIsInstance(float32_round_distrbd, ht.DNDarray)
         self.assertEqual(float32_round_distrbd.dtype, ht.float32)
         self.assertEqual(float32_round_distrbd.dtype, ht.float32)
@@ -284,6 +292,12 @@ class TestRounding(unittest.TestCase):
         # exponential of float64
         comparison = torch.arange(start, end, step, dtype=torch.float64).round()
         float64_tensor_distrbd = ht.arange(start, end, step, dtype=ht.float64, split=0)
+        print(
+            "DEBUG: test_round. split, dtype, size = ",
+            float64_tensor.split,
+            float64_tensor.dtype,
+            float64_tensor.comm.size,
+        )
         float64_round_distrbd = float64_tensor_distrbd.round()
         self.assertIsInstance(float64_round_distrbd, ht.DNDarray)
         self.assertEqual(float64_round_distrbd.dtype, ht.float64)
