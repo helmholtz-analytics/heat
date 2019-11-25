@@ -184,7 +184,9 @@ class DNDarray:
         tuple of ints: bytes to step in each dimension when traversing a tensor.
         numpy-like usage: self.strides
         """
-        return self.numpy().strides
+        stride = np.array(self._DNDarray__array.stride())
+        itemsize = self._DNDarray__array.storage().element_size()
+        return tuple(stride*itemsize)
 
     @property
     def T(self, axes=None):
