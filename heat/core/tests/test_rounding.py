@@ -163,7 +163,6 @@ class TestRounding(unittest.TestCase):
             ht.floor(object())
 
     def test_modf(self):
-        print("IN TEST_MODF")
         size = ht.communication.MPI_WORLD.size
         start, end = -5.0, 5.0
         step = (end - start) / (2 * size)
@@ -245,7 +244,6 @@ class TestRounding(unittest.TestCase):
         self.assertAlmostEqual(ht.all(float64_modf_distrbd[1]), ht.all(ht.array(comparison[1])))
 
     def test_round(self):
-        print("IN TEST_ROUND")
         size = ht.communication.MPI_WORLD.size
         start, end = -5.0, 5.0
         step = (end - start) / (2 * size)
