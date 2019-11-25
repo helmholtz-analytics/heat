@@ -328,7 +328,7 @@ def array(
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
         gshape[is_split] = ttl_shape[is_split]
         split = is_split
-    elif solit is None and is_split is None:
+    elif split is None and is_split is None:
         obj = memory.sanitize_memory_layout(obj, order=order)
 
     return dndarray.DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
