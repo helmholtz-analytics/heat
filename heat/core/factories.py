@@ -5,6 +5,7 @@ from .communication import MPI, sanitize_comm
 from .stride_tricks import sanitize_axis, sanitize_shape
 from . import devices
 from . import dndarray
+from . import memory
 from . import types
 
 __all__ = [
@@ -233,9 +234,9 @@ def array(
     # initialize the array
     if bool(copy):
         if isinstance(obj, torch.Tensor):
-            print("BEFORE CLONE.DETACH: ", obj.storage())
+            # TODO: watch out. At the moment clone() implies losing the underlying memory layout.
+            # pytorch fix in progress
             obj = obj.clone().detach()
-            print("AFTER CLONE.DETACH: ", obj.storage())
         else:
             try:
                 obj = torch.tensor(obj, dtype=dtype.torch_type() if dtype is not None else None)
@@ -271,28 +272,30 @@ def array(
     lshape = np.array(obj.shape)
     gshape = lshape.copy()
 
-    # assign memory layout before splitting
-    print("ORIGINAL LAYOUT: ", obj, obj.storage(), obj.stride())
-    if order == "F" and obj.stride()[0] != 1:
-        print("CALCULATING NEW_STRIDE")
-        # column-major memory layout
-        new_stride = (1,) + tuple(
-            np.prod(gshape[-len(gshape) : -len(gshape) + i]) for i in range(1, len(gshape))
-        )
-        dims = list(range(obj.ndim))
-        dims[0], dims[-1] = dims[-1], dims[0]
-        permutation = tuple(dims)
-        obj = obj.permute(permutation).contiguous()
-        obj = obj.set_(obj.storage(), obj.storage_offset(), tuple(gshape), new_stride)
+    # # assign memory layout before splitting
+    # print("ORIGINAL LAYOUT: ", obj, obj.storage(), obj.stride())
+    # if order == "F" and obj.stride()[0] != 1:
+    #     print("CALCULATING NEW_STRIDE")
+    #     # column-major memory layout
+    #     new_stride = (1,) + tuple(
+    #         np.prod(gshape[-len(gshape) : -len(gshape) + i]) for i in range(1, len(gshape))
+    #     )
+    #     dims = list(range(obj.ndim))
+    #     dims[0], dims[-1] = dims[-1], dims[0]
+    #     permutation = tuple(dims)
+    #     obj = obj.permute(permutation).contiguous()
+    #     obj = obj.set_(obj.storage(), obj.storage_offset(), tuple(gshape), new_stride)
 
-    print("MODIFIED LAYOUT: ", obj, obj.storage(), obj.stride())
+    # print("MODIFIED LAYOUT: ", obj, obj.storage(), obj.stride())
 
     # content shall be split, chunk the passed data object up
     if split is not None:
         _, _, slices = comm.chunk(obj.shape, split)
         obj = obj[slices].clone()
+        obj = memory.sanitize_memory_layout(obj, order=order)
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
+        obj = memory.sanitize_memory_layout(obj, order=order)
         if comm.rank < comm.size - 1:
             comm.Isend(lshape, dest=comm.rank + 1)
         if comm.rank != 0:
@@ -325,6 +328,8 @@ def array(
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
         gshape[is_split] = ttl_shape[is_split]
         split = is_split
+    elif solit is None and is_split is None:
+        obj = memory.sanitize_memory_layout(obj, order=order)
 
     return dndarray.DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
 
