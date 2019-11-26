@@ -783,7 +783,7 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     )  # type: tiling.SquareDiagTiles
     tile_columns = a_tiles.tile_columns
     tile_rows = a_tiles.tile_rows
-    # print(a_tiles.tile_map)
+    print(a_tiles.col_indices)
 
     q0 = factories.eye((a.gshape[0], a.gshape[0]), split=0, dtype=a.dtype, comm=a.comm)
     q0_tiles = tiling.SquareDiagTiles(
@@ -836,7 +836,7 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
             a.comm.Bcast(q1, root=diag_process)
 
         # ======================== begin q calc for single tile QR ========================
-        if calc_q and rank < a_tiles.last_diagonal_process:
+        if calc_q:
             for row in range(q0_tiles.tile_rows_per_process[rank]):
                 # q1 is applied to each tile of the column dcol of q0 then written there
                 q0_tiles.local_set(
@@ -889,7 +889,7 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
                 ql = torch.empty([lp_sz[0] + diag_sz[0]] * 2)
                 a.comm.Bcast(ql, root=diag_process)
             # ======================== begin q calc for merged tile QR ==========================
-            if calc_q and rank < a_tiles.last_diagonal_process:
+            if calc_q:
                 top_left = ql[: diag_sz[0], : diag_sz[0]]
                 top_right = ql[: diag_sz[0], diag_sz[0] :]
                 bottom_left = ql[diag_sz[0] :, : diag_sz[0]]
@@ -908,7 +908,7 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
                 qloop_col_left[st:sp] = bottom_left
                 # right tiles --------------------------------------------------------------------
                 # create a columns tensor of the size of the tile column of index 'row'
-                print(row, dcol)
+                # print(row, dcol)
                 sz = q0_tiles.get_tile_size(key=(row, slice(dcol, None)))
                 qloop_col_right = torch.zeros(sz[1], sz[0])
                 # top left starts at 0 and goes until diag_sz[1]
@@ -928,7 +928,9 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
             # ======================== end q calc for merged tile QR ============================
     if not calc_q:
         return None, a_tiles.arr
+    # print('before', q0.lshape)
     q0.balance_()  # q0 might be purposely unbalanced during the tile matching
+    # print(q0.lshape)
     return q0, a
 
 
