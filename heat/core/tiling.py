@@ -513,7 +513,7 @@ class SquareDiagTiles:
         if tile_map[key][..., 2].unique().nelement() > 1:
             # print(tile_map)
             raise ValueError("Slicing across splits is not allowed")
-
+        # print(tile_map)
         # early outs (returns nothing if the tile does not exist on the process)
         if tile_map[key][..., 2].unique().nelement() == 0:
             return None
@@ -633,6 +633,7 @@ class SquareDiagTiles:
             # need to adjust key[0] to be only on the local tensor
             prev_rows = sum(self.__row_per_proc_list[:rank])
             loc_rows = self.__row_per_proc_list[rank]
+            # print(self.tile_map)
             if isinstance(key[0], int):
                 key[0] += prev_rows
             elif isinstance(key[0], slice):
@@ -806,85 +807,58 @@ class SquareDiagTiles:
             self.__tile_rows = tiles_to_match.__tile_columns
 
         if base_dnd.split == 0 and match_dnd.split == 1:
-            # set the row and col indices to be the same
-            # in this case the problem is that the
-            # case set the cols without any shifting (because split on the base dnd = 0)
-            self.__col_per_proc_list = tiles_to_match.__row_per_proc_list  # matches col to row
-            # for the rows: need to get the indices and shift the data around
-            # can set the row inds but need to make the lshape match after setting them
-            self.__row_per_proc_list = tiles_to_match.__col_per_proc_list  # matches row to col
-            # row inds is longer because dim0>1 for match (maybe)
             # rows determine the q sizes -> cols = rows
-            self.__col_inds = tiles_to_match.__col_inds.copy()
-            self.__row_inds = tiles_to_match.__col_inds.copy()
-            # next is the number of rows / columns
-            # logic is the same -> both equal to rows
-            self.__tile_rows = tiles_to_match.__tile_columns
-            self.__tile_columns = tiles_to_match.__tile_columns
-            # rows per proc: (now use columns)
-            self.__row_per_proc_list = tiles_to_match.__col_per_proc_list.copy()
-            # print('l', tiles_to_match.__col_per_proc_list)
-            row_cumsum = torch.cumsum(torch.tensor(self.__row_per_proc_list), dim=0)
-            # the last element needs to be adjusted if the sum is not the total number of rows
-            if row_cumsum[-1] < self.tile_rows:
-                self.__row_per_proc_list[-1] = self.tile_rows - row_cumsum[-2]
-                row_cumsum[-1] = self.tile_rows
-            # cols per proc
-            self.__col_per_proc_list = [self.tile_rows] * base_dnd.comm.size
-            # if the beginning of the next process is < the lshape of the current process
-            # then send the difference (+ update lshape map)
-            row_hold = self.__row_inds + [torch.tensor(base_dnd.gshape[0])]
-            # print('\trow hold', row_hold)
-            for pr in range(base_dnd.comm.size - 1):
-                lshape_cumsum = torch.cumsum(self.lshape_map[..., 0], dim=0)
-                # need to unbalance the other way first.....
-                # print(pr, row_hold[row_cumsum[pr]], lshape_cumsum[pr], lshape_cumsum[pr] - row_hold[row_cumsum[pr]])
-                if row_hold[row_cumsum[pr]] > lshape_cumsum[pr]:
-                    # get the data from the next process
-                    amt = row_hold[row_cumsum[pr]] - lshape_cumsum[pr]
-                    if base_dnd.comm.rank == pr:
-                        # recv the data from pr + 1 and cat it to the bottom
-                        buf = torch.empty(amt, base_dnd.gshape[1])
-                        base_dnd.comm.Recv(buf, source=pr + 1, tag=int("6" + str(pr) + str(pr + 1)))
-                        base_dnd._DNDarray__array = torch.cat(
-                            (base_dnd._DNDarray__array, buf), dim=0
-                        )
-                    if base_dnd.comm.rank == pr + 1:
-                        # send the top data from the next pr to pr
-                        data = base_dnd._DNDarray__array[:amt].clone()
-                        base_dnd.comm.Send(data, dest=pr, tag=int("6" + str(pr) + str(pr + 1)))
-                        base_dnd._DNDarray__array = base_dnd._DNDarray__array[amt:]
-                    self.lshape_map[pr, base_dnd.split] += amt
-                    self.lshape_map[pr + 1, base_dnd.split] -= amt
-                elif lshape_cumsum[pr] > row_hold[row_cumsum[pr]]:
-                    # send the difference to the next pr
-                    amt = lshape_cumsum[pr] - row_hold[row_cumsum[pr]]
-                    if base_dnd.comm.rank == pr:
-                        # the slice can be hardcoded (splits are fixed)
-                        amt_n = amt * -1
-                        data = base_dnd._DNDarray__array[amt_n:].clone()
-                        base_dnd.comm.Send(data, dest=pr + 1, tag=int("6" + str(pr) + str(pr + 1)))
-                        base_dnd._DNDarray__array = base_dnd._DNDarray__array[:amt_n]
-                    if base_dnd.comm.rank == pr + 1:
-                        buf = torch.empty(amt, base_dnd.gshape[1])
-                        base_dnd.comm.Recv(buf, source=pr, tag=int("6" + str(pr) + str(pr + 1)))
-                        base_dnd._DNDarray__array = torch.cat(
-                            (buf, base_dnd._DNDarray__array), dim=0
-                        )
-                    self.lshape_map[pr, base_dnd.split] -= amt
-                    self.lshape_map[pr + 1, base_dnd.split] += amt
+            self.__col_inds = (
+                tiles_to_match.__row_inds.copy()
+                if base_dnd.gshape[0] <= base_dnd.gshape[1]
+                else tiles_to_match.__col_inds.copy()
+            )
+            self.__row_inds = (
+                tiles_to_match.__row_inds.copy()
+                if base_dnd.gshape[0] <= base_dnd.gshape[1]
+                else tiles_to_match.__col_inds.copy()
+            )
+
+            rows_per = [x for x in self.__col_inds if x < base_dnd.shape[0]]
+            self.__tile_rows = len(rows_per)
+            self.__tile_columns = self.tile_rows
+
+            target_0 = tiles_to_match.lshape_map[..., 1][: tiles_to_match.last_diagonal_process]
+            end_tag0 = base_dnd.shape[0] - sum(target_0[: tiles_to_match.last_diagonal_process])
+            end_tag0 = [end_tag0] + [0] * (
+                base_dnd.comm.size - 1 - tiles_to_match.last_diagonal_process
+            )
+            target_0 = torch.cat((target_0, torch.tensor(end_tag0)), dim=0)
+
+            targe_map = self.lshape_map.clone()
+            targe_map[..., 0] = target_0
+            target_0_c = torch.cumsum(target_0, dim=0)
+            self.__row_per_proc_list = []
+            st = 0
+            rows_per = torch.tensor(rows_per + [base_dnd.shape[0]])
+            for i in range(base_dnd.comm.size):
+                # get the amount of data on each process, get the number of rows with
+                # indices which are between the start and stop
+                self.__row_per_proc_list.append(
+                    torch.where((st < rows_per) & (rows_per <= target_0_c[i]))[0].numel()
+                )
+                st = target_0_c[i]
+
+            base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=targe_map)
+
             self.__tile_map = torch.zeros((self.tile_rows, self.tile_columns, 3), dtype=torch.int)
             for i in range(self.tile_rows):
                 self.__tile_map[..., 0][i] = self.__row_inds[i]
             for i in range(self.tile_columns):
                 self.__tile_map[..., 1][:, i] = self.__col_inds[i]
-            for i in range(self.arr.comm.size - 1):
+            for i in range(self.arr.comm.size):
                 scale = self.__row_per_proc_list[i]
                 self.__tile_map[..., 2][i * scale : (i + 1) * scale] = i
             # to adjust if the last process has more tiles
             i = self.arr.comm.size - 1
-            self.__tile_map[..., 2][row_cumsum[i - 1] :] = i
-            self.__row_per_proc_list[-1] = (self.__tile_map.shape[0] - row_cumsum[-2]).item()
+
+            self.__tile_map[..., 2][sum(self.__row_per_proc_list[:i]) :] = i
+            self.__col_per_proc_list = [self.tile_columns] * base_dnd.comm.size
             self.__last_diag_pr = base_dnd.comm.size - 1
 
     def overwrite_arr(self, arr):
