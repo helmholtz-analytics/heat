@@ -387,6 +387,10 @@ class TestManipulations(BasicTest):
             torch.equal(res[rank, rank]._DNDarray__array, torch.tensor(1, dtype=torch.int32))
         )
 
+    def test_exp(self):
+        print("res", ht.arange(10))
+        self.fail()
+
     def test_diagonal(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
