@@ -27,9 +27,17 @@ def copy(a):
 
 def sanitize_memory_layout(x, order="C"):
     """
+    Return the given object with memory layout as defined below.
+
+    Parameters
+    -----------
+
     x: torch.tensor
-    order: str, optional. can be "K"?, "A"?, "C", "F". #TODO NotImplementedError for "A" 
-   
+        Input data
+
+    order: str, optional. 
+        Default is 'C' as in C-like (row-major) memory layout. The array is stored in memory rows first.
+        Alternative is 'F', as in Fortran-like (column-major) memory layout. The array is stored columns first.
     """
     dims = list(range(x.ndim))
     shape = x.shape
