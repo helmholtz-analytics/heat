@@ -385,20 +385,21 @@ def diag(a, offset=0):
             (offset,), dtype=a.dtype, split=None, device=a.device, comm=a.comm
         )
         a = concatenate((a, padding))
+        indices_x = torch.arange(0, min(lshape[0], max(gshape[0] - off - offset, 0)))
+        indices_y = indices_x + off + offset
     elif offset < 0:
         padding = factories.empty(
             (abs(offset),), dtype=a.dtype, split=None, device=a.device, comm=a.comm
         )
         a = concatenate((padding, a))
+        indices_x = torch.arange(max(0, min(abs(offset) - off, lshape[0])), lshape[0])
+        indices_y = torch.arange(max(0, off + offset), max(0, off + offset + lshape[0]))
+    else:
+        # Offset = 0 values on main diagonal
+        indices_x = torch.arange(0, lshape[0])
+        indices_y = indices_x + off
 
     a.balance_()
-
-    if offset > 0:
-        indices_x = torch.arange(0, min(a.lshape[0], gshape[0] - off - offset))
-        indices_y = torch.arange(off + offset, min(off + offset + a.lshape[0], gshape[0]))
-    else:
-        indices_x = torch.arange(max(0, abs(offset) - off), a.lshape[0])
-        indices_y = torch.arange(max(0, off + offset), off + offset + a.lshape[0])
 
     local = torch.zeros(lshape, dtype=a.dtype.torch_type(), device=a.device.torch_device)
     local[indices_x, indices_y] = a._DNDarray__array[indices_x]
