@@ -386,19 +386,17 @@ def diag(a, offset=0):
         )
         a = concatenate((a, padding))
         indices_x = torch.arange(0, min(lshape[0], max(gshape[0] - off - offset, 0)))
-        indices_y = indices_x + off + offset
     elif offset < 0:
         padding = factories.empty(
             (abs(offset),), dtype=a.dtype, split=None, device=a.device, comm=a.comm
         )
         a = concatenate((padding, a))
         indices_x = torch.arange(max(0, min(abs(offset) - off, lshape[0])), lshape[0])
-        indices_y = torch.arange(max(0, off + offset), max(0, off + offset + lshape[0]))
     else:
         # Offset = 0 values on main diagonal
         indices_x = torch.arange(0, lshape[0])
-        indices_y = indices_x + off
 
+    indices_y = indices_x + off + offset
     a.balance_()
 
     local = torch.zeros(lshape, dtype=a.dtype.torch_type(), device=a.device.torch_device)
