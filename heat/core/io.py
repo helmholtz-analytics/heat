@@ -298,7 +298,7 @@ else:
             # chunk up the data portion
             _, local_shape, indices = comm.chunk(gshape, split)
             if split is None or local_shape[split] > 0:
-                data = torch.tensor(
+                data = torch.as_tensor(
                     data[indices], dtype=dtype.torch_type(), device=device.torch_device
                 )
             else:
@@ -364,6 +364,7 @@ else:
                     dimension_names.append(name)
 
                 var = handle.createVariable(variable, data.dtype.char(), dimension_names, **kwargs)
+                var.set_collective(True)
                 var[slices] = (
                     data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
                 )

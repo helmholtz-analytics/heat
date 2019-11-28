@@ -15,7 +15,7 @@ with open("README.md", "r") as handle:
 
 setup(
     name="heat",
-    packages=["heat", "heat.core", "heat.ml", "heat.ml.cluster"],
+    packages=["heat", "heat.core", "heat.ml", "heat.ml.cluster", 'heat.ml.regression', 'heat.ml.regression.lasso'],
     data_files=["README.md", "LICENSE"],
     version=version.__version__,
     description="A framework for high performance data analytics and machine learning.",
