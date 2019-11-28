@@ -342,7 +342,7 @@ def diag(a, offset=0):
         If a is a n-dimensional array with n > 1 the diagonal entries will be returned in an n-1 dimensional array.
     offset: int, optional
         The offset from the main diagonal.
-        Offset greater zero means above the main diagonal, below zero is below the main diagonal.
+        Offset greater than zero means above the main diagonal, smaller than zero is below the main diagonal.
 
     Returns
     -------
@@ -354,11 +354,11 @@ def diag(a, offset=0):
     >>> import heat as ht
     >>> a = ht.array([1, 2])
     >>> ht.diag(a)
-    array([[1, 0],
+    tensor([[1, 0],
            [0, 2]])
 
     >>> ht.diag(a, offset=1)
-    array([[0, 1, 0],
+    tensor([[0, 1, 0],
            [0, 0, 2],
            [0, 0, 0]])
 
@@ -366,7 +366,7 @@ def diag(a, offset=0):
     True
     >>> a = ht.array([[1, 2], [3, 4]])
     >>> ht.diag(a)
-    array([1, 4])
+    tensor([1, 4])
     """
     if len(a.shape) > 1:
         return diagonal(a, offset=offset)
@@ -392,20 +392,20 @@ def diag(a, offset=0):
             (abs(offset),), dtype=a.dtype, split=None, device=a.device, comm=a.comm
         )
         a = concatenate((padding, a))
-    if not a.is_balanced():
-        a.balance_()
+
+    a.balance_()
 
     if offset > 0:
-        indices_x = np.arange(0, min(a.lshape[0], gshape[0] - off - offset))
-        indices_y = np.arange(off + offset, min(off + offset + a.lshape[0], gshape[0]))
+        indices_x = torch.arange(0, min(a.lshape[0], gshape[0] - off - offset))
+        indices_y = torch.arange(off + offset, min(off + offset + a.lshape[0], gshape[0]))
     else:
-        indices_x = np.arange(max(0, abs(offset) - off), a.lshape[0])
-        indices_y = np.arange(max(0, off + offset), off + offset + a.lshape[0])
+        indices_x = torch.arange(max(0, abs(offset) - off), a.lshape[0])
+        indices_y = torch.arange(max(0, off + offset), off + offset + a.lshape[0])
 
     local = torch.zeros(lshape, dtype=a.dtype.torch_type(), device=a.device.torch_device)
     local[indices_x, indices_y] = a._DNDarray__array[indices_x]
 
-    return dndarray.DNDarray(local, gshape, a.dtype, a.split, a.device, a.comm)
+    return factories.array(local, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
 
 
 def diagonal(a, offset=0, dim1=0, dim2=1):
@@ -419,7 +419,7 @@ def diagonal(a, offset=0, dim1=0, dim2=1):
         The array of which the diagonal should be extracted.
     offset: int, optional
         The offset from the main diagonal.
-        Offset greater that zero means above the main diagonal, smaller zero is below the main diagonal.
+        Offset greater than zero means above the main diagonal, smaller than zero is below the main diagonal.
         Default is 0 which means the main diagonal will be selected.
     dim1: int, optional
         First dimension with respect to which to take the diagonal.
@@ -437,21 +437,21 @@ def diagonal(a, offset=0, dim1=0, dim2=1):
     >>> import heat as ht
     >>> a = ht.array([[1, 2], [3, 4]])
     >>> ht.diagonal(a)
-    array([1, 4])
+    tensor([1, 4])
 
     >>> ht.diagonal(a, offset=1)
-    array([2])
+    tensor([2])
 
     >>> ht.diagonal(a, offset=-1)
-    array([3])
+    tensor([3])
 
     >>> a = ht.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
     >>> ht.diagonal(a)
-    array([[0, 6],
+    tensor([[0, 6],
            [1, 7]])
 
     >>> ht.diagonal(a, dim2=2)
-    array([[0, 5],
+    tensor([[0, 5],
            [2, 7]])
     """
     dim1, dim2 = stride_tricks.sanitize_axis(a.shape, (dim1, dim2))
@@ -489,7 +489,7 @@ def diagonal(a, offset=0, dim1=0, dim2=1):
         vz = 1 if a.split == dim1 else -1
         off, _, _ = a.comm.chunk(a.shape, a.split)
         result = torch.diagonal(a._DNDarray__array, offset=offset + vz * off, dim1=dim1, dim2=dim2)
-    return dndarray.DNDarray(result, shape, a.dtype, split, a.device, a.comm)
+    return factories.array(result, dtype=a.dtype, is_split=split, device=a.device, comm=a.comm)
 
 
 def expand_dims(a, axis):
