@@ -54,7 +54,7 @@ def sanitize_memory_layout(x, order="C"):
         x = x.set_(x.storage(), x.storage_offset(), shape, new_stride)
     if not row_major and not column_major:
         raise NotImplementedError(
-            "Expecting row/major or column-major memory layout, not implemented for alternative layouts."
+            "Expecting row-major or column-major memory layout, not implemented for alternative layouts."
         )
     if order == "K":
         raise NotImplementedError(
