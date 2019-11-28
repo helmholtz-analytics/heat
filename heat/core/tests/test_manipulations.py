@@ -387,6 +387,15 @@ class TestManipulations(BasicTest):
             torch.equal(res[rank, rank]._DNDarray__array, torch.tensor(1, dtype=torch.int32))
         )
 
+    def test_failing(self):
+        self.assert_func_equal(
+            np.arange(23),
+            heat_func=ht.diag,
+            numpy_func=np.diag,
+            heat_args={"offset": 2},
+            numpy_args={"k": 2},
+        )
+
     def test_diagonal(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
