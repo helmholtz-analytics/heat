@@ -34,8 +34,34 @@ class TestMemory(unittest.TestCase):
         BasicTest.assertTrue_memory_layout(self, a_heat_5d_C, "C")
         BasicTest.assertTrue_memory_layout(self, a_heat_5d_F, "F")
         # distributed, split, 2D
-        # distributed, split, 4D
+        size = BasicTest.get_size(a_heat_5d_C)
+        a_torch_2d = torch.arange(4 * size * 3 * size).reshape(4 * size, 3 * size)
+        a_heat_C_split = ht.array(a_torch_2d, split=0)
+        a_heat_F_split = ht.array(a_torch_2d, split=1, order="F")
+        BasicTest.assertTrue_memory_layout(self, a_heat_C_split, "C")
+        BasicTest.assertTrue_memory_layout(self, a_heat_F_split, "F")
+        a_heat_F_split_sum = a_heat_F_split.sum(1)
+        a_torch_sum = a_torch_2d.sum(1)
+        BasicTest.assert_array_equal(self, a_heat_F_split_sum, a_torch_sum)
+        # distributed, split, 5D
+        a_torch_5d = torch.arange(4 * 3 * 5 * 2 * size * 1).reshape(4, 3, 1, 2 * size, 5)
+        a_heat_5d_C_split = ht.array(a_torch_5d, split=-2)
+        a_heat_5d_F_split = ht.array(a_torch_5d, split=-2, order="F")
+        BasicTest.assertTrue_memory_layout(self, a_heat_5d_C_split, "C")
+        BasicTest.assertTrue_memory_layout(self, a_heat_5d_F_split, "F")
+        a_heat_5d_F_split_sum = a_heat_5d_F_split.sum(-2)
+        a_torch_5d_sum = a_torch_5d.sum(-2)
+        BasicTest.assert_array_equal(self, a_heat_F_split_sum, a_torch_sum)
         # distributed, is_split, 2D
-        # distributed, is_split, 4D
-        # distributed, after reduction operation
-
+        a_heat_C_issplit = ht.array(a_torch_2d, is_split=0)
+        a_heat_F_issplit = ht.array(a_torch_2d, is_split=1, order="F")
+        BasicTest.assertTrue_memory_layout(self, a_heat_C_issplit, "C")
+        BasicTest.assertTrue_memory_layout(self, a_heat_F_issplit, "F")
+        # distributed, is_split, 5D
+        a_heat_5d_C_issplit = ht.array(a_torch_5d, is_split=-2)
+        a_heat_5d_F_issplit = ht.array(a_torch_5d, is_split=-2, order="F")
+        BasicTest.assertTrue_memory_layout(self, a_heat_5d_C_issplit, "C")
+        BasicTest.assertTrue_memory_layout(self, a_heat_5d_F_issplit, "F")
+        # test exceptions
+        with self.assertRaises(NotImplementedError):
+            ht.zeros_like(a_heat_5d_C_split, order="K")
