@@ -128,7 +128,6 @@ def arange(*args, dtype=None, split=None, device=None, comm=None):
 
     htype = types.canonical_heat_type(dtype)
     data = data.type(htype.torch_type())
-    data = memory.sanitize_memory_layout(data, order=order)
 
     return dndarray.DNDarray(data, gshape, htype, split, device, comm)
 
@@ -982,7 +981,7 @@ def zeros(shape, dtype=types.float32, split=None, device=None, comm=None, order=
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
     """
-    return __factory(shape, dtype, split, torch.zeros, device, comm, order)
+    return __factory(shape, dtype, split, torch.zeros, device, comm, order=order)
 
 
 def zeros_like(a, dtype=None, split=None, device=None, comm=None, order="C"):
