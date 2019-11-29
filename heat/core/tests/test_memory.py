@@ -1,6 +1,8 @@
 import unittest
-
+import torch
 import heat as ht
+
+from heat.core.tests.test_suites.basic_test import BasicTest
 
 
 class TestMemory(unittest.TestCase):
@@ -16,3 +18,19 @@ class TestMemory(unittest.TestCase):
         # test exceptions
         with self.assertRaises(TypeError):
             ht.copy("hello world")
+
+    def test_sanitize_memory_layout(self):
+        # non distributed, 2D
+        a_torch = torch.arange(12).reshape(4, 3)
+        a_heat_C = ht.array(a_torch)
+        a_heat_F = ht.array(a_torch, order="F")
+        BasicTest.assertTrue_memory_layout(self, a_heat_C, "C")
+        BasicTest.assertTrue_memory_layout(self, a_heat_F, "F")
+        # non distributed, 4D
+        # non distributed, after reduction operation
+        # distributed, split, 2D
+        # distributed, split, 4D
+        # distributed, is_split, 2D
+        # distributed, is_split, 4D
+        # distributed, after reduction operation
+
