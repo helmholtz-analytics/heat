@@ -26,7 +26,12 @@ class TestMemory(unittest.TestCase):
         a_heat_F = ht.array(a_torch, order="F")
         BasicTest.assertTrue_memory_layout(self, a_heat_C, "C")
         BasicTest.assertTrue_memory_layout(self, a_heat_F, "F")
-        # non distributed, 4D
+        # non distributed, 5D
+        a_torch_5d = torch.arange(4 * 3 * 5 * 2 * 1).reshape(4, 3, 1, 2, 5)
+        a_heat_5d_C = ht.array(a_torch_5d)
+        a_heat_5d_F = ht.array(a_torch_5d, order="F")
+        BasicTest.assertTrue_memory_layout(self, a_heat_5d_C, "C")
+        BasicTest.assertTrue_memory_layout(self, a_heat_5d_F, "F")
         # non distributed, after reduction operation
         # distributed, split, 2D
         # distributed, split, 4D
