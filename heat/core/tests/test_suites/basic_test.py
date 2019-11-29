@@ -101,7 +101,7 @@ class BasicTest(TestCase):
 
         # Array is distributed correctly
         equal_res = np.array(compare_func(local_numpy, expected_array[slices]))
-        self.comm.Allreduce(MPI.IN_PLACE, equal_res, MPI.LAND)
+        self._comm.Allreduce(MPI.IN_PLACE, equal_res, MPI.LAND)
         self.assertTrue(equal_res, "Local tensors do not match the corresponding numpy slices.")
         self.assertEqual(
             local_numpy.dtype,
