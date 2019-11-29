@@ -1,5 +1,6 @@
 import unittest
 import torch
+import numpy as np
 import heat as ht
 
 from heat.core.tests.test_suites.basic_test import BasicTest
@@ -32,16 +33,6 @@ class TestMemory(unittest.TestCase):
         a_heat_5d_F = ht.array(a_torch_5d, order="F")
         BasicTest.assertTrue_memory_layout(self, a_heat_5d_C, "C")
         BasicTest.assertTrue_memory_layout(self, a_heat_5d_F, "F")
-        # non distributed, after reduction operation
-        a_heat_5d_C_reduce = a_heat_5d_C.sum(-1)
-        a_heat_5d_F_reduce = a_heat_5d_F.sum(-1)
-        BasicTest.assertTrue_memory_layout(self, a_heat_5d_C_reduce, "C")
-        BasicTest.assertTrue_memory_layout(self, a_heat_5d_F_reduce, "F")
-        numpy_args = {"axis": -1}
-        heat_args = {"axis": -1}
-        BasicTest.assert_func_equal(
-            self, a_heat_F_reduce, ht.sum, np.sum, heat_args=heat_args, numpy_args=numpy_args
-        )
         # distributed, split, 2D
         # distributed, split, 4D
         # distributed, is_split, 2D
