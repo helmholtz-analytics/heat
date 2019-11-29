@@ -219,8 +219,8 @@ class BasicTest(TestCase):
         """
         dims = list(range(tensor._DNDarray__array.ndim))
         stride = tensor._DNDarray__array.stride()
-        row_major = all(stride[i] > stride[i + 1] for i in dims[:-1])
-        column_major = all(stride[i] < stride[i + 1] for i in dims[:-1])
+        row_major = all(np.diff(list(stride)) <= 0)
+        column_major = all(np.diff(list(stride)) >= 0)
         if order == "C":
             return self.assertTrue(row_major)
         elif order == "F":

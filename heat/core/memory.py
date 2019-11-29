@@ -45,8 +45,8 @@ def sanitize_memory_layout(x, order="C"):
     dims = list(range(x.ndim))
     shape = x.shape
     stride = x.stride()
-    row_major = all(np.diff(list(stride)) < 0)
-    column_major = all(np.diff(list(stride)) > 0)
+    row_major = all(np.diff(list(stride)) <= 0)
+    column_major = all(np.diff(list(stride)) >= 0)
     if (order == "C" and row_major) or (order == "F" and column_major):
         # do nothing
         return x
