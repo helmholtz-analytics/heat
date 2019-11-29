@@ -40,18 +40,20 @@ def sanitize_memory_layout(x, order="C"):
         Alternative is 'F', as in Fortran-like (column-major) memory layout. The array is stored columns first.
     """
     if x.ndim < 2:
+        # do nothing
         return x
     dims = list(range(x.ndim))
     shape = x.shape
     stride = x.stride()
     row_major = all(np.diff(list(stride)) < 0)
     column_major = all(np.diff(list(stride)) > 0)
+    if (order == "C" and row_major) or (order == "F" and column_major):
+        # do nothing
+        return x
     if order == "C":
-        if not row_major:
-            stride = tuple(np.prod(shape[i + 1 :]) for i in dims[:-1]) + (1,)
+        stride = tuple(np.prod(shape[i + 1 :]) for i in dims[:-1]) + (1,)
     if order == "F":
-        if not column_major:
-            stride = (1,) + tuple(np.prod(shape[-x.ndim : -x.ndim + i]) for i in dims[1:])
+        stride = (1,) + tuple(np.prod(shape[-x.ndim : -x.ndim + i]) for i in dims[1:])
     if (order == "C" and column_major) or (order == "F" and row_major):
         dims[0], dims[-1] = dims[-1], dims[0]
     permutation = tuple(dims)
