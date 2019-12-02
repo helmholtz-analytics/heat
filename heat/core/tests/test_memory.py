@@ -61,8 +61,8 @@ class TestMemory(unittest.TestCase):
         BasicTest.assertTrue_memory_layout(self, a_heat_2d_C_issplit, "C")
         BasicTest.assertTrue_memory_layout(self, a_heat_2d_F_issplit, "F")
         a_heat_2d_F_issplit_sum = a_heat_2d_F_issplit.sum(1)
-        a_torch_2d_sum = a_torch_2d.sum(1)
-        BasicTest.assert_array_equal(self, a_heat_2d_F_split_sum, a_torch_2d_sum)
+        a_torch_2d_sum = a_torch_2d.sum(1) * size
+        BasicTest.assert_array_equal(self, a_heat_2d_F_issplit_sum, a_torch_2d_sum)
         # distributed, is_split, 5D
         a_heat_5d_C_issplit = ht.array(a_torch_5d, is_split=-2)
         a_heat_5d_F_issplit = ht.array(a_torch_5d, is_split=-2, order="F")
