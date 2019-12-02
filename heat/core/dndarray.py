@@ -165,7 +165,7 @@ class DNDarray:
         int : the axis on which the tensor split
         """
         return self.__split
-    
+
     @property
     def stride(self):
         """
@@ -186,7 +186,7 @@ class DNDarray:
         """
         stride = np.array(self._DNDarray__array.stride())
         itemsize = self._DNDarray__array.storage().element_size()
-        return tuple(stride*itemsize)
+        return tuple(stride * itemsize)
 
     @property
     def T(self, axes=None):

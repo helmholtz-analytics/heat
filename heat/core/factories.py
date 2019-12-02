@@ -161,9 +161,9 @@ def array(
         Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be
         attached to the shape if  ndim>0  and prefaced in case of ndim<0 to meet the requirement.
     order: str, optional
-        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array 
-        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like). 
-        Raises NotImplementedError for NumPy options 'K' and 'A'. 
+        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
+        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options 'K' and 'A'.
         #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     split : None or int, optional
         The axis along which the passed array content obj is split and distributed in memory. Mutually exclusive with
@@ -393,9 +393,9 @@ def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order=
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
-        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array 
-        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like). 
-        Raises NotImplementedError for NumPy options 'K' and 'A'. 
+        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
+        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options 'K' and 'A'.
         #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Returns
@@ -474,9 +474,9 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
     comm : Communication, optional
             Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
-        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array 
-        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like). 
-        Raises NotImplementedError for NumPy options 'K' and 'A'. 
+        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
+        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options 'K' and 'A'.
         #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Returns
@@ -582,9 +582,9 @@ def __factory_like(a, dtype, split, factory, device, comm, order="C", **kwargs):
     comm: Communication
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
-        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array 
-        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like). 
-        Raises NotImplementedError for NumPy options 'K' and 'A'. 
+        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
+        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options 'K' and 'A'.
         #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
 
@@ -877,9 +877,9 @@ def ones(shape, dtype=types.float32, split=None, device=None, comm=None, order="
     comm : Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
-        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array 
-        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like). 
-        Raises NotImplementedError for NumPy options 'K' and 'A'. 
+        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
+        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options 'K' and 'A'.
         #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
 
@@ -958,9 +958,9 @@ def zeros(shape, dtype=types.float32, split=None, device=None, comm=None, order=
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
-        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array 
-        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like). 
-        Raises NotImplementedError for NumPy options 'K' and 'A'. 
+        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
+        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options 'K' and 'A'.
         #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
 
@@ -1002,9 +1002,9 @@ def zeros_like(a, dtype=None, split=None, device=None, comm=None, order="C"):
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
-        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array 
-        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like). 
-        Raises NotImplementedError for NumPy options 'K' and 'A'. 
+        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
+        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options 'K' and 'A'.
         #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Returns
