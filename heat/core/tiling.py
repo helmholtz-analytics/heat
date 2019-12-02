@@ -68,34 +68,19 @@ class SquareDiagTiles:
             lshape_map[arr.comm.rank, :] = torch.tensor(arr.lshape)
             arr.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
-        # for split=0 need to redistribute the matrix to have equal tiles on each process (except the last one)
-        # if arr.split == 0:
-        #     target_map = lshape_map.clone()
-        #     # if lshape_map[0, 0] % tile_per_proc != 0:
-        #     for pr in range(arr.comm.size - 1):
-        #         diff = (target_map[pr, 0] % tile_per_proc)
-        #         new_local_shp = target_map[pr, 0] + diff
-        #         target_map[pr, 0] = new_local_shp
-        #         target_map[pr + 1, 0] -= diff
-        #     # print(sum(lshape_map[..., 0]), arr.gshape[0])
-        #     # lshape_map[-1, 0] += arr.gshape[0] - sum(lshape_map[..., 0])
-        #     target_map[..., 0] = target_map[..., 0].sort(descending=True)[0]
-        #     # THIS MEANS THAT THE ARR MAY BE UNBALANCED!
-        #     arr.redistribute_(lshape_map=lshape_map, target_map=target_map)
-
         # chunk map
         # is the diagonal crossed by a division between processes/where
         last_diag_pr = torch.where(lshape_map[..., arr.split].cumsum(dim=0) >= min(arr.gshape))[0][
             0
         ]
+        # print('last diag pr', last_diag_pr, lshape_map[..., arr.split].cumsum(dim=0), min(arr.gshape))
         # adjust for small blocks on the last diag pr:
         last_pr_minus1 = last_diag_pr - 1 if last_diag_pr > 0 else 0
-        # print(min(arr.gshape), lshape_map[..., arr.split].cumsum(dim=0)[last_pr_minus1])
         rem_cols_last_pr = abs(
             min(arr.gshape) - lshape_map[..., arr.split].cumsum(dim=0)[last_pr_minus1]
         )  # this is the number of rows/columns after the last diagonal on the last diagonal process
         last_tile_cols = tile_per_proc
-        # print(rem_cols_last_pr, last_tile_cols, tile_per_proc)
+
         while 1 < rem_cols_last_pr / last_tile_cols < 2:
             # todo: determine best value for this (prev at 2)
             # if there cannot be tiles formed which are at list ten items larger than 2
@@ -110,7 +95,6 @@ class SquareDiagTiles:
 
         if last_diag_pr < arr.comm.size - 1 and arr.split == 1:
             # this is the case that the gshape[1] >> gshape[0]
-            # print([tile_per_proc] * (arr.comm.size - last_diag_pr - 1).item())
             col_per_proc_list.extend([1] * (arr.comm.size - last_diag_pr - 1).item())
         row_per_proc_list = [tile_per_proc] * arr.comm.size
         # need to determine the proper number of tile rows/columns
@@ -131,6 +115,72 @@ class SquareDiagTiles:
             )
             col_inds.append(lshape[0])
 
+        # need to adjust the lshape if the splits overlap... todo: doc this (req code repitition...)
+        if arr.split == 0 and tile_per_proc == 1:
+            # if the split is 0 and the number of tiles per proc is 1
+            # then the local data needs to be redistributed to fit the full diagonal on as many
+            #       processes as possible....i think
+            for i, c in enumerate(col_inds[:-1]):  # only need to loop until the second to last one
+                for l in range(arr.comm.size - 1):
+                    # print('\there', i, c, l, col_inds)
+                    if lshape_map[..., 0][l] < c:
+                        h = c - lshape_map[..., 0][l]
+                        lshape_map[..., 0][l] += h
+                        lshape_map[..., 0][l + 1] -= h
+                        # col_inds[l] += h
+                        # col_inds[l + 1] -= h
+            arr.redistribute_(target_map=lshape_map)
+            last_diag_pr = torch.where(lshape_map[..., arr.split].cumsum(dim=0) >= min(arr.gshape))[
+                0
+            ][0]
+            # print('new last diag pr', last_diag_pr, lshape_map[..., arr.split].cumsum(dim=0),
+            #       min(arr.gshape))
+            # adjust for small blocks on the last diag pr:
+            last_pr_minus1 = last_diag_pr - 1 if last_diag_pr > 0 else 0
+            rem_cols_last_pr = abs(
+                min(arr.gshape) - lshape_map[..., arr.split].cumsum(dim=0)[last_pr_minus1]
+            )  # this is the number of rows/columns after the last diagonal on the last diagonal process
+            last_tile_cols = tile_per_proc
+
+            while 1 < rem_cols_last_pr / last_tile_cols < 2:
+                # todo: determine best value for this (prev at 2)
+                # if there cannot be tiles formed which are at list ten items larger than 2
+                #   then need to reduce the number of tiles
+                last_tile_cols -= 1
+                if last_tile_cols == 1:
+                    break
+
+            # create lists of columns and rows for each process
+            col_per_proc_list = [tile_per_proc] * (last_diag_pr.item() + 1)
+            col_per_proc_list[-1] = last_tile_cols
+
+            if last_diag_pr < arr.comm.size - 1 and arr.split == 1:
+                # this is the case that the gshape[1] >> gshape[0]
+                col_per_proc_list.extend([1] * (arr.comm.size - last_diag_pr - 1).item())
+            row_per_proc_list = [tile_per_proc] * arr.comm.size
+            # need to determine the proper number of tile rows/columns
+            tile_columns = tile_per_proc * last_diag_pr + last_tile_cols
+            diag_crossings = lshape_map[..., arr.split].cumsum(dim=0)[: last_diag_pr + 1]
+            diag_crossings[-1] = (
+                diag_crossings[-1] if diag_crossings[-1] <= min(arr.gshape) else min(arr.gshape)
+            )
+            diag_crossings = torch.cat((torch.tensor([0]), diag_crossings), dim=0)
+            # create the tile columns sizes, saved to list
+            col_inds = []
+            for col in range(tile_columns.item()):
+                _, lshape, _ = arr.comm.chunk(
+                    [
+                        diag_crossings[col // tile_per_proc + 1]
+                        - diag_crossings[col // tile_per_proc]
+                    ],
+                    0,
+                    rank=int(col % tile_per_proc),
+                    w_size=tile_per_proc
+                    if col // tile_per_proc != last_diag_pr
+                    else last_tile_cols,
+                )
+                col_inds.append(lshape[0])
+
         total_tile_rows = tile_per_proc * arr.comm.size
         row_inds = [0] * total_tile_rows
         for c, x in enumerate(col_inds):
@@ -141,6 +191,7 @@ class SquareDiagTiles:
         if arr.gshape[0] < arr.gshape[1] and arr.split == 0:
             # need to adjust the very last tile to be the remaining
             col_inds[-1] = arr.gshape[1] - sum(col_inds[:-1])
+        # print(col_inds)
 
         # last_diag_pr_rows = tile_per_proc  # tile rows in the last diagonal pr
         # if last row_inds on diag process is < lshape then add rows
@@ -160,6 +211,7 @@ class SquareDiagTiles:
                 # if the diff is < half the data on the process
                 #   then extend the last row inds to be the end of the process
                 row_inds[tile_columns - 1] += diff
+        # print('row_inds', row_inds)
 
         if arr.split == 1 and arr.gshape[1] > arr.gshape[0]:
             # need to add to col inds witht the rest of the columns
@@ -185,41 +237,8 @@ class SquareDiagTiles:
                 if pr > last_diag_pr and diff > 0:
                     col_inds.insert(col_proc_ind[pr], diff)
             # print(col_per_proc_list)
-
-        # adjust the rows on the last process which has diagonal elements
-        # this should add more rows if there if much more data, or
-        #   it should merge the last rows if there is not much data remaining
-        # if last_diag_pr < arr.comm.size - 1 or (
-        #         last_diag_pr == arr.comm.size - 1 and row_inds[-1] == 0
-        # ):
-        #     # -> before this loop only the rows up to the last diagonal are set (rest are 0)
-        #     # num_tiles_last_diag_pr -> *current* number of tiles on the last process
-        #     num_tiles_last_diag_pr = len(col_inds) - (tile_per_proc * last_diag_pr)
-        #
-        #     # last_diag_pr_rows_rem -> number of rows remaining on the last diag pr (not set)
-        #     last_diag_pr_rows_rem = tile_per_proc - num_tiles_last_diag_pr
-        #     print(last_diag_pr_rows_rem, tile_per_proc, num_tiles_last_diag_pr)
-        #     # how many tiles can be put on the last diagonal process?
-        #     new_tile_rows_remaining = last_diag_pr_rows_rem // 2
-        #     # above determines if there are tiles not used on the process,
-        #     # need to also determine if there is a lot of data left there as well
-        #
-        #     # todo: determine if this should be changed to a larger number
-        #     # delete entries from row_inds
-        #     # need to delete tile_per_proc - (num_tiles_last_diag_pr + new_tile_rows_remaining)
-        #     last_diag_pr_rows -= num_tiles_last_diag_pr + new_tile_rows_remaining
-        #     print('h', last_diag_pr_rows, num_tiles_last_diag_pr, new_tile_rows_remaining)
-        #     del row_inds[-1 * last_diag_pr_rows : num_tiles_last_diag_pr]
-        #     row_per_proc_list[last_diag_pr] = last_diag_pr_rows if last_diag_pr_rows != 0 else num_tiles_last_diag_pr
-        #
-        #     if last_diag_pr_rows_rem < 2 and arr.split == 0:
-        #         # if the number of rows after the diagonal is 1
-        #         # then need to rechunk in the 0th dimension
-        #         for i in range(last_diag_pr_rows.item()):
-        #             _, lshape, _ = arr.comm.chunk(
-        #                 lshape_map[last_diag_pr], 0, rank=i, w_size=last_diag_pr_rows.item()
-        #             )
-        #             row_inds[(tile_per_proc * last_diag_pr).item() + i] = lshape[0]
+        # todo: fix row inds after redistribution!!!!!
+        # print(col_inds)
 
         if arr.gshape[0] > arr.gshape[1]:
             nz = torch.nonzero(torch.tensor(row_inds) == 0)
@@ -230,12 +249,6 @@ class SquareDiagTiles:
                     # print('nz', nz, row_inds)
                     row_inds[nz[0].item()] = lshape[0]
                     nz = nz[1:]
-
-        # combine the last tiles into one if there is too little data on the last one
-        # if row_inds[-1] < 2 and arr.split == 0:  # todo: determine if this should be larger
-        #     row_inds[-2] += row_inds[-1]
-        #     del row_inds[-1]
-        #     row_per_proc_list[-1] -= 1
 
         # add extra rows if there is place below the diagonal for split == 1
         if arr.gshape[0] > arr.gshape[1] and arr.split == 1:
@@ -256,7 +269,6 @@ class SquareDiagTiles:
 
         # need to remove blank rows for arr.gshape[0] < arr.gshape[1]
         if arr.gshape[0] < arr.gshape[1]:
-            # print()
             row_inds_hold = []
             for i in torch.nonzero(torch.tensor(row_inds)).flatten():
                 row_inds_hold.append(row_inds[i.item()])
@@ -283,21 +295,6 @@ class SquareDiagTiles:
         i = arr.comm.size - 1
         tile_map[..., 2][sum(row_per_proc_list[:i]) :] = i
 
-        # # setting of rank is different for split 0 and split 1
-        # if arr.split == 0:
-        #     for p in range(last_diag_pr.item()):  # set ranks
-        #         tile_map[tile_per_proc * p : tile_per_proc * (p + 1), :, 2] = p
-        #     # set last diag pr rank
-        #     tile_map[
-        #         tile_per_proc * last_diag_pr : tile_per_proc * last_diag_pr + last_diag_pr_rows,
-        #         :,
-        #         2,
-        #     ] = last_diag_pr
-        #     # set the rest of the ranks
-        #     st = tile_per_proc * last_diag_pr + last_diag_pr_rows
-        #     for p in range(arr.comm.size - last_diag_pr.item() + 1):
-        #         tile_map[st : st + tile_per_proc * (p + 1), :, 2] = p + last_diag_pr.item() + 1
-        #         st += tile_per_proc
         # todo: fix this: it should work the same as for split=0 (above)
         if arr.split == 1:
             st = 0
@@ -315,6 +312,9 @@ class SquareDiagTiles:
                 col_per_proc_list[c] = i.item()
             except AttributeError:
                 pass
+
+        # print('here', torch.cumsum(lshape_map[..., 0], dim=0))
+        # print(row_inds)
 
         # =========================================================================================
         # : Tuple[None, Any, Any, Iterable, Tensor, Tensor, Iterable, int, int]
@@ -470,6 +470,7 @@ class SquareDiagTiles:
             raise TypeError(
                 "Key elements must be ints, or slices; currently {}".format(type(key[1]))
             )
+        # print(row_inds)
 
         key = list(key)
         if isinstance(key[0], int):
@@ -552,6 +553,7 @@ class SquareDiagTiles:
                 "key must be an int, tuple, or slice, is currently {}".format(type(key))
             )
         st0, sp0, st1, sp1 = self.get_start_stop(key=key)
+        # print(st0, sp0, st1, sp1, arr.lshape)
         # split = self.__DNDarray.split
         # rank = arr.comm.rank
         # row_inds = self.row_indices + [self.__DNDarray.gshape[0]]
@@ -634,7 +636,7 @@ class SquareDiagTiles:
         """
         rank = self.__DNDarray.comm.rank
         key = self.local_to_global(key=key, rank=rank)
-        # print('local set')
+        # print('local set', key)
         self.__getitem__(tuple(key)).__setitem__(slice(0, None), data)
 
     def local_to_global(self, key, rank):
@@ -725,14 +727,6 @@ class SquareDiagTiles:
             # this implies that the gshape[0]'s are equal
             # rows are the exact same, and the cols are also equal to the rows (square matrix)
             base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=tiles_to_match.lshape_map)
-            # print(self.row_indices, '\n', tiles_to_match.row_indices)
-            # print(self.col_indices, '\n', tiles_to_match.col_indices)
-            # print(self.__row_per_proc_list, '\n', tiles_to_match.__row_per_proc_list)
-            # print(self.__col_per_proc_list, '\n', tiles_to_match.__col_per_proc_list)
-            # print(self.tile_rows, tiles_to_match.tile_rows)
-            # print(self.tile_columns, tiles_to_match.tile_columns)
-            # print(tiles_to_match.tile_map)
-            # print(match_dnd.gshape)
 
             self.__row_per_proc_list = (
                 tiles_to_match.__row_per_proc_list.copy()
@@ -750,8 +744,6 @@ class SquareDiagTiles:
             )
             self.__tile_rows = tiles_to_match.__tile_rows
             self.__tile_columns = tiles_to_match.__tile_rows
-            # print(self.__row_per_proc_list)
-            # print(self.__row_inds)
             self.__tile_map = torch.zeros((self.tile_rows, self.tile_columns, 3), dtype=torch.int)
             for i in range(self.tile_rows):
                 self.__tile_map[..., 0][i] = self.__row_inds[i]
@@ -764,86 +756,6 @@ class SquareDiagTiles:
             # to adjust if the last process has more tiles
             i = self.arr.comm.size - 1
             self.__tile_map[..., 2][sum(self.__row_per_proc_list[:i]) :] = i
-            # print(self.row_indices, '\n', tiles_to_match.row_indices)
-            # print(self.col_indices, '\n', tiles_to_match.col_indices)
-            # print(self.__row_per_proc_list, '\n', tiles_to_match.__row_per_proc_list)
-            # print(self.__col_per_proc_list, '\n', tiles_to_match.__col_per_proc_list)
-            # print(self.tile_rows, tiles_to_match.tile_rows)
-            # print(self.tile_columns, tiles_to_match.tile_columns)
-            # print(self.lshape_map)
-            # print(base_dnd.lshape)
-            # # print(self.tile_map - tiles_to_match.tile_map)
-            # print(self.tile_map)
-
-            # print(self.tile_rows)
-        # if base_dnd.split == tiles_to_match.__DNDarray.split == 0:
-        #     # **the number of tiles on rows and columns will be equal for this new tile map**
-        #     if base_dnd.split == 0:
-        #         new_rows = tiles_to_match.tile_rows_per_process.copy()
-        #     else:
-        #         # this is assuming that the array is split
-        #         new_rows = tiles_to_match.tile_columns_per_process.copy()
-        #
-        #     # set the columns which are less than the last col_row to be the same as the last one
-        #     # for i in range(last_col_row):
-        #     # if split=0 then can just set the columns easily
-        #     new_row_inds = []
-        #     new_col_inds = []
-        #     new_row_inds.extend(tiles_to_match.row_indices)
-        #     new_col_inds.extend(tiles_to_match.col_indices)
-        #
-        #     match_shape = tiles_to_match.__DNDarray.shape
-        #     match_end_dim = 0 if match_shape[0] <= match_shape[1] else 1
-        #     match_diag_end = tiles_to_match.__DNDarray.shape[match_end_dim]
-        #     self_diag_end = sum(
-        #         self.lshape_map[: tiles_to_match.last_diagonal_process + 1][..., base_dnd.split]
-        #     )
-        #     # below only needs to run if there is enough space for another block (>=2 entries)
-        #     # and only if the last diag pr is not the last one
-        #     if (
-        #         tiles_to_match.last_diagonal_process != base_dnd.comm.size - 1
-        #         and base_dnd.split == 0
-        #     ):
-        #         if self_diag_end - match_diag_end >= 2:
-        #             new_row_inds.insert(last_col_row, match_diag_end)
-        #             new_rows[tiles_to_match.last_diagonal_process] += 1
-        #         if self_diag_end - match_end_dim < 2:
-        #             new_row_inds[last_col_row] = match_diag_end
-        #         new_col_inds = new_row_inds.copy()
-        #
-        #     if (
-        #         tiles_to_match.last_diagonal_process != base_dnd.comm.size - 1
-        #         and base_dnd.split == 1
-        #         and self_diag_end - match_diag_end >= 2
-        #     ):
-        #         new_col_inds.insert(last_col_row, match_diag_end)
-        #         new_rows[tiles_to_match.last_diagonal_process] += 1
-        #         new_row_inds = new_col_inds.copy()
-        #
-        #     # # create the new tile_map of all zeros
-        #     # # units -> row, column, start index in each direction, process
-        #     new_tile_map = torch.zeros([sum(new_rows), sum(new_rows), 3], dtype=torch.int)
-        #
-        #     new_tile_map[0][..., 1] = 1
-        #     proc_list = torch.cumsum(torch.tensor(new_rows), dim=0)
-        #     pr, pr_hold = 0, 0
-        #     for c in range(sum(new_rows)):
-        #         new_tile_map[..., 1][c] = torch.tensor(new_col_inds)
-        #         new_tile_map[c][..., 0] = new_col_inds[c]
-        #         if pr_hold == proc_list[0]:
-        #             pr += 1
-        #             proc_list = proc_list[1:]
-        #         pr_hold += 1
-        #         new_tile_map[c][..., 2] = pr
-        #     self.__tile_map = new_tile_map
-        #     # other things to set:
-        #     self.__col_per_proc_list = new_rows
-        #     self.__row_per_proc_list = new_rows
-        #     self.__last_diag_pr = tiles_to_match.last_diagonal_process
-        #     self.__row_inds = new_row_inds
-        #     self.__col_inds = new_col_inds
-        #     self.__tile_columns = len(new_col_inds)
-        #     self.__tile_rows = len(new_row_inds)
 
         if base_dnd.split == 0 and match_dnd.split == 1:
             # rows determine the q sizes -> cols = rows
