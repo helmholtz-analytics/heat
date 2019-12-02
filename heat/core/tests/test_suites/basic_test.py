@@ -217,7 +217,6 @@ class BasicTest(TestCase):
         -----------
         order: str, 'C' for C-like (row-major), 'F' for Fortran-like (column-major) memory layout.
         """
-        dims = list(range(tensor._DNDarray__array.ndim))
         stride = tensor._DNDarray__array.stride()
         row_major = all(np.diff(list(stride)) <= 0)
         column_major = all(np.diff(list(stride)) >= 0)
