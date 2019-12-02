@@ -37,8 +37,8 @@ def sanitize_memory_layout(x, order="C"):
         Input data
 
     order: str, optional.
-        Default is 'C' as in C-like (row-major) memory layout. The array is stored in memory rows first.
-        Alternative is 'F', as in Fortran-like (column-major) memory layout. The array is stored columns first.
+        Default is 'C' as in C-like (row-major) memory layout. The array is stored first dimension first (rows first if ndim=2).
+        Alternative is 'F', as in Fortran-like (column-major) memory layout. The array is stored last dimension first (columns first if ndim=2).
     """
     if x.ndim < 2:
         # do nothing
