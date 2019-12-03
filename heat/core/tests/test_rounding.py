@@ -257,7 +257,8 @@ class TestRounding(unittest.TestCase):
         self.assertIsInstance(float32_round, ht.DNDarray)
         self.assertEqual(float32_round.dtype, ht.float32)
         self.assertEqual(float32_round.dtype, ht.float32)
-        self.assertTrue(ht.equal(float32_round, ht.array(comparison)))
+        BasicTest.assert_array_equal(self, float32_round, comparison)
+        # self.assertTrue(ht.equal(float32_round, ht.array(comparison)))
 
         # exponential of float64
         comparison = torch.arange(start, end, step, dtype=torch.float64).round()
@@ -286,7 +287,8 @@ class TestRounding(unittest.TestCase):
         self.assertIsInstance(float32_round_distrbd, ht.DNDarray)
         self.assertEqual(float32_round_distrbd.dtype, ht.float32)
         self.assertEqual(float32_round_distrbd.dtype, ht.float32)
-        self.assertTrue(ht.equal(float32_round_distrbd, ht.array(comparison)))
+        BasicTest.assert_array_equal(self, float32_round_distrbd, comparison)
+        # self.assertTrue(ht.equal(float32_round_distrbd, ht.array(comparison)))
 
         # exponential of float64
         comparison = torch.arange(start, end, step, dtype=torch.float64).round()
@@ -295,7 +297,8 @@ class TestRounding(unittest.TestCase):
         self.assertIsInstance(float64_round_distrbd, ht.DNDarray)
         self.assertEqual(float64_round_distrbd.dtype, ht.float64)
         self.assertEqual(float64_round_distrbd.dtype, ht.float64)
-        self.assertTrue(ht.equal(float64_round_distrbd, ht.array(comparison)))
+        BasicTest.assert_array_equal(self, float64_round_distrbd, comparison)
+        # self.assertTrue(ht.equal(float64_round_distrbd, ht.array(comparison)))
 
     def test_trunc(self):
         base_array = np.random.randn(20)
