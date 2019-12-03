@@ -1,19 +1,13 @@
 import torch
 
 from .communication import MPI
-
-# from . import communication
 from . import dndarray
-
-# from . import factories
-# from . import manipulations
-# from . import types
 
 __all__ = ["SquareDiagTiles"]
 
 
 class SquareDiagTiles:
-    def __init__(self, arr, tile_per_proc=2, lshape_map=None):
+    def __init__(self, arr, tiles_per_proc=2, lshape_map=None):
         """
         Generate the tile map and the other objects which may be useful.
         The tiles generated here are based of square tiles along the diagonal. The size of these tiles along the diagonal dictate the divisions accross
@@ -27,7 +21,7 @@ class SquareDiagTiles:
         ----------
         arr : DNDarray
             the array to be tiled
-        tile_per_proc : int
+        tiles_per_proc : int
             Default = 2
             the number of divisions per process,
             if split = 0 then this is the starting number of tile rows
@@ -69,7 +63,7 @@ class SquareDiagTiles:
             arr.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
         # if there is only one element of the diagonal on the next process
-        d = 1 if tile_per_proc <= 2 else tile_per_proc - 1
+        d = 1 if tiles_per_proc <= 2 else tiles_per_proc - 1
         redist = torch.where(
             torch.cumsum(lshape_map[..., arr.split], dim=0) >= arr.gshape[arr.split - 1] - d
         )[0]
@@ -90,7 +84,7 @@ class SquareDiagTiles:
         rem_cols_last_pr = abs(
             min(arr.gshape) - lshape_map[..., arr.split].cumsum(dim=0)[last_pr_minus1]
         )  # this is the number of rows/columns after the last diagonal on the last diagonal process
-        last_tile_cols = tile_per_proc
+        last_tile_cols = tiles_per_proc
 
         while 1 < rem_cols_last_pr / last_tile_cols < 2:
             # todo: determine best value for this (prev at 2)
@@ -101,15 +95,15 @@ class SquareDiagTiles:
                 break
 
         # create lists of columns and rows for each process
-        col_per_proc_list = [tile_per_proc] * (last_diag_pr.item() + 1)
+        col_per_proc_list = [tiles_per_proc] * (last_diag_pr.item() + 1)
         col_per_proc_list[-1] = last_tile_cols
 
         if last_diag_pr < arr.comm.size - 1 and arr.split == 1:
             # this is the case that the gshape[1] >> gshape[0]
             col_per_proc_list.extend([1] * (arr.comm.size - last_diag_pr - 1).item())
-        row_per_proc_list = [tile_per_proc] * arr.comm.size
+        row_per_proc_list = [tiles_per_proc] * arr.comm.size
         # need to determine the proper number of tile rows/columns
-        tile_columns = tile_per_proc * last_diag_pr + last_tile_cols
+        tile_columns = tiles_per_proc * last_diag_pr + last_tile_cols
         diag_crossings = lshape_map[..., arr.split].cumsum(dim=0)[: last_diag_pr + 1]
         diag_crossings[-1] = (
             diag_crossings[-1] if diag_crossings[-1] <= min(arr.gshape) else min(arr.gshape)
@@ -119,15 +113,15 @@ class SquareDiagTiles:
         col_inds = []
         for col in range(tile_columns.item()):
             _, lshape, _ = arr.comm.chunk(
-                [diag_crossings[col // tile_per_proc + 1] - diag_crossings[col // tile_per_proc]],
+                [diag_crossings[col // tiles_per_proc + 1] - diag_crossings[col // tiles_per_proc]],
                 0,
-                rank=int(col % tile_per_proc),
-                w_size=tile_per_proc if col // tile_per_proc != last_diag_pr else last_tile_cols,
+                rank=int(col % tiles_per_proc),
+                w_size=tiles_per_proc if col // tiles_per_proc != last_diag_pr else last_tile_cols,
             )
             col_inds.append(lshape[0])
 
         # need to adjust the lshape if the splits overlap... todo: doc this (req code repitition...)
-        if arr.split == 0 and tile_per_proc == 1:
+        if arr.split == 0 and tiles_per_proc == 1:
             # if the split is 0 and the number of tiles per proc is 1
             # then the local data needs to be redistributed to fit the full diagonal on as many
             #       processes as possible....i think
@@ -147,7 +141,7 @@ class SquareDiagTiles:
                 min(arr.gshape) - lshape_map[..., arr.split].cumsum(dim=0)[last_pr_minus1]
             )
             # this is the number of rows/columns after the last diagonal on the last diagonal pr
-            last_tile_cols = tile_per_proc
+            last_tile_cols = tiles_per_proc
 
             while 1 < rem_cols_last_pr / last_tile_cols < 2:
                 # todo: determine best value for this (prev at 2)
@@ -158,15 +152,15 @@ class SquareDiagTiles:
                     break
 
             # create lists of columns and rows for each process
-            col_per_proc_list = [tile_per_proc] * (last_diag_pr.item() + 1)
+            col_per_proc_list = [tiles_per_proc] * (last_diag_pr.item() + 1)
             col_per_proc_list[-1] = last_tile_cols
 
             if last_diag_pr < arr.comm.size - 1 and arr.split == 1:
                 # this is the case that the gshape[1] >> gshape[0]
                 col_per_proc_list.extend([1] * (arr.comm.size - last_diag_pr - 1).item())
-            row_per_proc_list = [tile_per_proc] * arr.comm.size
+            row_per_proc_list = [tiles_per_proc] * arr.comm.size
             # need to determine the proper number of tile rows/columns
-            tile_columns = tile_per_proc * last_diag_pr + last_tile_cols
+            tile_columns = tiles_per_proc * last_diag_pr + last_tile_cols
             diag_crossings = lshape_map[..., arr.split].cumsum(dim=0)[: last_diag_pr + 1]
             diag_crossings[-1] = (
                 diag_crossings[-1] if diag_crossings[-1] <= min(arr.gshape) else min(arr.gshape)
@@ -177,18 +171,18 @@ class SquareDiagTiles:
             for col in range(tile_columns.item()):
                 _, lshape, _ = arr.comm.chunk(
                     [
-                        diag_crossings[col // tile_per_proc + 1]
-                        - diag_crossings[col // tile_per_proc]
+                        diag_crossings[col // tiles_per_proc + 1]
+                        - diag_crossings[col // tiles_per_proc]
                     ],
                     0,
-                    rank=int(col % tile_per_proc),
-                    w_size=tile_per_proc
-                    if col // tile_per_proc != last_diag_pr
+                    rank=int(col % tiles_per_proc),
+                    w_size=tiles_per_proc
+                    if col // tiles_per_proc != last_diag_pr
                     else last_tile_cols,
                 )
                 col_inds.append(lshape[0])
 
-        total_tile_rows = tile_per_proc * arr.comm.size
+        total_tile_rows = tiles_per_proc * arr.comm.size
         row_inds = [0] * total_tile_rows
         for c, x in enumerate(col_inds):
             # set the row indices to be the same for all of the column indices
@@ -239,8 +233,8 @@ class SquareDiagTiles:
             nz = torch.nonzero(torch.tensor(row_inds) == 0)
             for i in range(last_diag_pr.item() + 1, arr.comm.size):
                 # loop over all of the rest of the processes
-                for t in range(tile_per_proc):
-                    _, lshape, _ = arr.comm.chunk(lshape_map[i], 0, rank=t, w_size=tile_per_proc)
+                for t in range(tiles_per_proc):
+                    _, lshape, _ = arr.comm.chunk(lshape_map[i], 0, rank=t, w_size=tiles_per_proc)
                     row_inds[nz[0].item()] = lshape[0]
                     nz = nz[1:]
 
@@ -320,8 +314,6 @@ class SquareDiagTiles:
         self.__tile_map = tile_map
         self.__row_inds = list(row_inds)
         self.__col_inds = list(col_inds)
-        self.__tile_columns = len(col_inds)
-        self.__tile_rows = len(row_inds)
 
         # =========================================================================================
 
@@ -378,7 +370,7 @@ class SquareDiagTiles:
         -------
         int : number of tile columns
         """
-        return self.__tile_columns
+        return len(self.__col_inds)
 
     @property
     def tile_columns_per_process(self):
@@ -407,7 +399,7 @@ class SquareDiagTiles:
         -------
         int : number of tile rows
         """
-        return self.__tile_rows
+        return len(self.__row_inds)
 
     @property
     def tile_rows_per_process(self):
@@ -668,7 +660,7 @@ class SquareDiagTiles:
             base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=tiles_to_match.lshape_map)
 
             self.__row_per_proc_list = tiles_to_match.__row_per_proc_list.copy()
-            self.__col_per_proc_list = [tiles_to_match.__tile_rows] * len(self.__row_per_proc_list)
+            self.__col_per_proc_list = [tiles_to_match.tile_rows] * len(self.__row_per_proc_list)
             self.__row_inds = (
                 tiles_to_match.__row_inds.copy()
                 if base_dnd.gshape[0] >= base_dnd.gshape[1]
@@ -679,8 +671,8 @@ class SquareDiagTiles:
                 if base_dnd.gshape[0] >= base_dnd.gshape[1]
                 else tiles_to_match.__col_inds.copy()
             )
-            self.__tile_rows = tiles_to_match.__tile_rows
-            self.__tile_columns = tiles_to_match.__tile_rows
+            # self.__tile_rows = tiles_to_match.__tile_rows
+            # self.__tile_columns = tiles_to_match.__tile_rows
             self.__tile_map = torch.zeros((self.tile_rows, self.tile_columns, 3), dtype=torch.int)
             for i in range(self.tile_rows):
                 self.__tile_map[..., 0][i] = self.__row_inds[i]
@@ -708,8 +700,8 @@ class SquareDiagTiles:
             )
 
             rows_per = [x for x in self.__col_inds if x < base_dnd.shape[0]]
-            self.__tile_rows = len(rows_per)
-            self.__tile_columns = self.tile_rows
+            # self.__tile_rows = len(rows_per)
+            # self.__tile_columns = self.tile_rows
 
             target_0 = tiles_to_match.lshape_map[..., 1][: tiles_to_match.last_diagonal_process]
             end_tag0 = base_dnd.shape[0] - sum(target_0[: tiles_to_match.last_diagonal_process])
