@@ -258,7 +258,6 @@ class TestRounding(unittest.TestCase):
         self.assertEqual(float32_round.dtype, ht.float32)
         self.assertEqual(float32_round.dtype, ht.float32)
         BasicTest.assert_array_equal(self, float32_round, comparison)
-        # self.assertTrue(ht.equal(float32_round, ht.array(comparison)))
 
         # exponential of float64
         comparison = torch.arange(start, end, step, dtype=torch.float64).round()
@@ -268,7 +267,6 @@ class TestRounding(unittest.TestCase):
         self.assertEqual(float64_round.dtype, ht.float64)
         self.assertEqual(float64_round.dtype, ht.float64)
         BasicTest.assert_array_equal(self, float64_round, comparison)
-        #        self.assertTrue(ht.equal(float64_round, ht.array(comparison)))
 
         # check exceptions
         with self.assertRaises(TypeError):
@@ -288,17 +286,16 @@ class TestRounding(unittest.TestCase):
         self.assertIsInstance(float32_round_distrbd, ht.DNDarray)
         self.assertEqual(float32_round_distrbd.dtype, ht.float32)
         BasicTest.assert_array_equal(self, float32_round_distrbd, comparison)
-        # # self.assertTrue(ht.equal(float32_round_distrbd, ht.array(comparison)))
 
-        # # exponential of float64
-        # comparison = torch.arange(start, end, step, dtype=torch.float64).round()
-        # float64_tensor_distrbd = ht.arange(start, end, step, dtype=ht.float64, split=0)
-        # float64_round_distrbd = float64_tensor_distrbd.round()
-        # self.assertIsInstance(float64_round_distrbd, ht.DNDarray)
-        # self.assertEqual(float64_round_distrbd.dtype, ht.float64)
-        # self.assertEqual(float64_round_distrbd.dtype, ht.float64)
-        # BasicTest.assert_array_equal(self, float64_round_distrbd, comparison)
-        # # self.assertTrue(ht.equal(float64_round_distrbd, ht.array(comparison)))
+        # exponential of float64
+        comparison = torch.arange(start, end, step, dtype=torch.float64)  # .round()
+        float64_tensor_distrbd = ht.array(comparison, split=0)
+        comparison = comparison.round()
+        float64_round_distrbd = float64_tensor_distrbd.round()
+        self.assertIsInstance(float64_round_distrbd, ht.DNDarray)
+        self.assertEqual(float64_round_distrbd.dtype, ht.float64)
+        self.assertEqual(float64_round_distrbd.dtype, ht.float64)
+        BasicTest.assert_array_equal(self, float64_round_distrbd, comparison)
 
     def test_trunc(self):
         base_array = np.random.randn(20)
