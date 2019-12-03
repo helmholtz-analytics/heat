@@ -169,6 +169,7 @@ class TestRounding(unittest.TestCase):
         comparison = np.modf(np.arange(start, end, step, np.float32))
 
         # exponential of float32
+        print("LOCAL, FLOAT32")
         float32_tensor = ht.arange(start, end, step, dtype=ht.float32)
         float32_modf = float32_tensor.modf()
         self.assertIsInstance(float32_modf[0], ht.DNDarray)
@@ -183,6 +184,8 @@ class TestRounding(unittest.TestCase):
         self.assertAlmostEqual(ht.all(float32_modf[1]), ht.all(ht.array(comparison[1])))
 
         # exponential of float64
+        print("LOCAL, FLOAT64")
+
         comparison = np.modf(np.arange(start, end, step, np.float64))
 
         float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
@@ -199,6 +202,8 @@ class TestRounding(unittest.TestCase):
         self.assertAlmostEqual(ht.all(float64_modf[1]), ht.all(ht.array(comparison[1])))
 
         # check exceptions
+        print("LOCAL, EXCEPTIONS")
+
         with self.assertRaises(TypeError):
             ht.modf([0, 1, 2, 3])
         with self.assertRaises(TypeError):
@@ -213,6 +218,8 @@ class TestRounding(unittest.TestCase):
         # with split tensors
 
         # exponential of float32
+        print("SPLIT, FLOAT32")
+
         float32_tensor_distrbd = ht.arange(start, end, step, dtype=ht.float32, split=0)
         float32_modf_distrbd = float32_tensor_distrbd.modf()
 
@@ -228,6 +235,7 @@ class TestRounding(unittest.TestCase):
         self.assertAlmostEqual(ht.all(float32_modf_distrbd[1]), ht.all(ht.array(comparison[1])))
 
         # exponential of float64
+        print("SPLIT, FLOAT64")
         comparison = np.modf(np.arange(start, end, step, np.float64))
 
         float64_tensor_distrbd = ht.arange(start, end, step, dtype=ht.float64, split=0)
