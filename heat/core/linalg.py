@@ -1275,7 +1275,7 @@ def __qr_q_waits(q_dict_waits, q_dict, col):
     if col not in q_dict_waits.keys():
         return
     for key in q_dict_waits[col].keys():
-        new_key = q_dict_waits[col][key][3].wait() + key + "e"
+        new_key = q_dict_waits[col][key][3] + key + "e"
         q_dict_waits[col][key][0][1].wait()
         q_dict[col][new_key] = [
             q_dict_waits[col][key][0][0],
@@ -1481,7 +1481,6 @@ def __qr_global_r(
                 q_dict=q_dict,
                 key=str(loop) + "p0" + str(pr0) + "p1" + str(pr1) + "e",
                 q_dict_waits=q_dict_waits,
-                lp=str(loop),
             )
 
         loop_size_remaining = loop_size_remaining[: -1 * (procs_remaining // 2)]
@@ -1511,7 +1510,6 @@ def __qr_global_r(
                 q_dict=q_dict if q_dict is not None else {},
                 comm=comm,
                 q_dict_waits=q_dict_waits,
-                lp=str(loop),
             )
             rem1 = rem2
             rem2 = None
@@ -1541,18 +1539,17 @@ def __qr_global_r(
                 q_dict=q_dict,
                 comm=comm,
                 q_dict_waits=q_dict_waits,
-                lp=str(loop),
             )
             rem1 = None
 
         completed = True if procs_remaining == 1 and rem1 is None and rem2 is None else False
 
 
-def __qr_send_q_to_diag_pr(col, pr0, pr1, diag_process, comm, q_dict, key, q_dict_waits, lp):
+def __qr_send_q_to_diag_pr(col, pr0, pr1, diag_process, comm, q_dict, key, q_dict_waits):
     """
-    This function sends the merged Q to the diagonal process.
-    This is needed for the Q calculation when two processes are merged and neither is the diagonal
-    process
+    This function sends the merged Q to the diagonal process. Buffered send it used for sending
+    Q. This is needed for the Q calculation when two processes are merged and neither is the diagonal
+    process.
 
     Parameters
     ----------
@@ -1564,18 +1561,17 @@ def __qr_send_q_to_diag_pr(col, pr0, pr1, diag_process, comm, q_dict, key, q_dic
         The rank of the process which has the tile along the diagonal for the given column
     comm : MPICommunication (ht.DNDarray.comm)
         The communicator used. (Intended as the communication of the DNDarray 'a' given to qr)
-    q : torch.Tensor
-        The q as calculed for the merge of the a_tiles
-    u_shape : torch.Shape
-        The shape of the upper tile used in the merge qr operation (from process pr0)
-    l_shape : torch.Shape
-        The shape of the lower tile used in the merge qr operation (from process pr1)
+    q_dict : Dict
+        dictionary containing the Q values calculated for finding R
+    key : string
+        key for q_dict[col] which corresponds to the Q to send
     q_dict_waits : Dict
         Dictionary used in the collection of the Qs which are sent to the diagonal process
 
     Returns
     -------
-    None
+    None, sets the values of q_dict_waits with the with *waits* for the values of Q, upper.shape,
+        and lower.shape
     """
     if comm.rank not in [pr1, diag_process]:
         return
@@ -1589,25 +1585,24 @@ def __qr_send_q_to_diag_pr(col, pr0, pr1, diag_process, comm, q_dict, key, q_dic
         comm.Isend(q, dest=diag_process, tag=int(base_tag + "12"))
         comm.isend(u_shape, dest=diag_process, tag=int(base_tag + "123"))
         comm.isend(l_shape, dest=diag_process, tag=int(base_tag + "1234"))
-        comm.isend(lp, dest=diag_process, tag=int(base_tag + "12345"))
     if comm.rank == diag_process:
         # q_dict_waits now looks like a
         q_sh = comm.recv(source=pr1, tag=int(base_tag + "1"))
-        q_wait = torch.zeros(q_sh)
+        q_recv = torch.zeros(q_sh)
         k = "p0" + str(pr0) + "p1" + str(pr1)
         q_dict_waits[col][k] = []
-        q_dict_waits[col][k].append(
-            [q_wait, comm.Irecv(q_wait, source=pr1, tag=int(base_tag + "12"))]
-        )
+        q_wait = comm.Irecv(q_recv, source=pr1, tag=int(base_tag + "12"))
+        q_dict_waits[col][k].append([q_recv, q_wait])
         q_dict_waits[col][k].append(comm.irecv(source=pr1, tag=int(base_tag + "123")))
         q_dict_waits[col][k].append(comm.irecv(source=pr1, tag=int(base_tag + "1234")))
-        q_dict_waits[col][k].append(comm.irecv(source=pr1, tag=int(base_tag + "12345")))
+        q_dict_waits[col][k].append(key[0])
 
 
 def __qr_merge_tile_rows_qr(pr0, pr1, column, rank, a_tiles, diag_process, key, q_dict):
     """
     Merge two tile rows, take their QR, and apply it to the trailing process
-    this will modify A
+    This will modify 'a' and set the value of the q_dict[column][key]
+    with [Q, upper.shape, lower.shape].
 
     Parameters
     ----------
@@ -1624,11 +1619,7 @@ def __qr_merge_tile_rows_qr(pr0, pr1, column, rank, a_tiles, diag_process, key, 
 
     Returns
     -------
-    list : [q of the merged tiles, shape of the tile on pr0, shape of the tile on pr1]
-
-    Notes
-    -----
-    It is assumed that this function is only run on processes pr0 and pr1
+    None, sets the value of q_dict[column][key] with [Q, upper.shape, lower.shape]
     """
     if rank not in [pr0, pr1]:
         return
@@ -1703,9 +1694,8 @@ def __qr_merge_tile_rows_qr(pr0, pr1, column, rank, a_tiles, diag_process, key, 
         # set the lower rest
         if rank == pr1:
             a_tiles.arr.lloc[lower_inds[0] : lower_inds[1], lower_inds[3] :] = low
-    # key = str(loop) + "p0" + str(pr0) + "p1" + str(pr1) + "e"
+
     q_dict[column][key] = [q_merge, upper.shape, lower.shape]
-    # return q_merge, upper.shape, lower.shape
 
 
 def qr_householder(a, copy=True, return_q=True):
