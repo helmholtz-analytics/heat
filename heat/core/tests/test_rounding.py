@@ -280,14 +280,13 @@ class TestRounding(unittest.TestCase):
 
         # with split tensors
 
-        # # exponential of float32
-        # comparison = torch.arange(start, end, step, dtype=torch.float32).round()
-        # float32_tensor_distrbd = ht.arange(start, end, step, dtype=ht.float32, split=0)
+        # exponential of float32
+        comparison = torch.arange(start, end, step, dtype=torch.float32)  # .round()
+        float32_tensor_distrbd = ht.array(comparison, split=0)
         # float32_round_distrbd = float32_tensor_distrbd.round()
-        # self.assertIsInstance(float32_round_distrbd, ht.DNDarray)
-        # self.assertEqual(float32_round_distrbd.dtype, ht.float32)
-        # self.assertEqual(float32_round_distrbd.dtype, ht.float32)
-        # BasicTest.assert_array_equal(self, float32_round_distrbd, comparison)
+        self.assertIsInstance(float32_distrbd.round(), ht.DNDarray)
+        self.assertEqual(float32_distrbd.round().dtype, ht.float32)
+        BasicTest.assert_array_equal(self, float32_round_distrbd.round(), comparison.round())
         # # self.assertTrue(ht.equal(float32_round_distrbd, ht.array(comparison)))
 
         # # exponential of float64
