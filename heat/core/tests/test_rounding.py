@@ -162,94 +162,86 @@ class TestRounding(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.floor(object())
 
-    def test_modf(self):
-        size = ht.communication.MPI_WORLD.size
-        start, end = -5.0, 5.0
-        step = (end - start) / (2 * size)
-        comparison = np.modf(np.arange(start, end, step, np.float32))
+    # def test_modf(self):
+    #     size = ht.communication.MPI_WORLD.size
+    #     start, end = -5.0, 5.0
+    #     step = (end - start) / (2 * size)
+    #     comparison = np.modf(np.arange(start, end, step, np.float32))
 
-        # exponential of float32
-        print("LOCAL, FLOAT32")
-        float32_tensor = ht.arange(start, end, step, dtype=ht.float32)
-        float32_modf = float32_tensor.modf()
-        self.assertIsInstance(float32_modf[0], ht.DNDarray)
-        self.assertIsInstance(float32_modf[1], ht.DNDarray)
-        self.assertEqual(float32_modf[0].dtype, ht.float32)
-        self.assertEqual(float32_modf[1].dtype, ht.float32)
+    #     # exponential of float32
+    #     float32_tensor = ht.arange(start, end, step, dtype=ht.float32)
+    #     float32_modf = float32_tensor.modf()
+    #     self.assertIsInstance(float32_modf[0], ht.DNDarray)
+    #     self.assertIsInstance(float32_modf[1], ht.DNDarray)
+    #     self.assertEqual(float32_modf[0].dtype, ht.float32)
+    #     self.assertEqual(float32_modf[1].dtype, ht.float32)
 
-        self.assertAlmostEqual(float32_modf[0].numpy().all(), comparison[0].all())
-        self.assertAlmostEqual(float32_modf[1].numpy().all(), comparison[1].all())
+    #     self.assertAlmostEqual(float32_modf[0].numpy().all(), comparison[0].all())
+    #     self.assertAlmostEqual(float32_modf[1].numpy().all(), comparison[1].all())
 
-        self.assertAlmostEqual(ht.all(float32_modf[0]), ht.all(ht.array(comparison[0])))
-        self.assertAlmostEqual(ht.all(float32_modf[1]), ht.all(ht.array(comparison[1])))
+    #     self.assertAlmostEqual(ht.all(float32_modf[0]), ht.all(ht.array(comparison[0])))
+    #     self.assertAlmostEqual(ht.all(float32_modf[1]), ht.all(ht.array(comparison[1])))
 
-        # exponential of float64
-        print("LOCAL, FLOAT64")
+    #     # exponential of float64
+    #     comparison = np.modf(np.arange(start, end, step, np.float64))
 
-        comparison = np.modf(np.arange(start, end, step, np.float64))
+    #     float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
+    #     float64_modf = float64_tensor.modf()
+    #     self.assertIsInstance(float64_modf[0], ht.DNDarray)
+    #     self.assertIsInstance(float64_modf[1], ht.DNDarray)
+    #     self.assertEqual(float64_modf[0].dtype, ht.float64)
+    #     self.assertEqual(float64_modf[1].dtype, ht.float64)
 
-        float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
-        float64_modf = float64_tensor.modf()
-        self.assertIsInstance(float64_modf[0], ht.DNDarray)
-        self.assertIsInstance(float64_modf[1], ht.DNDarray)
-        self.assertEqual(float64_modf[0].dtype, ht.float64)
-        self.assertEqual(float64_modf[1].dtype, ht.float64)
+    #     self.assertAlmostEqual(float64_modf[0].numpy().all(), comparison[0].all())
+    #     self.assertAlmostEqual(float64_modf[1].numpy().all(), comparison[1].all())
 
-        self.assertAlmostEqual(float64_modf[0].numpy().all(), comparison[0].all())
-        self.assertAlmostEqual(float64_modf[1].numpy().all(), comparison[1].all())
+    #     self.assertAlmostEqual(ht.all(float64_modf[0]), ht.all(ht.array(comparison[0])))
+    #     self.assertAlmostEqual(ht.all(float64_modf[1]), ht.all(ht.array(comparison[1])))
 
-        self.assertAlmostEqual(ht.all(float64_modf[0]), ht.all(ht.array(comparison[0])))
-        self.assertAlmostEqual(ht.all(float64_modf[1]), ht.all(ht.array(comparison[1])))
+    #     # check exceptions
+    #     with self.assertRaises(TypeError):
+    #         ht.modf([0, 1, 2, 3])
+    #     with self.assertRaises(TypeError):
+    #         ht.modf(object())
+    #     with self.assertRaises(TypeError):
+    #         ht.modf(float32_tensor, 1)
+    #     with self.assertRaises(ValueError):
+    #         ht.modf(float32_tensor, (float32_tensor, float32_tensor, float64_tensor))
+    #     with self.assertRaises(TypeError):
+    #         ht.modf(float32_tensor, (float32_tensor, 2))
 
-        # check exceptions
-        print("LOCAL, EXCEPTIONS")
+    #     # with split tensors
 
-        with self.assertRaises(TypeError):
-            ht.modf([0, 1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.modf(object())
-        with self.assertRaises(TypeError):
-            ht.modf(float32_tensor, 1)
-        with self.assertRaises(ValueError):
-            ht.modf(float32_tensor, (float32_tensor, float32_tensor, float64_tensor))
-        with self.assertRaises(TypeError):
-            ht.modf(float32_tensor, (float32_tensor, 2))
+    #     # exponential of float32
+    #     float32_tensor_distrbd = ht.arange(start, end, step, dtype=ht.float32, split=0)
+    #     float32_modf_distrbd = float32_tensor_distrbd.modf()
 
-        # with split tensors
+    #     self.assertIsInstance(float32_modf_distrbd[0], ht.DNDarray)
+    #     self.assertIsInstance(float32_modf_distrbd[1], ht.DNDarray)
+    #     self.assertEqual(float32_modf_distrbd[0].dtype, ht.float32)
+    #     self.assertEqual(float32_modf_distrbd[1].dtype, ht.float32)
 
-        # exponential of float32
-        print("SPLIT, FLOAT32")
+    #     self.assertAlmostEqual(float32_modf_distrbd[0].numpy().all(), comparison[0].all())
+    #     self.assertAlmostEqual(float32_modf_distrbd[1].numpy().all(), comparison[1].all())
 
-        float32_tensor_distrbd = ht.arange(start, end, step, dtype=ht.float32, split=0)
-        float32_modf_distrbd = float32_tensor_distrbd.modf()
+    #     self.assertAlmostEqual(ht.all(float32_modf_distrbd[0]), ht.all(ht.array(comparison[0])))
+    #     self.assertAlmostEqual(ht.all(float32_modf_distrbd[1]), ht.all(ht.array(comparison[1])))
 
-        self.assertIsInstance(float32_modf_distrbd[0], ht.DNDarray)
-        self.assertIsInstance(float32_modf_distrbd[1], ht.DNDarray)
-        self.assertEqual(float32_modf_distrbd[0].dtype, ht.float32)
-        self.assertEqual(float32_modf_distrbd[1].dtype, ht.float32)
+    #     # exponential of float64
+    #     comparison = np.modf(np.arange(start, end, step, np.float64))
 
-        self.assertAlmostEqual(float32_modf_distrbd[0].numpy().all(), comparison[0].all())
-        self.assertAlmostEqual(float32_modf_distrbd[1].numpy().all(), comparison[1].all())
+    #     float64_tensor_distrbd = ht.arange(start, end, step, dtype=ht.float64, split=0)
+    #     float64_modf_distrbd = float64_tensor_distrbd.modf()
+    #     self.assertIsInstance(float64_modf_distrbd[0], ht.DNDarray)
+    #     self.assertIsInstance(float64_modf_distrbd[1], ht.DNDarray)
+    #     self.assertEqual(float64_modf_distrbd[0].dtype, ht.float64)
+    #     self.assertEqual(float64_modf_distrbd[1].dtype, ht.float64)
 
-        self.assertAlmostEqual(ht.all(float32_modf_distrbd[0]), ht.all(ht.array(comparison[0])))
-        self.assertAlmostEqual(ht.all(float32_modf_distrbd[1]), ht.all(ht.array(comparison[1])))
+    #     self.assertAlmostEqual(float64_modf_distrbd[0].numpy().all(), comparison[0].all())
+    #     self.assertAlmostEqual(float64_modf_distrbd[1].numpy().all(), comparison[1].all())
 
-        # exponential of float64
-        print("SPLIT, FLOAT64")
-        comparison = np.modf(np.arange(start, end, step, np.float64))
-
-        float64_tensor_distrbd = ht.arange(start, end, step, dtype=ht.float64, split=0)
-        float64_modf_distrbd = float64_tensor_distrbd.modf()
-        self.assertIsInstance(float64_modf_distrbd[0], ht.DNDarray)
-        self.assertIsInstance(float64_modf_distrbd[1], ht.DNDarray)
-        self.assertEqual(float64_modf_distrbd[0].dtype, ht.float64)
-        self.assertEqual(float64_modf_distrbd[1].dtype, ht.float64)
-
-        self.assertAlmostEqual(float64_modf_distrbd[0].numpy().all(), comparison[0].all())
-        self.assertAlmostEqual(float64_modf_distrbd[1].numpy().all(), comparison[1].all())
-
-        self.assertAlmostEqual(ht.all(float64_modf_distrbd[0]), ht.all(ht.array(comparison[0])))
-        self.assertAlmostEqual(ht.all(float64_modf_distrbd[1]), ht.all(ht.array(comparison[1])))
+    #     self.assertAlmostEqual(ht.all(float64_modf_distrbd[0]), ht.all(ht.array(comparison[0])))
+    #     self.assertAlmostEqual(ht.all(float64_modf_distrbd[1]), ht.all(ht.array(comparison[1])))
 
     def test_round(self):
         size = ht.communication.MPI_WORLD.size
