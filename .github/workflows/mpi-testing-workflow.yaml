@@ -16,12 +16,12 @@ jobs:
       - name: Debugging info
         run: |
           ls
-          /bin/bash -c '. /root/.bashrc && mpirun --version'
+          sudo /bin/bash -c '. /root/.bashrc && mpirun --version'
       - name: Install dependecies
         run: |
-          /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
-          /bin/bash -c '. /root/.bashrc && pip list'
+          sudo /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
+          sudo /bin/bash -c '. /root/.bashrc && pip list'
       - name: Test with pytest
         run: |
-          /bin/bash -c '. /root/.bashrc && pip install pytest'
-          /bin/bash -c '. /root/.bashrc && pytest'
+          sudo /bin/bash -c '. /root/.bashrc && pip install pytest'
+          sudo /bin/bash -c '. /root/.bashrc && pytest'
