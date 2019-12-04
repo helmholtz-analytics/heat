@@ -3,7 +3,7 @@ name: Unit Tests Workflow
 on:
   push:
     branches:
-      - features/424-github-actions
+      - 'features/424-github-actions'
 
 jobs:
   build:
