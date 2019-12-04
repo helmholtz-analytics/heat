@@ -1,0 +1,25 @@
+name: Unit Tests Workflow
+
+on:
+  push:
+    branches:
+      - origin/features/424-github-actions
+
+jobs:
+  build:
+    name: Build App
+    runs-on: fedora-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Install dependecies
+        run: |
+          pip install -q -e .[hdf5,netcdf]
+          pip list
+      - name: Test with pytest
+        run: |
+          pip install pytest
+          pytest
