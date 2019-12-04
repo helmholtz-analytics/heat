@@ -5,8 +5,10 @@ on: [push]
 jobs:
   build:
     name: Build App
-    runs-on: docker://markusgoetz/heat
+    runs-on: ubuntu-latest
     steps:
+      - name: Pull Docker Image
+        uses: docker://markusgoetz/heat
       - uses: actions/checkout@v1
       - name: Set up Python
         uses: actions/setup-python@v1
