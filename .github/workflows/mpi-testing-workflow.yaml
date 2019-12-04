@@ -12,22 +12,16 @@ jobs:
     steps:
       - name: Run Docker Image
         uses: docker://markusgoetz/heat
-        shell: bash
-        run: |
-          mpirun --version
       - uses: actions/checkout@v1
       - name: Debugging info
-        shell: bash
         run: |
           ls
-          mpirun --version
+          /bin/bash -c '. /root/.bashrc && mpirun --version'
       - name: Install dependecies
-        shell: bash
         run: |
-          pip install -q -e .[hdf5,netcdf]
-          pip list
+          /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
+          /bin/bash -c '. /root/.bashrc && pip list'
       - name: Test with pytest
-        shell: bash
         run: |
-          pip install pytest
-          pytest
+          /bin/bash -c '. /root/.bashrc && pip install pytest'
+          /bin/bash -c '. /root/.bashrc && pytest'
