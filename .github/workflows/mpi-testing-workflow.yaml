@@ -15,7 +15,7 @@ jobs:
       - name: Debugging info
         run: |
           ls
-          sudo /bin/bash -c '. /root/.bashrc && mpirun --version'
+          /bin/bash -c '. /root/.bashrc && mpirun --version'
       - name: Install dependecies
         run: |
           sudo /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
