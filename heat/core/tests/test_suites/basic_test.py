@@ -193,7 +193,7 @@ class BasicTest(TestCase):
             )
 
         for dtype in data_types:
-            tensor = self._create_random_np_array(shape, dtype=dtype, low=low, high=high)
+            tensor = self.__create_random_np_array(shape, dtype=dtype, low=low, high=high)
             self.assert_func_equal_for_tensor(
                 tensor=tensor,
                 heat_func=heat_func,
@@ -291,7 +291,7 @@ class BasicTest(TestCase):
             else:
                 self.assertTrue(np.array_equal(ht_res._DNDarray__array.numpy(), np_res))
 
-    def _create_random_np_array(self, shape, dtype=np.float64, low=-10000, high=10000):
+    def __create_random_np_array(self, shape, dtype=np.float64, low=-10000, high=10000):
         """
         Creates a random array based on the input parameters.
         The used seed will be printed to stdout for debugging purposes.
