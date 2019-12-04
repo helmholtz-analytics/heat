@@ -12,6 +12,9 @@ jobs:
     steps:
       - name: Run Docker Image
         uses: docker://markusgoetz/heat
+        shell: bash
+        run: |
+          mpirun --version
       - uses: actions/checkout@v1
       - name: Debugging info
         shell: bash
