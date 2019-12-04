@@ -5,7 +5,7 @@ on: [push]
 jobs:
   build:
     name: Build App
-    runs-on: fedora-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
       - name: Set up Python
@@ -14,6 +14,7 @@ jobs:
           python-version: 3.7
       - name: Install dependecies
         run: |
+          python -m pip install --upgrade pip
           pip install -q -e .[hdf5,netcdf]
           pip list
       - name: Test with pytest
