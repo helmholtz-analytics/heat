@@ -108,7 +108,11 @@ class BasicTest(TestCase):
 
         equal_res = np.array(compare_func(local_numpy, expected_array[slices]))
         self.comm.Allreduce(MPI.IN_PLACE, equal_res, MPI.LAND)
-        self.assertTrue(equal_res, "Local tensors do not match the corresponding numpy slices.")
+        self.assertTrue(
+            equal_res,
+            "Local tensors do not match the corresponding numpy slices. "
+            "dtype was {}, split was {}".format(heat_array.dtype, heat_array.split),
+        )
         self.assertEqual(
             local_numpy.dtype,
             expected_array.dtype,
@@ -124,36 +128,110 @@ class BasicTest(TestCase):
 
     def assert_func_equal(
         self,
-        tensor,
+        shape,
         heat_func,
         numpy_func,
         distributed_result=True,
         heat_args=None,
         numpy_args=None,
+        data_types=(np.int32, np.int64, np.float32, np.float64),
+        low=-10000,
+        high=10000,
     ):
         """
-        Checks if a heat function works equivalent to a given numpy function. The initial array is iteratively split
-        along each axis before the heat function is applied. After that the resulting arrays are compared using the
-        assert_array_equal function.
+        This function will create random tensors of the given shape with different data types.
+        All of these tensors will be tested with `ht.assert_func_equal_for_tensor`.
 
         Parameters
         ----------
-        tensor: tuple, list, numpy.ndarray or torch.Tensor
-            The tensor to check the function against.
-            If a tuple or list is provided instead a random array of the specified shape is generated
+        shape: tuple or list
+            The shape of which a random tensors will be created and tested against
         heat_func: function
             The function that is to be tested
         numpy_func: function
             The numpy implementation of an equivalent function to test against
-        distributed_result: bool, optional
-            Specify whether the result of the heat function is distributed across all nodes or all nodes have the full
-            result. Default is True.
         heat_args: dictionary, optional
             The keyword arguments that will be passed to the heat function. Array and split function don't need to be
             specified. Default is {}.
         numpy_args: dictionary, optional
             The keyword arguments that will be passed to the numpy function. Array doesn't need to be specified.
             Default is {}.
+        distributed_result: bool, optional
+            Specify whether the result of the heat function is distributed across all nodes or all nodes have the full
+            result. Default is True.
+        data_types: list of numpy dtypes, optional
+            Tensors with all of these dtypes will be created and tested. Each type must to be a numpy dtype.
+            Default is [numpy.int32, numpy.int64, numpy.float32, numpy.float64]
+        low: int, optional
+            In case one of the data_types has integer types, this is the lower bound for the random values.
+            Default is -10000
+        high: int, optional
+            In case one of the data_types has integer types, this is the upper bound for the random values.
+            Default is 10000
+
+        Raises
+        ------
+        AssertionError if the functions to not perform equally.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> import heat as ht
+        >>> self.assert_func_equal((2, 2), ht.exp, np.exp)
+
+        >>> self.assert_func_equal((2, 2), ht.exp, np.log)
+        AssertionError: [...]
+        >>> self.assert_func_equal((1, 3, 5), ht.any, np.any, distributed_result=False)
+
+        >>> heat_args = {'sorted': True, 'axis': 0}
+        >>> numpy_args = {'axis': 0}
+        >>> self.assert_func_equal([5, 5, 5, 5], ht.unique, np.unique, heat_arg=heat_args, numpy_args=numpy_args)
+        """
+        if not isinstance(shape, tuple) and not isinstance(shape, list):
+            raise ValueError(
+                "The shape must be either a list or a tuple but was {}".format(type(shape))
+            )
+
+        for dtype in data_types:
+            tensor = self._create_random_np_array(shape, dtype=dtype, low=low, high=high)
+            self.assert_func_equal_for_tensor(
+                tensor=tensor,
+                heat_func=heat_func,
+                numpy_func=numpy_func,
+                heat_args=heat_args,
+                numpy_args=numpy_args,
+                distributed_result=distributed_result,
+            )
+
+    def assert_func_equal_for_tensor(
+        self,
+        tensor,
+        heat_func,
+        numpy_func,
+        heat_args=None,
+        numpy_args=None,
+        distributed_result=True,
+    ):
+        """
+        This function tests if the heat function and the numpy function create the equal result on the given tensor.
+
+        Parameters
+        ----------
+        tensor: torch.Tensor or numpy.ndarray
+            The tensor on which the heat function will be executed.
+        heat_func: function
+            The function that is to be tested
+        numpy_func: function
+            The numpy implementation of an equivalent function to test against
+        heat_args: dictionary, optional
+            The keyword arguments that will be passed to the heat function. Array and split function don't need to be
+            specified. Default is {}.
+        numpy_args: dictionary, optional
+            The keyword arguments that will be passed to the numpy function. Array doesn't need to be specified.
+            Default is {}.
+        distributed_result: bool, optional
+            Specify whether the result of the heat function is distributed across all nodes or all nodes have the full
+            result. Default is True.
 
         Raises
         ------
@@ -164,20 +242,19 @@ class BasicTest(TestCase):
         >>> import numpy as np
         >>> import heat as ht
         >>> a = np.arange(10)
-        >>> self.assert_func_equal(a, ht.exp, np.exp)
+        >>> self.assert_func_equal_for_tensor(a, ht.exp, np.exp)
 
-        >>> self.assert_func_equal(a, ht.exp, np.log)
+        >>> self.assert_func_equal_for_tensor(a, ht.exp, np.log)
         AssertionError: [...]
-        >>> self.assert_func_equal((1, 3, 5), ht.any, np.any, distributed_result=False)
+        >>> self.assert_func_equal_for_tensor(a, ht.any, np.any, distributed_result=False)
 
+        >>> a = torch.ones([5, 5, 5, 5])
         >>> heat_args = {'sorted': True, 'axis': 0}
         >>> numpy_args = {'axis': 0}
-        >>> self.assert_func_equal([5, 5, 5, 5], ht.unique, np.unique, heat_arg=heat_args, numpy_args=numpy_args)
+        >>> self.assert_func_equal_for_tensor(a, ht.unique, np.unique, heat_arg=heat_args, numpy_args=numpy_args)
         """
         self.assertTrue(callable(heat_func))
         self.assertTrue(callable(numpy_func))
-        if isinstance(tensor, tuple) or isinstance(tensor, list):
-            tensor = self._create_random_array(tensor)
 
         if heat_args is None:
             heat_args = {}
@@ -209,16 +286,55 @@ class BasicTest(TestCase):
 
             self.assertEqual(ht_array.device, ht_res.device)
             self.assertEqual(ht_array._DNDarray__array.device, ht_res._DNDarray__array.device)
-            self.assertEqual(ht_array.comm, ht_res.comm)
             if distributed_result:
                 self.assert_array_equal(ht_res, np_res)
             else:
                 self.assertTrue(np.array_equal(ht_res._DNDarray__array.numpy(), np_res))
 
-    def _create_random_array(self, shape):
+    def _create_random_np_array(self, shape, dtype=np.float64, low=-10000, high=10000):
+        """
+        Creates a random array based on the input parameters.
+        The used seed will be printed to stdout for debugging purposes.
+
+        Parameters
+        ----------
+        shape: list or tuple
+            The shape of the random array to be created.
+        dtype: np.dtype, optional
+            The datatype of the resulting array.
+            If dtype is subclass of np.floating then numpy.random.randn is used to create random values.
+            If dtype is subclass of np.integer then numpy.random.randint is called with the low and high argument to
+            create the random values.
+            Default is numpy.float64
+        low: int, optional
+            In case dtype is an integer type, this is the lower bound for the random values.
+            Default is -10000
+        low: int, optional
+            In case dtype is an integer type, this is the upper bound for the random values.
+            Default is 10000
+
+        Returns
+        -------
+        res: numpy.ndarray
+            An array of random values with the specified shape and dtype.
+
+        Raises
+        ------
+        ValueError if the dtype is not a subtype of numpy.integer or numpy.floating
+        """
         seed = np.random.randint(1000000, size=(1,))
         print("using seed {} for random values".format(seed))
         self.comm.Bcast(seed, root=0)
         np.random.seed(seed=seed.item())
-        array = np.random.randn(*shape)
+        if issubclass(dtype, np.floating):
+            array = np.random.randn(*shape)
+        elif issubclass(dtype, np.integer):
+            array = np.random.randint(low=low, high=high, size=shape)
+        else:
+            raise ValueError(
+                "Unsupported dtype. Expected a subclass of `np.floating` or `np.integer` but got {}".format(
+                    dtype
+                )
+            )
+        array = array.astype(dtype)
         return array
