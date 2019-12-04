@@ -287,7 +287,6 @@ class BasicTest(TestCase):
 
             self.assertEqual(ht_array.device, ht_res.device)
             self.assertEqual(ht_array._DNDarray__array.device, ht_res._DNDarray__array.device)
-            self.assertEqual(ht_array.comm, ht_res.comm)
             if distributed_result:
                 self.assert_array_equal(ht_res, np_res)
             else:
