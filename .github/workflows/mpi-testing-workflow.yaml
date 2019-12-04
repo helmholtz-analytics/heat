@@ -13,10 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Debugging info
-        shell: bash
         run: |
           ls
-          mpirun --version
+          sudo /bin/bash -c '. /root/.bashrc && mpirun --version'
       - name: Install dependecies
         run: |
           sudo /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
