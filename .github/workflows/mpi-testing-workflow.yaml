@@ -10,9 +10,14 @@ jobs:
     name: Build App
     runs-on: ubuntu-latest
     steps:
-      - name: Pull Docker Image
+      - name: Run Docker Image
         uses: docker://markusgoetz/heat
       - uses: actions/checkout@v1
+      - name: Debugging info
+        shell: bash
+        run: |
+          ls
+          mpirun --version
       - name: Install dependecies
         shell: bash
         run: |
