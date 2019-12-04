@@ -213,8 +213,7 @@ class BasicTest(TestCase):
         distributed_result=True,
     ):
         """
-        This function will create random tensors of the given shape with different data types.
-        All of these tensors will be tested with `ht.assert_func_equal_for_tensor`.
+        This function tests if the heat function and the numpy function create the equal result on the given tensor.
 
         Parameters
         ----------
