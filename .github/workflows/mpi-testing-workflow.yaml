@@ -14,8 +14,10 @@ jobs:
       - uses: actions/checkout@v1
       - name: Debugging info
         run: |
-          ls
-          /bin/bash -c '. /root/.bashrc && mpirun --version'
+          echo $SHELL
+          hsotenamectl
+          /bin/bash -c '. /root/.bashrc && echo $SHELL && hsotenamectl'
+          /bin/bash -c '. /root/.bashrc && module avail && module list'
       - name: Install dependecies
         run: |
           sudo /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
