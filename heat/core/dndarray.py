@@ -637,50 +637,6 @@ class DNDarray:
             return
         self.redistribute_()
 
-    def __balance_shuffle(self, snd_pr, send_amt, rcv_pr, snd_dtype):
-        """
-        Function to abstract the function used during balance for shuffling data between processes
-
-        Parameters
-        ----------
-        snd_pr : int, single element torch.Tensor
-            Sending process
-        send_amt : int, single element torch.Tensor
-            Amount of data to be sent by the sending process
-        rcv_pr : int, single element torch.Tensor
-            Recieving process
-        snd_dtype : torch.type
-            Torch type of the data in question
-
-        Returns
-        -------
-        None
-        """
-        rank = self.comm.rank
-        send_slice = [slice(None)] * self.numdims
-        keep_slice = [slice(None)] * self.numdims
-        if rank == snd_pr:
-            if snd_pr < rcv_pr:  # data passed to a higher rank (off the bottom)
-                send_slice[self.split] = slice(
-                    self.lshape[self.split] - send_amt, self.lshape[self.split]
-                )
-                keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
-            if snd_pr > rcv_pr:  # data passed to a lower rank (off the top)
-                send_slice[self.split] = slice(0, send_amt)
-                keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
-            data = self.__array[send_slice].clone()
-            self.comm.Send(data, dest=rcv_pr, tag=685)
-            self.__array = self.__array[keep_slice]
-        if rank == rcv_pr:
-            shp = list(self.gshape)
-            shp[self.split] = send_amt
-            data = torch.zeros(shp, dtype=snd_dtype)
-            self.comm.Recv(data, source=snd_pr, tag=685)
-            if snd_pr < rcv_pr:  # data passed from a lower rank (append to top)
-                self.__array = torch.cat((data, self.__array), dim=self.split)
-            if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
-                self.__array = torch.cat((self.__array, data), dim=self.split)
-
     def __bool__(self):
         """
         Boolean scalar casting.
@@ -752,6 +708,21 @@ class DNDarray:
         tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
         """
         return rounding.ceil(self, out)
+
+    def create_lshape_map(self):
+        """
+        Generate a 'map' of the lshapes of the data on all processes.
+        Units -> (process rank, lshape)
+
+        Returns
+        -------
+        lshape_map : torch.Tensor
+            Units -> (process rank, lshape)
+        """
+        lshape_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
+        lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
+        self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+        return lshape_map
 
     def trunc(self, out=None):
         """
@@ -2074,13 +2045,26 @@ class DNDarray:
         return self.__array.__repr__(*args)
 
     def redistribute_(self, lshape_map=None, target_map=None):
+        """
+        Redistributes the data of the DNDarray *along the split axis* to match the given target map.
+        This function does not modify the non-split dimensions of the DNDarray.
+        This is an abstraction and extension of the balance function.
+
+        Parameters
+        ----------
+        lshape_map : torch.Tensor
+            The current lshape of processes
+        target_map : torch.Tensor
+
+        Returns
+        -------
+        None, the local shapes of the DNDarray are modified
+        """
         snd_dtype = self.dtype.torch_type()
         # units -> {pr, 1st index, 2nd index}
         if lshape_map is None:
             # NOTE: giving an lshape map which is incorrect will result in an incorrect distribution
-            lshape_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
-            lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
-            self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+            lshape_map = self.create_lshape_map()
 
         if target_map is None:  # if no target map is given then it will balance the tensor
             target_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
@@ -2125,7 +2109,7 @@ class DNDarray:
                     send_amt = 0
                 # send amount is the data still needed by recv if that is available on the snd
                 if send_amt != 0:
-                    self.__balance_shuffle(
+                    self.__redistribute_shuffle(
                         snd_pr=snd_pr, send_amt=send_amt, rcv_pr=rcv_pr, snd_dtype=snd_dtype
                     )
                 lshape_cumsum[snd_pr] -= send_amt
@@ -2135,13 +2119,57 @@ class DNDarray:
             if lshape_map[rcv_pr, self.split] > target_map[rcv_pr, self.split]:
                 # if there is any data left on the process then send it to the next one
                 send_amt = lshape_map[rcv_pr, self.split] - target_map[rcv_pr, self.split]
-                self.__balance_shuffle(
+                self.__redistribute_shuffle(
                     snd_pr=rcv_pr, send_amt=send_amt.item(), rcv_pr=rcv_pr + 1, snd_dtype=snd_dtype
                 )
                 lshape_cumsum[rcv_pr] -= send_amt
                 lshape_cumsum[rcv_pr + 1] += send_amt
                 lshape_map[rcv_pr, self.split] -= send_amt
                 lshape_map[rcv_pr + 1, self.split] += send_amt
+
+    def __redistribute_shuffle(self, snd_pr, send_amt, rcv_pr, snd_dtype):
+        """
+        Function to abstract the function used during balance for shuffling data between processes
+
+        Parameters
+        ----------
+        snd_pr : int, single element torch.Tensor
+            Sending process
+        send_amt : int, single element torch.Tensor
+            Amount of data to be sent by the sending process
+        rcv_pr : int, single element torch.Tensor
+            Recieving process
+        snd_dtype : torch.type
+            Torch type of the data in question
+
+        Returns
+        -------
+        None
+        """
+        rank = self.comm.rank
+        send_slice = [slice(None)] * self.numdims
+        keep_slice = [slice(None)] * self.numdims
+        if rank == snd_pr:
+            if snd_pr < rcv_pr:  # data passed to a higher rank (off the bottom)
+                send_slice[self.split] = slice(
+                    self.lshape[self.split] - send_amt, self.lshape[self.split]
+                )
+                keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
+            if snd_pr > rcv_pr:  # data passed to a lower rank (off the top)
+                send_slice[self.split] = slice(0, send_amt)
+                keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
+            data = self.__array[send_slice].clone()
+            self.comm.Send(data, dest=rcv_pr, tag=685)
+            self.__array = self.__array[keep_slice]
+        if rank == rcv_pr:
+            shp = list(self.gshape)
+            shp[self.split] = send_amt
+            data = torch.zeros(shp, dtype=snd_dtype)
+            self.comm.Recv(data, source=snd_pr, tag=685)
+            if snd_pr < rcv_pr:  # data passed from a lower rank (append to top)
+                self.__array = torch.cat((data, self.__array), dim=self.split)
+            if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
+                self.__array = torch.cat((self.__array, data), dim=self.split)
 
     def resplit_(self, axis=None):
         """
