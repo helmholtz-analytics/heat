@@ -15,9 +15,7 @@ jobs:
         - heat/
         - /lib/modules
         - /usr/src
-      options:
-        - --privileged
-        - --cap-add=ALL
+      options: --privileged --cap-add=ALL
     steps:
       - uses: actions/checkout@v1
       - name: Shell check
