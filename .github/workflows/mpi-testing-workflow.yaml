@@ -14,9 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Shell check
-        run: module list
+        run: |
+          echo $SHELL
+          echo $BASH_ENV
       - name: Installing
-        run: mpirun --version
+        run: /bin/bash -c 'echo $SHELL && module list && mpirun --version'
       - name: Check dir
         run: ls
 #      - name: Install dependecies
