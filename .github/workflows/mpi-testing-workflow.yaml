@@ -12,6 +12,11 @@ jobs:
     container: docker://markusgoetz/heat
     steps:
       - uses: actions/checkout@v1
+      - name: Shell check
+        shell: bash
+        run: |
+          echo $SHELL
+          hsotenamectl
       - name: Debugging info
         run: |
           echo $SHELL
