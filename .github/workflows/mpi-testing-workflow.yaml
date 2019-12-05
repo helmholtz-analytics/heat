@@ -18,8 +18,8 @@ jobs:
           cat /etc/os-release
       - name: Debugging info
         run: |
-          /bin/bash -c '. /root/.bashrc && echo $SHELL'
-          /bin/bash -c '. /root/.bashrc && module avail && module list && module load mpi && mpirun --version'
+          /bin/bash -c 'echo $SHELL && ls && ls /'
+          /bin/bash -c 'module avail && module list && module load mpi && mpirun --version'
       - name: Install dependecies
         run: |
           sudo /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
