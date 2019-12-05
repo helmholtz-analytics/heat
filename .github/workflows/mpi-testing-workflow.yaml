@@ -15,7 +15,6 @@ jobs:
       - name: Shell check
         run: |
           echo $SHELL
-          hostnamectl
       - name: Bash check
         shell: bash
         run: |
