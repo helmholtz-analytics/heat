@@ -16,16 +16,10 @@ jobs:
         run: |
           echo $SHELL
           cat /etc/os-release
-          module avail
-          module list
-          module load mpi
-          mpirun --version
       - name: Debugging info
         run: |
-          echo $SHELL
-          hostnamectl
           /bin/bash -c '. /root/.bashrc && echo $SHELL'
-          /bin/bash -c '. /root/.bashrc && module avail && module list'
+          /bin/bash -c '. /root/.bashrc && module avail && module list && module load mpi && mpirun --version'
       - name: Install dependecies
         run: |
           sudo /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
