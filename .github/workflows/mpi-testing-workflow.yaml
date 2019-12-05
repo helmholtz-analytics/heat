@@ -10,31 +10,16 @@ jobs:
     name: Build App
     runs-on: ubuntu-latest
     container:
-      image: docker://markusgoetz/heat
-      volumes:
-        - heat/
-        - /lib/modules
-        - /usr/src
-      options: --privileged --cap-add=ALL
+      image: docker://simonsdockerid/heat
     steps:
       - uses: actions/checkout@v1
       - name: Shell check
-        run: |
-          echo $SHELL
-          cat /etc/os-release
+        run: module list
       - name: Installing
-        run: |
-          dnf -y update
-          dnf -y install @development-tools redhat-rpm-config python3-devel openmpi-devel hdf5-openmpi-devel netcdf-openmpi-devel
-          echo $SHELL
-          module avail
-          module list
-          module load mpi
-          mpirun --version
-      - name: Install dependecies
-        run: |
-          sudo /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf]'
-          sudo /bin/bash -c '. /root/.bashrc && pip list'
-      - name: Test with pytest
-        run: |
-          sudo /bin/bash -c '. /root/.bashrc && pytest'
+        run: mpirun --version
+      - name: Check dir
+        run: ls
+#      - name: Install dependecies
+#        run: pip install -q -e .[hdf5,netcdf]
+#      - name: Test with pytest
+#        run: pytest
