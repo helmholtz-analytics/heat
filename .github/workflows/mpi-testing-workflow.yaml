@@ -15,11 +15,7 @@ jobs:
       - name: Shell check
         run: |
           echo $SHELL
-      - name: Bash check
-        shell: bash
-        run: |
-          echo $SHELL
-          hostnamectl
+          cat /etc/os-release
       - name: Debugging info
         run: |
           echo $SHELL
