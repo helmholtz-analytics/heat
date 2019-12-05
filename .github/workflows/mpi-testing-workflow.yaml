@@ -21,8 +21,8 @@ jobs:
           cat /etc/os-release
       - name: Installing
         run: |
-          sudo dnf -y update
-          sudo dnf -y install @development-tools redhat-rpm-config python3-devel openmpi-devel hdf5-openmpi-devel netcdf-openmpi-devel
+          dnf -y update
+          dnf -y install @development-tools redhat-rpm-config python3-devel openmpi-devel hdf5-openmpi-devel netcdf-openmpi-devel
           module avail
           module list
           module load mpi
