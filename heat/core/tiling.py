@@ -1,6 +1,5 @@
 import torch
 
-from .communication import MPI
 from . import dndarray
 
 __all__ = ["SquareDiagTiles"]
@@ -10,12 +9,14 @@ class SquareDiagTiles:
     def __init__(self, arr, tiles_per_proc=2, lshape_map=None):
         """
         Generate the tile map and the other objects which may be useful.
-        The tiles generated here are based of square tiles along the diagonal. The size of these tiles along the diagonal dictate the divisions accross
-        all processes. If gshape[0] >> gshape[1] then there will be extra tiles generated below the diagonal. If gshape[0] is close to gshape[1], then
-        the last tile (as well as the other tiles which correspond with said tile) will be extended to cover the whole array. However, extra tiles are
-        not generated above the diagonal in the case that gshape[0] << gshape[1].
+        The tiles generated here are based of square tiles along the diagonal. The size of these
+        tiles along the diagonal dictate the divisions accross all processes. If
+        gshape[0] >> gshape[1] then there will be extra tiles generated below the diagonal.
+        If gshape[0] is close to gshape[1], then the last tile (as well as the other tiles which
+        correspond with said tile) will be extended to cover the whole array. However, extra tiles
+        are not generated above the diagonal in the case that gshape[0] << gshape[1].
 
-        This tiling scheme was intended for use with the QR function.
+        This tiling scheme is intended for use with the QR function.
 
         Parameters
         ----------
@@ -24,8 +25,6 @@ class SquareDiagTiles:
         tiles_per_proc : int
             Default = 2
             the number of divisions per process,
-            if split = 0 then this is the starting number of tile rows
-            if split = 1 then this is the starting number of tile columns
 
         Returns
         -------
@@ -34,7 +33,8 @@ class SquareDiagTiles:
         Initializes
         -----------
         __col_per_proc_list : list
-            list is length of the number of processes, each element has the number of tile columns on the process whos rank equals the index
+            list is length of the number of processes, each element has the number of tile
+            columns on the process whos rank equals the index
         __DNDarray = arr : DNDarray
             the whole DNDarray
         __lshape_map : torch.Tensor
@@ -44,11 +44,8 @@ class SquareDiagTiles:
             units -> row, column, start index in each direction, process
             tensor filled with the global indices of the generated tiles
         __row_per_proc_list : list
-            list is length of the number of processes, each element has the number of tile rows on the process whos rank equals the index
-        __tile_columns : int
-            number of tile columns
-        __tile_rows : int
-            number of tile rows
+            list is length of the number of processes, each element has the number of tile
+            rows on the process whos rank equals the index
         """
         # lshape_map -> rank (int), lshape (tuple of the local lshape, self.lshape)
         if not isinstance(arr, dndarray.DNDarray):
@@ -58,9 +55,7 @@ class SquareDiagTiles:
         # todo: small bug in edge case for very small matrices with < 10 elements on a process and split = 1 with gshape[0] > gshape[1]
         if lshape_map is None:
             # create lshape map
-            lshape_map = torch.zeros((arr.comm.size, len(arr.gshape)), dtype=int)
-            lshape_map[arr.comm.rank, :] = torch.tensor(arr.lshape)
-            arr.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+            lshape_map = arr.create_lshape_map()
 
         # if there is only one element of the diagonal on the next process
         d = 1 if tiles_per_proc <= 2 else tiles_per_proc - 1

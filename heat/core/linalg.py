@@ -740,7 +740,7 @@ def matmul(a, b):
             return c
 
 
-# @torch.jit.script
+@torch.jit.script
 def __mm_c_block_setter(
     b_proc, a_proc, a_data, b_data, b_block_map, a_block_map, b_split, a_split, mB, kB, nB, c
 ):
@@ -780,7 +780,8 @@ def __mm_c_block_setter(
 
 def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     """
-    Calculates the QR decomposition of a 2D DNDarray
+    Calculates the QR decomposition of a 2D DNDarray. The algorithms are based on the CAQR and TSQR
+    algorithms. For more information see the references.
 
     Parameters
     ----------
@@ -804,6 +805,17 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     tuple of Q and R
         if calc_q == True, function returns (Q, R)
         if calc_q == False, function returns (None, R)
+
+    References
+    ----------
+    [0]  W. Zheng, F. Song, L. Lin, and Z. Chen, “Scaling Up Parallel Computation of Tiled QR
+            Factorizations by a Distributed Scheduling Runtime System and Analytical Modeling,”
+            Parallel Processing Letters, vol. 28, no. 01, p. 1850004, 2018.
+    [1] Bilel Hadri, Hatem Ltaief, Emmanuel Agullo, Jack Dongarra. Tile QR Factorization with
+            Parallel Panel Processing for Multicore Architectures. 24th IEEE International Parallel
+            and DistributedProcessing Symposium (IPDPS 2010), Apr 2010, Atlanta, United States.
+            inria-00548899
+    [2] Gene H. Golub and Charles F. Van Loan. 1996. Matrix Computations (3rd Ed.).
     """
     if not isinstance(a, dndarray.DNDarray):
         raise TypeError("'a' must be a DNDarray")
