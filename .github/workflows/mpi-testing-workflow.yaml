@@ -15,17 +15,17 @@ jobs:
       - name: Shell check
         run: |
           echo $SHELL
-          hostenamectl
+          hostnamectl
       - name: Bash check
         shell: bash
         run: |
           echo $SHELL
-          hostenamectl
+          hostnamectl
       - name: Debugging info
         run: |
           echo $SHELL
-          hsotenamectl
-          /bin/bash -c '. /root/.bashrc && echo $SHELL && hsotenamectl'
+          hostnamectl
+          /bin/bash -c '. /root/.bashrc && echo $SHELL && hostnamectl'
           /bin/bash -c '. /root/.bashrc && module avail && module list'
       - name: Install dependecies
         run: |
