@@ -3,19 +3,24 @@ import heat as ht
 import numpy as np
 import torch
 
-if os.environ.get("DEVICE") == "gpu":
-    ht.use_device("gpu" if torch.cuda.is_available() else "cpu")
+from heat.core.tests.test_suites.basic_test import BasicTest
+
+if os.environ.get("DEVICE") == "gpu" and torch.cuda.is_available():
+    ht.use_device("gpu")
     torch.cuda.set_device(torch.device(ht.get_device().torch_device))
 else:
     ht.use_device("cpu")
 device = ht.get_device().torch_device
-
-from heat.core.tests.test_suites.basic_test import BasicTest
+ht_device = None
+if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
+    device = ht.gpu.torch_device
+    ht_device = ht.gpu
+    torch.cuda.set_device(device)
 
 
 class TestBasicTest(BasicTest):
     def test_assert_array_equal(self):
-        heat_array = ht.ones((self.get_size(), 10, 10), dtype=ht.int32, split=1)
+        heat_array = ht.ones((self.get_size(), 10, 10), dtype=ht.int32, split=1, device=ht_device)
         np_array = np.ones((self.get_size(), 10, 10), dtype=np.int32)
         self.assert_array_equal(heat_array, np_array)
 
@@ -23,7 +28,9 @@ class TestBasicTest(BasicTest):
         with self.assertRaises(AssertionError):
             self.assert_array_equal(heat_array, np_array)
 
-        heat_array = ht.zeros((25, 13, self.get_size(), 20), dtype=ht.float32, split=2)
+        heat_array = ht.zeros(
+            (25, 13, self.get_size(), 20), dtype=ht.float32, split=2, device=ht_device
+        )
         expected_array = torch.zeros(
             (25, 13, self.get_size(), 20),
             dtype=torch.float32,
@@ -55,6 +62,6 @@ class TestBasicTest(BasicTest):
         np_func = np.exp
         self.assert_func_equal(array, heat_func=ht_func, numpy_func=np_func)
 
-        array = ht.ones((15, 15))
+        array = ht.ones((15, 15), device=ht_device)
         with self.assertRaises(TypeError):
             self.assert_func_equal(array, heat_func=ht_func, numpy_func=np_func)

@@ -51,12 +51,18 @@ class DNDarray:
         self.__device = device
         self.__comm = comm
 
-        if (
-            isinstance(self.__array, torch.Tensor)
-            and isinstance(device, devices.Device)
-            and self.__array.device.type not in self.__device.torch_device
-        ):
-            self.__array = self.__array.to(devices.sanitize_device(self.__device).torch_device)
+        # handle inconsistencies between torch and heat devices
+        if isinstance(self.__array, torch.Tensor):
+            if isinstance(device, devices.Device):
+                if self.__array.device.type not in self.__device.torch_device:
+                    self.__array = self.__array.to(
+                        devices.sanitize_device(self.__device).torch_device
+                    )
+            else:
+                if array.device.type == "cpu":
+                    self.__device = devices.cpu
+                else:
+                    self.__device = devices.gpu
 
     @property
     def comm(self):
@@ -1398,7 +1404,10 @@ class DNDarray:
                 else:
                     gout = tuple(self.__array[key].shape)
                     if self.split is not None and self.split >= len(gout):
-                        new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                        if len(gout) > 0:
+                            new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                        else:
+                            new_split = None
                     else:
                         new_split = self.split
 
@@ -1581,6 +1590,7 @@ class DNDarray:
                 A copy of this object on the GPU.
             """
             self.__array = self.__array.cuda(devices.gpu.torch_device)
+            self.__device = devices.gpu
             return self
 
     def __gt__(self, other):

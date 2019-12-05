@@ -110,12 +110,14 @@ def concatenate(arrays, axis=0):
 
     out_dtype = types.promote_types(arr0.dtype, arr1.dtype)
     if arr0.dtype != out_dtype:
-        arr0 = out_dtype(arr0)
+        arr0 = out_dtype(arr0, device=arr0.device)
     if arr1.dtype != out_dtype:
-        arr1 = out_dtype(arr1)
+        arr1 = out_dtype(arr1, device=arr1.device)
 
     if s0 is None and s1 is None:
-        return factories.array(torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis))
+        return factories.array(
+            torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis), device=arr0.device
+        )
 
     elif s0 != s1 and all([s is not None for s in [s0, s1]]):
         raise RuntimeError(
@@ -127,7 +129,7 @@ def concatenate(arrays, axis=0):
             arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
             for x in range(len(arr1.gshape))
         )
-        out = factories.empty(out_shape, split=s1 if s1 is not None else s0)
+        out = factories.empty(out_shape, split=s1 if s1 is not None else s0, device=arr1.device)
 
         _, _, arr0_slice = arr1.comm.chunk(arr0.shape, arr1.split)
         _, _, arr1_slice = arr0.comm.chunk(arr1.shape, arr0.split)
@@ -144,7 +146,7 @@ def concatenate(arrays, axis=0):
                 arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
                 for x in range(len(arr1.gshape))
             )
-            out = factories.empty(out_shape, split=s0, dtype=out_dtype)
+            out = factories.empty(out_shape, split=s0, dtype=out_dtype, device=arr0.device)
             out._DNDarray__array = torch.cat(
                 (arr0._DNDarray__array, arr1._DNDarray__array), dim=axis
             )
@@ -314,7 +316,9 @@ def concatenate(arrays, axis=0):
                     arr1._DNDarray__array.unsqueeze_(axis)
 
             # now that the data is in the proper shape, need to concatenate them on the nodes where they both exist for the others, just set them equal
-            out = factories.empty(out_shape, split=s0 if s0 is not None else s1, dtype=out_dtype)
+            out = factories.empty(
+                out_shape, split=s0 if s0 is not None else s1, dtype=out_dtype, device=arr0.device
+            )
             res = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
             out._DNDarray__array = res
             return out

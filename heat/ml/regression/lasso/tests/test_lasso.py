@@ -4,20 +4,33 @@ import numpy as np
 import torch
 import heat as ht
 
-if os.environ.get("DEVICE") == "gpu":
-    ht.use_device("gpu" if torch.cuda.is_available() else "cpu")
+if os.environ.get("DEVICE") == "gpu" and torch.cuda.is_available():
+    ht.use_device("gpu")
     torch.cuda.set_device(torch.device(ht.get_device().torch_device))
 else:
     ht.use_device("cpu")
 device = ht.get_device().torch_device
+ht_device = None
+if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
+    device = ht.gpu.torch_device
+    ht_device = ht.gpu
+    torch.cuda.set_device(device)
 
 
 class TestLasso(unittest.TestCase):
     def test_lasso(self):
         # ToDo: add additional tests
         # get some test data
-        X = ht.load_hdf5(os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x")
-        y = ht.load_hdf5(os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y")
+        X = ht.load_hdf5(
+            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
+            dataset="x",
+            device=ht_device,
+        )
+        y = ht.load_hdf5(
+            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
+            dataset="y",
+            device=ht_device,
+        )
 
         # normalize dataset
         X = X / ht.sqrt((ht.mean(X ** 2, axis=0)))
@@ -48,8 +61,16 @@ class TestLasso(unittest.TestCase):
         self.assertIsInstance(yest, ht.DNDarray)
         self.assertEqual(yest.shape, (m,))
 
-        X = ht.load_hdf5(os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x")
-        y = ht.load_hdf5(os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y")
+        X = ht.load_hdf5(
+            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
+            dataset="x",
+            device=ht_device,
+        )
+        y = ht.load_hdf5(
+            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
+            dataset="y",
+            device=ht_device,
+        )
 
         # Now the same stuff again in PyTorch
         X = torch.tensor(X._DNDarray__array, device=device)
@@ -84,8 +105,16 @@ class TestLasso(unittest.TestCase):
         self.assertIsInstance(yest, torch.Tensor)
         self.assertEqual(yest.shape, (m,))
 
-        X = ht.load_hdf5(os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x")
-        y = ht.load_hdf5(os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y")
+        X = ht.load_hdf5(
+            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
+            dataset="x",
+            device=ht_device,
+        )
+        y = ht.load_hdf5(
+            os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
+            dataset="y",
+            device=ht_device,
+        )
 
         # Now the same stuff again in PyTorch
         X = X._DNDarray__array.cpu().numpy()
