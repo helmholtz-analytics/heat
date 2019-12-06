@@ -6,8 +6,8 @@ on:
       - features/424-github-actions
 
 jobs:
-  build:
-    name: Build App
+  run-tests:
+    name: Run Unittests
     runs-on: ubuntu-latest
     container: docker://simonsdockerid/heat
     steps:
@@ -19,6 +19,13 @@ jobs:
         shell: bash
         run: |
           for i in {1..4}; do
-            mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ || exit;
+            mpirun --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ || exit;
           done
-          mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/
+          mpirun --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/
+      - name: Combine Coverage Report
+        shell: bash
+        run: |
+          coverage combine
+          coverage report
+          coverage xml
+# TODO add codecov  action https://github.com/marketplace/actions/codecov
