@@ -1896,26 +1896,26 @@ class DNDarray:
 
     def modf(a, out=None):
         """
-            Return the fractional and integral parts of an array, element-wise.
-            The fractional and integral parts are negative if the given number is negative.
+        Return the fractional and integral parts of an array, element-wise.
+        The fractional and integral parts are negative if the given number is negative.
 
-            Parameters
-            ----------
-            x : ht.DNDarray
-                Input array
-            out : ht.DNDarray, optional
-                A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-                If not provided or None, a freshly-allocated array is returned.
+        Parameters
+        ----------
+        x : ht.DNDarray
+            Input array
+        out : ht.DNDarray, optional
+            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+            If not provided or None, a freshly-allocated array is returned.
 
-            Returns
-            -------
-            tuple(ht.DNDarray: fractionalParts, ht.DNDarray: integralParts)
+        Returns
+        -------
+        tuple(ht.DNDarray: fractionalParts, ht.DNDarray: integralParts)
 
-            fractionalParts : ht.DNDdarray
-                Fractional part of x. This is a scalar if x is a scalar.
+        fractionalParts : ht.DNDdarray
+            Fractional part of x. This is a scalar if x is a scalar.
 
-            integralParts : ht.DNDdarray
-                Integral part of x. This is a scalar if x is a scalar.
+        integralParts : ht.DNDdarray
+            Integral part of x. This is a scalar if x is a scalar.
         """
 
         return rounding.modf(a, out)
