@@ -25,9 +25,10 @@ jobs:
           . ~/.virtualenvs/heat/bin/activate
           pip3 install --upgrade pip
           pip3 install codecov coverage
-          cd /head
+          cd /heat
           pip3 install -q- e .[hdf5,netcdf]
       - name: Run Python tests
         run: |
+          cd ~/heat
           python3 -m venv ~/.virtualenvs/heat
           mpirun -np 2 --allow-run-as-root pytest
