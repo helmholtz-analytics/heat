@@ -670,7 +670,8 @@ def mean(x, axis=None):
     Returns
     -------
     means : ht.DNDarray
-        The mean/s, if split, then split in the same direction as x.
+        The mean/s, if split, then split in the same direction as x, if possible. If axis > split
+        then the split is reduced by 1. If axis == split, then the resulting DNDarray is split None.
 
     Examples
     --------
@@ -704,8 +705,8 @@ def mean(x, axis=None):
     def reduce_means_elementwise(output_shape_i):
         """
         Function to combine the calculated means together.
-        This does an element-wise update of the calculated means to merge them together using the merge_means function.
-        This function operates using x from the mean function paramters.
+        This does an element-wise update of the calculated means to merge them together using the
+        merge_means function. This function operates using x from the mean function paramters.
 
         Parameters
         ----------
@@ -1203,7 +1204,8 @@ def std(x, axis=None, bessel=True):
 
 def var(x, axis=None, bessel=True):
     """
-    Calculates and returns the variance of a tensor. If an axis is given, the variance will be taken in that direction.
+    Calculates and returns the variance of a tensor. If an axis is given, the variance will be
+    taken in that direction.
 
     Parameters
     ----------
@@ -1212,13 +1214,15 @@ def var(x, axis=None, bessel=True):
     axis : None, int, defaults to None
         Axis which the variance is taken in. Default None calculates the variance of all data items.
     bessel : bool, defaults to True
-        Use the bessel correction when calculating the variance/std. Toggles between unbiased and biased calculation of
+        Use the bessel correction when calculating the variance/std.
+        Toggles between unbiased and biased calculation of
         the variance.
 
     Returns
     -------
     variances : ht.DNDarray
-        The var/s, if split, then split in the same direction as x.
+        The var/s, if split, then split in the same direction as x, if possible. If axis > split
+        then the split is reduced by 1. If axis == split, then the resulting DNDarray is split None.
 
     Examples
     --------
@@ -1248,9 +1252,9 @@ def var(x, axis=None, bessel=True):
 
     def reduce_vars_elementwise(output_shape_i):
         """
-        Function to combine the calculated vars together. This does an element-wise update of the calculated vars to
-        merge them together using the merge_vars function. This function operates using x from the var function
-        parameters.
+        Function to combine the calculated vars together. This does an element-wise update of the
+        calculated vars to merge them together using the merge_vars function. This function operates
+         using x from the var function parameters.
 
         Parameters
         ----------
@@ -1296,7 +1300,7 @@ def var(x, axis=None, bessel=True):
             )
         return var_tot[0, 0, :][0] if var_tot[0, 0, :].size == 1 else var_tot[0, 0, :]
 
-    # ----------------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
         if not x.is_distributed():  # not distributed (full tensor on one node)
             ret = torch.var(x._DNDarray__array.float(), unbiased=bessel)
@@ -1355,7 +1359,6 @@ def var(x, axis=None, bessel=True):
                 return factories.array(lcl, is_split=x.split if axis > x.split else x.split - 1)
         else:
             raise TypeError(
-                "axis (axis) must be an int, currently is {}. Check if multidim var is available in PyTorch".format(
-                    type(axis)
-                )
+                "axis (axis) must be an int, currently is {}. "
+                "Check if multidim var is available in PyTorch".format(type(axis))
             )
