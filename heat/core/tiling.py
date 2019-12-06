@@ -226,7 +226,6 @@ class SquareDiagTiles:
                     col_inds.insert(col_proc_ind[pr], diff)
                 if pr > last_diag_pr and diff > 0:
                     col_inds.insert(col_proc_ind[pr], diff)
-        # todo: fix row inds after redistribution!!!!!
 
         if arr.gshape[0] > arr.gshape[1]:
             nz = torch.nonzero(torch.tensor(row_inds) == 0)
@@ -282,7 +281,6 @@ class SquareDiagTiles:
         i = arr.comm.size - 1
         tile_map[..., 2][sum(row_per_proc_list[:i]) :] = i
 
-        # todo: fix this: it should work the same as for split=0 (above)
         if arr.split == 1:
             st = 0
             for pr, cols in enumerate(col_per_proc_list):
@@ -784,7 +782,6 @@ class SquareDiagTiles:
         match_dnd = tiles_to_match.__DNDarray
         # this map will take the same tile row and column sizes up to the last diagonal row/column
         # the last row/column is determined by the number of rows/columns on the non-split dimension
-        # working with only split=0 for now todo: split=1
         if base_dnd.split == match_dnd.split == 0:
             # this implies that the gshape[0]'s are equal
             # rows are the exact same, and the cols are also equal to the rows (square matrix)
