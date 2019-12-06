@@ -16,7 +16,9 @@ class SquareDiagTiles:
         correspond with said tile) will be extended to cover the whole array. However, extra tiles
         are not generated above the diagonal in the case that gshape[0] << gshape[1].
 
-        This tiling scheme is intended for use with the QR function.
+        WARNING: The generation of these tiles may unbalance the original tensor!
+
+        Note: This tiling scheme is intended for use with the QR function.
 
         Parameters
         ----------
@@ -50,6 +52,8 @@ class SquareDiagTiles:
         # lshape_map -> rank (int), lshape (tuple of the local lshape, self.lshape)
         if not isinstance(arr, dndarray.DNDarray):
             raise TypeError("self must be a DNDarray, is currently a {}".format(type(self)))
+        if tiles_per_proc < 1:
+            raise ValueError("Tiles per process must be >= 1, currently: {}".format(tiles_per_proc))
 
         # todo: unbalance the array if there is *only* one row/column of the diagonal on a process (send it to pr - 1)
         # todo: small bug in edge case for very small matrices with < 10 elements on a process and split = 1 with gshape[0] > gshape[1]
@@ -384,6 +388,34 @@ class SquareDiagTiles:
         torch.Tensor : map of tiles
             tile_map contains the sizes of the tiles
             units -> row, column, start index in each direction, process
+
+        Examples
+        --------
+        >>> a = ht.zeros((12, 10), split=0)
+        >>> a_tiles = tiling.SquareDiagTiles(a, tiles_per_proc=2)
+        >>> print(a_tiles.tile_map)
+        [(0 & 1)/1] tensor([[[0, 0, 0],
+        [(0 & 1)/1]          [0, 3, 0],
+        [(0 & 1)/1]          [0, 6, 0],
+        [(0 & 1)/1]          [0, 8, 0]],
+        [(0 & 1)/1]
+        [(0 & 1)/1]         [[3, 0, 0],
+        [(0 & 1)/1]          [3, 3, 0],
+        [(0 & 1)/1]          [3, 6, 0],
+        [(0 & 1)/1]          [3, 8, 0]],
+        [(0 & 1)/1]
+        [(0 & 1)/1]         [[6, 0, 1],
+        [(0 & 1)/1]          [6, 3, 1],
+        [(0 & 1)/1]          [6, 6, 1],
+        [(0 & 1)/1]          [6, 8, 1]],
+        [(0 & 1)/1]
+        [(0 & 1)/1]         [[8, 0, 1],
+        [(0 & 1)/1]          [8, 3, 1],
+        [(0 & 1)/1]          [8, 6, 1],
+        [(0 & 1)/1]          [8, 8, 1]]], dtype=torch.int32)
+        >>> print(a_tiles.tile_map.shape)
+        [0/1] torch.Size([4, 4, 3])
+        [1/1] torch.Size([4, 4, 3])
         """
         return self.__tile_map
 
@@ -419,6 +451,23 @@ class SquareDiagTiles:
         Returns
         -------
         tuple : (dim0 start, dim0 stop, dim1 start, dim1 stop)
+
+        Examples
+        --------
+        >>> a = ht.zeros((12, 10), split=0)
+        >>> a_tiles = ht.tiling.SquareDiagTiles(a, tiles_per_proc=2)  # type: tiling.SquareDiagTiles
+        >>> print(a_tiles.get_start_stop(key=(slice(0, 2), 2)))
+        [0/1] (tensor(0), tensor(6), tensor(6), tensor(8))
+        [1/1] (tensor(0), tensor(6), tensor(6), tensor(8))
+        >>> print(a_tiles.get_start_stop(key=(0, 2)))
+        [0/1] (tensor(0), tensor(3), tensor(6), tensor(8))
+        [1/1] (tensor(0), tensor(3), tensor(6), tensor(8))
+        >>> print(a_tiles.get_start_stop(key=2))
+        [0/1] (tensor(0), tensor(2), tensor(0), tensor(10))
+        [1/1] (tensor(0), tensor(2), tensor(0), tensor(10))
+        >>> print(a_tiles.get_start_stop(key=(3, 3)))
+        [0/1] (tensor(2), tensor(6), tensor(8), tensor(10))
+        [1/1] (tensor(2), tensor(6), tensor(8), tensor(10))
         """
         split = self.__DNDarray.split
         pr = self.tile_map[key][..., 2].unique()
@@ -466,21 +515,6 @@ class SquareDiagTiles:
 
         return st0, sp0, st1, sp1
 
-    def get_tile_proc(self, key):
-        """
-        Get the process rank for the tile/s corresponding to the given key
-
-        Parameters
-        ----------
-        key : int, slice, tuple
-            collection of indices which correspond to a tile
-
-        Returns
-        -------
-        single element torch.tensor : process rank
-        """
-        return self.tile_map[key][..., 2].unique()
-
     def get_tile_size(self, key):
         """
         Get the size of the tile/s specified by the key
@@ -493,6 +527,23 @@ class SquareDiagTiles:
         Returns
         -------
         tuple : dimension 0 size, dimension 1 size
+
+        Examples
+        --------
+        >>> a = ht.zeros((12, 10), split=0)
+        >>> a_tiles = ht.tiling.SquareDiagTiles(a, tiles_per_proc=2)  # type: tiling.SquareDiagTiles
+        >>> print(a_tiles.get_tile_size(key=(slice(0, 2), 2)))
+        [0/1] (tensor(6), tensor(2))
+        [1/1] (tensor(6), tensor(2))
+        >>> print(a_tiles.get_tile_size(key=(0, 2)))
+        [0/1] (tensor(3), tensor(2))
+        [1/1] (tensor(3), tensor(2))
+        >>> print(a_tiles.get_tile_size(key=2))
+        [0/1] (tensor(2), tensor(10))
+        [1/1] (tensor(2), tensor(10))
+        >>> print(a_tiles.get_tile_size(key=(3, 3)))
+        [0/1] (tensor(4), tensor(2))
+        [1/1] (tensor(4), tensor(2))
         """
         tup = self.get_start_stop(key)
         return tup[1] - tup[0], tup[3] - tup[2]
@@ -512,6 +563,27 @@ class SquareDiagTiles:
         -------
         DNDarray_view : torch.Tensor
             A local selection of the DNDarray corresponding to the tile/s desired
+
+        Examples
+        --------
+        >>> a = ht.zeros((12, 10), split=0)
+        >>> a_tiles = tiling.SquareDiagTiles(a, tiles_per_proc=2)  # type: tiling.SquareDiagTiles
+        >>> print(a_tiles[2, 3])
+        [0/1] None
+        [1/1] tensor([[0., 0.],
+        [1/1]         [0., 0.]])
+        >>> print(a_tiles[2])
+        [0/1] None
+        [1/1] tensor([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [1/1]         [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]])
+        >>> print(a_tiles[0:2, 1])
+        [0/1] tensor([[0., 0., 0.],
+        [0/1]         [0., 0., 0.],
+        [0/1]         [0., 0., 0.],
+        [0/1]         [0., 0., 0.],
+        [0/1]         [0., 0., 0.],
+        [0/1]         [0., 0., 0.]])
+        [1/1] None
         """
         arr = self.__DNDarray
         tile_map = self.__tile_map
@@ -545,6 +617,10 @@ class SquareDiagTiles:
         Returns
         -------
         torch.Tensor : the local tile/s corresponding to the key given
+
+        Examples
+        --------
+        See local_set function.
         """
         rank = self.__DNDarray.comm.rank
         key = self.local_to_global(key=key, rank=rank)
@@ -566,6 +642,51 @@ class SquareDiagTiles:
         Returns
         -------
         None
+
+        Examples
+        --------
+        >>> a = ht.zeros((11, 10), split=0)
+        >>> a_tiles = tiling.SquareDiagTiles(a, tiles_per_proc=2)  # type: tiling.SquareDiagTiles
+        >>> local = a_tiles.local_get(key=slice(None))
+        >>> a_tiles.local_set(key=slice(None), data=torch.arange(local.numel()).reshape(local.shape))
+        >>> print(a)
+        [0/1] tensor([[ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.],
+        [0/1]         [10., 11., 12., 13., 14., 15., 16., 17., 18., 19.],
+        [0/1]         [20., 21., 22., 23., 24., 25., 26., 27., 28., 29.],
+        [0/1]         [30., 31., 32., 33., 34., 35., 36., 37., 38., 39.],
+        [0/1]         [40., 41., 42., 43., 44., 45., 46., 47., 48., 49.],
+        [0/1]         [50., 51., 52., 53., 54., 55., 56., 57., 58., 59.]])
+        [1/1] tensor([[ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.],
+        [1/1]         [10., 11., 12., 13., 14., 15., 16., 17., 18., 19.],
+        [1/1]         [20., 21., 22., 23., 24., 25., 26., 27., 28., 29.],
+        [1/1]         [30., 31., 32., 33., 34., 35., 36., 37., 38., 39.],
+        [1/1]         [40., 41., 42., 43., 44., 45., 46., 47., 48., 49.]])
+        >>> a.lloc[:] = 0
+        >>> a_tiles.local_set(key=(0, 2), data=10)
+        [0/1] tensor([[ 0.,  0.,  0.,  0.,  0.,  0., 10., 10.,  0.,  0.],
+        [0/1]         [ 0.,  0.,  0.,  0.,  0.,  0., 10., 10.,  0.,  0.],
+        [0/1]         [ 0.,  0.,  0.,  0.,  0.,  0., 10., 10.,  0.,  0.],
+        [0/1]         [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
+        [0/1]         [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
+        [0/1]         [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]])
+        [1/1] tensor([[ 0.,  0.,  0.,  0.,  0.,  0., 10., 10.,  0.,  0.],
+        [1/1]         [ 0.,  0.,  0.,  0.,  0.,  0., 10., 10.,  0.,  0.],
+        [1/1]         [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
+        [1/1]         [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
+        [1/1]         [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]])
+        >>> a_tiles.local_set(key=(slice(None), 1), data=10)
+        [0/1] tensor([[ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.],
+        [0/1]         [ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.],
+        [0/1]         [ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.],
+        [0/1]         [ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.],
+        [0/1]         [ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.],
+        [0/1]         [ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.]])
+        [1/1] tensor([[ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.],
+        [1/1]         [ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.],
+        [1/1]         [ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.],
+        [1/1]         [ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.],
+        [1/1]         [ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.]])
+
         """
         rank = self.__DNDarray.comm.rank
         key = self.local_to_global(key=key, rank=rank)
@@ -586,6 +707,21 @@ class SquareDiagTiles:
         Returns
         -------
         tuple : key with global indices
+
+        Examples
+        --------
+        >>> a = ht.zeros((11, 10), split=0)
+        >>> a_tiles = tiling.SquareDiagTiles(a, tiles_per_proc=2)  # type: tiling.SquareDiagTiles
+        >>> rank = a.comm.rank
+        >>> print(a_tiles.local_to_global(key=(slice(None), 1), rank=rank))
+        [0] (slice(0, 2, None), 1)
+        [1] (slice(2, 4, None), 1)
+        >>> print(a_tiles.local_to_global(key=(0, 2), rank=0))
+        [0] (0, 2)
+        [1] (0, 2)
+        >>> print(a_tiles.local_to_global(key=(0, 2), rank=1))
+        [0] (2, 2)
+        [1] (2, 2)
         """
         arr = self.__DNDarray
         if isinstance(key, (int, slice)):
@@ -636,7 +772,7 @@ class SquareDiagTiles:
 
         Notes
         -----
-        This function overwrites most, if not all, of the elements of the tiling class
+        This function overwrites most, if not all, of the elements of this class
         """
         if not isinstance(tiles_to_match, SquareDiagTiles):
             raise TypeError(
@@ -737,19 +873,6 @@ class SquareDiagTiles:
             self.__col_per_proc_list = [self.tile_columns] * base_dnd.comm.size
             self.__last_diag_pr = base_dnd.comm.size - 1
 
-    def overwrite_arr(self, arr):
-        """
-
-        Parameters
-        ----------
-        arr
-
-        Returns
-        -------
-
-        """
-        self.__DNDarray = arr
-
     def __setitem__(self, key, value):
         """
         Item setter,
@@ -766,6 +889,29 @@ class SquareDiagTiles:
         Returns
         -------
         None
+
+        Example
+        -------
+        >>> a = ht.zeros((12, 10), split=0)
+        >>> a_tiles = tiling.SquareDiagTiles(a, tiles_per_proc=2)  # type: tiling.SquareDiagTiles
+        >>> a_tiles[0:2, 2] = 11
+        >>> a_tiles[0, 0] = 22
+        >>> a_tiles[2] = 33
+        >>> a_tiles[3, 3] = 44
+        >>> print(a)
+        [0/1] tensor([[22., 22., 22.,  0.,  0.,  0., 11., 11.,  0.,  0.],
+        [0/1]         [22., 22., 22.,  0.,  0.,  0., 11., 11.,  0.,  0.],
+        [0/1]         [22., 22., 22.,  0.,  0.,  0., 11., 11.,  0.,  0.],
+        [0/1]         [ 0.,  0.,  0.,  0.,  0.,  0., 11., 11.,  0.,  0.],
+        [0/1]         [ 0.,  0.,  0.,  0.,  0.,  0., 11., 11.,  0.,  0.],
+        [0/1]         [ 0.,  0.,  0.,  0.,  0.,  0., 11., 11.,  0.,  0.]])
+        [1/1] tensor([[33., 33., 33., 33., 33., 33., 33., 33., 33., 33.],
+        [1/1]         [33., 33., 33., 33., 33., 33., 33., 33., 33., 33.],
+        [1/1]         [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0., 44., 44.],
+        [1/1]         [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0., 44., 44.],
+        [1/1]         [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0., 44., 44.],
+        [1/1]         [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0., 44., 44.]])
+
         """
         arr = self.__DNDarray
         tile_map = self.__tile_map
