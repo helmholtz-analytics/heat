@@ -10,7 +10,7 @@ jobs:
     name: Build App
     runs-on: ubuntu-latest
     steps:
-      - uses: docker://simondockerid/heat:latest
+      - uses: docker://simondockerid/heat
       - run: |
           echo $BASH_ENV
           mpirun --version
