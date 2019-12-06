@@ -11,4 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: docker://simondockerid/heat@latest
-        run: mpirun --version
+      - run: |
+          echo $BASH_ENV
+          mpirun --version
