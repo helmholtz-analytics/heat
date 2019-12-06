@@ -3,7 +3,7 @@ name: No Docker Workflow
 on:
   push:
     branches:
-      - features/424-github-actions
+      - features/424-github-actionss
 
 jobs:
   build:
@@ -14,7 +14,7 @@ jobs:
       - name: install openmpi and python
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y openmpi-bin openmpi-common libopenmpi2 libopenmpi-dev python3 python3-pip python3-venv
+          sudo apt-get install -y openmpi-bin openmpi-common libopenmpi2 libopenmpi-dev python3-dev python3-pip python3-venv
       - name: Setup Python
         run: |
           python3 -m venv ~/.virtualenvs/heat
