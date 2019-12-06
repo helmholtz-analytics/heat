@@ -209,7 +209,7 @@ def modf(x, out=None):
         """
 
     if not isinstance(x, dndarray.DNDarray):
-        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(out)))
+        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
 
     integralParts = trunc(x)
     fractionalParts = x - integralParts

@@ -229,7 +229,12 @@ class TestRounding(BasicTest):
         comparison = np.modf(npArray)
 
         float64_tensor_distrbd = ht.array(npArray, split=0)
-        float64_modf_distrbd = float64_tensor_distrbd.modf()
+        float64_modf_distrbd = (
+            ht.zeros_like(float64_tensor_distrbd, dtype=float64_tensor_distrbd.dtype),
+            ht.zeros_like(float64_tensor_distrbd, dtype=float64_tensor_distrbd.dtype),
+        )
+        # float64_modf_distrbd = float64_tensor_distrbd.modf()
+        float64_tensor_distrbd.modf(out=float64_modf_distrbd)
         self.assertIsInstance(float64_modf_distrbd[0], ht.DNDarray)
         self.assertIsInstance(float64_modf_distrbd[1], ht.DNDarray)
         self.assertEqual(float64_modf_distrbd[0].dtype, ht.float64)
@@ -240,7 +245,7 @@ class TestRounding(BasicTest):
 
     def test_round(self):
         size = ht.communication.MPI_WORLD.size
-        start, end = -5.0, 5.0
+        start, end = -5.7, 5.1
         step = (end - start) / (2 * size)
         comparison = torch.arange(start, end, step, dtype=torch.float32).round()
 
@@ -268,14 +273,16 @@ class TestRounding(BasicTest):
             ht.round(object())
         with self.assertRaises(TypeError):
             ht.round(float32_tensor, 1, 1)
+        with self.assertRaises(TypeError):
+            ht.round(float32_tensor, dtype=np.int)
 
         # with split tensors
 
         # exponential of float32
         comparison = torch.arange(start, end, step, dtype=torch.float32)  # .round()
-        float32_tensor_distrbd = ht.array(comparison, split=0)
+        float32_tensor_distrbd = ht.array(comparison, split=0, dtype=ht.double)
         comparison = comparison.round()
-        float32_round_distrbd = float32_tensor_distrbd.round()
+        float32_round_distrbd = float32_tensor_distrbd.round(dtype=ht.float)
         self.assertIsInstance(float32_round_distrbd, ht.DNDarray)
         self.assertEqual(float32_round_distrbd.dtype, ht.float32)
         self.assert_array_equal(float32_round_distrbd, comparison)
