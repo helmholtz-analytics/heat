@@ -1894,7 +1894,7 @@ class DNDarray:
         """
         return arithmetics.mod(self, other)
 
-    def modf(a, out=None):
+    def modf(self, out=None):
         """
         Return the fractional and integral parts of an array, element-wise.
         The fractional and integral parts are negative if the given number is negative.
@@ -1918,7 +1918,7 @@ class DNDarray:
             Integral part of x. This is a scalar if x is a scalar.
         """
 
-        return rounding.modf(a, out)
+        return rounding.modf(self, out)
 
     def __mul__(self, other):
         """
@@ -2306,7 +2306,7 @@ class DNDarray:
         """
         return arithmetics.mod(other, self)
 
-    def round(x, decimals=0, out=None, dtype=None):
+    def round(self, decimals=0, out=None, dtype=None):
         """
         Calculate the rounded value element-wise.
 
@@ -2330,7 +2330,7 @@ class DNDarray:
         rounded_values : ht.DNDarray
             A tensor containing the rounded value of each element in x.
         """
-        return rounding.round(x, decimals, out, dtype)
+        return rounding.round(self, decimals, out, dtype)
 
     def __rpow__(self, other):
         """
