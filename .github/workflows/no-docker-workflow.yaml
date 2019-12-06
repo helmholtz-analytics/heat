@@ -14,6 +14,6 @@ jobs:
       - name: install openmpi
         run: |
           sudo apt-get update
-          sudo apt-get install openmpi-bin openmpi-common libopenmpi1.10 libopenmpi-dev
+          sudo apt-get install openmpi-bin openmpi-common libopenmpi2 libopenmpi-dev
       - name: check installation
         run: mpirun --version
