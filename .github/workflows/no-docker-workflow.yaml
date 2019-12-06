@@ -1,4 +1,4 @@
-name: No Docker Work
+name: No Docker Workflow
 
 on:
   push:
@@ -15,5 +15,5 @@ jobs:
         run: |
           apt-get update
           apt-get install openmpi-bin openmpi-common libopenmpi1.10 libopenmpi-dev
-      - names: check installation
+      - name: check installation
         run: mpirun --version
