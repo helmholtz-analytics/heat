@@ -18,6 +18,10 @@ jobs:
           echo $HOME
           whoami
           . /root/.virtualenvs/heat/bin/activate
+          echo $SHELL
           pip -V
       - name: Check venv
-        run: pip -V
+        shell: bash
+        run: |
+          echo $SHELL
+          pip -V
