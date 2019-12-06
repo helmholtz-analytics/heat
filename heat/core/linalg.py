@@ -781,8 +781,8 @@ def __mm_c_block_setter(
 
 def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     """
-    Calculates the QR decomposition of a 2D DNDarray. The algorithms are based on the CAQR and TSQR
-    algorithms. For more information see the references.
+    Calculates the QR decomposition of a 2D DNDarray.
+    Factor the matrix `a` as *qr*, where `q` is orthonormal and `r` is upper-triangular.
 
     Parameters
     ----------
@@ -807,6 +807,14 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         if calc_q == True, function returns QR(Q=Q, R=R)
         if calc_q == False, function returns QR(Q=None, R=R)
 
+    Notes
+    -----
+    This function is built on top of PyTorch's QR function. torch.qr() using LAPACK on the backend.
+    Basic information about QR factorization/decomposition can be found at
+    https://en.wikipedia.org/wiki/QR_factorization
+
+    The algorithms are based on the CAQR and TSQRalgorithms. For more information see references.
+
     References
     ----------
     [0]  W. Zheng, F. Song, L. Lin, and Z. Chen, “Scaling Up Parallel Computation of Tiled QR
@@ -817,6 +825,14 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
             and DistributedProcessing Symposium (IPDPS 2010), Apr 2010, Atlanta, United States.
             inria-00548899
     [2] Gene H. Golub and Charles F. Van Loan. 1996. Matrix Computations (3rd Ed.).
+
+    Examples
+    --------
+    >>> a = ht.random.randn(9, 6, split=0)
+    >>> q, r = ht.linalg.qr(a)
+    >>> print(ht.allclose(a, ht.dot(q, r)))
+    [0/1] True
+    [1/1] True
     """
     if not isinstance(a, dndarray.DNDarray):
         raise TypeError("'a' must be a DNDarray")
