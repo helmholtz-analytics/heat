@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     container: docker://simonsdockerid/heat
     steps:
-      - using: actions/checkout@v1
+      - uses: actions/checkout@v1
       - name: Install Python Dependencies
         shell: bash
         run: pip install -q -e .[hdf5,netcdf]
