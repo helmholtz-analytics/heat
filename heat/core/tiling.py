@@ -6,7 +6,7 @@ __all__ = ["SquareDiagTiles"]
 
 
 class SquareDiagTiles:
-    def __init__(self, arr, tiles_per_proc=2, lshape_map=None):
+    def __init__(self, arr, tiles_per_proc=2):
         """
         Generate the tile map and the other objects which may be useful.
         The tiles generated here are based of square tiles along the diagonal. The size of these
@@ -55,11 +55,7 @@ class SquareDiagTiles:
         if tiles_per_proc < 1:
             raise ValueError("Tiles per process must be >= 1, currently: {}".format(tiles_per_proc))
 
-        # todo: unbalance the array if there is *only* one row/column of the diagonal on a process (send it to pr - 1)
-        # todo: small bug in edge case for very small matrices with < 10 elements on a process and split = 1 with gshape[0] > gshape[1]
-        if lshape_map is None:
-            # create lshape map
-            lshape_map = arr.create_lshape_map()
+        lshape_map = arr.create_lshape_map()
 
         # if there is only one element of the diagonal on the next process
         d = 1 if tiles_per_proc <= 2 else tiles_per_proc - 1
