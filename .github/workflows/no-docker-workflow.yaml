@@ -10,7 +10,7 @@ jobs:
     name: build app
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout
+      - uses: actions/checkout@v1
       - name: install openmpi
         run: |
           apt-get update
