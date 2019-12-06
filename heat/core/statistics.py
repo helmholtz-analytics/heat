@@ -733,17 +733,17 @@ def mean(x, axis=None):
 
         for i in range(1, x.comm.size):
             mu_tot[0, :], n_tot[0] = merge_means(mu_tot[0, :], n_tot[0], mu_tot[i, :], n_tot[i])
+        # print(mu_tot[0].size)
+        return mu_tot[0][0] if mu_tot[0].size == 1 else mu_tot[0]
 
-        return mu_tot[0]
+    # ----------------------------------------------------------------------------------------------
 
     if axis is None:
         # full matrix calculation
         if not x.is_distributed():
             # if x is not distributed do a torch.mean on x
             ret = torch.mean(x._DNDarray__array.float())
-            return dndarray.DNDarray(
-                ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm
-            )
+            return factories.array(ret, is_split=None)
         else:
             # if x is distributed and no axis is given: return mean of the whole set
             mu_in = torch.mean(x._DNDarray__array)
@@ -760,88 +760,60 @@ def mean(x, axis=None):
                 merged = merge_means(mu_tot[0, 0], mu_tot[0, 1], mu_tot[i, 0], mu_tot[i, 1])
                 mu_tot[0, 0] = merged[0]
                 mu_tot[0, 1] = merged[1]
-
             return mu_tot[0][0]
-    else:
-        output_shape = list(x.shape)
-        if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
-            if any([not isinstance(j, int) for j in axis]):
-                raise ValueError(
-                    "items in axis itterable must be integers, axes: {}".format(
-                        [type(q) for q in axis]
-                    )
-                )
-            if any(d > len(x.shape) for d in axis):
-                raise ValueError(
-                    "axes (axis) must be < {}, currently are {}".format(len(x.shape), axis)
-                )
-            if any(d < 0 for d in axis):
-                axis = [j % len(x.shape) for j in axis]
 
-            output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
-            # multiple dimensions
-            if x.split is None:
-                return dndarray.DNDarray(
-                    torch.mean(x._DNDarray__array, dim=axis),
-                    tuple(output_shape),
-                    x.dtype,
-                    x.split,
-                    x.device,
-                    x.comm,
-                )
-
-            if x.split in axis:
-                # merge in the direction of the split
-                return reduce_means_elementwise(output_shape)
-            else:
-                # multiple dimensions which does *not* include the split axis
-                # combine along the split axis
-                return dndarray.DNDarray(
-                    torch.mean(x._DNDarray__array, dim=axis),
-                    tuple(output_shape),
-                    x.dtype,
-                    x.split if x.split < len(output_shape) else len(output_shape) - 1,
-                    x.device,
-                    x.comm,
-                )
-        elif isinstance(axis, int):
-            if axis >= len(x.shape):
-                raise ValueError(
-                    "axis (axis) must be < {}, currently is {}".format(len(x.shape), axis)
-                )
-            axis = axis if axis > 0 else axis % len(x.shape)
-
-            # only one axis given
-            output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
-            output_shape = output_shape if output_shape else (1,)
-
-            if x.split is None:
-                return dndarray.DNDarray(
-                    torch.mean(x._DNDarray__array, dim=axis),
-                    tuple(output_shape),
-                    x.dtype,
-                    x.split,
-                    x.device,
-                    x.comm,
-                )
-            elif axis == x.split:
-                return reduce_means_elementwise(output_shape)
-            else:
-                # singular axis given (axis) not equal to split direction (x.split)
-                return dndarray.DNDarray(
-                    torch.mean(x._DNDarray__array, dim=axis),
-                    tuple(output_shape),
-                    x.dtype,
-                    x.split if x.split < len(output_shape) else len(output_shape) - 1,
-                    x.device,
-                    x.comm,
-                )
-        else:
-            raise TypeError(
-                "axis (axis) must be an int or a list, ht.DNDarray, torch.Tensor, or tuple, but was {}".format(
-                    type(axis)
-                )
+    output_shape = list(x.shape)
+    if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
+        if any([not isinstance(j, int) for j in axis]):
+            raise ValueError(
+                "items in axis itterable must be integers, axes: {}".format([type(q) for q in axis])
             )
+        if any(d > len(x.shape) for d in axis):
+            raise ValueError(
+                "axes (axis) must be < {}, currently are {}".format(len(x.shape), axis)
+            )
+        if any(d < 0 for d in axis):
+            axis = [j % len(x.shape) for j in axis]
+
+        output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
+        # multiple dimensions
+        if x.split is None:
+            return factories.array(torch.mean(x._DNDarray__array, dim=axis), is_split=x.split)
+
+        if x.split in axis:
+            # merge in the direction of the split
+            return reduce_means_elementwise(output_shape)
+        else:
+            # multiple dimensions which does *not* include the split axis
+            # combine along the split axis
+            return factories.array(
+                torch.mean(x._DNDarray__array, dim=axis),
+                is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
+            )
+    elif isinstance(axis, int):
+        if axis >= len(x.shape):
+            raise ValueError("axis (axis) must be < {}, currently is {}".format(len(x.shape), axis))
+        axis = axis if axis > 0 else axis % len(x.shape)
+
+        # only one axis given
+        output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
+        output_shape = output_shape if output_shape else (1,)
+
+        if x.split is None:
+            # print(torch.mean(x._DNDarray__array, dim=axis))
+            return factories.array(torch.mean(x._DNDarray__array, dim=axis), is_split=None)
+        elif axis == x.split:
+            return reduce_means_elementwise(output_shape)
+        else:
+            # singular axis given (axis) not equal to split direction (x.split)
+            return factories.array(
+                torch.mean(x._DNDarray__array, dim=axis),
+                is_split=x.split if axis > x.split else x.split - 1,
+            )
+    raise TypeError(
+        "axis (axis) must be an int or a list, ht.DNDarray, "
+        "torch.Tensor, or tuple, but was {}".format(type(axis))
+    )
 
 
 def merge_means(mu1, n1, mu2, n2):
@@ -1322,15 +1294,13 @@ def var(x, axis=None, bessel=True):
                 var_tot[i, 1, :],
                 n_tot[i],
             )
-        return var_tot[0, 0, :]
+        return var_tot[0, 0, :][0] if var_tot[0, 0, :].size == 1 else var_tot[0, 0, :]
 
     # ----------------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
         if not x.is_distributed():  # not distributed (full tensor on one node)
             ret = torch.var(x._DNDarray__array.float(), unbiased=bessel)
-            return dndarray.DNDarray(
-                ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm
-            )
+            return factories.array(ret)
 
         else:  # case for full matrix calculation (axis is None)
             mu_in = torch.mean(x._DNDarray__array)
@@ -1376,27 +1346,13 @@ def var(x, axis=None, bessel=True):
             output_shape = output_shape if output_shape else (1,)
 
             if x.split is None:  # x is *not* distributed -> no need to distributed
-                return dndarray.DNDarray(
-                    torch.var(x._DNDarray__array, dim=axis, unbiased=bessel),
-                    tuple(output_shape),
-                    x.dtype,
-                    None,
-                    x.device,
-                    x.comm,
-                )
+                return factories.array(torch.var(x._DNDarray__array, dim=axis, unbiased=bessel))
             elif axis == x.split:  # x is distributed and axis chosen is == to split
                 return reduce_vars_elementwise(output_shape)
             else:
                 # singular axis given (axis) not equal to split direction (x.split)
-                lcl = torch.var(x._DNDarray__array, dim=axis, keepdim=True)
-                return dndarray.DNDarray(
-                    lcl,
-                    tuple(output_shape),
-                    x.dtype,
-                    x.split if x.split < len(output_shape) else len(output_shape) - 1,
-                    x.device,
-                    x.comm,
-                )
+                lcl = torch.var(x._DNDarray__array, dim=axis, keepdim=False)
+                return factories.array(lcl, is_split=x.split if axis > x.split else x.split - 1)
         else:
             raise TypeError(
                 "axis (axis) must be an int, currently is {}. Check if multidim var is available in PyTorch".format(

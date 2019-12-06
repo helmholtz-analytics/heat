@@ -549,8 +549,8 @@ class TestStatistics(unittest.TestCase):
             dimensions.extend([d])
             hold = list(range(len(dimensions)))
             hold.append(None)
-            for i in hold:  # loop over the number of split dimension of the test array
-                z = ht.ones(dimensions, split=i)
+            for split in hold:  # loop over the number of split dimension of the test array
+                z = ht.ones(dimensions, split=split)
                 res = z.mean()
                 total_dims_list = list(z.shape)
                 self.assertTrue((res == 1).all())
@@ -561,14 +561,15 @@ class TestStatistics(unittest.TestCase):
                         total_dims_list[q] for q in range(len(total_dims_list)) if q != it
                     ]
                     if not target_dims:
-                        target_dims = (1,)
-
+                        target_dims = ()
                     self.assertEqual(res.gshape, tuple(target_dims))
-                    if res.split is not None:
-                        if i >= it:
-                            self.assertEqual(res.split, len(target_dims) - 1)
-                        else:
-                            self.assertEqual(res.split, z.split)
+                    if z.split is None:
+                        sp = None
+                    else:
+                        sp = z.split if it > z.split else z.split - 1
+                        if it == split:
+                            sp = None
+                    self.assertEqual(res.split, sp)
                 loop_list = [
                     ",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)
                 ]
@@ -585,7 +586,7 @@ class TestStatistics(unittest.TestCase):
                     if res.gshape:
                         self.assertEqual(res.gshape, tuple(target_dims))
                     if res.split is not None:
-                        if any([i >= x for x in lp_split]):
+                        if any([split >= x for x in lp_split]):
                             self.assertEqual(res.split, len(target_dims) - 1)
                         else:
                             self.assertEqual(res.split, z.split)
@@ -812,32 +813,39 @@ class TestStatistics(unittest.TestCase):
             dimensions.extend([d])
             hold = list(range(len(dimensions)))
             hold.append(None)
-            for i in hold:  # loop over the number of dimensions of the test array
-                z = ht.ones(dimensions, split=i)
+            for split in hold:  # loop over the number of dimensions of the test array
+                z = ht.ones(dimensions, split=split)
                 res = z.var()
                 total_dims_list = list(z.shape)
                 self.assertTrue((res == 0).all())
                 # loop over the different single dimensions for mean
                 for it in range(len(z.shape)):
+                    # print('lp start')
                     res = z.var(axis=it)
                     self.assertTrue((res == 0).all())
                     target_dims = [
                         total_dims_list[q] for q in range(len(total_dims_list)) if q != it
                     ]
                     if not target_dims:
-                        target_dims = (1,)
-
+                        target_dims = ()
+                    # print(split, it, z.shape, res.shape)
                     self.assertEqual(res.gshape, tuple(target_dims))
-                    if res.split is not None:
-                        if i >= it:
-                            self.assertEqual(res.split, len(target_dims) - 1)
-                        else:
-                            self.assertEqual(res.split, z.split)
-
-                    if i == it:
+                    # if res.split is not None:
+                    #     if i >= it:
+                    #         self.assertEqual(res.split, len(target_dims) - 1)
+                    #     else:
+                    #         self.assertEqual(res.split, z.split)
+                    if z.split is None:
+                        sp = None
+                    else:
+                        sp = z.split if it > z.split else z.split - 1
+                        if it == split:
+                            sp = None
+                    self.assertEqual(res.split, sp)
+                    if split == it:
                         res = z.var(axis=it)
                         self.assertTrue((res == 0).all())
-                z = ht.ones(dimensions, split=i)
+                z = ht.ones(dimensions, split=split)
                 res = z.var(bessel=False)
                 self.assertTrue((res == 0).all())
 
