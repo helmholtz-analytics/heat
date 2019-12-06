@@ -32,5 +32,5 @@ jobs:
           pip3 install -q -e .[hdf5,netcdf]
       - name: Run Python tests
         run: |
-          python3 -m venv ~/.virtualenvs/heat
+          . ~/.virtualenvs/heat/bin/activate
           mpirun -np 2 --allow-run-as-root pytest
