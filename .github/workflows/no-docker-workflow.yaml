@@ -27,10 +27,8 @@ jobs:
           pip3 install codecov coverage
           echo $PWD
           ls
-          cd ~/heat
           pip3 install -q- e .[hdf5,netcdf]
       - name: Run Python tests
         run: |
-          cd ~/heat
           python3 -m venv ~/.virtualenvs/heat
           mpirun -np 2 --allow-run-as-root pytest
