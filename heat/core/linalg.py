@@ -829,8 +829,15 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     Examples
     --------
     >>> a = ht.random.randn(9, 6, split=0)
+    >>> qr = ht.linalg.qr(a)
+    >>> print(ht.allclose(a, ht.dot(qr.Q, qr.R)))
+    [0/1] True
+    [1/1] True
+    >>> st = torch.randn(9, 6)
+    >>> a = ht.array(st, split=1)
+    >>> a_comp = ht.array(st, split=0)
     >>> q, r = ht.linalg.qr(a)
-    >>> print(ht.allclose(a, ht.dot(q, r)))
+    >>> print(ht.allclose(a_comp, ht.dot(q, r)))
     [0/1] True
     [1/1] True
     """
@@ -1327,7 +1334,7 @@ def __qr_send_q_to_diag_pr(col, pr0, pr1, diag_process, comm, q_dict, key, q_dic
 
 def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     """
-    Calculates the QR decomposition of a 2D DNDarray with split == 1
+    Calculates the QR decomposition of a 2D DNDarray with split == 0
 
     Parameters
     ----------

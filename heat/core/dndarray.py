@@ -2141,7 +2141,8 @@ class DNDarray:
 
     def __redistribute_shuffle(self, snd_pr, send_amt, rcv_pr, snd_dtype):
         """
-        Function to abstract the function used during balance for shuffling data between processes
+        Function to abstract the function used during redistribute for shuffling data between
+        processes along the split axis
 
         Parameters
         ----------
