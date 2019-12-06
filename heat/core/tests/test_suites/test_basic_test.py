@@ -23,6 +23,15 @@ class TestBasicTest(BasicTest):
         )
         self.assert_array_equal(heat_array, expected_array)
 
+        if self.get_rank() == 0:
+            data = torch.arange(self.get_size(), dtype=torch.int32)
+        else:
+            data = torch.empty((0,), dtype=torch.int32)
+
+        ht_array = ht.array(data, is_split=0)
+        np_array = np.arange(self.get_size(), dtype=np.int32)
+        self.assert_array_equal(ht_array, np_array)
+
     def test_assert_func_equal(self):
         # Testing with random values
         shape = (5, 3, 2, 9)
@@ -42,6 +51,16 @@ class TestBasicTest(BasicTest):
 
         with self.assertRaises(ValueError):
             self.assert_func_equal(np.ones(shape), heat_func=np.exp, numpy_func=np.exp)
+
+        with self.assertRaises(ValueError):
+            self.assert_func_equal(
+                shape,
+                heat_func=ht.exp,
+                numpy_func=np.exp,
+                low=-100,
+                high=100,
+                data_types=[np.object],
+            )
 
     def test_assert_func_equal_for_tensor(self):
         array = np.ones((self.get_size(), 20), dtype=np.int8)
