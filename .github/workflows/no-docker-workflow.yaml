@@ -17,3 +17,17 @@ jobs:
           sudo apt-get install openmpi-bin openmpi-common libopenmpi2 libopenmpi-dev
       - name: check installation
         run: mpirun --version
+      - name: Setup Python
+        run: |
+          sudo apt-get install python python-pip
+          python --version
+          python -m venv ~/.virtualenvs/heat
+          . ~/.virtualenvs/heat/bin/activate
+          pip install --upgrade pip
+          pip install codecov coverage
+          cd /head
+          pip install -q- e .[hdf5,netcdf]
+      - name: Run Python tests
+        run: |
+          python -m venv ~/.virtualenvs/heat
+          mpirun -np 2 --allow-run-as-root pytest
