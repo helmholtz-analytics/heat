@@ -16,5 +16,7 @@ jobs:
       - name: Activate virtualenv
         run: |
           echo $HOME
+          whoami
+          . /root/.virtualenvs/heat/bin/activate
       - name: Check venv
         run: pip -V
