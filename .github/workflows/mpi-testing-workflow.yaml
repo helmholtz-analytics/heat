@@ -11,17 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     container: docker://simonsdockerid/heat
     steps:
-      - name: Check MPI
-        run: mpirun --version
-      - name: Activate virtualenv
-        run: |
-          echo $HOME
-          whoami
-          . /root/.virtualenvs/heat/bin/activate
-          echo $SHELL
-          pip -V
-      - name: Check venv
+      - using: actions/checkout@v1
+      - name: Install Python Dependencies
+        shell: bash
+        run: pip install -q -e .[hdf5,netcdf]
+      - name: Run Python Tests
         shell: bash
         run: |
-          echo $SHELL
-          pip -V
+          for i in {1..4}; do
+            mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ || exit;
+          done
+          mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/
