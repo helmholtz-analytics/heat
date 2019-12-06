@@ -19,15 +19,15 @@ jobs:
         run: mpirun --version
       - name: Setup Python
         run: |
-          sudo apt-get install python python-pip
-          python --version
-          python -m venv ~/.virtualenvs/heat
+          sudo apt-get install python3 python3-pip
+          python3 --version
+          python3 -m venv ~/.virtualenvs/heat
           . ~/.virtualenvs/heat/bin/activate
-          pip install --upgrade pip
-          pip install codecov coverage
+          pip3 install --upgrade pip
+          pip3 install codecov coverage
           cd /head
-          pip install -q- e .[hdf5,netcdf]
+          pip3 install -q- e .[hdf5,netcdf]
       - name: Run Python tests
         run: |
-          python -m venv ~/.virtualenvs/heat
+          python3 -m venv ~/.virtualenvs/heat
           mpirun -np 2 --allow-run-as-root pytest
