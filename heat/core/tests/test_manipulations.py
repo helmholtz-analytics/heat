@@ -387,7 +387,6 @@ class TestManipulations(BasicTest):
             torch.equal(res[rank, rank]._DNDarray__array, torch.tensor(1, dtype=torch.int32))
         )
 
-    def test_failing(self):
         self.assert_func_equal_for_tensor(
             np.arange(23),
             heat_func=ht.diag,
