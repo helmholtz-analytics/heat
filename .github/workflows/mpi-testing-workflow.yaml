@@ -15,7 +15,6 @@ jobs:
         run: mpirun --version
       - name: Activate virtualenv
         run: |
-          . ~/.virtualenvs/heat/bin/activate
-          pip -V
-      - name: Check env
+          echo $HOME
+      - name: Check venv
         run: pip -V
