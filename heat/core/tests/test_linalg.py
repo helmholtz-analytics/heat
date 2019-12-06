@@ -457,6 +457,20 @@ class TestLinalg(unittest.TestCase):
                     ht.allclose(ht.eye(m, dtype=ht.double), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5)
                 )
 
+        # raises
+        with self.assertRaises(TypeError):
+            ht.qr(np.zeros((10, 10)))
+        with self.assertRaises(TypeError):
+            ht.qr(a_comp, tiles_per_proc="ls")
+        with self.assertRaises(TypeError):
+            ht.qr(a_comp, tiles_per_proc=1, calc_q=30)
+        with self.assertRaises(TypeError):
+            ht.qr(a_comp, tiles_per_proc=1, overwrite_a=30)
+        with self.assertRaises(ValueError):
+            ht.qr(a_comp, tiles_per_proc=torch.tensor([1, 2, 3]))
+        with self.assertRaises(ValueError):
+            ht.qr(ht.zeros((3, 4, 5)))
+
     def test_transpose(self):
         # vector transpose, not distributed
         vector = ht.arange(10)

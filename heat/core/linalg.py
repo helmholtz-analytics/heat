@@ -858,14 +858,13 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
             "tiles_per_proc must be a single element torch.Tenor or int, "
             "currently has {} entries".format(tiles_per_proc.numel())
         )
-    if len(a.shape) > 2:
+    if len(a.shape) != 2:
         raise ValueError("Array 'a' must be 2 dimensional")
-    QR = collections.namedtuple("QR", "Q, R")
+
     if a.split == 0:
         q, r = __qr_split0(
             a=a, tiles_per_proc=tiles_per_proc, calc_q=calc_q, overwrite_a=overwrite_a
         )
-
     elif a.split == 1:
         q, r = __qr_split1(
             a=a, tiles_per_proc=tiles_per_proc, calc_q=calc_q, overwrite_a=overwrite_a
@@ -874,6 +873,8 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         q, r = a._DNDarray__array.qr(some=False)
     else:
         return NotImplemented
+
+    QR = collections.namedtuple("QR", "Q, R")
     ret = QR(q if calc_q else None, r)
     return ret
 
