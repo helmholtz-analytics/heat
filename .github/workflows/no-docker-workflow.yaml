@@ -1,0 +1,19 @@
+name: No Docker Work
+
+on:
+  push:
+    branches:
+      - features/424-github-actions
+
+jobs:
+  build:
+    name: build app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout
+      - name: install openmpi
+        run: |
+          apt-get update
+          apt-get install openmpi-bin openmpi-common libopenmpi1.10 libopenmpi-dev
+      - names: check installation
+        run: mpirun --version
