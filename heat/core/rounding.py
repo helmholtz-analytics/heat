@@ -180,34 +180,33 @@ def floor(x, out=None):
 
 def modf(x, out=None):
     """
-        Return the fractional and integral parts of a tensor, element-wise.
-        The fractional and integral parts are negative if the given number is negative.
+    Return the fractional and integral parts of a tensor, element-wise.
+    The fractional and integral parts are negative if the given number is negative.
 
-        Parameters
-        ----------
-        x : ht.DNDarray
-            Input tensor
-        out : tuple(ht.DNDarray, ht.DNDarray), optional
-            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-            If not provided or None, a freshly-allocated tensor is returned.
+    Parameters
+    ----------
+    x : ht.DNDarray
+        Input tensor
+    out : tuple(ht.DNDarray, ht.DNDarray), optional
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+        If not provided or None, a freshly-allocated tensor is returned.
 
-        Returns
-        -------
-        tuple(ht.DNDarray: fractionalParts, ht.DNDarray: integralParts)
+    Returns
+    -------
+    tuple(ht.DNDarray: fractionalParts, ht.DNDarray: integralParts)
 
-        fractionalParts : ht.DNDdarray
-            Fractional part of x. This is a scalar if x is a scalar.
+    fractionalParts : ht.DNDdarray
+        Fractional part of x. This is a scalar if x is a scalar.
 
-        integralParts : ht.DNDdarray
-            Integral part of x. This is a scalar if x is a scalar.
+    integralParts : ht.DNDdarray
+        Integral part of x. This is a scalar if x is a scalar.
 
-        Examples
-        --------
-        >>> ht.modf(ht.arange(-2.0, 2.0, 0.4))
-            (tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.]),
-            tensor([ 0.0000, -0.6000, -0.2000, -0.8000, -0.4000,  0.0000,  0.4000,  0.8000, 0.2000,  0.6000]))
-        """
-
+    Examples
+    --------
+    >>> ht.modf(ht.arange(-2.0, 2.0, 0.4))
+        (tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.]),
+        tensor([ 0.0000, -0.6000, -0.2000, -0.8000, -0.4000,  0.0000,  0.4000,  0.8000, 0.2000,  0.6000]))
+    """
     if not isinstance(x, dndarray.DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
 

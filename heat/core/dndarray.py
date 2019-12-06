@@ -2303,7 +2303,6 @@ class DNDarray:
         >>> T = ht.int32([1, 3])
         >>> 2 % T
         tensor([0, 2], dtype=torch.int32)
-
         """
         return arithmetics.mod(other, self)
 
@@ -2331,7 +2330,6 @@ class DNDarray:
         rounded_values : ht.DNDarray
             A tensor containing the rounded value of each element in x.
         """
-
         return rounding.round(x, decimals, out, dtype)
 
     def __rpow__(self, other):
