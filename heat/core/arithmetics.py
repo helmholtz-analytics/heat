@@ -4,6 +4,7 @@ from .communication import MPI
 from . import dndarray
 from . import operations
 from . import stride_tricks
+from . import types
 
 __all__ = [
     "add",
@@ -100,7 +101,25 @@ def bitwise_and(t1, t2):
     >>> ht.bitwise_and(ht.array([True, True]), ht.array([False, True]))
     tensor([False,  True])
     """
-    return operations.__binary_bit_op("__and__", t1, t2)
+    ttypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for t in ttypes:
+        if not (
+            (t == types.bool)
+            or (t == types.int8)
+            or (t == types.uint8)
+            or (t == types.int16)
+            or (t == types.int32)
+            or (t == types.int64)
+        ):
+            raise TypeError("Operation is supported for bool and int types only")
+
+    if isinstance(t1, dndarray.DNDarray):
+        return operations.__binary_op(torch.Tensor.__and__, t1, t2)
+    elif isinstance(t2, dndarray.DNDarray):
+        return operations.__binary_op(torch.Tensor.__and__, t2, t1)
+    else:
+        return t1 & t2
 
 
 def bitwise_or(t1, t2):
@@ -138,7 +157,25 @@ def bitwise_or(t1, t2):
     >>> ht.bitwise_or(ht.array([True, True]), ht.array([False, True]))
     tensor([ True,  True])
     """
-    return operations.__binary_bit_op("__or__", t1, t2)
+    ttypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for t in ttypes:
+        if not (
+            (t == types.bool)
+            or (t == types.int8)
+            or (t == types.uint8)
+            or (t == types.int16)
+            or (t == types.int32)
+            or (t == types.int64)
+        ):
+            raise TypeError("Operation is supported for bool and int types only")
+
+    if isinstance(t1, dndarray.DNDarray):
+        return operations.__binary_op(torch.Tensor.__or__, t1, t2)
+    elif isinstance(t2, dndarray.DNDarray):
+        return operations.__binary_op(torch.Tensor.__or__, t2, t1)
+    else:
+        return t1 & t2
 
 
 def bitwise_xor(t1, t2):
@@ -171,7 +208,25 @@ def bitwise_xor(t1, t2):
     >>> ht.bitwise_xor(ht.array([True, True]), ht.array([False, True]))
     tensor([ True, False])
     """
-    return operations.__binary_bit_op("__xor__", t1, t2)
+    ttypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for t in ttypes:
+        if not (
+            (t == types.bool)
+            or (t == types.int8)
+            or (t == types.uint8)
+            or (t == types.int16)
+            or (t == types.int32)
+            or (t == types.int64)
+        ):
+            raise TypeError("Operation is supported for bool and int types only")
+
+    if isinstance(t1, dndarray.DNDarray):
+        return operations.__binary_op(torch.Tensor.__xor__, t1, t2)
+    elif isinstance(t2, dndarray.DNDarray):
+        return operations.__binary_op(torch.Tensor.__xor__, t2, t1)
+    else:
+        return t1 & t2
 
 
 def diff(a, n=1, axis=-1):

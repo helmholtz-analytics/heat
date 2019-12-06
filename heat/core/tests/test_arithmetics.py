@@ -47,8 +47,6 @@ class TestArithmetics(unittest.TestCase):
 
         int_result = ht.array([[0, 2], [2, 0]])
 
-        int16_result = ht.array([[0, 2], [2, 0]], dtype=ht.int16)
-
         a_boolean_vector = ht.array([False, True, False, True])
         another_boolean_vector = ht.array([False, False, True, True])
         boolean_result = ht.array([False, False, False, True])
@@ -61,8 +59,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             ht.bitwise_and(self.a_tensor, self.another_tensor)
-        with self.assertRaises(TypeError):
-            ht.bitwise_and(another_int_vector, a_boolean_vector)
         with self.assertRaises(ValueError):
             ht.bitwise_and(an_int_vector, another_int_vector)
         with self.assertRaises(TypeError):
@@ -78,8 +74,6 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.bitwise_and(self.an_int_scalar, self.a_scalar)
         with self.assertRaises(TypeError):
-            ht.bitwise_and(int_result, int16_result)
-        with self.assertRaises(NotImplementedError):
             ht.bitwise_and([1], 2)
         with self.assertRaises(TypeError):
             ht.bitwise_and(1, [2])
@@ -90,8 +84,6 @@ class TestArithmetics(unittest.TestCase):
         another_int_vector = ht.array([2, 2, 2, 2])
 
         int_result = ht.array([[3, 2], [3, 6]])
-
-        int16_result = ht.array([[0, 2], [2, 0]], dtype=ht.int16)
 
         a_boolean_vector = ht.array([False, True, False, True])
         another_boolean_vector = ht.array([False, False, True, True])
@@ -105,8 +97,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             ht.bitwise_or(self.a_tensor, self.another_tensor)
-        with self.assertRaises(TypeError):
-            ht.bitwise_or(another_int_vector, a_boolean_vector)
         with self.assertRaises(ValueError):
             ht.bitwise_or(an_int_vector, another_int_vector)
         with self.assertRaises(TypeError):
@@ -122,8 +112,6 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.bitwise_or(self.an_int_scalar, self.a_scalar)
         with self.assertRaises(TypeError):
-            ht.bitwise_or(int_result, int16_result)
-        with self.assertRaises(NotImplementedError):
             ht.bitwise_or([1], 2)
         with self.assertRaises(TypeError):
             ht.bitwise_or(1, [2])
@@ -134,8 +122,6 @@ class TestArithmetics(unittest.TestCase):
         another_int_vector = ht.array([2, 2, 2, 2])
 
         int_result = ht.array([[3, 0], [1, 6]])
-
-        int16_result = ht.array([[0, 2], [2, 0]], dtype=ht.int16)
 
         a_boolean_vector = ht.array([False, True, False, True])
         another_boolean_vector = ht.array([False, False, True, True])
@@ -149,8 +135,6 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             ht.bitwise_xor(self.a_tensor, self.another_tensor)
-        with self.assertRaises(TypeError):
-            ht.bitwise_xor(another_int_vector, a_boolean_vector)
         with self.assertRaises(ValueError):
             ht.bitwise_xor(an_int_vector, another_int_vector)
         with self.assertRaises(TypeError):
@@ -166,8 +150,6 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.bitwise_xor(self.an_int_scalar, self.a_scalar)
         with self.assertRaises(TypeError):
-            ht.bitwise_xor(int_result, int16_result)
-        with self.assertRaises(NotImplementedError):
             ht.bitwise_xor([1], 2)
         with self.assertRaises(TypeError):
             ht.bitwise_xor(1, [2])
