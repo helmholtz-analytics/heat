@@ -9,7 +9,18 @@ from . import stride_tricks
 from . import types
 
 
-__all__ = ["concatenate", "expand_dims", "hstack", "resplit", "sort", "squeeze", "unique", "vstack"]
+__all__ = [
+    "concatenate",
+    "diag",
+    "diagonal",
+    "expand_dims",
+    "hstack",
+    "resplit",
+    "sort",
+    "squeeze",
+    "unique",
+    "vstack",
+]
 
 
 def concatenate(arrays, axis=0):
@@ -314,6 +325,173 @@ def concatenate(arrays, axis=0):
             res = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
             out._DNDarray__array = res
             return out
+
+
+def diag(a, offset=0):
+    """
+    Extract a diagonal or construct a diagonal array.
+    See the documentation for `heat.diagonal` for more information about extracting the diagonal.
+
+    Parameters
+    ----------
+    a: ht.DNDarray
+        The array holding data for creating a diagonal array or extracting a diagonal.
+        If a is a 1-dimensional array a diagonal 2d-array will be returned.
+        If a is a n-dimensional array with n > 1 the diagonal entries will be returned in an n-1 dimensional array.
+    offset: int, optional
+        The offset from the main diagonal.
+        Offset greater than zero means above the main diagonal, smaller than zero is below the main diagonal.
+
+    Returns
+    -------
+    res: ht.DNDarray
+        The extracted diagonal or the constructed diagonal array
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.array([1, 2])
+    >>> ht.diag(a)
+    tensor([[1, 0],
+           [0, 2]])
+
+    >>> ht.diag(a, offset=1)
+    tensor([[0, 1, 0],
+           [0, 0, 2],
+           [0, 0, 0]])
+
+    >>> ht.equal(ht.diag(ht.diag(a)), a)
+    True
+    >>> a = ht.array([[1, 2], [3, 4]])
+    >>> ht.diag(a)
+    tensor([1, 4])
+    """
+    if len(a.shape) > 1:
+        return diagonal(a, offset=offset)
+    elif len(a.shape) < 1:
+        raise ValueError("input array must be of dimension 1 or greater")
+    if not isinstance(offset, int):
+        raise ValueError("offset must be an integer, got", type(offset))
+    if not isinstance(a, dndarray.DNDarray):
+        raise ValueError("a must be a DNDarray, got", type(a))
+
+    # 1-dimensional array, must be extended to a square diagonal matrix
+    gshape = (a.shape[0] + abs(offset),) * 2
+    off, lshape, _ = a.comm.chunk(gshape, a.split)
+
+    # This ensures that the data is on the correct nodes
+    if offset > 0:
+        print("first", a.comm)
+        padding = factories.empty(
+            (offset,), dtype=a.dtype, split=None, device=a.device, comm=a.comm
+        )
+        print("padding", padding.comm)
+        a = concatenate((a, padding))
+        indices_x = torch.arange(0, min(lshape[0], max(gshape[0] - off - offset, 0)))
+    elif offset < 0:
+        print("first", a.comm)
+        padding = factories.empty(
+            (abs(offset),), dtype=a.dtype, split=None, device=a.device, comm=a.comm
+        )
+        print("padding", padding.comm)
+        a = concatenate((padding, a))
+        indices_x = torch.arange(max(0, min(abs(offset) - off, lshape[0])), lshape[0])
+    else:
+        # Offset = 0 values on main diagonal
+        indices_x = torch.arange(0, lshape[0])
+    print("second", a.comm)
+
+    indices_y = indices_x + off + offset
+    a.balance_()
+
+    local = torch.zeros(lshape, dtype=a.dtype.torch_type(), device=a.device.torch_device)
+    local[indices_x, indices_y] = a._DNDarray__array[indices_x]
+
+    return factories.array(local, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
+
+
+def diagonal(a, offset=0, dim1=0, dim2=1):
+    """
+    Extract a diagonal of an n-dimensional array with n > 1.
+    The returned array will be of dimension n-1.
+
+    Parameters
+    ----------
+    a: ht.DNDarray
+        The array of which the diagonal should be extracted.
+    offset: int, optional
+        The offset from the main diagonal.
+        Offset greater than zero means above the main diagonal, smaller than zero is below the main diagonal.
+        Default is 0 which means the main diagonal will be selected.
+    dim1: int, optional
+        First dimension with respect to which to take the diagonal.
+        Default is 0.
+    dim2: int, optional
+        Second dimension with respect to which to take the diagonal.
+        Default is 1.
+    Returns
+    -------
+    res: ht.DNDarray
+        An array holding the extracted diagonal.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.array([[1, 2], [3, 4]])
+    >>> ht.diagonal(a)
+    tensor([1, 4])
+
+    >>> ht.diagonal(a, offset=1)
+    tensor([2])
+
+    >>> ht.diagonal(a, offset=-1)
+    tensor([3])
+
+    >>> a = ht.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
+    >>> ht.diagonal(a)
+    tensor([[0, 6],
+           [1, 7]])
+
+    >>> ht.diagonal(a, dim2=2)
+    tensor([[0, 5],
+           [2, 7]])
+    """
+    dim1, dim2 = stride_tricks.sanitize_axis(a.shape, (dim1, dim2))
+
+    if dim1 == dim2:
+        raise ValueError("Dim1 and dim2 need to be different")
+    if not isinstance(a, dndarray.DNDarray):
+        raise ValueError("a must be a DNDarray, got", type(a))
+    if not isinstance(offset, int):
+        raise ValueError("offset must be an integer, got", type(offset))
+
+    shape = a.gshape
+    ax1 = shape[dim1]
+    ax2 = shape[dim2]
+    # determine the number of diagonal elements that will be retrieved
+    length = min(ax1, ax2 - offset) if offset >= 0 else min(ax2, ax1 + offset)
+    # Remove dim1 and dim2 from shape and append resulting length
+    shape = tuple([x for ind, x in enumerate(shape) if ind not in (dim1, dim2)]) + (length,)
+    x, y = min(dim1, dim2), max(dim1, dim2)
+
+    if a.split is None:
+        split = None
+    elif a.split < x < y:
+        split = a.split
+    elif x < a.split < y:
+        split = a.split - 1
+    elif x < y < a.split:
+        split = a.split - 2
+    else:
+        split = len(shape) - 1
+
+    if a.split is None or a.split not in (dim1, dim2):
+        result = torch.diagonal(a._DNDarray__array, offset=offset, dim1=dim1, dim2=dim2)
+    else:
+        vz = 1 if a.split == dim1 else -1
+        off, _, _ = a.comm.chunk(a.shape, a.split)
+        result = torch.diagonal(a._DNDarray__array, offset=offset + vz * off, dim1=dim1, dim2=dim2)
+    return factories.array(result, dtype=a.dtype, is_split=split, device=a.device, comm=a.comm)
 
 
 def expand_dims(a, axis):
