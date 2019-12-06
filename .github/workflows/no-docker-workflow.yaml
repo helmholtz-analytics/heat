@@ -11,26 +11,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - name: install openmpi
+      - name: install openmpi and python
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y openmpi-bin openmpi-common libopenmpi2 libopenmpi-dev
-      - name: check installation
-        run: mpirun --version
+          sudo apt-get install -y openmpi-bin openmpi-common libopenmpi2 libopenmpi-dev python3 python3-pip python3-venv
       - name: Setup Python
         run: |
-          sudo apt-get install -y python3 python3-pip python3-venv
-          python3 --version
-          pip --version
-          pip3 --version
           python3 -m venv ~/.virtualenvs/heat
           . ~/.virtualenvs/heat/bin/activate
           pip3 install --upgrade pip
           pip3 install codecov coverage pytest
-          echo $PWD
-          ls
           pip3 install -q -e .[hdf5,netcdf]
       - name: Run Python tests
         run: |
           . ~/.virtualenvs/heat/bin/activate
-          mpirun -np 2 --allow-run-as-root pytest
+          for i in {1..4}; do
+            mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ || exit;
+          done
+          mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/
+      - name: Create coverage report
+        run: |
+          coverage combine
+          coverage report
+          coverage xml
+      - name: upload coverage
+        run: codecov
