@@ -534,6 +534,10 @@ class TestStatistics(unittest.TestCase):
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(ValueError):
             x.mean(axis=10)
+        with self.assertRaises(ValueError):
+            x.mean(axis=[4])
+        with self.assertRaises(ValueError):
+            x.mean(axis=[-4])
         with self.assertRaises(TypeError):
             ht.mean(x, axis="01")
         with self.assertRaises(ValueError):

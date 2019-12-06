@@ -769,12 +769,12 @@ def mean(x, axis=None):
             raise ValueError(
                 "items in axis itterable must be integers, axes: {}".format([type(q) for q in axis])
             )
+        if any(d < 0 for d in axis):
+            axis = [stride_tricks.sanitize_axis(x.shape, j) for j in axis]
         if any(d > len(x.shape) for d in axis):
             raise ValueError(
                 "axes (axis) must be < {}, currently are {}".format(len(x.shape), axis)
             )
-        if any(d < 0 for d in axis):
-            axis = [j % len(x.shape) for j in axis]
 
         output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
         # multiple dimensions
@@ -794,7 +794,7 @@ def mean(x, axis=None):
     elif isinstance(axis, int):
         if axis >= len(x.shape):
             raise ValueError("axis (axis) must be < {}, currently is {}".format(len(x.shape), axis))
-        axis = axis if axis > 0 else axis % len(x.shape)
+        axis = stride_tricks.sanitize_axis(x.shape, axis=axis)
 
         # only one axis given
         output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
@@ -1344,7 +1344,7 @@ def var(x, axis=None, bessel=True):
         if isinstance(axis, int):
             if axis >= len(x.shape):
                 raise ValueError("axis must be < {}, currently is {}".format(len(x.shape), axis))
-            axis = axis if axis > 0 else axis % len(x.shape)
+            axis = stride_tricks.sanitize_axis(x.shape, axis)
             # only one axis given
             output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
             output_shape = output_shape if output_shape else (1,)
