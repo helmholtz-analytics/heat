@@ -395,6 +395,14 @@ class TestManipulations(BasicTest):
             numpy_args={"k": 2},
         )
 
+        self.assert_func_equal(
+            (27,),
+            heat_func=ht.diag,
+            numpy_func=np.diag,
+            heat_args={"offset": -3},
+            numpy_args={"k": -3},
+        )
+
     def test_diagonal(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
