@@ -31,8 +31,11 @@ jobs:
           mpirun --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/
       - name: Create coverage report
         run: |
+          . ~/.virtualenvs/heat/bin/activate
           coverage combine
           coverage report
           coverage xml
       - name: upload coverage
-        run: codecov
+        run: |
+          . ~/.virtualenvs/heat/bin/activate
+          codecov
