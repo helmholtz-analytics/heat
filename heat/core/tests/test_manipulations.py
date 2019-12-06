@@ -388,7 +388,7 @@ class TestManipulations(BasicTest):
         )
 
     def test_failing(self):
-        self.assert_func_equal(
+        self.assert_func_equal_for_tensor(
             np.arange(23),
             heat_func=ht.diag,
             numpy_func=np.diag,
