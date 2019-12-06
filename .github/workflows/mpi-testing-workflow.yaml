@@ -3,25 +3,12 @@ name: Unit Tests Workflow
 on:
   push:
     branches:
-      - features/424-github-actionss
+      - features/424-github-actions
 
 jobs:
   build:
     name: Build App
     runs-on: ubuntu-latest
-    container:
-      image: docker://simonsdockerid/heat
     steps:
-      - uses: actions/checkout@v1
-      - name: Shell check
-        run: |
-          echo $SHELL
-          echo $BASH_ENV
-      - name: Installing
-        run: /bin/bash -c 'echo $SHELL && module list && mpirun --version'
-      - name: Check dir
-        run: ls
-#      - name: Install dependecies
-#        run: pip install -q -e .[hdf5,netcdf]
-#      - name: Test with pytest
-#        run: pytest
+      - uses: docker://simondockerid/heat@latest
+        run: mpirun --version
