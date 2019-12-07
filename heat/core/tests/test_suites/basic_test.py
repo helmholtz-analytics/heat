@@ -291,6 +291,24 @@ class BasicTest(TestCase):
             else:
                 self.assertTrue(np.array_equal(ht_res._DNDarray__array.numpy(), np_res))
 
+    def assertTrue_memory_layout(self, tensor, order):
+        """
+        Checks that the memory layout of a given heat tensor is as specified by argument order.
+
+        Parameters:
+        -----------
+        order: str, 'C' for C-like (row-major), 'F' for Fortran-like (column-major) memory layout.
+        """
+        stride = tensor._DNDarray__array.stride()
+        row_major = all(np.diff(list(stride)) <= 0)
+        column_major = all(np.diff(list(stride)) >= 0)
+        if order == "C":
+            return self.assertTrue(row_major)
+        elif order == "F":
+            return self.assertTrue(column_major)
+        else:
+            raise ValueError("expected order to be 'C' or 'F', but was {}".format(order))
+
     def __create_random_np_array(self, shape, dtype=np.float64, low=-10000, high=10000):
         """
         Creates a random array based on the input parameters.
