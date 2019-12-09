@@ -51,9 +51,13 @@ class SquareDiagTiles:
         """
         # lshape_map -> rank (int), lshape (tuple of the local lshape, self.lshape)
         if not isinstance(arr, dndarray.DNDarray):
-            raise TypeError("self must be a DNDarray, is currently a {}".format(type(self)))
+            raise TypeError("arr must be a DNDarray, is currently a {}".format(type(self)))
+        if not isinstance(tiles_per_proc, int):
+            raise TypeError("tiles_per_proc must be an int, is currently a {}".format(type(self)))
         if tiles_per_proc < 1:
             raise ValueError("Tiles per process must be >= 1, currently: {}".format(tiles_per_proc))
+        if len(arr.shape) != 2:
+            raise ValueError("Arr must be 2 dimensional, current shape {}".format(arr.shape))
 
         lshape_map = arr.create_lshape_map()
 
@@ -294,7 +298,6 @@ class SquareDiagTiles:
             except AttributeError:
                 pass
         # =========================================================================================
-        # : Tuple[None, Any, Any, Iterable, Tensor, Tensor, Iterable, int, int]
         self.__DNDarray = arr
         self.__col_per_proc_list = (
             col_per_proc_list if arr.split == 1 else [len(col_inds)] * len(col_per_proc_list)
@@ -307,7 +310,6 @@ class SquareDiagTiles:
         self.__tile_map = tile_map
         self.__row_inds = list(row_inds)
         self.__col_inds = list(col_inds)
-
         # =========================================================================================
 
     @property
