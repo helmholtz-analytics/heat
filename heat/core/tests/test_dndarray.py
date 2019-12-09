@@ -294,6 +294,58 @@ class TestDNDarray(unittest.TestCase):
         b = np.ones((2, 2)).astype("int64")
         self.assertEqual(a.numpy().dtype, b.dtype)
 
+    def test_redistribute(self):
+        # need to test with 1, 2, 3, and 4 dims
+        st = ht.zeros((50,), split=0)
+        if st.comm.size >= 3:
+            target_map = torch.zeros((st.comm.size, 1), dtype=torch.int)
+            target_map[1] = 30
+            target_map[2] = 20
+            st.redistribute_(target_map=target_map)
+            if st.comm.rank == 1:
+                self.assertEqual(st.lshape, (30,))
+            elif st.comm.rank == 2:
+                self.assertEqual(st.lshape, (20,))
+            else:
+                self.assertEqual(st.lshape, (0,))
+
+            st = ht.zeros((50, 50), split=1)
+            target_map = torch.zeros((st.comm.size, 2), dtype=torch.int)
+            target_map[0, 1] = 13
+            target_map[2, 1] = 50 - 13
+            st.redistribute_(target_map=target_map)
+            if st.comm.rank == 0:
+                self.assertEqual(st.lshape, (50, 13))
+            elif st.comm.rank == 2:
+                self.assertEqual(st.lshape, (50, 50 - 13))
+            else:
+                self.assertEqual(st.lshape, (50, 0))
+
+            st = ht.zeros((50, 81, 67), split=2)
+            target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
+            target_map[0, 2] = 67
+            st.redistribute_(target_map=target_map)
+            if st.comm.rank == 0:
+                self.assertEqual(st.lshape, (50, 81, 67))
+            else:
+                self.assertEqual(st.lshape, (50, 81, 0))
+
+            st = ht.zeros((8, 8, 8), split=None)
+            target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
+            # this will do nothing!
+            st.redistribute_(target_map=target_map)
+            self.assertTrue(st.lshape, st.gshape)
+
+            st = ht.zeros((50, 81, 67), split=0)
+            with self.assertRaises(ValueError):
+                target_map *= 0
+                st.redistribute_(target_map=target_map)
+
+            with self.assertRaises(TypeError):
+                st.redistribute_(target_map="sdfibn")
+            with self.assertRaises(TypeError):
+                st.redistribute_(lshape_map="sdfibn")
+
     def test_resplit(self):
         # resplitting with same axis, should leave everything unchanged
         shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
