@@ -497,52 +497,19 @@ class SquareDiagTiles:
         if isinstance(key[0], int):
             st0 = row_inds[key[0]] - row_start
             sp0 = row_inds[key[0] + 1] - row_start
-        if isinstance(key[0], slice):
+        elif isinstance(key[0], slice):
             start = row_inds[key[0].start] if key[0].start is not None else 0
             stop = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
             st0, sp0 = start - row_start, stop - row_start
         if isinstance(key[1], int):
             st1 = col_inds[key[1]] - col_start
             sp1 = col_inds[key[1] + 1] - col_start
-        if isinstance(key[1], slice):
+        elif isinstance(key[1], slice):
             start = col_inds[key[1].start] if key[1].start is not None else 0
             stop = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
             st1, sp1 = start - col_start, stop - col_start
 
         return st0, sp0, st1, sp1
-
-    def get_tile_size(self, key):
-        """
-        Get the size of the tile/s specified by the key
-
-        Parameters
-        ----------
-        key : int, slice, tuple
-            collection of indices which correspond to a tile
-
-        Returns
-        -------
-        tuple : dimension 0 size, dimension 1 size
-
-        Examples
-        --------
-        >>> a = ht.zeros((12, 10), split=0)
-        >>> a_tiles = ht.tiling.SquareDiagTiles(a, tiles_per_proc=2)  # type: tiling.SquareDiagTiles
-        >>> print(a_tiles.get_tile_size(key=(slice(0, 2), 2)))
-        [0/1] (tensor(6), tensor(2))
-        [1/1] (tensor(6), tensor(2))
-        >>> print(a_tiles.get_tile_size(key=(0, 2)))
-        [0/1] (tensor(3), tensor(2))
-        [1/1] (tensor(3), tensor(2))
-        >>> print(a_tiles.get_tile_size(key=2))
-        [0/1] (tensor(2), tensor(10))
-        [1/1] (tensor(2), tensor(10))
-        >>> print(a_tiles.get_tile_size(key=(3, 3)))
-        [0/1] (tensor(4), tensor(2))
-        [1/1] (tensor(4), tensor(2))
-        """
-        tup = self.get_start_stop(key)
-        return tup[1] - tup[0], tup[3] - tup[2]
 
     def __getitem__(self, key):
         """
@@ -622,7 +589,7 @@ class SquareDiagTiles:
         key = self.local_to_global(key=key, rank=rank)
         return self.__getitem__(key)
 
-    def local_set(self, key, data):
+    def local_set(self, key, value):
         """
         Setitem routing to set data to a local tile (using local indices)
 
@@ -632,7 +599,7 @@ class SquareDiagTiles:
             indices of the tile/s desired
             if the stop index of a slice is larger than the end will be adjusted to the maximum
             allowed
-        data : torch.Tensor, int, float
+        value : torch.Tensor, int, float
             data to be written to the tile
 
         Returns
@@ -644,7 +611,7 @@ class SquareDiagTiles:
         >>> a = ht.zeros((11, 10), split=0)
         >>> a_tiles = tiling.SquareDiagTiles(a, tiles_per_proc=2)  # type: tiling.SquareDiagTiles
         >>> local = a_tiles.local_get(key=slice(None))
-        >>> a_tiles.local_set(key=slice(None), data=torch.arange(local.numel()).reshape(local.shape))
+        >>> a_tiles.local_set(key=slice(None), value=torch.arange(local.numel()).reshape(local.shape))
         >>> print(a)
         [0/1] tensor([[ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.],
         [0/1]         [10., 11., 12., 13., 14., 15., 16., 17., 18., 19.],
@@ -658,7 +625,7 @@ class SquareDiagTiles:
         [1/1]         [30., 31., 32., 33., 34., 35., 36., 37., 38., 39.],
         [1/1]         [40., 41., 42., 43., 44., 45., 46., 47., 48., 49.]])
         >>> a.lloc[:] = 0
-        >>> a_tiles.local_set(key=(0, 2), data=10)
+        >>> a_tiles.local_set(key=(0, 2), value=10)
         [0/1] tensor([[ 0.,  0.,  0.,  0.,  0.,  0., 10., 10.,  0.,  0.],
         [0/1]         [ 0.,  0.,  0.,  0.,  0.,  0., 10., 10.,  0.,  0.],
         [0/1]         [ 0.,  0.,  0.,  0.,  0.,  0., 10., 10.,  0.,  0.],
@@ -670,7 +637,7 @@ class SquareDiagTiles:
         [1/1]         [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
         [1/1]         [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
         [1/1]         [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]])
-        >>> a_tiles.local_set(key=(slice(None), 1), data=10)
+        >>> a_tiles.local_set(key=(slice(None), 1), value=10)
         [0/1] tensor([[ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.],
         [0/1]         [ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.],
         [0/1]         [ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.],
@@ -686,7 +653,7 @@ class SquareDiagTiles:
         """
         rank = self.__DNDarray.comm.rank
         key = self.local_to_global(key=key, rank=rank)
-        self.__getitem__(tuple(key)).__setitem__(slice(0, None), data)
+        self.__getitem__(tuple(key)).__setitem__(slice(0, None), value)
 
     def local_to_global(self, key, rank):
         """
@@ -910,6 +877,8 @@ class SquareDiagTiles:
         """
         arr = self.__DNDarray
         tile_map = self.__tile_map
+        if tile_map[key][..., 2].unique().numel() > 1:
+            raise ValueError("setting across splits is not allowed")
         if arr.comm.rank == tile_map[key][..., 2].unique():
             # this will set the tile values using the torch setitem function
             arr = self.__getitem__(key)
