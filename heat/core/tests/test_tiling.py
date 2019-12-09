@@ -242,16 +242,16 @@ class TestTiling(unittest.TestCase):
             self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
             # reset base
             m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
-
-            k = (5, 1)
-            m_eq_n_s1_t2.local_set(key=k, value=1)
-            lcl_key = m_eq_n_s1_t2.local_to_global(key=k, rank=m_eq_n_s1.comm.rank)
-            st_sp = m_eq_n_s1_t2.get_start_stop(key=lcl_key)
-            sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
-            lcl_slice = m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
-            self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
-            # reset base
-            m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
+            if ht.MPI_WORLD.size > 2:
+                k = (5, 1)
+                m_eq_n_s1_t2.local_set(key=k, value=1)
+                lcl_key = m_eq_n_s1_t2.local_to_global(key=k, rank=m_eq_n_s1.comm.rank)
+                st_sp = m_eq_n_s1_t2.get_start_stop(key=lcl_key)
+                sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
+                lcl_slice = m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
+                self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+                # reset base
+                m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
 
             k = 2
             m_eq_n_s1_t2.local_set(key=k, value=1)
@@ -275,26 +275,26 @@ class TestTiling(unittest.TestCase):
                 self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
                 # reset base
                 m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
+            if ht.MPI_WORLD.size > 2:
+                k = (5, 5)
+                m_eq_n_s0_t2[k] = 1
+                if m_eq_n_s0_t2[k] is not None:
+                    st_sp = m_eq_n_s0_t2.get_start_stop(key=k)
+                    sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
+                    lcl_slice = m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
+                    self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+                    # reset base
+                    m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
 
-            k = (5, 5)
-            m_eq_n_s0_t2[k] = 1
-            if m_eq_n_s0_t2[k] is not None:
-                st_sp = m_eq_n_s0_t2.get_start_stop(key=k)
-                sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
-                lcl_slice = m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
-                self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
-                # reset base
-                m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
-
-            k = (slice(0, 2), slice(1, 5))
-            m_eq_n_s0_t2[k] = 1
-            if m_eq_n_s0_t2[k] is not None:
-                st_sp = m_eq_n_s0_t2.get_start_stop(key=k)
-                sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
-                lcl_slice = m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
-                self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
-                # reset base
-                m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
+                k = (slice(0, 2), slice(1, 5))
+                m_eq_n_s0_t2[k] = 1
+                if m_eq_n_s0_t2[k] is not None:
+                    st_sp = m_eq_n_s0_t2.get_start_stop(key=k)
+                    sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
+                    lcl_slice = m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
+                    self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+                    # reset base
+                    m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
 
             # --------------------- global ---------- s1 ----------------
             m_eq_n_s1 = ht.zeros((25, 25), split=1)
@@ -310,15 +310,16 @@ class TestTiling(unittest.TestCase):
                 m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
 
             # k = (slice(0, 3), slice(0, 2))
-            k = (5, 5)
-            m_eq_n_s1_t2[k] = 1
-            if m_eq_n_s1_t2[k] is not None:
-                st_sp = m_eq_n_s1_t2.get_start_stop(key=k)
-                sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
-                lcl_slice = m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
-                self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
-                # reset base
-                m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
+            if ht.MPI_WORLD.size > 2:
+                k = (5, 5)
+                m_eq_n_s1_t2[k] = 1
+                if m_eq_n_s1_t2[k] is not None:
+                    st_sp = m_eq_n_s1_t2.get_start_stop(key=k)
+                    sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
+                    lcl_slice = m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
+                    self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+                    # reset base
+                    m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
 
             k = (slice(0, 3), 3)
             m_eq_n_s1_t2[k] = 1
