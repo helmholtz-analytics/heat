@@ -345,6 +345,10 @@ class TestDNDarray(unittest.TestCase):
                 st.redistribute_(target_map="sdfibn")
             with self.assertRaises(TypeError):
                 st.redistribute_(lshape_map="sdfibn")
+            with self.assertRaises(ValueError):
+                st.redistribute_(lshape_map=torch.zeros(2))
+            with self.assertRaises(ValueError):
+                st.redistribute_(target_map=torch.zeros((2, 4)))
 
     def test_resplit(self):
         # resplitting with same axis, should leave everything unchanged

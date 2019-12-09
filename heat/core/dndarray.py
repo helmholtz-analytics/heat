@@ -2044,6 +2044,12 @@ class DNDarray:
                 raise TypeError(
                     "lshape_map must be a torch.Tensor, currently {}".format(type(lshape_map))
                 )
+            if lshape_map.shape != (self.comm.size, len(self.gshape)):
+                raise ValueError(
+                    "lshape_map must have the dimensions ({}, {}), currently {}".format(
+                        self.comm.size, len(self.gshape), lshape_map.shape
+                    )
+                )
 
         if target_map is None:  # if no target map is given then it will balance the tensor
             target_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
@@ -2060,6 +2066,12 @@ class DNDarray:
                 raise ValueError(
                     "Sum along the split axis of the target map must be equal to the "
                     "shape in that dimension, currently {}".format(target_map[..., self.split])
+                )
+            if target_map.shape != (self.comm.size, len(self.gshape)):
+                raise ValueError(
+                    "target_map must have the dimensions {}, currently {}".format(
+                        (self.comm.size, len(self.gshape)), target_map.shape
+                    )
                 )
 
         lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
