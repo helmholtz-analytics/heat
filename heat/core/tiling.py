@@ -93,33 +93,12 @@ class SquareDiagTiles:
             if last_tile_cols == 1:
                 break
 
-        # create lists of columns and rows for each process
-        col_per_proc_list = [tiles_per_proc] * (last_diag_pr.item() + 1)
-        col_per_proc_list[-1] = last_tile_cols
-
-        if last_diag_pr < arr.comm.size - 1 and arr.split == 1:
-            # this is the case that the gshape[1] >> gshape[0]
-            col_per_proc_list.extend([1] * (arr.comm.size - last_diag_pr - 1).item())
         row_per_proc_list = [tiles_per_proc] * arr.comm.size
-        # need to determine the proper number of tile rows/columns
-        tile_columns = tiles_per_proc * last_diag_pr + last_tile_cols
-        diag_crossings = lshape_map[..., arr.split].cumsum(dim=0)[: last_diag_pr + 1]
-        diag_crossings[-1] = (
-            diag_crossings[-1] if diag_crossings[-1] <= min(arr.gshape) else min(arr.gshape)
+        col_per_proc_list, col_inds, tile_columns = self._create_cols(
+            arr, lshape_map, tiles_per_proc, last_diag_pr, last_tile_cols
         )
-        diag_crossings = torch.cat((torch.tensor([0]), diag_crossings), dim=0)
-        # create the tile columns sizes, saved to list
-        col_inds = []
-        for col in range(tile_columns.item()):
-            _, lshape, _ = arr.comm.chunk(
-                [diag_crossings[col // tiles_per_proc + 1] - diag_crossings[col // tiles_per_proc]],
-                0,
-                rank=int(col % tiles_per_proc),
-                w_size=tiles_per_proc if col // tiles_per_proc != last_diag_pr else last_tile_cols,
-            )
-            col_inds.append(lshape[0])
 
-        # need to adjust the lshape if the splits overlap... todo: doc this (req code repitition...)
+        # need to adjust the lshape if the splits overlap...
         if arr.split == 0 and tiles_per_proc == 1:
             # if the split is 0 and the number of tiles per proc is 1
             # then the local data needs to be redistributed to fit the full diagonal on as many
@@ -150,36 +129,10 @@ class SquareDiagTiles:
                 if last_tile_cols == 1:
                     break
 
-            # create lists of columns and rows for each process
-            col_per_proc_list = [tiles_per_proc] * (last_diag_pr.item() + 1)
-            col_per_proc_list[-1] = last_tile_cols
-
-            if last_diag_pr < arr.comm.size - 1 and arr.split == 1:
-                # this is the case that the gshape[1] >> gshape[0]
-                col_per_proc_list.extend([1] * (arr.comm.size - last_diag_pr - 1).item())
             row_per_proc_list = [tiles_per_proc] * arr.comm.size
-            # need to determine the proper number of tile rows/columns
-            tile_columns = tiles_per_proc * last_diag_pr + last_tile_cols
-            diag_crossings = lshape_map[..., arr.split].cumsum(dim=0)[: last_diag_pr + 1]
-            diag_crossings[-1] = (
-                diag_crossings[-1] if diag_crossings[-1] <= min(arr.gshape) else min(arr.gshape)
+            col_per_proc_list, col_inds, tile_columns = self._create_cols(
+                arr, lshape_map, tiles_per_proc, last_diag_pr, last_tile_cols
             )
-            diag_crossings = torch.cat((torch.tensor([0]), diag_crossings), dim=0)
-            # create the tile columns sizes, saved to list
-            col_inds = []
-            for col in range(tile_columns.item()):
-                _, lshape, _ = arr.comm.chunk(
-                    [
-                        diag_crossings[col // tiles_per_proc + 1]
-                        - diag_crossings[col // tiles_per_proc]
-                    ],
-                    0,
-                    rank=int(col % tiles_per_proc),
-                    w_size=tiles_per_proc
-                    if col // tiles_per_proc != last_diag_pr
-                    else last_tile_cols,
-                )
-                col_inds.append(lshape[0])
 
         total_tile_rows = tiles_per_proc * arr.comm.size
         row_inds = [0] * total_tile_rows
@@ -311,6 +264,33 @@ class SquareDiagTiles:
         self.__row_inds = list(row_inds)
         self.__col_inds = list(col_inds)
         # =========================================================================================
+
+    def _create_cols(self, arr, lshape_map, tiles_per_proc, last_diag_pr, last_tile_cols):
+        # create lists of columns and rows for each process
+        col_per_proc_list = [tiles_per_proc] * (last_diag_pr.item() + 1)
+        col_per_proc_list[-1] = last_tile_cols
+
+        if last_diag_pr < arr.comm.size - 1 and arr.split == 1:
+            # this is the case that the gshape[1] >> gshape[0]
+            col_per_proc_list.extend([1] * (arr.comm.size - last_diag_pr - 1).item())
+        # need to determine the proper number of tile rows/columns
+        tile_columns = tiles_per_proc * last_diag_pr + last_tile_cols
+        diag_crossings = lshape_map[..., arr.split].cumsum(dim=0)[: last_diag_pr + 1]
+        diag_crossings[-1] = (
+            diag_crossings[-1] if diag_crossings[-1] <= min(arr.gshape) else min(arr.gshape)
+        )
+        diag_crossings = torch.cat((torch.tensor([0]), diag_crossings), dim=0)
+        # create the tile columns sizes, saved to list
+        col_inds = []
+        for col in range(tile_columns.item()):
+            _, lshape, _ = arr.comm.chunk(
+                [diag_crossings[col // tiles_per_proc + 1] - diag_crossings[col // tiles_per_proc]],
+                0,
+                rank=int(col % tiles_per_proc),
+                w_size=tiles_per_proc if col // tiles_per_proc != last_diag_pr else last_tile_cols,
+            )
+            col_inds.append(lshape[0])
+        return col_per_proc_list, col_inds, tile_columns
 
     @property
     def arr(self):
