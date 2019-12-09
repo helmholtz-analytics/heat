@@ -709,3 +709,10 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(a.gnumel, 10 * 10 * 10)
 
         self.assertEqual(ht.array(0).size, 1)
+    
+    def test_stride_and_strides(self):
+        torch_int32 = torch.arange(6 * 5 * 3 * 4 * 5 * 7, dtype=torch.int32).reshape(6, 5, 3, 4, 5, 7)
+        heat_int32 = ht.array(torch_int32)
+        numpy_int32 = torch_int32.numpy()
+        self.assertEqual(heat_int32.stride(), torch_int32.stride())
+        
