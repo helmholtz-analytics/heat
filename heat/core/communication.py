@@ -110,7 +110,7 @@ class MPICommunication(Communication):
         rank = self.rank if rank is None else rank
         w_size = self.size if w_size is None else w_size
         if not isinstance(rank, int) or not isinstance(w_size, int):
-            raise TypeError('rank and size must be integers')
+            raise TypeError("rank and size must be integers")
 
         dims = len(shape)
         size = shape[split]
