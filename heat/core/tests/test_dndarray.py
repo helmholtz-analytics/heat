@@ -711,8 +711,21 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(ht.array(0).size, 1)
     
     def test_stride_and_strides(self):
-        torch_int32 = torch.arange(6 * 5 * 3 * 4 * 5 * 7, dtype=torch.int32).reshape(6, 5, 3, 4, 5, 7)
-        heat_int32 = ht.array(torch_int32)
-        numpy_int32 = torch_int32.numpy()
-        self.assertEqual(heat_int32.stride(), torch_int32.stride())
-        
+        #Local, int16, row-major memory layout
+        torch_int16 = torch.arange(6 * 5 * 3 * 4 * 5 * 7, dtype=torch.int16).reshape(6, 5, 3, 4, 5, 7)
+        heat_int16 = ht.array(torch_int16)
+        numpy_int16 = torch_int16.numpy()
+        self.assertEqual(heat_int16.stride(), torch_int16.stride())
+        self.assertEqual(heat_int16.strides, numpy_int16.strides)
+        #Local, float32, row-major memory layout
+        torch_float32 = torch.arange(6 * 5 * 3 * 4 * 5 * 7, dtype=torch.float32).reshape(6, 5, 3, 4, 5, 7)
+        heat_float32 = ht.array(torch_float32)
+        numpy_float32 = torch_float32.numpy()
+        self.assertEqual(heat_float32.stride(), torch_float32.stride())
+        self.assertEqual(heat_float32.strides, numpy_float32.strides)
+        #Local, float64, column-major memory layout 
+        torch_float64 = torch.arange(6 * 5 * 3 * 4 * 5 * 7, dtype=torch.float64).reshape(6, 5, 3, 4, 5, 7)
+        heat_float64_F = ht.array(torch_float64, order='F')
+        numpy_float64_F = np.array(torch_float64.numpy(), order='F') 
+        self.assertNotEqual(heat_float64_F.stride(), torch_float64.stride())
+        self.assertEqual(heat_float64_F.strides, numpy_float64_F.strides)
