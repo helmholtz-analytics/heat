@@ -6,8 +6,9 @@ from . import factories
 from . import manipulations
 from . import operations
 from . import dndarray
+from . import types
 
-__all__ = ["all", "allclose", "any"]
+__all__ = ["all", "allclose", "any", "logical_and", "logical_not", "logical_or", "logical_xor"]
 
 
 def all(x, axis=None, out=None, keepdim=None):
@@ -201,3 +202,98 @@ def any(x, axis=None, out=None, keepdim=False):
         return torch.any(t != 0, *args, **kwargs)
 
     return operations.__reduce_op(x, local_any, MPI.LOR, axis=axis, out=out, keepdim=keepdim)
+
+
+def logical_and(t1, t2):
+    """
+    Compute the truth value of t1 AND t2 element-wise.
+
+    Parameters:
+    -----------
+    t1, t2: tensor
+        input tensors of same shape
+
+    Returns:
+    --------
+    boolean_tensor : tensor of type bool
+        Element-wise result of t1 AND t2.
+
+    Examples:
+    ---------
+    >>> ht.logical_and(ht.array([True, False]), ht.array([False, False]))
+    tensor([ False, False])
+    """
+    return operations.__binary_op(
+        torch.Tensor.__and__, types.bool(t1, device=t1.device), types.bool(t2, device=t2.device)
+    )
+
+
+def logical_not(t, out=None):
+    """
+    Computes the element-wise logical NOT of the given input tensor.
+
+    Parameters:
+    -----------
+    t1: tensor
+        input tensor
+    out : tensor, optional
+        Alternative output tensor in which to place the result. It must have the same shape as the expected output.
+        The output is a tensor with dtype=bool.
+
+    Returns:
+    --------
+    boolean_tensor : tensor of type bool
+        Element-wise result of NOT t.
+
+    Examples:
+    ---------
+    >>> ht.logical_not(ht.array([True, False]))
+    tensor([ False,  True])
+    """
+    return operations.__local_op(torch.logical_not, t, out)
+
+
+def logical_or(t1, t2):
+    """
+    Compute the truth value of t1 OR t2 element-wise.
+
+    Parameters:
+    -----------
+    t1, t2: tensor
+        input tensors of same shape
+
+    Returns:
+    --------
+    boolean_tensor : tensor of type bool
+        Element-wise result of t1 OR t2.
+
+    Examples:
+    ---------
+    >>> ht.logical_or(ht.array([True, False]), ht.array([False, False]))
+    tensor([True, False])
+    """
+    return operations.__binary_op(
+        torch.Tensor.__or__, types.bool(t1, device=t1.device), types.bool(t2, device=t2.device)
+    )
+
+
+def logical_xor(t1, t2):
+    """
+    Computes the element-wise logical XOR of the given input tensors.
+
+    Parameters:
+    -----------
+    t1, t2: tensor
+        input tensors of same shape
+
+    Returns:
+    --------
+    boolean_tensor : tensor of type bool
+        Element-wise result of t1 XOR t2.
+
+    Examples:
+    ---------
+    >>> ht.logical_xor(ht.array([True, False, True]), ht.array([True, False, False]))
+    tensor([ False, False,  True])
+    """
+    return operations.__binary_op(torch.logical_xor, t1, t2)

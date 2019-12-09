@@ -9,6 +9,7 @@ from . import types
 __all__ = [
     "add",
     "bitwise_and",
+    "bitwise_not",
     "bitwise_or",
     "bitwise_xor",
     "diff",
@@ -17,13 +18,16 @@ __all__ = [
     "floordiv",
     "floor_divide",
     "fmod",
+    "invert",
+    "left_shift",
     "mod",
     "mul",
     "multiply",
     "pow",
-    "prod",
     "power",
+    "prod",
     "remainder",
+    "right_shift",
     "sub",
     "subtract",
     "sum",
@@ -101,25 +105,20 @@ def bitwise_and(t1, t2):
     >>> ht.bitwise_and(ht.array([True, True]), ht.array([False, True]))
     tensor([False,  True])
     """
-    ttypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
 
-    for t in ttypes:
+    for dtype in dtypes:
         if not (
-            (t == types.bool)
-            or (t == types.int8)
-            or (t == types.uint8)
-            or (t == types.int16)
-            or (t == types.int32)
-            or (t == types.int64)
+            (dtype == types.bool)
+            or (dtype == types.int8)
+            or (dtype == types.uint8)
+            or (dtype == types.int16)
+            or (dtype == types.int32)
+            or (dtype == types.int64)
         ):
             raise TypeError("Operation is supported for bool and int types only")
 
-    if isinstance(t1, dndarray.DNDarray):
-        return operations.__binary_op(torch.Tensor.__and__, t1, t2)
-    elif isinstance(t2, dndarray.DNDarray):
-        return operations.__binary_op(torch.Tensor.__and__, t2, t1)
-    else:
-        return t1 & t2
+    return operations.__binary_op(torch.Tensor.__and__, t1, t2)
 
 
 def bitwise_or(t1, t2):
@@ -157,25 +156,20 @@ def bitwise_or(t1, t2):
     >>> ht.bitwise_or(ht.array([True, True]), ht.array([False, True]))
     tensor([ True,  True])
     """
-    ttypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
 
-    for t in ttypes:
+    for dtype in dtypes:
         if not (
-            (t == types.bool)
-            or (t == types.int8)
-            or (t == types.uint8)
-            or (t == types.int16)
-            or (t == types.int32)
-            or (t == types.int64)
+            (dtype == types.bool)
+            or (dtype == types.int8)
+            or (dtype == types.uint8)
+            or (dtype == types.int16)
+            or (dtype == types.int32)
+            or (dtype == types.int64)
         ):
             raise TypeError("Operation is supported for bool and int types only")
 
-    if isinstance(t1, dndarray.DNDarray):
-        return operations.__binary_op(torch.Tensor.__or__, t1, t2)
-    elif isinstance(t2, dndarray.DNDarray):
-        return operations.__binary_op(torch.Tensor.__or__, t2, t1)
-    else:
-        return t1 & t2
+    return operations.__binary_op(torch.Tensor.__or__, t1, t2)
 
 
 def bitwise_xor(t1, t2):
@@ -208,25 +202,20 @@ def bitwise_xor(t1, t2):
     >>> ht.bitwise_xor(ht.array([True, True]), ht.array([False, True]))
     tensor([ True, False])
     """
-    ttypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
 
-    for t in ttypes:
+    for dtype in dtypes:
         if not (
-            (t == types.bool)
-            or (t == types.int8)
-            or (t == types.uint8)
-            or (t == types.int16)
-            or (t == types.int32)
-            or (t == types.int64)
+            (dtype == types.bool)
+            or (dtype == types.int8)
+            or (dtype == types.uint8)
+            or (dtype == types.int16)
+            or (dtype == types.int32)
+            or (dtype == types.int64)
         ):
             raise TypeError("Operation is supported for bool and int types only")
 
-    if isinstance(t1, dndarray.DNDarray):
-        return operations.__binary_op(torch.Tensor.__xor__, t1, t2)
-    elif isinstance(t2, dndarray.DNDarray):
-        return operations.__binary_op(torch.Tensor.__xor__, t2, t1)
-    else:
-        return t1 & t2
+    return operations.__binary_op(torch.Tensor.__xor__, t1, t2)
 
 
 def diff(a, n=1, axis=-1):
@@ -433,6 +422,81 @@ def floordiv(t1, t2):
 floor_divide = floordiv
 
 
+def invert(t, out=None):
+    """
+    Computes the bitwise NOT of the given input tensor. The input tensor must be of integral or Boolean types. For bool tensors, it computes the logical NOT.
+    Bitwise_not is an alias for invert.
+
+    Returns
+        -------
+        result: ht.DNDarray
+            A tensor containing the results of element-wise inversion.
+
+    Examples:
+    ---------
+    >>> ht.invert(ht.array([13], dtype=ht.uint8))
+    tensor([242], dtype=ht.uint8)
+    >>> ht.bitwise_not(ht.array([-1, -2, 3], dtype=ht.int8))
+    tensor([ 0,  1, -4], dtype=ht.int8)
+    """
+    dtype = types.heat_type_of(t)
+
+    if not (
+        (dtype == types.bool)
+        or (dtype == types.int8)
+        or (dtype == types.uint8)
+        or (dtype == types.int16)
+        or (dtype == types.int32)
+        or (dtype == types.int64)
+    ):
+        raise TypeError("Operation is supported for bool and int types only")
+
+    if isinstance(t, dndarray.DNDarray):
+        return operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
+    else:
+        return ~t
+
+
+# alias for invert
+bitwise_not = invert
+
+
+def left_shift(t1, t2):
+    """
+    Shift the bits of an integer to the left.
+
+    Parameters
+    ----------
+    t1: scalar or tensor
+
+    t2: scalar or tensor
+        integer number of zero bits to add
+
+    Returns
+    -------
+    result: ht.NDNarray
+        A tensor containing the results of element-wise left shift operation.
+
+    Examples:
+    ---------
+    >>> ht.left_shift(ht.array[1,2,3], 1)
+    tensor([2, 4, 6])
+    """
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for dtype in dtypes:
+        if not (
+            (dtype == types.int8)
+            or (dtype == types.uint8)
+            or (dtype == types.int16)
+            or (dtype == types.int32)
+            or (dtype == types.int64)
+        ):
+            raise TypeError("Operation is supported for integer types only")
+
+    return operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
+
+
 def mod(t1, t2):
     """
     Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
@@ -597,6 +661,42 @@ def remainder(t1, t2):
             [2, 2]], dtype=torch.int32)
     """
     return operations.__binary_op(torch.remainder, t1, t2)
+
+
+def right_shift(t1, t2):
+    """
+    Shift the bits of an integer to the right.
+
+    Parameters
+    ----------
+    t1: scalar or tensor
+
+    t2: scalar or tensor
+        integer number of bits to remove
+
+    Returns
+    -------
+    result: ht.NDNarray
+        A tensor containing the results of element-wise right shift operation.
+
+    Examples:
+    ---------
+    >>> ht.right_shift(ht.array[1,2,3], 1)
+    tensor([0, 1, 1])
+    """
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for dtype in dtypes:
+        if not (
+            (dtype == types.int8)
+            or (dtype == types.uint8)
+            or (dtype == types.int16)
+            or (dtype == types.int32)
+            or (dtype == types.int64)
+        ):
+            raise TypeError("Operation is supported for integer types only")
+
+    return operations.__binary_op(torch.Tensor.__rshift__, t1, t2)
 
 
 def prod(x, axis=None, out=None, keepdim=None):
