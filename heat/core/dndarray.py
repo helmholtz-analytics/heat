@@ -2020,19 +2020,30 @@ class DNDarray:
 
         Parameters
         ----------
-        lshape_map : torch.Tensor
+        lshape_map : torch.Tensor, optional
             The current lshape of processes
-        target_map : torch.Tensor
+            Units -> [rank, lshape]
+        target_map : torch.Tensor, optional
+            The desired distribution across the processes
+            Units -> [rank, target lshape]
+            Note: the only important parts of the target map are the values along the split axis
 
         Returns
         -------
         None, the local shapes of the DNDarray are modified
         """
+        if not self.is_distributed():
+            return
         snd_dtype = self.dtype.torch_type()
         # units -> {pr, 1st index, 2nd index}
         if lshape_map is None:
             # NOTE: giving an lshape map which is incorrect will result in an incorrect distribution
             lshape_map = self.create_lshape_map()
+        else:
+            if not isinstance(lshape_map, torch.Tensor):
+                raise TypeError(
+                    "lshape_map must be a torch.Tensor, currently {}".format(type(lshape_map))
+                )
 
         if target_map is None:  # if no target map is given then it will balance the tensor
             target_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
@@ -2040,6 +2051,16 @@ class DNDarray:
             for i in range(len(self.gshape)):
                 target_map[self.comm.rank, i] = chk[i].stop - chk[i].start
             self.comm.Allreduce(MPI.IN_PLACE, target_map, MPI.SUM)
+        else:
+            if not isinstance(target_map, torch.Tensor):
+                raise TypeError(
+                    "target_map must be a torch.Tensor, currently {}".format(type(lshape_map))
+                )
+            if sum(target_map[..., self.split]) != self.shape[self.split]:
+                raise ValueError(
+                    "Sum along the split axis of the target map must be equal to the "
+                    "shape in that dimension, currently {}".format(target_map[..., self.split])
+                )
 
         lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
         chunk_cumsum = torch.cat(
@@ -2094,6 +2115,11 @@ class DNDarray:
                 lshape_cumsum[rcv_pr + 1] += send_amt
                 lshape_map[rcv_pr, self.split] -= send_amt
                 lshape_map[rcv_pr + 1, self.split] += send_amt
+
+        if any(lshape_map[..., self.split] != target_map[..., self.split]):
+            # sometimes need to call the redistribute once more,
+            # (in the case that the second to last processes needs to get data from +1 and -1)
+            self.redistribute_(lshape_map=lshape_map, target_map=target_map)
 
     def __redistribute_shuffle(self, snd_pr, send_amt, rcv_pr, snd_dtype):
         """
