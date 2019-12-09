@@ -35,14 +35,22 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(as_float64._DNDarray__array.dtype, torch.float64)
         self.assertIs(as_float64, data)
 
-    def test_balance_(self):
+    def test_balance_and_lshape_map(self):
         data = ht.zeros((70, 20), split=0)
         data = data[:50]
+        lshape_map = data.create_lshape_map()
+        self.assertEqual(sum(lshape_map[..., 0]), 50)
+        if sum(data.lshape) == 0:
+            self.assertTrue(all(lshape_map[data.comm.rank] == 0))
         data.balance_()
         self.assertTrue(data.is_balanced())
 
         data = ht.zeros((4, 120), split=1)
         data = data[:, 40:70]
+        lshape_map = data.create_lshape_map()
+        self.assertEqual(sum(lshape_map[..., 1]), 30)
+        if sum(data.lshape) == 0:
+            self.assertTrue(all(lshape_map[data.comm.rank] == 0))
         data.balance_()
         self.assertTrue(data.is_balanced())
 
