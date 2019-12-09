@@ -635,117 +635,7 @@ class DNDarray:
         """
         if self.is_balanced():
             return
-        snd_dtype = self.dtype.torch_type()
-        # units -> {pr, 1st index, 2nd index}
-        lshape_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
-        lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
-        lshape_map_comm = self.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
-
-        chunk_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
-        _, _, chk = self.comm.chunk(self.shape, self.split)
-        for i in range(len(self.gshape)):
-            chunk_map[self.comm.rank, i] = chk[i].stop - chk[i].start
-        chunk_map_comm = self.comm.Iallreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
-
-        lshape_map_comm.wait()
-        chunk_map_comm.wait()
-        lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
-        chunk_cumsum = torch.cat(
-            (torch.tensor([0]), torch.cumsum(chunk_map[..., self.split], dim=0)), dim=0
-        )
-        # need the data start as well for process 0
-        for rcv_pr in range(self.comm.size - 1):
-            st = chunk_cumsum[rcv_pr].item()
-            sp = chunk_cumsum[rcv_pr + 1].item()
-            # start pr should be the next process with data
-            if lshape_map[rcv_pr, self.split] >= chunk_map[rcv_pr, self.split]:
-                # if there is more data on the process than the start process than start == stop
-                st_pr = rcv_pr
-                sp_pr = rcv_pr
-            else:
-                # if there is less data on the process than need to get the data from the next data
-                # with data
-                # need processes > rcv_pr with lshape > 0
-                st_pr = torch.nonzero(lshape_map[rcv_pr:, self.split] > 0)[0].item() + rcv_pr
-                hld = torch.nonzero(sp <= lshape_cumsum[rcv_pr:]).flatten() + rcv_pr
-                sp_pr = hld[0].item() if hld.numel() > 0 else self.comm.size
-
-            # st_pr and sp_pr are the processes on which the data sits at the beginning
-            # need to loop from st_pr to sp_pr + 1 and send the pr
-            for snd_pr in range(st_pr, sp_pr + 1):
-                if snd_pr == self.comm.size:
-                    break
-                data_required = abs(sp - st - lshape_map[rcv_pr, self.split].item())
-                send_amt = (
-                    data_required
-                    if data_required <= lshape_map[snd_pr, self.split]
-                    else lshape_map[snd_pr, self.split]
-                )
-                if (sp - st) <= lshape_map[rcv_pr, self.split].item() or snd_pr == rcv_pr:
-                    send_amt = 0
-                # send amount is the data still needed by recv if that is available on the snd
-                if send_amt != 0:
-                    self.__balance_shuffle(
-                        snd_pr=snd_pr, send_amt=send_amt, rcv_pr=rcv_pr, snd_dtype=snd_dtype
-                    )
-                lshape_cumsum[snd_pr] -= send_amt
-                lshape_cumsum[rcv_pr] += send_amt
-                lshape_map[rcv_pr, self.split] += send_amt
-                lshape_map[snd_pr, self.split] -= send_amt
-            if lshape_map[rcv_pr, self.split] > chunk_map[rcv_pr, self.split]:
-                # if there is any data left on the process then send it to the next one
-                send_amt = lshape_map[rcv_pr, self.split] - chunk_map[rcv_pr, self.split]
-                self.__balance_shuffle(
-                    snd_pr=rcv_pr, send_amt=send_amt.item(), rcv_pr=rcv_pr + 1, snd_dtype=snd_dtype
-                )
-                lshape_cumsum[rcv_pr] -= send_amt
-                lshape_cumsum[rcv_pr + 1] += send_amt
-                lshape_map[rcv_pr, self.split] -= send_amt
-                lshape_map[rcv_pr + 1, self.split] += send_amt
-
-    def __balance_shuffle(self, snd_pr, send_amt, rcv_pr, snd_dtype):
-        """
-        Function to abstract the function used during balance for shuffling data between processes
-
-        Parameters
-        ----------
-        snd_pr : int, single element torch.Tensor
-            Sending process
-        send_amt : int, single element torch.Tensor
-            Amount of data to be sent by the sending process
-        rcv_pr : int, single element torch.Tensor
-            Recieving process
-        snd_dtype : torch.type
-            Torch type of the data in question
-
-        Returns
-        -------
-        None
-        """
-        rank = self.comm.rank
-        send_slice = [slice(None)] * self.numdims
-        keep_slice = [slice(None)] * self.numdims
-        if rank == snd_pr:
-            if snd_pr < rcv_pr:  # data passed to a higher rank (off the bottom)
-                send_slice[self.split] = slice(
-                    self.lshape[self.split] - send_amt, self.lshape[self.split]
-                )
-                keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
-            if snd_pr > rcv_pr:  # data passed to a lower rank (off the top)
-                send_slice[self.split] = slice(0, send_amt)
-                keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
-            data = self.__array[send_slice].clone()
-            self.comm.Send(data, dest=rcv_pr, tag=685)
-            self.__array = self.__array[keep_slice]
-        if rank == rcv_pr:
-            shp = list(self.gshape)
-            shp[self.split] = send_amt
-            data = torch.zeros(shp, dtype=snd_dtype)
-            self.comm.Recv(data, source=snd_pr, tag=685)
-            if snd_pr < rcv_pr:  # data passed from a lower rank (append to top)
-                self.__array = torch.cat((data, self.__array), dim=self.split)
-            if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
-                self.__array = torch.cat((self.__array, data), dim=self.split)
+        self.redistribute_()
 
     def __bool__(self):
         """
@@ -818,38 +708,6 @@ class DNDarray:
         tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
         """
         return rounding.ceil(self, out)
-
-    def trunc(self, out=None):
-        """
-        Return the trunc of the input, element-wise.
-
-        The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the
-        fractional part of the signed number x is discarded.
-
-        Parameters
-        ----------
-        out : ht.DNDarray or None, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        trunced : ht.DNDarray
-            A tensor of the same shape as x, containing the trunced valued of each element in this tensor. If out was
-            provided, trunced is a reference to it.
-
-        Returns
-        -------
-        trunced : ht.DNDarray
-            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
-            provided, trunced is a reference to it.
-
-        Examples
-        --------
-        >>> ht.trunc(ht.arange(-2.0, 2.0, 0.4))
-        tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
-        """
-        return rounding.trunc(self, out)
 
     def clip(self, a_min, a_max, out=None):
         """
@@ -955,6 +813,21 @@ class DNDarray:
         """
         self.__array = self.__array.cpu()
         return self
+
+    def create_lshape_map(self):
+        """
+        Generate a 'map' of the lshapes of the data on all processes.
+        Units -> (process rank, lshape)
+
+        Returns
+        -------
+        lshape_map : torch.Tensor
+            Units -> (process rank, lshape)
+        """
+        lshape_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
+        lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
+        self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+        return lshape_map
 
     def __floordiv__(self, other):
         """
@@ -2139,6 +2012,134 @@ class DNDarray:
         # TODO: generate none-PyTorch repr
         return self.__array.__repr__(*args)
 
+    def redistribute_(self, lshape_map=None, target_map=None):
+        """
+        Redistributes the data of the DNDarray *along the split axis* to match the given target map.
+        This function does not modify the non-split dimensions of the DNDarray.
+        This is an abstraction and extension of the balance function.
+
+        Parameters
+        ----------
+        lshape_map : torch.Tensor
+            The current lshape of processes
+        target_map : torch.Tensor
+
+        Returns
+        -------
+        None, the local shapes of the DNDarray are modified
+        """
+        snd_dtype = self.dtype.torch_type()
+        # units -> {pr, 1st index, 2nd index}
+        if lshape_map is None:
+            # NOTE: giving an lshape map which is incorrect will result in an incorrect distribution
+            lshape_map = self.create_lshape_map()
+
+        if target_map is None:  # if no target map is given then it will balance the tensor
+            target_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
+            _, _, chk = self.comm.chunk(self.shape, self.split)
+            for i in range(len(self.gshape)):
+                target_map[self.comm.rank, i] = chk[i].stop - chk[i].start
+            self.comm.Allreduce(MPI.IN_PLACE, target_map, MPI.SUM)
+
+        lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
+        chunk_cumsum = torch.cat(
+            (torch.tensor([0]), torch.cumsum(target_map[..., self.split], dim=0)), dim=0
+        )
+        # need the data start as well for process 0
+        for rcv_pr in range(self.comm.size - 1):
+            st = chunk_cumsum[rcv_pr].item()
+            sp = chunk_cumsum[rcv_pr + 1].item()
+            # start pr should be the next process with data
+            if lshape_map[rcv_pr, self.split] >= target_map[rcv_pr, self.split]:
+                # if there is more data on the process than the start process than start == stop
+                st_pr = rcv_pr
+                sp_pr = rcv_pr
+            else:
+                # if there is less data on the process than need to get the data from the next data
+                # with data
+                # need processes > rcv_pr with lshape > 0
+                st_pr = torch.nonzero(lshape_map[rcv_pr:, self.split] > 0)[0].item() + rcv_pr
+                hld = torch.nonzero(sp <= lshape_cumsum[rcv_pr:]).flatten() + rcv_pr
+                sp_pr = hld[0].item() if hld.numel() > 0 else self.comm.size
+
+            # st_pr and sp_pr are the processes on which the data sits at the beginning
+            # need to loop from st_pr to sp_pr + 1 and send the pr
+            for snd_pr in range(st_pr, sp_pr + 1):
+                if snd_pr == self.comm.size:
+                    break
+                data_required = abs(sp - st - lshape_map[rcv_pr, self.split].item())
+                send_amt = (
+                    data_required
+                    if data_required <= lshape_map[snd_pr, self.split]
+                    else lshape_map[snd_pr, self.split]
+                )
+                if (sp - st) <= lshape_map[rcv_pr, self.split].item() or snd_pr == rcv_pr:
+                    send_amt = 0
+                # send amount is the data still needed by recv if that is available on the snd
+                if send_amt != 0:
+                    self.__redistribute_shuffle(
+                        snd_pr=snd_pr, send_amt=send_amt, rcv_pr=rcv_pr, snd_dtype=snd_dtype
+                    )
+                lshape_cumsum[snd_pr] -= send_amt
+                lshape_cumsum[rcv_pr] += send_amt
+                lshape_map[rcv_pr, self.split] += send_amt
+                lshape_map[snd_pr, self.split] -= send_amt
+            if lshape_map[rcv_pr, self.split] > target_map[rcv_pr, self.split]:
+                # if there is any data left on the process then send it to the next one
+                send_amt = lshape_map[rcv_pr, self.split] - target_map[rcv_pr, self.split]
+                self.__redistribute_shuffle(
+                    snd_pr=rcv_pr, send_amt=send_amt.item(), rcv_pr=rcv_pr + 1, snd_dtype=snd_dtype
+                )
+                lshape_cumsum[rcv_pr] -= send_amt
+                lshape_cumsum[rcv_pr + 1] += send_amt
+                lshape_map[rcv_pr, self.split] -= send_amt
+                lshape_map[rcv_pr + 1, self.split] += send_amt
+
+    def __redistribute_shuffle(self, snd_pr, send_amt, rcv_pr, snd_dtype):
+        """
+        Function to abstract the function used during redistribute for shuffling data between
+        processes along the split axis
+
+        Parameters
+        ----------
+        snd_pr : int, single element torch.Tensor
+            Sending process
+        send_amt : int, single element torch.Tensor
+            Amount of data to be sent by the sending process
+        rcv_pr : int, single element torch.Tensor
+            Recieving process
+        snd_dtype : torch.type
+            Torch type of the data in question
+
+        Returns
+        -------
+        None
+        """
+        rank = self.comm.rank
+        send_slice = [slice(None)] * self.numdims
+        keep_slice = [slice(None)] * self.numdims
+        if rank == snd_pr:
+            if snd_pr < rcv_pr:  # data passed to a higher rank (off the bottom)
+                send_slice[self.split] = slice(
+                    self.lshape[self.split] - send_amt, self.lshape[self.split]
+                )
+                keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
+            if snd_pr > rcv_pr:  # data passed to a lower rank (off the top)
+                send_slice[self.split] = slice(0, send_amt)
+                keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
+            data = self.__array[send_slice].clone()
+            self.comm.Send(data, dest=rcv_pr, tag=685)
+            self.__array = self.__array[keep_slice]
+        if rank == rcv_pr:
+            shp = list(self.gshape)
+            shp[self.split] = send_amt
+            data = torch.zeros(shp, dtype=snd_dtype)
+            self.comm.Recv(data, source=snd_pr, tag=685)
+            if snd_pr < rcv_pr:  # data passed from a lower rank (append to top)
+                self.__array = torch.cat((data, self.__array), dim=self.split)
+            if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
+                self.__array = torch.cat((self.__array, data), dim=self.split)
+
     def resplit_(self, axis=None):
         """
         In-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
@@ -2972,6 +2973,38 @@ class DNDarray:
                 [1.5, 2.0000]])
         """
         return arithmetics.div(self, other)
+
+    def trunc(self, out=None):
+        """
+        Return the trunc of the input, element-wise.
+
+        The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the
+        fractional part of the signed number x is discarded.
+
+        Parameters
+        ----------
+        out : ht.DNDarray or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        trunced : ht.DNDarray
+            A tensor of the same shape as x, containing the trunced valued of each element in this tensor. If out was
+            provided, trunced is a reference to it.
+
+        Returns
+        -------
+        trunced : ht.DNDarray
+            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
+            provided, trunced is a reference to it.
+
+        Examples
+        --------
+        >>> ht.trunc(ht.arange(-2.0, 2.0, 0.4))
+        tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
+        """
+        return rounding.trunc(self, out)
 
     def unique(self, sorted=False, return_inverse=False, axis=None):
         """
