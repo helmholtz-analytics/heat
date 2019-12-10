@@ -16,7 +16,7 @@ class TestLasso(unittest.TestCase):
         X = X / ht.sqrt((ht.mean(X ** 2, axis=0)))
         m, n = X.shape
         # HeAT lasso instance
-        estimator = ht.ml.regression.lasso.HeatLasso(max_iter=100, tol=None)
+        estimator = ht.regression.lasso.HeatLasso(max_iter=100, tol=None)
         # check whether the results are correct
         self.assertEqual(estimator.lam, 0.1)
         self.assertTrue(estimator.theta is None)
@@ -52,7 +52,7 @@ class TestLasso(unittest.TestCase):
         X = X / torch.sqrt((torch.mean(X ** 2, 0)))
         m, n = X.shape
 
-        estimator = ht.ml.regression.lasso.PytorchLasso(max_iter=100, tol=None)
+        estimator = ht.regression.lasso.PytorchLasso(max_iter=100, tol=None)
         # check whether the results are correct
         self.assertEqual(estimator.lam, 0.1)
         self.assertTrue(estimator.theta is None)
@@ -88,7 +88,7 @@ class TestLasso(unittest.TestCase):
         X = X / np.sqrt((np.mean(X ** 2, axis=0, keepdims=True)))
         m, n = X.shape
 
-        estimator = ht.ml.regression.lasso.NumpyLasso(max_iter=100, tol=None)
+        estimator = ht.regression.lasso.NumpyLasso(max_iter=100, tol=None)
         # check whether the results are correct
         self.assertEqual(estimator.lam, 0.1)
         self.assertTrue(estimator.theta is None)

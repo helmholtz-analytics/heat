@@ -11,14 +11,14 @@ class TestKMeans(unittest.TestCase):
 
         # fit the clusters
         k = 3
-        kmeans = ht.ml.cluster.KMeans(n_clusters=k)
+        kmeans = ht.cluster.KMeans(n_clusters=k)
         kmeans.fit(iris)
 
         # check whether the results are correct
         self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
         self.assertEqual(kmeans.cluster_centers_.shape, (k, iris.shape[1]))
         # same test with init=kmeans++
-        kmeans = ht.ml.cluster.KMeans(n_clusters=k, init="kmeans++")
+        kmeans = ht.cluster.KMeans(n_clusters=k, init="kmeans++")
         kmeans.fit(iris)
 
         # check whether the results are correct
