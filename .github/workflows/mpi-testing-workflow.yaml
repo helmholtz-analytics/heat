@@ -43,6 +43,8 @@ jobs:
           echo $SHELL
           ls
           ls /lib
+          . /lib/modules
+          module load mpi
           mpirun --version
       - uses: actions/checkout@v1
       - name: Install Python Dependencies
