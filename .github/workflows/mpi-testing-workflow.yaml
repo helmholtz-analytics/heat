@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           echo $SHELL
-          mpriun --version
+          mpirun --version
       - name: Install Python Dependencies
         shell: bash
         run: pip install -q -e .[hdf5,netcdf]
