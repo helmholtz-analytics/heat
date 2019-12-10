@@ -186,7 +186,7 @@ class DNDarray:
         """
         steps = list(self._DNDarray__array.stride())
         itemsize = self._DNDarray__array.storage().element_size()
-        strides = tuple(step*itemsize for step in steps)
+        strides = tuple(step * itemsize for step in steps)
         return strides
 
     @property
