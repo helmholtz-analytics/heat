@@ -9,7 +9,7 @@ jobs:
   run-unittests:
     name: ${{ matrix.image }} - ${{ matrix.processes }} processes unittests
     runs-on: ubuntu-latest
-    container: docker://$simonsdockerid/heat_{{ matrix.image }}
+    container: docker://$simonsdockerid/heat_${{ matrix.image }}
     strategy:
       matrix:
         image: [ubuntu, fedora]
