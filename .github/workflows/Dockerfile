@@ -1,5 +1,7 @@
 FROM ubuntu:latest
 
+SHELL ["/bin/bash", "-c"]
+
 RUN apt-get update -y && apt-get install -y openmpi-bin openmpi-common libopenmpi2 libopenmpi-dev python3-dev python3-venv openssh-client openssh-server
 RUN python3 -m venv /root/.virtualenvs/heat && . ~/.virtualenvs/heat/bin/activate && pip install --upgrade pip && pip install codecov coverage pytest
 
