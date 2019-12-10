@@ -31,7 +31,7 @@ jobs:
       # TODO add codecov  action https://github.com/marketplace/actions/codecov
   run-tests-fedora:
     name: Run Unittests on Fedora Docker Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-16.04
     container: docker://simonsdockerid/heat_fedora
     steps:
       - uses: actions/checkout@v1
