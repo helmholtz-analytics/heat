@@ -421,6 +421,11 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
+            with self.assertRaises(NotImplementedError):
+                a = ht.zeros((3, 3, 3), split=2)
+                b = a.copy()
+                a @ b
+
     def test_qr(self):
         m, n = 40, 40
         st = torch.randn(m, n)
@@ -769,6 +774,11 @@ class TestLinalg(unittest.TestCase):
             self.assertTrue(result._DNDarray__array[-1, 0] == 1)
         if result.comm.rank == result.shape[0] - 1:
             self.assertTrue(result._DNDarray__array[0, -1] == 0)
+
+        with self.assertRaises(TypeError):
+            ht.tril("asdf")
+        with self.assertRaises(TypeError):
+            ht.tril(distributed_ones, m=["sdf", "sf"])
 
     def test_triu(self):
         local_ones = ht.ones((5,))

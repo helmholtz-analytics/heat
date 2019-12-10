@@ -829,8 +829,6 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         q, r = a._DNDarray__array.qr(some=False)
         q = factories.array(q)
         r = factories.array(r)
-    else:
-        return NotImplemented
 
     QR = collections.namedtuple("QR", "Q, R")
     ret = QR(q if calc_q else None, r)
