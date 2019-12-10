@@ -16,6 +16,7 @@ from . import memory
 from . import relational
 from . import rounding
 from . import statistics
+from . import tiling
 from . import trigonometrics
 from . import types
 
@@ -51,6 +52,7 @@ class DNDarray:
         self.__split = split
         self.__device = device
         self.__comm = comm
+        self.__tiles = None
 
     @property
     def comm(self):
@@ -171,19 +173,9 @@ class DNDarray:
     def T(self, axes=None):
         return linalg.transpose(self, axes)
 
-    def item(self):
-        """
-        Returns the only element of a 1-element tensor. Mirror of the pytorch command by the same name
-        If size of tensor is >1 element, then a ValueError is raised (by pytorch)
-
-        Example
-        -------
-        >>> import heat as ht
-        >>> x = ht.zeros((1))
-        >>> x.item()
-        0.0
-        """
-        return self.__array.item()
+    @property
+    def tiles(self):
+        return self.__tiles
 
     def abs(self, out=None, dtype=None):
         """
@@ -724,6 +716,11 @@ class DNDarray:
         lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
         self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
         return lshape_map
+
+    def create_square_diag_tiles(self, tiles_per_proc):
+        self.__tiles = tiling.SquareDiagTiles(
+            self, tiles_per_proc=tiles_per_proc
+        )  # type: tiling.SquareDiagTiles
 
     def clip(self, a_min, a_max, out=None):
         """
@@ -1408,6 +1405,20 @@ class DNDarray:
             Whether the data of the tensor is distributed across multiple processes
         """
         return self.split is not None and self.comm.is_distributed()
+
+    def item(self):
+        """
+        Returns the only element of a 1-element tensor. Mirror of the pytorch command by the same name
+        If size of tensor is >1 element, then a ValueError is raised (by pytorch)
+
+        Example
+        -------
+        >>> import heat as ht
+        >>> x = ht.zeros((1))
+        >>> x.item()
+        0.0
+        """
+        return self.__array.item()
 
     def __le__(self, other):
         """
