@@ -9,10 +9,10 @@ jobs:
   run-tests-ubuntu:
     name: Run Unittests on Ubuntu Docker Image
     runs-on: ubuntu-latest
-    container: ${{matrix.container}}
+    container: docker://${{ matrix.container }}
     strategy:
       matrix:
-        container: [docker://simonsdockerid/heat, docker://simonsdockerid/heat_fedora]
+        container: [simonsdockerid/heat, simonsdockerid/heat_fedora]
     steps:
       - uses: actions/checkout@v1
       - name: Install Python Dependencies
