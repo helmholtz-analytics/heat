@@ -458,7 +458,7 @@ class TestLinalg(unittest.TestCase):
                 )
 
         m, n = 40, 20
-        st = torch.randn(m, n, dtype=torch.double)
+        st = torch.randn(m, n)
         a_comp = ht.array(st, split=None)
         for t in range(1, 3):
             for sp in range(2):
