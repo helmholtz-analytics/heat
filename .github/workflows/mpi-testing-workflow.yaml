@@ -43,8 +43,14 @@ jobs:
         shell: bash
         run: |
           echo $SHELL
-          ls
+          ls /
+          echo "next"
           ls /lib
+          echo "next 2"
+          ls /etc
+          echo "next 3"
+          ls /etc/profile.d
+          . /etc/profile.d/modules.sh
           module load mpi
           mpirun --version
       - uses: actions/checkout@v1
