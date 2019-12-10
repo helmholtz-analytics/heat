@@ -330,3 +330,15 @@ class TestTiling(unittest.TestCase):
                 self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
                 # reset base
                 m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
+            with self.assertRaises(ValueError):
+                m_eq_n_s1_t2[1, :]
+            with self.assertRaises(TypeError):
+                m_eq_n_s1_t2["asdf"]
+            with self.assertRaises(TypeError):
+                m_eq_n_s1_t2[1, "asdf"]
+            with self.assertRaises(ValueError):
+                m_eq_n_s1_t2[1, :] = 2
+            with self.assertRaises(ValueError):
+                m_eq_n_s1_t2.get_start_stop(key=(1, slice(None)))
+            with self.assertRaises(ValueError):
+                m_eq_n_s1_t2.get_start_stop(key=(1, slice(None)))

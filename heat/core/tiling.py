@@ -467,16 +467,6 @@ class SquareDiagTiles:
         if len(key) == 1:
             key.append(slice(0, None))
 
-        # only need to do this in 2 dimensions (this class is only for 2D right now)
-        if not isinstance(key[0], (int, slice)):
-            raise TypeError(
-                "Key elements must be ints, or slices; currently {}".format(type(key[0]))
-            )
-        if not isinstance(key[1], (int, slice)):
-            raise TypeError(
-                "Key elements must be ints, or slices; currently {}".format(type(key[1]))
-            )
-
         key = list(key)
         if isinstance(key[0], int):
             st0 = row_inds[key[0]] - row_start
@@ -535,18 +525,18 @@ class SquareDiagTiles:
         arr = self.__DNDarray
         tile_map = self.__tile_map
         local_arr = arr._DNDarray__array
+        if not isinstance(key, (int, tuple, slice)):
+            raise TypeError(
+                "key must be an int, tuple, or slice, is currently {}".format(type(key))
+            )
         if tile_map[key][..., 2].unique().nelement() > 1:
             raise ValueError("Slicing across splits is not allowed")
+
         # early outs (returns nothing if the tile does not exist on the process)
         if tile_map[key][..., 2].unique().nelement() == 0:
             return None
         if arr.comm.rank != tile_map[key][..., 2].unique():
             return None
-
-        if not isinstance(key, (int, tuple, slice)):
-            raise TypeError(
-                "key must be an int, tuple, or slice, is currently {}".format(type(key))
-            )
         st0, sp0, st1, sp1 = self.get_start_stop(key=key)
         return local_arr[st0:sp0, st1:sp1]
 
