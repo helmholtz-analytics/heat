@@ -31,15 +31,20 @@ jobs:
       # TODO add codecov  action https://github.com/marketplace/actions/codecov
   run-tests-fedora:
     name: Run Unittests on Fedora Docker Image
-    runs-on: ubuntu-16.04
-    container: docker://simonsdockerid/heat_fedora
+    runs-on: ubuntu-latest
+    container:
+      image: docker://simonsdockerid/heat_fedora
+      volumes:
+        - /lib/modules:/lib/modules
     steps:
-      - uses: actions/checkout@v1
       - name: test Shell
         shell: bash
         run: |
           echo $SHELL
+          ls
+          ls /lib
           mpirun --version
+      - uses: actions/checkout@v1
       - name: Install Python Dependencies
         shell: bash
         run: pip install -q -e .[hdf5,netcdf]

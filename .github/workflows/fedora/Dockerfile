@@ -1,6 +1,6 @@
 FROM fedora:latest
 
-RUN dnf -y update && dnf -y install python3-devel openmpi-devel
+RUN dnf -y update && dnf -y install @development-tools redhat-rpm-config python3-devel openmpi-devel hdf5-openmpi-devel netcdf-openmpi-devel
 
 RUN python3 -m venv /root/.virtualenvs/heat && . /root/.virtualenvs/heat/bin/activate && pip install --upgrade pip && pip install codecov coverage pytest
 
