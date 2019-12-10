@@ -12,8 +12,8 @@ jobs:
     container: docker://simonsdockerid/heat_${{ matrix.image }}
     strategy:
       matrix:
-        image: [ubuntu, fedora]
         processes: [1, 2, 3, 4, 7]
+        image: [ubuntu, fedora]
     steps:
       - uses: actions/checkout@v1
       - name: Run Pre-Commit
