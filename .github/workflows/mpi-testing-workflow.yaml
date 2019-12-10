@@ -16,9 +16,14 @@ jobs:
         processes: [1, 2, 3, 4, 7]
     steps:
       - uses: actions/checkout@v1
+      - name: Run Pre-Commit
+        shell: bash
+        run: pre-commit run --all-files
       - name: Install Python Dependencies
         shell: bash
-        run: pip install -e .[hdf5,netcdf]
+        run: |
+          pip install -q -e .[hdf5,netcdf]
+          pip list
       - name: Run Python Tests with ${{matrix.processes}} Processes
         shell: bash
         run: mpirun --oversubscribe --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np ${{ matrix.processes }} coverage run --source=heat --parallel-mode -m pytest heat/
@@ -31,4 +36,4 @@ jobs:
       - name: Upload Codevoc
         uses: actions/codecov-action@v1
         with:
-          token: ${{ secrects.CODECOV_TOKEN }}
+          token: ${{ secrets.CODECOV_TOKEN }}
