@@ -32,7 +32,7 @@ jobs:
   run-tests-fedora:
     name: Run Unittests on Fedora Docker Image
     runs-on: ubuntu-latest
-    container: docker://simondockerid/heat_fedora
+    container: docker://simonsdockerid/heat_fedora
     steps:
       - uses: actions/checkout@v1
       - name: test Shell
