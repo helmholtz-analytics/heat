@@ -42,12 +42,12 @@ jobs:
       - uses: actions/checkout@v1
       - name: Install Python Dependencies
         shell: bash
-        run: pip install -q -e .[hdf5,netcdf]
+        run: pip install -e .[hdf5,netcdf]
       - name: Run Python Tests
         shell: bash
         run: |
           for i in {1..4}; do
-            mpirun --oversubscibe --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ || exit;
+            mpirun --oversubscribe --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ || exit;
           done
           mpirun --oversubscribe --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/
       - name: Combine Coverage Report

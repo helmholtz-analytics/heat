@@ -6,6 +6,8 @@ RUN python3 -m venv /root/.virtualenvs/heat && . /root/.virtualenvs/heat/bin/act
 
 ENV BASH_ENV=/root/.bashenv
 RUN echo ". /root/.virtualenvs/heat/bin/activate" >> root/.bashenv
+
+# This is necessary for fedora to know the module command
 RUN echo ". /etc/profile.d/modules.sh" >> root/.bashenv
 RUN echo "module load mpi" >> root/.bashenv
 
