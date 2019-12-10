@@ -709,3 +709,65 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(a.gnumel, 10 * 10 * 10)
 
         self.assertEqual(ht.array(0).size, 1)
+
+    def test_stride_and_strides(self):
+        # Local, int16, row-major memory layout
+        torch_int16 = torch.arange(6 * 5 * 3 * 4 * 5 * 7, dtype=torch.int16).reshape(
+            6, 5, 3, 4, 5, 7
+        )
+        heat_int16 = ht.array(torch_int16)
+        numpy_int16 = torch_int16.numpy()
+        self.assertEqual(heat_int16.stride(), torch_int16.stride())
+        self.assertEqual(heat_int16.strides, numpy_int16.strides)
+        # Local, float32, row-major memory layout
+        torch_float32 = torch.arange(6 * 5 * 3 * 4 * 5 * 7, dtype=torch.float32).reshape(
+            6, 5, 3, 4, 5, 7
+        )
+        heat_float32 = ht.array(torch_float32)
+        numpy_float32 = torch_float32.numpy()
+        self.assertEqual(heat_float32.stride(), torch_float32.stride())
+        self.assertEqual(heat_float32.strides, numpy_float32.strides)
+        # Local, float64, column-major memory layout
+        torch_float64 = torch.arange(6 * 5 * 3 * 4 * 5 * 7, dtype=torch.float64).reshape(
+            6, 5, 3, 4, 5, 7
+        )
+        heat_float64_F = ht.array(torch_float64, order="F")
+        numpy_float64_F = np.array(torch_float64.numpy(), order="F")
+        self.assertNotEqual(heat_float64_F.stride(), torch_float64.stride())
+        self.assertEqual(heat_float64_F.strides, numpy_float64_F.strides)
+        # Distributed, int16, row-major memory layout
+        size = ht.communication.MPI_WORLD.size
+        split = 2
+        torch_int16 = torch.arange(6 * 5 * 3 * size * 4 * 5 * 7, dtype=torch.int16).reshape(
+            6, 5, 3 * size, 4, 5, 7
+        )
+        heat_int16_split = ht.array(torch_int16, split=split)
+        numpy_int16 = torch_int16.numpy()
+        if size > 1:
+            self.assertNotEqual(heat_int16_split.stride(), torch_int16.stride())
+        numpy_int16_split_strides = (
+            tuple(np.array(numpy_int16.strides[:split]) / size) + numpy_int16.strides[split:]
+        )
+        self.assertEqual(heat_int16_split.strides, numpy_int16_split_strides)
+        # Distributed, float32, row-major memory layout
+        split = -1
+        torch_float32 = torch.arange(6 * 5 * 3 * 4 * 5 * 7 * size, dtype=torch.float32).reshape(
+            6, 5, 3, 4, 5, 7 * size
+        )
+        heat_float32_split = ht.array(torch_float32, split=split)
+        numpy_float32 = torch_float32.numpy()
+        numpy_float32_split_strides = (
+            tuple(np.array(numpy_float32.strides[:split]) / size) + numpy_float32.strides[split:]
+        )
+        self.assertEqual(heat_float32_split.strides, numpy_float32_split_strides)
+        # Distributed, float64, column-major memory layout
+        split = -2
+        torch_float64 = torch.arange(6 * 5 * 3 * 4 * 5 * size * 7, dtype=torch.float64).reshape(
+            6, 5, 3, 4, 5 * size, 7
+        )
+        heat_float64_F_split = ht.array(torch_float64, order="F", split=split)
+        numpy_float64_F = np.array(torch_float64.numpy(), order="F")
+        numpy_float64_F_split_strides = numpy_float64_F.strides[: split + 1] + tuple(
+            np.array(numpy_float64_F.strides[split + 1 :]) / size
+        )
+        self.assertEqual(heat_float64_F_split.strides, numpy_float64_F_split_strides)

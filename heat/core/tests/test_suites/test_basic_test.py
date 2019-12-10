@@ -85,3 +85,9 @@ class TestBasicTest(BasicTest):
         array = ht.ones((15, 15))
         with self.assertRaises(TypeError):
             self.assert_func_equal_for_tensor(array, heat_func=ht_func, numpy_func=np_func)
+
+    def test_assertTrue_memory_layout(self):
+        data = torch.arange(3 * 4 * 5).reshape(3, 4, 5)
+        data_F = ht.array(data, order="F")
+        with self.assertRaises(ValueError):
+            self.assertTrue_memory_layout(data_F, order="K")
