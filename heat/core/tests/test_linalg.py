@@ -457,6 +457,17 @@ class TestLinalg(unittest.TestCase):
                     ht.allclose(ht.eye(m, dtype=ht.double), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5)
                 )
 
+        m, n = 40, 20
+        st = torch.randn(m, n, dtype=torch.double)
+        a_comp = ht.array(st, split=None)
+        for t in range(1, 3):
+            for sp in range(2):
+                a = ht.array(st, split=sp)
+                qr = a.qr(tiles_per_proc=t)
+                self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
+                self.assertTrue(ht.allclose(qr.Q.T @ qr.Q, ht.eye(m), rtol=1e-5, atol=1e-5))
+                self.assertTrue(ht.allclose(ht.eye(m), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5))
+
         # raises
         with self.assertRaises(TypeError):
             ht.qr(np.zeros((10, 10)))

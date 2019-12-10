@@ -871,6 +871,8 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         )
     elif a.split is None:
         q, r = a._DNDarray__array.qr(some=False)
+        q = factories.array(q)
+        r = factories.array(r)
     else:
         return NotImplemented
 
@@ -1362,8 +1364,6 @@ def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         if calc_q == False, function returns (None, R)
     """
     # D (number of domains to use) -> must be found with some testing on the HPC machines
-    if not isinstance(a, dndarray.DNDarray):
-        raise TypeError("'a' must be a DNDarray")
     if not overwrite_a:
         a = a.copy()
     a_tiles = tiling.SquareDiagTiles(
@@ -1593,8 +1593,6 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         if calc_q == True, function returns (Q, R)
         if calc_q == False, function returns (None, R)
     """
-    if not isinstance(a, dndarray.DNDarray):
-        raise TypeError("'a' must be a DNDarray")
     if not overwrite_a:
         a = a.copy()
     a_tiles = tiling.SquareDiagTiles(
