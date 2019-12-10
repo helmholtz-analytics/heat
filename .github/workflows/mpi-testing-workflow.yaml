@@ -6,12 +6,40 @@ on:
       - features/424-github-actions
 
 jobs:
-  run-tests:
-    name: Run Unittests
+#  run-tests-ubuntu:
+#    name: Run Unittests on Ubuntu Docker Image
+#    runs-on: ubuntu-latest
+#    container: docker://simonsdockerid/heat
+#    steps:
+#      - uses: actions/checkout@v1
+#      - name: Install Python Dependencies
+#        shell: bash
+#        run: pip install -q -e .[hdf5,netcdf]
+#      - name: Run Python Tests
+#        shell: bash
+#        run: |
+#          for i in {1..4}; do
+#            mpirun --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ || exit;
+#          done
+#          mpirun --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/
+#      - name: Combine Coverage Report
+#        shell: bash
+#        run: |
+#          coverage combine
+#          coverage report
+#          coverage xml
+      # TODO add codecov  action https://github.com/marketplace/actions/codecov
+  run-tests-fedora:
+    name: Run Unittests on Fedora Docker Image
     runs-on: ubuntu-latest
-    container: docker://simonsdockerid/heat
+    container: docker://simondockerid/heat_fedora
     steps:
       - uses: actions/checkout@v1
+      - name: test Shell
+        shell: bash
+        run: |
+          echo $SHELL
+          mpriun --version
       - name: Install Python Dependencies
         shell: bash
         run: pip install -q -e .[hdf5,netcdf]
@@ -28,4 +56,3 @@ jobs:
           coverage combine
           coverage report
           coverage xml
-# TODO add codecov  action https://github.com/marketplace/actions/codecov
