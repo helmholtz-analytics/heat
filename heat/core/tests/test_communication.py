@@ -24,6 +24,8 @@ class TestCommunication(unittest.TestCase):
             comm.chunk(self.data.shape, split=2)
         with self.assertRaises(ValueError):
             comm.chunk(self.data.shape, split=-3)
+        with self.assertRaises(TypeError):
+            comm.chunk(self.data.shape, split=0, rank="dicndjh")
 
         offset, lshape, chunks = comm.chunk(self.data.shape, split=0)
 
