@@ -36,6 +36,8 @@ jobs:
       image: docker://simonsdockerid/heat_fedora
       volumes:
         - /lib/modules:/lib/modules
+        - /dev:/dev
+      options: --privileged --cap-add=ALL
     steps:
       - name: test Shell
         shell: bash
@@ -43,7 +45,6 @@ jobs:
           echo $SHELL
           ls
           ls /lib
-          . /lib/modules
           module load mpi
           mpirun --version
       - uses: actions/checkout@v1
