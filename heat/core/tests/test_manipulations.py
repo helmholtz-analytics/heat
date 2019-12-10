@@ -343,8 +343,8 @@ class TestManipulations(BasicTest):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
 
-        data = torch.arange(size * 2)
-        a = ht.array(data)
+        data = torch.arange(size * 2, device=device)
+        a = ht.array(data, device=ht_device)
         res = ht.diag(a)
         self.assertTrue(torch.equal(res._DNDarray__array, torch.diag(data)))
 
@@ -354,7 +354,7 @@ class TestManipulations(BasicTest):
         res = ht.diag(a, offset=-size)
         self.assertTrue(torch.equal(res._DNDarray__array, torch.diag(data, diagonal=-size)))
 
-        a = ht.array(data, split=0)
+        a = ht.array(data, split=0, device=ht_device)
         res = ht.diag(a)
         self.assertEqual(res.split, a.split)
         self.assertEqual(res.shape, (size * 2, size * 2))
@@ -381,7 +381,7 @@ class TestManipulations(BasicTest):
 
         self.assertTrue(ht.equal(ht.diag(ht.diag(a)), a))
 
-        a = ht.random.rand(15, 20, 5, split=1)
+        a = ht.random.rand(15, 20, 5, split=1, device=ht_device)
         res_1 = ht.diag(a)
         res_2 = ht.diagonal(a)
         self.assertTrue(ht.equal(res_1, res_2))
@@ -392,22 +392,24 @@ class TestManipulations(BasicTest):
         with self.assertRaises(ValueError):
             ht.diag(a, offset=None)
 
-        a = ht.arange(size)
+        a = ht.arange(size, device=ht_device)
         with self.assertRaises(ValueError):
             ht.diag(a, offset="3")
 
-        a = ht.empty([])
+        a = ht.empty([], device=ht_device)
         with self.assertRaises(ValueError):
             ht.diag(a)
 
         if rank == 0:
-            data = torch.ones(size, dtype=torch.int32)
+            data = torch.ones(size, dtype=torch.int32, device=device)
         else:
-            data = torch.empty(0, dtype=torch.int32)
-        a = ht.array(data, is_split=0)
+            data = torch.empty(0, dtype=torch.int32, device=device)
+        a = ht.array(data, is_split=0, device=ht_device)
         res = ht.diag(a)
         self.assertTrue(
-            torch.equal(res[rank, rank]._DNDarray__array, torch.tensor(1, dtype=torch.int32))
+            torch.equal(
+                res[rank, rank]._DNDarray__array, torch.tensor(1, dtype=torch.int32, device=device)
+            )
         )
 
         self.assert_func_equal_for_tensor(
@@ -430,108 +432,123 @@ class TestManipulations(BasicTest):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
 
-        data = torch.arange(size).repeat(size).reshape(size, size)
-        a = ht.array(data)
+        data = torch.arange(size, device=device).repeat(size).reshape(size, size)
+        a = ht.array(data, device=ht_device)
         res = ht.diagonal(a)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(size)))
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(size, device=device)))
         self.assertEqual(res.split, None)
 
-        a = ht.array(data, split=0)
+        a = ht.array(data, split=0, device=ht_device)
         res = ht.diagonal(a)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank])))
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank], device=device)))
         self.assertEqual(res.split, 0)
 
-        a = ht.array(data, split=1)
+        a = ht.array(data, split=1, device=ht_device)
         res2 = ht.diagonal(a, dim1=1, dim2=0)
         self.assertTrue(ht.equal(res, res2))
 
         res = ht.diagonal(a)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank])))
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank], device=device)))
         self.assertEqual(res.split, 0)
 
-        a = ht.array(data, split=0)
+        a = ht.array(data, split=0, device=ht_device)
         res2 = ht.diagonal(a, dim1=1, dim2=0)
         self.assertTrue(ht.equal(res, res2))
 
-        data = torch.arange(size + 1).repeat(size + 1).reshape(size + 1, size + 1)
-        a = ht.array(data)
+        data = torch.arange(size + 1, device=device).repeat(size + 1).reshape(size + 1, size + 1)
+        a = ht.array(data, device=ht_device)
         res = ht.diagonal(a, offset=0)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(size + 1)))
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(size + 1, device=device)))
         res = ht.diagonal(a, offset=1)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(1, size + 1)))
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(1, size + 1, device=device)))
         res = ht.diagonal(a, offset=-1)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(0, size)))
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(0, size, device=device)))
 
-        a = ht.array(data, split=0)
+        a = ht.array(data, split=0, device=ht_device)
         res = ht.diagonal(a, offset=1)
         res.balance_()
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank + 1])))
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank + 1], device=device)))
         res = ht.diagonal(a, offset=-1)
         res.balance_()
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank])))
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank], device=device)))
 
-        a = ht.array(data, split=1)
+        a = ht.array(data, split=1, device=ht_device)
         res = ht.diagonal(a, offset=1)
         res.balance_()
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank + 1])))
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank + 1], device=device)))
         res = ht.diagonal(a, offset=-1)
         res.balance_()
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank])))
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank], device=device)))
 
         data = (
-            torch.arange(size * 2 + 10).repeat(size * 2 + 10).reshape(size * 2 + 10, size * 2 + 10)
+            torch.arange(size * 2 + 10, device=device)
+            .repeat(size * 2 + 10)
+            .reshape(size * 2 + 10, size * 2 + 10)
         )
-        a = ht.array(data)
+        a = ht.array(data, device=ht_device)
         res = ht.diagonal(a, offset=10)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(10, 10 + size * 2)))
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.arange(10, 10 + size * 2, device=device))
+        )
         res = ht.diagonal(a, offset=-10)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(0, size * 2)))
+        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(0, size * 2, device=device)))
 
-        a = ht.array(data, split=0)
+        a = ht.array(data, split=0, device=ht_device)
         res = ht.diagonal(a, offset=10)
         res.balance_()
         self.assertTrue(
-            torch.equal(res._DNDarray__array, torch.tensor([10 + rank * 2, 11 + rank * 2]))
+            torch.equal(
+                res._DNDarray__array, torch.tensor([10 + rank * 2, 11 + rank * 2], device=device)
+            )
         )
         res = ht.diagonal(a, offset=-10)
         res.balance_()
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank * 2, 1 + rank * 2])))
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.tensor([rank * 2, 1 + rank * 2], device=device))
+        )
 
-        a = ht.array(data, split=1)
+        a = ht.array(data, split=1, device=ht_device)
         res = ht.diagonal(a, offset=10)
         res.balance_()
         self.assertTrue(
-            torch.equal(res._DNDarray__array, torch.tensor([10 + rank * 2, 11 + rank * 2]))
+            torch.equal(
+                res._DNDarray__array, torch.tensor([10 + rank * 2, 11 + rank * 2], device=device)
+            )
         )
         res = ht.diagonal(a, offset=-10)
         res.balance_()
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank * 2, 1 + rank * 2])))
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.tensor([rank * 2, 1 + rank * 2], device=device))
+        )
 
         data = (
-            torch.arange(size + 1)
+            torch.arange(size + 1, device=device)
             .repeat((size + 1) * (size + 1))
             .reshape(size + 1, size + 1, size + 1)
         )
-        a = ht.array(data)
+        a = ht.array(data, device=ht_device)
         res = ht.diagonal(a)
         self.assertTrue(
             torch.equal(
                 res._DNDarray__array,
-                torch.arange(size + 1).repeat(size + 1).reshape(size + 1, size + 1).t(),
+                torch.arange(size + 1, device=device)
+                .repeat(size + 1)
+                .reshape(size + 1, size + 1)
+                .t(),
             )
         )
         res = ht.diagonal(a, offset=1)
         self.assertTrue(
             torch.equal(
                 res._DNDarray__array,
-                torch.arange(size + 1).repeat(size).reshape(size, size + 1).t(),
+                torch.arange(size + 1, device=device).repeat(size).reshape(size, size + 1).t(),
             )
         )
         res = ht.diagonal(a, offset=-1)
         self.assertTrue(
             torch.equal(
                 res._DNDarray__array,
-                torch.arange(size + 1).repeat(size).reshape(size, size + 1).t(),
+                torch.arange(size + 1, device=device).repeat(size).reshape(size, size + 1).t(),
             )
         )
 
@@ -539,20 +556,21 @@ class TestManipulations(BasicTest):
         self.assertTrue(
             torch.equal(
                 res._DNDarray__array,
-                torch.arange(size + 1).repeat(size + 1).reshape(size + 1, size + 1),
+                torch.arange(size + 1, device=device).repeat(size + 1).reshape(size + 1, size + 1),
             )
         )
         res = ht.diagonal(a, offset=1, dim1=1, dim2=2)
         self.assertTrue(
             torch.equal(
                 res._DNDarray__array,
-                torch.arange(1, size + 1).repeat(size + 1).reshape(size + 1, size),
+                torch.arange(1, size + 1, device=device).repeat(size + 1).reshape(size + 1, size),
             )
         )
         res = ht.diagonal(a, offset=-1, dim1=1, dim2=2)
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array, torch.arange(size).repeat(size + 1).reshape(size + 1, size)
+                res._DNDarray__array,
+                torch.arange(size, device=device).repeat(size + 1).reshape(size + 1, size),
             )
         )
 
@@ -560,29 +578,35 @@ class TestManipulations(BasicTest):
         self.assertTrue(
             torch.equal(
                 res._DNDarray__array,
-                torch.arange(size + 1).repeat(size + 1).reshape(size + 1, size + 1),
+                torch.arange(size + 1, device=device).repeat(size + 1).reshape(size + 1, size + 1),
             )
         )
 
-        a = ht.array(data, split=0)
+        a = ht.array(data, split=0, device=ht_device)
         res = ht.diagonal(a, offset=1, dim1=0, dim2=1)
         res.balance_()
         self.assertTrue(
-            torch.equal(res._DNDarray__array, torch.arange(size + 1).reshape(size + 1, 1))
+            torch.equal(
+                res._DNDarray__array, torch.arange(size + 1, device=device).reshape(size + 1, 1)
+            )
         )
         self.assertEqual(res.split, 1)
 
         res = ht.diagonal(a, offset=-1, dim1=0, dim2=1)
         res.balance_()
         self.assertTrue(
-            torch.equal(res._DNDarray__array, torch.arange(size + 1).reshape(size + 1, 1))
+            torch.equal(
+                res._DNDarray__array, torch.arange(size + 1, device=device).reshape(size + 1, 1)
+            )
         )
         self.assertEqual(res.split, 1)
 
         res = ht.diagonal(a, offset=size + 1, dim1=0, dim2=1)
         res.balance_()
         self.assertTrue(
-            torch.equal(res._DNDarray__array, torch.empty((size + 1, 0), dtype=torch.int64))
+            torch.equal(
+                res._DNDarray__array, torch.empty((size + 1, 0), dtype=torch.int64, device=device)
+            )
         )
         self.assertTrue(res.shape[res.split] == 0)
 
