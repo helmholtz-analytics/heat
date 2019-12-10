@@ -6,29 +6,26 @@ on:
       - features/424-github-actions
 
 jobs:
-  run-tests-ubuntu:
-    name: Run Unittests on Ubuntu Docker Image
+  run-unittests:
+    name: Run Unittests on Docker ${{ matrix.container }} with ${{ matrix.processes }} processes
     runs-on: ubuntu-latest
     container: docker://${{ matrix.container }}
     strategy:
       matrix:
         container: [simonsdockerid/heat, simonsdockerid/heat_fedora]
+        processes: [1, 2, 3, 4, 7]
     steps:
       - uses: actions/checkout@v1
       - name: Install Python Dependencies
         shell: bash
         run: pip install -e .[hdf5,netcdf]
-      - name: Run Python Tests
+      - name: Run Python Tests with ${{matrix.processes}} Processes
         shell: bash
-        run: |
-          for i in {1..4}; do
-            mpirun --oversubscribe --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ || exit;
-          done
-          mpirun --oversubscribe --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/
-      - name: Combine Coverage Report
-        shell: bash
-        run: |
-          coverage combine
-          coverage report
-          coverage xml
+        run: mpirun --oversubscribe --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np ${{ matrix.processes }} coverage run --source=heat --parallel-mode -m pytest heat/
+#      - name: Combine Coverage Report
+#        shell: bash
+#        run: |
+#          coverage combine
+#          coverage report
+#          coverage xml
 #       TODO add codecov  action https://github.com/marketplace/actions/codecov
