@@ -107,12 +107,14 @@ class BasicTest(TestCase):
         local_numpy = heat_array._DNDarray__array.numpy()
 
         equal_res = np.array(compare_func(local_numpy, expected_array[slices]))
+
         self.comm.Allreduce(MPI.IN_PLACE, equal_res, MPI.LAND)
         self.assertTrue(
             equal_res,
             "Local tensors do not match the corresponding numpy slices. "
             "dtype was {}, split was {}".format(heat_array.dtype, heat_array.split),
         )
+
         self.assertEqual(
             local_numpy.dtype,
             expected_array.dtype,
