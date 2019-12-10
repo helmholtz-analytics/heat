@@ -6,6 +6,7 @@ RUN python3 -m venv /root/.virtualenvs/heat && . /root/.virtualenvs/heat/bin/act
 
 ENV BASH_ENV=/root/.bashenv
 RUN echo ". /root/.virtualenvs/heat/bin/activate" >> root/.bashenv
+RUN echo ". /etc/profile.d/module.sh" >> root/.bashenv
 RUN echo "module load mpi" >> root/.bashenv
 
 RUN echo "[[ -s ~/.bashenv ]] && source ~/.bashenv" >> /root/.bash_profile
