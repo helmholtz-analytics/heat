@@ -7,12 +7,12 @@ on:
 
 jobs:
   run-unittests:
-    name: Run Unittests on Docker ${{ matrix.container }} with ${{ matrix.processes }} processes
+    name: ${{ matrix.image }} - ${{ matrix.processes }} processes unittests
     runs-on: ubuntu-latest
-    container: docker://${{ matrix.container }}
+    container: docker://$simonsdockerid/heat_{{ matrix.image }}
     strategy:
       matrix:
-        container: [simonsdockerid/heat, simonsdockerid/heat_fedora]
+        image: [ubuntu, fedora]
         processes: [1, 2, 3, 4, 7]
     steps:
       - uses: actions/checkout@v1
@@ -22,10 +22,13 @@ jobs:
       - name: Run Python Tests with ${{matrix.processes}} Processes
         shell: bash
         run: mpirun --oversubscribe --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np ${{ matrix.processes }} coverage run --source=heat --parallel-mode -m pytest heat/
-#      - name: Combine Coverage Report
-#        shell: bash
-#        run: |
-#          coverage combine
-#          coverage report
-#          coverage xml
-#       TODO add codecov  action https://github.com/marketplace/actions/codecov
+      - name: Create Coverage Report
+        shell: bash
+        run: |
+          coverage combine
+          coverage report
+          coverage xml
+      - name: Upload Codevoc
+        uses: actions/codecov-action@v1
+        with:
+          token: ${{ secrects.CODECOV_TOKEN }}
