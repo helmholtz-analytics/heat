@@ -167,6 +167,29 @@ class DNDarray:
         return self.__split
 
     @property
+    def stride(self):
+        """
+        Returns
+        -------
+        tuple of ints: steps in each dimension when traversing a tensor.
+        torch-like usage: self.stride()
+        """
+        return self.__array.stride
+
+    @property
+    def strides(self):
+        """
+        Returns
+        -------
+        tuple of ints: bytes to step in each dimension when traversing a tensor.
+        numpy-like usage: self.strides
+        """
+        steps = list(self._DNDarray__array.stride())
+        itemsize = self._DNDarray__array.storage().element_size()
+        strides = tuple(step * itemsize for step in steps)
+        return strides
+
+    @property
     def T(self, axes=None):
         return linalg.transpose(self, axes)
 
