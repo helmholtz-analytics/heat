@@ -167,6 +167,29 @@ class DNDarray:
         return self.__split
 
     @property
+    def stride(self):
+        """
+        Returns
+        -------
+        tuple of ints: steps in each dimension when traversing a tensor.
+        torch-like usage: self.stride()
+        """
+        return self.__array.stride
+
+    @property
+    def strides(self):
+        """
+        Returns
+        -------
+        tuple of ints: bytes to step in each dimension when traversing a tensor.
+        numpy-like usage: self.strides
+        """
+        steps = list(self._DNDarray__array.stride())
+        itemsize = self._DNDarray__array.storage().element_size()
+        strides = tuple(step * itemsize for step in steps)
+        return strides
+
+    @property
     def T(self, axes=None):
         return linalg.transpose(self, axes)
 
@@ -1894,6 +1917,32 @@ class DNDarray:
         """
         return arithmetics.mod(self, other)
 
+    def modf(self, out=None):
+        """
+        Return the fractional and integral parts of an array, element-wise.
+        The fractional and integral parts are negative if the given number is negative.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            Input array
+        out : ht.DNDarray, optional
+            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+            If not provided or None, a freshly-allocated array is returned.
+
+        Returns
+        -------
+        tuple(ht.DNDarray: fractionalParts, ht.DNDarray: integralParts)
+
+        fractionalParts : ht.DNDdarray
+            Fractional part of x. This is a scalar if x is a scalar.
+
+        integralParts : ht.DNDdarray
+            Integral part of x. This is a scalar if x is a scalar.
+        """
+
+        return rounding.modf(self, out)
+
     def __mul__(self, other):
         """
         Element-wise multiplication (not matrix multiplication) with values from second operand (scalar or tensor)
@@ -2277,9 +2326,34 @@ class DNDarray:
         >>> T = ht.int32([1, 3])
         >>> 2 % T
         tensor([0, 2], dtype=torch.int32)
-
         """
         return arithmetics.mod(other, self)
+
+    def round(self, decimals=0, out=None, dtype=None):
+        """
+        Calculate the rounded value element-wise.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            The values for which the compute the rounded value.
+        out : ht.DNDarray, optional
+            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+            If not provided or None, a freshly-allocated array is returned.
+        dtype : ht.type, optional
+            Determines the data type of the output array. The values are cast to this type with potential loss of
+            precision.
+
+        decimals: int, optional
+            Number of decimal places to round to (default: 0).
+            If decimals is negative, it specifies the number of positions to the left of the decimal point.
+
+        Returns
+        -------
+        rounded_values : ht.DNDarray
+            A tensor containing the rounded value of each element in x.
+        """
+        return rounding.round(self, decimals, out, dtype)
 
     def __rpow__(self, other):
         """
