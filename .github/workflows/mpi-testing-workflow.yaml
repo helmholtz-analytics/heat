@@ -34,10 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: docker://simonsdockerid/heat_fedora
-      volumes:
-        - /lib/modules:/lib/modules
-        - /dev:/dev
-      options: --privileged --cap-add=ALL
+      options: --cpus 7
     steps:
       - name: test Shell
         shell: bash
