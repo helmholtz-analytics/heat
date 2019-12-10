@@ -3,8 +3,10 @@ import unittest
 import numpy as np
 import heat as ht
 
+from heat.core.tests.test_suites.basic_test import BasicTest
 
-class TestRounding(unittest.TestCase):
+
+class TestRounding(BasicTest):
     def test_abs(self):
         # for abs==absolute
         float32_tensor = ht.arange(-10, 10, dtype=ht.float32, split=0)
@@ -161,6 +163,139 @@ class TestRounding(unittest.TestCase):
             ht.floor([0, 1, 2, 3])
         with self.assertRaises(TypeError):
             ht.floor(object())
+
+    def test_modf(self):
+        size = ht.communication.MPI_WORLD.size
+        start, end = -5.0, 5.0
+        step = (end - start) / (2 * size)
+        npArray = np.arange(start, end, step, dtype=np.float32)
+        comparison = np.modf(npArray)
+
+        # exponential of float32
+        float32_tensor = ht.array(npArray, dtype=ht.float32)
+        float32_modf = float32_tensor.modf()
+        self.assertIsInstance(float32_modf[0], ht.DNDarray)
+        self.assertIsInstance(float32_modf[1], ht.DNDarray)
+        self.assertEqual(float32_modf[0].dtype, ht.float32)
+        self.assertEqual(float32_modf[1].dtype, ht.float32)
+
+        self.assert_array_equal(float32_modf[0], comparison[0])
+        self.assert_array_equal(float32_modf[1], comparison[1])
+
+        # exponential of float64
+        npArray = np.arange(start, end, step, np.float64)
+        comparison = np.modf(npArray)
+
+        float64_tensor = ht.array(npArray, dtype=ht.float64)
+        float64_modf = float64_tensor.modf()
+        self.assertIsInstance(float64_modf[0], ht.DNDarray)
+        self.assertIsInstance(float64_modf[1], ht.DNDarray)
+        self.assertEqual(float64_modf[0].dtype, ht.float64)
+        self.assertEqual(float64_modf[1].dtype, ht.float64)
+
+        self.assert_array_equal(float64_modf[0], comparison[0])
+        self.assert_array_equal(float64_modf[1], comparison[1])
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.modf([0, 1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.modf(object())
+        with self.assertRaises(TypeError):
+            ht.modf(float32_tensor, 1)
+        with self.assertRaises(ValueError):
+            ht.modf(float32_tensor, (float32_tensor, float32_tensor, float64_tensor))
+        with self.assertRaises(TypeError):
+            ht.modf(float32_tensor, (float32_tensor, 2))
+
+        # with split tensors
+
+        # exponential of float32
+        npArray = np.arange(start, end, step, dtype=np.float32)
+        comparison = np.modf(npArray)
+        float32_tensor_distrbd = ht.array(npArray, split=0)
+        float32_modf_distrbd = float32_tensor_distrbd.modf()
+
+        self.assertIsInstance(float32_modf_distrbd[0], ht.DNDarray)
+        self.assertIsInstance(float32_modf_distrbd[1], ht.DNDarray)
+        self.assertEqual(float32_modf_distrbd[0].dtype, ht.float32)
+        self.assertEqual(float32_modf_distrbd[1].dtype, ht.float32)
+
+        self.assert_array_equal(float32_modf_distrbd[0], comparison[0])
+        self.assert_array_equal(float32_modf_distrbd[1], comparison[1])
+
+        # exponential of float64
+        npArray = npArray = np.arange(start, end, step, np.float64)
+        comparison = np.modf(npArray)
+
+        float64_tensor_distrbd = ht.array(npArray, split=0)
+        float64_modf_distrbd = (
+            ht.zeros_like(float64_tensor_distrbd, dtype=float64_tensor_distrbd.dtype),
+            ht.zeros_like(float64_tensor_distrbd, dtype=float64_tensor_distrbd.dtype),
+        )
+        # float64_modf_distrbd = float64_tensor_distrbd.modf()
+        float64_tensor_distrbd.modf(out=float64_modf_distrbd)
+        self.assertIsInstance(float64_modf_distrbd[0], ht.DNDarray)
+        self.assertIsInstance(float64_modf_distrbd[1], ht.DNDarray)
+        self.assertEqual(float64_modf_distrbd[0].dtype, ht.float64)
+        self.assertEqual(float64_modf_distrbd[1].dtype, ht.float64)
+
+        self.assert_array_equal(float64_modf_distrbd[0], comparison[0])
+        self.assert_array_equal(float64_modf_distrbd[1], comparison[1])
+
+    def test_round(self):
+        size = ht.communication.MPI_WORLD.size
+        start, end = -5.7, 5.1
+        step = (end - start) / (2 * size)
+        comparison = torch.arange(start, end, step, dtype=torch.float32).round()
+
+        # exponential of float32
+        float32_tensor = ht.array(comparison, dtype=ht.float32)
+        float32_round = float32_tensor.round()
+        self.assertIsInstance(float32_round, ht.DNDarray)
+        self.assertEqual(float32_round.dtype, ht.float32)
+        self.assertEqual(float32_round.dtype, ht.float32)
+        self.assert_array_equal(float32_round, comparison)
+
+        # exponential of float64
+        comparison = torch.arange(start, end, step, dtype=torch.float64).round()
+        float64_tensor = ht.array(comparison, dtype=ht.float64)
+        float64_round = float64_tensor.round()
+        self.assertIsInstance(float64_round, ht.DNDarray)
+        self.assertEqual(float64_round.dtype, ht.float64)
+        self.assertEqual(float64_round.dtype, ht.float64)
+        self.assert_array_equal(float64_round, comparison)
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.round([0, 1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.round(object())
+        with self.assertRaises(TypeError):
+            ht.round(float32_tensor, 1, 1)
+        with self.assertRaises(TypeError):
+            ht.round(float32_tensor, dtype=np.int)
+
+        # with split tensors
+
+        # exponential of float32
+        comparison = torch.arange(start, end, step, dtype=torch.float32)  # .round()
+        float32_tensor_distrbd = ht.array(comparison, split=0, dtype=ht.double)
+        comparison = comparison.round()
+        float32_round_distrbd = float32_tensor_distrbd.round(dtype=ht.float)
+        self.assertIsInstance(float32_round_distrbd, ht.DNDarray)
+        self.assertEqual(float32_round_distrbd.dtype, ht.float32)
+        self.assert_array_equal(float32_round_distrbd, comparison)
+
+        # exponential of float64
+        comparison = torch.arange(start, end, step, dtype=torch.float64)  # .round()
+        float64_tensor_distrbd = ht.array(comparison, split=0)
+        comparison = comparison.round()
+        float64_round_distrbd = float64_tensor_distrbd.round()
+        self.assertIsInstance(float64_round_distrbd, ht.DNDarray)
+        self.assertEqual(float64_round_distrbd.dtype, ht.float64)
+        self.assertEqual(float64_round_distrbd.dtype, ht.float64)
+        self.assert_array_equal(float64_round_distrbd, comparison)
 
     def test_trunc(self):
         base_array = np.random.randn(20)
