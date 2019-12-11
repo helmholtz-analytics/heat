@@ -698,7 +698,7 @@ def matmul(a, b):
             return c
 
 
-@torch.jit.script
+# @torch.jit.script
 def __mm_c_block_setter(
     b_proc, a_proc, a_data, b_data, b_block_map, a_block_map, b_split, a_split, mB, kB, nB, c
 ):
