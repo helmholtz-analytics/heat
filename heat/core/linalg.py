@@ -698,7 +698,7 @@ def matmul(a, b):
             return c
 
 
-# @torch.jit.script
+@torch.jit.script
 def __mm_c_block_setter(
     b_proc, a_proc, a_data, b_data, b_block_map, a_block_map, b_split, a_split, mB, kB, nB, c
 ):
@@ -1321,17 +1321,11 @@ def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     if not overwrite_a:
         a = a.copy()
     a.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-    # a.tiles = tiling.SquareDiagTiles(
-    #     a, tiles_per_proc=tiles_per_proc
-    # )  # type: tiling.SquareDiagTiles
     tile_columns = a.tiles.tile_columns
     tile_rows_proc = a.tiles.tile_rows_per_process
 
     q0 = factories.eye((a.gshape[0], a.gshape[0]), split=0, dtype=a.dtype, comm=a.comm)
     q0.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-    # q0_tiles = tiling.SquareDiagTiles(
-    #     q0, tiles_per_proc=tiles_per_proc
-    # )  # type: tiling.SquareDiagTiles
     q0.tiles.match_tiles(a.tiles)
 
     # loop over the tile columns
@@ -1548,18 +1542,11 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     if not overwrite_a:
         a = a.copy()
     a.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-    # a.tiles = tiling.SquareDiagTiles(
-    #     a, tiles_per_proc=tiles_per_proc
-    # )  # type: tiling.SquareDiagTiles
     tile_columns = a.tiles.tile_columns
     tile_rows = a.tiles.tile_rows
 
     q0 = factories.eye((a.gshape[0], a.gshape[0]), split=0, dtype=a.dtype, comm=a.comm)
     q0.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-
-    # q0_tiles = tiling.SquareDiagTiles(
-    #     q0, tiles_per_proc=tiles_per_proc
-    # )  # type: tiling.SquareDiagTiles
     q0.tiles.match_tiles(a.tiles)
 
     # loop over the tile columns
