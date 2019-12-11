@@ -1265,7 +1265,7 @@ def __qr_send_q_to_diag_pr(col, pr0, pr1, diag_process, comm, q_dict, key, q_dic
     None, sets the values of q_dict_waits with the with *waits* for the values of Q, upper.shape,
         and lower.shape
     """
-    if comm.rank not in [pr1, diag_process]:
+    if comm.rank not in [pr0, pr1, diag_process]:
         return
     # this is to send the merged q to the diagonal process for the forming of q
     base_tag = "1" + str(pr1.item() if isinstance(pr1, torch.Tensor) else pr1)
@@ -1274,9 +1274,9 @@ def __qr_send_q_to_diag_pr(col, pr0, pr1, diag_process, comm, q_dict, key, q_dic
         u_shape = q_dict[col][key][1]
         l_shape = q_dict[col][key][2]
         comm.send(tuple(q.shape), dest=diag_process, tag=int(base_tag + "1"))
-        comm.Isend(q.clone(), dest=diag_process, tag=int(base_tag + "12"))
-        comm.isend(u_shape, dest=diag_process, tag=int(base_tag + "123"))
-        comm.isend(l_shape, dest=diag_process, tag=int(base_tag + "1234"))
+        comm.Isend(q, dest=diag_process, tag=int(base_tag + "12"))
+        comm.send(u_shape, dest=diag_process, tag=int(base_tag + "123"))
+        comm.send(l_shape, dest=diag_process, tag=int(base_tag + "1234"))
     if comm.rank == diag_process:
         # q_dict_waits now looks like a
         q_sh = comm.recv(source=pr1, tag=int(base_tag + "1"))
