@@ -1274,7 +1274,7 @@ def __qr_send_q_to_diag_pr(col, pr0, pr1, diag_process, comm, q_dict, key, q_dic
         u_shape = q_dict[col][key][1]
         l_shape = q_dict[col][key][2]
         comm.send(tuple(q.shape), dest=diag_process, tag=int(base_tag + "1"))
-        comm.Isend(q, dest=diag_process, tag=int(base_tag + "12"))
+        comm.Isend(q.clone(), dest=diag_process, tag=int(base_tag + "12"))
         comm.isend(u_shape, dest=diag_process, tag=int(base_tag + "123"))
         comm.isend(l_shape, dest=diag_process, tag=int(base_tag + "1234"))
     if comm.rank == diag_process:
