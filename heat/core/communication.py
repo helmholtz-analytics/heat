@@ -557,9 +557,6 @@ class MPICommunication(Communication):
         recvbuf: Input Receivebuffer
         axis: concatenation axis: The axis along which sendbuf is packed and along which recvbuf puts together individual chunks
         """
-
-        sbuf, rbuf, recv_axis_permutation = None, None, None
-
         # dummy allocation for *v calls
         # ToDO: Propper implementation of usage
         send_counts, send_displs, recv_counts, recv_displs = None, None, None, None
@@ -603,6 +600,8 @@ class MPICommunication(Communication):
             recv_axis_permutation = list(range(recvbuf.ndimension()))
             recv_axis_permutation[0], recv_axis_permutation[axis] = axis, 0
             recvbuf = recvbuf.permute(*recv_axis_permutation)
+        else:
+            recv_axis_permutation = None
 
         sbuf = sendbuf if CUDA_AWARE_MPI or not isinstance(sendbuf, torch.Tensor) else sendbuf.cpu()
         rbuf = recvbuf if CUDA_AWARE_MPI or not isinstance(recvbuf, torch.Tensor) else recvbuf.cpu()
@@ -624,11 +623,6 @@ class MPICommunication(Communication):
 
         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
-
-        # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
-        # if axis != 0:
-        # rbuf = rbuf.permute(*recv_axis_permutation)
-        # original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
 
         return exit_code, sbuf, rbuf, original_recvbuf, recv_axis_permutation
 
@@ -788,11 +782,6 @@ class MPICommunication(Communication):
 
             # perform the scatter operation
             exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
-            # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
-            # if recv_axis != 0:
-            #    recvbuf = recvbuf.permute(*recv_axis_permutation)
-            #    original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
-
         # slightly more difficult situation, send and receive buffer need custom datatype preparation;
         # operation is performed via alltoallw
         else:
@@ -1098,7 +1087,6 @@ class MPIRequest:
             if self.permutation is not None:
                 self.recvbuf = self.recvbuf.permute(self.permutation)
             self.tensor.copy_(self.recvbuf)
-        return
 
     def wait(self, status=None):
         self.handle.wait(status)
@@ -1111,7 +1099,6 @@ class MPIRequest:
             if self.permutation is not None:
                 self.recvbuf = self.recvbuf.permute(self.permutation)
             self.tensor.copy_(self.recvbuf)
-        return
 
     def __getattr__(self, name):
         """
