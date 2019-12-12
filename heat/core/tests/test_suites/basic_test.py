@@ -93,7 +93,7 @@ class BasicTest(TestCase):
 
         if not heat_array.is_balanced():
             # Array is distributed correctly
-            print("Heat array is unbalanced, balancing now")
+            # print("Heat array is unbalanced, balancing now")
             heat_array.balance_()
 
         split = heat_array.split
@@ -343,7 +343,7 @@ class BasicTest(TestCase):
         ValueError if the dtype is not a subtype of numpy.integer or numpy.floating
         """
         seed = np.random.randint(1000000, size=(1,))
-        print("using seed {} for random values".format(seed))
+        # print("using seed {} for random values".format(seed))
         self.comm.Bcast(seed, root=0)
         np.random.seed(seed=seed.item())
         if issubclass(dtype, np.floating):
