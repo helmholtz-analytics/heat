@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import heat as ht
 
-if "load_hdf5" in dir(ht):
+if ht.io.supports_hdf5():
 
     class TestLasso(unittest.TestCase):
         def test_lasso(self):

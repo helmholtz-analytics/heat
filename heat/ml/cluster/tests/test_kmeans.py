@@ -3,7 +3,7 @@ import unittest
 
 import heat as ht
 
-if "load_hdf5" in dir(ht):
+if ht.io.supports_hdf5():
 
     class TestKMeans(unittest.TestCase):
         def test_fit_iris(self):
