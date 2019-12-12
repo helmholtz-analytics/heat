@@ -590,13 +590,12 @@ class TestStatistics(unittest.TestCase):
                         else:
                             self.assertEqual(res.split, z.split)
 
-        if ht.io.supports_hdf5():
-            # values for the iris dataset mean measured by libreoffice calc
-            ax0 = ht.array([5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667])
-            for sp in [None, 0, 1]:
-                iris = ht.load("heat/datasets/data/iris.h5", "data", split=sp)
-                self.assertTrue(ht.allclose(ht.mean(iris), 3.46366666666667))
-                self.assertTrue(ht.allclose(ht.mean(iris, axis=0), ax0))
+        # values for the iris dataset mean measured by libreoffice calc
+        ax0 = ht.array([5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667])
+        for sp in [None, 0, 1]:
+            iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=sp)
+            self.assertTrue(ht.allclose(ht.mean(iris), 3.46366666666667))
+            self.assertTrue(ht.allclose(ht.mean(iris, axis=0), ax0))
 
     def test_min(self):
         data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
@@ -842,8 +841,7 @@ class TestStatistics(unittest.TestCase):
                 res = z.var(bessel=False)
                 self.assertTrue((res == 0).all())
 
-        if ht.io.supports_hdf5():
-            # values for the iris dataset var measured by libreoffice calc
-            for sp in [None, 0, 1]:
-                iris = ht.load_hdf5("heat/datasets/data/iris.h5", "data", split=sp)
-                self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))
+        # values for the iris dataset var measured by libreoffice calc
+        for sp in [None, 0, 1]:
+            iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=sp)
+            self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))
