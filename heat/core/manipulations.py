@@ -121,12 +121,14 @@ def concatenate(arrays, axis=0):
 
     out_dtype = types.promote_types(arr0.dtype, arr1.dtype)
     if arr0.dtype != out_dtype:
-        arr0 = out_dtype(arr0)
+        arr0 = out_dtype(arr0, device=arr0.device)
     if arr1.dtype != out_dtype:
-        arr1 = out_dtype(arr1)
+        arr1 = out_dtype(arr1, device=arr1.device)
 
     if s0 is None and s1 is None:
-        return factories.array(torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis))
+        return factories.array(
+            torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis), device=arr0.device
+        )
 
     elif s0 != s1 and all([s is not None for s in [s0, s1]]):
         raise RuntimeError(
@@ -138,7 +140,7 @@ def concatenate(arrays, axis=0):
             arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
             for x in range(len(arr1.gshape))
         )
-        out = factories.empty(out_shape, split=s1 if s1 is not None else s0)
+        out = factories.empty(out_shape, split=s1 if s1 is not None else s0, device=arr1.device)
 
         _, _, arr0_slice = arr1.comm.chunk(arr0.shape, arr1.split)
         _, _, arr1_slice = arr0.comm.chunk(arr1.shape, arr0.split)
@@ -155,7 +157,7 @@ def concatenate(arrays, axis=0):
                 arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
                 for x in range(len(arr1.gshape))
             )
-            out = factories.empty(out_shape, split=s0, dtype=out_dtype)
+            out = factories.empty(out_shape, split=s0, dtype=out_dtype, device=arr0.device)
             out._DNDarray__array = torch.cat(
                 (arr0._DNDarray__array, arr1._DNDarray__array), dim=axis
             )
@@ -215,7 +217,9 @@ def concatenate(arrays, axis=0):
                         if arr0.comm.rank == pr and snt:
                             shp = list(arr0.gshape)
                             shp[arr0.split] = snt
-                            data = torch.zeros(shp, dtype=out_dtype.torch_type())
+                            data = torch.zeros(
+                                shp, dtype=out_dtype.torch_type(), device=arr0.device.torch_device
+                            )
 
                             arr0.comm.Recv(data, source=spr, tag=pr + arr0.comm.size + spr)
                             arr0._DNDarray__array = torch.cat(
@@ -261,7 +265,9 @@ def concatenate(arrays, axis=0):
                         if arr1.comm.rank == pr and snt:
                             shp = list(arr1.gshape)
                             shp[axis] = snt
-                            data = torch.zeros(shp, dtype=out_dtype.torch_type())
+                            data = torch.zeros(
+                                shp, dtype=out_dtype.torch_type(), device=arr1.device.torch_device
+                            )
                             arr1.comm.Recv(data, source=spr, tag=pr + arr1.comm.size + spr)
                             arr1._DNDarray__array = torch.cat(
                                 (data, arr1._DNDarray__array), dim=axis
@@ -321,7 +327,9 @@ def concatenate(arrays, axis=0):
                     arr1._DNDarray__array.unsqueeze_(axis)
 
             # now that the data is in the proper shape, need to concatenate them on the nodes where they both exist for the others, just set them equal
-            out = factories.empty(out_shape, split=s0 if s0 is not None else s1, dtype=out_dtype)
+            out = factories.empty(
+                out_shape, split=s0 if s0 is not None else s1, dtype=out_dtype, device=arr0.device
+            )
             res = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
             out._DNDarray__array = res
             return out
@@ -696,11 +704,15 @@ def sort(a, axis=None, descending=False, out=None):
         pivot_dim[0] = size * sum([1 for x in counts if x > 0])
 
         # share the local pivots with root process
-        pivot_buffer = torch.empty(pivot_dim, dtype=a.dtype.torch_type())
+        pivot_buffer = torch.empty(
+            pivot_dim, dtype=a.dtype.torch_type(), device=a.device.torch_device
+        )
         a.comm.Gatherv(local_pivots, (pivot_buffer, gather_counts, gather_displs), root=0)
 
         pivot_dim[0] = size - 1
-        global_pivots = torch.empty(pivot_dim, dtype=a.dtype.torch_type())
+        global_pivots = torch.empty(
+            pivot_dim, dtype=a.dtype.torch_type(), device=a.device.torch_device
+        )
 
         # root process creates new pivots and shares them with other processes
         if rank == 0:
@@ -830,10 +842,10 @@ def sort(a, axis=None, descending=False, out=None):
         for idx in np.ndindex(local_sorted.shape[1:]):
             idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
 
-            send_count = send_vec[idx][rank]
+            send_count = send_vec.cpu()[idx][rank]
             send_disp = [0] + list(np.cumsum(send_count[:-1]))
 
-            recv_count = send_vec[idx][:, rank]
+            recv_count = send_vec.cpu()[idx][:, rank]
             recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
 
             end = partition_matrix[rank][idx]
@@ -1185,7 +1197,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
 
     return_value = result
     if return_inverse:
-        return_value = [return_value, inverse_indices]
+        return_value = [return_value, inverse_indices.to(a.device.torch_device)]
 
     return return_value
 

@@ -64,7 +64,7 @@ class BasicTest(TestCase):
         if isinstance(expected_array, torch.Tensor):
             # Does not work because heat sets an index while torch does not
             # self.assertEqual(expected_array.device, torch.device(heat_array.device.torch_device))
-            expected_array = expected_array.numpy()
+            expected_array = expected_array.cpu().numpy()
 
         # Determine with what kind of numbers we are working
         compare_func = (
@@ -104,7 +104,7 @@ class BasicTest(TestCase):
             "Local shapes do not match. "
             "Got {} expected {}".format(heat_array.lshape, expected_array[slices].shape),
         )
-        local_numpy = heat_array._DNDarray__array.numpy()
+        local_numpy = heat_array._DNDarray__array.cpu().numpy()
 
         equal_res = np.array(compare_func(local_numpy, expected_array[slices]))
 
@@ -291,7 +291,7 @@ class BasicTest(TestCase):
             if distributed_result:
                 self.assert_array_equal(ht_res, np_res)
             else:
-                self.assertTrue(np.array_equal(ht_res._DNDarray__array.numpy(), np_res))
+                self.assertTrue(np.array_equal(ht_res._DNDarray__array.cpu().numpy(), np_res))
 
     def assertTrue_memory_layout(self, tensor, order):
         """

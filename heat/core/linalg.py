@@ -142,20 +142,22 @@ def matmul(a, b):
     # determine if a larger type is needed for c
     c_type = types.promote_types(a.dtype, b.dtype)
     if a.dtype != c_type:
-        a = c_type(a)
+        a = c_type(a, device=a.device)
     if b.dtype != c_type:
-        b = c_type(b)
+        b = c_type(b, device=b.device)
 
     if a.split is None and b.split is None:  # matmul from torch
         if len(a.gshape) < 2 or len(b.gshape) < 2:
             # if either of A or B is a vector
-            return factories.array(torch.matmul(a._DNDarray__array, b._DNDarray__array))
+            return factories.array(
+                torch.matmul(a._DNDarray__array, b._DNDarray__array), device=a.device
+            )
         else:
             a = a.resplit_(0)
             slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
             hold = a._DNDarray__array @ b._DNDarray__array
 
-            c = factories.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type)
+            c = factories.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type, device=a.device)
             c._DNDarray__array[slice_0.start : slice_0.stop, :] += hold
             c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
             return c
@@ -183,13 +185,18 @@ def matmul(a, b):
         ) and not vector_flag:
             split = a.split if a.split is not None else b.split
             split = split if not vector_flag else 0
-            c = factories.zeros((a.gshape[-2], b.gshape[1]), split=split, dtype=c_type)
+            c = factories.zeros(
+                (a.gshape[-2], b.gshape[1]), split=split, dtype=c_type, device=a.device
+            )
             c._DNDarray__array += a._DNDarray__array @ b._DNDarray__array
 
             return c if not vector_flag else c.squeeze()
 
-        elif b.split is None and a.split == 1:
-            c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type())
+        elif a.split == 1 and b.split is None:
+            c = torch.zeros(
+                (a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=a.device.torch_device
+            )
+
             a_idx = a.comm.chunk(a.shape, a.split)[2]
             c += (
                 a._DNDarray__array
@@ -197,11 +204,13 @@ def matmul(a, b):
             )
             a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
             c = c if not vector_flag else c.squeeze()
-            c = factories.array(c, split=a.split if b.gshape[1] > 1 else 0)
+            c = factories.array(c, split=a.split if b.gshape[1] > 1 else 0, device=a.device)
             return c
 
         elif a.split is None and b.split == 0:
-            c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type())
+            c = torch.zeros(
+                (a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=a.device.torch_device
+            )
             b_idx = b.comm.chunk(b.shape, b.split)[2]
             c += (
                 a._DNDarray__array[:, b_idx[0].start : b_idx[0].start + b.lshape[0]]
@@ -209,29 +218,33 @@ def matmul(a, b):
             )
             b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
             c = c if not vector_flag else c.squeeze()
-            c = factories.array(c, split=b.split if a.gshape[-2] > 1 else 0)
+            c = factories.array(c, split=b.split if a.gshape[-2] > 1 else 0, device=a.device)
             return c
 
         elif (
             a.split == 0 and b.split is None
         ):  # this case and the one below will only be reaching if one of them is a vector
-            c = torch.zeros((a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type())
+            c = torch.zeros(
+                (a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type(), device=a.device.torch_device
+            )
             a_idx = a.comm.chunk(a.shape, a.split)[2]
             c[a_idx[0]] += a._DNDarray__array @ b._DNDarray__array
             a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
             c = c if not vector_flag else c.squeeze()
             split = a.split if b.gshape[1] > 1 else 0
             split = split if not vector_flag else 0
-            c = factories.array(c, split=split)
+            c = factories.array(c, split=split, device=a.device)
             return c
 
         elif a.split is None and b.split == 1:
-            c = torch.zeros((a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type())
+            c = torch.zeros(
+                (a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type(), device=a.device.torch_device
+            )
             c += a._DNDarray__array @ b._DNDarray__array
             c = c if not vector_flag else c.squeeze()
             split = b.split if a.gshape[1] > 1 else 0
             split = split if not vector_flag else 0
-            c = factories.array(c, is_split=split)
+            c = factories.array(c, is_split=split, device=a.device)
             return c
 
         elif a.split == 0 and b.split == 0:
@@ -303,7 +316,7 @@ def matmul(a, b):
 
         # for the communication scheme, the output array needs to be created
         c_shape = (a.gshape[-2], b.gshape[1])
-        c = factories.zeros(c_shape, split=a.split, dtype=c_type)
+        c = factories.zeros(c_shape, split=a.split, dtype=c_type, device=a.device)
 
         # get the index map for c
         c_index_map = factories.zeros((c.comm.size, 2, 2))
@@ -413,7 +426,12 @@ def matmul(a, b):
             a_rem_locs0 = (rem_map[:, 0, 0] == 1).nonzero()
             # remainders for a in the
             a_node_rem_s0 = a._DNDarray__array[:mB, kB : (kB + 1) * b_rem_locs0.numel() : kB + 1]
-            b_rem = torch.empty(b_rem_locs0.numel(), b.lshape[-1], dtype=a.dtype.torch_type())
+            b_rem = torch.empty(
+                b_rem_locs0.numel(),
+                b.lshape[-1],
+                dtype=a.dtype.torch_type(),
+                device=b.device.torch_device,
+            )
 
             # this if/elif/else loop is for the handling of
             if a.comm.rank in a_rem_locs0:
@@ -434,6 +452,7 @@ def matmul(a, b):
                     b_lp_data[pr] = torch.zeros(
                         (lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()),
                         dtype=b.dtype.torch_type(),
+                        device=b.device.torch_device,
                     )
 
                 # sending a to all nodes for b to operate with
@@ -520,7 +539,8 @@ def matmul(a, b):
                 c_loc = c._DNDarray__array.squeeze()
                 if c_loc.nelement() == 1:
                     c = torch.tensor(c_loc)
-                c = factories.array(c_loc, is_split=0)
+                c = factories.array(c_loc, is_split=0, device=a.device)
+
             return c
 
         elif split_1_flag:
@@ -528,9 +548,15 @@ def matmul(a, b):
             # locations of the remainders in b
             b_rem_locs1 = (rem_map[:, 1, 1] == 1).nonzero()
             a_rem_locs1 = (rem_map[:, 0, 1] == 1).nonzero()
-            # remainders for a in the
-            b_node_rem_s1 = b._DNDarray__array[kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB]
-            a_rem = torch.empty(a.lshape[-2], a_rem_locs1.numel(), dtype=b.dtype.torch_type())
+            b_node_rem_s1 = b._DNDarray__array[
+                kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB
+            ]  # remainders for a in the
+            a_rem = torch.empty(
+                a.lshape[-2],
+                a_rem_locs1.numel(),
+                dtype=b.dtype.torch_type(),
+                device=a.device.torch_device,
+            )
 
             # this if/elif/else loop is for the handling of
             if b.comm.rank in b_rem_locs1:
@@ -551,6 +577,7 @@ def matmul(a, b):
                     a_lp_data[pr] = torch.zeros(
                         (lshape_map[pr, 0, 0].item(), lshape_map[pr, 0, 1].item()),
                         dtype=a.dtype.torch_type(),
+                        device=a.device.torch_device,
                     )
 
                 # sending a to all nodes for b to operate with
@@ -628,7 +655,11 @@ def matmul(a, b):
                         c._DNDarray__array[:, : b_node_rem_s1.shape[1]] += a_rem @ b_node_rem_s1
 
                     del a_lp_data[pr]
-            c = c if not vector_flag else factories.array(c._DNDarray__array.squeeze(), is_split=0)
+            c = (
+                c
+                if not vector_flag
+                else factories.array(c._DNDarray__array.squeeze(), is_split=0, device=a.device)
+            )
             return c
 
         elif split_01_flag:
@@ -643,6 +674,7 @@ def matmul(a, b):
                     b_lp_data[pr] = torch.empty(
                         (lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()),
                         dtype=b.dtype.torch_type(),
+                        device=b.device.torch_device,
                     )
 
                 # sending a to all nodes for b to operate with
@@ -671,8 +703,12 @@ def matmul(a, b):
                     c._DNDarray__array[: sp0 - st0, st1:sp1] += a._DNDarray__array @ b_lp_data[pr]
 
                     del b_lp_data[pr]
-                # print(c)
-            c = c if not vector_flag else factories.array(c._DNDarray__array.squeeze(), is_split=0)
+
+            c = (
+                c
+                if not vector_flag
+                else factories.array(c._DNDarray__array.squeeze(), is_split=0, device=a.device)
+            )
             return c
 
         elif split_10_flag:
@@ -680,7 +716,9 @@ def matmul(a, b):
             a_rem_locs1 = (rem_map[:, 0, 1] == 1).nonzero()
             # locations of the remainders in b
             b_rem_locs0 = (rem_map[:, 1, 0] == 1).nonzero()
-            res = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type())
+            res = torch.zeros(
+                (a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=c.device.torch_device
+            )
             for i in range(a.lshape[-1] // kB):
                 res += (
                     a._DNDarray__array[:mB, i * kB : i * kB + kB]
@@ -694,7 +732,7 @@ def matmul(a, b):
             split = a.split if b.gshape[1] > 1 else 0
             split = split if not vector_flag else 0
             res = res if not vector_flag else res.squeeze()
-            c = factories.array(res, split=split if not both_vec else None)
+            c = factories.array(res, split=split if not both_vec else None, device=a.device)
             return c
 
 
@@ -710,17 +748,23 @@ def __mm_c_block_setter(
     # offsets are the number of blocks in the multiplication direction on previous nodes
     # print(a_block_map[a_proc].shape[0])
     for bl_1_a in (
-        torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long)
+        torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long, device=c.device)
         if b_split == 0
-        else torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long)
+        else torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device)
     ):
         # offset is the number of blocks on the previous node in the direction of multiplication
-        for bl_0_a in torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long):  # dim0
-            for bl_1_b in torch.arange(b_block_map[b_proc].shape[1], dtype=torch.long):
+        for bl_0_a in torch.arange(
+            a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device
+        ):  # dim0
+            for bl_1_b in torch.arange(
+                b_block_map[b_proc].shape[1], dtype=torch.long, device=c.device
+            ):
                 for bl_0_b in (
-                    torch.arange(offset_b, offset_b + shp_a[1], dtype=torch.long)
+                    torch.arange(offset_b, offset_b + shp_a[1], dtype=torch.long, device=c.device)
                     if a_split == 1
-                    else torch.arange(b_block_map[b_proc].shape[0], dtype=torch.long)
+                    else torch.arange(
+                        b_block_map[b_proc].shape[0], dtype=torch.long, device=c.device
+                    )
                 ):
                     # this offset is the same as before but for b
                     a_start1 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 1].item())
