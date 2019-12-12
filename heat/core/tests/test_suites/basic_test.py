@@ -107,12 +107,14 @@ class BasicTest(TestCase):
         local_numpy = heat_array._DNDarray__array.numpy()
 
         equal_res = np.array(compare_func(local_numpy, expected_array[slices]))
+
         self.comm.Allreduce(MPI.IN_PLACE, equal_res, MPI.LAND)
         self.assertTrue(
             equal_res,
             "Local tensors do not match the corresponding numpy slices. "
             "dtype was {}, split was {}".format(heat_array.dtype, heat_array.split),
         )
+
         self.assertEqual(
             local_numpy.dtype,
             expected_array.dtype,
@@ -290,6 +292,24 @@ class BasicTest(TestCase):
                 self.assert_array_equal(ht_res, np_res)
             else:
                 self.assertTrue(np.array_equal(ht_res._DNDarray__array.numpy(), np_res))
+
+    def assertTrue_memory_layout(self, tensor, order):
+        """
+        Checks that the memory layout of a given heat tensor is as specified by argument order.
+
+        Parameters:
+        -----------
+        order: str, 'C' for C-like (row-major), 'F' for Fortran-like (column-major) memory layout.
+        """
+        stride = tensor._DNDarray__array.stride()
+        row_major = all(np.diff(list(stride)) <= 0)
+        column_major = all(np.diff(list(stride)) >= 0)
+        if order == "C":
+            return self.assertTrue(row_major)
+        elif order == "F":
+            return self.assertTrue(column_major)
+        else:
+            raise ValueError("expected order to be 'C' or 'F', but was {}".format(order))
 
     def __create_random_np_array(self, shape, dtype=np.float64, low=-10000, high=10000):
         """
