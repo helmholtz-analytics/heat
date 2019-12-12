@@ -18,6 +18,7 @@ if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
 
 
 if ht.io.supports_hdf5():
+
     class TestLasso(unittest.TestCase):
         def test_lasso(self):
             # ToDo: add additional tests
