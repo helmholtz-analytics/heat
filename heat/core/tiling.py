@@ -61,7 +61,9 @@ def _create_cols_square_diag(arr, lshape_map, tiles_per_proc):
     diag_crossings[-1] = (
         diag_crossings[-1] if diag_crossings[-1] <= min(arr.gshape) else min(arr.gshape)
     )
-    diag_crossings = torch.cat((torch.tensor([0]), diag_crossings), dim=0)
+    diag_crossings = torch.cat(
+        (torch.tensor([0], device=arr._DNDarray__array.device), diag_crossings), dim=0
+    )
     # create the tile columns sizes, saved to list
     col_inds = []
     for col in range(tile_columns.item()):
@@ -205,7 +207,9 @@ class SquareDiagTiles:
             )
             for pr in range(arr.comm.size):
                 lshape_cumsum = torch.cumsum(lshape_map[..., 1], dim=0)
-                col_cumsum = torch.cumsum(torch.tensor(col_inds), dim=0)
+                col_cumsum = torch.cumsum(
+                    torch.tensor(col_inds, device=arr._DNDarray__array.device), dim=0
+                )
                 diff = lshape_cumsum[pr] - col_cumsum[col_proc_ind[pr] - 1]
                 if diff > 0 and pr <= last_diag_pr:
                     col_per_proc_list[pr] += 1
@@ -253,10 +257,10 @@ class SquareDiagTiles:
         )
         # if arr.split == 0:  # adjust the 1st dim to be the cumsum
         col_inds = [0] + col_inds[:-1]
-        col_inds = torch.tensor(col_inds).cumsum(dim=0)
+        col_inds = torch.tensor(col_inds, device=arr._DNDarray__array.device).cumsum(dim=0)
         # if arr.split == 1:  # adjust the 0th dim to be the cumsum
         row_inds = [0] + row_inds[:-1]
-        row_inds = torch.tensor(row_inds).cumsum(dim=0)
+        row_inds = torch.tensor(row_inds, device=arr._DNDarray__array.device).cumsum(dim=0)
 
         for num, c in enumerate(col_inds):  # set columns
             tile_map[:, num, 1] = c
