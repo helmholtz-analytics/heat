@@ -1203,7 +1203,7 @@ class DNDarray:
             chunk_end = chunk_slice[self.split].stop
             chunk_set = set(range(chunk_start, chunk_end))
 
-            arr = torch.Tensor(device=self.__array.device)
+            arr = torch.Tensor()
 
             # if a sigular index is given and the tensor is split
             if isinstance(key, int):
