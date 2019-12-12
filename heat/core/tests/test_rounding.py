@@ -2,6 +2,19 @@ import torch
 import unittest
 import numpy as np
 import heat as ht
+import os
+
+if os.environ.get("DEVICE") == "gpu" and torch.cuda.is_available():
+    ht.use_device("gpu")
+    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
+else:
+    ht.use_device("cpu")
+device = ht.get_device().torch_device
+ht_device = None
+if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
+    device = ht.gpu.torch_device
+    ht_device = ht.gpu
+    torch.cuda.set_device(device)
 
 from heat.core.tests.test_suites.basic_test import BasicTest
 
@@ -9,20 +22,20 @@ from heat.core.tests.test_suites.basic_test import BasicTest
 class TestRounding(BasicTest):
     def test_abs(self):
         # for abs==absolute
-        float32_tensor = ht.arange(-10, 10, dtype=ht.float32, split=0)
+        float32_tensor = ht.arange(-10, 10, dtype=ht.float32, split=0, device=ht_device)
         absolute_values = ht.abs(float32_tensor)
         # for fabs
-        int8_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.int8, split=0)
+        int8_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.int8, split=0, device=ht_device)
         int8_absolute_values_fabs = ht.fabs(int8_tensor_fabs)
-        int16_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.int16, split=0)
+        int16_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.int16, split=0, device=ht_device)
         int16_absolute_values_fabs = ht.fabs(int16_tensor_fabs)
-        int32_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.int32, split=0)
+        int32_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.int32, split=0, device=ht_device)
         int32_absolute_values_fabs = ht.fabs(int32_tensor_fabs)
-        int64_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.int64, split=0)
+        int64_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.int64, split=0, device=ht_device)
         int64_absolute_values_fabs = ht.fabs(int64_tensor_fabs)
-        float32_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.float32, split=0)
+        float32_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.float32, split=0, device=ht_device)
         float32_absolute_values_fabs = ht.fabs(float32_tensor_fabs)
-        float64_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.float64, split=0)
+        float64_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.float64, split=0, device=ht_device)
         float64_absolute_values_fabs = ht.fabs(float64_tensor_fabs)
 
         # basic absolute test
@@ -39,20 +52,20 @@ class TestRounding(BasicTest):
 
         # check whether output works
         # for abs==absolute
-        output_tensor = ht.zeros(20, split=0)
+        output_tensor = ht.zeros(20, split=0, device=ht_device)
         self.assertEqual(output_tensor.sum(axis=0, keepdim=True), 0)
         ht.absolute(float32_tensor, out=output_tensor)
 
         self.assertEqual(output_tensor.sum(axis=0), 100)
         # for fabs
-        output_tensor_fabs = ht.zeros(21, split=0)
+        output_tensor_fabs = ht.zeros(21, split=0, device=ht_device)
         self.assertEqual(output_tensor_fabs.sum(axis=0), 0)
         ht.fabs(float32_tensor_fabs, out=output_tensor_fabs)
         self.assertEqual(output_tensor_fabs.sum(axis=0), 110.5)
 
         # dtype parameter
         # for abs==absolute
-        int64_tensor = ht.arange(-10, 10, dtype=ht.int64)
+        int64_tensor = ht.arange(-10, 10, dtype=ht.int64, device=ht_device)
         absolute_values = ht.abs(int64_tensor, dtype=ht.float32)
         self.assertIsInstance(absolute_values, ht.DNDarray)
         self.assertEqual(absolute_values.sum(axis=0), 100)
@@ -82,17 +95,17 @@ class TestRounding(BasicTest):
 
         # test with unsplit tensor
         # for fabs
-        float32_unsplit_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.float32)
+        float32_unsplit_tensor_fabs = ht.arange(-10.5, 10.5, dtype=ht.float32, device=ht_device)
         float32_unsplit_absolute_values_fabs = ht.fabs(float32_unsplit_tensor_fabs)
         self.assertEqual(float32_unsplit_absolute_values_fabs.sum(), 110.5)
         self.assertEqual(float32_unsplit_absolute_values_fabs.dtype, ht.float32)
 
     def test_ceil(self):
         start, end, step = -5.0, 5.0, 1.4
-        comparison = torch.arange(start, end, step, dtype=torch.float64).ceil()
+        comparison = torch.arange(start, end, step, dtype=torch.float64, device=device).ceil()
 
         # exponential of float32
-        float32_tensor = ht.arange(start, end, step, dtype=ht.float32)
+        float32_tensor = ht.arange(start, end, step, dtype=ht.float32, device=ht_device)
         float32_floor = float32_tensor.ceil()
         self.assertIsInstance(float32_floor, ht.DNDarray)
         self.assertEqual(float32_floor.dtype, ht.float32)
@@ -100,7 +113,7 @@ class TestRounding(BasicTest):
         self.assertTrue((float32_floor._DNDarray__array == comparison.float()).all())
 
         # exponential of float64
-        float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
+        float64_tensor = ht.arange(start, end, step, dtype=ht.float64, device=ht_device)
         float64_floor = float64_tensor.ceil()
         self.assertIsInstance(float64_floor, ht.DNDarray)
         self.assertEqual(float64_floor.dtype, ht.float64)
@@ -117,14 +130,14 @@ class TestRounding(BasicTest):
         elements = 20
 
         # float tensor
-        float32_tensor = ht.arange(elements, dtype=ht.float32, split=0)
+        float32_tensor = ht.arange(elements, dtype=ht.float32, split=0, device=ht_device)
         clipped = float32_tensor.clip(5, 15)
         self.assertIsInstance(clipped, ht.DNDarray)
         self.assertEqual(clipped.dtype, ht.float32)
         self.assertEqual(clipped.sum(axis=0), 195)
 
         # long tensor
-        int64_tensor = ht.arange(elements, dtype=ht.int64, split=0)
+        int64_tensor = ht.arange(elements, dtype=ht.int64, split=0, device=ht_device)
         clipped = int64_tensor.clip(4, 16)
         self.assertIsInstance(clipped, ht.DNDarray)
         self.assertEqual(clipped.dtype, ht.int64)
@@ -132,18 +145,18 @@ class TestRounding(BasicTest):
 
         # test the exceptions
         with self.assertRaises(TypeError):
-            ht.clip(torch.arange(10), 2, 5)
+            ht.clip(torch.arange(10, device=device), 2, 5)
         with self.assertRaises(ValueError):
-            ht.arange(20).clip(None, None)
+            ht.arange(20, device=ht_device).clip(None, None)
         with self.assertRaises(TypeError):
-            ht.clip(ht.arange(20), 5, 15, out=torch.arange(20))
+            ht.clip(ht.arange(20), 5, 15, out=torch.arange(20, device=device))
 
     def test_floor(self):
         start, end, step = -5.0, 5.0, 1.4
-        comparison = torch.arange(start, end, step, dtype=torch.float64).floor()
+        comparison = torch.arange(start, end, step, dtype=torch.float64, device=device).floor()
 
         # exponential of float32
-        float32_tensor = ht.arange(start, end, step, dtype=ht.float32)
+        float32_tensor = ht.arange(start, end, step, dtype=ht.float32, device=ht_device)
         float32_floor = float32_tensor.floor()
         self.assertIsInstance(float32_floor, ht.DNDarray)
         self.assertEqual(float32_floor.dtype, ht.float32)
@@ -151,7 +164,7 @@ class TestRounding(BasicTest):
         self.assertTrue((float32_floor._DNDarray__array == comparison.float()).all())
 
         # exponential of float64
-        float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
+        float64_tensor = ht.arange(start, end, step, dtype=ht.float64, device=ht_device)
         float64_floor = float64_tensor.floor()
         self.assertIsInstance(float64_floor, ht.DNDarray)
         self.assertEqual(float64_floor.dtype, ht.float64)
@@ -300,17 +313,17 @@ class TestRounding(BasicTest):
     def test_trunc(self):
         base_array = np.random.randn(20)
 
-        comparison = torch.tensor(base_array, dtype=torch.float64).trunc()
+        comparison = torch.tensor(base_array, dtype=torch.float64, device=device).trunc()
 
         # trunc of float32
-        float32_tensor = ht.array(base_array, dtype=ht.float32)
+        float32_tensor = ht.array(base_array, dtype=ht.float32, device=ht_device)
         float32_floor = float32_tensor.trunc()
         self.assertIsInstance(float32_floor, ht.DNDarray)
         self.assertEqual(float32_floor.dtype, ht.float32)
         self.assertTrue((float32_floor._DNDarray__array == comparison.float()).all())
 
         # trunc of float64
-        float64_tensor = ht.array(base_array, dtype=ht.float64)
+        float64_tensor = ht.array(base_array, dtype=ht.float64, device=ht_device)
         float64_floor = float64_tensor.trunc()
         self.assertIsInstance(float64_floor, ht.DNDarray)
         self.assertEqual(float64_floor.dtype, ht.float64)
