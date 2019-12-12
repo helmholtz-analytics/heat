@@ -1203,7 +1203,7 @@ class DNDarray:
             chunk_end = chunk_slice[self.split].stop
             chunk_set = set(range(chunk_start, chunk_end))
 
-            arr = torch.Tensor()
+            arr = torch.Tensor(device=self.__array.device)
 
             # if a sigular index is given and the tensor is split
             if isinstance(key, int):
@@ -2161,7 +2161,11 @@ class DNDarray:
 
         lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
         chunk_cumsum = torch.cat(
-            (torch.tensor([0]), torch.cumsum(target_map[..., self.split], dim=0)), dim=0
+            (
+                torch.tensor([0], device=self.__array.device),
+                torch.cumsum(target_map[..., self.split], dim=0),
+            ),
+            dim=0,
         )
         # need the data start as well for process 0
         for rcv_pr in range(self.comm.size - 1):
