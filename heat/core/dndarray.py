@@ -1189,10 +1189,7 @@ class DNDarray:
                 else:
                     gout = tuple(self.__array[key].shape)
                     if self.split is not None and self.split >= len(gout):
-                        if len(gout) > 0:
-                            new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
-                        else:
-                            new_split = None
+                        new_split = len(gout) - 1 if len(gout) - 1 >= 0 else None
                     else:
                         new_split = self.split
 
@@ -1289,9 +1286,8 @@ class DNDarray:
                     gout = list(arr.shape)
                 else:
                     warnings.warn(
-                        "This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
-                            self.comm.rank
-                        ),
+                        "This process (rank: {}) is without data after slicing, "
+                        "running the .balance_() function is recommended".format(self.comm.rank),
                         ResourceWarning,
                     )
                     # arr is empty
@@ -1319,9 +1315,8 @@ class DNDarray:
                     gout = list(arr.shape)
                 else:
                     warnings.warn(
-                        "This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
-                            self.comm.rank
-                        ),
+                        "This process (rank: {}) is without data after slicing, "
+                        "running the .balance_() function is recommended".format(self.comm.rank),
                         ResourceWarning,
                     )
                     # arr is empty
