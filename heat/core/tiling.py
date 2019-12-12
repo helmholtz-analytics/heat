@@ -200,7 +200,9 @@ class SquareDiagTiles:
                 col_inds.append(lshape_map[r, 1])
                 r += 1
             # if the 1st dim is > 0th dim then in split=1 the cols need to be extended
-            col_proc_ind = torch.cumsum(torch.tensor(col_per_proc_list, device=arr.device), dim=0)
+            col_proc_ind = torch.cumsum(
+                torch.tensor(col_per_proc_list, device=arr._DNDarray__array.device), dim=0
+            )
             for pr in range(arr.comm.size):
                 lshape_cumsum = torch.cumsum(lshape_map[..., 1], dim=0)
                 col_cumsum = torch.cumsum(torch.tensor(col_inds), dim=0)
@@ -212,7 +214,7 @@ class SquareDiagTiles:
                     col_inds.insert(col_proc_ind[pr], diff)
 
         if arr.gshape[0] > arr.gshape[1]:
-            nz = torch.nonzero(torch.tensor(row_inds, device=arr.device) == 0)
+            nz = torch.nonzero(torch.tensor(row_inds, device=arr._DNDarray__array.device) == 0)
             for i in range(last_diag_pr.item() + 1, arr.comm.size):
                 # loop over all of the rest of the processes
                 for t in range(tiles_per_proc):
@@ -240,12 +242,14 @@ class SquareDiagTiles:
         # need to remove blank rows for arr.gshape[0] < arr.gshape[1]
         if arr.gshape[0] < arr.gshape[1]:
             row_inds_hold = []
-            for i in torch.nonzero(torch.tensor(row_inds, device=arr.device)).flatten():
+            for i in torch.nonzero(
+                torch.tensor(row_inds, device=arr._DNDarray__array.device)
+            ).flatten():
                 row_inds_hold.append(row_inds[i.item()])
             row_inds = row_inds_hold
 
         tile_map = torch.zeros(
-            [len(row_inds), len(col_inds), 3], dtype=torch.int, device=arr.device
+            [len(row_inds), len(col_inds), 3], dtype=torch.int, device=arr._DNDarray__array.device
         )
         # if arr.split == 0:  # adjust the 1st dim to be the cumsum
         col_inds = [0] + col_inds[:-1]
@@ -743,7 +747,9 @@ class SquareDiagTiles:
             # self.__tile_rows = tiles_to_match.__tile_rows
             # self.__tile_columns = tiles_to_match.__tile_rows
             self.__tile_map = torch.zeros(
-                (self.tile_rows, self.tile_columns, 3), dtype=torch.int, device=match_dnd.device
+                (self.tile_rows, self.tile_columns, 3),
+                dtype=torch.int,
+                device=match_dnd._DNDarray__array.device,
             )
             for i in range(self.tile_rows):
                 self.__tile_map[..., 0][i] = self.__row_inds[i]
@@ -787,7 +793,7 @@ class SquareDiagTiles:
             self.__row_per_proc_list = []
             st = 0
             rows_per = torch.tensor(
-                rows_per + [base_dnd.shape[0]], device=tiles_to_match.arr.device
+                rows_per + [base_dnd.shape[0]], device=tiles_to_match.arr._DNDarray__array.device
             )
             for i in range(base_dnd.comm.size):
                 # get the amount of data on each process, get the number of rows with
@@ -802,7 +808,7 @@ class SquareDiagTiles:
             self.__tile_map = torch.zeros(
                 (self.tile_rows, self.tile_columns, 3),
                 dtype=torch.int,
-                device=tiles_to_match.arr.device,
+                device=tiles_to_match.arr._DNDarray__array.device,
             )
             for i in range(self.tile_rows):
                 self.__tile_map[..., 0][i] = self.__row_inds[i]

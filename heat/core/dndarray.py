@@ -748,8 +748,10 @@ class DNDarray:
         lshape_map : torch.Tensor
             Units -> (process rank, lshape)
         """
-        lshape_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
-        lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
+        lshape_map = torch.zeros(
+            (self.comm.size, len(self.gshape)), dtype=int, device=self.__array.device
+        )
+        lshape_map[self.comm.rank, :] = torch.tensor(self.lshape, device=self.__array.device)
         self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
         return lshape_map
 
