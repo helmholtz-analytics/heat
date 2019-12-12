@@ -116,12 +116,13 @@ def where(cond, x=None, y=None):
         if (isinstance(x, dndarray.DNDarray) and cond.split != x.split) or (
             isinstance(y, dndarray.DNDarray) and cond.split != y.split
         ):
-            raise NotImplementedError("binary op not implemented for different split axes")
+            if len(y.shape) >= 1 and y.shape[0] > 1:
+                raise NotImplementedError("binary op not implemented for different split axes")
     if isinstance(x, (dndarray.DNDarray, int, float)) and isinstance(
         y, (dndarray.DNDarray, int, float)
     ):
-        cond = types.float(cond)
-        return (cond == 0) * y + cond * x
+        cond = types.float(cond, device=cond.device)
+        return types.float(cond == 0, device=cond.device) * y + cond * x
     elif x is None and y is None:
         return nonzero(cond)
     else:

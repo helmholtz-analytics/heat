@@ -324,7 +324,7 @@ def average(x, axis=None, weights=None, returned=False):
             if weights.gshape[0] != x.gshape[axis]:
                 raise ValueError("Length of weights not compatible with specified axis.")
 
-        wgt = factories.empty_like(weights)
+        wgt = factories.empty_like(weights, device=x.device)
         wgt._DNDarray__array = weights._DNDarray__array
         wgt._DNDarray__split = weights.split
 
@@ -725,8 +725,8 @@ def mean(x, axis=None):
 
         mu_shape = list(mu.shape) if list(mu.shape) else [1]
 
-        mu_tot = factories.zeros(([x.comm.size] + mu_shape))
-        n_tot = factories.zeros(x.comm.size)
+        mu_tot = factories.zeros(([x.comm.size] + mu_shape), device=x.device)
+        n_tot = factories.zeros(x.comm.size, device=x.device)
         mu_tot[x.comm.rank, :] = mu
         n_tot[x.comm.rank] = float(x.lshape[x.split])
         x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)

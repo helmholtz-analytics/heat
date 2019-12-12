@@ -12,7 +12,7 @@ from . import types
 __all__ = []
 
 
-def binary_get_size_scalar(t1, t2):
+def __binary_get_size_scalar(t1, t2):
     """
     Find the tensor size of the result after performing a binary operation with t1 and t2.
 
@@ -49,9 +49,11 @@ def binary_get_size_scalar(t1, t2):
             raise TypeError("Only numeric scalars are supported, but input was {}".format(type(t2)))
         output_shape = (1,)
         output_split = None
-        output_device = None
+        output_device = t1.device
         output_comm = MPI_WORLD
     elif isinstance(t2, dndarray.DNDarray):
+        if t1.device != t2.device:
+            t1 = t1.gpu()
         output_shape = t2.shape
         output_split = t2.split
         output_device = t2.device
@@ -64,7 +66,7 @@ def binary_get_size_scalar(t1, t2):
     return t1, t2, output_shape, output_split, output_device, output_comm
 
 
-def binary_get_size_tensor(t1, t2):
+def __binary_get_size_tensor(t1, t2):
     """
     Find the tensor size of the result after performing a binary operation with t1 and t2.
 
@@ -91,7 +93,7 @@ def binary_get_size_tensor(t1, t2):
     """
     if np.isscalar(t2):
         try:
-            t2 = factories.array([t2])
+            t2 = factories.array([t2], device=t1.device)
             output_shape = t1.shape
             output_split = t1.split
             output_device = t1.device
@@ -100,6 +102,13 @@ def binary_get_size_tensor(t1, t2):
             raise TypeError("Data type not supported, input was {}".format(type(t2)))
 
     elif isinstance(t2, dndarray.DNDarray):
+        if t1.device != t2.device:
+            raise RuntimeError(
+                "Operands on different device types, inputs were {} and {}".format(
+                    t1.device.device_type, t2.device.device_type
+                )
+            )
+
         if t1.split is None:
             t1 = factories.array(
                 t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device, ndmin=-t2.numdims
@@ -125,7 +134,9 @@ def binary_get_size_tensor(t1, t2):
                     "Broadcasting requires transferring data of first operator between MPI ranks!"
                 )
                 if t1.comm.rank > 0:
-                    t1._DNDarray__array = torch.zeros(t1.shape, dtype=t1.dtype.torch_type())
+                    t1._DNDarray__array = torch.zeros(
+                        t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
+                    )
                 t1.comm.Bcast(t1)
 
         if t2.split is not None:
@@ -134,7 +145,9 @@ def binary_get_size_tensor(t1, t2):
                     "Broadcasting requires transferring data of second operator between MPI ranks!"
                 )
                 if t2.comm.rank > 0:
-                    t2._DNDarray__array = torch.zeros(t2.shape, dtype=t2.dtype.torch_type())
+                    t2._DNDarray__array = torch.zeros(
+                        t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
+                    )
                 t2.comm.Bcast(t2)
 
     else:
@@ -167,8 +180,9 @@ def __binary_bit_op(method, t1, t2):
     result: ht.DNDarray
         A tensor containing the element-wise results of bit-wise operation.
     """
+
     if np.isscalar(t1):
-        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_scalar(
+        t1, t2, output_shape, output_split, output_device, output_comm = __binary_get_size_scalar(
             t1, t2
         )
 
@@ -180,7 +194,7 @@ def __binary_bit_op(method, t1, t2):
             )
 
     elif isinstance(t1, dndarray.DNDarray):
-        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_tensor(
+        t1, t2, output_shape, output_split, output_device, output_comm = __binary_get_size_tensor(
             t1, t2
         )
 
@@ -221,12 +235,7 @@ def __binary_bit_op(method, t1, t2):
         result = operation(t2._DNDarray__array)
 
     return dndarray.DNDarray(
-        result,
-        output_shape,
-        types.canonical_heat_type(t1.dtype),
-        output_split,
-        output_device,
-        output_comm,
+        result, output_shape, types.heat_type_of(result), output_split, output_device, output_comm
     )
 
 
@@ -252,9 +261,8 @@ def __binary_op(operation, t1, t2):
     result: ht.DNDarray
         A tensor containing the results of element-wise operation.
     """
-
     if np.isscalar(t1):
-        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_scalar(
+        t1, t2, output_shape, output_split, output_device, output_comm = __binary_get_size_scalar(
             t1, t2
         )
 
@@ -262,7 +270,7 @@ def __binary_op(operation, t1, t2):
             t1 = t1.astype(t2.dtype)
 
     elif isinstance(t1, dndarray.DNDarray):
-        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_tensor(
+        t1, t2, output_shape, output_split, output_device, output_comm = __binary_get_size_tensor(
             t1, t2
         )
 
@@ -294,12 +302,7 @@ def __binary_op(operation, t1, t2):
         )
 
     return dndarray.DNDarray(
-        result,
-        output_shape,
-        types.canonical_heat_type(t1.dtype),
-        output_split,
-        output_device,
-        output_comm,
+        result, output_shape, types.heat_type_of(result), output_split, output_device, output_comm
     )
 
 

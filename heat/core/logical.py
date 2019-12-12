@@ -106,7 +106,10 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     """
     if np.isscalar(x):
         try:
-            x = factories.array([float(x)])
+            if isinstance(y, dndarray.DNDarray):
+                x = factories.array([float(x)], device=y.device)
+            else:
+                x = factories.array([float(x)])
         except (ValueError, TypeError):
             raise TypeError("Data type not supported, input was {}".format(type(x)))
 
@@ -117,7 +120,10 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
 
     if np.isscalar(y):
         try:
-            y = factories.array([float(y)])
+            if isinstance(x, dndarray.DNDarray):
+                y = factories.array([float(y)], device=x.device)
+            else:
+                y = factories.array([float(y)])
         except (ValueError, TypeError):
             raise TypeError("Data type not supported, input was {}".format(type(y)))
 
