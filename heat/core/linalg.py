@@ -282,10 +282,10 @@ def matmul(a, b):
         # get the lshape map to determine what needs to be sent where as well as M and N
         # lshape map dims -> {node, a=0, b=1, lshape}
         lshape_map = torch.zeros(
-            (a.comm.size, 2, len(a.gshape)), dtype=int, device=a._DNDarray__array.device
+            (a.comm.size, 2, len(a.gshape)), dtype=int, device=a.device.torch_device
         )
-        lshape_map[a.comm.rank, 0, :] = torch.tensor(a.lshape, device=a._DNDarray__array.device)
-        lshape_map[b.comm.rank, 1, :] = torch.tensor(b.lshape, device=a._DNDarray__array.device)
+        lshape_map[a.comm.rank, 0, :] = torch.tensor(a.lshape, device=a.device.torch_device)
+        lshape_map[b.comm.rank, 1, :] = torch.tensor(b.lshape, device=a.device.torch_device)
         a.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
         # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
@@ -341,11 +341,15 @@ def matmul(a, b):
 
         if a.split == 0:
             a_block_map = torch.zeros(
-                (a.comm.size, a.shape[-2] // mB // a.comm.size, a.shape[-1] // kB, 2)
+                (a.comm.size, a.shape[-2] // mB // a.comm.size, a.shape[-1] // kB, 2),
+                dtype=torch.int,
+                device=a.device.torch_device,
             )
         elif a.split == 1:
             a_block_map = torch.zeros(
-                (a.comm.size, a.shape[-2] // mB, a.shape[-1] // kB // a.comm.size, 2)
+                (a.comm.size, a.shape[-2] // mB, a.shape[-1] // kB // a.comm.size, 2),
+                dtype=torch.int,
+                device=a.device.torch_device,
             )
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
 
@@ -387,11 +391,15 @@ def matmul(a, b):
 
         if b.split == 0:
             b_block_map = torch.zeros(
-                (b.comm.size, b.shape[-2] // kB // b.comm.size, b.shape[-1] // nB, 2)
+                (b.comm.size, b.shape[-2] // kB // b.comm.size, b.shape[-1] // nB, 2),
+                dtype=torch.int,
+                device=b.device.torch_device,
             )
         if b.split == 1:
             b_block_map = torch.zeros(
-                (b.comm.size, b.shape[-2] // kB, b.shape[-1] // nB // b.comm.size, 2)
+                (b.comm.size, b.shape[-2] // kB, b.shape[-1] // nB // b.comm.size, 2),
+                dtype=torch.int,
+                device=b.device.torch_device,
             )
         # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
 
