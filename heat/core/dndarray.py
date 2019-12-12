@@ -2153,7 +2153,9 @@ class DNDarray:
             lshape_map = self.create_lshape_map()
 
         if target_map is None:  # if no target map is given then it will balance the tensor
-            target_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
+            target_map = torch.zeros(
+                (self.comm.size, len(self.gshape)), dtype=int, device=self.__array.device
+            )
             _, _, chk = self.comm.chunk(self.shape, self.split)
             for i in range(len(self.gshape)):
                 target_map[self.comm.rank, i] = chk[i].stop - chk[i].start
