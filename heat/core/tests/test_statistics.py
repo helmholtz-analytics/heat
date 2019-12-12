@@ -649,7 +649,7 @@ class TestStatistics(unittest.TestCase):
             [5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667], device=ht_device
         )
         for sp in [None, 0, 1]:
-            iris = ht.load("heat/datasets/data/iris.h5", "data", split=sp, device=ht_device)
+            iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=sp)
             self.assertTrue(ht.allclose(ht.mean(iris), 3.46366666666667))
             self.assertTrue(ht.allclose(ht.mean(iris, axis=0), ax0))
 
@@ -914,5 +914,5 @@ class TestStatistics(unittest.TestCase):
 
         # values for the iris dataset var measured by libreoffice calc
         for sp in [None, 0, 1]:
-            iris = ht.load_hdf5("heat/datasets/data/iris.h5", "data", split=sp, device=ht_device)
+            iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=sp)
             self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))

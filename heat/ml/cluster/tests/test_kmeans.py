@@ -19,9 +19,7 @@ if os.environ.get("DEVICE") == "lgpu" and ht.torch.cuda.is_available():
 class TestKMeans(unittest.TestCase):
     def test_fit_iris(self):
         # get some test data
-        iris = ht.load_hdf5(
-            os.path.join(os.getcwd(), "heat/datasets/data/iris.h5"), "data", device=ht_device
-        )
+        iris = ht.load("heat/datasets/data/iris.csv", sep=";")
 
         # fit the clusters
         k = 3
