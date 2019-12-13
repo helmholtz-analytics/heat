@@ -2091,7 +2091,8 @@ class DNDarray:
         target_map : torch.Tensor, optional
             The desired distribution across the processes
             Units -> [rank, target lshape]
-            Note: the only important parts of the target map are the values along the split axis
+            Note: the only important parts of the target map are the values along the split axis,
+            values which are not along this axis are there to mimic the shape of the lshape_map
 
         Returns
         -------
@@ -2099,7 +2100,28 @@ class DNDarray:
 
         Examples
         --------
-
+        >>> st = ht.ones((50, 81, 67), split=2)
+        >>> target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
+        >>> target_map[0, 2] = 67
+        >>> print(target_map)
+        [0/2] tensor([[ 0,  0, 67],
+        [0/2]         [ 0,  0,  0],
+        [0/2]         [ 0,  0,  0]], dtype=torch.int32)
+        [1/2] tensor([[ 0,  0, 67],
+        [1/2]         [ 0,  0,  0],
+        [1/2]         [ 0,  0,  0]], dtype=torch.int32)
+        [2/2] tensor([[ 0,  0, 67],
+        [2/2]         [ 0,  0,  0],
+        [2/2]         [ 0,  0,  0]], dtype=torch.int32)
+        >>> print(st.lshape)
+        [0/2] (50, 81, 23)
+        [1/2] (50, 81, 22)
+        [2/2] (50, 81, 22)
+        >>> st.redistribute_(target_map=target_map)
+        >>> print(st.lshape)
+        [0/2] (50, 81, 67)
+        [1/2] (50, 81, 0)
+        [2/2] (50, 81, 0)
         """
         if not self.is_distributed():
             return
