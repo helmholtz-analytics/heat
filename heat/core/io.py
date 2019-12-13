@@ -9,17 +9,13 @@ from . import devices
 from .stride_tricks import sanitize_axis
 from . import types
 
-__VALID_WRITE_MODES = frozenset(['w', 'a', 'r+'])
-__CSV_EXTENSION = frozenset(['.csv'])
-__HDF5_EXTENSIONS = frozenset(['.h5', '.hdf5'])
-__NETCDF_EXTENSIONS = frozenset(['.nc', '.nc4', 'netcdf'])
-__NETCDF_DIM_TEMPLATE = '{}_dim_{}'
+__VALID_WRITE_MODES = frozenset(["w", "a", "r+"])
+__CSV_EXTENSION = frozenset([".csv"])
+__HDF5_EXTENSIONS = frozenset([".h5", ".hdf5"])
+__NETCDF_EXTENSIONS = frozenset([".nc", ".nc4", "netcdf"])
+__NETCDF_DIM_TEMPLATE = "{}_dim_{}"
 
-__all__ = [
-    'load',
-    'load_csv',
-    'save'
-]
+__all__ = ["load", "load_csv", "save"]
 
 
 try:
@@ -28,16 +24,17 @@ except ImportError:
     # HDF5 support is optional
     def supports_hdf5():
         return False
+
+
 else:
     # warn the user about serial hdf5
     if not h5py.get_config().mpi and MPI_WORLD.rank == 0:
-        warnings.warn('h5py does not support parallel I/O, falling back to slower serial I/O', ImportWarning)
+        warnings.warn(
+            "h5py does not support parallel I/O, falling back to slower serial I/O", ImportWarning
+        )
 
     # add functions to exports
-    __all__.extend([
-        'load_hdf5',
-        'save_hdf5'
-    ])
+    __all__.extend(["load_hdf5", "save_hdf5"])
 
     def supports_hdf5():
         return True
@@ -85,11 +82,11 @@ else:
         (3,)
         """
         if not isinstance(path, str):
-            raise TypeError('path must be str, not {}'.format(type(path)))
+            raise TypeError("path must be str, not {}".format(type(path)))
         if not isinstance(dataset, str):
-            raise TypeError('dataset must be str, not {}'.format(type(dataset)))
+            raise TypeError("dataset must be str, not {}".format(type(dataset)))
         if split is not None and not isinstance(split, int):
-            raise TypeError('split must be None or int, not {}'.format(type(split)))
+            raise TypeError("split must be None or int, not {}".format(type(split)))
 
         # infer the type and communicator for the loaded array
         dtype = types.canonical_heat_type(dtype)
@@ -98,27 +95,36 @@ else:
         comm = sanitize_comm(comm)
 
         # actually load the data from the HDF5 file
-        with h5py.File(path, 'r') as handle:
+        with h5py.File(path, "r") as handle:
             data = handle[dataset]
             gshape = tuple(data.shape)
             dims = len(gshape)
             split = sanitize_axis(gshape, split)
             _, _, indices = comm.chunk(gshape, split)
-            if split is None: 
-                data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
-            elif indices[split].stop > indices[split].start: 
-                data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
-            else: 
-                warnings.warn('More MPI ranks are used then the length of splitting dimension!')
-                slice1 = tuple(slice(0, gshape[i]) if i != split else slice(0, 1) for i in range(dims)) 
-                slice2 = tuple(slice(0, gshape[i]) if i != split else slice(0, 0) for i in range(dims)) 
-                data = torch.tensor(data[slice1], dtype=dtype.torch_type(), device=device.torch_device)
+            if split is None:
+                data = torch.tensor(
+                    data[indices], dtype=dtype.torch_type(), device=device.torch_device
+                )
+            elif indices[split].stop > indices[split].start:
+                data = torch.tensor(
+                    data[indices], dtype=dtype.torch_type(), device=device.torch_device
+                )
+            else:
+                warnings.warn("More MPI ranks are used then the length of splitting dimension!")
+                slice1 = tuple(
+                    slice(0, gshape[i]) if i != split else slice(0, 1) for i in range(dims)
+                )
+                slice2 = tuple(
+                    slice(0, gshape[i]) if i != split else slice(0, 0) for i in range(dims)
+                )
+                data = torch.tensor(
+                    data[slice1], dtype=dtype.torch_type(), device=device.torch_device
+                )
                 data = data[slice2]
-                
+
             return dndarray.DNDarray(data, gshape, dtype, split, device, comm)
 
-
-    def save_hdf5(data, path, dataset, mode='w', **kwargs):
+    def save_hdf5(data, path, dataset, mode="w", **kwargs):
         """
         Saves data to an HDF5 file. Attempts to utilize parallel I/O if possible.
 
@@ -148,15 +154,17 @@ else:
         >>> ht.save_hdf5(a_range, 'data.h5', dataset='DATA')
         """
         if not isinstance(data, dndarray.DNDarray):
-            raise TypeError('data must be heat tensor, not {}'.format(type(data)))
+            raise TypeError("data must be heat tensor, not {}".format(type(data)))
         if not isinstance(path, str):
-            raise TypeError('path must be str, not {}'.format(type(path)))
+            raise TypeError("path must be str, not {}".format(type(path)))
         if not isinstance(dataset, str):
-            raise TypeError('dataset must be str, not {}'.format(type(path)))
+            raise TypeError("dataset must be str, not {}".format(type(path)))
 
         # we only support a subset of possible modes
         if mode not in __VALID_WRITE_MODES:
-            raise ValueError('mode was {}, not in possible modes {}'.format(mode, __VALID_WRITE_MODES))
+            raise ValueError(
+                "mode was {}, not in possible modes {}".format(mode, __VALID_WRITE_MODES)
+            )
 
         # chunk the data, if no split is set maximize parallel I/O and chunk first axis
         is_split = data.split is not None
@@ -164,9 +172,11 @@ else:
 
         # attempt to perform parallel I/O if possible
         if h5py.get_config().mpi:
-            with h5py.File(path, mode, driver='mpio', comm=data.comm.handle) as handle:
+            with h5py.File(path, mode, driver="mpio", comm=data.comm.handle) as handle:
                 dset = handle.create_dataset(dataset, data.shape, **kwargs)
-                dset[slices] = data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
+                dset[slices] = (
+                    data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
+                )
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
@@ -186,32 +196,38 @@ else:
         elif is_split:
             # wait for the previous rank to finish writing its chunk, then write own part
             data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
-            with h5py.File(path, 'r+') as handle:
+            with h5py.File(path, "r+") as handle:
                 handle[dataset][slices] = data._DNDarray__array.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
             next_rank = (data.comm.rank + 1) % data.comm.size
             data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
 
+
 try:
     import netCDF4 as nc
 except ImportError:
+
     def supports_netcdf():
         return False
+
+
 else:
-    __nc_has_par = nc.__dict__.get('__has_parallel4_support__', False) or \
-                   nc.__dict__.get('__has_pnetcdf_support__', False) or \
-                   nc.__dict__.get('__has_nc_par__', False)
+    __nc_has_par = (
+        nc.__dict__.get("__has_parallel4_support__", False)
+        or nc.__dict__.get("__has_pnetcdf_support__", False)
+        or nc.__dict__.get("__has_nc_par__", False)
+    )
 
     # warn the user about serial netcdf
     if not __nc_has_par and MPI_WORLD.rank == 0:
-        warnings.warn('netCDF4 does not support parallel I/O, falling back to slower serial I/O', ImportWarning)
+        warnings.warn(
+            "netCDF4 does not support parallel I/O, falling back to slower serial I/O",
+            ImportWarning,
+        )
 
     # add functions to visible exports
-    __all__.extend([
-        'load_netcdf',
-        'save_netcdf'
-    ])
+    __all__.extend(["load_netcdf", "save_netcdf"])
 
     def supports_netcdf():
         return True
@@ -259,11 +275,11 @@ else:
         (3,)
         """
         if not isinstance(path, str):
-            raise TypeError('path must be str, not {}'.format(type(path)))
+            raise TypeError("path must be str, not {}".format(type(path)))
         if not isinstance(variable, str):
-            raise TypeError('dataset must be str, not {}'.format(type(variable)))
+            raise TypeError("dataset must be str, not {}".format(type(variable)))
         if split is not None and not isinstance(split, int):
-            raise TypeError('split must be None or int, not {}'.format(type(split)))
+            raise TypeError("split must be None or int, not {}".format(type(split)))
 
         # infer the canonical heat datatype
         dtype = types.canonical_heat_type(dtype)
@@ -272,7 +288,7 @@ else:
         comm = sanitize_comm(comm)
 
         # actually load the data
-        with nc.Dataset(path, 'r', parallel=__nc_has_par, comm=comm.handle) as handle:
+        with nc.Dataset(path, "r", parallel=__nc_has_par, comm=comm.handle) as handle:
             data = handle[variable]
 
             # prepare meta information
@@ -282,14 +298,17 @@ else:
             # chunk up the data portion
             _, local_shape, indices = comm.chunk(gshape, split)
             if split is None or local_shape[split] > 0:
-                data = torch.tensor(data[indices], dtype=dtype.torch_type(), device=device.torch_device)
+                data = torch.tensor(
+                    data[indices], dtype=dtype.torch_type(), device=device.torch_device
+                )
             else:
-                data = torch.empty(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
+                data = torch.empty(
+                    local_shape, dtype=dtype.torch_type(), device=device.torch_device
+                )
 
             return dndarray.DNDarray(data, gshape, dtype, split, device, comm)
 
-
-    def save_netcdf(data, path, variable, mode='w', **kwargs):
+    def save_netcdf(data, path, variable, mode="w", **kwargs):
         """
         Saves data to a netCDF4 file. Attempts to utilize parallel I/O if possible.
 
@@ -319,15 +338,17 @@ else:
         >>> ht.save_netcdf(a_range, 'data.nc', dataset='DATA')
         """
         if not isinstance(data, dndarray.DNDarray):
-            raise TypeError('data must be heat tensor, not {}'.format(type(data)))
+            raise TypeError("data must be heat tensor, not {}".format(type(data)))
         if not isinstance(path, str):
-            raise TypeError('path must be str, not {}'.format(type(path)))
+            raise TypeError("path must be str, not {}".format(type(path)))
         if not isinstance(variable, str):
-            raise TypeError('variable must be str, not {}'.format(type(path)))
+            raise TypeError("variable must be str, not {}".format(type(path)))
 
         # we only support a subset of possible modes
         if mode not in __VALID_WRITE_MODES:
-            raise ValueError('mode was {}, not in possible modes {}'.format(mode, __VALID_WRITE_MODES))
+            raise ValueError(
+                "mode was {}, not in possible modes {}".format(mode, __VALID_WRITE_MODES)
+            )
 
         # chunk the data, if no split is set maximize parallel I/O and chunk first axis
         is_split = data.split is not None
@@ -343,7 +364,9 @@ else:
                     dimension_names.append(name)
 
                 var = handle.createVariable(variable, data.dtype.char(), dimension_names, **kwargs)
-                var[slices] = data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
+                var[slices] = (
+                    data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
+                )
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
@@ -354,7 +377,9 @@ else:
                     handle.createDimension(name, elements)
                     dimension_names.append(name)
 
-                var = handle.createVariable(variable, data.dtype.char(), tuple(dimension_names), **kwargs)
+                var = handle.createVariable(
+                    variable, data.dtype.char(), tuple(dimension_names), **kwargs
+                )
                 if is_split:
                     var[slices] = data._DNDarray__array.cpu()
                 else:
@@ -369,7 +394,7 @@ else:
         elif is_split:
             # wait for the previous rank to finish writing its chunk, then write own part
             data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
-            with nc.Dataset(path, 'r+') as handle:
+            with nc.Dataset(path, "r+") as handle:
                 handle[variable][slices] = data._DNDarray__array.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
@@ -407,7 +432,7 @@ def load(path, *args, **kwargs):
     tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
     """
     if not isinstance(path, str):
-        raise TypeError('Expected path to be str, but was {}'.format(type(path)))
+        raise TypeError("Expected path to be str, but was {}".format(type(path)))
     extension = os.path.splitext(path)[-1].strip().lower()
 
     if extension in __CSV_EXTENSION:
@@ -417,11 +442,19 @@ def load(path, *args, **kwargs):
     elif supports_netcdf() and extension in __NETCDF_EXTENSIONS:
         return load_netcdf(path, *args, **kwargs)
     else:
-        raise ValueError('Unsupported file extension {}'.format(extension))
+        raise ValueError("Unsupported file extension {}".format(extension))
 
 
-def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
-             encoding='UTF-8', split=None, device=None, comm=MPI_WORLD):
+def load_csv(
+    path,
+    header_lines=0,
+    sep=",",
+    dtype=types.float32,
+    encoding="UTF-8",
+    split=None,
+    device=None,
+    comm=MPI_WORLD,
+):
     """
     Loads data from an CSV file. The data will be distributed along the 0 axis.
 
@@ -486,13 +519,13 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
     [3/3] (35, 4)
     """
     if not isinstance(path, str):
-        raise TypeError('path must be str, not {}'.format(type(path)))
+        raise TypeError("path must be str, not {}".format(type(path)))
     if not isinstance(sep, str):
-        raise TypeError('separator must be str, not {}'.format(type(sep)))
+        raise TypeError("separator must be str, not {}".format(type(sep)))
     if not isinstance(header_lines, int):
-        raise TypeError('header_lines must int, not {}'.format(type(header_lines)))
+        raise TypeError("header_lines must int, not {}".format(type(header_lines)))
     if split not in [None, 0, 1]:
-        raise ValueError('split must be in [None, 0, 1], but is {}'.format(split))
+        raise ValueError("split must be in [None, 0, 1], but is {}".format(split))
 
     # infer the type and communicator for the loaded array
     dtype = types.canonical_heat_type(dtype)
@@ -504,34 +537,36 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
     rank = comm.rank
     size = comm.size
 
-    if split == None:
+    if split is None:
         with open(path) as f:
             data = f.readlines()
             data = data[header_lines:]
             result = []
             for i, line in enumerate(data):
-                values = line.replace('\n', '').replace('\r', '').split(sep)
+                values = line.replace("\n", "").replace("\r", "").split(sep)
                 values = [float(val) for val in values]
                 result.append(values)
-            resulting_tensor = factories.array(result, dtype=dtype, split=split, device=device, comm=comm)
+            resulting_tensor = factories.array(
+                result, dtype=dtype, split=split, device=device, comm=comm
+            )
 
     elif split == 0:
         counts, displs, _ = comm.counts_displs_shape((file_size, 1), 0)
         # in case lines are terminated with '\r\n' we need to skip 2 bytes later
         lineter_len = 1
         # Read a chunk of bytes and count the linebreaks
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             f.seek(displs[rank], 0)
             line_starts = []
             r = f.read(counts[rank])
             for pos, l in enumerate(r):
-                if chr(l) == '\n':
+                if chr(l) == "\n":
                     # Check if it is part of '\r\n'
-                    if not chr(r[pos - 1]) == '\r':
+                    if not chr(r[pos - 1]) == "\r":
                         line_starts.append(pos + 1)
-                elif chr(l) == '\r':
+                elif chr(l) == "\r":
                     # check if file line is terminated by '\r\n'
-                    if pos + 1 < len(r) and chr(r[pos + 1]) == '\n':
+                    if pos + 1 < len(r) and chr(r[pos + 1]) == "\n":
                         line_starts.append(pos + 2)
                         lineter_len = 2
                     else:
@@ -555,7 +590,7 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
             # Determine the number of columns that each line consists of
             if len(line_starts) > 1:
                 columns = 1
-                for l in r[line_starts[0]: line_starts[1]]:
+                for l in r[line_starts[0] : line_starts[1]]:
                     if chr(l) == sep:
                         columns += 1
             else:
@@ -570,6 +605,7 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
                 if rank == start:
                     last_line = torch.empty(1, dtype=torch.int32)
                     comm.Recv(last_line, source=rank + 1)
+                    last_line = last_line.item()
                 elif rank == size - 1:
                     first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
                     comm.Send(first_line, dest=rank - 1)
@@ -578,6 +614,7 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
                     first_line = torch.tensor(displs[rank] + line_starts[0] - 1, dtype=torch.int32)
                     comm.Send(first_line, dest=rank - 1)
                     comm.Recv(last_line, source=rank + 1)
+                    last_line = last_line.item()
 
             # Create empty tensor and iteratively fill it with the values
             local_shape = (len(line_starts), columns)
@@ -588,7 +625,7 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
                     f.seek(displs[rank] + start, 0)
                     line = f.read(last_line - displs[rank] - start)
                 else:
-                    line = r[start: line_starts[ind + 1] - lineter_len]
+                    line = r[start : line_starts[ind + 1] - lineter_len]
                 # Decode byte array
                 line = line.decode(encoding)
                 if len(line) > 0:
@@ -600,10 +637,8 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
         local_tensor = local_tensor[:actual_length]
 
         resulting_tensor = factories.array(
-            local_tensor,
-            dtype=dtype, is_split=0,
-            device=device,
-            comm=comm)
+            local_tensor, dtype=dtype, is_split=0, device=device, comm=comm
+        )
         resulting_tensor.balance_()
 
     elif split == 1:
@@ -613,17 +648,17 @@ def load_csv(path, header_lines=0, sep=',', dtype=types.float32,
             for i in range(header_lines):
                 f.readline()
             line = f.readline()
-            values = line.replace('\n', '').replace('\r', '').split(sep)
+            values = line.replace("\n", "").replace("\r", "").split(sep)
             values = [float(val) for val in values]
             rows = len(values)
 
             chunk, displs, _ = comm.counts_displs_shape((1, rows), 1)
-            data.append(values[displs[rank]: displs[rank] + chunk[rank]])
+            data.append(values[displs[rank] : displs[rank] + chunk[rank]])
             # Read file line by line till EOF reached
-            for line in iter(f.readline, ''):
-                values = line.replace('\n', '').replace('\r', '').split(sep)
+            for line in iter(f.readline, ""):
+                values = line.replace("\n", "").replace("\r", "").split(sep)
                 values = [float(val) for val in values]
-                data.append(values[displs[rank]: displs[rank] + chunk[rank]])
+                data.append(values[displs[rank] : displs[rank] + chunk[rank]])
         resulting_tensor = factories.array(data, dtype=dtype, is_split=1, device=device, comm=comm)
 
     return resulting_tensor
@@ -654,7 +689,7 @@ def save(data, path, *args, **kwargs):
     >>> ht.save(a_range, 'data.nc', 'DATA', mode='w')
     """
     if not isinstance(path, str):
-        raise TypeError('Expected path to be str, but was {}'.format(type(path)))
+        raise TypeError("Expected path to be str, but was {}".format(type(path)))
     extension = os.path.splitext(path)[-1].strip().lower()
 
     if supports_hdf5() and extension in __HDF5_EXTENSIONS:
@@ -662,7 +697,7 @@ def save(data, path, *args, **kwargs):
     elif supports_netcdf() and extension in __NETCDF_EXTENSIONS:
         save_netcdf(data, path, *args, **kwargs)
     else:
-        raise ValueError('Unsupported file extension {}'.format(extension))
+        raise ValueError("Unsupported file extension {}".format(extension))
 
 
 # tensor is imported at the very end to break circular dependency

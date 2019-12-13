@@ -16,14 +16,14 @@ class HeatInterpreter(code.InteractiveConsole):
         # remove the prompts on ranks other than zero
         self.rank = MPI.COMM_WORLD.rank
         if self.rank != 0:
-            sys.ps1 = ''
-            sys.ps2 = ''
+            sys.ps1 = ""
+            sys.ps2 = ""
 
     def interact(self):
         # sync up here to make sure stdin is properly forwarded
         MPI.COMM_WORLD.barrier()
         # remove the banner on all ranks other than zero
-        super().interact(banner='' if self.rank != 0 else None, exitmsg='')
+        super().interact(banner="" if self.rank != 0 else None, exitmsg="")
 
     def push(self, line):
         more = super().push(line)
@@ -33,7 +33,7 @@ class HeatInterpreter(code.InteractiveConsole):
         return more
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # bring up the "heat" interpreter
     interpreter = HeatInterpreter()
     interpreter.interact()

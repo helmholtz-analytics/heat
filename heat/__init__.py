@@ -1,5 +1,6 @@
 from . import core
 from .core import *
 from .core import __version__
-from . import ml
+from .core import cluster
+from .core import regression
 from . import utils

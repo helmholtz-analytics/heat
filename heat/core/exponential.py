@@ -2,16 +2,7 @@ import torch
 
 from . import operations
 
-__all__ = [
-    'exp',
-    'expm1',
-    'exp2',
-    'log',
-    'log2',
-    'log10',
-    'log1p',
-    'sqrt',
-]
+__all__ = ["exp", "expm1", "exp2", "log", "log2", "log10", "log1p", "sqrt"]
 
 
 def exp(x, out=None):
@@ -65,6 +56,7 @@ def expm1(x, out=None):
     """
     return operations.__local_op(torch.expm1, x, out)
 
+
 def exp2(x, out=None):
     """
     Calculate the exponential of all elements in the input array.
@@ -88,8 +80,10 @@ def exp2(x, out=None):
     >>> ht.exp2(ht.arange(5))
     tensor([ 1.,  2.,  4.,  8., 16.], dtype=torch.float64)
     """
+
     def local_exp2(xl, outl=None):
         return torch.pow(2, xl, out=outl)
+
     return operations.__local_op(local_exp2, x, out)
 
 
