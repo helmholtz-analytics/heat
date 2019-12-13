@@ -738,28 +738,6 @@ class DNDarray:
         """
         return rounding.ceil(self, out)
 
-    def create_lshape_map(self):
-        """
-        Generate a 'map' of the lshapes of the data on all processes.
-        Units -> (process rank, lshape)
-
-        Returns
-        -------
-        lshape_map : torch.Tensor
-            Units -> (process rank, lshape)
-        """
-        lshape_map = torch.zeros(
-            (self.comm.size, len(self.gshape)), dtype=int, device=self.__array.device
-        )
-        lshape_map[self.comm.rank, :] = torch.tensor(self.lshape, device=self.__array.device)
-        self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
-        return lshape_map
-
-    def create_square_diag_tiles(self, tiles_per_proc):
-        self.__tiles = tiling.SquareDiagTiles(
-            self, tiles_per_proc=tiles_per_proc
-        )  # type: tiling.SquareDiagTiles
-
     def clip(self, a_min, a_max, out=None):
         """
         Parameters
@@ -865,6 +843,23 @@ class DNDarray:
         self.__array = self.__array.cpu()
         return self
 
+    def create_lshape_map(self):
+        """
+        Generate a 'map' of the lshapes of the data on all processes.
+        Units -> (process rank, lshape)
+
+        Returns
+        -------
+        lshape_map : torch.Tensor
+            Units -> (process rank, lshape)
+        """
+        lshape_map = torch.zeros(
+            (self.comm.size, len(self.gshape)), dtype=int, device=self.device.torch_device
+        )
+        lshape_map[self.comm.rank, :] = torch.tensor(self.lshape, device=self.device.torch_device)
+        self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+        return lshape_map
+
     def __eq__(self, other):
         """
         Element-wise rich comparison of equality with values from second operand (scalar or tensor)
@@ -895,36 +890,6 @@ class DNDarray:
                 [0, 0]])
         """
         return relational.eq(self, other)
-
-    def __floordiv__(self, other):
-        """
-        Element-wise floor division (i.e. result is rounded int (floor))
-        of the tensor by another tensor or scalar. Takes the first tensor by which it divides the second
-        not-heat-typed-parameter.
-
-        Parameters
-        ----------
-        other: tensor or scalar
-            The second operand by whose values is divided
-
-        Return
-        ------
-        result: ht.tensor
-            A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
-
-        Examples:
-        ---------
-        >>> import heat as ht
-        >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
-        >>> T1 // 1
-        tensor([[1., 2.],
-                [1., 4.]])
-        >>> T2 = ht.float32([1.5, 2.5])
-        >>> T1 // T2
-        tensor([[1., 0.],
-                [1., 1.]])
-        """
-        return arithmetics.floordiv(self, other)
 
     def exp(self, out=None):
         """
@@ -1073,6 +1038,36 @@ class DNDarray:
         tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
         """
         return rounding.floor(self, out)
+
+    def __floordiv__(self, other):
+        """
+        Element-wise floor division (i.e. result is rounded int (floor))
+        of the tensor by another tensor or scalar. Takes the first tensor by which it divides the second
+        not-heat-typed-parameter.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+            The second operand by whose values is divided
+
+        Return
+        ------
+        result: ht.tensor
+            A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
+        >>> T1 // 1
+        tensor([[1., 2.],
+                [1., 4.]])
+        >>> T2 = ht.float32([1.5, 2.5])
+        >>> T1 // T2
+        tensor([[1., 0.],
+                [1., 1.]])
+        """
+        return arithmetics.floordiv(self, other)
 
     def fabs(self, out=None):
         """
@@ -2138,33 +2133,91 @@ class DNDarray:
 
         Parameters
         ----------
-        lshape_map : torch.Tensor
+        lshape_map : torch.Tensor, optional
             The current lshape of processes
-        target_map : torch.Tensor
+            Units -> [rank, lshape]
+        target_map : torch.Tensor, optional
+            The desired distribution across the processes
+            Units -> [rank, target lshape]
+            Note: the only important parts of the target map are the values along the split axis,
+            values which are not along this axis are there to mimic the shape of the lshape_map
 
         Returns
         -------
         None, the local shapes of the DNDarray are modified
+        Examples
+        --------
+        >>> st = ht.ones((50, 81, 67), split=2)
+        >>> target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
+        >>> target_map[0, 2] = 67
+        >>> print(target_map)
+        [0/2] tensor([[ 0,  0, 67],
+        [0/2]         [ 0,  0,  0],
+        [0/2]         [ 0,  0,  0]], dtype=torch.int32)
+        [1/2] tensor([[ 0,  0, 67],
+        [1/2]         [ 0,  0,  0],
+        [1/2]         [ 0,  0,  0]], dtype=torch.int32)
+        [2/2] tensor([[ 0,  0, 67],
+        [2/2]         [ 0,  0,  0],
+        [2/2]         [ 0,  0,  0]], dtype=torch.int32)
+        >>> print(st.lshape)
+        [0/2] (50, 81, 23)
+        [1/2] (50, 81, 22)
+        [2/2] (50, 81, 22)
+        >>> st.redistribute_(target_map=target_map)
+        >>> print(st.lshape)
+        [0/2] (50, 81, 67)
+        [1/2] (50, 81, 0)
+        [2/2] (50, 81, 0)
         """
+        if not self.is_distributed():
+            return
         snd_dtype = self.dtype.torch_type()
         # units -> {pr, 1st index, 2nd index}
         if lshape_map is None:
             # NOTE: giving an lshape map which is incorrect will result in an incorrect distribution
             lshape_map = self.create_lshape_map()
+        else:
+            if not isinstance(lshape_map, torch.Tensor):
+                raise TypeError(
+                    "lshape_map must be a torch.Tensor, currently {}".format(type(lshape_map))
+                )
+            if lshape_map.shape != (self.comm.size, len(self.gshape)):
+                raise ValueError(
+                    "lshape_map must have the shape ({}, {}), currently {}".format(
+                        self.comm.size, len(self.gshape), lshape_map.shape
+                    )
+                )
 
         if target_map is None:  # if no target map is given then it will balance the tensor
             target_map = torch.zeros(
-                (self.comm.size, len(self.gshape)), dtype=int, device=self.__array.device
+                (self.comm.size, len(self.gshape)), dtype=int, device=self.device.torch_device
             )
             _, _, chk = self.comm.chunk(self.shape, self.split)
             for i in range(len(self.gshape)):
                 target_map[self.comm.rank, i] = chk[i].stop - chk[i].start
             self.comm.Allreduce(MPI.IN_PLACE, target_map, MPI.SUM)
+        else:
+            if not isinstance(target_map, torch.Tensor):
+                raise TypeError(
+                    "target_map must be a torch.Tensor, currently {}".format(type(target_map))
+                )
+            if target_map[..., self.split].sum() != self.shape[self.split]:
+                raise ValueError(
+                    "Sum along the split axis of the target map must be equal to the "
+                    "shape in that dimension, currently {}".format(target_map[..., self.split])
+                )
+            if target_map.shape != (self.comm.size, len(self.gshape)):
+                raise ValueError(
+                    "target_map must have the shape {}, currently {}".format(
+                        (self.comm.size, len(self.gshape)), target_map.shape
+                    )
+                )
 
         lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
         chunk_cumsum = torch.cat(
             (
-                torch.tensor([0], device=self.__array.device),
+                torch.tensor([0], device=self.device.torch_device),
                 torch.cumsum(target_map[..., self.split], dim=0),
             ),
             dim=0,
@@ -2218,6 +2271,11 @@ class DNDarray:
                 lshape_cumsum[rcv_pr + 1] += send_amt
                 lshape_map[rcv_pr, self.split] -= send_amt
                 lshape_map[rcv_pr + 1, self.split] += send_amt
+
+        if any(lshape_map[..., self.split] != target_map[..., self.split]):
+            # sometimes need to call the redistribute once more,
+            # (in the case that the second to last processes needs to get data from +1 and -1)
+            self.redistribute_(lshape_map=lshape_map, target_map=target_map)
 
     def __redistribute_shuffle(self, snd_pr, send_amt, rcv_pr, snd_dtype):
         """
