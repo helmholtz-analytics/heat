@@ -863,7 +863,7 @@ class DNDarray:
         lshape_map = torch.zeros(
             (self.comm.size, len(self.gshape)), dtype=int, device=self.device.torch_device
         )
-        lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape, self.device)
+        lshape_map[self.comm.rank, :] = torch.tensor(self.lshape, device=self.device.torch_device)
         self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
         return lshape_map
 
