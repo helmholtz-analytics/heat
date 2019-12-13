@@ -860,8 +860,10 @@ class DNDarray:
         lshape_map : torch.Tensor
             Units -> (process rank, lshape)
         """
-        lshape_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
-        lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
+        lshape_map = torch.zeros(
+            (self.comm.size, len(self.gshape)), dtype=int, device=self.device.torch_device
+        )
+        lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape, self.device)
         self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
         return lshape_map
 
@@ -2094,6 +2096,10 @@ class DNDarray:
         Returns
         -------
         None, the local shapes of the DNDarray are modified
+
+        Examples
+        --------
+
         """
         if not self.is_distributed():
             return
@@ -2109,13 +2115,15 @@ class DNDarray:
                 )
             if lshape_map.shape != (self.comm.size, len(self.gshape)):
                 raise ValueError(
-                    "lshape_map must have the dimensions ({}, {}), currently {}".format(
+                    "lshape_map must have the shape ({}, {}), currently {}".format(
                         self.comm.size, len(self.gshape), lshape_map.shape
                     )
                 )
 
         if target_map is None:  # if no target map is given then it will balance the tensor
-            target_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
+            target_map = torch.zeros(
+                (self.comm.size, len(self.gshape)), dtype=int, device=self.device.torch_device
+            )
             _, _, chk = self.comm.chunk(self.shape, self.split)
             for i in range(len(self.gshape)):
                 target_map[self.comm.rank, i] = chk[i].stop - chk[i].start
@@ -2123,7 +2131,7 @@ class DNDarray:
         else:
             if not isinstance(target_map, torch.Tensor):
                 raise TypeError(
-                    "target_map must be a torch.Tensor, currently {}".format(type(lshape_map))
+                    "target_map must be a torch.Tensor, currently {}".format(type(target_map))
                 )
             if sum(target_map[..., self.split]) != self.shape[self.split]:
                 raise ValueError(
@@ -2132,14 +2140,18 @@ class DNDarray:
                 )
             if target_map.shape != (self.comm.size, len(self.gshape)):
                 raise ValueError(
-                    "target_map must have the dimensions {}, currently {}".format(
+                    "target_map must have the shape {}, currently {}".format(
                         (self.comm.size, len(self.gshape)), target_map.shape
                     )
                 )
 
         lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
         chunk_cumsum = torch.cat(
-            (torch.tensor([0]), torch.cumsum(target_map[..., self.split], dim=0)), dim=0
+            (
+                torch.tensor([0], device=self.device.torch_device),
+                torch.cumsum(target_map[..., self.split], dim=0),
+            ),
+            dim=0,
         )
         # need the data start as well for process 0
         for rcv_pr in range(self.comm.size - 1):

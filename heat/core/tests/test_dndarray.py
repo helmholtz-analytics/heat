@@ -308,9 +308,9 @@ class TestDNDarray(unittest.TestCase):
 
     def test_redistribute(self):
         # need to test with 1, 2, 3, and 4 dims
-        st = ht.zeros((50,), split=0)
+        st = ht.zeros((50,), split=0, device=ht_device)
         if st.comm.size >= 3:
-            target_map = torch.zeros((st.comm.size, 1), dtype=torch.int)
+            target_map = torch.zeros((st.comm.size, 1), dtype=torch.int, device=device)
             target_map[1] = 30
             target_map[2] = 20
             st.redistribute_(target_map=target_map)
@@ -321,8 +321,8 @@ class TestDNDarray(unittest.TestCase):
             else:
                 self.assertEqual(st.lshape, (0,))
 
-            st = ht.zeros((50, 50), split=1)
-            target_map = torch.zeros((st.comm.size, 2), dtype=torch.int)
+            st = ht.zeros((50, 50), split=1, device=ht_device)
+            target_map = torch.zeros((st.comm.size, 2), dtype=torch.int, device=device)
             target_map[0, 1] = 13
             target_map[2, 1] = 50 - 13
             st.redistribute_(target_map=target_map)
@@ -333,8 +333,8 @@ class TestDNDarray(unittest.TestCase):
             else:
                 self.assertEqual(st.lshape, (50, 0))
 
-            st = ht.zeros((50, 81, 67), split=2)
-            target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
+            st = ht.zeros((50, 81, 67), split=2, device=ht_device)
+            target_map = torch.zeros((st.comm.size, 3), dtype=torch.int, device=device)
             target_map[0, 2] = 67
             st.redistribute_(target_map=target_map)
             if st.comm.rank == 0:
@@ -342,13 +342,13 @@ class TestDNDarray(unittest.TestCase):
             else:
                 self.assertEqual(st.lshape, (50, 81, 0))
 
-            st = ht.zeros((8, 8, 8), split=None)
-            target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
+            st = ht.zeros((8, 8, 8), split=None, device=ht_device)
+            target_map = torch.zeros((st.comm.size, 3), dtype=torch.int, device=device)
             # this will do nothing!
             st.redistribute_(target_map=target_map)
             self.assertTrue(st.lshape, st.gshape)
 
-            st = ht.zeros((50, 81, 67), split=0)
+            st = ht.zeros((50, 81, 67), split=0, device=ht_device)
             with self.assertRaises(ValueError):
                 target_map *= 0
                 st.redistribute_(target_map=target_map)
