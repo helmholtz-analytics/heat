@@ -2155,7 +2155,7 @@ class DNDarray:
                 raise TypeError(
                     "target_map must be a torch.Tensor, currently {}".format(type(target_map))
                 )
-            if sum(target_map[..., self.split]) != self.shape[self.split]:
+            if target_map[..., self.split].sum() != self.shape[self.split]:
                 raise ValueError(
                     "Sum along the split axis of the target map must be equal to the "
                     "shape in that dimension, currently {}".format(target_map[..., self.split])
