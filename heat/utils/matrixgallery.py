@@ -1,10 +1,9 @@
 from .. import core
 
-__all__ = [
-    'parter'
-]
+__all__ = ["parter"]
 
-def parter(n,split=None,device=None,comm=None,dtype=core.float64):
+
+def parter(n, split=None, device=None, comm=None, dtype=core.float64):
     """
     Generates the Parter matrix
 
@@ -38,16 +37,16 @@ def parter(n,split=None,device=None,comm=None,dtype=core.float64):
     """
 
     if split is None:
-        a = core.arange(n,dtype=dtype,device=device,comm=comm)
-        I = a.expand_dims(0)
-        J = a.expand_dims(1)
+        a = core.arange(n, dtype=dtype, device=device, comm=comm)
+        II = a.expand_dims(0)
+        JJ = a.expand_dims(1)
     elif split == 0:
-        I = core.arange(n,dtype=dtype,device=device,comm=comm).expand_dims(0)
-        J = core.arange(n,dtype=dtype,split=split,device=device,comm=comm).expand_dims(1)
+        II = core.arange(n, dtype=dtype, device=device, comm=comm).expand_dims(0)
+        JJ = core.arange(n, dtype=dtype, split=split, device=device, comm=comm).expand_dims(1)
     elif split == 1:
-        I = core.arange(n,dtype=dtype,split=0,device=device,comm=comm).expand_dims(0)
-        J = core.arange(n,dtype=dtype,device=device,comm=comm).expand_dims(1)
+        II = core.arange(n, dtype=dtype, split=0, device=device, comm=comm).expand_dims(0)
+        JJ = core.arange(n, dtype=dtype, device=device, comm=comm).expand_dims(1)
     else:
         raise ValueError("expected split value to be either {{None,0,1}}, but was {}".format(split))
 
-    return 1.0 / (I - J + 0.5)
+    return 1.0 / (II - JJ + 0.5)
