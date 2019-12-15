@@ -96,7 +96,7 @@ class SquareDiagTiles:
         ----------
         arr : DNDarray
             the array to be tiled
-        tiles_per_proc : int
+        tiles_per_proc : int, optional
             Default = 2
             the number of divisions per process,
 
