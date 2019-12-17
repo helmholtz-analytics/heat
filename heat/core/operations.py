@@ -34,7 +34,6 @@ def __binary_op(operation, t1, t2):
     result: ht.DNDarray
         A tensor containing the results of element-wise operation.
     """
-
     if np.isscalar(t1):
         try:
             t1 = factories.array([t1])
@@ -53,6 +52,8 @@ def __binary_op(operation, t1, t2):
             output_device = None
             output_comm = MPI_WORLD
         elif isinstance(t2, dndarray.DNDarray):
+            if t1.device != t2.device:
+                t1 = t1.gpu()
             output_shape = t2.shape
             output_split = t2.split
             output_device = t2.device
@@ -68,7 +69,7 @@ def __binary_op(operation, t1, t2):
     elif isinstance(t1, dndarray.DNDarray):
         if np.isscalar(t2):
             try:
-                t2 = factories.array([t2])
+                t2 = factories.array([t2], device=t1.device)
                 output_shape = t1.shape
                 output_split = t1.split
                 output_device = t1.device
@@ -112,7 +113,9 @@ def __binary_op(operation, t1, t2):
                         "Broadcasting requires transferring data of first operator between MPI ranks!"
                     )
                     if t1.comm.rank > 0:
-                        t1._DNDarray__array = torch.zeros(t1.shape, dtype=t1.dtype.torch_type())
+                        t1._DNDarray__array = torch.zeros(
+                            t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
+                        )
                     t1.comm.Bcast(t1)
 
             if t2.split is not None:
@@ -121,7 +124,9 @@ def __binary_op(operation, t1, t2):
                         "Broadcasting requires transferring data of second operator between MPI ranks!"
                     )
                     if t2.comm.rank > 0:
-                        t2._DNDarray__array = torch.zeros(t2.shape, dtype=t2.dtype.torch_type())
+                        t2._DNDarray__array = torch.zeros(
+                            t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
+                        )
                     t2.comm.Bcast(t2)
 
         else:

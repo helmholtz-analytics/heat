@@ -157,7 +157,7 @@ def bitwise_or(t1, t2):
     tensor([ True,  True])
     """
     dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
-
+    print(dtypes[0], dtypes[1])
     for dtype in dtypes:
         if not (
             (dtype == types.bool)
@@ -287,7 +287,9 @@ def diff(a, n=1, axis=-1):
             cr_slice = [slice(None)] * len(a.shape)
             # slice of 1 element in the selected axis for the shape creation
             cr_slice[axis] = 1
-            recv_data = torch.ones(ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type())
+            recv_data = torch.ones(
+                ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type(), device=a.device.torch_device
+            )
             rec = ret.comm.Irecv(recv_data, source=rank + 1, tag=rank + 1)
             axis_slice_end = [slice(None)] * len(a.shape)
             # select the last elements in the selected axis
