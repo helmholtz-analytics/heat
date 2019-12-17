@@ -157,7 +157,7 @@ def bitwise_or(t1, t2):
     tensor([ True,  True])
     """
     dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
-    print(dtypes[0], dtypes[1])
+
     for dtype in dtypes:
         if not (
             (dtype == types.bool)
