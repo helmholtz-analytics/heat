@@ -47,14 +47,22 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(as_float64._DNDarray__array.dtype, torch.float64)
         self.assertIs(as_float64, data)
 
-    def test_balance_(self):
+    def test_balance_and_lshape_map(self):
         data = ht.zeros((70, 20), split=0, device=ht_device)
         data = data[:50]
+        lshape_map = data.create_lshape_map()
+        self.assertEqual(sum(lshape_map[..., 0]), 50)
+        if sum(data.lshape) == 0:
+            self.assertTrue(all(lshape_map[data.comm.rank] == 0))
         data.balance_()
         self.assertTrue(data.is_balanced())
 
         data = ht.zeros((4, 120), split=1, device=ht_device)
         data = data[:, 40:70]
+        lshape_map = data.create_lshape_map()
+        self.assertEqual(sum(lshape_map[..., 1]), 30)
+        if sum(data.lshape) == 0:
+            self.assertTrue(all(lshape_map[data.comm.rank] == 0))
         data.balance_()
         self.assertTrue(data.is_balanced())
 
@@ -297,6 +305,62 @@ class TestDNDarray(unittest.TestCase):
         a = ht.ones((10, 8), dtype=ht.int64, device=ht_device)
         b = np.ones((2, 2)).astype("int64")
         self.assertEqual(a.numpy().dtype, b.dtype)
+
+    def test_redistribute(self):
+        # need to test with 1, 2, 3, and 4 dims
+        st = ht.zeros((50,), split=0, device=ht_device)
+        if st.comm.size >= 3:
+            target_map = torch.zeros((st.comm.size, 1), dtype=torch.int, device=device)
+            target_map[1] = 30
+            target_map[2] = 20
+            st.redistribute_(target_map=target_map)
+            if st.comm.rank == 1:
+                self.assertEqual(st.lshape, (30,))
+            elif st.comm.rank == 2:
+                self.assertEqual(st.lshape, (20,))
+            else:
+                self.assertEqual(st.lshape, (0,))
+
+            st = ht.zeros((50, 50), split=1, device=ht_device)
+            target_map = torch.zeros((st.comm.size, 2), dtype=torch.int, device=device)
+            target_map[0, 1] = 13
+            target_map[2, 1] = 50 - 13
+            st.redistribute_(target_map=target_map)
+            if st.comm.rank == 0:
+                self.assertEqual(st.lshape, (50, 13))
+            elif st.comm.rank == 2:
+                self.assertEqual(st.lshape, (50, 50 - 13))
+            else:
+                self.assertEqual(st.lshape, (50, 0))
+
+            st = ht.zeros((50, 81, 67), split=2, device=ht_device)
+            target_map = torch.zeros((st.comm.size, 3), dtype=torch.int, device=device)
+            target_map[0, 2] = 67
+            st.redistribute_(target_map=target_map)
+            if st.comm.rank == 0:
+                self.assertEqual(st.lshape, (50, 81, 67))
+            else:
+                self.assertEqual(st.lshape, (50, 81, 0))
+
+            st = ht.zeros((8, 8, 8), split=None, device=ht_device)
+            target_map = torch.zeros((st.comm.size, 3), dtype=torch.int, device=device)
+            # this will do nothing!
+            st.redistribute_(target_map=target_map)
+            self.assertTrue(st.lshape, st.gshape)
+
+            st = ht.zeros((50, 81, 67), split=0, device=ht_device)
+            with self.assertRaises(ValueError):
+                target_map *= 0
+                st.redistribute_(target_map=target_map)
+
+            with self.assertRaises(TypeError):
+                st.redistribute_(target_map="sdfibn")
+            with self.assertRaises(TypeError):
+                st.redistribute_(lshape_map="sdfibn")
+            with self.assertRaises(ValueError):
+                st.redistribute_(lshape_map=torch.zeros(2))
+            with self.assertRaises(ValueError):
+                st.redistribute_(target_map=torch.zeros((2, 4)))
 
     def test_resplit(self):
         # resplitting with same axis, should leave everything unchanged
