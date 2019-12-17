@@ -392,7 +392,6 @@ def diag(a, offset=0):
         padding = factories.empty(
             (offset,), dtype=a.dtype, split=None, device=a.device, comm=a.comm
         )
-        print("padding", padding.comm)
         a = concatenate((a, padding))
         indices_x = torch.arange(0, min(lshape[0], max(gshape[0] - off - offset, 0)))
     elif offset < 0:
