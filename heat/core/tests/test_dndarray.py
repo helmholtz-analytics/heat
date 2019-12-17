@@ -216,6 +216,19 @@ class TestDNDarray(unittest.TestCase):
             with self.assertRaises(TypeError):
                 int(ht.full((ht.MPI_WORLD.size,), 2, split=0, device=ht_device))
 
+    def test_invert(self):
+        int_tensor = ht.array([[0, 1], [2, -2]])
+        bool_tensor = ht.array([[False, True], [True, False]])
+        float_tensor = ht.array([[0.4, 1.3], [1.3, -2.1]])
+        int_result = ht.array([[-1, -2], [-3, 1]])
+        bool_result = ht.array([[True, False], [False, True]])
+
+        self.assertTrue(ht.equal(~int_tensor, int_result))
+        self.assertTrue(ht.equal(~bool_tensor, bool_result))
+
+        with self.assertRaises(TypeError):
+            ~float_tensor
+
     def test_is_balanced(self):
         data = ht.zeros((70, 20), split=0, device=ht_device)
         if data.comm.size != 1:
@@ -280,6 +293,17 @@ class TestDNDarray(unittest.TestCase):
         a.lloc[3:7:2, 2:5:2] = 1
         self.assertTrue(torch.all(a._DNDarray__array[3:7:2, 2:5:2] == 1))
         self.assertEqual(a.lloc[3:7:2, 2:5:2].dtype, torch.float32)
+
+    def test_lshift(self):
+        int_tensor = ht.array([[0, 1], [2, 3]])
+        int_result = ht.array([[0, 4], [8, 12]])
+
+        self.assertTrue(ht.equal(int_tensor << 2, int_result))
+
+        with self.assertRaises(TypeError):
+            int_tensor << 2.4
+        with self.assertRaises(TypeError):
+            ht.array([True]) << 2
 
     def test_numpy(self):
         # ToDo: numpy does not work for distributed tensors du to issue#
@@ -476,6 +500,17 @@ class TestDNDarray(unittest.TestCase):
         self.assertIsNone(data.split)
         self.assertEqual(data.dtype, ht.uint8)
         self.assertEqual(data._DNDarray__array.dtype, expected.dtype)
+
+    def test_rshift(self):
+        int_tensor = ht.array([[0, 2], [4, 8]])
+        int_result = ht.array([[0, 0], [1, 2]])
+
+        self.assertTrue(ht.equal(int_tensor >> 2, int_result))
+
+        with self.assertRaises(TypeError):
+            int_tensor >> 2.4
+        with self.assertRaises(TypeError):
+            ht.array([True]) >> 2
 
     def test_setitem_getitem(self):
         # set and get single value

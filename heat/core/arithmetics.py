@@ -453,10 +453,7 @@ def invert(t, out=None):
     ):
         raise TypeError("Operation is supported for bool and int types only")
 
-    if isinstance(t, dndarray.DNDarray):
-        return operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
-    else:
-        return ~t
+    return operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
 
 
 # alias for invert
