@@ -15,6 +15,7 @@ from . import memory
 from . import relational
 from . import rounding
 from . import statistics
+from . import tiling
 from . import trigonometrics
 from . import types
 
@@ -50,6 +51,7 @@ class DNDarray:
         self.__split = split
         self.__device = device
         self.__comm = comm
+        self.__tiles = None
 
         # handle inconsistencies between torch and heat devices
         if isinstance(self.__array, torch.Tensor):
@@ -205,6 +207,17 @@ class DNDarray:
     @property
     def T(self, axes=None):
         return linalg.transpose(self, axes)
+
+    @property
+    def tiles(self):
+        """
+        Tiling object is either None or a class defined in the tiling file
+
+        Returns
+        -------
+        either None or the tiling class object
+        """
+        return self.__tiles
 
     def item(self):
         """
@@ -866,6 +879,26 @@ class DNDarray:
         lshape_map[self.comm.rank, :] = torch.tensor(self.lshape, device=self.device.torch_device)
         self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
         return lshape_map
+
+    def create_square_diag_tiles(self, tiles_per_proc=None):
+        """
+        Create the tiles for the DNDarray as defined by the tiling.SquareDiagTiles class. These
+        tiles can be accessed as a property. For more imformation on these tiles see
+        :func:`SquareDiagTiles <tiling.SquareDaigTiles>`.
+
+        Parameters
+        ----------
+        tiles_per_proc : int, optional
+            Default = 2 (see :func:`SquareDiagTiles <tiling.SquareDaigTiles>`)
+            the number of divisions per process,
+
+        Returns
+        -------
+        None
+        """
+        self.__tiles = tiling.SquareDiagTiles(
+            self, tiles_per_proc=tiles_per_proc
+        )  # type: tiling.SquareDiagTiles
 
     def __floordiv__(self, other):
         """
