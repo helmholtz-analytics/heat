@@ -389,25 +389,20 @@ def diag(a, offset=0):
 
     # This ensures that the data is on the correct nodes
     if offset > 0:
-        print("first", a.comm)
         padding = factories.empty(
             (offset,), dtype=a.dtype, split=None, device=a.device, comm=a.comm
         )
-        print("padding", padding.comm)
         a = concatenate((a, padding))
         indices_x = torch.arange(0, min(lshape[0], max(gshape[0] - off - offset, 0)))
     elif offset < 0:
-        print("first", a.comm)
         padding = factories.empty(
             (abs(offset),), dtype=a.dtype, split=None, device=a.device, comm=a.comm
         )
-        print("padding", padding.comm)
         a = concatenate((padding, a))
         indices_x = torch.arange(max(0, min(abs(offset) - off, lshape[0])), lshape[0])
     else:
         # Offset = 0 values on main diagonal
         indices_x = torch.arange(0, lshape[0])
-    print("second", a.comm)
 
     indices_y = indices_x + off + offset
     a.balance_()
