@@ -52,8 +52,8 @@ def __binary_op(operation, t1, t2):
             output_device = None
             output_comm = MPI_WORLD
         elif isinstance(t2, dndarray.DNDarray):
-            if t1.device != t2.device:
-                t1 = t1.gpu()
+            t1.gpu() if t2.device.device_type == "gpu" else t1.cpu()
+
             output_shape = t2.shape
             output_split = t2.split
             output_device = t2.device
