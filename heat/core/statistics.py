@@ -670,8 +670,15 @@ def mean(x, axis=None):
     Returns
     -------
     means : ht.DNDarray
-        The mean/s, if split, then split in the same direction as x, if possible. If axis > split
-        then the split is reduced by 1. If axis == split, then the resulting DNDarray is split None.
+        The mean/s, if split, then split in the same direction as x, if possible. Fpr more
+        information on the split semantics see Notes.
+
+    Notes
+    -----
+    Split semantics when axis is an integer:
+        if axis = x.split, then means.split = None
+        if axis > split, then means.split = x.split
+        if axis < split, then means.split = x.split - 1
 
     Examples
     --------
@@ -706,7 +713,7 @@ def mean(x, axis=None):
         """
         Function to combine the calculated means together.
         This does an element-wise update of the calculated means to merge them together using the
-        merge_means function. This function operates using x from the mean function paramters.
+        merge_means function. This function operates using x from the mean function parameters.
 
         Parameters
         ----------
@@ -734,7 +741,6 @@ def mean(x, axis=None):
 
         for i in range(1, x.comm.size):
             mu_tot[0, :], n_tot[0] = merge_means(mu_tot[0, :], n_tot[0], mu_tot[i, :], n_tot[i])
-        # print(mu_tot[0].size)
         return mu_tot[0][0] if mu_tot[0].size == 1 else mu_tot[0]
 
     # ----------------------------------------------------------------------------------------------
@@ -767,7 +773,7 @@ def mean(x, axis=None):
     if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
         if any([not isinstance(j, int) for j in axis]):
             raise ValueError(
-                "items in axis itterable must be integers, axes: {}".format([type(q) for q in axis])
+                "items in axis iterable must be integers, axes: {}".format([type(q) for q in axis])
             )
         if any(d < 0 for d in axis):
             axis = [stride_tricks.sanitize_axis(x.shape, j) for j in axis]
@@ -1221,8 +1227,15 @@ def var(x, axis=None, bessel=True):
     Returns
     -------
     variances : ht.DNDarray
-        The var/s, if split, then split in the same direction as x, if possible. If axis > split
-        then the split is reduced by 1. If axis == split, then the resulting DNDarray is split None.
+        The var/s, if split, then split in the same direction as x, if possible. Fpr more
+        information on the split semantics see Notes.
+
+    Notes
+    -----
+    Split semantics when axis is an integer:
+        if axis = x.split, then variances.split = None
+        if axis > split, then variances.split = x.split
+        if axis < split, then variances.split = x.split - 1
 
     Examples
     --------
