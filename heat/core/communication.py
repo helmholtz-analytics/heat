@@ -117,7 +117,7 @@ class MPICommunication(Communication):
         chunk = size // w_size
         remainder = size % w_size
 
-        if remainder > self.rank:
+        if remainder > rank:
             chunk += 1
             start = rank * chunk
         else:
