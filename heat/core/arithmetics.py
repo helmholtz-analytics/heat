@@ -108,15 +108,8 @@ def bitwise_and(t1, t2):
     dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
 
     for dtype in dtypes:
-        if not (
-            (dtype == types.bool)
-            or (dtype == types.int8)
-            or (dtype == types.uint8)
-            or (dtype == types.int16)
-            or (dtype == types.int32)
-            or (dtype == types.int64)
-        ):
-            raise TypeError("Operation is supported for bool and int types only")
+        if types.heat_type_is_inexact(dtype):
+            raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__and__, t1, t2)
 
@@ -159,15 +152,8 @@ def bitwise_or(t1, t2):
     dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
 
     for dtype in dtypes:
-        if not (
-            (dtype == types.bool)
-            or (dtype == types.int8)
-            or (dtype == types.uint8)
-            or (dtype == types.int16)
-            or (dtype == types.int32)
-            or (dtype == types.int64)
-        ):
-            raise TypeError("Operation is supported for bool and int types only")
+        if types.heat_type_is_inexact(dtype):
+            raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__or__, t1, t2)
 
@@ -205,15 +191,8 @@ def bitwise_xor(t1, t2):
     dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
 
     for dtype in dtypes:
-        if not (
-            (dtype == types.bool)
-            or (dtype == types.int8)
-            or (dtype == types.uint8)
-            or (dtype == types.int16)
-            or (dtype == types.int32)
-            or (dtype == types.int64)
-        ):
-            raise TypeError("Operation is supported for bool and int types only")
+        if types.heat_type_is_inexact(dtype):
+            raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__xor__, t1, t2)
 
@@ -443,15 +422,8 @@ def invert(t, out=None):
     """
     dtype = types.heat_type_of(t)
 
-    if not (
-        (dtype == types.bool)
-        or (dtype == types.int8)
-        or (dtype == types.uint8)
-        or (dtype == types.int16)
-        or (dtype == types.int32)
-        or (dtype == types.int64)
-    ):
-        raise TypeError("Operation is supported for bool and int types only")
+    if types.heat_type_is_inexact(dtype):
+        raise TypeError("Operation is not supported for float types")
 
     return operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
 
@@ -484,13 +456,7 @@ def left_shift(t1, t2):
     dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
 
     for dtype in dtypes:
-        if not (
-            (dtype == types.int8)
-            or (dtype == types.uint8)
-            or (dtype == types.int16)
-            or (dtype == types.int32)
-            or (dtype == types.int64)
-        ):
+        if not types.heat_type_is_exact(dtype):
             raise TypeError("Operation is supported for integer types only")
 
     return operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
@@ -686,13 +652,7 @@ def right_shift(t1, t2):
     dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
 
     for dtype in dtypes:
-        if not (
-            (dtype == types.int8)
-            or (dtype == types.uint8)
-            or (dtype == types.int16)
-            or (dtype == types.int32)
-            or (dtype == types.int64)
-        ):
+        if not types.heat_type_is_exact(dtype):
             raise TypeError("Operation is supported for integer types only")
 
     return operations.__binary_op(torch.Tensor.__rshift__, t1, t2)

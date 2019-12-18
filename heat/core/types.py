@@ -306,6 +306,40 @@ def canonical_heat_type(a_type):
         raise TypeError("data type {} is not understood".format(a_type))
 
 
+def heat_type_is_exact(ht_dtype):
+    """
+    Check if HeAT type is an exact type, i.e an integer type
+
+    Parameters
+    ----------
+    ht_dtype: ht.dtype
+        HeAT type to check
+
+    Returns
+    -------
+    out: bool
+        True if ht_dtype is an integer, False otherwise
+    """
+    return ht_dtype in _exact
+
+
+def heat_type_is_inexact(ht_dtype):
+    """
+    Check if HeAT type is an inexact type, i.e floating point type
+
+    Parameters
+    ----------
+    ht_dtype: ht.dtype
+        HeAT type to check
+
+    Returns
+    -------
+    out: bool
+        True if ht_dtype is a float, False otherwise
+    """
+    return ht_dtype in _inexact
+
+
 def heat_type_of(obj):
     """
     Returns the corresponding HeAT data type of given object, i.e. scalar, array or iterable. Attempts to determine the
