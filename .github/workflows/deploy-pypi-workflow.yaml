@@ -10,8 +10,8 @@ jobs:
     name: Publish code to PyPi
     runs-on: ubuntu-latest
     steps:
-      - uses: action/checkout@v2
-      - uses: action/setup-python@v1
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v1
         with:
           python-version: 3.x
       - name: Install Wheel
