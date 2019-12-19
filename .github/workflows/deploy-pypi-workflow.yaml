@@ -9,6 +9,7 @@ jobs:
   publish-code:
     name: Publish code to PyPi
     runs-on: ubuntu-latest
+    container: docker://simonsdockerid/heat_fedora
     steps:
       - uses: action/checkout@master
       - name: Build Package
