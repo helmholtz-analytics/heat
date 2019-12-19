@@ -243,7 +243,9 @@ def diff(a, n=1, axis=-1):
             cr_slice = [slice(None)] * len(a.shape)
             # slice of 1 element in the selected axis for the shape creation
             cr_slice[axis] = 1
-            recv_data = torch.ones(ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type())
+            recv_data = torch.ones(
+                ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type(), device=a.device.torch_device
+            )
             rec = ret.comm.Irecv(recv_data, source=rank + 1, tag=rank + 1)
             axis_slice_end = [slice(None)] * len(a.shape)
             # select the last elements in the selected axis

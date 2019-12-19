@@ -118,7 +118,7 @@ class HeatLasso:
         _, n = X.shape
 
         # Initialize model parameters
-        theta = ht.zeros((n, 1), dtype=float)
+        theta = ht.zeros((n, 1), dtype=float, device=X.device)
 
         # Looping until max number of iterations or convergence
         for i in range(self.max_iter):
@@ -435,7 +435,7 @@ class PytorchLasso:
         _, n = X.shape
 
         # Initialize model parameters
-        theta = torch.zeros(n, 1)
+        theta = torch.zeros(n, 1, device=X.device)
         # Looping until max number of iterations or convergence
         for i in range(self.max_iter):
 
