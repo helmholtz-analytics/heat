@@ -9,13 +9,16 @@ jobs:
   publish-code:
     name: Publish code to PyPi
     runs-on: ubuntu-latest
-    container: docker://simonsdockerid/heat_fedora
     steps:
       - uses: action/checkout@master
+      - uses: action/setup-python@master
+        with:
+          - python-version: 3.x
+      - name: Install Wheel
+        run: pip install wheel
       - name: Build Package
-        shell: bash
         run: python setup.py sdist bdist_wheel
       - uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
-          password: ${{ secrets.PYPI_TOKEN }}
+          password: 'wrong password'
