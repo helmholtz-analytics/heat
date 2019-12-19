@@ -96,7 +96,8 @@ def argmax(x, axis=None, out=None, **kwargs):
     # perform the global reduction
     # TODO: define neutral_element for local_argmax
     reduced_result = operations.__reduce_op(
-        x, local_argmax, MPI_ARGMAX, axis=axis, out=None, neutral=torch.ones, **kwargs
+        x, local_argmax, MPI_ARGMAX, axis=axis, out=None, #neutral=torch.ones,
+         **kwargs
     )
 
     # correct the tensor

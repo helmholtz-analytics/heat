@@ -403,6 +403,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
         neutral_partial = neutral_element(neutral_shape)
 
     partial = x._DNDarray__array if not no_data else neutral_partial
+    print("partial = ", partial)
 
     if axis is None:
         partial = partial_op(partial).reshape(-1)
