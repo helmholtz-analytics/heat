@@ -176,7 +176,7 @@ def argmin(x, axis=None, out=None, **kwargs):
             minimums = args[0].flatten()[indices]
 
             # artificially flatten the input tensor shape to correct the offset computation
-            axis = x.split
+            axis = None
             shape = [np.prod(shape)]
         # usual case where indices and minimum values are both returned. Axis is not equal to None
         else:
