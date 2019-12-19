@@ -66,7 +66,9 @@ def all(x, axis=None, out=None, keepdim=None):
     def local_all(t, *args, **kwargs):
         return torch.all(t != 0, *args, **kwargs)
 
-    return operations.__reduce_op(x, local_all, MPI.LAND, axis=axis, out=out, keepdim=keepdim)
+    return operations.__reduce_op(
+        x, local_all, MPI.LAND, axis=axis, out=out, neutral=torch.ones, keepdim=keepdim
+    )
 
 
 def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
@@ -206,4 +208,7 @@ def any(x, axis=None, out=None, keepdim=False):
     def local_any(t, *args, **kwargs):
         return torch.any(t != 0, *args, **kwargs)
 
-    return operations.__reduce_op(x, local_any, MPI.LOR, axis=axis, out=out, keepdim=keepdim)
+    return operations.__reduce_op(
+        x, local_any, MPI.LOR, axis=axis, out=out, neutral=torch.ones, keepdim=keepdim
+    )
+
