@@ -257,7 +257,7 @@ class TestArithmetics(unittest.TestCase):
 
     def test_invert(self):
         int8_tensor = ht.array([[0, 1], [2, -2]], dtype=ht.int8)
-        uint8_tensor = ht.array([[23, 2], [45, 234]], dtype=ht.int8)
+        uint8_tensor = ht.array([[23, 2], [45, 234]], dtype=ht.uint8)
         bool_tensor = ht.array([[False, True], [True, False]])
         float_tensor = ht.array([[0.4, 1.3], [1.3, -2.1]])
         int8_result = ht.array([[-1, -2], [-3, 1]])
