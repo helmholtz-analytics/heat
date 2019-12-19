@@ -211,4 +211,3 @@ def any(x, axis=None, out=None, keepdim=False):
     return operations.__reduce_op(
         x, local_any, MPI.LOR, axis=axis, out=out, neutral=torch.ones, keepdim=keepdim
     )
-

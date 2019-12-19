@@ -684,4 +684,3 @@ def sum(x, axis=None, out=None, keepdim=None):
     return operations.__reduce_op(
         x, torch.sum, MPI.SUM, axis=axis, out=out, neutral=torch.zeros, keepdim=keepdim
     )
-
