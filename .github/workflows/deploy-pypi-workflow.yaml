@@ -1,4 +1,4 @@
-name: Unit Tests Workflow
+name: Deploy to PyPi
 
 on:
   push:
