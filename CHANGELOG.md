@@ -1,3 +1,7 @@
+#v0.2.1
+
+This version fixes the packaging, such that installed versions of HeAT contain all required Python packages.
+
 #v0.2.0
 
 This version varies greatly from the previous version (0.1.0). This version includes a great increase in
