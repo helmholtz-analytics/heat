@@ -95,8 +95,9 @@ def argmax(x, axis=None, out=None, **kwargs):
         raise TypeError("axis must be None or int, but was {}".format(type(axis)))
 
     # perform the global reduction
+    #TODO: define neutral_element for local_argmax
     reduced_result = operations.__reduce_op(
-        x, local_argmax, MPI_ARGMAX, axis=axis, out=None, **kwargs
+        x, local_argmax, MPI_ARGMAX, axis=axis, out=None, neutral=torch.ones, **kwargs
     )
 
     # correct the tensor
@@ -196,7 +197,7 @@ def argmin(x, axis=None, out=None, **kwargs):
 
     # perform the global reduction
     reduced_result = operations.__reduce_op(
-        x, local_argmin, MPI_ARGMIN, axis=axis, out=None, **kwargs
+        x, local_argmin, MPI_ARGMIN, axis=axis, out=None, neutral=torch.ones, **kwargs
     )
 
     # correct the tensor
@@ -509,7 +510,7 @@ def max(x, axis=None, out=None, keepdim=None):
             result = result[0]
         return result
 
-    return operations.__reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
+    return operations.__reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, neutral=torch.ones, keepdim=keepdim)
 
 
 def maximum(x1, x2, out=None):
@@ -981,7 +982,7 @@ def min(x, axis=None, out=None, keepdim=None):
             result = result[0]
         return result
 
-    return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
+    return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, neutral=torch.ones, keepdim=keepdim)
 
 
 def minimum(x1, x2, out=None):
