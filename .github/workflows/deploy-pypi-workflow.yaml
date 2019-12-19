@@ -10,6 +10,11 @@ jobs:
     name: Publish code to PyPi
     runs-on: ubuntu-latest
     steps:
+      - uses: action/checkout@master
+      - name: Build Package
+        shell: bash
+        run: python setup.py sdist bdist_wheel
       - uses: pypa/gh-action-pypi-publish@master
         with:
           user: __token__
+          password: ${{ secrets.PYPI_TOKEN }}
