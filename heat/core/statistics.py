@@ -70,14 +70,13 @@ def argmax(x, axis=None, out=None, **kwargs):
         axis = kwargs.get("dim", -1)
         shape = x.shape
 
-        # case where the argmin axis is set to None
-        # argmin will be the flattened index, computed standalone and the actual minimum value obtain separately
+        # case where the argmax axis is set to None
+        # argmax will be the flattened index, computed standalone and the actual maximum value obtain separately
         if len(args) <= 1 and axis < 0:
             indices = torch.argmax(*args, **kwargs).reshape(1)
             maxima = args[0].flatten()[indices]
-
             # artificially flatten the input tensor shape to correct the offset computation
-            axis = x.split
+            axis = 0
             shape = [np.prod(shape)]
         # usual case where indices and maximum values are both returned. Axis is not equal to None
         else:
@@ -178,7 +177,7 @@ def argmin(x, axis=None, out=None, **kwargs):
             minimums = args[0].flatten()[indices]
 
             # artificially flatten the input tensor shape to correct the offset computation
-            axis = x.split
+            axis = 0
             shape = [np.prod(shape)]
         # usual case where indices and minimum values are both returned. Axis is not equal to None
         else:
