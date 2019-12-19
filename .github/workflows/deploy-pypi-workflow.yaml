@@ -1,0 +1,15 @@
+name: Unit Tests Workflow
+
+on:
+  push:
+    tags:
+      - '**'
+
+jobs:
+  publish-code:
+    name: Publish code to PyPi
+    runs-on: ubuntu-latest
+    steps:
+      - uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
