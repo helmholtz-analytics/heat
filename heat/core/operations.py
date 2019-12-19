@@ -385,18 +385,33 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
 
     # no further checking needed, sanitize axis will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape, kwargs.get("axis"))
-    split = x.split
     keepdim = kwargs.get("keepdim")
+    split = x.split
+    no_data = False
+    # check if local tensor is empty
+    if split is not None:
+        no_data = x.lshape[split] == 0
+    if no_data:
+        # local tensor contains no data, replace with neutral element
+        neutral_element = kwargs.get("neutral")
+        if neutral_element is None:
+            # warnings.warn(
+            #    "Local tensor has no data and argument 'neutral' is None. Setting 'neutral' to torch.ones"
+            # )
+            neutral_element = torch.ones
+        neutral_shape = x.lshape[:split] + (1,) + x.lshape[split + 1 :]
+        neutral_partial = neutral_element(neutral_shape)
+
+    partial = x._DNDarray__array if not no_data else neutral_partial
 
     if axis is None:
-        partial = partial_op(x._DNDarray__array).reshape(-1)
+        partial = partial_op(partial).reshape(-1)
         output_shape = (1,)
     else:
         if isinstance(axis, int):
             axis = (axis,)
 
-        if isinstance(axis, tuple):
-            partial = x._DNDarray__array
+        if isinstance(axis, tuple):  # TODO: do we need this check at all?? axis has been sanitized
             output_shape = x.gshape
             for dim in axis:
                 partial = partial_op(partial, dim=dim, keepdim=True)
