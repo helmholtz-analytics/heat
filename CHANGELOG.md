@@ -1,6 +1,6 @@
 #v0.2.0
 
-This version varies greatly from the previous version (0.5.0). This version includes a great increase in
+This version varies greatly from the previous version (0.1.0). This version includes a great increase in
 functionality and there are many changes. Many functions which were working previously now behave more closely
 to their numpy counterparts. Although a large amount of progress has been made, work is still ongoing. We
 appreciate everyone who uses this package and we work hard to solve the issues which you report to us. Thank you!
@@ -22,7 +22,7 @@ Additions
 ##GPU Support
 [#415](https://github.com/helmholtz-analytics/heat/pull/415) GPU support was added for this release. To set the default device use `ht.use_device(dev)` where `dev` can be either
 "gpu" or "cpu". Make sure to specify the device when creating DNDarrays if the desired device is different than the
-defualt. If no device is specified then that device is assumed to be "cpu".
+default. If no device is specified then that device is assumed to be "cpu".
 
 ####Basic Operations
 - [#308](https://github.com/helmholtz-analytics/heat/pull/308) balance
@@ -30,7 +30,7 @@ defualt. If no device is specified then that device is assumed to be "cpu".
 - [#412](https://github.com/helmholtz-analytics/heat/pull/412) diag and diagonal
 - [#388](https://github.com/helmholtz-analytics/heat/pull/388) diff
 - [#362](https://github.com/helmholtz-analytics/heat/pull/362) distributed random numbers
-- [#327](https://github.com/helmholtz-analytics/heat/pull/327) exponenets and logarithms
+- [#327](https://github.com/helmholtz-analytics/heat/pull/327) exponents and logarithms
 - [#423](https://github.com/helmholtz-analytics/heat/pull/423) Fortran memory layout
 - [#330](https://github.com/helmholtz-analytics/heat/pull/330) load csv
 - [#326](https://github.com/helmholtz-analytics/heat/pull/326) maximum
