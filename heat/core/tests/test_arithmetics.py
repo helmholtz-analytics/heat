@@ -256,14 +256,17 @@ class TestArithmetics(unittest.TestCase):
             ht.fmod("T", "s")
 
     def test_invert(self):
-        int_tensor = ht.array([[0, 1], [2, -2]])
+        int8_tensor = ht.array([[0, 1], [2, -2]], dtype=ht.int8)
+        uint8_tensor = ht.array([[23, 2], [45, 234]], dtype=ht.int8)
         bool_tensor = ht.array([[False, True], [True, False]])
         float_tensor = ht.array([[0.4, 1.3], [1.3, -2.1]])
-        int_result = ht.array([[-1, -2], [-3, 1]])
+        int8_result = ht.array([[-1, -2], [-3, 1]])
+        uint8_result = ht.array([[232, 253], [210, 21]])
         bool_result = ht.array([[True, False], [False, True]])
 
-        self.assertTrue(ht.equal(ht.invert(int_tensor), int_result))
-        self.assertTrue(ht.equal(ht.invert(int_tensor.copy().resplit_(0)), int_result))
+        self.assertTrue(ht.equal(ht.invert(int8_tensor), int8_result))
+        self.assertTrue(ht.equal(ht.invert(int8_tensor.copy().resplit_(0)), int8_result))
+        self.assertTrue(ht.equal(ht.invert(uint8_tensor), uint8_result))
         self.assertTrue(ht.equal(ht.invert(bool_tensor), bool_result))
 
         with self.assertRaises(TypeError):
