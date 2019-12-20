@@ -384,98 +384,98 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.average(ht_array, axis=-4)
 
-    # def test_max(self):
-    #     data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
+    def test_max(self):
+        data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
-    #     ht_array = ht.array(data, device=ht_device)
-    #     comparison = torch.tensor(data, device=device)
+        ht_array = ht.array(data, device=ht_device)
+        comparison = torch.tensor(data, device=device)
 
-    #     # check global max
-    #     maximum = ht.max(ht_array)
+        # check global max
+        maximum = ht.max(ht_array)
 
-    #     self.assertIsInstance(maximum, ht.DNDarray)
-    #     self.assertEqual(maximum.shape, (1,))
-    #     self.assertEqual(maximum.lshape, (1,))
-    #     self.assertEqual(maximum.split, None)
-    #     self.assertEqual(maximum.dtype, ht.int64)
-    #     self.assertEqual(maximum._DNDarray__array.dtype, torch.int64)
-    #     self.assertEqual(maximum, 12)
+        self.assertIsInstance(maximum, ht.DNDarray)
+        self.assertEqual(maximum.shape, (1,))
+        self.assertEqual(maximum.lshape, (1,))
+        self.assertEqual(maximum.split, None)
+        self.assertEqual(maximum.dtype, ht.int64)
+        self.assertEqual(maximum._DNDarray__array.dtype, torch.int64)
+        self.assertEqual(maximum, 12)
 
-    #     # maximum along first axis
-    #     maximum_vertical = ht.max(ht_array, axis=0)
+        # maximum along first axis
+        maximum_vertical = ht.max(ht_array, axis=0)
 
-    #     self.assertIsInstance(maximum_vertical, ht.DNDarray)
-    #     self.assertEqual(maximum_vertical.shape, (3,))
-    #     self.assertEqual(maximum_vertical.lshape, (3,))
-    #     self.assertEqual(maximum_vertical.split, None)
-    #     self.assertEqual(maximum_vertical.dtype, ht.int64)
-    #     self.assertEqual(maximum_vertical._DNDarray__array.dtype, torch.int64)
-    #     self.assertTrue(
-    #         (maximum_vertical._DNDarray__array == comparison.max(dim=0, keepdim=True)[0]).all()
-    #     )
+        self.assertIsInstance(maximum_vertical, ht.DNDarray)
+        self.assertEqual(maximum_vertical.shape, (3,))
+        self.assertEqual(maximum_vertical.lshape, (3,))
+        self.assertEqual(maximum_vertical.split, None)
+        self.assertEqual(maximum_vertical.dtype, ht.int64)
+        self.assertEqual(maximum_vertical._DNDarray__array.dtype, torch.int64)
+        self.assertTrue(
+            (maximum_vertical._DNDarray__array == comparison.max(dim=0, keepdim=True)[0]).all()
+        )
 
-    #     # maximum along second axis
-    #     maximum_horizontal = ht.max(ht_array, axis=1, keepdim=True)
+        # maximum along second axis
+        maximum_horizontal = ht.max(ht_array, axis=1, keepdim=True)
 
-    #     self.assertIsInstance(maximum_horizontal, ht.DNDarray)
-    #     self.assertEqual(maximum_horizontal.shape, (4, 1))
-    #     self.assertEqual(maximum_horizontal.lshape, (4, 1))
-    #     self.assertEqual(maximum_horizontal.split, None)
-    #     self.assertEqual(maximum_horizontal.dtype, ht.int64)
-    #     self.assertEqual(maximum_horizontal._DNDarray__array.dtype, torch.int64)
-    #     self.assertTrue(
-    #         (maximum_horizontal._DNDarray__array == comparison.max(dim=1, keepdim=True)[0]).all()
-    #     )
+        self.assertIsInstance(maximum_horizontal, ht.DNDarray)
+        self.assertEqual(maximum_horizontal.shape, (4, 1))
+        self.assertEqual(maximum_horizontal.lshape, (4, 1))
+        self.assertEqual(maximum_horizontal.split, None)
+        self.assertEqual(maximum_horizontal.dtype, ht.int64)
+        self.assertEqual(maximum_horizontal._DNDarray__array.dtype, torch.int64)
+        self.assertTrue(
+            (maximum_horizontal._DNDarray__array == comparison.max(dim=1, keepdim=True)[0]).all()
+        )
 
-    #     # check max over all float elements of split 3d tensor, across split axis
-    #     random_volume = ht.random.randn(3, 3, 3, split=1, device=ht_device)
-    #     maximum_volume = ht.max(random_volume, axis=1)
+        # check max over all float elements of split 3d tensor, across split axis
+        random_volume = ht.random.randn(3, 3, 3, split=1, device=ht_device)
+        maximum_volume = ht.max(random_volume, axis=1)
 
-    #     self.assertIsInstance(maximum_volume, ht.DNDarray)
-    #     self.assertEqual(maximum_volume.shape, (3, 3))
-    #     self.assertEqual(maximum_volume.lshape, (3, 3))
-    #     self.assertEqual(maximum_volume.dtype, ht.float64)
-    #     self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float64)
-    #     self.assertEqual(maximum_volume.split, None)
+        self.assertIsInstance(maximum_volume, ht.DNDarray)
+        self.assertEqual(maximum_volume.shape, (3, 3))
+        self.assertEqual(maximum_volume.lshape, (3, 3))
+        self.assertEqual(maximum_volume.dtype, ht.float64)
+        self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(maximum_volume.split, None)
 
-    #     # check max over all float elements of split 3d tensor, tuple axis
-    #     random_volume = ht.random.randn(3, 3, 3, split=0, device=ht_device)
-    #     maximum_volume = ht.max(random_volume, axis=(1, 2))
-    #     alt_maximum_volume = ht.max(random_volume, axis=(2, 1))
+        # check max over all float elements of split 3d tensor, tuple axis
+        random_volume = ht.random.randn(3, 3, 3, split=0, device=ht_device)
+        maximum_volume = ht.max(random_volume, axis=(1, 2))
+        alt_maximum_volume = ht.max(random_volume, axis=(2, 1))
 
-    #     self.assertIsInstance(maximum_volume, ht.DNDarray)
-    #     self.assertEqual(maximum_volume.shape, (3,))
-    #     self.assertEqual(maximum_volume.dtype, ht.float64)
-    #     self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float64)
-    #     self.assertEqual(maximum_volume.split, 0)
-    #     self.assertTrue((maximum_volume == alt_maximum_volume).all())
+        self.assertIsInstance(maximum_volume, ht.DNDarray)
+        self.assertEqual(maximum_volume.shape, (3,))
+        self.assertEqual(maximum_volume.dtype, ht.float64)
+        self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(maximum_volume.split, 0)
+        #self.assertTrue((maximum_volume == alt_maximum_volume).all())
 
-    #     # check max over all float elements of split 5d tensor, along split axis
-    #     random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0, device=ht_device)
-    #     maximum_5d = ht.max(random_5d, axis=1)
+        # check max over all float elements of split 5d tensor, along split axis
+        random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0, device=ht_device)
+        maximum_5d = ht.max(random_5d, axis=1)
 
-    #     self.assertIsInstance(maximum_5d, ht.DNDarray)
-    #     self.assertEqual(maximum_5d.shape, (1, 3, 4, 5))
-    #     self.assertLessEqual(maximum_5d.lshape[1], 3)
-    #     self.assertEqual(maximum_5d.dtype, ht.float64)
-    #     self.assertEqual(maximum_5d._DNDarray__array.dtype, torch.float64)
-    #     self.assertEqual(maximum_5d.split, 0)
+        self.assertIsInstance(maximum_5d, ht.DNDarray)
+        self.assertEqual(maximum_5d.shape, (1, 3, 4, 5))
+        self.assertLessEqual(maximum_5d.lshape[1], 3)
+        self.assertEqual(maximum_5d.dtype, ht.float64)
+        self.assertEqual(maximum_5d._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(maximum_5d.split, 0)
 
-    #     # Calculating max with empty local vectors works
-    #     size = ht.MPI_WORLD.size
-    #     if size > 1:
-    #         a = ht.arange(size - 1, split=0, device=ht_device)
-    #         res = ht.max(a)
-    #         expected = torch.tensor([size - 2], dtype=a.dtype.torch_type(), device=device)
-    #         self.assertTrue(torch.equal(res._DNDarray__array, expected))
+        # Calculating max with empty local vectors works
+        size = ht.MPI_WORLD.size
+        if size > 1:
+            a = ht.arange(size - 1, split=0, device=ht_device)
+            res = ht.max(a)
+            expected = torch.tensor([size - 2], dtype=a.dtype.torch_type(), device=device)
+            self.assertTrue(torch.equal(res._DNDarray__array, expected))
 
-    #     # check exceptions
-    #     with self.assertRaises(TypeError):
-    #         ht_array.max(axis=1.1)
-    #     with self.assertRaises(TypeError):
-    #         ht_array.max(axis="y")
-    #     with self.assertRaises(ValueError):
-    #         ht.max(ht_array, axis=-4)
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht_array.max(axis=1.1)
+        with self.assertRaises(TypeError):
+            ht_array.max(axis="y")
+        with self.assertRaises(ValueError):
+            ht.max(ht_array, axis=-4)
 
     def test_maximum(self):
         data1 = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
