@@ -448,7 +448,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(maximum_volume.dtype, ht.float64)
         self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float64)
         self.assertEqual(maximum_volume.split, 0)
-        #self.assertTrue((maximum_volume == alt_maximum_volume).all())
+        # self.assertTrue((maximum_volume == alt_maximum_volume).all())
 
         # check max over all float elements of split 5d tensor, along split axis
         random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0, device=ht_device)
