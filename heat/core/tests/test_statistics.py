@@ -19,186 +19,186 @@ if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
 
 
 class TestStatistics(unittest.TestCase):
-    def test_argmax(self):
-        torch.manual_seed(1)
-        data = ht.random.randn(3, 4, 5, device=ht_device)
+    # def test_argmax(self):
+    #     torch.manual_seed(1)
+    #     data = ht.random.randn(3, 4, 5, device=ht_device)
 
-        # 3D local tensor, major axis
-        result = ht.argmax(data, axis=0)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (4, 5))
-        self.assertEqual(result.lshape, (4, 5))
-        self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmax(0)).all())
+    #     # 3D local tensor, major axis
+    #     result = ht.argmax(data, axis=0)
+    #     self.assertIsInstance(result, ht.DNDarray)
+    #     self.assertEqual(result.dtype, ht.int64)
+    #     self.assertEqual(result._DNDarray__array.dtype, torch.int64)
+    #     self.assertEqual(result.shape, (4, 5))
+    #     self.assertEqual(result.lshape, (4, 5))
+    #     self.assertEqual(result.split, None)
+    #     self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmax(0)).all())
 
-        # 3D local tensor, minor axis
-        result = ht.argmax(data, axis=-1, keepdim=True)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (3, 4, 1))
-        self.assertEqual(result.lshape, (3, 4, 1))
-        self.assertEqual(result.split, None)
-        self.assertTrue(
-            (result._DNDarray__array == data._DNDarray__array.argmax(-1, keepdim=True)).all()
-        )
+    #     # 3D local tensor, minor axis
+    #     result = ht.argmax(data, axis=-1, keepdim=True)
+    #     self.assertIsInstance(result, ht.DNDarray)
+    #     self.assertEqual(result.dtype, ht.int64)
+    #     self.assertEqual(result._DNDarray__array.dtype, torch.int64)
+    #     self.assertEqual(result.shape, (3, 4, 1))
+    #     self.assertEqual(result.lshape, (3, 4, 1))
+    #     self.assertEqual(result.split, None)
+    #     self.assertTrue(
+    #         (result._DNDarray__array == data._DNDarray__array.argmax(-1, keepdim=True)).all()
+    #     )
 
-        # 1D split tensor, no axis
-        data = ht.arange(-10, 10, split=0, device=ht_device)
-        result = ht.argmax(data)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (1,))
-        self.assertEqual(result.lshape, (1,))
-        self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == torch.tensor([19], device=device)))
+    #     # 1D split tensor, no axis
+    #     data = ht.arange(-10, 10, split=0, device=ht_device)
+    #     result = ht.argmax(data)
+    #     self.assertIsInstance(result, ht.DNDarray)
+    #     self.assertEqual(result.dtype, ht.int64)
+    #     self.assertEqual(result._DNDarray__array.dtype, torch.int64)
+    #     self.assertEqual(result.shape, (1,))
+    #     self.assertEqual(result.lshape, (1,))
+    #     self.assertEqual(result.split, None)
+    #     self.assertTrue((result._DNDarray__array == torch.tensor([19], device=device)))
 
-        # 2D split tensor, along the axis
-        data = ht.array(ht.random.randn(4, 5, device=ht_device), is_split=0, device=ht_device)
-        result = ht.argmax(data, axis=1)
-        expected = torch.argmax(data._DNDarray__array, dim=1)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
-        self.assertEqual(result.lshape, (4,))
-        self.assertEqual(result.split, 0)
-        self.assertTrue((result._DNDarray__array == expected).all())
+    #     # 2D split tensor, along the axis
+    #     data = ht.array(ht.random.randn(4, 5, device=ht_device), is_split=0, device=ht_device)
+    #     result = ht.argmax(data, axis=1)
+    #     expected = torch.argmax(data._DNDarray__array, dim=1)
+    #     self.assertIsInstance(result, ht.DNDarray)
+    #     self.assertEqual(result.dtype, ht.int64)
+    #     self.assertEqual(result._DNDarray__array.dtype, torch.int64)
+    #     self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
+    #     self.assertEqual(result.lshape, (4,))
+    #     self.assertEqual(result.split, 0)
+    #     self.assertTrue((result._DNDarray__array == expected).all())
 
-        # 2D split tensor, across the axis
-        size = ht.MPI_WORLD.size * 2
-        data = ht.tril(ht.ones((size, size), split=0, device=ht_device), k=-1)
+    #     # 2D split tensor, across the axis
+    #     size = ht.MPI_WORLD.size * 2
+    #     data = ht.tril(ht.ones((size, size), split=0, device=ht_device), k=-1)
 
-        result = ht.argmax(data, axis=0)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (size,))
-        self.assertEqual(result.lshape, (size,))
-        self.assertEqual(result.split, None)
-        # skip test on gpu; argmax works different
-        if not (torch.cuda.is_available() and result.device == ht.gpu):
-            self.assertTrue((result._DNDarray__array != 0).all())
+    #     result = ht.argmax(data, axis=0)
+    #     self.assertIsInstance(result, ht.DNDarray)
+    #     self.assertEqual(result.dtype, ht.int64)
+    #     self.assertEqual(result._DNDarray__array.dtype, torch.int64)
+    #     self.assertEqual(result.shape, (size,))
+    #     self.assertEqual(result.lshape, (size,))
+    #     self.assertEqual(result.split, None)
+    #     # skip test on gpu; argmax works different
+    #     if not (torch.cuda.is_available() and result.device == ht.gpu):
+    #         self.assertTrue((result._DNDarray__array != 0).all())
 
-        # 2D split tensor, across the axis, output tensor
-        size = ht.MPI_WORLD.size * 2
-        data = ht.tril(ht.ones((size, size), split=0, device=ht_device), k=-1)
+    #     # 2D split tensor, across the axis, output tensor
+    #     size = ht.MPI_WORLD.size * 2
+    #     data = ht.tril(ht.ones((size, size), split=0, device=ht_device), k=-1)
 
-        output = ht.empty((size,), device=ht_device)
-        result = ht.argmax(data, axis=0, out=output)
+    #     output = ht.empty((size,), device=ht_device)
+    #     result = ht.argmax(data, axis=0, out=output)
 
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(output.dtype, ht.int64)
-        self.assertEqual(output._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(output.shape, (size,))
-        self.assertEqual(output.lshape, (size,))
-        self.assertEqual(output.split, None)
-        # skip test on gpu; argmax works different
-        if not (torch.cuda.is_available() and output.device == ht.gpu):
-            self.assertTrue((output._DNDarray__array != 0).all())
+    #     self.assertIsInstance(result, ht.DNDarray)
+    #     self.assertEqual(output.dtype, ht.int64)
+    #     self.assertEqual(output._DNDarray__array.dtype, torch.int64)
+    #     self.assertEqual(output.shape, (size,))
+    #     self.assertEqual(output.lshape, (size,))
+    #     self.assertEqual(output.split, None)
+    #     # skip test on gpu; argmax works different
+    #     if not (torch.cuda.is_available() and output.device == ht.gpu):
+    #         self.assertTrue((output._DNDarray__array != 0).all())
 
-        # check exceptions
-        with self.assertRaises(TypeError):
-            data.argmax(axis=(0, 1))
-        with self.assertRaises(TypeError):
-            data.argmax(axis=1.1)
-        with self.assertRaises(TypeError):
-            data.argmax(axis="y")
-        with self.assertRaises(ValueError):
-            ht.argmax(data, axis=-4)
+    #     # check exceptions
+    #     with self.assertRaises(TypeError):
+    #         data.argmax(axis=(0, 1))
+    #     with self.assertRaises(TypeError):
+    #         data.argmax(axis=1.1)
+    #     with self.assertRaises(TypeError):
+    #         data.argmax(axis="y")
+    #     with self.assertRaises(ValueError):
+    #         ht.argmax(data, axis=-4)
 
-    def test_argmin(self):
-        torch.manual_seed(1)
-        data = ht.random.randn(3, 4, 5, device=ht_device)
+    # def test_argmin(self):
+    #     torch.manual_seed(1)
+    #     data = ht.random.randn(3, 4, 5, device=ht_device)
 
-        # 3D local tensor, no axis
-        result = ht.argmin(data)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (1,))
-        self.assertEqual(result.lshape, (1,))
-        self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmin()).all())
+    #     # 3D local tensor, no axis
+    #     result = ht.argmin(data)
+    #     self.assertIsInstance(result, ht.DNDarray)
+    #     self.assertEqual(result.dtype, ht.int64)
+    #     self.assertEqual(result._DNDarray__array.dtype, torch.int64)
+    #     self.assertEqual(result.shape, (1,))
+    #     self.assertEqual(result.lshape, (1,))
+    #     self.assertEqual(result.split, None)
+    #     self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmin()).all())
 
-        # 3D local tensor, major axis
-        result = ht.argmin(data, axis=0)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (4, 5))
-        self.assertEqual(result.lshape, (4, 5))
-        self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmin(0)).all())
+    #     # 3D local tensor, major axis
+    #     result = ht.argmin(data, axis=0)
+    #     self.assertIsInstance(result, ht.DNDarray)
+    #     self.assertEqual(result.dtype, ht.int64)
+    #     self.assertEqual(result._DNDarray__array.dtype, torch.int64)
+    #     self.assertEqual(result.shape, (4, 5))
+    #     self.assertEqual(result.lshape, (4, 5))
+    #     self.assertEqual(result.split, None)
+    #     self.assertTrue((result._DNDarray__array == data._DNDarray__array.argmin(0)).all())
 
-        # 3D local tensor, minor axis
-        result = ht.argmin(data, axis=-1, keepdim=True)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (3, 4, 1))
-        self.assertEqual(result.lshape, (3, 4, 1))
-        self.assertEqual(result.split, None)
-        self.assertTrue(
-            (result._DNDarray__array == data._DNDarray__array.argmin(-1, keepdim=True)).all()
-        )
+    #     # 3D local tensor, minor axis
+    #     result = ht.argmin(data, axis=-1, keepdim=True)
+    #     self.assertIsInstance(result, ht.DNDarray)
+    #     self.assertEqual(result.dtype, ht.int64)
+    #     self.assertEqual(result._DNDarray__array.dtype, torch.int64)
+    #     self.assertEqual(result.shape, (3, 4, 1))
+    #     self.assertEqual(result.lshape, (3, 4, 1))
+    #     self.assertEqual(result.split, None)
+    #     self.assertTrue(
+    #         (result._DNDarray__array == data._DNDarray__array.argmin(-1, keepdim=True)).all()
+    #     )
 
-        # 2D split tensor, along the axis
-        data = ht.array(ht.random.randn(4, 5), is_split=0, device=ht_device)
-        result = ht.argmin(data, axis=1)
-        expected = torch.argmin(data._DNDarray__array, dim=1)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
-        self.assertEqual(result.lshape, (4,))
-        self.assertEqual(result.split, 0)
-        self.assertTrue((result._DNDarray__array == expected).all())
+    #     # 2D split tensor, along the axis
+    #     data = ht.array(ht.random.randn(4, 5), is_split=0, device=ht_device)
+    #     result = ht.argmin(data, axis=1)
+    #     expected = torch.argmin(data._DNDarray__array, dim=1)
+    #     self.assertIsInstance(result, ht.DNDarray)
+    #     self.assertEqual(result.dtype, ht.int64)
+    #     self.assertEqual(result._DNDarray__array.dtype, torch.int64)
+    #     self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
+    #     self.assertEqual(result.lshape, (4,))
+    #     self.assertEqual(result.split, 0)
+    #     self.assertTrue((result._DNDarray__array == expected).all())
 
-        # 2D split tensor, across the axis
-        size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((size, size), split=0, device=ht_device), k=1)
+    #     # 2D split tensor, across the axis
+    #     size = ht.MPI_WORLD.size * 2
+    #     data = ht.triu(ht.ones((size, size), split=0, device=ht_device), k=1)
 
-        result = ht.argmin(data, axis=0)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.int64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(result.shape, (size,))
-        self.assertEqual(result.lshape, (size,))
-        self.assertEqual(result.split, None)
-        # skip test on gpu; argmin works different
-        if not (torch.cuda.is_available() and result.device == ht.gpu):
-            self.assertTrue((result._DNDarray__array != 0).all())
+    #     result = ht.argmin(data, axis=0)
+    #     self.assertIsInstance(result, ht.DNDarray)
+    #     self.assertEqual(result.dtype, ht.int64)
+    #     self.assertEqual(result._DNDarray__array.dtype, torch.int64)
+    #     self.assertEqual(result.shape, (size,))
+    #     self.assertEqual(result.lshape, (size,))
+    #     self.assertEqual(result.split, None)
+    #     # skip test on gpu; argmin works different
+    #     if not (torch.cuda.is_available() and result.device == ht.gpu):
+    #         self.assertTrue((result._DNDarray__array != 0).all())
 
-        # 2D split tensor, across the axis, output tensor
-        size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((size, size), split=0, device=ht_device), k=1)
+    #     # 2D split tensor, across the axis, output tensor
+    #     size = ht.MPI_WORLD.size * 2
+    #     data = ht.triu(ht.ones((size, size), split=0, device=ht_device), k=1)
 
-        output = ht.empty((size,), device=ht_device)
-        result = ht.argmin(data, axis=0, out=output)
+    #     output = ht.empty((size,), device=ht_device)
+    #     result = ht.argmin(data, axis=0, out=output)
 
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(output.dtype, ht.int64)
-        self.assertEqual(output._DNDarray__array.dtype, torch.int64)
-        self.assertEqual(output.shape, (size,))
-        self.assertEqual(output.lshape, (size,))
-        self.assertEqual(output.split, None)
-        # skip test on gpu; argmin works different
-        if not (torch.cuda.is_available() and output.device == ht.gpu):
-            self.assertTrue((output._DNDarray__array != 0).all())
+    #     self.assertIsInstance(result, ht.DNDarray)
+    #     self.assertEqual(output.dtype, ht.int64)
+    #     self.assertEqual(output._DNDarray__array.dtype, torch.int64)
+    #     self.assertEqual(output.shape, (size,))
+    #     self.assertEqual(output.lshape, (size,))
+    #     self.assertEqual(output.split, None)
+    #     # skip test on gpu; argmin works different
+    #     if not (torch.cuda.is_available() and output.device == ht.gpu):
+    #         self.assertTrue((output._DNDarray__array != 0).all())
 
-        # check exceptions
-        with self.assertRaises(TypeError):
-            data.argmin(axis=(0, 1))
-        with self.assertRaises(TypeError):
-            data.argmin(axis=1.1)
-        with self.assertRaises(TypeError):
-            data.argmin(axis="y")
-        with self.assertRaises(ValueError):
-            ht.argmin(data, axis=-4)
+    #     # check exceptions
+    #     with self.assertRaises(TypeError):
+    #         data.argmin(axis=(0, 1))
+    #     with self.assertRaises(TypeError):
+    #         data.argmin(axis=1.1)
+    #     with self.assertRaises(TypeError):
+    #         data.argmin(axis="y")
+    #     with self.assertRaises(ValueError):
+    #         ht.argmin(data, axis=-4)
 
     def test_cov(self):
         x = ht.array([[0, 2], [1, 1], [2, 0]], dtype=ht.float, split=1, device=ht_device).T
