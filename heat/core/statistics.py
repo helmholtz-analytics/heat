@@ -739,7 +739,7 @@ def mean(x, axis=None):
         x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
-            mu_tot[0, :], n_tot[0] = merge_means(mu_tot[0, :], n_tot[0], mu_tot[i, :], n_tot[i])
+            mu_tot[0, :], n_tot[0] = merge_moments((mu_tot[0, :], n_tot[0]), (mu_tot[i, :], n_tot[i]))
         return mu_tot[0][0] if mu_tot[0].size == 1 else mu_tot[0]
 
     # ----------------------------------------------------------------------------------------------
@@ -763,7 +763,7 @@ def mean(x, axis=None):
             x.comm.Allreduce(mu_proc, mu_tot, MPI.SUM)
 
             for i in range(1, x.comm.size):
-                merged = merge_means(mu_tot[0, 0], mu_tot[0, 1], mu_tot[i, 0], mu_tot[i, 1])
+                merged = merge_moments((mu_tot[0, 0], mu_tot[0, 1]), (mu_tot[i, 0], mu_tot[i, 1]))
                 mu_tot[0, 0] = merged[0]
                 mu_tot[0, 1] = merged[1]
             return mu_tot[0][0]
@@ -822,63 +822,27 @@ def mean(x, axis=None):
     )
 
 
-def merge_means(mu1, n1, mu2, n2):
+def merge_moments(m1, m2, bessel=True):
     """
-    Function to merge two means by pairwise update.
-    **Note** all tensors/arrays must be either the same size or individual values (can be mixed, i.e. n can be a float)
+    Merge two statistical moments. If the length of m1/m2 (must be equal) is == 3 then the second moment (variance)
+    is merged. This function can be expanded to merge other moments according to Reference 1 as well.
+    Note: all tensors/arrays must be either the same size or individual values
 
     Parameters
     ----------
-    mu1 : ht.DNDarray, torch.tensor, float, int
-        Calculated mean
-    n1 : ht.DNDarray, torch.tensor, float
-        number of elements used to calculate mu1
-    mu2 : ht.DNDarray, torch.tensor, float, int
-        Calculated mean
-    n2 : ht.DNDarray, torch.tensor, float
-        number of elements used to calculate mu2
-
-    Returns
-    -------
-    combined_set_count : int
-        Number of elements in the combined set.
-
-    References
-    ----------
-    [1] J. Bennett, R. Grout, P. Pebay, D. Roe, D. Thompson, Numerically stable, single-pass, parallel statistics
-        algorithms, IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA,
-        USA.
-    """
-    return mu1 + n2 * ((mu2 - mu1) / (n1 + n2)), n1 + n2
-
-
-def merge_vars(var1, mu1, n1, var2, mu2, n2, bessel=True):
-    """
-    Function to merge two variances by pairwise update.
-    **Note** this is a parallel of the merge_means function
-    **Note pt2.** all tensors/arrays must be either the same size or individual values
-
-    Parameters
-    ----------
-    var1 : ht.DNDarray, torch.tensor, float, int
-        Variance.
-    mu1 : ht.DNDarray, torch.tensor, float, int
-        Calculated mean.
-    n1 : ht.DNDarray, torch.tensor, float, int
-        Number of elements used to calculate mu1.
-    var2 : ht.DNDarray, torch.tensor, float, int
-        Variance.
-    mu2 : ht.DNDarray, torch.tensor, float, int
-        Calculated mean.
-    n2 : ht.DNDarray, torch.tensor, float, int
-        Number of elements used to calculate mu2.
+    m1 : tuple
+        Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
+        sorted in descending order of moments
+    m2 : tuple
+        Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
+        sorted in descending order of moments
     bessel : bool
-        Flag for the use of the bessel correction
+        Flag for the use of the bessel correction for the calculation of the variance
 
     Returns
     -------
-    combined_set_count : int
-        Number of elements in the combined set.
+    merged_moments : tuple
+        a tuple of the merged moments
 
     References
     ----------
@@ -886,20 +850,29 @@ def merge_vars(var1, mu1, n1, var2, mu2, n2, bessel=True):
         algorithms, IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA,
         USA.
     """
+    if not isinstance(m1, (tuple, list)):
+        raise TypeError("m1 must be a tuple or a list, currently {}".format(type(m1)))
+    if not isinstance(m2, (tuple, list)):
+        raise TypeError("m2 must be a tuple or a list, currently {}".format(type(m2)))
+    if len(m1) != len(m2):
+        raise ValueError("length of m1 and m2 must be equal, currently {} and {}".format(len(m1), len(m2)))
+
+    n1, n2 = m1[-1], m2[-1]
+    mu1, mu2 = m1[-2], m2[-2]
     n = n1 + n2
     delta = mu2 - mu1
+    mu = mu1 + n2 * (delta / n)
+    if len(m1) == 2:  # merge means
+        return mu, n
+
+    var1, var2 = m1[-3], m2[-3]
     if bessel:
-        return (
-            (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1),
-            mu1 + n2 * (delta / (n1 + n2)),
-            n,
-        )
+        var = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1)
     else:
-        return (
-            (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n,
-            mu1 + n2 * (delta / (n1 + n2)),
-            n,
-        )
+        var = (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n
+
+    if len(m1) == 3:  # merge vars
+        return var, mu, n
 
 
 def min(x, axis=None, out=None, keepdim=None):
@@ -1302,13 +1275,10 @@ def var(x, axis=None, bessel=True):
         x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
-            var_tot[0, 0, :], var_tot[0, 1, :], n_tot[0] = merge_vars(
-                var_tot[0, 0, :],
-                var_tot[0, 1, :],
-                n_tot[0],
-                var_tot[i, 0, :],
-                var_tot[i, 1, :],
-                n_tot[i],
+            var_tot[0, 0, :], var_tot[0, 1, :], n_tot[0] = merge_moments(
+                (var_tot[0, 0, :], var_tot[0, 1, :], n_tot[0]),
+                (var_tot[i, 0, :], var_tot[i, 1, :], n_tot[i]),
+                bessel=bessel
             )
         return var_tot[0, 0, :][0] if var_tot[0, 0, :].size == 1 else var_tot[0, 0, :]
 
@@ -1336,13 +1306,10 @@ def var(x, axis=None, bessel=True):
             x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
 
             for i in range(1, x.comm.size):
-                merged = merge_vars(
-                    var_tot[0, 0],
-                    var_tot[0, 1],
-                    var_tot[0, 2],
-                    var_tot[i, 0],
-                    var_tot[i, 1],
-                    var_tot[i, 2],
+                merged = merge_moments(
+                    (var_tot[0, 0], var_tot[0, 1], var_tot[0, 2]),
+                    (var_tot[i, 0], var_tot[i, 1], var_tot[i, 2]),
+                    bessel=bessel
                 )
                 var_tot[0, 0] = merged[0]
                 var_tot[0, 1] = merged[1]
