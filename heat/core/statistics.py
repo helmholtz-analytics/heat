@@ -733,10 +733,10 @@ def mean(x, axis=None):
 
         mu_tot = factories.zeros(([x.comm.size] + mu_shape), device=x.device)
         n_tot = factories.zeros(x.comm.size, device=x.device)
-        mu_tot[x.comm.rank, :] = mu
         n_tot[x.comm.rank] = float(x.lshape[x.split])
-        x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)
+        mu_tot[x.comm.rank, :] = mu
         x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
+        x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
             mu_tot[0, :], n_tot[0] = merge_moments((mu_tot[0, :], n_tot[0]), (mu_tot[i, :], n_tot[i]))
@@ -756,16 +756,16 @@ def mean(x, axis=None):
             if torch.isnan(mu_in):
                 mu_in = 0.0
             n = x.lnumel
-            mu_tot = factories.zeros((x.comm.size, 2))
-            mu_proc = factories.zeros((x.comm.size, 2))
-            mu_proc[x.comm.rank][0] = mu_in
-            mu_proc[x.comm.rank][1] = float(n)
+            mu_tot = torch.zeros((x.comm.size, 2))
+            mu_proc = torch.zeros((x.comm.size, 2))
+            mu_proc[x.comm.rank] = mu_in, float(n)
             x.comm.Allreduce(mu_proc, mu_tot, MPI.SUM)
 
             for i in range(1, x.comm.size):
-                merged = merge_moments((mu_tot[0, 0], mu_tot[0, 1]), (mu_tot[i, 0], mu_tot[i, 1]))
-                mu_tot[0, 0] = merged[0]
-                mu_tot[0, 1] = merged[1]
+                mu_tot[0, 0], mu_tot[0, 1] = merge_moments(
+                    (mu_tot[0, 0], mu_tot[0, 1]),
+                    (mu_tot[i, 0], mu_tot[i, 1]),
+                )
             return mu_tot[0][0]
 
     output_shape = list(x.shape)
@@ -1259,11 +1259,6 @@ def var(x, axis=None, bessel=True):
             mu = factories.zeros(output_shape_i)
             var = factories.zeros(output_shape_i)
 
-        n_for_merge = factories.zeros(x.comm.size)
-        n2 = factories.zeros(x.comm.size)
-        n2[x.comm.rank] = x.lshape[x.split]
-        x.comm.Allreduce(n2, n_for_merge, MPI.SUM)
-
         var_shape = list(var.shape) if list(var.shape) else [1]
 
         var_tot = factories.zeros(([x.comm.size, 2] + var_shape))
@@ -1298,23 +1293,17 @@ def var(x, axis=None, bessel=True):
                 mu_in = 0.0
 
             n = x.lnumel
-            var_tot = factories.zeros((x.comm.size, 3))
-            var_proc = factories.zeros((x.comm.size, 3))
-            var_proc[x.comm.rank][0] = var_in
-            var_proc[x.comm.rank][1] = mu_in
-            var_proc[x.comm.rank][2] = float(n)
+            var_tot = torch.zeros((x.comm.size, 3))
+            var_proc = torch.zeros((x.comm.size, 3))
+            var_proc[x.comm.rank] = var_in, mu_in, float(n)
             x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
 
             for i in range(1, x.comm.size):
-                merged = merge_moments(
+                var_tot[0, 0], var_tot[0, 1], var_tot[0, 2] = merge_moments(
                     (var_tot[0, 0], var_tot[0, 1], var_tot[0, 2]),
                     (var_tot[i, 0], var_tot[i, 1], var_tot[i, 2]),
-                    bessel=bessel
+                    bessel=bessel,
                 )
-                var_tot[0, 0] = merged[0]
-                var_tot[0, 1] = merged[1]
-                var_tot[0, 2] = merged[2]
-
             return var_tot[0][0]
 
     else:  # axis is given
