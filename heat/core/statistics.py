@@ -727,7 +727,7 @@ def mean(x, axis=None):
         if x.lshape[x.split] != 0:
             mu = torch.mean(x._DNDarray__array, dim=axis)
         else:
-            mu = factories.zeros(output_shape_i)
+            mu = factories.zeros(output_shape_i, device=x.device)
 
         mu_shape = list(mu.shape) if list(mu.shape) else [1]
 
@@ -749,15 +749,15 @@ def mean(x, axis=None):
         if not x.is_distributed():
             # if x is not distributed do a torch.mean on x
             ret = torch.mean(x._DNDarray__array.float())
-            return factories.array(ret, is_split=None)
+            return factories.array(ret, is_split=None, device=x.device)
         else:
             # if x is distributed and no axis is given: return mean of the whole set
             mu_in = torch.mean(x._DNDarray__array)
             if torch.isnan(mu_in):
                 mu_in = 0.0
             n = x.lnumel
-            mu_tot = torch.zeros((x.comm.size, 2))
-            mu_proc = torch.zeros((x.comm.size, 2))
+            mu_tot = factories.zeros((x.comm.size, 2), device=x.device)
+            mu_proc = factories.zeros((x.comm.size, 2), device=x.device)
             mu_proc[x.comm.rank] = mu_in, float(n)
             x.comm.Allreduce(mu_proc, mu_tot, MPI.SUM)
 
@@ -784,7 +784,7 @@ def mean(x, axis=None):
         output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
         # multiple dimensions
         if x.split is None:
-            return factories.array(torch.mean(x._DNDarray__array, dim=axis), is_split=x.split)
+            return factories.array(torch.mean(x._DNDarray__array, dim=axis), is_split=x.split, device=x.device)
 
         if x.split in axis:
             # merge in the direction of the split
@@ -795,6 +795,7 @@ def mean(x, axis=None):
             return factories.array(
                 torch.mean(x._DNDarray__array, dim=axis),
                 is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
+                device=x.device,
             )
     elif isinstance(axis, int):
         if axis >= len(x.shape):
@@ -807,7 +808,7 @@ def mean(x, axis=None):
 
         if x.split is None:
             # print(torch.mean(x._DNDarray__array, dim=axis))
-            return factories.array(torch.mean(x._DNDarray__array, dim=axis), is_split=None)
+            return factories.array(torch.mean(x._DNDarray__array, dim=axis), is_split=None, device=x.device)
         elif axis == x.split:
             return reduce_means_elementwise(output_shape)
         else:
@@ -815,6 +816,7 @@ def mean(x, axis=None):
             return factories.array(
                 torch.mean(x._DNDarray__array, dim=axis),
                 is_split=x.split if axis > x.split else x.split - 1,
+                device=x.device
             )
     raise TypeError(
         "axis (axis) must be an int or a list, ht.DNDarray, "
@@ -1256,13 +1258,13 @@ def var(x, axis=None, bessel=True):
             mu = torch.mean(x._DNDarray__array, dim=axis)
             var = torch.var(x._DNDarray__array, dim=axis, unbiased=bessel)
         else:
-            mu = factories.zeros(output_shape_i)
-            var = factories.zeros(output_shape_i)
+            mu = factories.zeros(output_shape_i, device=x.device)
+            var = factories.zeros(output_shape_i, device=x.device)
 
         var_shape = list(var.shape) if list(var.shape) else [1]
 
-        var_tot = factories.zeros(([x.comm.size, 2] + var_shape))
-        n_tot = factories.zeros(x.comm.size)
+        var_tot = factories.zeros(([x.comm.size, 2] + var_shape), device=x.device)
+        n_tot = factories.zeros(x.comm.size, device=x.device)
         var_tot[x.comm.rank, 0, :] = var
         var_tot[x.comm.rank, 1, :] = mu
         n_tot[x.comm.rank] = float(x.lshape[x.split])
@@ -1293,8 +1295,8 @@ def var(x, axis=None, bessel=True):
                 mu_in = 0.0
 
             n = x.lnumel
-            var_tot = torch.zeros((x.comm.size, 3))
-            var_proc = torch.zeros((x.comm.size, 3))
+            var_tot = factories.zeros((x.comm.size, 3), device=x.device)
+            var_proc = factories.zeros((x.comm.size, 3), device=x.device)
             var_proc[x.comm.rank] = var_in, mu_in, float(n)
             x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
 
@@ -1309,7 +1311,34 @@ def var(x, axis=None, bessel=True):
     else:  # axis is given
         # case for var in one dimension
         output_shape = list(x.shape)
-        if isinstance(axis, int):
+        if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
+            if any([not isinstance(j, int) for j in axis]):
+                raise ValueError(
+                    "items in axis iterable must be integers, axes: {}".format([type(q) for q in axis])
+                )
+            if any(d < 0 for d in axis):
+                axis = [stride_tricks.sanitize_axis(x.shape, j) for j in axis]
+            if any(d > len(x.shape) for d in axis):
+                raise ValueError(
+                    "axes (axis) must be < {}, currently are {}".format(len(x.shape), axis)
+                )
+
+            output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
+            # multiple dimensions
+            if x.split is None:
+                return factories.array(torch.var(x._DNDarray__array, dim=axis), is_split=x.split, device=x.device)
+            if x.split in axis:
+                # merge in the direction of the split
+                return reduce_vars_elementwise(output_shape)
+            else:
+                # multiple dimensions which does *not* include the split axis
+                # combine along the split axis
+                return factories.array(
+                    torch.var(x._DNDarray__array, dim=axis),
+                    is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
+                    device=x.device,
+                )
+        elif isinstance(axis, int):
             if axis >= len(x.shape):
                 raise ValueError("axis must be < {}, currently is {}".format(len(x.shape), axis))
             axis = stride_tricks.sanitize_axis(x.shape, axis)
@@ -1318,13 +1347,13 @@ def var(x, axis=None, bessel=True):
             output_shape = output_shape if output_shape else (1,)
 
             if x.split is None:  # x is *not* distributed -> no need to distributed
-                return factories.array(torch.var(x._DNDarray__array, dim=axis, unbiased=bessel))
+                return factories.array(torch.var(x._DNDarray__array, dim=axis, unbiased=bessel), device=x.device)
             elif axis == x.split:  # x is distributed and axis chosen is == to split
                 return reduce_vars_elementwise(output_shape)
             else:
                 # singular axis given (axis) not equal to split direction (x.split)
                 lcl = torch.var(x._DNDarray__array, dim=axis, keepdim=False)
-                return factories.array(lcl, is_split=x.split if axis > x.split else x.split - 1)
+                return factories.array(lcl, is_split=x.split if axis > x.split else x.split - 1, device=x.device)
         else:
             raise TypeError(
                 "axis (axis) must be an int, currently is {}. "

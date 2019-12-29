@@ -905,11 +905,6 @@ class TestStatistics(unittest.TestCase):
                         target_dims = ()
                     # print(split, it, z.shape, res.shape)
                     self.assertEqual(res.gshape, tuple(target_dims))
-                    # if res.split is not None:
-                    #     if i >= it:
-                    #         self.assertEqual(res.split, len(target_dims) - 1)
-                    #     else:
-                    #         self.assertEqual(res.split, z.split)
                     if z.split is None:
                         sp = None
                     else:
@@ -920,9 +915,26 @@ class TestStatistics(unittest.TestCase):
                     if split == it:
                         res = z.var(axis=it)
                         self.assertTrue(ht.allclose(res, 0))
-                z = ht.ones(dimensions, split=split, device=ht_device)
-                res = z.var(bessel=False)
-                self.assertTrue(ht.allclose(res, 0))
+                loop_list = [
+                    ",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)
+                ]
+
+                for it in loop_list:  # loop over the different combinations of dimensions for mean
+                    lp_split = [int(q) for q in it.split(",")]
+                    res = z.var(axis=lp_split)
+                    self.assertTrue((res == 0).all())
+                    target_dims = [
+                        total_dims_list[q] for q in range(len(total_dims_list)) if q not in lp_split
+                    ]
+                    if not target_dims:
+                        target_dims = (1,)
+                    if res.gshape:
+                        self.assertEqual(res.gshape, tuple(target_dims))
+                    if res.split is not None:
+                        if any([split >= x for x in lp_split]):
+                            self.assertEqual(res.split, len(target_dims) - 1)
+                        else:
+                            self.assertEqual(res.split, z.split)
 
         # values for the iris dataset var measured by libreoffice calc
         for sp in [None, 0, 1]:
