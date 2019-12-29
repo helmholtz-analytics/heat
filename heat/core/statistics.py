@@ -1355,7 +1355,4 @@ def var(x, axis=None, bessel=True):
                 lcl = torch.var(x._DNDarray__array, dim=axis, keepdim=False)
                 return factories.array(lcl, is_split=x.split if axis > x.split else x.split - 1, device=x.device)
         else:
-            raise TypeError(
-                "axis (axis) must be an int, currently is {}. "
-                "Check if multidim var is available in PyTorch".format(type(axis))
-            )
+            raise TypeError("axis (axis) must be an int, tuple, list, etc.; currently it is {}. ")
