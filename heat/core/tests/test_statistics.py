@@ -874,15 +874,15 @@ class TestStatistics(unittest.TestCase):
         # test raises
         x = ht.zeros((2, 3, 4), device=ht_device)
         with self.assertRaises(ValueError):
-            x.mean(axis=10)
+            x.var(axis=10)
         with self.assertRaises(ValueError):
-            x.mean(axis=[4])
+            x.var(axis=[4])
         with self.assertRaises(ValueError):
-            x.mean(axis=[-4])
+            x.var(axis=[-4])
         with self.assertRaises(TypeError):
-            ht.mean(x, axis="01")
+            ht.var(x, axis="01")
         with self.assertRaises(ValueError):
-            ht.mean(x, axis=(0, "10"))
+            ht.var(x, axis=(0, "10"))
 
         a = ht.arange(1, 5, device=ht_device)
         self.assertEqual(a.var(), 1.666666666666666)
@@ -898,7 +898,7 @@ class TestStatistics(unittest.TestCase):
                 res = z.var(bessel=False)
                 total_dims_list = list(z.shape)
                 self.assertTrue((res == 0).all())
-                # loop over the different single dimensions for mean
+                # loop over the different single dimensions for var
                 for it in range(len(z.shape)):
                     res = z.var(axis=it)
                     self.assertTrue(ht.allclose(res, 0))
@@ -923,7 +923,7 @@ class TestStatistics(unittest.TestCase):
                     ",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)
                 ]
 
-                for it in loop_list:  # loop over the different combinations of dimensions for mean
+                for it in loop_list:  # loop over the different combinations of dimensions for var
                     lp_split = [int(q) for q in it.split(",")]
                     res = z.var(axis=lp_split)
                     self.assertTrue((res == 0).all())
