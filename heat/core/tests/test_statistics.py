@@ -873,12 +873,16 @@ class TestStatistics(unittest.TestCase):
 
         # test raises
         x = ht.zeros((2, 3, 4), device=ht_device)
-        with self.assertRaises(TypeError):
-            ht.var(x, axis=0, bessel=1)
         with self.assertRaises(ValueError):
-            ht.var(x, axis=10)
+            x.mean(axis=10)
+        with self.assertRaises(ValueError):
+            x.mean(axis=[4])
+        with self.assertRaises(ValueError):
+            x.mean(axis=[-4])
         with self.assertRaises(TypeError):
-            ht.var(x, axis="01")
+            ht.mean(x, axis="01")
+        with self.assertRaises(ValueError):
+            ht.mean(x, axis=(0, "10"))
 
         a = ht.arange(1, 5, device=ht_device)
         self.assertEqual(a.var(), 1.666666666666666)
@@ -891,7 +895,7 @@ class TestStatistics(unittest.TestCase):
             hold.append(None)
             for split in hold:  # loop over the number of dimensions of the test array
                 z = ht.ones(dimensions, split=split, device=ht_device)
-                res = z.var()
+                res = z.var(bessel=False)
                 total_dims_list = list(z.shape)
                 self.assertTrue((res == 0).all())
                 # loop over the different single dimensions for mean
