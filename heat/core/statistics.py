@@ -857,15 +857,6 @@ def merge_moments(m1, m2, bessel=True):
         algorithms, IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA,
         USA.
     """
-    if not isinstance(m1, (tuple, list)):
-        raise TypeError("m1 must be a tuple or a list, currently {}".format(type(m1)))
-    if not isinstance(m2, (tuple, list)):
-        raise TypeError("m2 must be a tuple or a list, currently {}".format(type(m2)))
-    if len(m1) != len(m2):
-        raise ValueError(
-            "length of m1 and m2 must be equal, currently {} and {}".format(len(m1), len(m2))
-        )
-
     n1, n2 = m1[-1], m2[-1]
     mu1, mu2 = m1[-2], m2[-2]
     n = n1 + n2
