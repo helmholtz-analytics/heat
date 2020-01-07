@@ -591,7 +591,7 @@ def prod(x, axis=None, out=None, keepdim=None):
     ht.tensor([  2.,  12.])
     """
     return operations.__reduce_op(
-        x, torch.prod, MPI.PROD, axis=axis, out=out, neutral=torch.ones, keepdim=keepdim
+        x, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
     )
 
 
@@ -682,5 +682,5 @@ def sum(x, axis=None, out=None, keepdim=None):
     """
     # TODO: make me more numpy API complete Issue #101
     return operations.__reduce_op(
-        x, torch.sum, MPI.SUM, axis=axis, out=out, neutral=torch.zeros, keepdim=keepdim
+        x, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
     )
