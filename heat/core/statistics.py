@@ -95,9 +95,9 @@ def argmax(x, axis=None, out=None, **kwargs):
         raise TypeError("axis must be None or int, but was {}".format(type(axis)))
 
     # perform the global reduction
-    # TODO: define neutral_element for local_argmax
+    smallest_value = -constants.sanitize_infinity(x._DNDarray__array.dtype)
     reduced_result = operations.__reduce_op(
-        x, local_argmax, MPI_ARGMAX, axis=axis, out=None, **kwargs  # neutral=torch.ones,
+        x, local_argmax, MPI_ARGMAX, axis=axis, out=None, neutral=smallest_value, **kwargs,
     )
 
     # correct the tensor
@@ -196,8 +196,9 @@ def argmin(x, axis=None, out=None, **kwargs):
         raise TypeError("axis must be None or int, but was {}".format(type(axis)))
 
     # perform the global reduction
+    largest_value = constants.sanitize_infinity(x._DNDarray__array.dtype)
     reduced_result = operations.__reduce_op(
-        x, local_argmin, MPI_ARGMIN, axis=axis, out=None, neutral=torch.ones, **kwargs
+        x, local_argmin, MPI_ARGMIN, axis=axis, out=None, neutral=largest_value, **kwargs
     )
 
     # correct the tensor
