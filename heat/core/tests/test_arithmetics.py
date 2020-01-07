@@ -510,7 +510,7 @@ class TestArithmetics(unittest.TestCase):
         # check sum over all float elements of splitted 5d tensor with negative axis
         shape_noaxis_split_axis_neg = ht.ones((1, 2, 3, 4, 5), split=1, device=ht_device)
         shape_noaxis_split_axis_neg_sum = shape_noaxis_split_axis_neg.sum(axis=-2)
-
+        
         self.assertIsInstance(shape_noaxis_split_axis_neg_sum, ht.DNDarray)
         self.assertEqual(shape_noaxis_split_axis_neg_sum.shape, (1, 2, 3, 5))
         self.assertEqual(shape_noaxis_split_axis_neg_sum.dtype, ht.float32)
