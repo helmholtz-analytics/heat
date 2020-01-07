@@ -387,22 +387,16 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
     axis = stride_tricks.sanitize_axis(x.shape, kwargs.get("axis"))
     keepdim = kwargs.get("keepdim")
     split = x.split
-    no_data = False
-    # check if local tensor is empty
-    if split is not None:
-        no_data = x.lshape[split] == 0
-    if no_data:
-        # local tensor contains no data, replace with neutral element
-        neutral_element = kwargs.get("neutral")
-        if neutral_element is None:
-            # warnings.warn(
-            #    "Local tensor has no data and argument 'neutral' is None. Setting 'neutral' to torch.ones"
-            # )
-            neutral_element = torch.ones
-        neutral_shape = x.lshape[:split] + (1,) + x.lshape[split + 1 :]
-        neutral_partial = neutral_element(neutral_shape)
 
-    partial = x._DNDarray__array if not no_data else neutral_partial
+    # if local tensor is empty, replace it with the identity element
+    if 0 in x.lshape:
+        neutral = kwargs.get("neutral")
+        if neutral is None:
+            neutral = float("nan")
+        neutral_shape = x.lshape[:split] + (1,) + x.lshape[split + 1 :]
+        partial = torch.full(neutral_shape, fill_value=neutral, dtype=x._DNDarray__array.dtype)
+    else:
+        partial = x._DNDarray__array
 
     if axis is None:
         partial = partial_op(partial).reshape(-1)
