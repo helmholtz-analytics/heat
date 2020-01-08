@@ -97,7 +97,7 @@ def argmax(x, axis=None, out=None, **kwargs):
     # perform the global reduction
     smallest_value = -constants.sanitize_infinity(x._DNDarray__array.dtype)
     reduced_result = operations.__reduce_op(
-        x, local_argmax, MPI_ARGMAX, axis=axis, out=None, neutral=smallest_value, **kwargs,
+        x, local_argmax, MPI_ARGMAX, axis=axis, out=None, neutral=smallest_value, **kwargs
     )
 
     # correct the tensor
@@ -510,7 +510,7 @@ def max(x, axis=None, out=None, keepdim=None):
         if isinstance(result, tuple):
             result = result[0]
         return result
-    
+
     smallest_value = -constants.sanitize_infinity(x._DNDarray__array.dtype)
     return operations.__reduce_op(
         x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdim=keepdim

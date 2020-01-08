@@ -18,10 +18,10 @@ e = Euler = E
 
 def sanitize_infinity(dtype):
     """
-    Returns largest possible value for the specified dtype. 
-    
+    Returns largest possible value for the specified dtype.
+
     Parameters:
-    dtype: torch dtype 
+    dtype: torch dtype
 
     Returns:
     large_enough: largest possible value for the given dtype
