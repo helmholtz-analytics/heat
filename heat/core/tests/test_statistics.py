@@ -677,27 +677,29 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum, 1)
 
         # maximum along first axis
+        ht_array = ht.array(data, dtype=ht.int8, device=ht_device)
         minimum_vertical = ht.min(ht_array, axis=0)
 
         self.assertIsInstance(minimum_vertical, ht.DNDarray)
         self.assertEqual(minimum_vertical.shape, (3,))
         self.assertEqual(minimum_vertical.lshape, (3,))
         self.assertEqual(minimum_vertical.split, None)
-        self.assertEqual(minimum_vertical.dtype, ht.int64)
-        self.assertEqual(minimum_vertical._DNDarray__array.dtype, torch.int64)
+        self.assertEqual(minimum_vertical.dtype, ht.int8)
+        self.assertEqual(minimum_vertical._DNDarray__array.dtype, torch.int8)
         self.assertTrue(
             (minimum_vertical._DNDarray__array == comparison.min(dim=0, keepdim=True)[0]).all()
         )
 
         # maximum along second axis
+        ht_array = ht.array(data, dtype=ht.int16, device=ht_device)
         minimum_horizontal = ht.min(ht_array, axis=1, keepdim=True)
 
         self.assertIsInstance(minimum_horizontal, ht.DNDarray)
         self.assertEqual(minimum_horizontal.shape, (4, 1))
         self.assertEqual(minimum_horizontal.lshape, (4, 1))
         self.assertEqual(minimum_horizontal.split, None)
-        self.assertEqual(minimum_horizontal.dtype, ht.int64)
-        self.assertEqual(minimum_horizontal._DNDarray__array.dtype, torch.int64)
+        self.assertEqual(minimum_horizontal.dtype, ht.int16)
+        self.assertEqual(minimum_horizontal._DNDarray__array.dtype, torch.int16)
         self.assertTrue(
             (minimum_horizontal._DNDarray__array == comparison.min(dim=1, keepdim=True)[0]).all()
         )
