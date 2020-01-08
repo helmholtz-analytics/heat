@@ -478,34 +478,6 @@ def max(x, axis=None, out=None, keepdim=None):
     """
 
     def local_max(*args, **kwargs):
-        # array = args[0]
-        # dim = kwargs.get("dim")
-        # if 0 in array.shape:
-        #     # Empty local vector would throw an error in the torch max function
-        #     if dim == x.split or (dim is None and x.split == 0):
-        #         # No distributed result
-        #         out_shape = list(array.shape)
-        #         empty_dim = next(i for i, d in enumerate(array.shape) if d == 0)
-        #         out_shape[empty_dim] = 1
-
-        #         # Lowest possible value should be neutral to the max function
-        #         if array.dtype is torch.int8:
-        #             fill_value = -(1 << 7)
-        #         elif array.dtype is torch.int16:
-        #             fill_value = -(1 << 15)
-        #         elif array.dtype is torch.int32:
-        #             fill_value = -(1 << 31)
-        #         elif array.dtype is torch.int64:
-        #             fill_value = -(1 << 63)
-        #         else:
-        #             fill_value = float("-inf")
-
-        #         # Create a local result with a "neutral" value that should not affect the global result
-        #         result = torch.empty(out_shape, dtype=array.dtype).fill_(fill_value)
-        #     else:
-        #         # Distributed result: return an empty tensor as the local result
-        #         result = torch.empty_like(array)
-        # else:
         result = torch.max(*args, **kwargs)
         if isinstance(result, tuple):
             result = result[0]
@@ -952,34 +924,6 @@ def min(x, axis=None, out=None, keepdim=None):
     """
 
     def local_min(*args, **kwargs):
-        # array = args[0]
-        # dim = kwargs.get("dim")
-        # if 0 in array.shape:
-        #     # Empty local vector would throw an error in the torch min function
-        #     if dim == x.split or (dim is None and x.split == 0):
-        #         # No distributed result
-        #         out_shape = list(array.shape)
-        #         empty_dim = next(i for i, d in enumerate(array.shape) if d == 0)
-        #         out_shape[empty_dim] = 1
-
-        #         # Highest possible value should be neutral to the min function
-        #         if array.dtype is torch.int8:
-        #             fill_value = (1 << 7) - 1
-        #         elif array.dtype is torch.int16:
-        #             fill_value = (1 << 15) - 1
-        #         elif array.dtype is torch.int32:
-        #             fill_value = (1 << 31) - 1
-        #         elif array.dtype is torch.int64:
-        #             fill_value = (1 << 63) - 1
-        #         else:
-        #             fill_value = float("inf")
-
-        #         # Create a local result with a "neutral" value that should not affect the global result
-        #         result = torch.empty(out_shape, dtype=array.dtype).fill_(fill_value)
-        #     else:
-        #         # Distributed result: return an empty tensor as the local result
-        #         result = torch.empty_like(array)
-        # else:
         result = torch.min(*args, **kwargs)
         if isinstance(result, tuple):
             result = result[0]

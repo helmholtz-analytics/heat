@@ -21,9 +21,11 @@ def sanitize_infinity(dtype):
     Returns largest possible value for the specified dtype.
 
     Parameters:
+    -----------
     dtype: torch dtype
 
     Returns:
+    --------
     large_enough: largest possible value for the given dtype
     """
     if dtype is torch.int8:
