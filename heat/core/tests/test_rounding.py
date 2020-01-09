@@ -178,9 +178,9 @@ class TestRounding(BasicTest):
             ht.floor(object())
 
     def test_modf(self):
-        # size = ht.communication.MPI_WORLD.size
+        size = ht.communication.MPI_WORLD.size
         start, end = -5.0, 5.0
-        step = 3  # (end - start) / (2 * size)
+        step = (end - start) / (2 * size)
         npArray = np.arange(start, end, step, dtype=np.float32)
         comparison = np.modf(npArray)
 
