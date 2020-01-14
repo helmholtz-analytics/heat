@@ -403,11 +403,12 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
         partial = partial_op(partial).reshape(-1)
         output_shape = (1,)
     else:
-        if isinstance(axis, tuple):  # TODO: do we need this check at all?? axis has been sanitized
-            output_shape = x.gshape
-            for dim in axis:
-                partial = partial_op(partial, dim=dim, keepdim=True)
-                output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1 :]
+        if isinstance(axis, int):
+            axis = (axis,)
+        output_shape = x.gshape
+        for dim in axis:
+            partial = partial_op(partial, dim=dim, keepdim=True)
+            output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1 :]
         if not keepdim and not len(partial.shape) == 1:
             gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
             lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
