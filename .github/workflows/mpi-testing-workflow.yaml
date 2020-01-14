@@ -14,7 +14,7 @@ jobs:
       matrix:
         processes: [1, 2, 3, 4, 7]
         image: [ubuntu, fedora]
-        install-options: ["-q -e .", "-q -e .[hfg5,netcdf]"]
+        install-options: ["-e .", "-e .[hfg5,netcdf]"]
     steps:
       - uses: actions/checkout@v1
       - name: Run Pre-Commit
