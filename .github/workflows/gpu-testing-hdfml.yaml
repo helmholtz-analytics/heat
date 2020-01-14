@@ -1,0 +1,17 @@
+name: GPU Testing Workflow on HDFML machine
+
+on:
+  push:
+    branches:
+      - gpu-test-automation
+
+jobs:
+  run-gpu-tests:
+    name: run tests on gpu
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HDFML_HOST }}
+          key: ${{ secrets.HDFML_KEY }}
+          script: whoami && ls
