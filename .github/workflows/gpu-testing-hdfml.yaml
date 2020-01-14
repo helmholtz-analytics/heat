@@ -12,6 +12,7 @@ jobs:
     steps:
       - uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.HDFML_HOST }}
-          key: ${{ secrets.HDFML_KEY }}
+          host: ${{ secrets.TEST_HOST }}
+          username: ${{ secrets.TEST_NAME }}
+          password: ${{ secrets.TEST_PASS }}
           script: whoami && ls
