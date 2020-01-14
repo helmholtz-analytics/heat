@@ -385,6 +385,8 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
 
     # no further checking needed, sanitize axis will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape, kwargs.get("axis"))
+    if isinstance(axis, int):
+        axis = (axis,)
     keepdim = kwargs.get("keepdim")
     split = x.split
 
@@ -401,8 +403,6 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
         partial = partial_op(partial).reshape(-1)
         output_shape = (1,)
     else:
-        if isinstance(axis, int):
-            axis = (axis,)
         output_shape = x.gshape
         for dim in axis:
             partial = partial_op(partial, dim=dim, keepdim=True)
