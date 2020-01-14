@@ -23,7 +23,7 @@ jobs:
       - name: Install Python Dependencies
         shell: bash
         run: |
-          pip install {{ matrix.install-options }}
+          pip install ${{ matrix.install-options }}
           pip list
       - name: Run Python Tests with ${{matrix.processes}} Processes
         shell: bash
