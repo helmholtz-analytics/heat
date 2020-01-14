@@ -1026,19 +1026,14 @@ def __qr_global_q_dict_set(q_dict_col, col, a_tiles, q_tiles, global_merge_dict=
     return global_merge_dict
 
 
-def __qr_global_r(
-    a_tiles, rank, q_dict, q_dict_waits, col, diag_process, comm, not_completed_processes
-):
+def __qr_split0_r_calc(a_tiles, q_dict, q_dict_waits, col, diag_process, not_completed_processes):
     """
-    Function to merge the QR calculations after the local QR is finished.
-    This function uses a binary merge structure
+    Function to do the QR calculations to calculate the global R of the array `a`.
+    This function uses a binary merge structure in the globabl R merge.
 
     Parameters
     ----------
     a_tiles : tiles.SquareDiagTiles
-
-    rank : int
-        rank of the process
     q_dict : Dict
         dictionary to save the calculated Q matrices to
     q_dict_waits : Dict
@@ -1048,8 +1043,6 @@ def __qr_global_r(
         the current column of the the R calculation
     diag_process : int
         rank of the process which has the tile which lies along the diagonal
-    comm : MPICommunication (ht.DNDarray.comm)
-        The communicator used. (Intended as the communication of the DNDarray 'a' given to qr)
     not_completed_processes : torch.Tensor
         tensor of the processes which have not yet finished calculating R
 
@@ -1057,6 +1050,24 @@ def __qr_global_r(
     -------
     None
     """
+    tile_rows_proc = a_tiles.tile_rows_per_process
+    comm = a_tiles.arr.comm
+    rank = comm.rank
+    local_tile_row = 0 if rank != diag_process else col - sum(tile_rows_proc[:rank])
+    # only work on the processes which have not computed the final result
+    q_dict[col] = {}
+    q_dict_waits[col] = {}
+
+    # --------------- local QR calc --------------------------------------
+    base_tile = a_tiles.local_get(key=(slice(local_tile_row, None), col))
+    q1, r1 = base_tile.qr(some=False)
+    q_dict[col]["l0"] = [q1, base_tile.shape]
+    a_tiles.local_set(key=(slice(local_tile_row, None), col), value=r1)
+    if col != a_tiles.tile_columns - 1:
+        base_rest = a_tiles.local_get((slice(local_tile_row, None), slice(col + 1, None)))
+        loc_rest = torch.matmul(q1.T, base_rest)
+        a_tiles.local_set(key=(slice(local_tile_row, None), slice(col + 1, None)), value=loc_rest)
+    # --------------- global QR calc -------------------------------------
     rem1 = None
     rem2 = None
     offset = not_completed_processes[0]
@@ -1408,7 +1419,6 @@ def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         a = a.copy()
     a.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
     tile_columns = a.tiles.tile_columns
-    tile_rows_proc = a.tiles.tile_rows_per_process
 
     q0 = factories.eye(
         (a.gshape[0], a.gshape[0]), split=0, dtype=a.dtype, comm=a.comm, device=a.device
@@ -1434,34 +1444,7 @@ def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
             # if the process is done calculating R the break the loop
             break
         diag_process = not_completed_processes[0]
-        local_tile_row = 0 if rank != diag_process else col - sum(tile_rows_proc[:rank])
-
-        # only work on the processes which have not computed the final result
-        q_dict[col] = {}
-        q_dict_waits[col] = {}
-
-        # --------------- local QR calc --------------------------------------
-        base_tile = a.tiles.local_get(key=(slice(local_tile_row, None), col))
-        q1, r1 = base_tile.qr(some=False)
-        q_dict[col]["l0"] = [q1, base_tile.shape]
-        a.tiles.local_set(key=(slice(local_tile_row, None), col), value=r1)
-        if col != a.tiles.tile_columns - 1:
-            base_rest = a.tiles.local_get((slice(local_tile_row, None), slice(col + 1, None)))
-            loc_rest = torch.matmul(q1.T, base_rest)
-            a.tiles.local_set(
-                key=(slice(local_tile_row, None), slice(col + 1, None)), value=loc_rest
-            )
-        # ------------- end local QR calc ------------------------------------
-        __qr_global_r(
-            a_tiles=a.tiles,
-            rank=rank,
-            q_dict=q_dict,
-            q_dict_waits=q_dict_waits,
-            col=col,
-            diag_process=diag_process,
-            comm=a.comm,
-            not_completed_processes=not_completed_processes,
-        )
+        __qr_split0_r_calc()
     if not calc_q:
         # return statement if not calculating q
         a.balance_()
