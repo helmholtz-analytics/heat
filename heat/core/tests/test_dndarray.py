@@ -27,6 +27,12 @@ class TestDNDarray(unittest.TestCase):
             for m in range(N + 1):
                 cls.reference_tensor[n, m, :] = ht.arange(0, 2 * N) + m * 10 + n * 100
 
+    def test_and(self):
+        int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16, device=device)
+        int16_vector = ht.array([[3, 4]], dtype=ht.int16, device=device)
+
+        self.assertTrue(int16_tensor & int16_vector, ht.bitwise_and(int16_tensor, int16_vector))
+
     def test_astype(self):
         data = ht.float32([[1, 2, 3], [4, 5, 6]], device=ht_device)
 
@@ -329,6 +335,12 @@ class TestDNDarray(unittest.TestCase):
         a = ht.ones((10, 8), dtype=ht.int64, device=ht_device)
         b = np.ones((2, 2)).astype("int64")
         self.assertEqual(a.numpy().dtype, b.dtype)
+
+    def test_or(self):
+        int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16, device=device)
+        int16_vector = ht.array([[3, 4]], dtype=ht.int16, device=device)
+
+        self.assertTrue(int16_tensor | int16_vector, ht.bitwise_or(int16_tensor, int16_vector))
 
     def test_redistribute(self):
         # need to test with 1, 2, 3, and 4 dims
@@ -887,3 +899,9 @@ class TestDNDarray(unittest.TestCase):
             np.array(numpy_float64_F.strides[split + 1 :]) / size
         )
         self.assertEqual(heat_float64_F_split.strides, numpy_float64_F_split_strides)
+
+    def test_xor(self):
+        int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16, device=device)
+        int16_vector = ht.array([[3, 4]], dtype=ht.int16, device=device)
+
+        self.assertTrue(int16_tensor ^ int16_vector, ht.bitwise_xor(int16_tensor, int16_vector))
