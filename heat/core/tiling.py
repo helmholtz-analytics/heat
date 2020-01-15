@@ -166,6 +166,11 @@ class SquareDiagTiles:
             last_diag_pr, col_per_proc_list, col_inds, tile_columns = _create_cols_square_diag(
                 arr, lshape_map, tiles_per_proc
             )
+            empties = torch.where(lshape_map[..., 0] == 0)[0]
+            if empties.numel() > 0:
+                # need to remove the entry in the rows per process
+                for e in empties:
+                    row_per_proc_list[e] = 0
 
         total_tile_rows = tiles_per_proc * arr.comm.size
         row_inds = [0] * total_tile_rows
@@ -291,6 +296,7 @@ class SquareDiagTiles:
                 col_per_proc_list[c] = i.item()
             except AttributeError:
                 pass
+
         # =========================================================================================
         self.__DNDarray = arr
         self.__col_per_proc_list = (
