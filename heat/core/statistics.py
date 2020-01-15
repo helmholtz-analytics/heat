@@ -772,6 +772,12 @@ def mean(x, axis=None):
 
     output_shape = list(x.shape)
     if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
+        if isinstance(axis, (list, tuple)):
+            if len(set(axis)) != len(axis):
+                raise ValueError("duplicate value in axis")
+        if isinstance(axis, (dndarray.DNDarray, torch.Tensor)):
+            if axis.unique().numel() != axis.numel():
+                raise ValueError("duplicate value in axis")
         if any([not isinstance(j, int) for j in axis]):
             raise ValueError(
                 "items in axis iterable must be integers, axes: {}".format([type(q) for q in axis])
@@ -1317,6 +1323,12 @@ def var(x, axis=None, bessel=True):
         # case for var in one dimension
         output_shape = list(x.shape)
         if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
+            if isinstance(axis, (list, tuple)):
+                if len(set(axis)) != len(axis):
+                    raise ValueError("duplicate value in axis")
+            if isinstance(axis, (dndarray.DNDarray, torch.Tensor)):
+                if axis.unique().numel() != axis.numel():
+                    raise ValueError("duplicate value in axis")
             if any([not isinstance(j, int) for j in axis]):
                 raise ValueError(
                     "items in axis iterable must be integers, axes: {}".format(

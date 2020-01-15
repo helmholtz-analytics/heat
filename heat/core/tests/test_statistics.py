@@ -596,6 +596,8 @@ class TestStatistics(unittest.TestCase):
             ht.mean(x, axis="01")
         with self.assertRaises(ValueError):
             ht.mean(x, axis=(0, "10"))
+        with self.assertRaises(ValueError):
+            ht.mean(x, axis=(0, 0))
 
         a = ht.arange(1, 5, device=ht_device)
         self.assertEqual(a.mean(), 2.5)
@@ -883,6 +885,8 @@ class TestStatistics(unittest.TestCase):
             ht.var(x, axis="01")
         with self.assertRaises(ValueError):
             ht.var(x, axis=(0, "10"))
+        with self.assertRaises(ValueError):
+            ht.var(x, axis=(0, 0))
 
         a = ht.arange(1, 5, device=ht_device)
         self.assertEqual(a.var(), 1.666666666666666)
