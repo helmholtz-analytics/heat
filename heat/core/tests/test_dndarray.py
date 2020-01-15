@@ -27,6 +27,14 @@ class TestDNDarray(unittest.TestCase):
             for m in range(N + 1):
                 cls.reference_tensor[n, m, :] = ht.arange(0, 2 * N) + m * 10 + n * 100
 
+    def test_and(self):
+        int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16, device=ht_device)
+        int16_vector = ht.array([[3, 4]], dtype=ht.int16, device=ht_device)
+
+        self.assertTrue(
+            ht.equal(int16_tensor & int16_vector, ht.bitwise_and(int16_tensor, int16_vector))
+        )
+
     def test_astype(self):
         data = ht.float32([[1, 2, 3], [4, 5, 6]], device=ht_device)
 
@@ -216,6 +224,19 @@ class TestDNDarray(unittest.TestCase):
             with self.assertRaises(TypeError):
                 int(ht.full((ht.MPI_WORLD.size,), 2, split=0, device=ht_device))
 
+    def test_invert(self):
+        int_tensor = ht.array([[0, 1], [2, -2]])
+        bool_tensor = ht.array([[False, True], [True, False]])
+        float_tensor = ht.array([[0.4, 1.3], [1.3, -2.1]])
+        int_result = ht.array([[-1, -2], [-3, 1]])
+        bool_result = ht.array([[True, False], [False, True]])
+
+        self.assertTrue(ht.equal(~int_tensor, int_result))
+        self.assertTrue(ht.equal(~bool_tensor, bool_result))
+
+        with self.assertRaises(TypeError):
+            ~float_tensor
+
     def test_is_balanced(self):
         data = ht.zeros((70, 20), split=0, device=ht_device)
         if data.comm.size != 1:
@@ -281,6 +302,17 @@ class TestDNDarray(unittest.TestCase):
         self.assertTrue(torch.all(a._DNDarray__array[3:7:2, 2:5:2] == 1))
         self.assertEqual(a.lloc[3:7:2, 2:5:2].dtype, torch.float32)
 
+    def test_lshift(self):
+        int_tensor = ht.array([[0, 1], [2, 3]])
+        int_result = ht.array([[0, 4], [8, 12]])
+
+        self.assertTrue(ht.equal(int_tensor << 2, int_result))
+
+        with self.assertRaises(TypeError):
+            int_tensor << 2.4
+        with self.assertRaises(TypeError):
+            ht.array([True]) << 2
+
     def test_numpy(self):
         # ToDo: numpy does not work for distributed tensors du to issue#
         # Add additional tests if the issue is solved
@@ -305,6 +337,14 @@ class TestDNDarray(unittest.TestCase):
         a = ht.ones((10, 8), dtype=ht.int64, device=ht_device)
         b = np.ones((2, 2)).astype("int64")
         self.assertEqual(a.numpy().dtype, b.dtype)
+
+    def test_or(self):
+        int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16, device=ht_device)
+        int16_vector = ht.array([[3, 4]], dtype=ht.int16, device=ht_device)
+
+        self.assertTrue(
+            ht.equal(int16_tensor | int16_vector, ht.bitwise_or(int16_tensor, int16_vector))
+        )
 
     def test_redistribute(self):
         # need to test with 1, 2, 3, and 4 dims
@@ -476,6 +516,17 @@ class TestDNDarray(unittest.TestCase):
         self.assertIsNone(data.split)
         self.assertEqual(data.dtype, ht.uint8)
         self.assertEqual(data._DNDarray__array.dtype, expected.dtype)
+
+    def test_rshift(self):
+        int_tensor = ht.array([[0, 2], [4, 8]])
+        int_result = ht.array([[0, 0], [1, 2]])
+
+        self.assertTrue(ht.equal(int_tensor >> 2, int_result))
+
+        with self.assertRaises(TypeError):
+            int_tensor >> 2.4
+        with self.assertRaises(TypeError):
+            ht.array([True]) >> 2
 
     def test_setitem_getitem(self):
         # set and get single value
@@ -852,3 +903,11 @@ class TestDNDarray(unittest.TestCase):
             np.array(numpy_float64_F.strides[split + 1 :]) / size
         )
         self.assertEqual(heat_float64_F_split.strides, numpy_float64_F_split_strides)
+
+    def test_xor(self):
+        int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16, device=ht_device)
+        int16_vector = ht.array([[3, 4]], dtype=ht.int16, device=ht_device)
+
+        self.assertTrue(
+            ht.equal(int16_tensor ^ int16_vector, ht.bitwise_xor(int16_tensor, int16_vector))
+        )
