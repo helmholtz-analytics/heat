@@ -514,7 +514,7 @@ class SquareDiagTiles:
 
         Returns
         -------
-        DNDarray_view : torch.Tensor
+        DNDarray_view : torch.Tensor or ht.DNDarray (if sliced across the split axis
             A local selection of the DNDarray corresponding to the tile/s desired
 
         Examples
@@ -545,16 +545,53 @@ class SquareDiagTiles:
             raise TypeError(
                 "key must be an int, tuple, or slice, is currently {}".format(type(key))
             )
-        if tile_map[key][..., 2].unique().nelement() > 1:
-            raise ValueError("Slicing across splits is not allowed")
+        inv_procs = tile_map[key][..., 2].unique()
+        if inv_procs.nelement() == 1:
+            st0, sp0, st1, sp1 = self.get_start_stop(key=key)
+            return local_arr[st0:sp0, st1:sp1]
+        elif inv_procs.nelement() == 0:
+            return None
+        else:
+            raise ValueError("getitem for tiles does not allow for slices across splits")
 
-        # early outs (returns nothing if the tile does not exist on the process)
-        if tile_map[key][..., 2].unique().nelement() == 0:
-            return None
-        if arr.comm.rank != tile_map[key][..., 2].unique():
-            return None
-        st0, sp0, st1, sp1 = self.get_start_stop(key=key)
-        return local_arr[st0:sp0, st1:sp1]
+    def get_slice(self, key):
+        """
+        getitem routine for slices -> this will return a heat DNDarray
+        Parameters
+        ----------
+        key
+
+        Returns
+        -------
+
+        """
+        arr = self.__DNDarray
+
+        row_inds = self.row_indices + [self.__DNDarray.gshape[0]]
+        col_inds = self.col_indices + [self.__DNDarray.gshape[1]]
+
+        if isinstance(key, int):
+            key = [key]
+        else:
+            key = list(key)
+
+        if len(key) == 1:
+            key.append(slice(0, None))
+
+        key = list(key)
+        if isinstance(key[0], int):
+            st0 = row_inds[key[0]]
+            sp0 = row_inds[key[0] + 1]
+        elif isinstance(key[0], slice):
+            st0 = row_inds[key[0].start] if key[0].start is not None else 0
+            sp0 = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
+        if isinstance(key[1], int):
+            st1 = col_inds[key[1]]
+            sp1 = col_inds[key[1] + 1]
+        elif isinstance(key[1], slice):
+            st1 = col_inds[key[1].start] if key[1].start is not None else 0
+            sp1 = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
+        return arr[st0:sp0, st1:sp1]
 
     def local_get(self, key):
         """
