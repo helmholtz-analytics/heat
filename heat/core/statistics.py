@@ -663,6 +663,7 @@ def mean(x, axis=None):
     ----------
     x : ht.DNDarray
         Values for which the mean is calculated for.
+        The dtype of x must be a float
     axis : None, Int, iterable, defaults to None
         Axis which the mean is taken in. Default None calculates mean of all data items.
 
@@ -739,7 +740,7 @@ def mean(x, axis=None):
         x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
-            mu_tot[0, :], n_tot[0] = merge_moments(
+            mu_tot[0, :], n_tot[0] = __merge_moments(
                 (mu_tot[0, :], n_tot[0]), (mu_tot[i, :], n_tot[i])
             )
         return mu_tot[0][0] if mu_tot[0].size == 1 else mu_tot[0]
@@ -764,7 +765,7 @@ def mean(x, axis=None):
             x.comm.Allreduce(mu_proc, mu_tot, MPI.SUM)
 
             for i in range(1, x.comm.size):
-                mu_tot[0, 0], mu_tot[0, 1] = merge_moments(
+                mu_tot[0, 0], mu_tot[0, 1] = __merge_moments(
                     (mu_tot[0, 0], mu_tot[0, 1]), (mu_tot[i, 0], mu_tot[i, 1])
                 )
             return mu_tot[0][0]
@@ -829,7 +830,7 @@ def mean(x, axis=None):
     )
 
 
-def merge_moments(m1, m2, bessel=True):
+def __merge_moments(m1, m2, bessel=True):
     """
     Merge two statistical moments. If the length of m1/m2 (must be equal) is == 3 then the second moment (variance)
     is merged. This function can be expanded to merge other moments according to Reference 1 as well.
@@ -857,6 +858,10 @@ def merge_moments(m1, m2, bessel=True):
         algorithms, IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA,
         USA.
     """
+    if len(m1) != len(m2):
+        raise ValueError(
+            "m1 and m2 must be same length, currently {} and {}".format(len(m1, len(m2)))
+        )
     n1, n2 = m1[-1], m2[-1]
     mu1, mu2 = m1[-2], m2[-2]
     n = n1 + n2
@@ -867,12 +872,12 @@ def merge_moments(m1, m2, bessel=True):
 
     var1, var2 = m1[-3], m2[-3]
     if bessel:
-        var = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1)
+        var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1)
     else:
-        var = (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n
+        var_m = (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n
 
     if len(m1) == 3:  # merge vars
-        return var, mu, n
+        return var_m, mu, n
 
 
 def min(x, axis=None, out=None, keepdim=None):
@@ -1143,6 +1148,7 @@ def std(x, axis=None, bessel=True):
     ----------
     x : ht.DNDarray
         Values for which the std is calculated for.
+        The dtype of x must be a float
     axis : None, int, defaults to None
         Axis which the mean is taken in. Default None calculates the standard deviation of all data items.
     bessel : bool, defaults to True
@@ -1189,6 +1195,7 @@ def var(x, axis=None, bessel=True):
     ----------
     x : ht.DNDarray
         Values for which the variance is calculated for.
+        The dtype of x must be a float
     axis : None, int, defaults to None
         Axis which the variance is taken in. Default None calculates the variance of all data items.
     bessel : bool, defaults to True
@@ -1270,7 +1277,7 @@ def var(x, axis=None, bessel=True):
         x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
-            var_tot[0, 0, :], var_tot[0, 1, :], n_tot[0] = merge_moments(
+            var_tot[0, 0, :], var_tot[0, 1, :], n_tot[0] = __merge_moments(
                 (var_tot[0, 0, :], var_tot[0, 1, :], n_tot[0]),
                 (var_tot[i, 0, :], var_tot[i, 1, :], n_tot[i]),
                 bessel=bessel,
@@ -1299,7 +1306,7 @@ def var(x, axis=None, bessel=True):
             x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
 
             for i in range(1, x.comm.size):
-                var_tot[0, 0], var_tot[0, 1], var_tot[0, 2] = merge_moments(
+                var_tot[0, 0], var_tot[0, 1], var_tot[0, 2] = __merge_moments(
                     (var_tot[0, 0], var_tot[0, 1], var_tot[0, 2]),
                     (var_tot[i, 0], var_tot[i, 1], var_tot[i, 2]),
                     bessel=bessel,
