@@ -1185,7 +1185,7 @@ def __qr_split0_r_calc(a_tiles, q_dict, q_dict_waits, col, diag_process, not_com
 
 def __qr_split0_local_q(a_tiles, q0_tiles, col, q_dict, diag_process, active_procs):
     rank = a_tiles.arr.comm.rank
-    a_torch_device = a_tiles.arr.device.torch_device()
+    a_torch_device = a_tiles.arr.device.torch_device
     if col in q_dict.keys():
         lcl_col_shape = a_tiles.local_get(key=(slice(None), col)).shape
         # get the start and stop of all local tiles
