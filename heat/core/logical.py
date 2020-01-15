@@ -209,7 +209,9 @@ def any(x, axis=None, out=None, keepdim=False):
     def local_any(t, *args, **kwargs):
         return torch.any(t != 0, *args, **kwargs)
 
-    return operations.__reduce_op(x, local_any, MPI.LOR, axis=axis, out=out, neutral=0, keepdim=keepdim)
+    return operations.__reduce_op(
+        x, local_any, MPI.LOR, axis=axis, out=out, neutral=0, keepdim=keepdim
+    )
 
 
 def logical_and(t1, t2):
