@@ -1531,6 +1531,17 @@ class DNDarray:
         """
         return self.__cast(int)
 
+    def __invert__(self):
+        """
+        Bit-wise inversion, or bit-wise NOT, element-wise.
+
+        Returns
+        -------
+        result: ht.DNDarray
+            A tensor containing the results of element-wise inversion.
+        """
+        return arithmetics.invert(self)
+
     def is_balanced(self):
         """
         Determine if a DNDarray is balanced evenly (or as evenly as possible) across all nodes
@@ -1701,6 +1712,27 @@ class DNDarray:
         array([0., 0.69314718, 1.09861229, 1.38629436, 1.60943791])
         """
         return exponential.log1p(self, out)
+
+    def __lshift__(self, other):
+        """
+        Shift the bits of an integer to the left.
+
+        Parameters
+        ----------
+        other: scalar or tensor
+           number of zero bits to add
+
+        Returns
+        -------
+        result: ht.NDNarray
+           A tensor containing the results of element-wise left shift operation.
+
+        Examples:
+        ---------
+        >>> ht.array([1, 2, 4]) << 1
+        tensor([2, 4, 8])
+        """
+        return arithmetics.left_shift(self, other)
 
     def __lt__(self, other):
         """
@@ -2472,6 +2504,27 @@ class DNDarray:
                 [27., 81.]])
         """
         return arithmetics.pow(other, self)
+
+    def __rshift__(self, other):
+        """
+        Shift the bits of an integer to the right.
+
+        Parameters
+        ----------
+        other: scalar or tensor
+           number of bits to remove
+
+        Returns
+        -------
+        result: ht.NDNarray
+           A tensor containing the results of element-wise right shift operation.
+
+        Examples:
+        ---------
+        >>> ht.array([1, 2, 4]) >> 1
+        tensor([0, 1, 2])
+        """
+        return arithmetics.right_shift(self, other)
 
     def __rsub__(self, other):
         """
