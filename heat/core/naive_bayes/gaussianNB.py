@@ -201,7 +201,12 @@ class GaussianNB:
         -------
         self : object
         """
-        X, y = check_X_y(X, y)
+        #make sure X and y are of the correct shape
+        if X.numdims != 2:
+            raise ValueError("expected X to be a 2-D tensor, is {}-D".format(X.numdims))
+        if not y.shape[0] == X.shape[0]:
+            raise ValueError("y.shape[0] must match number of samples {}, is {}".format(X.shape[0], y.shape[0]))
+        #TODO: more complex checks might be needed, see sklearn.utils.validation.check_X_y()
         if sample_weight is not None:
             sample_weight = _check_sample_weight(sample_weight, X) #TODO
 
