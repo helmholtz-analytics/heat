@@ -1521,8 +1521,6 @@ def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         diag_process = diag_process.item()
         # wait for Q tensors sent during the R calculation -----------------------------------------
         if col in q_dict_waits.keys():
-            # print(col, 'breaking')
-            # break
             for key in q_dict_waits[col].keys():
                 new_key = q_dict_waits[col][key][3] + key + "e"
                 q_dict_waits[col][key][0][1].wait()
