@@ -545,16 +545,14 @@ class SquareDiagTiles:
             raise TypeError(
                 "key must be an int, tuple, or slice, is currently {}".format(type(key))
             )
-        if tile_map[key][..., 2].unique().nelement() > 1:
+        involved_procs = tile_map[key][..., 2].unique()
+        if involved_procs.nelement() == 1 and involved_procs == arr.comm.rank:
+            st0, sp0, st1, sp1 = self.get_start_stop(key=key)
+            return local_arr[st0:sp0, st1:sp1]
+        elif involved_procs.nelement() > 1:
             raise ValueError("Slicing across splits is not allowed")
-
-        # early outs (returns nothing if the tile does not exist on the process)
-        if tile_map[key][..., 2].unique().nelement() == 0:
+        else:
             return None
-        if arr.comm.rank != tile_map[key][..., 2].unique():
-            return None
-        st0, sp0, st1, sp1 = self.get_start_stop(key=key)
-        return local_arr[st0:sp0, st1:sp1]
 
     def local_get(self, key):
         """
