@@ -12,7 +12,6 @@ from . import linalg
 from . import logical
 from . import manipulations
 from . import memory
-from . import operations
 from . import relational
 from . import rounding
 from . import statistics
@@ -1998,7 +1997,7 @@ class DNDarray:
         return arithmetics.bitwise_or(self, other)
 
 
-    def pad(input, pad, mode="constant", value=0):
+    def pad(self, pad, mode="constant", value=0):
         """
         Pads tensor with a specific value (default=0).
         (Not all dimensions supported)
@@ -2050,7 +2049,7 @@ class DNDarray:
 
         """
 
-        return operations.__local_op(torch.pad, input, pad, mode, value)
+        return manipulations.pad(self, pad, mode, value)
 
 
 

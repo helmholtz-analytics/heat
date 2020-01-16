@@ -5,6 +5,7 @@ from .communication import MPI
 
 from . import dndarray
 from . import factories
+from . import logical
 from . import stride_tricks
 from . import types
 
@@ -15,6 +16,7 @@ __all__ = [
     "diagonal",
     "expand_dims",
     "hstack",
+    "pad",
     "resplit",
     "sort",
     "squeeze",
@@ -604,6 +606,65 @@ def hstack(tup):
                 tup[cn] = arr.expand_dims(1)
 
     return concatenate(tup, axis=axis)
+
+
+def pad(input, pad, mode="constant", value=0):
+    """
+    Pads tensor with a specific value (default=0).
+        (Not all dimensions supported)
+
+    Parameters
+    ----------
+    input : ht.DNDarray
+            tensor which is to be padded
+    pad :  (m-elements) tuple, where m/2 <= input dimensions and m is even
+            Padding size by which to pad some dimensions of input (described from last dimension and moving forward)
+            (floor(len(pad)/2)) dimensions of input will be padded
+            Therefore:
+
+            - pad last dimension:       (   padding_left, padding_right
+                                        )
+            - pad last 2 dimensions:    (   padding_left, padding_right,
+                                            padding_top, padding_bottom
+                                        )
+            - pad last 3 dimensions:    (   paddling_left, padding_right,
+                                            padding_top, padding_bottom,
+                                            padding_front, padding_back
+                                        )
+
+    mode : 'constant', 'reflect' or 'replicate' , optional
+
+            - 'constant': Pads the input tensor boundaries with a constant value.
+                --> available for arbitrary dimensions
+            - 'reflect': Pads the input tensor using the reflection of the input boundary
+                --> available dimensions:
+                    - last 2 of 4D tensor
+                    - last of 3D tensor
+            - 'replicate': Pads the input tensor using replication of the input boundary
+                --> available dimensions:
+                    - last 3 of 5D tensor
+                    - last 2 of 4D tensor
+            - 'circular':
+
+    value: number, optional
+            fill value for padding operations
+
+    Returns
+    -------
+    padded_tensor : ht.DNDarray
+    The padded tensor
+
+    Examples
+    --------
+    >>> import heat as ht
+
+    """
+
+    if input.split is None:
+        input_torch=input._DNDarray__array  #TODO check out copy constructing (warning by execution)
+        padded_torch_tensor = torch.nn.functional.pad(input_torch, pad, mode, value)
+        return factories.array(padded_torch_tensor)
+
 
 
 def sort(a, axis=None, descending=False, out=None):
