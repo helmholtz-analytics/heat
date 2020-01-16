@@ -288,8 +288,6 @@ class TestLogical(unittest.TestCase):
         first_tensor = ht.array([[True, True], [False, False]])
         second_tensor = ht.array([[True, False], [True, False]])
         result_tensor = ht.array([[False, True], [True, False]])
-        int_tensor = ht.array([[-1, 0], [2, 1]])
-        float_tensor = ht.array([[-1.4, 0.2], [2.5, 1.3]])
 
         self.assertTrue(ht.equal(ht.logical_xor(first_tensor, second_tensor), result_tensor))
         self.assertTrue(
@@ -298,18 +296,3 @@ class TestLogical(unittest.TestCase):
                 ht.array([[False, False], [False, False]]),
             )
         )
-
-        with self.assertRaises(RuntimeError):
-            self.assertTrue(
-                ht.equal(
-                    ht.logical_xor(int_tensor, int_tensor),
-                    ht.array([[False, False], [False, False]]),
-                )
-            )
-        with self.assertRaises(RuntimeError):
-            self.assertTrue(
-                ht.equal(
-                    ht.logical_xor(float_tensor, float_tensor),
-                    ht.array([[False, False], [False, False]]),
-                )
-            )
