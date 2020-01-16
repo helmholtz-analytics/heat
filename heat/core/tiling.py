@@ -514,7 +514,7 @@ class SquareDiagTiles:
 
         Returns
         -------
-        DNDarray_view : torch.Tensor or ht.DNDarray (if sliced across the split axis
+        DNDarray_view : torch.Tensor
             A local selection of the DNDarray corresponding to the tile/s desired
 
         Examples
@@ -545,14 +545,14 @@ class SquareDiagTiles:
             raise TypeError(
                 "key must be an int, tuple, or slice, is currently {}".format(type(key))
             )
-        inv_procs = tile_map[key][..., 2].unique()
-        if inv_procs.nelement() == 1:
+        involved_procs = tile_map[key][..., 2].unique()
+        if involved_procs.nelement() == 1 and involved_procs == arr.comm.rank:
             st0, sp0, st1, sp1 = self.get_start_stop(key=key)
             return local_arr[st0:sp0, st1:sp1]
-        elif inv_procs.nelement() == 0:
-            return None
+        elif involved_procs.nelement() > 1:
+            raise ValueError("Slicing across splits is not allowed")
         else:
-            raise ValueError("getitem for tiles does not allow for slices across splits")
+            return None
 
     def local_get(self, key):
         """
