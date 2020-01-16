@@ -245,22 +245,28 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
 
     # no further checking needed, sanitize axis will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape, kwargs.get("axis"))
-    split = x.split
+    if isinstance(axis, int):
+        axis = (axis,)
     keepdim = kwargs.get("keepdim")
+    split = x.split
 
+    # if local tensor is empty, replace it with the identity element
+    if 0 in x.lshape and (axis is None or (x.split in axis)):
+        neutral = kwargs.get("neutral")
+        if neutral is None:
+            neutral = float("nan")
+        neutral_shape = x.lshape[:split] + (1,) + x.lshape[split + 1 :]
+        partial = torch.full(neutral_shape, fill_value=neutral, dtype=x._DNDarray__array.dtype)
+    else:
+        partial = x._DNDarray__array
     if axis is None:
-        partial = partial_op(x._DNDarray__array).reshape(-1)
+        partial = partial_op(partial).reshape(-1)
         output_shape = (1,)
     else:
-        if isinstance(axis, int):
-            axis = (axis,)
-
-        if isinstance(axis, tuple):
-            partial = x._DNDarray__array
-            output_shape = x.gshape
-            for dim in axis:
-                partial = partial_op(partial, dim=dim, keepdim=True)
-                output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1 :]
+        output_shape = x.gshape
+        for dim in axis:
+            partial = partial_op(partial, dim=dim, keepdim=True)
+            output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1 :]
         if not keepdim and not len(partial.shape) == 1:
             gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
             lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
