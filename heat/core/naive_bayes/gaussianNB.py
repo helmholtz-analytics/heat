@@ -79,6 +79,9 @@ class GaussianNB:
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(y)))
         if y.numdims != 1:
             raise ValueError("expected y to be a 1-D tensor, is {}-D".format(y.numdims))
+        if sample_weight is not None:
+            if not isinstance(sample_weight, ht.DNDarray):
+                raise ValueError("sample_weight needs to be a ht.DNDarray, but was {}".format(type(sample_weight)))
         return self._partial_fit(X, y, ht.unique(y), _refit=True,
                                  sample_weight=sample_weight)
 
@@ -201,15 +204,24 @@ class GaussianNB:
         -------
         self : object
         """
-        #make sure X and y are of the correct shape
+        #sanitize X and y shape
+        n_samples = X.shape[0]
         if X.numdims != 2:
             raise ValueError("expected X to be a 2-D tensor, is {}-D".format(X.numdims))
-        if not y.shape[0] == X.shape[0]:
-            raise ValueError("y.shape[0] must match number of samples {}, is {}".format(X.shape[0], y.shape[0]))
+        if y.shape[0] != n_samples:
+            raise ValueError("y.shape[0] must match number of samples {}, is {}".format(n_samples, y.shape[0]))
         #TODO: more complex checks might be needed, see sklearn.utils.validation.check_X_y()
         if sample_weight is not None:
-            sample_weight = _check_sample_weight(sample_weight, X) #TODO
+            #sanitize shape of weights
+            if sample_weight.numdims != 1:
+                raise ValueError("Sample weights must be 1D tensor")
+            if sample_weight.shape != (n_samples,):
+                raise ValueError("sample_weight.shape == {}, expected {}!"
+                             .format(sample_weight.shape, (n_samples,)))
 
+        #TODO possibly deeper checks needed, see sklearn.utils.validation._check_sample_weight
+        #sample_weight = _check_sample_weight(sample_weight, X) 
+        
         # If the ratio of data variance between dimensions is too small, it
         # will cause numerical errors. To address this, we artificially
         # boost the variance by epsilon, a small fraction of the standard
