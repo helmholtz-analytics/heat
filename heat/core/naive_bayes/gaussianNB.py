@@ -82,9 +82,6 @@ class GaussianNB:
         return self._partial_fit(X, y, ht.unique(y), _refit=True,
                                  sample_weight=sample_weight)
 
-    def _check_X(self, X): #TODO HeAT version
-        return check_array(X) #TODO HeAT version
-
     @staticmethod
     def _update_mean_variance(n_past, mu, var, X, sample_weight=None):
         """Compute online update of Gaussian mean and variance.
