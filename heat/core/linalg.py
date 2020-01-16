@@ -17,8 +17,8 @@ def dot(a, b, out=None):
     Dot product of two arrays. Specifically,
 
     1. If both a and b are 1-D arrays, it is inner product of vectors.
-    2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or `a @ b` is preferred.
-    3. If either a or b is 0-D (scalar), it is equivalent to multiply and using `ht.multiply(a, b)` or `a * b` is preferred.
+    2. If both a and b are 2-D arrays -> matrix multiplication, using matmul or `a @ b` is preferred.
+    3. If either a or b is 0-D (scalar) ->  multiply and using `ht.multiply(a, b)` or `a * b` is preferred.
 
     Parameters
     ----------
@@ -86,17 +86,22 @@ def matmul(a, b):
     Returns
     -------
     ht.DNDarray
-        returns a tensor with the result of a @ b. The split dimension of the returned array is typically the split dimension of a.
-        However, if a.split = None then c.split will be set as the split dimension of b. If both are None then c.split is also None.
-        ** NOTE ** if a is a split vector then the returned vector will be of shape (1xQ) and will be split in the 1st dimension
-        ** NOTE ** if b is a vector and either a or b is split, then the returned vector will be of shape (Lx1) and will be split in the 0th dimension
+        returns a tensor with the result of a @ b. The split dimension of the returned array is
+        typically the split dimension of a. However, if a.split = None then c.split will be set as
+        the split dimension of b. If both are None then c.split is also None.
+        ** NOTE ** if a is a split vector then the returned vector will be of shape (1xQ) and will
+            be split in the 1st dimension
+        ** NOTE ** if b is a vector and either a or b is split, then the returned vector will be of
+            shape (Lx1) and will be split in the 0th dimension
 
     References
     ----------
-    [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on Distributed Data-parallel Platforms,"
-        IEEE Transactions on Parallel and Distributed Systems, vol 28, no. 9. 2017.
-    [2] S. Ryu and D. Kim, "Parallel Huge Matrix Multiplication on a Cluster with GPGPU Accelerators,"
-        2018 IEEE International Parallel and Distributed Processing Symposium Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
+    [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on
+        Distributed Data-parallel Platforms," IEEE Transactions on Parallel and Distributed Systems,
+        vol 28, no. 9. 2017.
+    [2] S. Ryu and D. Kim, "Parallel Huge Matrix Multiplication on a Cluster with GPGPU
+        Accelerators," 2018 IEEE International Parallel and Distributed Processing Symposium
+        Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
 
     Example
     -------
@@ -134,9 +139,8 @@ def matmul(a, b):
     """
     if a.gshape[-1] != b.gshape[0]:
         raise ValueError(
-            "If the last dimension of a ({}) is not the same size as the second-to-last dimension of b. ({})".format(
-                a.gshape[-1], b.gshape[-2]
-            )
+            "If the last dimension of a ({}) is not the same size as "
+            "the second-to-last dimension of b. ({})".format(a.gshape[-1], b.gshape[-2])
         )
 
     # determine if a larger type is needed for c
@@ -264,7 +268,8 @@ def matmul(a, b):
         if (
             a.split == len(a.gshape) - 1 and b.split == len(a.gshape) - 2
         ):  # if the split direction is the last dim in a and the first dim in b
-            # the max inner dim (kB) is the min value from the result of the integer division of the last dim of a/world size and the first dim of b/world size
+            # the max inner dim (kB) is the min value from the result of the integer division of
+            # the last dim of a/world size and the first dim of b/world size
             kB = min([a.gshape[-1] // a.comm.size, b.gshape[0] // b.comm.size])
         elif a.split == len(a.gshape) - 2 and b.split == len(a.gshape) - 1:
             kB = a.gshape[-1]
@@ -300,7 +305,8 @@ def matmul(a, b):
             rem_b_out = 1
 
         # get the flags from all processes
-        # rem_map dims guide -> {process number, a/b (0/1), True/False (1/0) if there is a remainder in this dimension
+        # rem_map dims guide
+        #   -> {process number, a/b (0/1), True/False (1/0) if there is a remainder in this dim
         rem_map = torch.zeros((a.comm.size, 2, 2))
         rem_map[a.comm.rank, 0, :] = torch.tensor(
             (rem_a_out, rem_a), device=a._DNDarray__array.device
@@ -382,7 +388,8 @@ def matmul(a, b):
                     )
         rem_map_comm.wait()
         if b.split == 0:
-            # the blocks are shifted in the 2nd dimension of A for as many remainders there are between the blocks in the first dim of B
+            # blocks are shifted in the 2nd dim of A for as many remainders there are between
+            # the blocks in the first dim of B
             cnt = 0
             for r in rem_map[:, 1, 0]:
                 if r.item():
@@ -500,7 +507,7 @@ def matmul(a, b):
                     )
 
                     # check if there is a remainder on b in the previous node
-                    # this loop is intended to get the remainders of b since it is the one being passed
+                    # this loop gets the remainders of b since it is the one being passed
                     if pr - 1 in b_rem_locs0:
                         # takes care of the remainders in b as well as dim0 of a
                         b_rem[pr - 1] = b_lp_data[pr - 1][-1]
@@ -551,7 +558,8 @@ def matmul(a, b):
                             else:
                                 c._DNDarray__array[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr]
 
-                    # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
+                    # set the final blocks on the last loop,
+                    # then adjust for the the remainders which were collected in b_rem
                     if b_rem_locs0.numel():
                         c._DNDarray__array[: a_node_rem_s0.shape[0]] += a_node_rem_s0 @ b_rem
 
@@ -625,7 +633,7 @@ def matmul(a, b):
                     )
 
                     # check if there is a remainder on b in the previous node
-                    # this loop is intended to get the remainders of b since it is the one being passed
+                    # this loop is intended to get the remainders of b
                     if pr - 1 in a_rem_locs1:
                         # takes care of the remainders in b as well as dim0 of a
                         a_rem[:, pr - 1] = a_lp_data[pr - 1][:, -1]
@@ -672,7 +680,8 @@ def matmul(a, b):
                                 a_lp_data[pr] @ r[st:sp, None]
                             ).flatten()
 
-                    # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
+                    # set the final blocks on the last loop,
+                    # then adjust for the the remainders which were collected in b_rem
                     if a_rem_locs1.numel():
                         c._DNDarray__array[:, : b_node_rem_s1.shape[1]] += a_rem @ b_node_rem_s1
 
@@ -768,7 +777,6 @@ def __mm_c_block_setter(
     shp_a = a_block_map.shape
     offset_b = a_proc * shp_a[2] if a_proc != 0 else 0
     # offsets are the number of blocks in the multiplication direction on previous nodes
-    # print(a_block_map[a_proc].shape[0])
     for bl_1_a in (
         torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long, device=c.device)
         if b_split == 0
