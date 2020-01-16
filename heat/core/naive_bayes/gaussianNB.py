@@ -103,7 +103,7 @@ class GaussianNB:
     elif classes is not None:
         unique_labels = ht.sort(classes)[0]
         if getattr(clf, 'classes_', None) is not None:
-            if not ht.equal(clf.classes_, unique_labels): #TODO: unique_labels
+            if not ht.equal(clf.classes_, unique_labels): 
                 raise ValueError(
                     "`classes=%r` is not the same as on last call "
                     "to partial_fit, was: %r" % (classes, clf.classes_))
