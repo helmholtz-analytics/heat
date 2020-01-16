@@ -1077,6 +1077,7 @@ def __qr_split0_r_calc(a_tiles, q_dict, q_dict_waits, col_num, diag_pr, not_comp
     procs_remaining = loop_size_remaining.size()[0]
     loop = 0
     while not completed:
+        # print(procs_remaining, loop_size_remaining)
         if procs_remaining % 2 == 1:
             # if the number of processes active is odd need to save the remainders
             if rem1 is None:
@@ -1329,7 +1330,7 @@ def __qr_merge_tile_rows_qr(pr0, pr1, column, rank, a_tiles, diag_process, key, 
         comm.Send(upper.clone(), dest=pr1, tag=986)
         lower = torch.zeros(lower_size, dtype=a_tiles.arr.dtype.torch_type(), device=a_torch_device)
         comm.Recv(lower, source=pr1, tag=4363)
-    else:  # rank == pr1
+    else:  # rank == pr1:
         lower = a_tiles.arr.lloc[lower_inds[0] : lower_inds[1], lower_inds[2] : lower_inds[3]]
         upper = torch.zeros(upper_size, dtype=a_tiles.arr.dtype.torch_type(), device=a_torch_device)
         comm.Recv(upper, source=pr0, tag=986)
@@ -1340,7 +1341,7 @@ def __qr_merge_tile_rows_qr(pr0, pr1, column, rank, a_tiles, diag_process, key, 
     low = r[upper.shape[0] :]
     if rank == pr0:
         a_tiles.arr.lloc[upper_inds[0] : upper_inds[1], upper_inds[2] : upper_inds[3]] = upp
-    else:  # rank == pr1
+    else:  # rank == pr1:
         a_tiles.arr.lloc[lower_inds[0] : lower_inds[1], lower_inds[2] : lower_inds[3]] = low
 
     if column < a_tiles.tile_columns - 1:
@@ -1354,7 +1355,7 @@ def __qr_merge_tile_rows_qr(pr0, pr1, column, rank, a_tiles, diag_process, key, 
             )
             comm.Send(upper_rest.clone(), dest=pr1, tag=98654)
             comm.Recv(lower_rest, source=pr1, tag=436364)
-        else:  # rank == pr1
+        else:  # rank == pr1:
             lower_rest = a_tiles.arr.lloc[lower_inds[0] : lower_inds[1], lower_inds[3] :]
             upper_rest = torch.zeros(
                 upper_rest_size, dtype=a_tiles.arr.dtype.torch_type(), device=a_torch_device
@@ -1370,7 +1371,7 @@ def __qr_merge_tile_rows_qr(pr0, pr1, column, rank, a_tiles, diag_process, key, 
         if rank == pr0:
             a_tiles.arr.lloc[upper_inds[0] : upper_inds[1], upper_inds[3] :] = upp
         # set the lower rest
-        else:  # rank == pr1
+        else:  # rank == pr1:
             a_tiles.arr.lloc[lower_inds[0] : lower_inds[1], lower_inds[3] :] = low
 
     q_dict[column][key] = [q_merge, upper.shape, lower.shape]
@@ -1518,19 +1519,19 @@ def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
             torch.nonzero(proc_tile_start > col)[0] if col != tile_columns else proc_tile_start[-1]
         )
         diag_process = diag_process.item()
-
         # wait for Q tensors sent during the R calculation -----------------------------------------
-        if col not in q_dict_waits.keys():
-            return
-        for key in q_dict_waits[col].keys():
-            new_key = q_dict_waits[col][key][3] + key + "e"
-            q_dict_waits[col][key][0][1].wait()
-            q_dict[col][new_key] = [
-                q_dict_waits[col][key][0][0],
-                q_dict_waits[col][key][1].wait(),
-                q_dict_waits[col][key][2].wait(),
-            ]
-        del q_dict_waits[col]
+        if col in q_dict_waits.keys():
+            # print(col, 'breaking')
+            # break
+            for key in q_dict_waits[col].keys():
+                new_key = q_dict_waits[col][key][3] + key + "e"
+                q_dict_waits[col][key][0][1].wait()
+                q_dict[col][new_key] = [
+                    q_dict_waits[col][key][0][0],
+                    q_dict_waits[col][key][1].wait(),
+                    q_dict_waits[col][key][2].wait(),
+                ]
+            del q_dict_waits[col]
         # local Q calculation ----------------------------------------------------------------------
         __qr_split0_local_q_calc(
             a_tiles=a.tiles,
