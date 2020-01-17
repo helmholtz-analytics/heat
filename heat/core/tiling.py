@@ -166,6 +166,11 @@ class SquareDiagTiles:
             last_diag_pr, col_per_proc_list, col_inds, tile_columns = _create_cols_square_diag(
                 arr, lshape_map, tiles_per_proc
             )
+            empties = torch.where(lshape_map[..., 0] == 0)[0]
+            if empties.numel() > 0:
+                # need to remove the entry in the rows per process
+                for e in empties:
+                    row_per_proc_list[e] = 0
 
         total_tile_rows = tiles_per_proc * arr.comm.size
         row_inds = [0] * total_tile_rows
@@ -291,6 +296,7 @@ class SquareDiagTiles:
                 col_per_proc_list[c] = i.item()
             except AttributeError:
                 pass
+
         # =========================================================================================
         self.__DNDarray = arr
         self.__col_per_proc_list = (
@@ -539,16 +545,14 @@ class SquareDiagTiles:
             raise TypeError(
                 "key must be an int, tuple, or slice, is currently {}".format(type(key))
             )
-        if tile_map[key][..., 2].unique().nelement() > 1:
+        involved_procs = tile_map[key][..., 2].unique()
+        if involved_procs.nelement() == 1 and involved_procs == arr.comm.rank:
+            st0, sp0, st1, sp1 = self.get_start_stop(key=key)
+            return local_arr[st0:sp0, st1:sp1]
+        elif involved_procs.nelement() > 1:
             raise ValueError("Slicing across splits is not allowed")
-
-        # early outs (returns nothing if the tile does not exist on the process)
-        if tile_map[key][..., 2].unique().nelement() == 0:
+        else:
             return None
-        if arr.comm.rank != tile_map[key][..., 2].unique():
-            return None
-        st0, sp0, st1, sp1 = self.get_start_stop(key=key)
-        return local_arr[st0:sp0, st1:sp1]
 
     def local_get(self, key):
         """
