@@ -1,2 +1,2 @@
-from . import basics
-from . import qr
+from .basics import *
+from .qr import *
