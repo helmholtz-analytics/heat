@@ -405,7 +405,7 @@ def __q_calc_split0(a_tiles, q_tiles, col, q_dict, q_dict_waits, diag_process, a
     comm = a_tiles.arr.comm
     rank = comm.rank
     a_torch_device = a_tiles.arr.device.torch_device
-    # wait for Q tensors sent during the R calculation -----------------------------------------
+    # wait for Q tensors sent during the R calculation ---------------------------------------------
     if col in q_dict_waits.keys():
         for key in q_dict_waits[col].keys():
             new_key = q_dict_waits[col][key][3] + key + "e"
@@ -416,6 +416,7 @@ def __q_calc_split0(a_tiles, q_tiles, col, q_dict, q_dict_waits, diag_process, a
                 q_dict_waits[col][key][2].wait(),
             ]
         del q_dict_waits[col]
+    # local Q calculation --------------------------------------------------------------------------
     if col in q_dict.keys():
         lcl_col_shape = a_tiles.local_get(key=(slice(None), col)).shape
         # get the start and stop of all local tiles
@@ -461,7 +462,7 @@ def __q_calc_split0(a_tiles, q_tiles, col, q_dict, q_dict_waits, diag_process, a
             )
         else:
             hld = local_merge_q[r][0].clone()
-        wait = a_tiles.arr.comm.Ibcast(hld, root=r)
+        wait = comm.Ibcast(hld, root=r)
         local_merge_q[r] = [hld, wait]
 
     # recv local Q + apply local Q to Q0
@@ -502,8 +503,7 @@ def __q_calc_split0(a_tiles, q_tiles, col, q_dict, q_dict_waits, diag_process, a
         else:
             snd_shape = None
             snd_shape = comm.bcast(snd_shape, root=diag_process)
-            snd = torch.empty(snd_shape, dtype=q0_torch_type, device=q0_torch_device)
-
+            snd = torch.zeros(snd_shape, dtype=q0_torch_type, device=q0_torch_device)
         wait = comm.Ibcast(snd, root=diag_process)
         global_merge_dict[k] = [snd, wait]
     if rank in active_procs:
@@ -542,11 +542,16 @@ def __q_calc_split0(a_tiles, q_tiles, col, q_dict, q_dict_waits, diag_process, a
                 mult_qi_col[
                     row_inds[ind[0]] : row_inds[ind[0]] + lp_q.shape[0], : lp_q.shape[1]
                 ] = lp_q
-            hold = torch.matmul(q_copy, mult_qi_col)
+            temp = torch.matmul(q_copy, mult_qi_col)
 
             write_inds = q_tiles.get_start_stop(key=(0, qi_col))
-            q_tiles.arr.lloc[:, write_inds[2] : write_inds[2] + hold.shape[1]] = hold
+            q_tiles.arr.lloc[:, write_inds[2] : write_inds[2] + temp.shape[1]] = temp
 
+        if col in q_dict.keys():
+            del q_dict[col]
+    else:
+        for ind in merge_dict_keys:
+            global_merge_dict[ind][1].wait()
         if col in q_dict.keys():
             del q_dict[col]
 
