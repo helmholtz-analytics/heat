@@ -57,10 +57,7 @@ class TestArithmetics(unittest.TestCase):
         an_int_tensor = ht.array([[1, 2], [3, 4]], device=ht_device)
         an_int_vector = ht.array([2, 2], device=ht_device)
         another_int_vector = ht.array([2, 2, 2, 2], device=ht_device)
-
         int_result = ht.array([[0, 2], [2, 0]], device=ht_device)
-
-        int16_result = ht.array([[0, 2], [2, 0]], dtype=ht.int16, device=ht_device)
 
         a_boolean_vector = ht.array([False, True, False, True], device=ht_device)
         another_boolean_vector = ht.array([False, False, True, True], device=ht_device)
@@ -71,11 +68,12 @@ class TestArithmetics(unittest.TestCase):
         self.assertTrue(
             ht.equal(ht.bitwise_and(a_boolean_vector, another_boolean_vector), boolean_result)
         )
+        self.assertTrue(
+            ht.equal(ht.bitwise_and(an_int_tensor.copy().resplit_(0), an_int_vector), int_result)
+        )
 
         with self.assertRaises(TypeError):
             ht.bitwise_and(self.a_tensor, self.another_tensor)
-        with self.assertRaises(TypeError):
-            ht.bitwise_and(another_int_vector, a_boolean_vector)
         with self.assertRaises(ValueError):
             ht.bitwise_and(an_int_vector, another_int_vector)
         with self.assertRaises(TypeError):
@@ -90,21 +88,12 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_and("s", self.an_int_scalar)
         with self.assertRaises(TypeError):
             ht.bitwise_and(self.an_int_scalar, self.a_scalar)
-        with self.assertRaises(TypeError):
-            ht.bitwise_and(int_result, int16_result)
-        with self.assertRaises(NotImplementedError):
-            ht.bitwise_and([1], 2)
-        with self.assertRaises(TypeError):
-            ht.bitwise_and(1, [2])
 
     def test_bitwise_or(self):
         an_int_tensor = ht.array([[1, 2], [3, 4]], device=ht_device)
         an_int_vector = ht.array([2, 2], device=ht_device)
         another_int_vector = ht.array([2, 2, 2, 2], device=ht_device)
-
         int_result = ht.array([[3, 2], [3, 6]], device=ht_device)
-
-        int16_result = ht.array([[0, 2], [2, 0]], dtype=ht.int16, device=ht_device)
 
         a_boolean_vector = ht.array([False, True, False, True], device=ht_device)
         another_boolean_vector = ht.array([False, False, True, True], device=ht_device)
@@ -115,11 +104,12 @@ class TestArithmetics(unittest.TestCase):
         self.assertTrue(
             ht.equal(ht.bitwise_or(a_boolean_vector, another_boolean_vector), boolean_result)
         )
+        self.assertTrue(
+            ht.equal(ht.bitwise_or(an_int_tensor.copy().resplit_(0), an_int_vector), int_result)
+        )
 
         with self.assertRaises(TypeError):
             ht.bitwise_or(self.a_tensor, self.another_tensor)
-        with self.assertRaises(TypeError):
-            ht.bitwise_or(another_int_vector, a_boolean_vector)
         with self.assertRaises(ValueError):
             ht.bitwise_or(an_int_vector, another_int_vector)
         with self.assertRaises(TypeError):
@@ -134,21 +124,12 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_or("s", self.an_int_scalar)
         with self.assertRaises(TypeError):
             ht.bitwise_or(self.an_int_scalar, self.a_scalar)
-        with self.assertRaises(TypeError):
-            ht.bitwise_or(int_result, int16_result)
-        with self.assertRaises(NotImplementedError):
-            ht.bitwise_or([1], 2)
-        with self.assertRaises(TypeError):
-            ht.bitwise_or(1, [2])
 
     def test_bitwise_xor(self):
         an_int_tensor = ht.array([[1, 2], [3, 4]], device=ht_device)
         an_int_vector = ht.array([2, 2], device=ht_device)
         another_int_vector = ht.array([2, 2, 2, 2], device=ht_device)
-
         int_result = ht.array([[3, 0], [1, 6]], device=ht_device)
-
-        int16_result = ht.array([[0, 2], [2, 0]], dtype=ht.int16, device=ht_device)
 
         a_boolean_vector = ht.array([False, True, False, True], device=ht_device)
         another_boolean_vector = ht.array([False, False, True, True], device=ht_device)
@@ -159,11 +140,12 @@ class TestArithmetics(unittest.TestCase):
         self.assertTrue(
             ht.equal(ht.bitwise_xor(a_boolean_vector, another_boolean_vector), boolean_result)
         )
+        self.assertTrue(
+            ht.equal(ht.bitwise_xor(an_int_tensor.copy().resplit_(0), an_int_vector), int_result)
+        )
 
         with self.assertRaises(TypeError):
             ht.bitwise_xor(self.a_tensor, self.another_tensor)
-        with self.assertRaises(TypeError):
-            ht.bitwise_xor(another_int_vector, a_boolean_vector)
         with self.assertRaises(ValueError):
             ht.bitwise_xor(an_int_vector, another_int_vector)
         with self.assertRaises(TypeError):
@@ -178,12 +160,6 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_xor("s", self.an_int_scalar)
         with self.assertRaises(TypeError):
             ht.bitwise_xor(self.an_int_scalar, self.a_scalar)
-        with self.assertRaises(TypeError):
-            ht.bitwise_xor(int_result, int16_result)
-        with self.assertRaises(NotImplementedError):
-            ht.bitwise_xor([1], 2)
-        with self.assertRaises(TypeError):
-            ht.bitwise_xor(1, [2])
 
     def test_diff(self):
         ht_array = ht.random.rand(20, 20, 20, split=None, device=ht_device)
@@ -275,6 +251,35 @@ class TestArithmetics(unittest.TestCase):
             ht.fmod(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
             ht.fmod("T", "s")
+
+    def test_invert(self):
+        int8_tensor = ht.array([[0, 1], [2, -2]], dtype=ht.int8)
+        uint8_tensor = ht.array([[23, 2], [45, 234]], dtype=ht.uint8)
+        bool_tensor = ht.array([[False, True], [True, False]])
+        float_tensor = ht.array([[0.4, 1.3], [1.3, -2.1]])
+        int8_result = ht.array([[-1, -2], [-3, 1]])
+        uint8_result = ht.array([[232, 253], [210, 21]])
+        bool_result = ht.array([[True, False], [False, True]])
+
+        self.assertTrue(ht.equal(ht.invert(int8_tensor), int8_result))
+        self.assertTrue(ht.equal(ht.invert(int8_tensor.copy().resplit_(0)), int8_result))
+        self.assertTrue(ht.equal(ht.invert(uint8_tensor), uint8_result))
+        self.assertTrue(ht.equal(ht.invert(bool_tensor), bool_result))
+
+        with self.assertRaises(TypeError):
+            ht.invert(float_tensor)
+
+    def test_left_shift(self):
+        int_tensor = ht.array([[0, 1], [2, 3]])
+        int_result = ht.array([[0, 2], [4, 6]])
+
+        self.assertTrue(ht.equal(ht.left_shift(int_tensor, 1), int_result))
+        self.assertTrue(ht.equal(ht.left_shift(int_tensor.copy().resplit_(0), 1), int_result))
+
+        with self.assertRaises(TypeError):
+            ht.left_shift(int_tensor, 2.4)
+        with self.assertRaises(TypeError):
+            ht.left_shift(ht.array([True]), 2)
 
     def test_mod(self):
         a_tensor = ht.array([[1, 4], [2, 2]], device=ht_device)
@@ -423,6 +428,18 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.ones(array_len, device=ht_device).prod(axis="bad_axis_type")
 
+    def test_right_shift(self):
+        int_tensor = ht.array([[0, 1], [2, 3]])
+        int_result = ht.array([[0, 0], [1, 1]])
+
+        self.assertTrue(ht.equal(ht.right_shift(int_tensor, 1), int_result))
+        self.assertTrue(ht.equal(ht.right_shift(int_tensor.copy().resplit_(0), 1), int_result))
+
+        with self.assertRaises(TypeError):
+            ht.left_shift(int_tensor, 2.4)
+        with self.assertRaises(TypeError):
+            ht.left_shift(ht.array([True]), 2)
+
     def test_sub(self):
         result = ht.array([[-1.0, 0.0], [1.0, 2.0]], device=ht_device)
         minus_result = ht.array([[1.0, 0.0], [-1.0, -2.0]], device=ht_device)
@@ -561,23 +578,17 @@ class TestArithmetics(unittest.TestCase):
             ("__floordiv__", operator.floordiv, False),
             ("__mod__", operator.mod, False),
             ("__pow__", operator.pow, False),
-            ("__and__", operator.and_, False),
-            ("__or__", operator.or_, False),
-            ("__xor__", operator.xor, False),
         )
         tensor = ht.float32([[1, 4], [2, 3]], device=ht_device)
         num = 3
         for (attr, op, commutative) in operators:
-            if attr in ["__and__", "__or__", "__xor__"]:
-                tensor = ht.int64([[1, 4], [2, 3]], device=ht_device)
             try:
                 func = tensor.__getattribute__(attr)
             except AttributeError:
                 continue
             self.assertTrue(callable(func))
             res_1 = op(tensor, num)
-            if attr not in ["__and__", "__or__", "__xor__"]:
-                res_2 = op(num, tensor)
+            res_2 = op(num, tensor)
             if commutative:
                 self.assertTrue(ht.equal(res_1, res_2))
         # TODO: Test with split tensors when binary operations are working properly for split tensors
