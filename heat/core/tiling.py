@@ -731,7 +731,7 @@ class SquareDiagTiles:
         match_dnd = tiles_to_match.__DNDarray
         # this map will take the same tile row and column sizes up to the last diagonal row/column
         # the last row/column is determined by the number of rows/columns on the non-split dimension
-        if base_dnd.split == match_dnd.split == 0:
+        if base_dnd.split == match_dnd.split == 0 and base_dnd.shape[0] == match_dnd.shape[0]:
             # this implies that the gshape[0]'s are equal
             # rows are the exact same, and the cols are also equal to the rows (square matrix)
             base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=tiles_to_match.lshape_map)

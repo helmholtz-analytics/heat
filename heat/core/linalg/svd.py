@@ -34,7 +34,7 @@ def block_diagoalize(arr, tiles_per_proc=2, overwrite_arr=False):
     # print(arr.tiles.tile_map)
     # print(arr_t.tiles.tile_map)
 
-    # todo: change the split dynamically -----------------------------------------------------------
+    # todo: change the split dynamically...? -------------------------------------------------------
     q0 = factories.eye(
         (arr.gshape[0], arr.gshape[0]), split=0, dtype=arr.dtype, comm=arr.comm, device=arr.device
     )
@@ -45,7 +45,7 @@ def block_diagoalize(arr, tiles_per_proc=2, overwrite_arr=False):
         (arr.gshape[1], arr.gshape[1]), split=0, dtype=arr.dtype, comm=arr.comm, device=arr.device
     )
     q1.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-    q1.tiles.match_tiles(arr.tiles)
+    q1.tiles.match_tiles(arr_t.tiles)
     # ----------------------------------------------------------------------------------------------
     tile_columns = arr.tiles.tile_columns
 
@@ -123,6 +123,45 @@ def block_diagoalize(arr, tiles_per_proc=2, overwrite_arr=False):
             diag_process=diag_process,
             not_completed_prs=not_completed_processes,
         )
+
+        diag_process = (
+            torch.nonzero(proc_tile_start > col)[0] if col != tile_columns else proc_tile_start[-1]
+        )
+        diag_process = diag_process.item()
+
+        __q_calc_split0(
+            a_tiles=arr.tiles,
+            q_tiles=q0.tiles,
+            col=col,
+            q_dict=q0_dict,
+            q_dict_waits=q0_dict_waits,
+            diag_process=diag_process,
+            active_procs=active_procs,
+        )
+    else:
+        col = tile_columns - 1
+        not_completed_processes = torch.nonzero(col < proc_tile_start).flatten()
+        diag_process = not_completed_processes[0].item()
+        __r_calc_split0(
+            a_tiles=arr.tiles,
+            q_dict=q0_dict,
+            q_dict_waits=q0_dict_waits,
+            col_num=col,
+            diag_process=diag_process,
+            not_completed_prs=not_completed_processes,
+        )
+        arr_t.tiles.__DNDarray = arr.T
+        # 2. do full QR on the next column for LQ on arr_t
+        diag_process = torch.nonzero(col < proc_tile_start_t).flatten()[0].item()
+        if arr.comm.rank >= diag_process:
+            __qr_split1_loop(
+                a_tiles=arr_t.tiles,
+                q_tiles=q1.tiles,
+                diag_pr=diag_process,
+                dim0=col + 1,
+                calc_q=False,
+                dim1=col,
+            )
 
         diag_process = (
             torch.nonzero(proc_tile_start > col)[0] if col != tile_columns else proc_tile_start[-1]
