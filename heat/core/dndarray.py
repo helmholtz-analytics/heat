@@ -212,11 +212,11 @@ class DNDarray:
     @property
     def tiles(self):
         """
-        Create the tiles for a DNDarray.
         Tiling object is either None or a class defined in the tiling file
+
         Returns
         -------
-
+        either None or the tiling class object
         """
         return self.__tiles
 
