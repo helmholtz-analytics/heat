@@ -23,7 +23,8 @@ class TestTiling(unittest.TestCase):
         def test_properties(self):
             # ---- m = n ------------- properties ------ s0 -----------
             m_eq_n_s0 = ht.random.randn(47, 47, split=0)
-            m_eq_n_s0_t1 = ht.tiling.SquareDiagTiles(m_eq_n_s0, tiles_per_proc=1)
+            m_eq_n_s0.create_square_diag_tiles(tiles_per_proc=1)
+            m_eq_n_s0_t1 = m_eq_n_s0.tiles
             m_eq_n_s0_t2 = ht.tiling.SquareDiagTiles(m_eq_n_s0, tiles_per_proc=2)
             # arr
             self.assertTrue(ht.equal(m_eq_n_s0_t1.arr, m_eq_n_s0))
@@ -206,6 +207,8 @@ class TestTiling(unittest.TestCase):
             st_sp = m_eq_n_s0_t2.get_start_stop(key=lcl_key)
             sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
             lcl_slice = m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
+            lcl_shape = m_eq_n_s0_t2.local_get(key=(slice(None), slice(None))).shape
+            self.assertEqual(lcl_shape, m_eq_n_s0.lshape)
             self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
             # reset base
             m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
@@ -239,6 +242,8 @@ class TestTiling(unittest.TestCase):
             st_sp = m_eq_n_s1_t2.get_start_stop(key=lcl_key)
             sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
             lcl_slice = m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
+            lcl_shape = m_eq_n_s1_t2.local_get(key=(slice(None), slice(None))).shape
+            self.assertEqual(lcl_shape, m_eq_n_s1.lshape)
             self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
             # reset base
             m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
