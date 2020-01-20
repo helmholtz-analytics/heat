@@ -928,6 +928,28 @@ class DNDarray:
         """
         return relational.eq(self, other)
 
+    def isclose(self, other, rtol=1e-05, atol=1e-08, equal_nan=False):
+    """
+    Parameters:
+    -----------	
+
+    x, y : tensor
+        Input tensors to compare.
+    rtol : float
+        The relative tolerance parameter.
+    atol : float
+        The absolute tolerance parameter.
+    equal_nan : bool
+        Whether to compare NaN’s as equal. If True, NaN’s in x will be considered equal to NaN’s in y in the output array.
+
+    Returns:	
+    --------
+
+    isclose : boolean tensor of where a and b are equal within the given tolerance. 
+        If both x and y are scalars, returns a single boolean value.
+    """
+    return logical.isclose(self, other, rtol, atol, equal_nan)
+
     def __matmul__(self, other):
         """
         Matrix multiplication of two DNDarrays
