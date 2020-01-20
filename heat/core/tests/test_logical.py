@@ -226,7 +226,6 @@ class TestLogical(unittest.TestCase):
 
     def test_isclose(self):
         size = ht.communication.MPI_WORLD.size
-        rank = ht.communication.MPI_WORLD.rank
         a = ht.float32([[2, 2], [2, 2]], device=ht_device)
         b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]], device=ht_device)
         c = ht.zeros((4 * size, 6), split=0, device=ht_device)
