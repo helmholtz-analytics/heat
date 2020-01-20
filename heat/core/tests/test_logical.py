@@ -244,6 +244,9 @@ class TestLogical(unittest.TestCase):
         self.assertTrue(ht.isclose(c, e)[0][0].item())
         self.assertTrue(e.isclose(c)[-1][-1].item())
 
+        # test scalar input
+        self.assertIsInstance(ht.isclose(2.0, 2.00005), bool)
+
         with self.assertRaises(TypeError):
             ht.isclose(a, (2, 2, 2, 2))
         with self.assertRaises(TypeError):
