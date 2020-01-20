@@ -931,7 +931,7 @@ class DNDarray:
     def isclose(self, other, rtol=1e-05, atol=1e-08, equal_nan=False):
         """
         Parameters:
-        -----------	
+        -----------
 
         x, y : tensor
             Input tensors to compare.
@@ -942,10 +942,10 @@ class DNDarray:
         equal_nan : bool
             Whether to compare NaN’s as equal. If True, NaN’s in x will be considered equal to NaN’s in y in the output array.
 
-        Returns:	
+        Returns:
         --------
 
-        isclose : boolean tensor of where a and b are equal within the given tolerance. 
+        isclose : boolean tensor of where a and b are equal within the given tolerance.
             If both x and y are scalars, returns a single boolean value.
         """
         return logical.isclose(self, other, rtol, atol, equal_nan)

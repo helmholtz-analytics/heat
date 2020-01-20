@@ -9,7 +9,16 @@ from . import dndarray
 from . import stride_tricks
 from . import types
 
-__all__ = ["all", "allclose", "any", "isclose", "logical_and", "logical_not", "logical_or", "logical_xor"]
+__all__ = [
+    "all",
+    "allclose",
+    "any",
+    "isclose",
+    "logical_and",
+    "logical_not",
+    "logical_or",
+    "logical_xor",
+]
 
 
 def all(x, axis=None, out=None, keepdim=None):
@@ -174,7 +183,7 @@ def any(x, axis=None, out=None, keepdim=False):
 def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     """
     Parameters:
-    -----------	
+    -----------
 
     x, y : tensor
         Input tensors to compare.
@@ -185,14 +194,14 @@ def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     equal_nan : bool
         Whether to compare NaN’s as equal. If True, NaN’s in x will be considered equal to NaN’s in y in the output array.
 
-    Returns:	
+    Returns:
     --------
 
-    isclose : boolean tensor of where a and b are equal within the given tolerance. 
+    isclose : boolean tensor of where a and b are equal within the given tolerance.
         If both x and y are scalars, returns a single boolean value.
     """
     t1, t2 = _sanitize_close_input(x, y)
-    
+
     # no sanitation for shapes of x and y needed, torch.isclose raises relevant errors
     _local_isclose = torch.isclose(t1._DNDarray__array, t2._DNDarray__array, rtol, atol, equal_nan)
 
@@ -347,7 +356,7 @@ def _sanitize_close_input(x, y):
         t2 = manipulations.resplit(y, axis=None)
 
     # If both x and y are split, but along different axes, y is redistributed to be split along the same axis as x
-    #TODO: needs broadcasting first depending on shapes
+    # TODO: needs broadcasting first depending on shapes
     elif (x.split is not None) and (y.split is not None) and (x.split != y.split):
         t1 = x.copy()
         t2 = manipulations.resplit(y, axis=x.split)

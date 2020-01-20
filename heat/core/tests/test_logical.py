@@ -229,12 +229,12 @@ class TestLogical(unittest.TestCase):
         rank = ht.communication.MPI_WORLD.rank
         a = ht.float32([[2, 2], [2, 2]], device=ht_device)
         b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]], device=ht_device)
-        c = ht.zeros((4*size, 6), split=0, device=ht_device)
-        d = ht.zeros((4*size, 6), split=1, device=ht_device)
-        e = ht.zeros((4*size, 6), device=ht_device)
+        c = ht.zeros((4 * size, 6), split=0, device=ht_device)
+        d = ht.zeros((4 * size, 6), split=1, device=ht_device)
+        e = ht.zeros((4 * size, 6), device=ht_device)
 
         self.assertIsInstance(ht.isclose(a, b), ht.DNDarray)
-        self.assertTrue(ht.isclose(a, b).shape == (2,2))
+        self.assertTrue(ht.isclose(a, b).shape == (2, 2))
         self.assertFalse(ht.isclose(a, b)[0][0].item())
         self.assertTrue(ht.isclose(a, b, atol=1e-04)[0][1].item())
         self.assertTrue(ht.isclose(a, b, rtol=1e-04)[1][0].item())
@@ -251,7 +251,6 @@ class TestLogical(unittest.TestCase):
             ht.isclose(a, "?")
         with self.assertRaises(TypeError):
             ht.isclose("?", a)
-
 
     def test_logical_and(self):
         first_tensor = ht.array([[True, True], [False, False]])
