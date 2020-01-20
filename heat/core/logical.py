@@ -108,52 +108,6 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     >>> ht.allclose(a, b, atol=1e-04)
     True
     """
-    # if np.isscalar(x):
-    #     try:
-    #         if isinstance(y, dndarray.DNDarray):
-    #             x = factories.array([float(x)], device=y.device)
-    #         else:
-    #             x = factories.array([float(x)])
-    #     except (ValueError, TypeError):
-    #         raise TypeError("Data type not supported, input was {}".format(type(x)))
-
-    # elif not isinstance(x, dndarray.DNDarray):
-    #     raise TypeError(
-    #         "Only tensors and numeric scalars are supported, but input was {}".format(type(x))
-    #     )
-
-    # if np.isscalar(y):
-    #     try:
-    #         if isinstance(x, dndarray.DNDarray):
-    #             y = factories.array([float(y)], device=x.device)
-    #         else:
-    #             y = factories.array([float(y)])
-    #     except (ValueError, TypeError):
-    #         raise TypeError("Data type not supported, input was {}".format(type(y)))
-
-    # elif not isinstance(y, dndarray.DNDarray):
-    #     raise TypeError(
-    #         "Only tensors and numeric scalars are supported, but input was {}".format(type(y))
-    #     )
-
-    # # Do redistribution out-of-place
-    # # If only one of the tensors is distributed, unsplit/gather it
-    # if (x.split is not None) and (y.split is None):
-    #     t1 = manipulations.resplit(x, axis=None)
-    #     t2 = y.copy()
-
-    # elif (x.split is None) and (y.split is not None):
-    #     t1 = x.copy()
-    #     t2 = manipulations.resplit(y, axis=None)
-
-    # # If both x and y are split, but along different axes, y is redistributed to be split along the same axis as x
-    # elif (x.split is not None) and (y.split is not None) and (x.split != y.split):
-    #     t1 = x.copy()
-    #     t2 = manipulations.resplit(y, axis=x.split)
-
-    # else:
-    #     t1 = x.copy()
-    #     t2 = y.copy()
 
     t1, t2 = _sanitize_close_input(x, y)
 
@@ -235,24 +189,26 @@ def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     --------
 
     isclose : boolean tensor of where a and b are equal within the given tolerance. 
-        #TODO? If both x and y are scalars, returns a single boolean value.
+        If both x and y are scalars, returns a single boolean value.
     """
     t1, t2 = _sanitize_close_input(x, y)
     
     # no sanitation for shapes of x and y needed, torch.isclose raises relevant errors
-    _local_isclose = torch.tensor(
-        torch.isclose(t1._DNDarray__array, t2._DNDarray__array, rtol, atol, equal_nan)
-    )
+    _local_isclose = torch.isclose(t1._DNDarray__array, t2._DNDarray__array, rtol, atol, equal_nan)
 
     # If x is distributed, then y is also distributed along the same axis
-    # if t1.comm.is_distributed():
-    #     output_gshape = stride_tricks.broadcast_shape(t1.gshape, t2.gshape)
-    #     result = factories.empty(output_gshape, dtype=_local_isclose.dtype, device=t1.device)
-    #     t1.comm.Allgather(_local_isclose, result)
-    #     #TODO: 
-    # else:
-    #     result = _local_isclose
-    result = factories.array(_local_isclose)
+    if t1.comm.is_distributed() and t1.split is not None:
+        output_gshape = stride_tricks.broadcast_shape(t1.gshape, t2.gshape)
+        res = torch.empty(output_gshape).bool()
+        t1.comm.Allgather(_local_isclose, res)
+        result = factories.array(res, dtype=types.bool, device=t1.device, split=t1.split)
+    else:
+        if _local_isclose.dim() == 0:
+            # both x and y are scalars, return a single boolean value
+            result = bool(factories.array(_local_isclose).item())
+        else:
+            result = factories.array(_local_isclose, dtype=types.bool, device=t1.device)
+
     return result
 
 
@@ -350,13 +306,14 @@ def logical_xor(t1, t2):
     """
     return operations.__binary_op(torch.logical_xor, t1, t2)
 
+
 def _sanitize_close_input(x, y):
     if np.isscalar(x):
         try:
             if isinstance(y, dndarray.DNDarray):
-                x = factories.array([float(x)], device=y.device)
+                x = factories.array(float(x), device=y.device)
             else:
-                x = factories.array([float(x)])
+                x = factories.array(float(x))
         except (ValueError, TypeError):
             raise TypeError("Data type not supported, input was {}".format(type(x)))
 
@@ -368,9 +325,9 @@ def _sanitize_close_input(x, y):
     if np.isscalar(y):
         try:
             if isinstance(x, dndarray.DNDarray):
-                y = factories.array([float(y)], device=x.device)
+                y = factories.array(float(y), device=x.device)
             else:
-                y = factories.array([float(y)])
+                y = factories.array(float(y))
         except (ValueError, TypeError):
             raise TypeError("Data type not supported, input was {}".format(type(y)))
 
@@ -390,6 +347,7 @@ def _sanitize_close_input(x, y):
         t2 = manipulations.resplit(y, axis=None)
 
     # If both x and y are split, but along different axes, y is redistributed to be split along the same axis as x
+    #TODO: needs broadcasting first depending on shapes
     elif (x.split is not None) and (y.split is not None) and (x.split != y.split):
         t1 = x.copy()
         t2 = manipulations.resplit(y, axis=x.split)
