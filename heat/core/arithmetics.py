@@ -4,10 +4,12 @@ from .communication import MPI
 from . import dndarray
 from . import operations
 from . import stride_tricks
+from . import types
 
 __all__ = [
     "add",
     "bitwise_and",
+    "bitwise_not",
     "bitwise_or",
     "bitwise_xor",
     "diff",
@@ -16,13 +18,16 @@ __all__ = [
     "floordiv",
     "floor_divide",
     "fmod",
+    "invert",
+    "left_shift",
     "mod",
     "mul",
     "multiply",
     "pow",
-    "prod",
     "power",
+    "prod",
     "remainder",
+    "right_shift",
     "sub",
     "subtract",
     "sum",
@@ -100,7 +105,13 @@ def bitwise_and(t1, t2):
     >>> ht.bitwise_and(ht.array([True, True]), ht.array([False, True]))
     tensor([False,  True])
     """
-    return operations.__binary_bit_op("__and__", t1, t2)
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for dtype in dtypes:
+        if types.heat_type_is_inexact(dtype):
+            raise TypeError("Operation is not supported for float types")
+
+    return operations.__binary_op(torch.Tensor.__and__, t1, t2)
 
 
 def bitwise_or(t1, t2):
@@ -138,7 +149,13 @@ def bitwise_or(t1, t2):
     >>> ht.bitwise_or(ht.array([True, True]), ht.array([False, True]))
     tensor([ True,  True])
     """
-    return operations.__binary_bit_op("__or__", t1, t2)
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for dtype in dtypes:
+        if types.heat_type_is_inexact(dtype):
+            raise TypeError("Operation is not supported for float types")
+
+    return operations.__binary_op(torch.Tensor.__or__, t1, t2)
 
 
 def bitwise_xor(t1, t2):
@@ -171,7 +188,13 @@ def bitwise_xor(t1, t2):
     >>> ht.bitwise_xor(ht.array([True, True]), ht.array([False, True]))
     tensor([ True, False])
     """
-    return operations.__binary_bit_op("__xor__", t1, t2)
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for dtype in dtypes:
+        if types.heat_type_is_inexact(dtype):
+            raise TypeError("Operation is not supported for float types")
+
+    return operations.__binary_op(torch.Tensor.__xor__, t1, t2)
 
 
 def diff(a, n=1, axis=-1):
@@ -380,6 +403,65 @@ def floordiv(t1, t2):
 floor_divide = floordiv
 
 
+def invert(t, out=None):
+    """
+    Computes the bitwise NOT of the given input tensor. The input tensor must be of integral or Boolean types. For bool tensors, it computes the logical NOT.
+    Bitwise_not is an alias for invert.
+
+    Returns
+        -------
+        result: ht.DNDarray
+            A tensor containing the results of element-wise inversion.
+
+    Examples:
+    ---------
+    >>> ht.invert(ht.array([13], dtype=ht.uint8))
+    tensor([242], dtype=ht.uint8)
+    >>> ht.bitwise_not(ht.array([-1, -2, 3], dtype=ht.int8))
+    tensor([ 0,  1, -4], dtype=ht.int8)
+    """
+    dtype = types.heat_type_of(t)
+
+    if types.heat_type_is_inexact(dtype):
+        raise TypeError("Operation is not supported for float types")
+
+    return operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
+
+
+# alias for invert
+bitwise_not = invert
+
+
+def left_shift(t1, t2):
+    """
+    Shift the bits of an integer to the left.
+
+    Parameters
+    ----------
+    t1: scalar or tensor
+
+    t2: scalar or tensor
+        integer number of zero bits to add
+
+    Returns
+    -------
+    result: ht.NDNarray
+        A tensor containing the results of element-wise left shift operation.
+
+    Examples:
+    ---------
+    >>> ht.left_shift(ht.array[1,2,3], 1)
+    tensor([2, 4, 6])
+    """
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for dtype in dtypes:
+        if not types.heat_type_is_exact(dtype):
+            raise TypeError("Operation is supported for integer types only")
+
+    return operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
+
+
 def mod(t1, t2):
     """
     Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
@@ -546,6 +628,36 @@ def remainder(t1, t2):
     return operations.__binary_op(torch.remainder, t1, t2)
 
 
+def right_shift(t1, t2):
+    """
+    Shift the bits of an integer to the right.
+
+    Parameters
+    ----------
+    t1: scalar or tensor
+
+    t2: scalar or tensor
+        integer number of bits to remove
+
+    Returns
+    -------
+    result: ht.NDNarray
+        A tensor containing the results of element-wise right shift operation.
+
+    Examples:
+    ---------
+    >>> ht.right_shift(ht.array[1,2,3], 1)
+    tensor([0, 1, 1])
+    """
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for dtype in dtypes:
+        if not types.heat_type_is_exact(dtype):
+            raise TypeError("Operation is supported for integer types only")
+
+    return operations.__binary_op(torch.Tensor.__rshift__, t1, t2)
+
+
 def prod(x, axis=None, out=None, keepdim=None):
     """
     Return the product of array elements over a given axis.
@@ -590,7 +702,9 @@ def prod(x, axis=None, out=None, keepdim=None):
     ], axis=1)
     ht.tensor([  2.,  12.])
     """
-    return operations.__reduce_op(x, torch.prod, MPI.PROD, axis=axis, out=out, keepdim=keepdim)
+    return operations.__reduce_op(
+        x, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
+    )
 
 
 def sub(t1, t2):
@@ -679,4 +793,6 @@ def sum(x, axis=None, out=None, keepdim=None):
              [3.]]])
     """
     # TODO: make me more numpy API complete Issue #101
-    return operations.__reduce_op(x, torch.sum, MPI.SUM, axis=axis, out=out, keepdim=keepdim)
+    return operations.__reduce_op(
+        x, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
+    )

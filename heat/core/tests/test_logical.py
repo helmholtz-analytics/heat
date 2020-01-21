@@ -223,3 +223,76 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(any_tensor.shape, (1,))
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))
+
+    def test_logical_and(self):
+        first_tensor = ht.array([[True, True], [False, False]])
+        second_tensor = ht.array([[True, False], [True, False]])
+        result_tensor = ht.array([[True, False], [False, False]])
+        int_tensor = ht.array([[-1, 0], [2, 1]])
+        float_tensor = ht.array([[-1.4, 0.2], [2.5, 1.3]])
+
+        self.assertTrue(ht.equal(ht.logical_and(first_tensor, second_tensor), result_tensor))
+        self.assertTrue(
+            ht.equal(
+                ht.logical_and(int_tensor, int_tensor), ht.array([[True, False], [True, True]])
+            )
+        )
+        self.assertTrue(
+            ht.equal(
+                ht.logical_and(float_tensor.copy().resplit_(0), float_tensor),
+                ht.array([[True, True], [True, True]]),
+            )
+        )
+
+    def test_logical_not(self):
+        first_tensor = ht.array([[True, True], [False, False]])
+        second_tensor = ht.array([[True, False], [True, False]])
+        int_tensor = ht.array([[-1, 0], [2, 1]])
+        float_tensor = ht.array([[-1.4, 0.2], [2.5, 1.3]])
+
+        self.assertTrue(
+            ht.equal(ht.logical_not(first_tensor), ht.array([[False, False], [True, True]]))
+        )
+        self.assertTrue(
+            ht.equal(ht.logical_not(second_tensor), ht.array([[False, True], [False, True]]))
+        )
+        self.assertTrue(
+            ht.equal(ht.logical_not(int_tensor), ht.array([[False, True], [False, False]]))
+        )
+        self.assertTrue(
+            ht.equal(
+                ht.logical_not(float_tensor.copy().resplit_(0)),
+                ht.array([[False, False], [False, False]]),
+            )
+        )
+
+    def test_logical_or(self):
+        first_tensor = ht.array([[True, True], [False, False]])
+        second_tensor = ht.array([[True, False], [True, False]])
+        result_tensor = ht.array([[True, True], [True, False]])
+        int_tensor = ht.array([[-1, 0], [2, 1]])
+        float_tensor = ht.array([[-1.4, 0.2], [2.5, 1.3]])
+
+        self.assertTrue(ht.equal(ht.logical_or(first_tensor, second_tensor), result_tensor))
+        self.assertTrue(
+            ht.equal(ht.logical_or(int_tensor, int_tensor), ht.array([[True, False], [True, True]]))
+        )
+        self.assertTrue(
+            ht.equal(
+                ht.logical_or(float_tensor.copy().resplit_(0), float_tensor),
+                ht.array([[True, True], [True, True]]),
+            )
+        )
+
+    def test_logical_xor(self):
+        first_tensor = ht.array([[True, True], [False, False]])
+        second_tensor = ht.array([[True, False], [True, False]])
+        result_tensor = ht.array([[False, True], [True, False]])
+
+        self.assertTrue(ht.equal(ht.logical_xor(first_tensor, second_tensor), result_tensor))
+        self.assertTrue(
+            ht.equal(
+                ht.logical_xor(first_tensor.copy().resplit_(0), first_tensor),
+                ht.array([[False, False], [False, False]]),
+            )
+        )
