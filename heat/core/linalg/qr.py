@@ -898,6 +898,11 @@ def __qr_split1_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None):
     if rank == diag_pr:
         q1, r1 = a_tiles[dim0, dim1].qr(some=False)
         comm.Bcast(q1.clone(), root=diag_pr)
+        st_sp = a_tiles.get_start_stop(key=(dim0, dim1))
+        # if rank == 3:
+        #     st_sp = a_tiles.get_start_stop(key=(5, 3))
+
+        print(dim0, dim1, st_sp, a_tiles.arr.lshape)
         a_tiles[dim0, dim1] = r1
         # apply q1 to the trailing matrix
 
@@ -908,7 +913,7 @@ def __qr_split1_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None):
             a_tiles.local_set(key=(dim0, slice(loc_col + 1, None)), value=torch.matmul(q1.T, hold))
     elif rank > diag_pr:
         # update the trailing matrix and then do q calc
-        st_sp = a_tiles.get_start_stop(key=(dim0, dim0))
+        st_sp = a_tiles.get_start_stop(key=(dim0, dim1))
         sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
 
         q1 = torch.zeros((sz[0], sz[0]), dtype=a_torch_type, device=a_torch_device)
@@ -917,7 +922,7 @@ def __qr_split1_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None):
         a_tiles.local_set(key=(dim0, slice(0, None)), value=torch.matmul(q1.T, hold))
     else:
         # these processes are already done calculating R, only need to calc Q, but need q1
-        st_sp = a_tiles.get_start_stop(key=(dim0, dim0))
+        st_sp = a_tiles.get_start_stop(key=(dim0, dim1))
         sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
         q1 = torch.zeros((sz[0], sz[0]), dtype=a_torch_type, device=a_torch_device)
         comm.Bcast(q1, root=diag_pr)
@@ -927,7 +932,7 @@ def __qr_split1_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None):
         for row in range(q_tiles.tile_rows_per_process[rank]):
             # q1 is applied to each tile of the column dim0 of q0 then written there
             q_tiles.local_set(
-                key=(row, dim1), value=torch.matmul(q_tiles.local_get(key=(row, dim1)), q1)
+                key=(row, dim0), value=torch.matmul(q_tiles.local_get(key=(row, dim0)), q1)
             )
     del q1
     # ======================== end q calc for single tile QR ==========================

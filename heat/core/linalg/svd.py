@@ -153,15 +153,20 @@ def block_diagoalize(arr, tiles_per_proc=2, overwrite_arr=False):
         arr_t.tiles.__DNDarray = arr.T
         # 2. do full QR on the next column for LQ on arr_t
         diag_process = torch.nonzero(col < proc_tile_start_t).flatten()[0].item()
-        if arr.comm.rank >= diag_process:
-            __qr_split1_loop(
-                a_tiles=arr_t.tiles,
-                q_tiles=q1.tiles,
-                diag_pr=diag_process,
-                dim0=col + 1,
-                calc_q=False,
-                dim1=col,
-            )
+        # print(arr_t.shape)
+        # print(q1.shape)
+        # print(arr_t.tiles.tile_map)
+        # print(arr_t.tiles.lshape_map)
+        # print(q1.tiles.tile_map)
+        # if arr.comm.rank >= diag_process:
+        __qr_split1_loop(
+            a_tiles=arr_t.tiles,
+            q_tiles=q1.tiles,
+            diag_pr=diag_process,
+            dim0=col + 1,
+            calc_q=True,
+            dim1=col,
+        )
 
         diag_process = (
             torch.nonzero(proc_tile_start > col)[0] if col != tile_columns else proc_tile_start[-1]
