@@ -1,6 +1,7 @@
 # v0.2.2
 
 This version adds support for PyTorch 1.4.0. There are also several minor feature improvements and bug fixes listed below.
+
 - added option for neutral elements to be used in the place of empty tensors in reduction operations (`operations.__reduce_op`)
 - `var` and `std` both now support iterable axis arguments
 - updated pull request template
