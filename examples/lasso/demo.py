@@ -7,7 +7,7 @@ sys.path.append("../../")
 import heat as ht
 from matplotlib import pyplot as plt
 from sklearn import datasets
-import heat.ml.regression.lasso as lasso
+import heat.core.regression.lasso as lasso
 import plotfkt
 
 # read scikit diabetes data set
