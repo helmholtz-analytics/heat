@@ -350,7 +350,7 @@ class SquareDiagTiles:
         """
         Add extra row/s if there is space below the diagonal (split=1)
         """
-        if arr.gshape[0] - arr.gshape[1] > 2:  # todo: determine best value for this
+        if arr.gshape[0] - arr.gshape[1] > 3:  # todo: determine best value for this
             # use chunk and a loop over the however many tiles are desired
             num_ex_row_tiles = 1  # todo: determine best value for this
             while (arr.gshape[0] - arr.gshape[1]) // num_ex_row_tiles < 2:
@@ -359,7 +359,10 @@ class SquareDiagTiles:
                 _, lshape, _ = arr.comm.chunk(
                     (arr.gshape[0] - arr.gshape[1],), 0, rank=i, w_size=num_ex_row_tiles
                 )
-                row_inds.append(lshape[0])
+                if row_inds[-1] == 0:
+                    row_inds[-1] = lshape[0]
+                else:
+                    row_inds.append(lshape[0])
         else:
             # if there is no place for multiple tiles, combine the remainder with the last row
             row_inds[-1] = arr.gshape[0] - sum(row_inds[:-1])
@@ -819,13 +822,14 @@ class SquareDiagTiles:
             i = self.arr.comm.size - 1
             self.__tile_map[..., 2][sum(self.__row_per_proc_list[:i]) :] = i
 
-        if base_dnd.split == 0 and match_dnd.split == 1:
+        elif base_dnd.split == 0 and match_dnd.split == 1:
             # rows determine the q sizes -> cols = rows
             self.__col_inds = (
                 tiles_to_match.__row_inds.copy()
                 if base_dnd.gshape[0] <= base_dnd.gshape[1]
                 else tiles_to_match.__col_inds.copy()
             )
+
             self.__row_inds = (
                 tiles_to_match.__row_inds.copy()
                 if base_dnd.gshape[0] <= base_dnd.gshape[1]
