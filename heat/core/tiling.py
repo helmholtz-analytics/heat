@@ -350,7 +350,7 @@ class SquareDiagTiles:
         """
         Add extra row/s if there is space below the diagonal (split=1)
         """
-        if arr.gshape[0] - arr.gshape[1] > 10:  # todo: determine best value for this
+        if arr.gshape[0] - arr.gshape[1] > 2:  # todo: determine best value for this
             # use chunk and a loop over the however many tiles are desired
             num_ex_row_tiles = 1  # todo: determine best value for this
             while (arr.gshape[0] - arr.gshape[1]) // num_ex_row_tiles < 2:
@@ -866,9 +866,10 @@ class SquareDiagTiles:
                 dtype=torch.int,
                 device=tiles_to_match.arr._DNDarray__array.device,
             )
-            for i in range(self.tile_rows):
+
+            for i in range(len(self.__row_inds)):
                 self.__tile_map[..., 0][i] = self.__row_inds[i]
-            for i in range(self.tile_columns):
+            for i in range(len(self.__col_inds)):
                 self.__tile_map[..., 1][:, i] = self.__col_inds[i]
             for i in range(self.arr.comm.size):
                 st = sum(self.__row_per_proc_list[:i])
