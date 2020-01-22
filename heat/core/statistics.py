@@ -1108,8 +1108,8 @@ def std(x, axis=None, bessel=True):
     x : ht.DNDarray
         Values for which the std is calculated for.
         The dtype of x must be a float
-    axis : None, int, defaults to None
-        Axis which the mean is taken in. Default None calculates the standard deviation of all data items.
+    axis : None, Int, iterable, defaults to None
+        Axis which the std is taken in. Default None calculates std of all data items.
     bessel : bool, defaults to True
         Use the bessel correction when calculating the variance/std. Toggles between unbiased and biased calculation of
         the standard deviation.
@@ -1155,8 +1155,8 @@ def var(x, axis=None, bessel=True):
     x : ht.DNDarray
         Values for which the variance is calculated for.
         The dtype of x must be a float
-    axis : None, int, defaults to None
-        Axis which the variance is taken in. Default None calculates the variance of all data items.
+    axis : None, Int, iterable, defaults to None
+        Axis which the variance is taken in. Default None calculates variance of all data items.
     bessel : bool, defaults to True
         Use the bessel correction when calculating the variance/std.
         Toggles between unbiased and biased calculation of
