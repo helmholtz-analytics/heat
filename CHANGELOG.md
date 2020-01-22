@@ -2,7 +2,7 @@
 
 This version adds support for PyTorch 1.4.0. There are also several minor feature improvements and bug fixes listed below.
 
-- added option for neutral elements to be used in the place of empty tensors in reduction operations (`operations.__reduce_op`)
+- added option for neutral elements to be used in the place of empty tensors in reduction operations (`operations.__reduce_op`) (cf. [#369](https://github.com/helmholtz-analytics/heat/issues/369) and [#444](https://github.com/helmholtz-analytics/heat/issues/444))
 - `var` and `std` both now support iterable axis arguments
 - updated pull request template
 
