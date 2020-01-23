@@ -19,6 +19,8 @@ setup(
         "heat",
         "heat.core",
         "heat.core.cluster",
+        "heat.core.naive_bayes",
+        "heat.core.naive_bayes.GaussianNB", 
         "heat.core.regression",
         "heat.core.regression.lasso",
         "heat.utils",
