@@ -82,7 +82,7 @@ class GaussianNB():
         if sample_weight is not None:
             if not isinstance(sample_weight, ht.DNDarray):
                 raise ValueError("sample_weight needs to be a ht.DNDarray, but was {}".format(type(sample_weight)))
-        return self._partial_fit(X, y, ht.unique(y), _refit=True,
+        return self._partial_fit(X, y, ht.unique(y, sorted=True), _refit=True,
                                  sample_weight=sample_weight)
 
     #@staticmethod
@@ -101,7 +101,9 @@ class GaussianNB():
                             "to partial_fit.")
 
         elif classes is not None:
-            unique_labels = ht.sort(classes)[0]
+            print("classes = ", classes)
+            print("classes type = ", classes.type)
+            unique_labels = classes
             if getattr(clf, 'classes_', None) is not None:
                 if not ht.equal(clf.classes_, unique_labels): 
                     raise ValueError(
@@ -301,7 +303,7 @@ class GaussianNB():
 
         classes = self.classes_
 
-        unique_y = ht.unique(y)
+        unique_y = ht.unique(y, sorted=True)
         unique_y_in_classes = ht.in1d(unique_y, classes) #TODO np.in1d
 
         if not ht.all(unique_y_in_classes):
