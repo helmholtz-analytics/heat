@@ -1070,6 +1070,7 @@ class TestManipulations(BasicTest):
 
         data_split_none = ht.array(torch_array, device=ht_device)
         res, inv = ht.unique(data_split_none, return_inverse=True, sorted=True)
+        self.assertIsInstance(res, ht.DNDarray)
         self.assertTrue(torch.equal(inv._DNDarray__array, exp_inv))
 
         data_split_zero = ht.array(torch_array, split=0, device=ht_device)
