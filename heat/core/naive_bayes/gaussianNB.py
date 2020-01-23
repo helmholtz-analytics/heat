@@ -85,7 +85,7 @@ class GaussianNB():
         return self._partial_fit(X, y, ht.unique(y), _refit=True,
                                  sample_weight=sample_weight)
 
-    @staticmethod
+    #@staticmethod
     def _check_partial_fit_first_call(clf, classes=None):
         """Private helper function for factorizing common classes param logic
         Estimators that implement the ``partial_fit`` API need to be provided with
@@ -263,7 +263,7 @@ class GaussianNB():
         if _refit:
             self.classes_ = None
 
-        if _check_partial_fit_first_call(self, classes):
+        if self._check_partial_fit_first_call(classes):
             # This is the first call to partial_fit:
             # initialize various cumulative counters
             n_features = X.shape[1]
@@ -360,8 +360,11 @@ class GaussianNB():
         C : ndarray of shape (n_samples,)
             Predicted target values for X
         """
-        check_is_fitted(self) #TODO
-        X = self._check_X(X) #TODO
+        #check_is_fitted(self) #TODO 
+        #X = self._check_X(X)  #TODO
+        #sanitize input 
+        if not isinstance(X, ht.DNDarray):
+            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
         jll = self._joint_log_likelihood(X)
         return self.classes_[ht.argmax(jll, axis=1)]
 
@@ -378,7 +381,7 @@ class GaussianNB():
             the model. The columns correspond to the classes in sorted
             order, as they appear in the attribute :term:`classes_`.
         """
-        check_is_fitted(self) #TODO
+        #check_is_fitted(self) #TODO
         X = self._check_X(X) #TODO
         jll = self._joint_log_likelihood(X)
         # normalize by P(x) = P(f_1, ..., f_n)
