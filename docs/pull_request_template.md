@@ -24,6 +24,7 @@ Remove irrelevant options:
 - [ ] All split configurations tested
 - [ ] Multiple dtypes tested in relavent functions
 - [ ] Documentation updated (if needed)
+- [ ] Updated changelog.md under the title "Pending Additions"
 
 #### Does this change modify the behaviour of other functions? If so, which?
 yes / no
