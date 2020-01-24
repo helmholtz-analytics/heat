@@ -69,6 +69,7 @@ def dot(a, b, out=None):
     else:
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
+
 def cg(A, b, x0, out=None):
     """
     Conjugate gradients method for solving a system of linear equations Ax = b
@@ -88,18 +89,18 @@ def cg(A, b, x0, out=None):
         Returns the solution x of the system of linear equations. If out is given, it is returned
     """
 
-    r = b - matmul(A , x0)
+    r = b - matmul(A, x0)
     p = r
-    rsold = matmul(r , r)
+    rsold = matmul(r, r)
     x = x0
 
     for i in range(len(b)):
-        Ap = matmul(A , p)
-        alpha = rsold / matmul(p , Ap)
+        Ap = matmul(A, p)
+        alpha = rsold / matmul(p, Ap)
         x = x + (alpha * p)
         r = r - (alpha * Ap)
-        rsnew = matmul(r , r)
-        if(math.sqrt(rsnew)< 1e-10):
+        rsnew = matmul(r, r)
+        if math.sqrt(rsnew) < 1e-10:
             print("Residual r = {} reaches tolerance in it = {}".format(math.sqrt(rsnew), i))
             if out is not None:
                 out = x
@@ -113,6 +114,7 @@ def cg(A, b, x0, out=None):
         out = x
         return out
     return x
+
 
 def lanczos(A, m, v0=None, V_out=None, T_out=None):
     """
@@ -136,13 +138,13 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
     """
 
     n, column = A.shape
-    if n!=column:
+    if n != column:
         raise TypeError("Input Matrix A needs to be symmetric.")
     T = factories.zeros((m, m))
-    if A.split==0:
-        V = factories.zeros((n,m), split=A.split, dtype=types.float64)
+    if A.split == 0:
+        V = factories.zeros((n, m), split=A.split, dtype=types.float64)
     else:
-        V = factories.zeros((n,m), dtype=types.float64)
+        V = factories.zeros((n, m), dtype=types.float64)
 
     if v0 is None:
         vr = random.rand(n)
@@ -152,28 +154,28 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
     # # vector v0 has euklidian norm = 1
     w = matmul(A, v0)
     alpha = dot(w, v0)
-    w = w - alpha*v0
-    T[0,0] = alpha
-    V[:,0] = v0
+    w = w - alpha * v0
+    T[0, 0] = alpha
+    V[:, 0] = v0
 
     for i in range(1, m):
         beta = norm(w)
-        if beta == 0.:
+        if beta == 0.0:
             # Lanczos Breakdown, pick a random vector to continue
             vr = random.rand(n)
             # orthogonalize v_r with respect to all vectors v[i]
             for j in range(i):
-                vr = vr - projection(v[:,j], vr)
+                vr = vr - projection(v[:, j], vr)
             # normalize v_r to Euclidian norm 1 and set as ith vector v
-            vi = vr/norm(vr)
+            vi = vr / norm(vr)
         else:
-            vi = w/beta
+            vi = w / beta
 
         w = matmul(A, vi)
         alpha = dot(w, vi)
-        w = w - alpha*vi - beta*v[:,i-1]
-        T[i-1, i] = beta
-        T[i, i-1] = beta
+        w = w - alpha * vi - beta * v[:, i - 1]
+        T[i - 1, i] = beta
+        T[i, i - 1] = beta
         T[i, i] = alpha
         V[:, i] = vi
 
@@ -855,6 +857,7 @@ def matmul(a, b):
             c = factories.array(res, split=split, device=a.device)
             return c
 
+
 def norm(a):
     """
     Euklidian norm of vector a
@@ -870,6 +873,7 @@ def norm(a):
     """
     return math.sqrt(dot(a, a))
 
+
 def projection(a, b):
     """
     Projection of vector b onto vector a
@@ -884,7 +888,8 @@ def projection(a, b):
     ht.DNDarray
         Returns the vector projection of b in the direction of a
     """
-    return (dot(b, a)/dot(a,a))*a
+    return (dot(b, a) / dot(a, a)) * a
+
 
 def transpose(a, axes=None):
     """

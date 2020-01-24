@@ -374,6 +374,7 @@ def array(
 
     return dndarray.DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
 
+
 def diagonal(v, dtype=types.float32, split=None, device=None, comm=None):
     """
     Returns a new 2D array with elements of vector v on the diagonal.
@@ -405,20 +406,21 @@ def diagonal(v, dtype=types.float32, split=None, device=None, comm=None):
     if v.split is not None and v.comm.is_distributed():
         counts, displ, _ = v.comm.counts_displs_shape(v.shape, v.split)
         c1 = displ[v.comm.rank]
-        if v.comm.rank != v.comm.size-1:
-            c2 =displ[v.comm.rank+1]
+        if v.comm.rank != v.comm.size - 1:
+            c2 = displ[v.comm.rank + 1]
         else:
             c2 = v.shape[0]
         if split is None:
             diag._DNDarray__array[c1:c2, c1:c2] = torch.diag(v._DNDarray__array)
-        elif split==0:
+        elif split == 0:
             diag._DNDarray__array[:, c1:c2] = torch.diag(v._DNDarray__array)
-        elif split==1:
-            diag._DNDarray__array[c1:c2,:] = torch.diag(v._DNDarray__array)
+        elif split == 1:
+            diag._DNDarray__array[c1:c2, :] = torch.diag(v._DNDarray__array)
     else:
         diag._DNDarray__array = torch.diag(v._DNDarray__array)
 
     return diag
+
 
 def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order="C"):
     """
