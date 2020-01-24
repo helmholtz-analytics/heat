@@ -1,11 +1,11 @@
 # v0.2.2
 
 This version adds support for PyTorch 1.4.0. There are also several minor feature improvements and bug fixes listed below.
-
-- added option for neutral elements to be used in the place of empty tensors in reduction operations (`operations.__reduce_op`) (cf. [#369](https://github.com/helmholtz-analytics/heat/issues/369) and [#444](https://github.com/helmholtz-analytics/heat/issues/444))
-- `var` and `std` both now support iterable axis arguments
-- updated pull request template
-- bug fix: `x.unique()` returns a DNDarray both in distributed and non-distributed mode (cf. [#464])
+- [#443](https://github.com/helmholtz-analytics/heat/pull/443) added option for neutral elements to be used in the place of empty tensors in reduction operations (`operations.__reduce_op`) (cf. [#369](https://github.com/helmholtz-analytics/heat/issues/369) and [#444](https://github.com/helmholtz-analytics/heat/issues/444))
+- [#445](https://github.com/helmholtz-analytics/heat/pull/445) `var` and `std` both now support iterable axis arguments
+- [#452](https://github.com/helmholtz-analytics/heat/pull/452) updated pull request template
+- [#465](https://github.com/helmholtz-analytics/heat/pull/465) bug fix: `x.unique()` returns a DNDarray both in distributed and non-distributed mode (cf. [#464])
+- [#463](https://github.com/helmholtz-analytics/heat/pull/463) Bugfix: Lasso tests now run with both GPUs and CPUs
 
 # v0.2.1
 
