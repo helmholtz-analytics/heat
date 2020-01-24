@@ -1,13 +1,15 @@
 import itertools
+import math
 import torch
 
 from .communication import MPI
 from . import dndarray
 from . import factories
 from . import manipulations
+from . import random
 from . import types
 
-__all__ = ["dot", "matmul", "transpose", "tril", "triu"]
+__all__ = ["dot", "matmul", "projection", "transpose", "tril", "triu"]
 
 
 def dot(a, b, out=None):
@@ -66,6 +68,129 @@ def dot(a, b, out=None):
         return ret
     else:
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
+
+def cg(A, b, x0, out=None):
+    """
+    Conjugate gradients method for solving a system of linear equations Ax = b
+
+    Parameters
+    ----------
+    A : ht.DNDarray
+        2D symmetric, positive definite Matrix
+    b : ht.DNDarray
+        1D vector
+    x0 : ht.DNDarray
+        Arbitrary 1D starting vector
+
+    Returns
+    -------
+    ht.DNDarray
+        Returns the solution x of the system of linear equations. If out is given, it is returned
+    """
+
+    r = b - matmul(A , x0)
+    p = r
+    rsold = matmul(r , r)
+    x = x0
+
+    for i in range(len(b)):
+        Ap = matmul(A , p)
+        alpha = rsold / matmul(p , Ap)
+        x = x + (alpha * p)
+        r = r - (alpha * Ap)
+        rsnew = matmul(r , r)
+        if(math.sqrt(rsnew)< 1e-10):
+            print("Residual r = {} reaches tolerance in it = {}".format(math.sqrt(rsnew), i))
+            if out is not None:
+                out = x
+                return out
+            return x
+
+        p = r + ((rsnew / rsold) * p)
+        rsold = rsnew
+
+    if out is not None:
+        out = x
+        return out
+    return x
+
+def lanczos(A, m, v0=None, V_out=None, T_out=None):
+    """
+    Lanczos algorithm for iterative approximation of the solution to the eigenvalue problem,  an adaptation of power methods to find the m "most useful" (tending towards extreme highest/lowest) eigenvalues and eigenvectors of an n×n Hermitian matrix, where often m<<n
+    Parameters
+    ----------
+    A : ht.DNDarray
+        2D symmetric, positive definite Matrix
+    m : int
+        number of Lanczos iterations
+    v0 : ht.DNDarray (optional)
+        1D starting vector of euclidian norm 1
+
+    Returns
+    -------
+    V ht.DNDarray
+        Matrix of size nxm, with orthonormal columns, that span the Krylow subspace. If out is given, it is returned
+    T ht.DNDarray
+        Tridiagonal matrix of size mxm, with coefficients alpha_1,...alpha_n on the diagonal and coefficients beta_1,...,beta_n-1 on the side-diagonals. If out is given, it is returned
+
+    """
+
+    n, column = A.shape
+    if n!=column:
+        raise TypeError("Input Matrix A needs to be symmetric.")
+    T = factories.zeros((m, m))
+    if A.split==0:
+        V = factories.zeros((n,m), split=A.split, dtype=types.float64)
+    else:
+        V = factories.zeros((n,m), dtype=types.float64)
+
+    if v0 is None:
+        vr = random.rand(n)
+        v0 = vr / norm(vr)
+
+    # # 0th iteration
+    # # vector v0 has euklidian norm = 1
+    w = matmul(A, v0)
+    alpha = dot(w, v0)
+    w = w - alpha*v0
+    T[0,0] = alpha
+    V[:,0] = v0
+
+    for i in range(1, m):
+        beta = norm(w)
+        if beta == 0.:
+            # Lanczos Breakdown, pick a random vector to continue
+            vr = random.rand(n)
+            # orthogonalize v_r with respect to all vectors v[i]
+            for j in range(i):
+                vr = vr - projection(v[:,j], vr)
+            # normalize v_r to Euclidian norm 1 and set as ith vector v
+            vi = vr/norm(vr)
+        else:
+            vi = w/beta
+
+        w = matmul(A, vi)
+        alpha = dot(w, vi)
+        w = w - alpha*vi - beta*v[:,i-1]
+        T[i-1, i] = beta
+        T[i, i-1] = beta
+        T[i, i] = alpha
+        V[:, i] = vi
+
+    if V.split is not None:
+        V.resplit_(axis=None)
+
+    if T_out is not None:
+        T_out = T
+        if V_out is not None:
+            V_out = V
+            return V_out, T_out
+        return V, T_out
+    elif V_out is not None:
+        V_out = V
+        return V_out, T
+
+    return V, T
 
 
 def matmul(a, b):
@@ -730,6 +855,36 @@ def matmul(a, b):
             c = factories.array(res, split=split, device=a.device)
             return c
 
+def norm(a):
+    """
+    Euklidian norm of vector a
+
+    Parameters
+    ----------
+    a : ht.DNDarray (1D)
+
+    Returns
+    -------
+    float
+        Returns the vector norm (lenght) of a
+    """
+    return math.sqrt(dot(a, a))
+
+def projection(a, b):
+    """
+    Projection of vector b onto vector a
+
+    Parameters
+    ----------
+    a : ht.DNDarray (1D)
+    b : ht.DNDarray (1D)
+
+    Returns
+    -------
+    ht.DNDarray
+        Returns the vector projection of b in the direction of a
+    """
+    return (dot(b, a)/dot(a,a))*a
 
 def transpose(a, axes=None):
     """

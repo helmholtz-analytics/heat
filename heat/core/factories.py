@@ -374,6 +374,51 @@ def array(
 
     return dndarray.DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
 
+def diagonal(v, dtype=types.float32, split=None, device=None, comm=None):
+    """
+    Returns a new 2D array with elements of vector v on the diagonal.
+
+    Parameters
+    ----------
+    v : ht.dndarray
+        1D vector
+    dtype : ht.dtype
+        The desired HeAT data type for the array, defaults to ht.float32.
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to None (no distribution).
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this tensor. Must be either None or the same as v.comm
+
+    Returns
+    -------
+    out : ht.DNDarray
+        Diagonal matrix of size v.shape[0] x v.shape[0]
+
+    """
+    shape = (v.shape[0], v.shape[0])
+    diag = zeros(shape, dtype, split, device, comm)
+    if comm is not None and comm != v.comm:
+        raise NotImplementedError("Differing communcators are currently not supported")
+
+    if v.split is not None and v.comm.is_distributed():
+        counts, displ, _ = v.comm.counts_displs_shape(v.shape, v.split)
+        c1 = displ[v.comm.rank]
+        if v.comm.rank != v.comm.size-1:
+            c2 =displ[v.comm.rank+1]
+        else:
+            c2 = v.shape[0]
+        if split is None:
+            diag._DNDarray__array[c1:c2, c1:c2] = torch.diag(v._DNDarray__array)
+        elif split==0:
+            diag._DNDarray__array[:, c1:c2] = torch.diag(v._DNDarray__array)
+        elif split==1:
+            diag._DNDarray__array[c1:c2,:] = torch.diag(v._DNDarray__array)
+    else:
+        diag._DNDarray__array = torch.diag(v._DNDarray__array)
+
+    return diag
 
 def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order="C"):
     """
