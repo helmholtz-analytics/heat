@@ -1040,7 +1040,9 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
             a._DNDarray__array, sorted=sorted, return_inverse=return_inverse, dim=axis
         )
         if isinstance(torch_output, tuple):
-            heat_output = tuple(factories.array(i, dtype=a.dtype) for i in torch_output)
+            heat_output = tuple(
+                factories.array(i, dtype=a.dtype, split=None, device=a.device) for i in torch_output
+            )
         else:
             heat_output = factories.array(torch_output, dtype=a.dtype, split=None, device=a.device)
         return heat_output
