@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+import torch
 import heat as ht
 
 
@@ -315,8 +316,17 @@ class GaussianNB:
             )
 
         for y_i in unique_y:
-            i = classes.searchsorted(y_i)
-            X_i = X[y == y_i, :]
+            # sklearn original
+            # i = classes.searchsorted(y_i)  # TODO: np.searchsorted
+            # X_i = X[y == y_i, :]
+            ###################
+            # temporary replacement for searchsorted
+            # classes.split is None #TODO: always None?
+            classes_ext = torch.cat((classes._DNDarray__array, y_i._DNDarray__array.unsqueeze(0)))
+            i = torch.argsort(classes_ext)[-1].item()
+            X_i = X[ht.where(y == y_i)._DNDarray__array.squeeze().tolist(), :]
+            # TODO: why does ht.where return 2 dimensions here?? squeeze should be internal to where
+            ###################
 
             if sample_weight is not None:
                 sw_i = sample_weight[y == y_i]
