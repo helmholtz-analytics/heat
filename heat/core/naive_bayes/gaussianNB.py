@@ -1,9 +1,9 @@
 import sys
-import numpy as np 
+import numpy as np
 import heat as ht
 
 
-class GaussianNB():
+class GaussianNB:
     """
     Gaussian Naive Bayes (GaussianNB)
     Can perform online updates to model parameters via :meth:`partial_fit`.
@@ -72,7 +72,7 @@ class GaussianNB():
         -------
         self : object
         """
-        #sanitize input 
+        # sanitize input
         if not isinstance(X, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
         if not isinstance(y, ht.DNDarray):
@@ -81,11 +81,16 @@ class GaussianNB():
             raise ValueError("expected y to be a 1-D tensor, is {}-D".format(y.numdims))
         if sample_weight is not None:
             if not isinstance(sample_weight, ht.DNDarray):
-                raise ValueError("sample_weight needs to be a ht.DNDarray, but was {}".format(type(sample_weight)))
-        return self._partial_fit(X, y, ht.unique(y, sorted=True), _refit=True,
-                                 sample_weight=sample_weight)
+                raise ValueError(
+                    "sample_weight needs to be a ht.DNDarray, but was {}".format(
+                        type(sample_weight)
+                    )
+                )
+        return self._partial_fit(
+            X, y, ht.unique(y, sorted=True), _refit=True, sample_weight=sample_weight
+        )
 
-    #@staticmethod
+    # @staticmethod
     def _check_partial_fit_first_call(clf, classes=None):
         """Private helper function for factorizing common classes param logic
         Estimators that implement the ``partial_fit`` API need to be provided with
@@ -96,19 +101,17 @@ class GaussianNB():
         ``partial_fit`` on ``clf``. In that case the ``classes_`` attribute is also
         set on ``clf``.
         """
-        if getattr(clf, 'classes_', None) is None and classes is None:
-            raise ValueError("classes must be passed on the first call "
-                            "to partial_fit.")
+        if getattr(clf, "classes_", None) is None and classes is None:
+            raise ValueError("classes must be passed on the first call " "to partial_fit.")
 
         elif classes is not None:
-            print("classes = ", classes)
-            print("classes type = ", classes.type)
             unique_labels = classes
-            if getattr(clf, 'classes_', None) is not None:
-                if not ht.equal(clf.classes_, unique_labels): 
+            if getattr(clf, "classes_", None) is not None:
+                if not ht.equal(clf.classes_, unique_labels):
                     raise ValueError(
                         "`classes=%r` is not the same as on last call "
-                        "to partial_fit, was: %r" % (classes, clf.classes_))
+                        "to partial_fit, was: %r" % (classes, clf.classes_)
+                    )
 
             else:
                 # This is the first call to partial_fit
@@ -155,9 +158,8 @@ class GaussianNB():
         # Compute (potentially weighted) mean and variance of new datapoints
         if sample_weight is not None:
             n_new = float(sample_weight.sum())
-            new_mu = ht.average(X, axis=0, weights=sample_weight) #TODO:Issue #351
-            new_var = ht.average((X - new_mu) ** 2, axis=0,
-                                 weights=sample_weight)
+            new_mu = ht.average(X, axis=0, weights=sample_weight)  # TODO:Issue #351
+            new_var = ht.average((X - new_mu) ** 2, axis=0, weights=sample_weight)
         else:
             n_new = X.shape[0]
             new_var = ht.var(X, axis=0)
@@ -177,8 +179,7 @@ class GaussianNB():
         # the sum-of-squared-differences (ssd)
         old_ssd = n_past * var
         new_ssd = n_new * new_var
-        total_ssd = (old_ssd + new_ssd +
-                     (n_new * n_past / n_total) * (mu - new_mu) ** 2)
+        total_ssd = old_ssd + new_ssd + (n_new * n_past / n_total) * (mu - new_mu) ** 2
         total_var = total_ssd / n_total
 
         return total_mu, total_var
@@ -212,11 +213,9 @@ class GaussianNB():
         -------
         self : object
         """
-        return self._partial_fit(X, y, classes, _refit=False,
-                                 sample_weight=sample_weight)
+        return self._partial_fit(X, y, classes, _refit=False, sample_weight=sample_weight)
 
-    def _partial_fit(self, X, y, classes=None, _refit=False,
-                     sample_weight=None):
+    def _partial_fit(self, X, y, classes=None, _refit=False, sample_weight=None):
         """Actual implementation of Gaussian NB fitting.
         Parameters
         ----------
@@ -238,24 +237,29 @@ class GaussianNB():
         -------
         self : object
         """
-        #sanitize X and y shape
+        # sanitize X and y shape
         n_samples = X.shape[0]
         if X.numdims != 2:
             raise ValueError("expected X to be a 2-D tensor, is {}-D".format(X.numdims))
         if y.shape[0] != n_samples:
-            raise ValueError("y.shape[0] must match number of samples {}, is {}".format(n_samples, y.shape[0]))
-        #TODO: more complex checks might be needed, see sklearn.utils.validation.check_X_y()
+            raise ValueError(
+                "y.shape[0] must match number of samples {}, is {}".format(n_samples, y.shape[0])
+            )
+        # TODO: more complex checks might be needed, see sklearn.utils.validation.check_X_y()
         if sample_weight is not None:
-            #sanitize shape of weights
+            # sanitize shape of weights
             if sample_weight.numdims != 1:
                 raise ValueError("Sample weights must be 1D tensor")
             if sample_weight.shape != (n_samples,):
-                raise ValueError("sample_weight.shape == {}, expected {}!"
-                             .format(sample_weight.shape, (n_samples,)))
+                raise ValueError(
+                    "sample_weight.shape == {}, expected {}!".format(
+                        sample_weight.shape, (n_samples,)
+                    )
+                )
 
-        #TODO possibly deeper checks needed, see sklearn.utils.validation._check_sample_weight
-        #sample_weight = _check_sample_weight(sample_weight, X) 
-        
+        # TODO possibly deeper checks needed, see sklearn.utils.validation._check_sample_weight
+        # sample_weight = _check_sample_weight(sample_weight, X)
+
         # If the ratio of data variance between dimensions is too small, it
         # will cause numerical errors. To address this, we artificially
         # boost the variance by epsilon, a small fraction of the standard
@@ -281,19 +285,17 @@ class GaussianNB():
                 priors = ht.asarray(self.priors)
                 # Check that the provide prior match the number of classes
                 if len(priors) != n_classes:
-                    raise ValueError('Number of priors must match number of'
-                                     ' classes.')
+                    raise ValueError("Number of priors must match number of" " classes.")
                 # Check that the sum is 1
-                if not ht.isclose(priors.sum(), 1.0): #TODO ht.isclose
-                    raise ValueError('The sum of the priors should be 1.')
+                if not ht.isclose(priors.sum(), 1.0):  # TODO ht.isclose
+                    raise ValueError("The sum of the priors should be 1.")
                 # Check that the prior are non-negative
                 if (priors < 0).any():
-                    raise ValueError('Priors must be non-negative.')
+                    raise ValueError("Priors must be non-negative.")
                 self.class_prior_ = priors
             else:
                 # Initialize the priors to zeros for each class
-                self.class_prior_ = ht.zeros(len(self.classes_),
-                                             dtype=ht.float64)
+                self.class_prior_ = ht.zeros(len(self.classes_), dtype=ht.float64)
         else:
             if X.shape[1] != self.theta_.shape[1]:
                 msg = "Number of features %d does not match previous data %d."
@@ -304,12 +306,13 @@ class GaussianNB():
         classes = self.classes_
 
         unique_y = ht.unique(y, sorted=True)
-        unique_y_in_classes = ht.in1d(unique_y, classes) #TODO np.in1d
+        unique_y_in_classes = ht.eq(unique_y, classes)
 
         if not ht.all(unique_y_in_classes):
-            raise ValueError("The target label(s) %s in y do not exist in the "
-                             "initial classes %s" %
-                             (unique_y[~unique_y_in_classes], classes))
+            raise ValueError(
+                "The target label(s) %s in y do not exist in the "
+                "initial classes %s" % (unique_y[~unique_y_in_classes], classes)
+            )
 
         for y_i in unique_y:
             i = classes.searchsorted(y_i)
@@ -323,8 +326,8 @@ class GaussianNB():
                 N_i = X_i.shape[0]
 
             new_theta, new_sigma = self._update_mean_variance(
-                self.class_count_[i], self.theta_[i, :], self.sigma_[i, :],
-                X_i, sw_i)
+                self.class_count_[i], self.theta_[i, :], self.sigma_[i, :], X_i, sw_i
+            )
 
             self.theta_[i, :] = new_theta
             self.sigma_[i, :] = new_sigma
@@ -343,9 +346,8 @@ class GaussianNB():
         joint_log_likelihood = []
         for i in range(ht.size(self.classes_)):
             jointi = ht.log(self.class_prior_[i])
-            n_ij = - 0.5 * ht.sum(ht.log(2. * ht.pi * self.sigma_[i, :]))
-            n_ij -= 0.5 * ht.sum(((X - self.theta_[i, :]) ** 2) /
-                                 (self.sigma_[i, :]), 1)
+            n_ij = -0.5 * ht.sum(ht.log(2.0 * ht.pi * self.sigma_[i, :]))
+            n_ij -= 0.5 * ht.sum(((X - self.theta_[i, :]) ** 2) / (self.sigma_[i, :]), 1)
             joint_log_likelihood.append(jointi + n_ij)
 
         joint_log_likelihood = ht.array(joint_log_likelihood).T
@@ -362,9 +364,9 @@ class GaussianNB():
         C : ndarray of shape (n_samples,)
             Predicted target values for X
         """
-        #check_is_fitted(self) #TODO 
-        #X = self._check_X(X)  #TODO
-        #sanitize input 
+        # check_is_fitted(self) #TODO
+        # X = self._check_X(X)  #TODO
+        # sanitize input
         if not isinstance(X, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
         jll = self._joint_log_likelihood(X)
@@ -383,13 +385,15 @@ class GaussianNB():
             the model. The columns correspond to the classes in sorted
             order, as they appear in the attribute :term:`classes_`.
         """
-        #check_is_fitted(self) #TODO
-        X = self._check_X(X) #TODO
+        # check_is_fitted(self) #TODO
+        X = self._check_X(X)  # TODO
         jll = self._joint_log_likelihood(X)
         # normalize by P(x) = P(f_1, ..., f_n)
-        #TODO np.log(np.sum(b*np.exp(a))) https://github.com/scipy/scipy/blob/master/scipy/special/_logsumexp.py 
-        log_prob_x = logsumexp(jll, axis=1) 
-        return jll - np.atleast_2d(log_prob_x).T #TODO np.atleast_2d or ensure that log_prob_x is at least a 2D tensor
+        # TODO np.log(np.sum(b*np.exp(a))) https://github.com/scipy/scipy/blob/master/scipy/special/_logsumexp.py
+        log_prob_x = logsumexp(jll, axis=1)
+        return (
+            jll - np.atleast_2d(log_prob_x).T
+        )  # TODO np.atleast_2d or ensure that log_prob_x is at least a 2D tensor
 
     def predict_proba(self, X):
         """
