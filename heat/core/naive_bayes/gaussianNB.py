@@ -411,7 +411,7 @@ class GaussianNB:
         if not isinstance(X, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
         jll = self._joint_log_likelihood(X)
-        return self.classes_[ht.argmax(jll, axis=1)]
+        return self.classes_[ht.argmax(jll, axis=1).item()]
 
     def predict_log_proba(self, X):
         """
@@ -427,7 +427,7 @@ class GaussianNB:
             order, as they appear in the attribute :term:`classes_`.
         """
         # check_is_fitted(self) #TODO
-        X = self._check_X(X)  # TODO
+        # X = self._check_X(X)  # TODO
         jll = self._joint_log_likelihood(X)
         # normalize by P(x) = P(f_1, ..., f_n)
         # TODO np.log(np.sum(b*np.exp(a))) https://github.com/scipy/scipy/blob/master/scipy/special/_logsumexp.py
