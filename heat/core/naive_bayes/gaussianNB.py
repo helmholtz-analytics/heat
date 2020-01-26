@@ -380,14 +380,18 @@ class GaussianNB:
         return self
 
     def _joint_log_likelihood(self, X):
-        joint_log_likelihood = []
-        for i in range(ht.size(self.classes_)):
+        jll_size = self.classes_._DNDarray__array.numel()
+        joint_log_likelihood = ht.empty(
+            (jll_size, 1), dtype=X.dtype, split=X.split, device=X.device
+        )
+        # for i in range(ht.size(self.classes_)):  #TODO: np.size
+        for i in range(jll_size):
             jointi = ht.log(self.class_prior_[i])
             n_ij = -0.5 * ht.sum(ht.log(2.0 * ht.pi * self.sigma_[i, :]))
             n_ij -= 0.5 * ht.sum(((X - self.theta_[i, :]) ** 2) / (self.sigma_[i, :]), 1)
-            joint_log_likelihood.append(jointi + n_ij)
+            joint_log_likelihood[i] = jointi + n_ij
 
-        joint_log_likelihood = ht.array(joint_log_likelihood).T
+        joint_log_likelihood = joint_log_likelihood.T
         return joint_log_likelihood
 
     def predict(self, X):
