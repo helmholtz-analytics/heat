@@ -394,6 +394,117 @@ class GaussianNB:
         joint_log_likelihood = joint_log_likelihood.T
         return joint_log_likelihood
 
+    def logsumexp(a, axis=None, b=None, keepdims=False, return_sign=False):
+        """Compute the log of the sum of exponentials of input elements.
+        TODO: update sklearn docs to fit heat 
+        Parameters
+        ----------
+        a : array_like
+            Input array.
+        axis : None or int or tuple of ints, optional
+            Axis or axes over which the sum is taken. By default `axis` is None,
+            and all elements are summed.
+            .. versionadded:: 0.11.0
+        keepdims : bool, optional
+            If this is set to True, the axes which are reduced are left in the
+            result as dimensions with size one. With this option, the result
+            will broadcast correctly against the original array.
+            .. versionadded:: 0.15.0
+        b : array-like, optional
+            Scaling factor for exp(`a`) must be of the same shape as `a` or
+            broadcastable to `a`. These values may be negative in order to
+            implement subtraction.
+            .. versionadded:: 0.12.0
+        return_sign : bool, optional
+            If this is set to True, the result will be a pair containing sign
+            information; if False, results that are negative will be returned
+            as NaN. Default is False (no sign information).
+            .. versionadded:: 0.16.0
+        Returns
+        -------
+        res : ndarray
+            The result, ``np.log(np.sum(np.exp(a)))`` calculated in a numerically
+            more stable way. If `b` is given then ``np.log(np.sum(b*np.exp(a)))``
+            is returned.
+        sgn : ndarray
+            If return_sign is True, this will be an array of floating-point
+            numbers matching res and +1, 0, or -1 depending on the sign
+            of the result. If False, only one result is returned.
+        See Also
+        --------
+        numpy.logaddexp, numpy.logaddexp2
+        Notes
+        -----
+        NumPy has a logaddexp function which is very similar to `logsumexp`, but
+        only handles two arguments. `logaddexp.reduce` is similar to this
+        function, but may be less stable.
+        Examples
+        --------
+        >>> from scipy.special import logsumexp
+        >>> a = np.arange(10)
+        >>> np.log(np.sum(np.exp(a)))
+        9.4586297444267107
+        >>> logsumexp(a)
+        9.4586297444267107
+        With weights
+        >>> a = np.arange(10)
+        >>> b = np.arange(10, 0, -1)
+        >>> logsumexp(a, b=b)
+        9.9170178533034665
+        >>> np.log(np.sum(b*np.exp(a)))
+        9.9170178533034647
+        Returning a sign flag
+        >>> logsumexp([1,2],b=[1,-1],return_sign=True)
+        (1.5413248546129181, -1.0)
+        Notice that `logsumexp` does not directly support masked arrays. To use it
+        on a masked array, convert the mask into zero weights:
+        >>> a = np.ma.array([np.log(2), 2, np.log(3)],
+        ...                  mask=[False, True, False])
+        >>> b = (~a.mask).astype(int)
+        >>> logsumexp(a.data, b=b), np.log(5)
+        1.6094379124341005, 1.6094379124341005
+        """
+        # a = _asarray_validated(a, check_finite=False)
+        if b is not None:
+            raise NotImplementedError("Not implemented for weighted logsumexp")
+            # a, b = np.broadcast_arrays(a, b)
+            # if np.any(b == 0):
+            #     a = a + 0.0  # promote to at least float
+            #     a[b == 0] = -np.inf
+
+        a_max = ht.max(a, axis=axis, keepdims=True)
+
+        # TODO: CHECK FOR FINITENESS!!
+        # if a_max.numdims > 0:  # TODO: implement alias numdims --> ndim
+        #     a_max[~np.isfinite(a_max)] = 0  # TODO: np.isfinite
+        # elif not np.isfinite(a_max):
+        #     a_max = 0
+
+        ##TODO: reinstate after allowing b not None
+        # if b is not None:
+        #     b = np.asarray(b)
+        #     tmp = b * np.exp(a - a_max)
+        # else:
+        tmp = ht.exp(a - a_max)
+
+        # suppress warnings about log of zero
+        # with np.errstate(divide="ignore"): #TODO: REINSTATE?
+        s = ht.sum(tmp, axis=axis, keepdims=keepdims)
+        if return_sign:
+            raise NotImplementedError("Not implemented for return_sign")
+            # sgn = np.sign(s)  # TODO: np.sign
+            # s *= sgn  # /= makes more sense but we need zero -> zero
+        out = ht.log(s)
+
+        if not keepdims:
+            a_max = ht.squeeze(a_max, axis=axis)
+        out += a_max
+
+        if return_sign:
+            return out, sgn
+        else:
+            return out
+
     def predict(self, X):
         """
         Perform classification on an array of test vectors X.
@@ -431,9 +542,10 @@ class GaussianNB:
         jll = self._joint_log_likelihood(X)
         # normalize by P(x) = P(f_1, ..., f_n)
         # TODO np.log(np.sum(b*np.exp(a))) https://github.com/scipy/scipy/blob/master/scipy/special/_logsumexp.py
-        log_prob_x = logsumexp(jll, axis=1)
+        log_prob_x = self.logsumexp(jll, axis=1)
+        print("DEBUGGING: log_prob_x.shape", log_prob_x.shape)
         return (
-            jll - np.atleast_2d(log_prob_x).T
+            jll - log_prob_x.T  # np.atleast_2d(log_prob_x).T
         )  # TODO np.atleast_2d or ensure that log_prob_x is at least a 2D tensor
 
     def predict_proba(self, X):
