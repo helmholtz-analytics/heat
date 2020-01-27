@@ -316,7 +316,7 @@ def logical_xor(t1, t2):
     return operations.__binary_op(torch.logical_xor, t1, t2)
 
 
-def _sanitize_close_input(x, y):
+def __sanitize_close_input(x, y):
     if np.isscalar(x):
         try:
             if isinstance(y, dndarray.DNDarray):
