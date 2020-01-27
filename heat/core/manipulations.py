@@ -659,31 +659,34 @@ def pad(input, pad, mode="constant", value=0):
     >>> import heat as ht
 
     """
-    if len(pad)%2 != 0:
+    if len(pad) % 2 != 0:
         raise ValueError("Pad must contain an even amount of elements")
 
-    if len(pad)/2 > len(input.shape):
-        raise ValueError(f"Not enough dimensions to pad.\n"
-                         f"Padding a {len(input.shape)}-dimensional tensor for {len(pad)//2}"
-                         f" dimensions is not possible.")
+    if len(pad) / 2 > len(input.shape):
+        raise ValueError(
+            f"Not enough dimensions to pad.\n"
+            f"Padding a {len(input.shape)}-dimensional tensor for {len(pad)//2}"
+            f" dimensions is not possible."
+        )
 
-    padDim=[len(input.shape)]                     #pad last dimension
+    padDim = [len(input.shape) - 1]  # pad last dimension
 
-    if len(pad)/2 == 2:
-        padDim.append(len(input.shape)-1)         #pad last 2 dimensions
-    elif len(pad)/2 == 3:
-        padDim.append(len(input.shape) -2)        #pad last 3 dimensions
+    if len(pad) / 2 == 2:
+        padDim.append(len(input.shape) - 2)  # pad last 2 dimensions
+    elif len(pad) / 2 == 3:
+        padDim.append(len(input.shape) - 3)  # pad last 3 dimensions
 
-    #padding in non-split dimension
+    # padding in non-split dimension
     if input.split is None or input.split not in padDim:
-        input_torch=input._DNDarray__array
+        input_torch = input._DNDarray__array
         padded_torch_tensor = torch.nn.functional.pad(input_torch, pad, mode, value)
         return factories.array(padded_torch_tensor)
 
-    
+    # padding in split dimension
+    # padded_torch_tensor_beginning=torch.nn.functional.pad(input_torch[], pad, mode, value)
+    # padded_torch_tensor_end=torch.nn.functional.pad(input_torch[], pad, mode, value)
 
-
-
+    # return concatenate(padded_torch_tensor_beginning, padded_torch_tensor_end, input.split)
 
 
 def sort(a, axis=None, descending=False, out=None):
