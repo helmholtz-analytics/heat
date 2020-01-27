@@ -165,7 +165,7 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
             vr = random.rand(n)
             # orthogonalize v_r with respect to all vectors v[i]
             for j in range(i):
-                vr = vr - projection(v[:, j], vr)
+                vr = vr - projection(V[:, j], vr)
             # normalize v_r to Euclidian norm 1 and set as ith vector v
             vi = vr / norm(vr)
         else:
@@ -173,7 +173,7 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
 
         w = matmul(A, vi)
         alpha = dot(w, vi)
-        w = w - alpha * vi - beta * v[:, i - 1]
+        w = w - alpha * vi - beta * V[:, i - 1]
         T[i - 1, i] = beta
         T[i, i - 1] = beta
         T[i, i] = alpha
