@@ -282,6 +282,7 @@ def block_diagonalize_sp1(arr, tiles_per_proc=2, overwrite_arr=False):
             q_dict_waits=q1_dict_waits,
             diag_process=diag_process,
             active_procs=not_completed_processes,
+            dim0=col + 1,
         )
     # for col in range(tile_columns - 1):
     #     diag_process = (
