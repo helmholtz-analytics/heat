@@ -1069,8 +1069,17 @@ class TestManipulations(BasicTest):
         exp_res, exp_inv = torch_array.unique(return_inverse=True, sorted=True)
 
         data_split_none = ht.array(torch_array, device=ht_device)
+        res = ht.unique(data_split_none, sorted=True)
+        self.assertIsInstance(res, ht.DNDarray)
+        self.assertEqual(res.split, None)
+        self.assertEqual(res.dtype, data_split_none.dtype)
+        self.assertEqual(res.device, data_split_none.device)
         res, inv = ht.unique(data_split_none, return_inverse=True, sorted=True)
-        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+        self.assertIsInstance(inv, ht.DNDarray)
+        self.assertEqual(inv.split, None)
+        self.assertEqual(inv.dtype, data_split_none.dtype)
+        self.assertEqual(inv.device, data_split_none.device)
+        self.assertTrue(torch.equal(inv._DNDarray__array, exp_inv))
 
         data_split_zero = ht.array(torch_array, split=0, device=ht_device)
         res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
