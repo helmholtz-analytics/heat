@@ -676,17 +676,17 @@ def pad(input, pad, mode="constant", value=0):
     elif len(pad) / 2 == 3:
         padDim.append(len(input.shape) - 3)  # pad last 3 dimensions
 
+    input_torch = input._DNDarray__array
+    padded_torch_tensor = torch.nn.functional.pad(input_torch, pad, mode, value)
+    padded_tensor=factories.array(padded_torch_tensor)
+
     # padding in non-split dimension
     if input.split is None or input.split not in padDim:
-        input_torch = input._DNDarray__array
-        padded_torch_tensor = torch.nn.functional.pad(input_torch, pad, mode, value)
-        return factories.array(padded_torch_tensor)
+        return padded_tensor
 
     # padding in split dimension
-    # padded_torch_tensor_beginning=torch.nn.functional.pad(input_torch[], pad, mode, value)
-    # padded_torch_tensor_end=torch.nn.functional.pad(input_torch[], pad, mode, value)
-
-    # return concatenate(padded_torch_tensor_beginning, padded_torch_tensor_end, input.split)
+    padded_tensor.balance_()
+    return padded_tensor
 
 
 def sort(a, axis=None, descending=False, out=None):
