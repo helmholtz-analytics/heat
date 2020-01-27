@@ -611,43 +611,38 @@ def hstack(tup):
 def pad(input, pad, mode="constant", value=0):
     """
     Pads tensor with a specific value (default=0).
-        (Not all dimensions supported)
+    (Not all dimensions supported)
 
     Parameters
     ----------
     input : ht.DNDarray
-            tensor which is to be padded
+        tensor which is to be padded
     pad :   tuple with an even amount of elements
-            Determines how many elements are padded along which dimension whereas 2 elements belong
-            to one axis (described from the last one and moving forward)
-
-            Therefore:
-
-            - pad last dimension:       (   padding_left, padding_right
-                                        )
-            - pad last 2 dimensions:    (   padding_left, padding_right,
-                                            padding_top, padding_bottom
-                                        )
-            - pad last 3 dimensions:    (   paddling_left, padding_right,
-                                            padding_top, padding_bottom,
-                                            padding_front, padding_back
-                                        )
-
+        Determines how many elements are padded along which dimension whereas 2 elements belong
+        to one axis (described from the last one and moving forward)
+        Therefore:
+        - pad last dimension:       (   padding_left, padding_right
+                                    )
+        - pad last 2 dimensions:    (   padding_left, padding_right,
+                                        padding_top, padding_bottom
+                                    )
+        - pad last 3 dimensions:    (   paddling_left, padding_right,
+                                        padding_top, padding_bottom,
+                                        padding_front, padding_back
+                                    )
     mode : 'constant', 'reflect' or 'replicate' , optional
-
-            - 'constant': Pads the input tensor boundaries with a constant value.
-                --> available for arbitrary dimensions
-            - 'reflect': Pads the input tensor using the reflection of the input boundary
-                --> available dimensions:
-                    - last 2 of 4D tensor (--> pad = 4-element tuple)
-                    - last of 3D tensor   (--> pad = 2-element tuple)
-            - 'replicate': Pads the input tensor using replication of the input boundary
-                --> available dimensions:
-                    - last 3 of 5D tensor (--> pad = 6-element tuple)
-                    - last 2 of 4D tensor (--> pad = 4-element tuple)
-
+        - 'constant': Pads the input tensor boundaries with a constant value.
+            --> available for arbitrary dimensions
+        - 'reflect': Pads the input tensor using the reflection of the input boundary
+            --> available dimensions:
+                - last 2 of 4D tensor (--> pad = 4-element tuple)
+                - last of 3D tensor   (--> pad = 2-element tuple)
+        - 'replicate': Pads the input tensor using replication of the input boundary
+            --> available dimensions:
+                - last 3 of 5D tensor (--> pad = 6-element tuple)
+                - last 2 of 4D tensor (--> pad = 4-element tuple)
     value: number, optional
-            fill value for padding operations
+        fill value for padding operations
 
     Returns
     -------
@@ -669,19 +664,19 @@ def pad(input, pad, mode="constant", value=0):
             f" dimensions is not possible."
         )
 
-    padDim = [len(input.shape) - 1]  # pad last dimension
+    pad_dim = [len(input.shape) - 1]  # pad last dimension
 
     if len(pad) / 2 == 2:
-        padDim.append(len(input.shape) - 2)  # pad last 2 dimensions
+        pad_dim.append(len(input.shape) - 2)  # pad last 2 dimensions
     elif len(pad) / 2 == 3:
-        padDim.append(len(input.shape) - 3)  # pad last 3 dimensions
+        pad_dim.append(len(input.shape) - 3)  # pad last 3 dimensions
 
     input_torch = input._DNDarray__array
     padded_torch_tensor = torch.nn.functional.pad(input_torch, pad, mode, value)
-    padded_tensor=factories.array(padded_torch_tensor)
+    padded_tensor = factories.array(padded_torch_tensor, dtype=input.dtype, device=input.device)
 
     # padding in non-split dimension
-    if input.split is None or input.split not in padDim:
+    if input.split is None or input.split not in pad_dim:
         return padded_tensor
 
     # padding in split dimension
