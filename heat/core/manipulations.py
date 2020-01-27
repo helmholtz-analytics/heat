@@ -1097,10 +1097,16 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
            [3, 1]])
     """
     if a.split is None:
-        # Trivial case, result can just be forwarded
-        return torch.unique(
+        torch_output = torch.unique(
             a._DNDarray__array, sorted=sorted, return_inverse=return_inverse, dim=axis
         )
+        if isinstance(torch_output, tuple):
+            heat_output = tuple(
+                factories.array(i, dtype=a.dtype, split=None, device=a.device) for i in torch_output
+            )
+        else:
+            heat_output = factories.array(torch_output, dtype=a.dtype, split=None, device=a.device)
+        return heat_output
 
     local_data = a._DNDarray__array
     unique_axis = None
