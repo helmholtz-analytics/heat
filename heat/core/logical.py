@@ -318,7 +318,7 @@ def logical_xor(t1, t2):
 
 def __sanitize_close_input(x, y):
     """
-    Makes sure that both x and y are ht.DNDarrays. 
+    Makes sure that both x and y are ht.DNDarrays.
     Provides copies of x and y distributed along the same split axis (if original split axes do not match).
     """
 
@@ -347,17 +347,17 @@ def __sanitize_close_input(x, y):
 
     # Do redistribution out-of-place
     # If only one of the tensors is distributed, unsplit/gather it
-    if (x.split is not None) and (y.split is None):
+    if x.split is not None and y.split is None:
         t1 = manipulations.resplit(x, axis=None)
         t2 = y.copy()
 
-    elif (x.split is None) and (y.split is not None):
+    elif x.split is None and y.split is not None:
         t1 = x.copy()
         t2 = manipulations.resplit(y, axis=None)
 
     # If both x and y are split, but along different axes, y is redistributed to be split along the same axis as x
     # TODO: needs broadcasting first depending on shapes
-    elif (x.split is not None) and (y.split is not None) and (x.split != y.split):
+    elif x.split is not None and y.split is not None and x.split != y.split:
         t1 = x.copy()
         t2 = manipulations.resplit(y, axis=x.split)
 
