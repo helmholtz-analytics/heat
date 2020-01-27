@@ -617,9 +617,10 @@ def pad(input, pad, mode="constant", value=0):
     ----------
     input : ht.DNDarray
             tensor which is to be padded
-    pad :  (m-elements) tuple, where m/2 <= input dimensions and m is even
-            Padding size by which to pad some dimensions of input (described from last dimension and moving forward)
-            (floor(len(pad)/2)) dimensions of input will be padded
+    pad :   tuple with an even amount of elements
+            Determines how many elements are padded along which dimension whereas 2 elements belong
+            to one axis (described from the last one and moving forward)
+
             Therefore:
 
             - pad last dimension:       (   padding_left, padding_right
@@ -638,13 +639,12 @@ def pad(input, pad, mode="constant", value=0):
                 --> available for arbitrary dimensions
             - 'reflect': Pads the input tensor using the reflection of the input boundary
                 --> available dimensions:
-                    - last 2 of 4D tensor
-                    - last of 3D tensor
+                    - last 2 of 4D tensor (--> pad = 4-element tuple)
+                    - last of 3D tensor   (--> pad = 2-element tuple)
             - 'replicate': Pads the input tensor using replication of the input boundary
                 --> available dimensions:
-                    - last 3 of 5D tensor
-                    - last 2 of 4D tensor
-            - 'circular':
+                    - last 3 of 5D tensor (--> pad = 6-element tuple)
+                    - last 2 of 4D tensor (--> pad = 4-element tuple)
 
     value: number, optional
             fill value for padding operations
@@ -659,11 +659,30 @@ def pad(input, pad, mode="constant", value=0):
     >>> import heat as ht
 
     """
+    if len(pad)%2 != 0:
+        raise ValueError("Pad must contain an even amount of elements")
 
-    if input.split is None:
-        input_torch=input._DNDarray__array  #TODO check out copy constructing (warning by execution)
+    if len(pad)/2 > len(input.shape):
+        raise ValueError(f"Not enough dimensions to pad.\n"
+                         f"Padding a {len(input.shape)}-dimensional tensor for {len(pad)//2}"
+                         f" dimensions is not possible.")
+
+    padDim=[len(input.shape)]                     #pad last dimension
+
+    if len(pad)/2 == 2:
+        padDim.append(len(input.shape)-1)         #pad last 2 dimensions
+    elif len(pad)/2 == 3:
+        padDim.append(len(input.shape) -2)        #pad last 3 dimensions
+
+    #padding in non-split dimension
+    if input.split is None or input.split not in padDim:
+        input_torch=input._DNDarray__array
         padded_torch_tensor = torch.nn.functional.pad(input_torch, pad, mode, value)
         return factories.array(padded_torch_tensor)
+
+    
+
+
 
 
 
