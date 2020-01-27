@@ -317,33 +317,33 @@ def logical_xor(t1, t2):
 
 
 def __sanitize_close_input(x, y):
-    if np.isscalar(x):
-        try:
-            if isinstance(y, dndarray.DNDarray):
-                x = factories.array(float(x), device=y.device)
-            else:
-                x = factories.array(float(x))
-        except (ValueError, TypeError):
-            raise TypeError("Data type not supported, input was {}".format(type(x)))
+    """
+    Makes sure that both x and y are ht.DNDarrays. 
+    Provides copies of x and y distributed along the same split axis (if original split axes do not match).
+    """
 
-    elif not isinstance(x, dndarray.DNDarray):
-        raise TypeError(
-            "Only tensors and numeric scalars are supported, but input was {}".format(type(x))
-        )
+    def sanitize_input_type(x, y):
+        """
+        Verifies that x is either a scalar, or a ht.DNDarray. If a scalar, x gets wrapped in a ht.DNDarray.
+        Raises TypeError if x is neither.
+        """
+        if np.ndim(x) == 0:
+            try:
+                if isinstance(y, dndarray.DNDarray):
+                    x = factories.array(float(x), device=y.device)
+                else:
+                    x = factories.array(float(x))
+            except (ValueError, TypeError):
+                raise TypeError("Data type not supported, input was {}".format(type(x)))
+        elif not isinstance(x, dndarray.DNDarray):
+            raise TypeError(
+                "Only tensors and numeric scalars are supported, but input was {}".format(type(x))
+            )
 
-    if np.isscalar(y):
-        try:
-            if isinstance(x, dndarray.DNDarray):
-                y = factories.array(float(y), device=x.device)
-            else:
-                y = factories.array(float(y))
-        except (ValueError, TypeError):
-            raise TypeError("Data type not supported, input was {}".format(type(y)))
+        return x
 
-    elif not isinstance(y, dndarray.DNDarray):
-        raise TypeError(
-            "Only tensors and numeric scalars are supported, but input was {}".format(type(y))
-        )
+    x = sanitize_input_type(x, y)
+    y = sanitize_input_type(y, x)
 
     # Do redistribution out-of-place
     # If only one of the tensors is distributed, unsplit/gather it
