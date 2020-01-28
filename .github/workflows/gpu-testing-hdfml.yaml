@@ -6,8 +6,8 @@ on:
       - gpu-test-automation
 
 jobs:
-  run-gpu-tests:
-    name: run tests on gpu
+  submit-gpu-tests:
+    name: Submit GPU test batch job
     runs-on: ubuntu-latest
     steps:
       - uses: appleboy/ssh-action@master
@@ -21,8 +21,5 @@ jobs:
             git fetch
             git checkout $GITHUB_SHA
             SHA=$GITHUB_SHA
-            TOKEN=${{ secrets.STATUS_TOKEN }}
-            TEST=${{ secrets.TEST }}
             export SHA
-            export TOKEN
-#            ./.github/workflows/gpu_test_run.sh
+            sbatch .github/workflows/gpu_testing_run.sh
