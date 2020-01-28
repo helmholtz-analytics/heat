@@ -342,19 +342,11 @@ def __sanitize_close_input(x, y):
     # If only one of the tensors is distributed, unsplit/gather it
     if x.split is not None and y.split is None:
         t1 = manipulations.resplit(x, axis=None)
-        t2 = y.copy()
+        return t1, y
 
-    elif x.split is None and y.split is not None:
-        t1 = x.copy()
-        t2 = manipulations.resplit(y, axis=None)
-
-    # If both x and y are split, but along different axes, y is redistributed to be split along the same axis as x
-    # TODO: needs broadcasting first depending on shapes
-    elif x.split is not None and y.split is not None and x.split != y.split:
-        t1 = x.copy()
+    elif x.split != y.split:
         t2 = manipulations.resplit(y, axis=x.split)
+        return x, t2
 
     else:
         return x, y
-
-    return t1, t2
