@@ -11,19 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: appleboy/ssh-action@master
-        env:
-          FOO: "BAR"
-          TEST_ENV: ${{ secrets.TEST }}
         with:
           host: ${{ secrets.HDFML_HOST }}
           username: ${{ secrets.HDFML_NAME }}
           key: ${{ secrets.HDFML_KEY }}
-          envs: STATUS_TOKEN,GITHUB_REF,GITHUB_SHA,TEST_ENV,FOO
           script: |
-            echo "i am foo $FOO"
-            echo "i am test $TEST_ENV"
-            echo "i am not passed ${{ secrets.TEST }}"
-            curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d '{"state": "pending", "description": "GPU Test Status", "context": "continuous-integration/gpu"}' https://api.github.com/repos/helmholtz-analytics/heat/statuses/$GITHUB_SHA
+            curl -H "Content-Type: application/json" -H "Authorization: token ${{ secrets.STATUS_TOKEN }}" -X POST -d '{"state": "pending", "description": "GPU Test Status", "context": "continuous-integration/gpu"}' https://api.github.com/repos/helmholtz-analytics/heat/statuses/$GITHUB_SHA
             source .virtualenvs/heat/bin/activate
             cd heat
             git fetch
@@ -36,4 +29,4 @@ jobs:
             python -m pip install --user -e .
             python -m coverage run --source=heat -m pytest
             python -m coverage report
-            curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d '{"state": "success", "description": "GPU Test Status", "context": "continuous-integration/gpu"}' https://api.github.com/repos/helmholtz-analytics/heat/statuses/$GITHUB_SHA
+            curl -H "Content-Type: application/json" -H "Authorization: token ${{ secrets.STATUS_TOKEN }}" -X POST -d '{"state": "success", "description": "GPU Test Status", "context": "continuous-integration/gpu"}' https://api.github.com/repos/helmholtz-analytics/heat/statuses/$GITHUB_SHA
