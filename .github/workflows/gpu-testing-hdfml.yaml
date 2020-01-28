@@ -1,6 +1,9 @@
 name: GPU Testing Workflow on HDFML machine
 
-on: push
+on:
+  push:
+    branches:
+      - gpu-test-automation
 
 jobs:
   run-gpu-tests:
@@ -16,7 +19,7 @@ jobs:
             source .virtualenvs/heat/bin/activate
             cd heat
             git fetch
-            git checkout ${{ GITHUB_REF }}
+            git checkout $GITHUB_REF
             module load Python/3.6.8
             module load GCC
             module load Intel
