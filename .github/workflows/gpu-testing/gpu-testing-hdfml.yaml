@@ -15,4 +15,14 @@ jobs:
           host: ${{ secrets.HDFML_HOST }}
           username: ${{ secrets.HDFML_NAME }}
           key: ${{ secrets.HDFML_KEY }}
-          script: whoami && ls
+          script: |
+            source .virtualenvs/heat/bin/activate
+            cd heat
+            git fetch
+            git checkout ${{ GITHUB_REF }}
+            module load Python/3.6.8
+            module load GCC
+            module load Intel
+            module load ParaStationMPI
+            python -m pip install -e .
+            python -m pytest
