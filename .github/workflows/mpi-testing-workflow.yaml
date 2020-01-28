@@ -1,9 +1,6 @@
 name: Unit Tests Workflow
 
-on:
-  push:
-    branches:
-      - features/424-github-actions
+on: push
 
 jobs:
   run-unittests:
