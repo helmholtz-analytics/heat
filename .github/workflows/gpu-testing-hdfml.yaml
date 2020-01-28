@@ -19,5 +19,11 @@ jobs:
           script: |
             cd  ~/heat
             git fetch
-            git checkout ${GITHUB_SHA}
+            git checkout $GITHUB_SHA
+            SHA=$GITHUB_SHA
+            TOKEN=${{ secrects.STATUS_TOKEN }}
+            TEST=${{ secrets.TEST }}
+            export SHA
+            export TOKEN
+            export TEST
             ./.github/workflows/gpu_test_run.sh
