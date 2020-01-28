@@ -19,5 +19,5 @@ jobs:
           script: |
             cd  ~/heat
             git fetch
-            git checkout ${GITHUB_REF}
+            git checkout ${GITHUB_SHA}
             ./.github/workflows/gpu_testing_run.sh
