@@ -325,12 +325,12 @@ def __sanitize_close_input(x, y):
         Verifies that x is either a scalar, or a ht.DNDarray. If a scalar, x gets wrapped in a ht.DNDarray.
         Raises TypeError if x is neither.
         """
-        if np.ndim(x) == 0:
-            dtype = getattr(x, "dtype", float)
-            device = getattr(y, "device", None)
-            x = factories.array(x, dtype=dtype, device=device)
-        else:
-            if not isinstance(x, dndarray.DNDarray):
+        if not isinstance(x, dndarray.DNDarray):
+            if np.ndim(x) == 0:
+                dtype = getattr(x, "dtype", float)
+                device = getattr(y, "device", None)
+                x = factories.array(x, dtype=dtype, device=device)
+            else:
                 raise TypeError("Expected DNDarray or numeric scalar, input was {}".format(type(x)))
 
         return x
