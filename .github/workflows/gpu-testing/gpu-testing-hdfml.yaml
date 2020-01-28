@@ -1,9 +1,6 @@
 name: GPU Testing Workflow on HDFML machine
 
-on:
-  push:
-    branches:
-      - gpu-test-automation
+on: push
 
 jobs:
   run-gpu-tests:
