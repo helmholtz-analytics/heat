@@ -118,7 +118,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     True
     """
 
-    t1, t2 = _sanitize_close_input(x, y)
+    t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
     _local_allclose = torch.tensor(
@@ -198,7 +198,7 @@ def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     isclose : boolean tensor of where a and b are equal within the given tolerance.
         If both x and y are scalars, returns a single boolean value.
     """
-    t1, t2 = _sanitize_close_input(x, y)
+    t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.isclose raises relevant errors
     _local_isclose = torch.isclose(t1._DNDarray__array, t2._DNDarray__array, rtol, atol, equal_nan)
@@ -326,17 +326,14 @@ def __sanitize_close_input(x, y):
         Raises TypeError if x is neither.
         """
         if np.ndim(x) == 0:
-            try:
-                if isinstance(y, dndarray.DNDarray):
-                    x = factories.array(float(x), device=y.device)
-                else:
-                    x = factories.array(float(x))
-            except (ValueError, TypeError):
-                raise TypeError("Data type not supported, input was {}".format(type(x)))
-        elif not isinstance(x, dndarray.DNDarray):
-            raise TypeError(
-                "Only tensors and numeric scalars are supported, but input was {}".format(type(x))
-            )
+            dtype = getattr(x, "dtype", float)
+            device = getattr(y, "device", None)
+            x = factories.array(x, dtype=dtype, device=device)
+        else:
+            if not isinstance(x, dndarray.DNDarray):
+                raise TypeError(
+                    "Expected DNDarray or numeric scalar, input was {}".format(type(x))
+                )
 
         return x
 
