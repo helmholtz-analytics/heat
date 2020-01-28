@@ -331,9 +331,7 @@ def __sanitize_close_input(x, y):
             x = factories.array(x, dtype=dtype, device=device)
         else:
             if not isinstance(x, dndarray.DNDarray):
-                raise TypeError(
-                    "Expected DNDarray or numeric scalar, input was {}".format(type(x))
-                )
+                raise TypeError("Expected DNDarray or numeric scalar, input was {}".format(type(x)))
 
         return x
 
