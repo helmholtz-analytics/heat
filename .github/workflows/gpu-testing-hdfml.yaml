@@ -13,7 +13,7 @@ jobs:
       - uses: appleboy/ssh-action@master
         env:
           FOO: "BAR"
-          TEST_ENV: $TEST
+          TEST_ENV: ${{ secrets.TEST }}
         with:
           host: ${{ secrets.HDFML_HOST }}
           username: ${{ secrets.HDFML_NAME }}
@@ -21,7 +21,8 @@ jobs:
           envs: STATUS_TOKEN,GITHUB_REF,GITHUB_SHA,TEST_ENV,FOO
           script: |
             echo "i am foo $FOO"
-            echo "i am test $TEST"
+            echo "i am test $TEST_ENV"
+            echo "i am not passed ${{ secrets.TEST }}"
             curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d '{"state": "pending", "description": "GPU Test Status", "context": "continuous-integration/gpu"}' https://api.github.com/repos/helmholtz-analytics/heat/statuses/$GITHUB_SHA
             source .virtualenvs/heat/bin/activate
             cd heat
