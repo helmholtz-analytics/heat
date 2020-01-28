@@ -11,13 +11,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: appleboy/ssh-action@master
+        env:
+          FOO: "BAR"
         with:
           host: ${{ secrets.HDFML_HOST }}
           username: ${{ secrets.HDFML_NAME }}
           key: ${{ secrets.HDFML_KEY }}
-          envs: STATUS_TOKEN,GITHUB_REF,GITHUB_SHA,TEST
+          envs: STATUS_TOKEN,GITHUB_REF,GITHUB_SHA,TEST,FOO
           script: |
-            echo $TEST
+            echo "i am foo $FOO"
+            echo "i am test $TEST"
             curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d '{"state": "pending", "description": "GPU Test Status", "context": "continuous-integration/gpu"}' https://api.github.com/repos/helmholtz-analytics/heat/statuses/$GITHUB_SHA
             source .virtualenvs/heat/bin/activate
             cd heat
