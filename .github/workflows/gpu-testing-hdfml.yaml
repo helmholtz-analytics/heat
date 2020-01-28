@@ -16,6 +16,7 @@ jobs:
           username: ${{ secrets.HDFML_NAME }}
           key: ${{ secrets.HDFML_KEY }}
           script: |
+            curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d '{"state": "pending", "description": "GPU Test Status", "context": "continuous-integration/gpu"}' https://api.github.com/repos/helmholtz-analytics/heat/statuses/$GITHUB_REF
             source .virtualenvs/heat/bin/activate
             cd heat
             git fetch
@@ -29,3 +30,4 @@ jobs:
             python -m coverage run --source=heat -m pytest
             python -m coverage combine
             python -m coverage report
+            curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d '{"state": "success", "description": "GPU Test Status", "context": "continuous-integration/gpu"}' https://api.github.com/repos/helmholtz-analytics/heat/statuses/$GITHUB_REF
