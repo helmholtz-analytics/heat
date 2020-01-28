@@ -13,11 +13,12 @@ jobs:
       - uses: appleboy/ssh-action@master
         env:
           FOO: "BAR"
+          TEST_ENV: $TEST
         with:
           host: ${{ secrets.HDFML_HOST }}
           username: ${{ secrets.HDFML_NAME }}
           key: ${{ secrets.HDFML_KEY }}
-          envs: STATUS_TOKEN,GITHUB_REF,GITHUB_SHA,TEST,FOO
+          envs: STATUS_TOKEN,GITHUB_REF,GITHUB_SHA,TEST_ENV,FOO
           script: |
             echo "i am foo $FOO"
             echo "i am test $TEST"
