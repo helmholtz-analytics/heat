@@ -23,6 +23,6 @@ jobs:
             cd  heat
             git fetch
             git checkout $GITHUB_SHA
-            SHA=$GITHUB_SHA
-            export SHA
+            export SHA=$GITHUB_SHA
+            export NUM_PROC=8
             sbatch .github/workflows/gpu_test_run.sh

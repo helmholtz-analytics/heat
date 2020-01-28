@@ -16,7 +16,7 @@ DEVICE="gpu" &&
 export DEVICE &&
 python -m pip install --user codecov pytest coverage &&
 python -m pip install --user -e . &&
-srun -n 8 python -m coverage run --source=heat --parallel-mode -m pytest &&
+srun -n $NUM_PROC python -m coverage run --source=heat --parallel-mode -m pytest &&
 python -m coverage combine &&
 python -m coverage report &&
 curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d '{"state": "success", "description": "GPU Test Status", "context": "continuous-integration/gpu"}' https://api.github.com/repos/helmholtz-analytics/heat/statuses/$SHA
