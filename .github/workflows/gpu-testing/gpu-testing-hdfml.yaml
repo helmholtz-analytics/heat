@@ -24,5 +24,8 @@ jobs:
             module load GCC
             module load Intel
             module load ParaStationMPI
+            python -m pip install codecov pytest coverage
             python -m pip install -e .
-            python -m pytest
+            python -m coverage run --source=heat -m pytest
+            coverage combine
+            coverage report
