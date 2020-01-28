@@ -185,7 +185,6 @@ class TestLogical(unittest.TestCase):
             ht.allclose(a, "?")
         with self.assertRaises(TypeError):
             ht.allclose("?", a)
-        print("DEBUGGING: test_allclose done")
 
     def test_any(self):
         # float values, minor axis
@@ -254,7 +253,6 @@ class TestLogical(unittest.TestCase):
             ht.isclose(a, "?")
         with self.assertRaises(TypeError):
             ht.isclose("?", a)
-        print("DEBUGGING: test_isclose done")
 
     def test_logical_and(self):
         first_tensor = ht.array([[True, True], [False, False]])
