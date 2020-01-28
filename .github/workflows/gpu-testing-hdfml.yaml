@@ -16,6 +16,7 @@ jobs:
           username: ${{ secrets.HDFML_NAME }}
           key: ${{ secrets.HDFML_KEY }}
           script: |
+            echo "sha $GITHUB_SHA"
             curl -H "Content-Type: application/json" -H "Authorization: token ${{ secrets.STATUS_TOKEN }}" -X POST -d '{"state": "pending", "description": "GPU Test Status", "context": "continuous-integration/gpu"}' https://api.github.com/repos/helmholtz-analytics/heat/statuses/$GITHUB_SHA
             source .virtualenvs/heat/bin/activate
             cd heat
