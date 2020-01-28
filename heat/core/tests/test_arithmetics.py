@@ -45,7 +45,7 @@ class TestArithmetics(unittest.TestCase):
         self.assertTrue(ht.equal(ht.add(self.a_tensor, self.a_vector), result))
         self.assertTrue(ht.equal(ht.add(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.add(self.a_split_tensor, self.a_tensor), result))
-        print("DEVICE LOG", result._DNDarray__array.device())
+        print("DEVICE LOG", result._DNDarray__array.device)
         self.fail()
 
         with self.assertRaises(ValueError):
