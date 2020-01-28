@@ -25,4 +25,4 @@ jobs:
             git checkout $GITHUB_SHA
             SHA=$GITHUB_SHA
             export SHA
-            sbatch .github/workflows/gpu_testing_run.sh
+            sbatch .github/workflows/gpu_test_run.sh
