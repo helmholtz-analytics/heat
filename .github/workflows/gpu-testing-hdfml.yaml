@@ -27,5 +27,5 @@ jobs:
             python -m pip install --user codecov pytest coverage
             python -m pip install --user -e .
             python -m coverage run --source=heat -m pytest
-            coverage combine
-            coverage report
+            python -m coverage combine
+            python -m coverage report
