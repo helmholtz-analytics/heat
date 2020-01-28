@@ -4,9 +4,6 @@
 #SBATCH --ntasks-per-node=2
 #SBATCH --cpus-per-task=1
 #SBATCH --time=00:05:000
-#SBATCH --gres=gpu:2 --partition=gpus
-
-
 
 curl -H "Content-Type: application/json" -H "Authorization: token ${TOKEN}" -X POST -d '{"state": "pending", "description": "GPU Test Status", "context": "continuous-integration/gpu"}' https://api.github.com/repos/helmholtz-analytics/heat/statuses/${SHA}
 {
