@@ -24,3 +24,4 @@ curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN"
 # One of the commands failed, reporting failure
 curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d '{"state": "failure", "description": "GPU Test Status", "context": "continuous-integration/gpu"}' https://api.github.com/repos/helmholtz-analytics/heat/statuses/$SHA
 }
+cd ~

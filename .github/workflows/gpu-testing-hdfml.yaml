@@ -17,7 +17,10 @@ jobs:
           key: ${{ secrets.HDFML_KEY }}
           envs: GITHUB_SHA
           script: |
-            cd  ~/heat
+            mkdir tmp
+            cd tmp
+            git clone https://github.com/helmholtz-analytics/heat.git
+            cd  heat
             git fetch
             git checkout $GITHUB_SHA
             SHA=$GITHUB_SHA
