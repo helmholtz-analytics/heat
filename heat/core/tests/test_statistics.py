@@ -5,6 +5,7 @@ from itertools import combinations
 import os
 import heat as ht
 
+
 if os.environ.get("DEVICE") == "gpu" and torch.cuda.is_available():
     ht.use_device("gpu")
     torch.cuda.set_device(torch.device(ht.get_device().torch_device))
@@ -428,7 +429,8 @@ class TestStatistics(unittest.TestCase):
         )
 
         # check max over all float elements of split 3d tensor, across split axis
-        random_volume = ht.random.randn(3, 3, 3, split=1, device=ht_device)
+        size = ht.MPI_WORLD.size
+        random_volume = ht.random.randn(3, 3 * size, 3, split=1, device=ht_device)
         maximum_volume = ht.max(random_volume, axis=1)
 
         self.assertIsInstance(maximum_volume, ht.DNDarray)
@@ -439,30 +441,29 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(maximum_volume.split, None)
 
         # check max over all float elements of split 3d tensor, tuple axis
-        random_volume = ht.random.randn(3, 3, 3, split=0, device=ht_device)
+        random_volume = ht.random.randn(3 * size, 3, 3, split=0, device=ht_device)
         maximum_volume = ht.max(random_volume, axis=(1, 2))
         alt_maximum_volume = ht.max(random_volume, axis=(2, 1))
 
         self.assertIsInstance(maximum_volume, ht.DNDarray)
-        self.assertEqual(maximum_volume.shape, (3,))
+        self.assertEqual(maximum_volume.shape, (3 * size,))
         self.assertEqual(maximum_volume.dtype, ht.float64)
         self.assertEqual(maximum_volume._DNDarray__array.dtype, torch.float64)
         self.assertEqual(maximum_volume.split, 0)
         self.assertTrue((maximum_volume == alt_maximum_volume).all())
 
         # check max over all float elements of split 5d tensor, along split axis
-        random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0, device=ht_device)
+        random_5d = ht.random.randn(1 * size, 2, 3, 4, 5, split=0, device=ht_device)
         maximum_5d = ht.max(random_5d, axis=1)
 
         self.assertIsInstance(maximum_5d, ht.DNDarray)
-        self.assertEqual(maximum_5d.shape, (1, 3, 4, 5))
+        self.assertEqual(maximum_5d.shape, (1 * size, 3, 4, 5))
         self.assertLessEqual(maximum_5d.lshape[1], 3)
         self.assertEqual(maximum_5d.dtype, ht.float64)
         self.assertEqual(maximum_5d._DNDarray__array.dtype, torch.float64)
         self.assertEqual(maximum_5d.split, 0)
 
         # Calculating max with empty local vectors works
-        size = ht.MPI_WORLD.size
         if size > 1:
             a = ht.arange(size - 1, split=0, device=ht_device)
             res = ht.max(a)
@@ -596,6 +597,10 @@ class TestStatistics(unittest.TestCase):
             ht.mean(x, axis="01")
         with self.assertRaises(ValueError):
             ht.mean(x, axis=(0, "10"))
+        with self.assertRaises(ValueError):
+            ht.mean(x, axis=(0, 0))
+        with self.assertRaises(ValueError):
+            ht.mean(x, axis=torch.Tensor([0, 0]))
 
         a = ht.arange(1, 5, device=ht_device)
         self.assertEqual(a.mean(), 2.5)
@@ -676,33 +681,36 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum, 1)
 
         # maximum along first axis
+        ht_array = ht.array(data, dtype=ht.int8, device=ht_device)
         minimum_vertical = ht.min(ht_array, axis=0)
 
         self.assertIsInstance(minimum_vertical, ht.DNDarray)
         self.assertEqual(minimum_vertical.shape, (3,))
         self.assertEqual(minimum_vertical.lshape, (3,))
         self.assertEqual(minimum_vertical.split, None)
-        self.assertEqual(minimum_vertical.dtype, ht.int64)
-        self.assertEqual(minimum_vertical._DNDarray__array.dtype, torch.int64)
+        self.assertEqual(minimum_vertical.dtype, ht.int8)
+        self.assertEqual(minimum_vertical._DNDarray__array.dtype, torch.int8)
         self.assertTrue(
             (minimum_vertical._DNDarray__array == comparison.min(dim=0, keepdim=True)[0]).all()
         )
 
         # maximum along second axis
+        ht_array = ht.array(data, dtype=ht.int16, device=ht_device)
         minimum_horizontal = ht.min(ht_array, axis=1, keepdim=True)
 
         self.assertIsInstance(minimum_horizontal, ht.DNDarray)
         self.assertEqual(minimum_horizontal.shape, (4, 1))
         self.assertEqual(minimum_horizontal.lshape, (4, 1))
         self.assertEqual(minimum_horizontal.split, None)
-        self.assertEqual(minimum_horizontal.dtype, ht.int64)
-        self.assertEqual(minimum_horizontal._DNDarray__array.dtype, torch.int64)
+        self.assertEqual(minimum_horizontal.dtype, ht.int16)
+        self.assertEqual(minimum_horizontal._DNDarray__array.dtype, torch.int16)
         self.assertTrue(
             (minimum_horizontal._DNDarray__array == comparison.min(dim=1, keepdim=True)[0]).all()
         )
 
         # check max over all float elements of split 3d tensor, across split axis
-        random_volume = ht.random.randn(3, 3, 3, split=1, device=ht_device)
+        size = ht.MPI_WORLD.size
+        random_volume = ht.random.randn(3, 3 * size, 3, split=1, device=ht_device)
         minimum_volume = ht.min(random_volume, axis=1)
 
         self.assertIsInstance(minimum_volume, ht.DNDarray)
@@ -713,23 +721,23 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum_volume.split, None)
 
         # check min over all float elements of split 3d tensor, tuple axis
-        random_volume = ht.random.randn(3, 3, 3, split=0, device=ht_device)
+        random_volume = ht.random.randn(3 * size, 3, 3, split=0, device=ht_device)
         minimum_volume = ht.min(random_volume, axis=(1, 2))
         alt_minimum_volume = ht.min(random_volume, axis=(2, 1))
 
         self.assertIsInstance(minimum_volume, ht.DNDarray)
-        self.assertEqual(minimum_volume.shape, (3,))
+        self.assertEqual(minimum_volume.shape, (3 * size,))
         self.assertEqual(minimum_volume.dtype, ht.float64)
         self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float64)
         self.assertEqual(minimum_volume.split, 0)
         self.assertTrue((minimum_volume == alt_minimum_volume).all())
 
         # check max over all float elements of split 5d tensor, along split axis
-        random_5d = ht.random.randn(1, 2, 3, 4, 5, split=0, device=ht_device)
+        random_5d = ht.random.randn(1 * size, 2, 3, 4, 5, split=0, device=ht_device)
         minimum_5d = ht.min(random_5d, axis=1)
 
         self.assertIsInstance(minimum_5d, ht.DNDarray)
-        self.assertEqual(minimum_5d.shape, (1, 3, 4, 5))
+        self.assertEqual(minimum_5d.shape, (1 * size, 3, 4, 5))
         self.assertLessEqual(minimum_5d.lshape[1], 3)
         self.assertEqual(minimum_5d.dtype, ht.float64)
         self.assertEqual(minimum_5d._DNDarray__array.dtype, torch.float64)
@@ -873,12 +881,20 @@ class TestStatistics(unittest.TestCase):
 
         # test raises
         x = ht.zeros((2, 3, 4), device=ht_device)
-        with self.assertRaises(TypeError):
-            ht.var(x, axis=0, bessel=1)
         with self.assertRaises(ValueError):
-            ht.var(x, axis=10)
+            x.var(axis=10)
+        with self.assertRaises(ValueError):
+            x.var(axis=[4])
+        with self.assertRaises(ValueError):
+            x.var(axis=[-4])
         with self.assertRaises(TypeError):
             ht.var(x, axis="01")
+        with self.assertRaises(ValueError):
+            ht.var(x, axis=(0, "10"))
+        with self.assertRaises(ValueError):
+            ht.var(x, axis=(0, 0))
+        with self.assertRaises(ValueError):
+            ht.mean(x, axis=torch.Tensor([0, 0]))
 
         a = ht.arange(1, 5, device=ht_device)
         self.assertEqual(a.var(), 1.666666666666666)
@@ -891,10 +907,10 @@ class TestStatistics(unittest.TestCase):
             hold.append(None)
             for split in hold:  # loop over the number of dimensions of the test array
                 z = ht.ones(dimensions, split=split, device=ht_device)
-                res = z.var()
+                res = z.var(bessel=False)
                 total_dims_list = list(z.shape)
                 self.assertTrue((res == 0).all())
-                # loop over the different single dimensions for mean
+                # loop over the different single dimensions for var
                 for it in range(len(z.shape)):
                     res = z.var(axis=it)
                     self.assertTrue(ht.allclose(res, 0))
@@ -903,13 +919,7 @@ class TestStatistics(unittest.TestCase):
                     ]
                     if not target_dims:
                         target_dims = ()
-                    # print(split, it, z.shape, res.shape)
                     self.assertEqual(res.gshape, tuple(target_dims))
-                    # if res.split is not None:
-                    #     if i >= it:
-                    #         self.assertEqual(res.split, len(target_dims) - 1)
-                    #     else:
-                    #         self.assertEqual(res.split, z.split)
                     if z.split is None:
                         sp = None
                     else:
@@ -920,9 +930,26 @@ class TestStatistics(unittest.TestCase):
                     if split == it:
                         res = z.var(axis=it)
                         self.assertTrue(ht.allclose(res, 0))
-                z = ht.ones(dimensions, split=split, device=ht_device)
-                res = z.var(bessel=False)
-                self.assertTrue(ht.allclose(res, 0))
+                loop_list = [
+                    ",".join(map(str, comb)) for comb in combinations(list(range(len(z.shape))), 2)
+                ]
+
+                for it in loop_list:  # loop over the different combinations of dimensions for var
+                    lp_split = [int(q) for q in it.split(",")]
+                    res = z.var(axis=lp_split)
+                    self.assertTrue((res == 0).all())
+                    target_dims = [
+                        total_dims_list[q] for q in range(len(total_dims_list)) if q not in lp_split
+                    ]
+                    if not target_dims:
+                        target_dims = (1,)
+                    if res.gshape:
+                        self.assertEqual(res.gshape, tuple(target_dims))
+                    if res.split is not None:
+                        if any([split >= x for x in lp_split]):
+                            self.assertEqual(res.split, len(target_dims) - 1)
+                        else:
+                            self.assertEqual(res.split, z.split)
 
         # values for the iris dataset var measured by libreoffice calc
         for sp in [None, 0, 1]:
