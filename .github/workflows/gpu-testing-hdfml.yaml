@@ -21,7 +21,7 @@ jobs:
             git fetch
             git checkout $GITHUB_SHA
             SHA=$GITHUB_SHA
-            TOKEN=${{ secrects.STATUS_TOKEN }}
+            TOKEN=${{ secrets.STATUS_TOKEN }}
             TEST=${{ secrets.TEST }}
             export SHA
             export TOKEN
