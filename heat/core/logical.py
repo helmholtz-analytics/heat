@@ -355,7 +355,6 @@ def __sanitize_close_input(x, y):
         t2 = manipulations.resplit(y, axis=x.split)
 
     else:
-        t1 = x.copy()
-        t2 = y.copy()
+        return x, y
 
     return t1, t2
