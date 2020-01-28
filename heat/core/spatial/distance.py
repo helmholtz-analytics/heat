@@ -5,54 +5,49 @@ from .. import factories
 from .. import types
 
 
-class EuclidianDistance:
-    def __call__(self, X, Y):
-        # X and Y are torch tensors
-        k1, f1 = X.shape
-        k2, f2 = Y.shape
-        if f1 != f2:
-            raise RuntimeError(
-                "X and Y have differing feature dimensions (dim = 1), should be equal, but are {} and {}".format(
-                    f1, f2
-                )
-            )
+def _euclidian(x, y):
+    # X and Y are torch tensors
+    # k1, f1 = x.shape
+    # k2, f2 = y.shape
+    # if f1 != f2:
+    #    raise RuntimeError(
+    #        "X and Y have differing feature dimensions (dim = 1), should be equal, but are {} and {}".format(
+    #            f1, f2
+    #        )
+    #    )
+    # xd = x.unsqueeze(dim=1)
+    # yd = y.unsqueeze(dim=0)
+    # result = torch.zeros((k1, k2), dtype=torch.float64)
 
-        Xd = X.unsqueeze(dim=1)
-        Yd = Y.unsqueeze(dim=0)
-        result = torch.zeros((k1, k2), dtype=torch.float64)
-
-        for i in range(Xd.shape[0]):
-            result[i, :] = ((Yd - Xd[i, :, :]) ** 2).sum(dim=-1).sqrt()
-
-        return result
+    # for i in range(xd.shape[0]):
+    #    result[i, :] = ((yd - xd[i, :, :]) ** 2).sum(dim=-1).sqrt()
+    result = torch.cdist(x, y)
+    return result
 
 
-class GaussianDistance:
-    def __init__(self, sigma=1.0):
-        self.sigma = sigma
-
-    def __call__(self, X, Y):
-        # X and Y are torch tensors
-        k1, f1 = X.shape
-        k2, f2 = Y.shape
-        if f1 != f2:
-            raise RuntimeError(
-                "X and Y have differing feature dimensions (dim = 1), should be equal, but are {} and {}".format(
-                    f1, f2
-                )
-            )
-        Xd = X.unsqueeze(dim=1)
-        Yd = Y.unsqueeze(dim=0)
-        result = torch.zeros((k1, k2), dtype=torch.float64)
-        for i in range(Xd.shape[0]):
-            result[i, :] = torch.exp(
-                -((Yd - Xd[i, :, :]) ** 2).sum(dim=-1) / (2 * self.sigma * self.sigma)
-            )
-
-        return result
+def _gaussian(x, y, sigma=1.0):
+    # X and Y are torch tensors
+    # k1, f1 = x.shape
+    # k2, f2 = y.shape
+    # if f1 != f2:
+    #    raise RuntimeError(
+    #        "X and Y have differing feature dimensions (dim = 1), should be equal, but are {} and {}".format(
+    #            f1, f2
+    #        )
+    #    )
+    # xd = x.unsqueeze(dim=1)
+    # yd = y.unsqueeze(dim=0)
+    # result = torch.zeros((k1, k2), dtype=torch.float64)
+    # for i in range(xd.shape[0]):
+    #   result[i, :] = torch.exp(
+    #      -((yd - yd[i, :, :]) ** 2).sum(dim=-1) / (2 * sigma * sigma)
+    # )
+    d = torch.cdist(x, y)
+    result = torch.exp(-d ** 2 / (2 * sigma * sigma))
+    return result
 
 
-def similarity(X, metric=EuclidianDistance()):
+def similarity(X, metric=_euclidian):
     if (X.split is not None) and (X.split != 0):
         raise NotImplementedError("Feature Splitting is not supported")
     if len(X.shape) > 2:
@@ -63,7 +58,6 @@ def similarity(X, metric=EuclidianDistance()):
     size = comm.Get_size()
 
     K, f = X.shape
-    k1, _ = X.lshape
 
     S = factories.zeros((K, K), dtype=types.float64, split=0)
 
@@ -169,5 +163,75 @@ def similarity(X, metric=EuclidianDistance()):
             )
             comm.Recv(symmetric, source=receiver, tag=num_iter)
             S[rows[0] : rows[1], scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
+
+    return S
+
+
+def pairwise(X, Y, metric=_euclidian):
+    if ((X.split is not None) and (X.split != 0)) or ((X.split is not None) and (X.split != 0)):
+        raise NotImplementedError("Feature Splitting is not supported")
+    if len(X.shape) > 2 or len(Y.shape) > 2:
+        raise NotImplementedError("Only 2D data matrices are supported")
+    if X.comm != Y.comm:
+        raise NotImplementedError("Differing communicators not supported")
+
+    if X.shape[1] != Y.shape[1]:
+        raise ValueError("inputs must have same number of features")
+
+    comm = X.comm
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+
+    m, f = X.shape
+    n = Y.shape[0]
+
+    S = factories.zeros((m, n), dtype=types.float64, split=0)
+
+    xcounts, xdispl, _ = X.comm.counts_displs_shape(X.shape, X.split)
+    ycounts, ydispl, _ = Y.comm.counts_displs_shape(Y.shape, Y.split)
+    num_iter = size
+
+    x_ = X._DNDarray__array
+    stationary = Y._DNDarray__array
+    rows = (xdispl[rank], xdispl[rank + 1] if (rank + 1) != size else m)
+    cols = (ydispl[rank], ydispl[rank + 1] if (rank + 1) != size else n)
+
+    # 0th iteration, calculate diagonal
+    d_ij = metric(x_, stationary)
+    S[rows[0] : rows[1], cols[0] : cols[1]] = d_ij
+
+    for iter in range(1, num_iter):
+        # Send rank's part of the matrix to the next process in a circular fashion
+        receiver = (rank + iter) % size
+        sender = (rank - iter) % size
+
+        col1 = ydispl[sender]
+        if sender != size - 1:
+            col2 = ydispl[sender + 1]
+        else:
+            col2 = n
+        columns = (col1, col2)
+
+        # All but the first iter processes are receiving, then sending
+        if (rank // iter) != 0:
+            stat = communication.Status()
+            Y.comm.handle.Probe(source=sender, tag=iter, status=stat)
+            count = int(stat.Get_count(communication.FLOAT) / f)
+            moving = torch.zeros((count, f), dtype=torch.float32)
+            Y.comm.Recv(moving, source=sender, tag=iter)
+
+        # Sending to next Process
+        Y.comm.Send(stationary, dest=receiver, tag=iter)
+
+        # The first iter processes can now receive after sending
+        if (rank // iter) == 0:
+            stat = communication.Status()
+            Y.comm.handle.Probe(source=sender, tag=iter, status=stat)
+            count = int(stat.Get_count(communication.FLOAT) / f)
+            moving = torch.zeros((count, f), dtype=torch.float32)
+            Y.comm.Recv(moving, source=sender, tag=iter)
+
+        d_ij = metric(stationary, moving)
+        S[rows[0] : rows[1], columns[0] : columns[1]] = d_ij
 
     return S
