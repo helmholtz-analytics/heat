@@ -2,6 +2,7 @@ import collections
 import torch
 
 from .. import dndarray
+from .. import logical
 from .. import factories
 from .. import tiling
 
@@ -107,7 +108,7 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     return ret
 
 
-def __global_q_dict_set(q_dict_col, col, a_tiles, q_tiles, global_merge_dict=None):
+def __global_q_dict_set(q_dict_col, dim1, a_tiles, q_tiles, global_merge_dict=None, dim0=None):
     """
     The function takes the orginial Q tensors from the global QR calculation and sets them to
     the keys which corresponds with their tile coordinates in Q. this returns a separate dictionary,
@@ -117,7 +118,7 @@ def __global_q_dict_set(q_dict_col, col, a_tiles, q_tiles, global_merge_dict=Non
     ----------
     q_dict_col : Dict
         The dictionary of the Q values for a given column, should be given as q_dict[col]
-    col : int, single element torch.Tensor
+    dim1 : int, single element torch.Tensor
         current column for which Q is being calculated for
     a_tiles : tiling.SquareDiagTiles
         tiling object for 'a'
@@ -126,11 +127,15 @@ def __global_q_dict_set(q_dict_col, col, a_tiles, q_tiles, global_merge_dict=Non
     global_merge_dict : Dict, optional
         the ouput of the function will be in this dictionary
         Form of output: key index : torch.Tensor
+    dim0 : int, optional
+        the global row index of the diagonal tile
 
     Returns
     -------
     None
     """
+    if dim0 is None:
+        dim0 = dim1
     # q is already created, the job of this function is to create the group the merging q's together
     # it takes the merge qs, splits them, then puts them into a new dictionary
     # steps
@@ -138,7 +143,7 @@ def __global_q_dict_set(q_dict_col, col, a_tiles, q_tiles, global_merge_dict=Non
         torch.tensor(a_tiles.tile_rows_per_process, device=a_tiles.arr._DNDarray__array.device),
         dim=0,
     )
-    diag_proc = torch.nonzero(proc_tile_start > col)[0].item()
+    diag_proc = torch.nonzero(proc_tile_start > dim0)[0].item()
     proc_tile_start = torch.cat(
         (torch.tensor([0], device=a_tiles.arr._DNDarray__array.device), proc_tile_start[:-1]), dim=0
     )
@@ -172,11 +177,26 @@ def __global_q_dict_set(q_dict_col, col, a_tiles, q_tiles, global_merge_dict=Non
         bottom_right = lp_q[base_size[0] :, base_size[0] :]
         # need to adjust the keys to be the global row
         if diag_proc == r0:
-            col0 = col
+            col1 = dim0
         else:
-            col0 = proc_tile_start[r0].item()
-        col1 = proc_tile_start[r1].item()
-        # col0 and col1 are the columns numbers
+            col1 = proc_tile_start[r0].item()
+        col2 = proc_tile_start[r1].item()
+
+        # need to determine the global row index for the processes
+        if dim0 != dim1:
+            diff = col2 - col1
+            jdim = (dim0, dim1)
+            kdim = (dim0, dim1 + diff)
+            ldim = (dim0 + diff, dim1)
+            mdim = (dim0 + diff, dim1 + diff)
+        else:
+            jdim = (col1, col1)
+            kdim = (col1, col2)
+            ldim = (col2, col1)
+            mdim = (col2, col2)
+
+        # col1 and col2 are the columns numbers
+        # col1 and col2 are based on the initial row separation/position of the merged tiles
         # r0 and r1 are the ranks
 
         # if there are no elements on that location than set it as the tile
@@ -186,14 +206,15 @@ def __global_q_dict_set(q_dict_col, col, a_tiles, q_tiles, global_merge_dict=Non
         # these are the keys which are to be multiplied by the q in the current loop
         # for matrix of form: | J  K |
         #                     | L  M |
-        mult_keys_00 = [(i, col0) for i in range(q_tiles.tile_columns)]  # (J)
-        # (J) -> inds: (i, col0)(col0, col0) -> set at (i, col0)
-        mult_keys_01 = [(i, col0) for i in range(q_tiles.tile_columns)]  # (K)
-        # (K) -> inds: (i, col0)(col0, col1) -> set at (i, col1)
-        mult_keys_10 = [(i, col1) for i in range(q_tiles.tile_columns)]  # (L)
-        # (L) -> inds: (i, col1)(col1, col0) -> set at (i, col0)
-        mult_keys_11 = [(i, col1) for i in range(q_tiles.tile_columns)]  # (M)
-        # (M) -> inds: (i, col1)(col1, col1) -> set at (i, col1)
+        # if not on the diagonal, then the assumptions about the positions of J K L and M are wrong
+        mult_keys_00 = [(i, jdim[0]) for i in range(q_tiles.tile_columns)]  # (J)
+        # (J) -> inds: (i, jdim[0])(jdim[0], jdim[1]) -> set at (i, jdim[1])
+        mult_keys_01 = [(i, kdim[0]) for i in range(q_tiles.tile_columns)]  # (K)
+        # (K) -> inds: (i, kdim[0])(kdim[0], kdim[1]) -> set at (i, kdim[1])
+        mult_keys_10 = [(i, ldim[0]) for i in range(q_tiles.tile_columns)]  # (L)
+        # (L) -> inds: (i, ldim[0])(ldim[0], ldim[1]) -> set at (i, ldim[1])
+        mult_keys_11 = [(i, mdim[0]) for i in range(q_tiles.tile_columns)]  # (M)
+        # (M) -> inds: (i, mdim[0])(mdim[0], mdim[1]) -> set at (i, mdim[1])
 
         # if there are no elements in the mult_keys then set the element to the same place
         s00 = set(mult_keys_00) & curr_keys
@@ -204,31 +225,32 @@ def __global_q_dict_set(q_dict_col, col, a_tiles, q_tiles, global_merge_dict=Non
 
         # (J)
         if not len(s00):
-            global_merge_dict[col0, col0] = top_left
+            global_merge_dict[jdim] = top_left
         else:  # -> do the mm for all of the mult keys
+            # h = torch.zeros_like(global_merge_dict[k[0], jdim[1]], device=q_tiles.arr.device)
             for k in s00:
-                global_merge_dict[k[0], col0] = hold_dict[k] @ top_left
+                global_merge_dict[k[0], jdim[1]] = hold_dict[k] @ top_left
         # (K)
         if not len(s01):
             # check that we are not overwriting here
-            global_merge_dict[col0, col1] = top_right
+            global_merge_dict[kdim] = top_right
         else:  # -> do the mm for all of the mult keys
             for k in s01:
-                global_merge_dict[k[0], col1] = hold_dict[k] @ top_right
+                global_merge_dict[k[0], kdim[1]] = hold_dict[k] @ top_right
         # (L)
         if not len(s10):
             # check that we are not overwriting here
-            global_merge_dict[col1, col0] = bottom_left
+            global_merge_dict[ldim] = bottom_left
         else:  # -> do the mm for all of the mult keys
             for k in s10:
-                global_merge_dict[k[0], col0] = hold_dict[k] @ bottom_left
+                global_merge_dict[k[0], ldim[1]] = hold_dict[k] @ bottom_left
         # (M)
         if not len(s11):
             # check that we are not overwriting here
-            global_merge_dict[col1, col1] = bottom_right
+            global_merge_dict[mdim] = bottom_right
         else:  # -> do the mm for all of the mult keys
             for k in s11:
-                global_merge_dict[k[0], col1] = hold_dict[k] @ bottom_right
+                global_merge_dict[k[0], mdim[1]] = hold_dict[k] @ bottom_right
     return global_merge_dict
 
 
@@ -401,6 +423,7 @@ def __q_calc_split0(
             base_q = q_dict[dim1]["l0"][0].clone()
             del q_dict[dim1]["l0"]
         else:
+            # todo: modify this to work with dim0 (not touched yet)
             # 0. get the offset of the column start
             offset = (
                 torch.tensor(
@@ -443,19 +466,22 @@ def __q_calc_split0(
             # receive q from the other processes
             local_merge_q[r][1].wait()
         if rank in active_procs:
-            sum_row = sum(q_tiles.tile_rows_per_process[:r])
-            end_row = q_tiles.tile_rows_per_process[r] + sum_row
+            loc_q_row_st = sum(q_tiles.tile_rows_per_process[:r])
+            loc_q_row_end = q_tiles.tile_rows_per_process[r] + loc_q_row_st
             # slice of q_tiles -> [0: -> end local, 1: start -> stop]
-            q_rest_loc = q_tiles.local_get(key=(slice(None), slice(sum_row, end_row)))
+            q_rest_loc = q_tiles.local_get(key=(slice(None), slice(loc_q_row_st, loc_q_row_end)))
             # apply the local merge to q0 then update q0`
             q_rest_loc = q_rest_loc @ local_merge_q[r][0]
-            q_tiles.local_set(key=(slice(None), slice(sum_row, end_row)), value=q_rest_loc)
+            q_tiles.local_set(
+                key=(slice(None), slice(loc_q_row_st, loc_q_row_end)), value=q_rest_loc
+            )
             del local_merge_q[r]
 
     # global Q calculation ---------------------------------------------------------------------
-    # split up the Q's from the global QR calculation and set them in a dict w/ proper keys
     global_merge_dict = (
-        __global_q_dict_set(q_dict_col=q_dict[dim1], col=dim1, a_tiles=a_tiles, q_tiles=q_tiles)
+        __global_q_dict_set(
+            q_dict_col=q_dict[dim1], dim1=dim0, a_tiles=a_tiles, q_tiles=q_tiles, dim0=dim0
+        )
         if rank == diag_process
         else {}
     )
@@ -465,7 +491,6 @@ def __q_calc_split0(
     else:
         merge_dict_keys = None
     merge_dict_keys = comm.bcast(merge_dict_keys, root=diag_process)
-
     # send the global merge dictionary to all processes
     for k in merge_dict_keys:
         if rank == diag_process:
@@ -478,6 +503,7 @@ def __q_calc_split0(
             snd = torch.zeros(snd_shape, dtype=q0_torch_type, device=q0_torch_device)
         wait = comm.Ibcast(snd, root=diag_process)
         global_merge_dict[k] = [snd, wait]
+
     if rank in active_procs:
         # create a dictionary which says what tiles are in each column of the global merge Q
         qi_mult = {}
@@ -916,7 +942,7 @@ def __qr_split1_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None, empties
     # ======================== begin q calc for single tile QR ========================
     if calc_q:
         for row in range(q_tiles.tile_rows_per_process[rank]):
-            # q1 is applied to each tile of the column dim0 of q0 then written there
+            # q1 is applied to each tile of the row=row and column=dim0 of q0 then written there
             q_tiles.local_set(
                 key=(row, dim0), value=torch.matmul(q_tiles.local_get(key=(row, dim0)), q1)
             )
