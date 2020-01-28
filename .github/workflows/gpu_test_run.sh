@@ -21,7 +21,7 @@ python -m pip install --user -e .
 srun -n $NUM_PROC python -m coverage run --source=heat --parallel-mode -m pytest || STATUS="failure"
 python -m coverage combine
 python -m coverage report
-
+python -m codecov -t $CODECOV_TOKEN
 
 curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d "{\"state\": \"$STATUS\", \"description\": \"GPU Test Status\", \"context\": \"continuous-integration/gpu\"}" https://api.github.com/repos/helmholtz-analytics/heat/statuses/$SHA
 
