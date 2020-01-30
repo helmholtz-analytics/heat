@@ -376,6 +376,9 @@ class SquareDiagTiles:
         """
         return self.__DNDarray
 
+    def set_arr(self, arr):
+        self.__DNDarray = arr
+
     @property
     def col_indices(self):
         """
@@ -692,7 +695,7 @@ class SquareDiagTiles:
         """
         rank = self.__DNDarray.comm.rank
         key = self.local_to_global(key=key, rank=rank)
-        self.__getitem__(tuple(key)).__setitem__(slice(0, None), value)
+        self.__getitem__(tuple(key)).__setitem__(slice(None), value)
 
     def local_to_global(self, key, rank):
         """
@@ -803,8 +806,7 @@ class SquareDiagTiles:
                 if base_dnd.gshape[0] >= base_dnd.gshape[1]
                 else tiles_to_match.__col_inds.copy()
             )
-            # self.__tile_rows = tiles_to_match.__tile_rows
-            # self.__tile_columns = tiles_to_match.__tile_rows
+
             self.__tile_map = torch.zeros(
                 (self.tile_rows, self.tile_columns, 3),
                 dtype=torch.int,
@@ -837,8 +839,6 @@ class SquareDiagTiles:
             )
 
             rows_per = [x for x in self.__col_inds if x < base_dnd.shape[0]]
-            # self.__tile_rows = len(rows_per)
-            # self.__tile_columns = self.tile_rows
 
             target_0 = tiles_to_match.lshape_map[..., 1][: tiles_to_match.last_diagonal_process]
             end_tag0 = base_dnd.shape[0] - sum(target_0[: tiles_to_match.last_diagonal_process])
@@ -885,6 +885,62 @@ class SquareDiagTiles:
             self.__tile_map[..., 2][sum(self.__row_per_proc_list[:i]) :] = i
             self.__col_per_proc_list = [self.tile_columns] * base_dnd.comm.size
             self.__last_diag_pr = base_dnd.comm.size - 1
+        else:
+            raise NotImplementedError(
+                "splits not implements, {}, {}".format(self.arr.split, tiles_to_match.arr.split)
+            )
+
+    def match_tiles_transpose(self, other_tiles):
+        """
+        Match the tiles of another tilling obect of the same type. This function is to be used when
+        matching the tiles of one array with its transpose. This was designed for use in the block
+        diagonal function for use in SVD.
+
+        Parameters
+        ----------
+        other_tiles
+
+        """
+        base_dnd = self.arr
+        other_dnd = other_tiles.arr
+        if base_dnd.split == 1 and other_dnd.split == 0:
+            # match lshape redistribute if needed
+            target_map = torch.zeros_like(self.lshape_map)
+            target_map[..., 0] = other_tiles.lshape_map[..., 1]
+            target_map[..., 1] = other_tiles.lshape_map[..., 0]
+            base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=target_map)
+            # row inds
+            col_inds = other_tiles.__row_inds.copy()
+            # col inds
+            row_inds = other_tiles.__col_inds.copy()
+            # rows per proc
+            rows_per = other_tiles.__col_per_proc_list
+            # cols per proc
+            cols_per = other_tiles.__row_per_proc_list
+
+            tile_map = torch.zeros_like(other_tiles.tile_map)
+            for i in range(len(row_inds)):
+                tile_map[..., 0][i] = row_inds[i]
+            for i in range(len(col_inds)):
+                tile_map[..., 1][:, i] = col_inds[i]
+            st = 0
+            for pr, cols in enumerate(cols_per):
+                tile_map[:, st : st + cols, 2] = pr
+                st += cols
+            last_diag_pr = torch.where(
+                torch.tensor(col_inds, device=base_dnd.device.torch_device) <= base_dnd.gshape[1]
+            )[0][-1]
+            self.__col_per_proc_list = cols_per
+            self.__last_diag_pr = last_diag_pr
+            self.__row_per_proc_list = rows_per
+            self.__tile_map = tile_map
+            self.__row_inds = list(row_inds)
+            self.__col_inds = list(col_inds)
+        else:
+            raise NotImplementedError(
+                "splits in wrong order, split of other_tiles must be 0, and self must be 1, else "
+                "use normal match_tiles"
+            )
 
     def __setitem__(self, key, value):
         """

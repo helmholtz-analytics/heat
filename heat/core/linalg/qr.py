@@ -892,7 +892,7 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     return q0, a
 
 
-def __qr_split1_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None, empties=None):
+def __qr_split1_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None, empties=None, arr_t=None):
     if dim1 is None:
         dim1 = dim0
     if empties is None:
@@ -904,6 +904,7 @@ def __qr_split1_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None, empties
     a_torch_type = a_tiles.arr.dtype.torch_type()
     q_torch_device = q_tiles.arr._DNDarray__array.device
     q_torch_type = q_tiles.arr.dtype.torch_type()
+
     if rank == diag_pr:
         q1, r1 = a_tiles[dim0, dim1].qr(some=False)
         comm.Bcast(q1.clone(), root=diag_pr)
@@ -933,12 +934,11 @@ def __qr_split1_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None, empties
         # update the trailing matrix and then do q calc
         st_sp = a_tiles.get_start_stop(key=(dim0, dim1))
         sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
-
         q1 = torch.zeros((sz[0], sz[0]), dtype=a_torch_type, device=a_torch_device)
         comm.Bcast(q1, root=diag_pr)
-        hold = a_tiles.local_get(key=(dim0, slice(0, None)))
-        a_tiles.local_set(key=(dim0, slice(0, None)), value=torch.matmul(q1.T, hold))
-
+        slices = a_tiles.local_to_global(key=(dim0, slice(0, None)), rank=rank)
+        hold = a_tiles[slices]
+        a_tiles[slices] = torch.matmul(q1.T, hold)
     # ======================== begin q calc for single tile QR ========================
     if calc_q:
         for row in range(q_tiles.tile_rows_per_process[rank]):
@@ -1006,7 +1006,6 @@ def __qr_split1_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None, empties
         # ========================= end r calc for merged tile QR =========================
         # ======================== begin q calc for merged tile QR ========================
         if calc_q and rank not in empties:
-            # print((dim0, dim1), row, diag_sz, ql.shape)
             top_left = ql[: diag_sz[0], : diag_sz[0]]
             top_right = ql[: diag_sz[0], diag_sz[0] :]
             bottom_left = ql[diag_sz[0] :, : diag_sz[0]]
