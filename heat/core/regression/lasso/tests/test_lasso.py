@@ -24,10 +24,14 @@ if ht.io.supports_hdf5():
             # ToDo: add additional tests
             # get some test data
             X = ht.load_hdf5(
-                os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x"
+                os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
+                dataset="x",
+                device=ht_device,
             )
             y = ht.load_hdf5(
-                os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y"
+                os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
+                dataset="y",
+                device=ht_device,
             )
 
             # normalize dataset
@@ -60,15 +64,19 @@ if ht.io.supports_hdf5():
             self.assertEqual(yest.shape, (m,))
 
             X = ht.load_hdf5(
-                os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x"
+                os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
+                dataset="x",
+                device=ht_device,
             )
             y = ht.load_hdf5(
-                os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y"
+                os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
+                dataset="y",
+                device=ht_device,
             )
 
             # Now the same stuff again in PyTorch
-            X = torch.tensor(X._DNDarray__array)
-            y = torch.tensor(y._DNDarray__array)
+            X = torch.tensor(X._DNDarray__array, device=device)
+            y = torch.tensor(y._DNDarray__array, device=device)
 
             # normalize dataset
             X = X / torch.sqrt((torch.mean(X ** 2, 0)))
@@ -100,15 +108,19 @@ if ht.io.supports_hdf5():
             self.assertEqual(yest.shape, (m,))
 
             X = ht.load_hdf5(
-                os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x"
+                os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
+                dataset="x",
+                device=ht_device,
             )
             y = ht.load_hdf5(
-                os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y"
+                os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
+                dataset="y",
+                device=ht_device,
             )
 
             # Now the same stuff again in PyTorch
-            X = X._DNDarray__array.numpy()
-            y = y._DNDarray__array.numpy()
+            X = X._DNDarray__array.cpu().numpy()
+            y = y._DNDarray__array.cpu().numpy()
 
             # normalize dataset
             X = X / np.sqrt((np.mean(X ** 2, axis=0, keepdims=True)))
