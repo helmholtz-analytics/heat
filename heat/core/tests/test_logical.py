@@ -224,6 +224,36 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))
 
+    def test_isclose(self):
+        size = ht.communication.MPI_WORLD.size
+        a = ht.float32([[2, 2], [2, 2]], device=ht_device)
+        b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]], device=ht_device)
+        c = ht.zeros((4 * size, 6), split=0, device=ht_device)
+        d = ht.zeros((4 * size, 6), split=1, device=ht_device)
+        e = ht.zeros((4 * size, 6), device=ht_device)
+
+        self.assertIsInstance(ht.isclose(a, b), ht.DNDarray)
+        self.assertTrue(ht.isclose(a, b).shape == (2, 2))
+        self.assertFalse(ht.isclose(a, b)[0][0].item())
+        self.assertTrue(ht.isclose(a, b, atol=1e-04)[0][1].item())
+        self.assertTrue(ht.isclose(a, b, rtol=1e-04)[1][0].item())
+        self.assertTrue(ht.isclose(a, 2)[0][1].item())
+        self.assertTrue(ht.isclose(a, 2.0)[0][0].item())
+        self.assertTrue(ht.isclose(2, a)[1][1].item())
+        self.assertTrue(ht.isclose(c, d).shape == (4 * size, 6))
+        self.assertTrue(ht.isclose(c, e)[0][0].item())
+        self.assertTrue(e.isclose(c)[-1][-1].item())
+
+        # test scalar input
+        self.assertIsInstance(ht.isclose(2.0, 2.00005), bool)
+
+        with self.assertRaises(TypeError):
+            ht.isclose(a, (2, 2, 2, 2))
+        with self.assertRaises(TypeError):
+            ht.isclose(a, "?")
+        with self.assertRaises(TypeError):
+            ht.isclose("?", a)
+
     def test_logical_and(self):
         first_tensor = ht.array([[True, True], [False, False]])
         second_tensor = ht.array([[True, False], [True, False]])
