@@ -132,7 +132,7 @@ class KMeans:
                         idx = sample - displ[proc]
                         xi = ht.array(X.lloc[idx, :], device=X.device, comm=X.comm)
                     xi.comm.Bcast(xi, root=proc)
-                    centroids[i,:] = xi
+                    centroids[i, :] = xi
 
             else:
                 raise NotImplementedError("Not implemented for other splitting-axes")
@@ -147,7 +147,7 @@ class KMeans:
                 )
             if self.init.shape[0] != self.n_clusters or self.init.shape[1] != X.shape[1]:
                 raise ValueError("passed centroids do not match cluster count or data shape")
-            #self._cluster_centers = self.init.resplit(None).T.expand_dims(axis=0)
+            # self._cluster_centers = self.init.resplit(None).T.expand_dims(axis=0)
             self._cluster_centers = self.init.resplit(None)
 
         # kmeans++, smart centroid guessing
@@ -216,7 +216,7 @@ class KMeans:
             Training instances to cluster.
         """
         # calculate the distance matrix and determine the closest centroid
-        distances = ht.spatial.distances.cdist(X,self._cluster_centers, quadratic_expansion=True)
+        distances = ht.spatial.distances.cdist(X, self._cluster_centers, quadratic_expansion=True)
         matching_centroids = distances.argmin(axis=1, keepdim=True)
 
         return matching_centroids
