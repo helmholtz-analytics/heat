@@ -1,3 +1,7 @@
+# Pending Additions
+
+- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated QR
+
 # v0.2.2
 
 This version adds support for PyTorch 1.4.0. There are also several minor feature improvements and bug fixes listed below.
