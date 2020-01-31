@@ -1,3 +1,7 @@
+# Pending Additions
+
+- Implemntation of a tiling scheme for use in QR. This tiling scheme has square tiles along the diagonal
+
 # v0.2.2
 
 This version adds support for PyTorch 1.4.0. There are also several minor feature improvements and bug fixes listed below.
