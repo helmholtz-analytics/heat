@@ -44,8 +44,13 @@ def dot(a, b, out=None):
         return a * b
     elif a.numdims == 1 and b.numdims == 1:
         # 1. If both a and b are 1-D arrays, it is inner product of vectors.
-        if a.split is not None or b.split is not None:
+        if a.split is None and b.split is None:
+            sl = slice(None)
+        elif a.split is not None and b.split is not None:
+            sl = a.comm.chunk(a.shape, a.split)[2]
+        else:  # a.split is not None or b.split is not None:
             sl = a.comm.chunk(a.shape, a.split if a.split is not None else b.split)[2]
+
         ret = torch.dot(a[sl]._DNDarray__array, b[sl]._DNDarray__array)
         if a.is_distributed() or b.is_distributed():
             a.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
