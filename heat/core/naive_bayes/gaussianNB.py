@@ -381,22 +381,19 @@ class GaussianNB:
 
     def _joint_log_likelihood(self, X):
         jll_size = self.classes_._DNDarray__array.numel()
-        joint_log_likelihood = ht.empty(
-            (jll_size, 1), dtype=X.dtype, split=X.split, device=X.device
-        )
-        # for i in range(ht.size(self.classes_)):  #TODO: np.size
+        jll_shape = X.shape if X.numdims > 1 else (1, X.shape[0])
+        joint_log_likelihood = ht.empty(jll_shape, dtype=X.dtype, split=X.split, device=X.device)
         for i in range(jll_size):
             jointi = ht.log(self.class_prior_[i])
             n_ij = -0.5 * ht.sum(ht.log(2.0 * ht.pi * self.sigma_[i, :]))
             n_ij -= 0.5 * ht.sum(((X - self.theta_[i, :]) ** 2) / (self.sigma_[i, :]), 1)
-            joint_log_likelihood[i] = jointi + n_ij
+            joint_log_likelihood[:, i] = jointi + n_ij
 
-        joint_log_likelihood = joint_log_likelihood.T
         return joint_log_likelihood
 
     def logsumexp(a, axis=None, b=None, keepdims=False, return_sign=False):
         """Compute the log of the sum of exponentials of input elements.
-        TODO: update sklearn docs to fit heat 
+        TODO: update sklearn docs to fit heat
         Parameters
         ----------
         a : array_like
@@ -522,7 +519,7 @@ class GaussianNB:
         if not isinstance(X, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
         jll = self._joint_log_likelihood(X)
-        return self.classes_[ht.argmax(jll, axis=1).item()]
+        return self.classes_[ht.argmax(jll, axis=1).numpy()]
 
     def predict_log_proba(self, X):
         """
@@ -558,9 +555,8 @@ class GaussianNB:
         -------
         C : array-like of shape (n_samples, n_classes)
             Returns the probability of the samples for each class in
-           
+
         the model. The columns correspond to the classes in sorted
             order, as they appear in the attribute :term:`classes_`.
         """
         return ht.exp(self.predict_log_proba(X))
-
