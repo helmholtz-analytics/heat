@@ -7,6 +7,7 @@
 curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d '{"state": "pending", "description": "GPU Test Status", "context": "continuous-integration/gpu"}' https://api.github.com/repos/helmholtz-analytics/heat/statuses/$SHA
 
 STATUS="success"
+echo "GPUS $SLURM_GPUS"
 
 source ~/.virtualenvs/heat/bin/activate
 module load Python/3.6.8
@@ -26,4 +27,3 @@ python -m codecov -t $CODECOV_TOKEN
 curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d "{\"state\": \"$STATUS\", \"description\": \"GPU Test Status\", \"context\": \"continuous-integration/gpu\"}" https://api.github.com/repos/helmholtz-analytics/heat/statuses/$SHA
 
 cd ~
-rm -rf tmp:
