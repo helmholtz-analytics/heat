@@ -18,7 +18,8 @@ DEVICE="gpu"
 export DEVICE
 python -m pip install --user codecov pytest coverage
 python -m pip install --user -e .
-srun -n $NUM_PROC python -m coverage run --source=heat --parallel-mode -m pytest || STATUS="failure"
+srun -n $NUM_PROC -G=$NUM_GPU python -m coverage run --source=heat --parallel-mode -m pytest || STATUS="failure"
+srun -n $NUM_PROC -G=$NUM_GPU echo "GPUS $SLURM_GPUS"
 python -m coverage combine
 python -m coverage report
 python -m coverage xml

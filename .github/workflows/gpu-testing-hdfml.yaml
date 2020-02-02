@@ -39,10 +39,11 @@ jobs:
             git checkout $GITHUB_SHA
             {
               echo -n -e "#!/bin/bash -x\n";
-              echo -n -e "#SBATCH --account=haf --nodes=2 --gpus=3 --ntasks-per-node=2 --cpus-per-task=1 --time=00:05:00\n";
+              echo -n -e "#SBATCH --account=haf --nodes=2--ntasks-per-node=2 --cpus-per-task=1 --time=00:05:00\n";
               cat .github/workflows/gpu_test_template.sh;
             } > test_batch_script.sh
             cat test_batch_script.sh
             export SHA=$GITHUB_SHA
             export NUM_PROC=8
+            export NUM_GPU=3
             sbatch test_batch_script.sh
