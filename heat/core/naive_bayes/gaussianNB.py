@@ -391,7 +391,7 @@ class GaussianNB:
 
         return joint_log_likelihood
 
-    def logsumexp(a, axis=None, b=None, keepdims=False, return_sign=False):
+    def logsumexp(self, a, axis=None, b=None, keepdim=False, return_sign=False):
         """Compute the log of the sum of exponentials of input elements.
         TODO: update sklearn docs to fit heat
         Parameters
@@ -469,7 +469,7 @@ class GaussianNB:
             #     a = a + 0.0  # promote to at least float
             #     a[b == 0] = -np.inf
 
-        a_max = ht.max(a, axis=axis, keepdims=True)
+        a_max = ht.max(a, axis=axis, keepdim=True)
 
         # TODO: CHECK FOR FINITENESS!!
         # if a_max.numdims > 0:  # TODO: implement alias numdims --> ndim
@@ -486,14 +486,14 @@ class GaussianNB:
 
         # suppress warnings about log of zero
         # with np.errstate(divide="ignore"): #TODO: REINSTATE?
-        s = ht.sum(tmp, axis=axis, keepdims=keepdims)
+        s = ht.sum(tmp, axis=axis, keepdim=keepdim)
         if return_sign:
             raise NotImplementedError("Not implemented for return_sign")
             # sgn = np.sign(s)  # TODO: np.sign
             # s *= sgn  # /= makes more sense but we need zero -> zero
         out = ht.log(s)
 
-        if not keepdims:
+        if not keepdim:
             a_max = ht.squeeze(a_max, axis=axis)
         out += a_max
 
