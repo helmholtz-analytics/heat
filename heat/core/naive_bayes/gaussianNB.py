@@ -153,36 +153,26 @@ class GaussianNB:
         total_var : array-like, shape (number of Gaussians,)
             Updated variance for each Gaussian over the combined set.
         """
-        print("DEBUGGING: IN UPDATE_MEAN_VARIANCE")
         if X.shape[0] == 0:
-            print("DEBUGGING: X is empty")
             return mu, var
 
         # Compute (potentially weighted) mean and variance of new datapoints
         if sample_weight is not None:
-            print("DEBUGGING: weights exist")
             n_new = float(sample_weight.sum())
             new_mu = ht.average(X, axis=0, weights=sample_weight)  # TODO:Issue #351
             new_var = ht.average((X - new_mu) ** 2, axis=0, weights=sample_weight)
         else:
-            print("DEBUGGING: weights are None")
             n_new = X.shape[0]
-            print("DEBUGGING: n_new = ", n_new)
             new_var = ht.var(X, axis=0)
-            print("DEBUGGING: new_var = ", new_var)
             new_mu = ht.mean(X, axis=0)
-            print("DEBUGGING: new_mu = ", new_mu)
 
         if n_past == 0:
-            print("DEBUGGING: n_past == 0")
             return new_mu, new_var
 
         n_total = float(n_past + n_new)
-        print("DEBUGGING: n_total = ", n_total)
         # Combine mean of old and new data, taking into consideration
         # (weighted) number of observations
         total_mu = (n_new * new_mu + n_past * mu) / n_total
-        print("DEBUGGING: total_mu = ", total_mu)
         # Combine variance of old and new data, taking into consideration
         # (weighted) number of observations. This is achieved by combining
         # the sum-of-squared-differences (ssd)
@@ -283,7 +273,6 @@ class GaussianNB:
             # initialize various cumulative counters
             n_features = X.shape[1]
             n_classes = len(self.classes_)
-            print("DEBUGGING: IN CHECK_PARTIAL_FIT: n_classes = ", n_classes)
             self.theta_ = ht.zeros((n_classes, n_features))
             self.sigma_ = ht.zeros((n_classes, n_features))
 
@@ -332,7 +321,6 @@ class GaussianNB:
             ## temporary replacement for searchsorted
             ## assuming classes.split is None for now
             if y_i in classes:
-                print("DEBUGGING: y_i in classes")
                 i = ht.where(classes == y_i).item()
             else:
                 classes_ext = torch.cat(
@@ -351,17 +339,6 @@ class GaussianNB:
                 sw_i = None
                 N_i = X_i.shape[0]
 
-            print("class_count_, class_count_.shape = ", self.class_count_, self.class_count_.shape)
-            print("i = ", i)
-            print(
-                "class_count_[i], class_count_[i].shape = ",
-                self.class_count_[i],
-                self.class_count_[i].shape,
-            )
-            print("theta_[i, :] = ", self.theta_[i, :])
-            print("sigma_[i, :] = ", self.sigma_[i, :])
-            print("X_i = ", X_i)
-            print("sw_i = ", sw_i)
             new_theta, new_sigma = self._update_mean_variance(
                 self.class_count_[i], self.theta_[i, :], self.sigma_[i, :], X_i, sw_i
             )
@@ -540,7 +517,6 @@ class GaussianNB:
         # normalize by P(x) = P(f_1, ..., f_n)
         # TODO np.log(np.sum(b*np.exp(a))) https://github.com/scipy/scipy/blob/master/scipy/special/_logsumexp.py
         log_prob_x = self.logsumexp(jll, axis=1)
-        print("DEBUGGING: log_prob_x.shape", log_prob_x.shape)
         return (
             jll - log_prob_x.T  # np.atleast_2d(log_prob_x).T
         )  # TODO np.atleast_2d or ensure that log_prob_x is at least a 2D tensor
