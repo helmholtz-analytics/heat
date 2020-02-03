@@ -358,7 +358,7 @@ class GaussianNB:
 
     def _joint_log_likelihood(self, X):
         jll_size = self.classes_._DNDarray__array.numel()
-        jll_shape = X.shape if X.numdims > 1 else (1, X.shape[0])
+        jll_shape = (X.shape[0], jll_size)
         joint_log_likelihood = ht.empty(jll_shape, dtype=X.dtype, split=X.split, device=X.device)
         for i in range(jll_size):
             jointi = ht.log(self.class_prior_[i])
