@@ -490,8 +490,8 @@ class GaussianNB:
         C : ndarray of shape (n_samples,)
             Predicted target values for X
         """
-        # check_is_fitted(self) #TODO
-        # X = self._check_X(X)  #TODO
+        # check_is_fitted(self) #TODO sanitation module
+        # X = self._check_X(X)  #TODO sanitation module
         # sanitize input
         if not isinstance(X, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
@@ -511,15 +511,14 @@ class GaussianNB:
             the model. The columns correspond to the classes in sorted
             order, as they appear in the attribute :term:`classes_`.
         """
-        # check_is_fitted(self) #TODO
-        # X = self._check_X(X)  # TODO
+        # check_is_fitted(self) #TODO sanitation module
+        # X = self._check_X(X)  # TODO sanitation module
         jll = self._joint_log_likelihood(X)
         # normalize by P(x) = P(f_1, ..., f_n)
-        # TODO np.log(np.sum(b*np.exp(a))) https://github.com/scipy/scipy/blob/master/scipy/special/_logsumexp.py
         log_prob_x = self.logsumexp(jll, axis=1)
         return (
             jll - log_prob_x.T  # np.atleast_2d(log_prob_x).T
-        )  # TODO np.atleast_2d or ensure that log_prob_x is at least a 2D tensor
+        )  # TODO sanitation, ensure that log_prob_x is at least a 2D tensor
 
     def predict_proba(self, X):
         """
