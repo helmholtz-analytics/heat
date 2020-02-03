@@ -38,3 +38,13 @@ class TestGaussianNB(BasicTest):
         y_pred_heat_local = gnb_heat.fit(X_train, y_train).predict(X_test)
         self.assertIsInstance(y_pred_heat_local, ht.DNDarray)
         self.assert_array_equal(y_pred_heat_local, y_pred)
+
+        #test ht.GaussianNB, both data and labels distributed along same split dimension
+        from heat.core.naive_bayes import GaussianNB
+        X_train = ht.array(X_train, split=0)   
+        X_test = ht.array(X_test, split=0) 
+        y_train = ht.array(y_train, split=0)
+        y_test = ht.array(y_test, split=0)
+        gnb_heat = GaussianNB()
+        y_pred_heat_split = gnb_heat.fit(X_train, y_train).predict(X_test)
+        self.assert_array_equal(y_pred_heat_split, y_pred)
