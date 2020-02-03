@@ -2,9 +2,10 @@ import torch
 import numpy as np
 
 from .. import factories
+from .. import manipulations
 from .. import types
 from .. import operations
-from ..spatial import distance
+from ..spatial import distances
 from .. import linalg
 from .. import random
 from . import KMeans
@@ -32,7 +33,7 @@ def laplacian(S, norm=True, mode="fc", upper=None, lower=None):
     else:
         degree = sum(A, axis=1)
 
-    D = factories.diagonal(degree, dtype=S.dtype, split=S.split, device=S.device, comm=S.comm)
+    D = manipulations.diag(degree, dtype=S.dtype, split=S.split, device=S.device, comm=S.comm)
 
     if norm:
         L = factories.eye(A.shape, split=A.split) - linalg.matmul(D, linalg.matmul(S, D))
@@ -105,11 +106,11 @@ class spectral:
                 raise ValueError(
                     "For usage of RBF kernel please specify the scaling factor sigma in class instantiation"
                 )
-            self._similarity = distance.similarity(
-                X, lambda x, y: distance._gaussian(x, y, self.sigma)
+            self._similarity = distances.similarity(
+                X, lambda x, y: distances._gaussian(x, y, self.sigma)
             )
         elif self.kernel == "euclidean":
-            self._similarity = distance.similarity(X, lambda x, y: distance._euclidian(x, y))
+            self._similarity = distances.similarity(X, lambda x, y: distances._euclidian(x, y))
         else:
             raise NotImplementedError("Other kernels currently not implemented")
 
