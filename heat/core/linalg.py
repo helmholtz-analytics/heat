@@ -32,7 +32,11 @@ def cg(A, b, x0, out=None):
         Returns the solution x of the system of linear equations. If out is given, it is returned
     """
 
-    if not isinstance(A, dndarray) or not isinstance(b, dndarray) or not isinstance(x0, dndarray):
+    if (
+        not isinstance(A, dndarray.DNDarray)
+        or not isinstance(b, dndarray.DNDarray)
+        or not isinstance(x0, dndarray.DNDarray)
+    ):
         raise TypeError(
             "A, b and x0 need to be of type ht.dndarra, but were {}, {}, {}".format(
                 type(A), type(b), type(x0)
@@ -48,6 +52,7 @@ def cg(A, b, x0, out=None):
 
     r = b - matmul(A, x0)
     p = r
+    print(A.shape, p.shape)
     rsold = matmul(r, r)
     x = x0
 
@@ -156,7 +161,7 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
         Tridiagonal matrix of size mxm, with coefficients alpha_1,...alpha_n on the diagonal and coefficients beta_1,...,beta_n-1 on the side-diagonals. If out is given, it is returned
 
     """
-    if not isinstance(A, dndarray):
+    if not isinstance(A, dndarray.DNDarray):
         raise TypeError("A needs to be of type ht.dndarra, but was {}".format(type(A)))
 
     if not (A.numdims == 2):
@@ -316,13 +321,17 @@ def matmul(a, b):
     else:
         # if they are vectors they need to be expanded to be the proper dimensions
         vector_flag = False  # flag to run squeeze at the end of the function
+        both_vec = 0
         if len(a.gshape) < 2:
             a = manipulations.expand_dims(a, axis=0)
             vector_flag = True
+            both_vec += 1
         if len(b.gshape) < 2:
             b = manipulations.expand_dims(b, axis=1)
             vector_flag = True
+            both_vec += 1
 
+        both_vec = True if both_vec == 2 else False
         split_0_flag = False
         split_1_flag = False
         split_01_flag = False
@@ -701,7 +710,6 @@ def matmul(a, b):
                         c._DNDarray__array[: a_node_rem_s0.shape[0]] += a_node_rem_s0 @ b_rem
 
                     del b_lp_data[pr]
-
             c = (
                 c
                 if not vector_flag
@@ -881,7 +889,7 @@ def matmul(a, b):
             split = a.split if b.gshape[1] > 1 else 0
             split = split if not vector_flag else 0
             res = res if not vector_flag else res.squeeze()
-            c = factories.array(res, split=split, device=a.device)
+            c = factories.array(res, split=split if not both_vec else None, device=a.device)
             return c
 
 
