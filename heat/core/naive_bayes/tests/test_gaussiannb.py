@@ -19,32 +19,34 @@ if os.environ.get("DEVICE") == "lgpu" and ht.torch.cuda.is_available():
 
 class TestGaussianNB(BasicTest):
     def test_fit_iris(self):
-        #benchmark result with scikit-learn
+        # benchmark result with scikit-learn
         from sklearn.datasets import load_iris
         from sklearn.model_selection import train_test_split
         from sklearn.naive_bayes import GaussianNB
+
         X, y = load_iris(return_X_y=True)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=0)
         gnb = GaussianNB()
         y_pred = gnb.fit(X_train, y_train).predict(X_test)
 
-        #test ht.GaussianNB locally
+        # test ht.GaussianNB
         from heat.core.naive_bayes import GaussianNB
-        X_train = ht.array(X_train)   
-        X_test = ht.array(X_test) 
-        y_train = ht.array(y_train)
-        y_test = ht.array(y_test)
-        gnb_heat = GaussianNB()
-        y_pred_heat_local = gnb_heat.fit(X_train, y_train).predict(X_test)
-        self.assertIsInstance(y_pred_heat_local, ht.DNDarray)
-        self.assert_array_equal(y_pred_heat_local, y_pred)
 
-        #test ht.GaussianNB, both data and labels distributed along same split dimension
-        from heat.core.naive_bayes import GaussianNB
-        X_train = ht.array(X_train, split=0)   
-        X_test = ht.array(X_test, split=0) 
-        y_train = ht.array(y_train, split=0)
-        y_test = ht.array(y_test, split=0)
         gnb_heat = GaussianNB()
-        y_pred_heat_split = gnb_heat.fit(X_train, y_train).predict(X_test)
-        self.assert_array_equal(y_pred_heat_split, y_pred)
+
+        # test ht.GaussianNB locally
+        X_train_local = ht.array(X_train)
+        X_test_local = ht.array(X_test)
+        y_train_local = ht.array(y_train)
+        y_test_local = ht.array(y_test)
+        y_pred_local = gnb_heat.fit(X_train_local, y_train_local).predict(X_test_local)
+        self.assertIsInstance(y_pred_local, ht.DNDarray)
+        self.assert_array_equal(y_pred_local, y_pred)
+
+        # #test ht.GaussianNB, data and labels distributed along split axis 0
+        X_train_split = ht.array(X_train, split=0)
+        X_test_split = ht.array(X_test, split=0)
+        y_train_split = ht.array(y_train, split=0)
+        y_test_split = ht.array(y_test, split=0)
+        y_pred_split = gnb_heat.fit(X_train_split, y_train_split).predict(X_test_split)
+        self.assert_array_equal(y_pred_split, y_pred)
