@@ -10,7 +10,7 @@ from . import manipulations
 from . import random
 from . import types
 
-__all__ = ["cg", "dot", "lanczos", "matmul", "projection", "transpose", "tril", "triu"]
+__all__ = ["cg", "dot", "lanczos", "matmul", "norm", "projection", "transpose", "tril", "triu"]
 
 
 def cg(A, b, x0, out=None):
@@ -112,9 +112,9 @@ def dot(a, b, out=None):
         # 1. If both a and b are 1-D arrays, it is inner product of vectors.
         if a.split is None and b.split is None:
             sl = slice(None)
-        elif a.split is not None and b.split is not None:
+        elif (a.split is not None) and (b.split is not None):  # both are split
             sl = a.comm.chunk(a.shape, a.split)[2]
-        else:  # a.split is not None or b.split is not None:
+        else:
             sl = a.comm.chunk(a.shape, a.split if a.split is not None else b.split)[2]
 
         ret = torch.dot(a[sl]._DNDarray__array, b[sl]._DNDarray__array)
@@ -918,7 +918,7 @@ def norm(a):
 
 def projection(a, b):
     """
-    Projection of vector b onto vector a
+    Projection of vector a onto vector b
 
     Parameters
     ----------
@@ -940,7 +940,7 @@ def projection(a, b):
             "a, b must be vectors of length 1, but were {}, {}".format(len(a.shape), len(b.shape))
         )
 
-    return (dot(b, a) / dot(a, a)) * a
+    return (dot(a, b) / dot(b, b)) * b
 
 
 def transpose(a, axes=None):
