@@ -18,9 +18,9 @@ setup(
     packages=[
         "heat",
         "heat.core",
-        "heat.core.regression",
-        "heat.core.regression.lasso",
         "heat.cluster",
+        "heat.regression",
+        "heat.regression.lasso",
         "heat.utils",
     ],
     data_files=["README.md", "LICENSE"],
