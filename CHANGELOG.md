@@ -1,6 +1,7 @@
 # Pending Additions
 
 - [#454](https://github.com/helmholtz-analytics/heat/issues/454) Update lasso example
+- [#474](https://github.com/helmholtz-analytics/heat/pull/474) New feature: distributed Gaussian Naive Bayes classifier
 
 # v0.2.2
 
