@@ -163,11 +163,12 @@ def matmul(a, b, no_resplit=False):
     if a.split is None and b.split is None:  # matmul from torch
         if len(a.gshape) < 2 or len(b.gshape) < 2 or no_resplit:
             # if either of A or B is a vector
+            # or if the inputs should not be split
             return factories.array(
                 torch.matmul(a._DNDarray__array, b._DNDarray__array), device=a.device
             )
         else:
-            a = a.resplit_(0)
+            a.resplit_(0)
             slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
             hold = a._DNDarray__array @ b._DNDarray__array
 
