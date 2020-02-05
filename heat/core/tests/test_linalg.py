@@ -40,6 +40,10 @@ class TestLinalg(unittest.TestCase):
         a1d = ht.array(data1d, dtype=ht.float32, split=None, device=ht_device)
         b1d = ht.array(data1d, dtype=ht.float32, split=None, device=ht_device)
         self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
+
+        a1d = ht.array(data1d, dtype=ht.float32, split=0, device=ht_device)
+        b1d = ht.array(data1d, dtype=ht.float32, split=0, device=ht_device)
+        self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
         # 2 1D arrays,
 
         a2d = ht.array(data2d, split=1, device=ht_device)
