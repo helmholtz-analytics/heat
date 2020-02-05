@@ -87,8 +87,11 @@ def matmul(a, b, no_resplit=False):
         2 dimensional: L x P
     b : ht.DNDarray
         2 dimensional: P x Q
-    no_resplit : bool
+    no_resplit : bool, optional
         Flag for if to resplit the DNDarray 'a' in the case that both 'a' and 'b' are not split.
+        Default: if both are not split then 'a' will be split in-place along axis 0, i.e. the split
+            axis of 'a' will become 0 and the DNDarray will be distributed in the standard fashion.
+            The default case should be the most efficient case for large matrices.
 
     Returns
     -------
