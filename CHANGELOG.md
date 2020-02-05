@@ -1,3 +1,7 @@
+# Pending Additions
+
+- [#454](https://github.com/helmholtz-analytics/heat/issues/454) Update lasso example
+
 # v0.2.2
 
 This version adds support for PyTorch 1.4.0. There are also several minor feature improvements and bug fixes listed below.
