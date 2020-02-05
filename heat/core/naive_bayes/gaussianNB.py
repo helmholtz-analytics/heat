@@ -87,9 +87,13 @@ class GaussianNB:
                         type(sample_weight)
                     )
                 )
-        return self._partial_fit(
-            X, y, ht.unique(y, sorted=True), _refit=True, sample_weight=sample_weight
-        )
+        classes = ht.unique(y, sorted=True)
+        if classes.split is not None:
+            gathered_classes = ht.resplit(classes, axis=None)
+            return self._partial_fit(
+                X, y, gathered_classes, _refit=True, sample_weight=sample_weight
+            )
+        return self._partial_fit(X, y, classes, _refit=True, sample_weight=sample_weight)
 
     # @staticmethod
     def _check_partial_fit_first_call(clf, classes=None):
@@ -286,7 +290,7 @@ class GaussianNB:
                 if len(priors) != n_classes:
                     raise ValueError("Number of priors must match number of" " classes.")
                 # Check that the sum is 1
-                if not ht.isclose(priors.sum(), 1.0):  # TODO ht.isclose
+                if not ht.isclose(priors.sum(), 1.0):
                     raise ValueError("The sum of the priors should be 1.")
                 # Check that the prior are non-negative
                 if (priors < 0).any():
@@ -305,21 +309,19 @@ class GaussianNB:
         classes = self.classes_
 
         unique_y = ht.unique(y, sorted=True)
-        unique_y_in_classes = ht.eq(unique_y, classes)
+        if unique_y.split is not None:
+            gathered_unique_y = ht.resplit(unique_y, axis=None)
+        else:
+            gathered_unique_y = unique_y
+        unique_y_in_classes = ht.eq(gathered_unique_y, classes)
 
         if not ht.all(unique_y_in_classes):
             raise ValueError(
                 "The target label(s) %s in y do not exist in the "
                 "initial classes %s" % (unique_y[~unique_y_in_classes], classes)
             )
-
-        for y_i in unique_y:
-            ## sklearn original
-            # i = classes.searchsorted(y_i)  # TODO: np.searchsorted
-            # X_i = X[y == y_i, :]
-            ###################
-            ## temporary replacement for searchsorted
-            ## assuming classes.split is None for now
+        for y_i in gathered_unique_y:
+            ## assuming classes.split is None
             if y_i in classes:
                 i = ht.where(classes == y_i).item()
             else:
@@ -327,10 +329,7 @@ class GaussianNB:
                     (classes._DNDarray__array, y_i._DNDarray__array.unsqueeze(0))
                 )
                 i = torch.argsort(classes_ext)[-1].item()
-
             X_i = X[ht.where(y == y_i)._DNDarray__array.squeeze().tolist(), :]
-            ## TODO: why does ht.where return 2 dimensions here?? squeeze should be internal to where
-            ###################
 
             if sample_weight is not None:
                 sw_i = sample_weight[y == y_i]
