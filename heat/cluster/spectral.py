@@ -5,7 +5,7 @@ from .. import factories
 from .. import manipulations
 from .. import types
 from .. import operations
-from ..spatial import distances
+from ..spatial import distance
 from .. import linalg
 from .. import random
 from . import KMeans
@@ -106,11 +106,10 @@ class spectral:
                 raise ValueError(
                     "For usage of RBF kernel please specify the scaling factor sigma in class instantiation"
                 )
-            self._similarity = distances.similarity(
-                X, lambda x, y: distances._gaussian(x, y, self.sigma)
-            )
+            self._similarity = distance.rbf(X, self.sigma)
+
         elif self.kernel == "euclidean":
-            self._similarity = distances.similarity(X, lambda x, y: distances._euclidian(x, y))
+            self._similarity = distance.cdist(X)
         else:
             raise NotImplementedError("Other kernels currently not implemented")
 

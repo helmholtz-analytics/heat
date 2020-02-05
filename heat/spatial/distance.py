@@ -4,7 +4,7 @@ from mpi4py import MPI
 
 from .. import core
 
-__all__ = ["cdist"]
+__all__ = ["cdist", "rbf"]
 
 
 def _euclidian(x, y):
@@ -25,6 +25,12 @@ def _quadratic_expand(x, y):
 
 
 def _gaussian(x, y, sigma=1.0):
+    d2 = _euclidian(x, y) ** 2
+    result = torch.exp(-d2 / (2 * sigma * sigma))
+    return result
+
+
+def _gaussian_fast(x, y, sigma=1.0):
     d2 = _quadratic_expand(x, y)
     result = torch.exp(-d2 / (2 * sigma * sigma))
     return result
@@ -35,6 +41,13 @@ def cdist(X, Y=None, quadratic_expansion=False):
         return _dist(X, Y, _euclidian_fast)
     else:
         return _dist(X, Y, _euclidian)
+
+
+def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False):
+    if quadratic_expansion:
+        return _dist(X, Y, lambda x, y: _gaussian_fast(x, y, sigma))
+    else:
+        return _dist(X, Y, lambda x, y: _gaussian(x, y, sigma))
 
 
 def _dist(X, Y=None, metric=_euclidian):
