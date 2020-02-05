@@ -42,8 +42,12 @@ def dot(a, b, out=None):
         return a * b
     elif a.numdims == 1 and b.numdims == 1:
         # 1. If both a and b are 1-D arrays, it is inner product of vectors.
-        if a.split is not None or b.split is not None:
+        if a.split is None and b.split is None:
+            sl = slice(None)
+        elif a.split is not None or b.split is not None:
             sl = a.comm.chunk(a.shape, a.split if a.split is not None else b.split)[2]
+        else:  # both are split
+            sl = a.comm.chunk(a.shape, a.split)[2]
         ret = torch.dot(a[sl]._DNDarray__array, b[sl]._DNDarray__array)
         if a.is_distributed() or b.is_distributed():
             a.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
@@ -68,7 +72,7 @@ def dot(a, b, out=None):
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
 
-def matmul(a, b):
+def matmul(a, b, no_resplit=False):
     """
     Matrix multiplication of two DNDarrays
 
@@ -80,6 +84,8 @@ def matmul(a, b):
         2 dimensional: L x P
     b : ht.DNDarray
         2 dimensional: P x Q
+    no_resplit : bool
+        Flag for if to resplit the DNDarray 'a' in the case that both 'a' and 'b' are not split.
 
     Returns
     -------
@@ -145,7 +151,7 @@ def matmul(a, b):
         b = c_type(b, device=b.device)
 
     if a.split is None and b.split is None:  # matmul from torch
-        if len(a.gshape) < 2 or len(b.gshape) < 2:
+        if len(a.gshape) < 2 or len(b.gshape) < 2 or no_resplit:
             # if either of A or B is a vector
             return factories.array(
                 torch.matmul(a._DNDarray__array, b._DNDarray__array), device=a.device
