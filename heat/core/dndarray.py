@@ -1375,9 +1375,9 @@ class DNDarray:
             elif isinstance(key, (tuple, list)):
                 gout = [0] * len(self.gshape)
                 # handle the dimensional reduction for integers
+                # --> SOMETHING'S GOING WRONG HERE: gout = []
                 ints = sum([isinstance(it, int) for it in key])
                 gout = gout[: len(gout) - ints]
-
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
@@ -1404,30 +1404,41 @@ class DNDarray:
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
                         arr = self.__array[tuple(key)]
                         gout = list(arr.shape)
-
-                # if the given axes are not splits (must be ints for python)
-                # this means the whole slice is on one node
-                elif key[self.split] in range(chunk_start, chunk_end):
-                    key = list(key)
-                    key[self.split] = key[self.split] - chunk_start
-                    arr = self.__array[tuple(key)]
-                    gout = list(arr.shape)
-                elif key[self.split] < 0 and self.gshape[self.split] + key[self.split] in range(
-                    chunk_start, chunk_end
-                ):
-                    key = list(key)
-                    key[self.split] = key[self.split] + chunk_end - chunk_start
-                    arr = self.__array[tuple(key)]
-                    gout = list(arr.shape)
                 else:
-                    warnings.warn(
-                        "This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
-                            self.comm.rank
-                        ),
-                        ResourceWarning,
-                    )
-                    # arr is empty
-                    # gout is all 0s and is the proper shape
+                    # if the given axes are not splits (must be ints OR LISTS for python)
+                    # this means the whole slice is on one node
+                    key = list(key)
+                    if isinstance(key[self.split], list):
+                        key[self.split] = [
+                            index + self.gshape[self.split] if index < 0 else index
+                            for index in key[self.split]
+                        ]
+                        sorted_key_along_split = sorted(key[self.split])
+                        if sorted_key_along_split[0] in range(
+                            chunk_start, chunk_end
+                        ) and sorted_key_along_split[-1] in range(chunk_start, chunk_end):
+                            key[self.split] = [index - chunk_start for index in key[self.split]]
+                            arr = self.__array[tuple(key)]
+                            gout = list(arr.shape)
+                    if isinstance(key[self.split], int):
+                        key[self.split] = (
+                            key[self.split] + self.gshape[self.split]
+                            if key[self.split] < 0
+                            else key[self.split]
+                        )
+                        if key[self.split] in range(chunk_start, chunk_end):
+                            key[self.split] = key[self.split] - chunk_start
+                            arr = self.__array[tuple(key)]
+                            gout = list(arr.shape)
+                    if 0 in arr.shape:
+                        # arr is empty
+                        # gout is all 0s and is the proper shape
+                        warnings.warn(
+                            "This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
+                                self.comm.rank
+                            ),
+                            ResourceWarning,
+                        )
 
             # if the given axes are only a slice
             elif isinstance(key, slice) and self.split == 0:
@@ -1478,7 +1489,6 @@ class DNDarray:
 
                 gout = list(self.__array[key].shape)
                 arr = self.__array[key]
-
             for e, _ in enumerate(gout):
                 if e == new_split:
                     gout[e] = self.comm.allreduce(gout[e], MPI.SUM)
