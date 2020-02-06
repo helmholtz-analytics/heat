@@ -75,7 +75,7 @@ def dot(a, b, out=None):
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
 
-def matmul(a, b, no_resplit=False):
+def matmul(a, b, allow_resplit=True):
     """
     Matrix multiplication of two DNDarrays
 
@@ -87,7 +87,7 @@ def matmul(a, b, no_resplit=False):
         2 dimensional: L x P
     b : ht.DNDarray
         2 dimensional: P x Q
-    no_resplit : bool, optional
+    allow_resplit : bool, optional
         Flag for if to resplit the DNDarray 'a' in the case that both 'a' and 'b' are not split.
         Default: if both are not split then 'a' will be split in-place along axis 0, i.e. the split
             axis of 'a' will become 0 and the DNDarray will be distributed in the standard fashion.
@@ -164,7 +164,7 @@ def matmul(a, b, no_resplit=False):
         b = c_type(b, device=b.device)
 
     if a.split is None and b.split is None:  # matmul from torch
-        if len(a.gshape) < 2 or len(b.gshape) < 2 or no_resplit:
+        if len(a.gshape) < 2 or len(b.gshape) < 2 or not allow_resplit:
             # if either of A or B is a vector
             # or if the inputs should not be split
             return factories.array(

@@ -1,7 +1,7 @@
 # Pending Additions
 
 - [#454](https://github.com/helmholtz-analytics/heat/issues/454) Update lasso example
-- [#473](https://github.com/helmholtz-analytics/heat/issues/473) Added no_resplit flag to `matmul` to avoid splitting one of the inputs if both are not split.
+- [#473](https://github.com/helmholtz-analytics/heat/issues/473) Added allow_resplit flag to `matmul` to toggle splitting of one inputs if both are not split.
 - [#473](https://github.com/helmholtz-analytics/heat/issues/473) `dot` handles 2 split None vectors correctly now
 
 # v0.2.2
