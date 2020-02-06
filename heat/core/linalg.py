@@ -75,7 +75,7 @@ def dot(a, b, out=None):
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
 
-def matmul(a, b, allow_resplit=True):
+def matmul(a, b, allow_resplit=False):
     """
     Matrix multiplication of two DNDarrays
 
@@ -89,7 +89,8 @@ def matmul(a, b, allow_resplit=True):
         2 dimensional: P x Q
     allow_resplit : bool, optional
         Flag for if to resplit the DNDarray 'a' in the case that both 'a' and 'b' are not split.
-        Default: if both are not split then 'a' will be split in-place along axis 0, i.e. the split
+        Default: if both are not split then both will remain not split.
+        True: if both are not split then 'a' will be split in-place along axis 0, i.e. the split
             axis of 'a' will become 0 and the DNDarray will be distributed in the standard fashion.
             The default case should be the most efficient case for large matrices.
 
