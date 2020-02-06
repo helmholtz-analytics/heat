@@ -174,9 +174,9 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
         raise TypeError("Input Matrix A needs to be symmetric.")
     T = factories.zeros((m, m))
     if A.split == 0:
-        V = factories.zeros((n, m), split=A.split, dtype=types.float64)
+        V = factories.zeros((n, m), split=A.split, dtype=types.float32)
     else:
-        V = factories.zeros((n, m), dtype=types.float64)
+        V = factories.zeros((n, m), dtype=types.float32)
 
     if v0 is None:
         vr = random.rand(n)

@@ -55,7 +55,11 @@ def _dist(X, Y=None, metric=_euclidian):
         raise NotImplementedError("Only 2D data matrices are currently supported")
 
     if X.dtype != core.float32:
-        raise NotImplementedError("Currently only float32 is supported as input datatype")
+        raise NotImplementedError(
+            "Datatype needs to be float32, but was {}. This is currently not supported as input".format(
+                X.dtype
+            )
+        )
 
     if Y is None:
         d = core.factories.zeros(
@@ -186,7 +190,11 @@ def _dist(X, Y=None, metric=_euclidian):
             raise NotImplementedError("Differing communicators not supported")
 
         if Y.dtype != core.float32:
-            raise NotImplementedError("Currently only float32 is supported as input datatype")
+            raise NotImplementedError(
+                "Datatype needs to be float32, but was {}. This is currently not supported as input".format(
+                    Y.dtype
+                )
+            )
 
         if X.split is None:
             if Y.split is None:

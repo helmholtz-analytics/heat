@@ -1,14 +1,7 @@
 import torch
+import math
 import numpy as np
-
-from .. import factories
-from .. import manipulations
-from .. import types
-from .. import operations
-from ..spatial import distance
-from .. import linalg
-from .. import random
-from . import KMeans
+import heat as ht
 
 
 def laplacian(S, norm=True, mode="fc", upper=None, lower=None):
@@ -19,9 +12,9 @@ def laplacian(S, norm=True, mode="fc", upper=None, lower=None):
             )
 
         if upper is not None:
-            A = types.int(S < upper) - factories.eye(S.shape, dtype=types.int, split=S.split)
+            A = ht.int(S < upper) - ht.eye(S.shape, dtype=ht.int, split=S.split)
         elif lower is not None:
-            A = types.int(S > upper) - factories.eye(S.shape, dtype=types.int, split=S.split)
+            A = ht.int(S > upper) - ht.eye(S.shape, dtype=ht.int, split=S.split)
     elif mode == "fc":
         A = S
     else:
@@ -29,21 +22,21 @@ def laplacian(S, norm=True, mode="fc", upper=None, lower=None):
             "Only eNeighborhood and fully-connected graphs supported at the moment."
         )
     if norm:
-        degree = operations.sqrt(1.0 / operations.sum(A, axis=1))
+        degree = ht.sqrt(1.0 / ht.sum(A, axis=1))
     else:
         degree = sum(A, axis=1)
 
-    D = manipulations.diag(degree, dtype=S.dtype, split=S.split, device=S.device, comm=S.comm)
+    D = ht.diag(degree)
 
     if norm:
-        L = factories.eye(A.shape, split=A.split) - linalg.matmul(D, linalg.matmul(S, D))
+        L = ht.eye(A.shape, split=A.split) - ht.matmul(D, ht.matmul(S, D))
     else:
         L = D - A
 
     return L
 
 
-class spectral:
+class Spectral:
     def __init__(
         self,
         n_clusters=None,
@@ -54,6 +47,7 @@ class spectral:
         boundary="upper",
         normalize=True,
         n_lanczos=300,
+        assign_labels="kmeans",
     ):
         """
         Spectral clustering
@@ -83,6 +77,9 @@ class spectral:
             normalized vs. unnormalized Laplacian
         n_lanczos : int
             number of Lanczos iterations for Eigenvalue decomposition
+        assign_labels: str, default = 'kmeans'
+             The strategy to use to assign labels in the embedding space.
+             'kmeans'
 
         """
         self.n_clusters = n_clusters
@@ -101,15 +98,16 @@ class spectral:
 
     def fit(self, X):
         # 1. Calculation of Adjacency Matrix
-        if self.kernel == "rbf":
-            if self.sigma is None:
+        if self.metric == "rbf":
+            if self.gamma is None:
                 raise ValueError(
                     "For usage of RBF kernel please specify the scaling factor sigma in class instantiation"
                 )
-            self._similarity = distance.rbf(X, self.sigma)
+            sig = math.sqrt(1 / (2 * self.gamma))
+            self._similarity = ht.spatial.rbf(X, sigma=sig)
 
-        elif self.kernel == "euclidean":
-            self._similarity = distance.cdist(X)
+        elif self.metric == "euclidean":
+            self._similarity = ht.spatial.cdist(X)
         else:
             raise NotImplementedError("Other kernels currently not implemented")
 
@@ -134,14 +132,14 @@ class spectral:
             raise NotImplementedError("Other approaches currently not implemented")
 
         # 3. Eigenvalue and -vector Calculation
-        vr = random.rand(L.shape[0], split=L.split, dtype=types.float64)
-        v0 = vr / linalg.norm(vr)
-        Vg_norm, Tg_norm = linalg.lanczos(L, self.n_lanczos, v0)
+        vr = ht.random.rand(L.shape[0], split=L.split, dtype=ht.float32)
+        v0 = vr / ht.norm(vr)
+        Vg_norm, Tg_norm = ht.lanczos(L, self.n_lanczos, v0)
 
         # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
         eval, evec = torch.eig(Tg_norm._DNDarray__array, eigenvectors=True)
         # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
-        self._eigenvectors = linalg.matmul(Vg_norm, factories.array(evec))
+        self._eigenvectors = ht.matmul(Vg_norm, ht.array(evec))
         self._eigenvalues, idx = torch.sort(eval[:, 0], dim=0)
         self._eigenvalues = self._eigenvectors[:, idx]
 
@@ -151,9 +149,7 @@ class spectral:
 
         components = self._eigenvectors[:, : self.n_clusters].copy()
 
-        kmeans = KMeans(n_clusters=self.n_clusters, init="kmeans++")
+        kmeans = ht.cluster.KMeans(n_clusters=self.n_clusters, init="kmeans++")
         kmeans.fit(components)
-        # cluster = kmeans.predict(self.n_clusters)
-        # centroids = kmeans.cluster_centers_
 
         return
