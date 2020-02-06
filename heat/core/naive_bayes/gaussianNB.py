@@ -321,7 +321,7 @@ class GaussianNB:
                 "initial classes %s" % (unique_y[~unique_y_in_classes], classes)
             )
         for y_i in gathered_unique_y:
-            ## assuming classes.split is None
+            # assuming classes.split is None
             if y_i in classes:
                 i = ht.where(classes == y_i).item()
             else:
@@ -453,7 +453,7 @@ class GaussianNB:
         # elif not np.isfinite(a_max):
         #     a_max = 0
 
-        ##TODO: reinstate after allowing b not None
+        #TODO: reinstate after allowing b not None
         # if b is not None:
         #     b = np.asarray(b)
         #     tmp = b * np.exp(a - a_max)
@@ -473,10 +473,10 @@ class GaussianNB:
             a_max = ht.squeeze(a_max, axis=axis)
         out += a_max
 
-        if return_sign:
-            return out, sgn
-        else:
-            return out
+        #if return_sign: #TODO: np.sign
+        #    return out, sgn
+        #else:
+        return out
 
     def predict(self, X):
         """
