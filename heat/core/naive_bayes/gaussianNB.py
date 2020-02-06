@@ -453,7 +453,7 @@ class GaussianNB:
         # elif not np.isfinite(a_max):
         #     a_max = 0
 
-        #TODO: reinstate after allowing b not None
+        # TODO: reinstate after allowing b not None
         # if b is not None:
         #     b = np.asarray(b)
         #     tmp = b * np.exp(a - a_max)
@@ -473,9 +473,9 @@ class GaussianNB:
             a_max = ht.squeeze(a_max, axis=axis)
         out += a_max
 
-        #if return_sign: #TODO: np.sign
+        # if return_sign: #TODO: np.sign
         #    return out, sgn
-        #else:
+        # else:
         return out
 
     def predict(self, X):
