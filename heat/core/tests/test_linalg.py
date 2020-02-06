@@ -112,7 +112,7 @@ class TestLinalg(unittest.TestCase):
         a[:, -1] = ht.arange(1, n + 1, device=ht_device)
         b[0] = ht.arange(1, k + 1, device=ht_device)
         b[:, 0] = ht.arange(1, j + 1, device=ht_device)
-        ret00 = ht.matmul(a, b, allow_resplit=False)
+        ret00 = ht.matmul(a, b, allow_resplit=True)
 
         self.assertEqual(ht.all(ret00 == ht.array(a_torch @ b_torch, device=ht_device)), 1)
         self.assertIsInstance(ret00, ht.DNDarray)
