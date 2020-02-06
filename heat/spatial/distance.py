@@ -52,7 +52,10 @@ def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False):
 
 def _dist(X, Y=None, metric=_euclidian):
     if len(X.shape) > 2:
-        raise NotImplementedError("Only 2D data matrices are supported")
+        raise NotImplementedError("Only 2D data matrices are currently supported")
+
+    if X.dtype != core.float32:
+        raise NotImplementedError("Currently only float32 is supported as input datatype")
 
     if Y is None:
         d = core.factories.zeros(
@@ -182,11 +185,18 @@ def _dist(X, Y=None, metric=_euclidian):
         if X.comm != Y.comm:
             raise NotImplementedError("Differing communicators not supported")
 
+        if Y.dtype != core.float32:
+            raise NotImplementedError("Currently only float32 is supported as input datatype")
+
         if X.split is None:
             if Y.split is None:
                 split = None
+            elif Y.split == 0:
+                split = 1
             else:
-                split = Y.split
+                raise NotImplementedError(
+                    "Splittings other than 0 or None currently not supported."
+                )
         else:
             # ToDo Für split implementation >1: split = min(X,split, Y.split)
             split = X.split
