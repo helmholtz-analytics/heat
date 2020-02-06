@@ -63,7 +63,7 @@ class KMeans:
             Coordinates of cluster centers. If the algorithm stops before fully converging (see tol and max_iter),
             these will not be consistent with labels_.
         """
-        return self._cluster_centers.squeeze(axis=0).T
+        return self._cluster_centers
 
     @property
     def labels_(self):
@@ -113,7 +113,7 @@ class KMeans:
             # Samples will be equally distributed drawn from all involved processes
             _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
             centroids = ht.empty(
-                (X.shape[1], self.n_clusters), split=None, device=X.device, comm=X.comm
+                (self.n_clusters, X.shape[1]), split=None, device=X.device, comm=X.comm
             )
             if (X.split is None) or (X.split == 0):
                 for i in range(self.n_clusters):
@@ -132,12 +132,12 @@ class KMeans:
                         idx = sample - displ[proc]
                         xi = ht.array(X.lloc[idx, :], device=X.device, comm=X.comm)
                     xi.comm.Bcast(xi, root=proc)
-                    centroids[:, i] = xi
+                    centroids[i, :] = xi
 
             else:
                 raise NotImplementedError("Not implemented for other splitting-axes")
 
-            self._cluster_centers = centroids.expand_dims(axis=0)
+            self._cluster_centers = centroids
 
         # directly passed centroids
         elif isinstance(self.init, ht.DNDarray):
@@ -147,14 +147,13 @@ class KMeans:
                 )
             if self.init.shape[0] != self.n_clusters or self.init.shape[1] != X.shape[1]:
                 raise ValueError("passed centroids do not match cluster count or data shape")
-            self._cluster_centers = self.init.resplit(None).T.expand_dims(axis=0)
+            self._cluster_centers = self.init.resplit(None)
 
         # kmeans++, smart centroid guessing
         elif self.init == "kmeans++":
             if (X.split is None) or (X.split == 0):
-                X = X.expand_dims(axis=2)
-                centroids = ht.empty(
-                    (1, X.shape[1], self.n_clusters), split=None, device=X.device, comm=X.comm
+                centroids = ht.zeros(
+                    (self.n_clusters, X.shape[1]), split=None, device=X.device, comm=X.comm
                 )
                 sample = ht.random.randint(0, X.shape[0] - 1).item()
                 _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
@@ -166,15 +165,13 @@ class KMeans:
                 x0 = ht.zeros(X.shape[1], dtype=X.dtype, device=X.device, comm=X.comm)
                 if X.comm.rank == proc:
                     idx = sample - displ[proc]
-                    x0 = ht.array(X.lloc[idx, :, 0], device=X.device, comm=X.comm)
+                    x0 = ht.array(X.lloc[idx, :], device=X.device, comm=X.comm)
                 x0.comm.Bcast(x0, root=proc)
-                centroids[0, :, 0] = x0
-
+                centroids[0, :] = x0
                 for i in range(1, self.n_clusters):
-                    distances = ((X - centroids[:, :, :i]) ** 2).sum(axis=1, keepdim=True)
-                    D2 = distances.min(axis=2)
+                    distances = ht.spatial.distances.cdist(X, centroids, quadratic_expansion=True)
+                    D2 = distances.min(axis=1)
                     D2.resplit_(axis=None)
-                    D2 = D2.squeeze()
                     prob = D2 / D2.sum()
                     x = ht.random.rand().item()
                     sample = 0
@@ -192,9 +189,10 @@ class KMeans:
                     xi = ht.zeros(X.shape[1], dtype=X.dtype)
                     if X.comm.rank == proc:
                         idx = sample - displ[proc]
-                        xi = ht.array(X.lloc[idx, :, 0], device=X.device, comm=X.comm)
+                        xi = ht.array(X.lloc[idx, :], device=X.device, comm=X.comm)
                     xi.comm.Bcast(xi, root=proc)
-                    centroids[0, :, i] = xi
+                    centroids[i, :] = xi
+
             else:
                 raise NotImplementedError("Not implemented for other splitting-axes")
 
@@ -217,8 +215,8 @@ class KMeans:
             Training instances to cluster.
         """
         # calculate the distance matrix and determine the closest centroid
-        distances = ((X - self._cluster_centers) ** 2).sum(axis=1, keepdim=True)
-        matching_centroids = distances.argmin(axis=2, keepdim=True)
+        distances = ht.spatial.distances.cdist(X, self._cluster_centers, quadratic_expansion=True)
+        matching_centroids = distances.argmin(axis=1, keepdim=True)
 
         return matching_centroids
 
@@ -240,7 +238,6 @@ class KMeans:
         self._n_iter = 0
         matching_centroids = ht.zeros((X.shape[0]), split=X.split, device=X.device, comm=X.comm)
 
-        X = X.expand_dims(axis=2)
         new_cluster_centers = self._cluster_centers.copy()
 
         # iteratively fit the points to the centroids
@@ -262,7 +259,7 @@ class KMeans:
                 )
 
                 # compute the new centroids
-                new_cluster_centers[:, :, i : i + 1] = assigned_points / points_in_cluster
+                new_cluster_centers[i : i + 1, :] = assigned_points / points_in_cluster
 
             # check whether centroid movement has converged
             self._inertia = ((self._cluster_centers - new_cluster_centers) ** 2).sum()
