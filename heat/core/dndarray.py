@@ -1419,7 +1419,7 @@ class DNDarray:
                             key[self.split] = [index - chunk_start for index in key[self.split]]
                             arr = self.__array[tuple(key)]
                             gout = list(arr.shape)
-                    if isinstance(key[self.split], int):
+                    elif isinstance(key[self.split], int):
                         key[self.split] = (
                             key[self.split] + self.gshape[self.split]
                             if key[self.split] < 0
