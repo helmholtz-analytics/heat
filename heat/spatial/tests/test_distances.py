@@ -61,3 +61,8 @@ class TestDistances(unittest.TestCase):
             d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
         with self.assertRaises(NotImplementedError):
             d = ht.spatial.cdist(X, Y, quadratic_expansion=True)
+
+        X = ht.ones((4, 4), dtype=ht.float64, split=0)
+        Y = ht.zeros((4, 4), dtype=ht.float32, split=None)
+        with self.assertRaises(NotImplementedError):
+            d = ht.spatial.cdist(X, Y, quadratic_expansion=False)

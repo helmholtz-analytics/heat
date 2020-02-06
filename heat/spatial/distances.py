@@ -9,13 +9,10 @@ __all__ = ["cdist"]
 def cdist(X, Y, quadratic_expansion=False):
     # ToDo Case X==Y
     result = core.factories.zeros(
-        (X.shape[0], Y.shape[0]),
-        dtype=core.types.float32,
-        split=X.split,
-        device=X.device,
-        comm=X.comm,
+        (X.shape[0], Y.shape[0]), dtype=core.float32, split=X.split, device=X.device, comm=X.comm
     )
-
+    if X.dtype != core.float32 or Y.dtype != core.float32:
+        raise NotImplementedError("Currently only float32 datatype is supported")
     if X.split is not None:
         if X.split != 0:
             # ToDo: Find out if even possible
