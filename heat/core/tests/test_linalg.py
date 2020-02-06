@@ -103,6 +103,23 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(ret00.dtype, ht.float)
         self.assertEqual(ret00.split, None)
 
+        # splits None None
+        a = ht.ones((n, m), split=None, device=ht_device)
+        b = ht.ones((j, k), split=None, device=ht_device)
+        a[0] = ht.arange(1, m + 1, device=ht_device)
+        a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+        b[0] = ht.arange(1, k + 1, device=ht_device)
+        b[:, 0] = ht.arange(1, j + 1, device=ht_device)
+        ret00 = ht.matmul(a, b, allow_resplit=True)
+
+        self.assertEqual(ht.all(ret00 == ht.array(a_torch @ b_torch, device=ht_device)), 1)
+        self.assertIsInstance(ret00, ht.DNDarray)
+        self.assertEqual(ret00.shape, (n, k))
+        self.assertEqual(ret00.dtype, ht.float)
+        self.assertEqual(ret00.split, None)
+        self.assertEqual(a.split, None)
+        self.assertEqual(b.split, None)
+
         if a.comm.size > 1:
             # splits 00
             a = ht.ones((n, m), split=0, dtype=ht.float64, device=ht_device)
