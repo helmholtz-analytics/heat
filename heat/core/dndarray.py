@@ -1375,7 +1375,6 @@ class DNDarray:
             elif isinstance(key, (tuple, list)):
                 gout = [0] * len(self.gshape)
                 # handle the dimensional reduction for integers
-                # --> SOMETHING'S GOING WRONG HERE: gout = []
                 ints = sum([isinstance(it, int) for it in key])
                 gout = gout[: len(gout) - ints]
                 if self.split >= len(gout):
