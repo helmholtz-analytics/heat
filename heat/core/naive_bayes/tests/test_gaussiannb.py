@@ -42,6 +42,7 @@ class TestGaussianNB(BasicTest):
         y_pred_local = gnb_heat.fit(X_train_local, y_train_local).predict(X_test_local)
         self.assertIsInstance(y_pred_local, ht.DNDarray)
         self.assert_array_equal(y_pred_local, y_pred)
+        self.assertEqual((y_pred_local != y_test_local).sum(), ht.array(4))
 
         # #test ht.GaussianNB, data and labels distributed along split axis 0
         X_train_split = ht.array(X_train, split=0)
@@ -50,3 +51,4 @@ class TestGaussianNB(BasicTest):
         y_test_split = ht.array(y_test, split=0)
         y_pred_split = gnb_heat.fit(X_train_split, y_train_split).predict(X_test_split)
         self.assert_array_equal(y_pred_split, y_pred)
+        self.assertEqual((y_pred_split != y_test_split).sum(), ht.array(4))
