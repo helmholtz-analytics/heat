@@ -1,6 +1,8 @@
 # Pending Additions
 
 - [#454](https://github.com/helmholtz-analytics/heat/issues/454) Update lasso example
+- [#470](https://github.com/helmholtz-analytics/heat/pull/470) Enhancement: Accelerate distance calculations in kmeans clustering by introduction of new module spatial.distance
+
 
 # v0.2.2
 
