@@ -1488,6 +1488,7 @@ class DNDarray:
 
                 gout = list(self.__array[key].shape)
                 arr = self.__array[key]
+
             for e, _ in enumerate(gout):
                 if e == new_split:
                     gout[e] = self.comm.allreduce(gout[e], MPI.SUM)
