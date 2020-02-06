@@ -90,13 +90,13 @@ class GaussianNB:
         classes = ht.unique(y, sorted=True)
         if classes.split is not None:
             gathered_classes = ht.resplit(classes, axis=None)
-            return self._partial_fit(
+            return self.__partial_fit(
                 X, y, gathered_classes, _refit=True, sample_weight=sample_weight
             )
-        return self._partial_fit(X, y, classes, _refit=True, sample_weight=sample_weight)
+        return self.__partial_fit(X, y, classes, _refit=True, sample_weight=sample_weight)
 
     # @staticmethod
-    def _check_partial_fit_first_call(clf, classes=None):
+    def __check_partial_fit_first_call(clf, classes=None):
         """Private helper function for factorizing common classes param logic
         Estimators that implement the ``partial_fit`` API need to be provided with
         the list of possible classes at the first call to partial_fit.
@@ -128,7 +128,7 @@ class GaussianNB:
         return False
 
     @staticmethod
-    def _update_mean_variance(n_past, mu, var, X, sample_weight=None):
+    def __update_mean_variance(n_past, mu, var, X, sample_weight=None):
         """Compute online update of Gaussian mean and variance.
         Given starting sample count, mean, and variance, a new set of
         points X, and optionally sample weights, return the updated mean and
@@ -216,9 +216,9 @@ class GaussianNB:
         -------
         self : object
         """
-        return self._partial_fit(X, y, classes, _refit=False, sample_weight=sample_weight)
+        return self.__partial_fit(X, y, classes, _refit=False, sample_weight=sample_weight)
 
-    def _partial_fit(self, X, y, classes=None, _refit=False, sample_weight=None):
+    def __partial_fit(self, X, y, classes=None, _refit=False, sample_weight=None):
         """Actual implementation of Gaussian NB fitting.
         Parameters
         ----------
@@ -233,7 +233,7 @@ class GaussianNB:
             in subsequent calls.
         _refit : bool, optional (default=False)
             If true, act as though this were the first time we called
-            _partial_fit (ie, throw away any past fitting and start over).
+            __partial_fit (ie, throw away any past fitting and start over).
         sample_weight : array-like, shape (n_samples,), optional (default=None)
             Weights applied to individual samples (1. for unweighted).
         Returns
@@ -272,7 +272,7 @@ class GaussianNB:
         if _refit:
             self.classes_ = None
 
-        if self._check_partial_fit_first_call(classes):
+        if self.__check_partial_fit_first_call(classes):
             # This is the first call to partial_fit:
             # initialize various cumulative counters
             n_features = X.shape[1]
@@ -338,7 +338,7 @@ class GaussianNB:
                 sw_i = None
                 N_i = X_i.shape[0]
 
-            new_theta, new_sigma = self._update_mean_variance(
+            new_theta, new_sigma = self.__update_mean_variance(
                 self.class_count_[i], self.theta_[i, :], self.sigma_[i, :], X_i, sw_i
             )
 
@@ -355,7 +355,7 @@ class GaussianNB:
 
         return self
 
-    def _joint_log_likelihood(self, X):
+    def __joint_log_likelihood(self, X):
         jll_size = self.classes_._DNDarray__array.numel()
         jll_shape = (X.shape[0], jll_size)
         joint_log_likelihood = ht.empty(jll_shape, dtype=X.dtype, split=X.split, device=X.device)
@@ -494,7 +494,7 @@ class GaussianNB:
         # sanitize input
         if not isinstance(X, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
-        jll = self._joint_log_likelihood(X)
+        jll = self.__joint_log_likelihood(X)
         return self.classes_[ht.argmax(jll, axis=1).numpy()]
 
     def predict_log_proba(self, X):
@@ -512,7 +512,7 @@ class GaussianNB:
         """
         # check_is_fitted(self) #TODO sanitation module
         # X = self._check_X(X)  # TODO sanitation module
-        jll = self._joint_log_likelihood(X)
+        jll = self.__joint_log_likelihood(X)
         # normalize by P(x) = P(f_1, ..., f_n)
         log_prob_x = self.logsumexp(jll, axis=1)
         return (
