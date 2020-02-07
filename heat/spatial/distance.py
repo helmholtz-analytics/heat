@@ -69,9 +69,18 @@ def _dist(X, Y=None, metric=_euclidian):
             torch_type = torch.float64
             mpi_type = MPI.DOUBLE
         else:
-            raise NotImplementedError(
-                "Datatype {} currently not supported as input".format(X.dtype)
-            )
+            promoted_type = core.promote_types(X.dtype, core.float32)
+            X = X.astype(promoted_type)
+            if promoted_type == core.float32:
+                torch_type = torch.float32
+                mpi_type = MPI.FLOAT
+            elif promoted_type == core.float64:
+                torch_type = torch.float64
+                mpi_type = MPI.DOUBLE
+            else:
+                raise NotImplementedError(
+                    "Datatype {} currently not supported as input".format(X.dtype)
+                )
 
         d = core.zeros(
             (X.shape[0], X.shape[0]), dtype=X.dtype, split=X.split, device=X.device, comm=X.comm
