@@ -7,6 +7,7 @@ jobs:
     name: Submit GPU test batch job
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       matrix:
         processes: [1, 2, 3]
         gpus: ['0', '0,1', '0,1,2', '0,1,2,3']
