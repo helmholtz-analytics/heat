@@ -21,6 +21,9 @@ if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
 
 class TestRandom(unittest.TestCase):
     def test_rand(self):
+        print('GPU DEVICES', torch.cuda.device_count())
+        self.fail()
+
         # int64 tests
 
         # Resetting seed works
