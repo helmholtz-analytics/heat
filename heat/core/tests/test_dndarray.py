@@ -445,14 +445,14 @@ class TestDNDarray(unittest.TestCase):
 
         # assign and entirely new split axis
         shape = (ht.MPI_WORLD.size + 2, ht.MPI_WORLD.size + 1)
-        data = ht.ones(shape, split=0, device=ht_device)
-        data.resplit_(1)
+        data = ht.array(torch.arange(np.prod(shape)).reshape(shape), split=1, device=ht_device)
+        compare = ht.array(torch.arange(np.prod(shape)).reshape(shape), split=0, device=ht_device)
+        data.resplit_(0)
 
         self.assertIsInstance(data, ht.DNDarray)
         self.assertEqual(data.shape, shape)
-        self.assertEqual(data.lshape[0], ht.MPI_WORLD.size + 2)
-        self.assertTrue(data.lshape[1] == 1 or data.lshape[1] == 2)
-        self.assertEqual(data.split, 1)
+        self.assertEqual(data.split, 0)
+        self.assertTrue((data == compare).all())
 
         # test sorting order of resplit
         a_tensor = self.reference_tensor.copy()
