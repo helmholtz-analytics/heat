@@ -279,15 +279,20 @@ class GaussianNB:
             # initialize various cumulative counters
             n_features = X.shape[1]
             n_classes = len(self.classes_)
-            self.theta_ = ht.zeros((n_classes, n_features))
-            self.sigma_ = ht.zeros((n_classes, n_features))
+            self.theta_ = ht.zeros((n_classes, n_features), dtype=X.dtype, device=X.device)
+            self.sigma_ = ht.zeros((n_classes, n_features), dtype=X.dtype, device=X.device)
 
-            self.class_count_ = ht.zeros((n_classes,), dtype=ht.float64)
+            self.class_count_ = ht.zeros((n_classes,), dtype=ht.float64, device=X.device)
 
             # Initialise the class prior
             # Take into account the priors
             if self.priors is not None:
-                priors = ht.asarray(self.priors)
+                priors = ht.array(
+                    self.priors,
+                    dtype=self.priors.dtype,
+                    split=self.priors.split,
+                    device=self.priors.device,
+                )
                 # Check that the provide prior match the number of classes
                 if len(priors) != n_classes:
                     raise ValueError("Number of priors must match number of" " classes.")
@@ -300,7 +305,9 @@ class GaussianNB:
                 self.class_prior_ = priors
             else:
                 # Initialize the priors to zeros for each class
-                self.class_prior_ = ht.zeros(len(self.classes_), dtype=ht.float64)
+                self.class_prior_ = ht.zeros(
+                    len(self.classes_), dtype=ht.float64, split=None, device=X.device
+                )
         else:
             if X.shape[1] != self.theta_.shape[1]:
                 raise ValueError(
