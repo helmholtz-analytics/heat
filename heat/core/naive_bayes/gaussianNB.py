@@ -370,6 +370,11 @@ class GaussianNB:
         return self
 
     def __joint_log_likelihood(self, X):
+        """
+        Calculates joint log-likelihood for n_samples to be assigned to each class.
+        Returns ht.DNDarray joint_log_likelihood(n_samples, n_classes).
+        """
+
         jll_size = self.classes_._DNDarray__array.numel()
         jll_shape = (X.shape[0], jll_size)
         joint_log_likelihood = ht.empty(jll_shape, dtype=X.dtype, split=X.split, device=X.device)
