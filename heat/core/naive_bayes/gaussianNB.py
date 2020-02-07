@@ -59,6 +59,7 @@ class GaussianNB:
     def fit(self, X, y, sample_weight=None):
         """
         Fit Gaussian Naive Bayes according to X, y
+
         Parameters
         ----------
         X : array-like, shape (n_samples, n_features)
@@ -137,6 +138,7 @@ class GaussianNB:
         simultaneously update a number of independent Gaussians.
         See Stanford CS tech report STAN-CS-79-773 by Chan, Golub, and LeVeque:
         http://i.stanford.edu/pub/cstr/reports/cs/tr/79/773/CS-TR-79-773.pdf
+
         Parameters
         ----------
         n_past : int
@@ -149,6 +151,7 @@ class GaussianNB:
             Variances for Gaussians in original set.
         sample_weight : array-like, shape (n_samples,), optional (default=None)
             Weights applied to individual samples (1. for unweighted).
+
         Returns
         -------
         total_mu : array-like, shape (number of Gaussians,)
@@ -199,6 +202,7 @@ class GaussianNB:
         hence it is better to call partial_fit on chunks of data that are
         as large as possible (as long as fitting in the memory budget) to
         hide the overhead.
+
         Parameters
         ----------
         X : array-like, shape (n_samples, n_features)
@@ -212,7 +216,7 @@ class GaussianNB:
             in subsequent calls.
         sample_weight : array-like, shape (n_samples,), optional (default=None)
             Weights applied to individual samples (1. for unweighted).
-            .. versionadded:: 0.17
+
         Returns
         -------
         self : object
@@ -222,6 +226,7 @@ class GaussianNB:
     def __partial_fit(self, X, y, classes=None, _refit=False, sample_weight=None):
         """
         Actual implementation of Gaussian NB fitting.
+
         Parameters
         ----------
         X : array-like, shape (n_samples, n_features)
@@ -238,6 +243,7 @@ class GaussianNB:
             (ie, throw away any past fitting and start over).
         sample_weight : array-like, shape (n_samples,), optional (default=None)
             Weights applied to individual samples (1. for unweighted).
+
         Returns
         -------
         self : object
@@ -379,6 +385,7 @@ class GaussianNB:
         """
         Compute the log of the sum of exponentials of input elements.
         TODO: update sklearn docs to fit heat
+
         Parameters
         ----------
         a : array_like
@@ -401,7 +408,7 @@ class GaussianNB:
             If this is set to True, the result will be a pair containing sign
             information; if False, results that are negative will be returned
             as NaN. Default is False (no sign information).
-            .. versionadded:: 0.16.0
+
         Returns
         -------
         res : ndarray
@@ -504,9 +511,11 @@ class GaussianNB:
     def predict_log_proba(self, X):
         """
         Return log-probability estimates for the test vector X.
+
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
+
         Returns
         -------
         C : array-like of shape (n_samples, n_classes)
@@ -525,9 +534,11 @@ class GaussianNB:
     def predict_proba(self, X):
         """
         Return probability estimates for the test vector X.
+
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
+
         Returns
         -------
         C : array-like of shape (n_samples, n_classes)
