@@ -2,6 +2,7 @@
 
 - [#454](https://github.com/helmholtz-analytics/heat/issues/454) Update lasso example
 - [#470](https://github.com/helmholtz-analytics/heat/pull/470) Enhancement: Accelerate distance calculations in kmeans clustering by introduction of new module spatial.distance
+- [#473](https://github.com/helmholtz-analytics/heat/pull/473) `ht.array` now typecasts the local torch tensors if the torch tensors given are not the torch version of the specified dtype + unit test updates
 
 
 # v0.2.2
