@@ -233,6 +233,9 @@ def _dist(X, Y=None, metric=_euclidian):
             split = X.split
 
         promoted_type = core.promote_types(X.dtype, Y.dtype)
+        promoted_type = core.promote_types(promoted_type, core.float32)
+        print("Promoted type: ", promoted_type)
+
         X = X.astype(promoted_type)
         Y = Y.astype(promoted_type)
         if promoted_type == core.float32:
