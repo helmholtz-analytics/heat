@@ -2,6 +2,8 @@
 
 - [#454](https://github.com/helmholtz-analytics/heat/issues/454) Update lasso example
 - [#425] (https://github.com/helmholtz-analytics/heat/pull/476) Temporary fix for tensor redistribution from one split axis to another
+- [#470](https://github.com/helmholtz-analytics/heat/pull/470) Enhancement: Accelerate distance calculations in kmeans clustering by introduction of new module spatial.distance
+
 
 # v0.2.2
 
