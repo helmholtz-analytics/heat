@@ -11,8 +11,18 @@ jobs:
         processes: [1, 2, 3]
         gpus: ['0', '0,1', '0,1,2', '0,1,2,3']
         exclude:
-          - processes: [2, 3]
-            gpus: ['0', '0,1', '0,1,2']
+          - processes: 2
+            gpus: '0'
+          - processes: 2
+            gpus: '0,1'
+          - processes: 2
+            gpus: '0,1,2'
+          - processes: 3
+            gpus: '0'
+          - processes: 3
+            gpus: '0,1'
+          - processes: 3
+            gpus: '0,1,2'
     steps:
       - uses: appleboy/ssh-action@master
         with:
