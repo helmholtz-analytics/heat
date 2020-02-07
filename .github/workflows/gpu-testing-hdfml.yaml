@@ -7,7 +7,6 @@ jobs:
     name: Submit GPU test batch job
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 1
       matrix:
         processes: [1, 2, 3]
         gpus: ['0', '0,1', '0,1,2', '0,1,2,3']
@@ -45,6 +44,4 @@ jobs:
             } > test_batch_script.sh
             cat test_batch_script.sh
             export SHA=$GITHUB_SHA
-            export NUM_PROC=${{ matrix.processes }}
-            export CUDA_VISIBLE_DEVICES=${{ matrix.gpus }}
-            sbatch test_batch_script.sh
+            sbatch test_batch_script.sh ${{ matrix.processes }} ${{ matrix.gpus }}
