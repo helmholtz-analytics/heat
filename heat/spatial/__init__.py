@@ -1,1 +1,1 @@
-from .distances import *
+from .distance import *
