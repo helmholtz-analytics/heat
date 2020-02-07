@@ -112,8 +112,8 @@ class GaussianNB:
             if getattr(self, "classes_", None) is not None:
                 if not ht.equal(self.classes_, unique_labels):
                     raise ValueError(
-                        "`classes=%r` is not the same as on last call "
-                        "to partial_fit, was: %r" % (classes, self.classes_)
+                        "`classes={}` is not the same as on last call "
+                        "to partial_fit, was: {}".format(classes, self.classes_)
                     )
 
             else:
@@ -303,8 +303,11 @@ class GaussianNB:
                 self.class_prior_ = ht.zeros(len(self.classes_), dtype=ht.float64)
         else:
             if X.shape[1] != self.theta_.shape[1]:
-                msg = "Number of features %d does not match previous data %d."
-                raise ValueError(msg % (X.shape[1], self.theta_.shape[1]))
+                raise ValueError(
+                    "Number of features {} does not match previous data {}.".format(
+                        X.shape[1], self.theta_.shape[1]
+                    )
+                )
             # Put epsilon back in each time
             self.sigma_[:, :] -= self.epsilon_
 
@@ -317,8 +320,8 @@ class GaussianNB:
 
         if not ht.all(unique_y_in_classes):
             raise ValueError(
-                "The target label(s) %s in y do not exist in the "
-                "initial classes %s" % (unique_y[~unique_y_in_classes], classes)
+                "The target label(s) {} in y do not exist in the "
+                "initial classes {}".format(unique_y[~unique_y_in_classes], classes)
             )
         for y_i in unique_y:
             # assuming classes.split is None
