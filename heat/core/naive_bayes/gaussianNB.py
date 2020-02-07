@@ -484,9 +484,11 @@ class GaussianNB:
     def predict(self, X):
         """
         Perform classification on an array of test vectors X.
+
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
+
         Returns
         -------
         C : ndarray of shape (n_samples,)
