@@ -2378,8 +2378,9 @@ class DNDarray:
         if axis == self.split:
             return self
 
-        # unsplit the tensor
-        if axis is None:
+        # tensor needs to be unsplit or to be split in a new axis
+        if self.split is not None:
+            # unsplit the tensor
             gathered = torch.empty(
                 self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
             )
@@ -2392,8 +2393,11 @@ class DNDarray:
             self.__array = gathered
             self.__split = None
 
+            if axis is None:
+                return self
+
         # tensor needs be split/sliced locally
-        elif self.split is None:
+        if self.split is None:
             _, _, slices = self.comm.chunk(self.shape, axis)
             temp = self.__array[slices]
             self.__array = torch.empty((1,), device=self.device.torch_device)
@@ -2401,24 +2405,25 @@ class DNDarray:
             self.__array = temp.clone().detach()
             self.__split = axis
 
-        # entirely new split axis, need to redistribute
-        else:
-            _, output_shape, _ = self.comm.chunk(self.shape, axis)
-            redistributed = torch.empty(
-                output_shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
-            )
+        # # entirely new split axis, TODO: need to redistribute in Big-Data-friendly fashion,
+        # cf. https://github.com/helmholtz-analytics/heat/issues/425#issuecomment-583278254
+        # else:
+        #     _, output_shape, _ = self.comm.chunk(self.shape, axis)
+        #     redistributed = torch.empty(
+        #         output_shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
+        #     )
 
-            send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
-            recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Alltoallv(
-                (self.__array, send_counts, send_displs),
-                (redistributed, recv_counts, recv_displs),
-                send_axis=axis,
-                recv_axis=self.split,
-            )
+        #     send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
+        #     recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
+        #     self.comm.Alltoallv(
+        #         (self.__array, send_counts, send_displs),
+        #         (redistributed, recv_counts, recv_displs),
+        #         send_axis=axis,
+        #         recv_axis=self.split,
+        #     )
 
-            self.__array = redistributed
-            self.__split = axis
+        #     self.__array = redistributed
+        #     self.__split = axis
 
         return self
 
