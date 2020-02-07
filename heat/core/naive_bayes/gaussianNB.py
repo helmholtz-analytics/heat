@@ -237,8 +237,8 @@ class GaussianNB:
             Must be provided at the first call to partial_fit, can be omitted
             in subsequent calls.
         _refit : bool, optional (default=False)
-            If true, act as though this were the first time we called
-            __partial_fit (ie, throw away any past fitting and start over).
+            If true, act as though this were the first time __partial_fit is called
+            (ie, throw away any past fitting and start over).
         sample_weight : array-like, shape (n_samples,), optional (default=None)
             Weights applied to individual samples (1. for unweighted).
         Returns
