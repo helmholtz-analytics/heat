@@ -166,3 +166,27 @@ class TestDistances(unittest.TestCase):
         d = ht.spatial.cdist(A, B, quadratic_expansion=False)
         result = ht.array(res, dtype=ht.float64, split=0)
         self.assertTrue(ht.allclose(d, result, atol=1e-8))
+
+        n = ht.communication.MPI_WORLD.size
+        A = ht.ones((n * 2, 6), dtype=ht.float32, split=None)
+        for i in range(n):
+            A[2 * i, :] = A[2 * i, :] * (2 * i)
+            A[2 * i + 1, :] = A[2 * i + 1, :] * (2 * i + 1)
+        res = torch.cdist(A._DNDarray__array, A._DNDarray__array)
+
+        A.resplit_(axis=0)
+        B = A.astype(ht.int32)
+
+        d = ht.spatial.cdist(A, B, quadratic_expansion=False)
+        result = ht.array(res, dtype=ht.float64, split=0)
+        self.assertTrue(ht.allclose(d, result, atol=1e-8))
+
+        B = A.astype(ht.float64)
+        d = ht.spatial.cdist(A, B, quadratic_expansion=False)
+        result = ht.array(res, dtype=ht.float64, split=0)
+        self.assertTrue(ht.allclose(d, result, atol=1e-8))
+
+        B = A.astype(ht.int16)
+        d = ht.spatial.cdist(A, B, quadratic_expansion=False)
+        result = ht.array(res, dtype=ht.float32, split=0)
+        self.assertTrue(ht.allclose(d, result, atol=1e-8))
