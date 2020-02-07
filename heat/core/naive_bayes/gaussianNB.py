@@ -93,8 +93,7 @@ class GaussianNB:
 
         return self.__partial_fit(X, y, classes, _refit=True, sample_weight=sample_weight)
 
-    # @staticmethod
-    def __check_partial_fit_first_call(clf, classes=None):
+    def __check_partial_fit_first_call(self, classes=None):
         """
         Private helper function for factorizing common classes param logic
         Estimators that implement the ``partial_fit`` API need to be provided with
@@ -105,24 +104,24 @@ class GaussianNB:
         ``partial_fit`` on ``clf``. In that case the ``classes_`` attribute is also
         set on ``clf``.
         """
-        if getattr(clf, "classes_", None) is None and classes is None:
+        if getattr(self, "classes_", None) is None and classes is None:
             raise ValueError("classes must be passed on the first call " "to partial_fit.")
 
         elif classes is not None:
             unique_labels = classes
-            if getattr(clf, "classes_", None) is not None:
-                if not ht.equal(clf.classes_, unique_labels):
+            if getattr(self, "classes_", None) is not None:
+                if not ht.equal(self.classes_, unique_labels):
                     raise ValueError(
                         "`classes=%r` is not the same as on last call "
-                        "to partial_fit, was: %r" % (classes, clf.classes_)
+                        "to partial_fit, was: %r" % (classes, self.classes_)
                     )
 
             else:
                 # This is the first call to partial_fit
-                clf.classes_ = unique_labels
+                self.classes_ = unique_labels
                 return True
 
-        # classes is None and clf.classes_ has already previously been set:
+        # classes is None and self.classes_ has already previously been set:
         # nothing to do
         return False
 
