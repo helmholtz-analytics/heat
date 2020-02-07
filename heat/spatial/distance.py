@@ -62,8 +62,12 @@ def _dist(X, Y=None, metric=_euclidian):
         )
 
     if Y is None:
-        d = core.factories.zeros(
-            (X.shape[0], X.shape[0]), dtype=X.dtype, split=X.split, device=X.device, comm=X.comm
+        d = core.zeros(
+            (X.shape[0], X.shape[0]),
+            dtype=core.float32,
+            split=X.split,
+            device=X.device,
+            comm=X.comm,
         )
         if X.split is None:
             d._DNDarray__array = metric(X._DNDarray__array, X._DNDarray__array)
@@ -79,6 +83,7 @@ def _dist(X, Y=None, metric=_euclidian):
 
             stationary = X._DNDarray__array
             rows = (displ[rank], displ[rank + 1] if (rank + 1) != size else K)
+
             # 0th iteration, calculate diagonal
             d_ij = metric(stationary, stationary)
             d[rows[0] : rows[1], rows[0] : rows[1]] = d_ij
@@ -124,9 +129,8 @@ def _dist(X, Y=None, metric=_euclidian):
                     scol2 = K
                 scolumns = (scol1, scol2)
                 symmetric = torch.zeros(
-                    scolumns[1] - scolumns[0], (rows[1] - rows[0]), dtype=torch.float64
+                    scolumns[1] - scolumns[0], (rows[1] - rows[0]), dtype=torch.float32
                 )
-                # Receive calculated tile
                 if (rank // iter) != 0:
                     comm.Recv(symmetric, source=receiver, tag=iter)
 
@@ -230,7 +234,6 @@ def _dist(X, Y=None, metric=_euclidian):
                 if X.shape[1] != Y.shape[1]:
                     raise ValueError("Inputs must have same shape[1]")
 
-                # print("Rank {}\n X._DNDarray__array  = {}, \nY._DNDarray__array = {}".format(X.comm.rank,X._DNDarray__array, Y._DNDarray__array))
                 comm = X.comm
                 rank = comm.Get_rank()
                 size = comm.Get_size()
