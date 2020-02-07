@@ -147,7 +147,6 @@ class KMeans:
                 )
             if self.init.shape[0] != self.n_clusters or self.init.shape[1] != X.shape[1]:
                 raise ValueError("passed centroids do not match cluster count or data shape")
-            # self._cluster_centers = self.init.resplit(None).T.expand_dims(axis=0)
             self._cluster_centers = self.init.resplit(None)
 
         # kmeans++, smart centroid guessing

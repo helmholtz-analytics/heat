@@ -21,6 +21,7 @@ setup(
         "heat.cluster",
         "heat.regression",
         "heat.regression.lasso",
+        "heat.spatial",
         "heat.utils",
     ],
     data_files=["README.md", "LICENSE"],
