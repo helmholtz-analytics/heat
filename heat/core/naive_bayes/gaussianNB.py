@@ -68,8 +68,7 @@ class GaussianNB:
             Target values.
         sample_weight : array-like, shape (n_samples,), optional (default=None)
             Weights applied to individual samples (1. for unweighted).
-            .. versionadded:: 0.17
-               Gaussian Naive Bayes supports fitting with *sample_weight*.
+
         Returns
         -------
         self : object
