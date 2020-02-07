@@ -160,9 +160,10 @@ class GaussianNB:
             return mu, var
 
         # Compute (potentially weighted) mean and variance of new datapoints
+        # TODO:Issue #351 allow weighted average across multiple axes
         if sample_weight is not None:
             n_new = float(sample_weight.sum())
-            new_mu = ht.average(X, axis=0, weights=sample_weight)  # TODO:Issue #351
+            new_mu = ht.average(X, axis=0, weights=sample_weight)
             new_var = ht.average((X - new_mu) ** 2, axis=0, weights=sample_weight)
         else:
             n_new = X.shape[0]
