@@ -2,7 +2,8 @@ import torch
 import numpy as np
 from mpi4py import MPI
 
-from .. import core
+from ..core import factories
+from ..core import types
 
 __all__ = ["cdist", "rbf"]
 
@@ -54,27 +55,20 @@ def _dist(X, Y=None, metric=_euclidian):
     if len(X.shape) > 2:
         raise NotImplementedError("Only 2D data matrices are currently supported")
 
-    # if X.dtype != core.float32:
-    #    raise NotImplementedError(
-    #        "Datatype needs to be float32, but was {}. This is currently not supported as input".format(
-    #            X.dtype
-    #        )
-    #    )
-
     if Y is None:
-        if X.dtype == core.float32:
+        if X.dtype == types.float32:
             torch_type = torch.float32
             mpi_type = MPI.FLOAT
-        elif X.dtype == core.float64:
+        elif X.dtype == types.float64:
             torch_type = torch.float64
             mpi_type = MPI.DOUBLE
         else:
-            promoted_type = core.promote_types(X.dtype, core.float32)
+            promoted_type = types.promote_types(X.dtype, types.float32)
             X = X.astype(promoted_type)
-            if promoted_type == core.float32:
+            if promoted_type == types.float32:
                 torch_type = torch.float32
                 mpi_type = MPI.FLOAT
-            elif promoted_type == core.float64:
+            elif promoted_type == types.float64:
                 torch_type = torch.float64
                 mpi_type = MPI.DOUBLE
             else:
@@ -82,7 +76,7 @@ def _dist(X, Y=None, metric=_euclidian):
                     "Datatype {} currently not supported as input".format(X.dtype)
                 )
 
-        d = core.zeros(
+        d = factories.zeros(
             (X.shape[0], X.shape[0]), dtype=X.dtype, split=X.split, device=X.device, comm=X.comm
         )
         if X.split is None:
@@ -102,8 +96,7 @@ def _dist(X, Y=None, metric=_euclidian):
 
             # 0th iteration, calculate diagonal
             d_ij = metric(stationary, stationary)
-            # print("Step 0, rank {}, d_ji = {}".format(rank,d_ij))
-            d[rows[0] : rows[1], rows[0] : rows[1]] = d_ij
+            d._DNDarray__array[:, rows[0] : rows[1]] = d_ij
             for iter in range(1, num_iter):
                 # Send rank's part of the matrix to the next process in a circular fashion
                 receiver = (rank + iter) % size
@@ -134,10 +127,8 @@ def _dist(X, Y=None, metric=_euclidian):
                     moving = torch.zeros((count, f), dtype=torch_type)
                     comm.Recv(moving, source=sender, tag=iter)
 
-                # print("Step {}, rank {} received moving = {} from rank {}".format(iter, rank, moving, sender))
                 d_ij = metric(stationary, moving)
-                # print("Step {}, rank {} d_ji = {}".format(iter,rank, d_ij))
-                d[rows[0] : rows[1], columns[0] : columns[1]] = d_ij
+                d._DNDarray__array[:, columns[0] : columns[1]] = d_ij
 
                 # Receive calculated tile
                 scol1 = displ[receiver]
@@ -156,8 +147,7 @@ def _dist(X, Y=None, metric=_euclidian):
                 comm.Send(d_ij, dest=sender, tag=iter)
                 if (rank // iter) == 0:
                     comm.Recv(symmetric, source=receiver, tag=iter)
-                # print("Step {}, rank {} received symmetric = {} from rank {}".format(iter, rank, symmetric, receiver))
-                d[rows[0] : rows[1], scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
+                d._DNDarray__array[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
 
             if (size + 1) % 2 != 0:  # we need one mor iteration for the first n/2 processes
                 receiver = (rank + num_iter) % size
@@ -179,7 +169,7 @@ def _dist(X, Y=None, metric=_euclidian):
                     columns = (col1, col2)
 
                     d_ij = metric(stationary, moving)
-                    d[rows[0] : rows[1], columns[0] : columns[1]] = d_ij
+                    d._DNDarray__array[:, columns[0] : columns[1]] = d_ij
 
                     # sending result back to sender of moving matrix (for symmetry)
                     comm.Send(d_ij, dest=sender, tag=num_iter)
@@ -199,7 +189,7 @@ def _dist(X, Y=None, metric=_euclidian):
                         (scolumns[1] - scolumns[0], rows[1] - rows[0]), dtype=torch_type
                     )
                     comm.Recv(symmetric, source=receiver, tag=num_iter)
-                    d[rows[0] : rows[1], scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
+                    d._DNDarray__array[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
 
         else:
             raise NotImplementedError("Splittings other than 0 or None currently not supported.")
@@ -211,13 +201,6 @@ def _dist(X, Y=None, metric=_euclidian):
 
         if X.comm != Y.comm:
             raise NotImplementedError("Differing communicators not supported")
-
-        # if Y.dtype != core.float32:
-        #    raise NotImplementedError(
-        #        "Datatype needs to be float32, but was {}. This is currently not supported as input".format(
-        #            Y.dtype
-        #        )
-        #    )
 
         if X.split is None:
             if Y.split is None:
@@ -232,16 +215,14 @@ def _dist(X, Y=None, metric=_euclidian):
             # ToDo Für split implementation >1: split = min(X,split, Y.split)
             split = X.split
 
-        promoted_type = core.promote_types(X.dtype, Y.dtype)
-        promoted_type = core.promote_types(promoted_type, core.float32)
-        print("Promoted type: ", promoted_type)
-
+        promoted_type = types.promote_types(X.dtype, Y.dtype)
+        promoted_type = types.promote_types(promoted_type, types.float32)
         X = X.astype(promoted_type)
         Y = Y.astype(promoted_type)
-        if promoted_type == core.float32:
+        if promoted_type == types.float32:
             torch_type = torch.float32
             mpi_type = MPI.FLOAT
-        elif promoted_type == core.float64:
+        elif promoted_type == types.float64:
             torch_type = torch.float64
             mpi_type = MPI.DOUBLE
         else:
@@ -249,7 +230,7 @@ def _dist(X, Y=None, metric=_euclidian):
                 "Datatype {} currently not supported as input".format(X.dtype)
             )
 
-        d = core.factories.zeros(
+        d = factories.zeros(
             (X.shape[0], Y.shape[0]), dtype=promoted_type, split=split, device=X.device, comm=X.comm
         )
 
@@ -283,12 +264,12 @@ def _dist(X, Y=None, metric=_euclidian):
 
                 x_ = X._DNDarray__array
                 stationary = Y._DNDarray__array
-                rows = (xdispl[rank], xdispl[rank + 1] if (rank + 1) != size else m)
+                # rows = (xdispl[rank], xdispl[rank + 1] if (rank + 1) != size else m)
                 cols = (ydispl[rank], ydispl[rank + 1] if (rank + 1) != size else n)
 
                 # 0th iteration, calculate diagonal
                 d_ij = metric(x_, stationary)
-                d[rows[0] : rows[1], cols[0] : cols[1]] = d_ij
+                d._DNDarray__array[:, cols[0] : cols[1]] = d_ij
 
                 for iter in range(1, num_iter):
                     # Send rank's part of the matrix to the next process in a circular fashion
@@ -322,7 +303,7 @@ def _dist(X, Y=None, metric=_euclidian):
                         Y.comm.Recv(moving, source=sender, tag=iter)
 
                     d_ij = metric(x_, moving)
-                    d[rows[0] : rows[1], columns[0] : columns[1]] = d_ij
+                    d._DNDarray__array[:, columns[0] : columns[1]] = d_ij
 
             else:
                 raise NotImplementedError(

@@ -153,11 +153,16 @@ class TestDistances(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
 
-        X.resplit_(axis=0)
-        Y = ht.ones((4, 4), dtype=ht.float64, split=None)
-        with self.assertRaises(NotImplementedError):
-            d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
+        n = ht.communication.MPI_WORLD.size
+        A = ht.ones((n * 2, 6), dtype=ht.float32, split=None)
+        for i in range(n):
+            A[2 * i, :] = A[2 * i, :] * (2 * i)
+            A[2 * i + 1, :] = A[2 * i + 1, :] * (2 * i + 1)
+        res = torch.cdist(A._DNDarray__array, A._DNDarray__array)
 
-        X = ht.ones((4, 4), dtype=ht.float64, split=None)
-        with self.assertRaises(NotImplementedError):
-            d = ht.spatial.cdist(X)
+        A.resplit_(axis=0)
+        B = A.astype(ht.int32)
+
+        d = ht.spatial.cdist(A, B, quadratic_expansion=False)
+        result = ht.array(res, dtype=ht.float64, split=0)
+        self.assertTrue(ht.equal(d, result))
