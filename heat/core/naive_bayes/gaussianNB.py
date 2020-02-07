@@ -90,10 +90,8 @@ class GaussianNB:
                 )
         classes = ht.unique(y, sorted=True)
         if classes.split is not None:
-            gathered_classes = ht.resplit(classes, axis=None)
-            return self.__partial_fit(
-                X, y, gathered_classes, _refit=True, sample_weight=sample_weight
-            )
+            classes = ht.resplit(classes, axis=None)
+
         return self.__partial_fit(X, y, classes, _refit=True, sample_weight=sample_weight)
 
     # @staticmethod
@@ -315,17 +313,15 @@ class GaussianNB:
 
         unique_y = ht.unique(y, sorted=True)
         if unique_y.split is not None:
-            gathered_unique_y = ht.resplit(unique_y, axis=None)
-        else:
-            gathered_unique_y = unique_y
-        unique_y_in_classes = ht.eq(gathered_unique_y, classes)
+            unique_y = ht.resplit(unique_y, axis=None)
+        unique_y_in_classes = ht.eq(unique_y, classes)
 
         if not ht.all(unique_y_in_classes):
             raise ValueError(
                 "The target label(s) %s in y do not exist in the "
                 "initial classes %s" % (unique_y[~unique_y_in_classes], classes)
             )
-        for y_i in gathered_unique_y:
+        for y_i in unique_y:
             # assuming classes.split is None
             if y_i in classes:
                 i = ht.where(classes == y_i).item()
