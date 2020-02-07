@@ -1,8 +1,9 @@
 # Pending Additions
 
 - [#454](https://github.com/helmholtz-analytics/heat/issues/454) Update lasso example
+- [#473](https://github.com/helmholtz-analytics/heat/issues/473) Matmul now will not split any of the input matrices if both have `split=None`. To toggle splitting of one input for increased speed use the allow_resplit flag.
+- [#473](https://github.com/helmholtz-analytics/heat/issues/473) `dot` handles 2 split None vectors correctly now
 - [#470](https://github.com/helmholtz-analytics/heat/pull/470) Enhancement: Accelerate distance calculations in kmeans clustering by introduction of new module spatial.distance
-
 
 # v0.2.2
 
