@@ -443,7 +443,7 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(data.lshape, shape)
         self.assertEqual(data.split, None)
 
-        # assign and entirely new split axis
+        # assign an entirely new split axis
         shape = (ht.MPI_WORLD.size + 2, ht.MPI_WORLD.size + 1)
         data = ht.array(torch.arange(np.prod(shape)).reshape(shape), split=1, device=ht_device)
         compare = ht.array(torch.arange(np.prod(shape)).reshape(shape), split=0, device=ht_device)
