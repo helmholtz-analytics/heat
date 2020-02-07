@@ -242,7 +242,8 @@ class GaussianNB:
         -------
         self : object
         """
-        # sanitize X and y shape
+
+        # TODO: sanitize X and y shape: sanitation/validation module, cf. #468
         n_samples = X.shape[0]
         if X.numdims != 2:
             raise ValueError("expected X to be a 2-D tensor, is {}-D".format(X.numdims))
@@ -250,9 +251,9 @@ class GaussianNB:
             raise ValueError(
                 "y.shape[0] must match number of samples {}, is {}".format(n_samples, y.shape[0])
             )
-        # TODO: more complex checks might be needed, see sklearn.utils.validation.check_X_y()
+
+        # TODO: sanitize sample_weight: sanitation/validation module, cf. #468
         if sample_weight is not None:
-            # sanitize shape of weights
             if sample_weight.numdims != 1:
                 raise ValueError("Sample weights must be 1D tensor")
             if sample_weight.shape != (n_samples,):
@@ -261,9 +262,6 @@ class GaussianNB:
                         sample_weight.shape, (n_samples,)
                     )
                 )
-
-        # TODO possibly deeper checks needed, see sklearn.utils.validation._check_sample_weight
-        # sample_weight = _check_sample_weight(sample_weight, X)
 
         # If the ratio of data variance between dimensions is too small, it
         # will cause numerical errors. To address this, we artificially
@@ -448,19 +446,15 @@ class GaussianNB:
         >>> logsumexp(a.data, b=b), np.log(5)
         1.6094379124341005, 1.6094379124341005
         """
-        # a = _asarray_validated(a, check_finite=False)
+
         if b is not None:
             raise NotImplementedError("Not implemented for weighted logsumexp")
-            # a, b = np.broadcast_arrays(a, b)
-            # if np.any(b == 0):
-            #     a = a + 0.0  # promote to at least float
-            #     a[b == 0] = -np.inf
 
         a_max = ht.max(a, axis=axis, keepdim=True)
 
-        # TODO: CHECK FOR FINITENESS!!
-        # if a_max.numdims > 0:  # TODO: implement alias numdims --> ndim
-        #     a_max[~np.isfinite(a_max)] = 0  # TODO: np.isfinite
+        # TODO: sanitize a_max / implement isfinite(): sanitation module, cf. #468
+        # if a_max.numdims > 0:
+        #     a_max[~np.isfinite(a_max)] = 0
         # elif not np.isfinite(a_max):
         #     a_max = 0
 
@@ -471,8 +465,6 @@ class GaussianNB:
         # else:
         tmp = ht.exp(a - a_max)
 
-        # suppress warnings about log of zero
-        # with np.errstate(divide="ignore"): #TODO: REINSTATE?
         s = ht.sum(tmp, axis=axis, keepdim=keepdim)
         if return_sign:
             raise NotImplementedError("Not implemented for return_sign")
@@ -500,9 +492,8 @@ class GaussianNB:
         C : ndarray of shape (n_samples,)
             Predicted target values for X
         """
-        # check_is_fitted(self) #TODO sanitation module
-        # X = self._check_X(X)  #TODO sanitation module
         # sanitize input
+        # TODO: sanitation/validation module, cf. #468
         if not isinstance(X, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
         jll = self.__joint_log_likelihood(X)
@@ -521,14 +512,13 @@ class GaussianNB:
             the model. The columns correspond to the classes in sorted
             order, as they appear in the attribute :term:`classes_`.
         """
-        # check_is_fitted(self) #TODO sanitation module
-        # X = self._check_X(X)  # TODO sanitation module
+        # TODO: sanitation/validation module, cf. #468
         jll = self.__joint_log_likelihood(X)
         # normalize by P(x) = P(f_1, ..., f_n)
         log_prob_x = self.logsumexp(jll, axis=1)
         return (
             jll - log_prob_x.T  # np.atleast_2d(log_prob_x).T
-        )  # TODO sanitation, ensure that log_prob_x is at least a 2D tensor
+        )  # TODO sanitation/validation module #468, ensure that log_prob_x is at least a 2D tensor
 
     def predict_proba(self, X):
         """
