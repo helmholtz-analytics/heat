@@ -57,7 +57,8 @@ class GaussianNB:
         self.var_smoothing = var_smoothing
 
     def fit(self, X, y, sample_weight=None):
-        """Fit Gaussian Naive Bayes according to X, y
+        """
+        Fit Gaussian Naive Bayes according to X, y
         Parameters
         ----------
         X : array-like, shape (n_samples, n_features)
@@ -97,7 +98,8 @@ class GaussianNB:
 
     # @staticmethod
     def __check_partial_fit_first_call(clf, classes=None):
-        """Private helper function for factorizing common classes param logic
+        """
+        Private helper function for factorizing common classes param logic
         Estimators that implement the ``partial_fit`` API need to be provided with
         the list of possible classes at the first call to partial_fit.
         Subsequent calls to partial_fit should check that ``classes`` is still
@@ -129,7 +131,8 @@ class GaussianNB:
 
     @staticmethod
     def __update_mean_variance(n_past, mu, var, X, sample_weight=None):
-        """Compute online update of Gaussian mean and variance.
+        """
+        Compute online update of Gaussian mean and variance.
         Given starting sample count, mean, and variance, a new set of
         points X, and optionally sample weights, return the updated mean and
         variance. (NB - each dimension (column) in X is treated as independent
@@ -188,7 +191,8 @@ class GaussianNB:
         return total_mu, total_var
 
     def partial_fit(self, X, y, classes=None, sample_weight=None):
-        """Incremental fit on a batch of samples.
+        """
+        Incremental fit on a batch of samples.
         This method is expected to be called several times consecutively
         on different chunks of a dataset so as to implement out-of-core
         or online learning.
@@ -219,7 +223,8 @@ class GaussianNB:
         return self.__partial_fit(X, y, classes, _refit=False, sample_weight=sample_weight)
 
     def __partial_fit(self, X, y, classes=None, _refit=False, sample_weight=None):
-        """Actual implementation of Gaussian NB fitting.
+        """
+        Actual implementation of Gaussian NB fitting.
         Parameters
         ----------
         X : array-like, shape (n_samples, n_features)
@@ -368,7 +373,8 @@ class GaussianNB:
         return joint_log_likelihood
 
     def logsumexp(self, a, axis=None, b=None, keepdim=False, return_sign=False):
-        """Compute the log of the sum of exponentials of input elements.
+        """
+        Compute the log of the sum of exponentials of input elements.
         TODO: update sklearn docs to fit heat
         Parameters
         ----------
