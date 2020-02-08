@@ -30,7 +30,7 @@ class TestGaussianNB(BasicTest):
         y_pred = gnb.fit(X_train, y_train).predict(X_test)
 
         # test ht.GaussianNB
-        from heat.core.naive_bayes import GaussianNB
+        from heat.naive_bayes import GaussianNB
 
         gnb_heat = GaussianNB()
 
