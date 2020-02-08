@@ -1,8 +1,8 @@
 from setuptools import setup
 import sys
+import version
 
 sys.path.append("./heat/core")
-import version
 
 print(version, dir(version))
 
@@ -20,7 +20,6 @@ setup(
         "heat.core",
         "heat.cluster",
         "heat.naive_bayes",
-        "heat.naive_bayes.GaussianNB",
         "heat.regression",
         "heat.regression.lasso",
         "heat.spatial",
