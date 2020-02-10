@@ -347,7 +347,11 @@ class GaussianNB:
 
             if sample_weight is not None:
                 sw_i = sample_weight[y == y_i]
-                N_i = sw_i.sum()
+                if 0 not in sw_i.shape:
+                    N_i = sw_i.sum()
+                else:
+                    N_i = 0.0
+                    sw_i = None
             else:
                 sw_i = None
                 N_i = X_i.shape[0]
