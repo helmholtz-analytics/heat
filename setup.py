@@ -19,7 +19,7 @@ setup(
         "heat",
         "heat.core",
         "heat.core.cluster",
-        "heat.core.regression",
+        "heat.core.linalg" "heat.core.regression",
         "heat.core.regression.lasso",
         "heat.utils",
     ],
