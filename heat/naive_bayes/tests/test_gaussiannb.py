@@ -1,5 +1,7 @@
 import os
 import unittest
+import torch
+import numpy as np
 
 import heat as ht
 from heat.core.tests.test_suites.basic_test import BasicTest
@@ -29,12 +31,12 @@ class TestGaussianNB(BasicTest):
 
         gnb_heat = GaussianNB()
 
-        # test ht.GaussianNB locally
+        # test GaussianNB locally
         y_pred_local = gnb_heat.fit(X_train, y_train).predict(X_test)
         self.assertIsInstance(y_pred_local, ht.DNDarray)
         self.assertEqual((y_pred_local != y_test).sum(), ht.array(4))
 
-        # #test ht.GaussianNB, data and labels distributed along split axis 0
+        # #test GaussianNB, data and labels distributed along split axis 0
         size = ht.MPI_WORLD.size
         if size in range(7):
             X_train_split = ht.resplit(X_train, axis=0)
@@ -44,3 +46,18 @@ class TestGaussianNB(BasicTest):
             y_pred_split = gnb_heat.fit(X_train_split, y_train_split).predict(X_test_split)
             self.assert_array_equal(y_pred_split, y_pred_local.numpy())
             self.assertEqual((y_pred_split != y_test_split).sum(), ht.array(4))
+
+        # test exceptions
+        X_torch = torch.ones(75, 4)
+        y_np = np.zeros(75)
+        y_2D = ht.ones((75, 1), split=None, device=ht_device)
+        weights_torch = torch.zeros(75)
+
+        with self.assertRaises(ValueError):
+            gnb_heat.fit(X_torch, y_train)
+        with self.assertRaises(ValueError):
+            gnb_heat.fit(X_train, y_np)
+        with self.assertRaises(ValueError):
+            gnb_heat.fit(X_train, y_2D)
+        with self.assertRaises(ValueError):
+            gnb_heat.fit(X_train, y_train, sample_weight=weights_torch)
