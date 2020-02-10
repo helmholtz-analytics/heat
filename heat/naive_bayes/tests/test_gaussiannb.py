@@ -36,6 +36,14 @@ class TestGaussianNB(BasicTest):
         self.assertIsInstance(y_pred_local, ht.DNDarray)
         self.assertEqual((y_pred_local != y_test).sum(), ht.array(4))
 
+        # test GaussianNB locally when sample_weight is not None
+        sample_weight = ht.arange((y_train.shape[0]), dtype=ht.float32, split=None)
+        sample_weight /= ht.sum(sample_weight)
+        y_pred_local_weight = gnb_heat.fit(X_train, y_train, sample_weight=sample_weight).predict(
+            X_test
+        )
+        self.assertIsInstance(y_pred_local_weight, ht.DNDarray)
+
         # #test GaussianNB, data and labels distributed along split axis 0
         size = ht.MPI_WORLD.size
         if size in range(7):
