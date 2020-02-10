@@ -1,8 +1,11 @@
 from setuptools import setup
 import sys
-import version
 
 sys.path.append("./heat/core")
+
+
+import version
+
 
 print(version, dir(version))
 
