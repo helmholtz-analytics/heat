@@ -108,8 +108,8 @@ class TestTiling(unittest.TestCase):
             self.assertEqual(m_gr_n_s0_t1.last_diagonal_process, m_eq_n_s1.comm.size - 1)
             self.assertEqual(m_gr_n_s0_t2.last_diagonal_process, m_eq_n_s1.comm.size - 1)
             # tile cols
-            self.assertEqual(m_gr_n_s0_t1.tile_columns, m_eq_n_s1.comm.size)
-            self.assertEqual(m_gr_n_s0_t2.tile_columns, m_eq_n_s1.comm.size * 2)
+            self.assertEqual(m_gr_n_s0_t1.tile_columns, m_eq_n_s1.comm.size + 1)
+            self.assertEqual(m_gr_n_s0_t2.tile_columns, m_eq_n_s1.comm.size * 2 + 1)
             # tile rows
             self.assertEqual(m_gr_n_s0_t1.tile_rows, m_eq_n_s1.comm.size)
             self.assertEqual(m_gr_n_s0_t2.tile_rows, m_eq_n_s1.comm.size * 2)
