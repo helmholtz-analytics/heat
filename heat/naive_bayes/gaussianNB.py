@@ -343,10 +343,11 @@ class GaussianNB:
                     (classes._DNDarray__array, y_i._DNDarray__array.unsqueeze(0))
                 )
                 i = torch.argsort(classes_ext)[-1].item()
-            X_i = X[ht.where(y == y_i)._DNDarray__array.squeeze().tolist(), :]
+            where_y_i = ht.where(y == y_i)._DNDarray__array.squeeze().tolist()
+            X_i = X[where_y_i, :]
 
             if sample_weight is not None:
-                sw_i = sample_weight[y == y_i]
+                sw_i = sample_weight[where_y_i]
                 if 0 not in sw_i.shape:
                     N_i = sw_i.sum()
                 else:
