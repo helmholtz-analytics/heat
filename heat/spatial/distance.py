@@ -260,7 +260,7 @@ def _dist(X, Y=None, metric=_euclidian):
                     stat = MPI.Status()
                     comm.handle.Probe(source=sender, tag=iter, status=stat)
                     count = int(stat.Get_count(mpi_type) / f)
-                    moving = torch.zeros((count, f), dtype=torch_type, device=X.device)
+                    moving = torch.zeros((count, f), dtype=torch_type, device=X.device.torch_device)
                     comm.Recv(moving, source=sender, tag=iter)
                 # Sending to next Process
                 comm.Send(stationary, dest=receiver, tag=iter)
@@ -270,7 +270,7 @@ def _dist(X, Y=None, metric=_euclidian):
                     stat = MPI.Status()
                     comm.handle.Probe(source=sender, tag=iter, status=stat)
                     count = int(stat.Get_count(mpi_type) / f)
-                    moving = torch.zeros((count, f), dtype=torch_type, device=X.device)
+                    moving = torch.zeros((count, f), dtype=torch_type, device=X.device.torch_device)
                     comm.Recv(moving, source=sender, tag=iter)
 
                 d_ij = metric(stationary, moving)
@@ -285,7 +285,7 @@ def _dist(X, Y=None, metric=_euclidian):
                     scolumns[1] - scolumns[0],
                     (rows[1] - rows[0]),
                     dtype=torch_type,
-                    device=X.device,
+                    device=X.device.torch_device,
                 )
                 if (rank // iter) != 0:
                     comm.Recv(symmetric, source=receiver, tag=iter)
@@ -333,7 +333,9 @@ def _dist(X, Y=None, metric=_euclidian):
                         scol2 = K
                     scolumns = (scol1, scol2)
                     symmetric = torch.zeros(
-                        (scolumns[1] - scolumns[0], rows[1] - rows[0]), dtype=torch_type
+                        (scolumns[1] - scolumns[0], rows[1] - rows[0]),
+                        dtype=torch_type,
+                        device=X.device.torch_device,
                     )
                     comm.Recv(symmetric, source=receiver, tag=num_iter)
                     d._DNDarray__array[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
@@ -444,7 +446,9 @@ def _dist(X, Y=None, metric=_euclidian):
                         stat = MPI.Status()
                         Y.comm.handle.Probe(source=sender, tag=iter, status=stat)
                         count = int(stat.Get_count(mpi_type) / f)
-                        moving = torch.zeros((count, f), dtype=torch_type)
+                        moving = torch.zeros(
+                            (count, f), dtype=torch_type, device=X.device.torch_device
+                        )
                         Y.comm.Recv(moving, source=sender, tag=iter)
 
                     # Sending to next Process
