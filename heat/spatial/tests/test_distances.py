@@ -194,3 +194,12 @@ class TestDistances(unittest.TestCase):
         d = ht.spatial.cdist(A, B, quadratic_expansion=False)
         result = ht.array(res, dtype=ht.float32, split=0)
         self.assertTrue(ht.allclose(d, result, atol=1e-8))
+
+        d = ht.spatial.cdist(B, quadratic_expansion=False)
+        result = ht.array(res, dtype=ht.float32, split=0)
+        self.assertTrue(ht.allclose(d, result, atol=1e-8))
+
+        B = A.astype(ht.int32)
+        d = ht.spatial.cdist(B, quadratic_expansion=False)
+        result = ht.array(res, dtype=ht.float64, split=0)
+        self.assertTrue(ht.allclose(d, result, atol=1e-8))
