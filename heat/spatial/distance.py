@@ -225,6 +225,7 @@ def _dist(X, Y=None, metric=_euclidian):
         d = factories.zeros(
             (X.shape[0], X.shape[0]), dtype=X.dtype, split=X.split, device=X.device, comm=X.comm
         )
+
         if X.split is None:
             d._DNDarray__array = metric(X._DNDarray__array, X._DNDarray__array)
 
