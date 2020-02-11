@@ -9,14 +9,61 @@ __all__ = ["cdist", "rbf"]
 
 
 def _euclidian(x, y):
+    """
+    Helper function to calculate euclidian distance between torch.tensors x and y: sqrt(|x-y|**2)
+    Based on torch.cdist
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
     return torch.cdist(x, y)
 
 
 def _euclidian_fast(x, y):
+    """
+    Helper function to calculate euclidian distance between torch.tensors x and y: sqrt(|x-y|**2)
+    Uses quadratic expansion to calculate (x-y)**2
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
     return torch.sqrt(_quadratic_expand(x, y))
 
 
 def _quadratic_expand(x, y):
+    """
+    Helper function to calculate quadratic expansion |x-y|**2=|x|**2 + |y|**2 - 2xy
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
     x_norm = (x ** 2).sum(1).view(-1, 1)
     y_t = torch.transpose(y, 0, 1)
     y_norm = (y ** 2).sum(1).view(1, -1)
@@ -26,25 +73,98 @@ def _quadratic_expand(x, y):
 
 
 def _gaussian(x, y, sigma=1.0):
+    """
+    Helper function to calculate gaussian distance between torch.tensors x and y: exp(-(|x-y|**2/2sigma**2)
+    Based on torch.cdist
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+    sigma: float, default=1.0
+        scaling factor for gaussian kernel
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
     d2 = _euclidian(x, y) ** 2
     result = torch.exp(-d2 / (2 * sigma * sigma))
     return result
 
 
 def _gaussian_fast(x, y, sigma=1.0):
+    """
+    Helper function to calculate gaussian distance between torch.tensors x and y: exp(-(|x-y|**2/2sigma**2)
+    Uses quadratic expansion to calculate (x-y)**2
+
+    Parameters
+    ----------
+    x : torch.tensor
+     2D tensor of size m x f
+    y : torch.tensor
+     2D tensor of size n x f
+    sigma: float, default=1.0
+     scaling factor for gaussian kernel
+
+    Returns
+    -------
+    torch.tensor
+     2D tensor of size m x n
+    """
+
     d2 = _quadratic_expand(x, y)
     result = torch.exp(-d2 / (2 * sigma * sigma))
     return result
 
 
-def cdist(X, Y=None, quadratic_expansion=False):
+def cdist(x, y=None, quadratic_expansion=False):
+    """
+    Pairwise euclidean distance between all elements of X and Y
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+     2D Array of size m x f
+    y : ht.DNDarray
+     2D array of size n x f
+    quadratic_expansion: bool, default=False
+     whether to use quadratic expansion to calculate (x-y)**2
+
+    Returns
+    -------
+    ht.DNDarray
+     2D array of size m x n
+    """
     if quadratic_expansion:
-        return _dist(X, Y, _euclidian_fast)
+        return _dist(x, y, _euclidian_fast)
     else:
-        return _dist(X, Y, _euclidian)
+        return _dist(x, y, _euclidian)
 
 
 def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False):
+    """
+    Pairwise distance between all elements of X and Y using a gaussian kernel
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+     2D Array of size m x f
+    y : ht.DNDarray
+     2D array of size n x f
+    sigma: float, default=1.0
+     scaling factor for gaussian kernel
+    quadratic_expansion: bool, default=False
+     whether to use quadratic expansion to calculate (x-y)**2
+
+    Returns
+    -------
+    ht.DNDarray
+     2D array of size m x n
+    """
     if quadratic_expansion:
         return _dist(X, Y, lambda x, y: _gaussian_fast(x, y, sigma))
     else:
@@ -52,6 +172,32 @@ def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False):
 
 
 def _dist(X, Y=None, metric=_euclidian):
+    """
+    Pairwise distance caclualation between all elements along axis 0 of X and Y
+    X.split and Y.split can be distributed among axis 0
+    The distance matrix is calculated tile-wise with ring communication between the processes holding each a piece of X and/or Y
+
+    Parameters
+    ----------
+    X : ht.DNDarray
+     2D Array of size m x f
+    Y : ht.DNDarray, optional
+     2D array of size n x f
+     if Y in None, the distances will be calculated between all elements of X
+    metric: function
+     the distance to be calculated between X and Y
+     if metric requires additional arguments, it must be handed over as a lambda function: lambda x, y: metric(x, y, **args)
+
+    Returns
+    -------
+    ht.DNDarray
+     2D array of size m x n
+     if neither X nor Y is split, result will also be split=None
+     if X.split == 0, result will be split=0 regardless of Y.split
+     Caution: if X.split=None and Y.split=0, result will be split=1
+
+    """
+
     if len(X.shape) > 2:
         raise NotImplementedError("Only 2D data matrices are currently supported")
 
@@ -114,7 +260,7 @@ def _dist(X, Y=None, metric=_euclidian):
                     stat = MPI.Status()
                     comm.handle.Probe(source=sender, tag=iter, status=stat)
                     count = int(stat.Get_count(mpi_type) / f)
-                    moving = torch.zeros((count, f), dtype=torch_type)
+                    moving = torch.zeros((count, f), dtype=torch_type, device=X.device)
                     comm.Recv(moving, source=sender, tag=iter)
                 # Sending to next Process
                 comm.Send(stationary, dest=receiver, tag=iter)
@@ -124,7 +270,7 @@ def _dist(X, Y=None, metric=_euclidian):
                     stat = MPI.Status()
                     comm.handle.Probe(source=sender, tag=iter, status=stat)
                     count = int(stat.Get_count(mpi_type) / f)
-                    moving = torch.zeros((count, f), dtype=torch_type)
+                    moving = torch.zeros((count, f), dtype=torch_type, device=X.device)
                     comm.Recv(moving, source=sender, tag=iter)
 
                 d_ij = metric(stationary, moving)
@@ -132,13 +278,14 @@ def _dist(X, Y=None, metric=_euclidian):
 
                 # Receive calculated tile
                 scol1 = displ[receiver]
-                if receiver != size - 1:
-                    scol2 = displ[receiver + 1]
-                else:
-                    scol2 = K
+                scol2 = displ[receiver + 1] if receiver != size - 1 else K
                 scolumns = (scol1, scol2)
+
                 symmetric = torch.zeros(
-                    scolumns[1] - scolumns[0], (rows[1] - rows[0]), dtype=torch_type
+                    scolumns[1] - scolumns[0],
+                    (rows[1] - rows[0]),
+                    dtype=torch_type,
+                    device=X.device,
                 )
                 if (rank // iter) != 0:
                     comm.Recv(symmetric, source=receiver, tag=iter)
@@ -192,12 +339,18 @@ def _dist(X, Y=None, metric=_euclidian):
                     d._DNDarray__array[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
 
         else:
-            raise NotImplementedError("Splittings other than 0 or None currently not supported.")
+            "Input split was X.split = {}. Splittings other than 0 or None currently not supported.".format(
+                X.split
+            )
 
     #########################################################################
     else:
         if len(Y.shape) > 2:
-            raise NotImplementedError("Only 2D data matrices are supported")
+            raise NotImplementedError(
+                "Only 2D data matrices are supported, but input shapes were X: {}, Y: {}".format(
+                    X.shape, Y.shape
+                )
+            )
 
         if X.comm != Y.comm:
             raise NotImplementedError("Differing communicators not supported")
@@ -209,7 +362,9 @@ def _dist(X, Y=None, metric=_euclidian):
                 split = 1
             else:
                 raise NotImplementedError(
-                    "Splittings other than 0 or None currently not supported."
+                    "Input splits were X.split = {}, Y.split = {}. Splittings other than 0 or None currently not supported.".format(
+                        X.split, Y.split
+                    )
                 )
         else:
             # ToDo Für split implementation >1: split = min(X,split, Y.split)
@@ -240,7 +395,9 @@ def _dist(X, Y=None, metric=_euclidian):
 
             else:
                 raise NotImplementedError(
-                    "Splittings other than 0 or None currently not supported."
+                    "Input splits were X.split = {}, Y.split = {}. Splittings other than 0 or None currently not supported.".format(
+                        X.split, Y.split
+                    )
                 )
 
         elif X.split == 0:
@@ -277,10 +434,7 @@ def _dist(X, Y=None, metric=_euclidian):
                     sender = (rank - iter) % size
 
                     col1 = ydispl[sender]
-                    if sender != size - 1:
-                        col2 = ydispl[sender + 1]
-                    else:
-                        col2 = n
+                    col2 = ydispl[sender + 1] if sender != size - 1 else n
                     columns = (col1, col2)
 
                     # All but the first iter processes are receiving, then sending
@@ -307,11 +461,15 @@ def _dist(X, Y=None, metric=_euclidian):
 
             else:
                 raise NotImplementedError(
-                    "Splittings other than 0 or None currently not supported."
+                    "Input splits were X.split = {}, Y.split = {}. Splittings other than 0 or None currently not supported.".format(
+                        X.split, Y.split
+                    )
                 )
 
         else:
             # ToDo: Find out if even possible
-            raise NotImplementedError("Splittings other than 0 or None currently not supported.")
+            "Input splits were X.split = {}, Y.split = {}. Splittings other than 0 or None currently not supported.".format(
+                X.split, Y.split
+            )
 
     return d
