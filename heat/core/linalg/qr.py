@@ -294,7 +294,8 @@ def __merge_tile_rows_qr(pr0, pr1, dim1, rank, a_tiles, diag_process, key, q_dic
 
     upper_size = (upper_inds[1] - upper_inds[0], upper_inds[3] - upper_inds[2])
     lower_size = (lower_inds[1] - lower_inds[0], lower_inds[3] - lower_inds[2])
-
+    # print('uuper size', upper_inds, lower_inds)
+    # print(a_tiles)
     a_torch_device = a_tiles.arr._DNDarray__array.device
 
     # upper adjustments
@@ -321,6 +322,8 @@ def __merge_tile_rows_qr(pr0, pr1, dim1, rank, a_tiles, diag_process, key, q_dic
         upper = torch.zeros(upper_size, dtype=a_tiles.arr.dtype.torch_type(), device=a_torch_device)
         comm.Recv(upper, source=pr0, tag=986)
         comm.Send(lower.clone(), dest=pr0, tag=4363)
+
+    # print(upper.shape, lower.shape, pr0, pr1, dim0, dim1)
 
     q_merge, r = torch.cat((upper, lower), dim=0).qr(some=False)
     upp = r[: upper.shape[0]]
@@ -602,6 +605,7 @@ def __r_calc_split0(
 
     # --------------- local QR calc --------------------------------------
     base_tile = a_tiles.local_get(key=(slice(lcl_tile_row, None), dim1))
+    # print(lcl_tile_row, dim1)
     q1, r1 = base_tile.qr(some=False)
     q_dict[dim1]["l0"] = [q1, base_tile.shape]
     a_tiles.local_set(key=(slice(lcl_tile_row, None), dim1), value=r1)
@@ -759,6 +763,7 @@ def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         a = a.copy()
     a.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
     tile_columns = a.tiles.tile_columns
+    tile_rows = a.tiles.tile_rows
 
     q0 = factories.eye(
         (a.gshape[0], a.gshape[0]), split=0, dtype=a.dtype, comm=a.comm, device=a.device
@@ -782,8 +787,9 @@ def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     proc_tile_start = torch.cumsum(
         torch.tensor(tile_rows_per_pr_trmd, device=a_torch_device), dim=0
     )
+    lp_cols = tile_columns if a.gshape[0] > a.gshape[1] else tile_rows
     # ==================================== R Calculation ===========================================
-    for col in range(tile_columns):  # for each tile column (need to do the last rank separately)
+    for col in range(lp_cols):  # for each tile column (need to do the last rank separately)
         # for each process need to do local qr
         not_completed_processes = torch.nonzero(col < proc_tile_start).flatten()
         if rank not in not_completed_processes or rank not in active_procs:
@@ -803,10 +809,12 @@ def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         a.balance_()
         return None, a
     # ===================================== Q Calculation ==========================================
-    for col in range(tile_columns):
+    for col in range(lp_cols):
+        # print(col, )
         diag_process = (
             torch.nonzero(proc_tile_start > col)[0] if col != tile_columns else proc_tile_start[-1]
         )
+        # diag_process = torch.nonzero(col <= proc_tile_start).flatten()[0]
         diag_process = diag_process.item()
 
         __q_calc_split0(

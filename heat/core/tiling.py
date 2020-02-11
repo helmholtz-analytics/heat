@@ -56,7 +56,6 @@ class SquareDiagTiles:
             raise ValueError("Arr must be 2 dimensional, current shape {}".format(arr.shape))
 
         lshape_map = arr.create_lshape_map()
-
         # if there is only one element of the diagonal on the next process
         d = 1 if tiles_per_proc <= 2 else tiles_per_proc - 1
         redist = torch.where(
@@ -205,7 +204,7 @@ class SquareDiagTiles:
                 torch.tensor(col_inds, device=arr._DNDarray__array.device), dim=0
             )
             diff = lshape_cumsum[pr] - col_cumsum[col_proc_ind[pr] - 1]
-            if diff > 0 and pr <= last_diag_pr:
+            if diff > 1 and pr <= last_diag_pr:
                 col_per_proc_list[pr] += 1
                 col_inds.insert(col_proc_ind[pr], diff)
             if pr > last_diag_pr and diff > 0:
@@ -329,6 +328,10 @@ class SquareDiagTiles:
                 w_size=tiles_per_proc if col // tiles_per_proc != last_dia_pr else last_tile_cols,
             )
             col_inds.append(lshape[0])
+        # if arr.gshape[0] < arr.gshape[1] and arr.split == 0:
+        #     col_inds.append(torch.tensor(arr.gshape[0], device=arr.device.torch_device))
+        #     col_per_proc_list[-1] += 1
+        #     tile_columns += 1
         return last_dia_pr, col_per_proc_list, col_inds, tile_columns
 
     @staticmethod
@@ -760,7 +763,7 @@ class SquareDiagTiles:
                 key[1] = slice(start, stop)
         return tuple(key)
 
-    def match_tiles(self, tiles_to_match):
+    def match_tiles(self, tiles_to_match, block_diag=False):
         """
         function to match the tile sizes of another tile map
         NOTE: this is intended for use with the Q matrix, to match the tiling of a/R
@@ -806,6 +809,11 @@ class SquareDiagTiles:
                 if base_dnd.gshape[0] >= base_dnd.gshape[1]
                 else tiles_to_match.__col_inds.copy()
             )
+            # if block_diag and base_dnd.gshape[0]
+            # print('here')
+            # todo: problem is in here somewhere, some index isnt being set correctly, which one?
+            # print(self.__col_inds, base_dnd.gshape)
+            # print(tiles_to_match.lshape_map)
 
             self.__tile_map = torch.zeros(
                 (self.tile_rows, self.tile_columns, 3),
@@ -832,7 +840,7 @@ class SquareDiagTiles:
                 else tiles_to_match.__col_inds.copy()
             )
 
-            self.__row_inds = (
+            row_inds = (
                 tiles_to_match.__row_inds.copy()
                 if base_dnd.gshape[0] <= base_dnd.gshape[1]
                 else tiles_to_match.__col_inds.copy()
@@ -863,7 +871,24 @@ class SquareDiagTiles:
                 )
                 st = target_0_c[i]
 
+            targ_cumsum = torch.cumsum(targe_map[..., 0], dim=0)
+            targe_map[..., 0][torch.where(targ_cumsum > base_dnd.gshape[0])] = 0
+            first_zero = torch.where(targe_map[..., 0] == 0)[0]
+            targe_map[..., 0][first_zero] = base_dnd.gshape[0] - targ_cumsum[first_zero - 1]
+            try:
+                if len(targe_map[..., 0][first_zero + 1]) > 0:
+                    targe_map[..., 0][first_zero + 1 :] = 0
+            except IndexError:
+                pass
+
             base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=targe_map)
+
+            if base_dnd.gshape[0] > base_dnd.gshape[1]:
+                row_inds.append(row_inds[-1] + row_inds[1])
+                rows_per[-1] += 1
+
+            self.__row_inds = row_inds
+            # print(self.__col_inds)
 
             self.__tile_map = torch.zeros(
                 (self.tile_rows, self.tile_columns, 3),
@@ -903,22 +928,29 @@ class SquareDiagTiles:
         """
         base_dnd = self.arr
         other_dnd = other_tiles.arr
-        if base_dnd.split == 1 and other_dnd.split == 0:
-            # match lshape redistribute if needed
-            target_map = torch.zeros_like(self.lshape_map)
-            target_map[..., 0] = other_tiles.lshape_map[..., 1]
-            target_map[..., 1] = other_tiles.lshape_map[..., 0]
-            base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=target_map)
-            # row inds
-            col_inds = other_tiles.__row_inds.copy()
-            # col inds
-            row_inds = other_tiles.__col_inds.copy()
-            # rows per proc
-            rows_per = other_tiles.__col_per_proc_list
-            # cols per proc
-            cols_per = other_tiles.__row_per_proc_list
+        # match lshape redistribute if needed
+        target_map = torch.zeros_like(self.lshape_map)
+        target_map[..., 0] = other_tiles.lshape_map[..., 1]
+        target_map[..., 1] = other_tiles.lshape_map[..., 0]
+        base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=target_map)
+        # row inds
+        col_inds = other_tiles.__row_inds.copy()
+        # col inds
+        row_inds = other_tiles.__col_inds.copy()
 
-            tile_map = torch.zeros_like(other_tiles.tile_map)
+        cols_per = other_tiles.__row_per_proc_list.copy()
+        rows_per = other_tiles.__col_per_proc_list.copy()
+
+        if base_dnd.split == 1 and other_dnd.split == 0:
+            if base_dnd.gshape[0] > base_dnd.gshape[1]:
+                row_inds.append(row_inds[-1] + row_inds[1])
+                rows_per[-1] += 1
+
+            tile_map = torch.zeros(
+                (len(row_inds), len(col_inds), 3),
+                dtype=other_tiles.tile_map.dtype,
+                device=other_tiles.tile_map.device,
+            )
             for i in range(len(row_inds)):
                 tile_map[..., 0][i] = row_inds[i]
             for i in range(len(col_inds)):
@@ -930,17 +962,146 @@ class SquareDiagTiles:
             last_diag_pr = torch.where(
                 torch.tensor(col_inds, device=base_dnd.device.torch_device) <= base_dnd.gshape[1]
             )[0][-1]
-            self.__col_per_proc_list = cols_per
-            self.__last_diag_pr = last_diag_pr
-            self.__row_per_proc_list = rows_per
-            self.__tile_map = tile_map
-            self.__row_inds = list(row_inds)
-            self.__col_inds = list(col_inds)
-        else:
-            raise NotImplementedError(
-                "splits in wrong order, split of other_tiles must be 0, and self must be 1, else "
-                "use normal match_tiles"
+
+        elif base_dnd.split == 0 and other_dnd.split == 1:
+            if base_dnd.gshape[0] < base_dnd.gshape[1]:
+                h = col_inds[-1] + col_inds[1]
+                h = h if h <= base_dnd.gshape[1] else base_dnd.gshape[1]
+                col_inds.append(h)
+                cols_per[-1] += 1
+            # only working for 1 tile
+
+            print(row_inds, col_inds, base_dnd.gshape)
+
+            tile_map = torch.zeros(
+                (len(row_inds), len(col_inds), 3),
+                dtype=other_tiles.tile_map.dtype,
+                device=other_tiles.tile_map.device,
             )
+
+            for i in range(len(row_inds)):
+                tile_map[..., 0][i] = row_inds[i]
+            for i in range(len(col_inds)):
+                tile_map[..., 1][:, i] = col_inds[i]
+            for i in range(self.arr.comm.size - 1):
+                st = sum(rows_per[:i])
+                sp = st + rows_per[i]
+                tile_map[..., 2][st:sp] = i
+            i = self.arr.comm.size - 1
+            tile_map[..., 2][sum(rows_per[:i]) :] = i
+            print(tile_map)
+
+            last_diag_pr = torch.where(
+                torch.tensor(row_inds, device=base_dnd.device.torch_device) <= base_dnd.gshape[1]
+            )[0][-1]
+            last_diag_pr = torch.where(
+                last_diag_pr
+                <= torch.cumsum(torch.tensor(rows_per, device=base_dnd.device.torch_device), dim=0)
+            )[0][0]
+        else:
+            raise NotImplementedError("Both DNDarrays must be split for this function")
+
+        self.__col_inds = list(col_inds)
+        self.__col_per_proc_list = cols_per
+        self.__last_diag_pr = last_diag_pr
+        self.__row_per_proc_list = rows_per
+        self.__tile_map = tile_map
+        self.__row_inds = list(row_inds)
+
+    def match_tiles_qr_lq(self, other_tiles):
+        base_dnd = self.arr
+        other_dnd = other_tiles.arr
+        # match lshape redistribute if needed
+        target_map = torch.zeros_like(self.lshape_map)
+        target_map[..., 0] = other_tiles.lshape_map[..., 1]
+        target_map[..., 1] = other_tiles.lshape_map[..., 0]
+        base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=target_map)
+        # row inds
+        col_inds = other_tiles.__row_inds.copy()
+        # col inds
+        row_inds = other_tiles.__col_inds.copy()
+
+        cols_per = other_tiles.__row_per_proc_list.copy()
+        rows_per = other_tiles.__col_per_proc_list.copy()
+
+        if base_dnd.split == 1 and other_dnd.split == 0:
+            if base_dnd.gshape[0] > base_dnd.gshape[1]:
+                row_inds.append(row_inds[-1] + row_inds[1])
+                rows_per[-1] += 1
+
+            tile_map = torch.zeros(
+                (len(row_inds), len(col_inds), 3),
+                dtype=other_tiles.tile_map.dtype,
+                device=other_tiles.tile_map.device,
+            )
+            for i in range(len(row_inds)):
+                tile_map[..., 0][i] = row_inds[i]
+            for i in range(len(col_inds)):
+                tile_map[..., 1][:, i] = col_inds[i]
+            st = 0
+            for pr, cols in enumerate(cols_per):
+                tile_map[:, st : st + cols, 2] = pr
+                st += cols
+            last_diag_pr = torch.where(
+                torch.tensor(col_inds, device=base_dnd.device.torch_device) <= base_dnd.gshape[1]
+            )[0][-1]
+
+        elif base_dnd.split == 0 and other_dnd.split == 1:
+            if base_dnd.gshape[0] < base_dnd.gshape[1]:
+                h = col_inds[-1] + col_inds[1]
+                h = h if h <= base_dnd.gshape[1] else base_dnd.gshape[1]
+                col_inds.append(h)
+                cols_per[-1] += 1
+            # only working for 1 tile
+            # need to adjust the col_inds here
+            # the cols should start at 0,0 then the next one should be plus the size of the first
+            # after that it should be
+            col_inds = []
+            col_inds.append(0)
+            rows_hold = torch.tensor(row_inds + [base_dnd.gshape[0]])
+            rows_diff = rows_hold[1:] - rows_hold[:-1]
+            # print(self.lshape_map)
+            # print(other_tiles.lshape_map)
+            # print(rows_diff, row_inds[-1])
+            # col_inds.append(rows_diff[0])
+            for r in rows_diff[1:]:
+                col_inds.append(col_inds[-1] + r)
+            # print(row_inds, col_inds, base_dnd.gshape)
+
+            tile_map = torch.zeros(
+                (len(row_inds), len(col_inds), 3),
+                dtype=other_tiles.tile_map.dtype,
+                device=other_tiles.tile_map.device,
+            )
+
+            for i in range(len(row_inds)):
+                tile_map[..., 0][i] = row_inds[i]
+            for i in range(len(col_inds)):
+                tile_map[..., 1][:, i] = col_inds[i]
+            for i in range(self.arr.comm.size - 1):
+                st = sum(rows_per[:i])
+                sp = st + rows_per[i]
+                tile_map[..., 2][st:sp] = i
+            i = self.arr.comm.size - 1
+            tile_map[..., 2][sum(rows_per[:i]) :] = i
+            # print(tile_map)
+
+            last_diag_pr = torch.where(
+                torch.tensor(row_inds, device=base_dnd.device.torch_device) <= base_dnd.gshape[1]
+            )[0][-1]
+            last_diag_pr = torch.where(
+                last_diag_pr
+                <= torch.cumsum(torch.tensor(rows_per, device=base_dnd.device.torch_device), dim=0)
+            )[0][0]
+        else:
+            raise NotImplementedError("Both DNDarrays must be split for this function")
+
+        self.__col_inds = list(col_inds)
+        self.__col_per_proc_list = cols_per
+        self.__last_diag_pr = last_diag_pr
+        self.__row_per_proc_list = rows_per
+        self.__tile_map = tile_map
+        self.__row_inds = list(row_inds)
 
     def __setitem__(self, key, value):
         """
