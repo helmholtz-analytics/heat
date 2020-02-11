@@ -156,6 +156,16 @@ class TestDistances(unittest.TestCase):
             d = ht.spatial.cdist(X)
         with self.assertRaises(NotImplementedError):
             d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
+        X = ht.ones((n * 2, 4), dtype=ht.float32, split=None, device=ht_device)
+        Y = ht.zeros((n * 2, 4), dtype=ht.float32, split=1, device=ht_device)
+        with self.assertRaises(NotImplementedError):
+            d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
+
+        Z = ht.ones((n * 2, 6, 3), dtype=ht.float32, split=None, device=ht_device)
+        with self.assertRaises(NotImplementedError):
+            d = ht.spatial.cdist(Z, quadratic_expansion=False)
+        with self.assertRaises(NotImplementedError):
+            d = ht.spatial.cdist(X, Z, quadratic_expansion=False)
 
         n = ht.communication.MPI_WORLD.size
         A = ht.ones((n * 2, 6), dtype=ht.float32, split=None, device=ht_device)
@@ -200,6 +210,11 @@ class TestDistances(unittest.TestCase):
         self.assertTrue(ht.allclose(d, result, atol=1e-8))
 
         B = A.astype(ht.int32)
+        d = ht.spatial.cdist(B, quadratic_expansion=False)
+        result = ht.array(res, dtype=ht.float64, split=0)
+        self.assertTrue(ht.allclose(d, result, atol=1e-8))
+
+        B = A.astype(ht.float64)
         d = ht.spatial.cdist(B, quadratic_expansion=False)
         result = ht.array(res, dtype=ht.float64, split=0)
         self.assertTrue(ht.allclose(d, result, atol=1e-8))

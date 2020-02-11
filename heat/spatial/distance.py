@@ -250,10 +250,7 @@ def _dist(X, Y=None, metric=_euclidian):
                 sender = (rank - iter) % size
 
                 col1 = displ[sender]
-                if sender != size - 1:
-                    col2 = displ[sender + 1]
-                else:
-                    col2 = K
+                col2 = displ[sender + 1] if sender != size - 1 else K
                 columns = (col1, col2)
 
                 # All but the first iter processes are receiving, then sending
@@ -310,10 +307,7 @@ def _dist(X, Y=None, metric=_euclidian):
                     comm.Recv(moving, source=sender, tag=num_iter)
 
                     col1 = displ[sender]
-                    if sender != size - 1:
-                        col2 = displ[sender + 1]
-                    else:
-                        col2 = K
+                    col2 = displ[sender + 1] if sender != size - 1 else K
                     columns = (col1, col2)
 
                     d_ij = metric(stationary, moving)
@@ -328,10 +322,7 @@ def _dist(X, Y=None, metric=_euclidian):
 
                     # Receiving back result
                     scol1 = displ[receiver]
-                    if receiver != size - 1:
-                        scol2 = displ[receiver + 1]
-                    else:
-                        scol2 = K
+                    scol2 = displ[receiver + 1] if receiver != size - 1 else K
                     scolumns = (scol1, scol2)
                     symmetric = torch.zeros(
                         (scolumns[1] - scolumns[0], rows[1] - rows[0]),
@@ -371,9 +362,16 @@ def _dist(X, Y=None, metric=_euclidian):
                         X.split, Y.split
                     )
                 )
-        else:
+        elif X.split == 0:
             # ToDo Für split implementation >1: split = min(X,split, Y.split)
             split = X.split
+        else:
+            # ToDo: Find out if even possible
+            raise NotImplementedError(
+                "Input splits were X.split = {}, Y.split = {}. Splittings other than 0 or None currently not supported.".format(
+                    X.split, Y.split
+                )
+            )
 
         promoted_type = types.promote_types(X.dtype, Y.dtype)
         promoted_type = types.promote_types(promoted_type, types.float32)
@@ -395,15 +393,7 @@ def _dist(X, Y=None, metric=_euclidian):
         )
 
         if X.split is None:
-            if Y.split == 0 or Y.split is None:
-                d._DNDarray__array = metric(X._DNDarray__array, Y._DNDarray__array)
-
-            else:
-                raise NotImplementedError(
-                    "Input splits were X.split = {}, Y.split = {}. Splittings other than 0 or None currently not supported.".format(
-                        X.split, Y.split
-                    )
-                )
+            d._DNDarray__array = metric(X._DNDarray__array, Y._DNDarray__array)
 
         elif X.split == 0:
             if Y.split is None:
@@ -472,13 +462,5 @@ def _dist(X, Y=None, metric=_euclidian):
                         X.split, Y.split
                     )
                 )
-
-        else:
-            # ToDo: Find out if even possible
-            raise NotImplementedError(
-                "Input splits were X.split = {}, Y.split = {}. Splittings other than 0 or None currently not supported.".format(
-                    X.split, Y.split
-                )
-            )
 
     return d
