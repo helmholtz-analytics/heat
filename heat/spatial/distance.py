@@ -104,16 +104,16 @@ def _gaussian_fast(x, y, sigma=1.0):
     Parameters
     ----------
     x : torch.tensor
-     2D tensor of size m x f
+        2D tensor of size m x f
     y : torch.tensor
-     2D tensor of size n x f
+        2D tensor of size n x f
     sigma: float, default=1.0
-     scaling factor for gaussian kernel
+        scaling factor for gaussian kernel
 
     Returns
     -------
     torch.tensor
-     2D tensor of size m x n
+        2D tensor of size m x n
     """
 
     d2 = _quadratic_expand(x, y)
@@ -128,16 +128,16 @@ def cdist(x, y=None, quadratic_expansion=False):
     Parameters
     ----------
     x : ht.DNDarray
-     2D Array of size m x f
+        2D Array of size m x f
     y : ht.DNDarray
-     2D array of size n x f
+        2D array of size n x f
     quadratic_expansion: bool, default=False
-     whether to use quadratic expansion to calculate (x-y)**2
+        whether to use quadratic expansion to calculate (x-y)**2
 
     Returns
     -------
     ht.DNDarray
-     2D array of size m x n
+        2D array of size m x n
     """
     if quadratic_expansion:
         return _dist(x, y, _euclidian_fast)
@@ -152,18 +152,18 @@ def rbf(x, y=None, sigma=1.0, quadratic_expansion=False):
     Parameters
     ----------
     x : ht.DNDarray
-     2D Array of size m x f
+        2D Array of size m x f
     y : ht.DNDarray
-     2D array of size n x f
+        2D array of size n x f
     sigma: float, default=1.0
-     scaling factor for gaussian kernel
+        scaling factor for gaussian kernel
     quadratic_expansion: bool, default=False
-     whether to use quadratic expansion to calculate (x-y)**2
+        whether to use quadratic expansion to calculate (x-y)**2
 
     Returns
     -------
     ht.DNDarray
-     2D array of size m x n
+        2D array of size m x n
     """
     if quadratic_expansion:
         return _dist(x, y, lambda a, b: _gaussian_fast(a, b, sigma))
@@ -175,26 +175,27 @@ def _dist(X, Y=None, metric=_euclidian):
     """
     Pairwise distance caclualation between all elements along axis 0 of X and Y
     X.split and Y.split can be distributed among axis 0
-    The distance matrix is calculated tile-wise with ring communication between the processes holding each a piece of X and/or Y
+    The distance matrix is calculated tile-wise with ring communication between the processes
+    holding each a piece of X and/or Y.
 
     Parameters
     ----------
     X : ht.DNDarray
-     2D Array of size m x f
+        2D Array of size m x f
     Y : ht.DNDarray, optional
-     2D array of size n x f
-     if Y in None, the distances will be calculated between all elements of X
+        2D array of size n x f
+        if Y in None, the distances will be calculated between all elements of X
     metric: function
-     the distance to be calculated between X and Y
-     if metric requires additional arguments, it must be handed over as a lambda function: lambda x, y: metric(x, y, **args)
+        the distance to be calculated between X and Y
+        if metric requires additional arguments, it must be handed over as a lambda function: lambda x, y: metric(x, y, **args)
 
     Returns
     -------
     ht.DNDarray
-     2D array of size m x n
-     if neither X nor Y is split, result will also be split=None
-     if X.split == 0, result will be split=0 regardless of Y.split
-     Caution: if X.split=None and Y.split=0, result will be split=1
+        2D array of size m x n
+        if neither X nor Y is split, result will also be split=None
+        if X.split == 0, result will be split=0 regardless of Y.split
+        Caution: if X.split=None and Y.split=0, result will be split=1
 
     """
 
@@ -331,15 +332,13 @@ def _dist(X, Y=None, metric=_euclidian):
                     )
                     comm.Recv(symmetric, source=receiver, tag=num_iter)
                     d._DNDarray__array[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
-
         else:
             raise NotImplementedError(
                 "Input split was X.split = {}. Splittings other than 0 or None currently not supported.".format(
                     X.split
                 )
             )
-
-    #########################################################################
+    # Y is not None
     else:
         if len(Y.shape) > 2:
             raise NotImplementedError(
