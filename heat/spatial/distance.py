@@ -145,7 +145,7 @@ def cdist(x, y=None, quadratic_expansion=False):
         return _dist(x, y, _euclidian)
 
 
-def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False):
+def rbf(x, y=None, sigma=1.0, quadratic_expansion=False):
     """
     Pairwise distance between all elements of X and Y using a gaussian kernel
 
@@ -166,9 +166,9 @@ def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False):
      2D array of size m x n
     """
     if quadratic_expansion:
-        return _dist(X, Y, lambda x, y: _gaussian_fast(x, y, sigma))
+        return _dist(x, y, lambda a, b: _gaussian_fast(a, b, sigma))
     else:
-        return _dist(X, Y, lambda x, y: _gaussian(x, y, sigma))
+        return _dist(x, y, lambda a, b: _gaussian(a, b, sigma))
 
 
 def _dist(X, Y=None, metric=_euclidian):
@@ -339,8 +339,10 @@ def _dist(X, Y=None, metric=_euclidian):
                     d._DNDarray__array[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
 
         else:
-            "Input split was X.split = {}. Splittings other than 0 or None currently not supported.".format(
-                X.split
+            raise NotImplementedError(
+                "Input split was X.split = {}. Splittings other than 0 or None currently not supported.".format(
+                    X.split
+                )
             )
 
     #########################################################################
@@ -468,8 +470,10 @@ def _dist(X, Y=None, metric=_euclidian):
 
         else:
             # ToDo: Find out if even possible
-            "Input splits were X.split = {}, Y.split = {}. Splittings other than 0 or None currently not supported.".format(
-                X.split, Y.split
+            raise NotImplementedError(
+                "Input splits were X.split = {}, Y.split = {}. Splittings other than 0 or None currently not supported.".format(
+                    X.split, Y.split
+                )
             )
 
     return d
