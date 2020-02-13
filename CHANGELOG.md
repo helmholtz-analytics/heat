@@ -6,6 +6,7 @@
 - [#470](https://github.com/helmholtz-analytics/heat/pull/470) Enhancement: Accelerate distance calculations in kmeans clustering by introduction of new module spatial.distance
 - [#478](https://github.com/helmholtz-analytics/heat/pull/478) `ht.array` now typecasts the local torch tensors if the torch tensors given are not the torch version of the specified dtype + unit test updates
 - [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: Underlying torch tensor moves to the right device on array initialisation
+- [#479](https://github.com/helmholtz-analytics/heat/pull/479) Completion of spatial.distance module to support 2D input arrays of different splittings (None or 0) and different datatypes, also if second input argument is None
 
 # v0.2.2
 
