@@ -10,7 +10,7 @@ __all__ = ["block_diagonalize"]
 def block_diagonalize(arr, overwrite_arr=False):
     if arr.split == 0:
         out = block_diagonalize_sp0(arr, overwrite_arr)
-    if arr.split == 1:
+    elif arr.split == 1:
         out = block_diagonalize_sp1(arr, overwrite_arr)
     return out
 
@@ -34,7 +34,7 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
     arr_t = arr.T
     # 3. tile arr_t
     arr_t.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-    arr_t.tiles.match_tiles_transpose(arr.tiles)
+    # arr_t.tiles.match_tiles_transpose(arr.tiles)
     # print(arr.lshape)
     # print(arr.shape, arr.tiles.tile_rows, arr.tiles.col_indices)
     # print(arr_t.shape, arr_t.tiles.tile_rows, arr_t.tiles.tile_columns)
@@ -44,7 +44,7 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
     # return None, None, None
 
     # 4. match tiles to arr
-    arr_t.tiles.match_tiles_transpose(arr.tiles)
+    arr_t.tiles.match_tiles_qr_lq(arr.tiles)
     arr_t.tiles.__DNDarray = arr.T
 
     q0 = factories.eye(
@@ -260,15 +260,15 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
         # 1. QR (split = 1) on col
         # 2. QR (split = 0) on col + 1
         diag_process = torch.nonzero(col < proc_tile_start).flatten()[0].item()
-        # __qr_split1_loop(
-        #     a_tiles=arr.tiles,
-        #     q_tiles=q0.tiles,
-        #     diag_pr=diag_process,
-        #     dim0=col,
-        #     calc_q=True,
-        #     empties=empties,
-        #     arr_t=arr_t,
-        # )
+        __qr_split1_loop(
+            a_tiles=arr.tiles,
+            q_tiles=q0.tiles,
+            diag_pr=diag_process,
+            dim0=col,
+            calc_q=True,
+            empties=empties,
+            arr_t=arr_t,
+        )
         arr_t.tiles.set_arr(arr.tiles.arr.T)
 
         not_completed_processes = torch.nonzero(col + 1 < proc_tile_start_t).flatten()
@@ -303,16 +303,16 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
         arr.tiles.set_arr(arr_t.tiles.arr.T)
     # do the last column now
     col = lp_cols - 1
-    # diag_process = torch.nonzero(col < proc_tile_start).flatten()[0].item()
-    # __qr_split1_loop(
-    #     a_tiles=arr.tiles,
-    #     q_tiles=q0.tiles,
-    #     diag_pr=diag_process,
-    #     dim0=col,
-    #     calc_q=True,
-    #     empties=empties,
-    #     arr_t=arr_t,
-    # )
+    diag_process = torch.nonzero(col < proc_tile_start).flatten()[0].item()
+    __qr_split1_loop(
+        a_tiles=arr.tiles,
+        q_tiles=q0.tiles,
+        diag_pr=diag_process,
+        dim0=col,
+        calc_q=True,
+        empties=empties,
+        arr_t=arr_t,
+    )
 
     arr_t.tiles.__DNDarray = arr.T
     if arr.gshape[0] < arr.gshape[1]:  # and arr_t.tiles.lshape_map[0, 0]

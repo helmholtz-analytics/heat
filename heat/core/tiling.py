@@ -848,6 +848,14 @@ class SquareDiagTiles:
 
             rows_per = [x for x in self.__col_inds if x < base_dnd.shape[0]]
 
+            # # need to rewrite this to create the row inds better
+            # new_hard_splits = tiles_to_match.lshape_map[..., 1].clone()
+            # # need to find where these values are either too large or too small
+            # if base_dnd.gshape[0] < match_dnd.gshape[1]:
+            #     # print('here', tiles_to_match.last_diagonal_process)
+            #     new_hard_splits[tiles_to_match.last_diagonal_process:] = 0
+            #     # print(new_hard_splits)
+
             target_0 = tiles_to_match.lshape_map[..., 1][: tiles_to_match.last_diagonal_process]
             end_tag0 = base_dnd.shape[0] - sum(target_0[: tiles_to_match.last_diagonal_process])
             end_tag0 = [end_tag0] + [0] * (
@@ -856,6 +864,8 @@ class SquareDiagTiles:
             target_0 = torch.cat((target_0, torch.tensor(end_tag0, device=target_0.device)), dim=0)
 
             targe_map = self.lshape_map.clone()
+            # print(targe_map[..., 0], target_0)
+            # print(tiles_to_match.lshape_map)
             targe_map[..., 0] = target_0
             target_0_c = torch.cumsum(target_0, dim=0)
             self.__row_per_proc_list = []
@@ -1029,6 +1039,27 @@ class SquareDiagTiles:
                 row_inds.append(row_inds[-1] + row_inds[1])
                 rows_per[-1] += 1
 
+            # print('f', row_inds)
+
+            # row_inds = [0]
+            # cols_hold = torch.tensor(col_inds + [base_dnd.gshape[1]])
+            # cols_diff = cols_hold[1:] - cols_hold[:-1]
+            # # print(self.lshape_map)
+            # # print(other_tiles.lshape_map)
+            # # print(rows_diff, row_inds[-1])
+            # # col_inds.append(rows_diff[0])
+            # for r in cols_diff[1:]:
+            #     row_inds.append(row_inds[-1] + r)
+            # row_inds = [0]
+            # cols_hold = torch.tensor(col_inds + [base_dnd.gshape[1]])
+            # cols_diff = cols_hold[1:] - cols_hold[:-1]
+            # for r in cols_diff[1:]:
+            #     row_inds.append(row_inds[-1] + r)
+            # row_inds = torch.tensor(row_inds)
+            # row_cumsum = torch.cumsum(row_inds, dim=0)
+            # row_inds = row_inds[torch.where(row_cumsum < base_dnd.gshape[0])[0]]
+            # print(base_dnd.gshape, row_inds, other_tiles.lshape_map[..., 0])
+
             tile_map = torch.zeros(
                 (len(row_inds), len(col_inds), 3),
                 dtype=other_tiles.tile_map.dtype,
@@ -1042,31 +1073,22 @@ class SquareDiagTiles:
             for pr, cols in enumerate(cols_per):
                 tile_map[:, st : st + cols, 2] = pr
                 st += cols
+            # print()
             last_diag_pr = torch.where(
-                torch.tensor(col_inds, device=base_dnd.device.torch_device) <= base_dnd.gshape[1]
+                torch.tensor(row_inds, device=base_dnd.device.torch_device) <= base_dnd.gshape[1]
             )[0][-1]
+            # print('here2', col_inds)
 
         elif base_dnd.split == 0 and other_dnd.split == 1:
-            if base_dnd.gshape[0] < base_dnd.gshape[1]:
-                h = col_inds[-1] + col_inds[1]
-                h = h if h <= base_dnd.gshape[1] else base_dnd.gshape[1]
-                col_inds.append(h)
-                cols_per[-1] += 1
             # only working for 1 tile
             # need to adjust the col_inds here
             # the cols should start at 0,0 then the next one should be plus the size of the first
             # after that it should be
-            col_inds = []
-            col_inds.append(0)
+            col_inds = [0]
             rows_hold = torch.tensor(row_inds + [base_dnd.gshape[0]])
             rows_diff = rows_hold[1:] - rows_hold[:-1]
-            # print(self.lshape_map)
-            # print(other_tiles.lshape_map)
-            # print(rows_diff, row_inds[-1])
-            # col_inds.append(rows_diff[0])
             for r in rows_diff[1:]:
                 col_inds.append(col_inds[-1] + r)
-            # print(row_inds, col_inds, base_dnd.gshape)
 
             tile_map = torch.zeros(
                 (len(row_inds), len(col_inds), 3),
