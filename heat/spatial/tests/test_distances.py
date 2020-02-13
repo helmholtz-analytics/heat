@@ -23,7 +23,6 @@ if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
 class TestDistances(unittest.TestCase):
     def test_cdist(self):
         n = ht.communication.MPI_WORLD.size
-        print(n)
         X = ht.ones((n * 2, 4), dtype=ht.float32, split=None, device=ht_device)
         Y = ht.zeros((n * 2, 4), dtype=ht.float32, split=None, device=ht_device)
         res_XX_cdist = ht.zeros((n * 2, n * 2), dtype=ht.float32, split=None, device=ht_device)
