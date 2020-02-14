@@ -50,7 +50,6 @@ class TestDevices(unittest.TestCase):
     @unittest.skipIf(envar not in ["gpu", "lcpu"], "only supported for gpu")
     def test_sanitize_device_gpu(self):
         if ht.torch.cuda.is_available():
-            ht.use_device(envar)
             self.assertIs(ht.sanitize_device("gpu"), ht.gpu)
             self.assertIs(ht.sanitize_device("gPu"), ht.gpu)
             self.assertIs(ht.sanitize_device("  GPU  "), ht.gpu)
