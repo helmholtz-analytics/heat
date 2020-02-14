@@ -35,11 +35,15 @@ def laplacian(S, norm=True, mode="fc", upper=None, lower=None):
             raise ValueError(
                 "Epsilon neighborhood with either upper or lower threshold, both is not supported"
             )
-
+        if (upper is None) and (lower is None):
+            raise ValueError("Epsilon neighborhood requires upper or lower threshold to be defined")
         if upper is not None:
-            A = ht.int(S < upper) - ht.eye(S.shape, dtype=ht.int, split=S.split)
+            A = ht.int(S < upper)
+            A = A - ht.eye(S.shape, dtype=ht.int, split=S.split, device=S.device, comm=S.comm)
         elif lower is not None:
-            A = ht.int(S > upper) - ht.eye(S.shape, dtype=ht.int, split=S.split)
+            print("Here")
+            A = ht.int(S > lower)
+            A = A - ht.eye(S.shape, dtype=ht.int, split=S.split, device=S.device, comm=S.comm)
     elif mode == "fc":
         A = S
     else:
@@ -49,12 +53,14 @@ def laplacian(S, norm=True, mode="fc", upper=None, lower=None):
     if norm:
         degree = ht.sqrt(1.0 / ht.sum(A, axis=1))
     else:
-        degree = sum(A, axis=1)
+        degree = ht.sum(A, axis=1)
 
     D = ht.diag(degree)
 
     if norm:
-        L = ht.eye(A.shape, split=A.split) - ht.matmul(D, ht.matmul(S, D))
+        L = ht.eye(A.shape, split=A.split, device=A.device, comm=A.comm) - ht.matmul(
+            D, ht.matmul(S, D)
+        )
     else:
         L = D - A
 
@@ -115,17 +121,17 @@ class Spectral:
         self.laplacian = laplacian
         self.epsilon = (threshold, boundary)
         if assign_labels == "kmeans":
-            self._cluster = ht.cluster.Kmeans(init="kmeans++")
+            self._cluster = ht.cluster.KMeans(init="kmeans++")
         else:
             raise NotImplementedError(
                 "Other Label Assignment Algorithms are currently not available"
             )
 
         # in-place properties
-        self._labels = None
-        self._similarity = None
         self._eigenvectors = None
         self._eigenvalues = None
+        self._labels = None
+        self._similarity = None
 
     @property
     def eigenvectors_(self):
@@ -146,6 +152,16 @@ class Spectral:
             Eigenvalues of the graph Laplacian
         """
         return self._eigenvalues
+
+    @property
+    def labels_(self):
+        """
+        Returns
+        -------
+        ht.DNDarray, shape=(n_points):
+            Labels of each point.
+        """
+        return self._labels
 
     @property
     def similarity_(self):
@@ -172,10 +188,6 @@ class Spectral:
 
         """
         if self.metric == "rbf":
-            if self.gamma is None:
-                raise ValueError(
-                    "For usage of RBF kernel please specify the scaling factor sigma in class instantiation"
-                )
             sig = math.sqrt(1 / (2 * self.gamma))
             s = ht.spatial.rbf(X, sigma=sig)
 
@@ -257,12 +269,14 @@ class Spectral:
         # input sanitation
         if not isinstance(X, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
+        if X.split is not None and X.split != 0:
+            raise NotImplementedError("Not implemented for other splitting-axes")
 
         # 1. Calculation of Adjacency Matrix
         self._similarity = self._calc_adjacency(X)
 
         # 2. Calculation of Laplacian
-        L = self._calc_laplacian()
+        L = self._calc_laplacian(self._similarity)
 
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
         self._eigenvalues, self._eigenvectors = self._calculate_eigendecomposition(L)
@@ -273,8 +287,9 @@ class Spectral:
             self.n_clusters = np.where(temp == temp.max())[0][0] + 1
         components = self._eigenvectors[:, : self.n_clusters].copy()
 
-        self._cluster.set_params({"n_clusters": self.n_clusters})
-        # kmeans = ht.cluster.KMeans(n_clusters=self.n_clusters, init="kmeans++")
+        params = self._cluster.get_params()
+        params["n_clusters"] = self.n_clusters
+        self._cluster.set_params(**params)
         self._cluster.fit(components)
         self._labels = self._cluster.labels_
 
