@@ -6,21 +6,23 @@ import unittest
 
 import heat as ht
 
-if os.environ.get("HEAT_USE_DEVICE") == 'cpu':
+envar = os.getenv("HEAT_USE_DEVICE", "cpu")
+
+if envar == 'cpu':
     ht.use_device("cpu")
     torch_device = ht.get_device().torch_device
     heat_device = None
-elif os.environ.get("HEAT_USE_DEVICE") == 'gpu' and torch.cuda.is_available():
+elif envar == 'gpu' and torch.cuda.is_available():
     ht.use_device("gpu")
     torch.cuda.set_device(torch.device(ht.get_device().torch_device))
     torch_device = ht.get_device().torch_device
     heat_device = None
-elif os.environ.get("HEAT_USE_DEVICE") == 'lcpu' and torch.cuda.is_available():
+elif envar == 'lcpu' and torch.cuda.is_available():
     ht.use_device("gpu")
     torch.cuda.set_device(torch.device(ht.get_device().torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
-elif os.environ.get("HEAT_USE_DEVICE") == 'lgpu' and torch.cuda.is_available():
+elif envar == 'lgpu' and torch.cuda.is_available():
     ht.use_device("cpu")
     torch.cuda.set_device(torch.device(ht.get_device().torch_device))
     torch_device = ht.cpu.torch_device

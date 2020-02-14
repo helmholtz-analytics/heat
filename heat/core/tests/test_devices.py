@@ -2,18 +2,19 @@ import unittest
 import os
 import heat as ht
 
+envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
 class TestDevices(unittest.TestCase):
-    @unittest.skipIf(os.environ.get("DEVICE") not in ["cpu", "lgpu"], "only supported for cpu")
+    @unittest.skipIf(envar not in ["cpu", "lgpu"], "only supported for cpu")
     def test_get_default_device_cpu(self):
         self.assertIs(ht.get_device(), ht.cpu)
 
-    @unittest.skipIf(os.environ.get("DEVICE") not in ["gpu", "lcpu"], "only supported for gpu")
+    @unittest.skipIf(envar not in ["gpu", "lcpu"], "only supported for gpu")
     def test_get_default_device_gpu(self):
         if ht.torch.cuda.is_available():
             self.assertIs(ht.get_device(), ht.gpu)
 
-    @unittest.skipIf(os.environ.get("DEVICE") not in ["cpu", "lgpu"], "only supported for cpu")
+    @unittest.skipIf(envar not in ["cpu", "lgpu"], "only supported for cpu")
     def test_sanitize_device_cpu(self):
         self.assertIs(ht.sanitize_device("cpu"), ht.cpu)
         self.assertIs(ht.sanitize_device("cPu"), ht.cpu)
@@ -26,10 +27,10 @@ class TestDevices(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.assertIs(ht.sanitize_device(1), ht.cpu)
 
-    @unittest.skipIf(os.environ.get("DEVICE") not in ["gpu", "lcpu"], "only supported for gpu")
+    @unittest.skipIf(envar not in ["gpu", "lcpu"], "only supported for gpu")
     def test_sanitize_device_gpu(self):
         if ht.torch.cuda.is_available():
-            ht.use_device(os.environ.get("DEVICE"))
+            ht.use_device(envar)
             self.assertIs(ht.sanitize_device("gpu"), ht.gpu)
             self.assertIs(ht.sanitize_device("gPu"), ht.gpu)
             self.assertIs(ht.sanitize_device("  GPU  "), ht.gpu)
@@ -41,7 +42,7 @@ class TestDevices(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.assertIs(ht.sanitize_device(1), ht.gpu)
 
-    @unittest.skipIf(os.environ.get("DEVICE") not in ["cpu", "lgpu"], "only supported for cpu")
+    @unittest.skipIf(envar not in ["cpu", "lgpu"], "only supported for cpu")
     def test_set_default_device_cpu(self):
         ht.use_device("cpu")
         self.assertIs(ht.get_device(), ht.cpu)
@@ -55,7 +56,7 @@ class TestDevices(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.use_device(1)
 
-    @unittest.skipIf(os.environ.get("DEVICE") not in ["gpu", "lcpu"], "only supported for gpu")
+    @unittest.skipIf(envar not in ["gpu", "lcpu"], "only supported for gpu")
     def test_set_default_device_gpu(self):
         if ht.torch.cuda.is_available():
             ht.use_device("gpu")
