@@ -1,4 +1,4 @@
-# Pending Additions
+# v0.3.0
 
 - [#454](https://github.com/helmholtz-analytics/heat/issues/454) Update lasso example
 - [#473](https://github.com/helmholtz-analytics/heat/issues/473) Matmul now will not split any of the input matrices if both have `split=None`. To toggle splitting of one input for increased speed use the allow_resplit flag.
