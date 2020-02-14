@@ -848,6 +848,7 @@ class DNDarray:
             A copy of this object on the CPU.
         """
         self.__array = self.__array.cpu()
+        self.__device = devices.cpu
         return self
 
     def create_lshape_map(self):
