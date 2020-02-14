@@ -8,6 +8,119 @@ from ..core import types
 __all__ = ["cdist", "rbf"]
 
 
+def _euclidian(x, y):
+    """
+    Helper function to calculate euclidian distance between torch.tensors x and y: sqrt(|x-y|**2)
+    Based on torch.cdist
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
+    return torch.cdist(x, y)
+
+
+def _euclidian_fast(x, y):
+    """
+    Helper function to calculate euclidian distance between torch.tensors x and y: sqrt(|x-y|**2)
+    Uses quadratic expansion to calculate (x-y)**2
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
+    return torch.sqrt(_quadratic_expand(x, y))
+
+
+def _quadratic_expand(x, y):
+    """
+    Helper function to calculate quadratic expansion |x-y|**2=|x|**2 + |y|**2 - 2xy
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
+    x_norm = (x ** 2).sum(1).view(-1, 1)
+    y_t = torch.transpose(y, 0, 1)
+    y_norm = (y ** 2).sum(1).view(1, -1)
+
+    dist = x_norm + y_norm - 2.0 * torch.mm(x, y_t)
+    return torch.clamp(dist, 0.0, np.inf)
+
+
+def _gaussian(x, y, sigma=1.0):
+    """
+    Helper function to calculate gaussian distance between torch.tensors x and y: exp(-(|x-y|**2/2sigma**2)
+    Based on torch.cdist
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+    sigma: float, default=1.0
+        scaling factor for gaussian kernel
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
+    d2 = _euclidian(x, y) ** 2
+    result = torch.exp(-d2 / (2 * sigma * sigma))
+    return result
+
+
+def _gaussian_fast(x, y, sigma=1.0):
+    """
+    Helper function to calculate gaussian distance between torch.tensors x and y: exp(-(|x-y|**2/2sigma**2)
+    Uses quadratic expansion to calculate (x-y)**2
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+    sigma: float, default=1.0
+        scaling factor for gaussian kernel
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
+
+    d2 = _quadratic_expand(x, y)
+    result = torch.exp(-d2 / (2 * sigma * sigma))
+    return result
+
+
 def cdist(x, y=None, quadratic_expansion=False):
     """
     Pairwise euclidean distance between all elements of X and Y
@@ -30,6 +143,32 @@ def cdist(x, y=None, quadratic_expansion=False):
         return _dist(x, y, _euclidian_fast)
     else:
         return _dist(x, y, _euclidian)
+
+
+def rbf(x, y=None, sigma=1.0, quadratic_expansion=False):
+    """
+    Pairwise distance between all elements of X and Y using a gaussian kernel
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        2D Array of size m x f
+    y : ht.DNDarray
+        2D array of size n x f
+    sigma: float, default=1.0
+        scaling factor for gaussian kernel
+    quadratic_expansion: bool, default=False
+        whether to use quadratic expansion to calculate (x-y)**2
+
+    Returns
+    -------
+    ht.DNDarray
+        2D array of size m x n
+    """
+    if quadratic_expansion:
+        return _dist(x, y, lambda a, b: _gaussian_fast(a, b, sigma))
+    else:
+        return _dist(x, y, lambda a, b: _gaussian(a, b, sigma))
 
 
 def _dist(X, Y=None, metric=_euclidian):
@@ -324,142 +463,3 @@ def _dist(X, Y=None, metric=_euclidian):
                 )
 
     return d
-
-
-def _euclidian(x, y):
-    """
-    Helper function to calculate euclidian distance between torch.tensors x and y: sqrt(|x-y|**2)
-    Based on torch.cdist
-
-    Parameters
-    ----------
-    x : torch.tensor
-        2D tensor of size m x f
-    y : torch.tensor
-        2D tensor of size n x f
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
-    """
-    return torch.cdist(x, y)
-
-
-def _euclidian_fast(x, y):
-    """
-    Helper function to calculate euclidian distance between torch.tensors x and y: sqrt(|x-y|**2)
-    Uses quadratic expansion to calculate (x-y)**2
-
-    Parameters
-    ----------
-    x : torch.tensor
-        2D tensor of size m x f
-    y : torch.tensor
-        2D tensor of size n x f
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
-    """
-    return torch.sqrt(_quadratic_expand(x, y))
-
-
-def _gaussian(x, y, sigma=1.0):
-    """
-    Helper function to calculate gaussian distance between torch.tensors x and y: exp(-(|x-y|**2/2sigma**2)
-    Based on torch.cdist
-
-    Parameters
-    ----------
-    x : torch.tensor
-        2D tensor of size m x f
-    y : torch.tensor
-        2D tensor of size n x f
-    sigma: float, default=1.0
-        scaling factor for gaussian kernel
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
-    """
-    d2 = _euclidian(x, y) ** 2
-    result = torch.exp(-d2 / (2 * sigma * sigma))
-    return result
-
-
-def _gaussian_fast(x, y, sigma=1.0):
-    """
-    Helper function to calculate gaussian distance between torch.tensors x and y: exp(-(|x-y|**2/2sigma**2)
-    Uses quadratic expansion to calculate (x-y)**2
-
-    Parameters
-    ----------
-    x : torch.tensor
-        2D tensor of size m x f
-    y : torch.tensor
-        2D tensor of size n x f
-    sigma: float, default=1.0
-        scaling factor for gaussian kernel
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
-    """
-
-    d2 = _quadratic_expand(x, y)
-    result = torch.exp(-d2 / (2 * sigma * sigma))
-    return result
-
-
-def _quadratic_expand(x, y):
-    """
-    Helper function to calculate quadratic expansion |x-y|**2=|x|**2 + |y|**2 - 2xy
-
-    Parameters
-    ----------
-    x : torch.tensor
-        2D tensor of size m x f
-    y : torch.tensor
-        2D tensor of size n x f
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
-    """
-    x_norm = (x ** 2).sum(1).view(-1, 1)
-    y_t = torch.transpose(y, 0, 1)
-    y_norm = (y ** 2).sum(1).view(1, -1)
-
-    dist = x_norm + y_norm - 2.0 * torch.mm(x, y_t)
-    return torch.clamp(dist, 0.0, np.inf)
-
-
-def rbf(x, y=None, sigma=1.0, quadratic_expansion=False):
-    """
-    Pairwise distance between all elements of X and Y using a gaussian kernel
-
-    Parameters
-    ----------
-    x : ht.DNDarray
-        2D Array of size m x f
-    y : ht.DNDarray
-        2D array of size n x f
-    sigma: float, default=1.0
-        scaling factor for gaussian kernel
-    quadratic_expansion: bool, default=False
-        whether to use quadratic expansion to calculate (x-y)**2
-
-    Returns
-    -------
-    ht.DNDarray
-        2D array of size m x n
-    """
-    if quadratic_expansion:
-        return _dist(x, y, lambda a, b: _gaussian_fast(a, b, sigma))
-    else:
-        return _dist(x, y, lambda a, b: _gaussian(a, b, sigma))
