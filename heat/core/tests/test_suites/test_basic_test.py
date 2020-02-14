@@ -5,22 +5,30 @@ import torch
 
 from heat.core.tests.test_suites.basic_test import BasicTest
 
-if os.environ.get("DEVICE") == "gpu" and torch.cuda.is_available():
+if os.environ.get("HEAT_USE_DEVICE") == 'cpu':
+    ht.use_device("cpu")
+    torch_device = ht.get_device().torch_device
+    heat_device = None
+elif os.environ.get("HEAT_USE_DEVICE") == 'gpu' and torch.cuda.is_available():
     ht.use_device("gpu")
     torch.cuda.set_device(torch.device(ht.get_device().torch_device))
-else:
+    torch_device = ht.get_device().torch_device
+    heat_device = None
+elif os.environ.get("HEAT_USE_DEVICE") == 'lcpu' and torch.cuda.is_available():
+    ht.use_device("gpu")
+    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
+    torch_device = ht.cpu.torch_device
+    heat_device = ht.cpu
+elif os.environ.get("HEAT_USE_DEVICE") == 'lgpu' and torch.cuda.is_available():
     ht.use_device("cpu")
-device = ht.get_device().torch_device
-ht_device = None
-if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
-    device = ht.gpu.torch_device
-    ht_device = ht.gpu
-    torch.cuda.set_device(device)
+    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
+    torch_device = ht.cpu.torch_device
+    heat_device = ht.cpu
 
 
 class TestBasicTest(BasicTest):
     def test_assert_array_equal(self):
-        heat_array = ht.ones((self.get_size(), 10, 10), dtype=ht.int32, split=1, device=ht_device)
+        heat_array = ht.ones((self.get_size(), 10, 10), dtype=ht.int32, split=1, device=heat_device)
         np_array = np.ones((self.get_size(), 10, 10), dtype=np.int32)
         self.assert_array_equal(heat_array, np_array)
 
@@ -29,7 +37,7 @@ class TestBasicTest(BasicTest):
             self.assert_array_equal(heat_array, np_array)
 
         heat_array = ht.zeros(
-            (25, 13, self.get_size(), 20), dtype=ht.float32, split=2, device=ht_device
+            (25, 13, self.get_size(), 20), dtype=ht.float32, split=2, device=heat_device
         )
         expected_array = torch.zeros(
             (25, 13, self.get_size(), 20),
@@ -97,7 +105,7 @@ class TestBasicTest(BasicTest):
         np_func = np.exp
         self.assert_func_equal_for_tensor(array, heat_func=ht_func, numpy_func=np_func)
 
-        array = ht.ones((15, 15), device=ht_device)
+        array = ht.ones((15, 15), device=heat_device)
         with self.assertRaises(TypeError):
             self.assert_func_equal_for_tensor(array, heat_func=ht_func, numpy_func=np_func)
 

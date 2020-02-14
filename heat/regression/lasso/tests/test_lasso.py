@@ -4,17 +4,25 @@ import numpy as np
 import torch
 import heat as ht
 
-if os.environ.get("DEVICE") == "gpu" and torch.cuda.is_available():
+if os.environ.get("HEAT_USE_DEVICE") == 'cpu':
+    ht.use_device("cpu")
+    torch_device = ht.get_device().torch_device
+    heat_device = None
+elif os.environ.get("HEAT_USE_DEVICE") == 'gpu' and torch.cuda.is_available():
     ht.use_device("gpu")
     torch.cuda.set_device(torch.device(ht.get_device().torch_device))
-else:
+    torch_device = ht.get_device().torch_device
+    heat_device = None
+elif os.environ.get("HEAT_USE_DEVICE") == 'lcpu' and torch.cuda.is_available():
+    ht.use_device("gpu")
+    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
+    torch_device = ht.cpu.torch_device
+    heat_device = ht.cpu
+elif os.environ.get("HEAT_USE_DEVICE") == 'lgpu' and torch.cuda.is_available():
     ht.use_device("cpu")
-device = ht.get_device().torch_device
-ht_device = None
-if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
-    device = ht.gpu.torch_device
-    ht_device = ht.gpu
-    torch.cuda.set_device(device)
+    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
+    torch_device = ht.cpu.torch_device
+    heat_device = ht.cpu
 
 
 if ht.io.supports_hdf5():
@@ -26,12 +34,12 @@ if ht.io.supports_hdf5():
             X = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="x",
-                device=ht_device,
+                device=heat_device,
             )
             y = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="y",
-                device=ht_device,
+                device=heat_device,
             )
 
             # normalize dataset
@@ -66,17 +74,17 @@ if ht.io.supports_hdf5():
             X = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="x",
-                device=ht_device,
+                device=heat_device,
             )
             y = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="y",
-                device=ht_device,
+                device=heat_device,
             )
 
             # Now the same stuff again in PyTorch
-            X = torch.tensor(X._DNDarray__array, device=device)
-            y = torch.tensor(y._DNDarray__array, device=device)
+            X = torch.tensor(X._DNDarray__array, device=torch_device)
+            y = torch.tensor(y._DNDarray__array, device=torch_device)
 
             # normalize dataset
             X = X / torch.sqrt((torch.mean(X ** 2, 0)))
@@ -110,12 +118,12 @@ if ht.io.supports_hdf5():
             X = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="x",
-                device=ht_device,
+                device=heat_device,
             )
             y = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="y",
-                device=ht_device,
+                device=heat_device,
             )
 
             # Now the same stuff again in PyTorch

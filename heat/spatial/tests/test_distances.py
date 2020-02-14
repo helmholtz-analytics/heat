@@ -7,30 +7,38 @@ import heat as ht
 import numpy as np
 import math
 
-if os.environ.get("DEVICE") == "gpu" and torch.cuda.is_available():
+if os.environ.get("HEAT_USE_DEVICE") == 'cpu':
+    ht.use_device("cpu")
+    torch_device = ht.get_device().torch_device
+    heat_device = None
+elif os.environ.get("HEAT_USE_DEVICE") == 'gpu' and torch.cuda.is_available():
     ht.use_device("gpu")
     torch.cuda.set_device(torch.device(ht.get_device().torch_device))
-else:
+    torch_device = ht.get_device().torch_device
+    heat_device = None
+elif os.environ.get("HEAT_USE_DEVICE") == 'lcpu' and torch.cuda.is_available():
+    ht.use_device("gpu")
+    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
+    torch_device = ht.cpu.torch_device
+    heat_device = ht.cpu
+elif os.environ.get("HEAT_USE_DEVICE") == 'lgpu' and torch.cuda.is_available():
     ht.use_device("cpu")
-device = ht.get_device().torch_device
-ht_device = None
-if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
-    device = ht.gpu.torch_device
-    ht_device = ht.gpu
-    torch.cuda.set_device(device)
+    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
+    torch_device = ht.cpu.torch_device
+    heat_device = ht.cpu
 
 
 class TestDistances(unittest.TestCase):
     def test_cdist(self):
         n = ht.communication.MPI_WORLD.size
-        print(n)
-        X = ht.ones((n * 2, 4), dtype=ht.float32, split=None, device=ht_device)
-        Y = ht.zeros((n * 2, 4), dtype=ht.float32, split=None, device=ht_device)
-        res_XX_cdist = ht.zeros((n * 2, n * 2), dtype=ht.float32, split=None, device=ht_device)
-        res_XX_rbf = ht.ones((n * 2, n * 2), dtype=ht.float32, split=None, device=ht_device)
-        res_XY_cdist = ht.ones((n * 2, n * 2), dtype=ht.float32, split=None, device=ht_device) * 2
+        
+        X = ht.ones((n * 2, 4), dtype=ht.float32, split=None, device=heat_device)
+        Y = ht.zeros((n * 2, 4), dtype=ht.float32, split=None, device=heat_device)
+        res_XX_cdist = ht.zeros((n * 2, n * 2), dtype=ht.float32, split=None, device=heat_device)
+        res_XX_rbf = ht.ones((n * 2, n * 2), dtype=ht.float32, split=None, device=heat_device)
+        res_XY_cdist = ht.ones((n * 2, n * 2), dtype=ht.float32, split=None, device=heat_device) * 2
         res_XY_rbf = ht.ones(
-            (n * 2, n * 2), dtype=ht.float32, split=None, device=ht_device
+            (n * 2, n * 2), dtype=ht.float32, split=None, device=heat_device
         ) * math.exp(-1.0)
 
         # Case 1a: X.split == None, Y == None
@@ -151,24 +159,24 @@ class TestDistances(unittest.TestCase):
         self.assertEqual(d.split, 0)
 
         # Case 3 X.split == 1
-        X = ht.ones((n * 2, 4), dtype=ht.float32, split=1, device=ht_device)
+        X = ht.ones((n * 2, 4), dtype=ht.float32, split=1, device=heat_device)
         with self.assertRaises(NotImplementedError):
             d = ht.spatial.cdist(X)
         with self.assertRaises(NotImplementedError):
             d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
-        X = ht.ones((n * 2, 4), dtype=ht.float32, split=None, device=ht_device)
-        Y = ht.zeros((n * 2, 4), dtype=ht.float32, split=1, device=ht_device)
+        X = ht.ones((n * 2, 4), dtype=ht.float32, split=None, device=heat_device)
+        Y = ht.zeros((n * 2, 4), dtype=ht.float32, split=1, device=heat_device)
         with self.assertRaises(NotImplementedError):
             d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
 
-        Z = ht.ones((n * 2, 6, 3), dtype=ht.float32, split=None, device=ht_device)
+        Z = ht.ones((n * 2, 6, 3), dtype=ht.float32, split=None, device=heat_device)
         with self.assertRaises(NotImplementedError):
             d = ht.spatial.cdist(Z, quadratic_expansion=False)
         with self.assertRaises(NotImplementedError):
             d = ht.spatial.cdist(X, Z, quadratic_expansion=False)
 
         n = ht.communication.MPI_WORLD.size
-        A = ht.ones((n * 2, 6), dtype=ht.float32, split=None, device=ht_device)
+        A = ht.ones((n * 2, 6), dtype=ht.float32, split=None, device=heat_device)
         for i in range(n):
             A[2 * i, :] = A[2 * i, :] * (2 * i)
             A[2 * i + 1, :] = A[2 * i + 1, :] * (2 * i + 1)
@@ -182,7 +190,7 @@ class TestDistances(unittest.TestCase):
         self.assertTrue(ht.allclose(d, result, atol=1e-8))
 
         n = ht.communication.MPI_WORLD.size
-        A = ht.ones((n * 2, 6), dtype=ht.float32, split=None, device=ht_device)
+        A = ht.ones((n * 2, 6), dtype=ht.float32, split=None, device=heat_device)
         for i in range(n):
             A[2 * i, :] = A[2 * i, :] * (2 * i)
             A[2 * i + 1, :] = A[2 * i + 1, :] * (2 * i + 1)

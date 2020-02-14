@@ -7,17 +7,25 @@ import os
 import heat as ht
 import numpy as np
 
-if os.environ.get("DEVICE") == "gpu" and torch.cuda.is_available():
+if os.environ.get("HEAT_USE_DEVICE") == 'cpu':
+    ht.use_device("cpu")
+    torch_device = ht.get_device().torch_device
+    heat_device = None
+elif os.environ.get("HEAT_USE_DEVICE") == 'gpu' and torch.cuda.is_available():
     ht.use_device("gpu")
     torch.cuda.set_device(torch.device(ht.get_device().torch_device))
-else:
+    torch_device = ht.get_device().torch_device
+    heat_device = None
+elif os.environ.get("HEAT_USE_DEVICE") == 'lcpu' and torch.cuda.is_available():
+    ht.use_device("gpu")
+    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
+    torch_device = ht.cpu.torch_device
+    heat_device = ht.cpu
+elif os.environ.get("HEAT_USE_DEVICE") == 'lgpu' and torch.cuda.is_available():
     ht.use_device("cpu")
-device = ht.get_device().torch_device
-ht_device = None
-if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
-    device = ht.gpu.torch_device
-    ht_device = ht.gpu
-    torch.cuda.set_device(device)
+    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
+    torch_device = ht.cpu.torch_device
+    heat_device = ht.cpu
 
 
 class TestArithmetics(unittest.TestCase):
@@ -26,17 +34,17 @@ class TestArithmetics(unittest.TestCase):
         cls.a_scalar = 2.0
         cls.an_int_scalar = 2
 
-        cls.a_vector = ht.float32([2, 2], device=ht_device)
-        cls.another_vector = ht.float32([2, 2, 2], device=ht_device)
+        cls.a_vector = ht.float32([2, 2], device=heat_device)
+        cls.another_vector = ht.float32([2, 2, 2], device=heat_device)
 
-        cls.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]], device=ht_device)
-        cls.another_tensor = ht.array([[2.0, 2.0], [2.0, 2.0]], device=ht_device)
+        cls.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]], device=heat_device)
+        cls.another_tensor = ht.array([[2.0, 2.0], [2.0, 2.0]], device=heat_device)
         cls.a_split_tensor = cls.another_tensor.copy().resplit_(0)
 
         cls.errorneous_type = (2, 2)
 
     def test_add(self):
-        result = ht.array([[3.0, 4.0], [5.0, 6.0]], device=ht_device)
+        result = ht.array([[3.0, 4.0], [5.0, 6.0]], device=heat_device)
 
         self.assertTrue(ht.equal(ht.add(self.a_scalar, self.a_scalar), ht.float32([4.0])))
         self.assertTrue(ht.equal(ht.add(self.a_tensor, self.a_scalar), result))
@@ -54,14 +62,14 @@ class TestArithmetics(unittest.TestCase):
             ht.add("T", "s")
 
     def test_bitwise_and(self):
-        an_int_tensor = ht.array([[1, 2], [3, 4]], device=ht_device)
-        an_int_vector = ht.array([2, 2], device=ht_device)
-        another_int_vector = ht.array([2, 2, 2, 2], device=ht_device)
-        int_result = ht.array([[0, 2], [2, 0]], device=ht_device)
+        an_int_tensor = ht.array([[1, 2], [3, 4]], device=heat_device)
+        an_int_vector = ht.array([2, 2], device=heat_device)
+        another_int_vector = ht.array([2, 2, 2, 2], device=heat_device)
+        int_result = ht.array([[0, 2], [2, 0]], device=heat_device)
 
-        a_boolean_vector = ht.array([False, True, False, True], device=ht_device)
-        another_boolean_vector = ht.array([False, False, True, True], device=ht_device)
-        boolean_result = ht.array([False, False, False, True], device=ht_device)
+        a_boolean_vector = ht.array([False, True, False, True], device=heat_device)
+        another_boolean_vector = ht.array([False, False, True, True], device=heat_device)
+        boolean_result = ht.array([False, False, False, True], device=heat_device)
 
         self.assertTrue(ht.equal(ht.bitwise_and(an_int_tensor, self.an_int_scalar), int_result))
         self.assertTrue(ht.equal(ht.bitwise_and(an_int_tensor, an_int_vector), int_result))
@@ -90,14 +98,14 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_and(self.an_int_scalar, self.a_scalar)
 
     def test_bitwise_or(self):
-        an_int_tensor = ht.array([[1, 2], [3, 4]], device=ht_device)
-        an_int_vector = ht.array([2, 2], device=ht_device)
-        another_int_vector = ht.array([2, 2, 2, 2], device=ht_device)
-        int_result = ht.array([[3, 2], [3, 6]], device=ht_device)
+        an_int_tensor = ht.array([[1, 2], [3, 4]], device=heat_device)
+        an_int_vector = ht.array([2, 2], device=heat_device)
+        another_int_vector = ht.array([2, 2, 2, 2], device=heat_device)
+        int_result = ht.array([[3, 2], [3, 6]], device=heat_device)
 
-        a_boolean_vector = ht.array([False, True, False, True], device=ht_device)
-        another_boolean_vector = ht.array([False, False, True, True], device=ht_device)
-        boolean_result = ht.array([False, True, True, True], device=ht_device)
+        a_boolean_vector = ht.array([False, True, False, True], device=heat_device)
+        another_boolean_vector = ht.array([False, False, True, True], device=heat_device)
+        boolean_result = ht.array([False, True, True, True], device=heat_device)
 
         self.assertTrue(ht.equal(ht.bitwise_or(an_int_tensor, self.an_int_scalar), int_result))
         self.assertTrue(ht.equal(ht.bitwise_or(an_int_tensor, an_int_vector), int_result))
@@ -126,14 +134,14 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_or(self.an_int_scalar, self.a_scalar)
 
     def test_bitwise_xor(self):
-        an_int_tensor = ht.array([[1, 2], [3, 4]], device=ht_device)
-        an_int_vector = ht.array([2, 2], device=ht_device)
-        another_int_vector = ht.array([2, 2, 2, 2], device=ht_device)
-        int_result = ht.array([[3, 0], [1, 6]], device=ht_device)
+        an_int_tensor = ht.array([[1, 2], [3, 4]], device=heat_device)
+        an_int_vector = ht.array([2, 2], device=heat_device)
+        another_int_vector = ht.array([2, 2, 2, 2], device=heat_device)
+        int_result = ht.array([[3, 0], [1, 6]], device=heat_device)
 
-        a_boolean_vector = ht.array([False, True, False, True], device=ht_device)
-        another_boolean_vector = ht.array([False, False, True, True], device=ht_device)
-        boolean_result = ht.array([False, True, True, False], device=ht_device)
+        a_boolean_vector = ht.array([False, True, False, True], device=heat_device)
+        another_boolean_vector = ht.array([False, False, True, True], device=heat_device)
+        boolean_result = ht.array([False, True, True, False], device=heat_device)
 
         self.assertTrue(ht.equal(ht.bitwise_xor(an_int_tensor, self.an_int_scalar), int_result))
         self.assertTrue(ht.equal(ht.bitwise_xor(an_int_tensor, an_int_vector), int_result))
@@ -162,7 +170,7 @@ class TestArithmetics(unittest.TestCase):
             ht.bitwise_xor(self.an_int_scalar, self.a_scalar)
 
     def test_diff(self):
-        ht_array = ht.random.rand(20, 20, 20, split=None, device=ht_device)
+        ht_array = ht.random.rand(20, 20, 20, split=None, device=heat_device)
         arb_slice = [0] * 3
         for dim in range(3):  # loop over 3 dimensions
             arb_slice[dim] = slice(None)
@@ -175,7 +183,7 @@ class TestArithmetics(unittest.TestCase):
                         np_array = ht_array[arb_slice].numpy()
 
                         ht_diff = ht.diff(lp_array, n=nl, axis=ax)
-                        np_diff = ht.array(np.diff(np_array, n=nl, axis=ax), device=ht_device)
+                        np_diff = ht.array(np.diff(np_array, n=nl, axis=ax), device=heat_device)
 
                         self.assertTrue(ht.equal(ht_diff, np_diff))
                         self.assertEqual(ht_diff.split, sp)
@@ -183,15 +191,15 @@ class TestArithmetics(unittest.TestCase):
 
         np_array = ht_array.numpy()
         ht_diff = ht.diff(ht_array, n=2)
-        np_diff = ht.array(np.diff(np_array, n=2), device=ht_device)
+        np_diff = ht.array(np.diff(np_array, n=2), device=heat_device)
         self.assertTrue(ht.equal(ht_diff, np_diff))
         self.assertEqual(ht_diff.split, None)
         self.assertEqual(ht_diff.dtype, ht_array.dtype)
 
-        ht_array = ht.random.rand(20, 20, 20, split=1, dtype=ht.float64, device=ht_device)
+        ht_array = ht.random.rand(20, 20, 20, split=1, dtype=ht.float64, device=heat_device)
         np_array = ht_array.copy().numpy()
         ht_diff = ht.diff(ht_array, n=2)
-        np_diff = ht.array(np.diff(np_array, n=2), device=ht_device)
+        np_diff = ht.array(np.diff(np_array, n=2), device=heat_device)
         self.assertTrue(ht.equal(ht_diff, np_diff))
         self.assertEqual(ht_diff.split, 1)
         self.assertEqual(ht_diff.dtype, ht_array.dtype)
@@ -205,8 +213,8 @@ class TestArithmetics(unittest.TestCase):
             ht.diff("string", axis=2)
 
     def test_div(self):
-        result = ht.array([[0.5, 1.0], [1.5, 2.0]], device=ht_device)
-        commutated_result = ht.array([[2.0, 1.0], [2.0 / 3.0, 0.5]], device=ht_device)
+        result = ht.array([[0.5, 1.0], [1.5, 2.0]], device=heat_device)
+        commutated_result = ht.array([[2.0, 1.0], [2.0 / 3.0, 0.5]], device=heat_device)
 
         self.assertTrue(ht.equal(ht.div(self.a_scalar, self.a_scalar), ht.float32([1.0])))
         self.assertTrue(ht.equal(ht.div(self.a_tensor, self.a_scalar), result))
@@ -224,15 +232,15 @@ class TestArithmetics(unittest.TestCase):
             ht.div("T", "s")
 
     def test_fmod(self):
-        result = ht.array([[1.0, 0.0], [1.0, 0.0]], device=ht_device)
-        an_int_tensor = ht.array([[5, 3], [4, 1]], device=ht_device)
-        integer_result = ht.array([[1, 1], [0, 1]], device=ht_device)
-        commutated_result = ht.array([[0.0, 0.0], [2.0, 2.0]], device=ht_device)
-        zero_tensor = ht.zeros((2, 2), device=ht_device)
+        result = ht.array([[1.0, 0.0], [1.0, 0.0]], device=heat_device)
+        an_int_tensor = ht.array([[5, 3], [4, 1]], device=heat_device)
+        integer_result = ht.array([[1, 1], [0, 1]], device=heat_device)
+        commutated_result = ht.array([[0.0, 0.0], [2.0, 2.0]], device=heat_device)
+        zero_tensor = ht.zeros((2, 2), device=heat_device)
 
-        a_float = ht.array([5.3], device=ht_device)
-        another_float = ht.array([1.9], device=ht_device)
-        result_float = ht.array([1.5], device=ht_device)
+        a_float = ht.array([5.3], device=heat_device)
+        another_float = ht.array([1.9], device=heat_device)
+        result_float = ht.array([1.5], device=heat_device)
 
         self.assertTrue(ht.equal(ht.fmod(self.a_scalar, self.a_scalar), ht.float32([0.0])))
         self.assertTrue(ht.equal(ht.fmod(self.a_tensor, self.a_tensor), zero_tensor))
@@ -282,17 +290,17 @@ class TestArithmetics(unittest.TestCase):
             ht.left_shift(ht.array([True]), 2)
 
     def test_mod(self):
-        a_tensor = ht.array([[1, 4], [2, 2]], device=ht_device)
-        another_tensor = ht.array([[1, 2], [3, 4]], device=ht_device)
-        a_result = ht.array([[0, 0], [2, 2]], device=ht_device)
-        another_result = ht.array([[1, 0], [0, 0]], device=ht_device)
+        a_tensor = ht.array([[1, 4], [2, 2]], device=heat_device)
+        another_tensor = ht.array([[1, 2], [3, 4]], device=heat_device)
+        a_result = ht.array([[0, 0], [2, 2]], device=heat_device)
+        another_result = ht.array([[1, 0], [0, 0]], device=heat_device)
 
         self.assertTrue(ht.equal(ht.mod(a_tensor, another_tensor), a_result))
         self.assertTrue(ht.equal(ht.mod(a_tensor, self.an_int_scalar), another_result))
         self.assertTrue(ht.equal(ht.mod(self.an_int_scalar, another_tensor), a_result))
 
     def test_mul(self):
-        result = ht.array([[2.0, 4.0], [6.0, 8.0]], device=ht_device)
+        result = ht.array([[2.0, 4.0], [6.0, 8.0]], device=heat_device)
 
         self.assertTrue(ht.equal(ht.mul(self.a_scalar, self.a_scalar), ht.array([4.0])))
         self.assertTrue(ht.equal(ht.mul(self.a_tensor, self.a_scalar), result))
@@ -310,8 +318,8 @@ class TestArithmetics(unittest.TestCase):
             ht.mul("T", "s")
 
     def test_pow(self):
-        result = ht.array([[1.0, 4.0], [9.0, 16.0]], device=ht_device)
-        commutated_result = ht.array([[2.0, 4.0], [8.0, 16.0]], device=ht_device)
+        result = ht.array([[1.0, 4.0], [9.0, 16.0]], device=heat_device)
+        commutated_result = ht.array([[2.0, 4.0], [8.0, 16.0]], device=heat_device)
 
         self.assertTrue(ht.equal(ht.pow(self.a_scalar, self.a_scalar), ht.array([4.0])))
         self.assertTrue(ht.equal(ht.pow(self.a_tensor, self.a_scalar), result))
@@ -332,7 +340,7 @@ class TestArithmetics(unittest.TestCase):
         array_len = 11
 
         # check sum over all float elements of 1d tensor locally
-        shape_noaxis = ht.ones(array_len, device=ht_device)
+        shape_noaxis = ht.ones(array_len, device=heat_device)
         no_axis_prod = shape_noaxis.prod()
 
         self.assertIsInstance(no_axis_prod, ht.DNDarray)
@@ -343,12 +351,12 @@ class TestArithmetics(unittest.TestCase):
         self.assertEqual(no_axis_prod.split, None)
         self.assertEqual(no_axis_prod._DNDarray__array, 1)
 
-        out_noaxis = ht.zeros((1,), device=ht_device)
+        out_noaxis = ht.zeros((1,), device=heat_device)
         ht.prod(shape_noaxis, out=out_noaxis)
         self.assertEqual(out_noaxis._DNDarray__array, 1)
 
         # check sum over all float elements of split 1d tensor
-        shape_noaxis_split = ht.arange(1, array_len, split=0, device=ht_device)
+        shape_noaxis_split = ht.arange(1, array_len, split=0, device=heat_device)
         shape_noaxis_split_prod = shape_noaxis_split.prod()
 
         self.assertIsInstance(shape_noaxis_split_prod, ht.DNDarray)
@@ -359,12 +367,12 @@ class TestArithmetics(unittest.TestCase):
         self.assertEqual(shape_noaxis_split_prod.split, None)
         self.assertEqual(shape_noaxis_split_prod, 3628800)
 
-        out_noaxis = ht.zeros((1,), device=ht_device)
+        out_noaxis = ht.zeros((1,), device=heat_device)
         ht.prod(shape_noaxis_split, out=out_noaxis)
         self.assertEqual(out_noaxis._DNDarray__array, 3628800)
 
         # check sum over all float elements of 3d tensor locally
-        shape_noaxis = ht.full((3, 3, 3), 2, device=ht_device)
+        shape_noaxis = ht.full((3, 3, 3), 2, device=heat_device)
         no_axis_prod = shape_noaxis.prod()
 
         self.assertIsInstance(no_axis_prod, ht.DNDarray)
@@ -375,12 +383,12 @@ class TestArithmetics(unittest.TestCase):
         self.assertEqual(no_axis_prod.split, None)
         self.assertEqual(no_axis_prod._DNDarray__array, 134217728)
 
-        out_noaxis = ht.zeros((1,), device=ht_device)
+        out_noaxis = ht.zeros((1,), device=heat_device)
         ht.prod(shape_noaxis, out=out_noaxis)
         self.assertEqual(out_noaxis._DNDarray__array, 134217728)
 
         # check sum over all float elements of split 3d tensor
-        shape_noaxis_split_axis = ht.full((3, 3, 3), 2, split=0, device=ht_device)
+        shape_noaxis_split_axis = ht.full((3, 3, 3), 2, split=0, device=heat_device)
         split_axis_prod = shape_noaxis_split_axis.prod(axis=0)
 
         self.assertIsInstance(split_axis_prod, ht.DNDarray)
@@ -389,12 +397,12 @@ class TestArithmetics(unittest.TestCase):
         self.assertEqual(split_axis_prod._DNDarray__array.dtype, torch.float32)
         self.assertEqual(split_axis_prod.split, None)
 
-        out_axis = ht.ones((3, 3), device=ht_device)
+        out_axis = ht.ones((3, 3), device=heat_device)
         ht.prod(shape_noaxis, axis=0, out=out_axis)
-        self.assertTrue((out_axis._DNDarray__array == torch.full((3,), 8, device=device)).all())
+        self.assertTrue((out_axis._DNDarray__array == torch.full((3,), 8, device=torch_device)).all())
 
         # check sum over all float elements of splitted 5d tensor with negative axis
-        shape_noaxis_split_axis_neg = ht.full((1, 2, 3, 4, 5), 2, split=1, device=ht_device)
+        shape_noaxis_split_axis_neg = ht.full((1, 2, 3, 4, 5), 2, split=1, device=heat_device)
         shape_noaxis_split_axis_neg_prod = shape_noaxis_split_axis_neg.prod(axis=-2)
 
         self.assertIsInstance(shape_noaxis_split_axis_neg_prod, ht.DNDarray)
@@ -403,13 +411,13 @@ class TestArithmetics(unittest.TestCase):
         self.assertEqual(shape_noaxis_split_axis_neg_prod._DNDarray__array.dtype, torch.float32)
         self.assertEqual(shape_noaxis_split_axis_neg_prod.split, 1)
 
-        out_noaxis = ht.zeros((1, 2, 3, 5), device=ht_device)
+        out_noaxis = ht.zeros((1, 2, 3, 5), device=heat_device)
         ht.prod(shape_noaxis_split_axis_neg, axis=-2, out=out_noaxis)
 
         # check sum over all float elements of splitted 3d tensor with tuple axis
-        shape_split_axis_tuple = ht.ones((3, 4, 5), split=1, device=ht_device)
+        shape_split_axis_tuple = ht.ones((3, 4, 5), split=1, device=heat_device)
         shape_split_axis_tuple_prod = shape_split_axis_tuple.prod(axis=(-2, -3))
-        expected_result = ht.ones((5,), device=ht_device)
+        expected_result = ht.ones((5,), device=heat_device)
 
         self.assertIsInstance(shape_split_axis_tuple_prod, ht.DNDarray)
         self.assertEqual(shape_split_axis_tuple_prod.shape, (5,))
@@ -420,13 +428,13 @@ class TestArithmetics(unittest.TestCase):
 
         # exceptions
         with self.assertRaises(ValueError):
-            ht.ones(array_len, device=ht_device).prod(axis=1)
+            ht.ones(array_len, device=heat_device).prod(axis=1)
         with self.assertRaises(ValueError):
-            ht.ones(array_len, device=ht_device).prod(axis=-2)
+            ht.ones(array_len, device=heat_device).prod(axis=-2)
         with self.assertRaises(ValueError):
-            ht.ones((4, 4), device=ht_device).prod(axis=0, out=out_noaxis)
+            ht.ones((4, 4), device=heat_device).prod(axis=0, out=out_noaxis)
         with self.assertRaises(TypeError):
-            ht.ones(array_len, device=ht_device).prod(axis="bad_axis_type")
+            ht.ones(array_len, device=heat_device).prod(axis="bad_axis_type")
 
     def test_right_shift(self):
         int_tensor = ht.array([[0, 1], [2, 3]])
@@ -441,8 +449,8 @@ class TestArithmetics(unittest.TestCase):
             ht.left_shift(ht.array([True]), 2)
 
     def test_sub(self):
-        result = ht.array([[-1.0, 0.0], [1.0, 2.0]], device=ht_device)
-        minus_result = ht.array([[1.0, 0.0], [-1.0, -2.0]], device=ht_device)
+        result = ht.array([[-1.0, 0.0], [1.0, 2.0]], device=heat_device)
+        minus_result = ht.array([[1.0, 0.0], [-1.0, -2.0]], device=heat_device)
 
         self.assertTrue(ht.equal(ht.sub(self.a_scalar, self.a_scalar), ht.array([0.0])))
         self.assertTrue(ht.equal(ht.sub(self.a_tensor, self.a_scalar), result))
@@ -463,7 +471,7 @@ class TestArithmetics(unittest.TestCase):
         array_len = 11
 
         # check sum over all float elements of 1d tensor locally
-        shape_noaxis = ht.ones(array_len, device=ht_device)
+        shape_noaxis = ht.ones(array_len, device=heat_device)
         no_axis_sum = shape_noaxis.sum()
 
         self.assertIsInstance(no_axis_sum, ht.DNDarray)
@@ -474,12 +482,12 @@ class TestArithmetics(unittest.TestCase):
         self.assertEqual(no_axis_sum.split, None)
         self.assertEqual(no_axis_sum._DNDarray__array, array_len)
 
-        out_noaxis = ht.zeros((1,), device=ht_device)
+        out_noaxis = ht.zeros((1,), device=heat_device)
         ht.sum(shape_noaxis, out=out_noaxis)
         self.assertTrue(out_noaxis._DNDarray__array == shape_noaxis._DNDarray__array.sum())
 
         # check sum over all float elements of split 1d tensor
-        shape_noaxis_split = ht.arange(array_len, split=0, device=ht_device)
+        shape_noaxis_split = ht.arange(array_len, split=0, device=heat_device)
         shape_noaxis_split_sum = shape_noaxis_split.sum()
 
         self.assertIsInstance(shape_noaxis_split_sum, ht.DNDarray)
@@ -490,12 +498,12 @@ class TestArithmetics(unittest.TestCase):
         self.assertEqual(shape_noaxis_split_sum.split, None)
         self.assertEqual(shape_noaxis_split_sum, 55)
 
-        out_noaxis = ht.zeros((1,), device=ht_device)
+        out_noaxis = ht.zeros((1,), device=heat_device)
         ht.sum(shape_noaxis_split, out=out_noaxis)
         self.assertEqual(out_noaxis._DNDarray__array, 55)
 
         # check sum over all float elements of 3d tensor locally
-        shape_noaxis = ht.ones((3, 3, 3), device=ht_device)
+        shape_noaxis = ht.ones((3, 3, 3), device=heat_device)
         no_axis_sum = shape_noaxis.sum()
 
         self.assertIsInstance(no_axis_sum, ht.DNDarray)
@@ -506,12 +514,12 @@ class TestArithmetics(unittest.TestCase):
         self.assertEqual(no_axis_sum.split, None)
         self.assertEqual(no_axis_sum._DNDarray__array, 27)
 
-        out_noaxis = ht.zeros((1,), device=ht_device)
+        out_noaxis = ht.zeros((1,), device=heat_device)
         ht.sum(shape_noaxis, out=out_noaxis)
         self.assertEqual(out_noaxis._DNDarray__array, 27)
 
         # check sum over all float elements of split 3d tensor
-        shape_noaxis_split_axis = ht.ones((3, 3, 3), split=0, device=ht_device)
+        shape_noaxis_split_axis = ht.ones((3, 3, 3), split=0, device=heat_device)
         split_axis_sum = shape_noaxis_split_axis.sum(axis=0)
 
         self.assertIsInstance(split_axis_sum, ht.DNDarray)
@@ -520,12 +528,12 @@ class TestArithmetics(unittest.TestCase):
         self.assertEqual(split_axis_sum._DNDarray__array.dtype, torch.float32)
         self.assertEqual(split_axis_sum.split, None)
 
-        out_noaxis = ht.zeros((3, 3), device=ht_device)
+        out_noaxis = ht.zeros((3, 3), device=heat_device)
         ht.sum(shape_noaxis, axis=0, out=out_noaxis)
-        self.assertTrue((out_noaxis._DNDarray__array == torch.full((3, 3), 3, device=device)).all())
+        self.assertTrue((out_noaxis._DNDarray__array == torch.full((3, 3), 3, device=torch_device)).all())
 
         # check sum over all float elements of splitted 5d tensor with negative axis
-        shape_noaxis_split_axis_neg = ht.ones((1, 2, 3, 4, 5), split=1, device=ht_device)
+        shape_noaxis_split_axis_neg = ht.ones((1, 2, 3, 4, 5), split=1, device=heat_device)
         shape_noaxis_split_axis_neg_sum = shape_noaxis_split_axis_neg.sum(axis=-2)
 
         self.assertIsInstance(shape_noaxis_split_axis_neg_sum, ht.DNDarray)
@@ -534,13 +542,13 @@ class TestArithmetics(unittest.TestCase):
         self.assertEqual(shape_noaxis_split_axis_neg_sum._DNDarray__array.dtype, torch.float32)
         self.assertEqual(shape_noaxis_split_axis_neg_sum.split, 1)
 
-        out_noaxis = ht.zeros((1, 2, 3, 5), device=ht_device)
+        out_noaxis = ht.zeros((1, 2, 3, 5), device=heat_device)
         ht.sum(shape_noaxis_split_axis_neg, axis=-2, out=out_noaxis)
 
         # check sum over all float elements of splitted 3d tensor with tuple axis
-        shape_split_axis_tuple = ht.ones((3, 4, 5), split=1, device=ht_device)
+        shape_split_axis_tuple = ht.ones((3, 4, 5), split=1, device=heat_device)
         shape_split_axis_tuple_sum = shape_split_axis_tuple.sum(axis=(-2, -3))
-        expected_result = ht.ones((5,), device=ht_device) * 12.0
+        expected_result = ht.ones((5,), device=heat_device) * 12.0
 
         self.assertIsInstance(shape_split_axis_tuple_sum, ht.DNDarray)
         self.assertEqual(shape_split_axis_tuple_sum.shape, (5,))
@@ -551,13 +559,13 @@ class TestArithmetics(unittest.TestCase):
 
         # exceptions
         with self.assertRaises(ValueError):
-            ht.ones(array_len, device=ht_device).sum(axis=1)
+            ht.ones(array_len, device=heat_device).sum(axis=1)
         with self.assertRaises(ValueError):
-            ht.ones(array_len, device=ht_device).sum(axis=-2)
+            ht.ones(array_len, device=heat_device).sum(axis=-2)
         with self.assertRaises(ValueError):
-            ht.ones((4, 4), device=ht_device).sum(axis=0, out=out_noaxis)
+            ht.ones((4, 4), device=heat_device).sum(axis=0, out=out_noaxis)
         with self.assertRaises(TypeError):
-            ht.ones(array_len, device=ht_device).sum(axis="bad_axis_type")
+            ht.ones(array_len, device=heat_device).sum(axis="bad_axis_type")
 
     def test_right_hand_side_operations(self):
         """
@@ -567,7 +575,7 @@ class TestArithmetics(unittest.TestCase):
         Examples
         --------
         >>> import heat as ht
-        >>> T = ht.float32([[1., 2.], [3., 4.]], device=ht_device)
+        >>> T = ht.float32([[1., 2.], [3., 4.]], device=heat_device)
         >>> assert T * 3 == 3 * T
         """
         operators = (
@@ -579,7 +587,7 @@ class TestArithmetics(unittest.TestCase):
             ("__mod__", operator.mod, False),
             ("__pow__", operator.pow, False),
         )
-        tensor = ht.float32([[1, 4], [2, 3]], device=ht_device)
+        tensor = ht.float32([[1, 4], [2, 3]], device=heat_device)
         num = 3
         for (attr, op, commutative) in operators:
             try:
