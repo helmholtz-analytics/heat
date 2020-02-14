@@ -177,7 +177,7 @@ class TestDistances(unittest.TestCase):
         B = A.astype(ht.int32)
 
         d = ht.spatial.cdist(A, B, quadratic_expansion=False)
-        result = ht.array(res, dtype=ht.float64, split=0)
+        result = ht.array(res, dtype=ht.float64, split=0, device=ht_device)
         self.assertTrue(ht.allclose(d, result, atol=1e-8))
 
         n = ht.communication.MPI_WORLD.size
