@@ -34,8 +34,8 @@ setup(
     url="https://github.com/helmholtz-analytics/heat",
     keywords=["data", "analytics", "tensors", "distributed", "gpu"],
     classifiers=[
-        "Development Status :: 2 - Pre-Alpha",
-        "Programming Language :: Python :: 3.5",
+        "Development Status :: 3 - Alpha",
+        "Programming Language :: Python :: 3.6",
         "License :: OSI Approved :: MIT License",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering",
