@@ -11,23 +11,23 @@ envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
 if envar == 'cpu':
     ht.use_device("cpu")
-    torch_device = ht.get_device().torch_device
+    torch_device = ht.cpu.torch_device
     heat_device = None
 elif envar == 'gpu' and torch.cuda.is_available():
     ht.use_device("gpu")
-    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
-    torch_device = ht.get_device().torch_device
+    torch.cuda.set_device(torch.device(ht.gpu.torch_device))
+    torch_device = ht.gpu.torch_device
     heat_device = None
 elif envar == 'lcpu' and torch.cuda.is_available():
     ht.use_device("gpu")
-    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
+    torch.cuda.set_device(torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
 elif envar == 'lgpu' and torch.cuda.is_available():
     ht.use_device("cpu")
-    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
-    torch_device = ht.cpu.torch_device
-    heat_device = ht.cpu
+    torch.cuda.set_device(torch.device(ht.gpu.torch_device))
+    torch_device = ht.gpu.torch_device
+    heat_device = ht.gpu
 
 
 class TestDistances(unittest.TestCase):
@@ -188,7 +188,7 @@ class TestDistances(unittest.TestCase):
         B = A.astype(ht.int32)
 
         d = ht.spatial.cdist(A, B, quadratic_expansion=False)
-        result = ht.array(res, dtype=ht.float64, split=0)
+        result = ht.array(res, dtype=ht.float64, split=0, device=heat_device)
         self.assertTrue(ht.allclose(d, result, atol=1e-8))
 
         n = ht.communication.MPI_WORLD.size
