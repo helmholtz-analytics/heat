@@ -41,28 +41,24 @@ def laplacian(S, norm=True, mode="fc", upper=None, lower=None):
             A = ht.int(S < upper)
             A = A - ht.eye(S.shape, dtype=ht.int, split=S.split, device=S.device, comm=S.comm)
         elif lower is not None:
-            print("Here")
             A = ht.int(S > lower)
             A = A - ht.eye(S.shape, dtype=ht.int, split=S.split, device=S.device, comm=S.comm)
     elif mode == "fc":
-        A = S
+        A = S - ht.eye(S.shape, dtype=S.dtype, split=S.split, device=S.device, comm=S.comm)
     else:
         raise NotImplementedError(
             "Only eNeighborhood and fully-connected graphs supported at the moment."
         )
-    if norm:
-        degree = ht.sqrt(1.0 / ht.sum(A, axis=1))
-    else:
-        degree = ht.sum(A, axis=1)
+
+    degree = ht.sum(A, axis=1)
 
     D = ht.diag(degree)
-
+    L = D - A
     if norm:
-        L = ht.eye(A.shape, split=A.split, device=A.device, comm=A.comm) - ht.matmul(
-            D, ht.matmul(S, D)
-        )
-    else:
-        L = D - A
+        deg = ht.sqrt(1.0 / ht.sum(A, axis=1))
+        D2 = ht.diag(deg)
+
+        L = ht.matmul(D2, ht.matmul(L, D2))
 
     return L
 
@@ -131,6 +127,7 @@ class Spectral:
         self._eigenvectors = None
         self._eigenvalues = None
         self._labels = None
+        self._laplacian = None
         self._similarity = None
 
     @property
@@ -162,6 +159,16 @@ class Spectral:
             Labels of each point.
         """
         return self._labels
+
+    @property
+    def laplacian_(self):
+        """
+        Returns
+        -------
+        ht.DNDarray:
+            Graph Laplcacian of the fitted dataset
+        """
+        return self._laplacian
 
     @property
     def similarity_(self):
@@ -242,16 +249,17 @@ class Spectral:
         eigenvectors: ht.DNDarray, shape = (n_samples, n_lanczos)
 
         """
-        vr = ht.random.rand(L.shape[0], split=L.split, dtype=ht.float32)
-        v0 = vr / ht.norm(vr)
-        Vg_norm, Tg_norm = ht.lanczos(L, self.n_lanczos, v0)
+        # vr = ht.random.rand(L.shape[0], split=L.split, dtype=ht.float64)
+        # v0 = vr / ht.norm(vr)
+        v0 = ht.ones((L.shape[0],), dtype=L.dtype, split=L.split) / math.sqrt(L.shape[0])
 
+        V, T = ht.lanczos(L, self.n_lanczos, v0)
         # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
-        eval, evec = torch.eig(Tg_norm._DNDarray__array, eigenvectors=True)
+        eval, evec = torch.eig(T._DNDarray__array, eigenvectors=True)
         # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
         eigenvalues, idx = torch.sort(eval[:, 0], dim=0)
         eigenvalues = ht.array(eigenvalues)
-        eigenvectors = ht.matmul(Vg_norm, ht.array(evec))[:, idx]
+        eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
 
         return eigenvalues, eigenvectors
 
@@ -276,10 +284,10 @@ class Spectral:
         self._similarity = self._calc_adjacency(X)
 
         # 2. Calculation of Laplacian
-        L = self._calc_laplacian(self._similarity)
+        self._laplacian = self._calc_laplacian(self._similarity)
 
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
-        self._eigenvalues, self._eigenvectors = self._calculate_eigendecomposition(L)
+        self._eigenvalues, self._eigenvectors = self._calculate_eigendecomposition(self._laplacian)
 
         # 5. Find the spectral gap, if number of clusters is not defined from the outside
         if self.n_clusters is None:

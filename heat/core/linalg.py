@@ -178,9 +178,9 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
         raise TypeError("Input Matrix A needs to be symmetric.")
     T = factories.zeros((m, m))
     if A.split == 0:
-        V = factories.zeros((n, m), split=A.split, dtype=types.float32)
+        V = factories.zeros((n, m), split=A.split, dtype=A.dtype)
     else:
-        V = factories.zeros((n, m), dtype=types.float32)
+        V = factories.zeros((n, m), dtype=A.dtype)
 
     if v0 is None:
         vr = random.rand(n)
@@ -193,23 +193,28 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
     w = w - alpha * v0
     T[0, 0] = alpha
     V[:, 0] = v0
-
     for i in range(1, int(m)):
         beta = norm(w)
-        if beta == 0.0:
+        if abs(beta) < 1e-10:
+            print("Lanczos breakdown in iteration {}".format(i))
             # Lanczos Breakdown, pick a random vector to continue
             vr = random.rand(n)
             # orthogonalize v_r with respect to all vectors v[i]
             for j in range(i):
-                vr = vr - projection(V[:, j], vr)
+                vr = vr - projection(vr, V[:, j])
             # normalize v_r to Euclidian norm 1 and set as ith vector v
             vi = vr / norm(vr)
         else:
-            vi = w / beta
+            vr = w
+            # reorthogonalization
+            for j in range(i):
+                vr = vr - projection(vr, V[:, j])
+            vi = vr / norm(vr)
 
         w = matmul(A, vi)
         alpha = dot(w, vi)
         w = w - alpha * vi - beta * V[:, i - 1]
+
         T[i - 1, i] = beta
         T[i, i - 1] = beta
         T[i, i] = alpha
@@ -933,6 +938,7 @@ def norm(a):
         raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
 
     d = a ** 2
+
     for i in range(len(a.shape) - 1, -1, -1):
         d = arithmetics.sum(d, axis=i)
 
