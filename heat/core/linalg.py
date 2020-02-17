@@ -907,6 +907,14 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         )
     if len(a.shape) != 2:
         raise ValueError("Array 'a' must be 2 dimensional")
+
+    QR = collections.namedtuple("QR", "Q, R")
+
+    if a.split is None:
+        q, r = a._DNDarray__array.qr(some=False)
+        q = factories.array(q, device=a.device)
+        ret = QR(q if calc_q else None, r)
+        return ret
     # =============================== Prep work ====================================================
     r = a if overwrite_a else a.copy()
     r.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
@@ -971,16 +979,12 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         lp_cols = tile_columns if a.gshape[0] > a.gshape[1] else tile_rows
         for dcol in range(lp_cols):  # dcol is the diagonal column
             __qr_split1_loop(dcol=dcol, a=r, q0=q, calc_q=calc_q)
-    elif a.split is None:
-        q, r = a._DNDarray__array.qr(some=False)
-        q = factories.array(q, device=a.device)
 
     r.balance_()
     if q is not None:
         q.balance_()
 
-    QR = collections.namedtuple("QR", "Q, R")
-    ret = QR(q if calc_q else None, r)
+    ret = QR(q, r)
     return ret
 
 
