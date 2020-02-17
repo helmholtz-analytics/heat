@@ -913,6 +913,7 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     if a.split is None:
         q, r = a._DNDarray__array.qr(some=False)
         q = factories.array(q, device=a.device)
+        r = factories.array(r, device=a.device)
         ret = QR(q if calc_q else None, r)
         return ret
     # =============================== Prep work ====================================================
