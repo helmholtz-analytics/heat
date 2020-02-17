@@ -1,6 +1,12 @@
 # Pending Additions
 
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated QR
+- [#454](https://github.com/helmholtz-analytics/heat/issues/454) Update lasso example
+- [#473](https://github.com/helmholtz-analytics/heat/issues/473) Matmul now will not split any of the input matrices if both have `split=None`. To toggle splitting of one input for increased speed use the allow_resplit flag.
+- [#473](https://github.com/helmholtz-analytics/heat/issues/473) `dot` handles 2 split None vectors correctly now
+- [#470](https://github.com/helmholtz-analytics/heat/pull/470) Enhancement: Accelerate distance calculations in kmeans clustering by introduction of new module spatial.distance
+- [#478](https://github.com/helmholtz-analytics/heat/pull/478) `ht.array` now typecasts the local torch tensors if the torch tensors given are not the torch version of the specified dtype + unit test updates
+- [#479](https://github.com/helmholtz-analytics/heat/pull/479) Completion of spatial.distance module to support 2D input arrays of different splittings (None or 0) and different datatypes, also if second input argument is None
 
 # v0.2.2
 
