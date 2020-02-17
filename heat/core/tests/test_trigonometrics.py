@@ -6,21 +6,21 @@ import os
 
 envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
-if envar == 'cpu':
+if envar == "cpu":
     ht.use_device("cpu")
     torch_device = ht.cpu.torch_device
     heat_device = None
-elif envar == 'gpu' and torch.cuda.is_available():
+elif envar == "gpu" and torch.cuda.is_available():
     ht.use_device("gpu")
     torch.cuda.set_device(torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
     heat_device = None
-elif envar == 'lcpu' and torch.cuda.is_available():
+elif envar == "lcpu" and torch.cuda.is_available():
     ht.use_device("gpu")
     torch.cuda.set_device(torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
-elif envar == 'lgpu' and torch.cuda.is_available():
+elif envar == "lgpu" and torch.cuda.is_available():
     ht.use_device("cpu")
     torch.cuda.set_device(torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
@@ -32,7 +32,9 @@ class TestTrigonometrics(unittest.TestCase):
         # base elements
         elements = [0.0, 0.2, 0.6, 0.9, 1.2, 2.7, 3.14]
         comparison = (
-            180.0 * torch.tensor(elements, dtype=torch.float64, device=torch_device) / 3.141592653589793
+            180.0
+            * torch.tensor(elements, dtype=torch.float64, device=torch_device)
+            / 3.141592653589793
         )
 
         # rad2deg with float32
@@ -59,7 +61,9 @@ class TestTrigonometrics(unittest.TestCase):
         # base elements
         elements = [0.0, 0.2, 0.6, 0.9, 1.2, 2.7, 3.14]
         comparison = (
-            180.0 * torch.tensor(elements, dtype=torch.float64, device=torch_device) / 3.141592653589793
+            180.0
+            * torch.tensor(elements, dtype=torch.float64, device=torch_device)
+            / 3.141592653589793
         )
 
         # degrees with float32
@@ -86,7 +90,9 @@ class TestTrigonometrics(unittest.TestCase):
         # base elements
         elements = [0.0, 20.0, 45.0, 78.0, 94.0, 120.0, 180.0, 270.0, 311.0]
         comparison = (
-            3.141592653589793 * torch.tensor(elements, dtype=torch.float64, device=torch_device) / 180.0
+            3.141592653589793
+            * torch.tensor(elements, dtype=torch.float64, device=torch_device)
+            / 180.0
         )
 
         # deg2rad with float32
@@ -113,7 +119,9 @@ class TestTrigonometrics(unittest.TestCase):
         # base elements
         elements = [0.0, 20.0, 45.0, 78.0, 94.0, 120.0, 180.0, 270.0, 311.0]
         comparison = (
-            3.141592653589793 * torch.tensor(elements, dtype=torch.float64, device=torch_device) / 180.0
+            3.141592653589793
+            * torch.tensor(elements, dtype=torch.float64, device=torch_device)
+            / 180.0
         )
 
         # radians with float32

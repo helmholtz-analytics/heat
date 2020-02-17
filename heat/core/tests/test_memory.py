@@ -8,21 +8,21 @@ from heat.core.tests.test_suites.basic_test import BasicTest
 
 envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
-if envar == 'cpu':
+if envar == "cpu":
     ht.use_device("cpu")
     torch_device = ht.cpu.torch_device
     heat_device = None
-elif envar == 'gpu' and ht.torch.cuda.is_available():
+elif envar == "gpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
     heat_device = None
-elif envar == 'lcpu' and ht.torch.cuda.is_available():
+elif envar == "lcpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
-elif envar == 'lgpu' and ht.torch.cuda.is_available():
+elif envar == "lgpu" and ht.torch.cuda.is_available():
     ht.use_device("cpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
@@ -61,7 +61,9 @@ class TestMemory(BasicTest):
         self.assert_array_equal(a_heat_5d_F_sum, a_torch_5d_sum)
         # distributed, split, 2D
         size = ht.communication.MPI_WORLD.size
-        a_torch_2d = torch.arange(4 * size * 3 * size, device=torch_device).reshape(4 * size, 3 * size)
+        a_torch_2d = torch.arange(4 * size * 3 * size, device=torch_device).reshape(
+            4 * size, 3 * size
+        )
         a_heat_2d_C_split = ht.array(a_torch_2d, split=0, device=heat_device)
         a_heat_2d_F_split = ht.array(a_torch_2d, split=1, order="F", device=heat_device)
         self.assertTrue_memory_layout(a_heat_2d_C_split, "C")

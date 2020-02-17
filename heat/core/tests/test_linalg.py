@@ -6,21 +6,21 @@ import numpy as np
 
 envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
-if envar == 'cpu':
+if envar == "cpu":
     ht.use_device("cpu")
     torch_device = ht.cpu.torch_device
     heat_device = None
-elif envar == 'gpu' and ht.torch.cuda.is_available():
+elif envar == "gpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
     heat_device = None
-elif envar == 'lcpu' and ht.torch.cuda.is_available():
+elif envar == "lcpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
-elif envar == 'lgpu' and ht.torch.cuda.is_available():
+elif envar == "lgpu" and ht.torch.cuda.is_available():
     ht.use_device("cpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
@@ -63,7 +63,7 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(ht.equal(res, ht.zeros(res.shape, device=heat_device)), 1)
         ret = ht.array(data2d, split=1, device=heat_device)
         ht.dot(a2d, b2d, out=ret)
-        
+
         res = ret - ht.array(np.dot(data2d, data2d), device=heat_device)
         self.assertEqual(ht.equal(res, ht.zeros(res.shape, device=heat_device)), 1)
 

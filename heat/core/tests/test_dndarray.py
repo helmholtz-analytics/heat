@@ -6,21 +6,21 @@ import heat as ht
 
 envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
-if envar == 'cpu':
+if envar == "cpu":
     ht.use_device("cpu")
     torch_device = ht.cpu.torch_device
     heat_device = None
-elif envar == 'gpu' and ht.torch.cuda.is_available():
+elif envar == "gpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
     heat_device = None
-elif envar == 'lcpu' and ht.torch.cuda.is_available():
+elif envar == "lcpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
-elif envar == 'lgpu' and ht.torch.cuda.is_available():
+elif envar == "lgpu" and ht.torch.cuda.is_available():
     ht.use_device("cpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
@@ -96,7 +96,9 @@ class TestDNDarray(unittest.TestCase):
 
         data = np.loadtxt("heat/datasets/data/iris.csv", delimiter=";")
         htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0, device=heat_device)
-        self.assertTrue(ht.equal(htdata, ht.array(data, split=0, dtype=ht.float, device=heat_device)))
+        self.assertTrue(
+            ht.equal(htdata, ht.array(data, split=0, dtype=ht.float, device=heat_device))
+        )
 
         if ht.MPI_WORLD.size > 4:
             rank = ht.MPI_WORLD.rank
@@ -849,9 +851,9 @@ class TestDNDarray(unittest.TestCase):
 
     def test_stride_and_strides(self):
         # Local, int16, row-major memory layout
-        torch_int16 = torch.arange(6 * 5 * 3 * 4 * 5 * 7, dtype=torch.int16, device=torch_device).reshape(
-            6, 5, 3, 4, 5, 7
-        )
+        torch_int16 = torch.arange(
+            6 * 5 * 3 * 4 * 5 * 7, dtype=torch.int16, device=torch_device
+        ).reshape(6, 5, 3, 4, 5, 7)
         heat_int16 = ht.array(torch_int16, device=heat_device)
         numpy_int16 = torch_int16.cpu().numpy()
         self.assertEqual(heat_int16.stride(), torch_int16.stride())

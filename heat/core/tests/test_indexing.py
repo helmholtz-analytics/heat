@@ -5,21 +5,21 @@ import torch
 
 envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
-if envar == 'cpu':
+if envar == "cpu":
     ht.use_device("cpu")
     torch_device = ht.cpu.torch_device
     heat_device = None
-elif envar == 'gpu' and ht.torch.cuda.is_available():
+elif envar == "gpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
     heat_device = None
-elif envar == 'lcpu' and ht.torch.cuda.is_available():
+elif envar == "lcpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
-elif envar == 'lgpu' and ht.torch.cuda.is_available():
+elif envar == "lgpu" and ht.torch.cuda.is_available():
     ht.use_device("cpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
@@ -83,19 +83,23 @@ class TestIndexing(unittest.TestCase):
         self.assertEqual(wh.dtype, ht.float)
 
         # split cond
-        a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=0, device=heat_device)
+        a = ht.array(
+            [[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=0, device=heat_device
+        )
         res = ht.array(
             [[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=0, device=heat_device
         )
         wh = ht.where(a < 4.0, a, -1)
-        
+
         self.assertTrue(ht.all(wh[ht.nonzero(a >= 4)], -1))
         self.assertTrue(ht.equal(wh, res))
         self.assertEqual(wh.gshape, (3, 3))
         self.assertEqual(wh.dtype, ht.float)
         self.assertEqual(wh.split, 0)
 
-        a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=1, device=heat_device)
+        a = ht.array(
+            [[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=1, device=heat_device
+        )
         res = ht.array(
             [[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=1, device=heat_device
         )

@@ -8,21 +8,21 @@ import heat as ht
 
 envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
-if envar == 'cpu':
+if envar == "cpu":
     ht.use_device("cpu")
     torch_device = ht.cpu.torch_device
     heat_device = None
-elif envar == 'gpu' and ht.torch.cuda.is_available():
+elif envar == "gpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
     heat_device = None
-elif envar == 'lcpu' and ht.torch.cuda.is_available():
+elif envar == "lcpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
-elif envar == 'lgpu' and ht.torch.cuda.is_available():
+elif envar == "lgpu" and ht.torch.cuda.is_available():
     ht.use_device("cpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
@@ -42,7 +42,9 @@ class TestIO(unittest.TestCase):
 
         # load comparison data from csv
         cls.CSV_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.csv")
-        cls.IRIS = torch.from_numpy(np.loadtxt(cls.CSV_PATH, delimiter=";")).float().to(torch_device)
+        cls.IRIS = (
+            torch.from_numpy(np.loadtxt(cls.CSV_PATH, delimiter=";")).float().to(torch_device)
+        )
 
     def tearDown(self):
         # synchronize all nodes
@@ -173,7 +175,9 @@ class TestIO(unittest.TestCase):
         # unknown file extension
         with self.assertRaises(ValueError):
             ht.load(
-                os.path.join(os.getcwd(), "heat/datasets/data/iris.json"), "data", device=heat_device
+                os.path.join(os.getcwd(), "heat/datasets/data/iris.json"),
+                "data",
+                device=heat_device,
             )
         with self.assertRaises(ValueError):
             ht.load("iris", "data", device=heat_device)

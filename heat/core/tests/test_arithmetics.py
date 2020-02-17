@@ -9,21 +9,21 @@ import numpy as np
 
 envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
-if envar == 'cpu':
+if envar == "cpu":
     ht.use_device("cpu")
     torch_device = ht.cpu.torch_device
     heat_device = None
-elif envar == 'gpu' and ht.torch.cuda.is_available():
+elif envar == "gpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
     heat_device = None
-elif envar == 'lcpu' and ht.torch.cuda.is_available():
+elif envar == "lcpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
-elif envar == 'lgpu' and ht.torch.cuda.is_available():
+elif envar == "lgpu" and ht.torch.cuda.is_available():
     ht.use_device("cpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
@@ -401,7 +401,9 @@ class TestArithmetics(unittest.TestCase):
 
         out_axis = ht.ones((3, 3), device=heat_device)
         ht.prod(shape_noaxis, axis=0, out=out_axis)
-        self.assertTrue((out_axis._DNDarray__array == torch.full((3,), 8, device=torch_device)).all())
+        self.assertTrue(
+            (out_axis._DNDarray__array == torch.full((3,), 8, device=torch_device)).all()
+        )
 
         # check sum over all float elements of splitted 5d tensor with negative axis
         shape_noaxis_split_axis_neg = ht.full((1, 2, 3, 4, 5), 2, split=1, device=heat_device)
@@ -532,7 +534,9 @@ class TestArithmetics(unittest.TestCase):
 
         out_noaxis = ht.zeros((3, 3), device=heat_device)
         ht.sum(shape_noaxis, axis=0, out=out_noaxis)
-        self.assertTrue((out_noaxis._DNDarray__array == torch.full((3, 3), 3, device=torch_device)).all())
+        self.assertTrue(
+            (out_noaxis._DNDarray__array == torch.full((3, 3), 3, device=torch_device)).all()
+        )
 
         # check sum over all float elements of splitted 5d tensor with negative axis
         shape_noaxis_split_axis_neg = ht.ones((1, 2, 3, 4, 5), split=1, device=heat_device)

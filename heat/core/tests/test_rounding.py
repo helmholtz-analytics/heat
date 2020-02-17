@@ -7,21 +7,21 @@ from heat.core.tests.test_suites.basic_test import BasicTest
 
 envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
-if envar == 'cpu':
+if envar == "cpu":
     ht.use_device("cpu")
     torch_device = ht.cpu.torch_device
     heat_device = None
-elif envar == 'gpu' and ht.torch.cuda.is_available():
+elif envar == "gpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
     heat_device = None
-elif envar == 'lcpu' and ht.torch.cuda.is_available():
+elif envar == "lcpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
-elif envar == 'lgpu' and ht.torch.cuda.is_available():
+elif envar == "lgpu" and ht.torch.cuda.is_available():
     ht.use_device("cpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
@@ -162,7 +162,9 @@ class TestRounding(BasicTest):
 
     def test_floor(self):
         start, end, step = -5.0, 5.0, 1.4
-        comparison = torch.arange(start, end, step, dtype=torch.float64, device=torch_device).floor()
+        comparison = torch.arange(
+            start, end, step, dtype=torch.float64, device=torch_device
+        ).floor()
 
         # exponential of float32
         float32_tensor = ht.arange(start, end, step, dtype=ht.float32, device=heat_device)

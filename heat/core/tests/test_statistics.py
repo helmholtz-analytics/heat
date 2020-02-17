@@ -7,21 +7,21 @@ import heat as ht
 
 envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
-if envar == 'cpu':
+if envar == "cpu":
     ht.use_device("cpu")
     torch_device = ht.cpu.torch_device
     heat_device = None
-elif envar == 'gpu' and ht.torch.cuda.is_available():
+elif envar == "gpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
     heat_device = None
-elif envar == 'lcpu' and ht.torch.cuda.is_available():
+elif envar == "lcpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
-elif envar == 'lgpu' and ht.torch.cuda.is_available():
+elif envar == "lgpu" and ht.torch.cuda.is_available():
     ht.use_device("cpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
@@ -320,7 +320,9 @@ class TestStatistics(unittest.TestCase):
 
         # check weighted average over all float elements of split 3d tensor, across split axis
         random_volume = ht.array(
-            torch.randn((3, 3, 3), dtype=torch.float64, device=torch_device), is_split=1, device=heat_device
+            torch.randn((3, 3, 3), dtype=torch.float64, device=torch_device),
+            is_split=1,
+            device=heat_device,
         )
         size = random_volume.comm.size
         random_weights = ht.array(
@@ -355,7 +357,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(avg_volume.split, 0)
 
         # check weighted average over all float elements of split 5d tensor, along split axis
-        random_5d = ht.random.randn(random_volume.comm.size, 2, 3, 4, 5, split=0, device=heat_device)
+        random_5d = ht.random.randn(
+            random_volume.comm.size, 2, 3, 4, 5, split=0, device=heat_device
+        )
         axis = 1
         random_weights = ht.random.randn(random_5d.gshape[axis], device=heat_device)
         avg_5d = random_5d.average(weights=random_weights, axis=axis)

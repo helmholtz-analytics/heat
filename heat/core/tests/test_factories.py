@@ -5,21 +5,21 @@ import heat as ht
 
 envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
-if envar == 'cpu':
+if envar == "cpu":
     ht.use_device("cpu")
     torch_device = ht.cpu.torch_device
     heat_device = None
-elif envar == 'gpu' and ht.torch.cuda.is_available():
+elif envar == "gpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
     heat_device = None
-elif envar == 'lcpu' and ht.torch.cuda.is_available():
+elif envar == "lcpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
-elif envar == 'lgpu' and ht.torch.cuda.is_available():
+elif envar == "lgpu" and ht.torch.cuda.is_available():
     ht.use_device("cpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
@@ -117,7 +117,9 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(three_arg_arange_dtype_short.sum(axis=0, keepdim=True), 20)
 
         # testing setting dtype to float64
-        three_arg_arange_dtype_float64 = ht.arange(0, 10, 2, dtype=torch.float64, device=heat_device)
+        three_arg_arange_dtype_float64 = ht.arange(
+            0, 10, 2, dtype=torch.float64, device=heat_device
+        )
         self.assertIsInstance(three_arg_arange_dtype_float64, ht.DNDarray)
         self.assertEqual(three_arg_arange_dtype_float64.shape, (5,))
         self.assertLessEqual(three_arg_arange_dtype_float64.lshape[0], 5)
@@ -144,7 +146,9 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(a.lshape, (2, 3))
         self.assertEqual(a.gshape, (2, 3))
         self.assertEqual(a.split, None)
-        self.assertTrue((a._DNDarray__array == torch.tensor(unsplit_data, device=torch_device)).all())
+        self.assertTrue(
+            (a._DNDarray__array == torch.tensor(unsplit_data, device=torch_device)).all()
+        )
 
         # basic array function, unsplit data, different datatype
         tuple_data = ((0, 0), (1, 1))
@@ -156,7 +160,10 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(b.gshape, (2, 2))
         self.assertEqual(b.split, None)
         self.assertTrue(
-            (b._DNDarray__array == torch.tensor(tuple_data, dtype=torch.int8, device=torch_device)).all()
+            (
+                b._DNDarray__array
+                == torch.tensor(tuple_data, dtype=torch.int8, device=torch_device)
+            ).all()
         )
 
         # basic array function, unsplit data, no copy
@@ -179,7 +186,10 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(d.gshape, (3, 1, 1))
         self.assertEqual(d.split, None)
         self.assertTrue(
-            (d._DNDarray__array == torch.tensor(vector_data, device=torch_device).reshape(-1, 1, 1)).all()
+            (
+                d._DNDarray__array
+                == torch.tensor(vector_data, device=torch_device).reshape(-1, 1, 1)
+            ).all()
         )
 
         # basic array function, unsplit data, additional dimensions
@@ -191,7 +201,10 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(d.gshape, (1, 1, 3))
         self.assertEqual(d.split, None)
         self.assertTrue(
-            (d._DNDarray__array == torch.tensor(vector_data, device=torch_device).reshape(1, 1, -1)).all()
+            (
+                d._DNDarray__array
+                == torch.tensor(vector_data, device=torch_device).reshape(1, 1, -1)
+            ).all()
         )
 
         # distributed array, chunk local data (split)
@@ -583,7 +596,9 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(casted.split, 0)
 
         # retstep test
-        result = ht.linspace(-5, 3, num=70, retstep=True, dtype=ht.uint8, split=0, device=heat_device)
+        result = ht.linspace(
+            -5, 3, num=70, retstep=True, dtype=ht.uint8, split=0, device=heat_device
+        )
         self.assertIsInstance(result, tuple)
         self.assertEqual(len(result), 2)
 

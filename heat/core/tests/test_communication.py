@@ -6,21 +6,21 @@ import heat as ht
 
 envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
-if envar == 'cpu':
+if envar == "cpu":
     ht.use_device("cpu")
     torch_device = ht.cpu.torch_device
     heat_device = None
-elif envar == 'gpu' and ht.torch.cuda.is_available():
+elif envar == "gpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
     heat_device = None
-elif envar == 'lcpu' and ht.torch.cuda.is_available():
+elif envar == "lcpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
-elif envar == 'lgpu' and ht.torch.cuda.is_available():
+elif envar == "lgpu" and ht.torch.cuda.is_available():
     ht.use_device("cpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
@@ -260,7 +260,9 @@ class TestCommunication(unittest.TestCase):
         self.assertTrue(data._DNDarray__array.is_contiguous())
         self.assertTrue(output._DNDarray__array.is_contiguous())
         self.assertTrue(
-            (output._DNDarray__array == torch.ones(7, 2 * ht.MPI_WORLD.size, device=torch_device)).all()
+            (
+                output._DNDarray__array == torch.ones(7, 2 * ht.MPI_WORLD.size, device=torch_device)
+            ).all()
         )
 
         # non-contiguous data
@@ -276,7 +278,9 @@ class TestCommunication(unittest.TestCase):
         self.assertFalse(data._DNDarray__array.is_contiguous())
         self.assertTrue(output._DNDarray__array.is_contiguous())
         self.assertTrue(
-            (output._DNDarray__array == torch.ones(5, 4 * ht.MPI_WORLD.size, device=torch_device)).all()
+            (
+                output._DNDarray__array == torch.ones(5, 4 * ht.MPI_WORLD.size, device=torch_device)
+            ).all()
         )
 
         # non-contiguous output, different gather axis
@@ -292,7 +296,9 @@ class TestCommunication(unittest.TestCase):
         self.assertTrue(data._DNDarray__array.is_contiguous())
         self.assertFalse(output._DNDarray__array.is_contiguous())
         self.assertTrue(
-            (output._DNDarray__array == torch.ones(5, 7 * ht.MPI_WORLD.size, device=torch_device)).all()
+            (
+                output._DNDarray__array == torch.ones(5, 7 * ht.MPI_WORLD.size, device=torch_device)
+            ).all()
         )
 
         # contiguous data
@@ -546,7 +552,9 @@ class TestCommunication(unittest.TestCase):
         self.assertTrue(data._DNDarray__array.is_contiguous())
         self.assertTrue(output._DNDarray__array.is_contiguous())
         comparison = (
-            torch.arange(ht.MPI_WORLD.size, device=torch_device).repeat(10).reshape(10, ht.MPI_WORLD.size)
+            torch.arange(ht.MPI_WORLD.size, device=torch_device)
+            .repeat(10)
+            .reshape(10, ht.MPI_WORLD.size)
         )
         self.assertTrue((output._DNDarray__array == comparison).all())
 
@@ -730,7 +738,10 @@ class TestCommunication(unittest.TestCase):
         # assert output is equal
         self.assertFalse(data._DNDarray__array.is_contiguous())
         self.assertTrue(
-            (data._DNDarray__array == torch.ones((5, 2), dtype=torch.float32, device=torch_device)).all()
+            (
+                data._DNDarray__array
+                == torch.ones((5, 2), dtype=torch.float32, device=torch_device)
+            ).all()
         )
 
     def test_exscan(self):
@@ -799,7 +810,9 @@ class TestCommunication(unittest.TestCase):
         self.assertTrue(output._DNDarray__array.is_contiguous())
         if data.comm.rank == 0:
             self.assertTrue(
-                (output._DNDarray__array == torch.ones(ht.MPI_WORLD.size, 5, device=torch_device)).all()
+                (
+                    output._DNDarray__array == torch.ones(ht.MPI_WORLD.size, 5, device=torch_device)
+                ).all()
             )
 
         # contiguous data, different gather axis
@@ -817,7 +830,8 @@ class TestCommunication(unittest.TestCase):
         if data.comm.rank == 0:
             self.assertTrue(
                 (
-                    output._DNDarray__array == torch.ones(5, 2 * ht.MPI_WORLD.size, device=torch_device)
+                    output._DNDarray__array
+                    == torch.ones(5, 2 * ht.MPI_WORLD.size, device=torch_device)
                 ).all()
             )
 
@@ -836,7 +850,8 @@ class TestCommunication(unittest.TestCase):
         if data.comm.rank == 0:
             self.assertTrue(
                 (
-                    output._DNDarray__array == torch.ones(5, 3 * ht.MPI_WORLD.size, device=torch_device)
+                    output._DNDarray__array
+                    == torch.ones(5, 3 * ht.MPI_WORLD.size, device=torch_device)
                 ).all()
             )
 
@@ -855,7 +870,8 @@ class TestCommunication(unittest.TestCase):
         if data.comm.rank == 0:
             self.assertTrue(
                 (
-                    output._DNDarray__array == torch.ones(5, 3 * ht.MPI_WORLD.size, device=torch_device)
+                    output._DNDarray__array
+                    == torch.ones(5, 3 * ht.MPI_WORLD.size, device=torch_device)
                 ).all()
             )
 
@@ -964,7 +980,9 @@ class TestCommunication(unittest.TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
             self.assertTrue(
-                (output._DNDarray__array == torch.ones(ht.MPI_WORLD.size, 7, device=torch_device)).all()
+                (
+                    output._DNDarray__array == torch.ones(ht.MPI_WORLD.size, 7, device=torch_device)
+                ).all()
             )
 
             # contiguous data, different gather axis
@@ -981,7 +999,8 @@ class TestCommunication(unittest.TestCase):
             self.assertTrue(output._DNDarray__array.is_contiguous())
             self.assertTrue(
                 (
-                    output._DNDarray__array == torch.ones(7, 2 * ht.MPI_WORLD.size, device=torch_device)
+                    output._DNDarray__array
+                    == torch.ones(7, 2 * ht.MPI_WORLD.size, device=torch_device)
                 ).all()
             )
 
@@ -1000,7 +1019,8 @@ class TestCommunication(unittest.TestCase):
             self.assertTrue(output._DNDarray__array.is_contiguous())
             self.assertTrue(
                 (
-                    output._DNDarray__array == torch.ones(5, 4 * ht.MPI_WORLD.size, device=torch_device)
+                    output._DNDarray__array
+                    == torch.ones(5, 4 * ht.MPI_WORLD.size, device=torch_device)
                 ).all()
             )
 
@@ -1019,7 +1039,8 @@ class TestCommunication(unittest.TestCase):
             self.assertFalse(output._DNDarray__array.is_contiguous())
             self.assertTrue(
                 (
-                    output._DNDarray__array == torch.ones(5, 7 * ht.MPI_WORLD.size, device=torch_device)
+                    output._DNDarray__array
+                    == torch.ones(5, 7 * ht.MPI_WORLD.size, device=torch_device)
                 ).all()
             )
 
@@ -1235,7 +1256,9 @@ class TestCommunication(unittest.TestCase):
             # check scatter result
             self.assertFalse(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
-            comparison = torch.ones((2 * ht.MPI_WORLD.size, 10), dtype=torch.int64, device=torch_device)
+            comparison = torch.ones(
+                (2 * ht.MPI_WORLD.size, 10), dtype=torch.int64, device=torch_device
+            )
             self.assertTrue((output._DNDarray__array == comparison).all())
 
             # non-contiguous output, different gather axis
@@ -1251,7 +1274,9 @@ class TestCommunication(unittest.TestCase):
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertFalse(output._DNDarray__array.is_contiguous())
-            comparison = torch.ones((10, 2 * ht.MPI_WORLD.size), dtype=torch.int64, device=torch_device)
+            comparison = torch.ones(
+                (10, 2 * ht.MPI_WORLD.size), dtype=torch.int64, device=torch_device
+            )
             self.assertTrue((output._DNDarray__array == comparison).all())
 
         # MPI implementation may not support asynchronous operations
@@ -1261,7 +1286,9 @@ class TestCommunication(unittest.TestCase):
     def test_ialltoallv(self):
         try:
             # contiguous data buffer
-            data = ht.array([[ht.MPI_WORLD.rank] * 10] * (ht.MPI_WORLD.size + 1), device=heat_device)
+            data = ht.array(
+                [[ht.MPI_WORLD.rank] * 10] * (ht.MPI_WORLD.size + 1), device=heat_device
+            )
             send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data.lshape, 0)
 
             # contiguous output buffer
@@ -1327,7 +1354,9 @@ class TestCommunication(unittest.TestCase):
             self.assertTrue((output._DNDarray__array == comparison).all())
 
             # contiguous data buffer
-            data = ht.array([[ht.MPI_WORLD.rank] * 10] * (ht.MPI_WORLD.size + 1), device=heat_device)
+            data = ht.array(
+                [[ht.MPI_WORLD.rank] * 10] * (ht.MPI_WORLD.size + 1), device=heat_device
+            )
             send_counts, send_displs, output_shape = data.comm.counts_displs_shape(data.lshape, 0)
 
             # non-contiguous output buffer
@@ -1428,7 +1457,8 @@ class TestCommunication(unittest.TestCase):
             self.assertFalse(data._DNDarray__array.is_contiguous())
             self.assertTrue(
                 (
-                    data._DNDarray__array == torch.ones((5, 2), dtype=torch.float32, device=torch_device)
+                    data._DNDarray__array
+                    == torch.ones((5, 2), dtype=torch.float32, device=torch_device)
                 ).all()
             )
 
@@ -1514,7 +1544,9 @@ class TestCommunication(unittest.TestCase):
                 self.assertTrue(
                     (
                         output._DNDarray__array
-                        == torch.ones((ht.MPI_WORLD.size, 5), dtype=torch.float32, device=torch_device)
+                        == torch.ones(
+                            (ht.MPI_WORLD.size, 5), dtype=torch.float32, device=torch_device
+                        )
                     ).all()
                 )
 
@@ -1613,7 +1645,9 @@ class TestCommunication(unittest.TestCase):
             self.assertTrue(output._DNDarray__array.is_contiguous())
             if data.comm.rank == 0:
                 self.assertTrue(
-                    (output._DNDarray__array == torch.ones(output_count, 10, device=torch_device)).all()
+                    (
+                        output._DNDarray__array == torch.ones(output_count, 10, device=torch_device)
+                    ).all()
                 )
 
             # non-contiguous data buffer, contiguous output buffer
@@ -1636,7 +1670,9 @@ class TestCommunication(unittest.TestCase):
             self.assertTrue(output._DNDarray__array.is_contiguous())
             if data.comm.rank == 0:
                 self.assertTrue(
-                    (output._DNDarray__array == torch.ones(output_count, 10, device=torch_device)).all()
+                    (
+                        output._DNDarray__array == torch.ones(output_count, 10, device=torch_device)
+                    ).all()
                 )
 
             # contiguous data buffer, non-contiguous output buffer
@@ -1659,7 +1695,9 @@ class TestCommunication(unittest.TestCase):
             self.assertFalse(output._DNDarray__array.is_contiguous())
             if data.comm.rank == 0:
                 self.assertTrue(
-                    (output._DNDarray__array == torch.ones(output_count, 10, device=torch_device)).all()
+                    (
+                        output._DNDarray__array == torch.ones(output_count, 10, device=torch_device)
+                    ).all()
                 )
 
             # non-contiguous data buffer, non-contiguous output buffer
@@ -1682,7 +1720,9 @@ class TestCommunication(unittest.TestCase):
             self.assertFalse(output._DNDarray__array.is_contiguous())
             if data.comm.rank == 0:
                 self.assertTrue(
-                    (output._DNDarray__array == torch.ones(output_count, 10, device=torch_device)).all()
+                    (
+                        output._DNDarray__array == torch.ones(output_count, 10, device=torch_device)
+                    ).all()
                 )
 
         # MPI implementation may not support asynchronous operations
@@ -1828,7 +1868,9 @@ class TestCommunication(unittest.TestCase):
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
-            self.assertTrue((output._DNDarray__array == torch.ones(1, 5, device=torch_device)).all())
+            self.assertTrue(
+                (output._DNDarray__array == torch.ones(1, 5, device=torch_device)).all()
+            )
 
             # contiguous data, different scatter axis
             if ht.MPI_WORLD.rank == 0:
@@ -1846,7 +1888,9 @@ class TestCommunication(unittest.TestCase):
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
-            self.assertTrue((output._DNDarray__array == torch.ones(5, 1, device=torch_device)).all())
+            self.assertTrue(
+                (output._DNDarray__array == torch.ones(5, 1, device=torch_device)).all()
+            )
 
             # non-contiguous data
             if ht.MPI_WORLD.rank == 0:
@@ -1868,7 +1912,9 @@ class TestCommunication(unittest.TestCase):
             else:
                 self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
-            self.assertTrue((output._DNDarray__array == torch.ones(2, 5, device=torch_device)).all())
+            self.assertTrue(
+                (output._DNDarray__array == torch.ones(2, 5, device=torch_device)).all()
+            )
 
             # non-contiguous destination, different split axis
             if ht.MPI_WORLD.rank == 0:
@@ -1886,7 +1932,9 @@ class TestCommunication(unittest.TestCase):
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertFalse(output._DNDarray__array.is_contiguous())
-            self.assertTrue((output._DNDarray__array == torch.ones(5, 2, device=torch_device)).all())
+            self.assertTrue(
+                (output._DNDarray__array == torch.ones(5, 2, device=torch_device)).all()
+            )
 
         # MPI implementation may not support asynchronous operations
         except NotImplementedError:

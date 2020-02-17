@@ -6,21 +6,21 @@ from heat.core.tests.test_suites.basic_test import BasicTest
 
 envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
-if envar == 'cpu':
+if envar == "cpu":
     ht.use_device("cpu")
     torch_device = ht.cpu.torch_device
     heat_device = None
-elif envar == 'gpu' and ht.torch.cuda.is_available():
+elif envar == "gpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
     heat_device = None
-elif envar == 'lcpu' and ht.torch.cuda.is_available():
+elif envar == "lcpu" and ht.torch.cuda.is_available():
     ht.use_device("gpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
-elif envar == 'lgpu' and ht.torch.cuda.is_available():
+elif envar == "lgpu" and ht.torch.cuda.is_available():
     ht.use_device("cpu")
     ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
@@ -338,7 +338,8 @@ class TestManipulations(BasicTest):
             ht.concatenate((x, ht.zeros((2, 2), device=heat_device)), axis=0)
         with self.assertRaises(ValueError):
             ht.concatenate(
-                (ht.zeros((12, 12), device=heat_device), ht.zeros((2, 2), device=heat_device)), axis=0
+                (ht.zeros((12, 12), device=heat_device), ht.zeros((2, 2), device=heat_device)),
+                axis=0,
             )
         with self.assertRaises(RuntimeError):
             ht.concatenate(
@@ -418,7 +419,8 @@ class TestManipulations(BasicTest):
         res = ht.diag(a)
         self.assertTrue(
             torch.equal(
-                res[rank, rank]._DNDarray__array, torch.tensor(1, dtype=torch.int32, device=torch_device)
+                res[rank, rank]._DNDarray__array,
+                torch.tensor(1, dtype=torch.int32, device=torch_device),
             )
         )
 
@@ -450,7 +452,9 @@ class TestManipulations(BasicTest):
 
         a = ht.array(data, split=0, device=heat_device)
         res = ht.diagonal(a)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank], device=torch_device)))
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.tensor([rank], device=torch_device))
+        )
         self.assertEqual(res.split, 0)
 
         a = ht.array(data, split=1, device=heat_device)
@@ -458,37 +462,55 @@ class TestManipulations(BasicTest):
         self.assertTrue(ht.equal(res, res2))
 
         res = ht.diagonal(a)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank], device=torch_device)))
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.tensor([rank], device=torch_device))
+        )
         self.assertEqual(res.split, 0)
 
         a = ht.array(data, split=0, device=heat_device)
         res2 = ht.diagonal(a, dim1=1, dim2=0)
         self.assertTrue(ht.equal(res, res2))
 
-        data = torch.arange(size + 1, device=torch_device).repeat(size + 1).reshape(size + 1, size + 1)
+        data = (
+            torch.arange(size + 1, device=torch_device).repeat(size + 1).reshape(size + 1, size + 1)
+        )
         a = ht.array(data, device=heat_device)
         res = ht.diagonal(a, offset=0)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(size + 1, device=torch_device)))
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.arange(size + 1, device=torch_device))
+        )
         res = ht.diagonal(a, offset=1)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(1, size + 1, device=torch_device)))
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.arange(1, size + 1, device=torch_device))
+        )
         res = ht.diagonal(a, offset=-1)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(0, size, device=torch_device)))
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.arange(0, size, device=torch_device))
+        )
 
         a = ht.array(data, split=0, device=heat_device)
         res = ht.diagonal(a, offset=1)
         res.balance_()
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank + 1], device=torch_device)))
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.tensor([rank + 1], device=torch_device))
+        )
         res = ht.diagonal(a, offset=-1)
         res.balance_()
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank], device=torch_device)))
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.tensor([rank], device=torch_device))
+        )
 
         a = ht.array(data, split=1, device=heat_device)
         res = ht.diagonal(a, offset=1)
         res.balance_()
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank + 1], device=torch_device)))
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.tensor([rank + 1], device=torch_device))
+        )
         res = ht.diagonal(a, offset=-1)
         res.balance_()
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.tensor([rank], device=torch_device)))
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.tensor([rank], device=torch_device))
+        )
 
         data = (
             torch.arange(size * 2 + 10, device=torch_device)
@@ -501,20 +523,25 @@ class TestManipulations(BasicTest):
             torch.equal(res._DNDarray__array, torch.arange(10, 10 + size * 2, device=torch_device))
         )
         res = ht.diagonal(a, offset=-10)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.arange(0, size * 2, device=torch_device)))
+        self.assertTrue(
+            torch.equal(res._DNDarray__array, torch.arange(0, size * 2, device=torch_device))
+        )
 
         a = ht.array(data, split=0, device=heat_device)
         res = ht.diagonal(a, offset=10)
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array, torch.tensor([10 + rank * 2, 11 + rank * 2], device=torch_device)
+                res._DNDarray__array,
+                torch.tensor([10 + rank * 2, 11 + rank * 2], device=torch_device),
             )
         )
         res = ht.diagonal(a, offset=-10)
         res.balance_()
         self.assertTrue(
-            torch.equal(res._DNDarray__array, torch.tensor([rank * 2, 1 + rank * 2], device=torch_device))
+            torch.equal(
+                res._DNDarray__array, torch.tensor([rank * 2, 1 + rank * 2], device=torch_device)
+            )
         )
 
         a = ht.array(data, split=1, device=heat_device)
@@ -522,13 +549,16 @@ class TestManipulations(BasicTest):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array, torch.tensor([10 + rank * 2, 11 + rank * 2], device=torch_device)
+                res._DNDarray__array,
+                torch.tensor([10 + rank * 2, 11 + rank * 2], device=torch_device),
             )
         )
         res = ht.diagonal(a, offset=-10)
         res.balance_()
         self.assertTrue(
-            torch.equal(res._DNDarray__array, torch.tensor([rank * 2, 1 + rank * 2], device=torch_device))
+            torch.equal(
+                res._DNDarray__array, torch.tensor([rank * 2, 1 + rank * 2], device=torch_device)
+            )
         )
 
         data = (
@@ -551,14 +581,20 @@ class TestManipulations(BasicTest):
         self.assertTrue(
             torch.equal(
                 res._DNDarray__array,
-                torch.arange(size + 1, device=torch_device).repeat(size).reshape(size, size + 1).t(),
+                torch.arange(size + 1, device=torch_device)
+                .repeat(size)
+                .reshape(size, size + 1)
+                .t(),
             )
         )
         res = ht.diagonal(a, offset=-1)
         self.assertTrue(
             torch.equal(
                 res._DNDarray__array,
-                torch.arange(size + 1, device=torch_device).repeat(size).reshape(size, size + 1).t(),
+                torch.arange(size + 1, device=torch_device)
+                .repeat(size)
+                .reshape(size, size + 1)
+                .t(),
             )
         )
 
@@ -566,14 +602,18 @@ class TestManipulations(BasicTest):
         self.assertTrue(
             torch.equal(
                 res._DNDarray__array,
-                torch.arange(size + 1, device=torch_device).repeat(size + 1).reshape(size + 1, size + 1),
+                torch.arange(size + 1, device=torch_device)
+                .repeat(size + 1)
+                .reshape(size + 1, size + 1),
             )
         )
         res = ht.diagonal(a, offset=1, dim1=1, dim2=2)
         self.assertTrue(
             torch.equal(
                 res._DNDarray__array,
-                torch.arange(1, size + 1, device=torch_device).repeat(size + 1).reshape(size + 1, size),
+                torch.arange(1, size + 1, device=torch_device)
+                .repeat(size + 1)
+                .reshape(size + 1, size),
             )
         )
         res = ht.diagonal(a, offset=-1, dim1=1, dim2=2)
@@ -588,7 +628,9 @@ class TestManipulations(BasicTest):
         self.assertTrue(
             torch.equal(
                 res._DNDarray__array,
-                torch.arange(size + 1, device=torch_device).repeat(size + 1).reshape(size + 1, size + 1),
+                torch.arange(size + 1, device=torch_device)
+                .repeat(size + 1)
+                .reshape(size + 1, size + 1),
             )
         )
 
@@ -597,7 +639,8 @@ class TestManipulations(BasicTest):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array, torch.arange(size + 1, device=torch_device).reshape(size + 1, 1)
+                res._DNDarray__array,
+                torch.arange(size + 1, device=torch_device).reshape(size + 1, 1),
             )
         )
         self.assertEqual(res.split, 1)
@@ -606,7 +649,8 @@ class TestManipulations(BasicTest):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array, torch.arange(size + 1, device=torch_device).reshape(size + 1, 1)
+                res._DNDarray__array,
+                torch.arange(size + 1, device=torch_device).reshape(size + 1, 1),
             )
         )
         self.assertEqual(res.split, 1)
@@ -615,7 +659,8 @@ class TestManipulations(BasicTest):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array, torch.empty((size + 1, 0), dtype=torch.int64, device=torch_device)
+                res._DNDarray__array,
+                torch.empty((size + 1, 0), dtype=torch.int64, device=torch_device),
             )
         )
         self.assertTrue(res.shape[res.split] == 0)
@@ -862,14 +907,18 @@ class TestManipulations(BasicTest):
         data = ht.array(tensor, split=1, device=heat_device)
 
         exp_axis_zero = torch.tensor(rank, device=torch_device).repeat(size).reshape(size, 1)
-        indices_axis_zero = torch.arange(size, dtype=torch.int64, device=torch_device).reshape(size, 1)
+        indices_axis_zero = torch.arange(size, dtype=torch.int64, device=torch_device).reshape(
+            size, 1
+        )
         result, result_indices = ht.sort(data, axis=0, descending=True)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_zero))
         # comparison value is only true on CPU
         if result_indices._DNDarray__array.is_cuda is False:
             self.assertTrue(torch.equal(result_indices._DNDarray__array, indices_axis_zero.int()))
 
-        exp_axis_one = torch.tensor(size - rank - 1, device=torch_device).repeat(size).reshape(size, 1)
+        exp_axis_one = (
+            torch.tensor(size - rank - 1, device=torch_device).repeat(size).reshape(size, 1)
+        )
         result, result_indices = ht.sort(data, descending=True, axis=1)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_one))
         self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_axis_one.int()))

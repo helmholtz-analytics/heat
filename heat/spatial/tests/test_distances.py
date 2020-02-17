@@ -9,21 +9,21 @@ import math
 
 envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
-if envar == 'cpu':
+if envar == "cpu":
     ht.use_device("cpu")
     torch_device = ht.cpu.torch_device
     heat_device = None
-elif envar == 'gpu' and torch.cuda.is_available():
+elif envar == "gpu" and torch.cuda.is_available():
     ht.use_device("gpu")
     torch.cuda.set_device(torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
     heat_device = None
-elif envar == 'lcpu' and torch.cuda.is_available():
+elif envar == "lcpu" and torch.cuda.is_available():
     ht.use_device("gpu")
     torch.cuda.set_device(torch.device(ht.gpu.torch_device))
     torch_device = ht.cpu.torch_device
     heat_device = ht.cpu
-elif envar == 'lgpu' and torch.cuda.is_available():
+elif envar == "lgpu" and torch.cuda.is_available():
     ht.use_device("cpu")
     torch.cuda.set_device(torch.device(ht.gpu.torch_device))
     torch_device = ht.gpu.torch_device
@@ -33,7 +33,6 @@ elif envar == 'lgpu' and torch.cuda.is_available():
 class TestDistances(unittest.TestCase):
     def test_cdist(self):
         n = ht.communication.MPI_WORLD.size
-        
         X = ht.ones((n * 2, 4), dtype=ht.float32, split=None, device=heat_device)
         Y = ht.zeros((n * 2, 4), dtype=ht.float32, split=None, device=heat_device)
         res_XX_cdist = ht.zeros((n * 2, n * 2), dtype=ht.float32, split=None, device=heat_device)
@@ -163,19 +162,19 @@ class TestDistances(unittest.TestCase):
         # Case 3 X.split == 1
         X = ht.ones((n * 2, 4), dtype=ht.float32, split=1, device=heat_device)
         with self.assertRaises(NotImplementedError):
-            d = ht.spatial.cdist(X)
+            ht.spatial.cdist(X)
         with self.assertRaises(NotImplementedError):
-            d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
+            ht.spatial.cdist(X, Y, quadratic_expansion=False)
         X = ht.ones((n * 2, 4), dtype=ht.float32, split=None, device=heat_device)
         Y = ht.zeros((n * 2, 4), dtype=ht.float32, split=1, device=heat_device)
         with self.assertRaises(NotImplementedError):
-            d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
+            ht.spatial.cdist(X, Y, quadratic_expansion=False)
 
         Z = ht.ones((n * 2, 6, 3), dtype=ht.float32, split=None, device=heat_device)
         with self.assertRaises(NotImplementedError):
-            d = ht.spatial.cdist(Z, quadratic_expansion=False)
+            ht.spatial.cdist(Z, quadratic_expansion=False)
         with self.assertRaises(NotImplementedError):
-            d = ht.spatial.cdist(X, Z, quadratic_expansion=False)
+            ht.spatial.cdist(X, Z, quadratic_expansion=False)
 
         n = ht.communication.MPI_WORLD.size
         A = ht.ones((n * 2, 6), dtype=ht.float32, split=None, device=heat_device)
