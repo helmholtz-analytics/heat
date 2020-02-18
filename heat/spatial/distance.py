@@ -304,7 +304,7 @@ def _dist(X, Y=None, metric=_euclidian):
                     stat = MPI.Status()
                     comm.handle.Probe(source=sender, tag=num_iter, status=stat)
                     count = int(stat.Get_count(mpi_type) / f)
-                    moving = torch.zeros((count, f), dtype=torch_type)
+                    moving = torch.zeros((count, f), dtype=torch_type, device=X.device.torch_device)
                     comm.Recv(moving, source=sender, tag=num_iter)
 
                     col1 = displ[sender]
@@ -449,7 +449,9 @@ def _dist(X, Y=None, metric=_euclidian):
                         stat = MPI.Status()
                         Y.comm.handle.Probe(source=sender, tag=iter, status=stat)
                         count = int(stat.Get_count(mpi_type) / f)
-                        moving = torch.zeros((count, f), dtype=torch_type)
+                        moving = torch.zeros(
+                            (count, f), dtype=torch_type, device=X.device.torch_device
+                        )
                         Y.comm.Recv(moving, source=sender, tag=iter)
 
                     d_ij = metric(x_, moving)
