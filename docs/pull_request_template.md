@@ -22,7 +22,7 @@ Remove irrelevant options:
 ## Due Diligence
 
 - [ ] All split configurations tested
-- [ ] Multiple dtypes tested in relavent functions
+- [ ] Multiple dtypes tested in relevant functions
 - [ ] Documentation updated (if needed)
 - [ ] Updated changelog.md under the title "Pending Additions"
 
