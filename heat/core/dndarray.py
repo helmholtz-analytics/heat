@@ -52,17 +52,12 @@ class DNDarray:
         self.__comm = comm
 
         # handle inconsistencies between torch and heat devices
-        if isinstance(self.__array, torch.Tensor):
-            if isinstance(device, devices.Device):
-                if self.__array.device.type not in self.__device.torch_device:
-                    self.__array = self.__array.to(
-                        devices.sanitize_device(self.__device).torch_device
-                    )
-            else:
-                if array.device.type == "cpu":
-                    self.__device = devices.cpu
-                else:
-                    self.__device = devices.gpu
+        if (
+            isinstance(array, torch.Tensor)
+            and isinstance(device, devices.Device)
+            and array.device.type != device.device_type
+        ):
+            self.__array = self.__array.to(devices.sanitize_device(self.__device).torch_device)
 
     @property
     def comm(self):
