@@ -1,6 +1,6 @@
 major = 0
-minor = 2
-micro = 1
+minor = 3
+micro = 0
 extension = None
 
 if not extension:
