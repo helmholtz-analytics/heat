@@ -1336,16 +1336,18 @@ def __qr_split0_local_q_calc(r_tiles, q0_tiles, col, q_dict, diag_process, activ
         local_merge_q = {}
     # -------------- send local Q to all -------------------------------------------------------
     q0_dtype = q0_tiles.arr.dtype
+    q0_torch_type = q0_dtype.torch_type()
+    q0_torch_device = q0_tiles.arr.device.torch_device
     for r in range(diag_process, active_procs[-1] + 1):
         if r != rank:
             hld = torch.zeros(
                 [q0_tiles.lshape_map[r][q0_tiles.arr.split]] * 2,
-                dtype=q0_dtype.torch_type(),
-                device=a_torch_device,
+                dtype=q0_torch_type,
+                device=q0_torch_device,
             )
         else:
             hld = local_merge_q[r][0].clone()
-        wait = r_tiles.arr.comm.Ibcast(hld, root=r)
+        wait = q0_tiles.arr.comm.Ibcast(hld, root=r)
         local_merge_q[r] = [hld, wait]
 
     # recv local Q + apply local Q to Q0
