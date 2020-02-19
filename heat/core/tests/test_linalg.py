@@ -468,8 +468,55 @@ class TestLinalg(unittest.TestCase):
                 b = a.copy()
                 a @ b
 
-    def test_qr(self):
-        if not extended_tests:
+    if extended_tests:
+        print("Running Extended QR tests, expect runtimes above 10 minutes")
+        st_whole = torch.randn(100, 100, device=device)
+
+        def test_qr_sp0(self, st_whole=st_whole):
+            sp = 0
+            for m in range(30, st_whole.shape[0] + 1, 1):
+                for n in range(30, st_whole.shape[1] + 1, 1):
+                    for t in range(1, 3):
+                        st = st_whole[:m, :n].clone()
+                        a_comp = ht.array(st, split=0, device=ht_device)
+                        a = ht.array(st, split=sp, device=ht_device)
+                        qr = a.qr(tiles_per_proc=t)
+                        self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
+                        self.assertTrue(
+                            ht.allclose(
+                                qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5
+                            )
+                        )
+                        self.assertTrue(
+                            ht.allclose(
+                                ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5
+                            )
+                        )
+
+        def test_qr_sp1(self, st_whole=st_whole):
+            sp = 1
+            for m in range(30, st_whole.shape[0] + 1, 1):
+                for n in range(30, st_whole.shape[1] + 1, 1):
+                    for t in range(1, 3):
+                        st = st_whole[:m, :n].clone()
+                        a_comp = ht.array(st, split=0, device=ht_device)
+                        a = ht.array(st, split=sp, device=ht_device)
+                        qr = a.qr(tiles_per_proc=t)
+                        self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
+                        self.assertTrue(
+                            ht.allclose(
+                                qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5
+                            )
+                        )
+                        self.assertTrue(
+                            ht.allclose(
+                                ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5
+                            )
+                        )
+
+    else:
+
+        def test_qr(self):
             m, n = 40, 40
             st = torch.randn(m, n, device=device)
             a_comp = ht.array(st, split=0, device=ht_device)
@@ -530,54 +577,33 @@ class TestLinalg(unittest.TestCase):
                             atol=1e-5,
                         )
                     )
-        else:
-            st_whole = torch.randn(100, 100, device=device)
-            for m in range(30, st_whole.shape[0] + 1, 1):
-                for n in range(30, st_whole.shape[1] + 1, 1):
-                    for t in range(1, 3):
-                        for sp in range(0, 2):
-                            st = st_whole[:m, :n].clone()
-                            a_comp = ht.array(st, split=0, device=ht_device)
-                            a = ht.array(st, split=sp, device=ht_device)
-                            qr = a.qr(tiles_per_proc=t)
-                            self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
-                            self.assertTrue(
-                                ht.allclose(
-                                    qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5
-                                )
-                            )
-                            self.assertTrue(
-                                ht.allclose(
-                                    ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5
-                                )
-                            )
 
-        m, n = 40, 20
-        st = torch.randn(m, n, device=device)
-        a_comp = ht.array(st, split=None, device=ht_device)
-        a = ht.array(st, split=None, device=ht_device)
-        qr = a.qr()
-        self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
-        self.assertTrue(
-            ht.allclose(qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5)
-        )
-        self.assertTrue(
-            ht.allclose(ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5)
-        )
+            m, n = 40, 20
+            st = torch.randn(m, n, device=device)
+            a_comp = ht.array(st, split=None, device=ht_device)
+            a = ht.array(st, split=None, device=ht_device)
+            qr = a.qr()
+            self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
+            self.assertTrue(
+                ht.allclose(qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5)
+            )
+            self.assertTrue(
+                ht.allclose(ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5)
+            )
 
-        # raises
-        with self.assertRaises(TypeError):
-            ht.qr(np.zeros((10, 10)))
-        with self.assertRaises(TypeError):
-            ht.qr(a_comp, tiles_per_proc="ls")
-        with self.assertRaises(TypeError):
-            ht.qr(a_comp, tiles_per_proc=1, calc_q=30)
-        with self.assertRaises(TypeError):
-            ht.qr(a_comp, tiles_per_proc=1, overwrite_a=30)
-        with self.assertRaises(ValueError):
-            ht.qr(a_comp, tiles_per_proc=torch.tensor([1, 2, 3]))
-        with self.assertRaises(ValueError):
-            ht.qr(ht.zeros((3, 4, 5)))
+            # raises
+            with self.assertRaises(TypeError):
+                ht.qr(np.zeros((10, 10)))
+            with self.assertRaises(TypeError):
+                ht.qr(a_comp, tiles_per_proc="ls")
+            with self.assertRaises(TypeError):
+                ht.qr(a_comp, tiles_per_proc=1, calc_q=30)
+            with self.assertRaises(TypeError):
+                ht.qr(a_comp, tiles_per_proc=1, overwrite_a=30)
+            with self.assertRaises(ValueError):
+                ht.qr(a_comp, tiles_per_proc=torch.tensor([1, 2, 3]))
+            with self.assertRaises(ValueError):
+                ht.qr(ht.zeros((3, 4, 5)))
 
     def test_transpose(self):
         # vector transpose, not distributed
