@@ -1294,11 +1294,13 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
+
         l_dtype = self.dtype.torch_type()
         if isinstance(key, DNDarray) and key.gshape[-1] != len(self.gshape):
             key = tuple(x.item() for x in key)
 
         if not self.is_distributed():
+
             if not self.comm.size == 1:
                 if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                     # this will return a 1D array as the shape cannot be determined automatically
@@ -1333,6 +1335,7 @@ class DNDarray:
                     )
 
         else:
+
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
@@ -1406,19 +1409,24 @@ class DNDarray:
                 else:
                     # if the given axes are not splits (must be ints OR LISTS for python)
                     # this means the whole slice is on one node
+                    if isinstance(key, list):
+                        indices = key
+                    else:
+                        indices = key[self.split]
                     key = list(key)
-                    if isinstance(key[self.split], list):
-                        key[self.split] = [
+                    if isinstance(indices, list):
+                        indices = [
                             index + self.gshape[self.split] if index < 0 else index
-                            for index in key[self.split]
+                            for index in indices
                         ]
-                        sorted_key_along_split = sorted(key[self.split])
+                        sorted_key_along_split = sorted(indices)
                         if sorted_key_along_split[0] in range(
                             chunk_start, chunk_end
                         ) and sorted_key_along_split[-1] in range(chunk_start, chunk_end):
-                            key[self.split] = [index - chunk_start for index in key[self.split]]
-                            arr = self.__array[tuple(key)]
+                            indices = [index - chunk_start for index in indices]
+                            arr = self.__array[indices]
                             gout = list(arr.shape)
+
                     elif isinstance(key[self.split], int):
                         key[self.split] = (
                             key[self.split] + self.gshape[self.split]
