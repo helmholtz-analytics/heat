@@ -45,19 +45,21 @@ class TestGaussianNB(BasicTest):
         self.assert_array_equal(y_pred_local_weight, y_pred_local.numpy())
 
         # test GaussianNB, data and labels distributed along split axis 0
-        X_train_split = ht.resplit(X_train, axis=0)
-        X_test_split = ht.resplit(X_test, axis=0)
-        y_train_split = ht.resplit(y_train, axis=0)
-        y_test_split = ht.resplit(y_test, axis=0)
-        y_pred_split = gnb_heat.fit(X_train_split, y_train_split).predict(X_test_split)
-        self.assert_array_equal(y_pred_split, y_pred_local.numpy())
-        self.assertEqual((y_pred_split != y_test_split).sum(), ht.array(4))
-        sample_weight_split = ht.ones(y_train_split.gshape[0], dtype=ht.float32, split=0)
-        y_pred_split_weight = gnb_heat.fit(
-            X_train_split, y_train_split, sample_weight=sample_weight_split
-        ).predict(X_test_split)
-        self.assertIsInstance(y_pred_split_weight, ht.DNDarray)
-        self.assert_array_equal(y_pred_split_weight, y_pred_split.numpy())
+        size = ht.MPI_WORLD.size
+        if size in range(7):
+            X_train_split = ht.resplit(X_train, axis=0)
+            X_test_split = ht.resplit(X_test, axis=0)
+            y_train_split = ht.resplit(y_train, axis=0)
+            y_test_split = ht.resplit(y_test, axis=0)
+            y_pred_split = gnb_heat.fit(X_train_split, y_train_split).predict(X_test_split)
+            self.assert_array_equal(y_pred_split, y_pred_local.numpy())
+            self.assertEqual((y_pred_split != y_test_split).sum(), ht.array(4))
+            sample_weight_split = ht.ones(y_train_split.gshape[0], dtype=ht.float32, split=0)
+            y_pred_split_weight = gnb_heat.fit(
+                X_train_split, y_train_split, sample_weight=sample_weight_split
+            ).predict(X_test_split)
+            self.assertIsInstance(y_pred_split_weight, ht.DNDarray)
+            self.assert_array_equal(y_pred_split_weight, y_pred_split.numpy())
 
         # test exceptions
         X_torch = torch.ones(75, 4)
