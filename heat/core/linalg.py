@@ -1054,12 +1054,16 @@ def __qr_split0_global_q_dict_set(q_dict_col, col, r_tiles, q_tiles, global_merg
         bottom_right = lp_q[base_size[0] :, base_size[0] :]
         # need to adjust the keys to be the global row
         if diag_proc == r0:
-            col0 = col
+            col1 = col
         else:
-            col0 = proc_tile_start[r0].item()
-        col1 = proc_tile_start[r1].item()
+            col1 = proc_tile_start[r0].item()
+        col2 = proc_tile_start[r1].item()
         # col0 and col1 are the columns numbers
         # r0 and r1 are the ranks
+        jdim = (col1, col1)
+        kdim = (col1, col2)
+        ldim = (col2, col1)
+        mdim = (col2, col2)
 
         # if there are no elements on that location than set it as the tile
         # 1. get keys of what already has data
@@ -1068,13 +1072,13 @@ def __qr_split0_global_q_dict_set(q_dict_col, col, r_tiles, q_tiles, global_merg
         # these are the keys which are to be multiplied by the q in the current loop
         # for matrix of form: | J  K |
         #                     | L  M |
-        mult_keys_00 = [(i, col0) for i in range(q_tiles.tile_columns)]  # (J)
+        mult_keys_00 = [(i, col1) for i in range(q_tiles.tile_columns)]  # (J)
         # (J) -> inds: (i, col0)(col0, col0) -> set at (i, col0)
-        mult_keys_01 = [(i, col0) for i in range(q_tiles.tile_columns)]  # (K)
+        mult_keys_01 = [(i, col1) for i in range(q_tiles.tile_columns)]  # (K)
         # (K) -> inds: (i, col0)(col0, col1) -> set at (i, col1)
-        mult_keys_10 = [(i, col1) for i in range(q_tiles.tile_columns)]  # (L)
+        mult_keys_10 = [(i, col2) for i in range(q_tiles.tile_columns)]  # (L)
         # (L) -> inds: (i, col1)(col1, col0) -> set at (i, col0)
-        mult_keys_11 = [(i, col1) for i in range(q_tiles.tile_columns)]  # (M)
+        mult_keys_11 = [(i, col2) for i in range(q_tiles.tile_columns)]  # (M)
         # (M) -> inds: (i, col1)(col1, col1) -> set at (i, col1)
 
         # if there are no elements in the mult_keys then set the element to the same place
@@ -1086,31 +1090,31 @@ def __qr_split0_global_q_dict_set(q_dict_col, col, r_tiles, q_tiles, global_merg
 
         # (J)
         if not len(s00):
-            global_merge_dict[col0, col0] = top_left
+            global_merge_dict[jdim] = top_left
         else:  # -> do the mm for all of the mult keys
             for k in s00:
-                global_merge_dict[k[0], col0] = hold_dict[k] @ top_left
+                global_merge_dict[k[0], jdim[1]] = hold_dict[k] @ top_left
         # (K)
         if not len(s01):
             # check that we are not overwriting here
-            global_merge_dict[col0, col1] = top_right
+            global_merge_dict[kdim] = top_right
         else:  # -> do the mm for all of the mult keys
             for k in s01:
-                global_merge_dict[k[0], col1] = hold_dict[k] @ top_right
+                global_merge_dict[k[0], kdim[1]] = hold_dict[k] @ top_right
         # (L)
         if not len(s10):
             # check that we are not overwriting here
-            global_merge_dict[col1, col0] = bottom_left
+            global_merge_dict[ldim] = bottom_left
         else:  # -> do the mm for all of the mult keys
             for k in s10:
-                global_merge_dict[k[0], col0] = hold_dict[k] @ bottom_left
+                global_merge_dict[k[0], ldim[1]] = hold_dict[k] @ bottom_left
         # (M)
         if not len(s11):
             # check that we are not overwriting here
-            global_merge_dict[col1, col1] = bottom_right
+            global_merge_dict[mdim] = bottom_right
         else:  # -> do the mm for all of the mult keys
             for k in s11:
-                global_merge_dict[k[0], col1] = hold_dict[k] @ bottom_right
+                global_merge_dict[k[0], mdim[1]] = hold_dict[k] @ bottom_right
     return global_merge_dict
 
 
@@ -1649,9 +1653,11 @@ def __qr_split0_q_loop(col, r, proc_tile_start, active_procs, q0, q_dict, q_dict
 
             write_inds = q0.tiles.get_start_stop(key=(0, qi_col))
             q0.tiles.arr.lloc[:, write_inds[2] : write_inds[2] + hold.shape[1]] = hold
-
-        if col in q_dict.keys():
-            del q_dict[col]
+    else:
+        for ind in merge_dict_keys:
+            global_merge_dict[ind][1].wait()
+    if col in q_dict.keys():
+        del q_dict[col]
 
 
 def __qr_split1_loop(dcol, a, q0, calc_q):
