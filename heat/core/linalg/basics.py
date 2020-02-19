@@ -42,7 +42,9 @@ def dot(a, b, out=None):
         return a * b
     elif a.numdims == 1 and b.numdims == 1:
         # 1. If both a and b are 1-D arrays, it is inner product of vectors.
-        if a.split is not None or b.split is not None:
+        if a.split is None and b.split is None:
+            sl = slice(None)
+        else:  # at least one of them is split
             sl = a.comm.chunk(a.shape, a.split if a.split is not None else b.split)[2]
         ret = torch.dot(a[sl]._DNDarray__array, b[sl]._DNDarray__array)
         if a.is_distributed() or b.is_distributed():
@@ -68,34 +70,42 @@ def dot(a, b, out=None):
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
 
-def matmul(a, b):
+def matmul(a, b, allow_resplit=False):
     """
     Matrix multiplication of two DNDarrays
-
     for comment context -> a @ b = c or A @ B = c
-
     Parameters
     ----------
     a : ht.DNDarray
         2 dimensional: L x P
     b : ht.DNDarray
         2 dimensional: P x Q
-
+    allow_resplit : bool, optional
+        Flag for if to resplit the DNDarray 'a' in the case that both 'a' and 'b' are not split.
+        Default: if both are not split then both will remain not split.
+        True: if both are not split then 'a' will be split in-place along axis 0, i.e. the split
+            axis of 'a' will become 0 and the DNDarray will be distributed in the standard fashion.
+            The default case should be the most efficient case for large matrices.
     Returns
     -------
     ht.DNDarray
-        returns a tensor with the result of a @ b. The split dimension of the returned array is typically the split dimension of a.
-        However, if a.split = None then c.split will be set as the split dimension of b. If both are None then c.split is also None.
-        ** NOTE ** if a is a split vector then the returned vector will be of shape (1xQ) and will be split in the 1st dimension
-        ** NOTE ** if b is a vector and either a or b is split, then the returned vector will be of shape (Lx1) and will be split in the 0th dimension
-
+        returns a tensor with the result of a @ b. The split dimension of the returned array is
+        typically the split dimension of a. However, if a.split = None then the the c.split will be
+        set as the split dimension of b. If both are None then c.split is also None.
+    Notes
+    -----
+    - If a is a split vector then the returned vector will be of shape (1xQ) and will be split in
+        the 1st dimension
+    - If b is a vector and either a or b is split, then the returned vector will be of shape (Lx1)
+        and will be split in the 0th dimension
     References
     ----------
-    [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on Distributed Data-parallel Platforms,"
-        IEEE Transactions on Parallel and Distributed Systems, vol 28, no. 9. 2017.
-    [2] S. Ryu and D. Kim, "Parallel Huge Matrix Multiplication on a Cluster with GPGPU Accelerators,"
-        2018 IEEE International Parallel and Distributed Processing Symposium Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
-
+    [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on
+        Distributed Data-parallel Platforms," IEEE Transactions on Parallel and Distributed Systems,
+         vol 28, no. 9. 2017.
+    [2] S. Ryu and D. Kim, "Parallel Huge Matrix Multiplication on a Cluster with GPGPU
+        Accelerators," 2018 IEEE International Parallel and Distributed Processing Symposium
+        Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
     Example
     -------
     >>> a = ht.ones((n, m), split=1)
@@ -145,7 +155,7 @@ def matmul(a, b):
         b = c_type(b, device=b.device)
 
     if a.split is None and b.split is None:  # matmul from torch
-        if len(a.gshape) < 2 or len(b.gshape) < 2:
+        if len(a.gshape) < 2 or len(b.gshape) < 2 or not allow_resplit:
             # if either of A or B is a vector
             return factories.array(
                 torch.matmul(a._DNDarray__array, b._DNDarray__array), device=a.device
@@ -756,7 +766,7 @@ def matmul(a, b):
             return c
 
 
-# @torch.jit.script
+@torch.jit.script
 def __mm_c_block_setter(
     b_proc, a_proc, a_data, b_data, b_block_map, a_block_map, b_split, a_split, mB, kB, nB, c
 ):
