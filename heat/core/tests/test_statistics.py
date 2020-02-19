@@ -315,7 +315,7 @@ class TestStatistics(unittest.TestCase):
         )
         size = random_volume.comm.size
         random_weights = ht.array(
-            torch.randn((3 * size,), dtype=torch.float64, device=device), device=ht_device
+            torch.randn((3 * size,), dtype=torch.float64, device=device), split=0, device=ht_device
         )
         avg_volume = ht.average(random_volume, weights=random_weights, axis=1)
         np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)
@@ -347,8 +347,8 @@ class TestStatistics(unittest.TestCase):
 
         # check weighted average over all float elements of split 5d tensor, along split axis
         random_5d = ht.random.randn(random_volume.comm.size, 2, 3, 4, 5, split=0, device=ht_device)
-        axis = 1
-        random_weights = ht.random.randn(random_5d.gshape[axis], device=ht_device)
+        axis = random_5d.split
+        random_weights = ht.random.randn(random_5d.gshape[axis], split=0, device=ht_device)
         avg_5d = random_5d.average(weights=random_weights, axis=axis)
 
         self.assertIsInstance(avg_5d, ht.DNDarray)
@@ -356,7 +356,7 @@ class TestStatistics(unittest.TestCase):
         self.assertLessEqual(avg_5d.lshape[1], 3)
         self.assertEqual(avg_5d.dtype, ht.float64)
         self.assertEqual(avg_5d._DNDarray__array.dtype, torch.float64)
-        self.assertEqual(avg_5d.split, 0)
+        self.assertEqual(avg_5d.split, None)
 
         # check exceptions
         with self.assertRaises(TypeError):
@@ -372,12 +372,12 @@ class TestStatistics(unittest.TestCase):
         )
         with self.assertRaises(TypeError):
             ht.average(random_5d, weights=random_weights, axis=axis)
-        random_weights = ht.random.randn(random_5d.gshape[axis] + 1, device=ht_device)
+        random_shape_weights = ht.random.randn(random_5d.gshape[axis] + 1, device=ht_device)
         with self.assertRaises(ValueError):
-            ht.average(random_5d, weights=random_weights, axis=axis)
-        random_weights = ht.zeros((random_5d.gshape[axis]), device=ht_device)
+            ht.average(random_5d, weights=random_shape_weights, axis=axis)
+        zero_weights = ht.zeros((random_5d.gshape[axis]), split=0, device=ht_device)
         with self.assertRaises(ZeroDivisionError):
-            ht.average(random_5d, weights=random_weights, axis=axis)
+            ht.average(random_5d, weights=zero_weights, axis=axis)
         with self.assertRaises(TypeError):
             ht_array.average(axis=1.1)
         with self.assertRaises(TypeError):
