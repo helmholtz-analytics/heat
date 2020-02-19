@@ -2,6 +2,7 @@ import torch
 import math
 import numpy as np
 import heat as ht
+import time
 
 
 def laplacian(S, norm=True, mode="fc", upper=None, lower=None):
@@ -196,7 +197,7 @@ class Spectral:
         """
         if self.metric == "rbf":
             sig = math.sqrt(1 / (2 * self.gamma))
-            s = ht.spatial.rbf(X, sigma=sig)
+            s = ht.spatial.rbf(X, sigma=sig, quadratic_expansion=False)
 
         elif self.metric == "euclidean":
             s = ht.spatial.cdist(X)
@@ -251,7 +252,7 @@ class Spectral:
         """
         # vr = ht.random.rand(L.shape[0], split=L.split, dtype=ht.float64)
         # v0 = vr / ht.norm(vr)
-        v0 = ht.ones((L.shape[0],), dtype=L.dtype, split=L.split) / math.sqrt(L.shape[0])
+        v0 = ht.ones((L.shape[0],), dtype=L.dtype, split=L.split, device=L.device) / math.sqrt(L.shape[0])
 
         V, T = ht.lanczos(L, self.n_lanczos, v0)
         # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
@@ -280,17 +281,24 @@ class Spectral:
         if X.split is not None and X.split != 0:
             raise NotImplementedError("Not implemented for other splitting-axes")
         # 1. Calculation of Adjacency Matrix
+        if X.comm.rank == 0:
+            start = time.perf_counter()
         self._similarity = self._calc_adjacency(X)
         if X.comm.rank == 0:
-            print("Similarity Calculated")
+            stop = time.perf_counter()
+            print("Similarity Calculated in : {}s".format(stop - start))
+            start = time.perf_counter()
         # 2. Calculation of Laplacian
         self._laplacian = self._calc_laplacian(self._similarity)
         if X.comm.rank == 0:
-            print("Laplacian Calculated")
+            stop = time.perf_counter()
+            print("Laplacian Calculated in : {}s".format(stop - start))
+            start = time.perf_counter()
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
         self._eigenvalues, self._eigenvectors = self._calculate_eigendecomposition(self._laplacian)
         if X.comm.rank == 0:
-            print("Eigenvalues Calculated")
+            stop = time.perf_counter()
+            print("Eigenvalues Calculated in : {}s".format(stop - start))
         # 5. Find the spectral gap, if number of clusters is not defined from the outside
         if self.n_clusters is None:
             temp = np.diff(self._eigenvalues.numpy())

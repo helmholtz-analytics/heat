@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 from mpi4py import MPI
-import time
 
 from ..core import factories
 from ..core import types
@@ -200,8 +199,6 @@ def _dist(X, Y=None, metric=_euclidian):
             rank = comm.Get_rank()
             size = comm.Get_size()
             K, f = X.shape
-            #if rank == 0:
-            #    print("Starting distance calculation")
 
             counts, displ, _ = comm.counts_displs_shape(X.shape, X.split)
             num_iter = (size + 1) // 2
@@ -213,8 +210,6 @@ def _dist(X, Y=None, metric=_euclidian):
             d_ij = metric(stationary, stationary)
             d._DNDarray__array[:, rows[0] : rows[1]] = d_ij
             for iter in range(1, num_iter):
-                #if rank == 0:
-                #    start = time.perf_counter()
                 # Send rank's part of the matrix to the next process in a circular fashion
                 receiver = (rank + iter) % size
                 sender = (rank - iter) % size
@@ -262,9 +257,6 @@ def _dist(X, Y=None, metric=_euclidian):
                 if (rank // iter) == 0:
                     comm.Recv(symmetric, source=receiver, tag=iter)
                 d._DNDarray__array[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
-                #if rank == 0:
-                #    stop = time.perf_counter()
-                #    print("Iteration {} of distance calculation: {}s".format(iter, stop-start))
 
 
             if (size + 1) % 2 != 0:  # we need one mor iteration for the first n/2 processes
@@ -298,7 +290,7 @@ def _dist(X, Y=None, metric=_euclidian):
                     scol2 = displ[receiver + 1] if receiver != size - 1 else K
                     scolumns = (scol1, scol2)
                     symmetric = torch.zeros(
-                        (scolumns[1] - scolumns[0], rows[1] - rows[0]), dtype=torch_type
+                        (scolumns[1] - scolumns[0], rows[1] - rows[0]), dtype=torch_type, device=X.device.torch_device
                     )
                     comm.Recv(symmetric, source=receiver, tag=num_iter)
                     d._DNDarray__array[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)

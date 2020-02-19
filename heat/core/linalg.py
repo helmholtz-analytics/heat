@@ -1,7 +1,6 @@
 import itertools
 import math
 import torch
-import time
 
 from .communication import MPI
 from . import arithmetics
@@ -179,9 +178,9 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
         raise TypeError("Input Matrix A needs to be symmetric.")
     T = factories.zeros((m, m))
     if A.split == 0:
-        V = factories.zeros((n, m), split=A.split, dtype=A.dtype)
+        V = factories.zeros((n, m), split=A.split, dtype=A.dtype, device=A.device)
     else:
-        V = factories.zeros((n, m), dtype=A.dtype)
+        V = factories.zeros((n, m), dtype=A.dtype, device=A.device)
 
     if v0 is None:
         vr = random.rand(n)
@@ -195,8 +194,6 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
     T[0, 0] = alpha
     V[:, 0] = v0
     for i in range(1, int(m)):
-        #if A.comm.rank == 0:
-        #    start = time.perf_counter()
         beta = norm(w)
         if abs(beta) < 1e-10:
             print("Lanczos breakdown in iteration {}".format(i))
@@ -222,10 +219,6 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
         T[i, i - 1] = beta
         T[i, i] = alpha
         V[:, i] = vi
-
-        #if A.comm.rank == 0:
-        #    stop = time.perf_counter()
-        #    print("Iteration {} of Lanczos algorithm: {}s".format(i, stop - start))
 
     if V.split is not None:
         V.resplit_(axis=None)
