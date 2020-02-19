@@ -1,6 +1,7 @@
 # Pending Additions
 
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated QR
+- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Added PyTorch Jitter to inner function of matmul for increased speed
 - [#454](https://github.com/helmholtz-analytics/heat/issues/454) Update lasso example
 - [#473](https://github.com/helmholtz-analytics/heat/issues/473) Matmul now will not split any of the input matrices if both have `split=None`. To toggle splitting of one input for increased speed use the allow_resplit flag.
 - [#473](https://github.com/helmholtz-analytics/heat/issues/473) `dot` handles 2 split None vectors correctly now
