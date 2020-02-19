@@ -933,7 +933,7 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
 
     if a.split == 0:
         rank = r.comm.rank
-        active_procs = torch.arange(r.comm.size)
+        active_procs = torch.arange(r.comm.size, device=r.device.torch_device)
         empties = torch.nonzero(r.tiles.lshape_map[..., 0] == 0)
         empties = empties[0] if empties.numel() > 0 else []
         for e in empties:
