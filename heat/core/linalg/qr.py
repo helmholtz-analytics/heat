@@ -605,7 +605,6 @@ def __r_calc_split0(
 
     # --------------- local QR calc --------------------------------------
     base_tile = a_tiles.local_get(key=(slice(lcl_tile_row, None), dim1))
-    # print(lcl_tile_row, dim1)
     q1, r1 = base_tile.qr(some=False)
     q_dict[dim1]["l0"] = [q1, base_tile.shape]
     a_tiles.local_set(key=(slice(lcl_tile_row, None), dim1), value=r1)
@@ -900,7 +899,7 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     return q0, a
 
 
-def __qr_split1_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None, empties=None, arr_t=None):
+def __qr_split1_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None, empties=None):
     if dim1 is None:
         dim1 = dim0
     if empties is None:
