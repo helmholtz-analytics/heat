@@ -352,7 +352,7 @@ class TestStatistics(unittest.TestCase):
         avg_5d = random_5d.average(weights=random_weights, axis=axis)
 
         self.assertIsInstance(avg_5d, ht.DNDarray)
-        self.assertEqual(avg_5d.gshape, (size, 3, 4, 5))
+        self.assertEqual(avg_5d.gshape, (2, 3, 4, 5))
         self.assertLessEqual(avg_5d.lshape[1], 3)
         self.assertEqual(avg_5d.dtype, ht.float64)
         self.assertEqual(avg_5d._DNDarray__array.dtype, torch.float64)
