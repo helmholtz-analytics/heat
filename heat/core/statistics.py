@@ -319,32 +319,33 @@ def average(x, axis=None, weights=None, returned=False):
         if x.gshape != weights.gshape:
             if axis is None:
                 raise TypeError("Axis must be specified when shapes of x and weights differ.")
-            if isinstance(axis, tuple):
+            elif isinstance(axis, tuple):
                 raise NotImplementedError("Weighted average over tuple axis not implemented yet.")
             if weights.numdims != 1:
                 raise TypeError("1D weights expected when shapes of x and weights differ.")
             if weights.gshape[0] != x.gshape[axis]:
                 raise ValueError("Length of weights not compatible with specified axis.")
 
-        wgt = factories.empty_like(weights, device=x.device)
-        wgt._DNDarray__array = weights._DNDarray__array
-        wgt._DNDarray__split = weights.split
-
-        # Broadcast weights along specified axis if necessary
-        if wgt.numdims == 1 and x.numdims != 1:
-            if wgt.split is not None:
-                wgt.resplit_(None)
-            weights_newshape = tuple(1 if i != axis else x.gshape[axis] for i in range(x.numdims))
-            wgt._DNDarray__array = torch.reshape(wgt._DNDarray__array, weights_newshape)
-            wgt._DNDarray__gshape = weights_newshape
+            wgt_lshape = tuple(
+                weights.lshape[0] if dim == axis else 1 for dim in list(range(x.numdims))
+            )
+            wgt_slice = [slice(None) if dim == axis else 0 for dim in list(range(x.numdims))]
+            wgt_split = None if weights.split is None else axis
+            wgt = factories.empty(wgt_lshape, dtype=weights.dtype, device=x.device)
+            wgt._DNDarray__array[wgt_slice] = weights._DNDarray__array
+            wgt = factories.array(wgt._DNDarray__array, is_split=wgt_split)
+        else:
+            wgt = factories.empty_like(weights, device=x.device)
+            wgt._DNDarray__array = weights._DNDarray__array
 
         cumwgt = wgt.sum(axis=axis)
+
         if logical.any(cumwgt == 0.0):
             raise ZeroDivisionError("Weights sum to zero, can't be normalized")
 
         # Distribution: if x is split, split to weights along same dimension if possible
-        if x.split is not None and wgt.split != x.split:
-            if wgt.gshape[x.split] != 1:
+        if x.comm.is_distributed():
+            if x.split is not None and wgt.split != x.split and wgt.numdims != 1:
                 wgt.resplit_(x.split)
 
         result = (x * wgt).sum(axis=axis) / cumwgt
