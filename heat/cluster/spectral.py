@@ -279,16 +279,18 @@ class Spectral:
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
         if X.split is not None and X.split != 0:
             raise NotImplementedError("Not implemented for other splitting-axes")
-
         # 1. Calculation of Adjacency Matrix
         self._similarity = self._calc_adjacency(X)
-
+        if X.comm.rank == 0:
+            print("Similarity Calculated")
         # 2. Calculation of Laplacian
         self._laplacian = self._calc_laplacian(self._similarity)
-
+        if X.comm.rank == 0:
+            print("Laplacian Calculated")
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
         self._eigenvalues, self._eigenvectors = self._calculate_eigendecomposition(self._laplacian)
-
+        if X.comm.rank == 0:
+            print("Eigenvalues Calculated")
         # 5. Find the spectral gap, if number of clusters is not defined from the outside
         if self.n_clusters is None:
             temp = np.diff(self._eigenvalues.numpy())
