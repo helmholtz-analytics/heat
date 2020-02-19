@@ -169,6 +169,9 @@ class SquareDiagTiles:
                 col_per_proc_list[c] = i.item()
             except AttributeError:
                 pass
+        # print(tile_map)
+        # print(row_inds, col_inds)
+        # print(lshape_map)
 
         self.__DNDarray = arr
         self.__col_per_proc_list = (
@@ -204,7 +207,7 @@ class SquareDiagTiles:
                 torch.tensor(col_inds, device=arr._DNDarray__array.device), dim=0
             )
             diff = lshape_cumsum[pr] - col_cumsum[col_proc_ind[pr] - 1]
-            if diff > 1 and pr <= last_diag_pr:
+            if diff > 0 and pr <= last_diag_pr:
                 col_per_proc_list[pr] += 1
                 col_inds.insert(col_proc_ind[pr], diff)
             if pr > last_diag_pr and diff > 0:
@@ -328,10 +331,6 @@ class SquareDiagTiles:
                 w_size=tiles_per_proc if col // tiles_per_proc != last_dia_pr else last_tile_cols,
             )
             col_inds.append(lshape[0])
-        # if arr.gshape[0] < arr.gshape[1] and arr.split == 0:
-        #     col_inds.append(torch.tensor(arr.gshape[0], device=arr.device.torch_device))
-        #     col_per_proc_list[-1] += 1
-        #     tile_columns += 1
         return last_dia_pr, col_per_proc_list, col_inds, tile_columns
 
     @staticmethod
@@ -353,7 +352,7 @@ class SquareDiagTiles:
         """
         Add extra row/s if there is space below the diagonal (split=1)
         """
-        if arr.gshape[0] - arr.gshape[1] > 3:  # todo: determine best value for this
+        if arr.gshape[0] - arr.gshape[1] > 10:  # todo: determine best value for this
             # use chunk and a loop over the however many tiles are desired
             num_ex_row_tiles = 1  # todo: determine best value for this
             while (arr.gshape[0] - arr.gshape[1]) // num_ex_row_tiles < 2:
@@ -362,6 +361,7 @@ class SquareDiagTiles:
                 _, lshape, _ = arr.comm.chunk(
                     (arr.gshape[0] - arr.gshape[1],), 0, rank=i, w_size=num_ex_row_tiles
                 )
+                # old one: row_inds.append(lshape[0])
                 if row_inds[-1] == 0:
                     row_inds[-1] = lshape[0]
                 else:
@@ -763,7 +763,7 @@ class SquareDiagTiles:
                 key[1] = slice(start, stop)
         return tuple(key)
 
-    def match_tiles(self, tiles_to_match, block_diag=False):
+    def match_tiles(self, tiles_to_match):
         """
         function to match the tile sizes of another tile map
         NOTE: this is intended for use with the Q matrix, to match the tiling of a/R
@@ -848,13 +848,17 @@ class SquareDiagTiles:
 
             rows_per = [x for x in self.__col_inds if x < base_dnd.shape[0]]
 
+            # need to match the tile rows of self to those of the tiles_to_match
+            # print(tiles_to_match.col_indices, self.arr.gshape)
+            # print(tiles_to_match.row_indices, tiles_to_match.arr.gshape)
+
             # # need to rewrite this to create the row inds better
             # new_hard_splits = tiles_to_match.lshape_map[..., 1].clone()
             # # need to find where these values are either too large or too small
             # if base_dnd.gshape[0] < match_dnd.gshape[1]:
             #     # print('here', tiles_to_match.last_diagonal_process)
             #     new_hard_splits[tiles_to_match.last_diagonal_process:] = 0
-            #     # print(new_hard_splits)
+            #     print(new_hard_splits)
 
             target_0 = tiles_to_match.lshape_map[..., 1][: tiles_to_match.last_diagonal_process]
             end_tag0 = base_dnd.shape[0] - sum(target_0[: tiles_to_match.last_diagonal_process])
@@ -864,8 +868,9 @@ class SquareDiagTiles:
             target_0 = torch.cat((target_0, torch.tensor(end_tag0, device=target_0.device)), dim=0)
 
             targe_map = self.lshape_map.clone()
-            # print(targe_map[..., 0], target_0)
-            # print(tiles_to_match.lshape_map)
+            # print(target_0, tiles_to_match.last_diagonal_process)
+            # print(self.lshape_map)
+            # print(tiles_to_match.col_indices)
             targe_map[..., 0] = target_0
             target_0_c = torch.cumsum(target_0, dim=0)
             self.__row_per_proc_list = []
@@ -925,99 +930,6 @@ class SquareDiagTiles:
                 "splits not implements, {}, {}".format(self.arr.split, tiles_to_match.arr.split)
             )
 
-    def match_tiles_transpose(self, other_tiles):
-        """
-        Match the tiles of another tilling obect of the same type. This function is to be used when
-        matching the tiles of one array with its transpose. This was designed for use in the block
-        diagonal function for use in SVD.
-
-        Parameters
-        ----------
-        other_tiles
-
-        """
-        base_dnd = self.arr
-        other_dnd = other_tiles.arr
-        # match lshape redistribute if needed
-        target_map = torch.zeros_like(self.lshape_map)
-        target_map[..., 0] = other_tiles.lshape_map[..., 1]
-        target_map[..., 1] = other_tiles.lshape_map[..., 0]
-        base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=target_map)
-        # row inds
-        col_inds = other_tiles.__row_inds.copy()
-        # col inds
-        row_inds = other_tiles.__col_inds.copy()
-
-        cols_per = other_tiles.__row_per_proc_list.copy()
-        rows_per = other_tiles.__col_per_proc_list.copy()
-
-        if base_dnd.split == 1 and other_dnd.split == 0:
-            if base_dnd.gshape[0] > base_dnd.gshape[1]:
-                row_inds.append(row_inds[-1] + row_inds[1])
-                rows_per[-1] += 1
-
-            tile_map = torch.zeros(
-                (len(row_inds), len(col_inds), 3),
-                dtype=other_tiles.tile_map.dtype,
-                device=other_tiles.tile_map.device,
-            )
-            for i in range(len(row_inds)):
-                tile_map[..., 0][i] = row_inds[i]
-            for i in range(len(col_inds)):
-                tile_map[..., 1][:, i] = col_inds[i]
-            st = 0
-            for pr, cols in enumerate(cols_per):
-                tile_map[:, st : st + cols, 2] = pr
-                st += cols
-            last_diag_pr = torch.where(
-                torch.tensor(col_inds, device=base_dnd.device.torch_device) <= base_dnd.gshape[1]
-            )[0][-1]
-
-        elif base_dnd.split == 0 and other_dnd.split == 1:
-            if base_dnd.gshape[0] < base_dnd.gshape[1]:
-                h = col_inds[-1] + col_inds[1]
-                h = h if h <= base_dnd.gshape[1] else base_dnd.gshape[1]
-                col_inds.append(h)
-                cols_per[-1] += 1
-            # only working for 1 tile
-
-            print(row_inds, col_inds, base_dnd.gshape)
-
-            tile_map = torch.zeros(
-                (len(row_inds), len(col_inds), 3),
-                dtype=other_tiles.tile_map.dtype,
-                device=other_tiles.tile_map.device,
-            )
-
-            for i in range(len(row_inds)):
-                tile_map[..., 0][i] = row_inds[i]
-            for i in range(len(col_inds)):
-                tile_map[..., 1][:, i] = col_inds[i]
-            for i in range(self.arr.comm.size - 1):
-                st = sum(rows_per[:i])
-                sp = st + rows_per[i]
-                tile_map[..., 2][st:sp] = i
-            i = self.arr.comm.size - 1
-            tile_map[..., 2][sum(rows_per[:i]) :] = i
-            print(tile_map)
-
-            last_diag_pr = torch.where(
-                torch.tensor(row_inds, device=base_dnd.device.torch_device) <= base_dnd.gshape[1]
-            )[0][-1]
-            last_diag_pr = torch.where(
-                last_diag_pr
-                <= torch.cumsum(torch.tensor(rows_per, device=base_dnd.device.torch_device), dim=0)
-            )[0][0]
-        else:
-            raise NotImplementedError("Both DNDarrays must be split for this function")
-
-        self.__col_inds = list(col_inds)
-        self.__col_per_proc_list = cols_per
-        self.__last_diag_pr = last_diag_pr
-        self.__row_per_proc_list = rows_per
-        self.__tile_map = tile_map
-        self.__row_inds = list(row_inds)
-
     def match_tiles_qr_lq(self, other_tiles):
         base_dnd = self.arr
         other_dnd = other_tiles.arr
@@ -1026,39 +938,48 @@ class SquareDiagTiles:
         target_map[..., 0] = other_tiles.lshape_map[..., 1]
         target_map[..., 1] = other_tiles.lshape_map[..., 0]
         base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=target_map)
-        # row inds
-        col_inds = other_tiles.__row_inds.copy()
-        # col inds
-        row_inds = other_tiles.__col_inds.copy()
-
         cols_per = other_tiles.__row_per_proc_list.copy()
         rows_per = other_tiles.__col_per_proc_list.copy()
 
         if base_dnd.split == 1 and other_dnd.split == 0:
-            if base_dnd.gshape[0] > base_dnd.gshape[1]:
-                row_inds.append(row_inds[-1] + row_inds[1])
-                rows_per[-1] += 1
+            row_inds = [0]
+            row_inds.extend(torch.cumsum(self.lshape_map[..., 1], dim=0)[:-1].tolist())
+            # row_inds.extend([r + col_inds[1] for r in col_inds])
+            col_inds = [0]
+            col_inds.extend(torch.cumsum(self.lshape_map[..., 1][:-1], dim=0).tolist())
 
-            # print('f', row_inds)
+            if other_tiles.last_diagonal_process == 0:
+                row_inds = [0]
+                row_inds.extend(torch.cumsum(self.lshape_map[..., 1][:-1], dim=0).tolist())
+            # if base_dnd.gshape[0] > base_dnd.gshape[1]:
+            # need to cut the col inds at the max
+            row_inds = [r for r in row_inds if r < base_dnd.gshape[0]]
+            # if base_dnd.gshape[0] < base_dnd.gshape[1]:
+            #     col_inds = [c for c in col_inds if c < base_dnd.gshape[1]]
 
-            # row_inds = [0]
-            # cols_hold = torch.tensor(col_inds + [base_dnd.gshape[1]])
-            # cols_diff = cols_hold[1:] - cols_hold[:-1]
-            # # print(self.lshape_map)
-            # # print(other_tiles.lshape_map)
-            # # print(rows_diff, row_inds[-1])
-            # # col_inds.append(rows_diff[0])
-            # for r in cols_diff[1:]:
-            #     row_inds.append(row_inds[-1] + r)
-            # row_inds = [0]
-            # cols_hold = torch.tensor(col_inds + [base_dnd.gshape[1]])
-            # cols_diff = cols_hold[1:] - cols_hold[:-1]
-            # for r in cols_diff[1:]:
-            #     row_inds.append(row_inds[-1] + r)
-            # row_inds = torch.tensor(row_inds)
-            # row_cumsum = torch.cumsum(row_inds, dim=0)
-            # row_inds = row_inds[torch.where(row_cumsum < base_dnd.gshape[0])[0]]
-            # print(base_dnd.gshape, row_inds, other_tiles.lshape_map[..., 0])
+            # cols_per = [1] * self.arr.comm.size
+            if base_dnd.gshape[0] >= base_dnd.gshape[1] + row_inds[1]:
+                offset = row_inds[1]
+                row_inds = [r + offset for r in other_tiles.row_indices]
+                row_inds = [0] + row_inds
+
+            if len(row_inds) > 1:
+                # comp_size =
+                last_diag_pr = torch.where(
+                    torch.cumsum(self.lshape_map[..., 1], dim=0) >= base_dnd.gshape[0] - row_inds[1]
+                )[0]
+                # print(torch.cumsum(self.lshape_map[..., 1], dim=0), base_dnd.gshape[0] - row_inds[1])
+                last_diag_pr = (
+                    last_diag_pr[0] if last_diag_pr.numel() > 0 else base_dnd.comm.size - 1
+                )
+            else:
+                last_diag_pr = 0
+            # size = base_dnd.comm.size
+            # if last_diag_pr < size - 1:
+            #     col_inds = col_inds[: last_diag_pr + 1]
+            cols_per = [1] * base_dnd.comm.size
+
+            # print('h2', row_inds, col_inds, last_diag_pr, rows_per, cols_per)
 
             tile_map = torch.zeros(
                 (len(row_inds), len(col_inds), 3),
@@ -1073,22 +994,50 @@ class SquareDiagTiles:
             for pr, cols in enumerate(cols_per):
                 tile_map[:, st : st + cols, 2] = pr
                 st += cols
-            # print()
-            last_diag_pr = torch.where(
-                torch.tensor(row_inds, device=base_dnd.device.torch_device) <= base_dnd.gshape[1]
-            )[0][-1]
+            # print(tile_map)
+
+            # last_diag_pr = torch.where(
+            #     torch.tensor(col_inds, device=base_dnd.device.torch_device) <= base_dnd.gshape[0]
+            # )[0][-1]
+            # last_diag_pr = torch.where(
+            #     last_diag_pr
+            #     <= torch.cumsum(torch.tensor(cols_per, device=base_dnd.device.torch_device), dim=0)
+            # )[0][0]
             # print('here2', col_inds)
 
         elif base_dnd.split == 0 and other_dnd.split == 1:
             # only working for 1 tile
+            # print('here')
             # need to adjust the col_inds here
             # the cols should start at 0,0 then the next one should be plus the size of the first
             # after that it should be
+            row_inds = [0]
+            row_inds.extend(torch.cumsum(self.lshape_map[..., 0], dim=0)[:-1].tolist())
             col_inds = [0]
-            rows_hold = torch.tensor(row_inds + [base_dnd.gshape[0]])
-            rows_diff = rows_hold[1:] - rows_hold[:-1]
-            for r in rows_diff[1:]:
-                col_inds.append(col_inds[-1] + r)
+            col_inds.extend(torch.cumsum(self.lshape_map[..., 0][1:], dim=0).tolist())
+
+            if other_tiles.last_diagonal_process == 0:
+                col_inds = [0]
+                col_inds.extend(torch.cumsum(self.lshape_map[..., 0][:-1], dim=0).tolist())
+            if base_dnd.gshape[0] > base_dnd.gshape[1]:
+                # need to cut the col inds at the max
+                col_inds = [c for c in col_inds if c < base_dnd.gshape[1]]
+
+            # rows per
+            # start with 1/pr, todo: this will need to be changed if >1 tile/proc
+            rows_per = [1] * self.arr.comm.size
+
+            if len(col_inds) > 1:
+                last_diag_pr = torch.where(
+                    torch.cumsum(self.lshape_map[..., 0], dim=0)
+                    >= min(base_dnd.gshape) + col_inds[1]
+                )[0]
+                last_diag_pr = (
+                    last_diag_pr[0] if last_diag_pr.numel() > 0 else base_dnd.comm.size - 1
+                )
+            else:
+                last_diag_pr = 0
+            # print('h2', row_inds, col_inds, last_diag_pr)
 
             tile_map = torch.zeros(
                 (len(row_inds), len(col_inds), 3),
@@ -1106,15 +1055,17 @@ class SquareDiagTiles:
                 tile_map[..., 2][st:sp] = i
             i = self.arr.comm.size - 1
             tile_map[..., 2][sum(rows_per[:i]) :] = i
-            # print(tile_map)
+            # print(tile_map, last_diag_pr)
 
-            last_diag_pr = torch.where(
-                torch.tensor(row_inds, device=base_dnd.device.torch_device) <= base_dnd.gshape[1]
-            )[0][-1]
-            last_diag_pr = torch.where(
-                last_diag_pr
-                <= torch.cumsum(torch.tensor(rows_per, device=base_dnd.device.torch_device), dim=0)
-            )[0][0]
+            # last_diag_pr = torch.where(
+            #     torch.tensor(row_inds, device=base_dnd.device.torch_device) <= base_dnd.gshape[1]
+            # )[0][-1]
+            # print(last_diag_pr)
+            # if len()
+            # last_diag_pr = torch.where(
+            #     last_diag_pr
+            #     <= torch.cumsum(torch.tensor(rows_per, device=base_dnd.device.torch_device), dim=0)
+            # )[0][0]
         else:
             raise NotImplementedError("Both DNDarrays must be split for this function")
 

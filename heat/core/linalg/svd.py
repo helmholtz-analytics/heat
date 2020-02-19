@@ -29,20 +29,19 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
         arr = arr.copy()
     if arr.tiles is None:
         arr.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
+    q1 = factories.eye(
+        (arr.gshape[1], arr.gshape[1]), split=0, dtype=arr.dtype, comm=arr.comm, device=arr.device
+    )
+
+    if arr.tiles.lshape_map[0, 0] >= arr.gshape[1]:
+        # in this case forming a band diagonal by interlacing QR and LQ doesn work so its just QR
+        qr = arr.qr(tiles_per_proc=tiles_per_proc)
+        return qr.Q, qr.R, q1
 
     # 2. get transpose of arr
     arr_t = arr.T
     # 3. tile arr_t
     arr_t.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-    # arr_t.tiles.match_tiles_transpose(arr.tiles)
-    # print(arr.lshape)
-    # print(arr.shape, arr.tiles.tile_rows, arr.tiles.col_indices)
-    # print(arr_t.shape, arr_t.tiles.tile_rows, arr_t.tiles.tile_columns)
-    # print(arr.tiles.lshape_map)
-    # print(arr.tiles.tile_map)
-
-    # return None, None, None
-
     # 4. match tiles to arr
     arr_t.tiles.match_tiles_qr_lq(arr.tiles)
     arr_t.tiles.__DNDarray = arr.T
@@ -53,13 +52,8 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
     q0.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
     q0.tiles.match_tiles(arr.tiles)
 
-    q1 = factories.eye(
-        (arr.gshape[1], arr.gshape[1]), split=0, dtype=arr.dtype, comm=arr.comm, device=arr.device
-    )
     q1.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
     q1.tiles.match_tiles(arr_t.tiles)
-    # print(q1.tiles.lshape_map)
-    # print(arr_t.tiles.lshape_map)
     # ----------------------------------------------------------------------------------------------
     tile_columns = arr.tiles.tile_columns
 
@@ -106,7 +100,7 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
                 diag_process=diag_process,
                 not_completed_prs=not_completed_processes,
             )
-        arr_t.tiles.__DNDarray = arr.T
+        arr_t.tiles.set_arr(arr.tiles.arr.T)
         # 2. do full QR on the next column for LQ on arr_t
         diag_process = torch.nonzero(col < proc_tile_start_t).flatten()[0].item()
         __qr_split1_loop(
@@ -159,12 +153,10 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
         active_procs=active_procs,
     )
 
-    arr_t.tiles.__DNDarray = arr.T
-    if arr.gshape[0] < arr.gshape[1]:
-        # if m < n then need to do another round of LQ
+    arr_t.tiles.set_arr(arr.tiles.arr.T)
+    diag_diff = arr_t.tiles.row_indices[1]
+    if arr.gshape[0] < arr.gshape[1] - diag_diff:
         diag_process = torch.nonzero(col < proc_tile_start_t).flatten()[0].item()
-        # print('last if loop', arr_t.tiles.tile_rows, arr_t.tiles.tile_columns)
-
         __qr_split1_loop(
             a_tiles=arr_t.tiles,
             q_tiles=q1.tiles,
@@ -196,13 +188,11 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
         arr = arr.copy()
     if arr.tiles is None:
         arr.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-
     # 2. get transpose of arr
     arr_t = arr.T.copy()
     # 3. tile arr_t
     arr_t.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
     # 4. match tiles to arr
-    # print(arr.tiles.tile_map)
     arr_t.tiles.match_tiles_qr_lq(arr.tiles)
 
     q0 = factories.eye(
@@ -215,12 +205,7 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
         (arr.gshape[1], arr.gshape[1]), split=0, dtype=arr.dtype, comm=arr.comm, device=arr.device
     )
     q1.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-    # print('start')
     q1.tiles.match_tiles(arr_t.tiles)
-    # print('stop')
-    # print('t', arr_t.tiles.tile_map)
-    # print(q1.tiles.tile_map)
-
     # -------------------------- split = 1 stuff (att) ---------------------------------------------
     tile_columns = arr.tiles.tile_columns
     tile_rows = arr.tiles.tile_rows
@@ -267,7 +252,6 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
             dim0=col,
             calc_q=True,
             empties=empties,
-            arr_t=arr_t,
         )
         arr_t.tiles.set_arr(arr.tiles.arr.T)
 
@@ -311,21 +295,14 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
         dim0=col,
         calc_q=True,
         empties=empties,
-        arr_t=arr_t,
     )
 
-    arr_t.tiles.__DNDarray = arr.T
-    if arr.gshape[0] < arr.gshape[1]:  # and arr_t.tiles.lshape_map[0, 0]
+    arr_t.tiles.set_arr(arr.T)
+    if arr.gshape[0] < arr.gshape[1]:
         # if m < n then need to do another round of LQ
-        # diag_process = torch.nonzero(col < proc_tile_start_t).flatten()[0].item()
-        # print('last if loop', arr_t.tiles.tile_rows, arr_t.tiles.tile_columns)
-        # col = arr_t.tiles.tile_columns - 1
         row = col + 1
-        if tiles_per_proc == 1:
-            # make col the last row after the last diagonal process
-            row = sum(arr_t.tiles.tile_rows_per_process[: arr_t.tiles.last_diagonal_process + 1])
         not_completed_processes = torch.nonzero(row < proc_tile_start_t).flatten()
-        # print(not_completed_processes)
+
         if rank in not_completed_processes and rank in active_procs_t:
             diag_process = not_completed_processes[0].item()
             __r_calc_split0(
@@ -337,13 +314,8 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
                 not_completed_prs=not_completed_processes,
                 dim0=row,
             )
-            # print(arr_t.tiles.arr.T._DNDarray__array)
+        arr.tiles.set_arr(arr_t.tiles.arr.T)
 
-        # diag_process = (
-        #     torch.nonzero(proc_tile_start_t > row)[0]
-        #     if row != tile_columns
-        #     else proc_tile_start_t[-1]
-        # )
         if len(not_completed_processes) > 0:
             diag_process = not_completed_processes[0].item()
             __q_calc_split0(
@@ -356,10 +328,6 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
                 active_procs=active_procs_t,
                 dim0=row,
             )
-            arr.tiles.set_arr(arr_t.tiles.arr.T)
-    # print(arr_t.tiles.lshape_map)
-    # print(arr_t.gshape)
-    # print(arr_t.tiles.arr.round())
 
     q1 = q1.T
     arr.tiles.arr.balance_()
