@@ -107,7 +107,9 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     return ret
 
 
-def __global_q_dict_set(q_dict_col, dim1, a_tiles, q_tiles, global_merge_dict=None, dim0=None):
+def __split0_global_q_dict_set(
+    q_dict_col, dim1, a_tiles, q_tiles, global_merge_dict=None, dim0=None
+):
     """
     The function takes the orginial Q tensors from the global QR calculation and sets them to
     the keys which corresponds with their tile coordinates in Q. this returns a separate dictionary,
@@ -253,7 +255,7 @@ def __global_q_dict_set(q_dict_col, dim1, a_tiles, q_tiles, global_merge_dict=No
     return global_merge_dict
 
 
-def __merge_tile_rows_qr(pr0, pr1, dim1, rank, a_tiles, diag_process, key, q_dict, dim0=None):
+def __split0_merge_tile_rows(pr0, pr1, dim1, rank, a_tiles, diag_process, key, q_dict, dim0=None):
     """
     Merge two tile rows, take their QR, and apply it to the trailing process
     This will modify 'a' and set the value of the q_dict[column][key]
@@ -366,7 +368,7 @@ def __merge_tile_rows_qr(pr0, pr1, dim1, rank, a_tiles, diag_process, key, q_dic
     q_dict[dim1][key] = [q_merge, upper.shape, lower.shape]
 
 
-def __q_calc_split0(
+def __split0_q_loop(
     a_tiles, q_tiles, dim1, q_dict, q_dict_waits, diag_process, active_procs, dim0=None
 ):
     """
@@ -481,7 +483,7 @@ def __q_calc_split0(
 
     # global Q calculation ---------------------------------------------------------------------
     global_merge_dict = (
-        __global_q_dict_set(
+        __split0_global_q_dict_set(
             q_dict_col=q_dict[dim1], dim1=dim0, a_tiles=a_tiles, q_tiles=q_tiles, dim0=dim0
         )
         if rank == diag_process
@@ -556,7 +558,7 @@ def __q_calc_split0(
             del q_dict[dim1]
 
 
-def __r_calc_split0(
+def __split0_r_calc(
     a_tiles, q_dict, q_dict_waits, dim1, diag_process, not_completed_prs, dim0=None
 ):
     """
@@ -637,7 +639,7 @@ def __r_calc_split0(
         )
         for pr in zipped:
             pr0, pr1 = int(pr[0].item()), int(pr[1].item())
-            __merge_tile_rows_qr(
+            __split0_merge_tile_rows(
                 pr0=pr0,
                 pr1=pr1,
                 dim1=dim1,
@@ -649,7 +651,7 @@ def __r_calc_split0(
                 dim0=dim0,
             )
 
-            __send_q_to_diag_pr(
+            __split0_send_q_to_diag_pr(
                 col_num=dim1,
                 pr0=pr0,
                 pr1=pr1,
@@ -668,7 +670,7 @@ def __r_calc_split0(
         if rem1 is not None and rem2 is not None:
             # combine rem1 and rem2 in the same way as the other nodes,
             # then save the results in rem1 to be used later
-            __merge_tile_rows_qr(
+            __split0_merge_tile_rows(
                 pr0=rem2,
                 pr1=rem1,
                 dim1=dim1,
@@ -681,7 +683,7 @@ def __r_calc_split0(
             )
 
             rem1, rem2 = int(rem1), int(rem2)
-            __send_q_to_diag_pr(
+            __split0_send_q_to_diag_pr(
                 col_num=dim1,
                 pr0=rem2,
                 pr1=rem1,
@@ -700,7 +702,7 @@ def __r_calc_split0(
         if rem1 is not None and rem2 is None and procs_remaining == 1:
             # combine rem1 with process 0 (offset) and set completed to True
             # this should be the last thing that happens
-            __merge_tile_rows_qr(
+            __split0_merge_tile_rows(
                 pr0=offset,
                 pr1=rem1,
                 dim1=dim1,
@@ -713,7 +715,7 @@ def __r_calc_split0(
             )
 
             offset, rem1 = int(offset), int(rem1)
-            __send_q_to_diag_pr(
+            __split0_send_q_to_diag_pr(
                 col_num=dim1,
                 pr0=offset,
                 pr1=rem1,
@@ -794,7 +796,7 @@ def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
             # if the process is done calculating R the break the loop
             break
         diag_process = not_completed_processes[0]
-        __r_calc_split0(
+        __split0_r_calc(
             a_tiles=a.tiles,
             q_dict=q_dict,
             q_dict_waits=q_dict_waits,
@@ -815,7 +817,7 @@ def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         # diag_process = torch.nonzero(col <= proc_tile_start).flatten()[0]
         diag_process = diag_process.item()
 
-        __q_calc_split0(
+        __split0_q_loop(
             a_tiles=a.tiles,
             q_tiles=q0.tiles,
             dim1=col,
@@ -886,7 +888,7 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         # get the diagonal tile and do qr on it
         # send q to the other processes
         # 1st qr: only on diagonal tile + apply to the row
-        __qr_split1_loop(
+        __split1_qr_loop(
             a_tiles=a.tiles, q_tiles=q0.tiles, diag_pr=diag_process, dim0=dcol, calc_q=calc_q
         )
 
@@ -898,7 +900,7 @@ def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     return q0, a
 
 
-def __qr_split1_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None, empties=None):
+def __split1_qr_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None, empties=None):
     if dim1 is None:
         dim1 = dim0
     if empties is None:
@@ -1052,7 +1054,7 @@ def __qr_split1_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None, empties
         # ======================== end q calc for merged tile QR ==========================
 
 
-def __send_q_to_diag_pr(
+def __split0_send_q_to_diag_pr(
     col_num, pr0, pr1, diag_process, comm, q_dict, key, q_dict_waits, q_dtype, q_device
 ):
     """
