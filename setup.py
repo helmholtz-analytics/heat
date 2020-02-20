@@ -19,6 +19,7 @@ setup(
         "heat",
         "heat.core",
         "heat.cluster",
+        "heat.linalg",
         "heat.regression",
         "heat.regression.lasso",
         "heat.spatial",

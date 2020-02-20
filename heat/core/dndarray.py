@@ -1,4 +1,3 @@
-import collections
 import numpy as np
 import torch
 import warnings
@@ -9,14 +8,14 @@ from . import exponential
 from . import factories
 from . import indexing
 from . import io
-from . import linalg
+from .. import linalg
 from . import logical
 from . import manipulations
 from . import memory
 from . import relational
 from . import rounding
 from . import statistics
-from . import tiling
+from ..linalg import tiling
 from . import trigonometrics
 from . import types
 

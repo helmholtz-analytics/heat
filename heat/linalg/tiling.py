@@ -1,6 +1,6 @@
 import torch
 
-from . import dndarray
+from heat.core import dndarray
 
 __all__ = ["SquareDiagTiles"]
 
