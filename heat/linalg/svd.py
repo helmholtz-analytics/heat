@@ -1,6 +1,6 @@
 import torch
 
-from .qr import __r_calc_split0, __qr_split1_loop, __q_calc_split0
+from .qr import __split0_r_calc, __split0_q_loop, __split1_qr_loop
 
 from heat.core import factories
 
@@ -76,10 +76,6 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
 
     proc_tile_start = torch.cumsum(torch.tensor(tile_rows_per_pr_trmd, device=torch_device), dim=0)
 
-    proc_tile_start_t = torch.cumsum(
-        torch.tensor(arr_t.tiles.tile_columns_per_process, device=torch_device), dim=0
-    )
-
     # looping over number of tile columns - 1 (col)
     # 1. do QR on arr for column=col (standard QR as written)
     # 2. do LQ on arr_t for column=col+1 (standard QR again, the transpose makes it LQ)
@@ -92,8 +88,8 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
             # if the process is done calculating R the break the loop
             # break
             diag_process = not_completed_processes[0].item()
-            __r_calc_split0(
-                a_tiles=arr.tiles,
+            __split0_r_calc(
+                r_tiles=arr.tiles,
                 q_dict=q0_dict,
                 q_dict_waits=q0_dict_waits,
                 dim1=col,
@@ -102,70 +98,45 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
             )
         arr_t.tiles.set_arr(arr.tiles.arr.T)
         # 2. do full QR on the next column for LQ on arr_t
-        diag_process = torch.nonzero(col < proc_tile_start_t).flatten()[0].item()
-        __qr_split1_loop(
-            a_tiles=arr_t.tiles,
-            q_tiles=q1.tiles,
-            diag_pr=diag_process,
-            dim0=col + 1,
-            calc_q=True,
-            dim1=col,
-            empties=empties_t,
-        )
+        __split1_qr_loop(dim1=col, r=arr_t, q0=q1, calc_q=True, dim0=col + 1, empties=empties_t)
     for col in range(tile_columns - 1):
-        diag_process = (
-            torch.nonzero(proc_tile_start > col)[0] if col != tile_columns else proc_tile_start[-1]
-        )
-        diag_process = diag_process.item()
-
-        __q_calc_split0(
-            a_tiles=arr.tiles,
-            q_tiles=q0.tiles,
+        __split0_q_loop(
+            r=arr,
+            q0=q0,
             dim1=col,
+            proc_tile_start=proc_tile_start,
             q_dict=q0_dict,
             q_dict_waits=q0_dict_waits,
-            diag_process=diag_process,
             active_procs=active_procs,
         )
+
     # do the last column now
     col = tile_columns - 1
     not_completed_processes = torch.nonzero(col < proc_tile_start).flatten()
     if rank in not_completed_processes and rank in active_procs:
         diag_process = not_completed_processes[0].item()
-        __r_calc_split0(
-            a_tiles=arr.tiles,
+        __split0_r_calc(
+            r_tiles=arr.tiles,
             q_dict=q0_dict,
             q_dict_waits=q0_dict_waits,
             dim1=col,
             diag_process=diag_process,
             not_completed_prs=not_completed_processes,
         )
-    diag_process = (
-        torch.nonzero(proc_tile_start > col)[0] if col != tile_columns else proc_tile_start[-1]
-    ).item()
-    __q_calc_split0(
-        a_tiles=arr.tiles,
-        q_tiles=q0.tiles,
+    __split0_q_loop(
+        r=arr,
+        q0=q0,
         dim1=col,
+        proc_tile_start=proc_tile_start,
         q_dict=q0_dict,
         q_dict_waits=q0_dict_waits,
-        diag_process=diag_process,
         active_procs=active_procs,
     )
 
     arr_t.tiles.set_arr(arr.tiles.arr.T)
     diag_diff = arr_t.tiles.row_indices[1]
     if arr.gshape[0] < arr.gshape[1] - diag_diff:
-        diag_process = torch.nonzero(col < proc_tile_start_t).flatten()[0].item()
-        __qr_split1_loop(
-            a_tiles=arr_t.tiles,
-            q_tiles=q1.tiles,
-            diag_pr=diag_process,
-            dim0=col + 1,
-            calc_q=True,
-            dim1=col,
-            empties=empties_t,
-        )
+        __split1_qr_loop(dim1=col, r=arr_t, q0=q1, calc_q=True, dim0=col + 1, empties=empties_t)
 
     q1 = q1.T
     arr.balance_()
@@ -244,22 +215,17 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
     for col in range(lp_cols - 1):
         # 1. QR (split = 1) on col
         # 2. QR (split = 0) on col + 1
-        diag_process = torch.nonzero(col < proc_tile_start).flatten()[0].item()
-        __qr_split1_loop(
-            a_tiles=arr.tiles,
-            q_tiles=q0.tiles,
-            diag_pr=diag_process,
-            dim0=col,
-            calc_q=True,
-            empties=empties,
-        )
+        __split1_qr_loop(dim1=col, r=arr, q0=q0, calc_q=True, empties=empties)
+
         arr_t.tiles.set_arr(arr.tiles.arr.T)
 
         not_completed_processes = torch.nonzero(col + 1 < proc_tile_start_t).flatten()
         if rank in not_completed_processes and rank in active_procs_t:
+            # if the process is done calculating R the break the loop
+            # break
             diag_process = not_completed_processes[0].item()
-            __r_calc_split0(
-                a_tiles=arr_t.tiles,
+            __split0_r_calc(
+                r_tiles=arr_t.tiles,
                 q_dict=q1_dict,
                 q_dict_waits=q1_dict_waits,
                 dim1=col,
@@ -268,65 +234,50 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
                 dim0=col + 1,
             )
 
-        diag_process = (
-            torch.nonzero(proc_tile_start_t > col + 1)[0]
-            if col + 1 != tile_columns
-            else proc_tile_start_t[-1]
-        )
-        diag_process = diag_process.item()
-        __q_calc_split0(
-            a_tiles=arr_t.tiles,
-            q_tiles=q1.tiles,
+        __split0_q_loop(
+            r=arr_t,
+            q0=q1,
             dim1=col,
+            proc_tile_start=proc_tile_start,
             q_dict=q1_dict,
             q_dict_waits=q1_dict_waits,
-            diag_process=diag_process,
             active_procs=active_procs_t,
             dim0=col + 1,
         )
         arr.tiles.set_arr(arr_t.tiles.arr.T)
     # do the last column now
     col = lp_cols - 1
-    diag_process = torch.nonzero(col < proc_tile_start).flatten()[0].item()
-    __qr_split1_loop(
-        a_tiles=arr.tiles,
-        q_tiles=q0.tiles,
-        diag_pr=diag_process,
-        dim0=col,
-        calc_q=True,
-        empties=empties,
-    )
+    __split1_qr_loop(dim1=col, r=arr, q0=q0, calc_q=True, empties=empties)
 
     arr_t.tiles.set_arr(arr.T)
     if arr.gshape[0] < arr.gshape[1]:
         # if m < n then need to do another round of LQ
-        row = col + 1
-        not_completed_processes = torch.nonzero(row < proc_tile_start_t).flatten()
-
+        not_completed_processes = torch.nonzero(col + 1 < proc_tile_start_t).flatten()
         if rank in not_completed_processes and rank in active_procs_t:
+            # if the process is done calculating R the break the loop
+            # break
             diag_process = not_completed_processes[0].item()
-            __r_calc_split0(
-                a_tiles=arr_t.tiles,
+            __split0_r_calc(
+                r_tiles=arr_t.tiles,
                 q_dict=q1_dict,
                 q_dict_waits=q1_dict_waits,
                 dim1=col,
                 diag_process=diag_process,
                 not_completed_prs=not_completed_processes,
-                dim0=row,
+                dim0=col + 1,
             )
         arr.tiles.set_arr(arr_t.tiles.arr.T)
 
         if len(not_completed_processes) > 0:
-            diag_process = not_completed_processes[0].item()
-            __q_calc_split0(
-                a_tiles=arr_t.tiles,
-                q_tiles=q1.tiles,
+            __split0_q_loop(
+                r=arr_t,
+                q0=q1,
                 dim1=col,
+                proc_tile_start=proc_tile_start,
                 q_dict=q1_dict,
                 q_dict_waits=q1_dict_waits,
-                diag_process=diag_process,
                 active_procs=active_procs_t,
-                dim0=row,
+                dim0=col + 1,
             )
 
     q1 = q1.T
