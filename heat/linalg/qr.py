@@ -89,21 +89,84 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     if len(a.shape) != 2:
         raise ValueError("Array 'a' must be 2 dimensional")
 
-    if a.split == 0:
-        q, r = __qr_split0(
-            a=a, tiles_per_proc=tiles_per_proc, calc_q=calc_q, overwrite_a=overwrite_a
-        )
-    elif a.split == 1:
-        q, r = __qr_split1(
-            a=a, tiles_per_proc=tiles_per_proc, calc_q=calc_q, overwrite_a=overwrite_a
-        )
-    elif a.split is None:
+    QR = collections.namedtuple("QR", "Q, R")
+
+    if a.split is None:
         q, r = a._DNDarray__array.qr(some=False)
         q = factories.array(q, device=a.device)
         r = factories.array(r, device=a.device)
+        ret = QR(q if calc_q else None, r)
+        return ret
+    # =============================== Prep work ====================================================
+    r = a if overwrite_a else a.copy()
+    r.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
+    tile_columns = r.tiles.tile_columns
+    tile_rows = r.tiles.tile_rows
+    if calc_q:
+        q = factories.eye(
+            (r.gshape[0], r.gshape[0]), split=0, dtype=r.dtype, comm=r.comm, device=r.device
+        )
+        q.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
+        q.tiles.match_tiles(r.tiles)
+    else:
+        q = None
+    # ==============================================================================================
 
-    QR = collections.namedtuple("QR", "Q, R")
-    ret = QR(q if calc_q else None, r)
+    if a.split == 0:
+        rank = r.comm.rank
+        active_procs = torch.arange(r.comm.size, device=r.device.torch_device)
+        empties = torch.nonzero(r.tiles.lshape_map[..., 0] == 0)
+        empties = empties[0] if empties.numel() > 0 else []
+        for e in empties:
+            active_procs = active_procs[active_procs != e]
+        tile_rows_per_pr_trmd = r.tiles.tile_rows_per_process[: active_procs[-1] + 1]
+
+        q_dict = {}
+        q_dict_waits = {}
+        proc_tile_start = torch.cumsum(
+            torch.tensor(tile_rows_per_pr_trmd, device=r.device.torch_device), dim=0
+        )
+        # ------------------------------------ R Calculation ---------------------------------------
+        for col in range(
+            tile_columns
+        ):  # for each tile column (need to do the last rank separately)
+            # for each process need to do local qr
+            not_completed_processes = torch.nonzero(col < proc_tile_start).flatten()
+            # print(col, torch.nonzero(col >= proc_tile_start).flatten())
+            if rank not in not_completed_processes or rank not in active_procs:
+                # if the process is done calculating R the break the loop
+                break
+            diag_process = not_completed_processes[0]
+            __split0_r_calc(
+                a_tiles=a.tiles,
+                q_dict=q_dict,
+                q_dict_waits=q_dict_waits,
+                dim1=col,
+                diag_process=diag_process,
+                not_completed_prs=not_completed_processes,
+            )
+        # ------------------------------------- Q Calculation --------------------------------------
+        for col in range(tile_columns):
+            __split0_q_loop(
+                col=col,
+                r=r,
+                proc_tile_start=proc_tile_start,
+                active_procs=active_procs,
+                q0=q,
+                q_dict=q_dict,
+                q_dict_waits=q_dict_waits,
+            )
+    elif a.split == 1:
+        # loop over the tile columns
+        lp_cols = tile_columns if a.gshape[0] > a.gshape[1] else tile_rows
+        for dcol in range(lp_cols):  # dcol is the diagonal column
+            __split1_qr_loop(dcol=dcol, r=r, q0=q, calc_q=calc_q)
+
+    r.balance_()
+    if q is not None:
+        q.balance_()
+
+    ret = QR(q, r)
     return ret
 
 
@@ -730,174 +793,6 @@ def __split0_r_calc(
             rem1 = None
 
         completed = True if procs_remaining == 1 and rem1 is None and rem2 is None else False
-
-
-def __qr_split0(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
-    """
-    Calculates the QR decomposition of a 2D DNDarray with split == 0
-
-    Parameters
-    ----------
-    a : DNDarray
-        DNDarray which will be decomposed
-    tiles_per_proc : int, singlt element torch.Tensor
-        optional, default: 1
-        number of tiles per process to operate on
-    calc_q : bool
-        optional, default: True
-        whether or not to calculate Q
-        if True, function returns (Q, R)
-        if False, function returns (None, R)
-    overwrite_a : bool
-        optional, default: False
-        if True, function overwrites the DNDarray a, with R
-        if False, a new array will be created for R
-
-    Returns
-    -------
-    tuple of Q and R
-        if calc_q == True, function returns (Q, R)
-        if calc_q == False, function returns (None, R)
-    """
-    if not overwrite_a:
-        a = a.copy()
-    a.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-    tile_columns = a.tiles.tile_columns
-    tile_rows = a.tiles.tile_rows
-
-    q0 = factories.eye(
-        (a.gshape[0], a.gshape[0]), split=0, dtype=a.dtype, comm=a.comm, device=a.device
-    )
-    q0.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-    q0.tiles.match_tiles(a.tiles)
-
-    a_torch_device = a._DNDarray__array.device
-
-    # loop over the tile columns
-    rank = a.comm.rank
-    active_procs = torch.arange(a.comm.size)
-    empties = torch.nonzero(a.tiles.lshape_map[..., 0] == 0)
-    empties = empties[0] if empties.numel() > 0 else []
-    for e in empties:
-        active_procs = active_procs[active_procs != e]
-    tile_rows_per_pr_trmd = a.tiles.tile_rows_per_process[: active_procs[-1] + 1]
-
-    q_dict = {}
-    q_dict_waits = {}
-    proc_tile_start = torch.cumsum(
-        torch.tensor(tile_rows_per_pr_trmd, device=a_torch_device), dim=0
-    )
-    lp_cols = tile_columns if a.gshape[0] > a.gshape[1] else tile_rows
-    # ==================================== R Calculation ===========================================
-    for col in range(lp_cols):  # for each tile column (need to do the last rank separately)
-        # for each process need to do local qr
-        not_completed_processes = torch.nonzero(col < proc_tile_start).flatten()
-        if rank not in not_completed_processes or rank not in active_procs:
-            # if the process is done calculating R the break the loop
-            break
-        diag_process = not_completed_processes[0]
-        __split0_r_calc(
-            a_tiles=a.tiles,
-            q_dict=q_dict,
-            q_dict_waits=q_dict_waits,
-            dim1=col,
-            diag_process=diag_process,
-            not_completed_prs=not_completed_processes,
-        )
-    if not calc_q:
-        # return statement if not calculating q
-        a.balance_()
-        return None, a
-    # ===================================== Q Calculation ==========================================
-    for col in range(lp_cols):
-        # print(col, )
-        diag_process = (
-            torch.nonzero(proc_tile_start > col)[0] if col != tile_columns else proc_tile_start[-1]
-        )
-        # diag_process = torch.nonzero(col <= proc_tile_start).flatten()[0]
-        diag_process = diag_process.item()
-
-        __split0_q_loop(
-            a_tiles=a.tiles,
-            q_tiles=q0.tiles,
-            dim1=col,
-            q_dict=q_dict,
-            q_dict_waits=q_dict_waits,
-            diag_process=diag_process,
-            active_procs=active_procs,
-        )
-
-    a.balance_()
-    q0.balance_()
-    return q0, a
-
-
-def __qr_split1(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
-    """
-    Calculates the QR decomposition of a 2D DNDarray with split == 1
-
-    Parameters
-    ----------
-    a : DNDarray
-        DNDarray which will be decomposed
-    tiles_per_proc : int, singlt element torch.Tensor
-        optional, default: 1
-        number of tiles per process to operate on
-    calc_q : bool
-        optional, default: True
-        whether or not to calculate Q
-        if True, function returns (Q, R)
-        if False, function returns (None, R)
-    overwrite_a : bool
-        optional, default: False
-        if True, function overwrites the DNDarray a, with R
-        if False, a new array will be created for R
-
-    Returns
-    -------
-    tuple of Q and R
-        if calc_q == True, function returns (Q, R)
-        if calc_q == False, function returns (None, R)
-    """
-    if not overwrite_a:
-        a = a.copy()
-    a.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-    tile_columns = a.tiles.tile_columns
-    tile_rows = a.tiles.tile_rows
-
-    q0 = factories.eye(
-        (a.gshape[0], a.gshape[0]), split=0, dtype=a.dtype, comm=a.comm, device=a.device
-    )
-    q0.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-    q0.tiles.match_tiles(a.tiles)
-
-    a_torch_device = a._DNDarray__array.device
-
-    # loop over the tile columns
-    proc_tile_start = torch.cumsum(
-        torch.tensor(a.tiles.tile_columns_per_process, device=a_torch_device), dim=0
-    )
-    # ==================================== R Calculation ===========================================
-    # todo: change tile columns to be the correct number here
-    lp_cols = tile_columns if a.gshape[0] > a.gshape[1] else tile_rows
-    for dcol in range(lp_cols):  # dcol is the diagonal column
-        # loop over each column, need to do the QR for each tile in the column(should be rows)
-        # need to get the diagonal process
-        not_completed_processes = torch.nonzero(dcol < proc_tile_start).flatten()
-        diag_process = not_completed_processes[0].item()
-        # get the diagonal tile and do qr on it
-        # send q to the other processes
-        # 1st qr: only on diagonal tile + apply to the row
-        __split1_qr_loop(
-            a_tiles=a.tiles, q_tiles=q0.tiles, diag_pr=diag_process, dim0=dcol, calc_q=calc_q
-        )
-
-    # a and q0 might be purposely unbalanced during the tile matching
-    a.balance_()
-    if not calc_q:
-        return None, a.tiles.arr
-    q0.balance_()
-    return q0, a
 
 
 def __split1_qr_loop(a_tiles, q_tiles, diag_pr, dim0, calc_q, dim1=None, empties=None):
