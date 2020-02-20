@@ -160,7 +160,7 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         # loop over the tile columns
         lp_cols = tile_columns if a.gshape[0] > a.gshape[1] else tile_rows
         for dcol in range(lp_cols):  # dcol is the diagonal column
-            __split1_qr_loop(dcol=dcol, a=r, q0=q, calc_q=calc_q)
+            __split1_qr_loop(dcol=dcol, r=r, q0=q, calc_q=calc_q)
 
     r.balance_()
     if q is not None:
