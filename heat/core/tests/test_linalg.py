@@ -1,6 +1,7 @@
 import torch
-import unittest
 import os
+import unittest
+import warnings
 import heat as ht
 import numpy as np
 
@@ -16,7 +17,11 @@ if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
     ht_device = ht.gpu
     torch.cuda.set_device(device)
 
-extended_tests = True if os.environ.get("EXTENDED_TESTS") else False
+if os.environ.get("EXTENDED_TESTS"):
+    extended_tests = True
+    warnings.warn("Extended Tests will take roughly 100x longer than the standard tests")
+else:
+    extended_tests = False
 
 
 class TestLinalg(unittest.TestCase):
@@ -469,7 +474,6 @@ class TestLinalg(unittest.TestCase):
                 a @ b
 
     if extended_tests:
-        print("Running Extended QR tests, expect runtimes above 10 minutes")
         st_whole = torch.randn(70, 70, device=device)
 
         def test_qr_sp0(self, st_whole=st_whole):
