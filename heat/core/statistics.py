@@ -335,6 +335,13 @@ def average(x, axis=None, weights=None, returned=False):
             wgt._DNDarray__array[wgt_slice] = weights._DNDarray__array
             wgt = factories.array(wgt._DNDarray__array, is_split=wgt_split)
         else:
+            if x.comm.is_distributed():
+                if x.split is not None and weights.split != x.split and weights.numdims != 1:
+                    raise NotImplementedError(
+                        "weights.split does not match data.split: not implemented yet."
+                    )
+                # fix after Issue #425 is solved
+                # weights.resplit_(x.split)
             wgt = factories.empty_like(weights, device=x.device)
             wgt._DNDarray__array = weights._DNDarray__array
 
@@ -342,11 +349,6 @@ def average(x, axis=None, weights=None, returned=False):
 
         if logical.any(cumwgt == 0.0):
             raise ZeroDivisionError("Weights sum to zero, can't be normalized")
-
-        # Distribution: if x is split, split to weights along same dimension if possible
-        if x.comm.is_distributed():
-            if x.split is not None and wgt.split != x.split and wgt.numdims != 1:
-                wgt.resplit_(x.split)
 
         result = (x * wgt).sum(axis=axis) / cumwgt
 
