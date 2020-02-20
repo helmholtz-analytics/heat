@@ -1,6 +1,7 @@
 import torch
-import unittest
 import os
+import unittest
+import warnings
 import heat as ht
 import numpy as np
 

@@ -78,6 +78,7 @@ class SquareDiagTiles:
             # if the split is 0 and the number of tiles per proc is 1
             # then the local data needs to be redistributed to fit the full diagonal on as many
             #       processes as possible
+            # if any(lshape_map[..., arr.split] == 1):
             last_diag_pr, col_per_proc_list, col_inds, tile_columns = self.__adjust_lshape_sp0_1tile(
                 arr, col_inds, lshape_map, tiles_per_proc
             )
@@ -88,12 +89,11 @@ class SquareDiagTiles:
                 for e in empties:
                     row_per_proc_list[e] = 0
 
-        total_tile_rows = tiles_per_proc * arr.comm.size
-        row_inds = [0] * total_tile_rows
-        for c, x in enumerate(col_inds):
+        row_inds = []
+        for c in col_inds:
             # set the row indices to be the same for all of the column indices
             #   (however many there are)
-            row_inds[c] = x
+            row_inds.append(c)
 
         if arr.split == 0 and arr.gshape[0] < arr.gshape[1]:
             # need to adjust the very last tile to be the remaining
@@ -241,8 +241,6 @@ class SquareDiagTiles:
         redistribute arr so that there is not a single diagonal element on one process
         """
 
-        # if tiles_per_proc == 1:
-        #
         def adjust_lshape(lshape_mapi, pri, cnti):
             if lshape_mapi[..., 0][pri] < cnti:
                 h = cnti - lshape_mapi[..., 0][pri]
@@ -252,6 +250,11 @@ class SquareDiagTiles:
         for cnt in col_inds[:-1]:  # only need to loop until the second to last one
             for pr in range(arr.comm.size - 1):
                 adjust_lshape(lshape_map, pr, cnt)
+        negs = torch.where(lshape_map[..., 0] < 0)[0]
+        if negs.numel() > 0:
+            for n in negs:
+                lshape_map[n - 1, 0] += lshape_map[n, 0]
+                lshape_map[n, 0] = 0
         arr.redistribute_(target_map=lshape_map)
 
         last_diag_pr, col_per_proc_list, col_inds, tile_columns = SquareDiagTiles.__create_cols(
@@ -342,7 +345,11 @@ class SquareDiagTiles:
             # loop over all of the rest of the processes
             for t in range(tiles_per_proc):
                 _, lshape, _ = arr.comm.chunk(lshape_map[i], 0, rank=t, w_size=tiles_per_proc)
-                row_inds[nz[0].item()] = lshape[0]
+                # row_inds[nz[0].item()] = lshape[0]
+                if row_inds[-1] == 0:
+                    row_inds[-1] = lshape[0]
+                else:
+                    row_inds.append(lshape[0])
                 nz = nz[1:]
 
     @staticmethod
