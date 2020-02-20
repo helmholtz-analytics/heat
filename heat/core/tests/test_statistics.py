@@ -400,6 +400,10 @@ class TestStatistics(unittest.TestCase):
         zero_weights = ht.zeros((random_5d.gshape[axis]), split=0, device=ht_device)
         with self.assertRaises(ZeroDivisionError):
             ht.average(random_5d, weights=zero_weights, axis=axis)
+        weights_5d_split_mismatch = ht.ones(random_5d.gshape, split=-1, device=ht_device)
+        with self.assertRaises(NotImplementedError):
+            ht.average(random_5d, weights=weights_5d_split_mismatch, axis=axis)
+
         with self.assertRaises(TypeError):
             ht_array.average(axis=1.1)
         with self.assertRaises(TypeError):
