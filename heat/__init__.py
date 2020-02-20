@@ -1,5 +1,6 @@
 from . import core
 from . import cluster
+from .linalg import *
 from . import regression
 from . import spatial
 from .core import *
