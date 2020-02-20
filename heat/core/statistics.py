@@ -4,7 +4,7 @@ import torch
 from .communication import MPI
 from . import exponential
 from . import factories
-from . import linalg
+from .. import linalg
 from . import manipulations
 from . import operations
 from . import dndarray

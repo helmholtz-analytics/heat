@@ -1,10 +1,10 @@
 import collections
 import torch
 
-from .. import dndarray
-from .. import logical
-from .. import factories
-from .. import tiling
+from heat.core import dndarray
+from heat.core import logical
+from heat.core import factories
+from heat.core import tiling
 
 __all__ = ["qr"]
 

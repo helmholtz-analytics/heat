@@ -2,7 +2,7 @@ import torch
 
 from .qr import __r_calc_split0, __qr_split1_loop, __q_calc_split0
 
-from .. import factories
+from heat.core import factories
 
 __all__ = ["block_diagonalize"]
 
