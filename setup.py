@@ -15,7 +15,7 @@ with open("README.md", "r") as handle:
 
 setup(
     name="heat",
-    packages=find_packages(exclude=("*tests*")),
+    packages=find_packages(exclude=("*tests*",)),
     data_files=["README.md", "LICENSE"],
     version=version.__version__,
     description="A framework for high performance data analytics and machine learning.",
