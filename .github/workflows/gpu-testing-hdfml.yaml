@@ -6,23 +6,23 @@ jobs:
   submit-gpu-tests:
     name: Submit GPU test batch job
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        processes: [1, 2, 3]
-        gpus: ['0', '0,1', '0,1,2', '0,1,2,3']
-        exclude:
-          - processes: 2
-            gpus: '0'
-          - processes: 2
-            gpus: '0,1'
-          - processes: 2
-            gpus: '0,1,2'
-          - processes: 3
-            gpus: '0'
-          - processes: 3
-            gpus: '0,1'
-          - processes: 3
-            gpus: '0,1,2'
+#    strategy:
+#      matrix:
+#        processes: [1, 2, 3]
+#        gpus: ['0', '0,1', '0,1,2', '0,1,2,3']
+#        exclude:
+#          - processes: 2
+#            gpus: '0'
+#          - processes: 2
+#            gpus: '0,1'
+#          - processes: 2
+#            gpus: '0,1,2'
+#          - processes: 3
+#            gpus: '0'
+#          - processes: 3
+#            gpus: '0,1'
+#          - processes: 3
+#            gpus: '0,1,2'
     steps:
       - uses: appleboy/ssh-action@master
         with:
@@ -39,9 +39,10 @@ jobs:
             git checkout $GITHUB_SHA
             {
               echo -n -e "#!/bin/bash -x\n";
-              echo -n -e "#SBATCH --account=haf --nodes=${{ matrix.processes }} --ntasks-per-node=1 --cpus-per-task=1 --time=00:05:00\n";
+              echo -n -e "#SBATCH --account=haf --nodes=2 --ntasks-per-node=1 --cpus-per-task=1 --time=00:05:00\n";
               cat .github/workflows/gpu_test_template.sh;
             } > test_batch_script.sh
             cat test_batch_script.sh
             export SHA=$GITHUB_SHA
-            sbatch test_batch_script.sh ${{ matrix.processes }} ${{ matrix.gpus }}
+            sbatch test_batch_script.sh '2' '0,1'
+#            sbatch test_batch_script.sh ${{ matrix.processes }} ${{ matrix.gpus }}

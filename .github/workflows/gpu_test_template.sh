@@ -1,4 +1,4 @@
-# This script will be submitted as a batch job
+# This script will be used to submit a batch job
 # `STATUS_TOKEN` and `CODECOV_TOKEN` are set in the `.bashrc` file on the machine
 # The first one is used to authorize on GitHub to submit to the status API
 # The second one is used for uploading the coverage report to codecov
@@ -18,11 +18,11 @@ module load Intel
 module load ParaStationMPI
 python -m pip install --user codecov pytest coverage
 python -m pip install --user -e .
-export CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=$2
 echo "NUMBER GPUS $CUDA_VISIBLE_DEVICES AND $1 AND $2"
 # This will make heat run the unittests on GPU
 export DEVICE="gpu"
-srun -n 2 python -m coverage run --source=heat --parallel-mode -m pytest || STATUS="failure"
+srun -n "$1" python -m coverage run --source=heat --parallel-mode -m pytest || STATUS="failure"
 python -m coverage combine
 python -m coverage report
 python -m coverage xml
