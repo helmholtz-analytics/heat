@@ -22,7 +22,7 @@ export CUDA_VISIBLE_DEVICES=$2
 echo "NUMBER GPUS $CUDA_VISIBLE_DEVICES AND $1 AND $2"
 # This will make heat run the unittests on GPU
 export DEVICE="gpu"
-srun -n "$1" echo "import torch; print('NUMBER GPUS 2' + torch.cuda.device_count())" | python || STATUS="failure"
+srun -n "$1" echo "import torch; print('NUMBER GPUS 2', torch.cuda.device_count())" | python
 python -m coverage combine
 python -m coverage report
 python -m coverage xml
