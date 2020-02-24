@@ -22,7 +22,7 @@ export CUDA_VISIBLE_DEVICES=$2
 echo "NUMBER GPUS $CUDA_VISIBLE_DEVICES AND $1 AND $2"
 # This will make heat run the unittests on GPU
 export DEVICE="gpu"
-srun -n "$1" echo "import torch; print('NUMBER GPUS 2', torch.cuda.device_count())" | python
+srun -n "$1" python -m coverage run --source=heat --parallel-mode -m pytest
 python -m coverage combine
 python -m coverage report
 python -m coverage xml
@@ -30,4 +30,3 @@ python -m codecov -t $CODECOV_TOKEN
 
 curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d "{\"state\": \"$STATUS\", \"description\": \"GPU Test Status\", \"context\": \"continuous-integration/gpu\"}" https://api.github.com/repos/helmholtz-analytics/heat/statuses/$SHA
 
-cd ~
