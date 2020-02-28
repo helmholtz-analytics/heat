@@ -18,8 +18,6 @@ module load Intel
 module load ParaStationMPI
 python -m pip install --user codecov pytest coverage
 python -m pip install --user -e .
-export CUDA_VISIBLE_DEVICES=$2
-echo "NUMBER GPUS $CUDA_VISIBLE_DEVICES AND $1 AND $2"
 # This will make heat run the unittests on GPU
 export DEVICE="gpu"
 srun -n "$1" python -m coverage run --source=heat --parallel-mode -m pytest
