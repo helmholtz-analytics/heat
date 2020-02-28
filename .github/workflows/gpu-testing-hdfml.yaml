@@ -8,21 +8,21 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        processes: [1, 2, 3]
+#        processes: [1, 2, 3]
         gpus: [1, 2, 3, 4]
-        exclude:
-          - processes: 2
-            gpus: 1
-          - processes: 2
-            gpus: 2
-          - processes: 2
-            gpus: 3
-          - processes: 3
-            gpus: 1
-          - processes: 3
-            gpus: 2
-          - processes: 3
-            gpus: 3
+#        exclude:
+#          - processes: 2
+#            gpus: 1
+#          - processes: 2
+#            gpus: 2
+#          - processes: 2
+#            gpus: 3
+#          - processes: 3
+#            gpus: 1
+#          - processes: 3
+#            gpus: 2
+#          - processes: 3
+#            gpus: 3
     steps:
       - uses: appleboy/ssh-action@master
         with:
@@ -44,4 +44,5 @@ jobs:
             } > test_batch_script.sh
             cat test_batch_script.sh
             export SHA=$GITHUB_SHA
-            sbatch test_batch_script.sh ${{ matrix.processes }}
+#            sbatch test_batch_script.sh ${{ matrix.processes }}
+            sbatch test_batch_script.sh '2'
