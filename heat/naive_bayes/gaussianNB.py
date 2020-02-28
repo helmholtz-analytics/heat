@@ -533,13 +533,13 @@ class GaussianNB:
             the model. The columns correspond to the classes in sorted
             order, as they appear in the attribute :term:`classes_`.
         """
-        # TODO: sanitation/validation module, cf. #468
+        # TODO: sanitation/validation module, cf. #468, log_prob_x must be 2D (cf. np.atleast_2D)
         jll = self.__joint_log_likelihood(X)
+        log_prob_x_shape = (jll.gshape[0], 1)
+        log_prob_x = ht.empty(log_prob_x_shape, dtype=jll.dtype, split=jll.split, device=jll.device)
         # normalize by P(x) = P(f_1, ..., f_n)
-        log_prob_x = self.logsumexp(jll, axis=1)
-        return (
-            jll - log_prob_x.T  # np.atleast_2d(log_prob_x).T
-        )  # TODO sanitation/validation module #468, ensure that log_prob_x is at least a 2D tensor
+        log_prob_x._DNDarray__array = self.logsumexp(jll, axis=1)._DNDarray__array.unsqueeze(1)
+        return jll - log_prob_x
 
     def predict_proba(self, X):
         """
