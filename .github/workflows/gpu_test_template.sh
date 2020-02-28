@@ -20,7 +20,7 @@ python -m pip install --user codecov pytest coverage
 python -m pip install --user -e .
 # This will make heat run the unittests on GPU
 export DEVICE="gpu"
-srun -n "$1" python -m coverage run --source=heat --parallel-mode -m pytest
+srun -n "$1" python -m coverage run --source=heat --parallel-mode -m pytest || STATUS="failure"
 python -m coverage combine
 python -m coverage report
 python -m coverage xml
