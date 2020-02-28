@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 import sys
 
 sys.path.append("./heat/core")
@@ -18,16 +18,7 @@ with open("README.md", "r") as handle:
 
 setup(
     name="heat",
-    packages=[
-        "heat",
-        "heat.core",
-        "heat.cluster",
-        "heat.naive_bayes",
-        "heat.regression",
-        "heat.regression.lasso",
-        "heat.spatial",
-        "heat.utils",
-    ],
+    packages=find_packages(exclude=("*tests*",)),
     data_files=["README.md", "LICENSE"],
     version=version.__version__,
     description="A framework for high performance data analytics and machine learning.",
