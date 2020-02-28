@@ -45,4 +45,4 @@ jobs:
             } > $FILENAME
             cat $FILENAME
             export SHA=$GITHUB_SHA
-            sbatch test_batch_script.sh ${{ matrix.processes }} ${{ matrix.gpus }}
+            sbatch $FILENAME ${{ matrix.processes }} ${{ matrix.gpus }}
