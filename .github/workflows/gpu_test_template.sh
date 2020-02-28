@@ -7,7 +7,7 @@
 # $2 defines the number of GPUS that will be used in this job
 # $SHA is the SHA of the current commit to allow to post messages to the GitHub status API
 
-curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d '{"state": "pending", "description": "GPU Test Status", "context": "continuous-integration/gpu"}' https://api.github.com/repos/helmholtz-analytics/heat/statuses/$SHA
+curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d "{\"state\": \"pending\", \"description\": \"GPU Test Status\", \"context\": \"continuous-integration/gpus:$2-cpus:$1\"}" https://api.github.com/repos/helmholtz-analytics/heat/statuses/$SHA
 
 STATUS="success"
 
@@ -26,5 +26,5 @@ python -m coverage report
 python -m coverage xml
 python -m codecov -t $CODECOV_TOKEN
 
-curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d "{\"state\": \"$STATUS\", \"description\": \"GPU Test Status\", \"context\": \"continuous-integration/gpu\"}" https://api.github.com/repos/helmholtz-analytics/heat/statuses/$SHA
+curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d "{\"state\": \"$STATUS\", \"description\": \"GPU Test Status\", \"context\": \"continuous-integration/gpus:$2-cpus:$1\"}" https://api.github.com/repos/helmholtz-analytics/heat/statuses/$SHA
 
