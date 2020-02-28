@@ -44,5 +44,5 @@ jobs:
             } > test_batch_script.sh
             cat test_batch_script.sh
             export SHA=$GITHUB_SHA
-#            sbatch test_batch_script.sh ${{ matrix.processes }}
             sbatch test_batch_script.sh '2'
+#            sbatch test_batch_script.sh ${{ matrix.processes }}
