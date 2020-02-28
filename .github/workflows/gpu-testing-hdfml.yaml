@@ -43,6 +43,6 @@ jobs:
               echo -n -e "#SBATCH --account=haf --nodes=2 --ntasks-per-node=1 --cpus-per-task=1 --time=00:05:00 --gres=gpu:${{ matrix.gpus }}\n";
               cat .github/workflows/gpu_test_template.sh;
             } > $FILENAME
-            cat test_batch_script.sh
+            cat $FILENAME
             export SHA=$GITHUB_SHA
             sbatch test_batch_script.sh ${{ matrix.processes }} ${{ matrix.gpus }}
