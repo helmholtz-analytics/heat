@@ -6,50 +6,53 @@ import heat as ht
 
 class GaussianNB:
     """
-    Gaussian Naive Bayes (GaussianNB)
-    Can perform online updates to model parameters via :meth:`partial_fit`.
+    Gaussian Naive Bayes (GaussianNB), based on scikit-learn.naive_bayes.GaussianNB.
+
+    Can perform online updates to model parameters via method `partial_fit`.
     For details on algorithm used to update feature means and variance online,
     see Stanford CS tech report STAN-CS-79-773 by Chan, Golub, and LeVeque:
         http://i.stanford.edu/pub/cstr/reports/cs/tr/79/773/CS-TR-79-773.pdf
-    Read more in the :ref:`User Guide <gaussian_naive_bayes>`.
+
     Parameters
     ----------
-    priors : array-like, shape (n_classes,)
+    priors : ht.tensor with shape (n_classes,)
         Prior probabilities of the classes. If specified the priors are not
         adjusted according to the data.
     var_smoothing : float, optional (default=1e-9)
         Portion of the largest variance of all features that is added to
         variances for calculation stability.
+
     Attributes
     ----------
-    class_count_ : array, shape (n_classes,)
+    class_count_ : ht.tensor with shape (n_classes,)
         number of training samples observed in each class.
-    class_prior_ : array, shape (n_classes,)
+    class_prior_ : ht.tensor with shape (n_classes,)
         probability of each class.
-    classes_ : array, shape (n_classes,)
+    classes_ : ht.tensor with shape (n_classes,)
         class labels known to the classifier
     epsilon_ : float
         absolute additive value to variances
-    sigma_ : array, shape (n_classes, n_features)
+    sigma_ : ht.tensor with shape (n_classes, n_features)
         variance of each feature per class
-    theta_ : array, shape (n_classes, n_features)
+    theta_ : ht.tensor with shape (n_classes, n_features)
         mean of each feature per class
+
     Examples
     --------
-    >>> import numpy as np
-    >>> X = np.array([[-1, -1], [-2, -1], [-3, -2], [1, 1], [2, 1], [3, 2]])
-    >>> Y = np.array([1, 1, 1, 2, 2, 2])
-    >>> from sklearn.naive_bayes import GaussianNB
+    >>> import heat as ht
+    >>> X = ht.array([[-1, -1], [-2, -1], [-3, -2], [1, 1], [2, 1], [3, 2]], dtype=ht.float32)
+    >>> Y = ht.array([1, 1, 1, 2, 2, 2])
+    >>> from heat.naive_bayes import GaussianNB
     >>> clf = GaussianNB()
     >>> clf.fit(X, Y)
-    GaussianNB()
-    >>> print(clf.predict([[-0.8, -1]]))
-    [1]
+    <heat.naive_bayes.gaussianNB.GaussianNB object at 0x1a249f6dd8>
+    >>> print(clf.predict(ht.array([[-0.8, -1]])))
+    tensor([1])
     >>> clf_pf = GaussianNB()
-    >>> clf_pf.partial_fit(X, Y, np.unique(Y))
-    GaussianNB()
-    >>> print(clf_pf.predict([[-0.8, -1]]))
-    [1]
+    >>> clf_pf.partial_fit(X, Y, ht.unique(Y, sorted=True))
+    <heat.naive_bayes.gaussianNB.GaussianNB object at 0x1a249fbe10>
+    >>> print(clf_pf.predict(ht.array([[-0.8, -1]])))
+    tensor([1])
     """
 
     def __init__(self, priors=None, var_smoothing=1e-9):
