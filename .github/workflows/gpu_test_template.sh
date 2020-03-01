@@ -36,4 +36,3 @@ curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN"
 
 # Self delete the file once the batch job is done
 rm -- "$0"
-
