@@ -10,7 +10,8 @@ jobs:
     strategy:
       matrix:
         processes: [1, 2, 3, 4, 7]
-        image: [ubuntu, fedora]
+#        image: [fedora, ubuntu] in case heat should also be tested on a ubuntu image
+        image: [fedora]
         install-options: ["-e .", "-e .[hdf5,netcdf]"]
     steps:
       - uses: actions/checkout@v1
