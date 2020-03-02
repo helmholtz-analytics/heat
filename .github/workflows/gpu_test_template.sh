@@ -33,6 +33,3 @@ python -m codecov -t $CODECOV_TOKEN
 
 # Send the final status report
 curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d "{\"state\": \"$STATUS\", \"description\": \"GPU Test Status\", \"context\": \"GPU Testing / gpus:$2-cpus:$1\"}" https://api.github.com/repos/helmholtz-analytics/heat/statuses/$SHA
-
-# Self delete the file once the batch job is done
-rm -- "$0"
