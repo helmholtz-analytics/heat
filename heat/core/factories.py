@@ -303,6 +303,10 @@ def array(
     # infer dtype from obj if not explicitly given
     if dtype is None:
         dtype = types.canonical_heat_type(obj.dtype)
+    else:
+        torch_dtype = dtype.torch_type()
+        if obj.dtype != torch_dtype:
+            obj = obj.type(torch_dtype)
 
     # sanitize minimum number of dimensions
     if not isinstance(ndmin, int):
