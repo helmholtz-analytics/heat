@@ -300,12 +300,12 @@ class GaussianNB:
             # Initialise the class prior
             # Take into account the priors
             if self.priors is not None:
-                priors = ht.array(
-                    self.priors,
-                    dtype=self.priors.dtype,
-                    split=self.priors.split,
-                    device=self.priors.device,
-                )
+                if not isinstance(self.priors, ht.DNDarray):
+                    priors = ht.array(
+                        self.priors, dtype=self.priors.dtype, split=None, device=self.priors.device
+                    )
+                else:
+                    priors = self.priors
                 # Check that the provide prior match the number of classes
                 if len(priors) != n_classes:
                     raise ValueError("Number of priors must match number of" " classes.")
