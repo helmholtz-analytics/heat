@@ -1,4 +1,4 @@
-name: GPU Testing Workflow on HDFML machine
+name: GPU Testing
 
 on: push
 
