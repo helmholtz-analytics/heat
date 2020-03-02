@@ -37,7 +37,7 @@ jobs:
             cd  heat
             git fetch
             git checkout $GITHUB_SHA
-            FILENAME=test_batch_script_${{ matrix.gpus }}.sh
+            FILENAME=test_batch_script_${{ matrix.processes }}_${{ matrix.gpus }}.sh
             {
               echo -n -e "#!/bin/bash -x\n";
               echo -n -e "#SBATCH --account=haf --nodes=2 --ntasks-per-node=1 --cpus-per-task=1 --time=00:05:00 --gres=gpu:${{ matrix.gpus }}\n";
