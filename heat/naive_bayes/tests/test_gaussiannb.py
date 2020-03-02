@@ -53,7 +53,8 @@ class TestGaussianNB(BasicTest):
         # test GaussianNB locally, no weights
         local_fit = gnb_heat.fit(X_train, y_train)
         self.assert_array_equal(gnb_heat.classes_, np.array([0, 1, 2]))
-        y_pred_local = local_fit.predict(X_test)
+        local_fit_no_classes = gnb_heat.partial_fit(X_train, y_train, classes=None)
+        y_pred_local = local_fit_no_classes.predict(X_test)
         y_pred_proba_local = local_fit.predict_proba(X_test)
         sklearn_class_prior = np.array([0.38666667, 0.26666667, 0.34666667])
         sklearn_epsilon = np.array([3.6399040000000003e-09])
@@ -147,6 +148,9 @@ class TestGaussianNB(BasicTest):
             gnb_heat.fit(X_train, y_wrong_size)
         with self.assertRaises(ValueError):
             gnb_heat.partial_fit(X_train, y_train, classes=wrong_classes)
+        with self.assertRaises(ValueError):
+            gnb_heat.classes_ = None
+            gnb_heat.partial_fit(X_train, y_train, classes=None)
         with self.assertRaises(ValueError):
             gnb_heat.fit(X_train_split, y_train_split, sample_weight=weights_2D_split)
         with self.assertRaises(ValueError):
