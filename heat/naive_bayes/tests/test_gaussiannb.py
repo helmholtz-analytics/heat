@@ -53,7 +53,6 @@ class TestGaussianNB(BasicTest):
         # test GaussianNB locally, no weights
         local_fit = gnb_heat.fit(X_train, y_train)
         self.assert_array_equal(gnb_heat.classes_, np.array([0, 1, 2]))
-
         y_pred_local = local_fit.predict(X_test)
         y_pred_proba_local = local_fit.predict_proba(X_test)
         sklearn_class_prior = np.array([0.38666667, 0.26666667, 0.34666667])
@@ -129,6 +128,10 @@ class TestGaussianNB(BasicTest):
         y_train_split = ht.resplit(y_train, axis=0)
         weights_2D_split = y_2D = ht.ones((75, 1), split=0, device=ht_device)
         weights_wrong_size = ht.ones(76, device=ht_device)
+        priors_wrong_shape = ht.random.randn(4, device=ht_device)
+        priors_wrong_sum = ht.random.randn(3, dtype=ht.float32, device=ht_device)
+        priors_wrong_sign = ht.array([-0.3, 1.7, 0.6])
+        wrong_classes = ht.array([3, 4, 5])
 
         with self.assertRaises(ValueError):
             gnb_heat.fit(X_torch, y_train)
@@ -143,6 +146,17 @@ class TestGaussianNB(BasicTest):
         with self.assertRaises(ValueError):
             gnb_heat.fit(X_train, y_wrong_size)
         with self.assertRaises(ValueError):
+            gnb_heat.partial_fit(X_train, y_train, classes=wrong_classes)
+        with self.assertRaises(ValueError):
             gnb_heat.fit(X_train_split, y_train_split, sample_weight=weights_2D_split)
         with self.assertRaises(ValueError):
             gnb_heat.fit(X_train, y_train, sample_weight=weights_wrong_size)
+        with self.assertRaises(ValueError):
+            gnb_heat.priors = priors_wrong_shape
+            gnb_heat.fit(X_train, y_train)
+        with self.assertRaises(ValueError):
+            gnb_heat.priors = priors_wrong_sum
+            gnb_heat.fit(X_train, y_train)
+        with self.assertRaises(ValueError):
+            gnb_heat.priors = priors_wrong_sign
+            gnb_heat.fit(X_train, y_train)
