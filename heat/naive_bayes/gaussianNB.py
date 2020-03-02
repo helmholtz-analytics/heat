@@ -301,16 +301,14 @@ class GaussianNB:
             # Take into account the priors
             if self.priors is not None:
                 if not isinstance(self.priors, ht.DNDarray):
-                    priors = ht.array(
-                        self.priors, dtype=self.priors.dtype, split=None, device=self.priors.device
-                    )
+                    priors = ht.array(self.priors, dtype=X.dtype, split=None, device=X.device)
                 else:
                     priors = self.priors
                 # Check that the provide prior match the number of classes
                 if len(priors) != n_classes:
                     raise ValueError("Number of priors must match number of" " classes.")
                 # Check that the sum is 1
-                if not ht.isclose(priors.sum(), 1.0):
+                if not ht.isclose(priors.sum(), ht.array(1.0, dtype=priors.dtype)):
                     raise ValueError("The sum of the priors should be 1.")
                 # Check that the prior are non-negative
                 if (priors < 0).any():
