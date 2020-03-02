@@ -1230,7 +1230,7 @@ def var(x, axis=None, bessel=True):
 
         var_shape = list(var.shape) if list(var.shape) else [1]
 
-        var_tot = factories.zeros(([x.comm.size, 2] + var_shape), device=x.device)
+        var_tot = factories.zeros(([x.comm.size, 2] + var_shape), dtype=x.dtype, device=x.device)
         n_tot = factories.zeros(x.comm.size, device=x.device)
         var_tot[x.comm.rank, 0, :] = var
         var_tot[x.comm.rank, 1, :] = mu
@@ -1262,8 +1262,8 @@ def var(x, axis=None, bessel=True):
                 mu_in = 0.0
 
             n = x.lnumel
-            var_tot = factories.zeros((x.comm.size, 3), device=x.device)
-            var_proc = factories.zeros((x.comm.size, 3), device=x.device)
+            var_tot = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
+            var_proc = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
             var_proc[x.comm.rank] = var_in, mu_in, float(n)
             x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
 
@@ -1325,7 +1325,9 @@ def var(x, axis=None, bessel=True):
 
             if x.split is None:  # x is *not* distributed -> no need to distributed
                 return factories.array(
-                    torch.var(x._DNDarray__array, dim=axis, unbiased=bessel), device=x.device
+                    torch.var(x._DNDarray__array, dim=axis, unbiased=bessel),
+                    dtype=x.dtype,
+                    device=x.device,
                 )
             elif axis == x.split:  # x is distributed and axis chosen is == to split
                 return reduce_vars_elementwise(output_shape)
@@ -1333,7 +1335,10 @@ def var(x, axis=None, bessel=True):
                 # singular axis given (axis) not equal to split direction (x.split)
                 lcl = torch.var(x._DNDarray__array, dim=axis, keepdim=False)
                 return factories.array(
-                    lcl, is_split=x.split if axis > x.split else x.split - 1, device=x.device
+                    lcl,
+                    is_split=x.split if axis > x.split else x.split - 1,
+                    dtype=x.dtype,
+                    device=x.device,
                 )
         else:
             raise TypeError("axis (axis) must be an int, tuple, list, etc.; currently it is {}. ")
