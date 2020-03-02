@@ -15,7 +15,7 @@ class GaussianNB:
 
     Parameters
     ----------
-    priors : ht.tensor with shape (n_classes,)
+    priors : ht.tensor of shape (n_classes,)
         Prior probabilities of the classes. If specified the priors are not
         adjusted according to the data.
     var_smoothing : float, optional (default=1e-9)
@@ -24,17 +24,17 @@ class GaussianNB:
 
     Attributes
     ----------
-    class_count_ : ht.tensor with shape (n_classes,)
+    class_count_ : ht.tensor of shape (n_classes,)
         number of training samples observed in each class.
-    class_prior_ : ht.tensor with shape (n_classes,)
+    class_prior_ : ht.tensor of shape (n_classes,)
         probability of each class.
-    classes_ : ht.tensor with shape (n_classes,)
+    classes_ : ht.tensor of shape (n_classes,)
         class labels known to the classifier
     epsilon_ : float
         absolute additive value to variances
-    sigma_ : ht.tensor with shape (n_classes, n_features)
+    sigma_ : ht.tensor of shape (n_classes, n_features)
         variance of each feature per class
-    theta_ : ht.tensor with shape (n_classes, n_features)
+    theta_ : ht.tensor of shape (n_classes, n_features)
         mean of each feature per class
 
     Examples
@@ -65,19 +65,19 @@ class GaussianNB:
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Training vectors, where n_samples is the number of samples
+        X : ht.tensor of shape (n_samples, n_features)
+            Training set, where n_samples is the number of samples
             and n_features is the number of features.
-        y : array-like, shape (n_samples,)
-            Target values.
-        sample_weight : array-like, shape (n_samples,), optional (default=None)
+        y : ht.tensor of shape (n_samples,)
+            Labels for training set.
+        sample_weight : ht.tensor of shape (n_samples,), optional (default=None)
             Weights applied to individual samples (1. for unweighted).
 
         Returns
         -------
         self : object
         """
-        # sanitize input
+        # sanitize input - to be moved to sanitation module, cf. #468
         if not isinstance(X, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
         if not isinstance(y, ht.DNDarray):
@@ -99,6 +99,8 @@ class GaussianNB:
 
     def __check_partial_fit_first_call(self, classes=None):
         """
+        Adapted to HeAT from scikit-learn.
+
         Private helper function for factorizing common classes param logic
         Estimators that implement the ``partial_fit`` API need to be provided with
         the list of possible classes at the first call to partial_fit.
@@ -132,6 +134,8 @@ class GaussianNB:
     @staticmethod
     def __update_mean_variance(n_past, mu, var, X, sample_weight=None):
         """
+        Adapted to HeAT from scikit-learn.
+
         Compute online update of Gaussian mean and variance.
         Given starting sample count, mean, and variance, a new set of
         points X, and optionally sample weights, return the updated mean and
@@ -148,18 +152,18 @@ class GaussianNB:
             Number of samples represented in old mean and variance. If sample
             weights were given, this should contain the sum of sample
             weights represented in old mean and variance.
-        mu : array-like, shape (number of Gaussians,)
+        mu : ht.tensor of shape (number of Gaussians,)
             Means for Gaussians in original set.
-        var : array-like, shape (number of Gaussians,)
+        var : ht.tensor of shape (number of Gaussians,)
             Variances for Gaussians in original set.
-        sample_weight : array-like, shape (n_samples,), optional (default=None)
+        sample_weight : ht.tensor of shape (n_samples,), optional (default=None)
             Weights applied to individual samples (1. for unweighted).
 
         Returns
         -------
-        total_mu : array-like, shape (number of Gaussians,)
+        total_mu : ht.tensor of shape (number of Gaussians,)
             Updated mean for each Gaussian over the combined set.
-        total_var : array-like, shape (number of Gaussians,)
+        total_var : ht.tensor of shape (number of Gaussians,)
             Updated variance for each Gaussian over the combined set.
         """
         if X.shape[0] == 0:
@@ -195,6 +199,8 @@ class GaussianNB:
 
     def partial_fit(self, X, y, classes=None, sample_weight=None):
         """
+        Adapted to HeAT from scikit-learn.
+
         Incremental fit on a batch of samples.
         This method is expected to be called several times consecutively
         on different chunks of a dataset so as to implement out-of-core
@@ -208,16 +214,16 @@ class GaussianNB:
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Training vectors, where n_samples is the number of samples and
+        X : ht.tensor of shape (n_samples, n_features)
+            Training set, where n_samples is the number of samples and
             n_features is the number of features.
-        y : array-like, shape (n_samples,)
-            Target values.
-        classes : array-like, shape (n_classes,), optional (default=None)
+        y : ht.tensor of shape (n_samples,)
+            Labels for training set.
+        classes : ht.tensor of shape (n_classes,), optional (default=None)
             List of all the classes that can possibly appear in the y vector.
             Must be provided at the first call to partial_fit, can be omitted
             in subsequent calls.
-        sample_weight : array-like, shape (n_samples,), optional (default=None)
+        sample_weight : ht.tensor of shape (n_samples,), optional (default=None)
             Weights applied to individual samples (1. for unweighted).
 
         Returns
@@ -228,23 +234,23 @@ class GaussianNB:
 
     def __partial_fit(self, X, y, classes=None, _refit=False, sample_weight=None):
         """
-        Actual implementation of Gaussian NB fitting.
+        Actual implementation of Gaussian NB fitting. Adapted to HeAT from scikit-learn.
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_features)
-            Training vectors, where n_samples is the number of samples and
+        X : ht.tensor of shape (n_samples, n_features)
+            Training set, where n_samples is the number of samples and
             n_features is the number of features.
-        y : array-like, shape (n_samples,)
-            Target values.
-        classes : array-like, shape (n_classes,), optional (default=None)
+        y : ht.tensor of shape (n_samples,)
+            Labels for training set.
+        classes : ht.tensor of shape (n_classes,), optional (default=None)
             List of all the classes that can possibly appear in the y vector.
             Must be provided at the first call to partial_fit, can be omitted
             in subsequent calls.
         _refit : bool, optional (default=False)
             If true, act as though this were the first time __partial_fit is called
             (ie, throw away any past fitting and start over).
-        sample_weight : array-like, shape (n_samples,), optional (default=None)
+        sample_weight : ht.tensor of shape (n_samples,), optional (default=None)
             Weights applied to individual samples (1. for unweighted).
 
         Returns
@@ -379,6 +385,8 @@ class GaussianNB:
 
     def __joint_log_likelihood(self, X):
         """
+        Adapted to HeAT from scikit-learn.
+
         Calculates joint log-likelihood for n_samples to be assigned to each class.
         Returns ht.DNDarray joint_log_likelihood(n_samples, n_classes).
         """
@@ -396,75 +404,42 @@ class GaussianNB:
 
     def logsumexp(self, a, axis=None, b=None, keepdim=False, return_sign=False):
         """
+        Adapted to HeAT from scikit-learn.
+
         Compute the log of the sum of exponentials of input elements.
-        TODO: update sklearn docs to fit heat
 
         Parameters
         ----------
-        a : array_like
+        a : ht.tensor
             Input array.
         axis : None or int or tuple of ints, optional
             Axis or axes over which the sum is taken. By default `axis` is None,
             and all elements are summed.
-            .. versionadded:: 0.11.0
-        keepdims : bool, optional
+        keepdim : bool, optional
             If this is set to True, the axes which are reduced are left in the
             result as dimensions with size one. With this option, the result
             will broadcast correctly against the original array.
-            .. versionadded:: 0.15.0
-        b : array-like, optional
+        b : ht.tensor, optional
             Scaling factor for exp(`a`) must be of the same shape as `a` or
             broadcastable to `a`. These values may be negative in order to
             implement subtraction.
-            .. versionadded:: 0.12.0
-        return_sign : bool, optional
+        #return_sign : bool, optional
             If this is set to True, the result will be a pair containing sign
             information; if False, results that are negative will be returned
             as NaN. Default is False (no sign information).
+            #TODO: returns NotImplementedYet error.
 
         Returns
         -------
-        res : ndarray
+        res : ht.tensor
             The result, ``np.log(np.sum(np.exp(a)))`` calculated in a numerically
             more stable way. If `b` is given then ``np.log(np.sum(b*np.exp(a)))``
             is returned.
-        sgn : ndarray
+        #TODO sgn : ndarray NOT IMPLEMENTED YET
             If return_sign is True, this will be an array of floating-point
             numbers matching res and +1, 0, or -1 depending on the sign
             of the result. If False, only one result is returned.
-        See Also
-        --------
-        numpy.logaddexp, numpy.logaddexp2
-        Notes
-        -----
-        NumPy has a logaddexp function which is very similar to `logsumexp`, but
-        only handles two arguments. `logaddexp.reduce` is similar to this
-        function, but may be less stable.
-        Examples
-        --------
-        >>> from scipy.special import logsumexp
-        >>> a = np.arange(10)
-        >>> np.log(np.sum(np.exp(a)))
-        9.4586297444267107
-        >>> logsumexp(a)
-        9.4586297444267107
-        With weights
-        >>> a = np.arange(10)
-        >>> b = np.arange(10, 0, -1)
-        >>> logsumexp(a, b=b)
-        9.9170178533034665
-        >>> np.log(np.sum(b*np.exp(a)))
-        9.9170178533034647
-        Returning a sign flag
-        >>> logsumexp([1,2],b=[1,-1],return_sign=True)
-        (1.5413248546129181, -1.0)
-        Notice that `logsumexp` does not directly support masked arrays. To use it
-        on a masked array, convert the mask into zero weights:
-        >>> a = np.ma.array([np.log(2), 2, np.log(3)],
-        ...                  mask=[False, True, False])
-        >>> b = (~a.mask).astype(int)
-        >>> logsumexp(a.data, b=b), np.log(5)
-        1.6094379124341005, 1.6094379124341005
+
         """
 
         if b is not None:
@@ -503,16 +478,18 @@ class GaussianNB:
 
     def predict(self, X):
         """
-        Perform classification on an array of test vectors X.
+        Adapted to HeAT from scikit-learn.
+
+        Perform classification on a tensor of test data X.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        X : ht.tensor of shape (n_samples, n_features)
 
         Returns
         -------
-        C : ndarray of shape (n_samples,)
-            Predicted target values for X
+        C : ht.tensor of shape (n_samples,)
+            Predicted labels for X
         """
         # sanitize input
         # TODO: sanitation/validation module, cf. #468
@@ -523,18 +500,20 @@ class GaussianNB:
 
     def predict_log_proba(self, X):
         """
-        Return log-probability estimates for the test vector X.
+        Adapted to HeAT from scikit-learn.
+
+        Return log-probability estimates for the test tensor X.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        X : ht.tensor of shape (n_samples, n_features)
 
         Returns
         -------
-        C : array-like of shape (n_samples, n_classes)
+        C : ht.tensor of shape (n_samples, n_classes)
             Returns the log-probability of the samples for each class in
             the model. The columns correspond to the classes in sorted
-            order, as they appear in the attribute :term:`classes_`.
+            order, as they appear in the attribute `classes_`.
         """
         # TODO: sanitation/validation module, cf. #468, log_prob_x must be 2D (cf. np.atleast_2D)
         jll = self.__joint_log_likelihood(X)
@@ -546,18 +525,19 @@ class GaussianNB:
 
     def predict_proba(self, X):
         """
-        Return probability estimates for the test vector X.
+        Adapted to HeAT from scikit-learn.
+
+        Return probability estimates for the test tensor X.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        X : ht.tensor of shape (n_samples, n_features)
 
         Returns
         -------
-        C : array-like of shape (n_samples, n_classes)
+        C : ht.tensor of shape (n_samples, n_classes)
             Returns the probability of the samples for each class in
-
-        the model. The columns correspond to the classes in sorted
-            order, as they appear in the attribute :term:`classes_`.
+            the model. The columns correspond to the classes in sorted
+            order, as they appear in the attribute `classes_`.
         """
         return ht.exp(self.predict_log_proba(X))
