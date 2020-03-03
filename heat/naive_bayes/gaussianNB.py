@@ -115,18 +115,15 @@ class GaussianNB:
 
         elif classes is not None:
             unique_labels = classes
-            if getattr(self, "classes_", None) is not None:
-                if not ht.equal(self.classes_, unique_labels):
-                    raise ValueError(
-                        "`classes={}` is not the same as on last call "
-                        "to partial_fit, was: {}".format(classes, self.classes_)
-                    )
-
-            else:
-                # This is the first call to partial_fit
+            if getattr(self, "classes_", None) is None:
                 self.classes_ = unique_labels
+                # This is the first call to partial_fit
                 return True
-
+            if not ht.equal(self.classes_, unique_labels):
+                raise ValueError(
+                    "`classes={}` is not the same as on last call "
+                    "to partial_fit, was: {}".format(classes, self.classes_)
+                )
         # classes is None and self.classes_ has already previously been set:
         # nothing to do
         return False
