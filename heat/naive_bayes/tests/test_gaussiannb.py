@@ -124,6 +124,7 @@ class TestGaussianNB(BasicTest):
         y_2D = ht.ones((75, 1), split=None, device=ht_device)
         weights_torch = torch.zeros(75)
         X_3D = ht.ones((75, 4, 4), split=None, device=ht_device)
+        X_wrong_size = ht.ones((75, 5), split=None, device=ht_device)
         y_wrong_size = ht.zeros(76, device=ht_device)
         X_train_split = ht.resplit(X_train, axis=0)
         y_train_split = ht.resplit(y_train, axis=0)
@@ -149,6 +150,9 @@ class TestGaussianNB(BasicTest):
         with self.assertRaises(ValueError):
             gnb_heat.fit(X_train, y_train)
             gnb_heat.predict(X_torch)
+        with self.assertRaises(ValueError):
+            gnb_heat.fit(X_train, y_train)
+            gnb_heat.predict(X_wrong_size)
         with self.assertRaises(ValueError):
             gnb_heat.fit(X_train, y_train)
             gnb_heat.partial_fit(X_train, y_train, classes=wrong_classes)
