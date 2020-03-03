@@ -58,12 +58,10 @@ def nonzero(a):
     [0/1] tensor([[4, 5, 6]])
     [1/1] tensor([[7, 8, 9]])
     """
-
     if a.split is None:
         # if there is no split then just return the values from torch
-        return factories.array(
-            torch.nonzero(a._DNDarray__array), is_split=a.split, device=a.device, comm=a.comm
-        )
+        lcl_nonzero = torch.nonzero(a._DNDarray__array)
+        is_split = None
     else:
         # a is split
         lcl_nonzero = torch.nonzero(a._DNDarray__array)
@@ -71,7 +69,11 @@ def nonzero(a):
         lcl_nonzero[..., a.split] += slices[a.split].start
         gout = list(lcl_nonzero.size())
         gout[0] = a.comm.allreduce(gout[0], MPI.SUM)
-        return factories.array(lcl_nonzero, is_split=0, device=a.device, comm=a.comm)
+        is_split = 0
+
+    if a.numdims == 1:
+        lcl_nonzero = lcl_nonzero.squeeze()
+    return factories.array(lcl_nonzero, is_split=is_split, device=a.device, comm=a.comm)
 
 
 def where(cond, x=None, y=None):
