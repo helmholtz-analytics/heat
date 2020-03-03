@@ -152,7 +152,7 @@ class TestGaussianNB(BasicTest):
             gnb_heat.predict(X_torch)
         with self.assertRaises(ValueError):
             gnb_heat.fit(X_train, y_train)
-            gnb_heat.predict(X_wrong_size)
+            gnb_heat.partial_fit(X_wrong_size, y_train)
         with self.assertRaises(ValueError):
             gnb_heat.fit(X_train, y_train)
             gnb_heat.partial_fit(X_train, y_train, classes=wrong_classes)
