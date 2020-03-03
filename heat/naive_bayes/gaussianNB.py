@@ -10,8 +10,7 @@ class GaussianNB:
 
     Can perform online updates to model parameters via method `partial_fit`.
     For details on algorithm used to update feature means and variance online,
-    see Stanford CS tech report STAN-CS-79-773 by Chan, Golub, and LeVeque:
-        http://i.stanford.edu/pub/cstr/reports/cs/tr/79/773/CS-TR-79-773.pdf
+    see Chan, Golub, and LeVeque 1983 [1]
 
     Parameters
     ----------
@@ -36,6 +35,11 @@ class GaussianNB:
         variance of each feature per class
     theta_ : ht.tensor of shape (n_classes, n_features)
         mean of each feature per class
+
+    References
+    ----------
+    [1] Chan, Tony F., Golub, Gene H., and Leveque, Randall J., "Algorithms for Computing the Sample Variance: Analysis
+    and Recommendations", The American Statistician, 37:3, pp. 242-247, 1983
 
     Examples
     --------
