@@ -144,8 +144,7 @@ class GaussianNB:
         -- you get variance, not covariance).
         Can take scalar mean and variance, or vector mean and variance to
         simultaneously update a number of independent Gaussians.
-        See Stanford CS tech report STAN-CS-79-773 by Chan, Golub, and LeVeque:
-        http://i.stanford.edu/pub/cstr/reports/cs/tr/79/773/CS-TR-79-773.pdf
+        See Chan, Golub, and LeVeque 1983 [1]
 
         Parameters
         ----------
@@ -166,6 +165,11 @@ class GaussianNB:
             Updated mean for each Gaussian over the combined set.
         total_var : ht.tensor of shape (number of Gaussians,)
             Updated variance for each Gaussian over the combined set.
+
+        References
+        ----------
+        [1] Chan, Tony F., Golub, Gene H., and Leveque, Randall J., "Algorithms for Computing the Sample Variance: Analysis
+        and Recommendations", The American Statistician, 37:3, pp. 242-247, 1983
         """
         if X.shape[0] == 0:
             return mu, var
