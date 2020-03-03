@@ -131,7 +131,7 @@ class TestGaussianNB(BasicTest):
         weights_wrong_size = ht.ones(76, device=ht_device)
         priors_wrong_shape = ht.random.randn(4, device=ht_device)
         priors_wrong_sum = ht.random.randn(3, dtype=ht.float32, device=ht_device)
-        priors_wrong_sign = ht.array([-0.3, 1.7, 0.6])
+        priors_wrong_sign = ht.array([-0.3, 0.7, 0.6])
         wrong_classes = ht.array([3, 4, 5])
 
         with self.assertRaises(ValueError):
@@ -147,6 +147,7 @@ class TestGaussianNB(BasicTest):
         with self.assertRaises(ValueError):
             gnb_heat.fit(X_train, y_wrong_size)
         with self.assertRaises(ValueError):
+            gnb_heat.fit(X_train, y_train)
             gnb_heat.partial_fit(X_train, y_train, classes=wrong_classes)
         with self.assertRaises(ValueError):
             gnb_heat.classes_ = None
