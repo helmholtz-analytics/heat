@@ -169,7 +169,7 @@ class KMeans:
                 x0.comm.Bcast(x0, root=proc)
                 centroids[0, :] = x0
                 for i in range(1, self.n_clusters):
-                    distances = ht.spatial.distances.cdist(X, centroids, quadratic_expansion=True)
+                    distances = ht.spatial.distance.cdist(X, centroids, quadratic_expansion=True)
                     D2 = distances.min(axis=1)
                     D2.resplit_(axis=None)
                     prob = D2 / D2.sum()
@@ -215,7 +215,7 @@ class KMeans:
             Training instances to cluster.
         """
         # calculate the distance matrix and determine the closest centroid
-        distances = ht.spatial.distances.cdist(X, self._cluster_centers, quadratic_expansion=True)
+        distances = ht.spatial.distance.cdist(X, self._cluster_centers, quadratic_expansion=True)
         matching_centroids = distances.argmin(axis=1, keepdim=True)
 
         return matching_centroids
