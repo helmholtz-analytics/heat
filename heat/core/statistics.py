@@ -1224,8 +1224,8 @@ def var(x, axis=None, bessel=True):
             mu = torch.mean(x._DNDarray__array, dim=axis)
             var = torch.var(x._DNDarray__array, dim=axis, unbiased=bessel)
         else:
-            mu = factories.zeros(output_shape_i, device=x.device)
-            var = factories.zeros(output_shape_i, device=x.device)
+            mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+            var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
 
         var_shape = list(var.shape) if list(var.shape) else [1]
 
