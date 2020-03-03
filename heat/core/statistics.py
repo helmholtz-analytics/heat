@@ -337,11 +337,10 @@ def average(x, axis=None, weights=None, returned=False):
         else:
             if x.comm.is_distributed():
                 if x.split is not None and weights.split != x.split and weights.numdims != 1:
+                    # fix after Issue #425 is solved
                     raise NotImplementedError(
                         "weights.split does not match data.split: not implemented yet."
                     )
-                # fix after Issue #425 is solved
-                # weights.resplit_(x.split)
             wgt = factories.empty_like(weights, device=x.device)
             wgt._DNDarray__array = weights._DNDarray__array
 
