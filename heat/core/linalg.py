@@ -178,9 +178,11 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
         raise TypeError("Input Matrix A needs to be symmetric.")
     T = factories.zeros((m, m))
     if A.split == 0:
-        V = factories.zeros((n, m), split=A.split, dtype=A.dtype, device=A.device)
+        #V = factories.ones((n, m), split=0, dtype=A.dtype, device=A.device)
+        V = factories.ones((m, n), split=1, dtype=A.dtype, device=A.device)
     else:
-        V = factories.zeros((n, m), dtype=A.dtype, device=A.device)
+        #V = factories.ones((n, m), dtype=A.dtype, device=A.device)
+        V = factories.ones((m, n), split=None, dtype=A.dtype, device=A.device)
 
     if v0 is None:
         vr = random.rand(n)
@@ -192,37 +194,45 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
     alpha = dot(w, v0)
     w = w - alpha * v0
     T[0, 0] = alpha
-    V[:, 0] = v0
+    V[0, :] = v0
     for i in range(1, int(m)):
         beta = norm(w)
         if abs(beta) < 1e-10:
             print("Lanczos breakdown in iteration {}".format(i))
             # Lanczos Breakdown, pick a random vector to continue
-            vr = random.rand(n)
+            vr = random.rand(n, dtype=A.dtype)
             # orthogonalize v_r with respect to all vectors v[i]
             for j in range(i):
-                vr = vr - projection(vr, V[:, j])
+                vr = vr - projection(vr, V[j, :])
             # normalize v_r to Euclidian norm 1 and set as ith vector v
             vi = vr / norm(vr)
         else:
             vr = w
+
             # reorthogonalization
             for j in range(i):
-                vr = vr - projection(vr, V[:, j])
+                vi_loc = V._DNDarray__array[j, :]
+                a = torch.dot(vr._DNDarray__array, vi_loc)
+                b = torch.dot(vi_loc, vi_loc)
+                A.comm.Allreduce(MPI.IN_PLACE, a, MPI.SUM)
+                A.comm.Allreduce(MPI.IN_PLACE, b, MPI.SUM)
+                vr._DNDarray__array = vr._DNDarray__array - a/b*vi_loc
+
             vi = vr / norm(vr)
+
 
         w = matmul(A, vi)
         alpha = dot(w, vi)
-        w = w - alpha * vi - beta * V[:, i - 1]
+        w = w - alpha * vi - beta * V[i - 1, :]
 
         T[i - 1, i] = beta
         T[i, i - 1] = beta
         T[i, i] = alpha
-        V[:, i] = vi
+        V[i, :] = vi
 
     if V.split is not None:
         V.resplit_(axis=None)
-
+    V = V.transpose()
     if T_out is not None:
         T_out = T
         if V_out is not None:
