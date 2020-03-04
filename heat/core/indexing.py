@@ -71,7 +71,7 @@ def nonzero(a):
         gout[0] = a.comm.allreduce(gout[0], MPI.SUM)
         is_split = 0
 
-    if a.numdims == 1:
+    if a.numdims == 1 and lcl_nonzero.ndim > 1:
         lcl_nonzero = lcl_nonzero.squeeze()
     return factories.array(lcl_nonzero, is_split=is_split, device=a.device, comm=a.comm)
 
