@@ -2,20 +2,19 @@ import numpy as np
 import torch
 import warnings
 
-from . import arithmetics
+from . import arithmetics, linalg
 from . import devices
 from . import exponential
 from . import factories
 from . import indexing
 from . import io
-from .. import linalg
 from . import logical
 from . import manipulations
 from . import memory
 from . import relational
 from . import rounding
 from . import statistics
-from ..linalg import tiling
+from heat.core.linalg import tiling
 from . import trigonometrics
 from . import types
 

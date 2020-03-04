@@ -3,7 +3,7 @@ import torch
 
 from heat.core import dndarray
 from heat.core import factories
-from heat.linalg import tiling
+from heat.core.linalg import tiling
 
 __all__ = ["qr"]
 
