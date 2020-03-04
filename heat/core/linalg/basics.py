@@ -1,11 +1,11 @@
 import itertools
 import torch
 
-from heat.core.communication import MPI
-from heat.core import dndarray
-from heat.core import factories
-from heat.core import manipulations
-from heat.core import types
+from ..communication import MPI
+from .. import dndarray
+from .. import factories
+from .. import manipulations
+from .. import types
 
 __all__ = ["dot", "matmul", "transpose", "tril", "triu"]
 
