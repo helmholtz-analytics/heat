@@ -209,7 +209,9 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
         else:
             vr = w
 
-            # reorthogonalization
+            # Reorthogonalization
+            # ToDo: Rethink this; mask torch calls, See issue #494
+            # This is the fast solution, using item access on the ht.dndarray level is way slower
             for j in range(i):
                 vi_loc = V._DNDarray__array[j, :]
                 a = torch.dot(vr._DNDarray__array, vi_loc)
