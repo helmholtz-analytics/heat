@@ -704,32 +704,32 @@ def __split0_q_loop(col, r, proc_tile_start, active_procs, q0, q_dict, q_dict_wa
     else:
         local_merge_q = {}
     # -------------- send local Q to all -------------------------------------------------------
-    for r in range(diag_process, active_procs[-1] + 1):
-        if r != rank:
+    for pr in range(diag_process, active_procs[-1] + 1):
+        if pr != rank:
             hld = torch.zeros(
-                [q0.tiles.lshape_map[r][q0.tiles.arr.split]] * 2,
+                [q0.tiles.lshape_map[pr][q0.tiles.arr.split]] * 2,
                 dtype=q0_torch_type,
                 device=q0_torch_device,
             )
         else:
-            hld = local_merge_q[r][0].clone()
-        wait = q0.tiles.arr.comm.Ibcast(hld, root=r)
-        local_merge_q[r] = [hld, wait]
+            hld = local_merge_q[pr][0].clone()
+        wait = q0.tiles.arr.comm.Ibcast(hld, root=pr)
+        local_merge_q[pr] = [hld, wait]
 
     # recv local Q + apply local Q to Q0
-    for r in range(diag_process, active_procs[-1] + 1):
-        if local_merge_q[r][1] is not None:
+    for pr in range(diag_process, active_procs[-1] + 1):
+        if local_merge_q[pr][1] is not None:
             # receive q from the other processes
-            local_merge_q[r][1].wait()
+            local_merge_q[pr][1].wait()
         if rank in active_procs:
-            sum_row = sum(q0.tiles.tile_rows_per_process[:r])
-            end_row = q0.tiles.tile_rows_per_process[r] + sum_row
+            sum_row = sum(q0.tiles.tile_rows_per_process[:pr])
+            end_row = q0.tiles.tile_rows_per_process[pr] + sum_row
             # slice of q_tiles -> [0: -> end local, 1: start -> stop]
             q_rest_loc = q0.tiles.local_get(key=(slice(None), slice(sum_row, end_row)))
             # apply the local merge to q0 then update q0`
-            q_rest_loc = q_rest_loc @ local_merge_q[r][0]
+            q_rest_loc = q_rest_loc @ local_merge_q[pr][0]
             q0.tiles.local_set(key=(slice(None), slice(sum_row, end_row)), value=q_rest_loc)
-            del local_merge_q[r]
+            del local_merge_q[pr]
 
     # global Q calculation =====================================================================
     # split up the Q's from the global QR calculation and set them in a dict w/ proper keys
