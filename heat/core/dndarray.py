@@ -1198,11 +1198,13 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
+
         l_dtype = self.dtype.torch_type()
         if isinstance(key, DNDarray) and key.gshape[-1] != len(self.gshape):
             key = tuple(x.item() for x in key)
 
         if not self.is_distributed():
+
             if not self.comm.size == 1:
                 if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                     # this will return a 1D array as the shape cannot be determined automatically
@@ -1237,6 +1239,7 @@ class DNDarray:
                     )
 
         else:
+
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
@@ -1281,7 +1284,6 @@ class DNDarray:
                 # handle the dimensional reduction for integers
                 ints = sum([isinstance(it, int) for it in key])
                 gout = gout[: len(gout) - ints]
-
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
@@ -1308,29 +1310,46 @@ class DNDarray:
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
                         arr = self.__array[tuple(key)]
                         gout = list(arr.shape)
-
-                # if the given axes are not splits (must be ints for python)
-                # this means the whole slice is on one node
-                elif key[self.split] in range(chunk_start, chunk_end):
-                    key = list(key)
-                    key[self.split] = key[self.split] - chunk_start
-                    arr = self.__array[tuple(key)]
-                    gout = list(arr.shape)
-                elif key[self.split] < 0 and self.gshape[self.split] + key[self.split] in range(
-                    chunk_start, chunk_end
-                ):
-                    key = list(key)
-                    key[self.split] = key[self.split] + chunk_end - chunk_start
-                    arr = self.__array[tuple(key)]
-                    gout = list(arr.shape)
                 else:
-                    warnings.warn(
-                        "This process (rank: {}) is without data after slicing, "
-                        "running the .balance_() function is recommended".format(self.comm.rank),
-                        ResourceWarning,
-                    )
-                    # arr is empty
-                    # gout is all 0s and is the proper shape
+                    # if the given axes are not splits (must be ints OR LISTS for python)
+                    # this means the whole slice is on one node
+                    if isinstance(key, list):
+                        indices = key
+                    else:
+                        indices = key[self.split]
+                    key = list(key)
+                    if isinstance(indices, list):
+                        indices = [
+                            index + self.gshape[self.split] if index < 0 else index
+                            for index in indices
+                        ]
+                        sorted_key_along_split = sorted(indices)
+                        if sorted_key_along_split[0] in range(
+                            chunk_start, chunk_end
+                        ) and sorted_key_along_split[-1] in range(chunk_start, chunk_end):
+                            indices = [index - chunk_start for index in indices]
+                            arr = self.__array[indices]
+                            gout = list(arr.shape)
+
+                    elif isinstance(key[self.split], int):
+                        key[self.split] = (
+                            key[self.split] + self.gshape[self.split]
+                            if key[self.split] < 0
+                            else key[self.split]
+                        )
+                        if key[self.split] in range(chunk_start, chunk_end):
+                            key[self.split] = key[self.split] - chunk_start
+                            arr = self.__array[tuple(key)]
+                            gout = list(arr.shape)
+                    if 0 in arr.shape:
+                        # arr is empty
+                        # gout is all 0s and is the proper shape
+                        warnings.warn(
+                            "This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
+                                self.comm.rank
+                            ),
+                            ResourceWarning,
+                        )
 
             # if the given axes are only a slice
             elif isinstance(key, slice) and self.split == 0:
