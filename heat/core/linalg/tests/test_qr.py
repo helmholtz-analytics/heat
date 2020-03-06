@@ -80,7 +80,6 @@ class TestQR(unittest.TestCase):
                 for sp in range(2):
                     a = ht.array(st, split=sp, device=ht_device, dtype=torch.float)
                     qr = a.qr(tiles_per_proc=t)
-                    a_comp = ht.array(st, split=0, device=ht_device, dtype=ht.float)
                     self.assertTrue(ht.allclose((a_comp - (qr.Q @ qr.R)), 0, rtol=1e-5, atol=1e-5))
                     self.assertTrue(
                         ht.allclose(
@@ -99,7 +98,6 @@ class TestQR(unittest.TestCase):
                 for sp in range(2):
                     a1 = ht.array(st1, split=sp, device=ht_device)
                     qr1 = a1.qr(tiles_per_proc=t)
-                    a_comp1 = ht.array(st1.clone(), split=0, device=ht_device)
                     self.assertTrue(
                         ht.allclose((a_comp1 - (qr1.Q @ qr1.R)), 0, rtol=1e-5, atol=1e-5)
                     )
@@ -120,7 +118,6 @@ class TestQR(unittest.TestCase):
                 for sp in range(2):
                     a2 = ht.array(st2, split=sp, device=ht_device)
                     qr2 = a2.qr(tiles_per_proc=t)
-                    a_comp2 = ht.array(st2.clone(), split=0, device=ht_device)
                     self.assertTrue(ht.allclose(a_comp2, qr2.Q @ qr2.R, rtol=1e-5, atol=1e-5))
                     self.assertTrue(
                         ht.allclose(
@@ -138,6 +135,9 @@ class TestQR(unittest.TestCase):
                             atol=1e-5,
                         )
                     )
+                    # test if calc R alone works
+                    qr = ht.qr(a2, calc_q=False, overwrite_a=True)
+                    self.assertTrue(qr.Q is None)
 
             m, n = 40, 20
             st = torch.randn(m, n, device=device)

@@ -132,7 +132,6 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         ):  # for each tile column (need to do the last rank separately)
             # for each process need to do local qr
             not_completed_processes = torch.nonzero(col < proc_tile_start).flatten()
-            # print(col, torch.nonzero(col >= proc_tile_start).flatten())
             if rank not in not_completed_processes or rank not in active_procs:
                 # if the process is done calculating R the break the loop
                 break
@@ -146,16 +145,17 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
                 not_completed_prs=not_completed_processes,
             )
         # ------------------------------------- Q Calculation --------------------------------------
-        for col in range(tile_columns):
-            __split0_q_loop(
-                col=col,
-                r=r,
-                proc_tile_start=proc_tile_start,
-                active_procs=active_procs,
-                q0=q,
-                q_dict=q_dict,
-                q_dict_waits=q_dict_waits,
-            )
+        if calc_q:
+            for col in range(tile_columns):
+                __split0_q_loop(
+                    col=col,
+                    r=r,
+                    proc_tile_start=proc_tile_start,
+                    active_procs=active_procs,
+                    q0=q,
+                    q_dict=q_dict,
+                    q_dict_waits=q_dict_waits,
+                )
     elif a.split == 1:
         # loop over the tile columns
         lp_cols = tile_columns if a.gshape[0] > a.gshape[1] else tile_rows
@@ -217,7 +217,6 @@ def __split0_global_q_dict_set(q_dict_col, col, r_tiles, q_tiles, global_merge_d
     # todo: possible improvement -> make the keys have the process they are on as well,
     #  then can async get them if they are not on the diagonal process
     for key in merge_list:
-        # print(col, key)
         # this loops over all of the Qs for col and creates the dictionary for the pr Q merges
         p0 = key.find("p0")
         p1 = key.find("p1")
@@ -350,7 +349,6 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, col_num, diag_pr, not_complet
     procs_remaining = loop_size_remaining.size()[0]
     loop = 0
     while not completed:
-        # print(procs_remaining, loop_size_remaining)
         if procs_remaining % 2 == 1:
             # if the number of processes active is odd need to save the remainders
             if rem1 is None:
@@ -830,7 +828,7 @@ def __split1_qr_loop(dcol, r, q0, calc_q):
     None
     """
     r_torch_device = r._DNDarray__array.device
-    q0_torch_device = q0._DNDarray__array.device
+    q0_torch_device = q0._DNDarray__array.device if calc_q else None
     # ==================================== R Calculation - single tile =========================
     # loop over each column, need to do the QR for each tile in the column(should be rows)
     # need to get the diagonal process
