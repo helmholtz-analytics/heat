@@ -2,12 +2,13 @@ import numpy as np
 import torch
 import warnings
 
-from . import arithmetics, linalg
+from . import arithmetics
 from . import devices
 from . import exponential
 from . import factories
 from . import indexing
 from . import io
+from . import linalg
 from . import logical
 from . import manipulations
 from . import memory

@@ -2,8 +2,9 @@ import numpy as np
 import torch
 
 from .communication import MPI
-from . import exponential, linalg
+from . import exponential
 from . import factories
+from . import linalg
 from . import manipulations
 from . import operations
 from . import dndarray

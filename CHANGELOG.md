@@ -1,6 +1,8 @@
 # Pending Additions
 
+- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Create submodule for Linear Algebra functions
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated QR
+- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated a tiling class to create Square tiles along the diagonal of a 2D matrix
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Added PyTorch Jitter to inner function of matmul for increased speed
 - [#454](https://github.com/helmholtz-analytics/heat/issues/454) Update lasso example
 - [#473](https://github.com/helmholtz-analytics/heat/issues/473) Matmul now will not split any of the input matrices if both have `split=None`. To toggle splitting of one input for increased speed use the allow_resplit flag.

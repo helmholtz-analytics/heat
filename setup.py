@@ -18,8 +18,8 @@ setup(
     packages=[
         "heat",
         "heat.core",
+        "heat.core.linalg",
         "heat.cluster",
-        "heat.linalg",
         "heat.regression",
         "heat.regression.lasso",
         "heat.spatial",

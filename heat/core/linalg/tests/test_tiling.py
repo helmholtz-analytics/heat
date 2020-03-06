@@ -12,20 +12,20 @@ class TestTiling(unittest.TestCase):
         def test_init_raises(self):
             # need to test the raises here
             with self.assertRaises(TypeError):
-                heat.core.linalg.tiling.SquareDiagTiles("sdkd", tiles_per_proc=1)
+                ht.tiling.SquareDiagTiles("sdkd", tiles_per_proc=1)
             with self.assertRaises(TypeError):
-                heat.core.linalg.tiling.SquareDiagTiles(ht.arange(2), tiles_per_proc="sdf")
+                ht.tiling.SquareDiagTiles(ht.arange(2), tiles_per_proc="sdf")
             with self.assertRaises(ValueError):
-                heat.core.linalg.tiling.SquareDiagTiles(ht.arange(2), tiles_per_proc=0)
+                ht.tiling.SquareDiagTiles(ht.arange(2), tiles_per_proc=0)
             with self.assertRaises(ValueError):
-                heat.core.linalg.tiling.SquareDiagTiles(ht.arange(2), tiles_per_proc=1)
+                ht.tiling.SquareDiagTiles(ht.arange(2), tiles_per_proc=1)
 
         def test_properties(self):
             # ---- m = n ------------- properties ------ s0 -----------
             m_eq_n_s0 = ht.random.randn(47, 47, split=0)
             m_eq_n_s0.create_square_diag_tiles(tiles_per_proc=1)
             m_eq_n_s0_t1 = m_eq_n_s0.tiles
-            m_eq_n_s0_t2 = heat.core.linalg.tiling.SquareDiagTiles(m_eq_n_s0, tiles_per_proc=2)
+            m_eq_n_s0_t2 = ht.tiling.SquareDiagTiles(m_eq_n_s0, tiles_per_proc=2)
             # arr
             self.assertTrue(ht.equal(m_eq_n_s0_t1.arr, m_eq_n_s0))
             self.assertTrue(ht.equal(m_eq_n_s0_t2.arr, m_eq_n_s0))
@@ -58,8 +58,8 @@ class TestTiling(unittest.TestCase):
 
             # ---- m = n ------------- properties ------ s1 -----------
             m_eq_n_s1 = ht.random.randn(47, 47, split=1)
-            m_eq_n_s1_t1 = heat.core.linalg.tiling.SquareDiagTiles(m_eq_n_s1, tiles_per_proc=1)
-            m_eq_n_s1_t2 = heat.core.linalg.tiling.SquareDiagTiles(m_eq_n_s1, tiles_per_proc=2)
+            m_eq_n_s1_t1 = ht.tiling.SquareDiagTiles(m_eq_n_s1, tiles_per_proc=1)
+            m_eq_n_s1_t2 = ht.tiling.SquareDiagTiles(m_eq_n_s1, tiles_per_proc=2)
             # lshape_map
             self.assertTrue(torch.equal(m_eq_n_s1_t1.lshape_map, m_eq_n_s1.create_lshape_map()))
             self.assertTrue(torch.equal(m_eq_n_s1_t2.lshape_map, m_eq_n_s1.create_lshape_map()))
@@ -89,8 +89,8 @@ class TestTiling(unittest.TestCase):
 
             # ---- m > n ------------- properties ------ s0 -----------
             m_gr_n_s0 = ht.random.randn(38, 128, split=0)
-            m_gr_n_s0_t1 = heat.core.linalg.tiling.SquareDiagTiles(m_gr_n_s0, tiles_per_proc=1)
-            m_gr_n_s0_t2 = heat.core.linalg.tiling.SquareDiagTiles(m_gr_n_s0, tiles_per_proc=2)
+            m_gr_n_s0_t1 = ht.tiling.SquareDiagTiles(m_gr_n_s0, tiles_per_proc=1)
+            m_gr_n_s0_t2 = ht.tiling.SquareDiagTiles(m_gr_n_s0, tiles_per_proc=2)
             if m_eq_n_s1.comm.size == 3:
                 # col_inds
                 self.assertEqual(m_gr_n_s0_t1.col_indices, [0, 13, 26])
@@ -116,8 +116,8 @@ class TestTiling(unittest.TestCase):
 
             # ---- m > n ------------- properties ------ s1 -----------
             m_gr_n_s1 = ht.random.randn(38, 128, split=1)
-            m_gr_n_s1_t1 = heat.core.linalg.tiling.SquareDiagTiles(m_gr_n_s1, tiles_per_proc=1)
-            m_gr_n_s1_t2 = heat.core.linalg.tiling.SquareDiagTiles(m_gr_n_s1, tiles_per_proc=2)
+            m_gr_n_s1_t1 = ht.tiling.SquareDiagTiles(m_gr_n_s1, tiles_per_proc=1)
+            m_gr_n_s1_t2 = ht.tiling.SquareDiagTiles(m_gr_n_s1, tiles_per_proc=2)
             if m_eq_n_s1.comm.size == 3:
                 # col_inds
                 self.assertEqual(m_gr_n_s1_t1.col_indices, [0, 38, 43, 86, 128, 171])
@@ -143,8 +143,8 @@ class TestTiling(unittest.TestCase):
 
             # ---- m < n ------------- properties ------ s0 -----------
             m_ls_n_s0 = ht.random.randn(323, 49, split=0)
-            m_ls_n_s0_t1 = heat.core.linalg.tiling.SquareDiagTiles(m_ls_n_s0, tiles_per_proc=1)
-            m_ls_n_s0_t2 = heat.core.linalg.tiling.SquareDiagTiles(m_ls_n_s0, tiles_per_proc=2)
+            m_ls_n_s0_t1 = ht.tiling.SquareDiagTiles(m_ls_n_s0, tiles_per_proc=1)
+            m_ls_n_s0_t2 = ht.tiling.SquareDiagTiles(m_ls_n_s0, tiles_per_proc=2)
             if m_eq_n_s1.comm.size == 3:
                 # col_inds
                 self.assertEqual(m_ls_n_s0_t1.col_indices, [0])
@@ -170,8 +170,8 @@ class TestTiling(unittest.TestCase):
 
             # ---- m < n ------------- properties ------ s1 -----------
             m_ls_n_s1 = ht.random.randn(323, 49, split=1)
-            m_ls_n_s1_t1 = heat.core.linalg.tiling.SquareDiagTiles(m_ls_n_s1, tiles_per_proc=1)
-            m_ls_n_s1_t2 = heat.core.linalg.tiling.SquareDiagTiles(m_ls_n_s1, tiles_per_proc=2)
+            m_ls_n_s1_t1 = ht.tiling.SquareDiagTiles(m_ls_n_s1, tiles_per_proc=1)
+            m_ls_n_s1_t2 = ht.tiling.SquareDiagTiles(m_ls_n_s1, tiles_per_proc=2)
             if m_eq_n_s1.comm.size == 3:
                 # col_inds
                 self.assertEqual(m_ls_n_s1_t1.col_indices, [0, 17, 33])
@@ -200,7 +200,7 @@ class TestTiling(unittest.TestCase):
             # --------------------- local ----------- s0 ----------------
             # (int), (int, int), (slice, int), (slice, slice), (int, slice)
             m_eq_n_s0 = ht.zeros((25, 25), split=0)
-            m_eq_n_s0_t2 = heat.core.linalg.tiling.SquareDiagTiles(m_eq_n_s0, tiles_per_proc=2)
+            m_eq_n_s0_t2 = ht.tiling.SquareDiagTiles(m_eq_n_s0, tiles_per_proc=2)
             k = (slice(0, 10), slice(2, None))
             m_eq_n_s0_t2.local_set(key=k, value=1)
             lcl_key = m_eq_n_s0_t2.local_to_global(key=k, rank=m_eq_n_s0.comm.rank)
@@ -235,7 +235,7 @@ class TestTiling(unittest.TestCase):
 
             # --------------------- local ----------- s1 ----------------
             m_eq_n_s1 = ht.zeros((25, 25), split=1)
-            m_eq_n_s1_t2 = heat.core.linalg.tiling.SquareDiagTiles(m_eq_n_s1, tiles_per_proc=2)
+            m_eq_n_s1_t2 = ht.tiling.SquareDiagTiles(m_eq_n_s1, tiles_per_proc=2)
             k = (slice(0, 2), slice(0, None))
             m_eq_n_s1_t2.local_set(key=k, value=1)
             lcl_key = m_eq_n_s1_t2.local_to_global(key=k, rank=m_eq_n_s1.comm.rank)
@@ -270,7 +270,7 @@ class TestTiling(unittest.TestCase):
 
             # --------------------- global ---------- s0 ----------------
             m_eq_n_s0 = ht.zeros((25, 25), split=0)
-            m_eq_n_s0_t2 = heat.core.linalg.tiling.SquareDiagTiles(m_eq_n_s0, tiles_per_proc=2)
+            m_eq_n_s0_t2 = ht.tiling.SquareDiagTiles(m_eq_n_s0, tiles_per_proc=2)
             k = 2
             m_eq_n_s0_t2[k] = 1
             if m_eq_n_s0_t2[k] is not None:
@@ -303,7 +303,7 @@ class TestTiling(unittest.TestCase):
 
             # --------------------- global ---------- s1 ----------------
             m_eq_n_s1 = ht.zeros((25, 25), split=1)
-            m_eq_n_s1_t2 = heat.core.linalg.tiling.SquareDiagTiles(m_eq_n_s1, tiles_per_proc=2)
+            m_eq_n_s1_t2 = ht.tiling.SquareDiagTiles(m_eq_n_s1, tiles_per_proc=2)
             k = (slice(0, 3), slice(0, 2))
             m_eq_n_s1_t2[k] = 1
             if m_eq_n_s1_t2[k] is not None:
