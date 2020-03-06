@@ -2,8 +2,9 @@ import numpy as np
 import torch
 
 from .communication import MPI
-from . import exponential, linalg
+from . import exponential
 from . import factories
+from . import linalg
 from . import manipulations
 from . import operations
 from . import dndarray
@@ -318,33 +319,35 @@ def average(x, axis=None, weights=None, returned=False):
         if x.gshape != weights.gshape:
             if axis is None:
                 raise TypeError("Axis must be specified when shapes of x and weights differ.")
-            if isinstance(axis, tuple):
+            elif isinstance(axis, tuple):
                 raise NotImplementedError("Weighted average over tuple axis not implemented yet.")
             if weights.numdims != 1:
                 raise TypeError("1D weights expected when shapes of x and weights differ.")
             if weights.gshape[0] != x.gshape[axis]:
                 raise ValueError("Length of weights not compatible with specified axis.")
 
-        wgt = factories.empty_like(weights, device=x.device)
-        wgt._DNDarray__array = weights._DNDarray__array
-        wgt._DNDarray__split = weights.split
-
-        # Broadcast weights along specified axis if necessary
-        if wgt.numdims == 1 and x.numdims != 1:
-            if wgt.split is not None:
-                wgt.resplit_(None)
-            weights_newshape = tuple(1 if i != axis else x.gshape[axis] for i in range(x.numdims))
-            wgt._DNDarray__array = torch.reshape(wgt._DNDarray__array, weights_newshape)
-            wgt._DNDarray__gshape = weights_newshape
+            wgt_lshape = tuple(
+                weights.lshape[0] if dim == axis else 1 for dim in list(range(x.numdims))
+            )
+            wgt_slice = [slice(None) if dim == axis else 0 for dim in list(range(x.numdims))]
+            wgt_split = None if weights.split is None else axis
+            wgt = factories.empty(wgt_lshape, dtype=weights.dtype, device=x.device)
+            wgt._DNDarray__array[wgt_slice] = weights._DNDarray__array
+            wgt = factories.array(wgt._DNDarray__array, is_split=wgt_split)
+        else:
+            if x.comm.is_distributed():
+                if x.split is not None and weights.split != x.split and weights.numdims != 1:
+                    # fix after Issue #425 is solved
+                    raise NotImplementedError(
+                        "weights.split does not match data.split: not implemented yet."
+                    )
+            wgt = factories.empty_like(weights, device=x.device)
+            wgt._DNDarray__array = weights._DNDarray__array
 
         cumwgt = wgt.sum(axis=axis)
+
         if logical.any(cumwgt == 0.0):
             raise ZeroDivisionError("Weights sum to zero, can't be normalized")
-
-        # Distribution: if x is split, split to weights along same dimension if possible
-        if x.split is not None and wgt.split != x.split:
-            if wgt.gshape[x.split] != 1:
-                wgt.resplit_(x.split)
 
         result = (x * wgt).sum(axis=axis) / cumwgt
 
@@ -1221,12 +1224,12 @@ def var(x, axis=None, bessel=True):
             mu = torch.mean(x._DNDarray__array, dim=axis)
             var = torch.var(x._DNDarray__array, dim=axis, unbiased=bessel)
         else:
-            mu = factories.zeros(output_shape_i, device=x.device)
-            var = factories.zeros(output_shape_i, device=x.device)
+            mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+            var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
 
         var_shape = list(var.shape) if list(var.shape) else [1]
 
-        var_tot = factories.zeros(([x.comm.size, 2] + var_shape), device=x.device)
+        var_tot = factories.zeros(([x.comm.size, 2] + var_shape), dtype=x.dtype, device=x.device)
         n_tot = factories.zeros(x.comm.size, device=x.device)
         var_tot[x.comm.rank, 0, :] = var
         var_tot[x.comm.rank, 1, :] = mu
@@ -1258,8 +1261,8 @@ def var(x, axis=None, bessel=True):
                 mu_in = 0.0
 
             n = x.lnumel
-            var_tot = factories.zeros((x.comm.size, 3), device=x.device)
-            var_proc = factories.zeros((x.comm.size, 3), device=x.device)
+            var_tot = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
+            var_proc = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
             var_proc[x.comm.rank] = var_in, mu_in, float(n)
             x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
 
@@ -1321,7 +1324,9 @@ def var(x, axis=None, bessel=True):
 
             if x.split is None:  # x is *not* distributed -> no need to distributed
                 return factories.array(
-                    torch.var(x._DNDarray__array, dim=axis, unbiased=bessel), device=x.device
+                    torch.var(x._DNDarray__array, dim=axis, unbiased=bessel),
+                    dtype=x.dtype,
+                    device=x.device,
                 )
             elif axis == x.split:  # x is distributed and axis chosen is == to split
                 return reduce_vars_elementwise(output_shape)
@@ -1329,7 +1334,10 @@ def var(x, axis=None, bessel=True):
                 # singular axis given (axis) not equal to split direction (x.split)
                 lcl = torch.var(x._DNDarray__array, dim=axis, keepdim=False)
                 return factories.array(
-                    lcl, is_split=x.split if axis > x.split else x.split - 1, device=x.device
+                    lcl,
+                    is_split=x.split if axis > x.split else x.split - 1,
+                    dtype=x.dtype,
+                    device=x.device,
                 )
         else:
             raise TypeError("axis (axis) must be an int, tuple, list, etc.; currently it is {}. ")
