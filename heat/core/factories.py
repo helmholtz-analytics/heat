@@ -140,6 +140,7 @@ def array(
     order="C",
     split=None,
     is_split=None,
+    halo=None,
     device=None,
     comm=None,
 ):
@@ -172,6 +173,9 @@ def array(
         Specifies the axis along which the local data portions, passed in obj, are split across all machines. Useful for
         interfacing with other HPC code. The shape of the global tensor is automatically inferred. Mutually exclusive
         with split.
+    halo: None or int, optional
+        Number of rows/columns to use as halo before and after local data along the split axis. Only applies if tensor is
+        distributed.
     device : str, ht.Device or None, optional
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
@@ -376,7 +380,9 @@ def array(
     elif split is None and is_split is None:
         obj = memory.sanitize_memory_layout(obj, order=order)
 
-    return dndarray.DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
+    return dndarray.DNDarray(
+        obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm, halo=halo
+    )
 
 
 def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order="C"):

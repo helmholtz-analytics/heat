@@ -211,15 +211,25 @@ class DNDarray:
 
     @property
     def halo(self):
+        """
+        Returns
+        -------
+        int : the axis on which the tensor split
+        """
         return self.__halo
 
     @halo.setter
     def halo(self, halo):
+        """
+        Parameters
+        ----------
+        halo : None or int
+            Number of rows or columns to use as halo along the split axis
+        """
         # check if tensor is distributed
         if not self.is_distributed():
             warnings.warn("halos are only supported when tensor is distributed")
             return
-        
 
         halo = self.sanitize_halo(halo)
         has_halo = self.is_halorized()
@@ -229,29 +239,42 @@ class DNDarray:
             # ... check if new halo differs from current one
             if halo == self.__halo:
                 # new halo size equals current halo, so no need to do anything
-                warnings.warn("provided halo is equal to current halo, no further actions taken", RuntimeWarning)
+                warnings.warn(
+                    "provided halo is equal to current halo, no further actions taken",
+                    RuntimeWarning,
+                )
                 return
             else:
                 # new halo size is different from current one, so delete current halos
                 # TODO: is there a special way to delete torch tensor?
                 for i in range(len(self.__halos)):
                     del self.__halos[0]
-                    
+
                 self.__halos = [None, None]
-        
+
         self.__halo = halo
 
         # TODO: automatic halorize when updating halo shapes?
         self.halorize_()
-        
+
         return
 
     @property
     def halos(self):
+        """
+        Returns
+        -------
+            list: List containing tensors for before and after halo
+        """
         return self.__halos
 
     @property
     def halo_shapes(self):
+        """
+        Returns
+        -------
+            list: List containing shape of halo tensors
+        """
         return [None if h is None else list(h.shape) for h in self.__halos]
 
     def tiles(self):
@@ -2417,7 +2440,7 @@ class DNDarray:
                 lshape_cumsum[rcv_pr] += send_amt
                 lshape_map[rcv_pr, self.split] += send_amt
                 lshape_map[snd_pr, self.split] -= send_amt
-                
+
             if lshape_map[rcv_pr, self.split] > target_map[rcv_pr, self.split]:
                 # if there is any data left on the process then send it to the next one
                 send_amt = lshape_map[rcv_pr, self.split] - target_map[rcv_pr, self.split]
@@ -2574,20 +2597,20 @@ class DNDarray:
 
     def sanitize_halo(self, halo_size):
         """
-        In case of a distributed and splitted tensor, the size will reduced 
+        In case of a distributed and splitted tensor, the size will reduced
         to the smallest chunk if halo_size is larger
 
         Parameters
         ----------
-        halo_size : int 
+        halo_size : int
             Size of the halo. If halo_size exceeds the size of the HeAT tensor in self.split direction
-            and the tensor is distributed halo_size will be reduced to the smallest chunk size. 
+            and the tensor is distributed halo_size will be reduced to the smallest chunk size.
         shape : int
 
         Returns
         -------
         halo_size : int
-            Sanitized halo size 
+            Sanitized halo size
         """
         if not self.is_distributed():
             return 0
@@ -2596,18 +2619,22 @@ class DNDarray:
             halo_size = 0
 
         if not isinstance(halo_size, int):
-            raise ValueError('halo_size needs to be a Python integer but was of type {})'
-                    .format(type(halo_size)))
-        
+            raise ValueError(
+                "halo_size needs to be a Python integer but was of type {})".format(type(halo_size))
+            )
+
         if halo_size < 0:
-            raise ValueError('halo_size needs to be a positive Python integer but was {})'
-                    .format(halo_size))
+            raise ValueError(
+                "halo_size needs to be a positive Python integer but was {})".format(halo_size)
+            )
 
         max_chunksize = self.shape[self.split] // self.comm.size
 
         if halo_size > max_chunksize:
-            warnings.warn('Your halo is larger than the smallest local data array, '
-                            'only the local data array will be exchanged')
+            warnings.warn(
+                "Your halo is larger than the smallest local data array, "
+                "only the local data array will be exchanged"
+            )
             halo_size = max_chunksize
 
         return halo_size
@@ -2618,7 +2645,7 @@ class DNDarray:
 
         Parameters
         ----------
-        start : int 
+        start : int
             start index of the halo extracted from self.array
         end : int
             end index of the halo extracted from self.array
@@ -2628,37 +2655,43 @@ class DNDarray:
             The halo extracted from self.array
         """
         if not isinstance(start, int) and start is not None:
-            raise TypeError('start needs to be of Python type integer, {} given)'.format(type(start)))
-        if not isinstance(end, int) and end is not None: 
-            raise TypeError('end needs to be of Python type integer, {} given)'.format(type(end)))
+            raise TypeError(
+                "start needs to be of Python type integer, {} given)".format(type(start))
+            )
+        if not isinstance(end, int) and end is not None:
+            raise TypeError("end needs to be of Python type integer, {} given)".format(type(end)))
 
         ix = [slice(None, None, None)] * len(self.shape)
-        try: 
+        try:
             ix[self.split] = slice(start, end)
         except IndexError:
-            print('Indices out of bound')
-        
+            print("Indices out of bound")
+
         return self.__array[ix].clone()
 
     def halorize_(self):
         if self.is_distributed() and not self.is_halorized():
             send_before = self.__prephalo(0, self.halo)
             send_after = self.__prephalo(-self.halo, None)
-            
+
             shape = tuple(send_before.shape)
 
             recv_before = None
             recv_after = None
 
-            if self.comm.rank != self.comm.size-1:
-                self.comm.Isend(send_after, self.comm.rank+1)
-                recv_after = torch.zeros(shape, dtype=send_before.dtype, device=self.device.torch_device)
-                self.comm.Recv(recv_after, self.comm.rank+1) 
+            if self.comm.rank != self.comm.size - 1:
+                self.comm.Isend(send_after, self.comm.rank + 1)
+                recv_after = torch.zeros(
+                    shape, dtype=send_before.dtype, device=self.device.torch_device
+                )
+                self.comm.Recv(recv_after, self.comm.rank + 1)
 
             if self.comm.rank != 0:
-                self.comm.Isend(send_before, self.comm.rank-1)
-                recv_before = torch.zeros(shape, dtype=send_after.dtype, device=self.device.torch_device)
-                self.comm.Recv(recv_before, self.comm.rank-1)
+                self.comm.Isend(send_before, self.comm.rank - 1)
+                recv_before = torch.zeros(
+                    shape, dtype=send_after.dtype, device=self.device.torch_device
+                )
+                self.comm.Recv(recv_before, self.comm.rank - 1)
 
             self.__halos = [recv_before, recv_after]
 

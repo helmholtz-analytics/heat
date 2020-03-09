@@ -256,7 +256,6 @@ class TestDNDarray(unittest.TestCase):
         data = ht.zeros(5, device=ht_device)
         self.assertFalse(data.is_halorized())
 
-
         data.halo = 2
 
         self.assertTrue(data.comm.size > 1 and data.is_halorized() or not data.is_halorized())
@@ -931,11 +930,17 @@ class TestDNDarray(unittest.TestCase):
         if size == 1:
             return
 
-
         def test_halo(halo_size, N):
             tensor = ht.arange(0, n * size, dtype=torch.int, device=ht_device, split=0)
-            test_before = torch.arange(start=rank * N - halo_size,  end=rank * N,                   dtype=torch.int, device=ht_device)
-            test_after  = torch.arange(start=(rank + 1) * N,        end=(rank + 1) * N + halo_size, dtype=torch.int, device=ht_device)
+            test_before = torch.arange(
+                start=rank * N - halo_size, end=rank * N, dtype=torch.int, device=ht_device
+            )
+            test_after = torch.arange(
+                start=(rank + 1) * N,
+                end=(rank + 1) * N + halo_size,
+                dtype=torch.int,
+                device=ht_device,
+            )
 
             tensor.halo = halo_size
             shapes = tensor.halo_shapes
@@ -947,24 +952,19 @@ class TestDNDarray(unittest.TestCase):
             if rank == 0:
                 self.assertEqual(shapes, [None, [halo_size]])
 
-            if rank == size-1:
+            if rank == size - 1:
                 self.assertEqual(shapes, [[halo_size], None])
-                
+
             if rank != 0:
-                self.assertTrue(
-                    torch.equal(halo_before, test_before)
-                )
-            
+                self.assertTrue(torch.equal(halo_before, test_before))
+
             if rank != size - 1:
-                self.assertTrue(
-                    torch.equal(halo_after, test_after)
-                )
+                self.assertTrue(torch.equal(halo_after, test_after))
 
         n = 4
         test_halo(1, n)
         test_halo(2, n)
-        
-        
+
     def test_halo_2d(self):
         # TODO: test error cases
         size = ht.MPI_WORLD.size
@@ -975,32 +975,49 @@ class TestDNDarray(unittest.TestCase):
             return
 
         def test_halo(halo_size, N, total, split):
-            data = np.arange(0, total**2).reshape((total, total))
-            shape = [total, total]
+            data = np.arange(0, total ** 2).reshape((total, total))
 
             if split == 0:
                 tensor = ht.array(data, split=0, dtype=torch.int, device=ht_device)
                 halo_shape_split = [halo_size, total]
-                test_before = torch \
-                    .arange(start=rank * N * total - halo_size * total, end=rank * N * total, dtype=torch.int, device=ht_device) \
-                    .reshape(halo_size, total)
+                test_before = torch.arange(
+                    start=rank * N * total - halo_size * total,
+                    end=rank * N * total,
+                    dtype=torch.int,
+                    device=ht_device,
+                ).reshape(halo_size, total)
 
-                test_after  = torch \
-                    .arange(start=(rank + 1) * N * total, end=(rank + 1) * N * total + halo_size * total, dtype=torch.int, device=ht_device) \
-                    .reshape(halo_size, total)
+                test_after = torch.arange(
+                    start=(rank + 1) * N * total,
+                    end=(rank + 1) * N * total + halo_size * total,
+                    dtype=torch.int,
+                    device=ht_device,
+                ).reshape(halo_size, total)
             else:
                 tensor = ht.array(data.transpose(), split=1, dtype=torch.int, device=ht_device)
                 halo_shape_split = [total, halo_size]
 
-                test_before = torch \
-                    .arange(start=rank * N * total - halo_size * total, end=rank * N * total, dtype=torch.int, device=ht_device) \
-                    .reshape(halo_size, total).T
+                test_before = (
+                    torch.arange(
+                        start=rank * N * total - halo_size * total,
+                        end=rank * N * total,
+                        dtype=torch.int,
+                        device=ht_device,
+                    )
+                    .reshape(halo_size, total)
+                    .T
+                )
 
-
-                test_after  = torch \
-                    .arange(start=(rank + 1) * N * total, end=(rank + 1) * N * total + halo_size * total, dtype=torch.int, device=ht_device) \
-                    .reshape(halo_size, total).T
-
+                test_after = (
+                    torch.arange(
+                        start=(rank + 1) * N * total,
+                        end=(rank + 1) * N * total + halo_size * total,
+                        dtype=torch.int,
+                        device=ht_device,
+                    )
+                    .reshape(halo_size, total)
+                    .T
+                )
 
             tensor.halo = halo_size
             shapes = tensor.halo_shapes
@@ -1012,31 +1029,17 @@ class TestDNDarray(unittest.TestCase):
             if rank == 0:
                 self.assertEqual(shapes, [None, halo_shape_split])
 
-            if rank == size-1:
+            if rank == size - 1:
                 self.assertEqual(shapes, [halo_shape_split, None])
-                
+
             if rank != 0:
-                self.assertTrue(
-                    torch.equal(halo_before, test_before)
-                )
-            
+                self.assertTrue(torch.equal(halo_before, test_before))
+
             if rank != size - 1:
-                self.assertTrue(
-                    torch.equal(halo_after, test_after)
-                )
-        
+                self.assertTrue(torch.equal(halo_after, test_after))
+
         n = 8
         halo_size = 4
         total = n * size
         test_halo(halo_size, n, total, 0)
         test_halo(halo_size, n, total, 1)
-        
-
-
-        
-
-
-
-        
-
-
