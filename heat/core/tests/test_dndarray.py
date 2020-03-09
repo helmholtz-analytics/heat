@@ -922,10 +922,12 @@ class TestDNDarray(unittest.TestCase):
         )
 
     def test_halo_1d(self):
+        # TODO: test error cases
+
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
 
-        # if only process we don't need to check for halo
+        # if only one process we don't need to check for halo
         if size == 1:
             return
 
@@ -964,12 +966,13 @@ class TestDNDarray(unittest.TestCase):
         
         
     def test_halo_2d(self):
+        # TODO: test error cases
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
 
+        # if only one process we don't need to check for halo
         if size == 1:
             return
-
 
         def test_halo(halo_size, N, total, split):
             data = np.arange(0, total**2).reshape((total, total))
