@@ -64,7 +64,7 @@ class DNDarray:
         ):
             self.__array = self.__array.to(devices.sanitize_device(self.__device).torch_device)
 
-        if halo > 0:
+        if self.__halo > 0:
             self.halorize_()
 
     @property
@@ -277,6 +277,17 @@ class DNDarray:
         """
         return [None if h is None else list(h.shape) for h in self.__halos]
 
+    @property
+    def halorized(self):
+        """
+        Returns
+        -------
+            tensor: concatenation of halo_before, array and halo_after along the split axis
+        """
+        if not self.is_halorized():
+            return self.lloc
+
+    @property
     def tiles(self):
         """
         Tiling object is either None or a class defined in the tiling file
@@ -2612,11 +2623,8 @@ class DNDarray:
         halo_size : int
             Sanitized halo size
         """
-        if not self.is_distributed():
+        if not self.is_distributed() or halo_size is None or len(self.shape) <= self.split:
             return 0
-
-        if halo_size is None:
-            halo_size = 0
 
         if not isinstance(halo_size, int):
             raise ValueError(
