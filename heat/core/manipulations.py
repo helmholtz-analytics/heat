@@ -678,13 +678,17 @@ def pad(input, pad, mode="constant", value=0):
 
     input_torch = input._DNDarray__array
     padded_torch_tensor = torch.nn.functional.pad(input_torch, pad, mode, value)
-    padded_tensor=factories.array(padded_torch_tensor)
+    padded_tensor = factories.array(padded_torch_tensor)
 
     # padding in non-split dimension
     if input.split is None or input.split not in padDim:
         return padded_tensor
 
     # padding in split dimension
+    #strategy: pad only first/last tensor portion on node depending on whether I want to pad beginning/end
+    #           therefore: "calculate" pad tuple for the corresponding tensor portion
+    #           afterwards balance tensor
+
     padded_tensor.balance_()
     return padded_tensor
 
