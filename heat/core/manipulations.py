@@ -14,6 +14,7 @@ __all__ = [
     "diag",
     "diagonal",
     "expand_dims",
+    "flip",
     "hstack",
     "resplit",
     "sort",
@@ -554,6 +555,62 @@ def expand_dims(a, axis):
         a.device,
         a.comm,
     )
+
+
+def flip(a, axis=None):
+    """
+    Reverse the order of elements in an array along the given axis.
+
+    The shape of the array is preserved, but the elements are reordered.
+
+    Parameters
+    ----------
+    a: ht.DNDarray
+        Input array to be flipped
+    axis: tuple
+        a list of axes to be flipped
+
+    Returns
+    -------
+    res: ht.DNDarray
+        The flipped array.
+
+    Examples
+    --------
+    >>> a = ht.array([[0,1],[2,3]])
+    >>> ht.flip(a, [0])
+    tensor([[2, 3],
+        [0, 1]])
+
+    >>> ht.flip(a, [0,1])
+    tensor([[3, 2],
+        [1, 0]])
+    """
+    # Nothing to do
+    if a.numdims <= 1:
+        return a
+
+    flipped = torch.flip(a._DNDarray__array, axis)
+
+    if a.split not in axis:
+        return factories.array(
+            flipped, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+        )
+
+    # Need to redistribute tensors on split axis
+    lshape_map = a.create_lshape_map()
+    dest_proc = a.comm.size - 1 - a.comm.rank
+
+    req = a.comm.Isend(flipped, dest=dest_proc)
+    received = torch.empty(
+        tuple(lshape_map[dest_proc]), dtype=a._DNDarray__array.dtype, device=a.device.torch_device
+    )
+    a.comm.Recv(received, source=dest_proc)
+
+    res = factories.array(received, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
+    res.balance_()  # after swapping, first processes may be empty
+    req.Wait()
+    return res
 
 
 def hstack(tup):
