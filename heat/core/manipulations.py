@@ -592,11 +592,13 @@ def flipud(a):
     # Need to redistribute tensors on axis 0
     lshape_map = a.create_lshape_map()
     dest_proc = a.comm.size - 1 - a.comm.rank
+
     req = a.comm.Isend(flipped, dest=dest_proc)
     received = torch.empty(
         tuple(lshape_map[dest_proc]), dtype=a._DNDarray__array.dtype, device=a.device.torch_device
     )
     a.comm.Recv(received, source=dest_proc)
+
     res = factories.array(received, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
     res.balance_()  # after swapping, first processes may be empty
     req.Wait()

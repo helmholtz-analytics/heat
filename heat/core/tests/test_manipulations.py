@@ -796,7 +796,7 @@ class TestManipulations(BasicTest):
             [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]],
             split=2,
             device=ht_device,
-            dtype=ht.int16,
+            dtype=ht.int8,
         )
         self.assertTrue(ht.equal(ht.resplit(ht.flipud(c), 0), r_c))
 
