@@ -671,22 +671,77 @@ def pad(input, pad, mode="constant", value=0):
     elif len(pad) / 2 == 3:
         pad_dim.append(len(input.shape) - 3)  # pad last 3 dimensions
 
-    input_torch = input._DNDarray__array
-    padded_torch_tensor = torch.nn.functional.pad(input_torch, pad, mode, value)
-
-    padded_tensor = factories.array(padded_torch_tensor, dtype=input.dtype, device=input.device)
 
 
-    # padding in non-split dimension
+    # CASE 1: padding in non-split dimension or no distribution at all
     if input.split is None or input.split not in pad_dim:
+        input_torch = input._DNDarray__array
+        padded_torch_tensor = torch.nn.functional.pad(input_torch, pad, mode, value)
+
+        padded_tensor = factories.array(padded_torch_tensor, dtype=input.dtype, device=input.device)
+
         return padded_tensor
 
-    # padding in split dimension
-    #strategy: pad only first/last tensor portion on node depending on whether I want to pad beginning/end
-    #           therefore: "calculate" pad tuple for the corresponding tensor portion
-    #           afterwards balance tensor
+
+    # CASE 2: padding in split dimension
+
+    #strategy: pad only first/last tensor portion on node (i.e. only beginning/end in split dimension)
+    #therefore: "calculate" pad tuple for the corresponding tensor portion
+
+    #copy of input
+    padded_tensor=input.copy()
+
+    pad_beginning_list=list(pad)
+    pad_end_list=list(pad)
+    pad_middle_list=list(pad)
+
+    #calculate the corresponding padding tuples
+
+    if input.split == 0:
+        pad_beginning_list[5]=0
+        pad_end_list[4]=0
+        pad_middle_list[4:6]=[0,0]
+    elif input.split == 1:
+        pad_beginning_list[3]=0
+        pad_end_list[2]=0
+        pad_middle_list[2:4]=[0,0]
+    elif input.split == 2:
+        pad_beginning_list[1]=0
+        pad_end_list[0]=0
+        pad_middle_list[0:2]=[0,0]
+    else:
+        raise ValueError("Only implemented for split on axis 0, 1 or 2")
+
+
+
+    pad_beginning=tuple(pad_beginning_list)
+    pad_end=tuple(pad_end_list)
+    pad_middle=tuple(pad_middle_list)
+
+
+    #get information about data on each node (each tensor portion)
+    slices=input.comm.chunk(input.gshape, input.split)[2]
+    offset=input.comm.chunk(input.gshape, input.split)[0]
+
+
+    #first process
+    if offset == 0:
+        #print("Pad Beginning: ", pad_beginning)
+        padded_tensor=torch.nn.functional.pad(padded_tensor, pad_beginning, mode, value)
+
+    #last process
+    elif offset == len(slices)-1:
+        #print("Pad End: ", pad_end)
+        padded_tensor = torch.nn.functional.pad(padded_tensor, pad_end, mode, value)
+
+    #pad regularly
+    else:
+        #print("Pad Middle: ", pad_middle)
+        padded_tensor = torch.nn.functional.pad(padded_tensor, pad_middle, mode, value)
+
 
     padded_tensor.balance_()
+
     return padded_tensor
 
 
