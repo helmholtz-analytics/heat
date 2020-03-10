@@ -7,12 +7,20 @@ from heat.core import factories
 __all__ = ["block_diagonalize"]
 
 
-def block_diagonalize(arr, overwrite_arr=False):
+def block_diagonalize(arr, overwrite_arr=False, return_tiles=False):
     if arr.split == 0:
         out = block_diagonalize_sp0(arr, overwrite_arr)
     elif arr.split == 1:
         out = block_diagonalize_sp1(arr, overwrite_arr)
-    return out
+    else:
+        raise NotImplementedError(
+            "Split {} not implemented, arr must be 2D and split".format(arr.split)
+        )
+
+    if not return_tiles:
+        return out[:3]
+    else:
+        return out
 
 
 def block_diagonalize_sp0(arr, overwrite_arr=False):
@@ -142,7 +150,7 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
     arr.balance_()
     q0.balance_()
     q1.balance_()
-    return q0, arr, q1
+    return q0, arr, q1, arr.tiles, arr_t.tiles
 
 
 def block_diagonalize_sp1(arr, overwrite_arr=False):
@@ -221,8 +229,6 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
 
         not_completed_processes = torch.nonzero(col + 1 < proc_tile_start_t).flatten()
         if rank in not_completed_processes and rank in active_procs_t:
-            # if the process is done calculating R the break the loop
-            # break
             diag_process = not_completed_processes[0].item()
             __split0_r_calc(
                 r_tiles=arr_t.tiles,
@@ -254,8 +260,6 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
         # if m < n then need to do another round of LQ
         not_completed_processes = torch.nonzero(col + 1 < proc_tile_start_t).flatten()
         if rank in not_completed_processes and rank in active_procs_t:
-            # if the process is done calculating R the break the loop
-            # break
             diag_process = not_completed_processes[0].item()
             __split0_r_calc(
                 r_tiles=arr_t.tiles,
@@ -284,4 +288,4 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
     arr.tiles.arr.balance_()
     q0.balance_()
     q1.balance_()
-    return q0, arr.tiles.arr, q1
+    return q0, arr.tiles.arr, q1, arr.tiles, arr_t.tiles
