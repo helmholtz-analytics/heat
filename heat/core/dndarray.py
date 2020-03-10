@@ -2097,7 +2097,6 @@ class DNDarray:
         """
         return arithmetics.bitwise_or(self, other)
 
-
     def pad(self, pad, mode="constant", value=0):
         """
         Pads tensor with a specific value (default=0).
@@ -2105,39 +2104,36 @@ class DNDarray:
 
         Parameters
         ----------
-        input : ht.DNDarray
+        self : ht.DNDarray
                 tensor which is to be padded
         pad :  (m-elements) tuple, where m/2 <= input dimensions and m is even
-                Padding size by which to pad some dimensions of input (described from last dimension and moving forward)
-                (floor(len(pad)/2)) dimensions of input will be padded
-                Therefore:
+            Padding size by which to pad some dimensions of input (described from last dimension and moving forward)
+            (floor(len(pad)/2)) dimensions of input will be padded
+            Therefore:
 
-                - pad last dimension:       (   padding_left, padding_right
-                                            )
-                - pad last 2 dimensions:    (   padding_left, padding_right,
-                                                padding_top, padding_bottom
-                                            )
-                - pad last 3 dimensions:    (   paddling_left, padding_right,
-                                                padding_top, padding_bottom,
-                                                padding_front, padding_back
-                                            )
-
+            - pad last dimension:       (   padding_left, padding_right
+                                        )
+            - pad last 2 dimensions:    (   padding_left, padding_right,
+                                            padding_top, padding_bottom
+                                        )
+            - pad last 3 dimensions:    (   paddling_left, padding_right,
+                                            padding_top, padding_bottom,
+                                            padding_front, padding_back
+                                        )
         mode : 'constant', 'reflect' or 'replicate' , optional
-
-                - 'constant': Pads the input tensor boundaries with a constant value.
-                    --> available for arbitrary dimensions
-                - 'reflect': Pads the input tensor using the reflection of the input boundary
-                    --> available dimensions:
-                        - last 2 of 4D tensor
-                        - last of 3D tensor
-                - 'replicate': Pads the input tensor using replication of the input boundary
-                    --> available dimensions:
-                        - last 3 of 5D tensor
-                        - last 2 of 4D tensor
-                - 'circular':
-
+            - 'constant': Pads the input tensor boundaries with a constant value.
+                --> available for arbitrary dimensions
+            - 'reflect': Pads the input tensor using the reflection of the input boundary
+                --> available dimensions:
+                    - last 2 of 4D tensor
+                    - last of 3D tensor
+            - 'replicate': Pads the input tensor using replication of the input boundary
+                --> available dimensions:
+                    - last 3 of 5D tensor
+                    - last 2 of 4D tensor
+            - 'circular':
         value: number, optional
-                fill value for padding operations
+            fill value for padding operations
 
         Returns
         -------
@@ -2147,12 +2143,9 @@ class DNDarray:
         Examples
         --------
         >>> import heat as ht
-
         """
 
         return manipulations.pad(self, pad, mode, value)
-
-
 
     def __pow__(self, other):
         """
