@@ -1,8 +1,11 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 import sys
 
 sys.path.append("./heat/core")
+
+
 import version
+
 
 print(version, dir(version))
 
@@ -15,14 +18,7 @@ with open("README.md", "r") as handle:
 
 setup(
     name="heat",
-    packages=[
-        "heat",
-        "heat.core",
-        "heat.core.cluster",
-        "heat.core.regression",
-        "heat.core.regression.lasso",
-        "heat.utils",
-    ],
+    packages=find_packages(exclude=("*tests*",)),
     data_files=["README.md", "LICENSE"],
     version=version.__version__,
     description="A framework for high performance data analytics and machine learning.",
@@ -33,13 +29,13 @@ setup(
     url="https://github.com/helmholtz-analytics/heat",
     keywords=["data", "analytics", "tensors", "distributed", "gpu"],
     classifiers=[
-        "Development Status :: 2 - Pre-Alpha",
-        "Programming Language :: Python :: 3.5",
+        "Development Status :: 3 - Alpha",
+        "Programming Language :: Python :: 3.6",
         "License :: OSI Approved :: MIT License",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering",
     ],
-    install_requires=["mpi4py>=3.0.0", "numpy>=1.13.0", "torch>=1.3.0"],
+    install_requires=["mpi4py>=3.0.0", "numpy>=1.13.0", "torch>=1.3.1"],
     extras_require={
         "hdf5": ["h5py>=2.8.0"],
         "netcdf": ["netCDF4>=1.4.0,<=1.5.2"],

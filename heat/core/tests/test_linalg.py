@@ -1,6 +1,7 @@
 import torch
-import unittest
 import os
+import unittest
+import warnings
 import heat as ht
 import numpy as np
 
@@ -15,6 +16,12 @@ if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
     device = ht.gpu.torch_device
     ht_device = ht.gpu
     torch.cuda.set_device(device)
+
+if os.environ.get("EXTENDED_TESTS"):
+    extended_tests = True
+    warnings.warn("Extended Tests will take roughly 100x longer than the standard tests")
+else:
+    extended_tests = False
 
 
 class TestLinalg(unittest.TestCase):
@@ -35,8 +42,16 @@ class TestLinalg(unittest.TestCase):
 
         a1d = ht.array(data1d, dtype=ht.float32, split=None, device=ht_device)
         b1d = ht.array(data1d, dtype=ht.float32, split=0, device=ht_device)
-        # 2 1D arrays,
         self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
+
+        a1d = ht.array(data1d, dtype=ht.float32, split=None, device=ht_device)
+        b1d = ht.array(data1d, dtype=ht.float32, split=None, device=ht_device)
+        self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
+
+        a1d = ht.array(data1d, dtype=ht.float32, split=0, device=ht_device)
+        b1d = ht.array(data1d, dtype=ht.float32, split=0, device=ht_device)
+        self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
+        # 2 1D arrays,
 
         a2d = ht.array(data2d, split=1, device=ht_device)
         b2d = ht.array(data2d, split=1, device=ht_device)
@@ -94,6 +109,25 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(ret00.shape, (n, k))
         self.assertEqual(ret00.dtype, ht.float)
         self.assertEqual(ret00.split, None)
+        self.assertEqual(a.split, None)
+        self.assertEqual(b.split, None)
+
+        # splits None None
+        a = ht.ones((n, m), split=None, device=ht_device)
+        b = ht.ones((j, k), split=None, device=ht_device)
+        a[0] = ht.arange(1, m + 1, device=ht_device)
+        a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+        b[0] = ht.arange(1, k + 1, device=ht_device)
+        b[:, 0] = ht.arange(1, j + 1, device=ht_device)
+        ret00 = ht.matmul(a, b, allow_resplit=True)
+
+        self.assertEqual(ht.all(ret00 == ht.array(a_torch @ b_torch, device=ht_device)), 1)
+        self.assertIsInstance(ret00, ht.DNDarray)
+        self.assertEqual(ret00.shape, (n, k))
+        self.assertEqual(ret00.dtype, ht.float)
+        self.assertEqual(ret00.split, None)
+        self.assertEqual(a.split, 0)
+        self.assertEqual(b.split, None)
 
         if a.comm.size > 1:
             # splits 00
@@ -434,6 +468,152 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
+            with self.assertRaises(NotImplementedError):
+                a = ht.zeros((3, 3, 3), split=2)
+                b = a.copy()
+                a @ b
+
+    if extended_tests:
+        st_whole = torch.randn(70, 70, device=device)
+
+        def test_qr_sp0(self, st_whole=st_whole):
+            sp = 0
+            for m in range(50, st_whole.shape[0] + 1, 1):
+                for n in range(50, st_whole.shape[1] + 1, 1):
+                    for t in range(1, 3):
+                        st = st_whole[:m, :n].clone()
+                        a_comp = ht.array(st, split=0, device=ht_device)
+                        a = ht.array(st, split=sp, device=ht_device)
+                        qr = a.qr(tiles_per_proc=t)
+                        self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
+                        self.assertTrue(
+                            ht.allclose(
+                                qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5
+                            )
+                        )
+                        self.assertTrue(
+                            ht.allclose(
+                                ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5
+                            )
+                        )
+
+        def test_qr_sp1(self, st_whole=st_whole):
+            sp = 1
+            for m in range(50, st_whole.shape[0] + 1, 1):
+                for n in range(50, st_whole.shape[1] + 1, 1):
+                    for t in range(1, 3):
+                        st = st_whole[:m, :n].clone()
+                        a_comp = ht.array(st, split=0, device=ht_device)
+                        a = ht.array(st, split=sp, device=ht_device)
+                        qr = a.qr(tiles_per_proc=t)
+                        self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
+                        self.assertTrue(
+                            ht.allclose(
+                                qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5
+                            )
+                        )
+                        self.assertTrue(
+                            ht.allclose(
+                                ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5
+                            )
+                        )
+
+    else:
+
+        def test_qr(self):
+            m, n = 20, 40
+            st = torch.randn(m, n, device=device, dtype=torch.float)
+            a_comp = ht.array(st, split=0, device=ht_device)
+            for t in range(1, 3):
+                for sp in range(2):
+                    a = ht.array(st, split=sp, device=ht_device, dtype=torch.float)
+                    qr = a.qr(tiles_per_proc=t)
+                    a_comp = ht.array(st, split=0, device=ht_device, dtype=ht.float)
+                    self.assertTrue(ht.allclose((a_comp - (qr.Q @ qr.R)), 0, rtol=1e-5, atol=1e-5))
+                    self.assertTrue(
+                        ht.allclose(
+                            qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5
+                        )
+                    )
+                    self.assertTrue(
+                        ht.allclose(
+                            ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5
+                        )
+                    )
+            m, n = 40, 40
+            st1 = torch.randn(m, n, device=device)
+            a_comp1 = ht.array(st1, split=0, device=ht_device)
+            for t in range(1, 3):
+                for sp in range(2):
+                    a1 = ht.array(st1, split=sp, device=ht_device)
+                    qr1 = a1.qr(tiles_per_proc=t)
+                    a_comp1 = ht.array(st1.clone(), split=0, device=ht_device)
+                    self.assertTrue(
+                        ht.allclose((a_comp1 - (qr1.Q @ qr1.R)), 0, rtol=1e-5, atol=1e-5)
+                    )
+                    self.assertTrue(
+                        ht.allclose(
+                            qr1.Q.T @ qr1.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5
+                        )
+                    )
+                    self.assertTrue(
+                        ht.allclose(
+                            ht.eye(m, device=ht_device), qr1.Q @ qr1.Q.T, rtol=1e-5, atol=1e-5
+                        )
+                    )
+            m, n = 40, 20
+            st2 = torch.randn(m, n, dtype=torch.double, device=device)
+            a_comp2 = ht.array(st2, split=0, dtype=ht.double, device=ht_device)
+            for t in range(1, 3):
+                for sp in range(2):
+                    a2 = ht.array(st2, split=sp, device=ht_device)
+                    qr2 = a2.qr(tiles_per_proc=t)
+                    a_comp2 = ht.array(st2.clone(), split=0, device=ht_device)
+                    self.assertTrue(ht.allclose(a_comp2, qr2.Q @ qr2.R, rtol=1e-5, atol=1e-5))
+                    self.assertTrue(
+                        ht.allclose(
+                            qr2.Q.T @ qr2.Q,
+                            ht.eye(m, dtype=ht.double, device=ht_device),
+                            rtol=1e-5,
+                            atol=1e-5,
+                        )
+                    )
+                    self.assertTrue(
+                        ht.allclose(
+                            ht.eye(m, dtype=ht.double, device=ht_device),
+                            qr2.Q @ qr2.Q.T,
+                            rtol=1e-5,
+                            atol=1e-5,
+                        )
+                    )
+
+            m, n = 40, 20
+            st = torch.randn(m, n, device=device)
+            a_comp = ht.array(st, split=None, device=ht_device)
+            a = ht.array(st, split=None, device=ht_device)
+            qr = a.qr()
+            self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
+            self.assertTrue(
+                ht.allclose(qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5)
+            )
+            self.assertTrue(
+                ht.allclose(ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5)
+            )
+
+            # raises
+            with self.assertRaises(TypeError):
+                ht.qr(np.zeros((10, 10)))
+            with self.assertRaises(TypeError):
+                ht.qr(a_comp, tiles_per_proc="ls")
+            with self.assertRaises(TypeError):
+                ht.qr(a_comp, tiles_per_proc=1, calc_q=30)
+            with self.assertRaises(TypeError):
+                ht.qr(a_comp, tiles_per_proc=1, overwrite_a=30)
+            with self.assertRaises(ValueError):
+                ht.qr(a_comp, tiles_per_proc=torch.tensor([1, 2, 3]))
+            with self.assertRaises(ValueError):
+                ht.qr(ht.zeros((3, 4, 5)))
+
     def test_transpose(self):
         # vector transpose, not distributed
         vector = ht.arange(10, device=ht_device)
@@ -723,6 +903,11 @@ class TestLinalg(unittest.TestCase):
             self.assertTrue(result._DNDarray__array[-1, 0] == 1)
         if result.comm.rank == result.shape[0] - 1:
             self.assertTrue(result._DNDarray__array[0, -1] == 0)
+
+        with self.assertRaises(TypeError):
+            ht.tril("asdf")
+        with self.assertRaises(TypeError):
+            ht.tril(distributed_ones, m=["sdf", "sf"])
 
     def test_triu(self):
         local_ones = ht.ones((5,), device=ht_device)
