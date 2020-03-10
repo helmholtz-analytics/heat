@@ -671,11 +671,10 @@ def pad(input, pad, mode="constant", value=0):
     elif len(pad) / 2 == 3:
         pad_dim.append(len(input.shape) - 3)  # pad last 3 dimensions
 
-
+    input_torch = input._DNDarray__array
 
     # CASE 1: padding in non-split dimension or no distribution at all
     if input.split is None or input.split not in pad_dim:
-        input_torch = input._DNDarray__array
         padded_torch_tensor = torch.nn.functional.pad(input_torch, pad, mode, value)
 
         padded_tensor = factories.array(padded_torch_tensor, dtype=input.dtype, device=input.device)
@@ -690,6 +689,7 @@ def pad(input, pad, mode="constant", value=0):
 
     #copy of input
     padded_tensor=input.copy()
+    padded_torch_tensor=padded_tensor._DNDarray__array
 
     pad_beginning_list=list(pad)
     pad_end_list=list(pad)
@@ -724,23 +724,32 @@ def pad(input, pad, mode="constant", value=0):
     offset=input.comm.chunk(input.gshape, input.split)[0]
 
 
+    counts=input.comm.counts_displs_shape(input.gshape, input.split)[0]
+    amount_of_cores=len(counts)
+
+    #TODO get number of process
+
     #first process
     if offset == 0:
-        #print("Pad Beginning: ", pad_beginning)
-        padded_tensor=torch.nn.functional.pad(padded_tensor, pad_beginning, mode, value)
+        padded_torch_tensor=torch.nn.functional.pad(input_torch, pad_beginning, mode, value)
+        #print("\n\nPad Beginning: ", pad_beginning, "\n", padded_torch_tensor)
 
     #last process
-    elif offset == len(slices)-1:
-        #print("Pad End: ", pad_end)
-        padded_tensor = torch.nn.functional.pad(padded_tensor, pad_end, mode, value)
+    elif offset == amount_of_cores-1:
+        padded_torch_tensor = torch.nn.functional.pad(input_torch, pad_end, mode, value)
+        #print("\n\nPad End: ", pad_end, "\n", padded_torch_tensor)
 
     #pad regularly
     else:
-        #print("Pad Middle: ", pad_middle)
-        padded_tensor = torch.nn.functional.pad(padded_tensor, pad_middle, mode, value)
+        padded_torch_tensor = torch.nn.functional.pad(input_torch, pad_middle, mode, value)
+        #print("\n\nPad Middle: ", pad_middle, "\n", padded_torch_tensor)
 
 
+
+    #cast back to ht.DNDarray & balance tensor
+    padded_tensor = factories.array(padded_torch_tensor, dtype=input.dtype, device=input.device)
     padded_tensor.balance_()
+
 
     return padded_tensor
 
