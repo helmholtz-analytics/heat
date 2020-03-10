@@ -713,37 +713,27 @@ def pad(input, pad, mode="constant", value=0):
         raise ValueError("Only implemented for split on axis 0, 1 or 2")
 
 
-
     pad_beginning=tuple(pad_beginning_list)
     pad_end=tuple(pad_end_list)
     pad_middle=tuple(pad_middle_list)
 
 
-    #get information about data on each node (each tensor portion)
-    slices=input.comm.chunk(input.gshape, input.split)[2]
-    offset=input.comm.chunk(input.gshape, input.split)[0]
-
-
     counts=input.comm.counts_displs_shape(input.gshape, input.split)[0]
     amount_of_cores=len(counts)
+    rank = input.comm.rank
 
-    #TODO get number of process
 
-    #first process
-    if offset == 0:
+    #first process - pad beginning
+    if rank == 0:
         padded_torch_tensor=torch.nn.functional.pad(input_torch, pad_beginning, mode, value)
-        #print("\n\nPad Beginning: ", pad_beginning, "\n", padded_torch_tensor)
 
-    #last process
-    elif offset == amount_of_cores-1:
+    #last process - pad end
+    elif rank == amount_of_cores-1:
         padded_torch_tensor = torch.nn.functional.pad(input_torch, pad_end, mode, value)
-        #print("\n\nPad End: ", pad_end, "\n", padded_torch_tensor)
 
-    #pad regularly
+    #pad middle
     else:
         padded_torch_tensor = torch.nn.functional.pad(input_torch, pad_middle, mode, value)
-        #print("\n\nPad Middle: ", pad_middle, "\n", padded_torch_tensor)
-
 
 
     #cast back to ht.DNDarray & balance tensor
