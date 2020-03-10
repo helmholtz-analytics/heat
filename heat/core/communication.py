@@ -51,7 +51,7 @@ class MPICommunication(Communication):
         torch.bool: MPI.BOOL,
         torch.uint8: MPI.UNSIGNED_CHAR,
         torch.int8: MPI.SIGNED_CHAR,
-        torch.int16: MPI.SHORT_INT,
+        torch.int16: MPI.SHORT,
         torch.int32: MPI.INT,
         torch.int64: MPI.LONG,
         torch.float32: MPI.FLOAT,
