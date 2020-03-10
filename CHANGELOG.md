@@ -4,6 +4,7 @@
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Added PyTorch Jitter to inner function of matmul for increased speed
 - [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: Underlying torch tensor moves to the right device on array initialisation
 - [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix:DNDarray.cpu() changes heat device to cpu
+- [#496](https://github.com/helmholtz-analytics/heat/pull/496) New feature: flipud()
 
 # v0.3.0
 

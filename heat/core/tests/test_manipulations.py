@@ -763,6 +763,33 @@ class TestManipulations(BasicTest):
         with self.assertRaises(ValueError):
             ht.empty((3, 4, 5), device=ht_device).expand_dims(-5)
 
+    def test_flipud(self):
+        a = ht.array([1, 2])
+        self.assertTrue(ht.equal(ht.flipud(a), a))
+
+        b = ht.array([[1, 2], [3, 4]])
+        r_b = ht.array([[3, 4], [1, 2]])
+        self.assertTrue(ht.equal(ht.flipud(b), r_b))
+
+        # splitted
+        c = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]], split=0
+        )
+        r_c = ht.array(
+            [[[12, 13], [14, 15]], [[8, 9], [10, 11]], [[4, 5], [6, 7]], [[0, 1], [2, 3]]], split=0
+        )
+        self.assertTrue(ht.equal(ht.flipud(c), r_c))
+
+        c = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]], split=1
+        )
+        self.assertTrue(ht.equal(ht.resplit(ht.flipud(c), 0), r_c))
+
+        c = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]], split=2
+        )
+        self.assertTrue(ht.equal(ht.resplit(ht.flipud(c), 0), r_c))
+
     def test_hstack(self):
         # cases to test:
         # MM===================================

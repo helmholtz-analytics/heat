@@ -14,6 +14,7 @@ __all__ = [
     "diag",
     "diagonal",
     "expand_dims",
+    "flipud",
     "hstack",
     "resplit",
     "sort",
@@ -554,6 +555,50 @@ def expand_dims(a, axis):
         a.device,
         a.comm,
     )
+
+
+def flipud(a):
+    """
+    Flip array in the up/down direction.
+
+    Parameters
+    ----------
+    a: ht.DNDarray
+        Input array to be flipped
+
+    Returns
+    -------
+    res: ht.DNDarray
+        The flipped array.
+
+    Examples
+    --------
+    >>> a = ht.array([[0,1],[2,3]])
+    >>> ht.flipud(a)
+    tensor([[2, 3],
+        [0, 1]])
+    """
+    # Nothing to do
+    if a.numdims <= 1:
+        return a
+
+    flipped = torch.flip(a._DNDarray__array, [0])
+
+    if a.split != 0:
+        return factories.array(
+            flipped, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+        )
+
+    # Need to redistribute tensors on axis 0
+    lshape_map = a.create_lshape_map()
+    a.comm.Isend(flipped, dest=(a.comm.size - 1 - a.comm.rank))
+    received = torch.empty(
+        tuple(lshape_map[(a.comm.size - 1 - a.comm.rank)]), dtype=a._DNDarray__array.dtype
+    )
+    a.comm.Recv(received, source=(a.comm.size - 1 - a.comm.rank))
+    res = factories.array(received, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
+    res.balance_()  # after swapping, first processes may be empty
+    return res
 
 
 def hstack(tup):
