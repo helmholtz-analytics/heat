@@ -567,7 +567,7 @@ def flip(a, axis=None):
     ----------
     a: ht.DNDarray
         Input array to be flipped
-    axis: tuple
+    axis: int, tuple
         a list of axes to be flipped
 
     Returns
@@ -586,9 +586,13 @@ def flip(a, axis=None):
     tensor([[3, 2],
         [1, 0]])
     """
-    # Nothing to do
-    if a.numdims <= 1:
-        return a
+    # flip all dimensions
+    if axis is None:
+        axis = tuple(range(a.numdims))
+
+    # torch.flip only accepts tuples
+    if isinstance(axis, int):
+        axis = [axis]
 
     flipped = torch.flip(a._DNDarray__array, axis)
 
