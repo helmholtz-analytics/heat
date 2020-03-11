@@ -578,10 +578,6 @@ def flipud(a):
     tensor([[2, 3],
         [0, 1]])
     """
-    # Nothing to do
-    if a.numdims <= 1:
-        return a
-
     flipped = torch.flip(a._DNDarray__array, [0])
 
     if a.split != 0:

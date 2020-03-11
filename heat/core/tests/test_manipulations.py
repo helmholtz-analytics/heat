@@ -765,7 +765,8 @@ class TestManipulations(BasicTest):
 
     def test_flipud(self):
         a = ht.array([1, 2], device=ht_device)
-        self.assertTrue(ht.equal(ht.flipud(a), a))
+        r_a = ht.array([2, 1], device=ht_device)
+        self.assertTrue(ht.equal(ht.flipud(a), r_a))
 
         b = ht.array([[1, 2], [3, 4]], device=ht_device)
         r_b = ht.array([[3, 4], [1, 2]], device=ht_device)
