@@ -289,7 +289,7 @@ class DNDarray:
         cat = []
         if self.__halos[0] is not None:
             cat.append(self.__halos[0])
-        
+
         cat.append(self.__array)
 
         if self.__halos[1] is not None:
@@ -298,7 +298,6 @@ class DNDarray:
         out = torch.cat(cat, self.split)
 
         return DNDarray(out, out.shape, self.dtype, None, self.device, None, None)
-        
 
     @property
     def tiles(self):
