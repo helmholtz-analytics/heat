@@ -763,6 +763,27 @@ class TestManipulations(BasicTest):
         with self.assertRaises(ValueError):
             ht.empty((3, 4, 5), device=ht_device).expand_dims(-5)
 
+    def test_flatten(self):
+        a = ht.array([[[1,2],[3,4]],[[5,6],[7,8]]], device=ht_device)
+        ht.flatten(a)
+        res = ht.array([1,2,3,4,5,6,7,8], device=ht_device)
+        self.assertTrue(ht.equal(ht.flatten(a), res))
+
+        a = ht.array([[[1,2],[3,4]],[[5,6],[7,8]]], split=0, device=ht_device, dtype=ht.int8)
+        ht.flatten(a)
+        res = ht.array([1,2,3,4,5,6,7,8], split=0, device=ht_device, dtype=ht.int8)
+        self.assertTrue(ht.equal(ht.flatten(a), res))
+
+        a = ht.array([[[1.,2.],[3.,4.]],[[5.,6.],[7.,8.]]], split=1, device=ht_device)
+        ht.flatten(a)
+        res = ht.array([1.,2.,3.,4.,5.,6.,7.,8.], split=0, device=ht_device)
+        self.assertTrue(ht.equal(ht.flatten(a), res))
+
+        a = ht.array([[[False,False],[False, True]],[[True,False],[True,True]]], split=2, device=ht_device)
+        ht.flatten(a)
+        res = ht.array([False,False,False,True,True,False,True,True], split=0, device=ht_device)
+        self.assertTrue(ht.equal(ht.flatten(a), res))
+
     def test_hstack(self):
         # cases to test:
         # MM===================================
