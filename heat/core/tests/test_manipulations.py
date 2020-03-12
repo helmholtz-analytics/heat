@@ -765,19 +765,16 @@ class TestManipulations(BasicTest):
 
     def test_flatten(self):
         a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]], device=ht_device)
-        ht.flatten(a)
         res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], device=ht_device)
         self.assertTrue(ht.equal(ht.flatten(a), res))
 
         a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]], split=0, device=ht_device, dtype=ht.int8)
-        ht.flatten(a)
         res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], split=0, device=ht_device, dtype=ht.int8)
         self.assertTrue(ht.equal(ht.flatten(a), res))
 
         a = ht.array(
             [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]], split=1, device=ht_device
         )
-        ht.flatten(a)
         res = ht.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], split=0, device=ht_device)
         self.assertTrue(ht.equal(ht.flatten(a), res))
 
@@ -786,7 +783,6 @@ class TestManipulations(BasicTest):
             split=2,
             device=ht_device,
         )
-        ht.flatten(a)
         res = ht.array(
             [False, False, False, True, True, False, True, True], split=0, device=ht_device
         )
