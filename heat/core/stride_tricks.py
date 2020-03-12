@@ -1,5 +1,5 @@
 import itertools
-import warnings
+import numpy as np
 
 
 def broadcast_shape(shape_a, shape_b):
@@ -23,15 +23,31 @@ def broadcast_shape(shape_a, shape_b):
     -------
     ValueError
         If the two shapes cannot be broadcast.
+
+    Examples
+    -------
+    >>> broadcast_shape((5,4),(4,))
+    (5,4)
+
+    >>> broadcast_shape((1,100,1),(10,1,5))
+    (10,100,5)
+
+    >>> broadcast_shape((8,1,6,1),(7,1,5,))
+    (8,7,6,5))
+
+    >>> broadcast_shape((2,1),(8,4,3))
+    ValueError
     """
-    #TODO: test me
+
     it = itertools.zip_longest(shape_a[::-1], shape_b[::-1], fillvalue=1)
     resulting_shape = max(len(shape_a), len(shape_b)) * [None]
     for i, (a, b) in enumerate(it):
         if a == 1 or b == 1 or a == b:
             resulting_shape[i] = max(a, b)
         else:
-            raise ValueError('operands could not be broadcast, input shapes {} {}'.format(shape_a, shape_b))
+            raise ValueError(
+                "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
+            )
 
     return tuple(resulting_shape[::-1])
 
@@ -45,26 +61,44 @@ def sanitize_axis(shape, axis):
     ----------
     shape : tuple of ints
         shape of an array
-    axis : ints
+    axis : ints or tuple of ints
         the axis to be sanitized
 
     Returns
     -------
-    sane_axis : int
+    sane_axis : int or tuple of ints
         the sane axis
 
     Raises
     -------
     ValueError
-        If the axis cannot be sanitized, i.e. out of bounds.
+        if the axis cannot be sanitized, i.e. out of bounds.
+    TypeError
+        if the the axis is not integral.
+
+    Examples
+    -------
+    >>> sanitize_axis((5,4,4),1)
+    1
+
+    >>> sanitize_axis((5,4,4),-1)
+    2
+
+    >>> sanitize_axis((5, 4), (1,))
+    (1,)
+
+    >>> sanitize_axis((5, 4), 1.0)
+    TypeError
     """
-    #TODO: test me
-    
     if axis is not None:
-        if isinstance(axis, tuple):
-            raise NotImplementedError('Not implemented for axis: tuple of ints')
-        if not isinstance(axis, int):
-            raise TypeError('split axis must be None or int, but was {}'.format(type(axis)))
+        if not isinstance(axis, int) and not isinstance(axis, tuple):
+            raise TypeError("axis must be None or int or tuple, but was {}".format(type(axis)))
+    if isinstance(axis, tuple):
+        axis = tuple(dim + len(shape) if dim < 0 else dim for dim in axis)
+        for dim in axis:
+            if dim < 0 or dim >= len(shape):
+                raise ValueError("axis {} is out of bounds for shape {}".format(axis, shape))
+        return axis
 
     if axis is None or 0 <= axis < len(shape):
         return axis
@@ -72,7 +106,8 @@ def sanitize_axis(shape, axis):
         axis += len(shape)
 
     if axis < 0 or axis >= len(shape):
-        raise ValueError('axis axis {} is out of bounds for shape {}'.format(axis, shape))
+        raise ValueError("axis {} is out of bounds for shape {}".format(axis, shape))
+
     return axis
 
 
@@ -108,12 +143,14 @@ def sanitize_shape(shape):
     >>> sanitize_shape(1.0)
     TypeError
     """
-    shape = (shape,) if not hasattr(shape, '__iter__') else tuple(shape)
+    shape = (shape,) if not hasattr(shape, "__iter__") else tuple(shape)
 
     for dimension in shape:
+        if issubclass(type(dimension), np.integer):
+            dimension = int(dimension)
         if not isinstance(dimension, int):
-            raise TypeError('expected sequence object with length >= 0 or a single integer')
-        if dimension <= 0:
-            raise ValueError('negative dimensions are not allowed')
+            raise TypeError("expected sequence object with length >= 0 or a single integer")
+        if dimension < 0:
+            raise ValueError("negative dimensions are not allowed")
 
     return shape
