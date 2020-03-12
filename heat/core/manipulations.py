@@ -576,10 +576,22 @@ def flatten(a):
     tensor([1,2,3,4,5,6,7,8])
     """
     if a.split is None:
-        return factories.array(torch.flatten(a._DNDarray__array), dtype=a.dtype, is_split=None, device=a.device, comm=a.comm)
+        return factories.array(
+            torch.flatten(a._DNDarray__array),
+            dtype=a.dtype,
+            is_split=None,
+            device=a.device,
+            comm=a.comm,
+        )
 
     a = resplit(a, 0)
-    a = factories.array(torch.flatten(a._DNDarray__array), dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
+    a = factories.array(
+        torch.flatten(a._DNDarray__array),
+        dtype=a.dtype,
+        is_split=a.split,
+        device=a.device,
+        comm=a.comm,
+    )
     a.balance_()
 
     return a
