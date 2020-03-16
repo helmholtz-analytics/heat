@@ -651,7 +651,35 @@ def pad(input, pad, mode="constant", value=0):
 
     Examples
     --------
-    >>> import heat as ht
+    >>> a = torch.arange(2 * 3 * 4).reshape(2, 3, 4)
+    >>> b = ht.array(a, split = 0)
+
+    Pad last dimension
+    >>> c = ht.pad(b, (2,1), value=1)
+    tensor([[[ 1,  1,  0,  1,  2,  3,  1],
+         [ 1,  1,  4,  5,  6,  7,  1],
+         [ 1,  1,  8,  9, 10, 11,  1]],
+
+        [[ 1,  1, 12, 13, 14, 15,  1],
+         [ 1,  1, 16, 17, 18, 19,  1],
+         [ 1,  1, 20, 21, 22, 23,  1]]])
+
+    Pad last 2 dimensions
+    >>> d = ht.pad(b, (2,1,1,0))
+    tensor([[[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  1,  2,  3,  0],
+         [ 0,  0,  4,  5,  6,  7,  0],
+         [ 0,  0,  8,  9, 10, 11,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0, 12, 13, 14, 15,  0],
+         [ 0,  0, 16, 17, 18, 19,  0],
+         [ 0,  0, 20, 21, 22, 23,  0]]])
+
+    #TODO (padding back ignored - probably wrong calculation of pad tuple)
+    Pad last 3 dimensions
+    >>> e = ht.pad(b, (2,1,1,0,1,1))
+
 
     """
     if len(pad) % 2 != 0:
@@ -672,8 +700,9 @@ def pad(input, pad, mode="constant", value=0):
         pad_dim.append(len(input.shape) - 3)  # pad last 3 dimensions
 
     input_torch = input._DNDarray__array
-
+    #-------------------------------------------------------------------------------------------------------------------
     # CASE 1: padding in non-split dimension or no distribution at all
+    # ------------------------------------------------------------------------------------------------------------------
     if input.split is None or input.split not in pad_dim:
         padded_torch_tensor = torch.nn.functional.pad(input_torch, pad, mode, value)
 
@@ -681,21 +710,19 @@ def pad(input, pad, mode="constant", value=0):
 
         return padded_tensor
 
-
+    # ------------------------------------------------------------------------------------------------------------------
     # CASE 2: padding in split dimension
+    #
+    # Pad only first/last tensor portion on node (i.e. only beginning/end in split dimension)
+    # --> "Calculate" pad tuple for the corresponding tensor portion
+    # ------------------------------------------------------------------------------------------------------------------
 
-    #strategy: pad only first/last tensor portion on node (i.e. only beginning/end in split dimension)
-    #therefore: "calculate" pad tuple for the corresponding tensor portion
-
-    #copy of input
-    padded_tensor=input.copy()
-    padded_torch_tensor=padded_tensor._DNDarray__array
 
     pad_beginning_list=list(pad)
     pad_end_list=list(pad)
     pad_middle_list=list(pad)
 
-    #calculate the corresponding padding tuples
+    #calculate the corresponding pad tuples
 
     if input.split == 0:
         pad_beginning_list[5]=0
@@ -736,7 +763,6 @@ def pad(input, pad, mode="constant", value=0):
         padded_torch_tensor = torch.nn.functional.pad(input_torch, pad_middle, mode, value)
 
 
-    #cast back to ht.DNDarray & balance tensor
     padded_tensor = factories.array(padded_torch_tensor, dtype=input.dtype, device=input.device)
     padded_tensor.balance_()
 
