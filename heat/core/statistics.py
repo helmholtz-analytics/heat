@@ -1222,7 +1222,10 @@ def var(x, axis=None, bessel=True):
 
         if x.lshape[x.split] != 0:
             mu = torch.mean(x._DNDarray__array, dim=axis)
-            var = torch.var(x._DNDarray__array, dim=axis, unbiased=bessel)
+            if x.lshape[x.split] == 1:
+                var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+            else:
+                var = torch.var(x._DNDarray__array, dim=axis, unbiased=bessel)
         else:
             mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
             var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
