@@ -1339,7 +1339,7 @@ class DNDarray:
 
             arr = torch.Tensor()
 
-            # if a sigular index is given and the tensor is split
+            # if a singular index is given and the tensor is split
             if isinstance(key, int):
                 gout = [0] * (len(self.gshape) - 1)
                 if key < 0:
@@ -1381,9 +1381,13 @@ class DNDarray:
                 else:
                     new_split = self.split
 
+                # handle empty list
+                if len(key) == 0:
+                    arr = self.__array[key]
+                    gout = list(arr.shape)
                 # if a slice is given in the split direction
                 # below allows for the split given to contain Nones
-                if isinstance(key[self.split], slice):
+                elif isinstance(key[self.split], slice):
                     key_stop = key[self.split].stop
                     if key_stop is not None and key_stop < 0:
                         key_stop = self.gshape[self.split] + key[self.split].stop
