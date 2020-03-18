@@ -1323,21 +1323,22 @@ class DNDarray:
                     else:
                         indices = key[self.split]
                     key = list(key)
-                    if len(indices) == 0:
-                        arr = self.__array[key]
-                        gout = list(arr.shape)
-                    elif isinstance(indices, list):
-                        indices = [
-                            index + self.gshape[self.split] if index < 0 else index
-                            for index in indices
-                        ]
-                        sorted_key_along_split = sorted(indices)
-                        if sorted_key_along_split[0] in range(
-                            chunk_start, chunk_end
-                        ) and sorted_key_along_split[-1] in range(chunk_start, chunk_end):
-                            indices = [index - chunk_start for index in indices]
-                            arr = self.__array[indices]
+                    if isinstance(indices, list):
+                        if len(indices) == 0:
+                            arr = self.__array[key]
                             gout = list(arr.shape)
+                        else:
+                            indices = [
+                                index + self.gshape[self.split] if index < 0 else index
+                                for index in indices
+                            ]
+                            sorted_key_along_split = sorted(indices)
+                            if sorted_key_along_split[0] in range(
+                                chunk_start, chunk_end
+                            ) and sorted_key_along_split[-1] in range(chunk_start, chunk_end):
+                                indices = [index - chunk_start for index in indices]
+                                arr = self.__array[indices]
+                                gout = list(arr.shape)
 
                     elif isinstance(key[self.split], int):
                         key[self.split] = (
