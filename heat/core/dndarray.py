@@ -1414,7 +1414,10 @@ class DNDarray:
                     else:
                         indices = key[self.split]
                     key = list(key)
-                    if isinstance(indices, list):
+                    if len(indices) == 0:
+                        arr = self.__array[key]
+                        gout = list(arr.shape)
+                    elif isinstance(indices, list):
                         indices = [
                             index + self.gshape[self.split] if index < 0 else index
                             for index in indices
