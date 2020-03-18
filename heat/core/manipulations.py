@@ -610,7 +610,7 @@ def hstack(tup):
 
 def pad(input, pad, mode="constant", value=0):
     """
-    Pads tensor with a specific value (default=0).
+    Pads tensor with a specific integer value (default=0).
     (Not all dimensions supported)
 
     Parameters
@@ -647,12 +647,13 @@ def pad(input, pad, mode="constant", value=0):
     Returns
     -------
     padded_tensor : ht.DNDarray
-    The padded tensor
+        The padded tensor
 
     Examples
     --------
     >>> a = torch.arange(2 * 3 * 4).reshape(2, 3, 4)
     >>> b = ht.array(a, split = 0)
+
 
     Pad last dimension
     >>> c = ht.pad(b, (2,1), value=1)
@@ -663,6 +664,7 @@ def pad(input, pad, mode="constant", value=0):
         [[ 1,  1, 12, 13, 14, 15,  1],
          [ 1,  1, 16, 17, 18, 19,  1],
          [ 1,  1, 20, 21, 22, 23,  1]]])
+
 
     Pad last 2 dimensions
     >>> d = ht.pad(b, (2,1,1,0))
@@ -706,7 +708,7 @@ def pad(input, pad, mode="constant", value=0):
 
     """
     if type(value) != int:
-        raise ValueError(f"Fill value {value} invalid. Fill value has to be an integer.")
+        raise TypeError(f"Fill value {value} invalid. Fill value has to be an integer.")
 
     if len(pad) % 2 != 0:
         raise ValueError("Pad must contain an even amount of elements")
@@ -718,19 +720,16 @@ def pad(input, pad, mode="constant", value=0):
             f" dimensions is not possible."
         )
 
-    pad_dim = [len(input.shape) - 1]  # pad last dimension
-
-    if len(pad) / 2 == 2:
-        pad_dim.append(len(input.shape) - 2)  # pad last 2 dimensions
-    elif len(pad) / 2 == 3:
-        pad_dim.append(len(input.shape) - 3)  # pad last 3 dimensions
+    rank_input = len(input.shape)
+    amount_pad_dim = len(pad) // 2
+    pad_dim = [rank_input - i for i in range(1, amount_pad_dim + 1)]
 
     input_torch = input._DNDarray__array
     counts = input.comm.counts_displs_shape(input.gshape, input.split)[0]
     amount_of_processes = len(counts)
 
     # -------------------------------------------------------------------------------------------------------------------
-    # CASE 1: padding in non-split dimension or no distribution at all
+    # CASE 1: Padding in non split dimension or no distribution at all
     # ------------------------------------------------------------------------------------------------------------------
     if input.split is None or input.split not in pad_dim or amount_of_processes == 1:
         padded_torch_tensor = torch.nn.functional.pad(input_torch, pad, mode, value)
@@ -752,20 +751,23 @@ def pad(input, pad, mode="constant", value=0):
 
     # calculate the corresponding pad tuples
 
-    if input.split == 0:
+    if input.split == rank_input - 3:
         pad_beginning_list[5] = 0
         pad_end_list[4] = 0
         pad_middle_list[4:6] = [0, 0]
-    elif input.split == 1:
+    elif input.split == rank_input - 2:
         pad_beginning_list[3] = 0
         pad_end_list[2] = 0
         pad_middle_list[2:4] = [0, 0]
-    elif input.split == 2:
+    elif input.split == rank_input - 1:
         pad_beginning_list[1] = 0
         pad_end_list[0] = 0
         pad_middle_list[0:2] = [0, 0]
     else:
-        raise ValueError("Pad only implemented for split on axis 0, 1 or 2")
+        raise ValueError(
+            f"Internal error. Padding only implemented for padding last 3 dimensions at most (Input: {rank_input}D-tensor).\n"
+            f"In this case, split dimension ({input.split}) should have been one of them."
+        )
 
     pad_beginning = tuple(pad_beginning_list)
     pad_end = tuple(pad_end_list)
