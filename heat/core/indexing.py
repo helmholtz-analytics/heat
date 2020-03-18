@@ -70,10 +70,16 @@ def nonzero(a):
         gout = list(lcl_nonzero.size())
         gout[0] = a.comm.allreduce(gout[0], MPI.SUM)
         is_split = 0 if lcl_nonzero.shape[0] > 0 else None
-
     if a.numdims == 1:
         lcl_nonzero = lcl_nonzero.squeeze(dim=1)
-    return factories.array(lcl_nonzero, is_split=is_split, device=a.device, comm=a.comm)
+    return dndarray.DNDarray(
+        lcl_nonzero,
+        gshape=gout,
+        dtype=types.canonical_heat_type(lcl_nonzero.dtype),
+        split=is_split,
+        device=a.device,
+        comm=a.comm,
+    )
 
 
 def where(cond, x=None, y=None):
