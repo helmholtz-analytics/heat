@@ -641,7 +641,7 @@ def pad(input, pad, mode="constant", value=0):
             --> available dimensions:
                 - last 3 of 5D tensor (--> pad = 6-element tuple)
                 - last 2 of 4D tensor (--> pad = 4-element tuple)
-    value: number, optional
+    value: int, optional
         fill value for padding operations
 
     Returns
@@ -676,12 +676,38 @@ def pad(input, pad, mode="constant", value=0):
          [ 0,  0, 16, 17, 18, 19,  0],
          [ 0,  0, 20, 21, 22, 23,  0]]])
 
-    #TODO (padding back ignored - probably wrong calculation of pad tuple)
-    Pad last 3 dimensions
-    >>> e = ht.pad(b, (2,1,1,0,1,1))
 
+    Pad last 3 dimensions
+    >>> e = ht.pad(b, (2,1,1,0,2,1))
+    tensor([[[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  1,  2,  3,  0],
+         [ 0,  0,  4,  5,  6,  7,  0],
+         [ 0,  0,  8,  9, 10, 11,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0, 12, 13, 14, 15,  0],
+         [ 0,  0, 16, 17, 18, 19,  0],
+         [ 0,  0, 20, 21, 22, 23,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0]]])
 
     """
+    if type(value) != int:
+        raise ValueError(f"Fill value {value} invalid. Fill value has to be an integer.")
+
     if len(pad) % 2 != 0:
         raise ValueError("Pad must contain an even amount of elements")
 
@@ -700,10 +726,13 @@ def pad(input, pad, mode="constant", value=0):
         pad_dim.append(len(input.shape) - 3)  # pad last 3 dimensions
 
     input_torch = input._DNDarray__array
-    #-------------------------------------------------------------------------------------------------------------------
+    counts = input.comm.counts_displs_shape(input.gshape, input.split)[0]
+    amount_of_processes = len(counts)
+
+    # -------------------------------------------------------------------------------------------------------------------
     # CASE 1: padding in non-split dimension or no distribution at all
     # ------------------------------------------------------------------------------------------------------------------
-    if input.split is None or input.split not in pad_dim:
+    if input.split is None or input.split not in pad_dim or amount_of_processes == 1:
         padded_torch_tensor = torch.nn.functional.pad(input_torch, pad, mode, value)
 
         padded_tensor = factories.array(padded_torch_tensor, dtype=input.dtype, device=input.device)
@@ -711,61 +740,53 @@ def pad(input, pad, mode="constant", value=0):
         return padded_tensor
 
     # ------------------------------------------------------------------------------------------------------------------
-    # CASE 2: padding in split dimension
+    # CASE 2: padding in split dimension and function runs on more than 1 process
     #
     # Pad only first/last tensor portion on node (i.e. only beginning/end in split dimension)
     # --> "Calculate" pad tuple for the corresponding tensor portion
     # ------------------------------------------------------------------------------------------------------------------
 
+    pad_beginning_list = list(pad)
+    pad_end_list = list(pad)
+    pad_middle_list = list(pad)
 
-    pad_beginning_list=list(pad)
-    pad_end_list=list(pad)
-    pad_middle_list=list(pad)
-
-    #calculate the corresponding pad tuples
+    # calculate the corresponding pad tuples
 
     if input.split == 0:
-        pad_beginning_list[5]=0
-        pad_end_list[4]=0
-        pad_middle_list[4:6]=[0,0]
+        pad_beginning_list[5] = 0
+        pad_end_list[4] = 0
+        pad_middle_list[4:6] = [0, 0]
     elif input.split == 1:
-        pad_beginning_list[3]=0
-        pad_end_list[2]=0
-        pad_middle_list[2:4]=[0,0]
+        pad_beginning_list[3] = 0
+        pad_end_list[2] = 0
+        pad_middle_list[2:4] = [0, 0]
     elif input.split == 2:
-        pad_beginning_list[1]=0
-        pad_end_list[0]=0
-        pad_middle_list[0:2]=[0,0]
+        pad_beginning_list[1] = 0
+        pad_end_list[0] = 0
+        pad_middle_list[0:2] = [0, 0]
     else:
-        raise ValueError("Only implemented for split on axis 0, 1 or 2")
+        raise ValueError("Pad only implemented for split on axis 0, 1 or 2")
 
+    pad_beginning = tuple(pad_beginning_list)
+    pad_end = tuple(pad_end_list)
+    pad_middle = tuple(pad_middle_list)
 
-    pad_beginning=tuple(pad_beginning_list)
-    pad_end=tuple(pad_end_list)
-    pad_middle=tuple(pad_middle_list)
-
-
-    counts=input.comm.counts_displs_shape(input.gshape, input.split)[0]
-    amount_of_cores=len(counts)
     rank = input.comm.rank
 
-
-    #first process - pad beginning
+    # first process - pad beginning
     if rank == 0:
-        padded_torch_tensor=torch.nn.functional.pad(input_torch, pad_beginning, mode, value)
+        padded_torch_tensor = torch.nn.functional.pad(input_torch, pad_beginning, mode, value)
 
-    #last process - pad end
-    elif rank == amount_of_cores-1:
+    # last process - pad end
+    elif rank == amount_of_processes - 1:
         padded_torch_tensor = torch.nn.functional.pad(input_torch, pad_end, mode, value)
 
-    #pad middle
+    # pad middle
     else:
         padded_torch_tensor = torch.nn.functional.pad(input_torch, pad_middle, mode, value)
 
-
     padded_tensor = factories.array(padded_torch_tensor, dtype=input.dtype, device=input.device)
     padded_tensor.balance_()
-
 
     return padded_tensor
 
