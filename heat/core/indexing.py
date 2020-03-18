@@ -61,6 +61,7 @@ def nonzero(a):
     if a.split is None:
         # if there is no split then just return the values from torch
         lcl_nonzero = torch.nonzero(a._DNDarray__array)
+        gout = lcl_nonzero.shape
         is_split = None
     else:
         # a is split
