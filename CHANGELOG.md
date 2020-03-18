@@ -1,7 +1,10 @@
 # Pending Additions
 
 - [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: Underlying torch tensor moves to the right device on array initialisation
-- [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix:DNDarray.cpu() changes heat device to cpu
+- [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: DNDarray.cpu() changes heat device to cpu
+- [#508](https://github.com/helmholtz-analytics/heat/pull/508) Bugfix: distributed nonzero() returns valid results even when some nodes contain no data.
+- [#508](https://github.com/helmholtz-analytics/heat/pull/508) Bugfix: var() of a 1-element tensor now returns 0, not nan.
+- [#508](https://github.com/helmholtz-analytics/heat/pull/508) Bugfix: distributed __getitem__ returns valid result when local input list contains no data.
 
 # v0.3.0
 
