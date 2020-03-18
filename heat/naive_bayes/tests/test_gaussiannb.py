@@ -98,8 +98,6 @@ class TestGaussianNB(BasicTest):
         self.assertTrue(ht.isclose(y_pred_proba_sklearn, y_pred_proba_local_weight).all())
 
         # test GaussianNB, data and labels distributed along split axis 0
-        # size = ht.MPI_WORLD.size
-        # if size in range(7):
         X_train_split = ht.resplit(X_train, axis=0)
         X_test_split = ht.resplit(X_test, axis=0)
         y_train_split = ht.resplit(y_train, axis=0)
