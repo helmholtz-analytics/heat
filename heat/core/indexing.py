@@ -70,7 +70,7 @@ def nonzero(a):
         lcl_nonzero[..., a.split] += slices[a.split].start
         gout = list(lcl_nonzero.size())
         gout[0] = a.comm.allreduce(gout[0], MPI.SUM)
-        is_split = 0 if lcl_nonzero.shape[0] > 0 else None
+        is_split = 0
     if a.numdims == 1:
         lcl_nonzero = lcl_nonzero.squeeze(dim=1)
     return dndarray.DNDarray(
