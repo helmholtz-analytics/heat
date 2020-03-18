@@ -19,7 +19,6 @@
 #
 import os
 import sys
-import sphinx_rtd_theme
 
 # sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath("../../"))
@@ -33,7 +32,7 @@ sys.path.insert(0, os.path.abspath("../../"))
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["autoapi.extension", "sphinx_rtd_theme"]
+extensions = ["autoapi.extension"]
 
 # Document Python Code
 autoapi_type = "python"
@@ -138,13 +137,13 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
+html_theme = "alabaster"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-html_theme_options = {"logo_only": True, "style_nav_header_background": "#005aa0"}
+# html_theme_options = {}
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
@@ -161,7 +160,7 @@ html_theme_options = {"logo_only": True, "style_nav_header_background": "#005aa0
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
-html_logo = "../images/logo_HeAT_white.png"
+# html_logo = None
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
