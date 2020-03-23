@@ -577,7 +577,7 @@ def flipud(a):
     >>> ht.flipud(a)
     tensor([[2, 3],
         [0, 1]])
-    
+
     >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
     >>> ht.flipud(b)
     (1/2) tensor([3,4,5])
