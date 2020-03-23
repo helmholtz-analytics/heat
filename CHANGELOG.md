@@ -5,6 +5,7 @@
 - [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: Underlying torch tensor moves to the right device on array initialisation
 - [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix:DNDarray.cpu() changes heat device to cpu
 - Update documentation theme to "Read the Docs"
+- [#488](https://github.com/helmholtz-analytics/heat/pull/488) Enhancement: Rework of the test device selection. Environment variable is now called HEAT_TEST_USE_DEVICE and has more options.
 
 # v0.3.0
 
@@ -15,7 +16,6 @@
 - [#470](https://github.com/helmholtz-analytics/heat/pull/470) Enhancement: Accelerate distance calculations in kmeans clustering by introduction of new module spatial.distance
 - [#478](https://github.com/helmholtz-analytics/heat/pull/478) `ht.array` now typecasts the local torch tensors if the torch tensors given are not the torch version of the specified dtype + unit test updates
 - [#479](https://github.com/helmholtz-analytics/heat/pull/479) Completion of spatial.distance module to support 2D input arrays of different splittings (None or 0) and different datatypes, also if second input argument is None
-- [#488](https://github.com/helmholtz-analytics/heat/pull/488) Enhancement: test device selection
 
 # v0.2.2
 

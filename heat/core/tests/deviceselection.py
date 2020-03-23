@@ -3,7 +3,7 @@ import unittest
 import os
 import heat as ht
 
-envar = os.getenv("HEAT_USE_DEVICE", "cpu")
+envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
 
 if envar == "cpu":
     ht.use_device("cpu")
