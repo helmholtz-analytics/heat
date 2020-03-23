@@ -568,7 +568,7 @@ def flip(a, axis=None):
     a: ht.DNDarray
         Input array to be flipped
     axis: int, tuple
-        a list of axes to be flipped
+        A list of axes to be flipped
 
     Returns
     -------
@@ -581,10 +581,11 @@ def flip(a, axis=None):
     >>> ht.flip(a, [0])
     tensor([[2, 3],
         [0, 1]])
-
+    
+    >>> b = ht.array([[0,1,2],[3,4,5]], split=1)
     >>> ht.flip(a, [0,1])
-    tensor([[3, 2],
-        [1, 0]])
+    (1/2) tensor([5,4,3])
+    (2/2) tensor([2,1,0])
     """
     # flip all dimensions
     if axis is None:
