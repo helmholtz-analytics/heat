@@ -581,7 +581,7 @@ def flip(a, axis=None):
     >>> ht.flip(a, [0])
     tensor([[2, 3],
         [0, 1]])
-    
+
     >>> b = ht.array([[0,1,2],[3,4,5]], split=1)
     >>> ht.flip(a, [0,1])
     (1/2) tensor([5,4,3])
