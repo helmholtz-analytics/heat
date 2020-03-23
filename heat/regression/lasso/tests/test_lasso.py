@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import heat as ht
 
-from heat.core.tests.deviceselection import heat_device, torch_device
+from heat.core.tests.deviceselection import ht_device, torch_device
 
 
 if ht.io.supports_hdf5():
@@ -16,12 +16,12 @@ if ht.io.supports_hdf5():
             X = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="x",
-                device=heat_device,
+                device=ht_device,
             )
             y = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="y",
-                device=heat_device,
+                device=ht_device,
             )
 
             # normalize dataset
@@ -56,12 +56,12 @@ if ht.io.supports_hdf5():
             X = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="x",
-                device=heat_device,
+                device=ht_device,
             )
             y = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="y",
-                device=heat_device,
+                device=ht_device,
             )
 
             # Now the same stuff again in PyTorch
@@ -100,12 +100,12 @@ if ht.io.supports_hdf5():
             X = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="x",
-                device=heat_device,
+                device=ht_device,
             )
             y = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="y",
-                device=heat_device,
+                device=ht_device,
             )
 
             # Now the same stuff again in PyTorch

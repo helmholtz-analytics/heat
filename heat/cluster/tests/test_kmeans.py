@@ -3,33 +3,13 @@ import unittest
 
 import heat as ht
 
-envar = os.getenv("HEAT_USE_DEVICE", "cpu")
-
-if envar == "cpu":
-    ht.use_device("cpu")
-    torch_device = ht.cpu.torch_device
-    heat_device = None
-elif envar == "gpu" and ht.torch.cuda.is_available():
-    ht.use_device("gpu")
-    ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
-    torch_device = ht.gpu.torch_device
-    heat_device = None
-elif envar == "lcpu" and ht.torch.cuda.is_available():
-    ht.use_device("gpu")
-    ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
-    torch_device = ht.cpu.torch_device
-    heat_device = ht.cpu
-elif envar == "lgpu" and ht.torch.cuda.is_available():
-    ht.use_device("cpu")
-    ht.torch.cuda.set_device(ht.torch.device(ht.gpu.torch_device))
-    torch_device = ht.gpu.torch_device
-    heat_device = ht.gpu
+from heat.core.tests.deviceselection import ht_device, torch_device
 
 
 class TestKMeans(unittest.TestCase):
     def test_fit_iris(self):
         # get some test data
-        iris = ht.load("heat/datasets/data/iris.csv", sep=";", device=heat_device)
+        iris = ht.load("heat/datasets/data/iris.csv", sep=";", device=ht_device)
 
         # fit the clusters
         k = 3
@@ -47,7 +27,7 @@ class TestKMeans(unittest.TestCase):
         self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
         self.assertEqual(kmeans.cluster_centers_.shape, (k, iris.shape[1]))
 
-        iris_split = ht.load("heat/datasets/data/iris.csv", sep=";", split=1, device=heat_device)
+        iris_split = ht.load("heat/datasets/data/iris.csv", sep=";", split=1, device=ht_device)
         kmeans = ht.cluster.KMeans(n_clusters=k)
 
         with self.assertRaises(NotImplementedError):

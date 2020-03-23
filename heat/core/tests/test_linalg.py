@@ -5,7 +5,7 @@ import warnings
 import heat as ht
 import numpy as np
 
-from heat.core.tests.deviceselection import heat_device, torch_device
+from heat.core.tests.deviceselection import ht_device, torch_device
 
 if os.environ.get("EXTENDED_TESTS"):
     extended_tests = True
@@ -22,58 +22,58 @@ class TestLinalg(unittest.TestCase):
         data3d = np.ones((10, 10, 10))
         data1d = np.arange(10)
 
-        a1d = ht.array(data1d, dtype=ht.float32, split=0, device=heat_device)
-        b1d = ht.array(data1d, dtype=ht.float32, split=0, device=heat_device)
+        a1d = ht.array(data1d, dtype=ht.float32, split=0, device=ht_device)
+        b1d = ht.array(data1d, dtype=ht.float32, split=0, device=ht_device)
 
         # 2 1D arrays,
         self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
         ret = []
         self.assertEqual(ht.dot(a1d, b1d, out=ret), np.dot(data1d, data1d))
 
-        a1d = ht.array(data1d, dtype=ht.float32, split=None, device=heat_device)
-        b1d = ht.array(data1d, dtype=ht.float32, split=0, device=heat_device)
+        a1d = ht.array(data1d, dtype=ht.float32, split=None, device=ht_device)
+        b1d = ht.array(data1d, dtype=ht.float32, split=0, device=ht_device)
         self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
 
-        a1d = ht.array(data1d, dtype=ht.float32, split=None, device=heat_device)
-        b1d = ht.array(data1d, dtype=ht.float32, split=None, device=heat_device)
+        a1d = ht.array(data1d, dtype=ht.float32, split=None, device=ht_device)
+        b1d = ht.array(data1d, dtype=ht.float32, split=None, device=ht_device)
         self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
 
-        a1d = ht.array(data1d, dtype=ht.float32, split=0, device=heat_device)
-        b1d = ht.array(data1d, dtype=ht.float32, split=0, device=heat_device)
+        a1d = ht.array(data1d, dtype=ht.float32, split=0, device=ht_device)
+        b1d = ht.array(data1d, dtype=ht.float32, split=0, device=ht_device)
         self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
         # 2 1D arrays,
 
-        a2d = ht.array(data2d, split=1, device=heat_device)
-        b2d = ht.array(data2d, split=1, device=heat_device)
+        a2d = ht.array(data2d, split=1, device=ht_device)
+        b2d = ht.array(data2d, split=1, device=ht_device)
         # 2 2D arrays,
-        res = ht.dot(a2d, b2d) - ht.array(np.dot(data2d, data2d), device=heat_device)
-        self.assertEqual(ht.equal(res, ht.zeros(res.shape, device=heat_device)), 1)
-        ret = ht.array(data2d, split=1, device=heat_device)
+        res = ht.dot(a2d, b2d) - ht.array(np.dot(data2d, data2d), device=ht_device)
+        self.assertEqual(ht.equal(res, ht.zeros(res.shape, device=ht_device)), 1)
+        ret = ht.array(data2d, split=1, device=ht_device)
         ht.dot(a2d, b2d, out=ret)
 
-        res = ret - ht.array(np.dot(data2d, data2d), device=heat_device)
-        self.assertEqual(ht.equal(res, ht.zeros(res.shape, device=heat_device)), 1)
+        res = ret - ht.array(np.dot(data2d, data2d), device=ht_device)
+        self.assertEqual(ht.equal(res, ht.zeros(res.shape, device=ht_device)), 1)
 
         const1 = 5
         const2 = 6
         # a is const,
-        res = ht.dot(const1, b2d) - ht.array(np.dot(const1, data2d), device=heat_device)
+        res = ht.dot(const1, b2d) - ht.array(np.dot(const1, data2d), device=ht_device)
         ret = 0
         ht.dot(const1, b2d, out=ret)
-        self.assertEqual(ht.equal(res, ht.zeros(res.shape, device=heat_device)), 1)
+        self.assertEqual(ht.equal(res, ht.zeros(res.shape, device=ht_device)), 1)
 
         # b is const,
-        res = ht.dot(a2d, const2) - ht.array(np.dot(data2d, const2), device=heat_device)
-        self.assertEqual(ht.equal(res, ht.zeros(res.shape, device=heat_device)), 1)
+        res = ht.dot(a2d, const2) - ht.array(np.dot(data2d, const2), device=ht_device)
+        self.assertEqual(ht.equal(res, ht.zeros(res.shape, device=ht_device)), 1)
         # a and b and const
         self.assertEqual(ht.dot(const2, const1), 5 * 6)
 
         with self.assertRaises(NotImplementedError):
-            ht.dot(ht.array(data3d, device=heat_device), ht.array(data1d, device=heat_device))
+            ht.dot(ht.array(data3d, device=ht_device), ht.array(data1d, device=ht_device))
 
     def test_matmul(self):
         with self.assertRaises(ValueError):
-            ht.matmul(ht.ones((25, 25), device=heat_device), ht.ones((42, 42), device=heat_device))
+            ht.matmul(ht.ones((25, 25), device=ht_device), ht.ones((42, 42), device=ht_device))
 
         # cases to test:
         n, m = 21, 31
@@ -86,15 +86,15 @@ class TestLinalg(unittest.TestCase):
         b_torch[:, 0] = torch.arange(1, j + 1, device=torch_device)
 
         # splits None None
-        a = ht.ones((n, m), split=None, device=heat_device)
-        b = ht.ones((j, k), split=None, device=heat_device)
-        a[0] = ht.arange(1, m + 1, device=heat_device)
-        a[:, -1] = ht.arange(1, n + 1, device=heat_device)
-        b[0] = ht.arange(1, k + 1, device=heat_device)
-        b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+        a = ht.ones((n, m), split=None, device=ht_device)
+        b = ht.ones((j, k), split=None, device=ht_device)
+        a[0] = ht.arange(1, m + 1, device=ht_device)
+        a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+        b[0] = ht.arange(1, k + 1, device=ht_device)
+        b[:, 0] = ht.arange(1, j + 1, device=ht_device)
         ret00 = ht.matmul(a, b)
 
-        self.assertEqual(ht.all(ret00 == ht.array(a_torch @ b_torch, device=heat_device)), 1)
+        self.assertEqual(ht.all(ret00 == ht.array(a_torch @ b_torch, device=ht_device)), 1)
         self.assertIsInstance(ret00, ht.DNDarray)
         self.assertEqual(ret00.shape, (n, k))
         self.assertEqual(ret00.dtype, ht.float)
@@ -103,15 +103,15 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(b.split, None)
 
         # splits None None
-        a = ht.ones((n, m), split=None, device=heat_device)
-        b = ht.ones((j, k), split=None, device=heat_device)
-        a[0] = ht.arange(1, m + 1, device=heat_device)
-        a[:, -1] = ht.arange(1, n + 1, device=heat_device)
-        b[0] = ht.arange(1, k + 1, device=heat_device)
-        b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+        a = ht.ones((n, m), split=None, device=ht_device)
+        b = ht.ones((j, k), split=None, device=ht_device)
+        a[0] = ht.arange(1, m + 1, device=ht_device)
+        a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+        b[0] = ht.arange(1, k + 1, device=ht_device)
+        b[:, 0] = ht.arange(1, j + 1, device=ht_device)
         ret00 = ht.matmul(a, b, allow_resplit=True)
 
-        self.assertEqual(ht.all(ret00 == ht.array(a_torch @ b_torch, device=heat_device)), 1)
+        self.assertEqual(ht.all(ret00 == ht.array(a_torch @ b_torch, device=ht_device)), 1)
         self.assertIsInstance(ret00, ht.DNDarray)
         self.assertEqual(ret00.shape, (n, k))
         self.assertEqual(ret00.dtype, ht.float)
@@ -121,15 +121,15 @@ class TestLinalg(unittest.TestCase):
 
         if a.comm.size > 1:
             # splits 00
-            a = ht.ones((n, m), split=0, dtype=ht.float64, device=heat_device)
-            b = ht.ones((j, k), split=0, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.ones((n, m), split=0, dtype=ht.float64, device=ht_device)
+            b = ht.ones((j, k), split=0, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = a @ b
 
-            ret_comp00 = ht.array(a_torch @ b_torch, split=0, device=heat_device)
+            ret_comp00 = ht.array(a_torch @ b_torch, split=0, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp00))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
@@ -137,15 +137,15 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 00 (numpy)
-            a = ht.array(np.ones((n, m)), split=0, device=heat_device)
-            b = ht.array(np.ones((j, k)), split=0, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.array(np.ones((n, m)), split=0, device=ht_device)
+            b = ht.array(np.ones((j, k)), split=0, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = a @ b
 
-            ret_comp00 = ht.array(a_torch @ b_torch, split=0, device=heat_device)
+            ret_comp00 = ht.array(a_torch @ b_torch, split=0, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp00))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
@@ -153,15 +153,15 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 01
-            a = ht.ones((n, m), split=0, device=heat_device)
-            b = ht.ones((j, k), split=1, dtype=ht.float64, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.ones((n, m), split=0, device=ht_device)
+            b = ht.ones((j, k), split=1, dtype=ht.float64, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp01 = ht.array(a_torch @ b_torch, split=0, device=heat_device)
+            ret_comp01 = ht.array(a_torch @ b_torch, split=0, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp01))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
@@ -169,15 +169,15 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 10
-            a = ht.ones((n, m), split=1, device=heat_device)
-            b = ht.ones((j, k), split=0, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.ones((n, m), split=1, device=ht_device)
+            b = ht.ones((j, k), split=0, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp10 = ht.array(a_torch @ b_torch, split=1, device=heat_device)
+            ret_comp10 = ht.array(a_torch @ b_torch, split=1, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp10))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
@@ -185,15 +185,15 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 1)
 
             # splits 11
-            a = ht.ones((n, m), split=1, device=heat_device)
-            b = ht.ones((j, k), split=1, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.ones((n, m), split=1, device=ht_device)
+            b = ht.ones((j, k), split=1, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp11 = ht.array(a_torch @ b_torch, split=1, device=heat_device)
+            ret_comp11 = ht.array(a_torch @ b_torch, split=1, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp11))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
@@ -201,15 +201,15 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 1)
 
             # splits 11 (torch)
-            a = ht.array(torch.ones((n, m), device=torch_device), split=1, device=heat_device)
-            b = ht.array(torch.ones((j, k), device=torch_device), split=1, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.array(torch.ones((n, m), device=torch_device), split=1, device=ht_device)
+            b = ht.array(torch.ones((j, k), device=torch_device), split=1, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp11 = ht.array(a_torch @ b_torch, split=1, device=heat_device)
+            ret_comp11 = ht.array(a_torch @ b_torch, split=1, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp11))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
@@ -217,15 +217,15 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 1)
 
             # splits 0 None
-            a = ht.ones((n, m), split=0, device=heat_device)
-            b = ht.ones((j, k), split=None, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.ones((n, m), split=0, device=ht_device)
+            b = ht.ones((j, k), split=None, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp0 = ht.array(a_torch @ b_torch, split=0, device=heat_device)
+            ret_comp0 = ht.array(a_torch @ b_torch, split=0, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp0))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
@@ -233,15 +233,15 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 1 None
-            a = ht.ones((n, m), split=1, device=heat_device)
-            b = ht.ones((j, k), split=None, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.ones((n, m), split=1, device=ht_device)
+            b = ht.ones((j, k), split=None, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp1 = ht.array(a_torch @ b_torch, split=1, device=heat_device)
+            ret_comp1 = ht.array(a_torch @ b_torch, split=1, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp1))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
@@ -249,15 +249,15 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 1)
 
             # splits None 0
-            a = ht.ones((n, m), split=None, device=heat_device)
-            b = ht.ones((j, k), split=0, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.ones((n, m), split=None, device=ht_device)
+            b = ht.ones((j, k), split=0, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array(a_torch @ b_torch, split=0, device=heat_device)
+            ret_comp = ht.array(a_torch @ b_torch, split=0, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
@@ -265,15 +265,15 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits None 1
-            a = ht.ones((n, m), split=None, device=heat_device)
-            b = ht.ones((j, k), split=1, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.ones((n, m), split=None, device=ht_device)
+            b = ht.ones((j, k), split=1, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array(a_torch @ b_torch, split=1, device=heat_device)
+            ret_comp = ht.array(a_torch @ b_torch, split=1, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n, k))
@@ -287,13 +287,13 @@ class TestLinalg(unittest.TestCase):
             b_torch[0] = torch.arange(1, k + 1, device=torch_device)
             b_torch[:, 0] = torch.arange(1, j + 1, device=torch_device)
             # splits None None
-            a = ht.ones((m), split=None, device=heat_device)
-            b = ht.ones((j, k), split=None, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.ones((m), split=None, device=ht_device)
+            b = ht.ones((j, k), split=None, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array(a_torch @ b_torch, split=None, device=heat_device)
+            ret_comp = ht.array(a_torch @ b_torch, split=None, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (k,))
@@ -301,13 +301,13 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, None)
 
             # splits None 0
-            a = ht.ones((m), split=None, device=heat_device)
-            b = ht.ones((j, k), split=0, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.ones((m), split=None, device=ht_device)
+            b = ht.ones((j, k), split=0, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array(a_torch @ b_torch, split=None, device=heat_device)
+            ret_comp = ht.array(a_torch @ b_torch, split=None, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (k,))
@@ -315,12 +315,12 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits None 1
-            a = ht.ones((m), split=None, device=heat_device)
-            b = ht.ones((j, k), split=1, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.ones((m), split=None, device=ht_device)
+            b = ht.ones((j, k), split=1, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
-            ret_comp = ht.array(a_torch @ b_torch, split=0, device=heat_device)
+            ret_comp = ht.array(a_torch @ b_torch, split=0, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (k,))
@@ -328,13 +328,13 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 0 None
-            a = ht.ones((m), split=None, device=heat_device)
-            b = ht.ones((j, k), split=0, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.ones((m), split=None, device=ht_device)
+            b = ht.ones((j, k), split=0, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array(a_torch @ b_torch, split=None, device=heat_device)
+            ret_comp = ht.array(a_torch @ b_torch, split=None, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (k,))
@@ -342,13 +342,13 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 0 0
-            a = ht.ones((m), split=0, device=heat_device)
-            b = ht.ones((j, k), split=0, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.ones((m), split=0, device=ht_device)
+            b = ht.ones((j, k), split=0, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array(a_torch @ b_torch, split=None, device=heat_device)
+            ret_comp = ht.array(a_torch @ b_torch, split=None, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (k,))
@@ -356,13 +356,13 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 0 1
-            a = ht.ones((m), split=0, device=heat_device)
-            b = ht.ones((j, k), split=1, device=heat_device)
-            b[0] = ht.arange(1, k + 1, device=heat_device)
-            b[:, 0] = ht.arange(1, j + 1, device=heat_device)
+            a = ht.ones((m), split=0, device=ht_device)
+            b = ht.ones((j, k), split=1, device=ht_device)
+            b[0] = ht.arange(1, k + 1, device=ht_device)
+            b[:, 0] = ht.arange(1, j + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array(a_torch @ b_torch, split=None, device=heat_device)
+            ret_comp = ht.array(a_torch @ b_torch, split=None, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (k,))
@@ -375,13 +375,13 @@ class TestLinalg(unittest.TestCase):
             a_torch[:, -1] = torch.arange(1, n + 1, device=torch_device)
             b_torch = torch.ones((j), device=torch_device)
             # splits None None
-            a = ht.ones((n, m), split=None, device=heat_device)
-            b = ht.ones((j), split=None, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
+            a = ht.ones((n, m), split=None, device=ht_device)
+            b = ht.ones((j), split=None, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array(a_torch @ b_torch, split=None, device=heat_device)
+            ret_comp = ht.array(a_torch @ b_torch, split=None, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n,))
@@ -389,13 +389,13 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, None)
 
             # splits 0 None
-            a = ht.ones((n, m), split=0, device=heat_device)
-            b = ht.ones((j), split=None, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
+            a = ht.ones((n, m), split=0, device=ht_device)
+            b = ht.ones((j), split=None, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array((a_torch @ b_torch), split=None, device=heat_device)
+            ret_comp = ht.array((a_torch @ b_torch), split=None, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n,))
@@ -403,13 +403,13 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 1 None
-            a = ht.ones((n, m), split=1, device=heat_device)
-            b = ht.ones((j), split=None, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
+            a = ht.ones((n, m), split=1, device=ht_device)
+            b = ht.ones((j), split=None, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array((a_torch @ b_torch), split=None, device=heat_device)
+            ret_comp = ht.array((a_torch @ b_torch), split=None, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n,))
@@ -417,13 +417,13 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits None 0
-            a = ht.ones((n, m), split=None, device=heat_device)
-            b = ht.ones((j), split=0, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
+            a = ht.ones((n, m), split=None, device=ht_device)
+            b = ht.ones((j), split=0, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array((a_torch @ b_torch), split=None, device=heat_device)
+            ret_comp = ht.array((a_torch @ b_torch), split=None, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n,))
@@ -431,13 +431,13 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 0 0
-            a = ht.ones((n, m), split=0, device=heat_device)
-            b = ht.ones((j), split=0, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
+            a = ht.ones((n, m), split=0, device=ht_device)
+            b = ht.ones((j), split=0, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array((a_torch @ b_torch), split=None, device=heat_device)
+            ret_comp = ht.array((a_torch @ b_torch), split=None, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n,))
@@ -445,13 +445,13 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.split, 0)
 
             # splits 1 0
-            a = ht.ones((n, m), split=1, device=heat_device)
-            b = ht.ones((j), split=0, device=heat_device)
-            a[0] = ht.arange(1, m + 1, device=heat_device)
-            a[:, -1] = ht.arange(1, n + 1, device=heat_device)
+            a = ht.ones((n, m), split=1, device=ht_device)
+            b = ht.ones((j), split=0, device=ht_device)
+            a[0] = ht.arange(1, m + 1, device=ht_device)
+            a[:, -1] = ht.arange(1, n + 1, device=ht_device)
             ret00 = ht.matmul(a, b)
 
-            ret_comp = ht.array((a_torch @ b_torch), split=None, device=heat_device)
+            ret_comp = ht.array((a_torch @ b_torch), split=None, device=ht_device)
             self.assertTrue(ht.equal(ret00, ret_comp))
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n,))
@@ -472,18 +472,18 @@ class TestLinalg(unittest.TestCase):
                 for n in range(50, st_whole.shape[1] + 1, 1):
                     for t in range(1, 3):
                         st = st_whole[:m, :n].clone()
-                        a_comp = ht.array(st, split=0, device=heat_device)
-                        a = ht.array(st, split=sp, device=heat_device)
+                        a_comp = ht.array(st, split=0, device=ht_device)
+                        a = ht.array(st, split=sp, device=ht_device)
                         qr = a.qr(tiles_per_proc=t)
                         self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
                         self.assertTrue(
                             ht.allclose(
-                                qr.Q.T @ qr.Q, ht.eye(m, device=heat_device), rtol=1e-5, atol=1e-5
+                                qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5
                             )
                         )
                         self.assertTrue(
                             ht.allclose(
-                                ht.eye(m, device=heat_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5
+                                ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5
                             )
                         )
 
@@ -493,18 +493,18 @@ class TestLinalg(unittest.TestCase):
                 for n in range(50, st_whole.shape[1] + 1, 1):
                     for t in range(1, 3):
                         st = st_whole[:m, :n].clone()
-                        a_comp = ht.array(st, split=0, device=heat_device)
-                        a = ht.array(st, split=sp, device=heat_device)
+                        a_comp = ht.array(st, split=0, device=ht_device)
+                        a = ht.array(st, split=sp, device=ht_device)
                         qr = a.qr(tiles_per_proc=t)
                         self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
                         self.assertTrue(
                             ht.allclose(
-                                qr.Q.T @ qr.Q, ht.eye(m, device=heat_device), rtol=1e-5, atol=1e-5
+                                qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5
                             )
                         )
                         self.assertTrue(
                             ht.allclose(
-                                ht.eye(m, device=heat_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5
+                                ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5
                             )
                         )
 
@@ -513,64 +513,64 @@ class TestLinalg(unittest.TestCase):
         def test_qr(self):
             m, n = 20, 40
             st = torch.randn(m, n, device=torch_device, dtype=torch.float)
-            a_comp = ht.array(st, split=0, device=heat_device)
+            a_comp = ht.array(st, split=0, device=ht_device)
             for t in range(1, 3):
                 for sp in range(2):
-                    a = ht.array(st, split=sp, device=heat_device, dtype=torch.float)
+                    a = ht.array(st, split=sp, device=ht_device, dtype=torch.float)
                     qr = a.qr(tiles_per_proc=t)
-                    a_comp = ht.array(st, split=0, device=heat_device, dtype=ht.float)
+                    a_comp = ht.array(st, split=0, device=ht_device, dtype=ht.float)
                     self.assertTrue(ht.allclose((a_comp - (qr.Q @ qr.R)), 0, rtol=1e-5, atol=1e-5))
                     self.assertTrue(
                         ht.allclose(
-                            qr.Q.T @ qr.Q, ht.eye(m, device=heat_device), rtol=1e-5, atol=1e-5
+                            qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5
                         )
                     )
                     self.assertTrue(
                         ht.allclose(
-                            ht.eye(m, device=heat_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5
+                            ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5
                         )
                     )
             m, n = 40, 40
             st1 = torch.randn(m, n, device=torch_device)
-            a_comp1 = ht.array(st1, split=0, device=heat_device)
+            a_comp1 = ht.array(st1, split=0, device=ht_device)
             for t in range(1, 3):
                 for sp in range(2):
-                    a1 = ht.array(st1, split=sp, device=heat_device)
+                    a1 = ht.array(st1, split=sp, device=ht_device)
                     qr1 = a1.qr(tiles_per_proc=t)
-                    a_comp1 = ht.array(st1.clone(), split=0, device=heat_device)
+                    a_comp1 = ht.array(st1.clone(), split=0, device=ht_device)
                     self.assertTrue(
                         ht.allclose((a_comp1 - (qr1.Q @ qr1.R)), 0, rtol=1e-5, atol=1e-5)
                     )
                     self.assertTrue(
                         ht.allclose(
-                            qr1.Q.T @ qr1.Q, ht.eye(m, device=heat_device), rtol=1e-5, atol=1e-5
+                            qr1.Q.T @ qr1.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5
                         )
                     )
                     self.assertTrue(
                         ht.allclose(
-                            ht.eye(m, device=heat_device), qr1.Q @ qr1.Q.T, rtol=1e-5, atol=1e-5
+                            ht.eye(m, device=ht_device), qr1.Q @ qr1.Q.T, rtol=1e-5, atol=1e-5
                         )
                     )
             m, n = 40, 20
             st2 = torch.randn(m, n, dtype=torch.double, device=torch_device)
-            a_comp2 = ht.array(st2, split=0, dtype=ht.double, device=heat_device)
+            a_comp2 = ht.array(st2, split=0, dtype=ht.double, device=ht_device)
             for t in range(1, 3):
                 for sp in range(2):
-                    a2 = ht.array(st2, split=sp, device=heat_device)
+                    a2 = ht.array(st2, split=sp, device=ht_device)
                     qr2 = a2.qr(tiles_per_proc=t)
-                    a_comp2 = ht.array(st2.clone(), split=0, device=heat_device)
+                    a_comp2 = ht.array(st2.clone(), split=0, device=ht_device)
                     self.assertTrue(ht.allclose(a_comp2, qr2.Q @ qr2.R, rtol=1e-5, atol=1e-5))
                     self.assertTrue(
                         ht.allclose(
                             qr2.Q.T @ qr2.Q,
-                            ht.eye(m, dtype=ht.double, device=heat_device),
+                            ht.eye(m, dtype=ht.double, device=ht_device),
                             rtol=1e-5,
                             atol=1e-5,
                         )
                     )
                     self.assertTrue(
                         ht.allclose(
-                            ht.eye(m, dtype=ht.double, device=heat_device),
+                            ht.eye(m, dtype=ht.double, device=ht_device),
                             qr2.Q @ qr2.Q.T,
                             rtol=1e-5,
                             atol=1e-5,
@@ -579,15 +579,15 @@ class TestLinalg(unittest.TestCase):
 
             m, n = 40, 20
             st = torch.randn(m, n, device=torch_device)
-            a_comp = ht.array(st, split=None, device=heat_device)
-            a = ht.array(st, split=None, device=heat_device)
+            a_comp = ht.array(st, split=None, device=ht_device)
+            a = ht.array(st, split=None, device=ht_device)
             qr = a.qr()
             self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
             self.assertTrue(
-                ht.allclose(qr.Q.T @ qr.Q, ht.eye(m, device=heat_device), rtol=1e-5, atol=1e-5)
+                ht.allclose(qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5)
             )
             self.assertTrue(
-                ht.allclose(ht.eye(m, device=heat_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5)
+                ht.allclose(ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5)
             )
 
             # raises
@@ -606,7 +606,7 @@ class TestLinalg(unittest.TestCase):
 
     def test_transpose(self):
         # vector transpose, not distributed
-        vector = ht.arange(10, device=heat_device)
+        vector = ht.arange(10, device=ht_device)
         vector_t = vector.T
         self.assertIsInstance(vector_t, ht.DNDarray)
         self.assertEqual(vector_t.dtype, ht.int32)
@@ -614,7 +614,7 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(vector_t.shape, (10,))
 
         # simple matrix transpose, not distributed
-        simple_matrix = ht.zeros((2, 4), device=heat_device)
+        simple_matrix = ht.zeros((2, 4), device=ht_device)
         simple_matrix_t = simple_matrix.transpose()
         self.assertIsInstance(simple_matrix_t, ht.DNDarray)
         self.assertEqual(simple_matrix_t.dtype, ht.float32)
@@ -623,7 +623,7 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(simple_matrix_t._DNDarray__array.shape, (4, 2))
 
         # 4D array, not distributed, with given axis
-        array_4d = ht.zeros((2, 3, 4, 5), device=heat_device)
+        array_4d = ht.zeros((2, 3, 4, 5), device=ht_device)
         array_4d_t = ht.transpose(array_4d, axes=(-1, 0, 2, 1))
         self.assertIsInstance(array_4d_t, ht.DNDarray)
         self.assertEqual(array_4d_t.dtype, ht.float32)
@@ -632,7 +632,7 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(array_4d_t._DNDarray__array.shape, (5, 2, 4, 3))
 
         # vector transpose, distributed
-        vector_split = ht.arange(10, split=0, device=heat_device)
+        vector_split = ht.arange(10, split=0, device=ht_device)
         vector_split_t = vector_split.T
         self.assertIsInstance(vector_split_t, ht.DNDarray)
         self.assertEqual(vector_split_t.dtype, ht.int32)
@@ -641,7 +641,7 @@ class TestLinalg(unittest.TestCase):
         self.assertLessEqual(vector_split_t.lshape[0], 10)
 
         # matrix transpose, distributed
-        matrix_split = ht.ones((10, 20), split=1, device=heat_device)
+        matrix_split = ht.ones((10, 20), split=1, device=ht_device)
         matrix_split_t = matrix_split.transpose()
         self.assertIsInstance(matrix_split_t, ht.DNDarray)
         self.assertEqual(matrix_split_t.dtype, ht.float32)
@@ -651,7 +651,7 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(matrix_split_t.lshape[1], 10)
 
         # 4D array, distributed
-        array_4d_split = ht.ones((3, 4, 5, 6), split=3, device=heat_device)
+        array_4d_split = ht.ones((3, 4, 5, 6), split=3, device=ht_device)
         array_4d_split_t = ht.transpose(array_4d_split, axes=(1, 0, 3, 2))
         self.assertIsInstance(array_4d_t, ht.DNDarray)
         self.assertEqual(array_4d_split_t.dtype, ht.float32)
@@ -667,18 +667,18 @@ class TestLinalg(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.transpose(1)
         with self.assertRaises(ValueError):
-            ht.transpose(ht.zeros((2, 3), device=heat_device), axes=1.0)
+            ht.transpose(ht.zeros((2, 3), device=ht_device), axes=1.0)
         with self.assertRaises(ValueError):
-            ht.transpose(ht.zeros((2, 3), device=heat_device), axes=(-1,))
+            ht.transpose(ht.zeros((2, 3), device=ht_device), axes=(-1,))
         with self.assertRaises(TypeError):
-            ht.zeros((2, 3), device=heat_device).transpose(axes="01")
+            ht.zeros((2, 3), device=ht_device).transpose(axes="01")
         with self.assertRaises(TypeError):
-            ht.zeros((2, 3), device=heat_device).transpose(axes=(0, 1.0))
+            ht.zeros((2, 3), device=ht_device).transpose(axes=(0, 1.0))
         with self.assertRaises((ValueError, IndexError)):
-            ht.zeros((2, 3), device=heat_device).transpose(axes=(0, 3))
+            ht.zeros((2, 3), device=ht_device).transpose(axes=(0, 3))
 
     def test_tril(self):
-        local_ones = ht.ones((5,), device=heat_device)
+        local_ones = ht.ones((5,), device=ht_device)
 
         # 1D case, no offset, data is not split, module-level call
         result = ht.tril(local_ones)
@@ -707,7 +707,7 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
-        local_ones = ht.ones((4, 5), device=heat_device)
+        local_ones = ht.ones((4, 5), device=ht_device)
 
         # 2D case, no offset, data is not split, method
         result = local_ones.tril()
@@ -736,7 +736,7 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
-        local_ones = ht.ones((3, 4, 5, 6), device=heat_device)
+        local_ones = ht.ones((3, 4, 5, 6), device=ht_device)
 
         # 2D+ case, no offset, data is not split, module-level call
         result = local_ones.tril()
@@ -771,7 +771,7 @@ class TestLinalg(unittest.TestCase):
             for j in range(4):
                 self.assertTrue((result._DNDarray__array[i, j] == comparison).all())
 
-        distributed_ones = ht.ones((5,), split=0, device=heat_device)
+        distributed_ones = ht.ones((5,), split=0, device=ht_device)
 
         # 1D case, no offset, data is split, method
         result = distributed_ones.tril()
@@ -812,7 +812,7 @@ class TestLinalg(unittest.TestCase):
         if result.comm.rank == result.shape[0] - 1:
             self.assertTrue(result._DNDarray__array[0, -1] == 0)
 
-        distributed_ones = ht.ones((4, 5), split=0, device=heat_device)
+        distributed_ones = ht.ones((4, 5), split=0, device=ht_device)
 
         # 2D case, no offset, data is horizontally split, method
         result = distributed_ones.tril()
@@ -853,7 +853,7 @@ class TestLinalg(unittest.TestCase):
         if result.comm.rank == result.shape[0] - 1:
             self.assertTrue(result._DNDarray__array[-1, 0] == 1)
 
-        distributed_ones = ht.ones((4, 5), split=1, device=heat_device)
+        distributed_ones = ht.ones((4, 5), split=1, device=ht_device)
 
         # 2D case, no offset, data is vertically split, method
         result = distributed_ones.tril()
@@ -900,7 +900,7 @@ class TestLinalg(unittest.TestCase):
             ht.tril(distributed_ones, m=["sdf", "sf"])
 
     def test_triu(self):
-        local_ones = ht.ones((5,), device=heat_device)
+        local_ones = ht.ones((5,), device=ht_device)
 
         # 1D case, no offset, data is not split, module-level call
         result = ht.triu(local_ones)
@@ -929,7 +929,7 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
-        local_ones = ht.ones((4, 5), device=heat_device)
+        local_ones = ht.ones((4, 5), device=ht_device)
 
         # 2D case, no offset, data is not split, method
         result = local_ones.triu()
@@ -958,7 +958,7 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(result.split, None)
         self.assertTrue((result._DNDarray__array == comparison).all())
 
-        local_ones = ht.ones((3, 4, 5, 6), device=heat_device)
+        local_ones = ht.ones((3, 4, 5, 6), device=ht_device)
 
         # 2D+ case, no offset, data is not split, module-level call
         result = local_ones.triu()
@@ -993,7 +993,7 @@ class TestLinalg(unittest.TestCase):
             for j in range(4):
                 self.assertTrue((result._DNDarray__array[i, j] == comparison).all())
 
-        distributed_ones = ht.ones((5,), split=0, device=heat_device)
+        distributed_ones = ht.ones((5,), split=0, device=ht_device)
 
         # 1D case, no offset, data is split, method
         result = distributed_ones.triu()
@@ -1034,7 +1034,7 @@ class TestLinalg(unittest.TestCase):
         if result.comm.rank == result.shape[0] - 1:
             self.assertTrue(result._DNDarray__array[0, -1] == 1)
 
-        distributed_ones = ht.ones((4, 5), split=0, device=heat_device)
+        distributed_ones = ht.ones((4, 5), split=0, device=ht_device)
 
         # 2D case, no offset, data is horizontally split, method
         result = distributed_ones.triu()
@@ -1075,7 +1075,7 @@ class TestLinalg(unittest.TestCase):
         if result.comm.rank == result.shape[0] - 1:
             self.assertTrue(result._DNDarray__array[-1, 0] == 0)
 
-        distributed_ones = ht.ones((4, 5), split=1, device=heat_device)
+        distributed_ones = ht.ones((4, 5), split=1, device=ht_device)
 
         # 2D case, no offset, data is vertically split, method
         result = distributed_ones.triu()

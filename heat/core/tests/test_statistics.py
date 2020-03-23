@@ -5,13 +5,13 @@ from itertools import combinations
 import os
 import heat as ht
 
-from heat.core.tests.deviceselection import heat_device, torch_device
+from heat.core.tests.deviceselection import ht_device, torch_device
 
 
 class TestStatistics(unittest.TestCase):
     def test_argmax(self):
         torch.manual_seed(1)
-        data = ht.random.randn(3, 4, 5, device=heat_device)
+        data = ht.random.randn(3, 4, 5, device=ht_device)
 
         # 3D local tensor, major axis
         result = ht.argmax(data, axis=0)
@@ -36,7 +36,7 @@ class TestStatistics(unittest.TestCase):
         )
 
         # 1D split tensor, no axis
-        data = ht.arange(-10, 10, split=0, device=heat_device)
+        data = ht.arange(-10, 10, split=0, device=ht_device)
         result = ht.argmax(data)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
@@ -47,7 +47,7 @@ class TestStatistics(unittest.TestCase):
         self.assertTrue((result._DNDarray__array == torch.tensor([19], device=torch_device)))
 
         # 2D split tensor, along the axis
-        data = ht.array(ht.random.randn(4, 5, device=heat_device), is_split=0, device=heat_device)
+        data = ht.array(ht.random.randn(4, 5, device=ht_device), is_split=0, device=ht_device)
         result = ht.argmax(data, axis=1)
         expected = torch.argmax(data._DNDarray__array, dim=1)
         self.assertIsInstance(result, ht.DNDarray)
@@ -60,7 +60,7 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
-        data = ht.tril(ht.ones((size, size), split=0, device=heat_device), k=-1)
+        data = ht.tril(ht.ones((size, size), split=0, device=ht_device), k=-1)
 
         result = ht.argmax(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
@@ -75,9 +75,9 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, across the axis, output tensor
         size = ht.MPI_WORLD.size * 2
-        data = ht.tril(ht.ones((size, size), split=0, device=heat_device), k=-1)
+        data = ht.tril(ht.ones((size, size), split=0, device=ht_device), k=-1)
 
-        output = ht.empty((size,), device=heat_device)
+        output = ht.empty((size,), device=ht_device)
         result = ht.argmax(data, axis=0, out=output)
 
         self.assertIsInstance(result, ht.DNDarray)
@@ -102,7 +102,7 @@ class TestStatistics(unittest.TestCase):
 
     def test_argmin(self):
         torch.manual_seed(1)
-        data = ht.random.randn(3, 4, 5, device=heat_device)
+        data = ht.random.randn(3, 4, 5, device=ht_device)
 
         # 3D local tensor, no axis
         result = ht.argmin(data)
@@ -137,7 +137,7 @@ class TestStatistics(unittest.TestCase):
         )
 
         # 2D split tensor, along the axis
-        data = ht.array(ht.random.randn(4, 5), is_split=0, device=heat_device)
+        data = ht.array(ht.random.randn(4, 5), is_split=0, device=ht_device)
         result = ht.argmin(data, axis=1)
         expected = torch.argmin(data._DNDarray__array, dim=1)
         self.assertIsInstance(result, ht.DNDarray)
@@ -150,7 +150,7 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, across the axis
         size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((size, size), split=0, device=heat_device), k=1)
+        data = ht.triu(ht.ones((size, size), split=0, device=ht_device), k=1)
 
         result = ht.argmin(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
@@ -165,9 +165,9 @@ class TestStatistics(unittest.TestCase):
 
         # 2D split tensor, across the axis, output tensor
         size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((size, size), split=0, device=heat_device), k=1)
+        data = ht.triu(ht.ones((size, size), split=0, device=ht_device), k=1)
 
-        output = ht.empty((size,), device=heat_device)
+        output = ht.empty((size,), device=ht_device)
         result = ht.argmin(data, axis=0, out=output)
 
         self.assertIsInstance(result, ht.DNDarray)
@@ -191,56 +191,56 @@ class TestStatistics(unittest.TestCase):
             ht.argmin(data, axis=-4)
 
     def test_cov(self):
-        x = ht.array([[0, 2], [1, 1], [2, 0]], dtype=ht.float, split=1, device=heat_device).T
+        x = ht.array([[0, 2], [1, 1], [2, 0]], dtype=ht.float, split=1, device=ht_device).T
         if x.comm.size < 3:
             cov = ht.cov(x)
-            actual = ht.array([[1, -1], [-1, 1]], split=0, device=heat_device)
+            actual = ht.array([[1, -1], [-1, 1]], split=0, device=ht_device)
             self.assertTrue(ht.equal(cov, actual))
 
         data = np.loadtxt("heat/datasets/data/iris.csv", delimiter=";")
         np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False)
 
-        htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0, device=heat_device)
+        htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0, device=ht_device)
         ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
         self.assertTrue(
-            ht.allclose(ht.array(np_cov, dtype=ht.float, device=heat_device) - ht_cov, 0, atol=1e-4)
+            ht.allclose(ht.array(np_cov, dtype=ht.float, device=ht_device) - ht_cov, 0, atol=1e-4)
         )
 
         np_cov = np.cov(data, rowvar=False)
         ht_cov = ht.cov(htdata, rowvar=False)
         self.assertTrue(
-            ht.allclose(ht.array(np_cov, dtype=ht.float, device=heat_device) - ht_cov, 0, atol=1e-4)
+            ht.allclose(ht.array(np_cov, dtype=ht.float, device=ht_device) - ht_cov, 0, atol=1e-4)
         )
 
         np_cov = np.cov(data, rowvar=False, ddof=1)
         ht_cov = ht.cov(htdata, rowvar=False, ddof=1)
         self.assertTrue(
-            ht.allclose(ht.array(np_cov, dtype=ht.float, device=heat_device) - ht_cov, 0, atol=1e-4)
+            ht.allclose(ht.array(np_cov, dtype=ht.float, device=ht_device) - ht_cov, 0, atol=1e-4)
         )
 
         np_cov = np.cov(data, rowvar=False, bias=True)
         ht_cov = ht.cov(htdata, rowvar=False, bias=True)
         self.assertTrue(
-            ht.allclose(ht.array(np_cov, dtype=ht.float, device=heat_device) - ht_cov, 0, atol=1e-4)
+            ht.allclose(ht.array(np_cov, dtype=ht.float, device=ht_device) - ht_cov, 0, atol=1e-4)
         )
 
         if 1 < x.comm.size < 5:
-            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=1, device=heat_device)
+            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=1, device=ht_device)
             np_cov = np.cov(data, rowvar=False)
             ht_cov = ht.cov(htdata, rowvar=False)
             self.assertTrue(
-                ht.allclose(ht.array(np_cov, dtype=ht.float, device=heat_device), ht_cov, atol=1e-4)
+                ht.allclose(ht.array(np_cov, dtype=ht.float, device=ht_device), ht_cov, atol=1e-4)
             )
 
             np_cov = np.cov(data, data, rowvar=True)
 
-            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0, device=heat_device)
+            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0, device=ht_device)
             ht_cov = ht.cov(htdata, htdata, rowvar=True)
             self.assertTrue(
-                ht.allclose(ht.array(np_cov, dtype=ht.float, device=heat_device), ht_cov, atol=1e-4)
+                ht.allclose(ht.array(np_cov, dtype=ht.float, device=ht_device), ht_cov, atol=1e-4)
             )
 
-            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0, device=heat_device)
+            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0, device=ht_device)
             with self.assertRaises(RuntimeError):
                 ht.cov(htdata[1:], rowvar=False)
             with self.assertRaises(RuntimeError):
@@ -253,16 +253,16 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.cov(htdata, ddof="str")
         with self.assertRaises(ValueError):
-            ht.cov(ht.zeros((1, 2, 3), device=heat_device))
+            ht.cov(ht.zeros((1, 2, 3), device=ht_device))
         with self.assertRaises(ValueError):
-            ht.cov(htdata, ht.zeros((1, 2, 3), device=heat_device))
+            ht.cov(htdata, ht.zeros((1, 2, 3), device=ht_device))
         with self.assertRaises(ValueError):
             ht.cov(htdata, ddof=10000)
 
     def test_average(self):
         data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
-        ht_array = ht.array(data, dtype=float, device=heat_device)
+        ht_array = ht.array(data, dtype=float, device=ht_device)
         comparison = np.asanyarray(data)
 
         # check global average
@@ -302,13 +302,13 @@ class TestStatistics(unittest.TestCase):
         random_volume = ht.array(
             torch.randn((3, 3, 3), dtype=torch.float64, device=torch_device),
             is_split=1,
-            device=heat_device,
+            device=ht_device,
         )
         size = random_volume.comm.size
         random_weights = ht.array(
             torch.randn((3 * size,), dtype=torch.float64, device=torch_device),
             split=0,
-            device=heat_device,
+            device=ht_device,
         )
         avg_volume = ht.average(random_volume, weights=random_weights, axis=1)
         np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)
@@ -332,7 +332,7 @@ class TestStatistics(unittest.TestCase):
         random_weights_3d = ht.array(
             torch.randn((3, 3, 3), dtype=torch.float64, device=torch_device),
             is_split=1,
-            device=heat_device,
+            device=ht_device,
         )
         avg_volume = ht.average(random_volume, weights=random_weights_3d, axis=1)
         np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)
@@ -352,7 +352,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(avg_volume_with_cumwgt[1].split, avg_volume_with_cumwgt[0].split)
 
         # check average over all float elements of split 3d tensor, tuple axis
-        random_volume = ht.random.randn(3, 3, 3, split=0, device=heat_device)
+        random_volume = ht.random.randn(3, 3, 3, split=0, device=ht_device)
         avg_volume = ht.average(random_volume, axis=(1, 2))
 
         self.assertIsInstance(avg_volume, ht.DNDarray)
@@ -363,11 +363,9 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(avg_volume.split, 0)
 
         # check weighted average over all float elements of split 5d tensor, along split axis
-        random_5d = ht.random.randn(
-            random_volume.comm.size, 2, 3, 4, 5, split=0, device=heat_device
-        )
+        random_5d = ht.random.randn(random_volume.comm.size, 2, 3, 4, 5, split=0, device=ht_device)
         axis = random_5d.split
-        random_weights = ht.random.randn(random_5d.gshape[axis], split=0, device=heat_device)
+        random_weights = ht.random.randn(random_5d.gshape[axis], split=0, device=ht_device)
         avg_5d = random_5d.average(weights=random_weights, axis=axis)
 
         self.assertIsInstance(avg_5d, ht.DNDarray)
@@ -387,17 +385,17 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             ht.average(random_5d, weights=random_weights, axis=(1, 2))
         random_weights = ht.random.randn(
-            random_5d.gshape[axis], random_5d.gshape[axis + 1], device=heat_device
+            random_5d.gshape[axis], random_5d.gshape[axis + 1], device=ht_device
         )
         with self.assertRaises(TypeError):
             ht.average(random_5d, weights=random_weights, axis=axis)
-        random_shape_weights = ht.random.randn(random_5d.gshape[axis] + 1, device=heat_device)
+        random_shape_weights = ht.random.randn(random_5d.gshape[axis] + 1, device=ht_device)
         with self.assertRaises(ValueError):
             ht.average(random_5d, weights=random_shape_weights, axis=axis)
-        zero_weights = ht.zeros((random_5d.gshape[axis]), split=0, device=heat_device)
+        zero_weights = ht.zeros((random_5d.gshape[axis]), split=0, device=ht_device)
         with self.assertRaises(ZeroDivisionError):
             ht.average(random_5d, weights=zero_weights, axis=axis)
-        weights_5d_split_mismatch = ht.ones(random_5d.gshape, split=-1, device=heat_device)
+        weights_5d_split_mismatch = ht.ones(random_5d.gshape, split=-1, device=ht_device)
         with self.assertRaises(NotImplementedError):
             ht.average(random_5d, weights=weights_5d_split_mismatch, axis=axis)
 
@@ -411,7 +409,7 @@ class TestStatistics(unittest.TestCase):
     def test_max(self):
         data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
-        ht_array = ht.array(data, device=heat_device)
+        ht_array = ht.array(data, device=ht_device)
         comparison = torch.tensor(data, device=torch_device)
 
         # check global max
@@ -453,7 +451,7 @@ class TestStatistics(unittest.TestCase):
 
         # check max over all float elements of split 3d tensor, across split axis
         size = ht.MPI_WORLD.size
-        random_volume = ht.random.randn(3, 3 * size, 3, split=1, device=heat_device)
+        random_volume = ht.random.randn(3, 3 * size, 3, split=1, device=ht_device)
         maximum_volume = ht.max(random_volume, axis=1)
 
         self.assertIsInstance(maximum_volume, ht.DNDarray)
@@ -464,7 +462,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(maximum_volume.split, None)
 
         # check max over all float elements of split 3d tensor, tuple axis
-        random_volume = ht.random.randn(3 * size, 3, 3, split=0, device=heat_device)
+        random_volume = ht.random.randn(3 * size, 3, 3, split=0, device=ht_device)
         maximum_volume = ht.max(random_volume, axis=(1, 2))
         alt_maximum_volume = ht.max(random_volume, axis=(2, 1))
 
@@ -476,7 +474,7 @@ class TestStatistics(unittest.TestCase):
         self.assertTrue((maximum_volume == alt_maximum_volume).all())
 
         # check max over all float elements of split 5d tensor, along split axis
-        random_5d = ht.random.randn(1 * size, 2, 3, 4, 5, split=0, device=heat_device)
+        random_5d = ht.random.randn(1 * size, 2, 3, 4, 5, split=0, device=ht_device)
         maximum_5d = ht.max(random_5d, axis=1)
 
         self.assertIsInstance(maximum_5d, ht.DNDarray)
@@ -488,7 +486,7 @@ class TestStatistics(unittest.TestCase):
 
         # Calculating max with empty local vectors works
         if size > 1:
-            a = ht.arange(size - 1, split=0, device=heat_device)
+            a = ht.arange(size - 1, split=0, device=ht_device)
             res = ht.max(a)
             expected = torch.tensor([size - 2], dtype=a.dtype.torch_type(), device=torch_device)
             self.assertTrue(torch.equal(res._DNDarray__array, expected))
@@ -505,8 +503,8 @@ class TestStatistics(unittest.TestCase):
         data1 = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
         data2 = [[0, 3, 2], [5, 4, 7], [6, 9, 8], [9, 10, 11]]
 
-        ht_array1 = ht.array(data1, device=heat_device)
-        ht_array2 = ht.array(data2, device=heat_device)
+        ht_array1 = ht.array(data1, device=ht_device)
+        ht_array2 = ht.array(data2, device=ht_device)
         comparison1 = torch.tensor(data1, device=torch_device)
         comparison2 = torch.tensor(data2, device=torch_device)
 
@@ -525,8 +523,8 @@ class TestStatistics(unittest.TestCase):
         # TODO: add check for uneven distribution of dimensions (see Issue #273)
         size = ht.MPI_WORLD.size
         torch.manual_seed(1)
-        random_volume_1 = ht.random.randn(12 * size, 3, 3, split=0, device=heat_device)
-        random_volume_2 = ht.random.randn(12 * size, 1, 3, split=0, device=heat_device)
+        random_volume_1 = ht.random.randn(12 * size, 3, 3, split=0, device=ht_device)
+        random_volume_2 = ht.random.randn(12 * size, 1, 3, split=0, device=ht_device)
         maximum_volume = ht.maximum(random_volume_1, random_volume_2)
 
         self.assertIsInstance(maximum_volume, ht.DNDarray)
@@ -539,10 +537,10 @@ class TestStatistics(unittest.TestCase):
         # check maximum over float elements of split 3d tensors with different split axis
         torch.manual_seed(1)
         random_volume_1_splitdiff = ht.random.randn(
-            size * 3, size * 3, 4, split=0, device=heat_device
+            size * 3, size * 3, 4, split=0, device=ht_device
         )
         random_volume_2_splitdiff = ht.random.randn(
-            size * 3, size * 3, 4, split=1, device=heat_device
+            size * 3, size * 3, 4, split=1, device=ht_device
         )
         maximum_volume_splitdiff = ht.maximum(random_volume_1_splitdiff, random_volume_2_splitdiff)
         self.assertIsInstance(maximum_volume_splitdiff, ht.DNDarray)
@@ -553,35 +551,35 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
         random_volume_1_splitdiff = ht.random.randn(
-            size * 3, size * 3, 4, split=1, device=heat_device
+            size * 3, size * 3, 4, split=1, device=ht_device
         )
         random_volume_2_splitdiff = ht.random.randn(
-            size * 3, size * 3, 4, split=0, device=heat_device
+            size * 3, size * 3, 4, split=0, device=ht_device
         )
         maximum_volume_splitdiff = ht.maximum(random_volume_1_splitdiff, random_volume_2_splitdiff)
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
         random_volume_1_split_none = ht.random.randn(
-            size * 3, size * 3, 4, split=None, device=heat_device
+            size * 3, size * 3, 4, split=None, device=ht_device
         )
         random_volume_2_splitdiff = ht.random.randn(
-            size * 3, size * 3, 4, split=1, device=heat_device
+            size * 3, size * 3, 4, split=1, device=ht_device
         )
         maximum_volume_splitdiff = ht.maximum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(maximum_volume_splitdiff.split, 1)
 
         random_volume_1_split_none = ht.random.randn(
-            size * 3, size * 3, 4, split=0, device=heat_device
+            size * 3, size * 3, 4, split=0, device=ht_device
         )
         random_volume_2_splitdiff = ht.random.randn(
-            size * 3, size * 3, 4, split=None, device=heat_device
+            size * 3, size * 3, 4, split=None, device=ht_device
         )
         maximum_volume_splitdiff = ht.maximum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(maximum_volume_splitdiff.split, 0)
 
         # check output buffer
         out_shape = ht.stride_tricks.broadcast_shape(random_volume_1.gshape, random_volume_2.gshape)
-        output = ht.empty(out_shape, device=heat_device)
+        output = ht.empty(out_shape, device=ht_device)
         ht.maximum(random_volume_1, random_volume_2, out=output)
         self.assertIsInstance(output, ht.DNDarray)
         self.assertEqual(output.shape, (ht.MPI_WORLD.size * 12, 3, 3))
@@ -591,7 +589,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(output.split, random_volume_1.split)
 
         # check exceptions
-        random_volume_3 = ht.random.randn(4, 2, 3, split=0, device=heat_device)
+        random_volume_3 = ht.random.randn(4, 2, 3, split=0, device=ht_device)
         with self.assertRaises(ValueError):
             ht.maximum(random_volume_1, random_volume_3)
         random_volume_3 = torch.ones(12, 3, 3, device=torch_device)
@@ -600,7 +598,7 @@ class TestStatistics(unittest.TestCase):
         output = torch.ones(12, 3, 3, device=torch_device)
         with self.assertRaises(TypeError):
             ht.maximum(random_volume_1, random_volume_2, out=output)
-        output = ht.ones((12, 4, 3), device=heat_device)
+        output = ht.ones((12, 4, 3), device=ht_device)
         with self.assertRaises(ValueError):
             ht.maximum(random_volume_1, random_volume_2, out=output)
 
@@ -609,7 +607,7 @@ class TestStatistics(unittest.TestCase):
         array_1_len = 5
         array_2_len = 5
 
-        x = ht.zeros((2, 3, 4), device=heat_device)
+        x = ht.zeros((2, 3, 4), device=ht_device)
         with self.assertRaises(ValueError):
             x.mean(axis=10)
         with self.assertRaises(ValueError):
@@ -625,7 +623,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.mean(x, axis=torch.Tensor([0, 0]))
 
-        a = ht.arange(1, 5, device=heat_device)
+        a = ht.arange(1, 5, device=ht_device)
         self.assertEqual(a.mean(), 2.5)
 
         # ones
@@ -636,7 +634,7 @@ class TestStatistics(unittest.TestCase):
             hold = list(range(len(dimensions)))
             hold.append(None)
             for split in hold:  # loop over the number of split dimension of the test array
-                z = ht.ones(dimensions, split=split, device=heat_device)
+                z = ht.ones(dimensions, split=split, device=ht_device)
                 res = z.mean()
                 total_dims_list = list(z.shape)
                 self.assertTrue((res == 1).all())
@@ -679,17 +677,17 @@ class TestStatistics(unittest.TestCase):
 
         # values for the iris dataset mean measured by libreoffice calc
         ax0 = ht.array(
-            [5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667], device=heat_device
+            [5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667], device=ht_device
         )
         for sp in [None, 0, 1]:
-            iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=sp, device=heat_device)
+            iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=sp, device=ht_device)
             self.assertTrue(ht.allclose(ht.mean(iris), 3.46366666666667))
             self.assertTrue(ht.allclose(ht.mean(iris, axis=0), ax0))
 
     def test_min(self):
         data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
-        ht_array = ht.array(data, device=heat_device)
+        ht_array = ht.array(data, device=ht_device)
         comparison = torch.tensor(data, device=torch_device)
 
         # check global max
@@ -704,7 +702,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum, 1)
 
         # maximum along first axis
-        ht_array = ht.array(data, dtype=ht.int8, device=heat_device)
+        ht_array = ht.array(data, dtype=ht.int8, device=ht_device)
         minimum_vertical = ht.min(ht_array, axis=0)
 
         self.assertIsInstance(minimum_vertical, ht.DNDarray)
@@ -718,7 +716,7 @@ class TestStatistics(unittest.TestCase):
         )
 
         # maximum along second axis
-        ht_array = ht.array(data, dtype=ht.int16, device=heat_device)
+        ht_array = ht.array(data, dtype=ht.int16, device=ht_device)
         minimum_horizontal = ht.min(ht_array, axis=1, keepdim=True)
 
         self.assertIsInstance(minimum_horizontal, ht.DNDarray)
@@ -733,7 +731,7 @@ class TestStatistics(unittest.TestCase):
 
         # check max over all float elements of split 3d tensor, across split axis
         size = ht.MPI_WORLD.size
-        random_volume = ht.random.randn(3, 3 * size, 3, split=1, device=heat_device)
+        random_volume = ht.random.randn(3, 3 * size, 3, split=1, device=ht_device)
         minimum_volume = ht.min(random_volume, axis=1)
 
         self.assertIsInstance(minimum_volume, ht.DNDarray)
@@ -744,7 +742,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum_volume.split, None)
 
         # check min over all float elements of split 3d tensor, tuple axis
-        random_volume = ht.random.randn(3 * size, 3, 3, split=0, device=heat_device)
+        random_volume = ht.random.randn(3 * size, 3, 3, split=0, device=ht_device)
         minimum_volume = ht.min(random_volume, axis=(1, 2))
         alt_minimum_volume = ht.min(random_volume, axis=(2, 1))
 
@@ -756,7 +754,7 @@ class TestStatistics(unittest.TestCase):
         self.assertTrue((minimum_volume == alt_minimum_volume).all())
 
         # check max over all float elements of split 5d tensor, along split axis
-        random_5d = ht.random.randn(1 * size, 2, 3, 4, 5, split=0, device=heat_device)
+        random_5d = ht.random.randn(1 * size, 2, 3, 4, 5, split=0, device=ht_device)
         minimum_5d = ht.min(random_5d, axis=1)
 
         self.assertIsInstance(minimum_5d, ht.DNDarray)
@@ -769,7 +767,7 @@ class TestStatistics(unittest.TestCase):
         # Calculating min with empty local vectors works
         size = ht.MPI_WORLD.size
         if size > 1:
-            a = ht.arange(size - 1, split=0, device=heat_device)
+            a = ht.arange(size - 1, split=0, device=ht_device)
             res = ht.min(a)
             expected = torch.tensor([0], dtype=a.dtype.torch_type(), device=torch_device)
             self.assertTrue(torch.equal(res._DNDarray__array, expected))
@@ -786,8 +784,8 @@ class TestStatistics(unittest.TestCase):
         data1 = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
         data2 = [[0, 3, 2], [5, 4, 7], [6, 9, 8], [9, 10, 11]]
 
-        ht_array1 = ht.array(data1, device=heat_device)
-        ht_array2 = ht.array(data2, device=heat_device)
+        ht_array1 = ht.array(data1, device=ht_device)
+        ht_array2 = ht.array(data2, device=ht_device)
         comparison1 = torch.tensor(data1, device=torch_device)
         comparison2 = torch.tensor(data2, device=torch_device)
 
@@ -806,8 +804,8 @@ class TestStatistics(unittest.TestCase):
         # TODO: add check for uneven distribution of dimensions (see Issue #273)
         size = ht.MPI_WORLD.size
         torch.manual_seed(1)
-        random_volume_1 = ht.random.randn(12 * size, 3, 3, split=0, device=heat_device)
-        random_volume_2 = ht.random.randn(12 * size, 1, 3, split=0, device=heat_device)
+        random_volume_1 = ht.random.randn(12 * size, 3, 3, split=0, device=ht_device)
+        random_volume_2 = ht.random.randn(12 * size, 1, 3, split=0, device=ht_device)
         minimum_volume = ht.minimum(random_volume_1, random_volume_2)
 
         self.assertIsInstance(minimum_volume, ht.DNDarray)
@@ -820,10 +818,10 @@ class TestStatistics(unittest.TestCase):
         # check minimum over float elements of split 3d tensors with different split axis
         torch.manual_seed(1)
         random_volume_1_splitdiff = ht.random.randn(
-            size * 3, size * 3, 4, split=0, device=heat_device
+            size * 3, size * 3, 4, split=0, device=ht_device
         )
         random_volume_2_splitdiff = ht.random.randn(
-            size * 3, size * 3, 4, split=1, device=heat_device
+            size * 3, size * 3, 4, split=1, device=ht_device
         )
         minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
         self.assertIsInstance(minimum_volume_splitdiff, ht.DNDarray)
@@ -834,35 +832,35 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
         random_volume_1_splitdiff = ht.random.randn(
-            size * 3, size * 3, 4, split=1, device=heat_device
+            size * 3, size * 3, 4, split=1, device=ht_device
         )
         random_volume_2_splitdiff = ht.random.randn(
-            size * 3, size * 3, 4, split=0, device=heat_device
+            size * 3, size * 3, 4, split=0, device=ht_device
         )
         minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
         random_volume_1_split_none = ht.random.randn(
-            size * 3, size * 3, 4, split=None, device=heat_device
+            size * 3, size * 3, 4, split=None, device=ht_device
         )
         random_volume_2_splitdiff = ht.random.randn(
-            size * 3, size * 3, 4, split=1, device=heat_device
+            size * 3, size * 3, 4, split=1, device=ht_device
         )
         minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 1)
 
         random_volume_1_split_none = ht.random.randn(
-            size * 3, size * 3, 4, split=0, device=heat_device
+            size * 3, size * 3, 4, split=0, device=ht_device
         )
         random_volume_2_splitdiff = ht.random.randn(
-            size * 3, size * 3, 4, split=None, device=heat_device
+            size * 3, size * 3, 4, split=None, device=ht_device
         )
         minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
         # check output buffer
         out_shape = ht.stride_tricks.broadcast_shape(random_volume_1.gshape, random_volume_2.gshape)
-        output = ht.empty(out_shape, device=heat_device)
+        output = ht.empty(out_shape, device=ht_device)
         ht.minimum(random_volume_1, random_volume_2, out=output)
         self.assertIsInstance(output, ht.DNDarray)
         self.assertEqual(output.shape, (ht.MPI_WORLD.size * 12, 3, 3))
@@ -872,7 +870,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(output.split, random_volume_1.split)
 
         # check exceptions
-        random_volume_3 = ht.random.randn(4, 2, 3, split=0, device=heat_device)
+        random_volume_3 = ht.random.randn(4, 2, 3, split=0, device=ht_device)
         with self.assertRaises(ValueError):
             ht.minimum(random_volume_1, random_volume_3)
         random_volume_3 = torch.ones(12, 3, 3, device=torch_device)
@@ -881,13 +879,13 @@ class TestStatistics(unittest.TestCase):
         output = torch.ones(12, 3, 3, device=torch_device)
         with self.assertRaises(TypeError):
             ht.minimum(random_volume_1, random_volume_2, out=output)
-        output = ht.ones((12, 4, 3), device=heat_device)
+        output = ht.ones((12, 4, 3), device=ht_device)
         with self.assertRaises(ValueError):
             ht.minimum(random_volume_1, random_volume_2, out=output)
 
     def test_std(self):
         # test raises
-        x = ht.zeros((2, 3, 4), device=heat_device)
+        x = ht.zeros((2, 3, 4), device=ht_device)
         with self.assertRaises(TypeError):
             ht.std(x, axis=0, bessel=1)
         with self.assertRaises(ValueError):
@@ -903,7 +901,7 @@ class TestStatistics(unittest.TestCase):
         array_2_len = ht.MPI_WORLD.size * 2
 
         # test raises
-        x = ht.zeros((2, 3, 4), device=heat_device)
+        x = ht.zeros((2, 3, 4), device=ht_device)
         with self.assertRaises(ValueError):
             x.var(axis=10)
         with self.assertRaises(ValueError):
@@ -919,7 +917,7 @@ class TestStatistics(unittest.TestCase):
         with self.assertRaises(ValueError):
             ht.mean(x, axis=torch.Tensor([0, 0]))
 
-        a = ht.arange(1, 5, device=heat_device)
+        a = ht.arange(1, 5, device=ht_device)
         self.assertEqual(a.var(), 1.666666666666666)
 
         # ones
@@ -929,7 +927,7 @@ class TestStatistics(unittest.TestCase):
             hold = list(range(len(dimensions)))
             hold.append(None)
             for split in hold:  # loop over the number of dimensions of the test array
-                z = ht.ones(dimensions, split=split, device=heat_device)
+                z = ht.ones(dimensions, split=split, device=ht_device)
                 res = z.var(bessel=False)
                 total_dims_list = list(z.shape)
                 self.assertTrue((res == 0).all())
@@ -976,5 +974,5 @@ class TestStatistics(unittest.TestCase):
 
         # values for the iris dataset var measured by libreoffice calc
         for sp in [None, 0, 1]:
-            iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=sp, device=heat_device)
+            iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=sp, device=ht_device)
             self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))

@@ -2,7 +2,7 @@ import unittest
 import os
 import heat as ht
 
-from heat.core.tests.deviceselection import heat_device, torch_device, envar
+from heat.core.tests.deviceselection import ht_device, torch_device, envar
 
 
 class TestDevices(unittest.TestCase):
