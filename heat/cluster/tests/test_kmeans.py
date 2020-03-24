@@ -3,7 +3,7 @@ import unittest
 
 import heat as ht
 
-from heat.core.tests.deviceselection import ht_device, torch_device
+ht_device, torch_device, _ = ht.devices._use_envar_device()
 
 
 class TestKMeans(unittest.TestCase):

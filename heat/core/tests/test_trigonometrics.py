@@ -4,7 +4,7 @@ import math
 import heat as ht
 import os
 
-from heat.core.tests.deviceselection import ht_device, torch_device
+ht_device, torch_device, _ = ht.devices._use_envar_device()
 
 
 class TestTrigonometrics(unittest.TestCase):

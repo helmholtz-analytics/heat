@@ -1,4 +1,5 @@
 import torch
+import os
 
 from .communication import MPI_WORLD
 
@@ -132,3 +133,52 @@ def use_device(device=None):
     """
     global __default_device
     __default_device = sanitize_device(device)
+
+
+def _use_envar_device():
+    """Read the environment variable 'HEAT_USE_DEVICE' and return the requested devices.
+    Supported values
+        - cpu: Use CPU only
+        - gpu: Use GPU only
+        - lcpu: GPU global, CPU local
+        - lgpu: CPU global, GPU local
+
+    This function is intended for testing purposes.
+
+    Returns
+    -------
+    torch_device: torch.device
+        The corresponding torch device
+    ht_device : Device, None
+        The local heat device
+    envar: str
+        The value of 'HEAT_USE_DEVICE'
+    """
+
+    envar = os.getenv("HEAT_USE_DEVICE", "cpu")
+
+    if envar == "cpu":
+        use_device("cpu")
+        torch_device = cpu.torch_device
+        ht_device = None
+    elif envar == "gpu" and torch.cuda.is_available():
+        use_device("gpu")
+        torch.cuda.set_device(torch.device(gpu.torch_device))
+        torch_device = gpu.torch_device
+        ht_device = None
+    elif envar == "lcpu" and torch.cuda.is_available():
+        use_device("gpu")
+        torch.cuda.set_device(torch.device(gpu.torch_device))
+        torch_device = cpu.torch_device
+        ht_device = cpu
+    elif envar == "lgpu" and torch.cuda.is_available():
+        use_device("cpu")
+        torch.cuda.set_device(torch.device(gpu.torch_device))
+        torch_device = gpu.torch_device
+        ht_device = gpu
+    else:
+        raise RuntimeError(
+            "Value '{}' of environment variable 'HEAT_USE_DEVICE' is unsupported".format(envar)
+        )
+
+    return ht_device, torch_device, envar

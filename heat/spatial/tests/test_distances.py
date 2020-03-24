@@ -7,7 +7,7 @@ import heat as ht
 import numpy as np
 import math
 
-from heat.core.tests.deviceselection import ht_device, torch_device
+ht_device, torch_device, _ = ht.devices._use_envar_device()
 
 
 class TestDistances(unittest.TestCase):
