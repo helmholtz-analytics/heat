@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import warnings
 
 from .communication import MPI
 
@@ -584,7 +585,10 @@ def flatten(a):
             comm=a.comm,
         )
 
-    a = resplit(a, 0)
+    # The resplit function scramble the tensor when switching axes, see issue 425
+    if a.split > 0:
+        a = resplit(a, 0)
+        warnings.warn("The flattened tensor may have a wrong order for split axes > 0", UserWarning)
     a = factories.array(
         torch.flatten(a._DNDarray__array),
         dtype=a.dtype,
