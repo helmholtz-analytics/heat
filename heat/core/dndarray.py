@@ -1047,6 +1047,23 @@ class DNDarray:
         """
         return manipulations.expand_dims(self, axis)
 
+    def flatten(self):
+        """
+        Return a flat tensor.
+
+        Returns
+        -------
+        flattened : ht.DNDarray
+            The flattened tensor
+
+        Examples
+        --------
+        >>> x = ht.array([[1,2],[3,4]])
+        >>> x.flatten()
+        tensor([1,2,3,4])
+        """
+        return manipulations.flatten(self)
+
     def __float__(self):
         """
         Float scalar casting.
