@@ -608,41 +608,39 @@ def hstack(tup):
     return concatenate(tup, axis=axis)
 
 
-def pad(input, pad, mode="constant", value=0):
+def pad(a, pad_width, mode="constant", value=0):
     """
-    Pads tensor with a specific integer value (default=0).
+    Pads tensor with a specific value (default=0).
     (Not all dimensions supported)
 
     Parameters
     ----------
-    input : ht.DNDarray
+    a : ht.DNDarray
         tensor which is to be padded
-    pad :   tuple with an even amount of elements
-        Determines how many elements are padded along which dimension whereas 2 elements belong
-        to one axis (described from the last one and moving forward)
+    pad_width: tuple of 2 elements tuples
+        Number of values padded to the edges of each axis. ((before_1, after_1),...(before_N, after_N)) unique pad widths for each axis. 
+        ((before, after),) yields same before and after pad for each axis. 
+        (pad,) or int is a shortcut for before = after = pad width for all axes.    
+
+        Determines how many elements are padded along which dimension.
         Therefore:
-        - pad last dimension:       (   padding_left, padding_right
+        - pad last dimension:       (   
+                                        padding_left, padding_right
                                     )
-        - pad last 2 dimensions:    (   padding_left, padding_right,
-                                        padding_top, padding_bottom
+        - pad last 2 dimensions:    (   
+                                        (padding_top, padding_bottom),
+                                        (padding_left, padding_right)
                                     )
-        - pad last 3 dimensions:    (   paddling_left, padding_right,
-                                        padding_top, padding_bottom,
-                                        padding_front, padding_back
+        - pad last 3 dimensions:    (   
+                                        (padding_front, padding_back)
+                                        (padding_top, padding_bottom),
+                                        (paddling_left, padding_right),
                                     )
         - ... (same pattern)
-    mode : 'constant', 'reflect' or 'replicate' , optional
+    mode : 'constant' , optional
         - 'constant': Pads the input tensor boundaries with a constant value.
             --> available for arbitrary dimensions
-        - 'reflect': Pads the input tensor using the reflection of the input boundary
-            --> available dimensions:
-                - last 2 of 4D tensor (--> pad = 4-element tuple)
-                - last of 3D tensor   (--> pad = 2-element tuple)
-        - 'replicate': Pads the input tensor using replication of the input boundary
-            --> available dimensions:
-                - last 3 of 5D tensor (--> pad = 6-element tuple)
-                - last 2 of 4D tensor (--> pad = 4-element tuple)
-    value: int, optional
+    value: number, optional
         fill value for padding operations
 
     Returns
@@ -668,7 +666,7 @@ def pad(input, pad, mode="constant", value=0):
 
 
     Pad last 2 dimensions
-    >>> d = ht.pad(b, (2,1,1,0))
+    >>> d = ht.pad(b, ((1,0), (2,1)))
     tensor([[[ 0,  0,  0,  0,  0,  0,  0],
          [ 0,  0,  0,  1,  2,  3,  0],
          [ 0,  0,  4,  5,  6,  7,  0],
@@ -681,7 +679,7 @@ def pad(input, pad, mode="constant", value=0):
 
 
     Pad last 3 dimensions
-    >>> e = ht.pad(b, (2,1,1,0,2,1))
+    >>> e = ht.pad(b, ((2,1), (1,0), (2,1)))
     tensor([[[ 0,  0,  0,  0,  0,  0,  0],
          [ 0,  0,  0,  0,  0,  0,  0],
          [ 0,  0,  0,  0,  0,  0,  0],
@@ -708,35 +706,43 @@ def pad(input, pad, mode="constant", value=0):
          [ 0,  0,  0,  0,  0,  0,  0]]])
 
     """
+    #TODO implement shortcut for pad_width (scalar)
+
+    pad=tuple()
+    #Transform numpy pad_width to torch pad
+    for pad_tuple in pad_width:
+        pad=pad_tuple+pad
+    
+
     if type(value) != int:
         raise TypeError(f"Fill value {value} invalid. Fill value has to be an integer.")
 
     if len(pad) % 2 != 0:
         raise ValueError("Pad must contain an even amount of elements")
 
-    if len(pad) / 2 > len(input.shape):
+    if len(pad) // 2 > len(a.shape):
         raise ValueError(
             f"Not enough dimensions to pad.\n"
             f"Padding a {len(input.shape)}-dimensional tensor for {len(pad)//2}"
             f" dimensions is not possible."
         )
 
-    rank_input = len(input.shape)
+    rank_input = len(a.shape)
     amount_pad_dim = len(pad) // 2
     pad_dim = [rank_input - i for i in range(1, amount_pad_dim + 1)]
     
 
-    input_torch = input._DNDarray__array
-    counts = input.comm.counts_displs_shape(input.gshape, input.split)[0]
+    input_torch = a._DNDarray__array
+    counts = a.comm.counts_displs_shape(a.gshape, a.split)[0]
     amount_of_processes = len(counts)
 
     # -------------------------------------------------------------------------------------------------------------------
     # CASE 1: Padding in non split dimension or no distribution at all
     # ------------------------------------------------------------------------------------------------------------------
-    if input.split is None or input.split not in pad_dim or amount_of_processes == 1:
+    if a.split is None or a.split not in pad_dim or amount_of_processes == 1:
         padded_torch_tensor = torch.nn.functional.pad(input_torch, pad, mode, value)
 
-        padded_tensor = factories.array(padded_torch_tensor, dtype=input.dtype, device=input.device)
+        padded_tensor = factories.array(padded_torch_tensor, dtype=a.dtype, device=a.device)
 
         return padded_tensor
 
@@ -757,7 +763,7 @@ def pad(input, pad, mode="constant", value=0):
     
     # calculate the corresponding pad tuples
 
-    first_idx_set_zero=2*(rank_input-input.split-1)
+    first_idx_set_zero=2*(rank_input-a.split-1)
 
     pad_end_list[first_idx_set_zero]=0
     pad_beginning_list[first_idx_set_zero+1]=0
@@ -768,7 +774,7 @@ def pad(input, pad, mode="constant", value=0):
     pad_end = tuple(pad_end_list)
     pad_middle = tuple(pad_middle_list)
 
-    rank = input.comm.rank
+    rank = a.comm.rank
 
     # first process - pad beginning
     if rank == 0:
@@ -782,7 +788,7 @@ def pad(input, pad, mode="constant", value=0):
     else:
         padded_torch_tensor = torch.nn.functional.pad(input_torch, pad_middle, mode, value)
 
-    padded_tensor = factories.array(padded_torch_tensor, dtype=input.dtype, device=input.device)
+    padded_tensor = factories.array(padded_torch_tensor, dtype=a.dtype, device=a.device)
     padded_tensor.balance_()
 
     return padded_tensor
