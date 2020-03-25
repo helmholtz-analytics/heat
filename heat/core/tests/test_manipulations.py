@@ -813,6 +813,19 @@ class TestManipulations(BasicTest):
         res = ht.hstack((a, b))
         self.assertEqual(res.shape, (24,))
 
+    def test_pad(self):
+        # test padding of non-distributed tensor
+        data = torch.arange(2 * 3 * 4).reshape(2, 3, 4)
+        data_ht = ht.array(data, device=ht_device)
+
+        pad_torch = torch.nn.functional.pad(data, (2, 1, 1, 0, 2, 1))
+        pad_ht = ht.pad(data_ht, pad_width=((2, 1), (1, 0), (2, 2)))
+        self.assertTrue((pad_ht == pad_torch).all())
+
+        # TODO: test padding of distributed tensor
+        # TODO: test padding in edge cases (empty local tensor)
+        # TODO: test exceptions
+
     def test_sort(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
