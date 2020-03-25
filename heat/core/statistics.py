@@ -1100,7 +1100,7 @@ def mpi_argmin(a, b, _):
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
-def std(x, axis=None, bessel=True):
+def std(x, axis=None, ddof=0):
     """
     Calculates and returns the standard deviation of a tensor with the bessel correction.
     If a axis is given, the variance will be taken in that direction.
@@ -1142,12 +1142,12 @@ def std(x, axis=None, bessel=True):
     tensor([0.9877, 0.6267, 0.3037, 0.3745])
     """
     if not axis:
-        return np.sqrt(var(x, axis, bessel))
+        return np.sqrt(var(x, axis, ddof))
     else:
-        return exponential.sqrt(var(x, axis, bessel), out=None)
+        return exponential.sqrt(var(x, axis, ddof), out=None)
 
 
-def var(x, axis=None, bessel=True):
+def var(x, axis=None, ddof=0):
     """
     Calculates and returns the variance of a tensor. If an axis is given, the variance will be
     taken in that direction.
@@ -1159,10 +1159,10 @@ def var(x, axis=None, bessel=True):
         The dtype of x must be a float
     axis : None, Int, iterable, defaults to None
         Axis which the variance is taken in. Default None calculates variance of all data items.
-    bessel : bool, defaults to True
-        Use the bessel correction when calculating the variance/std.
-        Toggles between unbiased and biased calculation of
-        the variance.
+    ddof : int, optional
+        Delta Degrees of Freedom: the divisor used in the calculation is N - ddof, where N
+        represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
+        Setting ddof > 1 raises a NotImplementedError.
 
     Returns
     -------
@@ -1200,8 +1200,15 @@ def var(x, axis=None, bessel=True):
     >>> ht.var(a, 0, bessel=False)
     tensor([1.0218, 2.4422, 0.1085, 0.9032])
     """
-    if not isinstance(bessel, bool):
-        raise TypeError("bessel must be a boolean, currently is {}".format(type(bessel)))
+
+    if not isinstance(ddof, int):
+        raise TypeError("ddof must be integer, is {}".format(type(ddof)))
+    elif ddof > 1:
+        raise NotImplementedError("Not implemented for ddof > 1.")
+    elif ddof < 0:
+        raise ValueError("Expected ddof=0 or ddof=1, got {}".format(ddof))
+    else:
+        bessel = bool(ddof)
 
     def reduce_vars_elementwise(output_shape_i):
         """
@@ -1222,10 +1229,7 @@ def var(x, axis=None, bessel=True):
 
         if x.lshape[x.split] != 0:
             mu = torch.mean(x._DNDarray__array, dim=axis)
-            if x.lshape[x.split] == 1:
-                var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
-            else:
-                var = torch.var(x._DNDarray__array, dim=axis, unbiased=bessel)
+            var = torch.var(x._DNDarray__array, dim=axis, unbiased=bool(ddof))
         else:
             mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
             var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
