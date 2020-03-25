@@ -164,6 +164,14 @@ class TestDNDarray(unittest.TestCase):
             with self.assertRaises(TypeError):
                 complex(ht.full((ht.MPI_WORLD.size,), 2, split=0, device=ht_device))
 
+    def test_flatten(self):
+        a = ht.ones((4, 4, 4), split=1)
+        result = ht.ones((64,), split=0)
+        flat = a.flatten()
+
+        self.assertEqual(flat.shape, result.shape)
+        self.assertTrue(ht.equal(flat, result))
+
     def test_float_cast(self):
         # simple scalar tensor
         a = ht.ones(1, device=ht_device)
