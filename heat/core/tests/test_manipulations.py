@@ -818,8 +818,8 @@ class TestManipulations(BasicTest):
         data = torch.arange(2 * 3 * 4).reshape(2, 3, 4)
         data_ht = ht.array(data, device=ht_device)
 
-        pad_torch = torch.nn.functional.pad(data, (2, 1, 1, 0, 2, 1))
-        pad_ht = ht.pad(data_ht, pad_width=((2, 1), (1, 0), (2, 2)))
+        pad_torch = torch.nn.functional.pad(data, (1, 2, 1, 0, 2, 1))
+        pad_ht = ht.pad(data_ht, pad_width=((2, 1), (1, 0), (1, 2)))
         self.assertTrue((pad_ht == pad_torch).all())
 
         # TODO: test padding of distributed tensor
