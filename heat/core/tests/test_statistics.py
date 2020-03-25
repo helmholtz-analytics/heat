@@ -892,7 +892,7 @@ class TestStatistics(unittest.TestCase):
         # test raises
         x = ht.zeros((2, 3, 4), device=ht_device)
         with self.assertRaises(TypeError):
-            ht.std(x, axis=0, bessel=1)
+            ht.std(x, axis=0, ddof=1.0)
         with self.assertRaises(ValueError):
             ht.std(x, axis=10)
         with self.assertRaises(TypeError):
@@ -923,7 +923,7 @@ class TestStatistics(unittest.TestCase):
             ht.mean(x, axis=torch.Tensor([0, 0]))
 
         a = ht.arange(1, 5, device=ht_device)
-        self.assertEqual(a.var(), 1.666666666666666)
+        self.assertEqual(a.var(ddof=1), 1.666666666666666)
 
         # ones
         dimensions = []
@@ -933,7 +933,7 @@ class TestStatistics(unittest.TestCase):
             hold.append(None)
             for split in hold:  # loop over the number of dimensions of the test array
                 z = ht.ones(dimensions, split=split, device=ht_device)
-                res = z.var(bessel=False)
+                res = z.var(ddof=0)
                 total_dims_list = list(z.shape)
                 self.assertTrue((res == 0).all())
                 # loop over the different single dimensions for var
@@ -980,4 +980,4 @@ class TestStatistics(unittest.TestCase):
         # values for the iris dataset var measured by libreoffice calc
         for sp in [None, 0, 1]:
             iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=sp, device=ht_device)
-            self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))
+            self.assertTrue(ht.allclose(ht.var(iris, ddof=1), 3.90318519755147))
