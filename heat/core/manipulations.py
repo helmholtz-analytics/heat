@@ -630,6 +630,7 @@ def pad(input, pad, mode="constant", value=0):
                                         padding_top, padding_bottom,
                                         padding_front, padding_back
                                     )
+        - ... (same pattern)
     mode : 'constant', 'reflect' or 'replicate' , optional
         - 'constant': Pads the input tensor boundaries with a constant value.
             --> available for arbitrary dimensions
@@ -723,6 +724,7 @@ def pad(input, pad, mode="constant", value=0):
     rank_input = len(input.shape)
     amount_pad_dim = len(pad) // 2
     pad_dim = [rank_input - i for i in range(1, amount_pad_dim + 1)]
+    
 
     input_torch = input._DNDarray__array
     counts = input.comm.counts_displs_shape(input.gshape, input.split)[0]
@@ -742,33 +744,26 @@ def pad(input, pad, mode="constant", value=0):
     # CASE 2: padding in split dimension and function runs on more than 1 process
     #
     # Pad only first/last tensor portion on node (i.e. only beginning/end in split dimension)
-    # --> "Calculate" pad tuple for the corresponding tensor portion
+    # --> "Calculate" pad tuple for the corresponding tensor portion/ the two indices which has to be set to zero
+    #      in different paddings depending on the dimension
+    #       Calculate the index of the first element in tuple that has to change/set to zero in
+    #       some dimensions (the following is the second)
     # ------------------------------------------------------------------------------------------------------------------
 
     pad_beginning_list = list(pad)
     pad_end_list = list(pad)
     pad_middle_list = list(pad)
 
+    
     # calculate the corresponding pad tuples
 
-    if input.split == rank_input - 3:
-        pad_beginning_list[5] = 0
-        pad_end_list[4] = 0
-        pad_middle_list[4:6] = [0, 0]
-    elif input.split == rank_input - 2:
-        pad_beginning_list[3] = 0
-        pad_end_list[2] = 0
-        pad_middle_list[2:4] = [0, 0]
-    elif input.split == rank_input - 1:
-        pad_beginning_list[1] = 0
-        pad_end_list[0] = 0
-        pad_middle_list[0:2] = [0, 0]
-    else:
-        raise ValueError(
-            f"Internal error. Padding only implemented for padding last 3 dimensions at most (Input: {rank_input}D-tensor).\n"
-            f"In this case, split dimension ({input.split}) should have been one of them."
-        )
+    first_idx_set_zero=2*(rank_input-input.split-1)
 
+    pad_end_list[first_idx_set_zero]=0
+    pad_beginning_list[first_idx_set_zero+1]=0
+    pad_middle_list[first_idx_set_zero:first_idx_set_zero+2]=[0,0]
+
+    
     pad_beginning = tuple(pad_beginning_list)
     pad_end = tuple(pad_end_list)
     pad_middle = tuple(pad_middle_list)
