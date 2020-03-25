@@ -1112,9 +1112,10 @@ def std(x, axis=None, ddof=0):
         The dtype of x must be a float
     axis : None, Int, iterable, defaults to None
         Axis which the std is taken in. Default None calculates std of all data items.
-    bessel : bool, defaults to True
-        Use the bessel correction when calculating the variance/std. Toggles between unbiased and biased calculation of
-        the standard deviation.
+    ddof : int, optional
+        Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
+        represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
+        Setting ddof > 1 raises a NotImplementedError.
 
     Returns
     -------
@@ -1127,18 +1128,18 @@ def std(x, axis=None, ddof=0):
     >>> a
     tensor([[ 0.3421,  0.5736, -2.2377]])
     >>> ht.std(a)
-    tensor(1.5606)
+    tensor(1.2742)
     >>> a = ht.random.randn(4,4)
     >>> a
     tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
             [ 0.2732, -0.0965, -0.1087, -1.3805],
             [ 0.2647,  0.5998, -0.1635, -0.0848],
             [ 0.0343,  0.1618, -0.8064, -0.1031]])
-    >>> ht.std(a, 0)
+    >>> ht.std(a, 0, ddof=1)
     tensor([0.6157, 0.2918, 0.8324, 1.1996])
-    >>> ht.std(a, 1)
+    >>> ht.std(a, 1, ddof=1)
     tensor([1.1405, 0.7236, 0.3506, 0.4324])
-    >>> ht.std(a, 1, bessel=False)
+    >>> ht.std(a, 1)
     tensor([0.9877, 0.6267, 0.3037, 0.3745])
     """
     if not axis:
@@ -1160,7 +1161,7 @@ def var(x, axis=None, ddof=0):
     axis : None, Int, iterable, defaults to None
         Axis which the variance is taken in. Default None calculates variance of all data items.
     ddof : int, optional
-        Delta Degrees of Freedom: the divisor used in the calculation is N - ddof, where N
+        Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
         represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
         Setting ddof > 1 raises a NotImplementedError.
 
@@ -1183,6 +1184,8 @@ def var(x, axis=None, ddof=0):
     >>> a
     tensor([[-1.9755,  0.3522,  0.4751]])
     >>> ht.var(a)
+    tensor(1.2710)
+    >>> ht.var(a, ddof=1)
     tensor(1.9065)
 
     >>> a = ht.random.randn(4,4)
@@ -1195,9 +1198,9 @@ def var(x, axis=None, ddof=0):
     tensor([1.3092, 0.0034, 0.7061, 0.9217])
     >>> ht.var(a, 0)
     tensor([1.3624, 3.2563, 0.1447, 1.2042])
-    >>> ht.var(a, 0, bessel=True)
+    >>> ht.var(a, 0, ddof=1)
     tensor([1.3624, 3.2563, 0.1447, 1.2042])
-    >>> ht.var(a, 0, bessel=False)
+    >>> ht.var(a, 0, ddof=0)
     tensor([1.0218, 2.4422, 0.1085, 0.9032])
     """
 
