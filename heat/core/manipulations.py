@@ -733,8 +733,10 @@ def pad(a, pad_width, mode="constant", value=0):
     
 
     input_torch = a._DNDarray__array
-    counts = a.comm.counts_displs_shape(a.gshape, a.split)[0]
-    amount_of_processes = len(counts)
+    
+    if a.split != None:
+        counts = a.comm.counts_displs_shape(a.gshape, a.split)[0]
+        amount_of_processes = len(counts)
 
     # -------------------------------------------------------------------------------------------------------------------
     # CASE 1: Padding in non split dimension or no distribution at all

@@ -820,7 +820,8 @@ class TestManipulations(BasicTest):
 
         pad_torch = torch.nn.functional.pad(data, (1, 2, 1, 0, 2, 1))
         pad_ht = ht.pad(data_ht, pad_width=((2, 1), (1, 0), (1, 2)))
-        self.assertTrue((pad_ht == pad_torch).all())
+        self.assertTrue(ht.all(pad_ht == ht.array(pad_torch)))
+        #self.assertTrue((pad_ht == pad_torch).all())
 
         # TODO: test padding of distributed tensor
         # TODO: test padding in edge cases (empty local tensor)
