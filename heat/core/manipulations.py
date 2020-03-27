@@ -819,7 +819,7 @@ def pad(array, pad_width, mode="constant", values=0):
             padded_torch_tensor = torch.nn.functional.pad(array_torch, pad, mode, values[0])
         else:
             padded_torch_tensor=array_torch
-            for i in range(len(value_tuple)):
+            for i in range(len(value_tuple)-1, -1, -1):
                 pad_list=[0,]*2*rank_array
                 pad_list[i]=pad[i]
                 pad_tuple=tuple(pad_list)
