@@ -620,8 +620,8 @@ def pad(array, pad_width, mode="constant", value=0):
     pad_width: tuple of 2 elements tuples
         Number of values padded to the edges of each axis. ((before_1, after_1),...(before_N, after_N)) unique pad widths for each axis.
         Shortcuts:
-            - ((before, after),) yields same before and after pad for each axis. 
-            - (pad,) or int is a shortcut for before = after = pad width for all axes.    
+            - ((before, after),) --> before and after pad for each axis. 
+            - (pad,) or int      --> before = after = pad width for all axes.    
 
         Determines how many elements are padded along which dimension.
         Therefore:
@@ -638,9 +638,14 @@ def pad(array, pad_width, mode="constant", value=0):
                                         (paddling_left, padding_right),
                                     )
         - ... (same pattern)
-    mode : 'constant' , optional
-        - 'constant': Pads the input tensor boundaries with a constant value.
+    mode : string, optional
+        - 'constant' (default): Pads the input tensor boundaries with a constant value.
             --> available for arbitrary dimensions
+        - 'reflect' : Pads with the reflection of the vector mirrored on the first and last values of the vector along each axis.
+            --> available dimensions:
+                - last 2 of 4D tensor (--> pad_width = tuple of 2 tuples)
+                - last of 3D tensor   (--> pad_width = 2-element tuple)
+        
     value: number, optional
         fill value for padding operations
 
@@ -707,46 +712,60 @@ def pad(array, pad_width, mode="constant", value=0):
          [ 0,  0,  0,  0,  0,  0,  0]]])
 
     """
-    
+
     if not isinstance(array, dndarray.DNDarray):
         raise TypeError("expected array to be a ht.DNDarray, but was {}".format(type(array)))
 
-    #TODO - necessary condition?
+    # TODO - necessary condition?
     if not isinstance(value, int):
-            raise TypeError(f"Fill value {value} invalid. Fill value has to be an integer.")
+        raise TypeError("expected value to be an integer, but was {}".format(type(value)))
 
-    #shortcut int
+    # shortcut int for all dimensions
     if isinstance(pad_width, int):
-        pad=(pad_width,)*2*len(array.shape)
-    
-    elif not isinstance(pad_width, tuple):
-        raise TypeError(f"Type {pad_width} invalid for pad_width. Pad_width has to be either a scalar or a tuple")
+        pad = (pad_width,) * 2 * len(array.shape)
 
-    #shortcut one tuple for all dimensions
+    elif not isinstance(pad_width, tuple):
+        raise TypeError(
+            "expected pad_width to be an integer or a tuple, but was {}".format(type(value))
+        )
+
+    # shortcut one tuple for all dimensions
     elif len(pad_width) == 1:
         if isinstance(pad_width[0], int):
-            pad=(pad_width[0],)*2*len(array.shape)
+            pad = (pad_width[0],) * 2 * len(array.shape)
         elif not isinstance(pad_width[0], tuple):
-            raise TypeError("Invalid type for pad_width {pad_width}.\nApart from shortcut options (--> documentation),"\
-                            "pad_width has to be a tuple of (2 elements) tuples.")
+            raise TypeError(
+                "For shortcut option '1 tuple for all dimensions', expected element within pad_width to be a tuple, but was {}".format(
+                    type(pad_width[0])
+                )
+            )
         elif len(pad_width[0]) == 2:
-            pad=pad_width[0]*len(array.shape)
+            pad = pad_width[0] * len(array.shape)
         else:
-            raise ValueError("Pad_width {pad_width} invalid.\n Apart from shortcut options (--> documentation), "\
-                             "each tuple within pad_width must contain 2 elements.")
-    #no shortcut
+            raise ValueError(
+                "Pad_width {pad_width} invalid.\n Apart from shortcut options (--> documentation), "
+                "each tuple within pad_width must contain 2 elements."
+            )
+    # no shortcut - only on tuple (padding of one dimension)
+    elif len(pad_width) == 2 and isinstance(pad_width[0], int) and isinstance(pad_width[1], int):
+        pad = pad_width
+    # no shortcut - padding of various dimensions
     else:
         if any(not isinstance(pad_tuple, tuple) for pad_tuple in pad_width):
-            raise TypeError("Invalid type for pad_width {pad_width}.\nApart from shortcut options (--> documentation),"\
-                            "pad_width has to be a tuple of (2 elements) tuples.")
-        pad=tuple()
-        #Transform numpy pad_width to torch pad
+            raise TypeError(
+                "Invalid type for pad_width {pad_width}.\nApart from shortcut options (--> documentation),"
+                "pad_width has to be a tuple of (2 elements) tuples."
+            )
+        pad = tuple()
+        # Transform numpy pad_width to torch pad
         for pad_tuple in pad_width:
-            pad=pad_tuple+pad
+            pad = pad_tuple + pad
 
         if len(pad) % 2 != 0:
-            raise ValueError("Pad_width {pad_width} invalid.\n Apart from shortcut options (--> documentation), "\
-                             "each tuple within pad_width must contain 2 elements.")
+            raise ValueError(
+                "Pad_width {pad_width} invalid.\n Apart from shortcut options (--> documentation), "
+                "each tuple within pad_width must contain 2 elements."
+            )
 
         if len(pad) // 2 > len(array.shape):
             raise ValueError(
@@ -754,15 +773,13 @@ def pad(array, pad_width, mode="constant", value=0):
                 f"Padding a {len(input.shape)}-dimensional tensor for {len(pad)//2}"
                 f" dimensions is not possible."
             )
-    
 
     rank_input = len(array.shape)
     amount_pad_dim = len(pad) // 2
     pad_dim = [rank_input - i for i in range(1, amount_pad_dim + 1)]
-    
 
     array_torch = array._DNDarray__array
-    
+
     if array.split != None:
         counts = array.comm.counts_displs_shape(array.gshape, array.split)[0]
         amount_of_processes = len(counts)
@@ -791,16 +808,14 @@ def pad(array, pad_width, mode="constant", value=0):
     pad_end_list = list(pad)
     pad_middle_list = list(pad)
 
-    
     # calculate the corresponding pad tuples
 
-    first_idx_set_zero=2*(rank_input-array.split-1)
+    first_idx_set_zero = 2 * (rank_input - array.split - 1)
 
-    pad_end_list[first_idx_set_zero]=0
-    pad_beginning_list[first_idx_set_zero+1]=0
-    pad_middle_list[first_idx_set_zero:first_idx_set_zero+2]=[0,0]
+    pad_end_list[first_idx_set_zero] = 0
+    pad_beginning_list[first_idx_set_zero + 1] = 0
+    pad_middle_list[first_idx_set_zero : first_idx_set_zero + 2] = [0, 0]
 
-    
     pad_beginning = tuple(pad_beginning_list)
     pad_end = tuple(pad_end_list)
     pad_middle = tuple(pad_middle_list)
