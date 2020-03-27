@@ -70,7 +70,11 @@ def equal(t1, t2):
     False
     """
     result_tensor = operations.__binary_op(torch.equal, t1, t2)
-    result_value = result_tensor._DNDarray__array.item()
+
+    if result_tensor._DNDarray__array.numel() == 1:
+        result_value = result_tensor._DNDarray__array.item()
+    else:
+        result_value = True
 
     return result_tensor.comm.allreduce(result_value, MPI.LAND)
 
