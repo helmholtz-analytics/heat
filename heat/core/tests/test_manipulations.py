@@ -813,6 +813,41 @@ class TestManipulations(BasicTest):
         res = ht.hstack((a, b))
         self.assertEqual(res.shape, (24,))
 
+    def test_reshape(self):
+        # split = None
+        a = ht.zeros((3, 4), device=ht_device)
+        result = ht.zeros((2, 6), device=ht_device)
+        reshaped = ht.reshape(a, (2, 6))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        # 1-dim distributed vector
+        a = ht.arange(8, dtype=ht.float32, split=0)
+        result = ht.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]], dtype=ht.float32, split=0)
+        reshaped = ht.reshape(a, (2, 2, 2))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.linspace(0, 14, 8, split=0)
+        result = ht.array([[0, 2, 4, 6], [8, 10, 12, 14]], dtype=ht.float32, split=0)
+        reshaped = ht.reshape(a, (2, 4))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        # exceptions
+        with self.assertRaises(RuntimeError):
+            ht.reshape(ht.arange(4), 0)
+        with self.assertRaises(ValueError):
+            ht.reshape(ht.zeros((4, 3)), (5, 7))
+        with self.assertRaises(NotImplementedError):
+            ht.reshape(ht.zeros((4, 3), split=0), (3, 4))
+
     def test_sort(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank

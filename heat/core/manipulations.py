@@ -15,6 +15,7 @@ __all__ = [
     "diagonal",
     "expand_dims",
     "hstack",
+    "reshape",
     "resplit",
     "sort",
     "squeeze",
@@ -604,6 +605,114 @@ def hstack(tup):
                 tup[cn] = arr.expand_dims(1)
 
     return concatenate(tup, axis=axis)
+
+
+def reshape(a, shape):
+    """
+    Returns a tensor with the same data and number of elements as a, but with the specified shape.
+
+    NOTE: Only tensors with split = None and distributed vectors (dim = 1) are supported yet
+
+    Parameters
+    ----------
+    a : ht.DNDarray
+        The input tensor
+    shape : tuple
+        Shape of the new tensor
+
+    Returns
+    -------
+    reshaped : ht.DNDarray
+        The tensor with the specified shape
+
+    Examples
+    --------
+    >>> a = ht.zeros((3,4))
+    >>> ht.reshape(a, (4,3))
+    tensor([[0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0]])
+
+    >>> a = ht.linspace(0, 14, 8, split=0)
+    >>> ht.reshape(a, (2,4))
+    (1/2) tensor([[0., 2., 4., 6.]])
+    (2/2) tensor([[ 8., 10., 12., 14.]])
+    """
+
+    # Check the type of shape and number elements
+    if not isinstance(shape, (list, tuple)):
+        raise RuntimeError("shape must be a tuple or list")
+    if np.prod(shape) != a.size:
+        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
+
+    # Forward to Pytorch directly
+    if a.split is None:
+        return factories.array(
+            torch.reshape(a._DNDarray__array, shape), dtype=a.dtype, device=a.device, comm=a.comm
+        )
+
+    # Check for currently not supported tensors
+    if len(a.shape) != 1:
+        raise NotImplementedError("Split axes > 0 and tensors with dim > 1 are not supported yet")
+
+    # Create new flat result tensor
+    _, local_shape, _ = a.comm.chunk(shape, a.split)
+    data = torch.empty(np.prod(local_shape), dtype=a.dtype.torch_type())
+
+    # Calculate the counts and displacements
+    _, old_displs, _ = a.comm.counts_displs_shape(a.shape, 0)
+    _, new_displs, _ = a.comm.counts_displs_shape(shape, 0)
+
+    length = np.prod(shape[1:])
+
+    old_displs += (a.size,)
+    new_displs = tuple(length * i for i in new_displs) + (a.size,)
+
+    i = 0
+    j = 0
+    p = 0
+
+    countmap = np.zeros((a.comm.size, a.comm.size), dtype=np.int64)
+
+    while p < a.size:
+        q = old_displs[i + 1]
+        w = new_displs[j + 1]
+        if q < w:
+            countmap[i, j] = q - p
+            p = q
+            i += 1
+        elif q > w:
+            countmap[i, j] = w - p
+            p = w
+            j += 1
+        else:
+            countmap[i, j] = q - p
+            p = q
+            i += 1
+            j += 1
+
+    recv_displs = np.zeros((a.comm.size,), dtype=np.int64)
+    send_displs = np.zeros((a.comm.size,), dtype=np.int64)
+
+    recv_displs[1:] = np.cumsum(countmap[:-1, a.comm.rank])
+    send_displs[1:] = np.cumsum(countmap[a.comm.rank, :-1])
+
+    # Make them tuples
+    recv_displs = tuple(recv_displs)
+    send_displs = tuple(send_displs)
+
+    recv_counts = tuple(countmap[:, a.comm.rank])
+    send_counts = tuple(countmap[a.comm.rank, :])
+
+    a.comm.Alltoallv(
+        (a._DNDarray__array, send_counts, send_displs), (data, recv_counts, recv_displs)
+    )
+
+    # Reshape local tensor
+    data = data.reshape(local_shape)
+
+    return factories.array(data, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
 
 
 def sort(a, axis=None, descending=False, out=None):
