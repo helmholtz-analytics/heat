@@ -24,18 +24,17 @@ class SplitTiles:
                 tile_dims[ax] = chunk
                 tile_dims[ax][:remainder] += 1
 
-        tile_ends_g = torch.cumsum(tile_dims, dim=1)
+        tile_ends_g = torch.cumsum(tile_dims, dim=1).int()
         # tile_ends_g is the global end points of the tiles in each dimension
         # create a tensor for the process rank of all the tiles
-        tile_locations = self.set_tile_locations(split=arr.split, tile_dims=tile_dims, arr=arr)
+        tile_locations = self.set_tile_locations(split=arr.split, tile_dims=tile_dims, arr=arr).int()
         # create tile_ends_l for the local END points
         tile_ends_l = tile_ends_g.clone()
-        tile_ends_l[arr.split] = -1  # this assumes only one tile/process
+        tile_ends_l[arr.split] = arr.gshape[arr.split]  # this assumes only one tile/process
 
         self.__DNDarray = arr
         self.__tile_locations = tile_locations
         self.__tile_ends_g = tile_ends_g
-        self.__tile_ends_l = tile_ends_l
         self.__tile_dims = tile_dims
 
     @staticmethod
@@ -47,6 +46,64 @@ class SplitTiles:
             arb_slice[split] = pr
             tile_locations[tuple(arb_slice)] = pr
         return tile_locations
+
+    @property
+    def arr(self):
+        return self.__DNDarray
+
+    @property
+    def tile_locations(self):
+        return self.__tile_locations
+
+    # @property
+    # def tile_ends_l(self):
+    #     return self.__tile_ends_l
+
+    @property
+    def tile_ends_g(self):
+        return self.__tile_ends_g
+
+    @property
+    def tile_dimensions(self):
+        return self.__tile_dims
+
+    def __getitem__(self, key):
+        # todo: strides can be implemented with using a list of slices for each dimension
+        arr = self.__DNDarray
+        if arr.comm.rank not in self.tile_locations[key]:
+            return None
+        # This filters out the processes which are not involved
+        # next need to get the local indices
+        # tile_ends_g has the end points, need to get the start and stop
+        arb_slices = [None] * arr.numdims
+        if len(key) < arr.numdims or key[-1] is None:
+            lkey = list(key)
+            lkey.append(slice(0, None))
+            key = lkey
+        for d in range(arr.numdims):
+            # print(self.tile_ends_g[d])
+            stop = self.tile_ends_g[d][key[d]].max().item()
+            stop = stop if d != arr.split or stop is None else arr.lshape[d]
+            if isinstance(key[d], slice) and d != arr.split and key[d].start != 0 and key[d].start is not None:
+                # if the key is a slice in a dimension, and the start value of the slice is not 0,
+                # and d is not the split dimension (-> the tiles start at 0 on all tiles in the split dim
+                start = self.tile_ends_g[d][key[d].start - 1].item()
+            elif isinstance(key[d], int) and key[d] > 0 and d != arr.split:
+                start = self.tile_ends_g[d][key[d] - 1].item()
+            else:
+                start = 0
+            arb_slices[d] = slice(start, stop)
+        return arr._DNDarray__array[tuple(arb_slices)]
+
+    def __setitem__(self, key, value):
+        arr = self.__DNDarray
+        # todo: is it okay for cross-split setting? this can be problematic,
+        #   but it is fine if the data shapes match up
+        if arr.comm.rank not in self.tile_locations[key]:
+            return None
+        # this will set the tile values using the torch setitem function
+        arr = self.__getitem__(key)
+        arr.__setitem__(slice(0, None), value)
 
 
 class SquareDiagTiles:
