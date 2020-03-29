@@ -2,7 +2,51 @@ import torch
 
 from . import dndarray
 
-__all__ = ["SquareDiagTiles"]
+__all__ = ["SplitTiles", "SquareDiagTiles"]
+
+
+class SplitTiles:
+    def __init__(self, arr):
+        # todo:
+        #  1. get the lshape map
+        #  2. get the split axis numbers for the other axes
+        #  3. build tile map
+        lshape_map = arr.create_lshape_map()
+        dims_split = lshape_map[..., arr.split]
+        tile_dims = torch.zeros((arr.numdims, dims_split.shape[0]), device=arr.device.torch_device)
+        tile_dims[arr.split] = dims_split  # todo: remove the redundency here
+        w_size = arr.comm.size
+        for ax in range(arr.numdims):
+            if not ax == arr.split:
+                size = arr.gshape[ax]
+                chunk = size // w_size
+                remainder = size % w_size
+                tile_dims[ax] = chunk
+                tile_dims[ax][:remainder] += 1
+
+        tile_ends_g = torch.cumsum(tile_dims, dim=1)
+        # tile_ends_g is the global end points of the tiles in each dimension
+        # create a tensor for the process rank of all the tiles
+        tile_locations = self.set_tile_locations(split=arr.split, tile_dims=tile_dims, arr=arr)
+        # create tile_ends_l for the local END points
+        tile_ends_l = tile_ends_g.clone()
+        tile_ends_l[arr.split] = -1  # this assumes only one tile/process
+
+        self.__DNDarray = arr
+        self.__tile_locations = tile_locations
+        self.__tile_ends_g = tile_ends_g
+        self.__tile_ends_l = tile_ends_l
+        self.__tile_dims = tile_dims
+
+    @staticmethod
+    def set_tile_locations(split, tile_dims, arr):
+        # this is split off specifically for the resplit function
+        tile_locations = torch.zeros([tile_dims[x].numel() for x in range(arr.numdims)])
+        arb_slice = [slice(None)] * arr.numdims
+        for pr in range(1, arr.comm.size):
+            arb_slice[split] = pr
+            tile_locations[tuple(arb_slice)] = pr
+        return tile_locations
 
 
 class SquareDiagTiles:
