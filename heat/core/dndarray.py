@@ -883,6 +883,9 @@ class DNDarray:
             self, tiles_per_proc=tiles_per_proc
         )  # type: tiling.SquareDiagTiles
 
+    def create_split_tiles(self):
+        self.__tiles = tiling.SplitTiles(self)  # type: tiling.SplitTiles
+
     def __eq__(self, other):
         """
         Element-wise rich comparison of equality with values from second operand (scalar or tensor)
