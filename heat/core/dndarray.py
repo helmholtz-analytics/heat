@@ -2421,98 +2421,126 @@ class DNDarray:
             if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
                 self.__array = torch.cat((self.__array, data), dim=self.split)
 
-    def resplit_(self, axis=None):
-        """
-        In-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
-        nodes as well as the definition of new axis along which the tensor is split without changes to the values.
+    def resplit(self, new_split, in_place):
+        self.create_split_tiles()
+        new_arr = factories.zeros(self.gshape, split=new_split, dtype=self.dtype, device=self.device)
+        new_arr += 99999  # todo: REMOVE AFTER TESTING
+        new_arr.create_split_tiles()
+        recv_dict = {}
+        rank = self.comm.rank
+        sze = self.comm.size
+        for rpr in range(self.comm.size):
+            # need to get where the tiles are on the new one first
+            # rpr is the destination
+            recv_dict[rpr] = {}
+            new_locs = torch.where(new_arr.tiles.tile_locations == rpr)
+            new_locs = torch.stack([new_locs[i] for i in range(self.numdims)], dim=1)
 
-        WARNING: this operation might involve a significant communication overhead. Use it sparingly and preferably for
-        small tensors.
-
-        Parameters
-        ----------
-        axis : int
-            The new split axis, None denotes gathering, an int will set the new split axis
-
-        Returns
-        -------
-        resplit: ht.DNDarray
-            The redistributed tensor
-
-        Examples
-        --------
-        a = ht.zeros((4, 5,), split=0)
-        a.lshape
-        (0/2) >>> (2, 5)
-        (1/2) >>> (2, 5)
-        a.resplit(None)
-        a.split
-        >>> None
-        a.lshape
-        (0/2) >>> (4, 5)
-        (1/2) >>> (4, 5)
-
-        a = ht.zeros((4, 5,), split=0)
-        a.lshape
-        (0/2) >>> (2, 5)
-        (1/2) >>> (2, 5)
-        a.resplit(1)
-        a.split
-        >>> 1
-        a.lshape
-        (0/2) >>> (4, 3)
-        (1/2) >>> (4, 2)
-        """
-        # sanitize the axis to check whether it is in range
-        axis = sanitize_axis(self.shape, axis)
-
-        # early out for unchanged content
-        if axis == self.split:
-            return self
-
-        # unsplit the tensor
-        if axis is None:
-            gathered = torch.empty(
-                self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
-            )
-
-            recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Allgatherv(
-                self.__array, (gathered, recv_counts, recv_displs), recv_axis=self.split
-            )
-
-            self.__array = gathered
-            self.__split = None
-
-        # tensor needs be split/sliced locally
-        elif self.split is None:
-            _, _, slices = self.comm.chunk(self.shape, axis)
-            temp = self.__array[slices]
-            self.__array = torch.empty((1,), device=self.device.torch_device)
-            # necessary to clear storage of local __array
-            self.__array = temp.clone().detach()
-            self.__split = axis
-
-        # entirely new split axis, need to redistribute
-        else:
-            _, output_shape, _ = self.comm.chunk(self.shape, axis)
-            redistributed = torch.empty(
-                output_shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
-            )
-
-            send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
-            recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Alltoallv(
-                (self.__array, send_counts, send_displs),
-                (redistributed, recv_counts, recv_displs),
-                send_axis=axis,
-                recv_axis=self.split,
-            )
-
-            self.__array = redistributed
-            self.__split = axis
-
-        return self
+            for i in range(new_locs.shape[0]):
+                key = tuple(new_locs[i].tolist())
+                spr = self.tiles.tile_locations[key].item()
+                to_send = self.tiles[key]
+                if spr == rank and spr != rpr:
+                    self.comm.Isend(to_send.clone(), dest=rpr, tag=rank)
+                elif spr == rpr == rank:
+                    new_arr.tiles[key] = to_send.clone()
+                elif rank == rpr:
+                    buf = torch.zeros_like(new_arr.tiles[key])
+                    self.comm.Recv(buf=buf, source=spr, tag=spr)
+                    new_arr.tiles[key] = buf
+        return new_arr
+    # def resplit_(self, axis=None):
+    #     """
+    #     In-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
+    #     nodes as well as the definition of new axis along which the tensor is split without changes to the values.
+    #
+    #     WARNING: this operation might involve a significant communication overhead. Use it sparingly and preferably for
+    #     small tensors.
+    #
+    #     Parameters
+    #     ----------
+    #     axis : int
+    #         The new split axis, None denotes gathering, an int will set the new split axis
+    #
+    #     Returns
+    #     -------
+    #     resplit: ht.DNDarray
+    #         The redistributed tensor
+    #
+    #     Examples
+    #     --------
+    #     a = ht.zeros((4, 5,), split=0)
+    #     a.lshape
+    #     (0/2) >>> (2, 5)
+    #     (1/2) >>> (2, 5)
+    #     a.resplit(None)
+    #     a.split
+    #     >>> None
+    #     a.lshape
+    #     (0/2) >>> (4, 5)
+    #     (1/2) >>> (4, 5)
+    #
+    #     a = ht.zeros((4, 5,), split=0)
+    #     a.lshape
+    #     (0/2) >>> (2, 5)
+    #     (1/2) >>> (2, 5)
+    #     a.resplit(1)
+    #     a.split
+    #     >>> 1
+    #     a.lshape
+    #     (0/2) >>> (4, 3)
+    #     (1/2) >>> (4, 2)
+    #     """
+    #     # sanitize the axis to check whether it is in range
+    #     axis = sanitize_axis(self.shape, axis)
+    #
+    #     # early out for unchanged content
+    #     if axis == self.split:
+    #         return self
+    #
+    #     # unsplit the tensor
+    #     if axis is None:
+    #         gathered = torch.empty(
+    #             self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
+    #         )
+    #
+    #         recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
+    #         self.comm.Allgatherv(
+    #             self.__array, (gathered, recv_counts, recv_displs), recv_axis=self.split
+    #         )
+    #
+    #         self.__array = gathered
+    #         self.__split = None
+    #
+    #     # tensor needs be split/sliced locally
+    #     elif self.split is None:
+    #         _, _, slices = self.comm.chunk(self.shape, axis)
+    #         temp = self.__array[slices]
+    #         self.__array = torch.empty((1,), device=self.device.torch_device)
+    #         # necessary to clear storage of local __array
+    #         self.__array = temp.clone().detach()
+    #         self.__split = axis
+    #
+    #     # entirely new split axis, need to redistribute
+    #     else:
+    #         _, output_shape, _ = self.comm.chunk(self.shape, axis)
+    #         redistributed = torch.empty(
+    #             output_shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
+    #         )
+    #
+    #         send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
+    #         recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
+    #         self.comm.Alltoallv(
+    #             (self.__array, send_counts, send_displs),
+    #             (redistributed, recv_counts, recv_displs),
+    #             send_axis=axis,
+    #             recv_axis=self.split,
+    #         )
+    #
+    #         self.__array = redistributed
+    #         self.__split = axis
+    #
+    #     return self
 
     def __rfloordiv__(self, other):
         """
