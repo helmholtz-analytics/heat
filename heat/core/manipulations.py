@@ -666,8 +666,9 @@ def reshape(a, shape):
 
     length = np.prod(shape[1:])
 
-    old_displs += (a.size,)
-    new_displs = tuple(length * i for i in new_displs) + (a.size,)
+    # turn displs into cumulative sums
+    old_displs = old_displs[1:] + (a.size,)
+    new_displs = tuple(length * i for i in new_displs[1:]) + (a.size,)
 
     i = 0
     j = 0
@@ -676,8 +677,8 @@ def reshape(a, shape):
     countmap = np.zeros((a.comm.size, a.comm.size), dtype=np.int64)
 
     while p < a.size:
-        q = old_displs[i + 1]
-        w = new_displs[j + 1]
+        q = old_displs[i]
+        w = new_displs[j]
         if q < w:
             countmap[i, j] = q - p
             p = q
