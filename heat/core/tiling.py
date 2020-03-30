@@ -1,6 +1,7 @@
 import torch
 
 from . import dndarray
+from . import factories
 
 __all__ = ["SplitTiles", "SquareDiagTiles"]
 
@@ -80,16 +81,20 @@ class SplitTiles:
             lkey = list(key)
             lkey.append(slice(0, None))
             key = lkey
+        # print('start', key)
         for d in range(arr.numdims):
-            # print(self.tile_ends_g[d])
-            stop = self.tile_ends_g[d][key[d]].max().item()
+            # todo: implement advanced indexing (lists of positions to iterate through
+            lkey = key
+            stop = self.tile_ends_g[d][lkey[d]].max().item()
             stop = stop if d != arr.split or stop is None else arr.lshape[d]
-            if isinstance(key[d], slice) and d != arr.split and key[d].start != 0 and key[d].start is not None:
+            if isinstance(lkey[d], slice) and d != arr.split and lkey[d].start != 0 and lkey[d].start is not None:
                 # if the key is a slice in a dimension, and the start value of the slice is not 0,
-                # and d is not the split dimension (-> the tiles start at 0 on all tiles in the split dim
-                start = self.tile_ends_g[d][key[d].start - 1].item()
-            elif isinstance(key[d], int) and key[d] > 0 and d != arr.split:
-                start = self.tile_ends_g[d][key[d] - 1].item()
+                # and d is not the split dimension (-> the tiles start at 0 on all tiles in the split dim)
+                start = self.tile_ends_g[d][lkey[d].start - 1].item()
+            elif isinstance(lkey[d], int) and lkey[d] > 0 and d != arr.split:
+                start = self.tile_ends_g[d][lkey[d] - 1].item()
+            elif isinstance(lkey[d], torch.Tensor) and lkey[d].numel() ==1 and lkey[d] > 0 and d != arr.split:
+                start = self.tile_ends_g[d][lkey[d] - 1].item()
             else:
                 start = 0
             arb_slices[d] = slice(start, stop)
