@@ -649,12 +649,22 @@ def reshape(a, shape):
 
         result = np.zeros((a.comm.size,), dtype=np.int)
 
-        # Find starting position
-        while p > csum2[i]:
-            i = i + 1
+        # Find starting position with binary search
+        minpos, maxpos, = 0, a.comm.size
+
+        while True:
+            i = (maxpos - minpos) // 2 + minpos
+
+            if minpos == maxpos:
+                break
+
+            if csum2[i] < p:
+                minpos = i + 1
+            else:
+                maxpos = i
 
         # write counts
-        while csum1[a.comm.rank] > csum2[i]:
+        while csum2[i] < csum1[a.comm.rank]:
             result[i] = csum2[i] - p
             p = csum2[i]
             i += 1
