@@ -610,7 +610,6 @@ def hstack(tup):
 def reshape(a, shape):
     """
     Returns a tensor with the same data and number of elements as a, but with the specified shape.
-    If the requested shape is the same the tensor itself is returned.
 
     NOTE: Only tensors with split = None and distributed vectors (dim = 1) are supported yet
 
@@ -688,9 +687,6 @@ def reshape(a, shape):
     # Check for currently not supported tensors
     if len(a.shape) != 1:
         raise NotImplementedError("Split axes > 0 and tensors with dim > 1 are not supported yet")
-
-    if shape == a.shape:
-        return a
 
     # Create new flat result tensor
     _, local_shape, _ = a.comm.chunk(shape, a.split)

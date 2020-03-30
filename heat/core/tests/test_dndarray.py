@@ -411,9 +411,6 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
 
-        reshaped = a.reshape((16,))
-        self.assertTrue(ht.equal(reshaped, a))
-
     def test_resplit(self):
         # resplitting with same axis, should leave everything unchanged
         shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
