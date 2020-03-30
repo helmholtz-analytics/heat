@@ -610,6 +610,7 @@ def hstack(tup):
 def reshape(a, shape):
     """
     Returns a tensor with the same data and number of elements as a, but with the specified shape.
+    If the requested shape is the same the tensor itself is returned.
 
     NOTE: Only tensors with split = None and distributed vectors (dim = 1) are supported yet
 
