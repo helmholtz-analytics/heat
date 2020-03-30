@@ -649,8 +649,11 @@ def reshape(a, shape):
 
         result = np.zeros((a.comm.size,), dtype=np.int)
 
+        # Find starting position
         while p > csum2[i]:
             i = i + 1
+
+        # write counts
         while csum1[a.comm.rank] > csum2[i]:
             result[i] = csum2[i] - p
             p = csum2[i]
@@ -674,6 +677,9 @@ def reshape(a, shape):
     # Check for currently not supported tensors
     if len(a.shape) != 1:
         raise NotImplementedError("Split axes > 0 and tensors with dim > 1 are not supported yet")
+
+    if shape == a.shape:
+        return a
 
     # Create new flat result tensor
     _, local_shape, _ = a.comm.chunk(shape, a.split)
