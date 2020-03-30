@@ -2423,12 +2423,13 @@ class DNDarray:
 
     def resplit(self, new_split, in_place):
         self.create_split_tiles()
-        new_arr = factories.zeros(self.gshape, split=new_split, dtype=self.dtype, device=self.device)
+        new_arr = factories.zeros(
+            self.gshape, split=new_split, dtype=self.dtype, device=self.device
+        )
         new_arr += 99999  # todo: REMOVE AFTER TESTING
         new_arr.create_split_tiles()
         recv_dict = {}
         rank = self.comm.rank
-        sze = self.comm.size
         for rpr in range(self.comm.size):
             # need to get where the tiles are on the new one first
             # rpr is the destination
@@ -2449,6 +2450,7 @@ class DNDarray:
                     self.comm.Recv(buf=buf, source=spr, tag=spr)
                     new_arr.tiles[key] = buf
         return new_arr
+
     # def resplit_(self, axis=None):
     #     """
     #     In-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all

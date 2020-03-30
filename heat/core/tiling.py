@@ -28,7 +28,9 @@ class SplitTiles:
         tile_ends_g = torch.cumsum(tile_dims, dim=1).int()
         # tile_ends_g is the global end points of the tiles in each dimension
         # create a tensor for the process rank of all the tiles
-        tile_locations = self.set_tile_locations(split=arr.split, tile_dims=tile_dims, arr=arr).int()
+        tile_locations = self.set_tile_locations(
+            split=arr.split, tile_dims=tile_dims, arr=arr
+        ).int()
         # create tile_ends_l for the local END points
         tile_ends_l = tile_ends_g.clone()
         tile_ends_l[arr.split] = arr.gshape[arr.split]  # this assumes only one tile/process
@@ -81,19 +83,28 @@ class SplitTiles:
             lkey = list(key)
             lkey.append(slice(0, None))
             key = lkey
-        # print('start', key)
         for d in range(arr.numdims):
             # todo: implement advanced indexing (lists of positions to iterate through
             lkey = key
             stop = self.tile_ends_g[d][lkey[d]].max().item()
             stop = stop if d != arr.split or stop is None else arr.lshape[d]
-            if isinstance(lkey[d], slice) and d != arr.split and lkey[d].start != 0 and lkey[d].start is not None:
+            if (
+                isinstance(lkey[d], slice)
+                and d != arr.split
+                and lkey[d].start != 0
+                and lkey[d].start is not None
+            ):
                 # if the key is a slice in a dimension, and the start value of the slice is not 0,
                 # and d is not the split dimension (-> the tiles start at 0 on all tiles in the split dim)
                 start = self.tile_ends_g[d][lkey[d].start - 1].item()
             elif isinstance(lkey[d], int) and lkey[d] > 0 and d != arr.split:
                 start = self.tile_ends_g[d][lkey[d] - 1].item()
-            elif isinstance(lkey[d], torch.Tensor) and lkey[d].numel() ==1 and lkey[d] > 0 and d != arr.split:
+            elif (
+                isinstance(lkey[d], torch.Tensor)
+                and lkey[d].numel() == 1
+                and lkey[d] > 0
+                and d != arr.split
+            ):
                 start = self.tile_ends_g[d][lkey[d] - 1].item()
             else:
                 start = 0
