@@ -640,6 +640,25 @@ def reshape(a, shape):
     (2/2) tensor([[ 8., 10., 12., 14.]])
     """
 
+    def counts_displs(csum1, csum2):
+        """
+        Calculate the counts and displacements needed for redistributing the data from two cumulative sums.
+        """
+        p = csum1[a.comm.rank - 1] if a.comm.rank > 0 else 0
+        i = 0
+
+        result = np.zeros((a.comm.size,), dtype=np.int)
+
+        while p > csum2[i]:
+            i = i + 1
+        while csum1[a.comm.rank] > csum2[i]:
+            result[i] = csum2[i] - p
+            p = csum2[i]
+            i += 1
+        result[i] = csum1[a.comm.rank] - p
+
+        return tuple(result), (0,) + tuple(np.cumsum(result[:-1]))
+
     # Check the type of shape and number elements
     if not isinstance(shape, (list, tuple)):
         raise RuntimeError("shape must be a tuple or list")
@@ -661,50 +680,18 @@ def reshape(a, shape):
     data = torch.empty(np.prod(local_shape), dtype=a.dtype.torch_type())
 
     # Calculate the counts and displacements
-    _, old_displs, _ = a.comm.counts_displs_shape(a.shape, 0)
-    _, new_displs, _ = a.comm.counts_displs_shape(shape, 0)
+    _, old_csum, _ = a.comm.counts_displs_shape(a.shape, 0)
+    _, new_csum, _ = a.comm.counts_displs_shape(shape, 0)
 
     length = np.prod(shape[1:])
 
     # turn displs into cumulative sums
-    old_displs = old_displs[1:] + (a.size,)
-    new_displs = tuple(length * i for i in new_displs[1:]) + (a.size,)
+    old_csum = old_csum[1:] + (a.size,)
+    new_csum = tuple(length * i for i in new_csum[1:]) + (a.size,)
 
-    i = 0
-    j = 0
-    p = 0
-
-    countmap = np.zeros((a.comm.size, a.comm.size), dtype=np.int64)
-
-    while p < a.size:
-        q = old_displs[i]
-        w = new_displs[j]
-        if q < w:
-            countmap[i, j] = q - p
-            p = q
-            i += 1
-        elif q > w:
-            countmap[i, j] = w - p
-            p = w
-            j += 1
-        else:
-            countmap[i, j] = q - p
-            p = q
-            i += 1
-            j += 1
-
-    recv_displs = np.zeros((a.comm.size,), dtype=np.int64)
-    send_displs = np.zeros((a.comm.size,), dtype=np.int64)
-
-    recv_displs[1:] = np.cumsum(countmap[:-1, a.comm.rank])
-    send_displs[1:] = np.cumsum(countmap[a.comm.rank, :-1])
-
-    # Make them tuples
-    recv_displs = tuple(recv_displs)
-    send_displs = tuple(send_displs)
-
-    recv_counts = tuple(countmap[:, a.comm.rank])
-    send_counts = tuple(countmap[a.comm.rank, :])
+    # calculate counts and displacements
+    send_counts, send_displs = counts_displs(old_csum, new_csum)
+    recv_counts, recv_displs = counts_displs(new_csum, old_csum)
 
     a.comm.Alltoallv(
         (a._DNDarray__array, send_counts, send_displs), (data, recv_counts, recv_displs)
