@@ -3037,7 +3037,7 @@ class DNDarray:
         """
         return manipulations.squeeze(self, axis)
 
-    def std(self, axis=None, ddof=0):
+    def std(self, axis=None, ddof=0, **kwargs):
         """
         Calculates and returns the standard deviation of a tensor with the bessel correction
         If a axis is given, the variance will be taken in that direction.
@@ -3080,7 +3080,7 @@ class DNDarray:
         -------
         ht.DNDarray containing the std/s, if split, then split in the same direction as x.
         """
-        return statistics.std(self, axis, ddof=ddof)
+        return statistics.std(self, axis, ddof=ddof, **kwargs)
 
     def __str__(self, *args):
         # TODO: document me
@@ -3381,7 +3381,7 @@ class DNDarray:
         """
         return manipulations.unique(self, sorted, return_inverse, axis)
 
-    def var(self, axis=None, ddof=0):
+    def var(self, axis=None, ddof=0, **kwargs):
         """
         Calculates and returns the variance of a tensor.
         If a axis is given, the variance will be taken in that direction.
@@ -3424,7 +3424,7 @@ class DNDarray:
         -------
         ht.DNDarray containing the var/s, if split, then split in the same direction as x.
         """
-        return statistics.var(self, axis, ddof=ddof)
+        return statistics.var(self, axis, ddof=ddof, **kwargs)
 
     def __xor__(self, other):
         """
