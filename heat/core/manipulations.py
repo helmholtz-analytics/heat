@@ -734,6 +734,10 @@ def pad(array, pad_width, mode="constant", values=0):
     if not isinstance(mode, str):
         raise TypeError("expected mode to be a string, but was {}".format(type(mode)))
 
+    # no data
+    if 0 in array.lshape:
+        return array
+
     # shortcut int for all dimensions
     if isinstance(pad_width, int):
         pad = (pad_width,) * 2 * len(array.shape)
@@ -745,7 +749,7 @@ def pad(array, pad_width, mode="constant", values=0):
             )
         )
 
-    # shortcut one tuple for all dimensions
+    # shortcut one tuple within a tuple for all dimensions ( ((pad1,pad2), ) = pad_width)
     elif len(pad_width) == 1:
         if isinstance(pad_width[0], int):
             pad = (pad_width[0],) * 2 * len(array.shape)
@@ -762,9 +766,9 @@ def pad(array, pad_width, mode="constant", values=0):
                 f"Pad_width {pad_width} invalid.\n Apart from shortcut options (--> documentation), "
                 "each sequence within pad_width must contain 2 elements."
             )
-    # no shortcut - only one sequence (padding of one dimension)
+    # shortcut - one sequence for all dimensions ( (pad1,pad2) = pad_width)
     elif len(pad_width) == 2 and isinstance(pad_width[0], int) and isinstance(pad_width[1], int):
-        pad = pad_width
+        pad = pad_width * len(array.shape)
     # no shortcut - padding of various dimensions
     else:
         if any(
@@ -822,6 +826,7 @@ def pad(array, pad_width, mode="constant", values=0):
         elif len(values) == 2:
             value_tuple = values * (len(pad) // 2)
 
+
     rank_array = len(array.shape)
     amount_pad_dim = len(pad) // 2
     pad_dim = [rank_array - i for i in range(1, amount_pad_dim + 1)]
@@ -866,6 +871,7 @@ def pad(array, pad_width, mode="constant", values=0):
     #       some dimensions (the following is the second)
     # ------------------------------------------------------------------------------------------------------------------
 
+
     pad_beginning_list = list(pad)
     pad_end_list = list(pad)
     pad_middle_list = list(pad)
@@ -882,6 +888,11 @@ def pad(array, pad_width, mode="constant", values=0):
     pad_end = tuple(pad_end_list)
     pad_middle = tuple(pad_middle_list)
 
+    if amount_of_processes >= array.shape[array.split]:
+        last_ps_with_data = array.shape[array.split] - 1
+    else:
+        last_ps_with_data = amount_of_processes - 1
+
     rank = array.comm.rank
 
     # first process - pad beginning
@@ -889,12 +900,13 @@ def pad(array, pad_width, mode="constant", values=0):
         pad_tuple_curr_rank = pad_beginning
 
     # last process - pad end
-    elif rank == amount_of_processes - 1:
+    elif rank == last_ps_with_data:
         pad_tuple_curr_rank = pad_end
 
     # pad middle
     else:
         pad_tuple_curr_rank = pad_middle
+    
 
     if isinstance(values, int) or isinstance(values, float):
         padded_torch_tensor = torch.nn.functional.pad(
