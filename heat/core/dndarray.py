@@ -2421,19 +2421,39 @@ class DNDarray:
             if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
                 self.__array = torch.cat((self.__array, data), dim=self.split)
 
-    def resplit(self, new_split, in_place):
+    def resplit(self, axis, in_place=False):
+        if axis is None:
+            work_tens = self.copy() if not in_place else self
+            gathered = torch.empty(
+                work_tens.shape,
+                dtype=work_tens.dtype.torch_type(),
+                device=work_tens.device.torch_device,
+            )
+            counts, displs, _ = self.comm.counts_displs_shape(work_tens.shape, work_tens.split)
+            work_tens.comm.Allgatherv(
+                work_tens.__array, (gathered, counts, displs), recv_axis=self.split
+            )
+            work_tens.__array = gathered
+            work_tens.__split = None
+            return work_tens if not in_place else _
+        # tensor needs be split/sliced locally
+        if self.split is None:
+            work_tens = self.copy() if not in_place else self
+            _, _, slices = self.comm.chunk(self.shape, axis)
+            temp = work_tens.__array[slices]
+            work_tens.__array = torch.empty((1,), device=self.device.torch_device)
+            # necessary to clear storage of local __array
+            work_tens.__array = temp.clone().detach()
+            work_tens.__split = axis
+            return work_tens if not in_place else _
+
         self.create_split_tiles()
-        new_arr = factories.zeros(
-            self.gshape, split=new_split, dtype=self.dtype, device=self.device
-        )
-        new_arr += 99999  # todo: REMOVE AFTER TESTING
+        new_arr = factories.zeros(self.gshape, split=axis, dtype=self.dtype, device=self.device)
         new_arr.create_split_tiles()
-        recv_dict = {}
         rank = self.comm.rank
         for rpr in range(self.comm.size):
             # need to get where the tiles are on the new one first
             # rpr is the destination
-            recv_dict[rpr] = {}
             new_locs = torch.where(new_arr.tiles.tile_locations == rpr)
             new_locs = torch.stack([new_locs[i] for i in range(self.numdims)], dim=1)
 

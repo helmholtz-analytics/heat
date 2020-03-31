@@ -8,17 +8,29 @@ __all__ = ["SplitTiles", "SquareDiagTiles"]
 
 class SplitTiles:
     def __init__(self, arr):
+        """
+        Initialize tiles with the tile divisions equal to the theoretical split dimensions in
+        every dimension
+
+        Parameters
+        ----------
+        arr : dndarray.DNDarray
+            base array
+        """
         # todo:
         #  1. get the lshape map
         #  2. get the split axis numbers for the other axes
         #  3. build tile map
         lshape_map = arr.create_lshape_map()
         dims_split = lshape_map[..., arr.split]
-        tile_dims = torch.zeros((arr.numdims, dims_split.shape[0]), device=arr.device.torch_device)
-        tile_dims[arr.split] = dims_split  # todo: remove the redundency here
+        tile_dims = torch.zeros((arr.numdims, arr.comm.size), device=arr.device.torch_device)
+        if arr.split is not None:
+            tile_dims[
+                arr.split
+            ] = dims_split  # todo: remove the redundency here and deal with split=None
         w_size = arr.comm.size
         for ax in range(arr.numdims):
-            if not ax == arr.split:
+            if arr.split is None or not ax == arr.split:
                 size = arr.gshape[ax]
                 chunk = size // w_size
                 remainder = size % w_size
@@ -28,15 +40,10 @@ class SplitTiles:
         tile_ends_g = torch.cumsum(tile_dims, dim=1).int()
         # tile_ends_g is the global end points of the tiles in each dimension
         # create a tensor for the process rank of all the tiles
-        tile_locations = self.set_tile_locations(
-            split=arr.split, tile_dims=tile_dims, arr=arr
-        ).int()
-        # create tile_ends_l for the local END points
-        tile_ends_l = tile_ends_g.clone()
-        tile_ends_l[arr.split] = arr.gshape[arr.split]  # this assumes only one tile/process
+        tile_locations = self.set_tile_locations(split=arr.split, tile_dims=tile_dims, arr=arr)
 
         self.__DNDarray = arr
-        self.__tile_locations = tile_locations
+        self.__tile_locations = tile_locations.int()
         self.__tile_ends_g = tile_ends_g
         self.__tile_dims = tile_dims
 
@@ -44,6 +51,9 @@ class SplitTiles:
     def set_tile_locations(split, tile_dims, arr):
         # this is split off specifically for the resplit function
         tile_locations = torch.zeros([tile_dims[x].numel() for x in range(arr.numdims)])
+        if split is None:
+            tile_locations += arr.comm.rank
+            return tile_locations
         arb_slice = [slice(None)] * arr.numdims
         for pr in range(1, arr.comm.size):
             arb_slice[split] = pr
@@ -57,10 +67,6 @@ class SplitTiles:
     @property
     def tile_locations(self):
         return self.__tile_locations
-
-    # @property
-    # def tile_ends_l(self):
-    #     return self.__tile_ends_l
 
     @property
     def tile_ends_g(self):
