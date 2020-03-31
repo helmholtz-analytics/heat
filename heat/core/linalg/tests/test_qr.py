@@ -25,7 +25,7 @@ else:
 
 
 class TestQR(unittest.TestCase):
-    @unittest.skipIf(not extended_tests, "standard tests")
+    @unittest.skipIf(not extended_tests, "extended tests")
     def test_qr_sp0_ext(self):
         st_whole = torch.randn(70, 70, device=device)
         sp = 0
@@ -48,7 +48,7 @@ class TestQR(unittest.TestCase):
                         )
                     )
 
-    @unittest.skipIf(not extended_tests, "standard tests")
+    @unittest.skipIf(not extended_tests, "extended tests")
     def test_qr_sp1_ext(self):
         st_whole = torch.randn(70, 70, device=device)
         sp = 1
