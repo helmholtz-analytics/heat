@@ -5,7 +5,7 @@ import warnings
 import heat as ht
 import numpy as np
 
-ht_device, torch_device, _ = ht.devices._use_envar_device()
+ht_device, torch_device, _ = ht.use_envar_device()
 
 if os.environ.get("EXTENDED_TESTS"):
     extended_tests = True

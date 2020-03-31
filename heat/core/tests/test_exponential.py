@@ -4,7 +4,7 @@ import os
 import numpy as np
 import heat as ht
 
-ht_device, torch_device, _ = ht.devices._use_envar_device()
+ht_device, torch_device, _ = ht.use_envar_device()
 
 
 class TestExponential(unittest.TestCase):

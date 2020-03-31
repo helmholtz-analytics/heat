@@ -4,7 +4,7 @@ import os
 from .communication import MPI_WORLD
 
 
-__all__ = ["cpu", "get_device", "sanitize_device", "use_device"]
+__all__ = ["cpu", "get_device", "sanitize_device", "use_device", "use_envar_device"]
 
 
 class Device:
@@ -135,10 +135,10 @@ def use_device(device=None):
     __default_device = sanitize_device(device)
 
 
-def _use_envar_device():
+def use_envar_device():
     """Read the environment variable 'HEAT_USE_DEVICE' and return the requested devices.
     Supported values
-        - cpu: Use CPU only
+        - cpu: Use CPU only (default)
         - gpu: Use GPU only
         - lcpu: GPU global, CPU local
         - lgpu: CPU global, GPU local
@@ -153,6 +153,11 @@ def _use_envar_device():
         The local heat device
     envar: str
         The value of 'HEAT_USE_DEVICE'
+
+    Examples
+    --------
+    Set the device to GPU
+    $ HEAT_USE_DEVICE=gpu mpirun python [filename]
     """
 
     envar = os.getenv("HEAT_USE_DEVICE", "cpu")

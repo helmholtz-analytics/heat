@@ -4,7 +4,7 @@ import heat as ht
 import os
 from heat.core.tests.test_suites.basic_test import BasicTest
 
-ht_device, torch_device, _ = ht.devices._use_envar_device()
+ht_device, torch_device, _ = ht.use_envar_device()
 
 
 class TestManipulations(BasicTest):
