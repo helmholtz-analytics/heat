@@ -919,6 +919,10 @@ class TestStatistics(unittest.TestCase):
             ht.var(x, axis=(0, "10"))
         with self.assertRaises(ValueError):
             ht.var(x, axis=(0, 0))
+        with self.assertRaises(NotImplementedError):
+            ht.var(x, ddof=2)
+        with self.assertRaises(ValueError):
+            ht.var(x, ddof=-2)
         with self.assertRaises(ValueError):
             ht.mean(x, axis=torch.Tensor([0, 0]))
 
@@ -980,4 +984,4 @@ class TestStatistics(unittest.TestCase):
         # values for the iris dataset var measured by libreoffice calc
         for sp in [None, 0, 1]:
             iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=sp, device=ht_device)
-            self.assertTrue(ht.allclose(ht.var(iris, ddof=1), 3.90318519755147))
+            self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))
