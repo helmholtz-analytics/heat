@@ -1100,7 +1100,7 @@ def mpi_argmin(a, b, _):
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
-def std(x, axis=None, ddof=0):
+def std(x, axis=None, ddof=0, **kwargs):
     """
     Calculates and returns the standard deviation of a tensor with the bessel correction.
     If a axis is given, the variance will be taken in that direction.
@@ -1143,12 +1143,12 @@ def std(x, axis=None, ddof=0):
     tensor([0.9877, 0.6267, 0.3037, 0.3745])
     """
     if not axis:
-        return np.sqrt(var(x, axis, ddof))
+        return np.sqrt(var(x, axis, ddof, **kwargs))
     else:
-        return exponential.sqrt(var(x, axis, ddof), out=None)
+        return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
-def var(x, axis=None, ddof=0):
+def var(x, axis=None, ddof=0, **kwargs):
     """
     Calculates and returns the variance of a tensor. If an axis is given, the variance will be
     taken in that direction.
@@ -1211,7 +1211,10 @@ def var(x, axis=None, ddof=0):
     elif ddof < 0:
         raise ValueError("Expected ddof=0 or ddof=1, got {}".format(ddof))
     else:
-        bessel = bool(ddof)
+        if kwargs.get("bessel"):
+            bessel = kwargs.get("bessel")
+        else:
+            bessel = bool(ddof)
 
     def reduce_vars_elementwise(output_shape_i):
         """
@@ -1232,7 +1235,7 @@ def var(x, axis=None, ddof=0):
 
         if x.lshape[x.split] != 0:
             mu = torch.mean(x._DNDarray__array, dim=axis)
-            var = torch.var(x._DNDarray__array, dim=axis, unbiased=bool(ddof))
+            var = torch.var(x._DNDarray__array, dim=axis, unbiased=bessel)
         else:
             mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
             var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
