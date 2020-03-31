@@ -3,9 +3,11 @@
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated QR
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Added PyTorch Jitter to inner function of matmul for increased speed
 - [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: Underlying torch tensor moves to the right device on array initialisation
-- [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix:DNDarray.cpu() changes heat device to cpu
+- [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: DNDarray.cpu() changes heat device to cpu
 - Update documentation theme to "Read the Docs"
-- [#488](https://github.com/helmholtz-analytics/heat/pull/488) Enhancement: Rework of the test device selection. Environment variable is now called HEAT_TEST_USE_DEVICE and has more options.
+- [#499](https://github.com/helmholtz-analytics/heat/pull/499) Bugfix: MPI datatype mapping: `torch.int16` now maps to `MPI.SHORT` instead of `MPI.SHORT_INT`
+- [#488](https://github.com/helmholtz-analytics/heat/pull/488) Enhancement: Rework of the test device selection. Environment variable is now called HEAT_USE_DEVICE and has more options.
+
 
 # v0.3.0
 
