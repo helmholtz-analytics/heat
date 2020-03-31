@@ -640,7 +640,7 @@ def reshape(a, shape):
     (2/2) tensor([[ 8., 10., 12., 14.]])
     """
 
-    def counts_displs(csum1, csum2):
+    def reshape_counts_displs(csum1, csum2):
         """
         Calculate the counts and displacements needed for redistributing the data from two cumulative sums.
         """
@@ -703,8 +703,8 @@ def reshape(a, shape):
     new_csum = tuple(length * i for i in new_csum[1:]) + (a.size,)
 
     # calculate counts and displacements
-    send_counts, send_displs = counts_displs(old_csum, new_csum)
-    recv_counts, recv_displs = counts_displs(new_csum, old_csum)
+    send_counts, send_displs = reshape_counts_displs(old_csum, new_csum)
+    recv_counts, recv_displs = reshape_counts_displs(new_csum, old_csum)
 
     a.comm.Alltoallv(
         (a._DNDarray__array, send_counts, send_displs), (data, recv_counts, recv_displs)
