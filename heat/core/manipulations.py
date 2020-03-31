@@ -613,11 +613,12 @@ def pad(array, pad_width, mode="constant", values=0):
     Pads tensor with a specific value (default=0).
     (Not all dimensions supported)
 
+
     Parameters
     ----------
     array : ht.DNDarray
         tensor which is to be padded
-    pad_width: tuple of 2-element-tuples
+    pad_width: sequence of 2-element-sequences (sequence = tuple or list)
         Number of values padded to the edges of each axis. ((before_1, after_1),...(before_N, after_N)) unique pad widths for each axis.
         Shortcuts:
             - ((before, after),) --> before and after pad for each axis. 
@@ -643,20 +644,24 @@ def pad(array, pad_width, mode="constant", values=0):
             --> available for arbitrary dimensions
         - 'replicate': Pads the input tensor using replication of the input boundary
             --> available dimensions:
-                - last 3 of 5D tensor (--> pad_width = tuple of 3 2-element-tuples)
-                - last 2 of 4D tensor (--> pad_width = tuple of 2 2-element-tuples)
+                - last 3 of 5D tensor (--> pad_width = sequence of 3 2-element-sequences)
+                - last 2 of 4D tensor (--> pad_width = sequence of 2 2-element-sequences)
         - 'reflect' : Pads with the reflection of the vector mirrored on the first and last values of the vector along each axis.
             --> available dimensions:
-                - last 2 of 4D tensor (--> pad_width = tuple of 2 2-element-tuples)
-                - last of 3D tensor   (--> pad_width = 2-element tuple)
+                - last 2 of 4D tensor (--> pad_width = sequence of 2 2-element-sequences)
+                - last of 3D tensor   (--> pad_width = 2-element sequence)
         
-    values: number or tuple of 2-element-tuples (containing numbers), optional (default=0)
+    values: number or tuple of 2-element-sequences (containing numbers), optional (default=0) (sequence = tuple or list)
         The fill values for each axis (1 tuple per axis).
         ((before_1, after_1), ... (before_N, after_N)) unique pad values for each axis.
 
         Shortcuts:
             - ((before, after),)   --> before and after padding values for each axis. 
             - (value,) or int      --> before = after = padding value for all axes. 
+
+        Hint: This function follows the principle of tensor datatype integrity. 
+        Therefore, a tensor can only be padded with values of the same datatype. 
+        All values that violate this rule are implicitly cast to the tensor datatype.
 
     Returns
     -------
@@ -681,7 +686,7 @@ def pad(array, pad_width, mode="constant", values=0):
 
 
     Pad last 2 dimensions
-    >>> d = ht.pad(b, ((1,0), (2,1)))
+    >>> d = ht.pad(b, [(1,0), (2,1)])
     tensor([[[ 0,  0,  0,  0,  0,  0,  0],
          [ 0,  0,  0,  1,  2,  3,  0],
          [ 0,  0,  4,  5,  6,  7,  0],
@@ -694,7 +699,7 @@ def pad(array, pad_width, mode="constant", values=0):
 
 
     Pad last 3 dimensions
-    >>> e = ht.pad(b, ((2,1), (1,0), (2,1)))
+    >>> e = ht.pad(b, ((2,1), [1,0], (2,1)))
     tensor([[[ 0,  0,  0,  0,  0,  0,  0],
          [ 0,  0,  0,  0,  0,  0,  0],
          [ 0,  0,  0,  0,  0,  0,  0],
@@ -726,26 +731,27 @@ def pad(array, pad_width, mode="constant", values=0):
     if not isinstance(array, dndarray.DNDarray):
         raise TypeError("expected array to be a ht.DNDarray, but was {}".format(type(array)))
 
-    ## TODO - necessary condition?
-    # if not isinstance(values, int):
-    #    raise TypeError("expected value to be an integer, but was {}".format(type(values)))
+    if not isinstance(mode, str):
+        raise TypeError("expected mode to be a string, but was {}".format(type(mode)))
 
     # shortcut int for all dimensions
     if isinstance(pad_width, int):
         pad = (pad_width,) * 2 * len(array.shape)
 
-    elif not isinstance(pad_width, tuple):
+    elif not (isinstance(pad_width, tuple) or isinstance(pad_width, list)):
         raise TypeError(
-            "expected pad_width to be an integer or a tuple, but was {}".format(type(values))
+            "expected pad_width to be an integer or a sequence (tuple or list), but was {}".format(
+                type(pad_width)
+            )
         )
 
     # shortcut one tuple for all dimensions
     elif len(pad_width) == 1:
         if isinstance(pad_width[0], int):
             pad = (pad_width[0],) * 2 * len(array.shape)
-        elif not isinstance(pad_width[0], tuple):
+        elif not (isinstance(pad_width[0], tuple) or isinstance(pad_width[0], list)):
             raise TypeError(
-                "For shortcut option '1 tuple for all dimensions', expected element within pad_width to be a tuple, but was {}".format(
+                "For shortcut option '1 sequence for all dimensions', expected element within pad_width to be a tuple or list, but was {}".format(
                     type(pad_width[0])
                 )
             )
@@ -753,28 +759,33 @@ def pad(array, pad_width, mode="constant", values=0):
             pad = pad_width[0] * len(array.shape)
         else:
             raise ValueError(
-                "Pad_width {pad_width} invalid.\n Apart from shortcut options (--> documentation), "
-                "each tuple within pad_width must contain 2 elements."
+                f"Pad_width {pad_width} invalid.\n Apart from shortcut options (--> documentation), "
+                "each sequence within pad_width must contain 2 elements."
             )
-    # no shortcut - only on tuple (padding of one dimension)
+    # no shortcut - only one sequence (padding of one dimension)
     elif len(pad_width) == 2 and isinstance(pad_width[0], int) and isinstance(pad_width[1], int):
         pad = pad_width
     # no shortcut - padding of various dimensions
     else:
-        if any(not isinstance(pad_tuple, tuple) for pad_tuple in pad_width):
+        if any(
+            not (isinstance(pad_tuple, tuple) or isinstance(pad_tuple, list))
+            for pad_tuple in pad_width
+        ):
             raise TypeError(
-                "Invalid type for pad_width {pad_width}.\nApart from shortcut options (--> documentation),"
-                "pad_width has to be a tuple of (2 elements) tuples."
+                f"Invalid type for pad_width {pad_width}.\nApart from shortcut options (--> documentation),"
+                "pad_width has to be a sequence of (2 elements) sequences (sequence=tuple or list)."
             )
         pad = tuple()
-        # Transform numpy pad_width to torch pad
+        # Transform numpy pad_width to torch pad (--> one tuple with all padding spans)
         for pad_tuple in pad_width:
+            if isinstance(pad_tuple, list):
+                pad_tuple = tuple(pad_tuple)
             pad = pad_tuple + pad
 
         if len(pad) % 2 != 0:
             raise ValueError(
-                "Pad_width {pad_width} invalid.\n Apart from shortcut options (--> documentation), "
-                "each tuple within pad_width must contain 2 elements."
+                f"Pad_width {pad_width} invalid.\n Apart from shortcut options (--> documentation), "
+                "each sequence within pad_width must contain 2 elements."
             )
 
         if len(pad) // 2 > len(array.shape):
@@ -784,17 +795,32 @@ def pad(array, pad_width, mode="constant", values=0):
                 f" dimensions is not possible."
             )
 
-    # TODO: ensure that on value pair consists of 2 elements
-    # ensure that all elements are tuple not only first
-    # store all padding values in 1 tuple
-    if isinstance(values, tuple):
+    # value_tuple = all padding values stored in 1 tuple
+    if isinstance(values, tuple) or isinstance(values, list):
         value_tuple = tuple()
-        if isinstance(values[0], tuple):
+        # sequences for each dimension defined within one sequence
+        if isinstance(values[0], tuple) or isinstance(values[0], list):
             for value_pair in values:
+                if isinstance(value_pair, tuple):
+                    pass
+                elif isinstance(value_pair, list):
+                    value_pair = tuple(value_pair)
+                else:
+                    raise TypeError(
+                        f"Value pair {value_pair} within values invalid. Expected all elements within values to be sequences(list/tuple),"
+                        f"but one was: {type(value_pair)}"
+                    )
                 value_tuple = value_pair + value_tuple
-        elif len(values) == 2 and isinstance(values[0], int) and isinstance(values[1], int):
+
+            if len(value_tuple) % 2 != 0:
+                raise ValueError(
+                    f"Expected values to contain an even amount of elements, but got {len(value_tuple)}"
+                )
+
+        # TODO add check for datatype within sequence?
+        # One sequence for all dimensions
+        elif len(values) == 2:
             value_tuple = values * (len(pad) // 2)
-        # print("Value_tuple:", value_tuple)
 
     rank_array = len(array.shape)
     amount_pad_dim = len(pad) // 2
@@ -810,9 +836,11 @@ def pad(array, pad_width, mode="constant", values=0):
     # CASE 1: Padding in non split dimension or no distribution at all
     # ------------------------------------------------------------------------------------------------------------------
     if array.split is None or array.split not in pad_dim or amount_of_processes == 1:
-        if isinstance(values, int):
+        # values = scalar
+        if isinstance(values, int) or isinstance(values, float):
             padded_torch_tensor = torch.nn.functional.pad(array_torch, pad, mode, values)
-        elif len(values) == 1 and isinstance(values[0], int):
+        # values = sequence with one value for all dimensions
+        elif len(values) == 1 and (isinstance(values[0], int) or isinstance(values[0], float)):
             padded_torch_tensor = torch.nn.functional.pad(array_torch, pad, mode, values[0])
         else:
             padded_torch_tensor = array_torch
@@ -868,11 +896,11 @@ def pad(array, pad_width, mode="constant", values=0):
     else:
         pad_tuple_curr_rank = pad_middle
 
-    if isinstance(values, int):
+    if isinstance(values, int) or isinstance(values, float):
         padded_torch_tensor = torch.nn.functional.pad(
             array_torch, pad_tuple_curr_rank, mode, values
         )
-    elif len(values) == 1 and isinstance(values[0], int):
+    elif len(values) == 1 and (isinstance(values[0], int) or isinstance(values[0], float)):
         padded_torch_tensor = torch.nn.functional.pad(
             array_torch, pad_tuple_curr_rank, mode, values[0]
         )
