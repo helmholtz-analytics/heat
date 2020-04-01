@@ -188,7 +188,7 @@ class SplitTiles:
             key = [key]
         if len(key) < arr.numdims or key[-1] is None:
             lkey = list(key)
-            lkey.append(slice(0, None))
+            lkey.extend([slice(0, None)] * (arr.numdims - len(key)))
             key = lkey
         for d in range(arr.numdims):
             # todo: implement advanced indexing (lists of positions to iterate through
