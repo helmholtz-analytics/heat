@@ -15,19 +15,57 @@ class SplitTiles:
         Parameters
         ----------
         arr : dndarray.DNDarray
-            base array
+            base array for which to create the tiles
+
+        Examples
+        --------
+        (3 processes)
+        >>> a = ht.zeros((10, 11,), split=None)
+        >>> a.create_split_tiles()
+        >>> print(a.tiles.tile_ends_g)
+        [0] tensor([[ 4,  7, 10],
+        [0]         [ 4,  8, 11]], dtype=torch.int32)
+        [1] tensor([[ 4,  7, 10],
+        [1]         [ 4,  8, 11]], dtype=torch.int32)
+        [2] tensor([[ 4,  7, 10],
+        [2]         [ 4,  8, 11]], dtype=torch.int32)
+        >>> print(a.tiles.tile_locations)
+        [0] tensor([[0, 0, 0],
+        [0]         [0, 0, 0],
+        [0]         [0, 0, 0]], dtype=torch.int32)
+        [1] tensor([[1, 1, 1],
+        [1]         [1, 1, 1],
+        [1]         [1, 1, 1]], dtype=torch.int32)
+        [2] tensor([[2, 2, 2],
+        [2]         [2, 2, 2],
+        [2]         [2, 2, 2]], dtype=torch.int32)
+        >>> a = ht.zeros((10, 11), split=1)
+        >>> a.create_split_tiles()
+        >>> print(a.tiles.tile_ends_g)
+        [0] tensor([[ 4,  7, 10],
+        [0]         [ 4,  8, 11]], dtype=torch.int32)
+        [1] tensor([[ 4,  7, 10],
+        [1]         [ 4,  8, 11]], dtype=torch.int32)
+        [2] tensor([[ 4,  7, 10],
+        [2]         [ 4,  8, 11]], dtype=torch.int32)
+        >>> print(a.tiles.tile_locations)
+        [0] tensor([[0, 1, 2],
+        [0]         [0, 1, 2],
+        [0]         [0, 1, 2]], dtype=torch.int32)
+        [1] tensor([[0, 1, 2],
+        [1]         [0, 1, 2],
+        [1]         [0, 1, 2]], dtype=torch.int32)
+        [2] tensor([[0, 1, 2],
+        [2]         [0, 1, 2],
+        [2]         [0, 1, 2]], dtype=torch.int32)
         """
-        # todo:
         #  1. get the lshape map
         #  2. get the split axis numbers for the other axes
         #  3. build tile map
         lshape_map = arr.create_lshape_map()
-        dims_split = lshape_map[..., arr.split]
         tile_dims = torch.zeros((arr.numdims, arr.comm.size), device=arr.device.torch_device)
         if arr.split is not None:
-            tile_dims[
-                arr.split
-            ] = dims_split  # todo: remove the redundency here and deal with split=None
+            tile_dims[arr.split] = lshape_map[..., arr.split]
         w_size = arr.comm.size
         for ax in range(arr.numdims):
             if arr.split is None or not ax == arr.split:
@@ -49,8 +87,27 @@ class SplitTiles:
 
     @staticmethod
     def set_tile_locations(split, tile_dims, arr):
+        """
+        Create a torch Tensor with the locations of the tiles for SplitTiles
+
+        Parameters
+        ----------
+        split : int
+            target split dimension. does not need to be equal to arr.split
+        tile_dims : torch.Tensor
+            torch Tensor containing the sizes of the each tile
+        arr : DNDarray
+            array for which the tiles are being created for
+
+        Returns
+        -------
+        tile_locations : torch.Tensor
+            a tensor which contains the locations of the tiles of arr for the given split
+        """
         # this is split off specifically for the resplit function
-        tile_locations = torch.zeros([tile_dims[x].numel() for x in range(arr.numdims)])
+        tile_locations = torch.zeros(
+            [tile_dims[x].numel() for x in range(arr.numdims)], device=arr.device.torch_device
+        )
         if split is None:
             tile_locations += arr.comm.rank
             return tile_locations
@@ -77,6 +134,46 @@ class SplitTiles:
         return self.__tile_dims
 
     def __getitem__(self, key):
+        """
+        Getitem function for getting tiles
+
+        Parameters
+        ----------
+        key : int, tuple, slice
+            key which identifies the tile/s to get
+
+        Returns
+        -------
+        tile/s : torch.Tensor
+             the tile which is specified is returned, but only on the process which it resides
+
+        Examples
+        --------
+        >>> test = torch.arange(np.prod([i + 6 for i in range(2)])).reshape([i + 6 for i in range(2)])
+        >>> a = ht.array(test, split=0)
+        [0] tensor([[ 0.,  1.,  2.,  3.,  4.,  5.,  6.],
+        [0]         [ 7.,  8.,  9., 10., 11., 12., 13.]])
+        [1] tensor([[14., 15., 16., 17., 18., 19., 20.],
+        [1]         [21., 22., 23., 24., 25., 26., 27.]])
+        [2] tensor([[28., 29., 30., 31., 32., 33., 34.],
+        [2]         [35., 36., 37., 38., 39., 40., 41.]])
+        >>> a.create_split_tiles()
+        >>> a.tiles[:2, 2]
+        [0] tensor([[ 5.,  6.],
+        [0]         [12., 13.]])
+        [1] tensor([[19., 20.],
+        [1]         [26., 27.]])
+        [2] None
+        >>> a = ht.array(test, split=1)
+        >>> a.create_split_tiles()
+        >>> a.tiles[1]
+        [0] tensor([[14., 15., 16.],
+        [0]         [21., 22., 23.]])
+        [1] tensor([[17., 18.],
+        [1]         [24., 25.]])
+        [2] tensor([[19., 20.],
+        [2]         [26., 27.]])
+        """
         # todo: strides can be implemented with using a list of slices for each dimension
         arr = self.__DNDarray
         if arr.comm.rank not in self.tile_locations[key]:
@@ -85,6 +182,8 @@ class SplitTiles:
         # next need to get the local indices
         # tile_ends_g has the end points, need to get the start and stop
         arb_slices = [None] * arr.numdims
+        if isinstance(key, int):
+            key = [key]
         if len(key) < arr.numdims or key[-1] is None:
             lkey = list(key)
             lkey.append(slice(0, None))
@@ -118,6 +217,24 @@ class SplitTiles:
         return arr._DNDarray__array[tuple(arb_slices)]
 
     def __setitem__(self, key, value):
+        """
+        Set the values of a tile
+
+        Parameters
+        ----------
+        key : int, tuple, slice
+            key which identifies the tile/s to get
+        value : int, torch.Tensor
+            Value to be set on the tile
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        see getitem function for this class
+        """
         arr = self.__DNDarray
         # todo: is it okay for cross-split setting? this can be problematic,
         #   but it is fine if the data shapes match up

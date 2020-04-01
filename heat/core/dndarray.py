@@ -2421,36 +2421,116 @@ class DNDarray:
             if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
                 self.__array = torch.cat((self.__array, data), dim=self.split)
 
+    def resplit_(self, axis):
+        """
+        In-place option for resplitting a DNDarray. Here for legacy reasons.
+
+        Parameters
+        ----------
+        axis : int, None
+            The new split axis, None denotes gathering, an int will set the new split axis
+
+        Returns
+        -------
+        resplit: ht.DNDarray
+            The redistributed tensor. Will overwrite the old DNDarray in memory.
+        """
+        return self.resplit(axis=axis, in_place=True)
+
     def resplit(self, axis, in_place=False):
+        """
+        Redistribution of the content of the tensor along a different split axis.
+        Allows to "unsplit" (i.e. gather) all values from all nodes as well as the
+        definition of new axis along which the tensor is split without changes to the values.
+
+        WARNING: this operation might involve a significant communication overhead. Use it
+        sparingly and preferably for small tensors.
+
+        Parameters
+        ----------
+        axis : int, None
+            The new split axis, None denotes gathering, an int will set the new split axis
+
+        Returns
+        -------
+        resplit: ht.DNDarray
+            The redistributed tensor
+
+        Examples
+        --------
+        a = ht.zeros((4, 5,), split=0)
+        a.lshape
+        (0/2) >>> (2, 5)
+        (1/2) >>> (2, 5)
+        a.resplit(None)
+        a.split
+        >>> None
+        a.lshape
+        (0/2) >>> (4, 5)
+        (1/2) >>> (4, 5)
+
+        a = ht.zeros((4, 5,), split=0)
+        a.lshape
+        (0/2) >>> (2, 5)
+        (1/2) >>> (2, 5)
+        a.resplit(1)
+        a.split
+        >>> 1
+        a.lshape
+        (0/2) >>> (4, 3)
+        (1/2) >>> (4, 2)
+        """
+        # sanitize the axis to check whether it is in range
+        axis = sanitize_axis(self.shape, axis)
+
+        # early out for unchanged content
+        if axis == self.split:
+            return self
         if axis is None:
-            work_tens = self.copy() if not in_place else self
+            new_arr = self.copy() if not in_place else self
             gathered = torch.empty(
-                work_tens.shape,
-                dtype=work_tens.dtype.torch_type(),
-                device=work_tens.device.torch_device,
+                new_arr.shape, dtype=new_arr.dtype.torch_type(), device=new_arr.device.torch_device
             )
-            counts, displs, _ = self.comm.counts_displs_shape(work_tens.shape, work_tens.split)
-            work_tens.comm.Allgatherv(
-                work_tens.__array, (gathered, counts, displs), recv_axis=self.split
+            counts, displs, _ = self.comm.counts_displs_shape(new_arr.shape, new_arr.split)
+            new_arr.comm.Allgatherv(
+                new_arr.__array, (gathered, counts, displs), recv_axis=self.split
             )
-            work_tens.__array = gathered
-            work_tens.__split = None
-            return work_tens if not in_place else _
+            new_arr.__array = gathered
+            new_arr.__split = None
+            if in_place:
+                self.__array = new_arr._DNDarray__array
+                self.__gshape = new_arr.__gshape
+                self.__dtype = new_arr.__dtype
+                self.__split = new_arr.__split
+                self.__device = new_arr.__device
+                self.__comm = new_arr.__comm
+                del new_arr
+                return self
+            return new_arr
         # tensor needs be split/sliced locally
         if self.split is None:
-            work_tens = self.copy() if not in_place else self
+            new_arr = self.copy() if not in_place else self
             _, _, slices = self.comm.chunk(self.shape, axis)
-            temp = work_tens.__array[slices]
-            work_tens.__array = torch.empty((1,), device=self.device.torch_device)
+            temp = new_arr.__array[slices]
+            new_arr.__array = torch.empty((1,), device=self.device.torch_device)
             # necessary to clear storage of local __array
-            work_tens.__array = temp.clone().detach()
-            work_tens.__split = axis
-            return work_tens if not in_place else _
+            new_arr.__array = temp.clone().detach()
+            new_arr.__split = axis
+            if in_place:
+                self.__array = new_arr._DNDarray__array
+                self.__gshape = new_arr.__gshape
+                self.__dtype = new_arr.__dtype
+                self.__split = new_arr.__split
+                self.__device = new_arr.__device
+                self.__comm = new_arr.__comm
+                del new_arr
+            return new_arr if not in_place else self
 
         self.create_split_tiles()
-        new_arr = factories.zeros(self.gshape, split=axis, dtype=self.dtype, device=self.device)
+        new_arr = factories.empty(self.gshape, split=axis, dtype=self.dtype, device=self.device)
         new_arr.create_split_tiles()
         rank = self.comm.rank
+        waits = []
         for rpr in range(self.comm.size):
             # need to get where the tiles are on the new one first
             # rpr is the destination
@@ -2462,13 +2542,24 @@ class DNDarray:
                 spr = self.tiles.tile_locations[key].item()
                 to_send = self.tiles[key]
                 if spr == rank and spr != rpr:
-                    self.comm.Isend(to_send.clone(), dest=rpr, tag=rank)
+                    waits.append(self.comm.Isend(to_send.clone(), dest=rpr, tag=rank))
                 elif spr == rpr == rank:
                     new_arr.tiles[key] = to_send.clone()
                 elif rank == rpr:
                     buf = torch.zeros_like(new_arr.tiles[key])
                     self.comm.Recv(buf=buf, source=spr, tag=spr)
                     new_arr.tiles[key] = buf
+        for w in waits:
+            w.wait()
+        if in_place:
+            self.__array = new_arr._DNDarray__array
+            self.__gshape = new_arr.__gshape
+            self.__dtype = new_arr.__dtype
+            self.__split = new_arr.__split
+            self.__device = new_arr.__device
+            self.__comm = new_arr.__comm
+            del new_arr
+            return self
         return new_arr
 
     # def resplit_(self, axis=None):

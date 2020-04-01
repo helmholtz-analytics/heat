@@ -102,7 +102,9 @@ def concatenate(arrays, axis=0):
     arr0, arr1 = arrays[0], arrays[1]
 
     if not isinstance(arr0, dndarray.DNDarray) or not isinstance(arr1, dndarray.DNDarray):
-        raise TypeError("Both arrays must be DNDarrays")
+        raise TypeError(
+            "Both arrays must be DNDarrays, currently {} and {}".format(type(arr0), type(arr1))
+        )
     if not isinstance(axis, int):
         raise TypeError("axis must be an integer, currently: {}".format(type(axis)))
 
@@ -1203,7 +1205,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     return return_value
 
 
-def resplit(a, axis=None):
+def resplit(arr, axis):
     """
     Out-of-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
     nodes as well as the definition of new axis along which the tensor is split without changes to the values.
@@ -1212,15 +1214,15 @@ def resplit(a, axis=None):
 
     Parameters
     ----------
-    a    : ht.DNDarray
+    arr : ht.DNDarray
         The tensor from which to resplit
-    axis : int
+    axis : int, None
         The new split axis, None denotes gathering, an int will set the new split axis
 
     Returns
     -------
     resplit: ht.DNDarray
-        A new tensor that is a copy of 'a', but split along 'axis'
+        A new tensor that is a copy of 'arr', but split along 'axis'
 
     Examples
     --------
@@ -1246,10 +1248,7 @@ def resplit(a, axis=None):
     (0/2) >>> (4, 3)
     (1/2) >>> (4, 2)
     """
-    # create a copy of the input tensor 'a'
-    resplit = a.copy()
-    resplit.resplit_(axis=axis)
-    return resplit
+    return arr.resplit(axis=axis, in_place=False)
 
 
 def vstack(tup):
