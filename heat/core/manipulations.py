@@ -558,7 +558,7 @@ def expand_dims(a, axis):
         a.comm,
     )
 
-  
+
 def flatten(a):
     """
     Flattens an array into one dimension
@@ -601,7 +601,7 @@ def flatten(a):
 
     return a
 
-  
+
 def flip(a, axis=None):
     """
     Reverse the order of elements in an array along the given axis.

@@ -787,7 +787,7 @@ class TestManipulations(BasicTest):
             [False, False, False, True, True, False, True, True], split=0, device=ht_device
         )
         self.assertTrue(ht.equal(ht.flatten(a), res))
-        
+
     def test_flip(self):
         a = ht.array([1, 2], device=ht_device)
         r_a = ht.array([2, 1], device=ht_device)
