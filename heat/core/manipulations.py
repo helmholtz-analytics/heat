@@ -619,6 +619,7 @@ def flip(a, axis=None):
     req.Wait()
     return res
 
+
 def flipud(a):
     """
         Flip array in the up/down direction.
@@ -646,7 +647,7 @@ def flipud(a):
         (2/2) tensor([0,1,2])
     """
     return flip(a, 0)
-    
+
 
 def hstack(tup):
     """
