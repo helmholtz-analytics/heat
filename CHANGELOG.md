@@ -7,6 +7,7 @@
 - Update documentation theme to "Read the Docs"
 - [#496](https://github.com/helmholtz-analytics/heat/pull/496) New feature: flipud()
 - [#499](https://github.com/helmholtz-analytics/heat/pull/499) Bugfix: MPI datatype mapping: `torch.int16` now maps to `MPI.SHORT` instead of `MPI.SHORT_INT`
+- [#515] (https://github.com/helmholtz-analytics/heat/pull/515) ht.var() now returns the unadjusted sample variance by default, Bessel's correction can be applied by setting ddof=1.
 
 # v0.3.0
 

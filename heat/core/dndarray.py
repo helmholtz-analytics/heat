@@ -3037,7 +3037,7 @@ class DNDarray:
         """
         return manipulations.squeeze(self, axis)
 
-    def std(self, axis=None, bessel=True):
+    def std(self, axis=None, ddof=0, **kwargs):
         """
         Calculates and returns the standard deviation of a tensor with the bessel correction
         If a axis is given, the variance will be taken in that direction.
@@ -3050,36 +3050,37 @@ class DNDarray:
             axis which the mean is taken in.
             Default: None -> std of all data calculated
             NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
-        bessel : Bool
-            Default: True
-            use the bessel correction when calculating the varaince/std
-            toggle between unbiased and biased calculation of the std
+        ddof : int, optional
+            Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
+            represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
+            Setting ddof > 1 raises a NotImplementedError.
+
 
         Examples
         --------
         >>> a = ht.random.randn(1,3)
         >>> a
         tensor([[ 0.3421,  0.5736, -2.2377]])
-        >>> ht.std(a)
-        tensor(1.5606)
+        >>> a.std()
+        tensor(1.2742)
         >>> a = ht.random.randn(4,4)
         >>> a
         tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
                 [ 0.2732, -0.0965, -0.1087, -1.3805],
                 [ 0.2647,  0.5998, -0.1635, -0.0848],
                 [ 0.0343,  0.1618, -0.8064, -0.1031]])
-        >>> ht.std(a, 0)
+        >>> ht.std(a, 0, ddof=1)
         tensor([0.6157, 0.2918, 0.8324, 1.1996])
-        >>> ht.std(a, 1)
+        >>> ht.std(a, 1, ddof=1)
         tensor([1.1405, 0.7236, 0.3506, 0.4324])
-        >>> ht.std(a, 1, bessel=False)
+        >>> ht.std(a, 1)
         tensor([0.9877, 0.6267, 0.3037, 0.3745])
 
         Returns
         -------
         ht.DNDarray containing the std/s, if split, then split in the same direction as x.
         """
-        return statistics.std(self, axis, bessel=bessel)
+        return statistics.std(self, axis, ddof=ddof, **kwargs)
 
     def __str__(self, *args):
         # TODO: document me
@@ -3380,7 +3381,7 @@ class DNDarray:
         """
         return manipulations.unique(self, sorted, return_inverse, axis)
 
-    def var(self, axis=None, bessel=True):
+    def var(self, axis=None, ddof=0, **kwargs):
         """
         Calculates and returns the variance of a tensor.
         If a axis is given, the variance will be taken in that direction.
@@ -3393,18 +3394,27 @@ class DNDarray:
             axis which the variance is taken in.
             Default: None -> var of all data calculated
             NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
-        bessel : Bool
-            Default: True
-            use the bessel correction when calculating the varaince/std
-            toggle between unbiased and biased calculation of the std
+        ddof : int, optional
+            Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
+            represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
+            Setting ddof > 1 raises a NotImplementedError.
+
+        Notes on ddof (from numpy)
+        --------------------------
+        The variance is the average of the squared deviations from the mean, i.e., var = mean(abs(x - x.mean())**2).
+        The mean is normally calculated as x.sum() / N, where N = len(x). If, however, ddof is specified, the divisor
+        N - ddof is used instead. In standard statistical practice, ddof=1 provides an unbiased estimator of the
+        variance of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate of the variance
+        for normally distributed variables.
+
 
         Examples
         --------
         >>> a = ht.random.randn(1,3)
         >>> a
         tensor([[-1.9755,  0.3522,  0.4751]])
-        >>> ht.var(a)
-        tensor(1.9065)
+        >>> a.var()
+        tensor(1.2710)
 
         >>> a = ht.random.randn(4,4)
         >>> a
@@ -3412,20 +3422,18 @@ class DNDarray:
                 [ 0.5886,  0.5712,  0.4582,  0.5323],
                 [ 1.9754,  1.2958,  0.5957,  0.0418],
                 [ 0.8196, -1.2911, -0.2026,  0.6212]])
-        >>> ht.var(a, 1)
+        >>> ht.var(a, 1, ddof=1)
         tensor([1.3092, 0.0034, 0.7061, 0.9217])
+        >>> ht.var(a, 0, ddof=1)
+        tensor([1.3624, 3.2563, 0.1447, 1.2042])
         >>> ht.var(a, 0)
-        tensor([1.3624, 3.2563, 0.1447, 1.2042])
-        >>> ht.var(a, 0, bessel=True)
-        tensor([1.3624, 3.2563, 0.1447, 1.2042])
-        >>> ht.var(a, 0, bessel=False)
         tensor([1.0218, 2.4422, 0.1085, 0.9032])
 
         Returns
         -------
         ht.DNDarray containing the var/s, if split, then split in the same direction as x.
         """
-        return statistics.var(self, axis, bessel=bessel)
+        return statistics.var(self, axis, ddof=ddof, **kwargs)
 
     def __xor__(self, other):
         """
