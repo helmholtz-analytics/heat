@@ -7,6 +7,7 @@
 - [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: Underlying torch tensor moves to the right device on array initialisation
 - [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: DNDarray.cpu() changes heat device to cpu
 - Update documentation theme to "Read the Docs"
+- [#496](https://github.com/helmholtz-analytics/heat/pull/496) New feature: flipud()
 - [#498](https://github.com/helmholtz-analytics/heat/pull/498) Feature: flip()
 - [#499](https://github.com/helmholtz-analytics/heat/pull/499) Bugfix: MPI datatype mapping: `torch.int16` now maps to `MPI.SHORT` instead of `MPI.SHORT_INT`
 - [#515] (https://github.com/helmholtz-analytics/heat/pull/515) ht.var() now returns the unadjusted sample variance by default, Bessel's correction can be applied by setting ddof=1.
