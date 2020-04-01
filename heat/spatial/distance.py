@@ -217,7 +217,6 @@ def _dist(X, Y=None, metric=_euclidian):
                 col1 = displ[sender]
                 col2 = displ[sender + 1] if sender != size - 1 else K
                 columns = (col1, col2)
-
                 # All but the first iter processes are receiving, then sending
                 if (rank // iter) != 0:
                     stat = MPI.Status()
@@ -227,7 +226,6 @@ def _dist(X, Y=None, metric=_euclidian):
                     comm.Recv(moving, source=sender, tag=iter)
                 # Sending to next Process
                 comm.Send(stationary, dest=receiver, tag=iter)
-
                 # The first iter processes can now receive after sending
                 if (rank // iter) == 0:
                     stat = MPI.Status()
@@ -262,7 +260,6 @@ def _dist(X, Y=None, metric=_euclidian):
             if (size + 1) % 2 != 0:  # we need one mor iteration for the first n/2 processes
                 receiver = (rank + num_iter) % size
                 sender = (rank - num_iter) % size
-
                 # Case 1: only receiving
                 if rank < (size // 2):
                     stat = MPI.Status()

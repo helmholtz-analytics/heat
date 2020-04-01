@@ -178,10 +178,9 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
         raise TypeError("Input Matrix A needs to be symmetric.")
     T = factories.zeros((m, m))
     if A.split == 0:
-        #V = factories.ones((n, m), split=0, dtype=A.dtype, device=A.device)
+        #This is done for better memory access in the reorthogonalization Gram-Schmidt algorithm
         V = factories.ones((m, n), split=1, dtype=A.dtype, device=A.device)
     else:
-        #V = factories.ones((n, m), dtype=A.dtype, device=A.device)
         V = factories.ones((m, n), split=None, dtype=A.dtype, device=A.device)
 
     if v0 is None:
@@ -203,7 +202,12 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
             vr = random.rand(n, dtype=A.dtype)
             # orthogonalize v_r with respect to all vectors v[i]
             for j in range(i):
-                vr = vr - projection(vr, V[j, :])
+                vi_loc = V._DNDarray__array[j, :]
+                a = torch.dot(vr._DNDarray__array, vi_loc)
+                b = torch.dot(vi_loc, vi_loc)
+                A.comm.Allreduce(MPI.IN_PLACE, a, MPI.SUM)
+                A.comm.Allreduce(MPI.IN_PLACE, b, MPI.SUM)
+                vr._DNDarray__array = vr._DNDarray__array - a/b*vi_loc
             # normalize v_r to Euclidian norm 1 and set as ith vector v
             vi = vr / norm(vr)
         else:

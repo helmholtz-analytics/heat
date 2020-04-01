@@ -39,28 +39,31 @@ def laplacian(S, norm=True, mode="fc", upper=None, lower=None):
         if (upper is None) and (lower is None):
             raise ValueError("Epsilon neighborhood requires upper or lower threshold to be defined")
         if upper is not None:
-            A = ht.int(S < upper)
-            A = A - ht.eye(S.shape, dtype=ht.int, split=S.split, device=S.device, comm=S.comm)
+            S = ht.int(S < upper)
         elif lower is not None:
-            A = ht.int(S > lower)
-            A = A - ht.eye(S.shape, dtype=ht.int, split=S.split, device=S.device, comm=S.comm)
+            S = ht.int(S > lower)
     elif mode == "fc":
-        A = S - ht.eye(S.shape, dtype=S.dtype, split=S.split, device=S.device, comm=S.comm)
+        pass 
     else:
         raise NotImplementedError(
             "Only eNeighborhood and fully-connected graphs supported at the moment."
         )
 
-    degree = ht.sum(A, axis=1)
+    # Subtract 1 for the self-connection of each vertex (more memory-efficient than subtracting Identity matrix from the Adjacency matrix to make diagonal = 0)
+    degree = ht.sum(S, axis=1)-1
 
-    D = ht.diag(degree)
-    L = D - A
     if norm:
-        deg = ht.sqrt(1.0 / ht.sum(A, axis=1))
-        D2 = ht.diag(deg)
+        degree.resplit_(axis=None)
+        temp = torch.ones(degree.shape, dtype=degree._DNDarray__array.dtype)
+        degree._DNDarray__array = torch.where(degree._DNDarray__array==0, temp, degree._DNDarray__array)
+        w = S/ht.sqrt(ht.expand_dims(degree, axis=1))
+        w = w / ht.sqrt(ht.expand_dims(degree, axis=0))
+        L = ht.eye(S.shape, dtype=S.dtype, split=S.split, device=S.device, comm=S.comm) - w
 
-        L = ht.matmul(D2, ht.matmul(L, D2))
+    else:
 
+        L = ht.diag(degree) - S
+  
     return L
 
 
@@ -118,38 +121,27 @@ class Spectral:
         self.laplacian = laplacian
         self.epsilon = (threshold, boundary)
         if assign_labels == "kmeans":
-            self._cluster = ht.cluster.KMeans(init="kmeans++")
+            self._cluster = ht.cluster.KMeans(init='random', max_iter=30, tol=-1.0)
         else:
             raise NotImplementedError(
                 "Other Label Assignment Algorithms are currently not available"
             )
 
         # in-place properties
-        self._eigenvectors = None
-        self._eigenvalues = None
+        self._components = None
+        self._cluster_centers = None
         self._labels = None
-        self._laplacian = None
-        self._similarity = None
+
 
     @property
-    def eigenvectors_(self):
+    def components_(self):
         """
         Returns
         -------
         ht.DNDarray, shape = (n_samples, n_lanzcos):
             Eigenvectors of the graph Laplacian
         """
-        return self._eigenvectors
-
-    @property
-    def eigenvalues_(self):
-        """
-        Returns
-        -------
-        ht.DNDarray, shape = (n_lanzcos):
-            Eigenvalues of the graph Laplacian
-        """
-        return self._eigenvalues
+        return self._components
 
     @property
     def labels_(self):
@@ -161,108 +153,7 @@ class Spectral:
         """
         return self._labels
 
-    @property
-    def laplacian_(self):
-        """
-        Returns
-        -------
-        ht.DNDarray:
-            Graph Laplcacian of the fitted dataset
-        """
-        return self._laplacian
 
-    @property
-    def similarity_(self):
-        """
-        Returns
-        -------
-        ht.DNDarray:
-            The similarity matrix of the fitted dataset
-        """
-        return self._similarity
-
-    def _calc_adjacency(self, X):
-        """
-        Internal utility function for calculating of the similarity matrix according to the configuration set in __init__
-
-        Parameters
-        ----------
-            X :  ht.DNDarray, shape=(n_samples, n_features)
-
-        Returns
-        -------
-            S : ht.DNDarray, shape = (n_samples, n_samples)
-            The similarity matrix
-
-        """
-        if self.metric == "rbf":
-            sig = math.sqrt(1 / (2 * self.gamma))
-            s = ht.spatial.rbf(X, sigma=sig, quadratic_expansion=False)
-
-        elif self.metric == "euclidean":
-            s = ht.spatial.cdist(X)
-        else:
-            raise NotImplementedError("Other kernels currently not implemented")
-        return s
-
-    def _calc_laplacian(self, S):
-        """
-        Internal utility function for calculating of the graph Laplacian according to the configuration set in __init__
-
-        Parameters
-        ----------
-        S : ht.DNDarray
-            The similarity matrix
-
-        Returns
-        -------
-        ht.DNDarray
-
-        """
-
-        if self.laplacian == "eNeighborhood":
-            if self.epsilon[1] == "upper":
-                return laplacian(S, norm=self.normalize, mode="eNeighbour", upper=self.epsilon[0])
-            elif self.epsilon[1] == "lower":
-                return laplacian(S, norm=self.normalize, mode="eNeighbour", lower=self.epsilon[0])
-            else:
-                raise ValueError(
-                    "Boundary needs to be 'upper' or 'lower' and threshold needs to be set, if laplacian = eNeighborhood"
-                )
-
-        elif self.laplacian == "fully_connected":
-            return laplacian(self._similarity, norm=self.normalize, mode="fc")
-        else:
-            raise NotImplementedError("Other approaches currently not implemented")
-
-    def _calculate_eigendecomposition(self, L):
-        """
-        Internal utility function for calculating eigenvalues and eigenvectors of the graph Laplacian using the Lanczos algorithm
-
-        Parameters
-        ----------
-        L : ht.DNDarray
-            The graph Laplacian matrix
-
-        Returns
-        -------
-        eigenvalues : ht.DNDarray, shape = (n_lanczos,)
-        eigenvectors: ht.DNDarray, shape = (n_samples, n_lanczos)
-
-        """
-        # vr = ht.random.rand(L.shape[0], split=L.split, dtype=ht.float64)
-        # v0 = vr / ht.norm(vr)
-        v0 = ht.ones((L.shape[0],), dtype=L.dtype, split=L.split, device=L.device) / math.sqrt(L.shape[0])
-
-        V, T = ht.lanczos(L, self.n_lanczos, v0)
-        # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
-        eval, evec = torch.eig(T._DNDarray__array, eigenvectors=True)
-        # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
-        eigenvalues, idx = torch.sort(eval[:, 0], dim=0)
-        eigenvalues = ht.array(eigenvalues)
-        eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
-
-        return eigenvalues, eigenvectors
 
     def fit(self, X):
         """
@@ -281,35 +172,55 @@ class Spectral:
         if X.split is not None and X.split != 0:
             raise NotImplementedError("Not implemented for other splitting-axes")
         # 1. Calculation of Adjacency Matrix
-        if X.comm.rank == 0:
-            start = time.perf_counter()
-        self._similarity = self._calc_adjacency(X)
-        if X.comm.rank == 0:
-            stop = time.perf_counter()
-            print("Similarity Calculated in : {}s".format(stop - start))
-            start = time.perf_counter()
+        if self.metric == "rbf":
+            sig = math.sqrt(1 / (2 * self.gamma))
+            S  = ht.spatial.rbf(X, sigma=sig, quadratic_expansion=True)
+
+        elif self.metric == "euclidean":
+            S = ht.spatial.cdist(X)
+        else:
+            raise NotImplementedError("Other kernels currently not implemented")
+
         # 2. Calculation of Laplacian
-        self._laplacian = self._calc_laplacian(self._similarity)
-        if X.comm.rank == 0:
-            stop = time.perf_counter()
-            print("Laplacian Calculated in : {}s".format(stop - start))
-            start = time.perf_counter()
+        if self.laplacian == "eNeighborhood":
+            if self.epsilon[1] == "upper":
+                L = laplacian(S, norm=self.normalize, mode="eNeighbour", upper=self.epsilon[0])
+            elif self.epsilon[1] == "lower":
+                L = laplacian(S, norm=self.normalize, mode="eNeighbour", lower=self.epsilon[0])
+            else:
+                raise ValueError(
+                    "Boundary needs to be 'upper' or 'lower' and threshold needs to be set, if laplacian = eNeighborhood"
+                )
+
+        elif self.laplacian == "fully_connected":
+            L = laplacian(S, norm=self.normalize, mode="fc")
+        else:
+            raise NotImplementedError("Other approaches currently not implemented")
+
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
-        self._eigenvalues, self._eigenvectors = self._calculate_eigendecomposition(self._laplacian)
-        if X.comm.rank == 0:
-            stop = time.perf_counter()
-            print("Eigenvalues Calculated in : {}s".format(stop - start))
+        v0 = ht.ones(( L.shape[0],), dtype=L.dtype, split=L.split, device=L.device) / math.sqrt(L.shape[0])
+
+
+        V, T = ht.lanczos(L, self.n_lanczos, v0)
+        # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
+        eval, evec = torch.eig(T._DNDarray__array, eigenvectors=True)
+        # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
+        eval, idx = torch.sort(eval[:, 0], dim=0)
+        eigenvalues = ht.array(eval)
+        eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
+
         # 5. Find the spectral gap, if number of clusters is not defined from the outside
         if self.n_clusters is None:
-            temp = np.diff(self._eigenvalues.numpy())
+            temp = np.diff(eigenvalues.numpy())
             self.n_clusters = np.where(temp == temp.max())[0][0] + 1
-        components = self._eigenvectors[:, : self.n_clusters].copy()
+        components = eigenvectors[:, : self.n_clusters].copy()
 
         params = self._cluster.get_params()
         params["n_clusters"] = self.n_clusters
         self._cluster.set_params(**params)
         self._cluster.fit(components)
         self._labels = self._cluster.labels_
+        self._cluster_centers = self._cluster.cluster_centers_
 
         return self
 
@@ -331,19 +242,52 @@ class Spectral:
         labels : ht.DNDarray, shape = [n_samples,]
             Index of the cluster each sample belongs to.
         """
+        # input sanitation
         if not isinstance(X, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
-
+        if X.split is not None and X.split != 0:
+            raise NotImplementedError("Not implemented for other splitting-axes")
         # 1. Calculation of Adjacency Matrix
-        S = self._calc_adjacency(X)
+        if self.metric == "rbf":
+            sig = math.sqrt(1 / (2 * self.gamma))
+            S  = ht.spatial.rbf(X, sigma=sig, quadratic_expansion=True)
+
+        elif self.metric == "euclidean":
+            S = ht.spatial.cdist(X)
+        else:
+            raise NotImplementedError("Other kernels currently not implemented")
 
         # 2. Calculation of Laplacian
-        L = self._calc_laplacian(S)
+        if self.laplacian == "eNeighborhood":
+            if self.epsilon[1] == "upper":
+                L = laplacian(S, norm=self.normalize, mode="eNeighbour", upper=self.epsilon[0])
+            elif self.epsilon[1] == "lower":
+                L = laplacian(S, norm=self.normalize, mode="eNeighbour", lower=self.epsilon[0])
+            else:
+                raise ValueError(
+                    "Boundary needs to be 'upper' or 'lower' and threshold needs to be set, if laplacian = eNeighborhood"
+                )
+
+        elif self.laplacian == "fully_connected":
+            L = laplacian(self._similarity, norm=self.normalize, mode="fc")
+        else:
+            raise NotImplementedError("Other approaches currently not implemented")
 
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
-        eval, evec = self._calculate_eigendecomposition(L)
+        v0 = ht.ones(( L.shape[0],), dtype=L.dtype, split=L.split, device=L.device) / math.sqrt(L.shape[0])
 
-        return self._cluster.predict(evec[:, : self.n_clusters].copy())
+
+        V, T = ht.lanczos(L, self.n_lanczos, v0)
+        # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
+        eval, evec = torch.eig(T._DNDarray__array, eigenvectors=True)
+        # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
+        eval, idx = torch.sort(eval[:, 0], dim=0)
+        eigenvalues = ht.array(eval)
+        eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
+
+        components = eigenvectors[:, : self.n_clusters].copy()
+
+        return self._cluster.predict(components)
 
     def fit_predict(self, X):
         """
