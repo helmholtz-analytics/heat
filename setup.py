@@ -12,10 +12,6 @@ print(version, dir(version))
 with open("README.md", "r") as handle:
     long_description = handle.read()
 
-# with open('./heat/core/version.py') as handle:
-#     exec(handle.read())
-#     print(dir())
-
 setup(
     name="heat",
     packages=find_packages(exclude=("*tests*",)),
