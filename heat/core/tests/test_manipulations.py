@@ -1245,6 +1245,62 @@ class TestManipulations(BasicTest):
         self.assertEqual(resplit_tensor.lshape, local_shape)
         self.assertTrue((resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
 
+        # order tests for resplit
+        for dims in range(3, 5):
+            length = torch.tensor([i + 20 for i in range(dims)], device=device)
+            test = torch.arange(torch.prod(length)).reshape(length.tolist())
+            for sp1 in range(dims):
+                for sp2 in range(dims):
+                    if sp1 != sp2:
+                        a = ht.array(test, split=sp1)
+                        resplit_a = a.resplit(axis=sp2, in_place=False)
+                        self.assertTrue(ht.equal(resplit_a, ht.array(test, split=sp2)))
+                        self.assertEqual(resplit_a.split, sp2)
+                        self.assertEqual(resplit_a.dtype, a.dtype)
+                        del a
+                        del resplit_a
+
+        # "in place"
+        length = torch.tensor([i + 20 for i in range(2)], device=device)
+        test = torch.arange(torch.prod(length), dtype=torch.float64, device=device).reshape(
+            [i + 20 for i in range(2)]
+        )
+        a = ht.array(test, split=1)
+        a.resplit_(axis=0)
+        self.assertTrue(ht.equal(a, ht.array(test, split=0)))
+        self.assertEqual(a.split, 0)
+        self.assertEqual(a.dtype, ht.float64)
+        del a
+
+        test = torch.arange(torch.prod(length), device=device)
+        a = ht.array(test, split=0)
+        a.resplit_(axis=None)
+        self.assertTrue(ht.equal(a, ht.array(test, split=None)))
+        self.assertEqual(a.split, None)
+        self.assertEqual(a.dtype, ht.int64)
+        del a
+
+        a = ht.array(test, split=None)
+        a.resplit_(axis=0)
+        self.assertTrue(ht.equal(a, ht.array(test, split=0)))
+        self.assertEqual(a.split, 0)
+        self.assertEqual(a.dtype, ht.int64)
+        del a
+
+        a = ht.array(test, split=0)
+        resplit_a = ht.manipulations.resplit(a, axis=None)
+        self.assertTrue(ht.equal(resplit_a, ht.array(test, split=None)))
+        self.assertEqual(resplit_a.split, None)
+        self.assertEqual(resplit_a.dtype, ht.int64)
+        del a
+
+        a = ht.array(test, split=None)
+        resplit_a = ht.manipulations.resplit(a, axis=0)
+        self.assertTrue(ht.equal(resplit_a, ht.array(test, split=0)))
+        self.assertEqual(resplit_a.split, 0)
+        self.assertEqual(resplit_a.dtype, ht.int64)
+        del a
+
     def test_vstack(self):
         # cases to test:
         # MM===================================
