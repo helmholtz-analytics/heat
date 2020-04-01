@@ -603,12 +603,19 @@ def flip(a, axis=None):
         )
 
     # Need to redistribute tensors on split axis
-    lshape_map = a.create_lshape_map()
+    old_lshape = torch.tensor(a.lshape, device=a.device.torch_device)
+    new_lshape = torch.empty((len(a.gshape),), dtype=int, device=a.device.torch_device)
     dest_proc = a.comm.size - 1 - a.comm.rank
 
+    # Exchange lshapes
+    request = a.comm.Irecv(new_lshape, source=dest_proc)
+    a.comm.Send(old_lshape, dest_proc)
+    request.Wait()
+
+    # Exchange local tensors
     req = a.comm.Isend(flipped, dest=dest_proc)
     received = torch.empty(
-        tuple(lshape_map[dest_proc]), dtype=a._DNDarray__array.dtype, device=a.device.torch_device
+        tuple(new_lshape), dtype=a._DNDarray__array.dtype, device=a.device.torch_device
     )
     a.comm.Recv(received, source=dest_proc)
 
