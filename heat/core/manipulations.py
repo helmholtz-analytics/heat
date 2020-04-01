@@ -591,20 +591,12 @@ def flipud(a):
         )
 
     # Need to redistribute tensors on axis 0
-    old_lshape = torch.tensor(a.lshape, device=a.device.torch_device)
-
-    new_lshape = torch.empty((len(a.gshape),), dtype=int, device=a.device.torch_device)
-
+    old_lshape = a.lshape
     dest_proc = a.comm.size - 1 - a.comm.rank
-
-    request = a.comm.Irecv(new_lshape, source=dest_proc)
-    a.comm.Send(old_lshape, dest_proc)
-    request.Wait()
+    new_lshape = a.comm.sendrecv(old_lshape, dest=dest_proc, source=dest_proc)
 
     req = a.comm.Isend(flipped, dest=dest_proc)
-    received = torch.empty(
-        tuple(new_lshape), dtype=a._DNDarray__array.dtype, device=a.device.torch_device
-    )
+    received = torch.empty(new_lshape, dtype=a._DNDarray__array.dtype, device=a.device.torch_device)
     a.comm.Recv(received, source=dest_proc)
 
     res = factories.array(received, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
