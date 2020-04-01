@@ -889,6 +889,11 @@ class TestStatistics(unittest.TestCase):
             ht.minimum(random_volume_1, random_volume_2, out=output)
 
     def test_std(self):
+        # test basics
+        a = ht.arange(1, 5, device=ht_device)
+        self.assertAlmostEqual(a.std(), 1.118034)
+        self.assertAlmostEqual(a.std(bessel=True), 1.2909944)
+
         # test raises
         x = ht.zeros((2, 3, 4), device=ht_device)
         with self.assertRaises(TypeError):
