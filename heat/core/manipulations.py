@@ -685,7 +685,7 @@ def reshape(a, shape):
         )
 
     # Check for currently not supported tensors
-    if len(a.shape) != 1:
+    if a.split > 0:
         raise NotImplementedError("Split axes > 0 and tensors with dim > 1 are not supported yet")
 
     # Create new flat result tensor
@@ -696,18 +696,16 @@ def reshape(a, shape):
     _, old_csum, _ = a.comm.counts_displs_shape(a.shape, 0)
     _, new_csum, _ = a.comm.counts_displs_shape(shape, 0)
 
-    length = np.prod(shape[1:])
-
     # turn displs into cumulative sums
-    old_csum = old_csum[1:] + (a.size,)
-    new_csum = tuple(length * i for i in new_csum[1:]) + (a.size,)
+    old_csum = tuple(np.prod(a.shape[1:]) * i for i in old_csum[1:]) + (a.size,)
+    new_csum = tuple(np.prod(shape[1:]) * i for i in new_csum[1:]) + (a.size,)
 
     # calculate counts and displacements
     send_counts, send_displs = reshape_counts_displs(old_csum, new_csum)
     recv_counts, recv_displs = reshape_counts_displs(new_csum, old_csum)
 
     a.comm.Alltoallv(
-        (a._DNDarray__array, send_counts, send_displs), (data, recv_counts, recv_displs)
+        (a._DNDarray__array.flatten(), send_counts, send_displs), (data, recv_counts, recv_displs)
     )
 
     # Reshape local tensor

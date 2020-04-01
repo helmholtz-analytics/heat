@@ -840,13 +840,19 @@ class TestManipulations(BasicTest):
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
 
+        a = ht.zeros((4, 3), split=0)
+        result = ht.zeros((3, 4), split=0)
+        reshaped = ht.reshape(a, (3, 4))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
         # exceptions
         with self.assertRaises(RuntimeError):
             ht.reshape(ht.arange(4), 0)
         with self.assertRaises(ValueError):
             ht.reshape(ht.zeros((4, 3)), (5, 7))
-        with self.assertRaises(NotImplementedError):
-            ht.reshape(ht.zeros((4, 3), split=0), (3, 4))
 
     def test_sort(self):
         size = ht.MPI_WORLD.size
