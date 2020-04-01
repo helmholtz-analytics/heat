@@ -84,12 +84,7 @@ class TestKMeans(unittest.TestCase):
         spectral.fit(iris)
 
         self.assertIsInstance(spectral.labels_, ht.DNDarray)
-        self.assertIsInstance(spectral.similarity_, ht.DNDarray)
-        self.assertEqual(spectral.similarity_.shape, (iris.shape[0], iris.shape[0]))
-        self.assertIsInstance(spectral.eigenvalues_, ht.DNDarray)
-        self.assertEqual(spectral.eigenvalues_.shape, (m,))
-        self.assertIsInstance(spectral.eigenvectors_, ht.DNDarray)
-        self.assertEqual(spectral.eigenvectors_.shape, (iris.shape[0], m))
+        self.assertIsInstance(spectral._components, ht.DNDarray)
 
         with self.assertRaises(NotImplementedError):
             spectral = ht.cluster.Spectral(
