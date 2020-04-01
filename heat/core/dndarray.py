@@ -2422,7 +2422,7 @@ class DNDarray:
 
     def resplit_(self, axis):
         """
-        In-place option for resplitting a DNDarray. Here for legacy reasons.
+        In-place option for resplitting a DNDarray.
 
         Parameters
         ----------
