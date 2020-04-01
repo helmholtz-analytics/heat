@@ -686,7 +686,7 @@ def reshape(a, shape):
 
     # Check for currently not supported tensors
     if a.split > 0:
-        raise NotImplementedError("Split axes > 0 and tensors with dim > 1 are not supported yet")
+        raise NotImplementedError("Tensors with split axes > 0 are not supported yet")
 
     # Create new flat result tensor
     _, local_shape, _ = a.comm.chunk(shape, a.split)
