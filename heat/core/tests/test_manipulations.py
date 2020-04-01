@@ -763,6 +763,29 @@ class TestManipulations(BasicTest):
         with self.assertRaises(ValueError):
             ht.empty((3, 4, 5), device=ht_device).expand_dims(-5)
 
+    def test_flip(self):
+        a = ht.array([1, 2], device=ht_device)
+        r_a = ht.array([2, 1], device=ht_device)
+        self.assertTrue(ht.equal(ht.flip(a, 0), r_a))
+
+        a = ht.array([[1, 2], [3, 4]], device=ht_device)
+        r_a = ht.array([[4, 3], [2, 1]], device=ht_device)
+        self.assertTrue(ht.equal(ht.flip(a), r_a))
+
+        a = ht.array([[2, 3], [4, 5], [6, 7], [8, 9]], split=1, dtype=ht.float32, device=ht_device)
+        r_a = ht.array(
+            [[9, 8], [7, 6], [5, 4], [3, 2]], split=1, dtype=ht.float32, device=ht_device
+        )
+        self.assertTrue(ht.equal(ht.flip(a, [0, 1]), r_a))
+
+        a = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]]], split=0, dtype=ht.uint8, device=ht_device
+        )
+        r_a = ht.array(
+            [[[3, 2], [1, 0]], [[7, 6], [5, 4]]], split=0, dtype=ht.uint8, device=ht_device
+        )
+        self.assertTrue(ht.equal(ht.flip(a, [1, 2]), r_a))
+
     def test_hstack(self):
         # cases to test:
         # MM===================================
