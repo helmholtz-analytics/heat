@@ -853,6 +853,8 @@ class TestManipulations(BasicTest):
             ht.reshape(ht.arange(4), 0)
         with self.assertRaises(ValueError):
             ht.reshape(ht.zeros((4, 3)), (5, 7))
+        with self.assertRaises(NotImplementedError):
+            ht.reshape(ht.ones((2, 2), split=1), (4, 1))
 
     def test_sort(self):
         size = ht.MPI_WORLD.size
