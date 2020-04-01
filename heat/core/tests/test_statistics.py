@@ -897,6 +897,10 @@ class TestStatistics(unittest.TestCase):
             ht.std(x, axis=10)
         with self.assertRaises(TypeError):
             ht.std(x, axis="01")
+        with self.assertRaises(NotImplementedError):
+            ht.std(x, ddof=2)
+        with self.assertRaises(ValueError):
+            ht.std(x, ddof=-2)
 
         # the rest of the tests are covered by var
 
