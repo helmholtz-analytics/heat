@@ -15,6 +15,7 @@ from .relational import *
 from .rounding import *
 from .statistics import *
 from .dndarray import *
+from .tiling import *
 from .trigonometrics import *
 from .types import *
 from .types import finfo, iinfo

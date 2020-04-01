@@ -1,6 +1,6 @@
 import torch
 
-from .. import dndarray
+from . import dndarray
 
 __all__ = ["SquareDiagTiles"]
 

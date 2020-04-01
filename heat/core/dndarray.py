@@ -15,7 +15,7 @@ from . import memory
 from . import relational
 from . import rounding
 from . import statistics
-from .linalg import tiling
+from . import tiling
 from . import trigonometrics
 from . import types
 
