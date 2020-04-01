@@ -43,27 +43,29 @@ def laplacian(S, norm=True, mode="fc", upper=None, lower=None):
         elif lower is not None:
             S = ht.int(S > lower)
     elif mode == "fc":
-        pass 
+        pass
     else:
         raise NotImplementedError(
             "Only eNeighborhood and fully-connected graphs supported at the moment."
         )
 
     # Subtract 1 for the self-connection of each vertex (more memory-efficient than subtracting Identity matrix from the Adjacency matrix to make diagonal = 0)
-    degree = ht.sum(S, axis=1)-1
+    degree = ht.sum(S, axis=1) - 1
 
     if norm:
         degree.resplit_(axis=None)
         temp = torch.ones(degree.shape, dtype=degree._DNDarray__array.dtype)
-        degree._DNDarray__array = torch.where(degree._DNDarray__array==0, temp, degree._DNDarray__array)
-        w = S/ht.sqrt(ht.expand_dims(degree, axis=1))
+        degree._DNDarray__array = torch.where(
+            degree._DNDarray__array == 0, temp, degree._DNDarray__array
+        )
+        w = S / ht.sqrt(ht.expand_dims(degree, axis=1))
         w = w / ht.sqrt(ht.expand_dims(degree, axis=0))
         L = ht.eye(S.shape, dtype=S.dtype, split=S.split, device=S.device, comm=S.comm) - w
 
     else:
 
         L = ht.diag(degree) - S
-  
+
     return L
 
 
@@ -121,7 +123,7 @@ class Spectral:
         self.laplacian = laplacian
         self.epsilon = (threshold, boundary)
         if assign_labels == "kmeans":
-            self._cluster = ht.cluster.KMeans(init='random', max_iter=30, tol=-1.0)
+            self._cluster = ht.cluster.KMeans(init="random", max_iter=30, tol=-1.0)
         else:
             raise NotImplementedError(
                 "Other Label Assignment Algorithms are currently not available"
@@ -131,7 +133,6 @@ class Spectral:
         self._components = None
         self._cluster_centers = None
         self._labels = None
-
 
     @property
     def components_(self):
@@ -153,8 +154,6 @@ class Spectral:
         """
         return self._labels
 
-
-
     def fit(self, X):
         """
         Computes the low-dim representation by calculation of eigenspectrum (eigenvalues and eigenvectors) of the graph laplacian from the similarity matrix and fits the eigenvectors that correspond to the k lowest eigenvalues with a seperate clustering algorithm (currently only kemans is supported)
@@ -174,7 +173,7 @@ class Spectral:
         # 1. Calculation of Adjacency Matrix
         if self.metric == "rbf":
             sig = math.sqrt(1 / (2 * self.gamma))
-            S  = ht.spatial.rbf(X, sigma=sig, quadratic_expansion=True)
+            S = ht.spatial.rbf(X, sigma=sig, quadratic_expansion=True)
 
         elif self.metric == "euclidean":
             S = ht.spatial.cdist(X)
@@ -198,8 +197,9 @@ class Spectral:
             raise NotImplementedError("Other approaches currently not implemented")
 
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
-        v0 = ht.ones(( L.shape[0],), dtype=L.dtype, split=L.split, device=L.device) / math.sqrt(L.shape[0])
-
+        v0 = ht.ones((L.shape[0],), dtype=L.dtype, split=L.split, device=L.device) / math.sqrt(
+            L.shape[0]
+        )
 
         V, T = ht.lanczos(L, self.n_lanczos, v0)
         # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
@@ -250,7 +250,7 @@ class Spectral:
         # 1. Calculation of Adjacency Matrix
         if self.metric == "rbf":
             sig = math.sqrt(1 / (2 * self.gamma))
-            S  = ht.spatial.rbf(X, sigma=sig, quadratic_expansion=True)
+            S = ht.spatial.rbf(X, sigma=sig, quadratic_expansion=True)
 
         elif self.metric == "euclidean":
             S = ht.spatial.cdist(X)
@@ -274,15 +274,15 @@ class Spectral:
             raise NotImplementedError("Other approaches currently not implemented")
 
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
-        v0 = ht.ones(( L.shape[0],), dtype=L.dtype, split=L.split, device=L.device) / math.sqrt(L.shape[0])
-
+        v0 = ht.ones((L.shape[0],), dtype=L.dtype, split=L.split, device=L.device) / math.sqrt(
+            L.shape[0]
+        )
 
         V, T = ht.lanczos(L, self.n_lanczos, v0)
         # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
         eval, evec = torch.eig(T._DNDarray__array, eigenvectors=True)
         # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
         eval, idx = torch.sort(eval[:, 0], dim=0)
-        eigenvalues = ht.array(eval)
         eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
 
         components = eigenvectors[:, : self.n_clusters].copy()

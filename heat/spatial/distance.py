@@ -256,7 +256,6 @@ def _dist(X, Y=None, metric=_euclidian):
                     comm.Recv(symmetric, source=receiver, tag=iter)
                 d._DNDarray__array[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
 
-
             if (size + 1) % 2 != 0:  # we need one mor iteration for the first n/2 processes
                 receiver = (rank + num_iter) % size
                 sender = (rank - num_iter) % size
@@ -287,7 +286,9 @@ def _dist(X, Y=None, metric=_euclidian):
                     scol2 = displ[receiver + 1] if receiver != size - 1 else K
                     scolumns = (scol1, scol2)
                     symmetric = torch.zeros(
-                        (scolumns[1] - scolumns[0], rows[1] - rows[0]), dtype=torch_type, device=X.device.torch_device
+                        (scolumns[1] - scolumns[0], rows[1] - rows[0]),
+                        dtype=torch_type,
+                        device=X.device.torch_device,
                     )
                     comm.Recv(symmetric, source=receiver, tag=num_iter)
                     d._DNDarray__array[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
