@@ -889,14 +889,23 @@ class TestStatistics(unittest.TestCase):
             ht.minimum(random_volume_1, random_volume_2, out=output)
 
     def test_std(self):
+        # test basics
+        a = ht.arange(1, 5, device=ht_device)
+        self.assertAlmostEqual(a.std(), 1.118034)
+        self.assertAlmostEqual(a.std(bessel=True), 1.2909944)
+
         # test raises
         x = ht.zeros((2, 3, 4), device=ht_device)
         with self.assertRaises(TypeError):
-            ht.std(x, axis=0, bessel=1)
+            ht.std(x, axis=0, ddof=1.0)
         with self.assertRaises(ValueError):
             ht.std(x, axis=10)
         with self.assertRaises(TypeError):
             ht.std(x, axis="01")
+        with self.assertRaises(NotImplementedError):
+            ht.std(x, ddof=2)
+        with self.assertRaises(ValueError):
+            ht.std(x, ddof=-2)
 
         # the rest of the tests are covered by var
 
@@ -919,11 +928,15 @@ class TestStatistics(unittest.TestCase):
             ht.var(x, axis=(0, "10"))
         with self.assertRaises(ValueError):
             ht.var(x, axis=(0, 0))
+        with self.assertRaises(NotImplementedError):
+            ht.var(x, ddof=2)
+        with self.assertRaises(ValueError):
+            ht.var(x, ddof=-2)
         with self.assertRaises(ValueError):
             ht.mean(x, axis=torch.Tensor([0, 0]))
 
         a = ht.arange(1, 5, device=ht_device)
-        self.assertEqual(a.var(), 1.666666666666666)
+        self.assertEqual(a.var(ddof=1), 1.666666666666666)
 
         # ones
         dimensions = []
@@ -933,7 +946,7 @@ class TestStatistics(unittest.TestCase):
             hold.append(None)
             for split in hold:  # loop over the number of dimensions of the test array
                 z = ht.ones(dimensions, split=split, device=ht_device)
-                res = z.var(bessel=False)
+                res = z.var(ddof=0)
                 total_dims_list = list(z.shape)
                 self.assertTrue((res == 0).all())
                 # loop over the different single dimensions for var
