@@ -1160,7 +1160,7 @@ def var(x, axis=None, ddof=0, **kwargs):
         The dtype of x must be a float
     axis : None, Int, iterable, defaults to None
         Axis which the variance is taken in. Default None calculates variance of all data items.
-    ddof : int, optional
+    ddof : int, optional (see Notes)
         Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
         represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
         Setting ddof > 1 raises a NotImplementedError.
@@ -1177,6 +1177,14 @@ def var(x, axis=None, ddof=0, **kwargs):
         if axis = x.split, then variances.split = None
         if axis > split, then variances.split = x.split
         if axis < split, then variances.split = x.split - 1
+
+    Notes on ddof (from numpy)
+    --------------------------
+    The variance is the average of the squared deviations from the mean, i.e., var = mean(abs(x - x.mean())**2).
+    The mean is normally calculated as x.sum() / N, where N = len(x). If, however, ddof is specified, the divisor
+    N - ddof is used instead. In standard statistical practice, ddof=1 provides an unbiased estimator of the
+    variance of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate of the variance
+    for normally distributed variables.
 
     Examples
     --------

@@ -3399,6 +3399,15 @@ class DNDarray:
             represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
             Setting ddof > 1 raises a NotImplementedError.
 
+        Notes on ddof (from numpy)
+        --------------------------
+        The variance is the average of the squared deviations from the mean, i.e., var = mean(abs(x - x.mean())**2).
+        The mean is normally calculated as x.sum() / N, where N = len(x). If, however, ddof is specified, the divisor
+        N - ddof is used instead. In standard statistical practice, ddof=1 provides an unbiased estimator of the
+        variance of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate of the variance
+        for normally distributed variables.
+
+
         Examples
         --------
         >>> a = ht.random.randn(1,3)
