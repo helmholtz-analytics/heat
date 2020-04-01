@@ -145,6 +145,7 @@ def array(
 ):
     """
     Create a tensor.
+
     Parameters
     ----------
     obj : array_like
