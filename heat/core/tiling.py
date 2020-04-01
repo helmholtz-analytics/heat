@@ -176,7 +176,7 @@ class SplitTiles:
         """
         # todo: strides can be implemented with using a list of slices for each dimension
         if not isinstance(key, (tuple, slice, int, torch.Tensor)):
-            raise NotImplementedError("key type not supported: {}".format(type(key)))
+            raise TypeError("key type not supported: {}".format(type(key)))
         arr = self.__DNDarray
         if arr.comm.rank not in self.tile_locations[key]:
             return None
@@ -238,9 +238,9 @@ class SplitTiles:
         see getitem function for this class
         """
         if not isinstance(key, (tuple, slice, int, torch.Tensor)):
-            raise NotImplementedError("key type not supported: {}".format(type(key)))
+            raise TypeError("key type not supported: {}".format(type(key)))
         if not isinstance(value, (torch.Tensor, int, float)):
-            raise NotImplementedError("value type not supported: {}".format(type(value)))
+            raise TypeError("value type not supported: {}".format(type(value)))
         arr = self.__DNDarray
         # todo: is it okay for cross-split setting? this can be problematic,
         #   but it is fine if the data shapes match up

@@ -19,8 +19,26 @@ if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
     torch.cuda.set_device(device)
 
 
-class TestTiling(unittest.TestCase):
+class TestSplitTiles(unittest.TestCase):
+    # most of the cases are covered by the resplit tests
+    if ht.MPI_WORLD.size > 1:
 
+        def test_raises(self):
+            length = torch.tensor([i + 20 for i in range(2)], device=device)
+            test = torch.arange(torch.prod(length), dtype=torch.float64, device=device).reshape(
+                [i + 20 for i in range(2)]
+            )
+            a = ht.array(test, split=1)
+            a.create_split_tiles()
+            with self.assertRaises(TypeError):
+                a.tiles["p"]
+            with self.assertRaises(TypeError):
+                a.tiles[0] = "p"
+            with self.assertRaises(TypeError):
+                a.tiles["p"] = "p"
+
+
+class TestSquareDiagTiles(unittest.TestCase):
     # arrs = (m_eq_n_s0, m_eq_n_s1, m_gr_n_s0, m_gr_n_s1, m_ls_n_s0, m_ls_n_s1)
     if ht.MPI_WORLD.size > 1:
 
