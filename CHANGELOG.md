@@ -11,8 +11,8 @@
 - [#498](https://github.com/helmholtz-analytics/heat/pull/498) Feature: flip()
 - [#499](https://github.com/helmholtz-analytics/heat/pull/499) Bugfix: MPI datatype mapping: `torch.int16` now maps to `MPI.SHORT` instead of `MPI.SHORT_INT`
 - [#515](https://github.com/helmholtz-analytics/heat/pull/515) ht.var() now returns the unadjusted sample variance by default, Bessel's correction can be applied by setting ddof=1.
-- [#515](https://github.com/helmholtz-analytics/heat/pull/515) Bugfix: resplit now give the correct order regardless of the split axes involved.
-- [#515](https://github.com/helmholtz-analytics/heat/pull/515) New tiling scheme: SplitTiles. Tile divisions are along what would be the split axis in every dimension, used for the new resplit function
+- [#520](https://github.com/helmholtz-analytics/heat/pull/520) Bugfix: resplit now give the correct order regardless of the split axes involved.
+- [#520](https://github.com/helmholtz-analytics/heat/pull/520) New tiling scheme: SplitTiles. Tile divisions are along what would be the split axis in every dimension, used for the new resplit function
 
 # v0.3.0
 
