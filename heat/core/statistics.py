@@ -1100,7 +1100,7 @@ def mpi_argmin(a, b, _):
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
-def std(x, axis=None, bessel=True):
+def std(x, axis=None, ddof=0, **kwargs):
     """
     Calculates and returns the standard deviation of a tensor with the bessel correction.
     If a axis is given, the variance will be taken in that direction.
@@ -1112,9 +1112,10 @@ def std(x, axis=None, bessel=True):
         The dtype of x must be a float
     axis : None, Int, iterable, defaults to None
         Axis which the std is taken in. Default None calculates std of all data items.
-    bessel : bool, defaults to True
-        Use the bessel correction when calculating the variance/std. Toggles between unbiased and biased calculation of
-        the standard deviation.
+    ddof : int, optional
+        Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
+        represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
+        Setting ddof > 1 raises a NotImplementedError.
 
     Returns
     -------
@@ -1127,27 +1128,27 @@ def std(x, axis=None, bessel=True):
     >>> a
     tensor([[ 0.3421,  0.5736, -2.2377]])
     >>> ht.std(a)
-    tensor(1.5606)
+    tensor(1.2742)
     >>> a = ht.random.randn(4,4)
     >>> a
     tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
             [ 0.2732, -0.0965, -0.1087, -1.3805],
             [ 0.2647,  0.5998, -0.1635, -0.0848],
             [ 0.0343,  0.1618, -0.8064, -0.1031]])
-    >>> ht.std(a, 0)
+    >>> ht.std(a, 0, ddof=1)
     tensor([0.6157, 0.2918, 0.8324, 1.1996])
-    >>> ht.std(a, 1)
+    >>> ht.std(a, 1, ddof=1)
     tensor([1.1405, 0.7236, 0.3506, 0.4324])
-    >>> ht.std(a, 1, bessel=False)
+    >>> ht.std(a, 1)
     tensor([0.9877, 0.6267, 0.3037, 0.3745])
     """
     if not axis:
-        return np.sqrt(var(x, axis, bessel))
+        return np.sqrt(var(x, axis, ddof, **kwargs))
     else:
-        return exponential.sqrt(var(x, axis, bessel), out=None)
+        return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
-def var(x, axis=None, bessel=True):
+def var(x, axis=None, ddof=0, **kwargs):
     """
     Calculates and returns the variance of a tensor. If an axis is given, the variance will be
     taken in that direction.
@@ -1159,10 +1160,10 @@ def var(x, axis=None, bessel=True):
         The dtype of x must be a float
     axis : None, Int, iterable, defaults to None
         Axis which the variance is taken in. Default None calculates variance of all data items.
-    bessel : bool, defaults to True
-        Use the bessel correction when calculating the variance/std.
-        Toggles between unbiased and biased calculation of
-        the variance.
+    ddof : int, optional (see Notes)
+        Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
+        represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
+        Setting ddof > 1 raises a NotImplementedError.
 
     Returns
     -------
@@ -1177,12 +1178,22 @@ def var(x, axis=None, bessel=True):
         if axis > split, then variances.split = x.split
         if axis < split, then variances.split = x.split - 1
 
+    Notes on ddof (from numpy)
+    --------------------------
+    The variance is the average of the squared deviations from the mean, i.e., var = mean(abs(x - x.mean())**2).
+    The mean is normally calculated as x.sum() / N, where N = len(x). If, however, ddof is specified, the divisor
+    N - ddof is used instead. In standard statistical practice, ddof=1 provides an unbiased estimator of the
+    variance of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate of the variance
+    for normally distributed variables.
+
     Examples
     --------
     >>> a = ht.random.randn(1,3)
     >>> a
     tensor([[-1.9755,  0.3522,  0.4751]])
     >>> ht.var(a)
+    tensor(1.2710)
+    >>> ht.var(a, ddof=1)
     tensor(1.9065)
 
     >>> a = ht.random.randn(4,4)
@@ -1195,13 +1206,23 @@ def var(x, axis=None, bessel=True):
     tensor([1.3092, 0.0034, 0.7061, 0.9217])
     >>> ht.var(a, 0)
     tensor([1.3624, 3.2563, 0.1447, 1.2042])
-    >>> ht.var(a, 0, bessel=True)
+    >>> ht.var(a, 0, ddof=1)
     tensor([1.3624, 3.2563, 0.1447, 1.2042])
-    >>> ht.var(a, 0, bessel=False)
+    >>> ht.var(a, 0, ddof=0)
     tensor([1.0218, 2.4422, 0.1085, 0.9032])
     """
-    if not isinstance(bessel, bool):
-        raise TypeError("bessel must be a boolean, currently is {}".format(type(bessel)))
+
+    if not isinstance(ddof, int):
+        raise TypeError("ddof must be integer, is {}".format(type(ddof)))
+    elif ddof > 1:
+        raise NotImplementedError("Not implemented for ddof > 1.")
+    elif ddof < 0:
+        raise ValueError("Expected ddof=0 or ddof=1, got {}".format(ddof))
+    else:
+        if kwargs.get("bessel"):
+            bessel = kwargs.get("bessel")
+        else:
+            bessel = bool(ddof)
 
     def reduce_vars_elementwise(output_shape_i):
         """

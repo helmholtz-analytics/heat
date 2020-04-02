@@ -1,9 +1,8 @@
 import collections
 import torch
 
-from .. import dndarray
+from .. import dndarray, tiling
 from .. import factories
-from . import tiling
 
 __all__ = ["qr"]
 
