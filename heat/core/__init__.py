@@ -6,7 +6,6 @@ from .exponential import *
 from .factories import *
 from .indexing import *
 from .io import *
-from .linalg import *
 from .logical import *
 from .manipulations import *
 from .memory import *
