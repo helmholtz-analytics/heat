@@ -5,14 +5,18 @@ import heat as ht
 import time
 
 
-def laplacian(S, norm=True, mode="fc", upper=None, lower=None):
+def laplacian(X, similarity, gamma=1.0, norm=True, mode="fc", upper=None, lower=None):
     """
-    Calculate the graph Laplacian from a similarity matrix
+    Construct the graph Laplacian from a dataset
 
     Parameters
     ----------
-    S : ht.DNDarray
-        quadrdatic, positive semidefinite similarity matrix, encoding similarity metrices s_ij between data samples i and j
+    X : ht.DNDarray
+        Dataset of dimensions (samples x features)
+    similarity:
+        Similarity metrices s_ij between data samples i and j. Can be (currently) 'rbf' or 'euclidean'. For 'rbf', the kernel parameter gamma has to be set
+    gamma:
+        Similarity kernel Parameter. Ignored for Similarity="euclidean"
     norm : bool
         Whether to calculate the normalized graph Laplacian
         The unnormalized graph Laplacian is defined as L = D - A, where where D is the diagonal degree matrix and A the adjacency matrix
@@ -30,6 +34,13 @@ def laplacian(S, norm=True, mode="fc", upper=None, lower=None):
     L : ht.DNDarray
 
     """
+    if similarity == "rbf":
+        sig = math.sqrt(1 / (2 * gamma))
+        S = ht.spatial.rbf(X, sigma=sig, quadratic_expansion=True)
+    elif similarity == "euclidean":
+        S = ht.spatial.cdist(X, quadratic_expansion=True)
+    else:
+        raise NotImplementedError("Other kernels currently not implemented")
 
     if mode == "eNeighbour":
         if (upper is not None) and (lower is not None):
@@ -43,14 +54,12 @@ def laplacian(S, norm=True, mode="fc", upper=None, lower=None):
         elif lower is not None:
             S = ht.int(S > lower)
     elif mode == "fc":
-        pass
+        S = S - ht.eye(S.shape)
     else:
         raise NotImplementedError(
             "Only eNeighborhood and fully-connected graphs supported at the moment."
         )
-
-    # Subtract 1 for the self-connection of each vertex (more memory-efficient than subtracting Identity matrix from the Adjacency matrix to make diagonal = 0)
-    degree = ht.sum(S, axis=1) - 1
+    degree = ht.sum(S, axis=1)
 
     if norm:
         degree.resplit_(axis=None)
@@ -63,7 +72,6 @@ def laplacian(S, norm=True, mode="fc", upper=None, lower=None):
         L = ht.eye(S.shape, dtype=S.dtype, split=S.split, device=S.device, comm=S.comm) - w
 
     else:
-
         L = ht.diag(degree) - S
 
     return L
@@ -130,19 +138,7 @@ class Spectral:
             )
 
         # in-place properties
-        self._components = None
-        self._cluster_centers = None
         self._labels = None
-
-    @property
-    def components_(self):
-        """
-        Returns
-        -------
-        ht.DNDarray, shape = (n_samples, n_lanzcos):
-            Eigenvectors of the graph Laplacian
-        """
-        return self._components
 
     @property
     def labels_(self):
@@ -159,40 +155,45 @@ class Spectral:
         Computes the low-dim representation by calculation of eigenspectrum (eigenvalues and eigenvectors) of the graph laplacian from the similarity matrix and fits the eigenvectors that correspond to the k lowest eigenvalues with a seperate clustering algorithm (currently only kemans is supported)
         Similarity metrics for adjacency calculations are supported via spatial.distance. The eigenvalues and eigenvectors are computed by reducing the Laplacian via lanczos iterations and using the torch eigenvalue solver on this smaller matrix. If other eigenvalue decompostion methods are supported, this will be expanded.
 
-
         Parameters
         ----------
         X : ht.DNDarray, shape=(n_samples, n_features)
             Training instances to cluster.
         """
-        # input sanitation
+        # 1. input sanitation
         if not isinstance(X, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
         if X.split is not None and X.split != 0:
             raise NotImplementedError("Not implemented for other splitting-axes")
-        # 1. Calculation of Adjacency Matrix
-        if self.metric == "rbf":
-            sig = math.sqrt(1 / (2 * self.gamma))
-            S = ht.spatial.rbf(X, sigma=sig, quadratic_expansion=True)
-
-        elif self.metric == "euclidean":
-            S = ht.spatial.cdist(X)
-        else:
-            raise NotImplementedError("Other kernels currently not implemented")
-
-        # 2. Calculation of Laplacian
+        # 2. Construct Laplacian
         if self.laplacian == "eNeighborhood":
             if self.epsilon[1] == "upper":
-                L = laplacian(S, norm=self.normalize, mode="eNeighbour", upper=self.epsilon[0])
+                L = laplacian(
+                    X,
+                    similarity=self.metric,
+                    gamma=self.gamma,
+                    norm=self.normalize,
+                    mode="eNeighbour",
+                    upper=self.epsilon[0],
+                )
             elif self.epsilon[1] == "lower":
-                L = laplacian(S, norm=self.normalize, mode="eNeighbour", lower=self.epsilon[0])
+                L = laplacian(
+                    X,
+                    similarity=self.metric,
+                    gamma=self.gamma,
+                    norm=self.normalize,
+                    mode="eNeighbour",
+                    lower=self.epsilon[0],
+                )
             else:
                 raise ValueError(
                     "Boundary needs to be 'upper' or 'lower' and threshold needs to be set, if laplacian = eNeighborhood"
                 )
 
         elif self.laplacian == "fully_connected":
-            L = laplacian(S, norm=self.normalize, mode="fc")
+            L = laplacian(
+                X, similarity=self.metric, gamma=self.gamma, norm=self.normalize, mode="fc"
+            )
         else:
             raise NotImplementedError("Other approaches currently not implemented")
 
@@ -247,29 +248,35 @@ class Spectral:
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
         if X.split is not None and X.split != 0:
             raise NotImplementedError("Not implemented for other splitting-axes")
-        # 1. Calculation of Adjacency Matrix
-        if self.metric == "rbf":
-            sig = math.sqrt(1 / (2 * self.gamma))
-            S = ht.spatial.rbf(X, sigma=sig, quadratic_expansion=True)
-
-        elif self.metric == "euclidean":
-            S = ht.spatial.cdist(X)
-        else:
-            raise NotImplementedError("Other kernels currently not implemented")
-
-        # 2. Calculation of Laplacian
+        # 2. Construct Laplacian
         if self.laplacian == "eNeighborhood":
             if self.epsilon[1] == "upper":
-                L = laplacian(S, norm=self.normalize, mode="eNeighbour", upper=self.epsilon[0])
+                L = laplacian(
+                    X,
+                    similarity=self.metric,
+                    gamma=self.gamma,
+                    norm=self.normalize,
+                    mode="eNeighbour",
+                    upper=self.epsilon[0],
+                )
             elif self.epsilon[1] == "lower":
-                L = laplacian(S, norm=self.normalize, mode="eNeighbour", lower=self.epsilon[0])
+                L = laplacian(
+                    X,
+                    similarity=self.metric,
+                    gamma=self.gamma,
+                    norm=self.normalize,
+                    mode="eNeighbour",
+                    lower=self.epsilon[0],
+                )
             else:
                 raise ValueError(
                     "Boundary needs to be 'upper' or 'lower' and threshold needs to be set, if laplacian = eNeighborhood"
                 )
 
         elif self.laplacian == "fully_connected":
-            L = laplacian(self._similarity, norm=self.normalize, mode="fc")
+            L = laplacian(
+                X, similarity=self.metric, gamma=self.gamma, norm=self.normalize, mode="fc"
+            )
         else:
             raise NotImplementedError("Other approaches currently not implemented")
 

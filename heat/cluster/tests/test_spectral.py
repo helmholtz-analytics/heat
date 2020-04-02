@@ -84,7 +84,6 @@ class TestKMeans(unittest.TestCase):
         spectral.fit(iris)
 
         self.assertIsInstance(spectral.labels_, ht.DNDarray)
-        self.assertIsInstance(spectral._components, ht.DNDarray)
 
         with self.assertRaises(NotImplementedError):
             spectral = ht.cluster.Spectral(
