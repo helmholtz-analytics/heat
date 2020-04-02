@@ -100,9 +100,8 @@ class Spectral:
             Kernel coefficient sigma for 'rbf', ignored for affinity='euclidean'
         metric : string
             How to construct the similarity matrix.
-            ‘rbf’ : construct the similarity matrix using a radial basis function (RBF) kernel.
+            'rbf' : construct the similarity matrix using a radial basis function (RBF) kernel.
             'euclidean' : construct the similarity matrix as only euclidean distance
-            ‘precomputed’ : interpret X as a precomputed similarity matrix.
         laplacian : string
             How to calculate the graph laplacian (affinity)
             'fully_connected'
@@ -212,8 +211,8 @@ class Spectral:
 
         # 5. Find the spectral gap, if number of clusters is not defined from the outside
         if self.n_clusters is None:
-            temp = np.diff(eigenvalues.numpy())
-            self.n_clusters = np.where(temp == temp.max())[0][0] + 1
+            diff = eigenvalues[1:] - eigenvalues[:-1]
+            self.n_clusters = np.where(diff == diff.max())[0][0] + 1
         components = eigenvectors[:, : self.n_clusters].copy()
 
         params = self._cluster.get_params()
