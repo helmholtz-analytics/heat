@@ -1250,7 +1250,7 @@ class DNDarray:
 
             arr = torch.Tensor()
 
-            # if a sigular index is given and the tensor is split
+            # if a singular index is given and the tensor is split
             if isinstance(key, int):
                 gout = [0] * (len(self.gshape) - 1)
                 if key < 0:
@@ -1292,9 +1292,13 @@ class DNDarray:
                 else:
                     new_split = self.split
 
+                # handle empty list
+                if len(key) == 0:
+                    arr = self.__array[key]
+                    gout = list(arr.shape)
                 # if a slice is given in the split direction
                 # below allows for the split given to contain Nones
-                if isinstance(key[self.split], slice):
+                elif isinstance(key[self.split], slice):
                     key_stop = key[self.split].stop
                     if key_stop is not None and key_stop < 0:
                         key_stop = self.gshape[self.split] + key[self.split].stop
@@ -1322,17 +1326,21 @@ class DNDarray:
                         indices = key[self.split]
                     key = list(key)
                     if isinstance(indices, list):
-                        indices = [
-                            index + self.gshape[self.split] if index < 0 else index
-                            for index in indices
-                        ]
-                        sorted_key_along_split = sorted(indices)
-                        if sorted_key_along_split[0] in range(
-                            chunk_start, chunk_end
-                        ) and sorted_key_along_split[-1] in range(chunk_start, chunk_end):
-                            indices = [index - chunk_start for index in indices]
-                            arr = self.__array[indices]
+                        if len(indices) == 0:
+                            arr = self.__array[key]
                             gout = list(arr.shape)
+                        else:
+                            indices = [
+                                index + self.gshape[self.split] if index < 0 else index
+                                for index in indices
+                            ]
+                            sorted_key_along_split = sorted(indices)
+                            if sorted_key_along_split[0] in range(
+                                chunk_start, chunk_end
+                            ) and sorted_key_along_split[-1] in range(chunk_start, chunk_end):
+                                indices = [index - chunk_start for index in indices]
+                                arr = self.__array[indices]
+                                gout = list(arr.shape)
 
                     elif isinstance(key[self.split], int):
                         key[self.split] = (
