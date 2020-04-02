@@ -1,5 +1,6 @@
 # Pending Additions
 
+- [#102](https://github.com/helmholtz-analytics/heat/pull/429) Add documentation for the generic reduce_op in Heat's core
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Create submodule for Linear Algebra functions
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated QR
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated a tiling class to create Square tiles along the diagonal of a 2D matrix
