@@ -2538,6 +2538,7 @@ class DNDarray:
         new_arr.create_split_tiles()
         rank = self.comm.rank
         waits = []
+        rcv_waits = {}
         for rpr in range(self.comm.size):
             # need to get where the tiles are on the new one first
             # rpr is the destination
@@ -2554,8 +2555,10 @@ class DNDarray:
                     new_arr.tiles[key] = to_send.clone()
                 elif rank == rpr:
                     buf = torch.zeros_like(new_arr.tiles[key])
-                    self.comm.Recv(buf=buf, source=spr, tag=spr)
-                    new_arr.tiles[key] = buf
+                    rcv_waits[key] = [self.comm.Irecv(buf=buf, source=spr, tag=spr), buf]
+        for k in rcv_waits.keys():
+            rcv_waits[k][0].wait()
+            new_arr.tiles[k] = rcv_waits[k][1]
         for w in waits:
             w.wait()
         if in_place:
