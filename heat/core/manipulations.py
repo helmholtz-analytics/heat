@@ -17,6 +17,7 @@ __all__ = [
     "expand_dims",
     "flatten",
     "flip",
+    "flipud",
     "hstack",
     "resplit",
     "sort",
@@ -662,6 +663,35 @@ def flip(a, axis=None):
     res.balance_()  # after swapping, first processes may be empty
     req.Wait()
     return res
+
+
+def flipud(a):
+    """
+        Flip array in the up/down direction.
+
+        Parameters
+        ----------
+        a: ht.DNDarray
+            Input array to be flipped
+
+        Returns
+        -------
+        res: ht.DNDarray
+            The flipped array.
+
+        Examples
+        --------
+        >>> a = ht.array([[0,1],[2,3]])
+        >>> ht.flipud(a)
+        tensor([[2, 3],
+            [0, 1]])
+
+        >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
+        >>> ht.flipud(b)
+        (1/2) tensor([3,4,5])
+        (2/2) tensor([0,1,2])
+    """
+    return flip(a, 0)
 
 
 def hstack(tup):
