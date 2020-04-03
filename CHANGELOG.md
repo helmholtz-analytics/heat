@@ -1,6 +1,5 @@
 # Pending Additions
 
-- [#102](https://github.com/helmholtz-analytics/heat/pull/429) Add documentation for the generic reduce_op in Heat's core
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Create submodule for Linear Algebra functions
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated QR
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated a tiling class to create Square tiles along the diagonal of a 2D matrix
@@ -13,6 +12,7 @@
 - [#499](https://github.com/helmholtz-analytics/heat/pull/499) Bugfix: MPI datatype mapping: `torch.int16` now maps to `MPI.SHORT` instead of `MPI.SHORT_INT`
 - [#515] (https://github.com/helmholtz-analytics/heat/pull/515) ht.var() now returns the unadjusted sample variance by default, Bessel's correction can be applied by setting ddof=1.
 - [#519] (https://github.com/helmholtz-analytics/heat/pull/519) Bugfix: distributed slicing with empty list or scalar as input; distributed nonzero() of empty (local) tensor.
+- [#521](https://github.com/helmholtz-analytics/heat/pull/521) Add documentation for the generic reduce_op in Heat's core
 
 # v0.3.0
 
