@@ -768,7 +768,9 @@ def pad(array, pad_width, mode="constant", values=0):
             )
     # shortcut - one sequence for all dimensions ( (pad1,pad2) = pad_width)
     elif len(pad_width) == 2 and isinstance(pad_width[0], int) and isinstance(pad_width[1], int):
+        pad_width=tuple(pad_width)
         pad = pad_width * len(array.shape)
+
     # no shortcut - padding of various dimensions
     else:
         if any(
@@ -857,7 +859,7 @@ def pad(array, pad_width, mode="constant", values=0):
                     padded_torch_tensor, pad_tuple, mode, value_tuple[i]
                 )
 
-        padded_tensor = factories.array(padded_torch_tensor, dtype=array.dtype, device=array.device)
+        padded_tensor = factories.array(padded_torch_tensor, dtype=array.dtype, device=array.device, split=array.split)
 
         return padded_tensor
 
@@ -907,26 +909,29 @@ def pad(array, pad_width, mode="constant", values=0):
     else:
         pad_tuple_curr_rank = pad_middle
     
-
-    if isinstance(values, int) or isinstance(values, float):
-        padded_torch_tensor = torch.nn.functional.pad(
-            array_torch, pad_tuple_curr_rank, mode, values
-        )
-    elif len(values) == 1 and (isinstance(values[0], int) or isinstance(values[0], float)):
-        padded_torch_tensor = torch.nn.functional.pad(
-            array_torch, pad_tuple_curr_rank, mode, values[0]
-        )
+    if rank > last_ps_with_data:
+        padded_tensor=aarray
     else:
-        padded_torch_tensor = array_torch
-        for i in range(len(value_tuple) - 1, -1, -1):
-            pad_list = [0,] * 2 * rank_array
-            pad_list[i] = pad_tuple_curr_rank[i]
-            pad_tuple = tuple(pad_list)
-            padded_torch_tensor = torch.nn.functional.pad(
-                padded_torch_tensor, pad_tuple, mode, value_tuple[i]
-            )
 
-    padded_tensor = factories.array(padded_torch_tensor, dtype=array.dtype, device=array.device)
+        if isinstance(values, int) or isinstance(values, float):
+            padded_torch_tensor = torch.nn.functional.pad(
+                array_torch, pad_tuple_curr_rank, mode, values
+            )
+        elif len(values) == 1 and (isinstance(values[0], int) or isinstance(values[0], float)):
+            padded_torch_tensor = torch.nn.functional.pad(
+                array_torch, pad_tuple_curr_rank, mode, values[0]
+            )
+        else:
+            padded_torch_tensor = array_torch
+            for i in range(len(value_tuple) - 1, -1, -1):
+                pad_list = [0,] * 2 * rank_array
+                pad_list[i] = pad_tuple_curr_rank[i]
+                pad_tuple = tuple(pad_list)
+                padded_torch_tensor = torch.nn.functional.pad(
+                    padded_torch_tensor, pad_tuple, mode, value_tuple[i]
+                )
+
+        padded_tensor = factories.array(padded_torch_tensor, dtype=array.dtype, device=array.device)
     padded_tensor.balance_()
 
     return padded_tensor
