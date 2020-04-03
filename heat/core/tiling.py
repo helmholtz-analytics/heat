@@ -10,7 +10,7 @@ class SquareDiagTiles:
         """
         Generate the tile map and the other objects which may be useful.
         The tiles generated here are based of square tiles along the diagonal. The size of these
-        tiles along the diagonal dictate the divisions accross all processes. If
+        tiles along the diagonal dictate the divisions across all processes. If
         gshape[0] >> gshape[1] then there will be extra tiles generated below the diagonal.
         If gshape[0] is close to gshape[1], then the last tile (as well as the other tiles which
         correspond with said tile) will be extended to cover the whole array. However, extra tiles

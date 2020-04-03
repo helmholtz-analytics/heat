@@ -61,6 +61,7 @@ def nonzero(a):
     if a.split is None:
         # if there is no split then just return the values from torch
         lcl_nonzero = torch.nonzero(a._DNDarray__array)
+        gout = list(lcl_nonzero.size())
         is_split = None
     else:
         # a is split
@@ -72,8 +73,16 @@ def nonzero(a):
         is_split = 0
 
     if a.numdims == 1:
-        lcl_nonzero = lcl_nonzero.squeeze()
-    return factories.array(lcl_nonzero, is_split=is_split, device=a.device, comm=a.comm)
+        lcl_nonzero = lcl_nonzero.squeeze(dim=1)
+
+    return dndarray.DNDarray(
+        lcl_nonzero,
+        gshape=tuple(gout),
+        dtype=types.canonical_heat_type(lcl_nonzero.dtype),
+        split=is_split,
+        device=a.device,
+        comm=a.comm,
+    )
 
 
 def where(cond, x=None, y=None):

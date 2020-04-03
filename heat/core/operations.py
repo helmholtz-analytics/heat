@@ -161,6 +161,9 @@ def __binary_op(operation, t1, t2):
             t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type)
         )
 
+    if not isinstance(result, torch.Tensor):
+        result = torch.tensor(result)
+
     return dndarray.DNDarray(
         result, output_shape, types.heat_type_of(result), output_split, output_device, output_comm
     )
