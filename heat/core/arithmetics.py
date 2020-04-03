@@ -203,13 +203,63 @@ def bitwise_xor(t1, t2):
     return operations.__binary_op(torch.Tensor.__xor__, t1, t2)
 
 
-def cumprod(a, axis):
+def cumprod(a, axis, dtype=None, out=None):
+    """
+    Return the cumulative product of elements along a given axis.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : int
+        Axis along which the cumulative product is computed.
+    dtype : dtype, optional
+        Type of the returned array, as well as of the accumulator in which
+        the elements are multiplied.  If *dtype* is not specified, it
+        defaults to the dtype of `a`, unless `a` has an integer dtype with
+        a precision less than that of the default platform integer.  In
+        that case, the default platform integer is used instead.
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must
+        have the same shape and buffer length as the expected output
+        but the type of the resulting values will be cast if necessary.
+
+    Returns
+    -------
+    cumprod : DNDarray
+        A new array holding the result is returned unless `out` is
+        specified, in which case a reference to out is returned.
+    """
+
     if axis is None:
         raise NotImplementedError("axis = None is not supported")
     if not isinstance(axis, int):
         raise RuntimeError("axis parameter got an invalid argument {}".format(axis))
 
-    cprod = torch.cumprod(a._DNDarray__array, axis=axis)
+    if dtype is not None:
+        dtype = types.canonical_heat_type(dtype)
+
+    if out is not None:
+        if out.shape != a.shape:
+            raise RuntimeError(
+                "out and a have different shapes {} != {}".format(out.shape, a.shape)
+            )
+        if out.split != a.split:
+            raise RuntimeError(
+                "out and a have different splits {} != {}".format(out.split, a.split)
+            )
+        if out.device != a.device:
+            raise RuntimeError(
+                "out and a have different devices {} != {}".format(out.device, a.device)
+            )
+        dtype = out.dtype
+
+    cprod = torch.cumprod(
+        a._DNDarray__array,
+        axis,
+        out=None if out is None else out._DNDarray__array,
+        dtype=None if dtype is None else dtype.torch_type(),
+    )
 
     if a.split is not None and axis == a.split:
         send = torch.ones(cprod.shape[:axis] + cprod.shape[axis + 1 :], dtype=cprod.dtype)
@@ -228,20 +278,78 @@ def cumprod(a, axis):
         recv = recv.reshape(cprod.shape[:axis] + torch.Size([1]) + cprod.shape[axis + 1 :])
         cprod *= recv
 
-    return factories.array(cprod, dtype=a.dtype, is_split=a.split, device=a.device)
+    if out is not None:
+        return out
+
+    return factories.array(
+        cprod, dtype=a.dtype if dtype is None else dtype, is_split=a.split, device=a.device
+    )
 
 
 # Alias support
 cumproduct = cumprod
 
 
-def cumsum(a, axis):
+def cumsum(a, axis, dtype=None, out=None):
+    """
+    Return the cumulative sum of the elements along a given axis.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : int
+        Axis along which the cumulative sum is computed.
+    dtype : dtype, optional
+        Type of the returned array and of the accumulator in which the
+        elements are summed.  If `dtype` is not specified, it defaults
+        to the dtype of `a`, unless `a` has an integer dtype with a
+        precision less than that of the default platform integer.  In
+        that case, the default platform integer is used.
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must
+        have the same shape and buffer length as the expected output
+        but the type will be cast if necessary. See `doc.ufuncs`
+        (Section "Output arguments") for more details.
+
+    Returns
+    -------
+    cumsum_along_axis : DNDarray.
+        A new array holding the result is returned unless `out` is
+        specified, in which case a reference to `out` is returned. The
+        result has the same size as `a`, and the same shape as `a` if
+        `axis` is not None or `a` is a 1-d array.
+
+    """
     if axis is None:
         raise NotImplementedError("axis = None is not supported")
     if not isinstance(axis, int):
         raise RuntimeError("axis parameter got an invalid argument {}".format(axis))
 
-    csum = torch.cumsum(a._DNDarray__array, axis=axis)
+    if dtype is not None:
+        dtype = types.canonical_heat_type(dtype)
+
+    if out is not None:
+        if out.shape != a.shape:
+            raise RuntimeError(
+                "out and a have different shapes {} != {}".format(out.shape, a.shape)
+            )
+        if out.split != a.split:
+            raise RuntimeError(
+                "out and a have different splits {} != {}".format(out.split, a.split)
+            )
+        if out.device != a.device:
+            raise RuntimeError(
+                "out and a have different devices {} != {}".format(out.device, a.device)
+            )
+        dtype = out.dtype
+
+    csum = torch.cumsum(
+        a._DNDarray__array,
+        axis,
+        out=None if out is None else out._DNDarray__array,
+        dtype=None if dtype is None else dtype.torch_type(),
+    )
 
     if a.split is not None and axis == a.split:
         send = torch.zeros(csum.shape[:axis] + csum.shape[axis + 1 :], dtype=csum.dtype)
@@ -260,7 +368,12 @@ def cumsum(a, axis):
         recv = recv.reshape(csum.shape[:axis] + torch.Size([1]) + csum.shape[axis + 1 :])
         csum += recv
 
-    return factories.array(csum, dtype=a.dtype, is_split=a.split, device=a.device)
+    if out is not None:
+        return out
+
+    return factories.array(
+        csum, dtype=a.dtype if dtype is None else dtype, is_split=a.split, device=a.device
+    )
 
 
 def diff(a, n=1, axis=-1):
