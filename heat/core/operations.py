@@ -294,7 +294,7 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
     else:
         partial = x._DNDarray__array
 
-    #
+    # apply the partial reduction operation to the local tensor
     if axis is None:
         partial = partial_op(partial).reshape(-1)
         output_shape = (1,)
