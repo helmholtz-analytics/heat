@@ -22,7 +22,7 @@ class TestSpectral(unittest.TestCase):
         iris = ht.load("heat/datasets/data/iris.csv", sep=";")
 
         # fit the clusters
-        m = 20
+        m = 4
         spectral = ht.cluster.Spectral(
             gamma=1.0, metric="rbf", laplacian="fully_connected", normalize=True, n_lanczos=m
         )

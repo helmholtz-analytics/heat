@@ -56,7 +56,7 @@ class Spectral:
             sig = math.sqrt(1 / (2 * gamma))
             self.laplacian = ht.graph.Laplacian(
                 lambda x: ht.spatial.rbf(x, sigma=sig, quadratic_expansion=True),
-                definition="normalizes symmetric",
+                definition="norm_sym",
                 mode=laplacian,
                 threshold_key=boundary,
                 threshold_value=threshold,
@@ -65,7 +65,7 @@ class Spectral:
         elif metric == "euclidean":
             self.laplacian = ht.graph.Laplacian(
                 lambda x: ht.spatial.cdist(x),
-                definition="normalizes symmetric",
+                definition="norm_sym",
                 mode=laplacian,
                 threshold_key=boundary,
                 threshold_value=threshold,
@@ -104,19 +104,15 @@ class Spectral:
             Eigenvectors of the graph's Laplacian matrix.
         """
         L = self.laplacian.construct(X)
-
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
-        v0 = (
-            ht.ones((L.shape[0],), dtype=L.dtype, split=L.split, device=L.device)
-            / ht.sqrt(L.shape[0]).get_item()
-        )
-
+        v0 = ht.ones((L.shape[0],), dtype=L.dtype, split=0, device=L.device) / math.sqrt(L.shape[0])
         V, T = ht.lanczos(L, self.n_lanczos, v0)
+
         # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
         eval, evec = torch.eig(T._DNDarray__array, eigenvectors=True)
         # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
-        eigenvalues = ht.array(eval[:, 0])
-        eval, idx = ht.sort(eigenvalues)
+        eval, idx = torch.sort(eval[:, 0], dim=0)
+        eigenvalues = ht.array(eval)
         eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
 
         return eigenvalues, eigenvectors
@@ -141,7 +137,7 @@ class Spectral:
         # 3. Find the spectral gap, if number of clusters is not defined from the outside
         if self.n_clusters is None:
             diff = eigenvalues[1:] - eigenvalues[:-1]
-            self.n_clusters = ht.where(diff == diff.max())[0, 0] + 1
+            self.n_clusters = ht.where(diff == diff.max()).item() + 1
         components = eigenvectors[:, : self.n_clusters].copy()
 
         params = self._cluster.get_params()

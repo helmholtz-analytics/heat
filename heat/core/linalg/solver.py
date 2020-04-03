@@ -1,4 +1,5 @@
 import heat as ht
+
 import torch
 
 __all__ = ["cg", "lanczos"]
@@ -24,9 +25,9 @@ def cg(A, b, x0, out=None):
     """
 
     if (
-        not isinstance(A, ht.dndarray.DNDarray)
-        or not isinstance(b, ht.dndarray.DNDarray)
-        or not isinstance(x0, ht.dndarray.DNDarray)
+        not isinstance(A, ht.DNDarray)
+        or not isinstance(b, ht.DNDarray)
+        or not isinstance(x0, ht.DNDarray)
     ):
         raise TypeError(
             "A, b and x0 need to be of type ht.dndarra, but were {}, {}, {}".format(
@@ -96,7 +97,7 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
         Tridiagonal matrix of size mxm, with coefficients alpha_1,...alpha_n on the diagonal and coefficients beta_1,...,beta_n-1 on the side-diagonals. If T_out is given, it is returned
 
     """
-    if not isinstance(A, ht.dndarray.DNDarray):
+    if not isinstance(A, ht.DNDarray):
         raise TypeError("A needs to be of type ht.dndarra, but was {}".format(type(A)))
 
     if not (A.numdims == 2):
@@ -110,34 +111,36 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
     T = ht.zeros((m, m))
     if A.split == 0:
         # This is done for better memory access in the reorthogonalization Gram-Schmidt algorithm
-        V = ht.ones((m, n), split=1, dtype=A.dtype, device=A.device)
+        V = ht.ones((n, m), split=0, dtype=A.dtype, device=A.device)
     else:
-        V = ht.ones((m, n), split=None, dtype=A.dtype, device=A.device)
+        V = ht.ones((n, m), split=None, dtype=A.dtype, device=A.device)
 
     if v0 is None:
-        vr = ht.random.rand(n)
+        vr = ht.rand(n, split=V.split)
         v0 = vr / ht.norm(vr)
-
+    else:
+        if v0.split != V.split:
+            v0.resplit_(axis=V.split)
     # # 0th iteration
     # # vector v0 has euklidian norm = 1
     w = ht.matmul(A, v0)
     alpha = ht.dot(w, v0)
     w = w - alpha * v0
     T[0, 0] = alpha
-    V[0, :] = v0
+    V[:, 0] = v0
     for i in range(1, int(m)):
         beta = ht.norm(w)
         if abs(beta) < 1e-10:
             print("Lanczos breakdown in iteration {}".format(i))
             # Lanczos Breakdown, pick a random vector to continue
-            vr = ht.random.rand(n, dtype=A.dtype)
+            vr = ht.rand(n, dtype=A.dtype)
             # orthogonalize v_r with respect to all vectors v[i]
             for j in range(i):
-                vi_loc = V._DNDarray__array[j, :]
+                vi_loc = V._DNDarray__array[:, j]
                 a = torch.dot(vr._DNDarray__array, vi_loc)
                 b = torch.dot(vi_loc, vi_loc)
-                A.comm.Allreduce(ht.comm.MPI.IN_PLACE, a, ht.comm.MPI.SUM)
-                A.comm.Allreduce(ht.comm.MPI.IN_PLACE, b, ht.comm.MPI.SUM)
+                A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
+                A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
                 vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
             # normalize v_r to Euclidian norm 1 and set as ith vector v
             vi = vr / ht.norm(vr)
@@ -148,27 +151,27 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
             # ToDo: Rethink this; mask torch calls, See issue #494
             # This is the fast solution, using item access on the ht.dndarray level is way slower
             for j in range(i):
-                vi_loc = V._DNDarray__array[j, :]
+                vi_loc = V._DNDarray__array[:, j]
                 a = torch.dot(vr._DNDarray__array, vi_loc)
                 b = torch.dot(vi_loc, vi_loc)
-                A.comm.Allreduce(ht.comm.MPI.IN_PLACE, a, ht.comm.MPI.SUM)
-                A.comm.Allreduce(ht.comm.MPI.IN_PLACE, b, ht.comm.MPI.SUM)
+                A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
+                A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
                 vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
 
             vi = vr / ht.norm(vr)
 
         w = ht.matmul(A, vi)
         alpha = ht.dot(w, vi)
-        w = w - alpha * vi - beta * V[i - 1, :]
+        w = w - alpha * vi - beta * V[:, i - 1]
 
         T[i - 1, i] = beta
         T[i, i - 1] = beta
         T[i, i] = alpha
-        V[i, :] = vi
+        V[:, i] = vi
 
     if V.split is not None:
         V.resplit_(axis=None)
-    V = V.transpose()
+
     if T_out is not None:
         T_out = T.copy()
         if V_out is not None:
@@ -176,7 +179,7 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
             return V_out, T_out
         return V, T_out
     elif V_out is not None:
-        V_out = V
+        V_out = V.copy()
         return V_out, T
 
     return V, T

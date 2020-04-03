@@ -3,6 +3,7 @@ import torch
 
 from ..communication import MPI
 from .. import arithmetics
+from .. import exponential
 from .. import dndarray
 from .. import factories
 from .. import manipulations
@@ -780,7 +781,7 @@ def norm(a):
     for i in range(len(a.shape) - 1, -1, -1):
         d = arithmetics.sum(d, axis=i)
 
-    return arithmetics.sqrt(d).get_item()
+    return exponential.sqrt(d).item()
 
 
 def projection(a, b):
