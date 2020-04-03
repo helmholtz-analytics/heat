@@ -6,6 +6,7 @@
 - [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: DNDarray.cpu() changes heat device to cpu
 - Update documentation theme to "Read the Docs"
 - [#499](https://github.com/helmholtz-analytics/heat/pull/499) Bugfix: MPI datatype mapping: `torch.int16` now maps to `MPI.SHORT` instead of `MPI.SHORT_INT`
+- [#524](https://github.com/helmholtz-analytics/heat/pull/524) New Feature: cumsum & cumprod
 
 # v0.3.0
 

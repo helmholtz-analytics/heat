@@ -161,6 +161,74 @@ class TestArithmetics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.bitwise_xor(self.an_int_scalar, self.a_scalar)
 
+    def test_cumprod(self):
+        a = ht.full((2, 4), 2, dtype=ht.int32, device=ht_device)
+        result = ht.array([[2, 4, 8, 16], [2, 4, 8, 16]], dtype=ht.int32, device=ht_device)
+
+        # split = None
+        cprod = ht.cumprod(a, 1)
+        self.assertTrue(ht.equal(cprod, result))
+
+        # Alias
+        cprod = ht.cumproduct(a, 1)
+        self.assertTrue(ht.equal(cprod, result))
+
+        a = ht.full((4, 2), 2, dtype=ht.int64, split=0, device=ht_device)
+        result = ht.array(
+            [[2, 2], [4, 4], [8, 8], [16, 16]], dtype=ht.int64, split=0, device=ht_device
+        )
+
+        cprod = ht.cumprod(a, 0)
+        self.assertTrue(ht.equal(cprod, result))
+
+        a = ht.full((2, 4, 2), 2, dtype=ht.float32, split=1, device=ht_device)
+        result = ht.array(
+            [[[2, 2], [4, 4], [8, 8], [16, 16]], [[2, 2], [4, 4], [8, 8], [16, 16]]],
+            dtype=ht.float32,
+            split=1,
+            device=ht_device,
+        )
+
+        cprod = ht.cumprod(a, 1)
+        self.assertTrue(ht.equal(cprod, result))
+
+        with self.assertRaises(NotImplementedError):
+            ht.cumprod(ht.ones((2, 2)), axis=None)
+        with self.assertRaises(RuntimeError):
+            ht.cumprod(ht.ones((2, 2)), axis="1")
+
+    def test_cumsum(self):
+        a = ht.ones((2, 4), dtype=ht.int32, device=ht_device)
+        result = ht.array([[1, 2, 3, 4], [1, 2, 3, 4]], dtype=ht.int32, device=ht_device)
+
+        # split = None
+        cprod = ht.cumsum(a, 1)
+        self.assertTrue(ht.equal(cprod, result))
+
+        a = ht.ones((4, 2), dtype=ht.int64, split=0, device=ht_device)
+        result = ht.array(
+            [[1, 1], [2, 2], [3, 3], [4, 4]], dtype=ht.int64, split=0, device=ht_device
+        )
+
+        cprod = ht.cumsum(a, 0)
+        self.assertTrue(ht.equal(cprod, result))
+
+        a = ht.ones((2, 4, 2), dtype=ht.float32, split=1, device=ht_device)
+        result = ht.array(
+            [[[1, 1], [2, 2], [3, 3], [4, 4]], [[1, 1], [2, 2], [3, 3], [4, 4]]],
+            dtype=ht.float32,
+            split=1,
+            device=ht_device,
+        )
+
+        cprod = ht.cumsum(a, 1)
+        self.assertTrue(ht.equal(cprod, result))
+
+        with self.assertRaises(NotImplementedError):
+            ht.cumsum(ht.ones((2, 2)), axis=None)
+        with self.assertRaises(RuntimeError):
+            ht.cumsum(ht.ones((2, 2)), axis="1")
+
     def test_diff(self):
         ht_array = ht.random.rand(20, 20, 20, split=None, device=ht_device)
         arb_slice = [0] * 3

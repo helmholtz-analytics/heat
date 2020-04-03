@@ -6,12 +6,18 @@ from . import operations
 from . import stride_tricks
 from . import types
 
+from . import factories
+import numpy as np
+
 __all__ = [
     "add",
     "bitwise_and",
     "bitwise_not",
     "bitwise_or",
     "bitwise_xor",
+    "cumprod",
+    "cumproduct",
+    "cumsum",
     "diff",
     "div",
     "divide",
@@ -195,6 +201,66 @@ def bitwise_xor(t1, t2):
             raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__xor__, t1, t2)
+
+
+def cumprod(a, axis):
+    if axis is None:
+        raise NotImplementedError("axis = None is not supported")
+    if not isinstance(axis, int):
+        raise RuntimeError("axis parameter got an invalid argument {}".format(axis))
+
+    cprod = torch.cumprod(a._DNDarray__array, axis=axis)
+
+    if a.split is not None and axis == a.split:
+        send = torch.ones(cprod.shape[:axis] + cprod.shape[axis + 1 :], dtype=cprod.dtype)
+
+        if cprod.numel() > 0:
+            indices = -1
+            Ni, Nk = cprod.shape[:axis], cprod.shape[axis + 1 :]
+            for ii in np.ndindex(Ni):
+                for kk in np.ndindex(Nk):
+                    send[ii + np.s_[...,] + kk] = cprod[ii + np.s_[:,] + kk][indices]
+
+        recv = torch.ones(cprod.shape[:axis] + cprod.shape[axis + 1 :], dtype=send.dtype)
+
+        a.comm.Exscan(send, recv, MPI.PROD)
+
+        recv = recv.reshape(cprod.shape[:axis] + torch.Size([1]) + cprod.shape[axis + 1 :])
+        cprod *= recv
+
+    return factories.array(cprod, dtype=a.dtype, is_split=a.split, device=a.device)
+
+
+# Alias support
+cumproduct = cumprod
+
+
+def cumsum(a, axis):
+    if axis is None:
+        raise NotImplementedError("axis = None is not supported")
+    if not isinstance(axis, int):
+        raise RuntimeError("axis parameter got an invalid argument {}".format(axis))
+
+    csum = torch.cumsum(a._DNDarray__array, axis=axis)
+
+    if a.split is not None and axis == a.split:
+        send = torch.zeros(csum.shape[:axis] + csum.shape[axis + 1 :], dtype=csum.dtype)
+
+        if csum.numel() > 0:
+            indices = -1
+            Ni, Nk = csum.shape[:axis], csum.shape[axis + 1 :]
+            for ii in np.ndindex(Ni):
+                for kk in np.ndindex(Nk):
+                    send[ii + np.s_[...,] + kk] = csum[ii + np.s_[:,] + kk][indices]
+
+        recv = torch.zeros(csum.shape[:axis] + csum.shape[axis + 1 :], dtype=send.dtype)
+
+        a.comm.Exscan(send, recv, MPI.SUM)
+
+        recv = recv.reshape(csum.shape[:axis] + torch.Size([1]) + csum.shape[axis + 1 :])
+        csum += recv
+
+    return factories.array(csum, dtype=a.dtype, is_split=a.split, device=a.device)
 
 
 def diff(a, n=1, axis=-1):
