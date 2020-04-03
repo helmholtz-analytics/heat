@@ -856,9 +856,9 @@ def __split1_qr_loop(dim0, r, q0, calc_q, dim1=None, empties=None):
         # this will return the empty processes, Requires that lshape map is not none
         empties = torch.nonzero(r.tiles.lshape_map[..., r.split] == 0)
         empties = empties[0] if empties.numel() > 0 else []
-    r_torch_device = r.device.torch_device()
+    r_torch_device = r.device.torch_device
     r_torch_type = r.dtype.torch_type()
-    q0_torch_device = q0.device.torch_device() if calc_q else None
+    q0_torch_device = q0.device.torch_device if calc_q else None
     # ==================================== R Calculation - single tile =========================
     # loop over each column, need to do the QR for each tile in the column(should be rows)
     # need to get the diagonal process

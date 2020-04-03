@@ -101,7 +101,7 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
                 q_dict=q0_dict,
                 q_dict_waits=q0_dict_waits,
                 dim1=col,
-                diag_process=diag_process,
+                diag_pr=diag_process,
                 not_completed_prs=not_completed_processes,
             )
         arr_t.tiles.set_arr(arr.tiles.arr.T)
@@ -128,7 +128,7 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
             q_dict=q0_dict,
             q_dict_waits=q0_dict_waits,
             dim1=col,
-            diag_process=diag_process,
+            diag_pr=diag_process,
             not_completed_prs=not_completed_processes,
         )
     __split0_q_loop(
@@ -235,7 +235,7 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
                 q_dict=q1_dict,
                 q_dict_waits=q1_dict_waits,
                 dim1=col,
-                diag_process=diag_process,
+                diag_pr=diag_process,
                 not_completed_prs=not_completed_processes,
                 dim0=col + 1,
             )
@@ -266,7 +266,7 @@ def block_diagonalize_sp1(arr, overwrite_arr=False):
                 q_dict=q1_dict,
                 q_dict_waits=q1_dict_waits,
                 dim1=col,
-                diag_process=diag_process,
+                diag_pr=diag_process,
                 not_completed_prs=not_completed_processes,
                 dim0=col + 1,
             )
