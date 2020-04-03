@@ -1,3 +1,3 @@
 from .basics import *
-from .lanczos import *
+from .solver import *
 from .qr import *

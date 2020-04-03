@@ -2,12 +2,13 @@ import itertools
 import torch
 
 from ..communication import MPI
+from .. import arithmetics
 from .. import dndarray
 from .. import factories
 from .. import manipulations
 from .. import types
 
-__all__ = ["dot", "matmul", "transpose", "tril", "triu"]
+__all__ = ["dot", "matmul", "norm", "projection", "transpose", "tril", "triu"]
 
 
 def dot(a, b, out=None):
@@ -756,6 +757,57 @@ def matmul(a, b, allow_resplit=False):
         res = res if not vector_flag else res.squeeze()
         c = factories.array(res, split=split if not both_vec else None, device=a.device)
         return c
+
+
+def norm(a):
+    """
+    Frobenius norm of vector a
+
+    Parameters
+    ----------
+    a : ht.DNDarray
+
+    Returns
+    -------
+    float
+        Returns the vector norm (lenght) of a
+    """
+    if not isinstance(a, dndarray.DNDarray):
+        raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
+
+    d = a ** 2
+
+    for i in range(len(a.shape) - 1, -1, -1):
+        d = arithmetics.sum(d, axis=i)
+
+    return arithmetics.sqrt(d).get_item()
+
+
+def projection(a, b):
+    """
+    Projection of vector a onto vector b
+
+    Parameters
+    ----------
+    a : ht.DNDarray (1D)
+    b : ht.DNDarray (1D)
+
+    Returns
+    -------
+    ht.DNDarray
+        Returns the vector projection of b in the direction of a
+    """
+    if not isinstance(a, dndarray.DNDarray) or not isinstance(b, dndarray.DNDarray):
+        raise TypeError(
+            "a, b must be of type ht.DNDarray, but were {}, {}".format(type(a), type(b))
+        )
+
+    if len(a.shape) != 1 or len(b.shape) != 1:
+        raise RuntimeError(
+            "a, b must be vectors of length 1, but were {}, {}".format(len(a.shape), len(b.shape))
+        )
+
+    return (dot(a, b) / dot(b, b)) * b
 
 
 @torch.jit.script
