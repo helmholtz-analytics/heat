@@ -2549,16 +2549,11 @@ class DNDarray:
                 spr = self.tiles.tile_locations[key].item()
                 to_send = self.tiles[key]
                 if spr == rank and spr != rpr:
-                    print(to_send.shape, to_send.dtype)
                     waits.append(self.comm.Isend(to_send.clone(), dest=rpr, tag=rank))
                 elif spr == rpr == rank:
-                    new_arr.tiles[key] = to_send
+                    new_arr.tiles[key] = to_send.clone()
                 elif rank == rpr:
-                    buf = torch.zeros_like(
-                        new_arr.tiles[key],
-                        dtype=self.dtype.torch_type,
-                        device=self.device.torch_device,
-                    )
+                    buf = torch.zeros_like(new_arr.tiles[key])
                     self.comm.Recv(buf=buf, source=spr, tag=spr)
                     new_arr.tiles[key] = buf
         for w in waits:
