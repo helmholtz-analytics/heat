@@ -81,6 +81,7 @@ class SplitTiles:
         tile_locations = self.set_tile_locations(split=arr.split, tile_dims=tile_dims, arr=arr)
 
         self.__DNDarray = arr
+        self.__lshape_map = lshape_map
         self.__tile_locations = tile_locations.int()
         self.__tile_ends_g = tile_ends_g
         self.__tile_dims = tile_dims
@@ -122,11 +123,22 @@ class SplitTiles:
         return self.__DNDarray
 
     @property
+    def lshape_map(self):
+        return self.__lshape_map
+
+    @property
     def tile_locations(self):
         return self.__tile_locations
 
     @property
     def tile_ends_g(self):
+        """
+        need to put examples at least here
+
+        Returns
+        -------
+
+        """
         return self.__tile_ends_g
 
     @property
@@ -178,12 +190,25 @@ class SplitTiles:
         if not isinstance(key, (tuple, slice, int, torch.Tensor)):
             raise TypeError("key type not supported: {}".format(type(key)))
         arr = self.__DNDarray
-        if arr.comm.rank not in self.tile_locations[key]:
-            return None
+        # if arr.comm.rank not in self.tile_locations[key]:
+        #     return None
         # This filters out the processes which are not involved
         # next need to get the local indices
         # tile_ends_g has the end points, need to get the start and stop
+        if arr.comm.rank not in self.tile_locations[key]:
+            return None
+        arb_slices = self.get_tile_slices(key)
+        return arr._DNDarray__array[tuple(arb_slices)]
+
+    def get_tile_slices(self, key):
+        arr = self.__DNDarray
         arb_slices = [None] * arr.numdims
+        end_rank = (
+            max(self.tile_locations[key])
+            if self.tile_locations[key].numel() > 1
+            else self.tile_locations[key]
+        )
+
         if isinstance(key, int):
             key = [key]
         if len(key) < arr.numdims or key[-1] is None:
@@ -194,7 +219,7 @@ class SplitTiles:
             # todo: implement advanced indexing (lists of positions to iterate through
             lkey = key
             stop = self.tile_ends_g[d][lkey[d]].max().item()
-            stop = stop if d != arr.split or stop is None else arr.lshape[d]
+            stop = stop if d != arr.split or stop is None else self.lshape_map[end_rank][d].item()
             if (
                 isinstance(lkey[d], slice)
                 and d != arr.split
@@ -216,7 +241,14 @@ class SplitTiles:
             else:
                 start = 0
             arb_slices[d] = slice(start, stop)
-        return arr._DNDarray__array[tuple(arb_slices)]
+        return arb_slices
+
+    def get_tile_size(self, key):
+        arb_slices = self.get_tile_slices(key)
+        inds = []
+        for sl in arb_slices:
+            inds.append(sl.stop - sl.start)
+        return tuple(inds)
 
     def __setitem__(self, key, value):
         """
