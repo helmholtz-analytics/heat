@@ -2473,7 +2473,7 @@ class DNDarray:
             split=axis, tile_dims=self.tiles.tile_dimensions, arr=self
         )
         rank = self.comm.rank
-        # recieve the data with nonblocking, save which process its from
+        # receive the data with non-blocking, save which process its from
         rcv = {}
         for rpr in range(self.comm.size):
             # need to get where the tiles are on the new one first
@@ -2516,24 +2516,16 @@ class DNDarray:
                 del rcv[k]
             if lp_arr is not None:
                 arrays.append(lp_arr)
-        # print(len(arrays))
-
         del dims[-1]
-        # print(dims)
         # for 4 prs and 4 dims, arrays is now 16 elements long,
         # next need to group the each 4 (sz) and cat in the next dim
-        # print(dims)
         # if len(dims) > 0 and dims[-1] - 1 > 0:
-
         for d in reversed(dims):
             new_arrays = []
             for prs in range(int(len(arrays) / sz)):
                 new_arrays.append(torch.cat(arrays[prs * sz : (prs + 1) * sz], dim=d))
             arrays = new_arrays
-            # print(d, len(arrays), sz)
             del d
-            # if len(arrays) == 1:
-            #     break
         if len(arrays) == 1:
             arrays = arrays[0]
 
@@ -2541,7 +2533,7 @@ class DNDarray:
         self.__split = axis
         return self
 
-    def resplit(self, axis, in_place=False):
+    def resplit(self, axis):
         """
         Redistribution of the content of the tensor along a different split axis.
         Allows to "unsplit" (i.e. gather) all values from all nodes as well as the
