@@ -2442,7 +2442,104 @@ class DNDarray:
         resplit: ht.DNDarray
             The redistributed tensor. Will overwrite the old DNDarray in memory.
         """
-        return self.resplit(axis=axis, in_place=True)
+        # sanitize the axis to check whether it is in range
+        axis = sanitize_axis(self.shape, axis)
+
+        # early out for unchanged content
+        if axis == self.split:
+            return self
+        if axis is None:
+            gathered = torch.empty(
+                self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
+            )
+            counts, displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
+            self.comm.Allgatherv(self.__array, (gathered, counts, displs), recv_axis=self.split)
+            self.__array = gathered
+            self.__split = axis
+            return self
+        # tensor needs be split/sliced locally
+        if self.split is None:
+            # new_arr = self
+            _, _, slices = self.comm.chunk(self.shape, axis)
+            temp = self.__array[slices]
+            self.__array = torch.empty((1,), device=self.device.torch_device)
+            # necessary to clear storage of local __array
+            self.__array = temp.clone().detach()
+            self.__split = axis
+            return self
+
+        self.create_split_tiles()
+        new_tile_locs = self.tiles.set_tile_locations(
+            split=axis, tile_dims=self.tiles.tile_dimensions, arr=self
+        )
+        rank = self.comm.rank
+        # recieve the data with nonblocking, save which process its from
+        rcv = {}
+        for rpr in range(self.comm.size):
+            # need to get where the tiles are on the new one first
+            # rpr is the destination
+            new_locs = torch.where(new_tile_locs == rpr)
+            new_locs = torch.stack([new_locs[i] for i in range(self.numdims)], dim=1)
+            for i in range(new_locs.shape[0]):
+                key = tuple(new_locs[i].tolist())
+                spr = self.tiles.tile_locations[key].item()
+                to_send = self.tiles[key]
+                if spr == rank and spr != rpr:
+                    self.comm.Send(to_send.clone(), dest=rpr, tag=rank)
+                    del to_send
+                elif spr == rpr and rpr == rank:
+                    rcv[key] = [None, to_send]
+                elif rank == rpr:
+                    sz = self.tiles.get_tile_size(key)
+                    buf = torch.zeros(
+                        sz, dtype=self.dtype.torch_type(), device=self.device.torch_device
+                    )
+                    w = self.comm.Irecv(buf=buf, source=spr, tag=spr)
+                    rcv[key] = [w, buf]
+        dims = list(range(self.numdims))
+        del dims[axis]
+        sorted_keys = sorted(rcv.keys())
+        # todo: reduce the problem to 1D cats for each dimension, then work up
+        sz = self.comm.size
+        arrays = []
+        # print(sz ** (dims[-1] - 1))
+        for prs in range(int(len(sorted_keys) / sz)):
+            lp_keys = sorted_keys[prs * sz : (prs + 1) * sz]
+            lp_arr = None
+            for k in lp_keys:
+                if rcv[k][0] is not None:
+                    rcv[k][0].wait()
+                if lp_arr is None:
+                    lp_arr = rcv[k][1]
+                else:
+                    lp_arr = torch.cat((lp_arr, rcv[k][1]), dim=dims[-1])
+                del rcv[k]
+            if lp_arr is not None:
+                arrays.append(lp_arr)
+        # print(len(arrays))
+
+        del dims[-1]
+        # print(dims)
+        # for 4 prs and 4 dims, arrays is now 16 elements long,
+        # next need to group the each 4 (sz) and cat in the next dim
+        # print(dims)
+        # if len(dims) > 0 and dims[-1] - 1 > 0:
+
+        for d in reversed(dims):
+            new_arrays = []
+            for prs in range(int(len(arrays) / sz)):
+                new_arrays.append(torch.cat(arrays[prs * sz : (prs + 1) * sz], dim=d))
+            arrays = new_arrays
+            # print(d, len(arrays), sz)
+            del d
+            # if len(arrays) == 1:
+            #     break
+        if len(arrays) == 1:
+            arrays = arrays[0]
+
+        self.__array = arrays
+        self.__split = axis
+        return self
 
     def resplit(self, axis, in_place=False):
         """
@@ -2534,43 +2631,150 @@ class DNDarray:
             return new_arr if not in_place else self
 
         self.create_split_tiles()
-        new_arr = factories.empty(self.gshape, split=axis, dtype=self.dtype, device=self.device)
-        new_arr.create_split_tiles()
+        # new_arr = factories.empty(self.gshape, split=axis, dtype=self.dtype, device=self.device)
+        # new_arr.create_split_tiles()
+        new_tile_locs = self.tiles.set_tile_locations(
+            split=axis, tile_dims=self.tiles.tile_dimensions, arr=self
+        )
         rank = self.comm.rank
-        waits = []
-        rcv_waits = {}
+        # recieve the data with nonblocking, save which process its from
+        rcv = {}
         for rpr in range(self.comm.size):
             # need to get where the tiles are on the new one first
             # rpr is the destination
-            new_locs = torch.where(new_arr.tiles.tile_locations == rpr)
+            new_locs = torch.where(new_tile_locs == rpr)
             new_locs = torch.stack([new_locs[i] for i in range(self.numdims)], dim=1)
-
             for i in range(new_locs.shape[0]):
                 key = tuple(new_locs[i].tolist())
                 spr = self.tiles.tile_locations[key].item()
                 to_send = self.tiles[key]
                 if spr == rank and spr != rpr:
-                    waits.append(self.comm.Isend(to_send.clone(), dest=rpr, tag=rank))
-                elif spr == rpr == rank:
-                    new_arr.tiles[key] = to_send.clone()
+                    self.comm.Send(to_send.clone(), dest=rpr, tag=rank)
+                    del to_send
+                elif spr == rpr and rpr == rank:
+                    rcv[key] = [None, to_send]
                 elif rank == rpr:
-                    buf = torch.zeros_like(new_arr.tiles[key])
-                    rcv_waits[key] = [self.comm.Irecv(buf=buf, source=spr, tag=spr), buf]
-        for k in rcv_waits.keys():
-            rcv_waits[k][0].wait()
-            new_arr.tiles[k] = rcv_waits[k][1]
-        for w in waits:
-            w.wait()
+                    sz = self.tiles.get_tile_size(key)
+                    buf = torch.zeros(
+                        sz, dtype=self.dtype.torch_type(), device=self.device.torch_device
+                    )
+                    w = self.comm.Irecv(buf=buf, source=spr, tag=spr)
+                    rcv[key] = [w, buf]
+        # for spr in range(self.comm.size):
+        dims = list(range(self.numdims))
+        del dims[axis]
+        # todo: need to get the tiles for each dimension
+        # idea: pad in the dimension which is different, after setting delete old tile
+        #   use the global tile ends as the end dims
+        sorted_keys = sorted(rcv.keys())
+        # todo: reduce the problem to 1D cats for each dimension, then work up
+        sz = self.comm.size
+        arrays = []
+        # print(sz, (dims[-1] - 1))
+        if dims[-1] - 1 > 0:
+            for prs in range(sz ** (dims[-1] - 1)):
+                lp_keys = sorted_keys[prs * sz : (prs + 1) * sz]
+                lp_arr = None
+                for k in lp_keys:
+                    if rcv[k][0] is not None:
+                        rcv[k][0].wait()
+                    if lp_arr is None:
+                        lp_arr = rcv[k][1]
+                    else:
+                        lp_arr = torch.cat((lp_arr, rcv[k][1]), dim=dims[-1])
+                    del rcv[k]
+                if lp_arr is not None:
+                    arrays.append(lp_arr)
+            del dims[-1]
+            # for 4 prs and 4 dims, arrays is now 16 elements long,
+            # next need to group the each 4 (sz) and cat in the next dim
+            for d in reversed(dims):
+                new_arrays = []
+                print(d)
+                for prs in range(int(len(arrays) / sz)):
+                    new_arrays.append(torch.cat(arrays[prs * sz : (prs + 1) * sz], dim=d))
+                arrays = new_arrays
+                del d
+        if len(arrays) == 1:
+            arrays = arrays[0]
+
+        pass
+        # print(arrays)
+        # for
+        # print(lp_arr.shape)
+        # print("first prs", sorted_keys[:self.comm.size])
+        # print("second prs", sorted_keys[self.comm.size:])
+        # for k in sorted(rcv.keys()):
+        #     print(k, self.tiles.get_tile_slices(k))
+        # for c, d in enumerate(reversed(dims)):
+        #     # loop over the dimnsions (reversed)
+        #     # need to get the
+        #     for k in sorted(rcv.keys()):
+        #         # lk = list(k)
+        #         # del lk[axis]
+        #         # print(c, lk)
+        #         if rcv[k][0] is not None:
+        #             rcv[k][0].wait()
+        #         # the first ones are going to have the same first index, then comes the second
+        #         # todo: change to loop over the dims to be cat-ed
+        #         # todo: the dims for first cat need to be done iteratively backwards
+        #         # print('h', len(arrays))
+        #
+        # if arrays[c] is None:
+        #     arrays[c] = rcv[k][1]
+        #     print(d, c, k, arrays[c].shape)
+        # else:
+        #     arrays[c] = torch.cat((arrays[c], rcv[k][1]), dim=d)
+        #     print(d, c, k, arrays[c].shape)
+        #         del rcv[k]
+        # print(arrays)
+        # todo: cat the tensors together with the lowest dim that isnt axis
+        # res = torch.cat(arrays, dim=dims[0])
+        # print(res.shape)
+        # need to build the local tensor based off the keys (-> k)
+        # li = rcv[spr][i]
+        # if li[0] is not None:
+        #     # print('rcv', spr)
+        #     li[0].wait()
+        # # print(i)
+        # if i == 0:
+        #     array = li[1]
+        # else:
+        #     print(array.shape, i)
+        #     array = torch.cat((array, li[1]), i)
+
+        # for li in rcv[spr]:
+        # print(li)
+        # print(li[1])
+        # if not first:
+        #     array = torch.cat((array, li[1]), dim=self.split)
+        # else:
+        #     # need to create the array on the first loop
+        #     array = li[1]
+        #     first = False
+        # if spr == 0:
+        #     if rcv[spr][0] is not None:
+        #         print('rcv', spr)
+        #         # rcv[spr][0].wait()
+        #     array = rcv[spr][1]
+        # else:
+        #     if rcv[spr][0] is not None:
+        #         print('rcv', spr)
+        #         rcv[spr][0].wait()
+
+        # for k in rcv_waits.keys():
+        #     rcv_waits[k][0].wait()
+        #     new_arr.tiles[k] = rcv_waits[k][1]
+        # for w in waits:
+        #     w.wait()
+
         if in_place:
-            self.__array = new_arr._DNDarray__array
-            self.__gshape = new_arr.__gshape
-            self.__dtype = new_arr.__dtype
-            self.__split = new_arr.__split
-            self.__device = new_arr.__device
-            self.__comm = new_arr.__comm
-            del new_arr
+            self.__array = arrays
+            self.__split = axis
+            # print(array.shape, axis)
             return self
-        return new_arr
+        return None
+        # return new_arr
 
     def __rfloordiv__(self, other):
         """
