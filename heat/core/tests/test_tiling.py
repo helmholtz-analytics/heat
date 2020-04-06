@@ -36,9 +36,9 @@ class TestSplitTiles(unittest.TestCase):
             tiles["p"] = "p"
 
     def test_misc_coverage(self):
-        length = torch.tensor([i + 10 for i in range(3)], device=device)
+        length = torch.tensor([i + 5 for i in range(3)], device=device)
         test = torch.arange(torch.prod(length), dtype=torch.float64, device=device).reshape(
-            [i + 10 for i in range(3)]
+            [i + 5 for i in range(3)]
         )
         a = ht.array(test, split=None)
         tiles = ht.tiling.SplitTiles(a)
@@ -49,14 +49,29 @@ class TestSplitTiles(unittest.TestCase):
             # definition of adjusting tests is he same logic as the code itself,
             #   therefore, fixed tests are issued for one process confic
             tile_dims = torch.tensor(
-                [[4.0, 3.0, 3.0], [4.0, 4.0, 3.0], [4.0, 4.0, 4.0]], device=device
+                [[2.0, 2.0, 1.0], [2.0, 2.0, 2.0], [3.0, 2.0, 2.0]], device=device
             )
             res = tiles.tile_dimensions
             self.assertTrue(torch.equal(tile_dims, res))
+            testing_tensor = torch.tensor(
+                [
+                    [
+                        [168.0, 169.0, 170.0, 171.0, 172.0, 173.0, 174.0],
+                        [175.0, 176.0, 177.0, 178.0, 179.0, 180.0, 181.0],
+                        [182.0, 183.0, 184.0, 185.0, 186.0, 187.0, 188.0],
+                        [189.0, 190.0, 191.0, 192.0, 193.0, 194.0, 195.0],
+                        [196.0, 197.0, 198.0, 199.0, 200.0, 201.0, 202.0],
+                        [203.0, 204.0, 205.0, 206.0, 207.0, 208.0, 209.0],
+                    ]
+                ],
+                dtype=torch.float64,
+            )
+            if a.comm.rank == 2:
+                self.assertTrue(torch.equal(tiles[2], testing_tensor))
             tiles[2] = 1000
             sl = tiles[2]
             if a.comm.rank == 2:
-                self.assertEqual(torch.Size([3, 11, 12]), sl.shape)
+                self.assertEqual(torch.Size([1, 6, 7]), sl.shape)
                 self.assertTrue(torch.all(sl == 1000))
             else:
                 self.assertTrue(sl is None)

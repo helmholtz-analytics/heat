@@ -215,9 +215,10 @@ class SplitTiles:
     def get_tile_slices(self, key):
         arr = self.__DNDarray
         arb_slices = [None] * arr.numdims
+        # print(self.tile_locations[key])
         end_rank = (
-            max(self.tile_locations[key])
-            if self.tile_locations[key].numel() > 1
+            max(self.tile_locations[key].unique())
+            if self.tile_locations[key].unique().numel() > 1
             else self.tile_locations[key]
         )
 
@@ -228,10 +229,15 @@ class SplitTiles:
             lkey.extend([slice(0, None)] * (arr.numdims - len(key)))
             key = lkey
         for d in range(arr.numdims):
-            # todo: implement advanced indexing (lists of positions to iterate through
+            # todo: implement advanced indexing (lists of positions to iterate through)
             lkey = key
             stop = self.tile_ends_g[d][lkey[d]].max().item()
-            stop = stop if d != arr.split or stop is None else self.lshape_map[end_rank][d].item()
+            # print(stop, self.lshape_map[end_rank][d].max())
+            stop = (
+                stop
+                if d != arr.split or stop is None
+                else self.lshape_map[end_rank][d].max().item()
+            )
             if (
                 isinstance(lkey[d], slice)
                 and d != arr.split
