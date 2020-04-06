@@ -837,7 +837,7 @@ def pad(array, pad_width, mode="constant", values=0):
             )
         )
 
-    # shortcut one sequence within a sequence for all dimensions ( ((before,after), ) = pad_width)
+    # shortcut one sequence within a sequence for all dimensions - ((before,after), ) = pad_width
     elif len(pad_width) == 1:
         if isinstance(pad_width[0], int):
             pad = (pad_width[0],) * 2 * len(array.shape)
@@ -854,7 +854,7 @@ def pad(array, pad_width, mode="constant", values=0):
                 f"Pad_width {pad_width} invalid.\n Apart from shortcut options (--> documentation), "
                 "each sequence within pad_width must contain 2 elements."
             )
-    # shortcut - one sequence for all dimensions ( (before,after) = pad_width)
+    # shortcut - one sequence for all dimensions - (before,after) = pad_width
     elif len(pad_width) == 2 and isinstance(pad_width[0], int) and isinstance(pad_width[1], int):
         pad_width = tuple(pad_width)
         pad = pad_width * len(array.shape)
@@ -885,7 +885,7 @@ def pad(array, pad_width, mode="constant", values=0):
         if len(pad) // 2 > len(array.shape):
             raise ValueError(
                 f"Not enough dimensions to pad.\n"
-                f"Padding a {len(input.shape)}-dimensional tensor for {len(pad)//2}"
+                f"Padding a {len(array.shape)}-dimensional tensor for {len(pad)//2}"
                 f" dimensions is not possible."
             )
 
