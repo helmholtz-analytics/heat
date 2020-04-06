@@ -254,7 +254,7 @@ def cumprod(a, axis, dtype=None, out=None):
             )
         dtype = out.dtype
 
-    cprod = torch.cumprod(
+    cumprod = torch.cumprod(
         a._DNDarray__array,
         axis,
         out=None if out is None else out._DNDarray__array,
@@ -262,27 +262,27 @@ def cumprod(a, axis, dtype=None, out=None):
     )
 
     if a.split is not None and axis == a.split:
-        send = torch.ones(cprod.shape[:axis] + cprod.shape[axis + 1 :], dtype=cprod.dtype)
-
-        if cprod.numel() > 0:
-            indices = -1
-            Ni, Nk = cprod.shape[:axis], cprod.shape[axis + 1 :]
-            for ii in np.ndindex(Ni):
-                for kk in np.ndindex(Nk):
-                    send[ii + np.s_[...,] + kk] = cprod[ii + np.s_[:,] + kk][indices]
-
-        recv = torch.ones(cprod.shape[:axis] + cprod.shape[axis + 1 :], dtype=send.dtype)
+        indices = torch.tensor([cumprod.shape[axis] - 1])
+        send = (
+            torch.index_select(cumprod, axis, indices)
+            if indices[0] >= 0
+            else torch.ones(
+                cumprod.shape[:axis] + torch.Size([1]) + cumprod.shape[axis + 1 :],
+                dtype=cumprod.dtype,
+            )
+        )
+        recv = torch.ones(
+            cumprod.shape[:axis] + torch.Size([1]) + cumprod.shape[axis + 1 :], dtype=cumprod.dtype
+        )
 
         a.comm.Exscan(send, recv, MPI.PROD)
-
-        recv = recv.reshape(cprod.shape[:axis] + torch.Size([1]) + cprod.shape[axis + 1 :])
-        cprod *= recv
+        cumprod *= recv
 
     if out is not None:
         return out
 
     return factories.array(
-        cprod, dtype=a.dtype if dtype is None else dtype, is_split=a.split, device=a.device
+        cumprod, dtype=a.dtype if dtype is None else dtype, is_split=a.split, device=a.device
     )
 
 
@@ -314,11 +314,9 @@ def cumsum(a, axis, dtype=None, out=None):
 
     Returns
     -------
-    cumsum_along_axis : DNDarray.
+    cumsum : DNDarray
         A new array holding the result is returned unless `out` is
-        specified, in which case a reference to `out` is returned. The
-        result has the same size as `a`, and the same shape as `a` if
-        `axis` is not None or `a` is a 1-d array.
+        specified, in which case a reference to out is returned.
 
     """
     if axis is None:
@@ -344,7 +342,7 @@ def cumsum(a, axis, dtype=None, out=None):
             )
         dtype = out.dtype
 
-    csum = torch.cumsum(
+    cumsum = torch.cumsum(
         a._DNDarray__array,
         axis,
         out=None if out is None else out._DNDarray__array,
@@ -352,27 +350,26 @@ def cumsum(a, axis, dtype=None, out=None):
     )
 
     if a.split is not None and axis == a.split:
-        send = torch.zeros(csum.shape[:axis] + csum.shape[axis + 1 :], dtype=csum.dtype)
-
-        if csum.numel() > 0:
-            indices = -1
-            Ni, Nk = csum.shape[:axis], csum.shape[axis + 1 :]
-            for ii in np.ndindex(Ni):
-                for kk in np.ndindex(Nk):
-                    send[ii + np.s_[...,] + kk] = csum[ii + np.s_[:,] + kk][indices]
-
-        recv = torch.zeros(csum.shape[:axis] + csum.shape[axis + 1 :], dtype=send.dtype)
+        indices = torch.tensor([cumsum.shape[axis] - 1])
+        send = (
+            torch.index_select(cumsum, axis, indices)
+            if indices[0] >= 0
+            else torch.zeros(
+                cumsum.shape[:axis] + torch.Size([1]) + cumsum.shape[axis + 1 :], dtype=cumsum.dtype
+            )
+        )
+        recv = torch.zeros(
+            cumsum.shape[:axis] + torch.Size([1]) + cumsum.shape[axis + 1 :], dtype=cumsum.dtype
+        )
 
         a.comm.Exscan(send, recv, MPI.SUM)
-
-        recv = recv.reshape(csum.shape[:axis] + torch.Size([1]) + csum.shape[axis + 1 :])
-        csum += recv
+        cumsum += recv
 
     if out is not None:
         return out
 
     return factories.array(
-        csum, dtype=a.dtype if dtype is None else dtype, is_split=a.split, device=a.device
+        cumsum, dtype=a.dtype if dtype is None else dtype, is_split=a.split, device=a.device
     )
 
 
