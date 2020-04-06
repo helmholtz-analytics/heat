@@ -54,7 +54,7 @@ def cg(A, b, x0, out=None):
         x = x + (alpha * p)
         r = r - (alpha * Ap)
         rsnew = ht.matmul(r, r)
-        if ht.sqrt(rsnew).get_item() < 1e-10:
+        if ht.sqrt(rsnew).item() < 1e-10:
             print(
                 "Residual r = {} reaches tolerance in it = {}".format(ht.sqrt(rsnew).get_item(), i)
             )
