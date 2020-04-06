@@ -116,7 +116,7 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
         V = ht.ones((n, m), split=None, dtype=A.dtype, device=A.device)
 
     if v0 is None:
-        vr = ht.rand(n, split=V.split)
+        vr = ht.random.rand(n, split=V.split)
         v0 = vr / ht.norm(vr)
     else:
         if v0.split != V.split:
@@ -131,9 +131,9 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
     for i in range(1, int(m)):
         beta = ht.norm(w)
         if abs(beta) < 1e-10:
-            print("Lanczos breakdown in iteration {}".format(i))
+            # print("Lanczos breakdown in iteration {}".format(i))
             # Lanczos Breakdown, pick a random vector to continue
-            vr = ht.rand(n, dtype=A.dtype)
+            vr = ht.random.rand(n, dtype=A.dtype, split=V.split)
             # orthogonalize v_r with respect to all vectors v[i]
             for j in range(i):
                 vi_loc = V._DNDarray__array[:, j]

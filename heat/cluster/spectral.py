@@ -14,9 +14,9 @@ class Spectral:
         laplacian="fully_connected",
         threshold=1.0,
         boundary="upper",
-        normalize=True,
         n_lanczos=300,
         assign_labels="kmeans",
+        **params
     ):
         """
         Spectral clustering
@@ -32,23 +32,20 @@ class Spectral:
             'euclidean' : construct the similarity matrix as only euclidean distance
         laplacian : string
             How to calculate the graph laplacian (affinity)
-            'fully_connected'
-            'eNeighborhood'
+            Currently supported : 'fully_connected', 'eNeighbour'
         theshold : float
-            Threshold for affinity matrix if laplacian='eNeighborhood'
+            Threshold for affinity matrix if laplacian='eNeighbour'
             Ignorded for laplacian='fully_connected'
         boundary : string
-            How to interpret threshold
-            'upper'
-            'lower'
-        normalize : bool, default = True
-            normalized vs. unnormalized Laplacian
+            How to interpret threshold: 'upper', 'lower'
+            Ignorded for laplacian='fully_connected'
         n_lanczos : int
             number of Lanczos iterations for Eigenvalue decomposition
         assign_labels: str, default = 'kmeans'
              The strategy to use to assign labels in the embedding space.
              'kmeans'
-
+        **params: dict
+              Parameter dictionary for the assign_labels estimator
         """
         self.n_clusters = n_clusters
         self.n_lanczos = n_lanczos
@@ -64,7 +61,7 @@ class Spectral:
 
         elif metric == "euclidean":
             self.laplacian = ht.graph.Laplacian(
-                lambda x: ht.spatial.cdist(x),
+                lambda x: ht.spatial.cdist(x, quadratic_expansion=True),
                 definition="norm_sym",
                 mode=laplacian,
                 threshold_key=boundary,
@@ -74,7 +71,7 @@ class Spectral:
             raise NotImplementedError("Other kernels currently not supported")
 
         if assign_labels == "kmeans":
-            self._cluster = ht.cluster.KMeans(init="random", max_iter=30, tol=-1.0)
+            self._cluster = ht.cluster.KMeans(params)
         else:
             raise NotImplementedError(
                 "Other Label Assignment Algorithms are currently not available"
@@ -137,7 +134,9 @@ class Spectral:
         # 3. Find the spectral gap, if number of clusters is not defined from the outside
         if self.n_clusters is None:
             diff = eigenvalues[1:] - eigenvalues[:-1]
-            self.n_clusters = ht.where(diff == diff.max()).item() + 1
+            tmp = ht.where(diff == diff.max()).item()
+            self.n_clusters = tmp + 1
+            print("Number of suggested Clusters: ", self.n_clusters)
         components = eigenvectors[:, : self.n_clusters].copy()
 
         params = self._cluster.get_params()
@@ -197,3 +196,57 @@ class Spectral:
         """
         self.fit(X)
         return self._labels
+
+    def get_params(self, deep=True):
+        """
+        Get parameters for this estimator.
+
+        Parameters
+        ----------
+        deep : boolean, optional
+            If True, will return the parameters for this estimator and contained sub-objects that are estimators.
+            Defaults to true.
+
+        Returns
+        -------
+        params : dict of string to any
+            Parameter names mapped to their values.
+        """
+        # unused
+        _ = deep
+
+        return {
+            "n_clusters": self.n_clusters,
+            "gamma": self.gamma,
+            "metric": self.metric,
+            "laplacian": self.laplacian,
+            "threshold": self.threshold,
+            "boundary": self.boundary,
+            "n_lanczos": self.n_lanczos,
+            "assign_labels": self.assign_labels,
+        }
+
+    def set_params(self, **params):
+        """
+        Set the parameters of this estimator.
+
+        Parameters
+        ----------
+        params : dict
+            The parameters of the estimator to be modified.
+
+        Returns
+        -------
+        self : ht.ml.KMeans
+            This estimator instance for chaining.
+        """
+        self.n_clusters = params.get("n_clusters", self.n_clusters)
+        self.gamma = params.get("gamma", self.gamma)
+        self.metric = params.get("metric", self.metric)
+        self.laplacian = params.get("laplacian", self.laplacian)
+        self.threshold = params.get("thresholdtol", self.threshold)
+        self.boundary = params.get("boundary", self.boundary)
+        self.n_lanczos = params.get("n_lanczos", self.n_lanczos)
+        self.assign_labels = params.get("assign_labels", self.assign_labels)
+
+        return self
