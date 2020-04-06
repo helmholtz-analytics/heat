@@ -2425,7 +2425,7 @@ class DNDarray:
             if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
                 self.__array = torch.cat((self.__array, data), dim=self.split)
 
-    def resplit_(self, axis):
+    def resplit_(self, axis=None):
         """
         In-place option for resplitting a DNDarray.
 

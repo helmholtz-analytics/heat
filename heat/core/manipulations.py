@@ -1332,7 +1332,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     return return_value
 
 
-def resplit(arr, axis):
+def resplit(arr, axis=None):
     """
     Out-of-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
     nodes as well as the definition of new axis along which the tensor is split without changes to the values.
