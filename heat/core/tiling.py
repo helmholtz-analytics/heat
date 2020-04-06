@@ -273,10 +273,9 @@ class SplitTiles:
             raise TypeError("key type not supported: {}".format(type(key)))
         if not isinstance(value, (torch.Tensor, int, float)):
             raise TypeError("value type not supported: {}".format(type(value)))
-        arr = self.__DNDarray
         # todo: is it okay for cross-split setting? this can be problematic,
         #   but it is fine if the data shapes match up
-        if arr.comm.rank not in self.tile_locations[key]:
+        if self.__DNDarray.comm.rank not in self.tile_locations[key]:
             return None
         # this will set the tile values using the torch setitem function
         arr = self.__getitem__(key)
