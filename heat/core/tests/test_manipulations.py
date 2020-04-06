@@ -324,8 +324,12 @@ class TestManipulations(BasicTest):
             ht.concatenate((x))
         with self.assertRaises(TypeError):
             ht.concatenate((x, x), axis=x)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             ht.concatenate((x, ht.zeros((2, 2), device=ht_device)), axis=0)
+        with self.assertRaises(RuntimeError):
+            a = ht.zeros((10,), comm=ht.communication.MPI_WORLD)
+            b = ht.zeros((10,), comm=ht.communication.MPI_SELF)
+            ht.concatenate([a, b])
         with self.assertRaises(ValueError):
             ht.concatenate(
                 (ht.zeros((12, 12), device=ht_device), ht.zeros((2, 2), device=ht_device)), axis=0
