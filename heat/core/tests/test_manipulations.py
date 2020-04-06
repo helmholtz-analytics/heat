@@ -875,7 +875,10 @@ class TestManipulations(BasicTest):
         self.assertEqual(res.shape, (24,))
 
     def test_pad(self):
+        # ======================================
         # test padding of non-distributed tensor
+        # ======================================
+
         data = torch.arange(2 * 3 * 4).reshape(2, 3, 4)
         data_ht = ht.array(data, device=ht_device)
 
@@ -883,6 +886,7 @@ class TestManipulations(BasicTest):
         pad_torch = torch.nn.functional.pad(data, (1, 2, 1, 0, 2, 1))
         pad_ht = ht.pad(data_ht, pad_width=((2, 1), (1, 0), (1, 2)))
         self.assertTrue(ht.all(pad_ht == ht.array(pad_torch)))
+        self.assertIsInstance(pad_ht, ht.DNDarray)
 
         # padding with other values than default
         pad_numpy = np.pad(
@@ -972,8 +976,34 @@ class TestManipulations(BasicTest):
         pad_ht = ht.pad(data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", values=4)
         self.assertTrue(ht.all(pad_ht == ht.array(pad_numpy)))
 
-        # TODO: test padding of distributed tensor
-        # TODO: test padding in edge cases (empty local tensor)
+        
+        # ==================================
+        # test padding of distributed tensor
+        # ==================================
+        #TODO: how to get chunks of data as a whole for comparison
+
+        rank = ht.MPI_WORLD.rank
+        data_ht_split = ht.array(data, split=0, device=ht_device)
+        counts = data_ht_split.comm.counts_displs_shape(data_ht_split.gshape, data_ht_split.split)[0]
+        amount_of_processes = len(counts)
+
+        # padding in split dimension
+        pad_ht = ht.pad(data_ht, pad_width=(2,1), mode="constant", values=((0, 3), (1, 4), (2, 5)))
+        pad_ht_split = ht.pad(data_ht_split, pad_width=(2,1), mode="constant", values=((0, 3), (1, 4), (2, 5)))
+        #self.assertTrue(ht.all(pad_ht == pad_ht_split))
+
+
+        # padding in non split dimension
+        pad_ht = ht.pad(data_ht, pad_width=((2,1), (1,0)), mode="constant", values=((0, 3), (1, 4)))
+        pad_ht_split = ht.pad(data_ht, pad_width=((2,1), (1,0)), mode="constant", values=((0, 3), (1, 4)))
+        #self.assertTrue(ht.all(pad_ht == pad_ht_split))
+
+
+        #padding in edge cases (empty local tensor)
+        #if amount_of_processes > data_ht_split.shape[data_ht_split.split]:
+            
+
+
 
         # exceptions===================================
 
