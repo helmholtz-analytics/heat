@@ -1320,27 +1320,26 @@ def resplit(arr, axis):
 
     Examples
     --------
-    a = ht.zeros((4, 5,), split=0)
-    a.lshape
-    (0/2) >>> (2, 5)
-    (1/2) >>> (2, 5)
-    b = resplit(a, None)
-    b.split
-    >>> None
-    b.lshape
-    (0/2) >>> (4, 5)
-    (1/2) >>> (4, 5)
-
-    a = ht.zeros((4, 5,), split=0)
-    a.lshape
-    (0/2) >>> (2, 5)
-    (1/2) >>> (2, 5)
-    b = resplit(a, 1)
-    b.split
-    >>> 1
-    b.lshape
-    (0/2) >>> (4, 3)
-    (1/2) >>> (4, 2)
+    >>> a = ht.zeros((4, 5,), split=0)
+    >>> a.lshape
+    (0/2) (2, 5)
+    (1/2) (2, 5)
+    >>> b = resplit(a, None)
+    >>> b.split
+    None
+    >>> b.lshape
+    (0/2) (4, 5)
+    (1/2) (4, 5)
+    >>> a = ht.zeros((4, 5,), split=0)
+    >>> a.lshape
+    (0/2) (2, 5)
+    (1/2) (2, 5)
+    >>> b = resplit(a, 1)
+    >>> b.split
+    1
+    >>> b.lshape
+    (0/2) (4, 3)
+    (1/2) (4, 2)
     """
     # sanitize the axis to check whether it is in range
     axis = stride_tricks.sanitize_axis(arr.shape, axis)

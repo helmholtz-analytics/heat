@@ -128,16 +128,26 @@ class SplitTiles:
 
     @property
     def tile_locations(self):
+        """
+        Get the torch Tensor with the locations of the tiles for SplitTiles
+
+        Examples
+        --------
+        see :func:`~SplitTiles.__init__`
+        """
         return self.__tile_locations
 
     @property
     def tile_ends_g(self):
         """
-        need to put examples at least here
-
         Returns
         -------
+        end_of_tiles_global : torch.Tensor
+            tensor wih the global indces with the end points of the tiles in every dimension
 
+        Examples
+        --------
+        see :func:`~SplitTiles.__init__`
         """
         return self.__tile_ends_g
 

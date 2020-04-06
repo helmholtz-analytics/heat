@@ -27,13 +27,13 @@ class TestSplitTiles(unittest.TestCase):
             [i + 20 for i in range(2)]
         )
         a = ht.array(test, split=1)
-        a.create_split_tiles()
+        tiles = ht.tiling.SplitTiles(a)
         with self.assertRaises(TypeError):
-            a.tiles["p"]
+            tiles["p"]
         with self.assertRaises(TypeError):
-            a.tiles[0] = "p"
+            tiles[0] = "p"
         with self.assertRaises(TypeError):
-            a.tiles["p"] = "p"
+            tiles["p"] = "p"
 
     def test_misc_coverage(self):
         length = torch.tensor([i + 10 for i in range(3)], device=device)
@@ -41,20 +41,20 @@ class TestSplitTiles(unittest.TestCase):
             [i + 10 for i in range(3)]
         )
         a = ht.array(test, split=None)
-        a.create_split_tiles()
-        self.assertTrue(torch.all(a.tiles.tile_locations == a.comm.rank))
-        a.resplit_(0)
-        a.create_split_tiles()
+        tiles = ht.tiling.SplitTiles(a)
+        self.assertTrue(torch.all(tiles.tile_locations == a.comm.rank))
+        a = ht.resplit(a, 0)
+        tiles = ht.tiling.SplitTiles(a)
         if a.comm.size == 3:
             # definition of adjusting tests is he same logic as the code itself,
             #   therefore, fixed tests are issued for one process confic
             tile_dims = torch.tensor(
                 [[4.0, 3.0, 3.0], [4.0, 4.0, 3.0], [4.0, 4.0, 4.0]], device=device
             )
-            res = a.tiles.tile_dimensions
+            res = tiles.tile_dimensions
             self.assertTrue(torch.equal(tile_dims, res))
-            a.tiles[2] = 1000
-            sl = a.tiles[2]
+            tiles[2] = 1000
+            sl = tiles[2]
             if a.comm.rank == 2:
                 self.assertEqual(torch.Size([3, 11, 12]), sl.shape)
                 self.assertTrue(torch.all(sl == 1000))

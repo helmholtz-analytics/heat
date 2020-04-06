@@ -882,9 +882,6 @@ class DNDarray:
             self, tiles_per_proc=tiles_per_proc
         )  # type: tiling.SquareDiagTiles
 
-    def create_split_tiles(self):
-        self.__tiles = tiling.SplitTiles(self)  # type: tiling.SplitTiles
-
     def __eq__(self, other):
         """
         Element-wise rich comparison of equality with values from second operand (scalar or tensor)
@@ -2441,6 +2438,29 @@ class DNDarray:
         -------
         resplit: ht.DNDarray
             The redistributed tensor. Will overwrite the old DNDarray in memory.
+
+        Examples
+        --------
+        >>> a = ht.zeros((4, 5,), split=0)
+        >>> a.lshape
+        (0/2) (2, 5)
+        (1/2) (2, 5)
+        >>> ht.resplit_(a, None)
+        >>> a.split
+        None
+        >>> a.lshape
+        (0/2) (4, 5)
+        (1/2) (4, 5)
+        >>> a = ht.zeros((4, 5,), split=0)
+        >>> a.lshape
+        (0/2) (2, 5)
+        (1/2) (2, 5)
+        >>> ht.resplit_(a, 1)
+        >>> a.split
+        1
+        >>> a.lshape
+        (0/2) (4, 3)
+        (1/2) (4, 2)
         """
         # sanitize the axis to check whether it is in range
         axis = sanitize_axis(self.shape, axis)
@@ -2468,9 +2488,9 @@ class DNDarray:
             self.__split = axis
             return self
 
-        self.create_split_tiles()
-        new_tile_locs = self.tiles.set_tile_locations(
-            split=axis, tile_dims=self.tiles.tile_dimensions, arr=self
+        tiles = tiling.SplitTiles(self)
+        new_tile_locs = tiles.set_tile_locations(
+            split=axis, tile_dims=tiles.tile_dimensions, arr=self
         )
         rank = self.comm.rank
         # receive the data with non-blocking, save which process its from
@@ -2482,15 +2502,15 @@ class DNDarray:
             new_locs = torch.stack([new_locs[i] for i in range(self.numdims)], dim=1)
             for i in range(new_locs.shape[0]):
                 key = tuple(new_locs[i].tolist())
-                spr = self.tiles.tile_locations[key].item()
-                to_send = self.tiles[key]
+                spr = tiles.tile_locations[key].item()
+                to_send = tiles[key]
                 if spr == rank and spr != rpr:
                     self.comm.Send(to_send.clone(), dest=rpr, tag=rank)
                     del to_send
                 elif spr == rpr and rpr == rank:
                     rcv[key] = [None, to_send]
                 elif rank == rpr:
-                    sz = self.tiles.get_tile_size(key)
+                    sz = tiles.get_tile_size(key)
                     buf = torch.zeros(
                         sz, dtype=self.dtype.torch_type(), device=self.device.torch_device
                     )
