@@ -1,5 +1,4 @@
 # Pending Additions
-- [#518](https://github.com/helmholtz-analytics/heat/pull/518) Implemenation of Spectral Clustering
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Create submodule for Linear Algebra functions
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated QR
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated a tiling class to create Square tiles along the diagonal of a 2D matrix
@@ -11,6 +10,8 @@
 - [#498](https://github.com/helmholtz-analytics/heat/pull/498) Feature: flip()
 - [#499](https://github.com/helmholtz-analytics/heat/pull/499) Bugfix: MPI datatype mapping: `torch.int16` now maps to `MPI.SHORT` instead of `MPI.SHORT_INT`
 - [#515] (https://github.com/helmholtz-analytics/heat/pull/515) ht.var() now returns the unadjusted sample variance by default, Bessel's correction can be applied by setting ddof=1.
+- [#518](https://github.com/helmholtz-analytics/heat/pull/518) Implemenation of Spectral Clustering
+
 
 # v0.3.0
 
