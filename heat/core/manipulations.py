@@ -6,6 +6,7 @@ from .communication import MPI
 from . import dndarray
 from . import factories
 from . import stride_tricks
+from . import tiling
 from . import types
 
 
@@ -1341,7 +1342,57 @@ def resplit(arr, axis):
     (0/2) >>> (4, 3)
     (1/2) >>> (4, 2)
     """
-    return arr.resplit(axis=axis, in_place=False)
+    # sanitize the axis to check whether it is in range
+    axis = stride_tricks.sanitize_axis(arr.shape, axis)
+
+    # early out for unchanged content
+    if axis == arr.split:
+        return arr.copy()
+    if axis is None:
+        # new_arr = arr.copy()
+        gathered = torch.empty(
+            arr.shape, dtype=arr.dtype.torch_type(), device=arr.device.torch_device
+        )
+        counts, displs, _ = arr.comm.counts_displs_shape(arr.shape, arr.split)
+        arr.comm.Allgatherv(arr._DNDarray__array, (gathered, counts, displs), recv_axis=arr.split)
+        new_arr = factories.array(gathered, is_split=axis, device=arr.device, dtype=arr.dtype)
+        return new_arr
+    # tensor needs be split/sliced locally
+    if arr.split is None:
+        temp = arr._DNDarray__array[arr.comm.chunk(arr.shape, axis)[2]]
+        new_arr = factories.array(temp, is_split=axis, device=arr.device, dtype=arr.dtype)
+        return new_arr
+
+    arr_tiles = tiling.SplitTiles(arr)
+    new_arr = factories.empty(arr.gshape, split=axis, dtype=arr.dtype, device=arr.device)
+    new_tiles = tiling.SplitTiles(new_arr)
+    rank = arr.comm.rank
+    waits = []
+    rcv_waits = {}
+    for rpr in range(arr.comm.size):
+        # need to get where the tiles are on the new one first
+        # rpr is the destination
+        new_locs = torch.where(new_tiles.tile_locations == rpr)
+        new_locs = torch.stack([new_locs[i] for i in range(arr.numdims)], dim=1)
+
+        for i in range(new_locs.shape[0]):
+            key = tuple(new_locs[i].tolist())
+            spr = arr_tiles.tile_locations[key].item()
+            to_send = arr_tiles[key]
+            if spr == rank and spr != rpr:
+                waits.append(arr.comm.Isend(to_send.clone(), dest=rpr, tag=rank))
+            elif spr == rpr == rank:
+                new_tiles[key] = to_send.clone()
+            elif rank == rpr:
+                buf = torch.zeros_like(new_tiles[key])
+                rcv_waits[key] = [arr.comm.Irecv(buf=buf, source=spr, tag=spr), buf]
+    for w in waits:
+        w.wait()
+    for k in rcv_waits.keys():
+        rcv_waits[k][0].wait()
+        new_tiles[k] = rcv_waits[k][1]
+
+    return new_arr
 
 
 def vstack(tup):

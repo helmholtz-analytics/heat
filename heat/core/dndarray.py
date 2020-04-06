@@ -2502,7 +2502,6 @@ class DNDarray:
         # todo: reduce the problem to 1D cats for each dimension, then work up
         sz = self.comm.size
         arrays = []
-        # print(sz ** (dims[-1] - 1))
         for prs in range(int(len(sorted_keys) / sz)):
             lp_keys = sorted_keys[prs * sz : (prs + 1) * sz]
             lp_arr = None
@@ -2519,7 +2518,6 @@ class DNDarray:
         del dims[-1]
         # for 4 prs and 4 dims, arrays is now 16 elements long,
         # next need to group the each 4 (sz) and cat in the next dim
-        # if len(dims) > 0 and dims[-1] - 1 > 0:
         for d in reversed(dims):
             new_arrays = []
             for prs in range(int(len(arrays) / sz)):
@@ -2532,109 +2530,6 @@ class DNDarray:
         self.__array = arrays
         self.__split = axis
         return self
-
-    def resplit(self, axis):
-        """
-        Redistribution of the content of the tensor along a different split axis.
-        Allows to "unsplit" (i.e. gather) all values from all nodes as well as the
-        definition of new axis along which the tensor is split without changes to the values.
-
-        WARNING: this operation might involve a significant communication overhead. Use it
-        sparingly and preferably for small tensors.
-
-        Parameters
-        ----------
-        axis : int, None
-            The new split axis, None denotes gathering, an int will set the new split axis
-
-        Returns
-        -------
-        resplit: ht.DNDarray
-            The redistributed tensor
-
-        Examples
-        --------
-        a = ht.zeros((4, 5,), split=0)
-        a.lshape
-        (0/2) >>> (2, 5)
-        (1/2) >>> (2, 5)
-        a.resplit(None)
-        a.split
-        >>> None
-        a.lshape
-        (0/2) >>> (4, 5)
-        (1/2) >>> (4, 5)
-
-        a = ht.zeros((4, 5,), split=0)
-        a.lshape
-        (0/2) >>> (2, 5)
-        (1/2) >>> (2, 5)
-        a.resplit(1)
-        a.split
-        >>> 1
-        a.lshape
-        (0/2) >>> (4, 3)
-        (1/2) >>> (4, 2)
-        """
-        # sanitize the axis to check whether it is in range
-        axis = sanitize_axis(self.shape, axis)
-
-        # early out for unchanged content
-        if axis == self.split:
-            return self
-        if axis is None:
-            new_arr = self.copy()
-            gathered = torch.empty(
-                new_arr.shape, dtype=new_arr.dtype.torch_type(), device=new_arr.device.torch_device
-            )
-            counts, displs, _ = self.comm.counts_displs_shape(new_arr.shape, new_arr.split)
-            new_arr.comm.Allgatherv(
-                new_arr.__array, (gathered, counts, displs), recv_axis=self.split
-            )
-            new_arr.__array = gathered
-            new_arr.__split = None
-
-            return new_arr
-        # tensor needs be split/sliced locally
-        if self.split is None:
-            new_arr = self.copy()
-            _, _, slices = self.comm.chunk(self.shape, axis)
-            temp = new_arr.__array[slices]
-            new_arr.__array = torch.empty((1,), device=self.device.torch_device)
-            # necessary to clear storage of local __array
-            new_arr.__array = temp.clone().detach()
-            new_arr.__split = axis
-            return new_arr
-
-        self.create_split_tiles()
-        new_arr = factories.empty(self.gshape, split=axis, dtype=self.dtype, device=self.device)
-        new_arr.create_split_tiles()
-        rank = self.comm.rank
-        waits = []
-        rcv_waits = {}
-        for rpr in range(self.comm.size):
-            # need to get where the tiles are on the new one first
-            # rpr is the destination
-            new_locs = torch.where(new_arr.tiles.tile_locations == rpr)
-            new_locs = torch.stack([new_locs[i] for i in range(self.numdims)], dim=1)
-
-            for i in range(new_locs.shape[0]):
-                key = tuple(new_locs[i].tolist())
-                spr = self.tiles.tile_locations[key].item()
-                to_send = self.tiles[key]
-                if spr == rank and spr != rpr:
-                    waits.append(self.comm.Isend(to_send.clone(), dest=rpr, tag=rank))
-                elif spr == rpr == rank:
-                    new_arr.tiles[key] = to_send.clone()
-                elif rank == rpr:
-                    buf = torch.zeros_like(new_arr.tiles[key])
-                    rcv_waits[key] = [self.comm.Irecv(buf=buf, source=spr, tag=spr), buf]
-        for k in rcv_waits.keys():
-            rcv_waits[k][0].wait()
-            new_arr.tiles[k] = rcv_waits[k][1]
-        for w in waits:
-            w.wait()
-        return new_arr
 
     def __rfloordiv__(self, other):
         """
