@@ -1413,7 +1413,7 @@ def resplit(arr, axis):
             to_send = arr_tiles[key]
             if spr == rank and spr != rpr:
                 waits.append(arr.comm.Isend(to_send.clone(), dest=rpr, tag=rank))
-            elif spr == rpr == rank:
+            elif spr == rpr and rpr == rank:
                 new_tiles[key] = to_send.clone()
             elif rank == rpr:
                 buf = torch.zeros_like(new_tiles[key])

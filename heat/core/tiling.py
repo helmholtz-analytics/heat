@@ -82,7 +82,7 @@ class SplitTiles:
 
         self.__DNDarray = arr
         self.__lshape_map = lshape_map
-        self.__tile_locations = tile_locations.int()
+        self.__tile_locations = tile_locations
         self.__tile_ends_g = tile_ends_g
         self.__tile_dims = tile_dims
 
@@ -107,7 +107,9 @@ class SplitTiles:
         """
         # this is split off specifically for the resplit function
         tile_locations = torch.zeros(
-            [tile_dims[x].numel() for x in range(arr.numdims)], device=arr.device.torch_device
+            [tile_dims[x].numel() for x in range(arr.numdims)],
+            dtype=torch.int64,
+            device=arr.device.torch_device,
         )
         if split is None:
             tile_locations += arr.comm.rank
