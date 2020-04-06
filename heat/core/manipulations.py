@@ -714,8 +714,10 @@ def pad(array, pad_width, mode="constant", values=0):
     pad_width: sequence of 2-element-sequences (sequence = tuple or list)
         Number of values padded to the edges of each axis. ((before_1, after_1),...(before_N, after_N)) unique pad widths for each axis.
         Shortcuts:
-            - ((before, after),) --> before and after pad for each axis. 
-            - (pad,) or int      --> before = after = pad width for all axes.    
+            - ((before, after),)  or (before, after)
+                --> before and after pad width for each axis. 
+            - (pad_width,) or int      
+                --> before = after = pad width for all axes.    
 
         Determines how many elements are padded along which dimension.
         Therefore:
@@ -813,7 +815,6 @@ def pad(array, pad_width, mode="constant", values=0):
          [ 0,  0,  0,  0,  0,  0,  0]]])
 
     """
-    
 
     if not isinstance(array, dndarray.DNDarray):
         raise TypeError("expected array to be a ht.DNDarray, but was {}".format(type(array)))
@@ -869,7 +870,7 @@ def pad(array, pad_width, mode="constant", values=0):
                 "pad_width has to be a sequence of (2 elements) sequences (sequence=tuple or list)."
             )
         pad = tuple()
-        # Transform numpy pad_width to torch pad (--> one tuple with all padding spans)
+        # Transform numpy pad_width to torch pad (--> one tuple containing all padding spans)
         for pad_tuple in pad_width:
             if isinstance(pad_tuple, list):
                 pad_tuple = tuple(pad_tuple)
@@ -893,24 +894,28 @@ def pad(array, pad_width, mode="constant", values=0):
         value_tuple = tuple()
         # sequences for each dimension defined within one sequence
         if isinstance(values[0], tuple) or isinstance(values[0], list):
-            for value_pair in values:
-                if isinstance(value_pair, tuple):
-                    pass
-                elif isinstance(value_pair, list):
-                    value_pair = tuple(value_pair)
-                else:
-                    raise TypeError(
-                        f"Value pair {value_pair} within values invalid. Expected all elements within values to be sequences(list/tuple),"
-                        f"but one was: {type(value_pair)}"
-                    )
-                value_tuple = value_pair + value_tuple
+            # one sequence for all dimensions - values = ((before, after),)
+            if len(values) == 1:
+                value_tuple = values[0] * (len(pad) // 2)
+            else:
+                for value_pair in values:
+                    if isinstance(value_pair, tuple):
+                        pass
+                    elif isinstance(value_pair, list):
+                        value_pair = tuple(value_pair)
+                    else:
+                        raise TypeError(
+                            f"Value pair {value_pair} within values invalid. Expected all elements within values to be sequences(list/tuple),"
+                            f"but one was: {type(value_pair)}"
+                        )
+                    value_tuple = value_pair + value_tuple
 
             if len(value_tuple) % 2 != 0:
                 raise ValueError(
                     f"Expected values to contain an even amount of elements, but got {len(value_tuple)}"
                 )
 
-        # One sequence for all dimensions
+        # One sequence for all dimensions - values = (before, after)
         elif len(values) == 2:
             value_tuple = values * (len(pad) // 2)
 
@@ -944,13 +949,13 @@ def pad(array, pad_width, mode="constant", values=0):
                     padded_torch_tensor, pad_tuple, mode, value_tuple[i]
                 )
 
-        padded_tensor= dndarray.DNDarray(
-        array=padded_torch_tensor,
-        gshape=array.gshape,
-        dtype=array.dtype,
-        split=array.split,
-        device=array.device,
-        comm=array.comm,
+        padded_tensor = dndarray.DNDarray(
+            array=padded_torch_tensor,
+            gshape=array.gshape,
+            dtype=array.dtype,
+            split=array.split,
+            device=array.device,
+            comm=array.comm,
         )
 
         return padded_tensor
@@ -1000,12 +1005,10 @@ def pad(array, pad_width, mode="constant", values=0):
     else:
         pad_tuple_curr_rank = pad_middle
 
-    
-
     if isinstance(values, int) or isinstance(values, float):
-       padded_torch_tensor = torch.nn.functional.pad(
-           array_torch, pad_tuple_curr_rank, mode, values
-       )
+        padded_torch_tensor = torch.nn.functional.pad(
+            array_torch, pad_tuple_curr_rank, mode, values
+        )
     elif len(values) == 1 and (isinstance(values[0], int) or isinstance(values[0], float)):
         padded_torch_tensor = torch.nn.functional.pad(
             array_torch, pad_tuple_curr_rank, mode, values[0]
@@ -1020,19 +1023,18 @@ def pad(array, pad_width, mode="constant", values=0):
                 padded_torch_tensor, pad_tuple, mode, value_tuple[i]
             )
 
-        
-        padded_tensor= dndarray.DNDarray(
-        array=padded_torch_tensor,
-        gshape=array.gshape,
-        dtype=array.dtype,
-        split=array.split,
-        device=array.device,
-        comm=array.comm,
+        padded_tensor = dndarray.DNDarray(
+            array=padded_torch_tensor,
+            gshape=array.gshape,
+            dtype=array.dtype,
+            split=array.split,
+            device=array.device,
+            comm=array.comm,
         )
 
-
-    #TODO ensure correct balancing
-    #padded_tensor.balance_()
+    # TODO ensure correct balancing
+    # if not padded_tensor.is_balanced():
+    #    padded_tensor.balance_()
 
     return padded_tensor
 
