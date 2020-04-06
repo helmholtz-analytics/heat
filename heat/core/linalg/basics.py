@@ -163,7 +163,7 @@ def matmul(a, b, allow_resplit=False):
                 torch.matmul(a._DNDarray__array, b._DNDarray__array), device=a.device
             )
         else:
-            a = a.resplit_(0)
+            a.resplit_(0)
             slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
             hold = a._DNDarray__array @ b._DNDarray__array
 

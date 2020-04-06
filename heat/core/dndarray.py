@@ -2552,6 +2552,7 @@ class DNDarray:
 
             self.__array = redistributed
             self.__split = axis
+        return self
 
     def __rfloordiv__(self, other):
         """
