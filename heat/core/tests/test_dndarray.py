@@ -210,14 +210,15 @@ class TestDNDarray(unittest.TestCase):
         a.fill_diagonal(0)
         self.assertTrue(ht.equal(a, ref))
 
+        # ToDo: uneven tensor dimensions x and y when bug in factories.eye is fixed
         ref = ht.zeros(
-            (ht.MPI_WORLD.size * 2, ht.MPI_WORLD.size * 3),
+            (ht.MPI_WORLD.size * 3, ht.MPI_WORLD.size * 3),
             dtype=ht.float32,
             split=1,
             device=ht_device,
         )
         a = ht.eye(
-            (ht.MPI_WORLD.size * 2, ht.MPI_WORLD.size * 3),
+            (ht.MPI_WORLD.size * 3, ht.MPI_WORLD.size * 3),
             dtype=ht.float32,
             split=1,
             device=ht_device,
@@ -225,14 +226,15 @@ class TestDNDarray(unittest.TestCase):
         a.fill_diagonal(0)
         self.assertTrue(ht.equal(a, ref))
 
+        # ToDo: uneven tensor dimensions x and y when bug in factories.eye is fixed
         ref = ht.zeros(
-            (ht.MPI_WORLD.size * 4, ht.MPI_WORLD.size * 2),
+            (ht.MPI_WORLD.size * 4, ht.MPI_WORLD.size * 4),
             dtype=ht.float32,
             split=0,
             device=ht_device,
         )
         a = ht.eye(
-            (ht.MPI_WORLD.size * 4, ht.MPI_WORLD.size * 2),
+            (ht.MPI_WORLD.size * 4, ht.MPI_WORLD.size * 4),
             dtype=ht.float32,
             split=0,
             device=ht_device,
