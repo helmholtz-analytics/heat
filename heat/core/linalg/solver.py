@@ -17,6 +17,9 @@ def cg(A, b, x0, out=None):
         1D vector
     x0 : ht.DNDarray
         Arbitrary 1D starting vector
+    out : ht.DNDarray, optional
+        Output Vector
+
 
     Returns
     -------
