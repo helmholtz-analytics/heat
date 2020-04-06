@@ -15,6 +15,7 @@
 - [#519](https://github.com/helmholtz-analytics/heat/pull/519) Bugfix: distributed slicing with empty list or scalar as input; distributed nonzero() of empty (local) tensor.
 - [#521](https://github.com/helmholtz-analytics/heat/pull/521) Add documentation for the generic reduce_op in Heat's core
 - [#522](https://github.com/helmholtz-analytics/heat/pull/522) Added CUDA-aware MPI detection for MVAPICH, MPICH and ParaStation.
+- [#526](https://github.com/helmholtz-analytics/heat/pull/526) float32 is now consistent default dtype for factories.
 
 # v0.3.0
 
