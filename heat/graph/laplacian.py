@@ -102,11 +102,6 @@ class Laplacian:
                 else:
                     S = ht.int(S > self.epsilon[1])
 
-        # Add other construction methods here
-        # elif self.mode == 'kNN':
-        #   ...
-        # self.mode == 'fully_connected' needs no further steps
-
         if self.definition == "simple":
             L = self._simple_L(S)
         elif self.definition == "norm_sym":

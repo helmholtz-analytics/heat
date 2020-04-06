@@ -35,24 +35,23 @@ def cg(A, b, x0, out=None):
             )
         )
 
-    if not (A.numdims == 2):
+    if not A.numdims == 2:
         raise RuntimeError("A needs to be a 2D matrix")
-    if not (b.numdims == 1):
+    if not b.numdims == 1:
         raise RuntimeError("b needs to be a 1D vector")
-    if not (x0.numdims == 1):
+    if not x0.numdims == 1:
         raise RuntimeError("c needs to be a 1D vector")
 
     r = b - ht.matmul(A, x0)
     p = r
-    print(A.shape, p.shape)
     rsold = ht.matmul(r, r)
     x = x0
 
     for i in range(len(b)):
         Ap = ht.matmul(A, p)
         alpha = rsold / ht.matmul(p, Ap)
-        x = x + (alpha * p)
-        r = r - (alpha * Ap)
+        x = x + alpha * p
+        r = r - alpha * Ap
         rsnew = ht.matmul(r, r)
         if ht.sqrt(rsnew).item() < 1e-10:
             print(
