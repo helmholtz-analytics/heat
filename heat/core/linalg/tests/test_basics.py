@@ -59,13 +59,13 @@ class TestLinalgBasics(unittest.TestCase):
 
         const1 = 5
         const2 = 6
-        # a is const,
+        # a is const
         res = ht.dot(const1, b2d) - ht.array(np.dot(const1, data2d), device=ht_device)
         ret = 0
         ht.dot(const1, b2d, out=ret)
         self.assertEqual(ht.equal(res, ht.zeros(res.shape, device=ht_device)), 1)
 
-        # b is const,
+        # b is const
         res = ht.dot(a2d, const2) - ht.array(np.dot(data2d, const2), device=ht_device)
         self.assertEqual(ht.equal(res, ht.zeros(res.shape, device=ht_device)), 1)
         # a and b and const
