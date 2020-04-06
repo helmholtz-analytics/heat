@@ -1,5 +1,5 @@
 # Pending Additions
-
+- [#518](https://github.com/helmholtz-analytics/heat/pull/518) Implemenation of Spectral Clustering
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Create submodule for Linear Algebra functions
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated QR
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated a tiling class to create Square tiles along the diagonal of a 2D matrix
