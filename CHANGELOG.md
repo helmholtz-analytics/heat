@@ -19,6 +19,7 @@
 - [#531](https://github.com/helmholtz-analytics/heat/pull/531) Tiling objects are not separate from the DNDarray
 - [#534](https://github.com/helmholtz-analytics/heat/pull/534) `eye()` supports all 2D split combinations and matrix configurations.
 - [#535](https://github.com/helmholtz-analytics/heat/pull/535) Introduction of BaseEstimator and clustering, classification and regression mixins.
+- [#536](https://github.com/helmholtz-analytics/heat/pull/536) Getting rid of the docs folder
 
 # v0.3.0
 
