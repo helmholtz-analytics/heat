@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-__version__ = None  # assignment occurs in exec below
+__version__ = None  # assignment occurs in exec function below
 
 with open("README.md", "r") as handle:
     long_description = handle.read()
