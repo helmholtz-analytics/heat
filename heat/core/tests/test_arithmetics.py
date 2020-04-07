@@ -219,7 +219,7 @@ class TestArithmetics(unittest.TestCase):
             ht.cumprod(ht.ones((2, 2), device=ht_device), 2)
 
         if ht_device is not None:
-            with assertRaises(RuntimeError):
+            with self.assertRaises(RuntimeError):
                 ht.cumprod(ht.ones((2, 2, 2)), 2, out=out)
 
     def test_cumsum(self):
@@ -276,7 +276,7 @@ class TestArithmetics(unittest.TestCase):
             ht.cumsum(ht.ones((2, 2)), 2)
 
         if ht_device is not None:
-            with assertRaises(RuntimeError):
+            with self.assertRaises(RuntimeError):
                 ht.cumsum(ht.ones((2, 2, 2)), 2, out=out)
 
     def test_diff(self):
