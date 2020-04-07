@@ -1,4 +1,3 @@
-import collections
 import numpy as np
 import torch
 import warnings
@@ -45,6 +44,27 @@ class LocalIndex:
 
 
 class DNDarray:
+    """
+
+    Distributed N-Dimensional array. The core element of HeAT. It is composed of
+    PyTorch tensors local to each process.
+
+    Parameters
+    ----------
+    array : torch.Tensor
+        local array elements
+    gshape : tuple
+        the global shape of the DNDarray
+    dtype : ht.type
+        the datatype of the array
+    split : int
+        The axis on which the DNDarray is divided between processes
+    device : ht.device
+        The device on which the local arrays are using (cpu or gpu)
+    comm : ht.communication.MPICommunication
+        The communications object for sending and recieving data
+    """
+
     def __init__(self, array, gshape, dtype, split, device, comm):
         self.__array = array
         self.__gshape = gshape
@@ -56,6 +76,7 @@ class DNDarray:
         self.__ishalo = False
         self.__halo_next = None
         self.__halo_prev = None
+
 
         # handle inconsistencies between torch and heat devices
         if (
@@ -91,14 +112,23 @@ class DNDarray:
 
     @property
     def numdims(self):
+        """
+
+        Returns
+        -------
+        number_of_dimensions : int
+            the number of dimensions of the DNDarray
+        """
         return len(self.__gshape)
 
     @property
     def size(self):
         """
+
         Returns
         -------
-        int: number of total elements of the tensor
+        size : int
+            number of total elements of the tensor
         """
         try:
             return np.prod(self.__gshape)
@@ -108,26 +138,32 @@ class DNDarray:
     @property
     def gnumel(self):
         """
+
         Returns
         -------
-        int: number of total elements of the tensor
+        global_shape : int
+            number of total elements of the tensor
         """
         return self.size
 
     @property
     def lnumel(self):
         """
+
         Returns
         -------
-        int: number of elements of the tensor on each node
+        number_of_local_elements : int
+            number of elements of the tensor on each process
         """
         return np.prod(self.__array.shape)
 
     @property
     def lloc(self):
         """
-        Local item setter and getter. i.e. this function operates on a local level and only on the PyTorch tensors
-        composing the HeAT DNDarray. This function uses the LocalIndex class.
+
+        Local item setter and getter. i.e. this function operates on a local
+        level and only on the PyTorch tensors composing the HeAT DNDarray.
+        This function uses the LocalIndex class.
 
         Parameters
         ----------
@@ -164,47 +200,57 @@ class DNDarray:
     @property
     def lshape(self):
         """
+
         Returns
         -------
-        tuple : the shape of the data on each node
+        local_shape : tuple
+            the shape of the data on each node
         """
         return tuple(self.__array.shape)
 
     @property
     def shape(self):
         """
+
         Returns
         -------
-        tuple : the shape of the tensor as a whole
+        global_shape : tuple
+            the shape of the tensor as a whole
         """
         return self.__gshape
 
     @property
     def split(self):
         """
+
         Returns
         -------
-        int : the axis on which the tensor split
+        split_axis : int
+            the axis on which the tensor split
         """
         return self.__split
 
     @property
     def stride(self):
         """
+
         Returns
         -------
-        tuple of ints: steps in each dimension when traversing a tensor.
-        torch-like usage: self.stride()
+        stride : tuple
+            steps in each dimension when traversing a tensor.
+            torch-like usage: self.stride()
         """
         return self.__array.stride
 
     @property
     def strides(self):
         """
+
         Returns
         -------
-        tuple of ints: bytes to step in each dimension when traversing a tensor.
-        numpy-like usage: self.strides
+        strides : tuple of ints
+            bytes to step in each dimension when traversing a tensor.
+            numpy-like usage: self.strides
         """
         steps = list(self._DNDarray__array.stride())
         itemsize = self._DNDarray__array.storage().element_size()
@@ -212,19 +258,8 @@ class DNDarray:
         return strides
 
     @property
-    def T(self, axes=None):
-        return linalg.transpose(self, axes)
-
-    @property
-    def tiles(self):
-        """
-        Tiling object is either None or a class defined in the tiling file
-
-        Returns
-        -------
-        either None or the tiling class object
-        """
-        return self.__tiles
+    def T(self):
+        return linalg.transpose(self, axes=None)
 
     @property
     def array_with_halos(self):
@@ -968,31 +1003,11 @@ class DNDarray:
             Units -> (process rank, lshape)
         """
         lshape_map = torch.zeros(
-            (self.comm.size, len(self.gshape)), dtype=int, device=self.device.torch_device
+            (self.comm.size, len(self.gshape)), dtype=torch.int, device=self.device.torch_device
         )
         lshape_map[self.comm.rank, :] = torch.tensor(self.lshape, device=self.device.torch_device)
         self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
         return lshape_map
-
-    def create_square_diag_tiles(self, tiles_per_proc=None):
-        """
-        Create the tiles for the DNDarray as defined by the tiling.SquareDiagTiles class. These
-        tiles can be accessed as a property. For more imformation on these tiles see
-        :func:`SquareDiagTiles <tiling.SquareDaigTiles>`.
-
-        Parameters
-        ----------
-        tiles_per_proc : int, optional
-            Default = 2 (see :func:`SquareDiagTiles <tiling.SquareDaigTiles>`)
-            the number of divisions per process,
-
-        Returns
-        -------
-        None
-        """
-        self.__tiles = tiling.SquareDiagTiles(
-            self, tiles_per_proc=tiles_per_proc
-        )  # type: tiling.SquareDiagTiles
 
     def __eq__(self, other):
         """
@@ -1243,6 +1258,51 @@ class DNDarray:
         """
         return rounding.fabs(self, out)
 
+    def fill_diagonal(self, value):
+        """
+        Fill the main diagonal of a 2D dndarray . This function modifies the input tensor in-place, and returns the input tensor.
+
+        Parameters
+        ----------
+        value : float
+            The value to be placed in the dndarrays main diagonal
+
+        Returns
+        -------
+        out : ht.DNDarray
+            The modified input tensor with value along the diagonal
+
+        """
+        # Todo: make this 3D/nD
+        if len(self.shape) != 2:
+            raise ValueError("Only 2D tensors supported at the moment")
+
+        if self.split is not None and self.comm.is_distributed:
+            counts, displ, _ = self.comm.counts_displs_shape(self.shape, self.split)
+            k = min(self.shape[0], self.shape[1])
+            for p in range(self.comm.size):
+                if displ[p] > k:
+                    break
+                proc = p
+            if self.comm.rank <= proc:
+                indices = (
+                    displ[self.comm.rank],
+                    displ[self.comm.rank + 1] if (self.comm.rank + 1) != self.comm.size else k,
+                )
+                if self.split == 0:
+                    self._DNDarray__array[:, indices[0] : indices[1]] = self._DNDarray__array[
+                        :, indices[0] : indices[1]
+                    ].fill_diagonal_(value)
+                elif self.split == 1:
+                    self._DNDarray__array[indices[0] : indices[1], :] = self._DNDarray__array[
+                        indices[0] : indices[1], :
+                    ].fill_diagonal_(value)
+
+        else:
+            self._DNDarray__array = self._DNDarray__array.fill_diagonal_(value)
+
+        return self
+
     def __ge__(self, other):
         """
         Element-wise rich comparison of relation "greater than or equal" with values from second operand (scalar or
@@ -1359,7 +1419,7 @@ class DNDarray:
 
             arr = torch.Tensor()
 
-            # if a sigular index is given and the tensor is split
+            # if a singular index is given and the tensor is split
             if isinstance(key, int):
                 gout = [0] * (len(self.gshape) - 1)
                 if key < 0:
@@ -1401,9 +1461,13 @@ class DNDarray:
                 else:
                     new_split = self.split
 
+                # handle empty list
+                if len(key) == 0:
+                    arr = self.__array[key]
+                    gout = list(arr.shape)
                 # if a slice is given in the split direction
                 # below allows for the split given to contain Nones
-                if isinstance(key[self.split], slice):
+                elif isinstance(key[self.split], slice):
                     key_stop = key[self.split].stop
                     if key_stop is not None and key_stop < 0:
                         key_stop = self.gshape[self.split] + key[self.split].stop
@@ -1431,17 +1495,21 @@ class DNDarray:
                         indices = key[self.split]
                     key = list(key)
                     if isinstance(indices, list):
-                        indices = [
-                            index + self.gshape[self.split] if index < 0 else index
-                            for index in indices
-                        ]
-                        sorted_key_along_split = sorted(indices)
-                        if sorted_key_along_split[0] in range(
-                            chunk_start, chunk_end
-                        ) and sorted_key_along_split[-1] in range(chunk_start, chunk_end):
-                            indices = [index - chunk_start for index in indices]
-                            arr = self.__array[indices]
+                        if len(indices) == 0:
+                            arr = self.__array[key]
                             gout = list(arr.shape)
+                        else:
+                            indices = [
+                                index + self.gshape[self.split] if index < 0 else index
+                                for index in indices
+                            ]
+                            sorted_key_along_split = sorted(indices)
+                            if sorted_key_along_split[0] in range(
+                                chunk_start, chunk_end
+                            ) and sorted_key_along_split[-1] in range(chunk_start, chunk_end):
+                                indices = [index - chunk_start for index in indices]
+                                arr = self.__array[indices]
+                                gout = list(arr.shape)
 
                     elif isinstance(key[self.split], int):
                         key[self.split] = (
@@ -2619,7 +2687,6 @@ class DNDarray:
 
             self.__array = redistributed
             self.__split = axis
-
         return self
 
     def __rfloordiv__(self, other):
@@ -3148,7 +3215,7 @@ class DNDarray:
         """
         return manipulations.squeeze(self, axis)
 
-    def std(self, axis=None, bessel=True):
+    def std(self, axis=None, ddof=0, **kwargs):
         """
         Calculates and returns the standard deviation of a tensor with the bessel correction
         If a axis is given, the variance will be taken in that direction.
@@ -3161,36 +3228,37 @@ class DNDarray:
             axis which the mean is taken in.
             Default: None -> std of all data calculated
             NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
-        bessel : Bool
-            Default: True
-            use the bessel correction when calculating the varaince/std
-            toggle between unbiased and biased calculation of the std
+        ddof : int, optional
+            Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
+            represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
+            Setting ddof > 1 raises a NotImplementedError.
+
 
         Examples
         --------
         >>> a = ht.random.randn(1,3)
         >>> a
         tensor([[ 0.3421,  0.5736, -2.2377]])
-        >>> ht.std(a)
-        tensor(1.5606)
+        >>> a.std()
+        tensor(1.2742)
         >>> a = ht.random.randn(4,4)
         >>> a
         tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
                 [ 0.2732, -0.0965, -0.1087, -1.3805],
                 [ 0.2647,  0.5998, -0.1635, -0.0848],
                 [ 0.0343,  0.1618, -0.8064, -0.1031]])
-        >>> ht.std(a, 0)
+        >>> ht.std(a, 0, ddof=1)
         tensor([0.6157, 0.2918, 0.8324, 1.1996])
-        >>> ht.std(a, 1)
+        >>> ht.std(a, 1, ddof=1)
         tensor([1.1405, 0.7236, 0.3506, 0.4324])
-        >>> ht.std(a, 1, bessel=False)
+        >>> ht.std(a, 1)
         tensor([0.9877, 0.6267, 0.3037, 0.3745])
 
         Returns
         -------
         ht.DNDarray containing the std/s, if split, then split in the same direction as x.
         """
-        return statistics.std(self, axis, bessel=bessel)
+        return statistics.std(self, axis, ddof=ddof, **kwargs)
 
     def __str__(self, *args):
         # TODO: document me
@@ -3491,7 +3559,7 @@ class DNDarray:
         """
         return manipulations.unique(self, sorted, return_inverse, axis)
 
-    def var(self, axis=None, bessel=True):
+    def var(self, axis=None, ddof=0, **kwargs):
         """
         Calculates and returns the variance of a tensor.
         If a axis is given, the variance will be taken in that direction.
@@ -3504,18 +3572,27 @@ class DNDarray:
             axis which the variance is taken in.
             Default: None -> var of all data calculated
             NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
-        bessel : Bool
-            Default: True
-            use the bessel correction when calculating the varaince/std
-            toggle between unbiased and biased calculation of the std
+        ddof : int, optional
+            Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
+            represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
+            Setting ddof > 1 raises a NotImplementedError.
+
+        Notes on ddof (from numpy)
+        --------------------------
+        The variance is the average of the squared deviations from the mean, i.e., var = mean(abs(x - x.mean())**2).
+        The mean is normally calculated as x.sum() / N, where N = len(x). If, however, ddof is specified, the divisor
+        N - ddof is used instead. In standard statistical practice, ddof=1 provides an unbiased estimator of the
+        variance of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate of the variance
+        for normally distributed variables.
+
 
         Examples
         --------
         >>> a = ht.random.randn(1,3)
         >>> a
         tensor([[-1.9755,  0.3522,  0.4751]])
-        >>> ht.var(a)
-        tensor(1.9065)
+        >>> a.var()
+        tensor(1.2710)
 
         >>> a = ht.random.randn(4,4)
         >>> a
@@ -3523,20 +3600,18 @@ class DNDarray:
                 [ 0.5886,  0.5712,  0.4582,  0.5323],
                 [ 1.9754,  1.2958,  0.5957,  0.0418],
                 [ 0.8196, -1.2911, -0.2026,  0.6212]])
-        >>> ht.var(a, 1)
+        >>> ht.var(a, 1, ddof=1)
         tensor([1.3092, 0.0034, 0.7061, 0.9217])
+        >>> ht.var(a, 0, ddof=1)
+        tensor([1.3624, 3.2563, 0.1447, 1.2042])
         >>> ht.var(a, 0)
-        tensor([1.3624, 3.2563, 0.1447, 1.2042])
-        >>> ht.var(a, 0, bessel=True)
-        tensor([1.3624, 3.2563, 0.1447, 1.2042])
-        >>> ht.var(a, 0, bessel=False)
         tensor([1.0218, 2.4422, 0.1085, 0.9032])
 
         Returns
         -------
         ht.DNDarray containing the var/s, if split, then split in the same direction as x.
         """
-        return statistics.var(self, axis, bessel=bessel)
+        return statistics.var(self, axis, ddof=ddof, **kwargs)
 
     def __xor__(self, other):
         """
