@@ -35,24 +35,23 @@ class TestDNDarray(unittest.TestCase):
             ht.equal(int16_tensor & int16_vector, ht.bitwise_and(int16_tensor, int16_vector))
         )
 
-
     def test_gethalo(self):
         data_np = np.array([[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12]])
         data = ht.array(data_np, split=1)
 
         if data.comm.size == 2:
 
-           halo_next = torch.tensor(np.array([[4, 5], [10, 11]]))
-           halo_prev = torch.tensor(np.array([[2, 3], [8, 9]]))
+            halo_next = torch.tensor(np.array([[4, 5], [10, 11]]))
+            halo_prev = torch.tensor(np.array([[2, 3], [8, 9]]))
 
-           data.gethalo(2)
+            data.gethalo(2)
 
-           if data.comm.rank == 0:
-               self.assertTrue(torch.equal(data.halo_next, halo_next))
-               self.assertEqual(data.halo_prev, None)
-           if data.comm.rank == 1:
-               self.assertTrue(torch.equal(data.halo_prev, halo_prev))
-               self.assertEqual(data.halo_next, None)
+            if data.comm.rank == 0:
+                self.assertTrue(torch.equal(data.halo_next, halo_next))
+                self.assertEqual(data.halo_prev, None)
+            if data.comm.rank == 1:
+                self.assertTrue(torch.equal(data.halo_prev, halo_prev))
+                self.assertEqual(data.halo_next, None)
 
         if data.comm.size == 3:
 
@@ -82,8 +81,6 @@ class TestDNDarray(unittest.TestCase):
         # exception for too large halos
         with self.assertRaises(ValueError):
             data.gethalo(4)
-
-
 
     def test_astype(self):
         data = ht.float32([[1, 2, 3], [4, 5, 6]], device=ht_device)
