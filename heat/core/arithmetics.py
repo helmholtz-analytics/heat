@@ -2,12 +2,10 @@ import torch
 
 from .communication import MPI
 from . import dndarray
+from . import factories
 from . import operations
 from . import stride_tricks
 from . import types
-
-from . import factories
-import numpy as np
 
 __all__ = [
     "add",
@@ -97,7 +95,7 @@ def bitwise_and(t1, t2):
     import heat as ht
     >>> ht.bitwise_and(13, 17)
     tensor([1])
-    >>> np.bitwise_and(14, 13)
+    >>> ht.bitwise_and(14, 13)
     tensor([12])
 
     >>> ht.bitwise_and(ht.array([14,3]), 13)
