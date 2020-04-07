@@ -424,6 +424,13 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(eye.shape, shape)
         self.assertEqual(eye.split, None)
 
+        shape = (21, 10)
+        eye = ht.eye(shape, split=1, dtype=ht.float32, device=ht_device)
+        self.assertIsInstance(eye, ht.DNDarray)
+        self.assertEqual(eye.dtype, ht.float32)
+        self.assertEqual(eye.shape, shape)
+        self.assertEqual(eye.split, 1)
+
         offset_x, offset_y = get_offset(eye._DNDarray__array)
         self.assertGreaterEqual(offset_x, 0)
         self.assertGreaterEqual(offset_y, 0)

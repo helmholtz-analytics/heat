@@ -463,6 +463,7 @@ def empty_like(a, dtype=None, split=None, device=None, comm=None, order="C"):
 
 def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C"):
     """
+
     Returns a new 2-D tensor with ones on the diagonal and zeroes elsewhere.
 
     Parameters
@@ -521,6 +522,9 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
     for i in range(min(lshape)):
         pos_x = i if split == 0 else i + offset
         pos_y = i if split == 1 else i + offset
+        # print(pos_x, pos_y)
+        if pos_x >= lshape[0] or pos_y >= lshape[1]:
+            break
         data[pos_x][pos_y] = 1
 
     data = memory.sanitize_memory_layout(data, order=order)
