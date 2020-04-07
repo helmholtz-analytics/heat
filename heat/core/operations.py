@@ -173,7 +173,7 @@ def __binary_op(operation, t1, t2):
 def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
     """
     Generic wrapper for cumulative operations, i.e. cumsum(), cumprod(). Performs a three-stage cumulative operation. First, a partial
-    cumulative operation is performed node-local that is combined into a global cumulative result via an MPI_Op and a final local 
+    cumulative operation is performed node-local that is combined into a global cumulative result via an MPI_Op and a final local
     reduction add or mul operation.
 
     Parameters
