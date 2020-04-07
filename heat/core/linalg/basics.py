@@ -74,6 +74,7 @@ def matmul(a, b, allow_resplit=False):
     """
     Matrix multiplication of two DNDarrays
     for comment context -> a @ b = c or A @ B = c
+
     Parameters
     ----------
     a : ht.DNDarray
@@ -804,6 +805,7 @@ def __mm_c_block_setter(
 
 def transpose(a, axes=None):
     """
+
     Permute the dimensions of an array.
 
     Parameters
