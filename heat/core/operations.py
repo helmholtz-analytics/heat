@@ -172,33 +172,27 @@ def __binary_op(operation, t1, t2):
 
 def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
     """
-    Generic wrapper for cumulative operations, i.e. cumsum(), cumprod(). Performs a two-stage cumulative operation. First, a partial
-    cumulative operation is performed node-local that is combined into a global cumulative result via an MPI_Op and an add or mul operation.
+    Generic wrapper for cumulative operations, i.e. cumsum(), cumprod(). Performs a three-stage cumulative operation. First, a partial
+    cumulative operation is performed node-local that is combined into a global cumulative result via an MPI_Op and a final local 
+    reduction add or mul operation.
 
     Parameters
     ----------
     x : ht.DNDarray
         The heat DNDarray on which to perform the cumulative operation
-
     partial_op: function
         The function performing a partial cumulative operation on the process-local data portion, e.g. cumsum().
-
     exscan_op: mpi4py.MPI.Op
         The MPI operator for performing the exscan based on the results returned by the partial_op function.
-
     final_op: function
         The local operation for the final result, e.g. add() for cumsum().
-
     neutral: scalar
         Neutral element for the cumulative operation, i.e. an element that does not change the reductions operations
         result.
-
     axis: int
         The axis direction of the cumulative operation
-
     dtype: ht.type
         The type of the result tensor.
-
     out: ht.DNDarray
         The explicitly returned output tensor.
 
@@ -218,7 +212,6 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
     RuntimeError
         If the split or device parameters do not match the parameters of the input
     """
-
     # perform sanitation
     if not isinstance(x, dndarray.DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
