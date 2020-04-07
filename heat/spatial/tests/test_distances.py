@@ -67,11 +67,13 @@ class TestDistances(unittest.TestCase):
         self.assertEqual(d.split, None)
 
         # Case 1c: X.split == None, Y != None, Y.split == 0
-        Y.resplit_(axis=0)
-        res_XX_cdist.resplit_(axis=1)
-        res_XX_rbf.resplit_(axis=1)
-        res_XY_cdist.resplit_(axis=1)
-        res_XY_rbf.resplit_(axis=1)
+        Y = ht.zeros((n * 2, 4), dtype=ht.float32, split=0, device=ht_device)
+        res_XX_cdist = ht.zeros((n * 2, n * 2), dtype=ht.float32, split=1, device=ht_device)
+        res_XX_rbf = ht.ones((n * 2, n * 2), dtype=ht.float32, split=1, device=ht_device)
+        res_XY_cdist = ht.ones((n * 2, n * 2), dtype=ht.float32, split=1, device=ht_device) * 2
+        res_XY_rbf = ht.ones(
+            (n * 2, n * 2), dtype=ht.float32, split=1, device=ht_device
+        ) * math.exp(-1.0)
 
         d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
         self.assertTrue(ht.equal(d, res_XY_cdist))
@@ -90,12 +92,14 @@ class TestDistances(unittest.TestCase):
         self.assertEqual(d.split, 1)
 
         # Case 2a: X.split == 0, Y == None
-        X.resplit_(axis=0)
-        Y.resplit_(axis=None)
-        res_XX_cdist.resplit_(axis=0)
-        res_XX_rbf.resplit_(axis=0)
-        res_XY_cdist.resplit_(axis=0)
-        res_XY_rbf.resplit_(axis=0)
+        X = ht.ones((n * 2, 4), dtype=ht.float32, split=0, device=ht_device)
+        Y = ht.zeros((n * 2, 4), dtype=ht.float32, split=None, device=ht_device)
+        res_XX_cdist = ht.zeros((n * 2, n * 2), dtype=ht.float32, split=0, device=ht_device)
+        res_XX_rbf = ht.ones((n * 2, n * 2), dtype=ht.float32, split=0, device=ht_device)
+        res_XY_cdist = ht.ones((n * 2, n * 2), dtype=ht.float32, split=0, device=ht_device) * 2
+        res_XY_rbf = ht.ones(
+            (n * 2, n * 2), dtype=ht.float32, split=0, device=ht_device
+        ) * math.exp(-1.0)
 
         d = ht.spatial.cdist(X, quadratic_expansion=False)
         self.assertTrue(ht.equal(d, res_XX_cdist))
@@ -131,7 +135,7 @@ class TestDistances(unittest.TestCase):
         self.assertEqual(d.split, 0)
 
         # Case 2c: X.split == 0, Y != None, Y.split == 0
-        Y.resplit_(axis=0)
+        Y = ht.zeros((n * 2, 4), dtype=ht.float32, split=0, device=ht_device)
 
         d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
         self.assertTrue(ht.equal(d, res_XY_cdist))
@@ -150,7 +154,7 @@ class TestDistances(unittest.TestCase):
         self.assertEqual(d.split, 0)
 
         # Case 3 X.split == 1
-        X.resplit_(axis=1)
+        X = ht.ones((n * 2, 4), dtype=ht.float32, split=1, device=ht_device)
         with self.assertRaises(NotImplementedError):
             ht.spatial.cdist(X)
         with self.assertRaises(NotImplementedError):
@@ -173,12 +177,15 @@ class TestDistances(unittest.TestCase):
             A[2 * i + 1, :] = A[2 * i + 1, :] * (2 * i + 1)
         res = torch.cdist(A._DNDarray__array, A._DNDarray__array)
 
-        A.resplit_(axis=0)
+        A = ht.ones((n * 2, 6), dtype=ht.float32, split=0, device=ht_device)
+        for i in range(n):
+            A[2 * i, :] = A[2 * i, :] * (2 * i)
+            A[2 * i + 1, :] = A[2 * i + 1, :] * (2 * i + 1)
         B = A.astype(ht.int32)
 
         d = ht.spatial.cdist(A, B, quadratic_expansion=False)
         result = ht.array(res, dtype=ht.float64, split=0, device=ht_device)
-        self.assertTrue(ht.allclose(d, result, atol=1e-8))
+        self.assertTrue(ht.allclose(d, result, atol=1e-5))
 
         n = ht.communication.MPI_WORLD.size
         A = ht.ones((n * 2, 6), dtype=ht.float32, split=None, device=ht_device)
@@ -187,7 +194,10 @@ class TestDistances(unittest.TestCase):
             A[2 * i + 1, :] = A[2 * i + 1, :] * (2 * i + 1)
         res = torch.cdist(A._DNDarray__array, A._DNDarray__array)
 
-        A.resplit_(axis=0)
+        A = ht.ones((n * 2, 6), dtype=ht.float32, split=0, device=ht_device)
+        for i in range(n):
+            A[2 * i, :] = A[2 * i, :] * (2 * i)
+            A[2 * i + 1, :] = A[2 * i + 1, :] * (2 * i + 1)
         B = A.astype(ht.int32)
 
         d = ht.spatial.cdist(A, B, quadratic_expansion=False)
