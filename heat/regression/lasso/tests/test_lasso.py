@@ -75,8 +75,8 @@ if ht.io.supports_hdf5():
             )
 
             # Now the same stuff again in PyTorch
-            X = torch.tensor(X._DNDarray__array, device=device)
-            y = torch.tensor(y._DNDarray__array, device=device)
+            X = X._DNDarray__array.clone()
+            y = y._DNDarray__array.clone()
 
             # normalize dataset
             X = X / torch.sqrt((torch.mean(X ** 2, 0)))
