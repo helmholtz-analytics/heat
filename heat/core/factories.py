@@ -73,7 +73,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=None):
     tensor([0, 1, 2])
     >>> ht.arange(3.0)
     tensor([ 0.,  1.,  2.])
-    >>> ht.arange(3, 7)
+    >>> ht.arange(3, 7)F
     tensor([3, 4, 5, 6])
     >>> ht.arange(3, 7, 2)
     tensor([3, 5])
@@ -522,7 +522,6 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
     for i in range(min(lshape)):
         pos_x = i if split == 0 else i + offset
         pos_y = i if split == 1 else i + offset
-        # print(pos_x, pos_y)
         if pos_x >= lshape[0] or pos_y >= lshape[1]:
             break
         data[pos_x][pos_y] = 1
