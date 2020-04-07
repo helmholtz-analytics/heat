@@ -53,6 +53,16 @@ class TestDNDarray(unittest.TestCase):
                 self.assertTrue(torch.equal(data.halo_prev, halo_prev))
                 self.assertEqual(data.halo_next, None)
 
+            # exception on wrong argument type in gethalo
+            with self.assertRaises(TypeError):
+                data.gethalo("wrong_type")
+            # exception on wrong argument in gethalo
+            with self.assertRaises(ValueError):
+                data.gethalo(-99)
+            # exception for too large halos
+            with self.assertRaises(ValueError):
+                data.gethalo(4)
+
         if data.comm.size == 3:
 
             halo_1 = torch.tensor(np.array([[2], [8]]))
@@ -72,15 +82,15 @@ class TestDNDarray(unittest.TestCase):
                 self.assertEqual(data.halo_next, None)
                 self.assertTrue(torch.equal(data.halo_prev, halo_3))
 
-        # exception on wrong argument type in gethalo
-        with self.assertRaises(TypeError):
-            data.gethalo("wrong_type")
-        # exception on wrong argument in gethalo
-        with self.assertRaises(ValueError):
-            data.gethalo(-99)
-        # exception for too large halos
-        with self.assertRaises(ValueError):
-            data.gethalo(4)
+            # exception on wrong argument type in gethalo
+            with self.assertRaises(TypeError):
+                data.gethalo("wrong_type")
+            # exception on wrong argument in gethalo
+            with self.assertRaises(ValueError):
+                data.gethalo(-99)
+            # exception for too large halos
+            with self.assertRaises(ValueError):
+                data.gethalo(4)
 
     def test_astype(self):
         data = ht.float32([[1, 2, 3], [4, 5, 6]], device=ht_device)
