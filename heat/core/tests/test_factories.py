@@ -424,7 +424,7 @@ class TestFactories(unittest.TestCase):
         self.assertEqual(eye.shape, shape)
         self.assertEqual(eye.split, None)
 
-        shape = (21, 10)
+        shape = (11, 100)
         eye = ht.eye(shape, split=1, dtype=ht.float32, device=ht_device)
         self.assertIsInstance(eye, ht.DNDarray)
         self.assertEqual(eye.dtype, ht.float32)
