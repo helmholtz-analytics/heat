@@ -1,7 +1,6 @@
 import os
-import unittest
-import torch
 import numpy as np
+import torch
 
 import heat as ht
 from heat.core.tests.test_suites.basic_test import BasicTest
@@ -20,6 +19,21 @@ if os.environ.get("DEVICE") == "lgpu" and ht.torch.cuda.is_available():
 
 
 class TestGaussianNB(BasicTest):
+    def test_classifier(self):
+        gnb = ht.naive_bayes.GaussianNB()
+        self.assertTrue(ht.is_estimator(gnb))
+        self.assertTrue(ht.is_classifier(gnb))
+
+    def test_get_and_set_params(self):
+        gnb = ht.naive_bayes.GaussianNB()
+        params = gnb.get_params()
+
+        self.assertEqual(params, {"priors": None, "var_smoothing": 1e-9})
+
+        params["var_smoothing"] = 1e-10
+        gnb.set_params(**params)
+        self.assertEqual(1e-10, gnb.var_smoothing)
+
     def test_fit_iris(self):
         # load sklearn train/test sets and resulting probabilities
         X_train = ht.load(
@@ -170,3 +184,7 @@ class TestGaussianNB(BasicTest):
         with self.assertRaises(ValueError):
             gnb_heat.priors = priors_wrong_sign
             gnb_heat.fit(X_train, y_train)
+
+    def test_exception(self):
+        with self.assertRaises(ValueError):
+            ht.naive_bayes.GaussianNB().set_params(foo="bar")
