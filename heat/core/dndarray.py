@@ -72,11 +72,9 @@ class DNDarray:
         self.__split = split
         self.__device = device
         self.__comm = comm
-        self.__tiles = None
         self.__ishalo = False
         self.__halo_next = None
         self.__halo_prev = None
-
 
         # handle inconsistencies between torch and heat devices
         if (
@@ -282,11 +280,11 @@ class DNDarray:
         """
         if not isinstance(start, int) and start is not None:
             raise TypeError('start needs to be of Python type integer, {} given)'.format(type(start)))
-        if not isinstance(end, int) and end is not None: 
+        if not isinstance(end, int) and end is not None:
             raise TypeError('end needs to be of Python type integer, {} given)'.format(type(end)))
 
         ix = [slice(None, None, None)] * len(self.shape)
-        try: 
+        try:
             ix[self.split] = slice(start, end)
         except IndexError:
             print('Indices out of bound')
@@ -310,36 +308,35 @@ class DNDarray:
         None
         """
 
-        if not isinstance(halo_size, int): 
+        if not isinstance(halo_size, int):
             raise TypeError('halo_size needs to be of Python type integer, {} given)'.format(type(halo_size)))
-        if halo_size < 0: 
+        if halo_size < 0:
             raise ValueError('halo_size needs to be a positive Python integer, {} given)'.format(type(halo_size)))
 
         if self.comm.is_distributed() and self.split is not None:
-            min_chunksize = self.shape[self.split]//self.comm.size
+            min_chunksize = self.shape[self.split] // self.comm.size
             if halo_size > min_chunksize:
-                raise ValueError('halo_size {} needs to smaller than chunck-size {} )'.format(halo_size, min_chunksize))   
+                raise ValueError('halo_size {} needs to smaller than chunck-size {} )'.format(halo_size, min_chunksize))
 
+        if self.comm.is_distributed() and halo_size > 0 and self.split is not None:
 
-        if self.comm.is_distributed() and halo_size > 0 and self.split is not None:  
-            
             a_prev = self.__prephalo(0, halo_size)
             a_next = self.__prephalo(-halo_size, None)
-            
+
             res_prev = None
             res_next = None
-            
-            if self.comm.rank != self.comm.size-1:
-                self.comm.Isend(a_next, self.comm.rank+1) 
+
+            if self.comm.rank != self.comm.size - 1:
+                self.comm.Isend(a_next, self.comm.rank + 1)
                 res_prev = torch.zeros(a_prev.size(), dtype=a_prev.dtype)
-                req = self.comm.Irecv(res_prev, source=self.comm.rank+1) 
+                req = self.comm.Irecv(res_prev, source=self.comm.rank + 1)
                 req.Wait()
 
             if self.comm.rank != 0:
-                self.comm.Isend(a_prev, self.comm.rank-1)
+                self.comm.Isend(a_prev, self.comm.rank - 1)
                 res_next = torch.zeros(a_next.size(), dtype=a_next.dtype)
-                req = self.comm.Irecv(res_next, source=self.comm.rank-1)
-                req.Wait()          
+                req = self.comm.Irecv(res_next, source=self.comm.rank - 1)
+                req.Wait()
 
             self.__halo_next = res_prev
             self.__halo_prev = res_next
