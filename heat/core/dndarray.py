@@ -269,7 +269,7 @@ class DNDarray:
 
         Parameters
         ----------
-        start : int 
+        start : int
             start index of the halo extracted from self.array
         end : int
             end index of the halo extracted from self.array
@@ -297,13 +297,13 @@ class DNDarray:
         """
         Fetch halos of size 'halo_size' from neighboring ranks and save them in self.halo_next/self.halo_prev
         in case they are not already stored. If 'halo_size' differs from the size of already stored halos,
-        the are overwritten. 
+        the are overwritten.
 
         Parameters
         ----------
-        halo_size : int 
+        halo_size : int
             Size of the halo. If halo_size exceeds the size of the HeAT tensor in self.split direction
-            the whole local tensor.array will be fetched 
+            the whole local tensor.array will be fetched
 
         Returns
         -------
@@ -356,15 +356,15 @@ class DNDarray:
         """
         Fetch halos of size 'halo_size' from neighboring ranks and save them in self.halo_next/self.halo_prev
         in case they are not already stored. If 'halo_size' differs from the size of already stored halos,
-        the are overwritten. 
+        the are overwritten.
 
         Parameters
         ----------
-        None 
+        None
 
         Returns
         -------
-        array + halos: pytorch tensors 
+        array + halos: pytorch tensors
         """
         return torch.cat(
             tuple(_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None),
