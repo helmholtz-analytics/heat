@@ -1,8 +1,6 @@
 import torch
 import math
-import numpy as np
 import heat as ht
-import time
 
 
 class Spectral:
@@ -136,7 +134,7 @@ class Spectral:
             diff = eigenvalues[1:] - eigenvalues[:-1]
             tmp = ht.where(diff == diff.max()).item()
             self.n_clusters = tmp + 1
-            print("Number of suggested Clusters: ", self.n_clusters)
+
         components = eigenvectors[:, : self.n_clusters].copy()
 
         params = self._cluster.get_params()
