@@ -31,7 +31,7 @@ jobs:
           key: ${{ secrets.HDFML_KEY }}
           envs: GITHUB_SHA
           script: |
-            cd tmp
+            cd /p/project/haf/testci
             cd  heat
             git fetch
             git checkout $GITHUB_SHA
