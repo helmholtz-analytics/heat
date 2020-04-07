@@ -73,7 +73,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=None):
     tensor([0, 1, 2])
     >>> ht.arange(3.0)
     tensor([ 0.,  1.,  2.])
-    >>> ht.arange(3, 7)F
+    >>> ht.arange(3, 7)
     tensor([3, 4, 5, 6])
     >>> ht.arange(3, 7, 2)
     tensor([3, 5])
