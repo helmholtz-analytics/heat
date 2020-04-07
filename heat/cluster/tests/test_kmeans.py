@@ -36,7 +36,7 @@ class TestKMeans(unittest.TestCase):
         self.assertEqual(10, kmeans.n_clusters)
 
     def test_fit_iris_unsplit(self):
-        for split in {None, 0}:
+        for split in [None, 0]:
             # get some test data
             iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=split)
 

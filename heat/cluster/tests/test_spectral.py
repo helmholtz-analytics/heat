@@ -17,6 +17,33 @@ if os.environ.get("DEVICE") == "lgpu" and ht.torch.cuda.is_available():
 
 
 class TestSpectral(unittest.TestCase):
+    def test_clusterer(self):
+        spectral = ht.cluster.Spectral()
+        self.assertTrue(ht.is_estimator(spectral))
+        self.assertTrue(ht.is_clusterer(spectral))
+
+    def test_get_and_set_params(self):
+        spectral = ht.cluster.Spectral()
+        params = spectral.get_params()
+
+        self.assertEqual(
+            params,
+            {
+                "n_clusters": None,
+                "gamma": 1.0,
+                "metric": "rbf",
+                "laplacian": "fully_connected",
+                "threshold": 1.0,
+                "boundary": "upper",
+                "n_lanczos": 300,
+                "assign_labels": "kmeans",
+            },
+        )
+
+        params["n_clusters"] = 10
+        spectral.set_params(**params)
+        self.assertEqual(10, spectral.n_clusters)
+
     def test_fit_iris(self):
         # get some test data
         iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)

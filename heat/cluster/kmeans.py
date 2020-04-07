@@ -292,25 +292,3 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
         # determine the centroids
         return self._fit_to_cluster(X)
-
-    def set_params(self, **params):
-        """
-        Set the parameters of this estimator.
-
-        Parameters
-        ----------
-        params : dict
-            The parameters of the estimator to be modified.
-
-        Returns
-        -------
-        self : ht.ml.KMeans
-            This estimator instance for chaining.
-        """
-        self.init = params.get("init", self.init)
-        self.max_iter = params.get("max_iter", self.max_iter)
-        self.n_clusters = params.get("n_clusters", self.n_clusters)
-        self.random_state = params.get("random_state", self.random_state)
-        self.tol = params.get("tol", self.tol)
-
-        return self
