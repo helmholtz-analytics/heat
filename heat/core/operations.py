@@ -170,6 +170,116 @@ def __binary_op(operation, t1, t2):
     )
 
 
+def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
+    """
+    Generic wrapper for cumulative operations, i.e. cumsum(), cumprod(). Performs a two-stage cumulative operation. First, a partial
+    cumulative operation is performed node-local that is combined into a global cumulative result via an MPI_Op and an add or mul operation.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The heat DNDarray on which to perform the cumulative operation
+
+    partial_op: function
+        The function performing a partial cumulative operation on the process-local data portion, e.g. cumsum().
+
+    exscan_op: mpi4py.MPI.Op
+        The MPI operator for performing the exscan based on the results returned by the partial_op function.
+
+    final_op: function
+        The local operation for the final result, e.g. add() for cumsum().
+
+    neutral: scalar
+        Neutral element for the cumulative operation, i.e. an element that does not change the reductions operations
+        result.
+
+    axis: int
+        The axis direction of the cumulative operation
+
+    dtype: ht.type
+        The type of the result tensor.
+
+    out: ht.DNDarray
+        The explicitly returned output tensor.
+
+    Returns
+    -------
+    result: ht.DNDarray
+        A DNDarray containing the result of the reduction operation
+
+    Raises
+    ------
+    TypeError
+        If the input or optional output parameter are not of type ht.DNDarray
+    ValueError
+        If the shape of the optional output parameters does not match the shape of the input
+    NotImplementedError
+        Numpy's behaviour of axis is None is not supported as of now
+    RuntimeError
+        If the split or device parameters do not match the parameters of the input
+    """
+
+    # perform sanitation
+    if not isinstance(x, dndarray.DNDarray):
+        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+    if out is not None and not isinstance(out, dndarray.DNDarray):
+        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
+
+    if axis is None:
+        raise NotImplementedError("axis = None is not supported")
+    axis = stride_tricks.sanitize_axis(x.shape, axis)
+
+    if dtype is not None:
+        dtype = types.canonical_heat_type(dtype)
+
+    if out is not None:
+        if out.shape != x.shape:
+            raise ValueError("out and a have different shapes {} != {}".format(out.shape, x.shape))
+        if out.split != x.split:
+            raise RuntimeError(
+                "out and a have different splits {} != {}".format(out.split, x.split)
+            )
+        if out.device != x.device:
+            raise RuntimeError(
+                "out and a have different devices {} != {}".format(out.device, x.device)
+            )
+        dtype = out.dtype
+
+    cumop = partial_op(
+        x._DNDarray__array,
+        axis,
+        out=None if out is None else out._DNDarray__array,
+        dtype=None if dtype is None else dtype.torch_type(),
+    )
+
+    if x.split is not None and axis == x.split:
+        indices = torch.tensor([cumop.shape[axis] - 1])
+        send = (
+            torch.index_select(cumop, axis, indices)
+            if indices[0] >= 0
+            else torch.full(
+                cumop.shape[:axis] + torch.Size([1]) + cumop.shape[axis + 1 :],
+                neutral,
+                dtype=cumop.dtype,
+            )
+        )
+        recv = torch.full(
+            cumop.shape[:axis] + torch.Size([1]) + cumop.shape[axis + 1 :],
+            neutral,
+            dtype=cumop.dtype,
+        )
+
+        x.comm.Exscan(send, recv, exscan_op)
+        final_op(cumop, recv, out=cumop)
+
+    if out is not None:
+        return out
+
+    return factories.array(
+        cumop, dtype=x.dtype if dtype is None else dtype, is_split=x.split, device=x.device
+    )
+
+
 def __local_op(operation, x, out, no_cast=False, **kwargs):
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as

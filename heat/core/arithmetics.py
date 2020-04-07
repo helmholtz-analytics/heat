@@ -229,61 +229,16 @@ def cumprod(a, axis, dtype=None, out=None):
     cumprod : DNDarray
         A new array holding the result is returned unless `out` is
         specified, in which case a reference to out is returned.
+
+    Examples
+    --------
+    >>> a = ht.full((3,3), 2)
+    >>> ht.cumprod(a, 0)
+    tensor([[2., 2., 2.],
+            [4., 4., 4.],
+            [8., 8., 8.])
     """
-
-    if axis is None:
-        raise NotImplementedError("axis = None is not supported")
-    if not isinstance(axis, int):
-        raise RuntimeError("axis parameter got an invalid argument {}".format(axis))
-
-    if dtype is not None:
-        dtype = types.canonical_heat_type(dtype)
-
-    if out is not None:
-        if out.shape != a.shape:
-            raise RuntimeError(
-                "out and a have different shapes {} != {}".format(out.shape, a.shape)
-            )
-        if out.split != a.split:
-            raise RuntimeError(
-                "out and a have different splits {} != {}".format(out.split, a.split)
-            )
-        if out.device != a.device:
-            raise RuntimeError(
-                "out and a have different devices {} != {}".format(out.device, a.device)
-            )
-        dtype = out.dtype
-
-    cumprod = torch.cumprod(
-        a._DNDarray__array,
-        axis,
-        out=None if out is None else out._DNDarray__array,
-        dtype=None if dtype is None else dtype.torch_type(),
-    )
-
-    if a.split is not None and axis == a.split:
-        indices = torch.tensor([cumprod.shape[axis] - 1])
-        send = (
-            torch.index_select(cumprod, axis, indices)
-            if indices[0] >= 0
-            else torch.ones(
-                cumprod.shape[:axis] + torch.Size([1]) + cumprod.shape[axis + 1 :],
-                dtype=cumprod.dtype,
-            )
-        )
-        recv = torch.ones(
-            cumprod.shape[:axis] + torch.Size([1]) + cumprod.shape[axis + 1 :], dtype=cumprod.dtype
-        )
-
-        a.comm.Exscan(send, recv, MPI.PROD)
-        cumprod *= recv
-
-    if out is not None:
-        return out
-
-    return factories.array(
-        cumprod, dtype=a.dtype if dtype is None else dtype, is_split=a.split, device=a.device
-    )
+    return operations.__cum_op(a, torch.cumprod, MPI.PROD, torch.mul, 1, axis, dtype, out)
 
 
 # Alias support
@@ -318,59 +273,15 @@ def cumsum(a, axis, dtype=None, out=None):
         A new array holding the result is returned unless `out` is
         specified, in which case a reference to out is returned.
 
+    Examples
+    --------
+    >>> a = ht.ones((3,3))
+    >>> ht.cumsum(a, 0)
+    tensor([[1., 1., 1.],
+            [2., 2., 2.],
+            [3., 3., 3.])
     """
-    if axis is None:
-        raise NotImplementedError("axis = None is not supported")
-    if not isinstance(axis, int):
-        raise RuntimeError("axis parameter got an invalid argument {}".format(axis))
-
-    if dtype is not None:
-        dtype = types.canonical_heat_type(dtype)
-
-    if out is not None:
-        if out.shape != a.shape:
-            raise RuntimeError(
-                "out and a have different shapes {} != {}".format(out.shape, a.shape)
-            )
-        if out.split != a.split:
-            raise RuntimeError(
-                "out and a have different splits {} != {}".format(out.split, a.split)
-            )
-        if out.device != a.device:
-            raise RuntimeError(
-                "out and a have different devices {} != {}".format(out.device, a.device)
-            )
-        dtype = out.dtype
-
-    cumsum = torch.cumsum(
-        a._DNDarray__array,
-        axis,
-        out=None if out is None else out._DNDarray__array,
-        dtype=None if dtype is None else dtype.torch_type(),
-    )
-
-    if a.split is not None and axis == a.split:
-        indices = torch.tensor([cumsum.shape[axis] - 1])
-        send = (
-            torch.index_select(cumsum, axis, indices)
-            if indices[0] >= 0
-            else torch.zeros(
-                cumsum.shape[:axis] + torch.Size([1]) + cumsum.shape[axis + 1 :], dtype=cumsum.dtype
-            )
-        )
-        recv = torch.zeros(
-            cumsum.shape[:axis] + torch.Size([1]) + cumsum.shape[axis + 1 :], dtype=cumsum.dtype
-        )
-
-        a.comm.Exscan(send, recv, MPI.SUM)
-        cumsum += recv
-
-    if out is not None:
-        return out
-
-    return factories.array(
-        cumsum, dtype=a.dtype if dtype is None else dtype, is_split=a.split, device=a.device
-    )
+    return operations.__cum_op(a, torch.cumsum, MPI.SUM, torch.add, 0, axis, dtype, out)
 
 
 def diff(a, n=1, axis=-1):

@@ -211,12 +211,12 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(NotImplementedError):
             ht.cumprod(ht.ones((2, 2), device=ht_device), axis=None)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(TypeError):
             ht.cumprod(ht.ones((2, 2), device=ht_device), axis="1")
         with self.assertRaises(RuntimeError):
             ht.cumprod(a, 2, out=out)
-        with self.assertRaises(RuntimeError):
-            ht.cumprod(ht.ones((2, 2), device=ht_device), 2, out=out)
+        with self.assertRaises(ValueError):
+            ht.cumprod(ht.ones((2, 2), device=ht_device), 2)
 
         if ht_device is not None:
             with assertRaises(RuntimeError):
@@ -268,12 +268,12 @@ class TestArithmetics(unittest.TestCase):
 
         with self.assertRaises(NotImplementedError):
             ht.cumsum(ht.ones((2, 2)), axis=None)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(TypeError):
             ht.cumsum(ht.ones((2, 2)), axis="1")
         with self.assertRaises(RuntimeError):
             ht.cumsum(a, 2, out=out)
-        with self.assertRaises(RuntimeError):
-            ht.cumsum(ht.ones((2, 2)), 2, out=out)
+        with self.assertRaises(ValueError):
+            ht.cumsum(ht.ones((2, 2)), 2)
 
         if ht_device is not None:
             with assertRaises(RuntimeError):
