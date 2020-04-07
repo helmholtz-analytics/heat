@@ -17,9 +17,28 @@ if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
     torch.cuda.set_device(device)
 
 
-if ht.io.supports_hdf5():
+class TestLasso(unittest.TestCase):
+    def test_regressor(self):
+        lasso = ht.regression.Lasso()
+        self.assertTrue(ht.is_estimator(lasso))
+        self.assertTrue(ht.is_regressor(lasso))
 
-    class TestLasso(unittest.TestCase):
+    def test_get_and_set_params(self):
+        lasso = ht.regression.Lasso()
+        params = lasso.get_params()
+
+        self.assertEqual(params, {"lam": 0.1, "max_iter": 100, "tol": 1e-6})
+
+        params["max_iter"] = 200
+        lasso.set_params(**params)
+        self.assertEqual(200, lasso.max_iter)
+
+    def test_exceptions(self):
+        with self.assertRaises(ValueError):
+            ht.regression.Lasso().set_params(foo="bar")
+
+    if ht.io.supports_hdf5():
+
         def test_lasso(self):
             # ToDo: add additional tests
             # get some test data

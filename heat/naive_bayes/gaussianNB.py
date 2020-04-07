@@ -1,10 +1,8 @@
-import sys
-import numpy as np
-import torch
 import heat as ht
+import torch
 
 
-class GaussianNB:
+class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
     """
     Gaussian Naive Bayes (GaussianNB), based on scikit-learn.naive_bayes.GaussianNB.
 
