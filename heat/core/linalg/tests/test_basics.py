@@ -1,6 +1,6 @@
 import torch
-import unittest
 import os
+import unittest
 import heat as ht
 import numpy as np
 
@@ -17,7 +17,7 @@ if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
     torch.cuda.set_device(device)
 
 
-class TestLinalg(unittest.TestCase):
+class TestLinalgBasics(unittest.TestCase):
     def test_dot(self):
         # ONLY TESTING CORRECTNESS! ALL CALLS IN DOT ARE PREVIOUSLY TESTED
         # cases to test:
@@ -35,8 +35,16 @@ class TestLinalg(unittest.TestCase):
 
         a1d = ht.array(data1d, dtype=ht.float32, split=None, device=ht_device)
         b1d = ht.array(data1d, dtype=ht.float32, split=0, device=ht_device)
-        # 2 1D arrays,
         self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
+
+        a1d = ht.array(data1d, dtype=ht.float32, split=None, device=ht_device)
+        b1d = ht.array(data1d, dtype=ht.float32, split=None, device=ht_device)
+        self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
+
+        a1d = ht.array(data1d, dtype=ht.float32, split=0, device=ht_device)
+        b1d = ht.array(data1d, dtype=ht.float32, split=0, device=ht_device)
+        self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
+        # 2 1D arrays,
 
         a2d = ht.array(data2d, split=1, device=ht_device)
         b2d = ht.array(data2d, split=1, device=ht_device)
@@ -51,13 +59,13 @@ class TestLinalg(unittest.TestCase):
 
         const1 = 5
         const2 = 6
-        # a is const,
+        # a is const
         res = ht.dot(const1, b2d) - ht.array(np.dot(const1, data2d), device=ht_device)
         ret = 0
         ht.dot(const1, b2d, out=ret)
         self.assertEqual(ht.equal(res, ht.zeros(res.shape, device=ht_device)), 1)
 
-        # b is const,
+        # b is const
         res = ht.dot(a2d, const2) - ht.array(np.dot(data2d, const2), device=ht_device)
         self.assertEqual(ht.equal(res, ht.zeros(res.shape, device=ht_device)), 1)
         # a and b and const
@@ -94,6 +102,25 @@ class TestLinalg(unittest.TestCase):
         self.assertEqual(ret00.shape, (n, k))
         self.assertEqual(ret00.dtype, ht.float)
         self.assertEqual(ret00.split, None)
+        self.assertEqual(a.split, None)
+        self.assertEqual(b.split, None)
+
+        # splits None None
+        a = ht.ones((n, m), split=None, device=ht_device)
+        b = ht.ones((j, k), split=None, device=ht_device)
+        a[0] = ht.arange(1, m + 1, device=ht_device)
+        a[:, -1] = ht.arange(1, n + 1, device=ht_device)
+        b[0] = ht.arange(1, k + 1, device=ht_device)
+        b[:, 0] = ht.arange(1, j + 1, device=ht_device)
+        ret00 = ht.matmul(a, b, allow_resplit=True)
+
+        self.assertEqual(ht.all(ret00 == ht.array(a_torch @ b_torch, device=ht_device)), 1)
+        self.assertIsInstance(ret00, ht.DNDarray)
+        self.assertEqual(ret00.shape, (n, k))
+        self.assertEqual(ret00.dtype, ht.float)
+        self.assertEqual(ret00.split, None)
+        self.assertEqual(a.split, 0)
+        self.assertEqual(b.split, None)
 
         if a.comm.size > 1:
             # splits 00
@@ -434,6 +461,57 @@ class TestLinalg(unittest.TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
+            with self.assertRaises(NotImplementedError):
+                a = ht.zeros((3, 3, 3), split=2)
+                b = a.copy()
+                a @ b
+
+    def test_norm(self):
+        a = ht.arange(9, dtype=ht.float32, split=0) - 4
+        self.assertTrue(
+            ht.allclose(ht.linalg.norm(a), ht.float32(np.linalg.norm(a.numpy())).item(), atol=1e-5)
+        )
+        a.resplit_(axis=None)
+        self.assertTrue(
+            ht.allclose(ht.linalg.norm(a), ht.float32(np.linalg.norm(a.numpy())).item(), atol=1e-5)
+        )
+
+        b = ht.array([[-4.0, -3.0, -2.0], [-1.0, 0.0, 1.0], [2.0, 3.0, 4.0]], split=0)
+        self.assertTrue(
+            ht.allclose(ht.linalg.norm(b), ht.float32(np.linalg.norm(b.numpy())).item(), atol=1e-5)
+        )
+        b.resplit_(axis=1)
+        self.assertTrue(
+            ht.allclose(ht.linalg.norm(b), ht.float32(np.linalg.norm(b.numpy())).item(), atol=1e-5)
+        )
+
+        with self.assertRaises(TypeError):
+            c = np.arange(9) - 4
+            ht.linalg.norm(c)
+
+    def test_projection(self):
+        a = ht.arange(1, 4, dtype=ht.float32, split=None)
+        e1 = ht.array([1, 0, 0], dtype=ht.float32, split=None)
+        self.assertTrue(ht.equal(ht.linalg.projection(a, e1), e1))
+
+        a.resplit_(axis=0)
+        self.assertTrue(ht.equal(ht.linalg.projection(a, e1), e1))
+
+        e2 = ht.array([0, 1, 0], dtype=ht.float32, split=0)
+        self.assertTrue(ht.equal(ht.linalg.projection(a, e2), e2 * 2))
+
+        a = ht.arange(1, 4, dtype=ht.float32, split=None)
+        e3 = ht.array([0, 0, 1], dtype=ht.float32, split=0)
+        self.assertTrue(ht.equal(ht.linalg.projection(a, e3), e3 * 3))
+
+        a = np.arange(1, 4)
+        with self.assertRaises(TypeError):
+            ht.linalg.projection(a, e1)
+
+        a = ht.array([[1], [2], [3]], dtype=ht.float32, split=None)
+        with self.assertRaises(RuntimeError):
+            ht.linalg.projection(a, e1)
+
     def test_transpose(self):
         # vector transpose, not distributed
         vector = ht.arange(10, device=ht_device)
@@ -723,6 +801,11 @@ class TestLinalg(unittest.TestCase):
             self.assertTrue(result._DNDarray__array[-1, 0] == 1)
         if result.comm.rank == result.shape[0] - 1:
             self.assertTrue(result._DNDarray__array[0, -1] == 0)
+
+        with self.assertRaises(TypeError):
+            ht.tril("asdf")
+        with self.assertRaises(TypeError):
+            ht.tril(distributed_ones, m=["sdf", "sf"])
 
     def test_triu(self):
         local_ones = ht.ones((5,), device=ht_device)

@@ -324,8 +324,12 @@ class TestManipulations(BasicTest):
             ht.concatenate((x))
         with self.assertRaises(TypeError):
             ht.concatenate((x, x), axis=x)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             ht.concatenate((x, ht.zeros((2, 2), device=ht_device)), axis=0)
+        with self.assertRaises(RuntimeError):
+            a = ht.zeros((10,), comm=ht.communication.MPI_WORLD)
+            b = ht.zeros((10,), comm=ht.communication.MPI_SELF)
+            ht.concatenate([a, b])
         with self.assertRaises(ValueError):
             ht.concatenate(
                 (ht.zeros((12, 12), device=ht_device), ht.zeros((2, 2), device=ht_device)), axis=0
@@ -763,6 +767,67 @@ class TestManipulations(BasicTest):
         with self.assertRaises(ValueError):
             ht.empty((3, 4, 5), device=ht_device).expand_dims(-5)
 
+    def test_flip(self):
+        a = ht.array([1, 2], device=ht_device)
+        r_a = ht.array([2, 1], device=ht_device)
+        self.assertTrue(ht.equal(ht.flip(a, 0), r_a))
+
+        a = ht.array([[1, 2], [3, 4]], device=ht_device)
+        r_a = ht.array([[4, 3], [2, 1]], device=ht_device)
+        self.assertTrue(ht.equal(ht.flip(a), r_a))
+
+        a = ht.array([[2, 3], [4, 5], [6, 7], [8, 9]], split=1, dtype=ht.float32, device=ht_device)
+        r_a = ht.array(
+            [[9, 8], [7, 6], [5, 4], [3, 2]], split=1, dtype=ht.float32, device=ht_device
+        )
+        self.assertTrue(ht.equal(ht.flip(a, [0, 1]), r_a))
+
+        a = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]]], split=0, dtype=ht.uint8, device=ht_device
+        )
+        r_a = ht.array(
+            [[[3, 2], [1, 0]], [[7, 6], [5, 4]]], split=0, dtype=ht.uint8, device=ht_device
+        )
+        self.assertTrue(ht.equal(ht.flip(a, [1, 2]), r_a))
+
+    def test_flipud(self):
+        a = ht.array([1, 2], device=ht_device)
+        r_a = ht.array([2, 1], device=ht_device)
+        self.assertTrue(ht.equal(ht.flipud(a), r_a))
+
+        b = ht.array([[1, 2], [3, 4]], device=ht_device)
+        r_b = ht.array([[3, 4], [1, 2]], device=ht_device)
+        self.assertTrue(ht.equal(ht.flipud(b), r_b))
+
+        # splitted
+        c = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]],
+            split=0,
+            device=ht_device,
+        )
+        r_c = ht.array(
+            [[[12, 13], [14, 15]], [[8, 9], [10, 11]], [[4, 5], [6, 7]], [[0, 1], [2, 3]]],
+            split=0,
+            device=ht_device,
+        )
+        self.assertTrue(ht.equal(ht.flipud(c), r_c))
+
+        c = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]],
+            split=1,
+            device=ht_device,
+            dtype=ht.float32,
+        )
+        self.assertTrue(ht.equal(ht.resplit(ht.flipud(c), 0), r_c))
+
+        c = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]],
+            split=2,
+            device=ht_device,
+            dtype=ht.int8,
+        )
+        self.assertTrue(ht.equal(ht.resplit(ht.flipud(c), 0), r_c))
+
     def test_hstack(self):
         # cases to test:
         # MM===================================
@@ -822,12 +887,12 @@ class TestManipulations(BasicTest):
         result, result_indices = ht.sort(data, axis=0, descending=True)
         expected, exp_indices = torch.sort(tensor, dim=0, descending=True)
         self.assertTrue(torch.equal(result._DNDarray__array, expected))
-        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices))
+        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices.int()))
 
         result, result_indices = ht.sort(data, axis=1, descending=True)
         expected, exp_indices = torch.sort(tensor, dim=1, descending=True)
         self.assertTrue(torch.equal(result._DNDarray__array, expected))
-        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices))
+        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices.int()))
 
         data = ht.array(tensor, split=0, device=ht_device)
 
@@ -835,14 +900,14 @@ class TestManipulations(BasicTest):
         exp_indices = torch.tensor([[rank] * size], device=device)
         result, result_indices = ht.sort(data, descending=True, axis=0)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_zero))
-        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices))
+        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices.int()))
 
         exp_axis_one, exp_indices = (
             torch.arange(size, device=device).reshape(1, size).sort(dim=1, descending=True)
         )
         result, result_indices = ht.sort(data, descending=True, axis=1)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_one))
-        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices))
+        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices.int()))
 
         result1 = ht.sort(data, axis=1, descending=True)
         result2 = ht.sort(data, descending=True)
@@ -857,12 +922,12 @@ class TestManipulations(BasicTest):
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_zero))
         # comparison value is only true on CPU
         if result_indices._DNDarray__array.is_cuda is False:
-            self.assertTrue(torch.equal(result_indices._DNDarray__array, indices_axis_zero))
+            self.assertTrue(torch.equal(result_indices._DNDarray__array, indices_axis_zero.int()))
 
         exp_axis_one = torch.tensor(size - rank - 1, device=device).repeat(size).reshape(size, 1)
         result, result_indices = ht.sort(data, descending=True, axis=1)
         self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_one))
-        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_axis_one))
+        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_axis_one.int()))
 
         tensor = torch.tensor(
             [
@@ -942,8 +1007,8 @@ class TestManipulations(BasicTest):
         # 4D local tensor, no axis
         result = ht.squeeze(data)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
@@ -952,8 +1017,8 @@ class TestManipulations(BasicTest):
         # 4D local tensor, major axis
         result = ht.squeeze(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
         self.assertEqual(result.shape, (4, 5, 1))
         self.assertEqual(result.lshape, (4, 5, 1))
         self.assertEqual(result.split, None)
@@ -962,8 +1027,8 @@ class TestManipulations(BasicTest):
         # 4D local tensor, minor axis
         result = ht.squeeze(data, axis=-1)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
         self.assertEqual(result.shape, (1, 4, 5))
         self.assertEqual(result.lshape, (1, 4, 5))
         self.assertEqual(result.split, None)
@@ -972,8 +1037,8 @@ class TestManipulations(BasicTest):
         # 4D local tensor, tuple axis
         result = data.squeeze(axis=(0, -1))
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
@@ -1079,7 +1144,7 @@ class TestManipulations(BasicTest):
         self.assertEqual(inv.split, None)
         self.assertEqual(inv.dtype, data_split_none.dtype)
         self.assertEqual(inv.device, data_split_none.device)
-        self.assertTrue(torch.equal(inv._DNDarray__array, exp_inv))
+        self.assertTrue(torch.equal(inv._DNDarray__array, exp_inv.int()))
 
         data_split_zero = ht.array(torch_array, split=0, device=ht_device)
         res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)

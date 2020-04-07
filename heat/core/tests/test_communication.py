@@ -37,6 +37,8 @@ class TestCommunication(unittest.TestCase):
             comm.chunk(self.data.shape, split=2)
         with self.assertRaises(ValueError):
             comm.chunk(self.data.shape, split=-3)
+        with self.assertRaises(TypeError):
+            comm.chunk(self.data.shape, split=0, rank="dicndjh")
 
         offset, lshape, chunks = comm.chunk(self.data.shape, split=0)
 
@@ -239,7 +241,7 @@ class TestCommunication(unittest.TestCase):
 
         # contiguous data, different gather axis
         data = ht.ones((7, 2), dtype=ht.float64, device=ht_device)
-        output = ht.random.randn(7, 2 * ht.MPI_WORLD.size, device=ht_device)
+        output = ht.random.randn(7, 2 * ht.MPI_WORLD.size, dtype=ht.float64, device=ht_device)
 
         # ensure prior invariants
         self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -959,7 +961,7 @@ class TestCommunication(unittest.TestCase):
 
             # contiguous data, different gather axis
             data = ht.ones((7, 2), dtype=ht.float64, device=ht_device)
-            output = ht.random.randn(7, 2 * ht.MPI_WORLD.size, device=ht_device)
+            output = ht.random.randn(7, 2 * ht.MPI_WORLD.size, dtype=ht.float64, device=ht_device)
 
             # ensure prior invariants
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1489,7 +1491,7 @@ class TestCommunication(unittest.TestCase):
         try:
             # contiguous data
             data = ht.ones((1, 5), dtype=ht.float64, device=ht_device)
-            output = ht.random.randn(ht.MPI_WORLD.size, 5, device=ht_device)
+            output = ht.random.randn(ht.MPI_WORLD.size, 5, dtype=ht.float64, device=ht_device)
 
             # ensure prior invariants
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1504,13 +1506,13 @@ class TestCommunication(unittest.TestCase):
                 self.assertTrue(
                     (
                         output._DNDarray__array
-                        == torch.ones((ht.MPI_WORLD.size, 5), dtype=torch.float32, device=device)
+                        == torch.ones((ht.MPI_WORLD.size, 5), dtype=torch.float64, device=device)
                     ).all()
                 )
 
             # contiguous data, different gather axis
             data = ht.ones((5, 2), dtype=ht.float64, device=ht_device)
-            output = ht.random.randn(5, 2 * ht.MPI_WORLD.size, device=ht_device)
+            output = ht.random.randn(5, 2 * ht.MPI_WORLD.size, dtype=ht.float64, device=ht_device)
 
             # ensure prior invariants
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1526,14 +1528,14 @@ class TestCommunication(unittest.TestCase):
                     (
                         output._DNDarray__array
                         == torch.ones(
-                            (5, 2 * ht.MPI_WORLD.size), dtype=torch.float32, device=device
+                            (5, 2 * ht.MPI_WORLD.size), dtype=torch.float64, device=device
                         )
                     ).all()
                 )
 
             # non-contiguous data
             data = ht.ones((3, 5), dtype=ht.float64, device=ht_device).T
-            output = ht.random.randn(5, 3 * ht.MPI_WORLD.size, device=ht_device)
+            output = ht.random.randn(5, 3 * ht.MPI_WORLD.size, dtype=ht.float64, device=ht_device)
 
             # ensure prior invariants
             self.assertFalse(data._DNDarray__array.is_contiguous())
@@ -1549,14 +1551,14 @@ class TestCommunication(unittest.TestCase):
                     (
                         output._DNDarray__array
                         == torch.ones(
-                            (5, 3 * ht.MPI_WORLD.size), dtype=torch.float32, device=device
+                            (5, 3 * ht.MPI_WORLD.size), dtype=torch.float64, device=device
                         )
                     ).all()
                 )
 
             # non-contiguous output, different gather axis
             data = ht.ones((5, 3), dtype=ht.float64, device=ht_device)
-            output = ht.random.randn(3 * ht.MPI_WORLD.size, 5, device=ht_device).T
+            output = ht.random.randn(3 * ht.MPI_WORLD.size, 5, dtype=ht.float64, device=ht_device).T
 
             # ensure prior invariants
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1572,7 +1574,7 @@ class TestCommunication(unittest.TestCase):
                     (
                         output._DNDarray__array
                         == torch.ones(
-                            (5, 3 * ht.MPI_WORLD.size), dtype=torch.float32, device=device
+                            (5, 3 * ht.MPI_WORLD.size), dtype=torch.float64, device=device
                         )
                     ).all()
                 )

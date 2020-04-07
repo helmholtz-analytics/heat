@@ -7,12 +7,17 @@ import torch
 
 from .stride_tricks import sanitize_axis
 
+CUDA_AWARE_MPI = False
 # check whether OpenMPI support CUDA-aware MPI
 if "openmpi" in os.environ.get("MPI_SUFFIX", "").lower():
     buffer = subprocess.check_output(["ompi_info", "--parsable", "--all"])
     CUDA_AWARE_MPI = b"mpi_built_with_cuda_support:value:true" in buffer
-else:
-    CUDA_AWARE_MPI = False
+# MVAPICH
+CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("MV2_USE_CUDA") == "1"
+# MPICH
+CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("MPIR_CVAR_ENABLE_HCOLL") == "1"
+# ParaStationMPI
+CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("PSP_CUDA") == "1"
 
 
 class Communication:
@@ -51,7 +56,7 @@ class MPICommunication(Communication):
         torch.bool: MPI.BOOL,
         torch.uint8: MPI.UNSIGNED_CHAR,
         torch.int8: MPI.SIGNED_CHAR,
-        torch.int16: MPI.SHORT_INT,
+        torch.int16: MPI.SHORT,
         torch.int32: MPI.INT,
         torch.int64: MPI.LONG,
         torch.float32: MPI.FLOAT,
@@ -74,7 +79,7 @@ class MPICommunication(Communication):
         """
         return self.size > 1
 
-    def chunk(self, shape, split):
+    def chunk(self, shape, split, rank=None, w_size=None):
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
         axis.
@@ -85,6 +90,14 @@ class MPICommunication(Communication):
             the global shape of the data to be split
         split : int
             the axis along which to chunk the data
+        rank : int (optional)
+            process for which the chunking is calculated for
+            defaults to self.rank
+            intended for creating chunk maps without communication
+        w_size : int (optional)
+            the MPI world size
+            defaults to self.size
+            intended for creating chunk maps without communication
 
         Returns
         -------
@@ -99,17 +112,21 @@ class MPICommunication(Communication):
         split = sanitize_axis(shape, split)
         if split is None:
             return 0, shape, tuple(slice(0, end) for end in shape)
+        rank = self.rank if rank is None else rank
+        w_size = self.size if w_size is None else w_size
+        if not isinstance(rank, int) or not isinstance(w_size, int):
+            raise TypeError("rank and size must be integers")
 
         dims = len(shape)
         size = shape[split]
-        chunk = size // self.size
-        remainder = size % self.size
+        chunk = size // w_size
+        remainder = size % w_size
 
-        if remainder > self.rank:
+        if remainder > rank:
             chunk += 1
-            start = self.rank * chunk
+            start = rank * chunk
         else:
-            start = self.rank * chunk + remainder
+            start = rank * chunk + remainder
         end = start + chunk
 
         return (
@@ -707,8 +724,6 @@ class MPICommunication(Communication):
         -------
         exit code: of func
         """
-        sbuf, rbuf, recv_axis_permutation = None, None, None
-
         if send_axis is None:
             raise NotImplementedError(
                 "AllToAll needs send_axis and recv_axis to be specified but was send_axis = {}, recv_axis = {}. Please set send_axis and recv_axis".format(

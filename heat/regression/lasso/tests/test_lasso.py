@@ -38,7 +38,7 @@ if ht.io.supports_hdf5():
             X = X / ht.sqrt((ht.mean(X ** 2, axis=0)))
             m, n = X.shape
             # HeAT lasso instance
-            estimator = ht.core.regression.lasso.HeatLasso(max_iter=100, tol=None)
+            estimator = ht.regression.lasso.HeatLasso(max_iter=100, tol=None)
             # check whether the results are correct
             self.assertEqual(estimator.lam, 0.1)
             self.assertTrue(estimator.theta is None)
@@ -75,14 +75,14 @@ if ht.io.supports_hdf5():
             )
 
             # Now the same stuff again in PyTorch
-            X = torch.tensor(X._DNDarray__array, device=device)
-            y = torch.tensor(y._DNDarray__array, device=device)
+            X = X._DNDarray__array.clone()
+            y = y._DNDarray__array.clone()
 
             # normalize dataset
             X = X / torch.sqrt((torch.mean(X ** 2, 0)))
             m, n = X.shape
 
-            estimator = ht.core.regression.lasso.PytorchLasso(max_iter=100, tol=None)
+            estimator = ht.regression.lasso.PytorchLasso(max_iter=100, tol=None)
             # check whether the results are correct
             self.assertEqual(estimator.lam, 0.1)
             self.assertTrue(estimator.theta is None)
@@ -126,7 +126,7 @@ if ht.io.supports_hdf5():
             X = X / np.sqrt((np.mean(X ** 2, axis=0, keepdims=True)))
             m, n = X.shape
 
-            estimator = ht.core.regression.lasso.NumpyLasso(max_iter=100, tol=None)
+            estimator = ht.regression.lasso.NumpyLasso(max_iter=100, tol=None)
             # check whether the results are correct
             self.assertEqual(estimator.lam, 0.1)
             self.assertTrue(estimator.theta is None)

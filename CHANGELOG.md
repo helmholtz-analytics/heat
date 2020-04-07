@@ -1,3 +1,32 @@
+# Pending Additions
+- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Create submodule for Linear Algebra functions
+- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated QR
+- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated a tiling class to create Square tiles along the diagonal of a 2D matrix
+- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Added PyTorch Jitter to inner function of matmul for increased speed
+- [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: Underlying torch tensor moves to the right device on array initialisation
+- [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: DNDarray.cpu() changes heat device to cpu
+- Update documentation theme to "Read the Docs"
+- [#496](https://github.com/helmholtz-analytics/heat/pull/496) New feature: flipud()
+- [#498](https://github.com/helmholtz-analytics/heat/pull/498) Feature: flip()
+- [#499](https://github.com/helmholtz-analytics/heat/pull/499) Bugfix: MPI datatype mapping: `torch.int16` now maps to `MPI.SHORT` instead of `MPI.SHORT_INT`
+- [#507](https://github.com/helmholtz-analytics/heat/pull/507) Bugfix: sanitize_axis changes axis of 0-dim scalars to None
+- [#515](https://github.com/helmholtz-analytics/heat/pull/515) ht.var() now returns the unadjusted sample variance by default, Bessel's correction can be applied by setting ddof=1.
+- [#518](https://github.com/helmholtz-analytics/heat/pull/518) Implementation of Spectral Clustering.
+- [#519](https://github.com/helmholtz-analytics/heat/pull/519) Bugfix: distributed slicing with empty list or scalar as input; distributed nonzero() of empty (local) tensor.
+- [#521](https://github.com/helmholtz-analytics/heat/pull/521) Add documentation for the generic reduce_op in Heat's core
+- [#522](https://github.com/helmholtz-analytics/heat/pull/522) Added CUDA-aware MPI detection for MVAPICH, MPICH and ParaStation.
+- [#526](https://github.com/helmholtz-analytics/heat/pull/526) float32 is now consistent default dtype for factories.
+
+# v0.3.0
+
+- [#454](https://github.com/helmholtz-analytics/heat/issues/454) Update lasso example
+- [#474](https://github.com/helmholtz-analytics/heat/pull/474) New feature: distributed Gaussian Naive Bayes classifier
+- [#473](https://github.com/helmholtz-analytics/heat/issues/473) Matmul now will not split any of the input matrices if both have `split=None`. To toggle splitting of one input for increased speed use the allow_resplit flag.
+- [#473](https://github.com/helmholtz-analytics/heat/issues/473) `dot` handles 2 split None vectors correctly now
+- [#470](https://github.com/helmholtz-analytics/heat/pull/470) Enhancement: Accelerate distance calculations in kmeans clustering by introduction of new module spatial.distance
+- [#478](https://github.com/helmholtz-analytics/heat/pull/478) `ht.array` now typecasts the local torch tensors if the torch tensors given are not the torch version of the specified dtype + unit test updates
+- [#479](https://github.com/helmholtz-analytics/heat/pull/479) Completion of spatial.distance module to support 2D input arrays of different splittings (None or 0) and different datatypes, also if second input argument is None
+
 # v0.2.2
 
 This version adds support for PyTorch 1.4.0. There are also several minor feature improvements and bug fixes listed below.
