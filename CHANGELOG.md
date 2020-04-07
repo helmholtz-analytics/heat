@@ -16,6 +16,7 @@
 - [#521](https://github.com/helmholtz-analytics/heat/pull/521) Add documentation for the generic reduce_op in Heat's core
 - [#522](https://github.com/helmholtz-analytics/heat/pull/522) Added CUDA-aware MPI detection for MVAPICH, MPICH and ParaStation.
 - [#526](https://github.com/helmholtz-analytics/heat/pull/526) float32 is now consistent default dtype for factories.
+- [#534](https://github.com/helmholtz-analytics/heat/pull/534) `eye()` supports all 2D split combinations and matrix configurations.
 
 # v0.3.0
 
