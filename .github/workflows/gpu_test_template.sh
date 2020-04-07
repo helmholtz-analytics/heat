@@ -10,11 +10,11 @@
 # Send a first status message that the batch job now started
 # Might also be a solution to already send this once the batch job is submitted, then this line should be moved into the
 # GitHub workflow file
-curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d "{\"state\": \"pending\", \"description\": \"GPU Test Status\", \"context\": \"GPU Testing / cpus:$1-gpus:$2\"}" https://api.github.com/repos/helmholtz-analytics/heat/statuses/$SHA
+curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d "{\"state\": \"pending\", \"description\": \"GPU Test Status\", \"context\": \"GPU Testing / cpus:$1-gpus:$2\"}" https://api.github.com/repos/mtar/heat/statuses/$SHA
 
 STATUS="success"
 
-source ~/.virtualenvs/heat/bin/activate
+source ovo/bin/activate
 module load Python/3.6.8
 module load GCC
 module load Intel
@@ -32,4 +32,4 @@ python -m coverage xml
 python -m codecov -t $CODECOV_TOKEN
 
 # Send the final status report
-curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d "{\"state\": \"$STATUS\", \"description\": \"GPU Test Status\", \"context\": \"GPU Testing / cpus:$1-gpus:$2\"}" https://api.github.com/repos/helmholtz-analytics/heat/statuses/$SHA
+curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d "{\"state\": \"$STATUS\", \"description\": \"GPU Test Status\", \"context\": \"GPU Testing / cpus:$1-gpus:$2\"}" https://api.github.com/repos/mtar/heat/statuses/$SHA
