@@ -1131,6 +1131,51 @@ class DNDarray:
         """
         return rounding.fabs(self, out)
 
+    def fill_diagonal(self, value):
+        """
+        Fill the main diagonal of a 2D dndarray . This function modifies the input tensor in-place, and returns the input tensor.
+
+        Parameters
+        ----------
+        value : float
+            The value to be placed in the dndarrays main diagonal
+
+        Returns
+        -------
+        out : ht.DNDarray
+            The modified input tensor with value along the diagonal
+
+        """
+        # Todo: make this 3D/nD
+        if len(self.shape) != 2:
+            raise ValueError("Only 2D tensors supported at the moment")
+
+        if self.split is not None and self.comm.is_distributed:
+            counts, displ, _ = self.comm.counts_displs_shape(self.shape, self.split)
+            k = min(self.shape[0], self.shape[1])
+            for p in range(self.comm.size):
+                if displ[p] > k:
+                    break
+                proc = p
+            if self.comm.rank <= proc:
+                indices = (
+                    displ[self.comm.rank],
+                    displ[self.comm.rank + 1] if (self.comm.rank + 1) != self.comm.size else k,
+                )
+                if self.split == 0:
+                    self._DNDarray__array[:, indices[0] : indices[1]] = self._DNDarray__array[
+                        :, indices[0] : indices[1]
+                    ].fill_diagonal_(value)
+                elif self.split == 1:
+                    self._DNDarray__array[indices[0] : indices[1], :] = self._DNDarray__array[
+                        indices[0] : indices[1], :
+                    ].fill_diagonal_(value)
+
+        else:
+            self._DNDarray__array = self._DNDarray__array.fill_diagonal_(value)
+
+        return self
+
     def __ge__(self, other):
         """
         Element-wise rich comparison of relation "greater than or equal" with values from second operand (scalar or

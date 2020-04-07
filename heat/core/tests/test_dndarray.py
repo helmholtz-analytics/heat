@@ -164,6 +164,88 @@ class TestDNDarray(unittest.TestCase):
             with self.assertRaises(TypeError):
                 complex(ht.full((ht.MPI_WORLD.size,), 2, split=0, device=ht_device))
 
+    def test_fill_diagonal(self):
+        ref = ht.zeros(
+            (ht.MPI_WORLD.size * 2, ht.MPI_WORLD.size * 2),
+            dtype=ht.float32,
+            split=0,
+            device=ht_device,
+        )
+        a = ht.eye(ht.MPI_WORLD.size * 2, dtype=ht.float32, split=0, device=ht_device)
+        a.fill_diagonal(0)
+        self.assertTrue(ht.equal(a, ref))
+
+        ref = ht.zeros(
+            (ht.MPI_WORLD.size * 2, ht.MPI_WORLD.size * 2),
+            dtype=ht.int32,
+            split=0,
+            device=ht_device,
+        )
+        a = ht.eye(ht.MPI_WORLD.size * 2, dtype=ht.int32, split=0, device=ht_device)
+        a.fill_diagonal(0)
+        self.assertTrue(ht.equal(a, ref))
+
+        ref = ht.zeros(
+            (ht.MPI_WORLD.size * 2, ht.MPI_WORLD.size * 2),
+            dtype=ht.float32,
+            split=1,
+            device=ht_device,
+        )
+        a = ht.eye(ht.MPI_WORLD.size * 2, dtype=ht.float32, split=1, device=ht_device)
+        a.fill_diagonal(0)
+        self.assertTrue(ht.equal(a, ref))
+
+        ref = ht.zeros(
+            (ht.MPI_WORLD.size * 2, ht.MPI_WORLD.size * 3),
+            dtype=ht.float32,
+            split=0,
+            device=ht_device,
+        )
+        a = ht.eye(
+            (ht.MPI_WORLD.size * 2, ht.MPI_WORLD.size * 3),
+            dtype=ht.float32,
+            split=0,
+            device=ht_device,
+        )
+        a.fill_diagonal(0)
+        self.assertTrue(ht.equal(a, ref))
+
+        # ToDo: uneven tensor dimensions x and y when bug in factories.eye is fixed
+        ref = ht.zeros(
+            (ht.MPI_WORLD.size * 3, ht.MPI_WORLD.size * 3),
+            dtype=ht.float32,
+            split=1,
+            device=ht_device,
+        )
+        a = ht.eye(
+            (ht.MPI_WORLD.size * 3, ht.MPI_WORLD.size * 3),
+            dtype=ht.float32,
+            split=1,
+            device=ht_device,
+        )
+        a.fill_diagonal(0)
+        self.assertTrue(ht.equal(a, ref))
+
+        # ToDo: uneven tensor dimensions x and y when bug in factories.eye is fixed
+        ref = ht.zeros(
+            (ht.MPI_WORLD.size * 4, ht.MPI_WORLD.size * 4),
+            dtype=ht.float32,
+            split=0,
+            device=ht_device,
+        )
+        a = ht.eye(
+            (ht.MPI_WORLD.size * 4, ht.MPI_WORLD.size * 4),
+            dtype=ht.float32,
+            split=0,
+            device=ht_device,
+        )
+        a.fill_diagonal(0)
+        self.assertTrue(ht.equal(a, ref))
+
+        a = ht.ones((ht.MPI_WORLD.size * 2,), dtype=ht.float32, split=0, device=ht_device)
+        with self.assertRaises(ValueError):
+            a.fill_diagonal(0)
+
     def test_float_cast(self):
         # simple scalar tensor
         a = ht.ones(1, device=ht_device)
