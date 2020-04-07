@@ -74,7 +74,7 @@ class TestDNDarray(unittest.TestCase):
 
         # exception on wrong argument type in gethalo
         with self.assertRaises(TypeError):
-            data.gethalo('wrong_type')
+            data.gethalo("wrong_type")
         # exception on wrong argument in gethalo
         with self.assertRaises(ValueError):
             data.gethalo(-99)

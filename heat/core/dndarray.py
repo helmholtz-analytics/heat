@@ -279,15 +279,17 @@ class DNDarray:
             The halo extracted from self.array
         """
         if not isinstance(start, int) and start is not None:
-            raise TypeError('start needs to be of Python type integer, {} given)'.format(type(start)))
+            raise TypeError(
+                "start needs to be of Python type integer, {} given)".format(type(start))
+            )
         if not isinstance(end, int) and end is not None:
-            raise TypeError('end needs to be of Python type integer, {} given)'.format(type(end)))
+            raise TypeError("end needs to be of Python type integer, {} given)".format(type(end)))
 
         ix = [slice(None, None, None)] * len(self.shape)
         try:
             ix[self.split] = slice(start, end)
         except IndexError:
-            print('Indices out of bound')
+            print("Indices out of bound")
 
         return self.__array[ix].clone().contiguous()
 
@@ -309,14 +311,22 @@ class DNDarray:
         """
 
         if not isinstance(halo_size, int):
-            raise TypeError('halo_size needs to be of Python type integer, {} given)'.format(type(halo_size)))
+            raise TypeError(
+                "halo_size needs to be of Python type integer, {} given)".format(type(halo_size))
+            )
         if halo_size < 0:
-            raise ValueError('halo_size needs to be a positive Python integer, {} given)'.format(type(halo_size)))
+            raise ValueError(
+                "halo_size needs to be a positive Python integer, {} given)".format(type(halo_size))
+            )
 
         if self.comm.is_distributed() and self.split is not None:
             min_chunksize = self.shape[self.split] // self.comm.size
             if halo_size > min_chunksize:
-                raise ValueError('halo_size {} needs to smaller than chunck-size {} )'.format(halo_size, min_chunksize))
+                raise ValueError(
+                    "halo_size {} needs to smaller than chunck-size {} )".format(
+                        halo_size, min_chunksize
+                    )
+                )
 
         if self.comm.is_distributed() and halo_size > 0 and self.split is not None:
 
@@ -356,7 +366,10 @@ class DNDarray:
         -------
         array + halos: pytorch tensors 
         """
-        return torch.cat(tuple(_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None), self.split)
+        return torch.cat(
+            tuple(_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None),
+            self.split,
+        )
 
     def abs(self, out=None, dtype=None):
         """
