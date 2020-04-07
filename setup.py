@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-import sys
 
 with open("README.md", "r") as handle:
     long_description = handle.read()

@@ -3,13 +3,12 @@ from .. import core
 __all__ = ["parter"]
 
 
-def parter(n, split=None, device=None, comm=None, dtype=core.float64):
+def parter(n, split=None, device=None, comm=None, dtype=core.float32):
     """
     Generates the Parter matrix
 
-    The Parter matrix is a Toeplitz matrix that has the interesting property of having
-    its singular values cluster at pi. The matrix has been named so by Cleve Moler in
-    recognition of Seymour Parter's proof of this fact.
+    The Parter matrix is a Toeplitz matrix that has the interesting property of having its singular values cluster at
+    pi. The matrix has been named so by Cleve Moler in recognition of Seymour Parter's proof of this fact.
 
     Parameters
     ----------
@@ -33,7 +32,8 @@ def parter(n, split=None, device=None, comm=None, dtype=core.float64):
     ----------
     [1] https://blogs.mathworks.com/cleve/2019/06/24/bohemian-matrices-in-the-matlab-gallery/
     [2] https://blogs.mathworks.com/cleve/2014/02/03/surprising-svd-square-waves-and-pi/
-    [3] Seymour V. Parter, On the distribution of the singular values of Toeplitz matrices, Linear Algebra and its Applications 80, 1986, 115-130, http://www.sciencedirect.com/science/article/pii/0024379586902806
+    [3] Seymour V. Parter, On the distribution of the singular values of Toeplitz matrices, Linear Algebra and its
+        Applications 80, 1986, 115-130, http://www.sciencedirect.com/science/article/pii/0024379586902806
     """
 
     if split is None:
