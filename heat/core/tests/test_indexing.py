@@ -78,7 +78,6 @@ class TestIndexing(unittest.TestCase):
             [[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=0, device=ht_device
         )
         wh = ht.where(a < 4.0, a, -1)
-        print(wh._DNDarray__array.dtype)
         self.assertTrue(ht.all(wh[ht.nonzero(a >= 4)], -1))
         self.assertTrue(ht.equal(wh, res))
         self.assertEqual(wh.gshape, (3, 3))

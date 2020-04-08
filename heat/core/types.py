@@ -590,7 +590,6 @@ class finfo:
 
     >>> info.eps
     1.1920928955078125e-07
-
     """
 
     def __new__(cls, dtype):
@@ -641,7 +640,6 @@ class iinfo:
     >>> info = ht.types.finfo(ht.int32)
     >>> info.bits
     32
-
     """
 
     def __new__(cls, dtype):
