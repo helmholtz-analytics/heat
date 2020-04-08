@@ -625,6 +625,14 @@ def reshape(a, shape):
     reshaped : ht.DNDarray
         The tensor with the specified shape
 
+    Raises
+    ------
+    ValueError
+        If the number of elements changes in the new shape.
+
+    NotImplementedError
+        For split > 0 not implemented yet
+
     Examples
     --------
     >>> a = ht.zeros((3,4))
@@ -673,8 +681,7 @@ def reshape(a, shape):
         return tuple(result), (0,) + tuple(np.cumsum(result[:-1]))
 
     # Check the type of shape and number elements
-    if not isinstance(shape, (list, tuple)):
-        raise RuntimeError("shape must be a tuple or list")
+    shape = stride_tricks.sanitize_shape(shape)
     if np.prod(shape) != a.size:
         raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
 
@@ -690,7 +697,9 @@ def reshape(a, shape):
 
     # Create new flat result tensor
     _, local_shape, _ = a.comm.chunk(shape, a.split)
-    data = torch.empty(np.prod(local_shape), dtype=a.dtype.torch_type())
+    data = torch.empty(
+        np.prod(local_shape), dtype=a.dtype.torch_type(), device=a._DNDarray__array.device
+    )
 
     # Calculate the counts and displacements
     _, old_csum, _ = a.comm.counts_displs_shape(a.shape, 0)
