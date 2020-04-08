@@ -112,12 +112,11 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     else:
         q, q_tiles = None, None
     # ==============================================================================================
-
     if a.split == 0:
         rank = r.comm.rank
         active_procs = torch.arange(r.comm.size, device=r.device.torch_device)
         empties = torch.nonzero(r_tiles.lshape_map[..., 0] == 0)
-        empties = empties[0] if empties.numel() > 0 else []
+        empties = empties.flatten().tolist() if empties.numel() > 0 else []
         for e in empties:
             active_procs = active_procs[active_procs != e]
         tile_rows_per_pr_trmd = r_tiles.tile_rows_per_process[: active_procs[-1] + 1]
@@ -863,8 +862,8 @@ def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None):
         dim1 = dim0
     if empties is None:
         # this will return the empty processes, Requires that lshape map is not none
-        empties = torch.nonzero(r_tiles.lshape_map[..., r_tiles.arr.split] == 0)
-        empties = empties[0] if empties.numel() > 0 else []
+        empties = torch.nonzero(r_tiles.lshape_map[..., 0] == 0)
+        empties = empties.flatten().tolist() if empties.numel() > 0 else []
     r_torch_device = r_tiles.arr.device.torch_device
     r_torch_type = r_tiles.arr.dtype.torch_type()
     q0_torch_device = q0_tiles.arr.device.torch_device if calc_q else None
