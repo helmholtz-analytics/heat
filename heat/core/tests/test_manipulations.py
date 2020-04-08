@@ -885,31 +885,35 @@ class TestManipulations(BasicTest):
         self.assertTrue(ht.equal(reshaped, result))
 
         # 1-dim distributed vector
-        a = ht.arange(8, dtype=ht.float32, split=0)
-        result = ht.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]], dtype=ht.float32, split=0)
+        a = ht.arange(8, dtype=ht.float64, split=0, device=ht_device)
+        result = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]]], dtype=ht.float64, split=0, device=ht_device
+        )
         reshaped = ht.reshape(a, (2, 2, 2))
 
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
 
-        a = ht.linspace(0, 14, 8, split=0)
-        result = ht.array([[0, 2, 4, 6], [8, 10, 12, 14]], dtype=ht.float32, split=0)
+        a = ht.linspace(0, 14, 8, split=0, device=ht_device)
+        result = ht.array(
+            [[0, 2, 4, 6], [8, 10, 12, 14]], dtype=ht.float32, split=0, device=ht_device
+        )
         reshaped = ht.reshape(a, (2, 4))
 
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
 
-        a = ht.zeros((4, 3), split=0)
-        result = ht.zeros((3, 4), split=0)
+        a = ht.zeros((4, 3), dtype=ht.int32, split=0, device=ht_device)
+        result = ht.zeros((3, 4), dtype=ht.int32, split=0, device=ht_device)
         reshaped = ht.reshape(a, (3, 4))
 
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
 
-        a = ht.arange(16, split=0)
+        a = ht.arange(16, split=0, device=ht_device)
         result = ht.array([[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15]])
         reshaped = a.reshape((4, 4))
 
@@ -918,7 +922,9 @@ class TestManipulations(BasicTest):
         self.assertTrue(ht.equal(reshaped, result))
 
         a = reshaped
-        result = ht.array([[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15]])
+        result = ht.array(
+            [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15]], split=0, device=ht_device
+        )
         reshaped = a.reshape((2, 8))
 
         self.assertEqual(reshaped.size, result.size)
