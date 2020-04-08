@@ -790,9 +790,8 @@ def reshape(a, shape):
 
     # Create new flat result tensor
     _, local_shape, _ = a.comm.chunk(shape, a.split)
-    data = torch.empty(
-        np.prod(local_shape), dtype=a.dtype.torch_type(), device=a._DNDarray__array.device
-    )
+    lshp = torch.prod(torch.tensor(local_shape, device=a.device.torch_device))
+    data = torch.empty(lshp, dtype=a.dtype.torch_type(), device=a.device.torch_device)
 
     # Calculate the counts and displacements
     _, old_csum, _ = a.comm.counts_displs_shape(a.shape, 0)
