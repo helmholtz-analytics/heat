@@ -910,8 +910,6 @@ class TestManipulations(BasicTest):
         self.assertTrue(ht.equal(reshaped, result))
 
         # exceptions
-        with self.assertRaises(RuntimeError):
-            ht.reshape(ht.arange(4), 0)
         with self.assertRaises(ValueError):
             ht.reshape(ht.zeros((4, 3)), (5, 7))
         with self.assertRaises(NotImplementedError):
