@@ -6,47 +6,45 @@ __all__ = ["SquareDiagTiles"]
 
 
 class SquareDiagTiles:
-    """
-
-    Generate the tile map and the other objects which may be useful.
-    The tiles generated here are based of square tiles along the diagonal. The size of these
-    tiles along the diagonal dictate the divisions across all processes. If
-    gshape[0] >> gshape[1] then there will be extra tiles generated below the diagonal.
-    If gshape[0] is close to gshape[1], then the last tile (as well as the other tiles which
-    correspond with said tile) will be extended to cover the whole array. However, extra tiles
-    are not generated above the diagonal in the case that gshape[0] << gshape[1].
-
-    WARNING: The generation of these tiles may unbalance the original tensor!
-
-    Note: This tiling scheme is intended for use with the QR function.
-
-    Parameters
-    ----------
-    arr : DNDarray
-        the array to be tiled
-    tiles_per_proc : int, optional
-        Default = 2
-        the number of divisions per process,
-
-    Properties
-    -----------
-    __col_per_proc_list : list
-        list is length of the number of processes, each element has the number of tile
-        columns on the process whos rank equals the index
-    __DNDarray = arr : DNDarray
-        the whole DNDarray
-    __lshape_map : torch.Tensor
-        unit -> [rank, row size, column size]
-        tensor filled with the shapes of the local tensors
-    __tile_map : torch.Tensor
-        units -> row, column, start index in each direction, process
-        tensor filled with the global indices of the generated tiles
-    __row_per_proc_list : list
-        list is length of the number of processes, each element has the number of tile
-        rows on the process whos rank equals the index
-    """
-
     def __init__(self, arr, tiles_per_proc=2):
+        """
+        Generate the tile map and the other objects which may be useful.
+        The tiles generated here are based of square tiles along the diagonal. The size of these
+        tiles along the diagonal dictate the divisions across all processes. If
+        gshape[0] >> gshape[1] then there will be extra tiles generated below the diagonal.
+        If gshape[0] is close to gshape[1], then the last tile (as well as the other tiles which
+        correspond with said tile) will be extended to cover the whole array. However, extra tiles
+        are not generated above the diagonal in the case that gshape[0] << gshape[1].
+
+        WARNING: The generation of these tiles may unbalance the original tensor!
+
+        Note: This tiling scheme is intended for use with the QR function.
+
+        Parameters
+        ----------
+        arr : DNDarray
+            the array to be tiled
+        tiles_per_proc : int, optional
+            Default = 2
+            the number of divisions per process,
+
+        Initializes
+        -----------
+        __col_per_proc_list : list
+            list is length of the number of processes, each element has the number of tile
+            columns on the process whos rank equals the index
+        __DNDarray = arr : DNDarray
+            the whole DNDarray
+        __lshape_map : torch.Tensor
+            unit -> [rank, row size, column size]
+            tensor filled with the shapes of the local tensors
+        __tile_map : torch.Tensor
+            units -> row, column, start index in each direction, process
+            tensor filled with the global indices of the generated tiles
+        __row_per_proc_list : list
+            list is length of the number of processes, each element has the number of tile
+            rows on the process whos rank equals the index
+        """
         # lshape_map -> rank (int), lshape (tuple of the local lshape, self.lshape)
         if not isinstance(arr, dndarray.DNDarray):
             raise TypeError("arr must be a DNDarray, is currently a {}".format(type(self)))
@@ -188,7 +186,6 @@ class SquareDiagTiles:
     @staticmethod
     def __adjust_cols_sp1_m_ls_n(arr, col_per_proc_list, last_diag_pr, col_inds, lshape_map):
         """
-
         Add more columns after the diagonal ends if m < n and arr.split == 1
         """
         # need to add to col inds with the rest of the columns
@@ -218,7 +215,6 @@ class SquareDiagTiles:
         arr, lshape_map, last_diag_pr, row_inds, row_per_proc_list, tile_columns
     ):
         """
-
         Need to adjust the size of last row if arr.split == 0 and the diagonal ends before the
         last tile. This should only be run if arr,split == 0 and last_diag_pr < arr.comm.size - 1.
         """
@@ -238,7 +234,6 @@ class SquareDiagTiles:
     @staticmethod
     def __adjust_lshape_sp0_1tile(arr, col_inds, lshape_map, tiles_per_proc):
         """
-
         if the split is 0 and the number of tiles per proc is 1 then the local data may need to be
         redistributed to fit the full diagonal on as many processes as possible. If there is a
         process where there is only 1 element, this function will adjust the lshape_map then
@@ -269,7 +264,6 @@ class SquareDiagTiles:
     @staticmethod
     def __create_cols(arr, lshape_map, tiles_per_proc):
         """
-
         Calculates the last diagonal process, then creates a list of the number of tile columns per
         process, then calculates the starting indices of the columns. Also returns the number of tile
         columns.
@@ -342,7 +336,6 @@ class SquareDiagTiles:
     @staticmethod
     def __def_end_row_inds_sp0_m_ge_n(arr, row_inds, last_diag_pr, tiles_per_proc, lshape_map):
         """
-
         Adjust the rows on the processes which are greater than the last diagonal processs to have
         rows which are chunked evenly into `tiles_per_proc` rows/
         """
@@ -361,7 +354,6 @@ class SquareDiagTiles:
     @staticmethod
     def __last_tile_row_adjust_sp1(arr, row_inds):
         """
-
         Add extra row/s if there is space below the diagonal (split=1)
         """
         if arr.gshape[0] - arr.gshape[1] > 10:  # todo: determine best value for this
@@ -384,7 +376,6 @@ class SquareDiagTiles:
     @property
     def arr(self):
         """
-
         Returns
         -------
         DNDarray : the DNDarray for which the tiles are defined on
@@ -397,7 +388,6 @@ class SquareDiagTiles:
     @property
     def col_indices(self):
         """
-
         Returns
         -------
         list : list containing the indices of the tile columns
@@ -417,7 +407,6 @@ class SquareDiagTiles:
     @property
     def last_diagonal_process(self):
         """
-
         Returns
         -------
         int : the rank of the last process with diagonal elements
@@ -427,7 +416,6 @@ class SquareDiagTiles:
     @property
     def row_indices(self):
         """
-
         Returns
         -------
         list : list containing the indices of the tile rows
@@ -437,7 +425,6 @@ class SquareDiagTiles:
     @property
     def tile_columns(self):
         """
-
         Returns
         -------
         int : number of tile columns
@@ -447,7 +434,6 @@ class SquareDiagTiles:
     @property
     def tile_columns_per_process(self):
         """
-
         Returns
         -------
         list : list containing the number of columns on all processes
@@ -457,7 +443,6 @@ class SquareDiagTiles:
     @property
     def tile_map(self):
         """
-
         Returns
         -------
         torch.Tensor : map of tiles
@@ -497,7 +482,6 @@ class SquareDiagTiles:
     @property
     def tile_rows(self):
         """
-
         Returns
         -------
         int : number of tile rows
@@ -507,7 +491,6 @@ class SquareDiagTiles:
     @property
     def tile_rows_per_process(self):
         """
-
         Returns
         -------
         list : list containing the number of rows on all processes
@@ -516,7 +499,6 @@ class SquareDiagTiles:
 
     def get_start_stop(self, key):
         """
-
         Returns the start and stop indices which correspond to the tile/s which corresponds to the
         given key. The key MUST use global indices.
 
@@ -585,7 +567,6 @@ class SquareDiagTiles:
 
     def __getitem__(self, key):
         """
-
         Standard getitem function for the tiles. The returned item is a view of the original
         DNDarray, operations which are done to this view will change the original array.
         **STRIDES ARE NOT AVAILABLE, NOR ARE CROSS-SPLIT SLICES**
@@ -639,7 +620,6 @@ class SquareDiagTiles:
 
     def local_get(self, key):
         """
-
         Getitem routing using local indices, converts to global indices then uses getitem
 
         Parameters
@@ -663,7 +643,6 @@ class SquareDiagTiles:
 
     def local_set(self, key, value):
         """
-
         Setitem routing to set data to a local tile (using local indices)
 
         Parameters
@@ -726,7 +705,6 @@ class SquareDiagTiles:
 
     def local_to_global(self, key, rank):
         """
-
         Convert local indices to global indices
 
         Parameters
@@ -790,7 +768,6 @@ class SquareDiagTiles:
 
     def match_tiles(self, tiles_to_match):
         """
-
         function to match the tile sizes of another tile map
         NOTE: this is intended for use with the Q matrix, to match the tiling of a/R
         For this to work properly it is required that the 0th dim of both matrices is equal
@@ -892,7 +869,7 @@ class SquareDiagTiles:
                 base_dnd.comm.size - 1 - tiles_to_match.last_diagonal_process
             )
             target_0 = torch.cat(
-                (target_0, torch.tensor(end_tag0, device=target_0.device, dtype=target_0.dtype)),
+                (target_0, torch.tensor(end_tag0, dtype=target_0.dtype, device=target_0.device)),
                 dim=0,
             )
 
@@ -915,7 +892,7 @@ class SquareDiagTiles:
                 )
                 st = target_0_c[i]
 
-            targ_cumsum = torch.cumsum(targe_map[..., 0], dim=0)
+            targ_cumsum = torch.cumsum(targe_map[..., 0], dim=0).int()
             targe_map[..., 0][torch.where(targ_cumsum > base_dnd.gshape[0])] = 0
             first_zero = torch.where(targe_map[..., 0] == 0)[0]
             targe_map[..., 0][first_zero] = base_dnd.gshape[0] - targ_cumsum[first_zero - 1]
