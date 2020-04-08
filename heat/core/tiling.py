@@ -257,8 +257,14 @@ class SquareDiagTiles:
         negs = torch.where(lshape_map[..., 0] < 0)[0]
         if negs.numel() > 0:
             for n in negs:
-                lshape_map[n - 1, 0] += lshape_map[n, 0]
+                i = 1
+                lshape_map[n - i, 0] += lshape_map[n, 0]
                 lshape_map[n, 0] = 0
+                # while the previous entry is < 0
+                while lshape_map[n - i, 0] < 0:
+                    i += 1
+                    lshape_map[n - i, 0] += lshape_map[n - (i - 1), 0]
+                    lshape_map[n - (i - 1), 0] = 0
         arr.redistribute_(target_map=lshape_map)
 
         last_diag_pr, col_per_proc_list, col_inds, tile_columns = SquareDiagTiles.__create_cols(
