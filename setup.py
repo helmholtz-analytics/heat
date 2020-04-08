@@ -1,8 +1,10 @@
 from setuptools import setup, find_packages
 
+
 with open("README.md", "r") as handle:
     long_description = handle.read()
 
+__version__ = None  # appeases flake, assignment in exec() below
 with open("./heat/core/version.py") as handle:
     exec(handle.read())
 
