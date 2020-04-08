@@ -44,6 +44,27 @@ class LocalIndex:
 
 
 class DNDarray:
+    """
+
+    Distributed N-Dimensional array. The core element of HeAT. It is composed of
+    PyTorch tensors local to each process.
+
+    Parameters
+    ----------
+    array : torch.Tensor
+        local array elements
+    gshape : tuple
+        the global shape of the DNDarray
+    dtype : ht.type
+        the datatype of the array
+    split : int
+        The axis on which the DNDarray is divided between processes
+    device : ht.device
+        The device on which the local arrays are using (cpu or gpu)
+    comm : ht.communication.MPICommunication
+        The communications object for sending and recieving data
+    """
+
     def __init__(self, array, gshape, dtype, split, device, comm):
         self.__array = array
         self.__gshape = gshape
@@ -51,7 +72,6 @@ class DNDarray:
         self.__split = split
         self.__device = device
         self.__comm = comm
-        self.__tiles = None
 
         # handle inconsistencies between torch and heat devices
         if (
@@ -79,14 +99,23 @@ class DNDarray:
 
     @property
     def numdims(self):
+        """
+
+        Returns
+        -------
+        number_of_dimensions : int
+            the number of dimensions of the DNDarray
+        """
         return len(self.__gshape)
 
     @property
     def size(self):
         """
+
         Returns
         -------
-        int: number of total elements of the tensor
+        size : int
+            number of total elements of the tensor
         """
         try:
             return np.prod(self.__gshape)
@@ -96,26 +125,32 @@ class DNDarray:
     @property
     def gnumel(self):
         """
+
         Returns
         -------
-        int: number of total elements of the tensor
+        global_shape : int
+            number of total elements of the tensor
         """
         return self.size
 
     @property
     def lnumel(self):
         """
+
         Returns
         -------
-        int: number of elements of the tensor on each node
+        number_of_local_elements : int
+            number of elements of the tensor on each process
         """
         return np.prod(self.__array.shape)
 
     @property
     def lloc(self):
         """
-        Local item setter and getter. i.e. this function operates on a local level and only on the PyTorch tensors
-        composing the HeAT DNDarray. This function uses the LocalIndex class.
+
+        Local item setter and getter. i.e. this function operates on a local
+        level and only on the PyTorch tensors composing the HeAT DNDarray.
+        This function uses the LocalIndex class.
 
         Parameters
         ----------
@@ -152,47 +187,57 @@ class DNDarray:
     @property
     def lshape(self):
         """
+
         Returns
         -------
-        tuple : the shape of the data on each node
+        local_shape : tuple
+            the shape of the data on each node
         """
         return tuple(self.__array.shape)
 
     @property
     def shape(self):
         """
+
         Returns
         -------
-        tuple : the shape of the tensor as a whole
+        global_shape : tuple
+            the shape of the tensor as a whole
         """
         return self.__gshape
 
     @property
     def split(self):
         """
+
         Returns
         -------
-        int : the axis on which the tensor split
+        split_axis : int
+            the axis on which the tensor split
         """
         return self.__split
 
     @property
     def stride(self):
         """
+
         Returns
         -------
-        tuple of ints: steps in each dimension when traversing a tensor.
-        torch-like usage: self.stride()
+        stride : tuple
+            steps in each dimension when traversing a tensor.
+            torch-like usage: self.stride()
         """
         return self.__array.stride
 
     @property
     def strides(self):
         """
+
         Returns
         -------
-        tuple of ints: bytes to step in each dimension when traversing a tensor.
-        numpy-like usage: self.strides
+        strides : tuple of ints
+            bytes to step in each dimension when traversing a tensor.
+            numpy-like usage: self.strides
         """
         steps = list(self._DNDarray__array.stride())
         itemsize = self._DNDarray__array.storage().element_size()
@@ -200,19 +245,8 @@ class DNDarray:
         return strides
 
     @property
-    def T(self, axes=None):
-        return linalg.transpose(self, axes)
-
-    @property
-    def tiles(self):
-        """
-        Tiling object is either None or a class defined in the tiling file
-
-        Returns
-        -------
-        either None or the tiling class object
-        """
-        return self.__tiles
+    def T(self):
+        return linalg.transpose(self, axes=None)
 
     def abs(self, out=None, dtype=None):
         """
@@ -856,31 +890,11 @@ class DNDarray:
             Units -> (process rank, lshape)
         """
         lshape_map = torch.zeros(
-            (self.comm.size, len(self.gshape)), dtype=int, device=self.device.torch_device
+            (self.comm.size, len(self.gshape)), dtype=torch.int, device=self.device.torch_device
         )
         lshape_map[self.comm.rank, :] = torch.tensor(self.lshape, device=self.device.torch_device)
         self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
         return lshape_map
-
-    def create_square_diag_tiles(self, tiles_per_proc=None):
-        """
-        Create the tiles for the DNDarray as defined by the linalg.tiling.SquareDiagTiles class. These
-        tiles can be accessed as a property. For more imformation on these tiles see
-        :func:`SquareDiagTiles <linalg.SquareDaigTiles>`.
-
-        Parameters
-        ----------
-        tiles_per_proc : int, optional
-            Default = 2 (see :func:`SquareDiagTiles <linalg.SquareDaigTiles>`)
-            the number of divisions per process,
-
-        Returns
-        -------
-        None
-        """
-        self.__tiles = tiling.SquareDiagTiles(
-            self, tiles_per_proc=tiles_per_proc
-        )  # type: tiling.SquareDiagTiles
 
     def __eq__(self, other):
         """
@@ -1131,6 +1145,51 @@ class DNDarray:
         """
         return rounding.fabs(self, out)
 
+    def fill_diagonal(self, value):
+        """
+        Fill the main diagonal of a 2D dndarray . This function modifies the input tensor in-place, and returns the input tensor.
+
+        Parameters
+        ----------
+        value : float
+            The value to be placed in the dndarrays main diagonal
+
+        Returns
+        -------
+        out : ht.DNDarray
+            The modified input tensor with value along the diagonal
+
+        """
+        # Todo: make this 3D/nD
+        if len(self.shape) != 2:
+            raise ValueError("Only 2D tensors supported at the moment")
+
+        if self.split is not None and self.comm.is_distributed:
+            counts, displ, _ = self.comm.counts_displs_shape(self.shape, self.split)
+            k = min(self.shape[0], self.shape[1])
+            for p in range(self.comm.size):
+                if displ[p] > k:
+                    break
+                proc = p
+            if self.comm.rank <= proc:
+                indices = (
+                    displ[self.comm.rank],
+                    displ[self.comm.rank + 1] if (self.comm.rank + 1) != self.comm.size else k,
+                )
+                if self.split == 0:
+                    self._DNDarray__array[:, indices[0] : indices[1]] = self._DNDarray__array[
+                        :, indices[0] : indices[1]
+                    ].fill_diagonal_(value)
+                elif self.split == 1:
+                    self._DNDarray__array[indices[0] : indices[1], :] = self._DNDarray__array[
+                        indices[0] : indices[1], :
+                    ].fill_diagonal_(value)
+
+        else:
+            self._DNDarray__array = self._DNDarray__array.fill_diagonal_(value)
+
+        return self
+
     def __ge__(self, other):
         """
         Element-wise rich comparison of relation "greater than or equal" with values from second operand (scalar or
@@ -1247,7 +1306,7 @@ class DNDarray:
 
             arr = torch.Tensor()
 
-            # if a sigular index is given and the tensor is split
+            # if a singular index is given and the tensor is split
             if isinstance(key, int):
                 gout = [0] * (len(self.gshape) - 1)
                 if key < 0:
@@ -1289,9 +1348,13 @@ class DNDarray:
                 else:
                     new_split = self.split
 
+                # handle empty list
+                if len(key) == 0:
+                    arr = self.__array[key]
+                    gout = list(arr.shape)
                 # if a slice is given in the split direction
                 # below allows for the split given to contain Nones
-                if isinstance(key[self.split], slice):
+                elif isinstance(key[self.split], slice):
                     key_stop = key[self.split].stop
                     if key_stop is not None and key_stop < 0:
                         key_stop = self.gshape[self.split] + key[self.split].stop
@@ -1319,17 +1382,21 @@ class DNDarray:
                         indices = key[self.split]
                     key = list(key)
                     if isinstance(indices, list):
-                        indices = [
-                            index + self.gshape[self.split] if index < 0 else index
-                            for index in indices
-                        ]
-                        sorted_key_along_split = sorted(indices)
-                        if sorted_key_along_split[0] in range(
-                            chunk_start, chunk_end
-                        ) and sorted_key_along_split[-1] in range(chunk_start, chunk_end):
-                            indices = [index - chunk_start for index in indices]
-                            arr = self.__array[indices]
+                        if len(indices) == 0:
+                            arr = self.__array[key]
                             gout = list(arr.shape)
+                        else:
+                            indices = [
+                                index + self.gshape[self.split] if index < 0 else index
+                                for index in indices
+                            ]
+                            sorted_key_along_split = sorted(indices)
+                            if sorted_key_along_split[0] in range(
+                                chunk_start, chunk_end
+                            ) and sorted_key_along_split[-1] in range(chunk_start, chunk_end):
+                                indices = [index - chunk_start for index in indices]
+                                arr = self.__array[indices]
+                                gout = list(arr.shape)
 
                     elif isinstance(key[self.split], int):
                         key[self.split] = (
@@ -2507,7 +2574,6 @@ class DNDarray:
 
             self.__array = redistributed
             self.__split = axis
-
         return self
 
     def __rfloordiv__(self, other):
