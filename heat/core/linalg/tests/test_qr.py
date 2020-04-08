@@ -23,14 +23,16 @@ if os.environ.get("EXTENDED_TESTS"):
 else:
     extended_tests = False
 
+sz = ht.MPI_WORLD.size
+
 
 class TestQR(unittest.TestCase):
     @unittest.skipIf(not extended_tests, "extended tests")
     def test_qr_sp0_ext(self):
-        st_whole = torch.randn(70, 70, device=device)
+        st_whole = torch.randn(sz * 8, sz * 8, device=device)
         sp = 0
-        for m in range(50, st_whole.shape[0] + 1, 1):
-            for n in range(50, st_whole.shape[1] + 1, 1):
+        for m in range(sz * 6, st_whole.shape[0] + 1, 1):
+            for n in range(sz * 6, st_whole.shape[1] + 1, 1):
                 for t in range(1, 3):
                     st = st_whole[:m, :n].clone()
                     a_comp = ht.array(st, split=0, device=ht_device)
@@ -50,10 +52,10 @@ class TestQR(unittest.TestCase):
 
     @unittest.skipIf(not extended_tests, "extended tests")
     def test_qr_sp1_ext(self):
-        st_whole = torch.randn(70, 70, device=device)
+        st_whole = torch.randn(sz * 8, sz * 8, device=device)
         sp = 1
-        for m in range(50, st_whole.shape[0] + 1, 1):
-            for n in range(50, st_whole.shape[1] + 1, 1):
+        for m in range(sz * 6, st_whole.shape[0] + 1, 1):
+            for n in range(sz * 6, st_whole.shape[1] + 1, 1):
                 for t in range(1, 3):
                     st = st_whole[:m, :n].clone()
                     a_comp = ht.array(st, split=0, device=ht_device)
@@ -102,7 +104,7 @@ class TestQR(unittest.TestCase):
                 self.assertTrue(
                     ht.allclose(ht.eye(m, device=ht_device), qr1.Q @ qr1.Q.T, rtol=1e-5, atol=1e-5)
                 )
-        m, n = 40, 20
+        m, n = sz * 10, sz * 6
         st2 = torch.randn(m, n, dtype=torch.double, device=device)
         a_comp2 = ht.array(st2, split=0, dtype=ht.double, device=ht_device)
         for t in range(1, 3):
