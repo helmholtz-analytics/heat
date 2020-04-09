@@ -131,9 +131,8 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
             for j in range(n):
 
                 X_j = ht.array(X._DNDarray__array[:, j:j+1], is_split=0)
-               
-                y_est = (X @ theta)
-             
+         
+                y_est = X @ theta             
                 theta_j = theta._DNDarray__array[j].item() 
 
                 rho = (X_j * (y - y_est + theta_j * X_j)).mean()
