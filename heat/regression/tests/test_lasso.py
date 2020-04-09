@@ -46,17 +46,15 @@ class TestLasso(unittest.TestCase):
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="x",
                 device=ht_device,
-                split=0
+                split=0,
             )
             y = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="y",
                 device=ht_device,
-                split=0
+                split=0,
             )
 
-
-            
             # normalize dataset
             X = X / ht.sqrt((ht.mean(X ** 2, axis=0)))
             m, n = X.shape
@@ -70,9 +68,8 @@ class TestLasso(unittest.TestCase):
             self.assertEqual(estimator.coef_, None)
             self.assertEqual(estimator.intercept_, None)
 
-            
             estimator.fit(X, y)
-            
+
             # check whether the results are correct
             self.assertEqual(estimator.lam, 0.1)
             self.assertIsInstance(estimator.theta, ht.DNDarray)
@@ -86,4 +83,3 @@ class TestLasso(unittest.TestCase):
             # check whether the results are correct
             self.assertIsInstance(yest, ht.DNDarray)
             self.assertEqual(yest.shape, (m, 1))
-            

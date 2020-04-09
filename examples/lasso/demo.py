@@ -42,7 +42,7 @@ theta_lasso = np.stack(theta_list).T
 theta_lasso = np.stack(theta_list).T[1:, :]
 
 # plot lasso paths
-#plt.subplot(3, 1, 1)
+# plt.subplot(3, 1, 1)
 plotfkt.plot_lasso_path(
     lamda, theta_lasso, diabetes.feature_names, title="Lasso Paths - HeAT implementation"
 )
