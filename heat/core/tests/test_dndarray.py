@@ -63,6 +63,39 @@ class TestDNDarray(unittest.TestCase):
             with self.assertRaises(ValueError):
                 data.gethalo(4)
 
+        if data.comm.size == 2:
+
+            data_np = np.array([[1., 2., 3., 4., 5., 6.], [7., 8., 9., 10., 11., 12.]])
+            data = ht.array(data_np, split=1)
+
+            halo_next = torch.tensor(np.array([[4., 5.], [10., 11.]]))
+            halo_prev = torch.tensor(np.array([[2., 3.], [8., 9.]]))
+
+            data.gethalo(2)
+
+            if data.comm.rank == 0:
+                self.assertTrue(np.isclose(((data.halo_next-halo_next)**2).mean().item(), 0.))
+                self.assertEqual(data.halo_prev, None)
+            if data.comm.rank == 1:
+                self.assertTrue(np.isclose(((data.halo_prev-halo_prev)**2).mean().item(), 0.))
+                self.assertEqual(data.halo_next, None)
+
+        if data.comm.size == 2:
+
+            data = ht.ones((10,2), split=0)
+
+            halo_next = torch.tensor(np.array([[1., 1.], [1., 1.]]))
+            halo_prev = torch.tensor(np.array([[1., 1.], [1., 1.]]))
+
+            data.gethalo(2)
+
+            if data.comm.rank == 0:
+                self.assertTrue(np.isclose(((data.halo_next-halo_next)**2).mean().item(), 0.))
+                self.assertEqual(data.halo_prev, None)
+            if data.comm.rank == 1:
+                self.assertTrue(np.isclose(((data.halo_prev-halo_prev)**2).mean().item(), 0.))
+                self.assertEqual(data.halo_next, None)
+
         if data.comm.size == 3:
 
             halo_1 = torch.tensor(np.array([[2], [8]]))
