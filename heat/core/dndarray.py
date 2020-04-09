@@ -278,13 +278,6 @@ class DNDarray:
         halo : torch tensor
             The halo extracted from self.array
         """
-        if not isinstance(start, int) and start is not None:
-            raise TypeError(
-                "start needs to be of Python type integer, {} given)".format(type(start))
-            )
-        if not isinstance(end, int) and end is not None:
-            raise TypeError("end needs to be of Python type integer, {} given)".format(type(end)))
-
         ix = [slice(None, None, None)] * len(self.shape)
         try:
             ix[self.split] = slice(start, end)
