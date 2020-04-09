@@ -116,26 +116,17 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         # Get number of model parameters
         _, n = X.shape
 
-        if len(y.shape) == 1:
-            y = ht.expand_dims(y, axis=1)
-
         # Initialize model parameters
         theta = ht.zeros((n, 1), dtype=float, device=X.device)
 
         # Looping until max number of iterations or convergence
         for i in range(self.max_iter):
-
             theta_old = theta.copy()
 
             # Looping through each coordinate
             for j in range(n):
-
-                X_j = ht.array(X._DNDarray__array[:, j : j + 1], is_split=0)
-
-                y_est = X @ theta
-                theta_j = theta._DNDarray__array[j].item()
-
-                rho = (X_j * (y - y_est + theta_j * X_j)).mean()
+                y_est = (X @ theta)[:, 0]
+                rho = (X[:, j] * (y - y_est + theta[j].copy() * X[:, j])).mean()
 
                 # Intercept parameter theta[0] not be regularized
                 if j == 0:
@@ -162,4 +153,4 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         X : HeAT tensor, shape (n_samples, n_features)
             Input data.
         """
-        return X @ self.__theta
+        return (X @ self.__theta)[:, 0]

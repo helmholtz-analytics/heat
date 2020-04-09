@@ -46,13 +46,11 @@ class TestLasso(unittest.TestCase):
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="x",
                 device=ht_device,
-                split=0,
             )
             y = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="y",
                 device=ht_device,
-                split=0,
             )
 
             # normalize dataset
@@ -82,4 +80,4 @@ class TestLasso(unittest.TestCase):
 
             # check whether the results are correct
             self.assertIsInstance(yest, ht.DNDarray)
-            self.assertEqual(yest.shape, (m, 1))
+            self.assertEqual(yest.shape, (m,))
