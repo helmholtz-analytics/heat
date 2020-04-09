@@ -53,6 +53,8 @@ class TestDNDarray(unittest.TestCase):
                 self.assertTrue(torch.equal(data.halo_prev, halo_prev))
                 self.assertEqual(data.halo_next, None)
 
+
+            self.assertEqual(data.array_with_halos.shape, (2, 5))
             # exception on wrong argument type in gethalo
             with self.assertRaises(TypeError):
                 data.gethalo("wrong_type")
