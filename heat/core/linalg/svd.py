@@ -2,7 +2,8 @@ import torch
 
 from .qr import __split0_r_calc, __split0_q_loop, __split1_qr_loop
 
-from heat.core import factories
+from .. import factories
+from .. import tiling
 
 __all__ = ["block_diagonalize"]
 
@@ -35,13 +36,14 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
     # 1. tile arr if needed
     if not overwrite_arr:
         arr = arr.copy()
-    if arr.tiles is None:
-        arr.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
+    # if arr.tiles is None:
+    #     arr.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
+    arr_tiles = tiling.SquareDiagTiles(arr, tiles_per_proc)
     q1 = factories.eye(
         (arr.gshape[1], arr.gshape[1]), split=0, dtype=arr.dtype, comm=arr.comm, device=arr.device
     )
 
-    if arr.tiles.lshape_map[0, 0] >= arr.gshape[1]:
+    if arr_tiles.lshape_map[0, 0] >= arr.gshape[1]:
         # in this case forming a band diagonal by interlacing QR and LQ doesn work so its just QR
         qr = arr.qr(tiles_per_proc=tiles_per_proc)
         return qr.Q, qr.R, q1
@@ -49,39 +51,47 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
     # 2. get transpose of arr
     arr_t = arr.T
     # 3. tile arr_t
-    arr_t.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
+    # arr_t.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
+    arr_t_tiles = tiling.SquareDiagTiles(arr_t, tiles_per_proc)
+
     # 4. match tiles to arr
-    arr_t.tiles.match_tiles_qr_lq(arr.tiles)
-    arr_t.tiles.__DNDarray = arr.T
+    arr_t_tiles.match_tiles_qr_lq(arr_tiles)
+
+    arr_t_tiles.__DNDarray = arr.T
 
     q0 = factories.eye(
         (arr.gshape[0], arr.gshape[0]), split=0, dtype=arr.dtype, comm=arr.comm, device=arr.device
     )
-    q0.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-    q0.tiles.match_tiles(arr.tiles)
+    # q0.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
+    q0_tiles = tiling.SquareDiagTiles(q0, tiles_per_proc)
+    q0_tiles.match_tiles(arr_tiles)
 
-    q1.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-    q1.tiles.match_tiles(arr_t.tiles)
+    # q1.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
+    q1_tiles = tiling.SquareDiagTiles(q0, tiles_per_proc)
+    q1_tiles.match_tiles(arr_t_tiles)
     # ----------------------------------------------------------------------------------------------
-    tile_columns = arr.tiles.tile_columns
+    tile_columns = arr_tiles.tile_columns
 
     torch_device = arr._DNDarray__array.device
     q0_dict = {}
     q0_dict_waits = {}
 
     active_procs = torch.arange(arr.comm.size)
-    empties = torch.nonzero(arr.tiles.lshape_map[..., arr.split] == 0)
+    empties = torch.nonzero(arr_tiles.lshape_map[..., arr.split] == 0)
     empties = empties[0] if empties.numel() > 0 else []
     for e in empties:
         active_procs = active_procs[active_procs != e]
-    tile_rows_per_pr_trmd = arr.tiles.tile_rows_per_process[: active_procs[-1] + 1]
+    tile_rows_per_pr_trmd = arr_tiles.tile_rows_per_process[: active_procs[-1] + 1]
 
     active_procs_t = torch.arange(arr_t.comm.size)
-    empties_t = torch.nonzero(arr_t.tiles.lshape_map[..., arr_t.split] == 0)
+    empties_t = torch.nonzero(arr_t_tiles.lshape_map[..., arr_t.split] == 0)
     empties_t = empties_t[0] if empties_t.numel() > 0 else []
     for e in empties_t:
         active_procs_t = active_procs_t[active_procs_t != e]
 
+    # print(arr_tiles.tile_map)
+    # print(arr_t_tiles.tile_map)
+    # return None, None
     proc_tile_start = torch.cumsum(torch.tensor(tile_rows_per_pr_trmd, device=torch_device), dim=0)
 
     # looping over number of tile columns - 1 (col)
@@ -97,20 +107,27 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
             # break
             diag_process = not_completed_processes[0].item()
             __split0_r_calc(
-                r_tiles=arr.tiles,
+                r_tiles=arr_tiles,
                 q_dict=q0_dict,
                 q_dict_waits=q0_dict_waits,
                 dim1=col,
                 diag_pr=diag_process,
                 not_completed_prs=not_completed_processes,
             )
-        arr_t.tiles.set_arr(arr.tiles.arr.T)
+        arr_t_tiles.set_arr(arr_tiles.arr.T)
         # 2. do full QR on the next column for LQ on arr_t
-        __split1_qr_loop(dim1=col, r=arr_t, q0=q1, calc_q=True, dim0=col + 1, empties=empties_t)
+        __split1_qr_loop(
+            dim1=col,
+            r_tiles=arr_t_tiles,
+            q0_tiles=q1_tiles,
+            calc_q=True,
+            dim0=col + 1,
+            empties=empties_t,
+        )
     for col in range(tile_columns - 1):
         __split0_q_loop(
-            r=arr,
-            q0=q0,
+            r_tiles=arr_tiles,
+            q0_tiles=q0_tiles,
             dim1=col,
             proc_tile_start=proc_tile_start,
             q_dict=q0_dict,
@@ -124,7 +141,7 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
     if rank in not_completed_processes and rank in active_procs:
         diag_process = not_completed_processes[0].item()
         __split0_r_calc(
-            r_tiles=arr.tiles,
+            r_tiles=arr_tiles,
             q_dict=q0_dict,
             q_dict_waits=q0_dict_waits,
             dim1=col,
@@ -132,8 +149,8 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
             not_completed_prs=not_completed_processes,
         )
     __split0_q_loop(
-        r=arr,
-        q0=q0,
+        r_tiles=arr_tiles,
+        q0_tiles=q0_tiles,
         dim1=col,
         proc_tile_start=proc_tile_start,
         q_dict=q0_dict,
@@ -141,16 +158,23 @@ def block_diagonalize_sp0(arr, overwrite_arr=False):
         active_procs=active_procs,
     )
 
-    arr_t.tiles.set_arr(arr.tiles.arr.T)
-    diag_diff = arr_t.tiles.row_indices[1]
+    arr_t_tiles.set_arr(arr_tiles.arr.T)
+    diag_diff = arr_t_tiles.row_indices[1]
     if arr.gshape[0] < arr.gshape[1] - diag_diff:
-        __split1_qr_loop(dim1=col, r=arr_t, q0=q1, calc_q=True, dim0=col + 1, empties=empties_t)
+        __split1_qr_loop(
+            dim1=col,
+            r_tiles=arr_t_tiles,
+            q0_tiles=q1_tiles,
+            calc_q=True,
+            dim0=col + 1,
+            empties=empties_t,
+        )
 
     q1 = q1.T
     arr.balance_()
     q0.balance_()
     q1.balance_()
-    return q0, arr, q1, arr.tiles, arr_t.tiles
+    return q0, arr, q1, arr_tiles, arr_t_tiles
 
 
 def block_diagonalize_sp1(arr, overwrite_arr=False):
