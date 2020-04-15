@@ -1102,6 +1102,44 @@ MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
 def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
+    """
+    Compute the q-th percentile of the data along the specified axis.
+    Returns the q-th percentile(s) of the tensor elements.
+
+    Parameters:
+    -----------
+
+    a : ht.tensor
+    Input tensor
+
+    q : ht.tensor, scalar, or list of scalars
+    Percentile or sequence of percentiles to compute. Must belong to the interval [0, 100].
+
+    axis : int, tuple of int, or None, optional
+    Axis or axes along which the percentiles are computed. Default is None.
+
+    #TODO: out, optional. Output buffer.
+
+    interpolation : {‘linear’}, TODO: {‘lower’, ‘higher’, ‘midpoint’, ‘nearest’}, optional
+    Interpolation method to use when the desired percentile lies between two data points i < j:
+
+        ‘linear’: i + (j - i) * fraction, where fraction is the fractional part of the index surrounded by i and j.
+
+        TODO ‘lower’: i.
+        TODO ‘higher’: j.
+        TODO ‘nearest’: i or j, whichever is nearest.
+        TODO ‘midpoint’: (i + j) / 2.
+
+    keepdim : bool, optional
+    If True, the axes which are reduced are left in the result as dimensions with size one.
+    With this option, the result can broadcast correctly against the original array a.
+
+    Returns:
+    --------
+
+    percentile : ht.tensor
+
+    """
     # sanitize x and axis: within operations.__reduce_op()
     # sanitize q: scalar, list or ht.tensor
     if not isinstance(q, dndarray.DNDarray) and not np.isscalar(q):
@@ -1117,7 +1155,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     # sanitize interpolation: linear only for now
     # TODO: implement lower, higher, nearest interpolation
     if interpolation != "linear":
-        if interpolation in ["lower", "higher", "nearest"]:
+        if interpolation in ["lower", "higher", "midpoint", "nearest"]:
             raise NotImplementedError("Only linear interpolation implemented for now.")
         else:
             raise ValueError("Invalid interpolation.")
