@@ -890,7 +890,7 @@ class TestStatistics(BasicTest):
         with self.assertRaises(ValueError):
             ht.minimum(random_volume_1, random_volume_2, out=output)
 
-    def percentile(self):
+    def test_percentile(self):
         # test local, distributed, split/axis combination, no data on process
         x_np = np.random.randn(3, 75, 75)
         x_ht = ht.array(x_np, device=ht_device)
@@ -898,8 +898,8 @@ class TestStatistics(BasicTest):
         x_ht_split1 = ht.array(x_np, split=1, device=ht_device)
         x_ht_split2 = ht.array(x_np, split=2, device=ht_device)
         q = 15.9
-        dims = list(x_ht.numdims)
-        for dim in range(dims):
+        dims = list(range(x_ht.numdims))
+        for dim in dims:
             axis = dim
             p_np = np.percentile(x_np, q, axis=axis)
             p_ht = ht.percentile(x_ht, q, axis=axis)
