@@ -1117,7 +1117,10 @@ def percentile(x, q, axis=None, interpolation="linear"):
     # sanitize interpolation: linear only for now
     # TODO: implement lower, higher, nearest interpolation
     if interpolation != "linear":
-        raise NotImplementedError("Only linear interpolation implemented for now.")
+        if interpolation in ["lower", "higher", "nearest"]:
+            raise NotImplementedError("Only linear interpolation implemented for now.")
+        else:
+            raise ValueError("Invalid interpolation.")
 
     x_min = min(x, axis=axis, keepdim=True)
     x_max = max(x, axis=axis, keepdim=True)
