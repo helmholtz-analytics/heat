@@ -1101,7 +1101,8 @@ def mpi_argmin(a, b, _):
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
-def percentile(x, q, axis=None, interpolation="linear"):
+def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
+    # sanitize x and axis: within operations.__reduce_op()
     # sanitize q: scalar, list or ht.tensor
     if not isinstance(q, dndarray.DNDarray) and not np.isscalar(q):
         if isinstance(q, list):
@@ -1112,7 +1113,6 @@ def percentile(x, q, axis=None, interpolation="linear"):
                     type(q)
                 )
             )
-    # x and axis sanitation within operations.__reduce_op()
 
     # sanitize interpolation: linear only for now
     # TODO: implement lower, higher, nearest interpolation
@@ -1125,6 +1125,9 @@ def percentile(x, q, axis=None, interpolation="linear"):
     x_min = min(x, axis=axis, keepdim=True)
     x_max = max(x, axis=axis, keepdim=True)
     percentile = q * (x_max - x_min) / 100 + x_min
+    if not keepdim:
+        manipulations.squeeze(percentile, axis=axis)
+
     return percentile
 
 
