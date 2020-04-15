@@ -948,6 +948,12 @@ class TestStatistics(BasicTest):
         self.assert_array_equal(p_ht, p_np)
 
         # test exceptions
+        with self.assertRaises(TypeError):
+            ht.percentile(x_ht, q=(1, 2, 3), axis=axis)
+        with self.assertRaises(NotImplementedError):
+            ht.percentile(x_ht, q, interpolation="nearest")
+        with self.assertRaises(ValueError):
+            ht.percentile(x_ht, q, interpolation="Homer!")
 
     def test_std(self):
         # test basics
