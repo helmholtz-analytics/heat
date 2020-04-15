@@ -24,6 +24,7 @@ __all__ = [
     "mean",
     "min",
     "minimum",
+    "percentile",
     "std",
     "var",
 ]
@@ -1098,6 +1099,30 @@ def mpi_argmin(a, b, _):
 
 
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
+
+
+def percentile(x, q, axis=None, interpolation="linear"):
+    # sanitize q: scalar, list or ht.tensor
+    if not isinstance(q, dndarray.DNDarray) and not np.isscalar(q):
+        if isinstance(q, list):
+            q = factories.array(q, dtype=types.canonical_heat_type(float), device=x.device)
+        else:
+            raise TypeError(
+                "Only tensors, numeric scalars and lists are supported, but q was {}".format(
+                    type(q)
+                )
+            )
+    # x and axis sanitation within operations.__reduce_op()
+
+    # sanitize interpolation: linear only for now
+    # TODO: implement lower, higher, nearest interpolation
+    if interpolation != "linear":
+        raise NotImplementedError("Only linear interpolation implemented for now.")
+
+    x_min = min(x, axis=axis, keepdim=True)
+    x_max = max(x, axis=axis, keepdim=True)
+    percentile = q * (x_max - x_min) / 100 + x_min
+    return percentile
 
 
 def std(x, axis=None, ddof=0, **kwargs):
