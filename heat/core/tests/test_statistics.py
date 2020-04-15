@@ -5,6 +5,8 @@ from itertools import combinations
 import os
 import heat as ht
 
+from heat.core.tests.test_suites.basic_test import BasicTest
+
 
 if os.environ.get("DEVICE") == "gpu" and torch.cuda.is_available():
     ht.use_device("gpu")
@@ -19,7 +21,7 @@ if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
     torch.cuda.set_device(device)
 
 
-class TestStatistics(unittest.TestCase):
+class TestStatistics(BasicTest):
     def test_argmax(self):
         torch.manual_seed(1)
         data = ht.random.randn(3, 4, 5, device=ht_device)
@@ -887,6 +889,65 @@ class TestStatistics(unittest.TestCase):
         output = ht.ones((12, 4, 3), device=ht_device)
         with self.assertRaises(ValueError):
             ht.minimum(random_volume_1, random_volume_2, out=output)
+
+    def percentile(self):
+        # test local, distributed, split/axis combination, no data on process
+        x_np = np.random.randn(3, 75, 75)
+        x_ht = ht.array(x_np, device=ht_device)
+        x_ht_split0 = ht.array(x_np, split=0, device=ht_device)
+        x_ht_split1 = ht.array(x_np, split=1, device=ht_device)
+        x_ht_split2 = ht.array(x_np, split=2, device=ht_device)
+        q = 15.9
+        dims = list(x_ht.numdims)
+        for dim in range(dims):
+            axis = dim
+            p_np = np.percentile(x_np, q, axis=axis)
+            p_ht = ht.percentile(x_ht, q, axis=axis)
+            p_ht_split0 = ht.percentile(x_ht_split0, q, axis=axis)
+            p_ht_split1 = ht.percentile(x_ht_split1, q, axis=axis)
+            p_ht_split2 = ht.percentile(x_ht_split2, q, axis=axis)
+            self.assert_array_equal(p_ht, p_np)
+            self.assert_array_equal(p_ht_split0, p_np)
+            self.assert_array_equal(p_ht_split1, p_np)
+            self.assert_array_equal(p_ht_split2, p_np)
+
+        # test x, q dtypes combination
+        q = 50
+        p_np = np.percentile(x_np, q, axis=0)
+        p_ht = ht.percentile(x_ht, q, axis=0)
+        self.assert_array_equal(p_ht, p_np)
+
+        # test tuple axis
+        axis = (0, 1)
+        p_ht_split0 = ht.percentile(x_ht_split0, q, axis=axis)
+        p_ht_split1 = ht.percentile(x_ht_split1, q, axis=axis)
+        p_ht_split2 = ht.percentile(x_ht_split2, q, axis=axis)
+        self.assert_array_equal(p_ht_split0, p_np)
+        self.assert_array_equal(p_ht_split1, p_np)
+        self.assert_array_equal(p_ht_split2, p_np)
+        axis = (0, 2)
+        p_ht_split0 = ht.percentile(x_ht_split0, q, axis=axis)
+        p_ht_split1 = ht.percentile(x_ht_split1, q, axis=axis)
+        p_ht_split2 = ht.percentile(x_ht_split2, q, axis=axis)
+        self.assert_array_equal(p_ht_split0, p_np)
+        self.assert_array_equal(p_ht_split1, p_np)
+        self.assert_array_equal(p_ht_split2, p_np)
+        axis = (1, -1)
+        p_ht_split0 = ht.percentile(x_ht_split0, q, axis=axis)
+        p_ht_split1 = ht.percentile(x_ht_split1, q, axis=axis)
+        p_ht_split2 = ht.percentile(x_ht_split2, q, axis=axis)
+        self.assert_array_equal(p_ht_split0, p_np)
+        self.assert_array_equal(p_ht_split1, p_np)
+        self.assert_array_equal(p_ht_split2, p_np)
+
+        # test list q
+        q = [0.1, 2.3, 15.9, 50.0, 84.1, 97.7, 99.9]
+        axis = None
+        p_np = np.percentile(x_np, q, axis=axis)
+        p_ht = ht.percentile(x_ht, q, axis=axis)
+        self.assert_array_equal(p_ht, p_np)
+
+        # test exceptions
 
     def test_std(self):
         # test basics
