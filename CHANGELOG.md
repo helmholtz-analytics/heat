@@ -9,6 +9,7 @@
 - [#496](https://github.com/helmholtz-analytics/heat/pull/496) New feature: flipud()
 - [#498](https://github.com/helmholtz-analytics/heat/pull/498) Feature: flip()
 - [#499](https://github.com/helmholtz-analytics/heat/pull/499) Bugfix: MPI datatype mapping: `torch.int16` now maps to `MPI.SHORT` instead of `MPI.SHORT_INT`
+- [#506](https://github.com/helmholtz-analytics/heat/pull/506) Bugfix: setup.py has correct version parsing
 - [#507](https://github.com/helmholtz-analytics/heat/pull/507) Bugfix: sanitize_axis changes axis of 0-dim scalars to None
 - [#511](https://github.com/helmholtz-analytics/heat/pull/511) New feature: Reshape functionality for tensors with split = None and = 0
 - [#515](https://github.com/helmholtz-analytics/heat/pull/515) ht.var() now returns the unadjusted sample variance by default, Bessel's correction can be applied by setting ddof=1.
