@@ -33,6 +33,7 @@ class TestStrideTricks(unittest.TestCase):
         self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4, 4), (-2, -3)), (1, 0))
         self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4), 0), 0)
         self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4), None), None)
+        self.assertEqual(ht.core.stride_tricks.sanitize_axis(tuple(), 0), None)
 
         # invalid types
         with self.assertRaises(TypeError):

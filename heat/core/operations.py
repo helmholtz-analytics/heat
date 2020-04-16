@@ -10,6 +10,7 @@ from . import dndarray
 from . import types
 
 __all__ = []
+__BOOLEAN_OPS = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
 
 
 def __binary_op(operation, t1, t2):
@@ -32,7 +33,7 @@ def __binary_op(operation, t1, t2):
     Returns
     -------
     result: ht.DNDarray
-        A tensor containing the results of element-wise operation.
+        A DNDarray containing the results of element-wise operation.
     """
     if np.isscalar(t1):
         try:
@@ -161,8 +162,114 @@ def __binary_op(operation, t1, t2):
             t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type)
         )
 
+    if not isinstance(result, torch.Tensor):
+        result = torch.tensor(result)
+
     return dndarray.DNDarray(
         result, output_shape, types.heat_type_of(result), output_split, output_device, output_comm
+    )
+
+
+def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
+    """
+    Generic wrapper for cumulative operations, i.e. cumsum(), cumprod(). Performs a three-stage cumulative operation. First, a partial
+    cumulative operation is performed node-local that is combined into a global cumulative result via an MPI_Op and a final local
+    reduction add or mul operation.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The heat DNDarray on which to perform the cumulative operation
+    partial_op: function
+        The function performing a partial cumulative operation on the process-local data portion, e.g. cumsum().
+    exscan_op: mpi4py.MPI.Op
+        The MPI operator for performing the exscan based on the results returned by the partial_op function.
+    final_op: function
+        The local operation for the final result, e.g. add() for cumsum().
+    neutral: scalar
+        Neutral element for the cumulative operation, i.e. an element that does not change the reductions operations
+        result.
+    axis: int
+        The axis direction of the cumulative operation
+    dtype: ht.type
+        The type of the result tensor.
+    out: ht.DNDarray
+        The explicitly returned output tensor.
+
+    Returns
+    -------
+    result: ht.DNDarray
+        A DNDarray containing the result of the reduction operation
+
+    Raises
+    ------
+    TypeError
+        If the input or optional output parameter are not of type ht.DNDarray
+    ValueError
+        If the shape of the optional output parameters does not match the shape of the input
+    NotImplementedError
+        Numpy's behaviour of axis is None is not supported as of now
+    RuntimeError
+        If the split or device parameters do not match the parameters of the input
+    """
+    # perform sanitation
+    if not isinstance(x, dndarray.DNDarray):
+        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+    if out is not None and not isinstance(out, dndarray.DNDarray):
+        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
+
+    if axis is None:
+        raise NotImplementedError("axis = None is not supported")
+    axis = stride_tricks.sanitize_axis(x.shape, axis)
+
+    if dtype is not None:
+        dtype = types.canonical_heat_type(dtype)
+
+    if out is not None:
+        if out.shape != x.shape:
+            raise ValueError("out and a have different shapes {} != {}".format(out.shape, x.shape))
+        if out.split != x.split:
+            raise RuntimeError(
+                "out and a have different splits {} != {}".format(out.split, x.split)
+            )
+        if out.device != x.device:
+            raise RuntimeError(
+                "out and a have different devices {} != {}".format(out.device, x.device)
+            )
+        dtype = out.dtype
+
+    cumop = partial_op(
+        x._DNDarray__array,
+        axis,
+        out=None if out is None else out._DNDarray__array,
+        dtype=None if dtype is None else dtype.torch_type(),
+    )
+
+    if x.split is not None and axis == x.split:
+        indices = torch.tensor([cumop.shape[axis] - 1])
+        send = (
+            torch.index_select(cumop, axis, indices)
+            if indices[0] >= 0
+            else torch.full(
+                cumop.shape[:axis] + torch.Size([1]) + cumop.shape[axis + 1 :],
+                neutral,
+                dtype=cumop.dtype,
+            )
+        )
+        recv = torch.full(
+            cumop.shape[:axis] + torch.Size([1]) + cumop.shape[axis + 1 :],
+            neutral,
+            dtype=cumop.dtype,
+        )
+
+        x.comm.Exscan(send, recv, exscan_op)
+        final_op(cumop, recv, out=cumop)
+
+    if out is not None:
+        return out
+
+    return factories.array(
+        cumop, dtype=x.dtype if dtype is None else dtype, is_split=x.split, device=x.device
     )
 
 
@@ -234,8 +341,39 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
     return out
 
 
-def __reduce_op(x, partial_op, reduction_op, **kwargs):
-    # TODO: document me Issue #102
+def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
+    """
+    Generic wrapper for reduction operations, e.g. sum(), prod() etc. Performs a two-stage reduction. First, a partial
+    reduction is performed node-local that is combined into a global reduction result via an MPI_Op.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The heat DNDarray on which to perform the reduction operation
+
+    partial_op: function
+        The function performing a partial reduction on the process-local data portion, e.g. sum() for implementing a
+        distributed mean() operation.
+
+    reduction_op: mpi4py.MPI.Op
+        The MPI operator for performing the full reduction based on the results returned by the partial_op function.
+
+    neutral: scalar
+        Neutral element for the reduction operation, i.e. an element that does not change the reductions operations
+        result. Required in cases where
+
+    Returns
+    -------
+    result: ht.DNDarray
+        A DNDarray containing the result of the reduction operation
+
+    Raises
+    ------
+    TypeError
+        If the input or optional output parameter are not of type ht.DNDarray
+    ValueError
+        If the shape of the optional output parameters does not match the shape of the reduced result
+    """
     # perform sanitation
     if not isinstance(x, dndarray.DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
@@ -252,13 +390,14 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
 
     # if local tensor is empty, replace it with the identity element
     if 0 in x.lshape and (axis is None or (x.split in axis)):
-        neutral = kwargs.get("neutral")
         if neutral is None:
             neutral = float("nan")
         neutral_shape = x.lshape[:split] + (1,) + x.lshape[split + 1 :]
         partial = torch.full(neutral_shape, fill_value=neutral, dtype=x._DNDarray__array.dtype)
     else:
         partial = x._DNDarray__array
+
+    # apply the partial reduction operation to the local tensor
     if axis is None:
         partial = partial_op(partial).reshape(-1)
         output_shape = (1,)
@@ -291,8 +430,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
             x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
 
     # if reduction_op is a Boolean operation, then resulting tensor is bool
-    boolean_ops = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
-    tensor_type = bool if reduction_op in boolean_ops else partial.dtype
+    tensor_type = bool if reduction_op in __BOOLEAN_OPS else partial.dtype
 
     if out is not None:
         out._DNDarray__array = partial
