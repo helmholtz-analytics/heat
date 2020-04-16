@@ -121,54 +121,18 @@ def _gaussian_fast(x, y, sigma=1.0):
     return result
 
 
-def cdist(x, y=None, quadratic_expansion=False):
-    """
-    Pairwise euclidean distance between all elements of X and Y
-
-    Parameters
-    ----------
-    x : ht.DNDarray
-        2D Array of size m x f
-    y : ht.DNDarray
-        2D array of size n x f
-    quadratic_expansion: bool, default=False
-        whether to use quadratic expansion to calculate (x-y)**2
-
-    Returns
-    -------
-    ht.DNDarray
-        2D array of size m x n
-    """
+def cdist(X, Y=None, quadratic_expansion=False):
     if quadratic_expansion:
-        return _dist(x, y, _euclidian_fast)
+        return _dist(X, Y, _euclidian_fast)
     else:
-        return _dist(x, y, _euclidian)
+        return _dist(X, Y, _euclidian)
 
 
-def rbf(x, y=None, sigma=1.0, quadratic_expansion=False):
-    """
-    Pairwise distance between all elements of X and Y using a gaussian kernel
-
-    Parameters
-    ----------
-    x : ht.DNDarray
-        2D Array of size m x f
-    y : ht.DNDarray
-        2D array of size n x f
-    sigma: float, default=1.0
-        scaling factor for gaussian kernel
-    quadratic_expansion: bool, default=False
-        whether to use quadratic expansion to calculate (x-y)**2
-
-    Returns
-    -------
-    ht.DNDarray
-        2D array of size m x n
-    """
+def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False):
     if quadratic_expansion:
-        return _dist(x, y, lambda a, b: _gaussian_fast(a, b, sigma))
+        return _dist(X, Y, lambda x, y: _gaussian_fast(x, y, sigma))
     else:
-        return _dist(x, y, lambda a, b: _gaussian(a, b, sigma))
+        return _dist(X, Y, lambda x, y: _gaussian(x, y, sigma))
 
 
 def _dist(X, Y=None, metric=_euclidian):
@@ -253,7 +217,6 @@ def _dist(X, Y=None, metric=_euclidian):
                 col1 = displ[sender]
                 col2 = displ[sender + 1] if sender != size - 1 else K
                 columns = (col1, col2)
-
                 # All but the first iter processes are receiving, then sending
                 if (rank // iter) != 0:
                     stat = MPI.Status()
@@ -263,7 +226,6 @@ def _dist(X, Y=None, metric=_euclidian):
                     comm.Recv(moving, source=sender, tag=iter)
                 # Sending to next Process
                 comm.Send(stationary, dest=receiver, tag=iter)
-
                 # The first iter processes can now receive after sending
                 if (rank // iter) == 0:
                     stat = MPI.Status()
@@ -279,7 +241,6 @@ def _dist(X, Y=None, metric=_euclidian):
                 scol1 = displ[receiver]
                 scol2 = displ[receiver + 1] if receiver != size - 1 else K
                 scolumns = (scol1, scol2)
-
                 symmetric = torch.zeros(
                     scolumns[1] - scolumns[0],
                     (rows[1] - rows[0]),
@@ -298,7 +259,6 @@ def _dist(X, Y=None, metric=_euclidian):
             if (size + 1) % 2 != 0:  # we need one mor iteration for the first n/2 processes
                 receiver = (rank + num_iter) % size
                 sender = (rank - num_iter) % size
-
                 # Case 1: only receiving
                 if rank < (size // 2):
                     stat = MPI.Status()
@@ -332,6 +292,7 @@ def _dist(X, Y=None, metric=_euclidian):
                     )
                     comm.Recv(symmetric, source=receiver, tag=num_iter)
                     d._DNDarray__array[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
+
         else:
             raise NotImplementedError(
                 "Input split was X.split = {}. Splittings other than 0 or None currently not supported.".format(
@@ -362,7 +323,6 @@ def _dist(X, Y=None, metric=_euclidian):
                     )
                 )
         elif X.split == 0:
-            # ToDo Für split implementation >1: split = min(X,split, Y.split)
             split = X.split
         else:
             # ToDo: Find out if even possible
@@ -463,5 +423,4 @@ def _dist(X, Y=None, metric=_euclidian):
                         X.split, Y.split
                     )
                 )
-
     return d

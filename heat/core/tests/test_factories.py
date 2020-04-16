@@ -449,6 +449,13 @@ class TestFactories(unittest.TestCase):
                 expected = 1 if i - offset_x is j - offset_y else 0
                 self.assertEqual(eye._DNDarray__array[i][j], expected)
 
+        shape = (11, 30)
+        eye = ht.eye(shape, split=1, dtype=ht.float32, device=ht_device)
+        self.assertIsInstance(eye, ht.DNDarray)
+        self.assertEqual(eye.dtype, ht.float32)
+        self.assertEqual(eye.shape, shape)
+        self.assertEqual(eye.split, 1)
+
     def test_full(self):
         # simple tensor
         data = ht.full((10, 2), 4, device=ht_device)
