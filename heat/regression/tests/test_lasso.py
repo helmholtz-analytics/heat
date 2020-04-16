@@ -87,4 +87,4 @@ class TestLasso(unittest.TestCase):
             with self.assertRaises(ValueError):
                 estimator.fit(X, ht.zeros((3, 3, 3)))
             with self.assertRaises(ValueError):
-                estimator.fit(ht.zeros((3, 3, 3)), y)
+                estimator.fit(ht.zeros((3, 3, 3)), ht.zeros((3, 3)))
