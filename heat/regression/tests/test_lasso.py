@@ -83,3 +83,8 @@ class TestLasso(unittest.TestCase):
             # check whether the results are correct
             self.assertIsInstance(yest, ht.DNDarray)
             self.assertEqual(yest.shape, (m, 1))
+
+            with self.assertRaises(ValueError):
+                estimator.fit(X, ht.zeros((3, 3, 3)))
+            with self.assertRaises(ValueError):
+                estimator.fit(ht.zeros((3, 3, 3)), y)
