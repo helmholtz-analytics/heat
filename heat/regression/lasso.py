@@ -116,8 +116,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         # Get number of model parameters
         _, n = X.shape
 
-        assert len(y.shape) <= 2, "y.shape needs to be 1 or 2 dimensional"
-        assert len(X.shape) == 2, "X.shape needs to be 2 dimensional"
+        if y.numdims > 2:
+            raise ValueError("y.numdims must <= 2, currently: {}".format(y.numdims))
+        if X.numdims != 2:
+            raise ValueError("X.numdims must == 2, currently: {}".format(X.numdims))
 
         if len(y.shape) == 1:
             y = ht.expand_dims(y, axis=1)
