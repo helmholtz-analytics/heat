@@ -1,4 +1,5 @@
 import itertools
+import sys
 import torch
 
 from ..communication import MPI
@@ -9,7 +10,7 @@ from .. import factories
 from .. import manipulations
 from .. import types
 
-__all__ = ["dot", "matmul", "norm", "projection", "transpose", "tril", "triu"]
+__all__ = ["dot", "larfg", "matmul", "norm", "projection", "transpose", "tril", "triu"]
 
 
 def dot(a, b, out=None):
@@ -72,6 +73,51 @@ def dot(a, b, out=None):
         return ret
     else:
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
+
+
+@torch.jit.script
+def larfg(n, alpha, x):
+    # type: (int, int, torch.Tensor) -> (torch.Tensor, torch.Tensor)
+    """
+
+    Parameters
+    ----------
+    n : int
+        order of the reflector
+    alpha : float
+        the value alpha
+    x : torch.Tensor
+        overwritten
+
+    Returns
+    -------
+    tau : torch.Tensor
+        tau value
+    v : torch.Tensor
+        output vector
+    Notes
+    -----
+    https://www.netlib.org/lapack/explore-html/d8/d9b/group__double_o_t_h_e_rauxiliary_gaabb59655e820b3551af27781bd716143.html
+
+    """
+    if isinstance(alpha, (float, int)):
+        alpha = torch.tensor(alpha, device=x.device, dtype=x.dtype)
+    if n <= 1:
+        tau = torch.tensor(0, device=x.device, dtype=x.dtype)
+        return tau, x
+    xnorm = (x.T @ x).sqrt()
+    if xnorm == 0:
+        v = torch.eye(x.shape)  # todo: ???
+        tau = torch.tensor(0, device=x.device, dtype=x.dtype)
+        return tau, v
+    else:
+        beta = (alpha ** 2 + xnorm ** 2).sqrt()
+        beta = beta * -1 if alpha > 0 else beta  # todo: need to 0 beta if alpha is 0?
+        # todo: implement cases for if beta is extremely small see source in LAPACK
+        tau = (beta - alpha) / beta
+        # scale x
+        x /= alpha - beta
+        return (tau, x)
 
 
 def matmul(a, b, allow_resplit=False):
@@ -812,7 +858,8 @@ def projection(a, b):
 def __mm_c_block_setter(
     b_proc, a_proc, a_data, b_data, b_block_map, a_block_map, b_split, a_split, mB, kB, nB, c
 ):
-    # type: (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor) -> None
+    # type: (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor)
+    # -> None
     shp_b = b_block_map.shape
     offset_a = b_proc * shp_b[1] if b_proc != 0 else 0
     shp_a = a_block_map.shape
