@@ -809,6 +809,39 @@ def reshape(a, shape):
 
         return tuple(result), (0,) + tuple(np.cumsum(result[:-1]))
 
+    def reshape_argsort_counts_displs(shape1, lshape1, displs1, shape2, displs2, axis, comm):
+        """
+        Compute the send order, counts, and displacements.
+        """
+        mask = torch.zeros(lshape1).flatten()
+
+        local_index = 0
+        global_index = displs1[comm.rank] * np.prod(shape1[axis+1:])
+        local_len = np.prod(lshape1[axis:])
+        global_len = np.prod(shape1[axis:])
+
+        ulen = np.prod(shape2[axis+1:])
+        
+        while local_index < np.prod(lshape1):		
+            for i in range(local_len):
+                pos = global_index + i
+                jpos = (pos // ulen) % shape2[axis]
+                # search new process id
+                for j, k in zip(displs2, range(comm.size)):
+                    if j <= jpos:
+                        mask[local_index + i] = k
+            global_index += global_len
+            local_index += local_len
+
+        uniques, counts = torch.unique(mask, return_counts=True)
+        
+        mpicounts = torch.zeros(comm.size)
+        
+        for i,j in zip(uniques, counts):
+            mpicounts[int(i)] = int(j)
+
+        return mask.argsort(), tuple(mpicounts.numpy()), (0,) + tuple(torch.cumsum(mpicounts[:-1], dim=0).numpy())
+
     # Check the type of shape and number elements
     shape = stride_tricks.sanitize_shape(shape)
     if np.prod(shape) != a.size:
@@ -820,30 +853,38 @@ def reshape(a, shape):
             torch.reshape(a._DNDarray__array, shape), dtype=a.dtype, device=a.device, comm=a.comm
         )
 
-    # Check for currently not supported tensors
-    if a.split > 0:
-        raise NotImplementedError("Tensors with split axes > 0 are not supported yet")
-
     # Create new flat result tensor
     _, local_shape, _ = a.comm.chunk(shape, a.split)
-    lshp = torch.prod(torch.tensor(local_shape, device=a.device.torch_device))
-    data = torch.empty(lshp, dtype=a.dtype.torch_type(), device=a.device.torch_device)
+    data = torch.empty(local_shape, dtype=a.dtype.torch_type(), device=a.device.torch_device).flatten()
 
     # Calculate the counts and displacements
-    _, old_csum, _ = a.comm.counts_displs_shape(a.shape, 0)
-    _, new_csum, _ = a.comm.counts_displs_shape(shape, 0)
+    _, old_displs, _ = a.comm.counts_displs_shape(a.shape, 0)
+    _, new_displs, _ = a.comm.counts_displs_shape(shape, 0)
 
-    # turn displs into cumulative sums
-    old_csum = tuple(np.prod(a.shape[1:]) * i for i in old_csum[1:]) + (a.size,)
-    new_csum = tuple(np.prod(shape[1:]) * i for i in new_csum[1:]) + (a.size,)
+    if a.split > 0:
+        sendsort, sendcounts, senddispls = reshape_argsort_counts_displs(a.shape, a.lshape, old_displs, shape, new_displs, a.split, a.comm)
+        recvsort, recvcounts, recvdispls = reshape_argsort_counts_displs(shape, local_shape, new_displs, a.shape, old_displs, a.split, a.comm)
 
-    # calculate counts and displacements
-    send_counts, send_displs = reshape_counts_displs(old_csum, new_csum)
-    recv_counts, recv_displs = reshape_counts_displs(new_csum, old_csum)
+        # rearrange order
+        send = a._DNDarray__array.flatten()[sendsort]
+        a.comm.Alltoallv((send.flatten(), sendcounts, senddispls), (data, recvcounts, recvdispls))
 
-    a.comm.Alltoallv(
-        (a._DNDarray__array.flatten(), send_counts, send_displs), (data, recv_counts, recv_displs)
-    )
+        # original order
+        backsort = torch.argsort(recvsort)
+        data = data[backsort]
+
+    else:
+        # turn displs into cumulative sums
+        old_csum = tuple(np.prod(a.shape[1:]) * i for i in old_displs[1:]) + (a.size,)
+        new_csum = tuple(np.prod(shape[1:]) * i for i in new_displs[1:]) + (a.size,)
+
+        # calculate counts and displacements
+        send_counts, send_displs = reshape_counts_displs(old_csum, new_csum)
+        recv_counts, recv_displs = reshape_counts_displs(new_csum, old_csum)
+
+        a.comm.Alltoallv(
+            (a._DNDarray__array.flatten(), send_counts, send_displs), (data, recv_counts, recv_displs)
+        )
 
     # Reshape local tensor
     data = data.reshape(local_shape)
