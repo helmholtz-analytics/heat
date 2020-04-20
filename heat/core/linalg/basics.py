@@ -2,12 +2,14 @@ import itertools
 import torch
 
 from ..communication import MPI
+from .. import arithmetics
+from .. import exponential
 from .. import dndarray
 from .. import factories
 from .. import manipulations
 from .. import types
 
-__all__ = ["dot", "matmul", "transpose", "tril", "triu"]
+__all__ = ["dot", "matmul", "norm", "projection", "transpose", "tril", "triu"]
 
 
 def dot(a, b, out=None):
@@ -74,6 +76,7 @@ def matmul(a, b, allow_resplit=False):
     """
     Matrix multiplication of two DNDarrays
     for comment context -> a @ b = c or A @ B = c
+
     Parameters
     ----------
     a : ht.DNDarray
@@ -161,7 +164,7 @@ def matmul(a, b, allow_resplit=False):
                 torch.matmul(a._DNDarray__array, b._DNDarray__array), device=a.device
             )
         else:
-            a = a.resplit_(0)
+            a.resplit_(0)
             slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
             hold = a._DNDarray__array @ b._DNDarray__array
 
@@ -758,6 +761,57 @@ def matmul(a, b, allow_resplit=False):
         return c
 
 
+def norm(a):
+    """
+    Frobenius norm of vector a
+
+    Parameters
+    ----------
+    a : ht.DNDarray
+
+    Returns
+    -------
+    float
+        Returns the vector norm (lenght) of a
+    """
+    if not isinstance(a, dndarray.DNDarray):
+        raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
+
+    d = a ** 2
+
+    for i in range(len(a.shape) - 1, -1, -1):
+        d = arithmetics.sum(d, axis=i)
+
+    return exponential.sqrt(d).item()
+
+
+def projection(a, b):
+    """
+    Projection of vector a onto vector b
+
+    Parameters
+    ----------
+    a : ht.DNDarray (1D)
+    b : ht.DNDarray (1D)
+
+    Returns
+    -------
+    ht.DNDarray
+        Returns the vector projection of b in the direction of a
+    """
+    if not isinstance(a, dndarray.DNDarray) or not isinstance(b, dndarray.DNDarray):
+        raise TypeError(
+            "a, b must be of type ht.DNDarray, but were {}, {}".format(type(a), type(b))
+        )
+
+    if len(a.shape) != 1 or len(b.shape) != 1:
+        raise RuntimeError(
+            "a, b must be vectors of length 1, but were {}, {}".format(len(a.shape), len(b.shape))
+        )
+
+    return (dot(a, b) / dot(b, b)) * b
+
+
 @torch.jit.script
 def __mm_c_block_setter(
     b_proc, a_proc, a_data, b_data, b_block_map, a_block_map, b_split, a_split, mB, kB, nB, c
@@ -804,6 +858,7 @@ def __mm_c_block_setter(
 
 def transpose(a, axes=None):
     """
+
     Permute the dimensions of an array.
 
     Parameters

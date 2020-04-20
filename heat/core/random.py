@@ -237,7 +237,7 @@ def __kundu_transform(values):
     return (torch.log(-torch.log(1 - values ** 0.0775)) - 1.0821) * __KUNDU_INVERSE
 
 
-def rand(*args, dtype=types.float64, split=None, device=None, comm=None):
+def rand(*args, dtype=types.float32, split=None, device=None, comm=None):
     """
     Random values in a given shape.
 
@@ -249,7 +249,7 @@ def rand(*args, dtype=types.float64, split=None, device=None, comm=None):
         The dimensions of the returned array, should all be positive. If no argument is given a single random samples is
         generated.
     dtype: ht.types, optional
-        The datatype of the returned values. Has to be one of [ht.float32, ht.float64]. Default is ht.float64.
+        The datatype of the returned values. Has to be one of [ht.float32, ht.float64]. Default is ht.float32.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
     device : str or None, optional
@@ -349,7 +349,7 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
 
     # sanitize the data type
     if dtype is None:
-        dtype = types.int64
+        dtype = types.int32
     dtype = types.canonical_heat_type(dtype)
     if dtype not in [types.int64, types.int32]:
         raise ValueError("Unsupported dtype for randint")
@@ -374,7 +374,7 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     return dndarray.DNDarray(values, shape, dtype, split, device, comm)
 
 
-def randn(*args, dtype=types.float64, split=None, device=None, comm=None):
+def randn(*args, dtype=types.float32, split=None, device=None, comm=None):
     """
     Returns a tensor filled with random numbers from a standard normal distribution with zero mean and variance of one.
 
@@ -383,7 +383,7 @@ def randn(*args, dtype=types.float64, split=None, device=None, comm=None):
     d0, d1, …, dn : int, optional
         The dimensions of the returned array, should be all positive.
     dtype: ht.types, optional
-        The datatype of the returned values. Has to be one of [ht.float32, ht.float64]. Default is ht.float64.
+        The datatype of the returned values. Has to be one of [ht.float32, ht.float64]. Default is ht.float32.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
     device : str or None, optional

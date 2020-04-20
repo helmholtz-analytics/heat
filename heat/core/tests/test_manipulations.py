@@ -324,8 +324,12 @@ class TestManipulations(BasicTest):
             ht.concatenate((x))
         with self.assertRaises(TypeError):
             ht.concatenate((x, x), axis=x)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             ht.concatenate((x, ht.zeros((2, 2), device=ht_device)), axis=0)
+        with self.assertRaises(RuntimeError):
+            a = ht.zeros((10,), comm=ht.communication.MPI_WORLD)
+            b = ht.zeros((10,), comm=ht.communication.MPI_SELF)
+            ht.concatenate([a, b])
         with self.assertRaises(ValueError):
             ht.concatenate(
                 (ht.zeros((12, 12), device=ht_device), ht.zeros((2, 2), device=ht_device)), axis=0
@@ -1169,8 +1173,8 @@ class TestManipulations(BasicTest):
         # 4D local tensor, no axis
         result = ht.squeeze(data)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
@@ -1179,8 +1183,8 @@ class TestManipulations(BasicTest):
         # 4D local tensor, major axis
         result = ht.squeeze(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
         self.assertEqual(result.shape, (4, 5, 1))
         self.assertEqual(result.lshape, (4, 5, 1))
         self.assertEqual(result.split, None)
@@ -1189,8 +1193,8 @@ class TestManipulations(BasicTest):
         # 4D local tensor, minor axis
         result = ht.squeeze(data, axis=-1)
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
         self.assertEqual(result.shape, (1, 4, 5))
         self.assertEqual(result.lshape, (1, 4, 5))
         self.assertEqual(result.split, None)
@@ -1199,8 +1203,8 @@ class TestManipulations(BasicTest):
         # 4D local tensor, tuple axis
         result = data.squeeze(axis=(0, -1))
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float64)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)

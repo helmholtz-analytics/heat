@@ -1,9 +1,7 @@
-import sys
-
 import heat as ht
 
 
-class KMeans:
+class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
     def __init__(self, n_clusters=8, init="random", max_iter=300, tol=1e-4, random_state=None):
         """
         K-Means clustering algorithm. An implementation of Lloyd's algorithm [1].
@@ -59,7 +57,7 @@ class KMeans:
         """
         Returns
         -------
-        ht.DNDarray, shape=(n_clusters, n_features):
+        ht.DNDarray, shape =  [n_clusters, n_features]:
             Coordinates of cluster centers. If the algorithm stops before fully converging (see tol and max_iter),
             these will not be consistent with labels_.
         """
@@ -70,7 +68,7 @@ class KMeans:
         """
         Returns
         -------
-        ht.DNDarray, shape=(n_points):
+        ht.DNDarray, shape = [n_points]:
             Labels of each point.
         """
         return self._labels
@@ -101,7 +99,7 @@ class KMeans:
 
         Parameters
         ----------
-        X : ht.DNDarray, shape=(n_point, n_features)
+        X : ht.DNDarray, shape = [n_point, n_features]:
             The data to initialize the clusters for.
         """
         # always initialize the random state
@@ -115,7 +113,7 @@ class KMeans:
             centroids = ht.empty(
                 (self.n_clusters, X.shape[1]), split=None, device=X.device, comm=X.comm
             )
-            if (X.split is None) or (X.split == 0):
+            if X.split is None or X.split == 0:
                 for i in range(self.n_clusters):
                     samplerange = (
                         X.gshape[0] // self.n_clusters * i,
@@ -151,7 +149,7 @@ class KMeans:
 
         # kmeans++, smart centroid guessing
         elif self.init == "kmeans++":
-            if (X.split is None) or (X.split == 0):
+            if X.split is None or X.split == 0:
                 centroids = ht.zeros(
                     (self.n_clusters, X.shape[1]), split=None, device=X.device, comm=X.comm
                 )
@@ -211,7 +209,7 @@ class KMeans:
 
         Parameters
         ----------
-        X : ht.DNDarray, shape=(n_samples, n_features)
+        X : ht.DNDarray, shape = [n_samples, n_features]:
             Training instances to cluster.
         """
         # calculate the distance matrix and determine the closest centroid
@@ -226,7 +224,7 @@ class KMeans:
 
         Parameters
         ----------
-        X : ht.DNDarray, shape=(n_samples, n_features)
+        X : ht.DNDarray, shape = [n_samples, n_features]:
             Training instances to cluster.
         """
         # input sanitation
@@ -267,54 +265,9 @@ class KMeans:
             if self.tol is not None and self._inertia <= self.tol:
                 break
 
-        self._labels = matching_centroids.squeeze()
+        self._labels = matching_centroids
 
         return self
-
-    def fit_predict(self, X):
-        """
-        Compute cluster centers and predict cluster index for each sample.
-
-        Convenience method; equivalent to calling fit(X) followed by predict(X).
-
-        Parameters
-        ----------
-        X : ht.DNDarray, shape = [n_samples, n_features]
-            Input data to be clustered.
-
-        Returns
-        -------
-        labels : ht.DNDarray, shape [n_samples,]
-            Index of the cluster each sample belongs to.
-        """
-        self.fit(X)
-        return self.predict(X)
-
-    def get_params(self, deep=True):
-        """
-        Get parameters for this estimator.
-
-        Parameters
-        ----------
-        deep : boolean, optional
-            If True, will return the parameters for this estimator and contained sub-objects that are estimators.
-            Defaults to true.
-
-        Returns
-        -------
-        params : dict of string to any
-            Parameter names mapped to their values.
-        """
-        # unused
-        _ = deep
-
-        return {
-            "init": self.init,
-            "max_iter": self.max_iter,
-            "n_clusters": self.n_clusters,
-            "random_state": self.random_state,
-            "tol": self.tol,
-        }
 
     def predict(self, X):
         """
@@ -325,7 +278,7 @@ class KMeans:
 
         Parameters
         ----------
-        X : ht.DNDarray, shape = [n_samples, n_features]
+        X : ht.DNDarray, shape = [n_samples, n_features]:
             New data to predict.
 
         Returns
@@ -338,26 +291,4 @@ class KMeans:
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
 
         # determine the centroids
-        return self._fit_to_cluster(X.expand_dims(axis=2)).squeeze()
-
-    def set_params(self, **params):
-        """
-        Set the parameters of this estimator.
-
-        Parameters
-        ----------
-        params : dict
-            The parameters of the estimator to be modified.
-
-        Returns
-        -------
-        self : ht.ml.KMeans
-            This estimator instance for chaining.
-        """
-        self.init = params.get(params["init"], self.init)
-        self.max_iter = params.get(params["max_iter"], self.max_iter)
-        self.n_clusters = params.get(params["n_clusters"], self.n_clusters)
-        self.random_state = params.get(params["random_state"], self.random_state)
-        self.tol = params.get(params["tol"], self.tol)
-
-        return self
+        return self._fit_to_cluster(X)
