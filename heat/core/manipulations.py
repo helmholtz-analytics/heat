@@ -751,20 +751,20 @@ def pad(array, pad_width, mode="constant", values=0):
         Number of values padded to the edges of each axis. ((before_1, after_1),...(before_N, after_N)) unique pad widths for each axis.
         Shortcuts:
             - ((before, after),)  or (before, after)
-                --> before and after pad width for each axis. 
-            - (pad_width,) or int      
-                --> before = after = pad width for all axes.    
+                --> before and after pad width for each axis.
+            - (pad_width,) or int
+                --> before = after = pad width for all axes.
 
         Determines how many elements are padded along which dimension.
         Therefore:
-        - pad last dimension:       (   
+        - pad last dimension:       (
                                         padding_left, padding_right
                                     )
-        - pad last 2 dimensions:    (   
+        - pad last 2 dimensions:    (
                                         (padding_top, padding_bottom),
                                         (padding_left, padding_right)
                                     )
-        - pad last 3 dimensions:    (   
+        - pad last 3 dimensions:    (
                                         (padding_front, padding_back)
                                         (padding_top, padding_bottom),
                                         (paddling_left, padding_right),
@@ -773,19 +773,19 @@ def pad(array, pad_width, mode="constant", values=0):
     mode : string, optional
         - 'constant' (default): Pads the input tensor boundaries with a constant value.
             --> available for arbitrary dimensions
-        
+
     values: number or tuple of 2-element-sequences (containing numbers), optional (default=0) (sequence = tuple or list)
         The fill values for each axis (1 tuple per axis).
         ((before_1, after_1), ... (before_N, after_N)) unique pad values for each axis.
 
         Shortcuts:
             - ((before, after),) or (before, after)
-               --> before and after padding values for each axis. 
-            - (value,) or int           
-                --> before = after = padding value for all axes. 
+               --> before and after padding values for each axis.
+            - (value,) or int
+                --> before = after = padding value for all axes.
 
-        Hint: This function follows the principle of tensor datatype integrity. 
-        Therefore, a tensor can only be padded with values of the same datatype. 
+        Hint: This function follows the principle of tensor datatype integrity.
+        Therefore, a tensor can only be padded with values of the same datatype.
         All values that violate this rule are implicitly cast to the tensor datatype.
 
     Returns
@@ -978,7 +978,7 @@ def pad(array, pad_width, mode="constant", values=0):
         else:
             padded_torch_tensor = array_torch
             for i in range(len(value_tuple) - 1, -1, -1):
-                pad_list = [0,] * 2 * rank_array
+                pad_list = [0] * 2 * rank_array
                 pad_list[i] = pad[i]
                 pad_tuple = tuple(pad_list)
                 padded_torch_tensor = torch.nn.functional.pad(
@@ -1052,7 +1052,7 @@ def pad(array, pad_width, mode="constant", values=0):
     else:
         padded_torch_tensor = array_torch
         for i in range(len(value_tuple) - 1, -1, -1):
-            pad_list = [0,] * 2 * rank_array
+            pad_list = [0] * 2 * rank_array
             pad_list[i] = pad_tuple_curr_rank[i]
             pad_tuple = tuple(pad_list)
             padded_torch_tensor = torch.nn.functional.pad(
