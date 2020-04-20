@@ -1,5 +1,7 @@
 import itertools
 import sys
+from typing import Tuple
+
 import torch
 
 from ..communication import MPI
@@ -77,9 +79,9 @@ def dot(a, b, out=None):
 
 @torch.jit.script
 def larfg(n, alpha, x):
-    # type: (int, int, torch.Tensor) -> (torch.Tensor, torch.Tensor)
+    # type: (int, int, torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]
     """
-
+    Note, this overwrites x
     Parameters
     ----------
     n : int
@@ -105,9 +107,10 @@ def larfg(n, alpha, x):
     if n <= 1:
         tau = torch.tensor(0, device=x.device, dtype=x.dtype)
         return tau, x
-    xnorm = (x.T @ x).sqrt()
+    xnorm = (x.t() @ x).sqrt()
     if xnorm == 0:
-        v = torch.eye(x.shape)  # todo: ???
+        sh = x.shape
+        v = torch.eye(torch.tensor(sh, device=x.device, dtype=x.dtype))  # todo: ???
         tau = torch.tensor(0, device=x.device, dtype=x.dtype)
         return tau, v
     else:
@@ -117,7 +120,7 @@ def larfg(n, alpha, x):
         tau = (beta - alpha) / beta
         # scale x
         x /= alpha - beta
-        return (tau, x)
+        return tau, x
 
 
 def matmul(a, b, allow_resplit=False):
