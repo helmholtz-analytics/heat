@@ -816,13 +816,13 @@ def reshape(a, shape):
         mask = torch.zeros(lshape1).flatten()
 
         local_index = 0
-        global_index = displs1[comm.rank] * np.prod(shape1[axis+1:])
+        global_index = displs1[comm.rank] * np.prod(shape1[axis + 1 :])
         local_len = np.prod(lshape1[axis:])
         global_len = np.prod(shape1[axis:])
 
-        ulen = np.prod(shape2[axis+1:])
-        
-        while local_index < np.prod(lshape1):		
+        ulen = np.prod(shape2[axis + 1 :])
+
+        while local_index < np.prod(lshape1):
             for i in range(local_len):
                 pos = global_index + i
                 jpos = (pos // ulen) % shape2[axis]
@@ -834,13 +834,17 @@ def reshape(a, shape):
             local_index += local_len
 
         uniques, counts = torch.unique(mask, return_counts=True)
-        
+
         mpicounts = torch.zeros(comm.size)
-        
-        for i,j in zip(uniques, counts):
+
+        for i, j in zip(uniques, counts):
             mpicounts[int(i)] = int(j)
 
-        return mask.argsort(), tuple(mpicounts.numpy()), (0,) + tuple(torch.cumsum(mpicounts[:-1], dim=0).numpy())
+        return (
+            mask.argsort(),
+            tuple(mpicounts.numpy()),
+            (0,) + tuple(torch.cumsum(mpicounts[:-1], dim=0).numpy()),
+        )
 
     # Check the type of shape and number elements
     shape = stride_tricks.sanitize_shape(shape)
@@ -855,15 +859,21 @@ def reshape(a, shape):
 
     # Create new flat result tensor
     _, local_shape, _ = a.comm.chunk(shape, a.split)
-    data = torch.empty(local_shape, dtype=a.dtype.torch_type(), device=a.device.torch_device).flatten()
+    data = torch.empty(
+        local_shape, dtype=a.dtype.torch_type(), device=a.device.torch_device
+    ).flatten()
 
     # Calculate the counts and displacements
     _, old_displs, _ = a.comm.counts_displs_shape(a.shape, 0)
     _, new_displs, _ = a.comm.counts_displs_shape(shape, 0)
 
     if a.split > 0:
-        sendsort, sendcounts, senddispls = reshape_argsort_counts_displs(a.shape, a.lshape, old_displs, shape, new_displs, a.split, a.comm)
-        recvsort, recvcounts, recvdispls = reshape_argsort_counts_displs(shape, local_shape, new_displs, a.shape, old_displs, a.split, a.comm)
+        sendsort, sendcounts, senddispls = reshape_argsort_counts_displs(
+            a.shape, a.lshape, old_displs, shape, new_displs, a.split, a.comm
+        )
+        recvsort, recvcounts, recvdispls = reshape_argsort_counts_displs(
+            shape, local_shape, new_displs, a.shape, old_displs, a.split, a.comm
+        )
 
         # rearrange order
         send = a._DNDarray__array.flatten()[sendsort]
@@ -883,7 +893,8 @@ def reshape(a, shape):
         recv_counts, recv_displs = reshape_counts_displs(new_csum, old_csum)
 
         a.comm.Alltoallv(
-            (a._DNDarray__array.flatten(), send_counts, send_displs), (data, recv_counts, recv_displs)
+            (a._DNDarray__array.flatten(), send_counts, send_displs),
+            (data, recv_counts, recv_displs),
         )
 
     # Reshape local tensor
