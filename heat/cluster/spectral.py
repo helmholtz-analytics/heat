@@ -1,9 +1,9 @@
-import torch
-import math
 import heat as ht
+import math
+import torch
 
 
-class Spectral:
+class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
     def __init__(
         self,
         n_clusters=None,
@@ -31,7 +31,7 @@ class Spectral:
         laplacian : string
             How to calculate the graph laplacian (affinity)
             Currently supported : 'fully_connected', 'eNeighbour'
-        theshold : float
+        threshold : float
             Threshold for affinity matrix if laplacian='eNeighbour'
             Ignorded for laplacian='fully_connected'
         boundary : string
@@ -46,10 +46,17 @@ class Spectral:
               Parameter dictionary for the assign_labels estimator
         """
         self.n_clusters = n_clusters
+        self.gamma = gamma
+        self.metric = metric
+        self.laplacian = laplacian
+        self.threshold = threshold
+        self.boundary = boundary
         self.n_lanczos = n_lanczos
+        self.assign_labels = assign_labels
+
         if metric == "rbf":
             sig = math.sqrt(1 / (2 * gamma))
-            self.laplacian = ht.graph.Laplacian(
+            self._laplacian = ht.graph.Laplacian(
                 lambda x: ht.spatial.rbf(x, sigma=sig, quadratic_expansion=True),
                 definition="norm_sym",
                 mode=laplacian,
@@ -58,7 +65,7 @@ class Spectral:
             )
 
         elif metric == "euclidean":
-            self.laplacian = ht.graph.Laplacian(
+            self._laplacian = ht.graph.Laplacian(
                 lambda x: ht.spatial.cdist(x, quadratic_expansion=True),
                 definition="norm_sym",
                 mode=laplacian,
@@ -98,7 +105,7 @@ class Spectral:
         ht.DNDarray, shape=(n, m_lanczos):
             Eigenvectors of the graph's Laplacian matrix.
         """
-        L = self.laplacian.construct(X)
+        L = self._laplacian.construct(X)
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
         v0 = ht.ones((L.shape[0],), dtype=L.dtype, split=0, device=L.device) / math.sqrt(L.shape[0])
         V, T = ht.lanczos(L, self.n_lanczos, v0)
@@ -114,8 +121,13 @@ class Spectral:
 
     def fit(self, X):
         """
-        Computes the low-dim representation by calculation of eigenspectrum (eigenvalues and eigenvectors) of the graph laplacian from the similarity matrix and fits the eigenvectors that correspond to the k lowest eigenvalues with a seperate clustering algorithm (currently only kemans is supported)
-        Similarity metrics for adjacency calculations are supported via spatial.distance. The eigenvalues and eigenvectors are computed by reducing the Laplacian via lanczos iterations and using the torch eigenvalue solver on this smaller matrix. If other eigenvalue decompostion methods are supported, this will be expanded.
+        Computes the low-dim representation by calculation of eigenspectrum (eigenvalues and eigenvectors) of the graph
+        laplacian from the similarity matrix and fits the eigenvectors that correspond to the k lowest eigenvalues with
+        a seperate clustering algorithm (currently only kmeans is supported). Similarity metrics for adjacency
+        calculations are supported via spatial.distance. The eigenvalues and eigenvectors are computed by reducing the
+        Laplacian via lanczos iterations and using the torch eigenvalue solver on this smaller matrix. If other
+        eigenvalue decompostion methods are supported, this will be expanded.
+
         Parameters
         ----------
         X : ht.DNDarray, shape=(n_samples, n_features)
@@ -150,8 +162,10 @@ class Spectral:
         """
         Predict the closest cluster each sample in X belongs to.
 
-        X is transformed to the low-dim representation by calculation of eigenspectrum (eigenvalues and eigenvectors) of the graph laplacian from the similarity matrix.
-        Inference of lables is done by extraction of the closest centroid of the n_clusters eigenvectors from the previously fitted clustering algorithm (kmeans)
+        X is transformed to the low-dim representation by calculation of eigenspectrum (eigenvalues and eigenvectors) of
+        the graph laplacian from the similarity matrix. Inference of lables is done by extraction of the closest
+        centroid of the n_clusters eigenvectors from the previously fitted clustering algorithm (kmeans).
+
         Caution: Calculation of the low-dim representation requires some time!
 
         Parameters
@@ -175,76 +189,3 @@ class Spectral:
         components = eigenvectors[:, : self.n_clusters].copy()
 
         return self._cluster.predict(components)
-
-    def fit_predict(self, X):
-        """
-        Compute cluster centers and predict cluster index for each sample.
-
-        This method should be preferred to to calling fit(X) followed by predict(X), since predict(X) requires recomputation of the low-dim eigenspectrum representation of X
-
-        Parameters
-        ----------
-        X : ht.DNDarray, shape = [n_samples, n_features]
-            Input data to be clustered.
-
-        Returns
-        -------
-        labels : ht.DNDarray, shape [n_samples,]
-            Index of the cluster each sample belongs to.
-        """
-        self.fit(X)
-        return self._labels
-
-    def get_params(self, deep=True):
-        """
-        Get parameters for this estimator.
-
-        Parameters
-        ----------
-        deep : boolean, optional
-            If True, will return the parameters for this estimator and contained sub-objects that are estimators.
-            Defaults to true.
-
-        Returns
-        -------
-        params : dict of string to any
-            Parameter names mapped to their values.
-        """
-        # unused
-        _ = deep
-
-        return {
-            "n_clusters": self.n_clusters,
-            "gamma": self.gamma,
-            "metric": self.metric,
-            "laplacian": self.laplacian,
-            "threshold": self.threshold,
-            "boundary": self.boundary,
-            "n_lanczos": self.n_lanczos,
-            "assign_labels": self.assign_labels,
-        }
-
-    def set_params(self, **params):
-        """
-        Set the parameters of this estimator.
-
-        Parameters
-        ----------
-        params : dict
-            The parameters of the estimator to be modified.
-
-        Returns
-        -------
-        self : ht.ml.KMeans
-            This estimator instance for chaining.
-        """
-        self.n_clusters = params.get("n_clusters", self.n_clusters)
-        self.gamma = params.get("gamma", self.gamma)
-        self.metric = params.get("metric", self.metric)
-        self.laplacian = params.get("laplacian", self.laplacian)
-        self.threshold = params.get("thresholdtol", self.threshold)
-        self.boundary = params.get("boundary", self.boundary)
-        self.n_lanczos = params.get("n_lanczos", self.n_lanczos)
-        self.assign_labels = params.get("assign_labels", self.assign_labels)
-
-        return self
