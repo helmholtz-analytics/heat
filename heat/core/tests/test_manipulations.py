@@ -935,11 +935,21 @@ class TestManipulations(BasicTest):
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
 
+        a = ht.array(torch.arange(3 * 4 * 5).reshape((3, 4, 5)), split=1)
+        reshaped = a.reshape((4, 5, 3)).reshape((3, 4, 5))
+        self.assertEqual(reshaped.size, a.size)
+        self.assertEqual(reshaped.shape, a.shape)
+        self.assertTrue(ht.equal(reshaped, a))
+
+        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=2)
+        reshaped = a.reshape([4, 5, 3]).reshape([3, 4, 5])
+        self.assertEqual(reshaped.size, a.size)
+        self.assertEqual(reshaped.shape, a.shape)
+        self.assertTrue(ht.equal(reshaped, a))
+
         # exceptions
         with self.assertRaises(ValueError):
             ht.reshape(ht.zeros((4, 3)), (5, 7))
-        with self.assertRaises(NotImplementedError):
-            ht.reshape(ht.ones((2, 2), split=1), (4, 1))
 
     def test_sort(self):
         size = ht.MPI_WORLD.size

@@ -759,9 +759,6 @@ def reshape(a, shape):
     ValueError
         If the number of elements changes in the new shape.
 
-    NotImplementedError
-        For split > 0 not implemented yet
-
     Examples
     --------
     >>> a = ht.zeros((3,4))
@@ -864,8 +861,8 @@ def reshape(a, shape):
     ).flatten()
 
     # Calculate the counts and displacements
-    _, old_displs, _ = a.comm.counts_displs_shape(a.shape, 0)
-    _, new_displs, _ = a.comm.counts_displs_shape(shape, 0)
+    _, old_displs, _ = a.comm.counts_displs_shape(a.shape, a.split)
+    _, new_displs, _ = a.comm.counts_displs_shape(shape, a.split)
 
     if a.split > 0:
         sendsort, sendcounts, senddispls = reshape_argsort_counts_displs(
@@ -874,8 +871,10 @@ def reshape(a, shape):
         recvsort, recvcounts, recvdispls = reshape_argsort_counts_displs(
             shape, local_shape, new_displs, a.shape, old_displs, a.split, a.comm
         )
+        print("s", sendsort, sendcounts, senddispls)
+        print("r", recvsort, recvcounts, recvdispls)
 
-        # rearrange order
+        # rearange order
         send = a._DNDarray__array.flatten()[sendsort]
         a.comm.Alltoallv((send.flatten(), sendcounts, senddispls), (data, recvcounts, recvdispls))
 
