@@ -39,7 +39,7 @@ class KNN:
         item_list = ht.vstack((item, item))
         distances = ht.spatial.cdist(item_list, self.x)[0]
         distances, indices = ht.sort(distances)
-        labels = self.y[[ind.item() for ind in indices][:self.num_neighbours]]
+        labels = self.y[[ind.item() for ind in indices][: self.num_neighbours]]
         unique = ht.unique(labels)
         max_count = 0
         selected_label = None
