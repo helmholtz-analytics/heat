@@ -871,8 +871,6 @@ def reshape(a, shape):
         recvsort, recvcounts, recvdispls = reshape_argsort_counts_displs(
             shape, local_shape, new_displs, a.shape, old_displs, a.split, a.comm
         )
-        print("s", sendsort, sendcounts, senddispls)
-        print("r", recvsort, recvcounts, recvdispls)
 
         # rearange order
         send = a._DNDarray__array.flatten()[sendsort]

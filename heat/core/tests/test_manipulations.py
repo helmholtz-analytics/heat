@@ -936,16 +936,19 @@ class TestManipulations(BasicTest):
         self.assertTrue(ht.equal(reshaped, result))
 
         a = ht.array(torch.arange(3 * 4 * 5).reshape((3, 4, 5)), split=1)
-        reshaped = a.reshape((4, 5, 3)).reshape((3, 4, 5))
-        self.assertEqual(reshaped.size, a.size)
-        self.assertEqual(reshaped.shape, a.shape)
-        self.assertTrue(ht.equal(reshaped, a))
+        result = ht.array(torch.arange(4 * 5 * 3).reshape((4, 5, 3)), split=1)
+        reshaped = a.reshape((4, 5, 3))
 
-        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=2)
-        reshaped = a.reshape([4, 5, 3]).reshape([3, 4, 5])
-        self.assertEqual(reshaped.size, a.size)
-        self.assertEqual(reshaped.shape, a.shape)
-        self.assertTrue(ht.equal(reshaped, a))
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(6 * 4 * 8).reshape([6, 4, 8]), split=2)
+        result = ht.array(torch.arange(4 * 12 * 4).reshape([4, 12, 4]), split=2)
+        reshaped = ht.reshape(a, [4, 12, 4])
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
 
         # exceptions
         with self.assertRaises(ValueError):
