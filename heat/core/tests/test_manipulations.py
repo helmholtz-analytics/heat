@@ -971,6 +971,7 @@ class TestManipulations(BasicTest):
 
         rank = ht.MPI_WORLD.rank
         data_ht_split = ht.array(data, split=0, device=ht_device)
+        data_np_split = data_ht_split.numpy()
         # data_np_split = data_ht_split.numpy()
 
         counts = data_ht_split.comm.counts_displs_shape(data_ht_split.gshape, data_ht_split.split)[
