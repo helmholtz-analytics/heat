@@ -1140,33 +1140,123 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     percentile : ht.tensor
 
     """
-    # sanitize x and axis: within operations.__reduce_op()
-    # sanitize q: scalar, list or ht.tensor
-    if not isinstance(q, dndarray.DNDarray) and not np.isscalar(q):
-        if isinstance(q, list):
-            q = factories.array(q, dtype=types.canonical_heat_type(float), device=x.device)
-        else:
-            raise TypeError(
-                "Only tensors, numeric scalars and lists are supported, but q was {}".format(
-                    type(q)
-                )
-            )
 
-    # sanitize interpolation: linear only for now
-    # TODO: implement lower, higher, nearest interpolation
-    if interpolation != "linear":
-        if interpolation in ["lower", "higher", "midpoint", "nearest"]:
-            raise NotImplementedError("Only linear interpolation implemented for now.")
+    def local_percentile(x, q, axis, keepdim):
+        # preconditions: input x is torch.tensor, sorted;
+        # returns a torch tensor
+
+        # work with torch q
+        if isinstance(q, dndarray.DNDarray):
+            local_q = q._DNDarray__array
+        elif isinstance(q, tuple) or isinstance(q, list):
+            local_q = torch.tensor(q)  # TODO: SET DEVICE
+        else:
+            # q is a scalar
+            local_q = torch.tensor([q])  # TODO: SET DEVICE
+
+        # axis is not None by definition
+        length = x.shape[axis]
+        indices = local_q / 100 * (length - 1)
+        if interpolation == "lower":
+            torch.floor_(indices).type(torch.int)
+        elif interpolation == "higher":
+            torch.ceil_(indices).type(torch.int)
+        elif interpolation == "midpoint":
+            indices = 0.5 * (torch.floor(indices) + torch.ceil(indices))
+        elif interpolation == "nearest":
+            torch.round_(indices).type(torch.int)
+        elif interpolation == "linear":
+            # leave fractional indices, interpolate linearly
+            pass
         else:
             raise ValueError("Invalid interpolation.")
 
-    x_min = min(x, axis=axis, keepdim=True)
-    x_max = max(x, axis=axis, keepdim=True)
-    percentile = q * (x_max - x_min) / 100 + x_min
-    if not keepdim:
-        manipulations.squeeze(percentile, axis=axis)
+        if indices.numel() == 1 and isinstance(indices.item(), int):
+            indices = indices.item() + 1  # torch.kthvalue k
+            result = torch.kthvalue(x, indices, dim=axis, keepdim=keepdim)
+        else:
+            try:
+                result = x[axis][indices]
+            except IndexError:  # indices are floats
+                low_vals = x[axis][torch.floor(indices).type(torch.int)]
+                high_vals = x[axis][torch.ceil(indices).type(torch.int)]
+                weights = torch.sub(indices, torch.round(indices))
+                result = low_vals + weights * (torch.sub(high_vals, low_vals))
 
-    return percentile
+        return result
+
+    # sanitize x and axis: will get done within operations.__reduce_op()
+    # sanitize q: scalar, list, tuple or ht.tensor
+    if isinstance(q, dndarray.DNDarray):
+        if x.comm.is_distributed() and q.split is not None:
+            # q needs to be local
+            q.resplit_(axis=None)
+    elif not isinstance(q, list) and not isinstance(q, tuple) and not np.isscalar(q):
+        raise TypeError(
+            "Only ht.tensors, numeric scalars and lists are supported, but q was {}".format(type(q))
+        )
+
+    output_shape = (len(q),) + x.gshape[:axis] + x.gshape[axis + 1 :]
+
+    if axis is None:
+        # flat_x = x.flatten().sort()
+        # axis = 0
+        pass
+
+    # not distributed:
+    if not x.comm.is_distributed():
+        percentile = local_percentile(x._DNDarray__array, q=q, axis=axis, keepdim=keepdim)
+    else:
+        if x.split == axis:
+            pass
+        else:
+            pass
+
+    # if distributed:
+    # this is a reduction operation
+    # use local_perc as local_op
+    # needs an MPI function for perc.
+
+    # if axis is None:
+    #     # this needs ht.flatten
+    #     # on hold
+    #     pass
+    # length = x.gshape[axis]
+    # indices = q / 100 * (length - 1)
+    # if interpolation == 'lower':
+    #     indices = np.floor(indices).astype(np.intp)
+    # elif interpolation == 'higher':
+    #     indices = np.ceil(indices).astype(np.intp)
+    # elif interpolation == 'midpoint':
+    #     indices = 0.5 * (np.floor(indices) + np.ceil(indices))
+    # elif interpolation == 'nearest':
+    #     indices = np.round(indices).astype(np.intp)
+    # elif interpolation == 'linear':
+    #     #leave fractional indices, interpolate linearly
+    #     pass
+    # else:
+    #     raise ValueError("Invalid interpolation.")
+
+    # outshape = (len(q),) + x.gshape[:axis] + x.gshape[axis+1:]
+
+    # if indices.dtype == intp:
+    #     percentile = x._DNDarray__array[axis][indices]
+    #     #TODO: is this gonna work if x is distributed?
+    # else:
+    #     indices_low = np.floor(indices).astype(np.intp)
+    #     indices_high = indices_low + 1
+    #     weights = indices - indices_low
+    #     percentile = x._DNDarray__array[axis][indices_low] + weights * (x._DNDarray__array[axis][indices_high] - x._DNDarray__array[axis][indices_low])
+    #     outshape =
+
+    # return dndarray.DNDarray(percentile, outshape ...)
+
+    # if not keepdim:
+    #     return manipulations.squeeze(percentile, axis=axis)
+
+    return dndarray.DNDarray(
+        percentile, output_shape, dtype=x.dtype, split=x.split, device=x.device, comm=x.comm
+    )
 
 
 def std(x, axis=None, ddof=0, **kwargs):
