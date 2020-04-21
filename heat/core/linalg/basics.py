@@ -1,8 +1,6 @@
 import itertools
-import sys
-from typing import Tuple
-
 import torch
+from typing import Tuple
 
 from ..communication import MPI
 from .. import arithmetics
@@ -12,7 +10,7 @@ from .. import factories
 from .. import manipulations
 from .. import types
 
-__all__ = ["dot", "larfg", "matmul", "norm", "projection", "transpose", "tril", "triu"]
+__all__ = ["dot", "gen_house_vec", "matmul", "norm", "projection", "transpose", "tril", "triu"]
 
 
 def dot(a, b, out=None):
@@ -78,10 +76,10 @@ def dot(a, b, out=None):
 
 
 @torch.jit.script
-def larfg(n, alpha, x):
-    # type: (int, int, torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]
+def gen_house_vec(x, n=2, alpha=1, overwrite=True):
+    # type: (torch.Tensor, int, int, bool) -> Tuple[torch.Tensor, torch.Tensor]
     """
-    Note, this overwrites x
+    Note, this overwrites x, todo: does it?
     Parameters
     ----------
     n : int
@@ -90,6 +88,9 @@ def larfg(n, alpha, x):
         the value alpha
     x : torch.Tensor
         overwritten
+    overwrite: bool
+        if true: overwrite x with the transform vector
+        default: True
 
     Returns
     -------
@@ -100,27 +101,34 @@ def larfg(n, alpha, x):
     Notes
     -----
     https://www.netlib.org/lapack/explore-html/d8/d9b/group__double_o_t_h_e_rauxiliary_gaabb59655e820b3551af27781bd716143.html
+    What is implemented now is only generating ONE reflector, for more would need to implement the following:
+    http://icl.cs.utk.edu/plasma/docs/dlarft_8f_source.html
 
     """
+    v = x.clone().reshape(-1, 1)
     if isinstance(alpha, (float, int)):
         alpha = torch.tensor(alpha, device=x.device, dtype=x.dtype)
     if n <= 1:
         tau = torch.tensor(0, device=x.device, dtype=x.dtype)
-        return tau, x
-    xnorm = (x.t() @ x).sqrt()
-    if xnorm == 0:
-        sh = x.shape
-        v = torch.eye(torch.tensor(sh, device=x.device, dtype=x.dtype))  # todo: ???
-        tau = torch.tensor(0, device=x.device, dtype=x.dtype)
         return tau, v
+    # traditional householder generation
+    v[0] = 1.0
+    sig = v[1:].t() @ v[1:]
+    # tau = 0.
+    # if sig == 0 and x[0] >= 0:
+    #     tau = 0.
+    # elif sig == 0 and x[0] < 0:
+    #     tau = -2.
+    # else:
+    mu = (x[0] ** 2 + sig).sqrt()
+    if x[0] <= 0:
+        v[0] = x[0] - mu
     else:
-        beta = (alpha ** 2 + xnorm ** 2).sqrt()
-        beta = beta * -1 if alpha > 0 else beta  # todo: need to 0 beta if alpha is 0?
-        # todo: implement cases for if beta is extremely small see source in LAPACK
-        tau = (beta - alpha) / beta
-        # scale x
-        x /= alpha - beta
-        return tau, x
+        v[0] = (-1 * sig / (x[0] + mu))[0]
+    tau = 2 * v[0] ** 2 / (sig + v[0] ** 2)
+    v /= v[0].clone()
+
+    return tau, v.reshape(1, -1)
 
 
 def matmul(a, b, allow_resplit=False):
