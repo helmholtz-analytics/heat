@@ -965,6 +965,14 @@ def pad(array, pad_width, mode="constant", values=0):
         counts = array.comm.counts_displs_shape(array.gshape, array.split)[0]
         amount_of_processes = len(counts)
 
+    # calculate gshape for output tensor
+    output_shape_list = list(array.gshape)
+
+    for i in range(len(array.gshape)):
+        output_shape_list[i] += sum(pad[len(pad) - 2 * (1 + i) : len(pad) - 2 * i])
+
+    output_shape = tuple(output_shape_list)
+
     # -------------------------------------------------------------------------------------------------------------------
     # CASE 1: Padding in non split dimension or no distribution at all
     # ------------------------------------------------------------------------------------------------------------------
@@ -987,7 +995,7 @@ def pad(array, pad_width, mode="constant", values=0):
 
         padded_tensor = dndarray.DNDarray(
             array=padded_torch_tensor,
-            gshape=array.gshape,
+            gshape=output_shape,
             dtype=array.dtype,
             split=array.split,
             device=array.device,
@@ -1061,7 +1069,7 @@ def pad(array, pad_width, mode="constant", values=0):
 
         padded_tensor = dndarray.DNDarray(
             array=padded_torch_tensor,
-            gshape=array.gshape,
+            gshape=output_shape,
             dtype=array.dtype,
             split=array.split,
             device=array.device,
