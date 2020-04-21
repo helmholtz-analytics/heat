@@ -810,7 +810,7 @@ def reshape(a, shape):
         """
         Compute the send order, counts, and displacements.
         """
-        mask = torch.zeros(lshape1).flatten()
+        mask = np.zeros(lshape1).flatten()
 
         local_index = 0
         global_index = displs1[comm.rank] * np.prod(shape1[axis + 1 :])
@@ -830,17 +830,17 @@ def reshape(a, shape):
             global_index += global_len
             local_index += local_len
 
-        uniques, counts = torch.unique(mask, return_counts=True)
+        uniques, counts = np.unique(mask, return_counts=True)
 
-        mpicounts = torch.zeros(comm.size)
+        mpicounts = np.zeros(comm.size)
 
         for i, j in zip(uniques, counts):
             mpicounts[int(i)] = int(j)
 
         return (
-            mask.argsort(),
-            tuple(mpicounts.numpy()),
-            (0,) + tuple(torch.cumsum(mpicounts[:-1], dim=0).numpy()),
+            mask.argsort(kind="stable"),
+            tuple(mpicounts),
+            (0,) + tuple(np.cumsum(mpicounts[:-1])),
         )
 
     # Check the type of shape and number elements
@@ -877,7 +877,7 @@ def reshape(a, shape):
         a.comm.Alltoallv((send.flatten(), sendcounts, senddispls), (data, recvcounts, recvdispls))
 
         # original order
-        backsort = torch.argsort(recvsort)
+        backsort = np.argsort(recvsort)
         data = data[backsort]
 
     else:
