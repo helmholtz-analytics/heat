@@ -1,8 +1,303 @@
 import torch
 
 from . import dndarray
+from . import factories
 
-__all__ = ["SquareDiagTiles"]
+__all__ = ["SplitTiles", "SquareDiagTiles"]
+
+
+class SplitTiles:
+    def __init__(self, arr):
+        """
+        Initialize tiles with the tile divisions equal to the theoretical split dimensions in
+        every dimension
+
+        Parameters
+        ----------
+        arr : dndarray.DNDarray
+            base array for which to create the tiles
+
+        Examples
+        --------
+        (3 processes)
+        >>> a = ht.zeros((10, 11,), split=None)
+        >>> a.create_split_tiles()
+        >>> print(a.tiles.tile_ends_g)
+        [0] tensor([[ 4,  7, 10],
+        [0]         [ 4,  8, 11]], dtype=torch.int32)
+        [1] tensor([[ 4,  7, 10],
+        [1]         [ 4,  8, 11]], dtype=torch.int32)
+        [2] tensor([[ 4,  7, 10],
+        [2]         [ 4,  8, 11]], dtype=torch.int32)
+        >>> print(a.tiles.tile_locations)
+        [0] tensor([[0, 0, 0],
+        [0]         [0, 0, 0],
+        [0]         [0, 0, 0]], dtype=torch.int32)
+        [1] tensor([[1, 1, 1],
+        [1]         [1, 1, 1],
+        [1]         [1, 1, 1]], dtype=torch.int32)
+        [2] tensor([[2, 2, 2],
+        [2]         [2, 2, 2],
+        [2]         [2, 2, 2]], dtype=torch.int32)
+        >>> a = ht.zeros((10, 11), split=1)
+        >>> a.create_split_tiles()
+        >>> print(a.tiles.tile_ends_g)
+        [0] tensor([[ 4,  7, 10],
+        [0]         [ 4,  8, 11]], dtype=torch.int32)
+        [1] tensor([[ 4,  7, 10],
+        [1]         [ 4,  8, 11]], dtype=torch.int32)
+        [2] tensor([[ 4,  7, 10],
+        [2]         [ 4,  8, 11]], dtype=torch.int32)
+        >>> print(a.tiles.tile_locations)
+        [0] tensor([[0, 1, 2],
+        [0]         [0, 1, 2],
+        [0]         [0, 1, 2]], dtype=torch.int32)
+        [1] tensor([[0, 1, 2],
+        [1]         [0, 1, 2],
+        [1]         [0, 1, 2]], dtype=torch.int32)
+        [2] tensor([[0, 1, 2],
+        [2]         [0, 1, 2],
+        [2]         [0, 1, 2]], dtype=torch.int32)
+        """
+        #  1. get the lshape map
+        #  2. get the split axis numbers for the other axes
+        #  3. build tile map
+        lshape_map = arr.create_lshape_map()
+        tile_dims = torch.zeros((arr.numdims, arr.comm.size), device=arr.device.torch_device)
+        if arr.split is not None:
+            tile_dims[arr.split] = lshape_map[..., arr.split]
+        w_size = arr.comm.size
+        for ax in range(arr.numdims):
+            if arr.split is None or not ax == arr.split:
+                size = arr.gshape[ax]
+                chunk = size // w_size
+                remainder = size % w_size
+                tile_dims[ax] = chunk
+                tile_dims[ax][:remainder] += 1
+
+        tile_ends_g = torch.cumsum(tile_dims, dim=1).int()
+        # tile_ends_g is the global end points of the tiles in each dimension
+        # create a tensor for the process rank of all the tiles
+        tile_locations = self.set_tile_locations(split=arr.split, tile_dims=tile_dims, arr=arr)
+
+        self.__DNDarray = arr
+        self.__lshape_map = lshape_map
+        self.__tile_locations = tile_locations
+        self.__tile_ends_g = tile_ends_g
+        self.__tile_dims = tile_dims
+
+    @staticmethod
+    def set_tile_locations(split, tile_dims, arr):
+        """
+        Create a torch Tensor with the locations of the tiles for SplitTiles
+
+        Parameters
+        ----------
+        split : int
+            target split dimension. does not need to be equal to arr.split
+        tile_dims : torch.Tensor
+            torch Tensor containing the sizes of the each tile
+        arr : DNDarray
+            array for which the tiles are being created for
+
+        Returns
+        -------
+        tile_locations : torch.Tensor
+            a tensor which contains the locations of the tiles of arr for the given split
+        """
+        # this is split off specifically for the resplit function
+        tile_locations = torch.zeros(
+            [tile_dims[x].numel() for x in range(arr.numdims)],
+            dtype=torch.int64,
+            device=arr.device.torch_device,
+        )
+        if split is None:
+            tile_locations += arr.comm.rank
+            return tile_locations
+        arb_slice = [slice(None)] * arr.numdims
+        for pr in range(1, arr.comm.size):
+            arb_slice[split] = pr
+            tile_locations[tuple(arb_slice)] = pr
+        return tile_locations
+
+    @property
+    def arr(self):
+        return self.__DNDarray
+
+    @property
+    def lshape_map(self):
+        return self.__lshape_map
+
+    @property
+    def tile_locations(self):
+        """
+        Get the torch Tensor with the locations of the tiles for SplitTiles
+
+        Examples
+        --------
+        see :func:`~SplitTiles.__init__`
+        """
+        return self.__tile_locations
+
+    @property
+    def tile_ends_g(self):
+        """
+        Returns
+        -------
+        end_of_tiles_global : torch.Tensor
+            tensor wih the global indces with the end points of the tiles in every dimension
+
+        Examples
+        --------
+        see :func:`~SplitTiles.__init__`
+        """
+        return self.__tile_ends_g
+
+    @property
+    def tile_dimensions(self):
+        return self.__tile_dims
+
+    def __getitem__(self, key):
+        """
+        Getitem function for getting tiles
+
+        Parameters
+        ----------
+        key : int, tuple, slice
+            key which identifies the tile/s to get
+
+        Returns
+        -------
+        tile/s : torch.Tensor
+             the tile which is specified is returned, but only on the process which it resides
+
+        Examples
+        --------
+        >>> test = torch.arange(np.prod([i + 6 for i in range(2)])).reshape([i + 6 for i in range(2)])
+        >>> a = ht.array(test, split=0)
+        [0] tensor([[ 0.,  1.,  2.,  3.,  4.,  5.,  6.],
+        [0]         [ 7.,  8.,  9., 10., 11., 12., 13.]])
+        [1] tensor([[14., 15., 16., 17., 18., 19., 20.],
+        [1]         [21., 22., 23., 24., 25., 26., 27.]])
+        [2] tensor([[28., 29., 30., 31., 32., 33., 34.],
+        [2]         [35., 36., 37., 38., 39., 40., 41.]])
+        >>> a.create_split_tiles()
+        >>> a.tiles[:2, 2]
+        [0] tensor([[ 5.,  6.],
+        [0]         [12., 13.]])
+        [1] tensor([[19., 20.],
+        [1]         [26., 27.]])
+        [2] None
+        >>> a = ht.array(test, split=1)
+        >>> a.create_split_tiles()
+        >>> a.tiles[1]
+        [0] tensor([[14., 15., 16.],
+        [0]         [21., 22., 23.]])
+        [1] tensor([[17., 18.],
+        [1]         [24., 25.]])
+        [2] tensor([[19., 20.],
+        [2]         [26., 27.]])
+        """
+        # todo: strides can be implemented with using a list of slices for each dimension
+        if not isinstance(key, (tuple, slice, int, torch.Tensor)):
+            raise TypeError("key type not supported: {}".format(type(key)))
+        arr = self.__DNDarray
+        # if arr.comm.rank not in self.tile_locations[key]:
+        #     return None
+        # This filters out the processes which are not involved
+        # next need to get the local indices
+        # tile_ends_g has the end points, need to get the start and stop
+        if arr.comm.rank not in self.tile_locations[key]:
+            return None
+        arb_slices = self.get_tile_slices(key)
+        return arr._DNDarray__array[tuple(arb_slices)]
+
+    def get_tile_slices(self, key):
+        arr = self.__DNDarray
+        arb_slices = [None] * arr.numdims
+        # print(self.tile_locations[key])
+        end_rank = (
+            max(self.tile_locations[key].unique())
+            if self.tile_locations[key].unique().numel() > 1
+            else self.tile_locations[key]
+        )
+
+        if isinstance(key, int):
+            key = [key]
+        if len(key) < arr.numdims or key[-1] is None:
+            lkey = list(key)
+            lkey.extend([slice(0, None)] * (arr.numdims - len(key)))
+            key = lkey
+        for d in range(arr.numdims):
+            # todo: implement advanced indexing (lists of positions to iterate through)
+            lkey = key
+            stop = self.tile_ends_g[d][lkey[d]].max().item()
+            # print(stop, self.lshape_map[end_rank][d].max())
+            stop = (
+                stop
+                if d != arr.split or stop is None
+                else self.lshape_map[end_rank][d].max().item()
+            )
+            if (
+                isinstance(lkey[d], slice)
+                and d != arr.split
+                and lkey[d].start != 0
+                and lkey[d].start is not None
+            ):
+                # if the key is a slice in a dimension, and the start value of the slice is not 0,
+                # and d is not the split dimension (-> the tiles start at 0 on all tiles in the split dim)
+                start = self.tile_ends_g[d][lkey[d].start - 1].item()
+            elif isinstance(lkey[d], int) and lkey[d] > 0 and d != arr.split:
+                start = self.tile_ends_g[d][lkey[d] - 1].item()
+            elif (
+                isinstance(lkey[d], torch.Tensor)
+                and lkey[d].numel() == 1
+                and lkey[d] > 0
+                and d != arr.split
+            ):
+                start = self.tile_ends_g[d][lkey[d] - 1].item()
+            else:
+                start = 0
+            arb_slices[d] = slice(start, stop)
+        return arb_slices
+
+    def get_tile_size(self, key):
+        arb_slices = self.get_tile_slices(key)
+        inds = []
+        for sl in arb_slices:
+            inds.append(sl.stop - sl.start)
+        return tuple(inds)
+
+    def __setitem__(self, key, value):
+        """
+        Set the values of a tile
+
+        Parameters
+        ----------
+        key : int, tuple, slice
+            key which identifies the tile/s to get
+        value : int, torch.Tensor
+            Value to be set on the tile
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        see getitem function for this class
+        """
+        if not isinstance(key, (tuple, slice, int, torch.Tensor)):
+            raise TypeError("key type not supported: {}".format(type(key)))
+        if not isinstance(value, (torch.Tensor, int, float)):
+            raise TypeError("value type not supported: {}".format(type(value)))
+        # todo: is it okay for cross-split setting? this can be problematic,
+        #   but it is fine if the data shapes match up
+        if self.__DNDarray.comm.rank not in self.tile_locations[key]:
+            return None
+        # this will set the tile values using the torch setitem function
+        arr = self.__getitem__(key)
+        arr.__setitem__(slice(0, None), value)
 
 
 class SquareDiagTiles:

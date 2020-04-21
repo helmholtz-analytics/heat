@@ -607,6 +607,47 @@ class TestDNDarray(unittest.TestCase):
         self.assertEqual(data.dtype, ht.uint8)
         self.assertEqual(data._DNDarray__array.dtype, expected.dtype)
 
+        # "in place"
+        length = torch.tensor([i + 20 for i in range(2)], device=device)
+        test = torch.arange(torch.prod(length), dtype=torch.float64, device=device).reshape(
+            [i + 20 for i in range(2)]
+        )
+        a = ht.array(test, split=1)
+        a.resplit_(axis=0)
+        self.assertTrue(ht.equal(a, ht.array(test, split=0)))
+        self.assertEqual(a.split, 0)
+        self.assertEqual(a.dtype, ht.float64)
+        del a
+
+        test = torch.arange(torch.prod(length), device=device)
+        a = ht.array(test, split=0)
+        a.resplit_(axis=None)
+        self.assertTrue(ht.equal(a, ht.array(test, split=None)))
+        self.assertEqual(a.split, None)
+        self.assertEqual(a.dtype, ht.int64)
+        del a
+
+        a = ht.array(test, split=None)
+        a.resplit_(axis=0)
+        self.assertTrue(ht.equal(a, ht.array(test, split=0)))
+        self.assertEqual(a.split, 0)
+        self.assertEqual(a.dtype, ht.int64)
+        del a
+
+        a = ht.array(test, split=0)
+        resplit_a = ht.manipulations.resplit(a, axis=None)
+        self.assertTrue(ht.equal(resplit_a, ht.array(test, split=None)))
+        self.assertEqual(resplit_a.split, None)
+        self.assertEqual(resplit_a.dtype, ht.int64)
+        del a
+
+        a = ht.array(test, split=None)
+        resplit_a = ht.manipulations.resplit(a, axis=0)
+        self.assertTrue(ht.equal(resplit_a, ht.array(test, split=0)))
+        self.assertEqual(resplit_a.split, 0)
+        self.assertEqual(resplit_a.dtype, ht.int64)
+        del a
+
     def test_rshift(self):
         int_tensor = ht.array([[0, 2], [4, 8]])
         int_result = ht.array([[0, 0], [1, 2]])
