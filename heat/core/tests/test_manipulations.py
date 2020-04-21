@@ -786,7 +786,6 @@ class TestManipulations(BasicTest):
         res = ht.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], split=0, device=ht_device)
         self.assertTrue(ht.equal(ht.flatten(a), res))
         self.assertEqual(a.dtype, res.dtype)
-        self.assertEqual(a.device, res.device)
 
         a = ht.array(
             [[[False, False], [False, True]], [[True, False], [True, True]]],
