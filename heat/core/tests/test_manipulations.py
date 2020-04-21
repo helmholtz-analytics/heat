@@ -792,6 +792,7 @@ class TestManipulations(BasicTest):
             [[[False, False], [False, True]], [[True, False], [True, True]]],
             split=2,
             device=ht_device,
+            dtype=ht.bool,
         )
         res = ht.array(
             [False, False, False, True, True, False, True, True],
