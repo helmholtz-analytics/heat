@@ -598,7 +598,8 @@ def expand_dims(a, axis):
 
 def flatten(a):
     """
-    Flattens an array into one dimension
+    Flattens an array into one dimension.
+    WARNING: if a.split > 0, then the array must be resplit.
 
     Parameters
     ----------
@@ -623,10 +624,9 @@ def flatten(a):
             comm=a.comm,
         )
 
-    # The resplit function scramble the tensor when switching axes, see issue 425
     if a.split > 0:
         a = resplit(a, 0)
-        warnings.warn("The flattened tensor may have a wrong order for split axes > 0", UserWarning)
+
     a = factories.array(
         torch.flatten(a._DNDarray__array),
         dtype=a.dtype,
