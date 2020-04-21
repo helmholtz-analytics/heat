@@ -106,8 +106,8 @@ def gen_house_vec(x, n=2, alpha=1, overwrite=True):
 
     """
     v = x.clone().reshape(-1, 1)
-    if isinstance(alpha, (float, int)):
-        alpha = torch.tensor(alpha, device=x.device, dtype=x.dtype)
+    # if isinstance(alpha, (float, int)):
+    #     alpha = torch.tensor(alpha, device=x.device, dtype=x.dtype)
     if n <= 1:
         tau = torch.tensor(0, device=x.device, dtype=x.dtype)
         return tau, v
