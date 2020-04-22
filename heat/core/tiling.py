@@ -600,7 +600,7 @@ class SquareDiagTiles:
         )
         # this is the number of rows/columns after the last diagonal on the last diagonal pr
 
-        while 1 < torch.true_divide(rem_cols_last_pr, last_tile_cols) < 2:
+        while 1 < torch.floor_divide(rem_cols_last_pr, last_tile_cols) < 2:
             # todo: determine best value for this (prev at 2)
             # if there cannot be tiles formed which are at list ten items larger than 2
             #   then need to reduce the number of tiles
