@@ -903,6 +903,7 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
     # (Q) need to get the start stop of diag tial
     diag_st_sp = r_tiles.get_start_stop(key=(dcol, dcol))
     for row in range(dcol + 1, tile_rows):
+        print("diag", diag_process)
         if rank == diag_process:
             # cat diag tile and loop tile
             loop_tile = r_tiles[row, dcol]
@@ -927,7 +928,7 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
         elif rank > diag_process:
             st_sp = r_tiles.get_start_stop(key=(row, dcol))
             lp_sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
-            print("recv", lp_sz, lp_sz[0] + diag_sz[0])
+            print("recv", lp_sz, lp_sz[0] + diag_sz[0], rank, diag_process)
             ql = torch.zeros(
                 [lp_sz[0] + diag_sz[0]] * 2,
                 dtype=r_tiles.arr.dtype.torch_type(),
