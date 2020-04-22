@@ -807,7 +807,9 @@ def reshape(a, shape, axis=None):
 
         return result, torch.cat((torch.tensor([0]), torch.cumsum(result[:-1], dim=0)))
 
-    def reshape_argsort_counts_displs(shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm):
+    def reshape_argsort_counts_displs(
+        shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm
+    ):
         """
         Compute the send order, counts, and displacements. (split >= 0)
         """
