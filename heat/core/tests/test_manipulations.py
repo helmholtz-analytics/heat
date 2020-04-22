@@ -950,6 +950,13 @@ class TestManipulations(BasicTest):
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
 
+        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=2)
+        result = ht.array(torch.arange(4 * 5 * 3).reshape([4, 5, 3]), split=1)
+        reshaped = ht.reshape(a, [4, 5, 3], axis=1)
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
         # exceptions
         with self.assertRaises(ValueError):
             ht.reshape(ht.zeros((4, 3)), (5, 7))
