@@ -736,7 +736,7 @@ def hstack(tup):
     return concatenate(tup, axis=axis)
 
 
-def reshape(a, shape):
+def reshape(a, shape, axis=None):
     """
     Returns a tensor with the same data and number of elements as a, but with the specified shape.
 
@@ -746,6 +746,8 @@ def reshape(a, shape):
         The input tensor
     shape : tuple
         Shape of the new tensor
+    axis : int
+        The new split axis. None denotes same axis
 
     Returns
     -------
@@ -805,22 +807,22 @@ def reshape(a, shape):
 
         return result, torch.cat((torch.tensor([0]), torch.cumsum(result[:-1], dim=0)))
 
-    def reshape_argsort_counts_displs(shape1, lshape1, displs1, shape2, displs2, axis, comm):
+    def reshape_argsort_counts_displs(shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm):
         """
         Compute the send order, counts, and displacements. (split >= 0)
         """
         mask = torch.empty(lshape1, dtype=torch.int, device=a.device.torch_device).flatten()
 
         local_index = 0
-        global_index = displs1[comm.rank] * torch.prod(torch.tensor(shape1[axis + 1 :]))
-        local_len = torch.prod(torch.tensor(lshape1[axis:]))
-        global_len = torch.prod(torch.tensor(shape1[axis:]))
-        ulen = torch.prod(torch.tensor(shape2[axis + 1 :]))
+        global_index = displs1[comm.rank] * torch.prod(torch.tensor(shape1[axis1 + 1 :]))
+        local_len = torch.prod(torch.tensor(lshape1[axis1:]))
+        global_len = torch.prod(torch.tensor(shape1[axis1:]))
+        ulen = torch.prod(torch.tensor(shape2[axis2 + 1 :]))
 
         while local_index < torch.prod(torch.tensor(lshape1)):
             for i in range(local_len):
                 pos = global_index + i
-                jpos = (pos // ulen) % shape2[axis]
+                jpos = (pos // ulen) % shape2[axis2]
                 # search new process id
                 for j, k in zip(displs2, range(comm.size)):
                     if j <= jpos:
@@ -856,22 +858,27 @@ def reshape(a, shape):
             torch.reshape(a._DNDarray__array, shape), dtype=a.dtype, device=a.device, comm=a.comm
         )
 
+    # check axis parameter
+    if axis is None:
+        axis = a.split
+    stride_tricks.sanitize_axis(shape, axis)
+
     # Create new flat result tensor
-    _, local_shape, _ = a.comm.chunk(shape, a.split)
+    _, local_shape, _ = a.comm.chunk(shape, axis)
     data = torch.empty(
         local_shape, dtype=a.dtype.torch_type(), device=a.device.torch_device
     ).flatten()
 
     # Calculate the counts and displacements
     _, old_displs, _ = a.comm.counts_displs_shape(a.shape, a.split)
-    _, new_displs, _ = a.comm.counts_displs_shape(shape, a.split)
+    _, new_displs, _ = a.comm.counts_displs_shape(shape, axis)
 
-    if a.split > 0:
+    if a.split > 0 or a.split != axis:
         sendsort, sendcounts, senddispls = reshape_argsort_counts_displs(
-            a.shape, a.lshape, old_displs, shape, new_displs, a.split, a.comm
+            a.shape, a.lshape, old_displs, a.split, shape, new_displs, axis, a.comm
         )
         recvsort, recvcounts, recvdispls = reshape_argsort_counts_displs(
-            shape, local_shape, new_displs, a.shape, old_displs, a.split, a.comm
+            shape, local_shape, new_displs, axis, a.shape, old_displs, a.split, a.comm
         )
 
         # rearange order
@@ -915,7 +922,7 @@ def reshape(a, shape):
     # Reshape local tensor
     data = data.reshape(local_shape)
 
-    return factories.array(data, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
+    return factories.array(data, dtype=a.dtype, is_split=axis, device=a.device, comm=a.comm)
 
 
 def sort(a, axis=None, descending=False, out=None):
