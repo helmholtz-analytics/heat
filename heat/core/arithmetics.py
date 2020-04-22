@@ -406,7 +406,7 @@ def div(t1, t2):
     tensor([[2.0000, 1.0000],
             [0.6667, 0.5000]])
     """
-    return operations.__binary_op(torch.div, t1, t2)
+    return operations.__binary_op(torch.true_divide, t1, t2)
 
 
 # Alias in compliance with numpy API
@@ -481,7 +481,7 @@ def floordiv(t1, t2):
     tensor([[1., 0.],
             [1., 1.]])
     """
-    return operations.__binary_op(lambda a, b: torch.div(a, b).floor(), t1, t2)
+    return operations.__binary_op(torch.floor_divide, t1, t2)
 
 
 # Alias in compliance with numpy API
