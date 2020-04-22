@@ -72,20 +72,20 @@ class TestQR(unittest.TestCase):
                     )
 
     def test_qr(self):
-        m, n = 20, 40
-        st = torch.randn(m, n, device=device, dtype=torch.float)
-        a_comp = ht.array(st, split=0, device=ht_device)
-        for t in range(1, 3):
-            for sp in range(2):
-                a = ht.array(st, split=sp, device=ht_device, dtype=torch.float)
-                qr = a.qr(tiles_per_proc=t)
-                self.assertTrue(ht.allclose((a_comp - (qr.Q @ qr.R)), 0, rtol=1e-5, atol=1e-5))
-                self.assertTrue(
-                    ht.allclose(qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5)
-                )
-                self.assertTrue(
-                    ht.allclose(ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5)
-                )
+        # m, n = 20, 40
+        # st = torch.randn(m, n, device=device, dtype=torch.float)
+        # a_comp = ht.array(st, split=0, device=ht_device)
+        # for t in range(1, 3):
+        #     for sp in range(2):
+        #         a = ht.array(st, split=sp, device=ht_device, dtype=torch.float)
+        #         qr = a.qr(tiles_per_proc=t)
+        #         self.assertTrue(ht.allclose((a_comp - (qr.Q @ qr.R)), 0, rtol=1e-5, atol=1e-5))
+        #         self.assertTrue(
+        #             ht.allclose(qr.Q.T @ qr.Q, ht.eye(m, device=ht_device), rtol=1e-5, atol=1e-5)
+        #         )
+        #         self.assertTrue(
+        #             ht.allclose(ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5)
+        #         )
         m, n = 40, 40
         st1 = torch.randn(m, n, device=device)
         a_comp1 = ht.array(st1, split=0, device=ht_device)
