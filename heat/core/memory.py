@@ -28,7 +28,7 @@ def copy(a):
 
 def sanitize_memory_layout(x, order="C"):
     """
-    Return the given object with memory layout as defined below.
+    Return the given object with memory layout as defined below. The default memory distribution is assumed.
 
     Parameters
     -----------
