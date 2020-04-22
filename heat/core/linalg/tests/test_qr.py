@@ -103,8 +103,8 @@ class TestQR(unittest.TestCase):
         m, n = 40, 20
         st2 = torch.randn(m, n, dtype=torch.double, device=device)
         a_comp2 = ht.array(st2, split=0, dtype=ht.double, device=ht_device)
-        for t in range(1, 3):
-            for sp in range(2):
+        for t in range(1, 2):
+            for sp in range(1, 2):
                 a2 = ht.array(st2, split=sp, device=ht_device)
                 qr2 = a2.qr(tiles_per_proc=t)
                 self.assertTrue(ht.allclose(a_comp2, qr2.Q @ qr2.R, rtol=1e-5, atol=1e-5))
