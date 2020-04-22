@@ -531,9 +531,7 @@ def diagonal(a, offset=0, dim1=0, dim2=1):
     else:
         vz = 1 if a.split == dim1 else -1
         off, _, _ = a.comm.chunk(a.shape, a.split)
-        result = torch.diagonal(
-            a._DNDarray__array, offset=offset + vz * off, dim1=dim1, dim2=dim2
-        ).contiguous()
+        result = torch.diagonal(a._DNDarray__array, offset=offset + vz * off, dim1=dim1, dim2=dim2)
     return factories.array(result, dtype=a.dtype, is_split=split, device=a.device, comm=a.comm)
 
 
