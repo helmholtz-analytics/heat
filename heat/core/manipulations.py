@@ -740,8 +740,6 @@ def reshape(a, shape):
     """
     Returns a tensor with the same data and number of elements as a, but with the specified shape.
 
-    NOTE: Only tensors with split = None and distributed vectors (dim = 1) are supported yet
-
     Parameters
     ----------
     a : ht.DNDarray
@@ -778,8 +776,6 @@ def reshape(a, shape):
         """
         Calculate the counts and displacements needed for redistributing the data from two cumulative sums. (split=0)
         """
-        csum1 = torch.tensor(csum1, dtype=torch.int, device=a.device.torch_device)
-        csum2 = torch.tensor(csum2, dtype=torch.int, device=a.device.torch_device)
 
         p = csum1[a.comm.rank - 1] if a.comm.rank > 0 else 0
         i = 0
