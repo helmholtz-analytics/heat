@@ -423,7 +423,7 @@ class SquareDiagTiles:
         if arr.gshape[0] < arr.gshape[1]:
             row_inds_hold = []
             for i in torch.nonzero(
-                torch.tensor(row_inds, device=arr._DNDarray__array.device)
+                input=torch.tensor(row_inds, device=arr._DNDarray__array.device), as_tuple=False
             ).flatten():
                 row_inds_hold.append(row_inds[i.item()])
             row_inds = row_inds_hold
@@ -521,7 +521,7 @@ class SquareDiagTiles:
         # need to find the amount of data after the diagonal
         lshape_cumsum = torch.cumsum(lshape_map[..., 0], dim=0)
         diff = lshape_cumsum[last_diag_pr] - arr.gshape[1]
-        if diff > lshape_map[last_diag_pr, 0] / 2:  # todo: tune this?
+        if diff > torch.true_divide(lshape_map[last_diag_pr, 0], 2):  # todo: tune this?
             # if the shape diff is > half the data on the process
             #   then add a row after the diagonal, todo: is multiple rows faster?
             row_inds.insert(tile_columns, diff)
@@ -600,7 +600,7 @@ class SquareDiagTiles:
         )
         # this is the number of rows/columns after the last diagonal on the last diagonal pr
 
-        while 1 < rem_cols_last_pr / last_tile_cols < 2:
+        while 1 < torch.true_divide(rem_cols_last_pr, last_tile_cols) < 2:
             # todo: determine best value for this (prev at 2)
             # if there cannot be tiles formed which are at list ten items larger than 2
             #   then need to reduce the number of tiles
@@ -626,11 +626,12 @@ class SquareDiagTiles:
         # create the tile columns sizes, saved to list
         col_inds = []
         for col in range(tile_columns.item()):
+            off = torch.floor_divide(col, tiles_per_proc)
             _, lshape, _ = arr.comm.chunk(
-                [diag_crossings[col // tiles_per_proc + 1] - diag_crossings[col // tiles_per_proc]],
+                [diag_crossings[off + 1] - diag_crossings[off]],
                 0,
                 rank=int(col % tiles_per_proc),
-                w_size=tiles_per_proc if col // tiles_per_proc != last_dia_pr else last_tile_cols,
+                w_size=tiles_per_proc if off != last_dia_pr else last_tile_cols,
             )
             col_inds.append(lshape[0])
         return last_dia_pr, col_per_proc_list, col_inds, tile_columns
@@ -642,7 +643,9 @@ class SquareDiagTiles:
         Adjust the rows on the processes which are greater than the last diagonal processs to have
         rows which are chunked evenly into `tiles_per_proc` rows/
         """
-        nz = torch.nonzero(torch.tensor(row_inds, device=arr._DNDarray__array.device) == 0)
+        nz = torch.nonzero(
+            input=torch.tensor(row_inds, device=arr._DNDarray__array.device) == 0, as_tuple=False
+        )
         for i in range(last_diag_pr.item() + 1, arr.comm.size):
             # loop over all of the rest of the processes
             for t in range(tiles_per_proc):
