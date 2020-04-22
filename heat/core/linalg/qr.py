@@ -903,6 +903,9 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
     # (Q) need to get the start stop of diag tial
     diag_st_sp = r_tiles.get_start_stop(key=(dcol, dcol))
     for row in range(dcol + 1, tile_rows):
+        lp_st_sp = r_tiles.get_start_stop(key=(row, dcol))
+        lp_sz = lp_st_sp[1] - lp_st_sp[0], lp_st_sp[3] - lp_st_sp[2]
+        # print("diag", diag_process)
         if rank == diag_process:
             # cat diag tile and loop tile
             loop_tile = r_tiles[row, dcol]
@@ -910,7 +913,7 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
             # qr
             ql, rl = loop_cat.qr(some=False)
             # send ql to all
-            r_tiles.arr.comm.Bcast(ql.clone(), root=diag_process)
+            r_tiles.arr.comm.Bcast(ql.clone().contiguous(), root=diag_process)
             # set rs
             r_tiles[dcol, dcol] = rl[: diag_sz[0]]
             r_tiles[row, dcol] = rl[diag_sz[0] :]
@@ -924,8 +927,6 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
                 # set lower
                 r_tiles.local_set(key=(row, slice(loc_col + 1, None)), value=hold[diag_sz[0] :])
         elif rank > diag_process:
-            st_sp = r_tiles.get_start_stop(key=(row, dcol))
-            lp_sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
             ql = torch.zeros(
                 [lp_sz[0] + diag_sz[0]] * 2,
                 dtype=r_tiles.arr.dtype.torch_type(),
@@ -940,8 +941,6 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
             # set lower
             r_tiles.local_set(key=(row, slice(0, None)), value=hold[diag_sz[0] :])
         else:
-            st_sp = r_tiles.get_start_stop(key=(row, dcol))
-            lp_sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
             ql = torch.zeros(
                 [lp_sz[0] + diag_sz[0]] * 2,
                 dtype=r_tiles.arr.dtype.torch_type(),
