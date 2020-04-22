@@ -91,6 +91,7 @@ class TestQR(unittest.TestCase):
         a_comp1 = ht.array(st1, split=0, device=ht_device)
         for t in range(1, 3):
             for sp in range(2):
+                print(sp, t)
                 a1 = ht.array(st1, split=sp, device=ht_device)
                 qr1 = a1.qr(tiles_per_proc=t)
                 self.assertTrue(ht.allclose((a_comp1 - (qr1.Q @ qr1.R)), 0, rtol=1e-5, atol=1e-5))
