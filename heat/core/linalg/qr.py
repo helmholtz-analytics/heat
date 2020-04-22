@@ -910,6 +910,7 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
             # qr
             ql, rl = loop_cat.qr(some=False)
             # send ql to all
+            print("send", ql.shape)
             r_tiles.arr.comm.Bcast(ql.clone(), root=diag_process)
             # set rs
             r_tiles[dcol, dcol] = rl[: diag_sz[0]]
@@ -926,6 +927,7 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
         elif rank > diag_process:
             st_sp = r_tiles.get_start_stop(key=(row, dcol))
             lp_sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
+            print("recv", lp_sz, lp_sz[0] + diag_sz[0])
             ql = torch.zeros(
                 [lp_sz[0] + diag_sz[0]] * 2,
                 dtype=r_tiles.arr.dtype.torch_type(),
