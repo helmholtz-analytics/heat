@@ -2,6 +2,7 @@ import torch
 
 from .communication import MPI
 from . import dndarray
+from . import factories
 from . import operations
 from . import stride_tricks
 from . import types
@@ -12,6 +13,9 @@ __all__ = [
     "bitwise_not",
     "bitwise_or",
     "bitwise_xor",
+    "cumprod",
+    "cumproduct",
+    "cumsum",
     "diff",
     "div",
     "divide",
@@ -91,7 +95,7 @@ def bitwise_and(t1, t2):
     import heat as ht
     >>> ht.bitwise_and(13, 17)
     tensor([1])
-    >>> np.bitwise_and(14, 13)
+    >>> ht.bitwise_and(14, 13)
     tensor([12])
 
     >>> ht.bitwise_and(ht.array([14,3]), 13)
@@ -195,6 +199,87 @@ def bitwise_xor(t1, t2):
             raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__xor__, t1, t2)
+
+
+def cumprod(a, axis, dtype=None, out=None):
+    """
+    Return the cumulative product of elements along a given axis.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : int
+        Axis along which the cumulative product is computed.
+    dtype : dtype, optional
+        Type of the returned array, as well as of the accumulator in which
+        the elements are multiplied.  If *dtype* is not specified, it
+        defaults to the dtype of `a`, unless `a` has an integer dtype with
+        a precision less than that of the default platform integer.  In
+        that case, the default platform integer is used instead.
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must
+        have the same shape and buffer length as the expected output
+        but the type of the resulting values will be cast if necessary.
+
+    Returns
+    -------
+    cumprod : DNDarray
+        A new array holding the result is returned unless `out` is
+        specified, in which case a reference to out is returned.
+
+    Examples
+    --------
+    >>> a = ht.full((3,3), 2)
+    >>> ht.cumprod(a, 0)
+    tensor([[2., 2., 2.],
+            [4., 4., 4.],
+            [8., 8., 8.])
+    """
+    return operations.__cum_op(a, torch.cumprod, MPI.PROD, torch.mul, 1, axis, dtype, out)
+
+
+# Alias support
+cumproduct = cumprod
+
+
+def cumsum(a, axis, dtype=None, out=None):
+    """
+    Return the cumulative sum of the elements along a given axis.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : int
+        Axis along which the cumulative sum is computed.
+    dtype : dtype, optional
+        Type of the returned array and of the accumulator in which the
+        elements are summed.  If `dtype` is not specified, it defaults
+        to the dtype of `a`, unless `a` has an integer dtype with a
+        precision less than that of the default platform integer.  In
+        that case, the default platform integer is used.
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must
+        have the same shape and buffer length as the expected output
+        but the type will be cast if necessary. See `doc.ufuncs`
+        (Section "Output arguments") for more details.
+
+    Returns
+    -------
+    cumsum : DNDarray
+        A new array holding the result is returned unless `out` is
+        specified, in which case a reference to out is returned.
+
+    Examples
+    --------
+    >>> a = ht.ones((3,3))
+    >>> ht.cumsum(a, 0)
+    tensor([[1., 1., 1.],
+            [2., 2., 2.],
+            [3., 3., 3.])
+    """
+    return operations.__cum_op(a, torch.cumsum, MPI.SUM, torch.add, 0, axis, dtype, out)
 
 
 def diff(a, n=1, axis=-1):
@@ -321,7 +406,7 @@ def div(t1, t2):
     tensor([[2.0000, 1.0000],
             [0.6667, 0.5000]])
     """
-    return operations.__binary_op(torch.div, t1, t2)
+    return operations.__binary_op(torch.true_divide, t1, t2)
 
 
 # Alias in compliance with numpy API
@@ -396,7 +481,7 @@ def floordiv(t1, t2):
     tensor([[1., 0.],
             [1., 1.]])
     """
-    return operations.__binary_op(lambda a, b: torch.div(a, b).floor(), t1, t2)
+    return operations.__binary_op(torch.floor_divide, t1, t2)
 
 
 # Alias in compliance with numpy API
