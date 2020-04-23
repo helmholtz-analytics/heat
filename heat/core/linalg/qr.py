@@ -914,7 +914,7 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
             ql, rl = loop_cat.qr(some=False)
             # send ql to all
             print(row, "send", ql.shape)
-            # r_tiles.arr.comm.Bcast(ql.clone(), root=diag_process)
+            r_tiles.arr.comm.Bcast(ql.clone().contiguous(), root=diag_process)
             # set rs
             r_tiles[dcol, dcol] = rl[: diag_sz[0]]
             r_tiles[row, dcol] = rl[diag_sz[0] :]
@@ -934,7 +934,7 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
                 dtype=r_tiles.arr.dtype.torch_type(),
                 device=r_torch_device,
             )
-            # r_tiles.arr.comm.Bcast(ql, root=diag_process)
+            r_tiles.arr.comm.Bcast(ql, root=diag_process)
             upp = r_tiles.local_get(key=(dcol, slice(0, None)))
             low = r_tiles.local_get(key=(row, slice(0, None)))
             hold = torch.matmul(ql.T, torch.cat((upp, low), dim=0))
@@ -949,7 +949,7 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
                 dtype=r_tiles.arr.dtype.torch_type(),
                 device=r_torch_device,
             )
-            # r_tiles.arr.comm.Bcast(ql, root=diag_process)
+            r_tiles.arr.comm.Bcast(ql, root=diag_process)
         # # ================================ Q Calculation - merged tiles ========================
         # if calc_q:
         #     top_left = ql[: diag_sz[0], : diag_sz[0]]
