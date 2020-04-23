@@ -943,6 +943,7 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
             # set lower
             r_tiles.local_set(key=(row, slice(0, None)), value=hold[diag_sz[0] :])
         else:
+            print(row, "recv", lp_sz, "h", [lp_sz[0] + diag_sz[0]] * 2, rank, diag_process)
             ql = torch.zeros(
                 [lp_sz[0] + diag_sz[0]] * 2,
                 dtype=r_tiles.arr.dtype.torch_type(),
