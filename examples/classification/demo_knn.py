@@ -1,3 +1,10 @@
+import sys
+import os
+
+# Fix python Path if run from terminal
+curdir = os.path.dirname(os.path.abspath(__file__)) 
+sys.path.insert(0, os.path.abspath(os.path.join(curdir, '../../'))) 
+
 import heat as ht
 from heat.classification.kNN import KNN
 
