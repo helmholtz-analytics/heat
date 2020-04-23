@@ -12,6 +12,7 @@ from . import types
 from . import stride_tricks
 from . import logical
 from . import constants
+from . import arithmetics
 
 
 __all__ = [
@@ -1120,15 +1121,14 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
 
     #TODO: out, optional. Output buffer.
 
-    interpolation : {‘linear’}, TODO: {‘lower’, ‘higher’, ‘midpoint’, ‘nearest’}, optional
+    interpolation : {‘linear’, ‘lower’, ‘higher’, ‘midpoint’, ‘nearest’}, optional
     Interpolation method to use when the desired percentile lies between two data points i < j:
 
         ‘linear’: i + (j - i) * fraction, where fraction is the fractional part of the index surrounded by i and j.
-
-        TODO ‘lower’: i.
-        TODO ‘higher’: j.
-        TODO ‘nearest’: i or j, whichever is nearest.
-        TODO ‘midpoint’: (i + j) / 2.
+        ‘lower’: i.
+        ‘higher’: j.
+        ‘nearest’: i or j, whichever is nearest.
+        ‘midpoint’: (i + j) / 2.
 
     keepdim : bool, optional
     If True, the axes which are reduced are left in the result as dimensions with size one.
@@ -1141,121 +1141,86 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
 
     """
 
-    def local_percentile(x, q, axis, keepdim):
-        # preconditions: input x is torch.tensor, sorted;
-        # returns a torch tensor
-
-        # work with torch q
-        if isinstance(q, dndarray.DNDarray):
-            local_q = q._DNDarray__array
-        elif isinstance(q, tuple) or isinstance(q, list):
-            local_q = torch.tensor(q)  # TODO: SET DEVICE
-        else:
-            # q is a scalar
-            local_q = torch.tensor([q])  # TODO: SET DEVICE
-
-        # axis is not None by definition
-        length = x.shape[axis]
-        indices = local_q / 100 * (length - 1)
-        if interpolation == "lower":
-            torch.floor_(indices).type(torch.int)
-        elif interpolation == "higher":
-            torch.ceil_(indices).type(torch.int)
-        elif interpolation == "midpoint":
-            indices = 0.5 * (torch.floor(indices) + torch.ceil(indices))
-        elif interpolation == "nearest":
-            torch.round_(indices).type(torch.int)
-        elif interpolation == "linear":
-            # leave fractional indices, interpolate linearly
-            pass
-        else:
-            raise ValueError("Invalid interpolation.")
-
-        if indices.numel() == 1 and isinstance(indices.item(), int):
-            indices = indices.item() + 1  # torch.kthvalue k
-            result = torch.kthvalue(x, indices, dim=axis, keepdim=keepdim)
-        else:
-            try:
-                result = x[axis][indices]
-            except IndexError:  # indices are floats
-                low_vals = x[axis][torch.floor(indices).type(torch.int)]
-                high_vals = x[axis][torch.ceil(indices).type(torch.int)]
-                weights = torch.sub(indices, torch.round(indices))
-                result = low_vals + weights * (torch.sub(high_vals, low_vals))
-
-        return result
-
-    # sanitize x and axis: will get done within operations.__reduce_op()
-    # sanitize q: scalar, list, tuple or ht.tensor
     if isinstance(q, dndarray.DNDarray):
         if x.comm.is_distributed() and q.split is not None:
             # q needs to be local
             q.resplit_(axis=None)
-    elif not isinstance(q, list) and not isinstance(q, tuple) and not np.isscalar(q):
+            q = q._DNDarray__array
+    elif isinstance(q, list) or isinstance(q, tuple):
+        q = torch.tensor(q)  # TODO: device
+    elif np.isscalar(q):
+        q = torch.tensor([q])  # TODO: device
+    else:
         raise TypeError(
             "Only ht.tensors, numeric scalars and lists are supported, but q was {}".format(type(q))
         )
 
-    output_shape = (len(q),) + x.gshape[:axis] + x.gshape[axis + 1 :]
+    output_shape = (q.shape[0],) + x.gshape[:axis] + x.gshape[axis + 1 :]
+    axis_slice = x.numdims * (slice(None, None, None),)
 
     if axis is None:
-        # flat_x = x.flatten().sort()
+        # TODO
+        # x_orig = x.copy()
+        # x = x.flatten()
         # axis = 0
         pass
 
-    # not distributed:
-    if not x.comm.is_distributed():
-        percentile = local_percentile(x._DNDarray__array, q=q, axis=axis, keepdim=keepdim)
+    length = x.gshape[axis]
+    indices = q.type(torch.float) / 100 * (length - 1)
+    if interpolation == "lower":
+        indices = indices.floor().type(torch.long)
+    elif interpolation == "higher":
+        indices = indices.ceil().type(torch.long)
+    elif interpolation == "midpoint":
+        indices = 0.5 * (indices.floor() + indices.ceil())
+    elif interpolation == "nearest":
+        indices = indices.round().type(torch.long)
+    elif interpolation == "linear":
+        # leave fractional indices, interpolate linearly
+        pass
     else:
-        if x.split == axis:
-            pass
-        else:
-            pass
+        raise ValueError(
+            "Invalid interpolation method. Interpolation can be 'lower', 'higher', 'midppint', 'nearest', or 'linear'."
+        )
 
-    # if distributed:
-    # this is a reduction operation
-    # use local_perc as local_op
-    # needs an MPI function for perc.
-
-    # if axis is None:
-    #     # this needs ht.flatten
-    #     # on hold
-    #     pass
-    # length = x.gshape[axis]
-    # indices = q / 100 * (length - 1)
-    # if interpolation == 'lower':
-    #     indices = np.floor(indices).astype(np.intp)
-    # elif interpolation == 'higher':
-    #     indices = np.ceil(indices).astype(np.intp)
-    # elif interpolation == 'midpoint':
-    #     indices = 0.5 * (np.floor(indices) + np.ceil(indices))
-    # elif interpolation == 'nearest':
-    #     indices = np.round(indices).astype(np.intp)
-    # elif interpolation == 'linear':
-    #     #leave fractional indices, interpolate linearly
-    #     pass
-    # else:
-    #     raise ValueError("Invalid interpolation.")
-
-    # outshape = (len(q),) + x.gshape[:axis] + x.gshape[axis+1:]
-
-    # if indices.dtype == intp:
-    #     percentile = x._DNDarray__array[axis][indices]
-    #     #TODO: is this gonna work if x is distributed?
-    # else:
-    #     indices_low = np.floor(indices).astype(np.intp)
-    #     indices_high = indices_low + 1
-    #     weights = indices - indices_low
-    #     percentile = x._DNDarray__array[axis][indices_low] + weights * (x._DNDarray__array[axis][indices_high] - x._DNDarray__array[axis][indices_low])
-    #     outshape =
-
-    # return dndarray.DNDarray(percentile, outshape ...)
-
-    # if not keepdim:
-    #     return manipulations.squeeze(percentile, axis=axis)
+    data = (
+        manipulations.sort(x, axis=axis)[0]
+        .astype(types.canonical_heat_type(float))
+        ._DNDarray__array
+    )
+    # from now on: process-local, torch operations
+    if indices.dtype == torch.long or indices.dtype == torch.int:
+        axis_slice = axis_slice[:axis] + (indices.tolist(),) + axis_slice[axis + 1 :]
+        percentile = data[axis_slice]
+    else:
+        floor_slice = (
+            axis_slice[:axis]
+            + (torch.floor(indices).type(torch.long).tolist(),)
+            + axis_slice[axis + 1 :]
+        )
+        ceil_slice = (
+            axis_slice[:axis]
+            + (torch.ceil(indices).type(torch.long).tolist(),)
+            + axis_slice[axis + 1 :]
+        )
+        lows = data[floor_slice]
+        highs = data[ceil_slice]
+        weights_shape = x.numdims * (1,)
+        weights_shape = weights_shape[:axis] + (q.shape[0],) + weights_shape[axis + 1 :]
+        weights = torch.sub(
+            indices.reshape(weights_shape), torch.floor(indices).reshape(weights_shape)
+        )
+        dims = tuple(range(x.numdims))
+        permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
+        percentile = (lows + weights * (torch.sub(highs, lows))).permute(permute_dims)
 
     return dndarray.DNDarray(
-        percentile, output_shape, dtype=x.dtype, split=x.split, device=x.device, comm=x.comm
+        percentile,
+        output_shape,
+        dtype=types.canonical_heat_type(percentile.dtype),
+        split=x.split,
+        device=x.device,
+        comm=x.comm,
     )
 
 
