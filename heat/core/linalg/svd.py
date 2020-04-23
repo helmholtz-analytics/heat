@@ -6,7 +6,7 @@ from . import basics
 from .. import factories
 from .. import tiling
 
-__all__ = ["block_diagonalize", "larftx2ce"]
+__all__ = ["block_diagonalize"]
 
 
 def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True):
@@ -382,7 +382,7 @@ def __apply_house(side, v, tau, c1, c2):
 
 
 @torch.jit.script
-def larftx2ce(uplo, v, tau, c):
+def __larftx2ce(uplo, v, tau, c):
     # type: (str, torch.Tensor, float, torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]
     """
     replacement for dlarfx2ce, this is the special case that the input is 2x2, it applies H on both sides
