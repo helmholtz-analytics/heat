@@ -28,7 +28,7 @@ def copy(a):
 
 def sanitize_memory_layout(x, order="C"):
     """
-    Return the given object with memory layout as defined below.
+    Return the given object with memory layout as defined below. The default memory distribution is assumed.
 
     Parameters
     -----------
@@ -44,13 +44,16 @@ def sanitize_memory_layout(x, order="C"):
         raise NotImplementedError(
             "Internal usage of torch.clone() means losing original memory layout for now. \n Please specify order='C' for row-major, order='F' for column-major layout."
         )
-    if x.ndim < 2:
+    if x.ndim < 2 or x.numel() == 0:
         # do nothing
         return x
     dims = list(range(x.ndim))
-    stride = list(x.stride())
-    row_major = all(np.diff(stride) <= 0)
-    column_major = all(np.diff(stride) >= 0)
+    stride = torch.tensor(x.stride())
+    # since strides can get a bit wonky with operations like transpose
+    #   we should assume that the tensors are row major or are distributed the default way
+    sdiff = stride[1:] - stride[:-1]
+    column_major = all(sdiff >= 0)
+    row_major = True if not column_major else False
     if (order == "C" and row_major) or (order == "F" and column_major):
         # do nothing
         return x
