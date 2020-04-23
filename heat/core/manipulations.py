@@ -1113,7 +1113,6 @@ def sort(a, axis=None, descending=False, out=None):
             val = tmp_indices[idx]
             final_indices[idx] = second_indices[val.item()][idx[1:]]
         final_indices = final_indices.transpose(0, axis)
-
     return_indices = factories.array(
         final_indices, dtype=dndarray.types.int32, is_split=a.split, device=a.device, comm=a.comm
     )
