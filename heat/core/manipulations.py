@@ -744,7 +744,7 @@ def reshape(a, shape, axis=None):
     ----------
     a : ht.DNDarray
         The input tensor
-    shape : tuple
+    shape : tuple, list
         Shape of the new tensor
     axis : int, optional
         The new split axis. None denotes same axis
@@ -774,7 +774,19 @@ def reshape(a, shape, axis=None):
     (1/2) tensor([[0., 2., 4., 6.]])
     (2/2) tensor([[ 8., 10., 12., 14.]])
     """
+    if not isinstance(a, dndarray.DNDarray):
+        raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
+    if not isinstance(shape, (list, tuple)):
+        raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
+        # check axis parameter
+    if axis is None:
+        axis = a.split
+    stride_tricks.sanitize_axis(shape, axis)
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
+    # Check the type of shape and number elements
+    shape = stride_tricks.sanitize_shape(shape)
+    if torch.prod(torch.tensor(shape, device=tdevice)) != a.size:
+        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
 
     def reshape_argsort_counts_displs(
         shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm
@@ -795,7 +807,7 @@ def reshape(a, shape, axis=None):
         # Get axis position on new split axis
         mask = torch.arange(width, device=tdevice) + gindex
         mask = mask + torch.arange(height, device=tdevice).reshape([height, 1]) * global_len
-        mask = (mask // ulen) % shape2[axis2]
+        mask = (torch.floor_divide(mask, ulen)) % shape2[axis2]
         mask = mask.flatten()
 
         # Compute return values
@@ -807,26 +819,15 @@ def reshape(a, shape, axis=None):
             mat = torch.where((mask >= displs2[i]) & (mask < displs2[i + 1]))[0]
             counts[i] = mat.numel()
             argsort[plz : counts[i] + plz] = mat
-            plz = counts[i]
-
+            plz += counts[i]
         displs[1:] = torch.cumsum(counts[:-1], dim=0)
         return argsort, counts, displs
-
-    # Check the type of shape and number elements
-    shape = stride_tricks.sanitize_shape(shape)
-    if torch.prod(torch.tensor(shape, device=tdevice)) != a.size:
-        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
 
     # Forward to Pytorch directly
     if a.split is None:
         return factories.array(
             torch.reshape(a._DNDarray__array, shape), dtype=a.dtype, device=a.device, comm=a.comm
         )
-
-    # check axis parameter
-    if axis is None:
-        axis = a.split
-    stride_tricks.sanitize_axis(shape, axis)
 
     # Create new flat result tensor
     _, local_shape, _ = a.comm.chunk(shape, axis)
