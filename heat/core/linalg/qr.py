@@ -898,11 +898,13 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
     # 2nd step: merged QR on the rows
     # ================================ R Calculation - merged tiles ============================
     diag_tile = r_tiles[dcol, dcol]
-    st_sp = r_tiles.get_start_stop(key=(dcol, dcol))
-    diag_sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
-    # (Q) need to get the start stop of diag tial
+    # st_sp = r_tiles.get_start_stop(key=(dcol, dcol))
     diag_st_sp = r_tiles.get_start_stop(key=(dcol, dcol))
+    diag_sz = diag_st_sp[1] - diag_st_sp[0], diag_st_sp[3] - diag_st_sp[2]
+    # (Q) need to get the start stop of diag tial
     for row in range(dcol + 1, tile_rows):
+        lp_st_sp = r_tiles.get_start_stop(key=(row, dcol))
+        lp_sz = lp_st_sp[1] - lp_st_sp[0], lp_st_sp[3] - lp_st_sp[2]
         print("diag", diag_process)
         if rank == diag_process:
             # cat diag tile and loop tile
@@ -926,9 +928,7 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
                 # set lower
                 r_tiles.local_set(key=(row, slice(loc_col + 1, None)), value=hold[diag_sz[0] :])
         elif rank > diag_process:
-            st_sp = r_tiles.get_start_stop(key=(row, dcol))
-            lp_sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
-            print("recv", lp_sz, lp_sz[0] + diag_sz[0], rank, diag_process)
+            print("recv", lp_sz, "h", [lp_sz[0] + diag_sz[0]] * 2, rank, diag_process)
             ql = torch.zeros(
                 [lp_sz[0] + diag_sz[0]] * 2,
                 dtype=r_tiles.arr.dtype.torch_type(),
@@ -943,8 +943,6 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
             # set lower
             r_tiles.local_set(key=(row, slice(0, None)), value=hold[diag_sz[0] :])
         else:
-            st_sp = r_tiles.get_start_stop(key=(row, dcol))
-            lp_sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
             ql = torch.zeros(
                 [lp_sz[0] + diag_sz[0]] * 2,
                 dtype=r_tiles.arr.dtype.torch_type(),
