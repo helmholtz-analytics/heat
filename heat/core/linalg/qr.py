@@ -898,14 +898,13 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
     # 2nd step: merged QR on the rows
     # ================================ R Calculation - merged tiles ============================
     diag_tile = r_tiles[dcol, dcol]
-    st_sp = r_tiles.get_start_stop(key=(dcol, dcol))
-    diag_sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
-    # (Q) need to get the start stop of diag tial
+    # st_sp = r_tiles.get_start_stop(key=(dcol, dcol))
     diag_st_sp = r_tiles.get_start_stop(key=(dcol, dcol))
+    diag_sz = diag_st_sp[1] - diag_st_sp[0], diag_st_sp[3] - diag_st_sp[2]
+    # (Q) need to get the start stop of diag tial
     for row in range(dcol + 1, tile_rows):
         lp_st_sp = r_tiles.get_start_stop(key=(row, dcol))
         lp_sz = lp_st_sp[1] - lp_st_sp[0], lp_st_sp[3] - lp_st_sp[2]
-        # print("diag", diag_process)
         if rank == diag_process:
             # cat diag tile and loop tile
             loop_tile = r_tiles[row, dcol]
