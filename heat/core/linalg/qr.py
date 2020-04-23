@@ -127,9 +127,8 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
             torch.tensor(tile_rows_per_pr_trmd, device=r.device.torch_device), dim=0
         )
         # ------------------------------------ R Calculation ---------------------------------------
-        for col in range(
-            tile_columns
-        ):  # for each tile column (need to do the last rank separately)
+        for col in range(tile_columns):
+            # for each tile column (need to do the last rank separately)
             # for each process need to do local qr
             not_completed_processes = torch.nonzero(col < proc_tile_start).flatten()
             if rank not in not_completed_processes or rank not in active_procs:
@@ -674,10 +673,10 @@ def __split0_q_loop(
         dim0 = dim1
     tile_columns = r_tiles.tile_columns
     diag_process = (
-        torch.nonzero(proc_tile_start > dim1)[0] if dim1 != tile_columns else proc_tile_start[-1]
+        torch.nonzero(proc_tile_start > dim0)[0] if dim1 != tile_columns else proc_tile_start[-1]
     )
+
     comm = r_tiles.arr.comm
-    diag_process = diag_process.item()
     rank = r_tiles.arr.comm.rank
     q0_dtype = q0_tiles.arr.dtype
     q0_torch_type = q0_dtype.torch_type()

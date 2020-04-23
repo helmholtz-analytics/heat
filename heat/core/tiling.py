@@ -104,7 +104,6 @@ class SquareDiagTiles:
             self.__adjust_last_row_sp0_m_ge_n(
                 arr, lshape_map, last_diag_pr, row_inds, row_per_proc_list, tile_columns
             )
-        # print(row_inds)
 
         if arr.split == 0 and arr.gshape[0] > arr.gshape[1]:
             # adjust the last row to have the
@@ -845,8 +844,8 @@ class SquareDiagTiles:
             # to adjust if the last process has more tiles
             i = self.arr.comm.size - 1
             self.__tile_map[..., 2][sum(self.__row_per_proc_list[:i]) :] = i
-
         elif base_dnd.split == 0 and match_dnd.split == 1:
+            # print(tiles_to_match.tile_map)
             # rows determine the q sizes -> cols = rows
             self.__col_inds = (
                 tiles_to_match.__row_inds.copy()
@@ -863,9 +862,6 @@ class SquareDiagTiles:
             rows_per = [x for x in self.__col_inds if x < base_dnd.shape[0]]
 
             # need to match the tile rows of self to those of the tiles_to_match
-            # print(tiles_to_match.col_indices, self.arr.gshape)
-            # print(tiles_to_match.row_indices, tiles_to_match.arr.gshape)
-
             # # need to rewrite this to create the row inds better
             # new_hard_splits = tiles_to_match.lshape_map[..., 1].clone()
             # # need to find where these values are either too large or too small
@@ -883,11 +879,10 @@ class SquareDiagTiles:
                 (target_0, torch.tensor(end_tag0, dtype=target_0.dtype, device=target_0.device)),
                 dim=0,
             )
+            # print('t', target_0)
 
             targe_map = self.lshape_map.clone()
-            # print(target_0, tiles_to_match.last_diagonal_process)
-            # print(self.lshape_map)
-            # print(tiles_to_match.col_indices)
+
             targe_map[..., 0] = target_0
             target_0_c = torch.cumsum(target_0, dim=0)
             self.__row_per_proc_list = []
@@ -920,7 +915,6 @@ class SquareDiagTiles:
                 rows_per[-1] += 1
 
             self.__row_inds = row_inds
-            # print(self.__col_inds)
 
             self.__tile_map = torch.zeros(
                 (self.tile_rows, self.tile_columns, 3),
@@ -959,12 +953,18 @@ class SquareDiagTiles:
         rows_per = other_tiles.__col_per_proc_list.copy()
 
         if base_dnd.split == 1 and other_dnd.split == 0:
+            # the lshapes are used for the tiles because we need to have 1 tile/process, elsewise the tiles
+            #   do not line up. more sophisticated redistribution is required for that case.
+            # todo: if multiple tiles desired -> need the hard splits to have the number of tiles as a divisor actually
+            #  this could be an easy way to redo the tiling class to reduce the difficulties there
             row_inds = [0]
+            # row_inds = other_tiles.__col_inds.copy()
             row_inds.extend(torch.cumsum(self.lshape_map[..., 1], dim=0)[:-1].tolist())
             # row_inds.extend([r + col_inds[1] for r in col_inds])
             col_inds = [0]
+            # col_inds = other_tiles.__row_inds.copy()
             col_inds.extend(torch.cumsum(self.lshape_map[..., 1][:-1], dim=0).tolist())
-
+            # print('h', other_tiles.__row_inds, other_tiles.__col_inds)
             if other_tiles.last_diagonal_process == 0:
                 row_inds = [0]
                 row_inds.extend(torch.cumsum(self.lshape_map[..., 1][:-1], dim=0).tolist())
@@ -1021,7 +1021,6 @@ class SquareDiagTiles:
             #     <= torch.cumsum(torch.tensor(cols_per, device=base_dnd.device.torch_device), dim=0)
             # )[0][0]
             # print('here2', col_inds)
-
         elif base_dnd.split == 0 and other_dnd.split == 1:
             # only working for 1 tile
             # print('here')
@@ -1084,14 +1083,17 @@ class SquareDiagTiles:
             #     <= torch.cumsum(torch.tensor(rows_per, device=base_dnd.device.torch_device), dim=0)
             # )[0][0]
         else:
-            raise NotImplementedError("Both DNDarrays must be split for this function")
-
+            raise NotImplementedError("Both DNDarrays must have different splits")
         self.__col_inds = list(col_inds)
+        # print(self.__col_inds)
         self.__col_per_proc_list = cols_per
         self.__last_diag_pr = last_diag_pr
         self.__row_per_proc_list = rows_per
         self.__tile_map = tile_map
         self.__row_inds = list(row_inds)
+
+        # other_tiles.__col_inds = list(col_inds)
+        # other_tiles.__row_inds = list(row_inds)
 
     def __setitem__(self, key, value):
         """

@@ -2,11 +2,11 @@ import torch
 from typing import Tuple
 
 from .qr import __split0_r_calc, __split0_q_loop, __split1_qr_loop
-
+from . import basics
 from .. import factories
 from .. import tiling
 
-__all__ = ["block_diagonalize"]
+__all__ = ["block_diagonalize", "larftx2ce"]
 
 
 def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True):
@@ -338,7 +338,7 @@ def block_diagonalize_sp1(arr, overwrite_arr=False, balance=True, ret_tiles=Fals
 
 
 @torch.jit.script
-def __apply_larft(side, v, tau, c1, c2):
+def __apply_house(side, v, tau, c1, c2):
     # type: (str, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]
     """
     replacement for plasma core__dlarfx2
@@ -362,64 +362,102 @@ def __apply_larft(side, v, tau, c1, c2):
     http://icl.cs.utk.edu/plasma/docs/core__dlarfx__tbrd_8c.html#a80d7223148dcbf874885d5bb0707f231
 
     """
-
+    if tau == 0:
+        return c1, c2
     if side == "left":
         n = c1.shape[0]
     elif side == "right":
         n = c1.shape[1]
     else:
         raise ValueError("side must be either 'left' or 'right', currently: {}".format(side))
-
     h = torch.eye(n, dtype=v.dtype, device=v.device)
-    if tau == 0:
-        return c1, c2
     h -= tau * torch.dot(v, v.t())
     if side == "left":
-        torch.matmul(h, c1, out=c1)
-        torch.matmul(h, c2, out=c2)
+        c1 = torch.matmul(h, c1)
+        c2 = torch.matmul(h, c2)
     elif side == "right":
-        torch.matmul(c1, h, out=c1)
-        torch.matmul(c2, h, out=c2)
+        c1 = torch.matmul(c1, h)
+        c2 = torch.matmul(c2, h)
     return c1, c2
 
 
 @torch.jit.script
-def __gbelr(n, arr, st, end):
-    # type: (int, torch.Tensor, int, int) -> Tuple[torch.Tensor, torch.Tensor]
+def larftx2ce(uplo, v, tau, c):
+    # type: (str, torch.Tensor, float, torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]
     """
-    partial function for bulge chasing, designed for the case that the matrix is upper block diagonal
-    LOWEr case
-
+    replacement for dlarfx2ce, this is the special case that the input is 2x2, it applies H on both sides
     Parameters
     ----------
-    n : int
-        order of matrix arr
-    arr : torch.Tensor
-        tensor on which to do the work, will be overwritten
-    st : starting index
-    end : ending index
+    uplo
+    v
+    tau
+    c : the 2x2 matrix
 
     Returns
     -------
-    arr : torch.Tensor
-        the same tile which was passed is returned, modified by function
-    v : torch.Tensor
-        the scalar elementary reflectors
-    tau : torch.Tensor
-        scalar factors of the elementary reflectors
-
-    Notes
-    -----
-    https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6267821
 
     """
-    # notes: n is the order of the matrix, doing UPPER case
-    #   nb :
-    #   j1 :
-    #   j2 :
-    #   len1 :
-    #   len2 :
-    #   t1ed : tile 1 end?
-    #   t2st : tile 2 start?
-    #   i :
-    pass
+    if tau == 0:
+        return v, c
+    if uplo != "upper" and uplo != "lower":
+        raise ValueError("uplo must be lower or upper, currently {}".format(uplo))
+    # generate H for first transform (the one passed)
+    h = torch.eye(2, dtype=v.dtype, device=v.device)
+    h -= tau * torch.dot(v, v.t())
+    # apply to C
+    # todo: not sure if the out keyword works here or not. found issues when combined with JIT
+    c = torch.matmul(h, c)
+    # generate Householder transforms to annihilate the created value
+    # created value will be at (top right for LOWER, bottom left for UPPER)
+    if uplo == "lower":
+        tau, v = basics.gen_house_vec(n=2, alpha=1, x=c[0].flatten().clone())
+    else:
+        tau, v = basics.gen_house_vec(n=2, alpha=1, x=c[:, 0].flatten().clone())
+    # create and apply the new H
+    h = torch.eye(2, dtype=v.dtype, device=v.device)
+    h -= tau * torch.dot(v, v.t())
+    # apply to C
+    c = torch.matmul(h, c)
+    return v, c
+
+
+# @torch.jit.script
+# def __gbelr(n, arr, st, end):
+#     # type: (int, torch.Tensor, int, int) -> Tuple[torch.Tensor, torch.Tensor]
+#     """
+#     partial function for bulge chasing, designed for the case that the matrix is upper block diagonal
+#     LOWEr case
+#
+#     Parameters
+#     ----------
+#     n : int
+#         order of matrix arr
+#     arr : torch.Tensor
+#         tensor on which to do the work, will be overwritten
+#     st : starting index
+#     end : ending index
+#
+#     Returns
+#     -------
+#     arr : torch.Tensor
+#         the same tile which was passed is returned, modified by function
+#     v : torch.Tensor
+#         the scalar elementary reflectors
+#     tau : torch.Tensor
+#         scalar factors of the elementary reflectors
+#
+#     Notes
+#     -----
+#     https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6267821
+#
+#     """
+#     # notes: n is the order of the matrix, doing UPPER case
+#     #   nb :
+#     #   j1 :
+#     #   j2 :
+#     #   len1 :
+#     #   len2 :
+#     #   t1ed : tile 1 end?
+#     #   t2st : tile 2 start?
+#     #   i :
+#     pass

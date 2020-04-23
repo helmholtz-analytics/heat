@@ -2433,7 +2433,6 @@ class DNDarray:
                 lshape_cumsum[rcv_pr + 1] += send_amt
                 lshape_map[rcv_pr, self.split] -= send_amt
                 lshape_map[rcv_pr + 1, self.split] += send_amt
-
         if any(lshape_map[..., self.split] != target_map[..., self.split]):
             # sometimes need to call the redistribute once more,
             # (in the case that the second to last processes needs to get data from +1 and -1)
