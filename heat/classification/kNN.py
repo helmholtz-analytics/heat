@@ -1,7 +1,7 @@
 import heat as ht
 
 
-class KNN:
+class KNN(ht.ClassificationMixin, ht.BaseEstimator):
     """
     HeAT implementation of the K-Nearest-Neighbours Algorithm
 
@@ -23,35 +23,36 @@ class KNN:
         self.y = y
         self.num_neighbours = num_neighbours
 
-    def assign_label(self, item):
+    def fit(self, X, Y):
+        self.x = X
+        self.y = Y
+
+    def predict(self, X):
         """
         Parameters
         ----------
-        item : ht.DNDarray
-            tensor that is to be identified
+        X : ht.DNDarray
+            Input data to be predicted
         Returns
         -------
-        selected_label
-            the guessed label
+        labels : ht.DNDarray
+            The predicted classes
         """
 
-        # Hack to make cdist work (only takes 2D-Input)
-        item_list = ht.vstack((item, item))
-        distances = ht.spatial.cdist(item_list, self.x)[0]
-        distances, indices = ht.sort(distances)
-        labels = self.y[[ind.item() for ind in indices][: self.num_neighbours]]
+        distances = ht.spatial.cdist(X, self.x)
+
+        # Maybe improved later when torch.topk is implemented in HeAT
+        distances, indices = ht.sort(distances, axis=1)
+        indices = indices[:, : self.num_neighbours]
+        indices = [[ind.item() for ind in ind_list] for ind_list in indices]
+        labels = self.y[indices]
         unique = ht.unique(labels)
-        max_count = 0
-        selected_label = None
 
-        # TODO probably more efficient with heat.eq
-        for unique_label in unique:
-            count = 0
-            for label in labels:
-                if label == unique_label:
-                    count += 1
-            if count > max_count:
-                max_count = count
-                selected_label = unique_label
+        label_count = ht.empty((labels.shape[0], unique.shape[0]))
+        for index, unique_label in enumerate(unique):
+            equals = ht.eq(labels, unique_label)
+            label_count[:, index] = ht.sum(equals, axis=1)
 
-        return selected_label
+        return ht.argmax(label_count, axis=1)
+
+
