@@ -774,80 +774,36 @@ def reshape(a, shape, axis=None):
     (2/2) tensor([[ 8., 10., 12., 14.]])
     """
 
-    def reshape_counts_displs(csum1, csum2):
-        """
-        Calculate the counts and displacements needed for redistributing the data from two cumulative sums. (split=0)
-        """
-
-        p = csum1[a.comm.rank - 1] if a.comm.rank > 0 else 0
-        i = 0
-
-        result = torch.zeros((a.comm.size,), dtype=torch.int, device=a.device.torch_device)
-
-        # Find starting position with binary search
-        minpos, maxpos, = 0, a.comm.size
-
-        while True:
-            i = (maxpos - minpos) // 2 + minpos
-
-            if minpos == maxpos:
-                break
-
-            if csum2[i] < p:
-                minpos = i + 1
-            else:
-                maxpos = i
-
-        # write counts
-        while csum2[i] < csum1[a.comm.rank]:
-            result[i] = csum2[i] - p
-            p = csum2[i]
-            i += 1
-        result[i] = csum1[a.comm.rank] - p
-
-        return result, torch.cat((torch.tensor([0]), torch.cumsum(result[:-1], dim=0)))
-
     def reshape_argsort_counts_displs(
         shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm
     ):
         """
-        Compute the send order, counts, and displacements. (split >= 0)
+        Compute the send order, counts, and displacements.
         """
-        mask = torch.empty(lshape1, dtype=torch.int, device=a.device.torch_device).flatten()
 
-        local_index = 0
-        global_index = displs1[comm.rank] * torch.prod(torch.tensor(shape1[axis1 + 1 :]))
-        local_len = torch.prod(torch.tensor(lshape1[axis1:]))
+        # constants
+        width = torch.prod(torch.tensor(lshape1[axis1:]), dtype=torch.int)
+        height = torch.prod(torch.tensor(lshape1[:axis1]), dtype=torch.int)
         global_len = torch.prod(torch.tensor(shape1[axis1:]))
         ulen = torch.prod(torch.tensor(shape2[axis2 + 1 :]))
+        gindex = displs1[comm.rank] * torch.prod(torch.tensor(shape1[axis1 + 1 :]))
 
-        while local_index < torch.prod(torch.tensor(lshape1)):
-            for i in range(local_len):
-                pos = global_index + i
-                jpos = (pos // ulen) % shape2[axis2]
-                # search new process id
-                for j, k in zip(displs2, range(comm.size)):
-                    if j <= jpos:
-                        mask[local_index + i] = k
-            global_index += global_len
-            local_index += local_len
+        # Get axis position on new split axis
+        mask = torch.arange(width) + gindex
+        mask = mask + torch.arange(height).reshape([height, 1]) * global_len
+        mask = (mask // ulen) % shape2[axis2]
+        mask = mask.flatten()
 
-        uniques, counts = torch.unique(mask, return_counts=True)
+        # Compute return values
+        counts = torch.zeros(comm.size, dtype=torch.int)
+        argsort = torch.tensor([], dtype=torch.long)
 
-        # torch's argsort is not stable
-        boolean = mask[:, None] == uniques
-        argsort = torch.nonzero(boolean.t())[:, -1]
+        for i in range(len(new_displs) - 1):
+            mat = torch.where((mask >= displs2[i]) & (mask < displs2[i + 1]))[0]
+            counts[i] = mat.numel()
+            argsort = torch.cat([argsort, mat])
 
-        mpicounts = torch.zeros(comm.size, dtype=torch.int, device=a.device.torch_device)
-
-        for i, j in zip(uniques, counts):
-            mpicounts[i] = j
-
-        return (
-            argsort,
-            mpicounts,
-            torch.cat((torch.tensor([0]), torch.cumsum(mpicounts[:-1], dim=0))),
-        )
+        return (argsort, counts, torch.cat((torch.tensor([0]), torch.cumsum(counts[:-1], dim=0))))
 
     # Check the type of shape and number elements
     shape = stride_tricks.sanitize_shape(shape)
@@ -875,51 +831,23 @@ def reshape(a, shape, axis=None):
     _, old_displs, _ = a.comm.counts_displs_shape(a.shape, a.split)
     _, new_displs, _ = a.comm.counts_displs_shape(shape, axis)
 
-    if a.split > 0 or a.split != axis:
-        sendsort, sendcounts, senddispls = reshape_argsort_counts_displs(
-            a.shape, a.lshape, old_displs, a.split, shape, new_displs, axis, a.comm
-        )
-        recvsort, recvcounts, recvdispls = reshape_argsort_counts_displs(
-            shape, local_shape, new_displs, axis, a.shape, old_displs, a.split, a.comm
-        )
+    old_displs += (a.shape[a.split],)
+    new_displs += (shape[axis],)
 
-        # rearange order
-        send = a._DNDarray__array.flatten()[sendsort]
-        a.comm.Alltoallv((send, sendcounts, senddispls), (data, recvcounts, recvdispls))
+    sendsort, sendcounts, senddispls = reshape_argsort_counts_displs(
+        a.shape, a.lshape, old_displs, a.split, shape, new_displs, axis, a.comm
+    )
+    recvsort, recvcounts, recvdispls = reshape_argsort_counts_displs(
+        shape, local_shape, new_displs, axis, a.shape, old_displs, a.split, a.comm
+    )
 
-        # original order
-        backsort = torch.argsort(recvsort)
-        data = data[backsort]
+    # rearange order
+    send = a._DNDarray__array.flatten()[sendsort]
+    a.comm.Alltoallv((send, sendcounts, senddispls), (data, recvcounts, recvdispls))
 
-    else:  # use faster function for split=0
-        # turn displs into cumulative sums
-        old_csum = torch.cat(
-            (
-                torch.tensor(old_displs[1:], dtype=torch.int, device=a.device.torch_device)
-                * torch.prod(
-                    torch.tensor(a.shape[1:], dtype=torch.int, device=a.device.torch_device)
-                ),
-                torch.tensor([a.size], dtype=torch.int, device=a.device.torch_device),
-            )
-        )
-        new_csum = torch.cat(
-            (
-                torch.tensor(new_displs[1:], dtype=torch.int, device=a.device.torch_device)
-                * torch.prod(
-                    torch.tensor(shape[1:], dtype=torch.int, device=a.device.torch_device)
-                ),
-                torch.tensor([a.size], dtype=torch.int, device=a.device.torch_device),
-            )
-        )
-
-        # calculate counts and displacements
-        send_counts, send_displs = reshape_counts_displs(old_csum, new_csum)
-        recv_counts, recv_displs = reshape_counts_displs(new_csum, old_csum)
-
-        a.comm.Alltoallv(
-            (a._DNDarray__array.flatten(), send_counts, send_displs),
-            (data, recv_counts, recv_displs),
-        )
+    # original order
+    backsort = torch.argsort(recvsort)
+    data = data[backsort]
 
     # Reshape local tensor
     data = data.reshape(local_shape)
