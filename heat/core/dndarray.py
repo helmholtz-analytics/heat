@@ -2397,8 +2397,16 @@ class DNDarray:
                 # if there is less data on the process than need to get the data from the next data
                 # with data
                 # need processes > rcv_pr with lshape > 0
-                st_pr = torch.nonzero(lshape_map[rcv_pr:, self.split] > 0)[0].item() + rcv_pr
-                hld = torch.nonzero(sp <= lshape_cumsum[rcv_pr:]).flatten() + rcv_pr
+                st_pr = (
+                    torch.nonzero(input=lshape_map[rcv_pr:, self.split] > 0, as_tuple=False)[
+                        0
+                    ].item()
+                    + rcv_pr
+                )
+                hld = (
+                    torch.nonzero(input=sp <= lshape_cumsum[rcv_pr:], as_tuple=False).flatten()
+                    + rcv_pr
+                )
                 sp_pr = hld[0].item() if hld.numel() > 0 else self.comm.size
 
             # st_pr and sp_pr are the processes on which the data sits at the beginning
