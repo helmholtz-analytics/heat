@@ -261,7 +261,7 @@ class DNDarray:
 
     @property
     def array_with_halos(self):
-        return self.cathalo()
+        return self.__cat_halo()
 
     def __prephalo(self, start, end):
         """
@@ -273,9 +273,10 @@ class DNDarray:
             start index of the halo extracted from self.array
         end : int
             end index of the halo extracted from self.array
+
         Returns
         -------
-        halo : torch tensor
+        halo : torch.Tensor
             The halo extracted from self.array
         """
         ix = [slice(None, None, None)] * len(self.shape)
@@ -286,7 +287,7 @@ class DNDarray:
 
         return self.__array[ix].clone().contiguous()
 
-    def gethalo(self, halo_size):
+    def get_halo(self, halo_size):
         """
         Fetch halos of size 'halo_size' from neighboring ranks and save them in self.halo_next/self.halo_prev
         in case they are not already stored. If 'halo_size' differs from the size of already stored halos,
@@ -295,14 +296,8 @@ class DNDarray:
         Parameters
         ----------
         halo_size : int
-            Size of the halo. If halo_size exceeds the size of the HeAT tensor in self.split direction
-            the whole local tensor.array will be fetched
-
-        Returns
-        -------
-        None
+            Size of the halo. 
         """
-
         if not isinstance(halo_size, int):
             raise TypeError(
                 "halo_size needs to be of Python type integer, {} given)".format(type(halo_size))
@@ -321,31 +316,32 @@ class DNDarray:
                     )
                 )
 
-        if self.comm.is_distributed() and halo_size > 0 and self.split is not None:
-
             a_prev = self.__prephalo(0, halo_size)
             a_next = self.__prephalo(-halo_size, None)
 
             res_prev = None
             res_next = None
 
+            req_list = list()
+ 
             if self.comm.rank != self.comm.size - 1:
                 self.comm.Isend(a_next, self.comm.rank + 1)
                 res_prev = torch.zeros(a_prev.size(), dtype=a_prev.dtype)
-                req = self.comm.Irecv(res_prev, source=self.comm.rank + 1)
-                req.Wait()
+                req_list.append(self.comm.Irecv(res_prev, source=self.comm.rank + 1))
 
             if self.comm.rank != 0:
                 self.comm.Isend(a_prev, self.comm.rank - 1)
                 res_next = torch.zeros(a_next.size(), dtype=a_next.dtype)
-                req = self.comm.Irecv(res_next, source=self.comm.rank - 1)
-                req.Wait()
+                req_list.append(self.comm.Irecv(res_next, source=self.comm.rank - 1))
+
+            for req in req_list:
+                req.wait()
 
             self.__halo_next = res_prev
             self.__halo_prev = res_next
             self.__ishalo = True
 
-    def cathalo(self):
+    def __cat_halo(self):
         """
         Fetch halos of size 'halo_size' from neighboring ranks and save them in self.halo_next/self.halo_prev
         in case they are not already stored. If 'halo_size' differs from the size of already stored halos,
@@ -359,8 +355,7 @@ class DNDarray:
         -------
         array + halos: pytorch tensors
         """
-        return torch.cat(
-            tuple(_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None),
+        return torch.cat([_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None],
             self.split,
         )
 
