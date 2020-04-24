@@ -2492,6 +2492,41 @@ class DNDarray:
             if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
                 self.__array = torch.cat((self.__array, data), dim=self.split)
 
+    def reshape(self, shape, axis=None):
+        """
+        Returns a tensor with the same data and number of elements as a, but with the specified shape.
+
+        Parameters
+        ----------
+        a : ht.DNDarray
+            The input tensor
+        shape : tuple, list
+            Shape of the new tensor
+        axis : int, optional
+            The new split axis. None denotes same axis
+            Default : None
+
+        Returns
+        -------
+        reshaped : ht.DNDarray
+            The tensor with the specified shape
+
+        Raises
+        ------
+        ValueError
+            If the number of elements changes in the new shape.
+
+        Examples
+        --------
+        >>> a = ht.arange(16, split=0)
+        >>> a.reshape((4,4))
+        (1/2) tensor([[0, 1, 2, 3],
+                    [4, 5, 6, 7]], dtype=torch.int32)
+        (2/2) tensor([[ 8,  9, 10, 11],
+                    [12, 13, 14, 15]], dtype=torch.int32)
+        """
+        return manipulations.reshape(self, shape, axis)
+
     def resplit_(self, axis=None):
         """
         In-place option for resplitting a DNDarray.

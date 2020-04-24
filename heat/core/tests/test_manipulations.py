@@ -878,6 +878,110 @@ class TestManipulations(BasicTest):
         res = ht.hstack((a, b))
         self.assertEqual(res.shape, (24,))
 
+    def test_reshape(self):
+        # split = None
+        a = ht.zeros((3, 4), device=ht_device)
+        result = ht.zeros((2, 6), device=ht_device)
+        reshaped = ht.reshape(a, (2, 6))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        # 1-dim distributed vector
+        a = ht.arange(8, dtype=ht.float64, split=0, device=ht_device)
+        result = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]]], dtype=ht.float64, split=0, device=ht_device
+        )
+        reshaped = ht.reshape(a, (2, 2, 2))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.linspace(0, 14, 8, split=0, device=ht_device)
+        result = ht.array(
+            [[0, 2, 4, 6], [8, 10, 12, 14]], dtype=ht.float32, split=0, device=ht_device
+        )
+        reshaped = ht.reshape(a, (2, 4))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.zeros((4, 3), dtype=ht.int32, split=0, device=ht_device)
+        result = ht.zeros((3, 4), dtype=ht.int32, split=0, device=ht_device)
+        reshaped = ht.reshape(a, (3, 4))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.arange(16, split=0, device=ht_device)
+        result = ht.array([[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15]])
+        reshaped = a.reshape((4, 4))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = reshaped
+        result = ht.array(
+            [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15]], split=0, device=ht_device
+        )
+        reshaped = a.reshape((2, 8))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(3 * 4 * 5).reshape((3, 4, 5)), split=1)
+        result = ht.array(torch.arange(4 * 5 * 3).reshape((4, 5, 3)), split=1)
+        reshaped = a.reshape((4, 5, 3))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(6 * 4 * 8).reshape([6, 4, 8]), split=2)
+        result = ht.array(torch.arange(4 * 12 * 4).reshape([4, 12, 4]), split=2)
+        reshaped = ht.reshape(a, [4, 12, 4])
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=2)
+        result = ht.array(torch.arange(4 * 5 * 3).reshape([4, 5, 3]), split=1)
+        reshaped = ht.reshape(a, [4, 5, 3], axis=1)
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertEqual(reshaped.split, 1)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=1)
+        result = ht.array(torch.arange(4 * 5 * 3).reshape([4 * 5, 3]), split=0)
+        reshaped = ht.reshape(a, [4 * 5, 3], axis=0)
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertEqual(reshaped.split, 0)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=0)
+        result = ht.array(torch.arange(4 * 5 * 3).reshape([4, 5 * 3]), split=1)
+        reshaped = ht.reshape(a, [4, 5 * 3], axis=1)
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertEqual(reshaped.split, 1)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            ht.reshape(ht.zeros((4, 3)), (5, 7))
+        with self.assertRaises(TypeError):
+            ht.reshape("ht.zeros((4, 3)), (5, 7)", (2, 3))
+        with self.assertRaises(TypeError):
+            ht.reshape(ht.zeros((4, 3)), "(5, 7)")
+
     def test_sort(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
