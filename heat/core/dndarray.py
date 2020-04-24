@@ -370,25 +370,25 @@ class DNDarray:
 
         Parameters
         ----------
-        signal : torch tensor 
+        signal : torch tensor
             The data array to which a zero padding is to be added
         pad_prev : int
             The length of the left padding area
         pad_next : int
             The length of the right padding area
-            
+
         Returns
         -------
         out : torch tensor
-            The padded data array 
+            The padded data array
         """
         # ToDo: generalize to ND tensors
         # set the default padding for non distributed arrays
 
         if len(signal.shape) != 1:
-            raise ValueError('Signal must be 1D, but is {}-dimensional'.format(len(signal.shape)))
+            raise ValueError("Signal must be 1D, but is {}-dimensional".format(len(signal.shape)))
 
-        # check if more than one rank is involved 
+        # check if more than one rank is involved
         if self.is_distributed():
 
             # set the padding of the first rank
@@ -396,11 +396,10 @@ class DNDarray:
                 pad_next = None
 
             # set the padding of the last rank
-            if self.comm.rank == self.comm.size-1:
+            if self.comm.rank == self.comm.size - 1:
                 pad_prev = None
-                    
-        return torch.cat([_ for _ in (pad_prev, signal, pad_next) if _ is not None])
 
+        return torch.cat([_ for _ in (pad_prev, signal, pad_next) if _ is not None])
 
     def abs(self, out=None, dtype=None):
         """
