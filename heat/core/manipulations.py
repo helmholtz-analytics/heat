@@ -753,7 +753,7 @@ def reshape(a, shape, axis=None):
     Returns
     -------
     reshaped : ht.DNDarray
-        The tensor with the specified shape
+        The DNDarray with the specified shape
 
     Raises
     ------
