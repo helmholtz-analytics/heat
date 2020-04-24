@@ -19,6 +19,7 @@ from .dndarray import *
 from .tiling import *
 from .trigonometrics import *
 from .types import *
+from .convolve import *
 from .types import finfo, iinfo
 from . import version
 from .version import __version__
