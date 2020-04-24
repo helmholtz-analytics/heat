@@ -2513,8 +2513,16 @@ class DNDarray:
                 # if there is less data on the process than need to get the data from the next data
                 # with data
                 # need processes > rcv_pr with lshape > 0
-                st_pr = torch.nonzero(lshape_map[rcv_pr:, self.split] > 0)[0].item() + rcv_pr
-                hld = torch.nonzero(sp <= lshape_cumsum[rcv_pr:]).flatten() + rcv_pr
+                st_pr = (
+                    torch.nonzero(input=lshape_map[rcv_pr:, self.split] > 0, as_tuple=False)[
+                        0
+                    ].item()
+                    + rcv_pr
+                )
+                hld = (
+                    torch.nonzero(input=sp <= lshape_cumsum[rcv_pr:], as_tuple=False).flatten()
+                    + rcv_pr
+                )
                 sp_pr = hld[0].item() if hld.numel() > 0 else self.comm.size
 
             # st_pr and sp_pr are the processes on which the data sits at the beginning
@@ -2599,6 +2607,41 @@ class DNDarray:
                 self.__array = torch.cat((data, self.__array), dim=self.split)
             if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
                 self.__array = torch.cat((self.__array, data), dim=self.split)
+
+    def reshape(self, shape, axis=None):
+        """
+        Returns a tensor with the same data and number of elements as a, but with the specified shape.
+
+        Parameters
+        ----------
+        a : ht.DNDarray
+            The input tensor
+        shape : tuple, list
+            Shape of the new tensor
+        axis : int, optional
+            The new split axis. None denotes same axis
+            Default : None
+
+        Returns
+        -------
+        reshaped : ht.DNDarray
+            The tensor with the specified shape
+
+        Raises
+        ------
+        ValueError
+            If the number of elements changes in the new shape.
+
+        Examples
+        --------
+        >>> a = ht.arange(16, split=0)
+        >>> a.reshape((4,4))
+        (1/2) tensor([[0, 1, 2, 3],
+                    [4, 5, 6, 7]], dtype=torch.int32)
+        (2/2) tensor([[ 8,  9, 10, 11],
+                    [12, 13, 14, 15]], dtype=torch.int32)
+        """
+        return manipulations.reshape(self, shape, axis)
 
     def resplit_(self, axis=None):
         """
