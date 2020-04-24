@@ -29,6 +29,7 @@ class TestIO(unittest.TestCase):
         cls.NETCDF_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.nc")
         cls.NETCDF_OUT_PATH = os.path.join(tempfile.gettempdir(), "test.nc")
         cls.NETCDF_VARIABLE = "data"
+        cls.NETCDF_DIMENSION = "data"
 
         # load comparison data from csv
         cls.CSV_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.csv")
@@ -211,6 +212,64 @@ class TestIO(unittest.TestCase):
                         handle[self.NETCDF_VARIABLE][:], dtype=torch.int32, device=device
                     )
                 self.assertTrue((local_range._DNDarray__array == comparison).all())
+
+            # naming dimensions
+            local_range = ht.arange(100, device=ht_device)
+            local_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE,
+                             dimension_names=self.NETCDF_DIMENSION)
+            if local_range.comm.rank == 0:
+                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                    comparison = handle[self.NETCDF_VARIABLE].dimensions
+                self.assertTrue(self.NETCDF_DIMENSION in comparison)
+
+            # appending unlimited variable
+            split_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE,
+                             is_unlimited=True)
+            split_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+",
+                             file_slices=slice(split_range.size, None, None))
+            if split_range.comm.rank == 0:
+                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                    comparison = torch.tensor(
+                        handle[self.NETCDF_VARIABLE][:], dtype=torch.int32, device=device
+                    )
+                self.assertTrue(
+                    (ht.concatenate((local_range, local_range))._DNDarray__array == comparison).all()
+                )
+
+            # indexing netcdf file: single index
+            one = ht.ones(1, device=ht_device)
+            indices = [-1]
+            one.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=indices)
+            if split_range.comm.rank == 0:
+                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                    comparison = torch.tensor(
+                        handle[self.NETCDF_VARIABLE][indices], dtype=torch.int32, device=device
+                    )
+                self.assertTrue((one._DNDarray__array == comparison).all())
+
+            # indexing netcdf file: multiple indices
+            small_range = ht.arange(5, split=0, device=ht_device)
+            indices = [[0, 1, 2, 3, 4]]
+            small_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+",
+                             file_slices=indices)
+            if split_range.comm.rank == 0:
+                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                    comparison = torch.tensor(
+                        handle[self.NETCDF_VARIABLE][indices], dtype=torch.int32, device=device
+                    )
+                self.assertTrue((small_range._DNDarray__array == comparison).all())
+
+            # slicing netcdf file
+            small_range = ht.arange(5, split=0, device=ht_device)
+            sslice = slice(7, 2, -1)
+            small_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+",
+                             file_slices=sslice)
+            if split_range.comm.rank == 0:
+                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                    comparison = torch.tensor(
+                        handle[self.NETCDF_VARIABLE][sslice], dtype=torch.int32, device=device
+                    )
+                self.assertTrue((small_range._DNDarray__array == comparison).all())
 
     def test_save_exception(self):
         data = ht.arange(1, device=ht_device)

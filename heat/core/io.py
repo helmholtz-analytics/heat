@@ -298,7 +298,7 @@ else:
             # chunk up the data portion
             _, local_shape, indices = comm.chunk(gshape, split)
             if split is None or local_shape[split] > 0:
-                data = torch.as_tensor(
+                data = torch.tensor(
                     data[indices], dtype=dtype.torch_type(), device=device.torch_device
                 )
             else:
@@ -308,7 +308,7 @@ else:
 
             return dndarray.DNDarray(data, gshape, dtype, split, device, comm)
 
-    def save_netcdf(data, path, variable, mode="w", **kwargs):
+    def save_netcdf(data, path, variable, mode="w", dimension_names=None, is_unlimited=False, file_slices=slice(None), **kwargs):
         """
         Saves data to a netCDF4 file. Attempts to utilize parallel I/O if possible.
 
@@ -322,6 +322,15 @@ else:
             Name of the variable the data is saved to.
         mode : str, one of 'w', 'a', 'r+'
             File access mode
+        dimension_names : list or tuple or string
+            Specifies the netCDF Dimensions used by the variable.
+        is_unlimited : bool
+            If True, every dimension created for this variable (i.e. doesn't
+            already exist) is unlimited. Already existing limited dimensions
+            cannot be changed to unlimited and vice versa.
+        file_slices : tuple of integer, slice, ellipsis or 1-d bool or
+            integer sequences used to slice the netCDF Variable, as given in
+            the nc.utils._StartCountStride method.
         kwargs : dict
             additional arguments passed to the created dataset.
 
@@ -331,7 +340,7 @@ else:
             If any of the input parameters are not of correct type.
         ValueError
             If the access mode is not understood.
-
+            If the number of dimension names does not match the number of dimensions.
         Examples
         --------
         >>> a_range = ht.arange(100, split=0)
@@ -343,6 +352,17 @@ else:
             raise TypeError("path must be str, not {}".format(type(path)))
         if not isinstance(variable, str):
             raise TypeError("variable must be str, not {}".format(type(path)))
+        if dimension_names is not None:
+            if isinstance(dimension_names, str):
+                dimension_names = [dimension_names]
+            if isinstance(dimension_names, tuple):
+                dimension_names = list(dimension_names)
+            if not isinstance(dimension_names, list):
+                raise TypeError("dimension_names must be list or tuple or string, not{}".format(type(dimension_names)))
+            if not len(dimension_names) == len(data.shape):
+                raise ValueError("{0} names given for {1} dimensions".format(len(dimension_names), len(data.shape)))
+        else:
+            dimension_names = [__NETCDF_DIM_TEMPLATE.format(variable, dim) for dim, _ in enumerate(data.shape)]
 
         # we only support a subset of possible modes
         if mode not in __VALID_WRITE_MODES:
@@ -357,34 +377,98 @@ else:
         # attempt to perform parallel I/O if possible
         if __nc_has_par:
             with nc.Dataset(path, mode, parallel=True, comm=data.comm.handle) as handle:
-                dimension_names = []
-                for dimension, elements in enumerate(data.shape):
-                    name = __NETCDF_DIM_TEMPLATE.format(variable, dimension)
-                    handle.createDimension(name, elements)
-                    dimension_names.append(name)
+                for name, elements in zip(dimension_names, data.shape):
+                    if name not in handle.dimensions:
+                        handle.createDimension(name, elements if not is_unlimited else None)
 
-                var = handle.createVariable(variable, data.dtype.char(), dimension_names, **kwargs)
+                if variable in handle.variables:
+                    var = handle.variables[variable]
+                else:
+                    var = handle.createVariable(variable, data.dtype.char(), dimension_names, **kwargs)
                 var.set_collective(True)
-                var[slices] = (
+
+                start, count, stride, _ = nc.utils._StartCountStride(
+                    elem=file_slices,
+                    shape=var.shape,
+                    dimensions=dimension_names,
+                    grp=var.group(),
+                    datashape=data.shape,
+                    put=True,
+                    )
+                start = start.reshape(-1)
+                count = count.reshape(-1)
+                stride = stride.reshape(-1)
+                stop = start + stride * count
+                new_slices = []
+                for begin, end, step, htSlice in zip(start, stop, stride, slices):
+                    """
+                    We need var[file_slices][htSlices] = data, but netcdf can
+                    only parallelize the first call. Therefore, we need to
+                    merge the slices:
+                    var[new_slices] = data
+                    Because slices cannot be sliced but are similar to ranges
+                    (i.e. consist of start, stop, step) which can be sliced:
+                    1) Build a range
+                    2) slice the range
+                    3) Build slice of the resulting range
+                    """
+                    range_from_slice = range(begin, end, step)
+                    sliced = range_from_slice[htSlice]
+                    a, b, c = sliced.start, sliced.stop, sliced.step
+                    """
+                    Negative values in ranges exist to include zero (in case of
+                    negative stride) and actual negative numbers. This is
+                    incompatible with negative slicing. Because
+                    nc.utils._StartCountStride already transforms negative
+                    slice-indices to their corresponding positive value,
+                    negative values at this point only include zero. In slices,
+                    this is done by using None.
+                    """
+                    a = None if a < 0 else a
+                    b = None if b < 0 else b
+                    new_slices.append(slice(a, b, c))
+
+                var[tuple(new_slices)] = (
                     data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
                 )
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
             with nc.Dataset(path, mode) as handle:
-                dimension_names = []
-                for dimension, elements in enumerate(data.shape):
-                    name = __NETCDF_DIM_TEMPLATE.format(variable, dimension)
-                    handle.createDimension(name, elements)
-                    dimension_names.append(name)
+                for name, elements in zip(dimension_names, data.shape):
+                    if name not in handle.dimensions:
+                        handle.createDimension(name, elements if not is_unlimited else None)
 
-                var = handle.createVariable(
-                    variable, data.dtype.char(), tuple(dimension_names), **kwargs
-                )
-                if is_split:
-                    var[slices] = data._DNDarray__array.cpu()
+                if variable in handle.variables:
+                    var = handle.variables[variable]
                 else:
-                    var[:] = data._DNDarray__array.cpu()
+                    var = handle.createVariable(
+                        variable, data.dtype.char(), dimension_names, **kwargs
+                    )
+                if is_split:
+                    start, count, stride, _ = nc.utils._StartCountStride(
+                        elem=file_slices,
+                        shape=var.shape,
+                        dimensions=dimension_names,
+                        grp=var.group(),
+                        datashape=data.shape,
+                        put=True,
+                        )
+                    start = start.reshape(-1)
+                    count = count.reshape(-1)
+                    stride = stride.reshape(-1)
+                    stop = start + stride * count
+                    new_slices = []
+                    for begin, end, step, htSlice in zip(start, stop, stride, slices):
+                        range_from_slice = range(begin, end, step)
+                        sliced = range_from_slice[htSlice]
+                        a, b, c = sliced.start, sliced.stop, sliced.step
+                        a = None if a < 0 else a
+                        b = None if b < 0 else b
+                        new_slices.append(slice(a, b, c))
+                    var[tuple(new_slices)] = data._DNDarray__array.cpu()
+                else:
+                    var[file_slices] = data._DNDarray__array.cpu()
 
             # ping next rank if it exists
             if is_split and data.comm.size > 1:
@@ -396,7 +480,7 @@ else:
             # wait for the previous rank to finish writing its chunk, then write own part
             data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
             with nc.Dataset(path, "r+") as handle:
-                handle[variable][slices] = data._DNDarray__array.cpu()
+                handle[variable][file_slices][slices] = data._DNDarray__array.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
             next_rank = (data.comm.rank + 1) % data.comm.size
