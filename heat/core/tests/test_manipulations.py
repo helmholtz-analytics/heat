@@ -878,6 +878,110 @@ class TestManipulations(BasicTest):
         res = ht.hstack((a, b))
         self.assertEqual(res.shape, (24,))
 
+    def test_reshape(self):
+        # split = None
+        a = ht.zeros((3, 4), device=ht_device)
+        result = ht.zeros((2, 6), device=ht_device)
+        reshaped = ht.reshape(a, (2, 6))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        # 1-dim distributed vector
+        a = ht.arange(8, dtype=ht.float64, split=0, device=ht_device)
+        result = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]]], dtype=ht.float64, split=0, device=ht_device
+        )
+        reshaped = ht.reshape(a, (2, 2, 2))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.linspace(0, 14, 8, split=0, device=ht_device)
+        result = ht.array(
+            [[0, 2, 4, 6], [8, 10, 12, 14]], dtype=ht.float32, split=0, device=ht_device
+        )
+        reshaped = ht.reshape(a, (2, 4))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.zeros((4, 3), dtype=ht.int32, split=0, device=ht_device)
+        result = ht.zeros((3, 4), dtype=ht.int32, split=0, device=ht_device)
+        reshaped = ht.reshape(a, (3, 4))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.arange(16, split=0, device=ht_device)
+        result = ht.array([[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15]])
+        reshaped = a.reshape((4, 4))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = reshaped
+        result = ht.array(
+            [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15]], split=0, device=ht_device
+        )
+        reshaped = a.reshape((2, 8))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(3 * 4 * 5).reshape((3, 4, 5)), split=1)
+        result = ht.array(torch.arange(4 * 5 * 3).reshape((4, 5, 3)), split=1)
+        reshaped = a.reshape((4, 5, 3))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(6 * 4 * 8).reshape([6, 4, 8]), split=2)
+        result = ht.array(torch.arange(4 * 12 * 4).reshape([4, 12, 4]), split=2)
+        reshaped = ht.reshape(a, [4, 12, 4])
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=2)
+        result = ht.array(torch.arange(4 * 5 * 3).reshape([4, 5, 3]), split=1)
+        reshaped = ht.reshape(a, [4, 5, 3], axis=1)
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertEqual(reshaped.split, 1)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=1)
+        result = ht.array(torch.arange(4 * 5 * 3).reshape([4 * 5, 3]), split=0)
+        reshaped = ht.reshape(a, [4 * 5, 3], axis=0)
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertEqual(reshaped.split, 0)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=0)
+        result = ht.array(torch.arange(4 * 5 * 3).reshape([4, 5 * 3]), split=1)
+        reshaped = ht.reshape(a, [4, 5 * 3], axis=1)
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertEqual(reshaped.split, 1)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            ht.reshape(ht.zeros((4, 3)), (5, 7))
+        with self.assertRaises(TypeError):
+            ht.reshape("ht.zeros((4, 3)), (5, 7)", (2, 3))
+        with self.assertRaises(TypeError):
+            ht.reshape(ht.zeros((4, 3)), "(5, 7)")
+
     def test_sort(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
@@ -1151,103 +1255,125 @@ class TestManipulations(BasicTest):
         self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
 
     def test_resplit(self):
-        # resplitting with same axis, should leave everything unchanged
-        shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
-        data = ht.zeros(shape, split=None, device=ht_device)
-        data2 = ht.resplit(data, None)
+        if ht.MPI_WORLD.size > 1:
+            # resplitting with same axis, should leave everything unchanged
+            shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
+            data = ht.zeros(shape, split=None, device=ht_device)
+            data2 = ht.resplit(data, None)
 
-        self.assertIsInstance(data2, ht.DNDarray)
-        self.assertEqual(data2.shape, shape)
-        self.assertEqual(data2.lshape, shape)
-        self.assertEqual(data2.split, None)
+            self.assertIsInstance(data2, ht.DNDarray)
+            self.assertEqual(data2.shape, shape)
+            self.assertEqual(data2.lshape, shape)
+            self.assertEqual(data2.split, None)
 
-        # resplitting with same axis, should leave everything unchanged
-        shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
-        data = ht.zeros(shape, split=1, device=ht_device)
-        data2 = ht.resplit(data, 1)
+            # resplitting with same axis, should leave everything unchanged
+            shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
+            data = ht.zeros(shape, split=1, device=ht_device)
+            data2 = ht.resplit(data, 1)
 
-        self.assertIsInstance(data2, ht.DNDarray)
-        self.assertEqual(data2.shape, shape)
-        self.assertEqual(data2.lshape, (data.comm.size, 1))
-        self.assertEqual(data2.split, 1)
+            self.assertIsInstance(data2, ht.DNDarray)
+            self.assertEqual(data2.shape, shape)
+            self.assertEqual(data2.lshape, (data.comm.size, 1))
+            self.assertEqual(data2.split, 1)
 
-        # splitting an unsplit tensor should result in slicing the tensor locally
-        shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
-        data = ht.zeros(shape, device=ht_device)
-        data2 = ht.resplit(data, 1)
+            # splitting an unsplit tensor should result in slicing the tensor locally
+            shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
+            data = ht.zeros(shape, device=ht_device)
+            data2 = ht.resplit(data, 1)
 
-        self.assertIsInstance(data2, ht.DNDarray)
-        self.assertEqual(data2.shape, shape)
-        self.assertEqual(data2.lshape, (data.comm.size, 1))
-        self.assertEqual(data2.split, 1)
+            self.assertIsInstance(data2, ht.DNDarray)
+            self.assertEqual(data2.shape, shape)
+            self.assertEqual(data2.lshape, (data.comm.size, 1))
+            self.assertEqual(data2.split, 1)
 
-        # unsplitting, aka gathering a tensor
-        shape = (ht.MPI_WORLD.size + 1, ht.MPI_WORLD.size)
-        data = ht.ones(shape, split=0, device=ht_device)
-        data2 = ht.resplit(data, None)
+            # unsplitting, aka gathering a tensor
+            shape = (ht.MPI_WORLD.size + 1, ht.MPI_WORLD.size)
+            data = ht.ones(shape, split=0, device=ht_device)
+            data2 = ht.resplit(data, None)
 
-        self.assertIsInstance(data2, ht.DNDarray)
-        self.assertEqual(data2.shape, shape)
-        self.assertEqual(data2.lshape, shape)
-        self.assertEqual(data2.split, None)
+            self.assertIsInstance(data2, ht.DNDarray)
+            self.assertEqual(data2.shape, shape)
+            self.assertEqual(data2.lshape, shape)
+            self.assertEqual(data2.split, None)
 
-        # assign and entirely new split axis
-        shape = (ht.MPI_WORLD.size + 2, ht.MPI_WORLD.size + 1)
-        data = ht.ones(shape, split=0, device=ht_device)
-        data2 = ht.resplit(data, 1)
+            # assign and entirely new split axis
+            shape = (ht.MPI_WORLD.size + 2, ht.MPI_WORLD.size + 1)
+            data = ht.ones(shape, split=0, device=ht_device)
+            data2 = ht.resplit(data, 1)
 
-        self.assertIsInstance(data2, ht.DNDarray)
-        self.assertEqual(data2.shape, shape)
-        self.assertEqual(data2.lshape[0], ht.MPI_WORLD.size + 2)
-        self.assertTrue(data2.lshape[1] == 1 or data2.lshape[1] == 2)
-        self.assertEqual(data2.split, 1)
+            self.assertIsInstance(data2, ht.DNDarray)
+            self.assertEqual(data2.shape, shape)
+            self.assertEqual(data2.lshape[0], ht.MPI_WORLD.size + 2)
+            self.assertTrue(data2.lshape[1] == 1 or data2.lshape[1] == 2)
+            self.assertEqual(data2.split, 1)
 
-        # test sorting order of resplit
+            # test sorting order of resplit
 
-        N = ht.MPI_WORLD.size
-        reference_tensor = ht.zeros((N, N + 1, 2 * N))
-        for n in range(N):
-            for m in range(N + 1):
-                reference_tensor[n, m, :] = ht.arange(0, 2 * N) + m * 10 + n * 100
+            N = ht.MPI_WORLD.size
+            reference_tensor = ht.zeros((N, N + 1, 2 * N))
+            for n in range(N):
+                for m in range(N + 1):
+                    reference_tensor[n, m, :] = ht.arange(0, 2 * N) + m * 10 + n * 100
 
-        # split along axis = 0
-        resplit_tensor = ht.resplit(reference_tensor, axis=0)
-        local_shape = (1, N + 1, 2 * N)
-        local_tensor = reference_tensor[ht.MPI_WORLD.rank, :, :]
-        self.assertEqual(resplit_tensor.lshape, local_shape)
-        self.assertTrue((resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
+            # split along axis = 0
+            resplit_tensor = ht.resplit(reference_tensor, axis=0)
+            local_shape = (1, N + 1, 2 * N)
+            local_tensor = reference_tensor[ht.MPI_WORLD.rank, :, :]
+            self.assertEqual(resplit_tensor.lshape, local_shape)
+            self.assertTrue(
+                (resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all()
+            )
 
-        # unsplit
-        unsplit_tensor = ht.resplit(resplit_tensor, axis=None)
-        self.assertTrue(
-            (unsplit_tensor._DNDarray__array == reference_tensor._DNDarray__array).all()
-        )
+            # unsplit
+            unsplit_tensor = ht.resplit(resplit_tensor, axis=None)
+            self.assertTrue(
+                (unsplit_tensor._DNDarray__array == reference_tensor._DNDarray__array).all()
+            )
 
-        # split along axis = 1
-        resplit_tensor = ht.resplit(unsplit_tensor, axis=1)
-        if ht.MPI_WORLD.rank == 0:
-            local_shape = (N, 2, 2 * N)
-            local_tensor = reference_tensor[:, 0:2, :]
-        else:
-            local_shape = (N, 1, 2 * N)
-            local_tensor = reference_tensor[:, ht.MPI_WORLD.rank + 1 : ht.MPI_WORLD.rank + 2, :]
+            # split along axis = 1
+            resplit_tensor = ht.resplit(unsplit_tensor, axis=1)
+            if ht.MPI_WORLD.rank == 0:
+                local_shape = (N, 2, 2 * N)
+                local_tensor = reference_tensor[:, 0:2, :]
+            else:
+                local_shape = (N, 1, 2 * N)
+                local_tensor = reference_tensor[:, ht.MPI_WORLD.rank + 1 : ht.MPI_WORLD.rank + 2, :]
 
-        self.assertEqual(resplit_tensor.lshape, local_shape)
-        self.assertTrue((resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
+            self.assertEqual(resplit_tensor.lshape, local_shape)
+            self.assertTrue(
+                (resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all()
+            )
 
-        # unsplit
-        unsplit_tensor = ht.resplit(resplit_tensor, axis=None)
-        self.assertTrue(
-            (unsplit_tensor._DNDarray__array == reference_tensor._DNDarray__array).all()
-        )
+            # unsplit
+            unsplit_tensor = ht.resplit(resplit_tensor, axis=None)
+            self.assertTrue(
+                (unsplit_tensor._DNDarray__array == reference_tensor._DNDarray__array).all()
+            )
 
-        # split along axis = 2
-        resplit_tensor = ht.resplit(unsplit_tensor, axis=2)
-        local_shape = (N, N + 1, 2)
-        local_tensor = reference_tensor[:, :, 2 * ht.MPI_WORLD.rank : 2 * ht.MPI_WORLD.rank + 2]
+            # split along axis = 2
+            resplit_tensor = ht.resplit(unsplit_tensor, axis=2)
+            local_shape = (N, N + 1, 2)
+            local_tensor = reference_tensor[:, :, 2 * ht.MPI_WORLD.rank : 2 * ht.MPI_WORLD.rank + 2]
 
-        self.assertEqual(resplit_tensor.lshape, local_shape)
-        self.assertTrue((resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
+            self.assertEqual(resplit_tensor.lshape, local_shape)
+            self.assertTrue(
+                (resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all()
+            )
+
+            # order tests for resplit
+            for dims in range(3, 5):
+                length = torch.tensor([i + 20 for i in range(dims)], device=device)
+                test = torch.arange(torch.prod(length)).reshape(length.tolist())
+                for sp1 in range(dims):
+                    for sp2 in range(dims):
+                        if sp1 != sp2:
+                            a = ht.array(test, split=sp1)
+                            resplit_a = ht.resplit(a, axis=sp2)
+                            self.assertTrue(ht.equal(resplit_a, ht.array(test, split=sp2)))
+                            self.assertEqual(resplit_a.split, sp2)
+                            self.assertEqual(resplit_a.dtype, a.dtype)
+                            del a
+                            del resplit_a
 
     def test_vstack(self):
         # cases to test:
