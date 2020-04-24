@@ -11,6 +11,7 @@ from . import dndarray
 from . import types
 from . import stride_tricks
 from . import logical
+from . import constants
 
 
 __all__ = [
@@ -70,14 +71,13 @@ def argmax(x, axis=None, out=None, **kwargs):
         axis = kwargs.get("dim", -1)
         shape = x.shape
 
-        # case where the argmin axis is set to None
-        # argmin will be the flattened index, computed standalone and the actual minimum value obtain separately
+        # case where the argmax axis is set to None
+        # argmax will be the flattened index, computed standalone and the actual maximum value obtain separately
         if len(args) <= 1 and axis < 0:
             indices = torch.argmax(*args, **kwargs).reshape(1)
             maxima = args[0].flatten()[indices]
-
             # artificially flatten the input tensor shape to correct the offset computation
-            axis = x.split
+            axis = 0
             shape = [np.prod(shape)]
         # usual case where indices and maximum values are both returned. Axis is not equal to None
         else:
@@ -95,8 +95,9 @@ def argmax(x, axis=None, out=None, **kwargs):
         raise TypeError("axis must be None or int, but was {}".format(type(axis)))
 
     # perform the global reduction
+    smallest_value = -constants.sanitize_infinity(x._DNDarray__array.dtype)
     reduced_result = operations.__reduce_op(
-        x, local_argmax, MPI_ARGMAX, axis=axis, out=None, **kwargs
+        x, local_argmax, MPI_ARGMAX, axis=axis, out=None, neutral=smallest_value, **kwargs
     )
 
     # correct the tensor
@@ -177,7 +178,7 @@ def argmin(x, axis=None, out=None, **kwargs):
             minimums = args[0].flatten()[indices]
 
             # artificially flatten the input tensor shape to correct the offset computation
-            axis = x.split
+            axis = 0
             shape = [np.prod(shape)]
         # usual case where indices and minimum values are both returned. Axis is not equal to None
         else:
@@ -195,8 +196,9 @@ def argmin(x, axis=None, out=None, **kwargs):
         raise TypeError("axis must be None or int, but was {}".format(type(axis)))
 
     # perform the global reduction
+    largest_value = constants.sanitize_infinity(x._DNDarray__array.dtype)
     reduced_result = operations.__reduce_op(
-        x, local_argmin, MPI_ARGMIN, axis=axis, out=None, **kwargs
+        x, local_argmin, MPI_ARGMIN, axis=axis, out=None, neutral=largest_value, **kwargs
     )
 
     # correct the tensor
@@ -317,33 +319,35 @@ def average(x, axis=None, weights=None, returned=False):
         if x.gshape != weights.gshape:
             if axis is None:
                 raise TypeError("Axis must be specified when shapes of x and weights differ.")
-            if isinstance(axis, tuple):
+            elif isinstance(axis, tuple):
                 raise NotImplementedError("Weighted average over tuple axis not implemented yet.")
             if weights.numdims != 1:
                 raise TypeError("1D weights expected when shapes of x and weights differ.")
             if weights.gshape[0] != x.gshape[axis]:
                 raise ValueError("Length of weights not compatible with specified axis.")
 
-        wgt = factories.empty_like(weights)
-        wgt._DNDarray__array = weights._DNDarray__array
-        wgt._DNDarray__split = weights.split
-
-        # Broadcast weights along specified axis if necessary
-        if wgt.numdims == 1 and x.numdims != 1:
-            if wgt.split is not None:
-                wgt.resplit_(None)
-            weights_newshape = tuple(1 if i != axis else x.gshape[axis] for i in range(x.numdims))
-            wgt._DNDarray__array = torch.reshape(wgt._DNDarray__array, weights_newshape)
-            wgt._DNDarray__gshape = weights_newshape
+            wgt_lshape = tuple(
+                weights.lshape[0] if dim == axis else 1 for dim in list(range(x.numdims))
+            )
+            wgt_slice = [slice(None) if dim == axis else 0 for dim in list(range(x.numdims))]
+            wgt_split = None if weights.split is None else axis
+            wgt = factories.empty(wgt_lshape, dtype=weights.dtype, device=x.device)
+            wgt._DNDarray__array[wgt_slice] = weights._DNDarray__array
+            wgt = factories.array(wgt._DNDarray__array, is_split=wgt_split)
+        else:
+            if x.comm.is_distributed():
+                if x.split is not None and weights.split != x.split and weights.numdims != 1:
+                    # fix after Issue #425 is solved
+                    raise NotImplementedError(
+                        "weights.split does not match data.split: not implemented yet."
+                    )
+            wgt = factories.empty_like(weights, device=x.device)
+            wgt._DNDarray__array = weights._DNDarray__array
 
         cumwgt = wgt.sum(axis=axis)
+
         if logical.any(cumwgt == 0.0):
             raise ZeroDivisionError("Weights sum to zero, can't be normalized")
-
-        # Distribution: if x is split, split to weights along same dimension if possible
-        if x.split is not None and wgt.split != x.split:
-            if wgt.gshape[x.split] != 1:
-                wgt.resplit_(x.split)
 
         result = (x * wgt).sum(axis=axis) / cumwgt
 
@@ -476,40 +480,15 @@ def max(x, axis=None, out=None, keepdim=None):
     """
 
     def local_max(*args, **kwargs):
-        array = args[0]
-        dim = kwargs.get("dim")
-        if 0 in array.shape:
-            # Empty local vector would throw an error in the torch max function
-            if dim == x.split or (dim is None and x.split == 0):
-                # No distributed result
-                out_shape = list(array.shape)
-                empty_dim = next(i for i, d in enumerate(array.shape) if d == 0)
-                out_shape[empty_dim] = 1
-
-                # Lowest possible value should be neutral to the max function
-                if array.dtype is torch.int8:
-                    fill_value = -(1 << 7)
-                elif array.dtype is torch.int16:
-                    fill_value = -(1 << 15)
-                elif array.dtype is torch.int32:
-                    fill_value = -(1 << 31)
-                elif array.dtype is torch.int64:
-                    fill_value = -(1 << 63)
-                else:
-                    fill_value = float("-inf")
-
-                # Create a local result with a "neutral" value that should not affect the global result
-                result = torch.empty(out_shape, dtype=array.dtype).fill_(fill_value)
-            else:
-                # Distributed result: return an empty tensor as the local result
-                result = torch.empty_like(array)
-        else:
-            result = torch.max(*args, **kwargs)
+        result = torch.max(*args, **kwargs)
         if isinstance(result, tuple):
             result = result[0]
         return result
 
-    return operations.__reduce_op(x, local_max, MPI.MAX, axis=axis, out=out, keepdim=keepdim)
+    smallest_value = -constants.sanitize_infinity(x._DNDarray__array.dtype)
+    return operations.__reduce_op(
+        x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdim=keepdim
+    )
 
 
 def maximum(x1, x2, out=None):
@@ -664,13 +643,22 @@ def mean(x, axis=None):
     ----------
     x : ht.DNDarray
         Values for which the mean is calculated for.
+        The dtype of x must be a float
     axis : None, Int, iterable, defaults to None
         Axis which the mean is taken in. Default None calculates mean of all data items.
 
     Returns
     -------
     means : ht.DNDarray
-        The mean/s, if split, then split in the same direction as x.
+        The mean/s, if split, then split in the same direction as x, if possible. Fpr more
+        information on the split semantics see Notes.
+
+    Notes
+    -----
+    Split semantics when axis is an integer:
+        if axis = x.split, then means.split = None
+        if axis > split, then means.split = x.split
+        if axis < split, then means.split = x.split - 1
 
     Examples
     --------
@@ -704,8 +692,8 @@ def mean(x, axis=None):
     def reduce_means_elementwise(output_shape_i):
         """
         Function to combine the calculated means together.
-        This does an element-wise update of the calculated means to merge them together using the merge_means function.
-        This function operates using x from the mean function paramters.
+        This does an element-wise update of the calculated means to merge them together using the
+        merge_means function. This function operates using x from the mean function parameters.
 
         Parameters
         ----------
@@ -720,187 +708,135 @@ def mean(x, axis=None):
         if x.lshape[x.split] != 0:
             mu = torch.mean(x._DNDarray__array, dim=axis)
         else:
-            mu = factories.zeros(output_shape_i)
+            mu = factories.zeros(output_shape_i, device=x.device)
 
         mu_shape = list(mu.shape) if list(mu.shape) else [1]
 
-        mu_tot = factories.zeros(([x.comm.size] + mu_shape))
-        n_tot = factories.zeros(x.comm.size)
-        mu_tot[x.comm.rank, :] = mu
+        mu_tot = factories.zeros(([x.comm.size] + mu_shape), device=x.device)
+        n_tot = factories.zeros(x.comm.size, device=x.device)
         n_tot[x.comm.rank] = float(x.lshape[x.split])
-        x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)
+        mu_tot[x.comm.rank, :] = mu
         x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
+        x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
-            mu_tot[0, :], n_tot[0] = merge_means(mu_tot[0, :], n_tot[0], mu_tot[i, :], n_tot[i])
+            mu_tot[0, :], n_tot[0] = __merge_moments(
+                (mu_tot[0, :], n_tot[0]), (mu_tot[i, :], n_tot[i])
+            )
+        return mu_tot[0][0] if mu_tot[0].size == 1 else mu_tot[0]
 
-        return mu_tot[0]
+    # ----------------------------------------------------------------------------------------------
 
     if axis is None:
         # full matrix calculation
         if not x.is_distributed():
             # if x is not distributed do a torch.mean on x
             ret = torch.mean(x._DNDarray__array.float())
-            return dndarray.DNDarray(
-                ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm
-            )
+            return factories.array(ret, is_split=None, device=x.device)
         else:
             # if x is distributed and no axis is given: return mean of the whole set
             mu_in = torch.mean(x._DNDarray__array)
             if torch.isnan(mu_in):
                 mu_in = 0.0
             n = x.lnumel
-            mu_tot = factories.zeros((x.comm.size, 2))
-            mu_proc = factories.zeros((x.comm.size, 2))
-            mu_proc[x.comm.rank][0] = mu_in
-            mu_proc[x.comm.rank][1] = float(n)
+            mu_tot = factories.zeros((x.comm.size, 2), device=x.device)
+            mu_proc = factories.zeros((x.comm.size, 2), device=x.device)
+            mu_proc[x.comm.rank] = mu_in, float(n)
             x.comm.Allreduce(mu_proc, mu_tot, MPI.SUM)
 
             for i in range(1, x.comm.size):
-                merged = merge_means(mu_tot[0, 0], mu_tot[0, 1], mu_tot[i, 0], mu_tot[i, 1])
-                mu_tot[0, 0] = merged[0]
-                mu_tot[0, 1] = merged[1]
-
+                mu_tot[0, 0], mu_tot[0, 1] = __merge_moments(
+                    (mu_tot[0, 0], mu_tot[0, 1]), (mu_tot[i, 0], mu_tot[i, 1])
+                )
             return mu_tot[0][0]
-    else:
-        output_shape = list(x.shape)
-        if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
-            if any([not isinstance(j, int) for j in axis]):
-                raise ValueError(
-                    "items in axis itterable must be integers, axes: {}".format(
-                        [type(q) for q in axis]
-                    )
-                )
-            if any(d > len(x.shape) for d in axis):
-                raise ValueError(
-                    "axes (axis) must be < {}, currently are {}".format(len(x.shape), axis)
-                )
-            if any(d < 0 for d in axis):
-                axis = [j % len(x.shape) for j in axis]
 
-            output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
-            # multiple dimensions
-            if x.split is None:
-                return dndarray.DNDarray(
-                    torch.mean(x._DNDarray__array, dim=axis),
-                    tuple(output_shape),
-                    x.dtype,
-                    x.split,
-                    x.device,
-                    x.comm,
-                )
-
-            if x.split in axis:
-                # merge in the direction of the split
-                return reduce_means_elementwise(output_shape)
-            else:
-                # multiple dimensions which does *not* include the split axis
-                # combine along the split axis
-                return dndarray.DNDarray(
-                    torch.mean(x._DNDarray__array, dim=axis),
-                    tuple(output_shape),
-                    x.dtype,
-                    x.split if x.split < len(output_shape) else len(output_shape) - 1,
-                    x.device,
-                    x.comm,
-                )
-        elif isinstance(axis, int):
-            if axis >= len(x.shape):
-                raise ValueError(
-                    "axis (axis) must be < {}, currently is {}".format(len(x.shape), axis)
-                )
-            axis = axis if axis > 0 else axis % len(x.shape)
-
-            # only one axis given
-            output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
-            output_shape = output_shape if output_shape else (1,)
-
-            if x.split is None:
-                return dndarray.DNDarray(
-                    torch.mean(x._DNDarray__array, dim=axis),
-                    tuple(output_shape),
-                    x.dtype,
-                    x.split,
-                    x.device,
-                    x.comm,
-                )
-            elif axis == x.split:
-                return reduce_means_elementwise(output_shape)
-            else:
-                # singular axis given (axis) not equal to split direction (x.split)
-                return dndarray.DNDarray(
-                    torch.mean(x._DNDarray__array, dim=axis),
-                    tuple(output_shape),
-                    x.dtype,
-                    x.split if x.split < len(output_shape) else len(output_shape) - 1,
-                    x.device,
-                    x.comm,
-                )
-        else:
-            raise TypeError(
-                "axis (axis) must be an int or a list, ht.DNDarray, torch.Tensor, or tuple, but was {}".format(
-                    type(axis)
-                )
+    output_shape = list(x.shape)
+    if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
+        if isinstance(axis, (list, tuple)):
+            if len(set(axis)) != len(axis):
+                raise ValueError("duplicate value in axis")
+        if isinstance(axis, (dndarray.DNDarray, torch.Tensor)):
+            if axis.unique().numel() != axis.numel():
+                raise ValueError("duplicate value in axis")
+        if any([not isinstance(j, int) for j in axis]):
+            raise ValueError(
+                "items in axis iterable must be integers, axes: {}".format([type(q) for q in axis])
+            )
+        if any(d < 0 for d in axis):
+            axis = [stride_tricks.sanitize_axis(x.shape, j) for j in axis]
+        if any(d > len(x.shape) for d in axis):
+            raise ValueError(
+                "axes (axis) must be < {}, currently are {}".format(len(x.shape), axis)
             )
 
+        output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
+        # multiple dimensions
+        if x.split is None:
+            return factories.array(
+                torch.mean(x._DNDarray__array, dim=axis), is_split=x.split, device=x.device
+            )
 
-def merge_means(mu1, n1, mu2, n2):
+        if x.split in axis:
+            # merge in the direction of the split
+            return reduce_means_elementwise(output_shape)
+        else:
+            # multiple dimensions which does *not* include the split axis
+            # combine along the split axis
+            return factories.array(
+                torch.mean(x._DNDarray__array, dim=axis),
+                is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
+                device=x.device,
+            )
+    elif isinstance(axis, int):
+        if axis >= len(x.shape):
+            raise ValueError("axis (axis) must be < {}, currently is {}".format(len(x.shape), axis))
+        axis = stride_tricks.sanitize_axis(x.shape, axis=axis)
+
+        # only one axis given
+        output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
+        output_shape = output_shape if output_shape else (1,)
+
+        if x.split is None:
+
+            return factories.array(
+                torch.mean(x._DNDarray__array, dim=axis), is_split=None, device=x.device
+            )
+        elif axis == x.split:
+            return reduce_means_elementwise(output_shape)
+        else:
+            # singular axis given (axis) not equal to split direction (x.split)
+            return factories.array(
+                torch.mean(x._DNDarray__array, dim=axis),
+                is_split=x.split if axis > x.split else x.split - 1,
+                device=x.device,
+            )
+    raise TypeError(
+        "axis (axis) must be an int or a list, ht.DNDarray, "
+        "torch.Tensor, or tuple, but was {}".format(type(axis))
+    )
+
+
+def __merge_moments(m1, m2, bessel=True):
     """
-    Function to merge two means by pairwise update.
-    **Note** all tensors/arrays must be either the same size or individual values (can be mixed, i.e. n can be a float)
+    Merge two statistical moments. If the length of m1/m2 (must be equal) is == 3 then the second moment (variance)
+    is merged. This function can be expanded to merge other moments according to Reference 1 as well.
+    Note: all tensors/arrays must be either the same size or individual values
 
     Parameters
     ----------
-    mu1 : ht.DNDarray, torch.tensor, float, int
-        Calculated mean
-    n1 : ht.DNDarray, torch.tensor, float
-        number of elements used to calculate mu1
-    mu2 : ht.DNDarray, torch.tensor, float, int
-        Calculated mean
-    n2 : ht.DNDarray, torch.tensor, float
-        number of elements used to calculate mu2
-
-    Returns
-    -------
-    combined_set_count : int
-        Number of elements in the combined set.
-
-    References
-    ----------
-    [1] J. Bennett, R. Grout, P. Pebay, D. Roe, D. Thompson, Numerically stable, single-pass, parallel statistics
-        algorithms, IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA,
-        USA.
-    """
-    return mu1 + n2 * ((mu2 - mu1) / (n1 + n2)), n1 + n2
-
-
-def merge_vars(var1, mu1, n1, var2, mu2, n2, bessel=True):
-    """
-    Function to merge two variances by pairwise update.
-    **Note** this is a parallel of the merge_means function
-    **Note pt2.** all tensors/arrays must be either the same size or individual values
-
-    Parameters
-    ----------
-    var1 : ht.DNDarray, torch.tensor, float, int
-        Variance.
-    mu1 : ht.DNDarray, torch.tensor, float, int
-        Calculated mean.
-    n1 : ht.DNDarray, torch.tensor, float, int
-        Number of elements used to calculate mu1.
-    var2 : ht.DNDarray, torch.tensor, float, int
-        Variance.
-    mu2 : ht.DNDarray, torch.tensor, float, int
-        Calculated mean.
-    n2 : ht.DNDarray, torch.tensor, float, int
-        Number of elements used to calculate mu2.
+    m1 : tuple
+        Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
+        sorted in descending order of moments
+    m2 : tuple
+        Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
+        sorted in descending order of moments
     bessel : bool
-        Flag for the use of the bessel correction
+        Flag for the use of the bessel correction for the calculation of the variance
 
     Returns
     -------
-    combined_set_count : int
-        Number of elements in the combined set.
+    merged_moments : tuple
+        a tuple of the merged moments
 
     References
     ----------
@@ -908,20 +844,26 @@ def merge_vars(var1, mu1, n1, var2, mu2, n2, bessel=True):
         algorithms, IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA,
         USA.
     """
+    if len(m1) != len(m2):
+        raise ValueError(
+            "m1 and m2 must be same length, currently {} and {}".format(len(m1, len(m2)))
+        )
+    n1, n2 = m1[-1], m2[-1]
+    mu1, mu2 = m1[-2], m2[-2]
     n = n1 + n2
     delta = mu2 - mu1
+    mu = mu1 + n2 * (delta / n)
+    if len(m1) == 2:  # merge means
+        return mu, n
+
+    var1, var2 = m1[-3], m2[-3]
     if bessel:
-        return (
-            (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1),
-            mu1 + n2 * (delta / (n1 + n2)),
-            n,
-        )
+        var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1)
     else:
-        return (
-            (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n,
-            mu1 + n2 * (delta / (n1 + n2)),
-            n,
-        )
+        var_m = (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n
+
+    if len(m1) == 3:  # merge vars
+        return var_m, mu, n
 
 
 def min(x, axis=None, out=None, keepdim=None):
@@ -969,40 +911,15 @@ def min(x, axis=None, out=None, keepdim=None):
     """
 
     def local_min(*args, **kwargs):
-        array = args[0]
-        dim = kwargs.get("dim")
-        if 0 in array.shape:
-            # Empty local vector would throw an error in the torch min function
-            if dim == x.split or (dim is None and x.split == 0):
-                # No distributed result
-                out_shape = list(array.shape)
-                empty_dim = next(i for i, d in enumerate(array.shape) if d == 0)
-                out_shape[empty_dim] = 1
-
-                # Highest possible value should be neutral to the min function
-                if array.dtype is torch.int8:
-                    fill_value = (1 << 7) - 1
-                elif array.dtype is torch.int16:
-                    fill_value = (1 << 15) - 1
-                elif array.dtype is torch.int32:
-                    fill_value = (1 << 31) - 1
-                elif array.dtype is torch.int64:
-                    fill_value = (1 << 63) - 1
-                else:
-                    fill_value = float("inf")
-
-                # Create a local result with a "neutral" value that should not affect the global result
-                result = torch.empty(out_shape, dtype=array.dtype).fill_(fill_value)
-            else:
-                # Distributed result: return an empty tensor as the local result
-                result = torch.empty_like(array)
-        else:
-            result = torch.min(*args, **kwargs)
+        result = torch.min(*args, **kwargs)
         if isinstance(result, tuple):
             result = result[0]
         return result
 
-    return operations.__reduce_op(x, local_min, MPI.MIN, axis=axis, out=out, keepdim=keepdim)
+    largest_value = constants.sanitize_infinity(x._DNDarray__array.dtype)
+    return operations.__reduce_op(
+        x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdim=keepdim
+    )
 
 
 def minimum(x1, x2, out=None):
@@ -1183,7 +1100,7 @@ def mpi_argmin(a, b, _):
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
-def std(x, axis=None, bessel=True):
+def std(x, axis=None, ddof=0, **kwargs):
     """
     Calculates and returns the standard deviation of a tensor with the bessel correction.
     If a axis is given, the variance will be taken in that direction.
@@ -1192,11 +1109,13 @@ def std(x, axis=None, bessel=True):
     ----------
     x : ht.DNDarray
         Values for which the std is calculated for.
-    axis : None, int, defaults to None
-        Axis which the mean is taken in. Default None calculates the standard deviation of all data items.
-    bessel : bool, defaults to True
-        Use the bessel correction when calculating the variance/std. Toggles between unbiased and biased calculation of
-        the standard deviation.
+        The dtype of x must be a float
+    axis : None, Int, iterable, defaults to None
+        Axis which the std is taken in. Default None calculates std of all data items.
+    ddof : int, optional
+        Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
+        represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
+        Setting ddof > 1 raises a NotImplementedError.
 
     Returns
     -------
@@ -1209,44 +1128,63 @@ def std(x, axis=None, bessel=True):
     >>> a
     tensor([[ 0.3421,  0.5736, -2.2377]])
     >>> ht.std(a)
-    tensor(1.5606)
+    tensor(1.2742)
     >>> a = ht.random.randn(4,4)
     >>> a
     tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
             [ 0.2732, -0.0965, -0.1087, -1.3805],
             [ 0.2647,  0.5998, -0.1635, -0.0848],
             [ 0.0343,  0.1618, -0.8064, -0.1031]])
-    >>> ht.std(a, 0)
+    >>> ht.std(a, 0, ddof=1)
     tensor([0.6157, 0.2918, 0.8324, 1.1996])
-    >>> ht.std(a, 1)
+    >>> ht.std(a, 1, ddof=1)
     tensor([1.1405, 0.7236, 0.3506, 0.4324])
-    >>> ht.std(a, 1, bessel=False)
+    >>> ht.std(a, 1)
     tensor([0.9877, 0.6267, 0.3037, 0.3745])
     """
     if not axis:
-        return np.sqrt(var(x, axis, bessel))
+        return np.sqrt(var(x, axis, ddof, **kwargs))
     else:
-        return exponential.sqrt(var(x, axis, bessel), out=None)
+        return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
-def var(x, axis=None, bessel=True):
+def var(x, axis=None, ddof=0, **kwargs):
     """
-    Calculates and returns the variance of a tensor. If an axis is given, the variance will be taken in that direction.
+    Calculates and returns the variance of a tensor. If an axis is given, the variance will be
+    taken in that direction.
 
     Parameters
     ----------
     x : ht.DNDarray
         Values for which the variance is calculated for.
-    axis : None, int, defaults to None
-        Axis which the variance is taken in. Default None calculates the variance of all data items.
-    bessel : bool, defaults to True
-        Use the bessel correction when calculating the variance/std. Toggles between unbiased and biased calculation of
-        the variance.
+        The dtype of x must be a float
+    axis : None, Int, iterable, defaults to None
+        Axis which the variance is taken in. Default None calculates variance of all data items.
+    ddof : int, optional (see Notes)
+        Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
+        represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
+        Setting ddof > 1 raises a NotImplementedError.
 
     Returns
     -------
     variances : ht.DNDarray
-        The var/s, if split, then split in the same direction as x.
+        The var/s, if split, then split in the same direction as x, if possible. Fpr more
+        information on the split semantics see Notes.
+
+    Notes
+    -----
+    Split semantics when axis is an integer:
+        if axis = x.split, then variances.split = None
+        if axis > split, then variances.split = x.split
+        if axis < split, then variances.split = x.split - 1
+
+    Notes on ddof (from numpy)
+    --------------------------
+    The variance is the average of the squared deviations from the mean, i.e., var = mean(abs(x - x.mean())**2).
+    The mean is normally calculated as x.sum() / N, where N = len(x). If, however, ddof is specified, the divisor
+    N - ddof is used instead. In standard statistical practice, ddof=1 provides an unbiased estimator of the
+    variance of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate of the variance
+    for normally distributed variables.
 
     Examples
     --------
@@ -1254,6 +1192,8 @@ def var(x, axis=None, bessel=True):
     >>> a
     tensor([[-1.9755,  0.3522,  0.4751]])
     >>> ht.var(a)
+    tensor(1.2710)
+    >>> ht.var(a, ddof=1)
     tensor(1.9065)
 
     >>> a = ht.random.randn(4,4)
@@ -1266,19 +1206,29 @@ def var(x, axis=None, bessel=True):
     tensor([1.3092, 0.0034, 0.7061, 0.9217])
     >>> ht.var(a, 0)
     tensor([1.3624, 3.2563, 0.1447, 1.2042])
-    >>> ht.var(a, 0, bessel=True)
+    >>> ht.var(a, 0, ddof=1)
     tensor([1.3624, 3.2563, 0.1447, 1.2042])
-    >>> ht.var(a, 0, bessel=False)
+    >>> ht.var(a, 0, ddof=0)
     tensor([1.0218, 2.4422, 0.1085, 0.9032])
     """
-    if not isinstance(bessel, bool):
-        raise TypeError("bessel must be a boolean, currently is {}".format(type(bessel)))
+
+    if not isinstance(ddof, int):
+        raise TypeError("ddof must be integer, is {}".format(type(ddof)))
+    elif ddof > 1:
+        raise NotImplementedError("Not implemented for ddof > 1.")
+    elif ddof < 0:
+        raise ValueError("Expected ddof=0 or ddof=1, got {}".format(ddof))
+    else:
+        if kwargs.get("bessel"):
+            bessel = kwargs.get("bessel")
+        else:
+            bessel = bool(ddof)
 
     def reduce_vars_elementwise(output_shape_i):
         """
-        Function to combine the calculated vars together. This does an element-wise update of the calculated vars to
-        merge them together using the merge_vars function. This function operates using x from the var function
-        parameters.
+        Function to combine the calculated vars together. This does an element-wise update of the
+        calculated vars to merge them together using the merge_vars function. This function operates
+         using x from the var function parameters.
 
         Parameters
         ----------
@@ -1295,18 +1245,13 @@ def var(x, axis=None, bessel=True):
             mu = torch.mean(x._DNDarray__array, dim=axis)
             var = torch.var(x._DNDarray__array, dim=axis, unbiased=bessel)
         else:
-            mu = factories.zeros(output_shape_i)
-            var = factories.zeros(output_shape_i)
-
-        n_for_merge = factories.zeros(x.comm.size)
-        n2 = factories.zeros(x.comm.size)
-        n2[x.comm.rank] = x.lshape[x.split]
-        x.comm.Allreduce(n2, n_for_merge, MPI.SUM)
+            mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+            var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
 
         var_shape = list(var.shape) if list(var.shape) else [1]
 
-        var_tot = factories.zeros(([x.comm.size, 2] + var_shape))
-        n_tot = factories.zeros(x.comm.size)
+        var_tot = factories.zeros(([x.comm.size, 2] + var_shape), dtype=x.dtype, device=x.device)
+        n_tot = factories.zeros(x.comm.size, device=x.device)
         var_tot[x.comm.rank, 0, :] = var
         var_tot[x.comm.rank, 1, :] = mu
         n_tot[x.comm.rank] = float(x.lshape[x.split])
@@ -1314,23 +1259,18 @@ def var(x, axis=None, bessel=True):
         x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
-            var_tot[0, 0, :], var_tot[0, 1, :], n_tot[0] = merge_vars(
-                var_tot[0, 0, :],
-                var_tot[0, 1, :],
-                n_tot[0],
-                var_tot[i, 0, :],
-                var_tot[i, 1, :],
-                n_tot[i],
+            var_tot[0, 0, :], var_tot[0, 1, :], n_tot[0] = __merge_moments(
+                (var_tot[0, 0, :], var_tot[0, 1, :], n_tot[0]),
+                (var_tot[i, 0, :], var_tot[i, 1, :], n_tot[i]),
+                bessel=bessel,
             )
-        return var_tot[0, 0, :]
+        return var_tot[0, 0, :][0] if var_tot[0, 0, :].size == 1 else var_tot[0, 0, :]
 
-    # ----------------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
         if not x.is_distributed():  # not distributed (full tensor on one node)
             ret = torch.var(x._DNDarray__array.float(), unbiased=bessel)
-            return dndarray.DNDarray(
-                ret, tuple(ret.shape), types.canonical_heat_type(ret.dtype), None, x.device, x.comm
-            )
+            return factories.array(ret)
 
         else:  # case for full matrix calculation (axis is None)
             mu_in = torch.mean(x._DNDarray__array)
@@ -1342,64 +1282,83 @@ def var(x, axis=None, bessel=True):
                 mu_in = 0.0
 
             n = x.lnumel
-            var_tot = factories.zeros((x.comm.size, 3))
-            var_proc = factories.zeros((x.comm.size, 3))
-            var_proc[x.comm.rank][0] = var_in
-            var_proc[x.comm.rank][1] = mu_in
-            var_proc[x.comm.rank][2] = float(n)
+            var_tot = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
+            var_proc = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
+            var_proc[x.comm.rank] = var_in, mu_in, float(n)
             x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
 
             for i in range(1, x.comm.size):
-                merged = merge_vars(
-                    var_tot[0, 0],
-                    var_tot[0, 1],
-                    var_tot[0, 2],
-                    var_tot[i, 0],
-                    var_tot[i, 1],
-                    var_tot[i, 2],
+                var_tot[0, 0], var_tot[0, 1], var_tot[0, 2] = __merge_moments(
+                    (var_tot[0, 0], var_tot[0, 1], var_tot[0, 2]),
+                    (var_tot[i, 0], var_tot[i, 1], var_tot[i, 2]),
+                    bessel=bessel,
                 )
-                var_tot[0, 0] = merged[0]
-                var_tot[0, 1] = merged[1]
-                var_tot[0, 2] = merged[2]
-
             return var_tot[0][0]
 
     else:  # axis is given
         # case for var in one dimension
         output_shape = list(x.shape)
-        if isinstance(axis, int):
+        if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
+            if isinstance(axis, (list, tuple)):
+                if len(set(axis)) != len(axis):
+                    raise ValueError("duplicate value in axis")
+            if isinstance(axis, (dndarray.DNDarray, torch.Tensor)):
+                if axis.unique().numel() != axis.numel():
+                    raise ValueError("duplicate value in axis")
+            if any([not isinstance(j, int) for j in axis]):
+                raise ValueError(
+                    "items in axis iterable must be integers, axes: {}".format(
+                        [type(q) for q in axis]
+                    )
+                )
+            if any(d < 0 for d in axis):
+                axis = [stride_tricks.sanitize_axis(x.shape, j) for j in axis]
+            if any(d > len(x.shape) for d in axis):
+                raise ValueError(
+                    "axes (axis) must be < {}, currently are {}".format(len(x.shape), axis)
+                )
+
+            output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
+            # multiple dimensions
+            if x.split is None:
+                return factories.array(
+                    torch.var(x._DNDarray__array, dim=axis), is_split=x.split, device=x.device
+                )
+            if x.split in axis:
+                # merge in the direction of the split
+                return reduce_vars_elementwise(output_shape)
+            else:
+                # multiple dimensions which does *not* include the split axis
+                # combine along the split axis
+                return factories.array(
+                    torch.var(x._DNDarray__array, dim=axis),
+                    is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
+                    device=x.device,
+                )
+        elif isinstance(axis, int):
             if axis >= len(x.shape):
                 raise ValueError("axis must be < {}, currently is {}".format(len(x.shape), axis))
-            axis = axis if axis > 0 else axis % len(x.shape)
+            axis = stride_tricks.sanitize_axis(x.shape, axis)
             # only one axis given
             output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
             output_shape = output_shape if output_shape else (1,)
 
             if x.split is None:  # x is *not* distributed -> no need to distributed
-                return dndarray.DNDarray(
+                return factories.array(
                     torch.var(x._DNDarray__array, dim=axis, unbiased=bessel),
-                    tuple(output_shape),
-                    x.dtype,
-                    None,
-                    x.device,
-                    x.comm,
+                    dtype=x.dtype,
+                    device=x.device,
                 )
             elif axis == x.split:  # x is distributed and axis chosen is == to split
                 return reduce_vars_elementwise(output_shape)
             else:
                 # singular axis given (axis) not equal to split direction (x.split)
-                lcl = torch.var(x._DNDarray__array, dim=axis, keepdim=True)
-                return dndarray.DNDarray(
+                lcl = torch.var(x._DNDarray__array, dim=axis, keepdim=False)
+                return factories.array(
                     lcl,
-                    tuple(output_shape),
-                    x.dtype,
-                    x.split if x.split < len(output_shape) else len(output_shape) - 1,
-                    x.device,
-                    x.comm,
+                    is_split=x.split if axis > x.split else x.split - 1,
+                    dtype=x.dtype,
+                    device=x.device,
                 )
         else:
-            raise TypeError(
-                "axis (axis) must be an int, currently is {}. Check if multidim var is available in PyTorch".format(
-                    type(axis)
-                )
-            )
+            raise TypeError("axis (axis) must be an int, tuple, list, etc.; currently it is {}. ")

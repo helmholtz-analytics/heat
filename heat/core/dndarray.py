@@ -15,6 +15,7 @@ from . import memory
 from . import relational
 from . import rounding
 from . import statistics
+from . import tiling
 from . import trigonometrics
 from . import types
 
@@ -43,6 +44,27 @@ class LocalIndex:
 
 
 class DNDarray:
+    """
+
+    Distributed N-Dimensional array. The core element of HeAT. It is composed of
+    PyTorch tensors local to each process.
+
+    Parameters
+    ----------
+    array : torch.Tensor
+        local array elements
+    gshape : tuple
+        the global shape of the DNDarray
+    dtype : ht.type
+        the datatype of the array
+    split : int
+        The axis on which the DNDarray is divided between processes
+    device : ht.device
+        The device on which the local arrays are using (cpu or gpu)
+    comm : ht.communication.MPICommunication
+        The communications object for sending and recieving data
+    """
+
     def __init__(self, array, gshape, dtype, split, device, comm):
         self.__array = array
         self.__gshape = gshape
@@ -50,6 +72,14 @@ class DNDarray:
         self.__split = split
         self.__device = device
         self.__comm = comm
+
+        # handle inconsistencies between torch and heat devices
+        if (
+            isinstance(array, torch.Tensor)
+            and isinstance(device, devices.Device)
+            and array.device.type != device.device_type
+        ):
+            self.__array = self.__array.to(devices.sanitize_device(self.__device).torch_device)
 
     @property
     def comm(self):
@@ -69,14 +99,23 @@ class DNDarray:
 
     @property
     def numdims(self):
+        """
+
+        Returns
+        -------
+        number_of_dimensions : int
+            the number of dimensions of the DNDarray
+        """
         return len(self.__gshape)
 
     @property
     def size(self):
         """
+
         Returns
         -------
-        int: number of total elements of the tensor
+        size : int
+            number of total elements of the tensor
         """
         try:
             return np.prod(self.__gshape)
@@ -86,26 +125,32 @@ class DNDarray:
     @property
     def gnumel(self):
         """
+
         Returns
         -------
-        int: number of total elements of the tensor
+        global_shape : int
+            number of total elements of the tensor
         """
         return self.size
 
     @property
     def lnumel(self):
         """
+
         Returns
         -------
-        int: number of elements of the tensor on each node
+        number_of_local_elements : int
+            number of elements of the tensor on each process
         """
         return np.prod(self.__array.shape)
 
     @property
     def lloc(self):
         """
-        Local item setter and getter. i.e. this function operates on a local level and only on the PyTorch tensors
-        composing the HeAT DNDarray. This function uses the LocalIndex class.
+
+        Local item setter and getter. i.e. this function operates on a local
+        level and only on the PyTorch tensors composing the HeAT DNDarray.
+        This function uses the LocalIndex class.
 
         Parameters
         ----------
@@ -142,47 +187,66 @@ class DNDarray:
     @property
     def lshape(self):
         """
+
         Returns
         -------
-        tuple : the shape of the data on each node
+        local_shape : tuple
+            the shape of the data on each node
         """
         return tuple(self.__array.shape)
 
     @property
     def shape(self):
         """
+
         Returns
         -------
-        tuple : the shape of the tensor as a whole
+        global_shape : tuple
+            the shape of the tensor as a whole
         """
         return self.__gshape
 
     @property
     def split(self):
         """
+
         Returns
         -------
-        int : the axis on which the tensor split
+        split_axis : int
+            the axis on which the tensor split
         """
         return self.__split
 
     @property
-    def T(self, axes=None):
-        return linalg.transpose(self, axes)
-
-    def item(self):
+    def stride(self):
         """
-        Returns the only element of a 1-element tensor. Mirror of the pytorch command by the same name
-        If size of tensor is >1 element, then a ValueError is raised (by pytorch)
 
-        Example
+        Returns
         -------
-        >>> import heat as ht
-        >>> x = ht.zeros((1))
-        >>> x.item()
-        0.0
+        stride : tuple
+            steps in each dimension when traversing a tensor.
+            torch-like usage: self.stride()
         """
-        return self.__array.item()
+        return self.__array.stride
+
+    @property
+    def strides(self):
+        """
+
+        Returns
+        -------
+        strides : tuple of ints
+            bytes to step in each dimension when traversing a tensor.
+            numpy-like usage: self.strides
+        """
+        steps = list(self._DNDarray__array.stride())
+        itemsize = self._DNDarray__array.storage().element_size()
+        strides = tuple(step * itemsize for step in steps)
+        return strides
+
+    @property
+    def T(self):
+        return linalg.transpose(self, axes=None)
 
     def abs(self, out=None, dtype=None):
         """
@@ -635,117 +699,7 @@ class DNDarray:
         """
         if self.is_balanced():
             return
-        snd_dtype = self.dtype.torch_type()
-        # units -> {pr, 1st index, 2nd index}
-        lshape_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
-        lshape_map[self.comm.rank, :] = torch.Tensor(self.lshape)
-        lshape_map_comm = self.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
-
-        chunk_map = torch.zeros((self.comm.size, len(self.gshape)), dtype=int)
-        _, _, chk = self.comm.chunk(self.shape, self.split)
-        for i in range(len(self.gshape)):
-            chunk_map[self.comm.rank, i] = chk[i].stop - chk[i].start
-        chunk_map_comm = self.comm.Iallreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
-
-        lshape_map_comm.wait()
-        chunk_map_comm.wait()
-        lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
-        chunk_cumsum = torch.cat(
-            (torch.tensor([0]), torch.cumsum(chunk_map[..., self.split], dim=0)), dim=0
-        )
-        # need the data start as well for process 0
-        for rcv_pr in range(self.comm.size - 1):
-            st = chunk_cumsum[rcv_pr].item()
-            sp = chunk_cumsum[rcv_pr + 1].item()
-            # start pr should be the next process with data
-            if lshape_map[rcv_pr, self.split] >= chunk_map[rcv_pr, self.split]:
-                # if there is more data on the process than the start process than start == stop
-                st_pr = rcv_pr
-                sp_pr = rcv_pr
-            else:
-                # if there is less data on the process than need to get the data from the next data
-                # with data
-                # need processes > rcv_pr with lshape > 0
-                st_pr = torch.nonzero(lshape_map[rcv_pr:, self.split] > 0)[0].item() + rcv_pr
-                hld = torch.nonzero(sp <= lshape_cumsum[rcv_pr:]).flatten() + rcv_pr
-                sp_pr = hld[0].item() if hld.numel() > 0 else self.comm.size
-
-            # st_pr and sp_pr are the processes on which the data sits at the beginning
-            # need to loop from st_pr to sp_pr + 1 and send the pr
-            for snd_pr in range(st_pr, sp_pr + 1):
-                if snd_pr == self.comm.size:
-                    break
-                data_required = abs(sp - st - lshape_map[rcv_pr, self.split].item())
-                send_amt = (
-                    data_required
-                    if data_required <= lshape_map[snd_pr, self.split]
-                    else lshape_map[snd_pr, self.split]
-                )
-                if (sp - st) <= lshape_map[rcv_pr, self.split].item() or snd_pr == rcv_pr:
-                    send_amt = 0
-                # send amount is the data still needed by recv if that is available on the snd
-                if send_amt != 0:
-                    self.__balance_shuffle(
-                        snd_pr=snd_pr, send_amt=send_amt, rcv_pr=rcv_pr, snd_dtype=snd_dtype
-                    )
-                lshape_cumsum[snd_pr] -= send_amt
-                lshape_cumsum[rcv_pr] += send_amt
-                lshape_map[rcv_pr, self.split] += send_amt
-                lshape_map[snd_pr, self.split] -= send_amt
-            if lshape_map[rcv_pr, self.split] > chunk_map[rcv_pr, self.split]:
-                # if there is any data left on the process then send it to the next one
-                send_amt = lshape_map[rcv_pr, self.split] - chunk_map[rcv_pr, self.split]
-                self.__balance_shuffle(
-                    snd_pr=rcv_pr, send_amt=send_amt.item(), rcv_pr=rcv_pr + 1, snd_dtype=snd_dtype
-                )
-                lshape_cumsum[rcv_pr] -= send_amt
-                lshape_cumsum[rcv_pr + 1] += send_amt
-                lshape_map[rcv_pr, self.split] -= send_amt
-                lshape_map[rcv_pr + 1, self.split] += send_amt
-
-    def __balance_shuffle(self, snd_pr, send_amt, rcv_pr, snd_dtype):
-        """
-        Function to abstract the function used during balance for shuffling data between processes
-
-        Parameters
-        ----------
-        snd_pr : int, single element torch.Tensor
-            Sending process
-        send_amt : int, single element torch.Tensor
-            Amount of data to be sent by the sending process
-        rcv_pr : int, single element torch.Tensor
-            Recieving process
-        snd_dtype : torch.type
-            Torch type of the data in question
-
-        Returns
-        -------
-        None
-        """
-        rank = self.comm.rank
-        send_slice = [slice(None)] * self.numdims
-        keep_slice = [slice(None)] * self.numdims
-        if rank == snd_pr:
-            if snd_pr < rcv_pr:  # data passed to a higher rank (off the bottom)
-                send_slice[self.split] = slice(
-                    self.lshape[self.split] - send_amt, self.lshape[self.split]
-                )
-                keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
-            if snd_pr > rcv_pr:  # data passed to a lower rank (off the top)
-                send_slice[self.split] = slice(0, send_amt)
-                keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
-            data = self.__array[send_slice].clone()
-            self.comm.Send(data, dest=rcv_pr, tag=685)
-            self.__array = self.__array[keep_slice]
-        if rank == rcv_pr:
-            shp = list(self.gshape)
-            shp[self.split] = send_amt
-            data = torch.zeros(shp, dtype=snd_dtype)
-            self.comm.Recv(data, source=snd_pr, tag=685)
-            if snd_pr < rcv_pr:  # data passed from a lower rank (append to top)
-                self.__array = torch.cat((data, self.__array), dim=self.split)
-            if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
-                self.__array = torch.cat((self.__array, data), dim=self.split)
+        self.redistribute_()
 
     def __bool__(self):
         """
@@ -818,38 +772,6 @@ class DNDarray:
         tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
         """
         return rounding.ceil(self, out)
-
-    def trunc(self, out=None):
-        """
-        Return the trunc of the input, element-wise.
-
-        The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the
-        fractional part of the signed number x is discarded.
-
-        Parameters
-        ----------
-        out : ht.DNDarray or None, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        trunced : ht.DNDarray
-            A tensor of the same shape as x, containing the trunced valued of each element in this tensor. If out was
-            provided, trunced is a reference to it.
-
-        Returns
-        -------
-        trunced : ht.DNDarray
-            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
-            provided, trunced is a reference to it.
-
-        Examples
-        --------
-        >>> ht.trunc(ht.arange(-2.0, 2.0, 0.4))
-        tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
-        """
-        return rounding.trunc(self, out)
 
     def clip(self, a_min, a_max, out=None):
         """
@@ -954,37 +876,25 @@ class DNDarray:
             A copy of this object on the CPU.
         """
         self.__array = self.__array.cpu()
+        self.__device = devices.cpu
         return self
 
-    def __floordiv__(self, other):
+    def create_lshape_map(self):
         """
-        Element-wise floor division (i.e. result is rounded int (floor))
-        of the tensor by another tensor or scalar. Takes the first tensor by which it divides the second
-        not-heat-typed-parameter.
+        Generate a 'map' of the lshapes of the data on all processes.
+        Units -> (process rank, lshape)
 
-        Parameters
-        ----------
-        other: tensor or scalar
-            The second operand by whose values is divided
-
-        Return
-        ------
-        result: ht.tensor
-            A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
-
-        Examples:
-        ---------
-        >>> import heat as ht
-        >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
-        >>> T1 // 1
-        tensor([[1., 2.],
-                [1., 4.]])
-        >>> T2 = ht.float32([1.5, 2.5])
-        >>> T1 // T2
-        tensor([[1., 0.],
-                [1., 1.]])
+        Returns
+        -------
+        lshape_map : torch.Tensor
+            Units -> (process rank, lshape)
         """
-        return arithmetics.floordiv(self, other)
+        lshape_map = torch.zeros(
+            (self.comm.size, len(self.gshape)), dtype=torch.int, device=self.device.torch_device
+        )
+        lshape_map[self.comm.rank, :] = torch.tensor(self.lshape, device=self.device.torch_device)
+        self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+        return lshape_map
 
     def __eq__(self, other):
         """
@@ -1017,116 +927,27 @@ class DNDarray:
         """
         return relational.eq(self, other)
 
-    def __matmul__(self, other):
+    def isclose(self, other, rtol=1e-05, atol=1e-08, equal_nan=False):
         """
-        Matrix multiplication of two DNDarrays
+        Parameters:
+        -----------
 
-        for comment context -> a @ b = c or A @ B = c
+        x, y : tensor
+            Input tensors to compare.
+        rtol : float
+            The relative tolerance parameter.
+        atol : float
+            The absolute tolerance parameter.
+        equal_nan : bool
+            Whether to compare NaN’s as equal. If True, NaN’s in x will be considered equal to NaN’s in y in the output array.
 
-        Parameters
-        ----------
-        a : ht.DNDarray
-            2 dimensional: L x P
-        b : ht.DNDarray
-            2 dimensional: P x Q
-
-        Returns
-        -------
-        ht.DNDarray
-            returns a tensor with the result of a @ b. The split dimension of the returned array is typically the split dimension of a.
-            However, if a.split = None then the the c.split will be set as the split dimension of b. If both are None then c.split is also None.
-            ** NOTE ** if a is a split vector, then the returned vector will be of shape (1xQ) and will be split in the 1st dimension
-            ** NOTE ** if b is a vector and either a or b is split, then the returned vector will be of shape (Lx1) and will be split in the 0th dimension
-
-        References
-        ----------
-        [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on Distributed Data-parallel Platforms,"
-            IEEE Transactions on Parallel and Distributed Systems, vol 28, no. 9. 2017.
-        [2] S. Ryu and D. Kim, "Parallel Huge Matrix Multiplication on a Cluster with GPGPU Accelerators,"
-            2018 IEEE International Parallel and Distributed Processing Symposium Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
-
-        Example
-        -------
-        >>> a = ht.ones((n, m), split=1)
-        >>> a[0] = ht.arange(1, m + 1)
-        >>> a[:, -1] = ht.arange(1, n + 1)
-        (0/1) tensor([[1., 2.],
-                      [1., 1.],
-                      [1., 1.],
-                      [1., 1.],
-                      [1., 1.]])
-        (1/1) tensor([[3., 1.],
-                      [1., 2.],
-                      [1., 3.],
-                      [1., 4.],
-                      [1., 5.]])
-        >>> b = ht.ones((j, k), split=0)
-        >>> b[0] = ht.arange(1, k + 1)
-        >>> b[:, 0] = ht.arange(1, j + 1)
-        (0/1) tensor([[1., 2., 3., 4., 5., 6., 7.],
-                      [2., 1., 1., 1., 1., 1., 1.]])
-        (1/1) tensor([[3., 1., 1., 1., 1., 1., 1.],
-                      [4., 1., 1., 1., 1., 1., 1.]])
-        >>> linalg.matmul(a, b)
-        (0/1) tensor([[18.,  8.,  9., 10.],
-                      [14.,  6.,  7.,  8.],
-                      [18.,  7.,  8.,  9.],
-                      [22.,  8.,  9., 10.],
-                      [26.,  9., 10., 11.]])
-        (1/1) tensor([[11., 12., 13.],
-                      [ 9., 10., 11.],
-                      [10., 11., 12.],
-                      [11., 12., 13.],
-                      [12., 13., 14.]])
-        """
-        return linalg.matmul(self, other)
-
-    def mean(self, axis=None):
-        """
-        Calculates and returns the mean of a tensor.
-        If a axis is given, the mean will be taken in that direction.
-
-        Parameters
-        ----------
-        self : ht.DNDarray
-            Values for which the mean is calculated for
-        axis : None, Int, iterable
-            axis which the mean is taken in.
-            Default: None -> mean of all data calculated
-
-        Examples
+        Returns:
         --------
-        >>> a = ht.random.randn(1,3)
-        >>> a
-        tensor([[-1.2435,  1.1813,  0.3509]])
-        >>> ht.mean(a)
-        tensor(0.0962)
 
-        >>> a = ht.random.randn(4,4)
-        >>> a
-        tensor([[ 0.0518,  0.9550,  0.3755,  0.3564],
-                [ 0.8182,  1.2425,  1.0549, -0.1926],
-                [-0.4997, -1.1940, -0.2812,  0.4060],
-                [-1.5043,  1.4069,  0.7493, -0.9384]])
-        >>> ht.mean(a, 1)
-        tensor([ 0.4347,  0.7307, -0.3922, -0.0716])
-        >>> ht.mean(a, 0)
-        tensor([-0.2835,  0.6026,  0.4746, -0.0921])
-
-        >>> a = ht.random.randn(4,4)
-        >>> a
-        tensor([[ 2.5893,  1.5934, -0.2870, -0.6637],
-                [-0.0344,  0.6412, -0.3619,  0.6516],
-                [ 0.2801,  0.6798,  0.3004,  0.3018],
-                [ 2.0528, -0.1121, -0.8847,  0.8214]])
-        >>> ht.mean(a, (0,1))
-        tensor(0.4730)
-
-        Returns
-        -------
-        ht.DNDarray containing the mean/s, if split, then split in the same direction as x.
+        isclose : boolean tensor of where a and b are equal within the given tolerance.
+            If both x and y are scalars, returns a single boolean value.
         """
-        return statistics.mean(self, axis)
+        return logical.isclose(self, other, rtol, atol, equal_nan)
 
     def exp(self, out=None):
         """
@@ -1276,6 +1097,36 @@ class DNDarray:
         """
         return rounding.floor(self, out)
 
+    def __floordiv__(self, other):
+        """
+        Element-wise floor division (i.e. result is rounded int (floor))
+        of the tensor by another tensor or scalar. Takes the first tensor by which it divides the second
+        not-heat-typed-parameter.
+
+        Parameters
+        ----------
+        other: tensor or scalar
+            The second operand by whose values is divided
+
+        Return
+        ------
+        result: ht.tensor
+            A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
+
+        Examples:
+        ---------
+        >>> import heat as ht
+        >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
+        >>> T1 // 1
+        tensor([[1., 2.],
+                [1., 4.]])
+        >>> T2 = ht.float32([1.5, 2.5])
+        >>> T1 // T2
+        tensor([[1., 0.],
+                [1., 1.]])
+        """
+        return arithmetics.floordiv(self, other)
+
     def fabs(self, out=None):
         """
         Calculate the absolute value element-wise and return floating-point tensor.
@@ -1293,6 +1144,51 @@ class DNDarray:
             A tensor containing the absolute value of each element in x.
         """
         return rounding.fabs(self, out)
+
+    def fill_diagonal(self, value):
+        """
+        Fill the main diagonal of a 2D dndarray . This function modifies the input tensor in-place, and returns the input tensor.
+
+        Parameters
+        ----------
+        value : float
+            The value to be placed in the dndarrays main diagonal
+
+        Returns
+        -------
+        out : ht.DNDarray
+            The modified input tensor with value along the diagonal
+
+        """
+        # Todo: make this 3D/nD
+        if len(self.shape) != 2:
+            raise ValueError("Only 2D tensors supported at the moment")
+
+        if self.split is not None and self.comm.is_distributed:
+            counts, displ, _ = self.comm.counts_displs_shape(self.shape, self.split)
+            k = min(self.shape[0], self.shape[1])
+            for p in range(self.comm.size):
+                if displ[p] > k:
+                    break
+                proc = p
+            if self.comm.rank <= proc:
+                indices = (
+                    displ[self.comm.rank],
+                    displ[self.comm.rank + 1] if (self.comm.rank + 1) != self.comm.size else k,
+                )
+                if self.split == 0:
+                    self._DNDarray__array[:, indices[0] : indices[1]] = self._DNDarray__array[
+                        :, indices[0] : indices[1]
+                    ].fill_diagonal_(value)
+                elif self.split == 1:
+                    self._DNDarray__array[indices[0] : indices[1], :] = self._DNDarray__array[
+                        indices[0] : indices[1], :
+                    ].fill_diagonal_(value)
+
+        else:
+            self._DNDarray__array = self._DNDarray__array.fill_diagonal_(value)
+
+        return self
 
     def __ge__(self, other):
         """
@@ -1361,11 +1257,13 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
+
         l_dtype = self.dtype.torch_type()
         if isinstance(key, DNDarray) and key.gshape[-1] != len(self.gshape):
             key = tuple(x.item() for x in key)
 
         if not self.is_distributed():
+
             if not self.comm.size == 1:
                 if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                     # this will return a 1D array as the shape cannot be determined automatically
@@ -1391,7 +1289,7 @@ class DNDarray:
                 else:
                     gout = tuple(self.__array[key].shape)
                     if self.split is not None and self.split >= len(gout):
-                        new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+                        new_split = len(gout) - 1 if len(gout) - 1 >= 0 else None
                     else:
                         new_split = self.split
 
@@ -1400,6 +1298,7 @@ class DNDarray:
                     )
 
         else:
+
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
@@ -1407,7 +1306,7 @@ class DNDarray:
 
             arr = torch.Tensor()
 
-            # if a sigular index is given and the tensor is split
+            # if a singular index is given and the tensor is split
             if isinstance(key, int):
                 gout = [0] * (len(self.gshape) - 1)
                 if key < 0:
@@ -1444,15 +1343,18 @@ class DNDarray:
                 # handle the dimensional reduction for integers
                 ints = sum([isinstance(it, int) for it in key])
                 gout = gout[: len(gout) - ints]
-
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
                     new_split = self.split
 
+                # handle empty list
+                if len(key) == 0:
+                    arr = self.__array[key]
+                    gout = list(arr.shape)
                 # if a slice is given in the split direction
                 # below allows for the split given to contain Nones
-                if isinstance(key[self.split], slice):
+                elif isinstance(key[self.split], slice):
                     key_stop = key[self.split].stop
                     if key_stop is not None and key_stop < 0:
                         key_stop = self.gshape[self.split] + key[self.split].stop
@@ -1471,30 +1373,50 @@ class DNDarray:
                         key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
                         arr = self.__array[tuple(key)]
                         gout = list(arr.shape)
-
-                # if the given axes are not splits (must be ints for python)
-                # this means the whole slice is on one node
-                elif key[self.split] in range(chunk_start, chunk_end):
-                    key = list(key)
-                    key[self.split] = key[self.split] - chunk_start
-                    arr = self.__array[tuple(key)]
-                    gout = list(arr.shape)
-                elif key[self.split] < 0 and self.gshape[self.split] + key[self.split] in range(
-                    chunk_start, chunk_end
-                ):
-                    key = list(key)
-                    key[self.split] = key[self.split] + chunk_end - chunk_start
-                    arr = self.__array[tuple(key)]
-                    gout = list(arr.shape)
                 else:
-                    warnings.warn(
-                        "This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
-                            self.comm.rank
-                        ),
-                        ResourceWarning,
-                    )
-                    # arr is empty
-                    # gout is all 0s and is the proper shape
+                    # if the given axes are not splits (must be ints OR LISTS for python)
+                    # this means the whole slice is on one node
+                    if isinstance(key, list):
+                        indices = key
+                    else:
+                        indices = key[self.split]
+                    key = list(key)
+                    if isinstance(indices, list):
+                        if len(indices) == 0:
+                            arr = self.__array[key]
+                            gout = list(arr.shape)
+                        else:
+                            indices = [
+                                index + self.gshape[self.split] if index < 0 else index
+                                for index in indices
+                            ]
+                            sorted_key_along_split = sorted(indices)
+                            if sorted_key_along_split[0] in range(
+                                chunk_start, chunk_end
+                            ) and sorted_key_along_split[-1] in range(chunk_start, chunk_end):
+                                indices = [index - chunk_start for index in indices]
+                                arr = self.__array[indices]
+                                gout = list(arr.shape)
+
+                    elif isinstance(key[self.split], int):
+                        key[self.split] = (
+                            key[self.split] + self.gshape[self.split]
+                            if key[self.split] < 0
+                            else key[self.split]
+                        )
+                        if key[self.split] in range(chunk_start, chunk_end):
+                            key[self.split] = key[self.split] - chunk_start
+                            arr = self.__array[tuple(key)]
+                            gout = list(arr.shape)
+                    if 0 in arr.shape:
+                        # arr is empty
+                        # gout is all 0s and is the proper shape
+                        warnings.warn(
+                            "This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
+                                self.comm.rank
+                            ),
+                            ResourceWarning,
+                        )
 
             # if the given axes are only a slice
             elif isinstance(key, slice) and self.split == 0:
@@ -1518,9 +1440,8 @@ class DNDarray:
                     gout = list(arr.shape)
                 else:
                     warnings.warn(
-                        "This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
-                            self.comm.rank
-                        ),
+                        "This process (rank: {}) is without data after slicing, "
+                        "running the .balance_() function is recommended".format(self.comm.rank),
                         ResourceWarning,
                     )
                     # arr is empty
@@ -1573,7 +1494,8 @@ class DNDarray:
             tensor_on_device : ht.DNDarray
                 A copy of this object on the GPU.
             """
-            self.__array = self.__array.cuda(devices.gpu_index())
+            self.__array = self.__array.cuda(devices.gpu.torch_device)
+            self.__device = devices.gpu
             return self
 
     def __gt__(self, other):
@@ -1619,6 +1541,17 @@ class DNDarray:
         """
         return self.__cast(int)
 
+    def __invert__(self):
+        """
+        Bit-wise inversion, or bit-wise NOT, element-wise.
+
+        Returns
+        -------
+        result: ht.DNDarray
+            A tensor containing the results of element-wise inversion.
+        """
+        return arithmetics.invert(self)
+
     def is_balanced(self):
         """
         Determine if a DNDarray is balanced evenly (or as evenly as possible) across all nodes
@@ -1645,6 +1578,20 @@ class DNDarray:
             Whether the data of the tensor is distributed across multiple processes
         """
         return self.split is not None and self.comm.is_distributed()
+
+    def item(self):
+        """
+        Returns the only element of a 1-element tensor. Mirror of the pytorch command by the same name
+        If size of tensor is >1 element, then a ValueError is raised (by pytorch)
+
+        Example
+        -------
+        >>> import heat as ht
+        >>> x = ht.zeros((1))
+        >>> x.item()
+        0.0
+        """
+        return self.__array.item()
 
     def __le__(self, other):
         """
@@ -1790,6 +1737,27 @@ class DNDarray:
         """
         return exponential.log1p(self, out)
 
+    def __lshift__(self, other):
+        """
+        Shift the bits of an integer to the left.
+
+        Parameters
+        ----------
+        other: scalar or tensor
+           number of zero bits to add
+
+        Returns
+        -------
+        result: ht.NDNarray
+           A tensor containing the results of element-wise left shift operation.
+
+        Examples:
+        ---------
+        >>> ht.array([1, 2, 4]) << 1
+        tensor([2, 4, 8])
+        """
+        return arithmetics.left_shift(self, other)
+
     def __lt__(self, other):
         """
         Element-wise rich comparison of relation "less than" with values from second operand (scalar or tensor)
@@ -1822,6 +1790,70 @@ class DNDarray:
         """
         return relational.lt(self, other)
 
+    def __matmul__(self, other):
+        """
+        Matrix multiplication of two DNDarrays
+
+        for comment context -> a @ b = c or A @ B = c
+
+        Parameters
+        ----------
+        a : ht.DNDarray
+            2 dimensional: L x P
+        b : ht.DNDarray
+            2 dimensional: P x Q
+
+        Returns
+        -------
+        ht.DNDarray
+            returns a tensor with the result of a @ b. The split dimension of the returned array is typically the split dimension of a.
+            However, if a.split = None then the the c.split will be set as the split dimension of b. If both are None then c.split is also None.
+            ** NOTE ** if a is a split vector, then the returned vector will be of shape (1xQ) and will be split in the 1st dimension
+            ** NOTE ** if b is a vector and either a or b is split, then the returned vector will be of shape (Lx1) and will be split in the 0th dimension
+
+        References
+        ----------
+        [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on Distributed Data-parallel Platforms,"
+            IEEE Transactions on Parallel and Distributed Systems, vol 28, no. 9. 2017.
+        [2] S. Ryu and D. Kim, "Parallel Huge Matrix Multiplication on a Cluster with GPGPU Accelerators,"
+            2018 IEEE International Parallel and Distributed Processing Symposium Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
+
+        Example
+        -------
+        >>> a = ht.ones((n, m), split=1)
+        >>> a[0] = ht.arange(1, m + 1)
+        >>> a[:, -1] = ht.arange(1, n + 1)
+        (0/1) tensor([[1., 2.],
+                      [1., 1.],
+                      [1., 1.],
+                      [1., 1.],
+                      [1., 1.]])
+        (1/1) tensor([[3., 1.],
+                      [1., 2.],
+                      [1., 3.],
+                      [1., 4.],
+                      [1., 5.]])
+        >>> b = ht.ones((j, k), split=0)
+        >>> b[0] = ht.arange(1, k + 1)
+        >>> b[:, 0] = ht.arange(1, j + 1)
+        (0/1) tensor([[1., 2., 3., 4., 5., 6., 7.],
+                      [2., 1., 1., 1., 1., 1., 1.]])
+        (1/1) tensor([[3., 1., 1., 1., 1., 1., 1.],
+                      [4., 1., 1., 1., 1., 1., 1.]])
+        >>> linalg.matmul(a, b)
+        (0/1) tensor([[18.,  8.,  9., 10.],
+                      [14.,  6.,  7.,  8.],
+                      [18.,  7.,  8.,  9.],
+                      [22.,  8.,  9., 10.],
+                      [26.,  9., 10., 11.]])
+        (1/1) tensor([[11., 12., 13.],
+                      [ 9., 10., 11.],
+                      [10., 11., 12.],
+                      [11., 12., 13.],
+                      [12., 13., 14.]])
+        """
+        return linalg.matmul(self, other)
+
     def max(self, axis=None, out=None, keepdim=None):
         """
         Return the maximum of an array or maximum along an axis.
@@ -1840,6 +1872,53 @@ class DNDarray:
             The minimum value of an output element. Must be present to allow computation on empty slice.
         """
         return statistics.max(self, axis=axis, out=out, keepdim=keepdim)
+
+    def mean(self, axis=None):
+        """
+        Calculates and returns the mean of a tensor.
+        If a axis is given, the mean will be taken in that direction.
+
+        Parameters
+        ----------
+        self : ht.DNDarray
+            Values for which the mean is calculated for
+        axis : None, Int, iterable
+            axis which the mean is taken in.
+            Default: None -> mean of all data calculated
+
+        Examples
+        --------
+        >>> a = ht.random.randn(1,3)
+        >>> a
+        tensor([[-1.2435,  1.1813,  0.3509]])
+        >>> ht.mean(a)
+        tensor(0.0962)
+
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[ 0.0518,  0.9550,  0.3755,  0.3564],
+                [ 0.8182,  1.2425,  1.0549, -0.1926],
+                [-0.4997, -1.1940, -0.2812,  0.4060],
+                [-1.5043,  1.4069,  0.7493, -0.9384]])
+        >>> ht.mean(a, 1)
+        tensor([ 0.4347,  0.7307, -0.3922, -0.0716])
+        >>> ht.mean(a, 0)
+        tensor([-0.2835,  0.6026,  0.4746, -0.0921])
+
+        >>> a = ht.random.randn(4,4)
+        >>> a
+        tensor([[ 2.5893,  1.5934, -0.2870, -0.6637],
+                [-0.0344,  0.6412, -0.3619,  0.6516],
+                [ 0.2801,  0.6798,  0.3004,  0.3018],
+                [ 2.0528, -0.1121, -0.8847,  0.8214]])
+        >>> ht.mean(a, (0,1))
+        tensor(0.4730)
+
+        Returns
+        -------
+        ht.DNDarray containing the mean/s, if split, then split in the same direction as x.
+        """
+        return statistics.mean(self, axis)
 
     def min(self, axis=None, out=None, keepdim=None):
         """
@@ -1893,6 +1972,32 @@ class DNDarray:
                 [2, 2]], dtype=torch.int32)
         """
         return arithmetics.mod(self, other)
+
+    def modf(self, out=None):
+        """
+        Return the fractional and integral parts of an array, element-wise.
+        The fractional and integral parts are negative if the given number is negative.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            Input array
+        out : ht.DNDarray, optional
+            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+            If not provided or None, a freshly-allocated array is returned.
+
+        Returns
+        -------
+        tuple(ht.DNDarray: fractionalParts, ht.DNDarray: integralParts)
+
+        fractionalParts : ht.DNDdarray
+            Fractional part of x. This is a scalar if x is a scalar.
+
+        integralParts : ht.DNDdarray
+            Integral part of x. This is a scalar if x is a scalar.
+        """
+
+        return rounding.modf(self, out)
 
     def __mul__(self, other):
         """
@@ -2134,52 +2239,330 @@ class DNDarray:
         """
         return arithmetics.prod(self, axis, out, keepdim)
 
+    def qr(self, tiles_per_proc=1, calc_q=True, overwrite_a=False):
+        """
+        Calculates the QR decomposition of a 2D DNDarray. The algorithms are based on the CAQR and TSQR
+        algorithms. For more information see the references.
+
+        Parameters
+        ----------
+        a : DNDarray
+            DNDarray which will be decomposed
+        tiles_per_proc : int, singlt element torch.Tensor
+            optional, default: 1
+            number of tiles per process to operate on
+        calc_q : bool
+            optional, default: True
+            whether or not to calculate Q
+            if True, function returns (Q, R)
+            if False, function returns (None, R)
+        overwrite_a : bool
+            optional, default: False
+            if True, function overwrites the DNDarray a, with R
+            if False, a new array will be created for R
+
+        Returns
+        -------
+        tuple of Q and R
+            if calc_q == True, function returns (Q, R)
+            if calc_q == False, function returns (None, R)
+
+        References
+        ----------
+        [0]  W. Zheng, F. Song, L. Lin, and Z. Chen, “Scaling Up Parallel Computation of Tiled QR
+                Factorizations by a Distributed Scheduling Runtime System and Analytical Modeling,”
+                Parallel Processing Letters, vol. 28, no. 01, p. 1850004, 2018.
+        [1] Bilel Hadri, Hatem Ltaief, Emmanuel Agullo, Jack Dongarra. Tile QR Factorization with
+                Parallel Panel Processing for Multicore Architectures. 24th IEEE International Parallel
+                and DistributedProcessing Symposium (IPDPS 2010), Apr 2010, Atlanta, United States.
+                inria-00548899
+        [2] Gene H. Golub and Charles F. Van Loan. 1996. Matrix Computations (3rd Ed.).
+        """
+        return linalg.qr(
+            self, tiles_per_proc=tiles_per_proc, calc_q=calc_q, overwrite_a=overwrite_a
+        )
+
     def __repr__(self, *args):
         # TODO: document me
         # TODO: generate none-PyTorch repr
         return self.__array.__repr__(*args)
 
-    def resplit_(self, axis=None):
+    def redistribute_(self, lshape_map=None, target_map=None):
         """
-        In-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
-        nodes as well as the definition of new axis along which the tensor is split without changes to the values.
-
-        WARNING: this operation might involve a significant communication overhead. Use it sparingly and preferably for
-        small tensors.
+        Redistributes the data of the DNDarray *along the split axis* to match the given target map.
+        This function does not modify the non-split dimensions of the DNDarray.
+        This is an abstraction and extension of the balance function.
 
         Parameters
         ----------
-        axis : int
+        lshape_map : torch.Tensor, optional
+            The current lshape of processes
+            Units -> [rank, lshape]
+        target_map : torch.Tensor, optional
+            The desired distribution across the processes
+            Units -> [rank, target lshape]
+            Note: the only important parts of the target map are the values along the split axis,
+            values which are not along this axis are there to mimic the shape of the lshape_map
+
+        Returns
+        -------
+        None, the local shapes of the DNDarray are modified
+        Examples
+        --------
+        >>> st = ht.ones((50, 81, 67), split=2)
+        >>> target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
+        >>> target_map[0, 2] = 67
+        >>> print(target_map)
+        [0/2] tensor([[ 0,  0, 67],
+        [0/2]         [ 0,  0,  0],
+        [0/2]         [ 0,  0,  0]], dtype=torch.int32)
+        [1/2] tensor([[ 0,  0, 67],
+        [1/2]         [ 0,  0,  0],
+        [1/2]         [ 0,  0,  0]], dtype=torch.int32)
+        [2/2] tensor([[ 0,  0, 67],
+        [2/2]         [ 0,  0,  0],
+        [2/2]         [ 0,  0,  0]], dtype=torch.int32)
+        >>> print(st.lshape)
+        [0/2] (50, 81, 23)
+        [1/2] (50, 81, 22)
+        [2/2] (50, 81, 22)
+        >>> st.redistribute_(target_map=target_map)
+        >>> print(st.lshape)
+        [0/2] (50, 81, 67)
+        [1/2] (50, 81, 0)
+        [2/2] (50, 81, 0)
+        """
+        if not self.is_distributed():
+            return
+        snd_dtype = self.dtype.torch_type()
+        # units -> {pr, 1st index, 2nd index}
+        if lshape_map is None:
+            # NOTE: giving an lshape map which is incorrect will result in an incorrect distribution
+            lshape_map = self.create_lshape_map()
+        else:
+            if not isinstance(lshape_map, torch.Tensor):
+                raise TypeError(
+                    "lshape_map must be a torch.Tensor, currently {}".format(type(lshape_map))
+                )
+            if lshape_map.shape != (self.comm.size, len(self.gshape)):
+                raise ValueError(
+                    "lshape_map must have the shape ({}, {}), currently {}".format(
+                        self.comm.size, len(self.gshape), lshape_map.shape
+                    )
+                )
+
+        if target_map is None:  # if no target map is given then it will balance the tensor
+            target_map = torch.zeros(
+                (self.comm.size, len(self.gshape)), dtype=int, device=self.device.torch_device
+            )
+            _, _, chk = self.comm.chunk(self.shape, self.split)
+            for i in range(len(self.gshape)):
+                target_map[self.comm.rank, i] = chk[i].stop - chk[i].start
+            self.comm.Allreduce(MPI.IN_PLACE, target_map, MPI.SUM)
+        else:
+            if not isinstance(target_map, torch.Tensor):
+                raise TypeError(
+                    "target_map must be a torch.Tensor, currently {}".format(type(target_map))
+                )
+            if target_map[..., self.split].sum() != self.shape[self.split]:
+                raise ValueError(
+                    "Sum along the split axis of the target map must be equal to the "
+                    "shape in that dimension, currently {}".format(target_map[..., self.split])
+                )
+            if target_map.shape != (self.comm.size, len(self.gshape)):
+                raise ValueError(
+                    "target_map must have the shape {}, currently {}".format(
+                        (self.comm.size, len(self.gshape)), target_map.shape
+                    )
+                )
+
+        lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
+        chunk_cumsum = torch.cat(
+            (
+                torch.tensor([0], device=self.device.torch_device),
+                torch.cumsum(target_map[..., self.split], dim=0),
+            ),
+            dim=0,
+        )
+        # need the data start as well for process 0
+        for rcv_pr in range(self.comm.size - 1):
+            st = chunk_cumsum[rcv_pr].item()
+            sp = chunk_cumsum[rcv_pr + 1].item()
+            # start pr should be the next process with data
+            if lshape_map[rcv_pr, self.split] >= target_map[rcv_pr, self.split]:
+                # if there is more data on the process than the start process than start == stop
+                st_pr = rcv_pr
+                sp_pr = rcv_pr
+            else:
+                # if there is less data on the process than need to get the data from the next data
+                # with data
+                # need processes > rcv_pr with lshape > 0
+                st_pr = (
+                    torch.nonzero(input=lshape_map[rcv_pr:, self.split] > 0, as_tuple=False)[
+                        0
+                    ].item()
+                    + rcv_pr
+                )
+                hld = (
+                    torch.nonzero(input=sp <= lshape_cumsum[rcv_pr:], as_tuple=False).flatten()
+                    + rcv_pr
+                )
+                sp_pr = hld[0].item() if hld.numel() > 0 else self.comm.size
+
+            # st_pr and sp_pr are the processes on which the data sits at the beginning
+            # need to loop from st_pr to sp_pr + 1 and send the pr
+            for snd_pr in range(st_pr, sp_pr + 1):
+                if snd_pr == self.comm.size:
+                    break
+                data_required = abs(sp - st - lshape_map[rcv_pr, self.split].item())
+                send_amt = (
+                    data_required
+                    if data_required <= lshape_map[snd_pr, self.split]
+                    else lshape_map[snd_pr, self.split]
+                )
+                if (sp - st) <= lshape_map[rcv_pr, self.split].item() or snd_pr == rcv_pr:
+                    send_amt = 0
+                # send amount is the data still needed by recv if that is available on the snd
+                if send_amt != 0:
+                    self.__redistribute_shuffle(
+                        snd_pr=snd_pr, send_amt=send_amt, rcv_pr=rcv_pr, snd_dtype=snd_dtype
+                    )
+                lshape_cumsum[snd_pr] -= send_amt
+                lshape_cumsum[rcv_pr] += send_amt
+                lshape_map[rcv_pr, self.split] += send_amt
+                lshape_map[snd_pr, self.split] -= send_amt
+            if lshape_map[rcv_pr, self.split] > target_map[rcv_pr, self.split]:
+                # if there is any data left on the process then send it to the next one
+                send_amt = lshape_map[rcv_pr, self.split] - target_map[rcv_pr, self.split]
+                self.__redistribute_shuffle(
+                    snd_pr=rcv_pr, send_amt=send_amt.item(), rcv_pr=rcv_pr + 1, snd_dtype=snd_dtype
+                )
+                lshape_cumsum[rcv_pr] -= send_amt
+                lshape_cumsum[rcv_pr + 1] += send_amt
+                lshape_map[rcv_pr, self.split] -= send_amt
+                lshape_map[rcv_pr + 1, self.split] += send_amt
+
+        if any(lshape_map[..., self.split] != target_map[..., self.split]):
+            # sometimes need to call the redistribute once more,
+            # (in the case that the second to last processes needs to get data from +1 and -1)
+            self.redistribute_(lshape_map=lshape_map, target_map=target_map)
+
+    def __redistribute_shuffle(self, snd_pr, send_amt, rcv_pr, snd_dtype):
+        """
+        Function to abstract the function used during redistribute for shuffling data between
+        processes along the split axis
+
+        Parameters
+        ----------
+        snd_pr : int, single element torch.Tensor
+            Sending process
+        send_amt : int, single element torch.Tensor
+            Amount of data to be sent by the sending process
+        rcv_pr : int, single element torch.Tensor
+            Recieving process
+        snd_dtype : torch.type
+            Torch type of the data in question
+
+        Returns
+        -------
+        None
+        """
+        rank = self.comm.rank
+        send_slice = [slice(None)] * self.numdims
+        keep_slice = [slice(None)] * self.numdims
+        if rank == snd_pr:
+            if snd_pr < rcv_pr:  # data passed to a higher rank (off the bottom)
+                send_slice[self.split] = slice(
+                    self.lshape[self.split] - send_amt, self.lshape[self.split]
+                )
+                keep_slice[self.split] = slice(0, self.lshape[self.split] - send_amt)
+            if snd_pr > rcv_pr:  # data passed to a lower rank (off the top)
+                send_slice[self.split] = slice(0, send_amt)
+                keep_slice[self.split] = slice(send_amt, self.lshape[self.split])
+            data = self.__array[send_slice].clone()
+            self.comm.Send(data, dest=rcv_pr, tag=685)
+            self.__array = self.__array[keep_slice]
+        if rank == rcv_pr:
+            shp = list(self.gshape)
+            shp[self.split] = send_amt
+            data = torch.zeros(shp, dtype=snd_dtype, device=self.device.torch_device)
+            self.comm.Recv(data, source=snd_pr, tag=685)
+            if snd_pr < rcv_pr:  # data passed from a lower rank (append to top)
+                self.__array = torch.cat((data, self.__array), dim=self.split)
+            if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
+                self.__array = torch.cat((self.__array, data), dim=self.split)
+
+    def reshape(self, shape, axis=None):
+        """
+        Returns a tensor with the same data and number of elements as a, but with the specified shape.
+
+        Parameters
+        ----------
+        a : ht.DNDarray
+            The input tensor
+        shape : tuple, list
+            Shape of the new tensor
+        axis : int, optional
+            The new split axis. None denotes same axis
+            Default : None
+
+        Returns
+        -------
+        reshaped : ht.DNDarray
+            The tensor with the specified shape
+
+        Raises
+        ------
+        ValueError
+            If the number of elements changes in the new shape.
+
+        Examples
+        --------
+        >>> a = ht.arange(16, split=0)
+        >>> a.reshape((4,4))
+        (1/2) tensor([[0, 1, 2, 3],
+                    [4, 5, 6, 7]], dtype=torch.int32)
+        (2/2) tensor([[ 8,  9, 10, 11],
+                    [12, 13, 14, 15]], dtype=torch.int32)
+        """
+        return manipulations.reshape(self, shape, axis)
+
+    def resplit_(self, axis=None):
+        """
+        In-place option for resplitting a DNDarray.
+
+        Parameters
+        ----------
+        axis : int, None
             The new split axis, None denotes gathering, an int will set the new split axis
 
         Returns
         -------
         resplit: ht.DNDarray
-            The redistributed tensor
+            The redistributed tensor. Will overwrite the old DNDarray in memory.
 
         Examples
         --------
-        a = ht.zeros((4, 5,), split=0)
-        a.lshape
-        (0/2) >>> (2, 5)
-        (1/2) >>> (2, 5)
-        a.resplit(None)
-        a.split
-        >>> None
-        a.lshape
-        (0/2) >>> (4, 5)
-        (1/2) >>> (4, 5)
-
-        a = ht.zeros((4, 5,), split=0)
-        a.lshape
-        (0/2) >>> (2, 5)
-        (1/2) >>> (2, 5)
-        a.resplit(1)
-        a.split
-        >>> 1
-        a.lshape
-        (0/2) >>> (4, 3)
-        (1/2) >>> (4, 2)
+        >>> a = ht.zeros((4, 5,), split=0)
+        >>> a.lshape
+        (0/2) (2, 5)
+        (1/2) (2, 5)
+        >>> ht.resplit_(a, None)
+        >>> a.split
+        None
+        >>> a.lshape
+        (0/2) (4, 5)
+        (1/2) (4, 5)
+        >>> a = ht.zeros((4, 5,), split=0)
+        >>> a.lshape
+        (0/2) (2, 5)
+        (1/2) (2, 5)
+        >>> ht.resplit_(a, 1)
+        >>> a.split
+        1
+        >>> a.lshape
+        (0/2) (4, 3)
+        (1/2) (4, 2)
         """
         # sanitize the axis to check whether it is in range
         axis = sanitize_axis(self.shape, axis)
@@ -2187,45 +2570,87 @@ class DNDarray:
         # early out for unchanged content
         if axis == self.split:
             return self
-
-        # unsplit the tensor
         if axis is None:
-            gathered = torch.empty(self.shape, dtype=self.dtype.torch_type())
-
-            recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Allgatherv(
-                self.__array, (gathered, recv_counts, recv_displs), recv_axis=self.split
+            gathered = torch.empty(
+                self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
             )
-
+            counts, displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
+            self.comm.Allgatherv(self.__array, (gathered, counts, displs), recv_axis=self.split)
             self.__array = gathered
-            self.__split = None
-
+            self.__split = axis
+            return self
         # tensor needs be split/sliced locally
-        elif self.split is None:
+        if self.split is None:
+            # new_arr = self
             _, _, slices = self.comm.chunk(self.shape, axis)
             temp = self.__array[slices]
-            self.__array = torch.empty((1,))
+            self.__array = torch.empty((1,), device=self.device.torch_device)
             # necessary to clear storage of local __array
             self.__array = temp.clone().detach()
             self.__split = axis
+            return self
 
-        # entirely new split axis, need to redistribute
-        else:
-            _, output_shape, _ = self.comm.chunk(self.shape, axis)
-            redistributed = torch.empty(output_shape, dtype=self.dtype.torch_type())
+        tiles = tiling.SplitTiles(self)
+        new_tile_locs = tiles.set_tile_locations(
+            split=axis, tile_dims=tiles.tile_dimensions, arr=self
+        )
+        rank = self.comm.rank
+        # receive the data with non-blocking, save which process its from
+        rcv = {}
+        for rpr in range(self.comm.size):
+            # need to get where the tiles are on the new one first
+            # rpr is the destination
+            new_locs = torch.where(new_tile_locs == rpr)
+            new_locs = torch.stack([new_locs[i] for i in range(self.numdims)], dim=1)
+            for i in range(new_locs.shape[0]):
+                key = tuple(new_locs[i].tolist())
+                spr = tiles.tile_locations[key].item()
+                to_send = tiles[key]
+                if spr == rank and spr != rpr:
+                    self.comm.Send(to_send.clone(), dest=rpr, tag=rank)
+                    del to_send
+                elif spr == rpr and rpr == rank:
+                    rcv[key] = [None, to_send]
+                elif rank == rpr:
+                    sz = tiles.get_tile_size(key)
+                    buf = torch.zeros(
+                        sz, dtype=self.dtype.torch_type(), device=self.device.torch_device
+                    )
+                    w = self.comm.Irecv(buf=buf, source=spr, tag=spr)
+                    rcv[key] = [w, buf]
+        dims = list(range(self.numdims))
+        del dims[axis]
+        sorted_keys = sorted(rcv.keys())
+        # todo: reduce the problem to 1D cats for each dimension, then work up
+        sz = self.comm.size
+        arrays = []
+        for prs in range(int(len(sorted_keys) / sz)):
+            lp_keys = sorted_keys[prs * sz : (prs + 1) * sz]
+            lp_arr = None
+            for k in lp_keys:
+                if rcv[k][0] is not None:
+                    rcv[k][0].wait()
+                if lp_arr is None:
+                    lp_arr = rcv[k][1]
+                else:
+                    lp_arr = torch.cat((lp_arr, rcv[k][1]), dim=dims[-1])
+                del rcv[k]
+            if lp_arr is not None:
+                arrays.append(lp_arr)
+        del dims[-1]
+        # for 4 prs and 4 dims, arrays is now 16 elements long,
+        # next need to group the each 4 (sz) and cat in the next dim
+        for d in reversed(dims):
+            new_arrays = []
+            for prs in range(int(len(arrays) / sz)):
+                new_arrays.append(torch.cat(arrays[prs * sz : (prs + 1) * sz], dim=d))
+            arrays = new_arrays
+            del d
+        if len(arrays) == 1:
+            arrays = arrays[0]
 
-            send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
-            recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Alltoallv(
-                (self.__array, send_counts, send_displs),
-                (redistributed, recv_counts, recv_displs),
-                send_axis=axis,
-                recv_axis=self.split,
-            )
-
-            self.__array = redistributed
-            self.__split = axis
-
+        self.__array = arrays
+        self.__split = axis
         return self
 
     def __rfloordiv__(self, other):
@@ -2277,9 +2702,34 @@ class DNDarray:
         >>> T = ht.int32([1, 3])
         >>> 2 % T
         tensor([0, 2], dtype=torch.int32)
-
         """
         return arithmetics.mod(other, self)
+
+    def round(self, decimals=0, out=None, dtype=None):
+        """
+        Calculate the rounded value element-wise.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            The values for which the compute the rounded value.
+        out : ht.DNDarray, optional
+            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+            If not provided or None, a freshly-allocated array is returned.
+        dtype : ht.type, optional
+            Determines the data type of the output array. The values are cast to this type with potential loss of
+            precision.
+
+        decimals: int, optional
+            Number of decimal places to round to (default: 0).
+            If decimals is negative, it specifies the number of positions to the left of the decimal point.
+
+        Returns
+        -------
+        rounded_values : ht.DNDarray
+            A tensor containing the rounded value of each element in x.
+        """
+        return rounding.round(self, decimals, out, dtype)
 
     def __rpow__(self, other):
         """
@@ -2307,6 +2757,27 @@ class DNDarray:
                 [27., 81.]])
         """
         return arithmetics.pow(other, self)
+
+    def __rshift__(self, other):
+        """
+        Shift the bits of an integer to the right.
+
+        Parameters
+        ----------
+        other: scalar or tensor
+           number of bits to remove
+
+        Returns
+        -------
+        result: ht.NDNarray
+           A tensor containing the results of element-wise right shift operation.
+
+        Examples:
+        ---------
+        >>> ht.array([1, 2, 4]) >> 1
+        tensor([0, 1, 2])
+        """
+        return arithmetics.right_shift(self, other)
 
     def __rsub__(self, other):
         """
@@ -2486,6 +2957,12 @@ class DNDarray:
             else:
                 self.__setter(key, value)
         else:
+            if (
+                isinstance(value, DNDarray)
+                and value.split is not None
+                and value.split != self.split
+            ):
+                raise RuntimeError("split axis of array and the target value are not equal")
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
@@ -2568,7 +3045,7 @@ class DNDarray:
         elif isinstance(value, torch.Tensor):
             self.__array.__setitem__(key, value.data)
         elif isinstance(value, (list, tuple)):
-            value = torch.Tensor(value)
+            value = torch.tensor(value, device=self.device.torch_device)
             self.__array.__setitem__(key, value.data)
         elif isinstance(value, np.ndarray):
             value = torch.from_numpy(value)
@@ -2702,7 +3179,7 @@ class DNDarray:
         """
         return manipulations.squeeze(self, axis)
 
-    def std(self, axis=None, bessel=True):
+    def std(self, axis=None, ddof=0, **kwargs):
         """
         Calculates and returns the standard deviation of a tensor with the bessel correction
         If a axis is given, the variance will be taken in that direction.
@@ -2715,36 +3192,37 @@ class DNDarray:
             axis which the mean is taken in.
             Default: None -> std of all data calculated
             NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
-        bessel : Bool
-            Default: True
-            use the bessel correction when calculating the varaince/std
-            toggle between unbiased and biased calculation of the std
+        ddof : int, optional
+            Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
+            represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
+            Setting ddof > 1 raises a NotImplementedError.
+
 
         Examples
         --------
         >>> a = ht.random.randn(1,3)
         >>> a
         tensor([[ 0.3421,  0.5736, -2.2377]])
-        >>> ht.std(a)
-        tensor(1.5606)
+        >>> a.std()
+        tensor(1.2742)
         >>> a = ht.random.randn(4,4)
         >>> a
         tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
                 [ 0.2732, -0.0965, -0.1087, -1.3805],
                 [ 0.2647,  0.5998, -0.1635, -0.0848],
                 [ 0.0343,  0.1618, -0.8064, -0.1031]])
-        >>> ht.std(a, 0)
+        >>> ht.std(a, 0, ddof=1)
         tensor([0.6157, 0.2918, 0.8324, 1.1996])
-        >>> ht.std(a, 1)
+        >>> ht.std(a, 1, ddof=1)
         tensor([1.1405, 0.7236, 0.3506, 0.4324])
-        >>> ht.std(a, 1, bessel=False)
+        >>> ht.std(a, 1)
         tensor([0.9877, 0.6267, 0.3037, 0.3745])
 
         Returns
         -------
         ht.DNDarray containing the std/s, if split, then split in the same direction as x.
         """
-        return statistics.std(self, axis, bessel=bessel)
+        return statistics.std(self, axis, ddof=ddof, **kwargs)
 
     def __str__(self, *args):
         # TODO: document me
@@ -2973,6 +3451,38 @@ class DNDarray:
         """
         return arithmetics.div(self, other)
 
+    def trunc(self, out=None):
+        """
+        Return the trunc of the input, element-wise.
+
+        The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the
+        fractional part of the signed number x is discarded.
+
+        Parameters
+        ----------
+        out : ht.DNDarray or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        trunced : ht.DNDarray
+            A tensor of the same shape as x, containing the trunced valued of each element in this tensor. If out was
+            provided, trunced is a reference to it.
+
+        Returns
+        -------
+        trunced : ht.DNDarray
+            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
+            provided, trunced is a reference to it.
+
+        Examples
+        --------
+        >>> ht.trunc(ht.arange(-2.0, 2.0, 0.4))
+        tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
+        """
+        return rounding.trunc(self, out)
+
     def unique(self, sorted=False, return_inverse=False, axis=None):
         """
         Finds and returns the unique elements of the tensor.
@@ -3013,7 +3523,7 @@ class DNDarray:
         """
         return manipulations.unique(self, sorted, return_inverse, axis)
 
-    def var(self, axis=None, bessel=True):
+    def var(self, axis=None, ddof=0, **kwargs):
         """
         Calculates and returns the variance of a tensor.
         If a axis is given, the variance will be taken in that direction.
@@ -3026,18 +3536,27 @@ class DNDarray:
             axis which the variance is taken in.
             Default: None -> var of all data calculated
             NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
-        bessel : Bool
-            Default: True
-            use the bessel correction when calculating the varaince/std
-            toggle between unbiased and biased calculation of the std
+        ddof : int, optional
+            Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
+            represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
+            Setting ddof > 1 raises a NotImplementedError.
+
+        Notes on ddof (from numpy)
+        --------------------------
+        The variance is the average of the squared deviations from the mean, i.e., var = mean(abs(x - x.mean())**2).
+        The mean is normally calculated as x.sum() / N, where N = len(x). If, however, ddof is specified, the divisor
+        N - ddof is used instead. In standard statistical practice, ddof=1 provides an unbiased estimator of the
+        variance of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate of the variance
+        for normally distributed variables.
+
 
         Examples
         --------
         >>> a = ht.random.randn(1,3)
         >>> a
         tensor([[-1.9755,  0.3522,  0.4751]])
-        >>> ht.var(a)
-        tensor(1.9065)
+        >>> a.var()
+        tensor(1.2710)
 
         >>> a = ht.random.randn(4,4)
         >>> a
@@ -3045,20 +3564,18 @@ class DNDarray:
                 [ 0.5886,  0.5712,  0.4582,  0.5323],
                 [ 1.9754,  1.2958,  0.5957,  0.0418],
                 [ 0.8196, -1.2911, -0.2026,  0.6212]])
-        >>> ht.var(a, 1)
+        >>> ht.var(a, 1, ddof=1)
         tensor([1.3092, 0.0034, 0.7061, 0.9217])
+        >>> ht.var(a, 0, ddof=1)
+        tensor([1.3624, 3.2563, 0.1447, 1.2042])
         >>> ht.var(a, 0)
-        tensor([1.3624, 3.2563, 0.1447, 1.2042])
-        >>> ht.var(a, 0, bessel=True)
-        tensor([1.3624, 3.2563, 0.1447, 1.2042])
-        >>> ht.var(a, 0, bessel=False)
         tensor([1.0218, 2.4422, 0.1085, 0.9032])
 
         Returns
         -------
         ht.DNDarray containing the var/s, if split, then split in the same direction as x.
         """
-        return statistics.var(self, axis, bessel=bessel)
+        return statistics.var(self, axis, ddof=ddof, **kwargs)
 
     def __xor__(self, other):
         """

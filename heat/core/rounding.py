@@ -4,7 +4,7 @@ from . import operations
 from . import dndarray
 from . import types
 
-__all__ = ["abs", "absolute", "ceil", "clip", "fabs", "floor", "trunc"]
+__all__ = ["abs", "absolute", "ceil", "clip", "fabs", "floor", "modf", "round", "trunc"]
 
 
 def abs(x, out=None, dtype=None):
@@ -176,6 +176,113 @@ def floor(x, out=None):
     tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
     """
     return operations.__local_op(torch.floor, x, out)
+
+
+def modf(x, out=None):
+    """
+    Return the fractional and integral parts of a tensor, element-wise.
+    The fractional and integral parts are negative if the given number is negative.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        Input tensor
+    out : tuple(ht.DNDarray, ht.DNDarray), optional
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+        If not provided or None, a freshly-allocated tensor is returned.
+
+    Returns
+    -------
+    tuple(ht.DNDarray: fractionalParts, ht.DNDarray: integralParts)
+
+    fractionalParts : ht.DNDdarray
+        Fractional part of x. This is a scalar if x is a scalar.
+
+    integralParts : ht.DNDdarray
+        Integral part of x. This is a scalar if x is a scalar.
+
+    Examples
+    --------
+    >>> ht.modf(ht.arange(-2.0, 2.0, 0.4))
+        (tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.]),
+        tensor([ 0.0000, -0.6000, -0.2000, -0.8000, -0.4000,  0.0000,  0.4000,  0.8000, 0.2000,  0.6000]))
+    """
+    if not isinstance(x, dndarray.DNDarray):
+        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+
+    integralParts = trunc(x)
+    fractionalParts = x - integralParts
+
+    if out is not None:
+        if not isinstance(out, tuple):
+            raise TypeError(
+                "expected out to be None or a tuple of ht.DNDarray, but was {}".format(type(out))
+            )
+        if len(out) != 2:
+            raise ValueError(
+                "expected out to be a tuple of length 2, but was of length {}".format(len(out))
+            )
+        if (not isinstance(out[0], dndarray.DNDarray)) or (
+            not isinstance(out[1], dndarray.DNDarray)
+        ):
+            raise TypeError(
+                "expected out to be None or a tuple of ht.DNDarray, but was ({}, {})".format(
+                    type(out[0]), type(out[1])
+                )
+            )
+        out[0]._DNDarray__array = fractionalParts._DNDarray__array
+        out[1]._DNDarray__array = integralParts._DNDarray__array
+        return out
+
+    return (fractionalParts, integralParts)
+
+
+def round(x, decimals=0, out=None, dtype=None):
+    """
+    Calculate the rounded value element-wise.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The values for which the compute the rounded value.
+    decimals: int, optional
+        Number of decimal places to round to (default: 0).
+        If decimals is negative, it specifies the number of positions to the left of the decimal point.
+    out : ht.DNDarray, optional
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+        If not provided or None, a freshly-allocated array is returned.
+    dtype : ht.type, optional
+        Determines the data type of the output array. The values are cast to this type with potential loss of
+        precision.
+
+
+    Returns
+    -------
+    rounded_values : ht.DNDarray
+        A tensor containing the rounded value of each element in x.
+
+    Examples
+    --------
+    >>> ht.round(ht.arange(-2.0, 2.0, 0.4))
+        tensor([-2., -2., -1., -1., -0.,  0.,  0.,  1.,  1.,  2.])
+
+    """
+    if dtype is not None and not issubclass(dtype, types.generic):
+        raise TypeError("dtype must be a heat data type")
+
+    if decimals != 0:
+        x *= 10 ** decimals
+
+    rounded_values = operations.__local_op(torch.round, x, out)
+
+    if decimals != 0:
+        rounded_values /= 10 ** decimals
+
+    if dtype is not None:
+        rounded_values._DNDarray__array = rounded_values._DNDarray__array.type(dtype.torch_type())
+        rounded_values._DNDarray__dtype = dtype
+
+    return rounded_values
 
 
 def trunc(x, out=None):

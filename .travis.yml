@@ -13,7 +13,7 @@ before_install:
 
 install:
   - pre-commit run --all-files
-  - docker exec -t unittest /bin/bash -c '. /root/.bashrc && pip install -q -e .[hdf5,netcdf] && pip list'
+  - docker exec -t unittest /bin/bash -c '. /root/.bashrc && pip install --progress-bar off -e .[hdf5,netcdf] && pip list'
 
 script:
   # Running multiple mpi process count, generate a unique coverage report for each one and merge into one report
@@ -36,3 +36,4 @@ deploy:
     secure: saah54pqheQy871ZfqxDjmutxPrHb8ii/72qf/Bay/1q3poMO6XnnsmWxh/m9w3ennewpME1Hfr2oDL+ynCrfv8s8wlm77oXlnuYxv9P6HsazsHAoLwHGKKWHoadvteDla+IOmPmP4LHKpUIpZ3akHWAPO85NB+tqUyBNxAwsvPT5JWVBEW+tgL+JpYrfnJD4wyrCd0iBiu57gKqNFoOK08nBkWBwLkBDvh3Dm6qb7NGjpC+z7GVzvBUeEY1ejtDri/lMcAD2CePqaUuE6b701/BX+HIZJPW6iY4IYfCeNQbf/jInpPEv4wPf35ld7eZu+c2iZRjA3AT2Dhf259LcDDZGRRSil9hoQwqqemlp+VhtYy3C0EgVkEKB1Ni0ptL3GdL32s2DeQVLkrTYCAUItmdwWMhW66otkHZnSBG4rzJFRO/Vl8I+xovOuIgDX14PFgRVgh/ncLM41K7ruq2IuWcw8VywtZ8e7BnPrfljpF3zFZZ15b2q2+xth8XTiaKHVtPCO69E/IlNg8NuHTSle6BCAh+GkS1hogrSblgYrbttqy5UFZG6Dp/ngAq3kTFGkhtHzXa8TzvNSwclUVDooHjunE+z0YsycIcab6SgUIx8ChJS+QfxjWsFRPClsyD0uopglvGPFB+tao0LocBDGPRjueKe9/31b8hPgjT7IE=
   on:
     tags: true
+  skip_cleanup: true

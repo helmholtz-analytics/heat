@@ -1,0 +1,5 @@
+# Format of .gitattributes is
+# <pattern> <attr1> <attr2> ...
+#
+
+CHANGELOG.md  merge=union

@@ -58,20 +58,34 @@ def nonzero(a):
     [0/1] tensor([[4, 5, 6]])
     [1/1] tensor([[7, 8, 9]])
     """
-
+    if a.dtype == types.bool:
+        a._DNDarray__array = a._DNDarray__array.float()
     if a.split is None:
         # if there is no split then just return the values from torch
-        return factories.array(
-            torch.nonzero(a._DNDarray__array), is_split=a.split, device=a.device, comm=a.comm
-        )
+        # print(a._DNDarray__array)
+        lcl_nonzero = torch.nonzero(input=a._DNDarray__array, as_tuple=False)
+        gout = list(lcl_nonzero.size())
+        is_split = None
     else:
         # a is split
-        lcl_nonzero = torch.nonzero(a._DNDarray__array)
+        lcl_nonzero = torch.nonzero(input=a._DNDarray__array, as_tuple=False)
         _, _, slices = a.comm.chunk(a.shape, a.split)
         lcl_nonzero[..., a.split] += slices[a.split].start
         gout = list(lcl_nonzero.size())
         gout[0] = a.comm.allreduce(gout[0], MPI.SUM)
-        return factories.array(lcl_nonzero, is_split=0, device=a.device, comm=a.comm)
+        is_split = 0
+
+    if a.numdims == 1:
+        lcl_nonzero = lcl_nonzero.squeeze(dim=1)
+
+    return dndarray.DNDarray(
+        lcl_nonzero,
+        gshape=tuple(gout),
+        dtype=types.canonical_heat_type(lcl_nonzero.dtype),
+        split=is_split,
+        device=a.device,
+        comm=a.comm,
+    )
 
 
 def where(cond, x=None, y=None):
@@ -116,12 +130,13 @@ def where(cond, x=None, y=None):
         if (isinstance(x, dndarray.DNDarray) and cond.split != x.split) or (
             isinstance(y, dndarray.DNDarray) and cond.split != y.split
         ):
-            raise NotImplementedError("binary op not implemented for different split axes")
+            if len(y.shape) >= 1 and y.shape[0] > 1:
+                raise NotImplementedError("binary op not implemented for different split axes")
     if isinstance(x, (dndarray.DNDarray, int, float)) and isinstance(
         y, (dndarray.DNDarray, int, float)
     ):
-        cond = types.float(cond)
-        return (cond == 0) * y + cond * x
+        cond = types.float(cond, device=cond.device)
+        return types.float(cond == 0, device=cond.device) * y + cond * x
     elif x is None and y is None:
         return nonzero(cond)
     else:

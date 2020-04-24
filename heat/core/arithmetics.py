@@ -2,27 +2,36 @@ import torch
 
 from .communication import MPI
 from . import dndarray
+from . import factories
 from . import operations
 from . import stride_tricks
+from . import types
 
 __all__ = [
     "add",
     "bitwise_and",
+    "bitwise_not",
     "bitwise_or",
     "bitwise_xor",
+    "cumprod",
+    "cumproduct",
+    "cumsum",
     "diff",
     "div",
     "divide",
     "floordiv",
     "floor_divide",
     "fmod",
+    "invert",
+    "left_shift",
     "mod",
     "mul",
     "multiply",
     "pow",
-    "prod",
     "power",
+    "prod",
     "remainder",
+    "right_shift",
     "sub",
     "subtract",
     "sum",
@@ -86,7 +95,7 @@ def bitwise_and(t1, t2):
     import heat as ht
     >>> ht.bitwise_and(13, 17)
     tensor([1])
-    >>> np.bitwise_and(14, 13)
+    >>> ht.bitwise_and(14, 13)
     tensor([12])
 
     >>> ht.bitwise_and(ht.array([14,3]), 13)
@@ -100,7 +109,13 @@ def bitwise_and(t1, t2):
     >>> ht.bitwise_and(ht.array([True, True]), ht.array([False, True]))
     tensor([False,  True])
     """
-    return operations.__binary_bit_op("__and__", t1, t2)
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for dtype in dtypes:
+        if types.heat_type_is_inexact(dtype):
+            raise TypeError("Operation is not supported for float types")
+
+    return operations.__binary_op(torch.Tensor.__and__, t1, t2)
 
 
 def bitwise_or(t1, t2):
@@ -138,7 +153,13 @@ def bitwise_or(t1, t2):
     >>> ht.bitwise_or(ht.array([True, True]), ht.array([False, True]))
     tensor([ True,  True])
     """
-    return operations.__binary_bit_op("__or__", t1, t2)
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for dtype in dtypes:
+        if types.heat_type_is_inexact(dtype):
+            raise TypeError("Operation is not supported for float types")
+
+    return operations.__binary_op(torch.Tensor.__or__, t1, t2)
 
 
 def bitwise_xor(t1, t2):
@@ -171,7 +192,94 @@ def bitwise_xor(t1, t2):
     >>> ht.bitwise_xor(ht.array([True, True]), ht.array([False, True]))
     tensor([ True, False])
     """
-    return operations.__binary_bit_op("__xor__", t1, t2)
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for dtype in dtypes:
+        if types.heat_type_is_inexact(dtype):
+            raise TypeError("Operation is not supported for float types")
+
+    return operations.__binary_op(torch.Tensor.__xor__, t1, t2)
+
+
+def cumprod(a, axis, dtype=None, out=None):
+    """
+    Return the cumulative product of elements along a given axis.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : int
+        Axis along which the cumulative product is computed.
+    dtype : dtype, optional
+        Type of the returned array, as well as of the accumulator in which
+        the elements are multiplied.  If *dtype* is not specified, it
+        defaults to the dtype of `a`, unless `a` has an integer dtype with
+        a precision less than that of the default platform integer.  In
+        that case, the default platform integer is used instead.
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must
+        have the same shape and buffer length as the expected output
+        but the type of the resulting values will be cast if necessary.
+
+    Returns
+    -------
+    cumprod : DNDarray
+        A new array holding the result is returned unless `out` is
+        specified, in which case a reference to out is returned.
+
+    Examples
+    --------
+    >>> a = ht.full((3,3), 2)
+    >>> ht.cumprod(a, 0)
+    tensor([[2., 2., 2.],
+            [4., 4., 4.],
+            [8., 8., 8.])
+    """
+    return operations.__cum_op(a, torch.cumprod, MPI.PROD, torch.mul, 1, axis, dtype, out)
+
+
+# Alias support
+cumproduct = cumprod
+
+
+def cumsum(a, axis, dtype=None, out=None):
+    """
+    Return the cumulative sum of the elements along a given axis.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : int
+        Axis along which the cumulative sum is computed.
+    dtype : dtype, optional
+        Type of the returned array and of the accumulator in which the
+        elements are summed.  If `dtype` is not specified, it defaults
+        to the dtype of `a`, unless `a` has an integer dtype with a
+        precision less than that of the default platform integer.  In
+        that case, the default platform integer is used.
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must
+        have the same shape and buffer length as the expected output
+        but the type will be cast if necessary. See `doc.ufuncs`
+        (Section "Output arguments") for more details.
+
+    Returns
+    -------
+    cumsum : DNDarray
+        A new array holding the result is returned unless `out` is
+        specified, in which case a reference to out is returned.
+
+    Examples
+    --------
+    >>> a = ht.ones((3,3))
+    >>> ht.cumsum(a, 0)
+    tensor([[1., 1., 1.],
+            [2., 2., 2.],
+            [3., 3., 3.])
+    """
+    return operations.__cum_op(a, torch.cumsum, MPI.SUM, torch.add, 0, axis, dtype, out)
 
 
 def diff(a, n=1, axis=-1):
@@ -243,7 +351,9 @@ def diff(a, n=1, axis=-1):
             cr_slice = [slice(None)] * len(a.shape)
             # slice of 1 element in the selected axis for the shape creation
             cr_slice[axis] = 1
-            recv_data = torch.ones(ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type())
+            recv_data = torch.ones(
+                ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type(), device=a.device.torch_device
+            )
             rec = ret.comm.Irecv(recv_data, source=rank + 1, tag=rank + 1)
             axis_slice_end = [slice(None)] * len(a.shape)
             # select the last elements in the selected axis
@@ -296,7 +406,7 @@ def div(t1, t2):
     tensor([[2.0000, 1.0000],
             [0.6667, 0.5000]])
     """
-    return operations.__binary_op(torch.div, t1, t2)
+    return operations.__binary_op(torch.true_divide, t1, t2)
 
 
 # Alias in compliance with numpy API
@@ -371,11 +481,70 @@ def floordiv(t1, t2):
     tensor([[1., 0.],
             [1., 1.]])
     """
-    return operations.__binary_op(lambda a, b: torch.div(a, b).floor(), t1, t2)
+    return operations.__binary_op(torch.floor_divide, t1, t2)
 
 
 # Alias in compliance with numpy API
 floor_divide = floordiv
+
+
+def invert(t, out=None):
+    """
+    Computes the bitwise NOT of the given input tensor. The input tensor must be of integral or Boolean types. For bool tensors, it computes the logical NOT.
+    Bitwise_not is an alias for invert.
+
+    Returns
+        -------
+        result: ht.DNDarray
+            A tensor containing the results of element-wise inversion.
+
+    Examples:
+    ---------
+    >>> ht.invert(ht.array([13], dtype=ht.uint8))
+    tensor([242], dtype=ht.uint8)
+    >>> ht.bitwise_not(ht.array([-1, -2, 3], dtype=ht.int8))
+    tensor([ 0,  1, -4], dtype=ht.int8)
+    """
+    dtype = types.heat_type_of(t)
+
+    if types.heat_type_is_inexact(dtype):
+        raise TypeError("Operation is not supported for float types")
+
+    return operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
+
+
+# alias for invert
+bitwise_not = invert
+
+
+def left_shift(t1, t2):
+    """
+    Shift the bits of an integer to the left.
+
+    Parameters
+    ----------
+    t1: scalar or tensor
+
+    t2: scalar or tensor
+        integer number of zero bits to add
+
+    Returns
+    -------
+    result: ht.NDNarray
+        A tensor containing the results of element-wise left shift operation.
+
+    Examples:
+    ---------
+    >>> ht.left_shift(ht.array[1,2,3], 1)
+    tensor([2, 4, 6])
+    """
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for dtype in dtypes:
+        if not types.heat_type_is_exact(dtype):
+            raise TypeError("Operation is supported for integer types only")
+
+    return operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
 
 
 def mod(t1, t2):
@@ -544,6 +713,36 @@ def remainder(t1, t2):
     return operations.__binary_op(torch.remainder, t1, t2)
 
 
+def right_shift(t1, t2):
+    """
+    Shift the bits of an integer to the right.
+
+    Parameters
+    ----------
+    t1: scalar or tensor
+
+    t2: scalar or tensor
+        integer number of bits to remove
+
+    Returns
+    -------
+    result: ht.NDNarray
+        A tensor containing the results of element-wise right shift operation.
+
+    Examples:
+    ---------
+    >>> ht.right_shift(ht.array[1,2,3], 1)
+    tensor([0, 1, 1])
+    """
+    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+
+    for dtype in dtypes:
+        if not types.heat_type_is_exact(dtype):
+            raise TypeError("Operation is supported for integer types only")
+
+    return operations.__binary_op(torch.Tensor.__rshift__, t1, t2)
+
+
 def prod(x, axis=None, out=None, keepdim=None):
     """
     Return the product of array elements over a given axis.
@@ -588,7 +787,9 @@ def prod(x, axis=None, out=None, keepdim=None):
     ], axis=1)
     ht.tensor([  2.,  12.])
     """
-    return operations.__reduce_op(x, torch.prod, MPI.PROD, axis=axis, out=out, keepdim=keepdim)
+    return operations.__reduce_op(
+        x, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
+    )
 
 
 def sub(t1, t2):
@@ -677,4 +878,6 @@ def sum(x, axis=None, out=None, keepdim=None):
              [3.]]])
     """
     # TODO: make me more numpy API complete Issue #101
-    return operations.__reduce_op(x, torch.sum, MPI.SUM, axis=axis, out=out, keepdim=keepdim)
+    return operations.__reduce_op(
+        x, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
+    )

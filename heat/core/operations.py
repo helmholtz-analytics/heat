@@ -10,224 +10,7 @@ from . import dndarray
 from . import types
 
 __all__ = []
-
-
-def binary_get_size_scalar(t1, t2):
-    """
-    Find the tensor size of the result after performing a binary operation with t1 and t2.
-
-    Parameters
-    ----------
-    t1: scalar
-        The first operand involved in the operation, must be integer or boolean
-
-    t2: tensor or scalar
-        The second operand involved in the operation, must be integer or boolean
-
-    Returns
-    -------
-    t1, t2: ht.DNDarray
-        Parameters t1, t2 casted into ht.DNDarray.
-    output_shape:
-        The shape of the resulting tensor.
-    output_split:
-        The split direction of the resulting tensor.
-    output_device:
-        The device used for the resulting tensor.
-    output_comm:
-        The MPI Communicator of the resulting tensor.
-    """
-    try:
-        t1 = factories.array([t1])
-    except (ValueError, TypeError):
-        raise TypeError("Data type not supported, input was {}".format(type(t1)))
-
-    if np.isscalar(t2):
-        try:
-            t2 = factories.array([t2])
-        except (ValueError, TypeError):
-            raise TypeError("Only numeric scalars are supported, but input was {}".format(type(t2)))
-        output_shape = (1,)
-        output_split = None
-        output_device = None
-        output_comm = MPI_WORLD
-    elif isinstance(t2, dndarray.DNDarray):
-        output_shape = t2.shape
-        output_split = t2.split
-        output_device = t2.device
-        output_comm = t2.comm
-    else:
-        raise TypeError(
-            "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
-        )
-
-    return t1, t2, output_shape, output_split, output_device, output_comm
-
-
-def binary_get_size_tensor(t1, t2):
-    """
-    Find the tensor size of the result after performing a binary operation with t1 and t2.
-
-    Parameters
-    ----------
-    t1: tensor
-        The first operand involved in the operation, must be integer or boolean
-
-    t2: tensor or scalar
-        The second operand involved in the operation, must be integer or boolean
-
-    Returns
-    -------
-    t1, t2: ht.DNDarray
-        Parameters t1, t2 casted into ht.DNDarrays.
-    output_shape:
-        The shape of the resulting tensor.
-    output_split:
-        The split direction of the resulting tensor.
-    output_device:
-        The device used for the resulting tensor.
-    output_comm:
-        The MPI Communicator of the resulting tensor.
-    """
-    if np.isscalar(t2):
-        try:
-            t2 = factories.array([t2])
-            output_shape = t1.shape
-            output_split = t1.split
-            output_device = t1.device
-            output_comm = t1.comm
-        except (ValueError, TypeError):
-            raise TypeError("Data type not supported, input was {}".format(type(t2)))
-
-    elif isinstance(t2, dndarray.DNDarray):
-        if t1.split is None:
-            t1 = factories.array(
-                t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device, ndmin=-t2.numdims
-            )
-        elif t2.split is None:
-            t2 = factories.array(
-                t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device, ndmin=-t1.numdims
-            )
-        elif t1.split != t2.split:
-            # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
-            # and split=1
-            raise NotImplementedError("Not implemented for other splittings")
-
-        output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
-        output_split = t1.split
-        output_device = t1.device
-        output_comm = t1.comm
-
-        # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data.
-        if t1.split is not None:
-            if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
-                warnings.warn(
-                    "Broadcasting requires transferring data of first operator between MPI ranks!"
-                )
-                if t1.comm.rank > 0:
-                    t1._DNDarray__array = torch.zeros(t1.shape, dtype=t1.dtype.torch_type())
-                t1.comm.Bcast(t1)
-
-        if t2.split is not None:
-            if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
-                warnings.warn(
-                    "Broadcasting requires transferring data of second operator between MPI ranks!"
-                )
-                if t2.comm.rank > 0:
-                    t2._DNDarray__array = torch.zeros(t2.shape, dtype=t2.dtype.torch_type())
-                t2.comm.Bcast(t2)
-
-    else:
-        raise TypeError(
-            "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
-        )
-
-    return t1, t2, output_shape, output_split, output_device, output_comm
-
-
-def __binary_bit_op(method, t1, t2):
-    """
-    Generic wrapper for element-wise binary bit-wise operations of two operands (either can be tensor or scalar).
-    Takes the method string for the operation function call in the torch tensor and the two operands involved in the operation as arguments.
-
-    Parameters
-    ----------
-    method : string
-        The operation to be performed. String that contains the method name in torch.tensor, which performs bit-wise operation elements-wise on the involved tensors,
-        e.g. add values from other to self
-
-    t1: dndarray or scalar
-        The first operand involved in the operation, must be integer or boolean
-
-    t2: tensor or scalar
-        The second operand involved in the operation, must be integer or boolean
-
-    Returns
-    -------
-    result: ht.DNDarray
-        A tensor containing the element-wise results of bit-wise operation.
-    """
-    if np.isscalar(t1):
-        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_scalar(
-            t1, t2
-        )
-
-        if t1.dtype != t2.dtype:
-            raise TypeError(
-                "Tensors must have the same element type, but inputs were {} and {}".format(
-                    t1.dtype, t2.dtype
-                )
-            )
-
-    elif isinstance(t1, dndarray.DNDarray):
-        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_tensor(
-            t1, t2
-        )
-
-        if t2.dtype != t1.dtype:
-            raise TypeError(
-                "Arrays must have the same type, but inputs were {} and {}".format(
-                    t1.dtype, t2.dtype
-                )
-            )
-
-    else:
-        raise NotImplementedError("Not implemented for non scalar")
-
-    if not (
-        (t1.dtype == types.bool)
-        or (t1.dtype == types.int8)
-        or (t1.dtype == types.uint8)
-        or (t1.dtype == types.int16)
-        or (t1.dtype == types.int32)
-        or (t1.dtype == types.int64)
-    ):
-        raise TypeError("Arrays are not of boolean or integer type, found {}".format(t1.dtype))
-
-    if t1.split is not None:
-        operation = getattr(t1._DNDarray__array, method)
-        if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
-            result = t1._DNDarray__array
-        else:
-            result = operation(t2._DNDarray__array)
-    elif t2.split is not None:
-        operation = getattr(t2._DNDarray__array, method)
-        if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
-            result = t2._DNDarray__array
-        else:
-            result = operation(t1._DNDarray__array)
-    else:
-        operation = getattr(t1._DNDarray__array, method)
-        result = operation(t2._DNDarray__array)
-
-    return dndarray.DNDarray(
-        result,
-        output_shape,
-        types.canonical_heat_type(t1.dtype),
-        output_split,
-        output_device,
-        output_comm,
-    )
+__BOOLEAN_OPS = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
 
 
 def __binary_op(operation, t1, t2):
@@ -244,27 +27,113 @@ def __binary_op(operation, t1, t2):
     t1: dndarray or scalar
         The first operand involved in the operation,
 
-    t2: tensor or scalar
+    t2: dndarray or scalar
         The second operand involved in the operation,
 
     Returns
     -------
     result: ht.DNDarray
-        A tensor containing the results of element-wise operation.
+        A DNDarray containing the results of element-wise operation.
     """
-
     if np.isscalar(t1):
-        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_scalar(
-            t1, t2
-        )
+        try:
+            t1 = factories.array([t1])
+        except (ValueError, TypeError):
+            raise TypeError("Data type not supported, input was {}".format(type(t1)))
+
+        if np.isscalar(t2):
+            try:
+                t2 = factories.array([t2])
+            except (ValueError, TypeError):
+                raise TypeError(
+                    "Only numeric scalars are supported, but input was {}".format(type(t2))
+                )
+            output_shape = (1,)
+            output_split = None
+            output_device = None
+            output_comm = MPI_WORLD
+        elif isinstance(t2, dndarray.DNDarray):
+            t1.gpu() if t2.device.device_type == "gpu" else t1.cpu()
+
+            output_shape = t2.shape
+            output_split = t2.split
+            output_device = t2.device
+            output_comm = t2.comm
+        else:
+            raise TypeError(
+                "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
+            )
 
         if t1.dtype != t2.dtype:
             t1 = t1.astype(t2.dtype)
 
     elif isinstance(t1, dndarray.DNDarray):
-        t1, t2, output_shape, output_split, output_device, output_comm = binary_get_size_tensor(
-            t1, t2
-        )
+        if np.isscalar(t2):
+            try:
+                t2 = factories.array([t2], device=t1.device)
+                output_shape = t1.shape
+                output_split = t1.split
+                output_device = t1.device
+                output_comm = t1.comm
+            except (ValueError, TypeError):
+                raise TypeError("Data type not supported, input was {}".format(type(t2)))
+
+        elif isinstance(t2, dndarray.DNDarray):
+            if t1.split is None:
+                t1 = factories.array(
+                    t1,
+                    split=t2.split,
+                    copy=False,
+                    comm=t1.comm,
+                    device=t1.device,
+                    ndmin=-t2.numdims,
+                )
+            elif t2.split is None:
+                t2 = factories.array(
+                    t2,
+                    split=t1.split,
+                    copy=False,
+                    comm=t2.comm,
+                    device=t2.device,
+                    ndmin=-t1.numdims,
+                )
+            elif t1.split != t2.split:
+                # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
+                # and split=1
+                raise NotImplementedError("Not implemented for other splittings")
+
+            output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+            output_split = t1.split
+            output_device = t1.device
+            output_comm = t1.comm
+
+            # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data.
+            if t1.split is not None:
+                if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
+                    warnings.warn(
+                        "Broadcasting requires transferring data of first operator between MPI ranks!"
+                    )
+                    if t1.comm.rank > 0:
+                        t1._DNDarray__array = torch.zeros(
+                            t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
+                        )
+                    t1.comm.Bcast(t1)
+
+            if t2.split is not None:
+                if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
+                    warnings.warn(
+                        "Broadcasting requires transferring data of second operator between MPI ranks!"
+                    )
+                    if t2.comm.rank > 0:
+                        t2._DNDarray__array = torch.zeros(
+                            t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
+                        )
+                    t2.comm.Bcast(t2)
+
+        else:
+            raise TypeError(
+                "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
+            )
 
         if t2.dtype != t1.dtype:
             t2 = t2.astype(t1.dtype)
@@ -293,13 +162,114 @@ def __binary_op(operation, t1, t2):
             t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type)
         )
 
+    if not isinstance(result, torch.Tensor):
+        result = torch.tensor(result)
+
     return dndarray.DNDarray(
-        result,
-        output_shape,
-        types.canonical_heat_type(t1.dtype),
-        output_split,
-        output_device,
-        output_comm,
+        result, output_shape, types.heat_type_of(result), output_split, output_device, output_comm
+    )
+
+
+def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
+    """
+    Generic wrapper for cumulative operations, i.e. cumsum(), cumprod(). Performs a three-stage cumulative operation. First, a partial
+    cumulative operation is performed node-local that is combined into a global cumulative result via an MPI_Op and a final local
+    reduction add or mul operation.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The heat DNDarray on which to perform the cumulative operation
+    partial_op: function
+        The function performing a partial cumulative operation on the process-local data portion, e.g. cumsum().
+    exscan_op: mpi4py.MPI.Op
+        The MPI operator for performing the exscan based on the results returned by the partial_op function.
+    final_op: function
+        The local operation for the final result, e.g. add() for cumsum().
+    neutral: scalar
+        Neutral element for the cumulative operation, i.e. an element that does not change the reductions operations
+        result.
+    axis: int
+        The axis direction of the cumulative operation
+    dtype: ht.type
+        The type of the result tensor.
+    out: ht.DNDarray
+        The explicitly returned output tensor.
+
+    Returns
+    -------
+    result: ht.DNDarray
+        A DNDarray containing the result of the reduction operation
+
+    Raises
+    ------
+    TypeError
+        If the input or optional output parameter are not of type ht.DNDarray
+    ValueError
+        If the shape of the optional output parameters does not match the shape of the input
+    NotImplementedError
+        Numpy's behaviour of axis is None is not supported as of now
+    RuntimeError
+        If the split or device parameters do not match the parameters of the input
+    """
+    # perform sanitation
+    if not isinstance(x, dndarray.DNDarray):
+        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+    if out is not None and not isinstance(out, dndarray.DNDarray):
+        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
+
+    if axis is None:
+        raise NotImplementedError("axis = None is not supported")
+    axis = stride_tricks.sanitize_axis(x.shape, axis)
+
+    if dtype is not None:
+        dtype = types.canonical_heat_type(dtype)
+
+    if out is not None:
+        if out.shape != x.shape:
+            raise ValueError("out and a have different shapes {} != {}".format(out.shape, x.shape))
+        if out.split != x.split:
+            raise RuntimeError(
+                "out and a have different splits {} != {}".format(out.split, x.split)
+            )
+        if out.device != x.device:
+            raise RuntimeError(
+                "out and a have different devices {} != {}".format(out.device, x.device)
+            )
+        dtype = out.dtype
+
+    cumop = partial_op(
+        x._DNDarray__array,
+        axis,
+        out=None if out is None else out._DNDarray__array,
+        dtype=None if dtype is None else dtype.torch_type(),
+    )
+
+    if x.split is not None and axis == x.split:
+        indices = torch.tensor([cumop.shape[axis] - 1])
+        send = (
+            torch.index_select(cumop, axis, indices)
+            if indices[0] >= 0
+            else torch.full(
+                cumop.shape[:axis] + torch.Size([1]) + cumop.shape[axis + 1 :],
+                neutral,
+                dtype=cumop.dtype,
+            )
+        )
+        recv = torch.full(
+            cumop.shape[:axis] + torch.Size([1]) + cumop.shape[axis + 1 :],
+            neutral,
+            dtype=cumop.dtype,
+        )
+
+        x.comm.Exscan(send, recv, exscan_op)
+        final_op(cumop, recv, out=cumop)
+
+    if out is not None:
+        return out
+
+    return factories.array(
+        cumop, dtype=x.dtype if dtype is None else dtype, is_split=x.split, device=x.device
     )
 
 
@@ -371,8 +341,39 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
     return out
 
 
-def __reduce_op(x, partial_op, reduction_op, **kwargs):
-    # TODO: document me Issue #102
+def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
+    """
+    Generic wrapper for reduction operations, e.g. sum(), prod() etc. Performs a two-stage reduction. First, a partial
+    reduction is performed node-local that is combined into a global reduction result via an MPI_Op.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The heat DNDarray on which to perform the reduction operation
+
+    partial_op: function
+        The function performing a partial reduction on the process-local data portion, e.g. sum() for implementing a
+        distributed mean() operation.
+
+    reduction_op: mpi4py.MPI.Op
+        The MPI operator for performing the full reduction based on the results returned by the partial_op function.
+
+    neutral: scalar
+        Neutral element for the reduction operation, i.e. an element that does not change the reductions operations
+        result. Required in cases where
+
+    Returns
+    -------
+    result: ht.DNDarray
+        A DNDarray containing the result of the reduction operation
+
+    Raises
+    ------
+    TypeError
+        If the input or optional output parameter are not of type ht.DNDarray
+    ValueError
+        If the shape of the optional output parameters does not match the shape of the reduced result
+    """
     # perform sanitation
     if not isinstance(x, dndarray.DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
@@ -382,22 +383,29 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
 
     # no further checking needed, sanitize axis will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape, kwargs.get("axis"))
-    split = x.split
+    if isinstance(axis, int):
+        axis = (axis,)
     keepdim = kwargs.get("keepdim")
+    split = x.split
 
+    # if local tensor is empty, replace it with the identity element
+    if 0 in x.lshape and (axis is None or (x.split in axis)):
+        if neutral is None:
+            neutral = float("nan")
+        neutral_shape = x.lshape[:split] + (1,) + x.lshape[split + 1 :]
+        partial = torch.full(neutral_shape, fill_value=neutral, dtype=x._DNDarray__array.dtype)
+    else:
+        partial = x._DNDarray__array
+
+    # apply the partial reduction operation to the local tensor
     if axis is None:
-        partial = partial_op(x._DNDarray__array).reshape(-1)
+        partial = partial_op(partial).reshape(-1)
         output_shape = (1,)
     else:
-        if isinstance(axis, int):
-            axis = (axis,)
-
-        if isinstance(axis, tuple):
-            partial = x._DNDarray__array
-            output_shape = x.gshape
-            for dim in axis:
-                partial = partial_op(partial, dim=dim, keepdim=True)
-                output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1 :]
+        output_shape = x.gshape
+        for dim in axis:
+            partial = partial_op(partial, dim=dim, keepdim=True)
+            output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1 :]
         if not keepdim and not len(partial.shape) == 1:
             gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
             lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
@@ -422,8 +430,7 @@ def __reduce_op(x, partial_op, reduction_op, **kwargs):
             x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
 
     # if reduction_op is a Boolean operation, then resulting tensor is bool
-    boolean_ops = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
-    tensor_type = bool if reduction_op in boolean_ops else partial.dtype
+    tensor_type = bool if reduction_op in __BOOLEAN_OPS else partial.dtype
 
     if out is not None:
         out._DNDarray__array = partial

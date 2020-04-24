@@ -5,6 +5,7 @@ from .communication import MPI, sanitize_comm
 from .stride_tricks import sanitize_axis, sanitize_shape
 from . import devices
 from . import dndarray
+from . import memory
 from . import types
 
 __all__ = [
@@ -131,9 +132,20 @@ def arange(*args, dtype=None, split=None, device=None, comm=None):
     return dndarray.DNDarray(data, gshape, htype, split, device, comm)
 
 
-def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device=None, comm=None):
+def array(
+    obj,
+    dtype=None,
+    copy=True,
+    ndmin=0,
+    order="C",
+    split=None,
+    is_split=None,
+    device=None,
+    comm=None,
+):
     """
     Create a tensor.
+
     Parameters
     ----------
     obj : array_like
@@ -149,6 +161,11 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     ndmin : int, optional
         Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be
         attached to the shape if  ndim>0  and prefaced in case of ndim<0 to meet the requirement.
+    order: str, optional
+        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
+        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options 'K' and 'A'.
+        #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     split : None or int, optional
         The axis along which the passed array content obj is split and distributed in memory. Mutually exclusive with
         is_split.
@@ -198,6 +215,71 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     (1/2) >>> ht.array([3, 4], is_split=0)
     (0/2) tensor([1, 2, 3, 4])
     (1/2) tensor([1, 2, 3, 4])
+
+    Memory layout, single-node:
+    >>> a = np.arange(2 * 3).reshape(2, 3)
+    >>> a
+    array([[ 0,  1,  2],
+           [ 3,  4,  5]])
+    >>> a.strides
+    (24, 8)
+    >>> b = ht.array(a)
+    >>> b
+    tensor([[0, 1, 2],
+            [3, 4, 5]])
+    >>> b.strides
+    (24, 8)
+    >>> b._DNDarray__array.storage() #TODO: implement ht.view()
+    0
+    1
+    2
+    3
+    4
+    5
+    [torch.LongStorage of size 6]
+    >>> c = ht.array(a, order='F')
+    >>> c
+    tensor([[0, 1, 2],
+            [3, 4, 5]])
+    >>> c.strides
+    (8, 16)
+    >>> c._DNDarray__array.storage() #TODO: implement ht.view()
+    0
+    3
+    1
+    4
+    2
+    5
+    [torch.LongStorage of size 6]
+
+    Memory layout, distributed:
+    >>> a = np.arange(4 * 3).reshape(4, 3)
+    >>> a.strides
+    (24, 8)
+    >>> b = ht.array(a, order='F')
+    >>> b
+    (0/2) tensor([[0, 1, 2],
+                  [3, 4, 5]])
+    (1/2) tensor([[ 6,  7,  8],
+                  [ 9, 10, 11]])
+    >>> b.strides
+    (0/2) (8, 16)
+    (1/2) (8, 16)
+    >>> b._DNDarray__array.storage() #TODO: implement ht.view()
+    (0/2) 0
+          3
+          1
+          4
+          2
+          5
+        [torch.LongStorage of size 6]
+    (1/2) 6
+          9
+          7
+          10
+          8
+          11
+        [torch.LongStorage of size 6]
     """
     # extract the internal tensor in case of a heat tensor
     if isinstance(obj, dndarray.DNDarray):
@@ -210,6 +292,8 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     # initialize the array
     if bool(copy):
         if isinstance(obj, torch.Tensor):
+            # TODO: watch out. At the moment clone() implies losing the underlying memory layout.
+            # pytorch fix in progress
             obj = obj.clone().detach()
         else:
             try:
@@ -220,6 +304,10 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     # infer dtype from obj if not explicitly given
     if dtype is None:
         dtype = types.canonical_heat_type(obj.dtype)
+    else:
+        torch_dtype = dtype.torch_type()
+        if obj.dtype != torch_dtype:
+            obj = obj.type(torch_dtype)
 
     # sanitize minimum number of dimensions
     if not isinstance(ndmin, int):
@@ -250,8 +338,10 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
     if split is not None:
         _, _, slices = comm.chunk(obj.shape, split)
         obj = obj[slices].clone()
+        obj = memory.sanitize_memory_layout(obj, order=order)
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
+        obj = memory.sanitize_memory_layout(obj, order=order)
         if comm.rank < comm.size - 1:
             comm.Isend(lshape, dest=comm.rank + 1)
         if comm.rank != 0:
@@ -284,11 +374,13 @@ def array(obj, dtype=None, copy=True, ndmin=0, split=None, is_split=None, device
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
         gshape[is_split] = ttl_shape[is_split]
         split = is_split
+    elif split is None and is_split is None:
+        obj = memory.sanitize_memory_layout(obj, order=order)
 
     return dndarray.DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
 
 
-def empty(shape, dtype=types.float32, split=None, device=None, comm=None):
+def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order="C"):
     """
     Returns a new uninitialized array of given shape and data type. May be allocated split up across multiple
     nodes along the specified axis.
@@ -305,6 +397,11 @@ def empty(shape, dtype=types.float32, split=None, device=None, comm=None):
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
+    order: str, optional
+        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
+        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options 'K' and 'A'.
+        #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Returns
     -------
@@ -323,10 +420,10 @@ def empty(shape, dtype=types.float32, split=None, device=None, comm=None):
     tensor([[ 0.0000e+00, -2.0000e+00,  3.3113e+35],
             [ 3.6902e+19,  1.2096e+04,  7.1846e+22]])
     """
-    return __factory(shape, dtype, split, torch.empty, device, comm)
+    return __factory(shape, dtype, split, torch.empty, device, comm, order)
 
 
-def empty_like(a, dtype=None, split=None, device=None, comm=None):
+def empty_like(a, dtype=None, split=None, device=None, comm=None, order="C"):
     """
     Returns a new uninitialized array with the same type, shape and data distribution of given object. Data type and
     data distribution strategy can be explicitly overriden.
@@ -361,11 +458,12 @@ def empty_like(a, dtype=None, split=None, device=None, comm=None):
     tensor([[ 0.0000e+00, -2.0000e+00,  3.3113e+35],
             [ 3.6902e+19,  1.2096e+04,  7.1846e+22]])
     """
-    return __factory_like(a, dtype, split, empty, device, comm)
+    return __factory_like(a, dtype, split, empty, device, comm, order=order)
 
 
-def eye(shape, dtype=types.float32, split=None, device=None, comm=None):
+def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C"):
     """
+
     Returns a new 2-D tensor with ones on the diagonal and zeroes elsewhere.
 
     Parameters
@@ -381,6 +479,11 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None):
             Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm : Communication, optional
             Handle to the nodes holding distributed parts or copies of this tensor.
+    order: str, optional
+        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
+        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options 'K' and 'A'.
+        #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Returns
     -------
@@ -419,14 +522,17 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None):
     for i in range(min(lshape)):
         pos_x = i if split == 0 else i + offset
         pos_y = i if split == 1 else i + offset
+        if pos_x >= lshape[0] or pos_y >= lshape[1]:
+            break
         data[pos_x][pos_y] = 1
 
+    data = memory.sanitize_memory_layout(data, order=order)
     return dndarray.DNDarray(
         data, gshape, types.canonical_heat_type(data.dtype), split, device, comm
     )
 
 
-def __factory(shape, dtype, split, local_factory, device, comm):
+def __factory(shape, dtype, split, local_factory, device, comm, order):
     """
     Abstracted factory function for HeAT tensor initialization.
 
@@ -461,11 +567,11 @@ def __factory(shape, dtype, split, local_factory, device, comm):
     _, local_shape, _ = comm.chunk(shape, split)
     # create the torch data using the factory function
     data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
-
+    data = memory.sanitize_memory_layout(data, order=order)
     return dndarray.DNDarray(data, shape, dtype, split, device, comm)
 
 
-def __factory_like(a, dtype, split, factory, device, comm, **kwargs):
+def __factory_like(a, dtype, split, factory, device, comm, order="C", **kwargs):
     """
     Abstracted '...-like' factory function for HeAT tensor initialization
 
@@ -483,6 +589,12 @@ def __factory_like(a, dtype, split, factory, device, comm, **kwargs):
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication
         Handle to the nodes holding distributed parts or copies of this tensor.
+    order: str, optional
+        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
+        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options 'K' and 'A'.
+        #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
+
 
     Returns
     -------
@@ -517,10 +629,10 @@ def __factory_like(a, dtype, split, factory, device, comm, **kwargs):
     # use the default communicator, if not set
     comm = sanitize_comm(comm)
 
-    return factory(shape, dtype=dtype, split=split, device=device, comm=comm, **kwargs)
+    return factory(shape, dtype=dtype, split=split, device=device, comm=comm, order=order, **kwargs)
 
 
-def full(shape, fill_value, dtype=types.float32, split=None, device=None, comm=None):
+def full(shape, fill_value, dtype=types.float32, split=None, device=None, comm=None, order="C"):
     """
     Return a new array of given shape and type, filled with fill_value.
 
@@ -557,10 +669,10 @@ def full(shape, fill_value, dtype=types.float32, split=None, device=None, comm=N
     def local_factory(*args, **kwargs):
         return torch.full(*args, fill_value=fill_value, **kwargs)
 
-    return __factory(shape, dtype, split, local_factory, device, comm)
+    return __factory(shape, dtype, split, local_factory, device, comm, order=order)
 
 
-def full_like(a, fill_value, dtype=types.float32, split=None, device=None, comm=None):
+def full_like(a, fill_value, dtype=types.float32, split=None, device=None, comm=None, order="C"):
     """
     Return a full array with the same shape and type as a given array.
 
@@ -595,7 +707,7 @@ def full_like(a, fill_value, dtype=types.float32, split=None, device=None, comm=
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
     """
-    return __factory_like(a, dtype, split, full, device, comm, fill_value=fill_value)
+    return __factory_like(a, dtype, split, full, device, comm, fill_value=fill_value, order=order)
 
 
 def linspace(
@@ -755,7 +867,7 @@ def logspace(
     return pow(base, y).astype(dtype, copy=False)
 
 
-def ones(shape, dtype=types.float32, split=None, device=None, comm=None):
+def ones(shape, dtype=types.float32, split=None, device=None, comm=None, order="C"):
     """
     Returns a new array of given shape and data type filled with one values. May be allocated split up across multiple
     nodes along the specified axis.
@@ -772,6 +884,12 @@ def ones(shape, dtype=types.float32, split=None, device=None, comm=None):
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm : Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
+    order: str, optional
+        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
+        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options 'K' and 'A'.
+        #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
+
 
     Returns
     -------
@@ -790,10 +908,10 @@ def ones(shape, dtype=types.float32, split=None, device=None, comm=None):
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
     """
-    return __factory(shape, dtype, split, torch.ones, device, comm)
+    return __factory(shape, dtype, split, torch.ones, device, comm, order)
 
 
-def ones_like(a, dtype=None, split=None, device=None, comm=None):
+def ones_like(a, dtype=None, split=None, device=None, comm=None, order="C"):
     """
     Returns a new array filled with ones with the same type, shape and data distribution of given object. Data type and
     data distribution strategy can be explicitly overriden.
@@ -827,10 +945,10 @@ def ones_like(a, dtype=None, split=None, device=None, comm=None):
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
     """
-    return __factory_like(a, dtype, split, ones, device, comm)
+    return __factory_like(a, dtype, split, ones, device, comm, order=order)
 
 
-def zeros(shape, dtype=types.float32, split=None, device=None, comm=None):
+def zeros(shape, dtype=types.float32, split=None, device=None, comm=None, order="C"):
     """
     Returns a new array of given shape and data type filled with zero values. May be allocated split up across multiple
     nodes along the specified axis.
@@ -847,6 +965,12 @@ def zeros(shape, dtype=types.float32, split=None, device=None, comm=None):
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
+    order: str, optional
+        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
+        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options 'K' and 'A'.
+        #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
+
 
     Returns
     -------
@@ -865,10 +989,10 @@ def zeros(shape, dtype=types.float32, split=None, device=None, comm=None):
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
     """
-    return __factory(shape, dtype, split, torch.zeros, device, comm)
+    return __factory(shape, dtype, split, torch.zeros, device, comm, order=order)
 
 
-def zeros_like(a, dtype=None, split=None, device=None, comm=None):
+def zeros_like(a, dtype=None, split=None, device=None, comm=None, order="C"):
     """
     Returns a new array filled with zeros with the same type, shape and data distribution of given object. Data type and
     data distribution strategy can be explicitly overriden.
@@ -885,6 +1009,11 @@ def zeros_like(a, dtype=None, split=None, device=None, comm=None):
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
+    order: str, optional
+        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
+        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options 'K' and 'A'.
+        #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Returns
     -------
@@ -902,4 +1031,4 @@ def zeros_like(a, dtype=None, split=None, device=None, comm=None):
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
     """
-    return __factory_like(a, dtype, split, zeros, device, comm)
+    return __factory_like(a, dtype, split, zeros, device, comm, order=order)

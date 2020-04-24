@@ -1,4 +1,5 @@
 from .arithmetics import *
+from .base import *
 from .communication import *
 from .constants import *
 from .devices import *
@@ -6,7 +7,6 @@ from .exponential import *
 from .factories import *
 from .indexing import *
 from .io import *
-from .linalg import *
 from .logical import *
 from .manipulations import *
 from .memory import *
@@ -16,6 +16,7 @@ from .relational import *
 from .rounding import *
 from .statistics import *
 from .dndarray import *
+from .tiling import *
 from .trigonometrics import *
 from .types import *
 from .types import finfo, iinfo
