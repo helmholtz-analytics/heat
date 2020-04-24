@@ -296,7 +296,7 @@ class DNDarray:
         Parameters
         ----------
         halo_size : int
-            Size of the halo. 
+            Size of the halo.
         """
         if not isinstance(halo_size, int):
             raise TypeError(
@@ -323,7 +323,7 @@ class DNDarray:
             res_next = None
 
             req_list = list()
- 
+
             if self.comm.rank != self.comm.size - 1:
                 self.comm.Isend(a_next, self.comm.rank + 1)
                 res_prev = torch.zeros(a_prev.size(), dtype=a_prev.dtype)
@@ -355,7 +355,8 @@ class DNDarray:
         -------
         array + halos: pytorch tensors
         """
-        return torch.cat([_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None],
+        return torch.cat(
+            [_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None],
             self.split,
         )
 
