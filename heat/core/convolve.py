@@ -2,10 +2,6 @@ import torch
 
 from .communication import MPI
 from . import dndarray
-from . import factories
-from . import operations
-from . import stride_tricks
-from . import types
 import torch.nn.functional as fc
 
 __all__ = ["convolve"]
