@@ -376,9 +376,12 @@ class SquareDiagTiles:
             # then the local data needs to be redistributed to fit the full diagonal on as many
             #       processes as possible
             # if any(lshape_map[..., arr.split] == 1):
-            last_diag_pr, col_per_proc_list, col_inds, tile_columns = self.__adjust_lshape_sp0_1tile(
-                arr, col_inds, lshape_map, tiles_per_proc
-            )
+            (
+                last_diag_pr,
+                col_per_proc_list,
+                col_inds,
+                tile_columns,
+            ) = self.__adjust_lshape_sp0_1tile(arr, col_inds, lshape_map, tiles_per_proc)
             # re-test for empty processes and remove empty rows
             empties = torch.where(lshape_map[..., 0] == 0)[0]
             if empties.numel() > 0:
