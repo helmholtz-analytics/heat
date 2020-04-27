@@ -1238,18 +1238,18 @@ def squeeze(x, axis=None):
             dim_is_one = x.shape[axis] == 1
             axis = (axis,)
         elif isinstance(axis, tuple):
-            dim_is_one = bool(
-                factories.array(list(x.shape[dim] == 1 for dim in axis)).all()._DNDarray__array
-            )
+            dim_is_one = bool(torch.tensor(list(x.shape[dim] == 1 for dim in axis)).all())
         if not dim_is_one:
             raise ValueError("Dimension along axis {} is not 1 for shape {}".format(axis, x.shape))
 
-        if x.comm.is_distributed() and x.split is not None and x.split in axis:
-            raise ValueError(
-                "Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}".format(
-                    x.split, axis, x.shape
-                )
-            )
+    # Sanitize split
+    if x.comm.is_distributed() and x.split is not None:
+        splittable = list(dim for dim in range(x.numdims) if dim not in axis)
+        if x.split in axis:
+            new_split = x.split
+            while new_split not in splittable:
+                new_split = new_split + 1 if new_split + 1 < x.numdims else 0
+            x.resplit_(axis=new_split)
 
     # Local squeeze
     if axis is None:

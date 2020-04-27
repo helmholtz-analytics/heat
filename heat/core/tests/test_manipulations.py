@@ -1328,9 +1328,6 @@ class TestManipulations(BasicTest):
         self.assertEqual(result.split, 0)
 
         # check exceptions
-        if data.comm.is_distributed():
-            with self.assertRaises(ValueError):
-                data.squeeze(axis=(0, 1))
         with self.assertRaises(TypeError):
             data.squeeze(axis=1.1)
         with self.assertRaises(TypeError):
