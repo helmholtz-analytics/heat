@@ -1315,16 +1315,34 @@ class TestManipulations(BasicTest):
         self.assertEqual(result.shape, (1, 4, 5))
         self.assertEqual(result.split, 1)
 
+        # 4D split tensor, axis = split
+        data = ht.array(ht.random.randn(3, 1, 5, 6), split=1)
+        result = ht.squeeze(data, axis=1)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.shape, (3, 5, 6))
+        self.assertEqual(result.split, 1)
+
+        # 4D split tensor, axis = split = last dimension
+        data = ht.array(ht.random.randn(3, 6, 5, 1), split=-1)
+        result = ht.squeeze(data, axis=-1)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.shape, (3, 6, 5))
+        self.assertEqual(result.split, 0)
+
         # 3D split tensor, across the axis
         size = ht.MPI_WORLD.size
-        data = ht.triu(ht.ones((1, size, size), split=1, device=ht_device), k=1)
+        data = ht.triu(ht.ones((1, size * 2, size), split=1, device=ht_device), k=1)
 
         result = ht.squeeze(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
         self.assertEqual(result._DNDarray__array.dtype, torch.float32)
-        self.assertEqual(result.shape, (size, size))
-        self.assertEqual(result.lshape, (1, size))
+        self.assertEqual(result.shape, (size * 2, size))
+        self.assertEqual(result.lshape, (2, size))
         self.assertEqual(result.split, 0)
 
         # check exceptions
@@ -1333,7 +1351,9 @@ class TestManipulations(BasicTest):
         with self.assertRaises(TypeError):
             data.squeeze(axis="y")
         with self.assertRaises(ValueError):
-            ht.argmin(data, axis=-4)
+            ht.squeeze(data, axis=-4)
+        with self.assertRaises(ValueError):
+            ht.squeeze(data, axis=1)
 
     def test_unique(self):
         size = ht.MPI_WORLD.size

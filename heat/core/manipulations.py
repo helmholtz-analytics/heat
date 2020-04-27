@@ -1243,7 +1243,7 @@ def squeeze(x, axis=None):
             raise ValueError("Dimension along axis {} is not 1 for shape {}".format(axis, x.shape))
 
     # Sanitize split
-    if x.comm.is_distributed() and x.split is not None:
+    if x.split is not None:
         splittable = list(dim for dim in range(x.numdims) if dim not in axis)
         if x.split in axis:
             new_split = x.split
