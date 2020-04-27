@@ -1116,7 +1116,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     q : ht.tensor, scalar, or list of scalars
     Percentile or sequence of percentiles to compute. Must belong to the interval [0, 100].
 
-    axis : int, tuple of int, or None, optional
+    axis : int, or None, optional #TODO tuple of ints
     Axis or axes along which the percentiles are computed. Default is None.
 
     #TODO: out, optional. Output buffer.
@@ -1141,11 +1141,62 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
 
     """
 
+    def local_percentile(data, axis, indices):
+        """
+        Process-local percentile calculations
+        Input:
+        x, torch.tensor
+        axis, int or TODO tuple of ints
+        indices, torch.tensor or list or tuple or scalar
+
+        Returns:
+        percentile, torch.tensor, process-local
+        """
+
+        axis_slice = data.ndim * (slice(None, None, None),)
+        if indices.dtype == torch.long or indices.dtype == torch.int:
+            # interpolation 'lower', 'higher', or 'nearest'
+            axis_slice = axis_slice[:axis] + (indices.tolist(),) + axis_slice[axis + 1 :]
+            percentile = data[axis_slice]
+        else:
+            floor_indices = torch.floor(indices).type(torch.long)
+            ceil_indices = floor_indices + 1.0  # this one might spill over into next process: halo
+            if ceil_indices.max().item() < chunk_stop:
+                floor_slice = axis_slice[:axis] + (floor_indices.tolist(),) + axis_slice[axis + 1 :]
+                ceil_slice = axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
+                lows = data[floor_slice]
+                highs = data[ceil_slice]
+                weights_shape = x.numdims * (1,)
+                weights_shape = weights_shape[:axis] + (q.shape[0],) + weights_shape[axis + 1 :]
+                weights = torch.sub(
+                    indices.reshape(weights_shape), torch.floor(indices).reshape(weights_shape)
+                )
+
+                percentile = lows + weights * (torch.sub(highs, lows))
+
+                if axis != 0:
+                    # at this point, dim 'axis' corresponds to the number of percentiles q.numel()
+                    # permute to have the percentiles at dim 0
+                    dims = tuple(range(data.numdims))
+                    permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
+                    percentile = percentile.permute(permute_dims)
+            else:
+                # TODO: update after merging PR #541
+                percentile = torch.tensor([])
+                raise NotImplementedError(
+                    "Floor index on process, ceil index out of process: not implemented yet. (Cannot see my halo, halo, halo...)"
+                )
+
+            return percentile
+
+    if not isinstance(x, dndarray.DNDarray):
+        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+
     if isinstance(q, dndarray.DNDarray):
         if x.comm.is_distributed() and q.split is not None:
             # q needs to be local
             q.resplit_(axis=None)
-            q = q._DNDarray__array
+        q = q._DNDarray__array
     elif isinstance(q, list) or isinstance(q, tuple):
         q = torch.tensor(q)  # TODO: device
     elif np.isscalar(q):
@@ -1156,17 +1207,30 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         )
 
     output_shape = (q.shape[0],) + x.gshape[:axis] + x.gshape[axis + 1 :]
-    axis_slice = x.numdims * (slice(None, None, None),)
+    split = x.split if x.split < len(output_shape) else None
 
-    if axis is None:
-        # TODO
-        # x_orig = x.copy()
-        # x = x.flatten()
-        # axis = 0
-        pass
+    if axis is None and x.numdims > 1:
+        if not x.comm.is_distributed() or x.split is None:
+            x = x.copy()
+            flat_shape = (x.__DNDarray__array.numel(),)
+            x = dndarray.DNDarray(
+                x.__DNDarray__array.flatten(), flat_shape, split=None, device=x.device, comm=x.comm
+            )
+            axis = 0
+        else:
+            # TODO replace following with ht.flatten()
+            raise NotImplementedError(
+                "Percentile of distributed tensor not implemented yet if axis is None."
+            )
+
+    if x.comm.is_distributed() and x.split is not None and x.split == axis:
+        _, _, chunk = x.comm.chunk(x.gshape, x.split)
+        chunk_start = chunk[x.split].start
+        chunk_stop = chunk[x.split].stop
 
     length = x.gshape[axis]
     indices = q.type(torch.float) / 100 * (length - 1)
+
     if interpolation == "lower":
         indices = indices.floor().type(torch.long)
     elif interpolation == "higher":
@@ -1180,7 +1244,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         pass
     else:
         raise ValueError(
-            "Invalid interpolation method. Interpolation can be 'lower', 'higher', 'midppint', 'nearest', or 'linear'."
+            "Invalid interpolation method. Interpolation can be 'lower', 'higher', 'midpoint', 'nearest', or 'linear'."
         )
 
     data = (
@@ -1188,40 +1252,30 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         .astype(types.canonical_heat_type(float))
         ._DNDarray__array
     )
-    # from now on: process-local, torch operations
-    if indices.dtype == torch.long or indices.dtype == torch.int:
-        axis_slice = axis_slice[:axis] + (indices.tolist(),) + axis_slice[axis + 1 :]
-        percentile = data[axis_slice]
-    else:
-        floor_slice = (
-            axis_slice[:axis]
-            + (torch.floor(indices).type(torch.long).tolist(),)
-            + axis_slice[axis + 1 :]
-        )
-        ceil_slice = (
-            axis_slice[:axis]
-            + (torch.ceil(indices).type(torch.long).tolist(),)
-            + axis_slice[axis + 1 :]
-        )
-        lows = data[floor_slice]
-        highs = data[ceil_slice]
-        weights_shape = x.numdims * (1,)
-        weights_shape = weights_shape[:axis] + (q.shape[0],) + weights_shape[axis + 1 :]
-        weights = torch.sub(
-            indices.reshape(weights_shape), torch.floor(indices).reshape(weights_shape)
-        )
-        dims = tuple(range(x.numdims))
-        permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
-        percentile = (lows + weights * (torch.sub(highs, lows))).permute(permute_dims)
 
-    return dndarray.DNDarray(
-        percentile,
+    if x.comm.is_distributed() and x.split is not None and x.split == axis:
+        indices = indices[(indices < chunk_stop) & (indices >= chunk_start)]
+
+    if indices.numel() == 0:
+        result = torch.tensor([])
+    else:
+        result = local_percentile(data, axis, indices)
+
+    percentile = dndarray.DNDarray(
+        result,
         output_shape,
-        dtype=types.canonical_heat_type(percentile.dtype),
-        split=x.split,
+        dtype=types.canonical_heat_type(torch.float),
+        split=split,
         device=x.device,
         comm=x.comm,
     )
+
+    if not keepdim and output_shape[0] == 1:
+        percentile = percentile.squeeze(dim=0)
+
+    # TODO: SET X BACK TO X_ORIG, DELETE X_ORIG
+
+    return percentile
 
 
 def std(x, axis=None, ddof=0, **kwargs):
