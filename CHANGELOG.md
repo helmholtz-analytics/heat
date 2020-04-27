@@ -29,6 +29,7 @@
 - [#536](https://github.com/helmholtz-analytics/heat/pull/536) Getting rid of the docs folder
 - [#558](https://github.com/helmholtz-analytics/heat/pull/558) `sanitize_memory_layout` assumes default memory layout of the input tensor
 - [#558](https://github.com/helmholtz-analytics/heat/pull/558) Support for PyTorch 1.5.0 added
+- [#562](https://github.com/helmholtz-analytics/heat/pull/562) Bugfix: split semantics of ht.squeeze()
 
 # v0.3.0
 

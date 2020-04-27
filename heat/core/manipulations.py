@@ -1236,58 +1236,36 @@ def squeeze(x, axis=None):
     if axis is not None:
         if isinstance(axis, int):
             dim_is_one = x.shape[axis] == 1
-        if isinstance(axis, tuple):
+            axis = (axis,)
+        elif isinstance(axis, tuple):
             dim_is_one = bool(
                 factories.array(list(x.shape[dim] == 1 for dim in axis)).all()._DNDarray__array
             )
         if not dim_is_one:
             raise ValueError("Dimension along axis {} is not 1 for shape {}".format(axis, x.shape))
 
+        if x.comm.is_distributed() and x.split is not None and x.split in axis:
+            raise ValueError(
+                "Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}".format(
+                    x.split, axis, x.shape
+                )
+            )
+
     # Local squeeze
     if axis is None:
         axis = tuple(i for i, dim in enumerate(x.shape) if dim == 1)
-    if isinstance(axis, int):
-        axis = (axis,)
-    out_lshape = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
+    out_lshape = tuple(x.lshape[dim] for dim in range(x.numdims) if dim not in axis)
+    out_gshape = tuple(x.gshape[dim] for dim in range(x.numdims) if dim not in axis)
     x_lsqueezed = x._DNDarray__array.reshape(out_lshape)
 
-    # Calculate split axis according to squeezed shape
+    # Calculate new split axis according to squeezed shape
     if x.split is not None:
         split = x.split - len(list(dim for dim in axis if dim < x.split))
     else:
         split = x.split
 
-    # Distributed squeeze
-    if x.split is not None:
-        if x.comm.is_distributed():
-            if x.split in axis:
-                raise ValueError(
-                    "Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}".format(
-                        x.split, axis, x.shape
-                    )
-                )
-            out_gshape = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
-            x_gsqueezed = factories.empty(out_gshape, dtype=x.dtype)
-            loffset = factories.zeros(1, dtype=types.int64)
-            loffset.__setitem__(0, x.comm.chunk(x.gshape, x.split)[0])
-            displs = factories.zeros(x.comm.size, dtype=types.int64)
-            x.comm.Allgather(loffset, displs)
-
-            # TODO: address uneven distribution of dimensions (Allgatherv). Issue #273, #233
-            x.comm.Allgather(
-                x_lsqueezed, x_gsqueezed
-            )  # works with evenly distributed dimensions only
-            return dndarray.DNDarray(
-                x_gsqueezed,
-                out_gshape,
-                x_lsqueezed.dtype,
-                split=split,
-                device=x.device,
-                comm=x.comm,
-            )
-
     return dndarray.DNDarray(
-        x_lsqueezed, out_lshape, x.dtype, split=split, device=x.device, comm=x.comm
+        x_lsqueezed, out_gshape, x.dtype, split=split, device=x.device, comm=x.comm
     )
 
 
