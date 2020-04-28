@@ -1196,7 +1196,14 @@ def squeeze(x, axis=None):
     --------
     squeezed : ht.DNDarray
                The input tensor, but with all or a subset of the dimensions of length 1 removed.
+               Split semantics: see note below.
 
+    Note:
+    -----
+    Split semantics: if the input tensor is distributed ('x.split is not None'), the output
+    tensor will be distributed along the same dimension. The case where 'x.split = axis'
+    implies a redistribution of the input tensor along the next possible split dimension
+    (cf. 'heat.resplit()') which may affect performance.
 
     Examples:
     >>> import heat as ht

@@ -2,8 +2,8 @@
 
 - Update documentation theme to "Read the Docs"
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Create submodule for Linear Algebra functions
-- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated QR
-- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated a tiling class to create Square tiles along the diagonal of a 2D matrix
+- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implemented QR
+- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implemented a tiling class to create Square tiles along the diagonal of a 2D matrix
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Added PyTorch Jitter to inner function of matmul for increased speed
 - [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: Underlying torch tensor moves to the right device on array initialisation
 - [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: DNDarray.cpu() changes heat device to cpu
