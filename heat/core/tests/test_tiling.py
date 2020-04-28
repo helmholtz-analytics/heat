@@ -17,13 +17,13 @@ class TestSplitTiles(BasicTest):
     @classmethod
     def setUpClass(cls):
         super(TestSplitTiles, cls).setUpClass()
-        
+
     # most of the cases are covered by the resplit tests
     def test_raises(self):
         length = torch.tensor([i + 20 for i in range(2)], device=self.torch_device)
-        test = torch.arange(torch.prod(length), dtype=torch.float64, device=self.torch_device).reshape(
-            [i + 20 for i in range(2)]
-        )
+        test = torch.arange(
+            torch.prod(length), dtype=torch.float64, device=self.torch_device
+        ).reshape([i + 20 for i in range(2)])
         a = ht.array(test, split=1)
         tiles = ht.tiling.SplitTiles(a)
         with self.assertRaises(TypeError):

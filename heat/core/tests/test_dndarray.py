@@ -699,9 +699,9 @@ class TestDNDarray(BasicTest):
 
         # "in place"
         length = torch.tensor([i + 20 for i in range(2)], device=self.torch_device)
-        test = torch.arange(torch.prod(length), dtype=torch.float64, device=self.torch_device).reshape(
-            [i + 20 for i in range(2)]
-        )
+        test = torch.arange(
+            torch.prod(length), dtype=torch.float64, device=self.torch_device
+        ).reshape([i + 20 for i in range(2)])
         a = ht.array(test, split=1)
         a.resplit_(axis=0)
         self.assertTrue(ht.equal(a, ht.array(test, split=0)))

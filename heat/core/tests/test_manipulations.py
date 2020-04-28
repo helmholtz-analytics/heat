@@ -827,7 +827,9 @@ class TestManipulations(BasicTest):
         self.assertEqual(a.dtype, res.dtype)
         self.assertEqual(a.device, res.device)
 
-        a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]], split=0, device=self.ht_device, dtype=ht.int8)
+        a = ht.array(
+            [[[1, 2], [3, 4]], [[5, 6], [7, 8]]], split=0, device=self.ht_device, dtype=ht.int8
+        )
         res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], split=0, device=self.ht_device, dtype=ht.int8)
         self.assertTrue(ht.equal(ht.flatten(a), res))
         self.assertEqual(a.dtype, res.dtype)
@@ -1019,7 +1021,9 @@ class TestManipulations(BasicTest):
 
         a = reshaped
         result = ht.array(
-            [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15]], split=0, device=self.ht_device
+            [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15]],
+            split=0,
+            device=self.ht_device,
         )
         reshaped = a.reshape((2, 8))
 
