@@ -698,8 +698,8 @@ class TestDNDarray(BasicTest):
         self.assertEqual(data._DNDarray__array.dtype, expected.dtype)
 
         # "in place"
-        length = torch.tensor([i + 20 for i in range(2)], device=device)
-        test = torch.arange(torch.prod(length), dtype=torch.float64, device=device).reshape(
+        length = torch.tensor([i + 20 for i in range(2)], device=self.torch_device)
+        test = torch.arange(torch.prod(length), dtype=torch.float64, device=self.torch_device).reshape(
             [i + 20 for i in range(2)]
         )
         a = ht.array(test, split=1)
@@ -709,7 +709,7 @@ class TestDNDarray(BasicTest):
         self.assertEqual(a.dtype, ht.float64)
         del a
 
-        test = torch.arange(torch.prod(length), device=device)
+        test = torch.arange(torch.prod(length), device=self.torch_device)
         a = ht.array(test, split=0)
         a.resplit_(axis=None)
         self.assertTrue(ht.equal(a, ht.array(test, split=None)))
