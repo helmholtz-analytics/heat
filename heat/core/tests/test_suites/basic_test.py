@@ -24,31 +24,16 @@ class BasicTest(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Read the environment variable 'HEAT_USE_DEVICE' and return the requested devices.
+        """
+        Read the environment variable 'HEAT_TEST_USE_DEVICE' and return the requested devices.
         Supported values
             - cpu: Use CPU only (default)
             - gpu: Use GPU only
             - lcpu: GPU global, CPU local
             - lgpu: CPU global, GPU local
-
-        This function is intended for testing purposes.
-
-        Returns
-        -------
-        torch_device: torch.device
-            The corresponding torch device
-        ht_device : Device, None
-            The local heat device
-        envar: str
-            The value of 'HEAT_USE_DEVICE'
-
-        Examples
-        --------
-        Set the device to GPU
-        $ HEAT_USE_DEVICE=gpu mpirun python [filename]
         """
 
-        envar = os.getenv("HEAT_USE_DEVICE", "cpu")
+        envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
 
         if envar == "cpu":
             ht.use_device("cpu")
@@ -56,26 +41,28 @@ class BasicTest(TestCase):
             ht_device = None
         elif not torch.cuda.is_available():
             raise RuntimeError(
-                "'cpu' is the only supported value for environment variable 'HEAT_USE_DEVICE' on non CUDA GPU"
+                "'cpu' is the only supported value for environment variable 'HEAT_TEST_USE_DEVICE' on non CUDA GPU"
             )
-        elif envar == "gpu" and torch.cuda.is_available():
+        elif envar == "gpu":
             ht.use_device("gpu")
             torch.cuda.set_device(torch.device(ht.gpu.torch_device))
             torch_device = ht.gpu.torch_device
             ht_device = None
-        elif envar == "lcpu" and torch.cuda.is_available():
+        elif envar == "lcpu":
             ht.use_device("gpu")
             torch.cuda.set_device(torch.device(ht.gpu.torch_device))
             torch_device = ht.cpu.torch_device
             ht_device = ht.cpu
-        elif envar == "lgpu" and torch.cuda.is_available():
+        elif envar == "lgpu":
             ht.use_device("cpu")
             torch.cuda.set_device(torch.device(ht.gpu.torch_device))
             torch_device = ht.gpu.torch_device
             ht_device = ht.gpu
         else:
             raise RuntimeError(
-                "Value '{}' of environment variable 'HEAT_USE_DEVICE' is unsupported".format(envar)
+                "Value '{}' of environment variable 'HEAT_TEST_USE_DEVICE' is unsupported".format(
+                    envar
+                )
             )
 
         cls.ht_device, cls.torch_device, cls.envar = ht_device, torch_device, envar
