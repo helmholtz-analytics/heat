@@ -72,6 +72,9 @@ class DNDarray:
         self.__split = split
         self.__device = device
         self.__comm = comm
+        self.__ishalo = False
+        self.__halo_next = None
+        self.__halo_prev = None
 
         # handle inconsistencies between torch and heat devices
         if (
@@ -80,6 +83,14 @@ class DNDarray:
             and array.device.type != device.device_type
         ):
             self.__array = self.__array.to(devices.sanitize_device(self.__device).torch_device)
+
+    @property
+    def halo_next(self):
+        return self.__halo_next
+
+    @property
+    def halo_prev(self):
+        return self.__halo_prev
 
     @property
     def comm(self):
@@ -247,6 +258,107 @@ class DNDarray:
     @property
     def T(self):
         return linalg.transpose(self, axes=None)
+
+    @property
+    def array_with_halos(self):
+        return self.__cat_halo()
+
+    def __prephalo(self, start, end):
+        """
+        Extracts the halo indexed by start, end from self.array in the direction of self.split
+
+        Parameters
+        ----------
+        start : int
+            start index of the halo extracted from self.array
+        end : int
+            end index of the halo extracted from self.array
+
+        Returns
+        -------
+        halo : torch.Tensor
+            The halo extracted from self.array
+        """
+        ix = [slice(None, None, None)] * len(self.shape)
+        try:
+            ix[self.split] = slice(start, end)
+        except IndexError:
+            print("Indices out of bound")
+
+        return self.__array[ix].clone().contiguous()
+
+    def get_halo(self, halo_size):
+        """
+        Fetch halos of size 'halo_size' from neighboring ranks and save them in self.halo_next/self.halo_prev
+        in case they are not already stored. If 'halo_size' differs from the size of already stored halos,
+        the are overwritten.
+
+        Parameters
+        ----------
+        halo_size : int
+            Size of the halo.
+        """
+        if not isinstance(halo_size, int):
+            raise TypeError(
+                "halo_size needs to be of Python type integer, {} given)".format(type(halo_size))
+            )
+        if halo_size < 0:
+            raise ValueError(
+                "halo_size needs to be a positive Python integer, {} given)".format(type(halo_size))
+            )
+
+        if self.comm.is_distributed() and self.split is not None:
+            min_chunksize = self.shape[self.split] // self.comm.size
+            if halo_size > min_chunksize:
+                raise ValueError(
+                    "halo_size {} needs to smaller than chunck-size {} )".format(
+                        halo_size, min_chunksize
+                    )
+                )
+
+            a_prev = self.__prephalo(0, halo_size)
+            a_next = self.__prephalo(-halo_size, None)
+
+            res_prev = None
+            res_next = None
+
+            req_list = list()
+
+            if self.comm.rank != self.comm.size - 1:
+                self.comm.Isend(a_next, self.comm.rank + 1)
+                res_prev = torch.zeros(a_prev.size(), dtype=a_prev.dtype)
+                req_list.append(self.comm.Irecv(res_prev, source=self.comm.rank + 1))
+
+            if self.comm.rank != 0:
+                self.comm.Isend(a_prev, self.comm.rank - 1)
+                res_next = torch.zeros(a_next.size(), dtype=a_next.dtype)
+                req_list.append(self.comm.Irecv(res_next, source=self.comm.rank - 1))
+
+            for req in req_list:
+                req.wait()
+
+            self.__halo_next = res_prev
+            self.__halo_prev = res_next
+            self.__ishalo = True
+
+    def __cat_halo(self):
+        """
+        Fetch halos of size 'halo_size' from neighboring ranks and save them in self.halo_next/self.halo_prev
+        in case they are not already stored. If 'halo_size' differs from the size of already stored halos,
+        the are overwritten.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        array + halos: pytorch tensors
+        """
+        return torch.cat(
+            [_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None],
+            self.split,
+        )
 
     def abs(self, out=None, dtype=None):
         """
@@ -1059,6 +1171,23 @@ class DNDarray:
         (2, 1)
         """
         return manipulations.expand_dims(self, axis)
+
+    def flatten(self):
+        """
+        Return a flat tensor.
+
+        Returns
+        -------
+        flattened : ht.DNDarray
+            The flattened tensor
+
+        Examples
+        --------
+        >>> x = ht.array([[1,2],[3,4]])
+        >>> x.flatten()
+        tensor([1,2,3,4])
+        """
+        return manipulations.flatten(self)
 
     def __float__(self):
         """
@@ -2397,8 +2526,16 @@ class DNDarray:
                 # if there is less data on the process than need to get the data from the next data
                 # with data
                 # need processes > rcv_pr with lshape > 0
-                st_pr = torch.nonzero(lshape_map[rcv_pr:, self.split] > 0)[0].item() + rcv_pr
-                hld = torch.nonzero(sp <= lshape_cumsum[rcv_pr:]).flatten() + rcv_pr
+                st_pr = (
+                    torch.nonzero(input=lshape_map[rcv_pr:, self.split] > 0, as_tuple=False)[
+                        0
+                    ].item()
+                    + rcv_pr
+                )
+                hld = (
+                    torch.nonzero(input=sp <= lshape_cumsum[rcv_pr:], as_tuple=False).flatten()
+                    + rcv_pr
+                )
                 sp_pr = hld[0].item() if hld.numel() > 0 else self.comm.size
 
             # st_pr and sp_pr are the processes on which the data sits at the beginning
@@ -2484,47 +2621,77 @@ class DNDarray:
             if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
                 self.__array = torch.cat((self.__array, data), dim=self.split)
 
-    def resplit_(self, axis=None):
+    def reshape(self, shape, axis=None):
         """
-        In-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
-        nodes as well as the definition of new axis along which the tensor is split without changes to the values.
-
-        WARNING: this operation might involve a significant communication overhead. Use it sparingly and preferably for
-        small tensors.
+        Returns a tensor with the same data and number of elements as a, but with the specified shape.
 
         Parameters
         ----------
-        axis : int
+        a : ht.DNDarray
+            The input tensor
+        shape : tuple, list
+            Shape of the new tensor
+        axis : int, optional
+            The new split axis. None denotes same axis
+            Default : None
+
+        Returns
+        -------
+        reshaped : ht.DNDarray
+            The tensor with the specified shape
+
+        Raises
+        ------
+        ValueError
+            If the number of elements changes in the new shape.
+
+        Examples
+        --------
+        >>> a = ht.arange(16, split=0)
+        >>> a.reshape((4,4))
+        (1/2) tensor([[0, 1, 2, 3],
+                    [4, 5, 6, 7]], dtype=torch.int32)
+        (2/2) tensor([[ 8,  9, 10, 11],
+                    [12, 13, 14, 15]], dtype=torch.int32)
+        """
+        return manipulations.reshape(self, shape, axis)
+
+    def resplit_(self, axis=None):
+        """
+        In-place option for resplitting a DNDarray.
+
+        Parameters
+        ----------
+        axis : int, None
             The new split axis, None denotes gathering, an int will set the new split axis
 
         Returns
         -------
         resplit: ht.DNDarray
-            The redistributed tensor
+            The redistributed tensor. Will overwrite the old DNDarray in memory.
 
         Examples
         --------
-        a = ht.zeros((4, 5,), split=0)
-        a.lshape
-        (0/2) >>> (2, 5)
-        (1/2) >>> (2, 5)
-        a.resplit(None)
-        a.split
-        >>> None
-        a.lshape
-        (0/2) >>> (4, 5)
-        (1/2) >>> (4, 5)
-
-        a = ht.zeros((4, 5,), split=0)
-        a.lshape
-        (0/2) >>> (2, 5)
-        (1/2) >>> (2, 5)
-        a.resplit(1)
-        a.split
-        >>> 1
-        a.lshape
-        (0/2) >>> (4, 3)
-        (1/2) >>> (4, 2)
+        >>> a = ht.zeros((4, 5,), split=0)
+        >>> a.lshape
+        (0/2) (2, 5)
+        (1/2) (2, 5)
+        >>> ht.resplit_(a, None)
+        >>> a.split
+        None
+        >>> a.lshape
+        (0/2) (4, 5)
+        (1/2) (4, 5)
+        >>> a = ht.zeros((4, 5,), split=0)
+        >>> a.lshape
+        (0/2) (2, 5)
+        (1/2) (2, 5)
+        >>> ht.resplit_(a, 1)
+        >>> a.split
+        1
+        >>> a.lshape
+        (0/2) (4, 3)
+        (1/2) (4, 2)
         """
         # sanitize the axis to check whether it is in range
         axis = sanitize_axis(self.shape, axis)
@@ -2532,48 +2699,87 @@ class DNDarray:
         # early out for unchanged content
         if axis == self.split:
             return self
-
-        # unsplit the tensor
         if axis is None:
             gathered = torch.empty(
                 self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
             )
-
-            recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Allgatherv(
-                self.__array, (gathered, recv_counts, recv_displs), recv_axis=self.split
-            )
-
+            counts, displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
+            self.comm.Allgatherv(self.__array, (gathered, counts, displs), recv_axis=self.split)
             self.__array = gathered
-            self.__split = None
-
+            self.__split = axis
+            return self
         # tensor needs be split/sliced locally
-        elif self.split is None:
+        if self.split is None:
+            # new_arr = self
             _, _, slices = self.comm.chunk(self.shape, axis)
             temp = self.__array[slices]
             self.__array = torch.empty((1,), device=self.device.torch_device)
             # necessary to clear storage of local __array
             self.__array = temp.clone().detach()
             self.__split = axis
+            return self
 
-        # entirely new split axis, need to redistribute
-        else:
-            _, output_shape, _ = self.comm.chunk(self.shape, axis)
-            redistributed = torch.empty(
-                output_shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
-            )
+        tiles = tiling.SplitTiles(self)
+        new_tile_locs = tiles.set_tile_locations(
+            split=axis, tile_dims=tiles.tile_dimensions, arr=self
+        )
+        rank = self.comm.rank
+        # receive the data with non-blocking, save which process its from
+        rcv = {}
+        for rpr in range(self.comm.size):
+            # need to get where the tiles are on the new one first
+            # rpr is the destination
+            new_locs = torch.where(new_tile_locs == rpr)
+            new_locs = torch.stack([new_locs[i] for i in range(self.numdims)], dim=1)
+            for i in range(new_locs.shape[0]):
+                key = tuple(new_locs[i].tolist())
+                spr = tiles.tile_locations[key].item()
+                to_send = tiles[key]
+                if spr == rank and spr != rpr:
+                    self.comm.Send(to_send.clone(), dest=rpr, tag=rank)
+                    del to_send
+                elif spr == rpr and rpr == rank:
+                    rcv[key] = [None, to_send]
+                elif rank == rpr:
+                    sz = tiles.get_tile_size(key)
+                    buf = torch.zeros(
+                        sz, dtype=self.dtype.torch_type(), device=self.device.torch_device
+                    )
+                    w = self.comm.Irecv(buf=buf, source=spr, tag=spr)
+                    rcv[key] = [w, buf]
+        dims = list(range(self.numdims))
+        del dims[axis]
+        sorted_keys = sorted(rcv.keys())
+        # todo: reduce the problem to 1D cats for each dimension, then work up
+        sz = self.comm.size
+        arrays = []
+        for prs in range(int(len(sorted_keys) / sz)):
+            lp_keys = sorted_keys[prs * sz : (prs + 1) * sz]
+            lp_arr = None
+            for k in lp_keys:
+                if rcv[k][0] is not None:
+                    rcv[k][0].wait()
+                if lp_arr is None:
+                    lp_arr = rcv[k][1]
+                else:
+                    lp_arr = torch.cat((lp_arr, rcv[k][1]), dim=dims[-1])
+                del rcv[k]
+            if lp_arr is not None:
+                arrays.append(lp_arr)
+        del dims[-1]
+        # for 4 prs and 4 dims, arrays is now 16 elements long,
+        # next need to group the each 4 (sz) and cat in the next dim
+        for d in reversed(dims):
+            new_arrays = []
+            for prs in range(int(len(arrays) / sz)):
+                new_arrays.append(torch.cat(arrays[prs * sz : (prs + 1) * sz], dim=d))
+            arrays = new_arrays
+            del d
+        if len(arrays) == 1:
+            arrays = arrays[0]
 
-            send_counts, send_displs, _ = self.comm.counts_displs_shape(self.lshape, axis)
-            recv_counts, recv_displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
-            self.comm.Alltoallv(
-                (self.__array, send_counts, send_displs),
-                (redistributed, recv_counts, recv_displs),
-                send_axis=axis,
-                recv_axis=self.split,
-            )
-
-            self.__array = redistributed
-            self.__split = axis
+        self.__array = arrays
+        self.__split = axis
         return self
 
     def __rfloordiv__(self, other):
