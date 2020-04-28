@@ -3,15 +3,19 @@ import unittest
 import os
 import heat as ht
 
-ht_device, torch_device, _ = ht.use_envar_device()
+from heat.core.tests.test_suites.basic_test import BasicTest
 
 
-class TestLogical(unittest.TestCase):
+class TestLogical(BasicTest):
+    @classmethod
+    def setUpClass(cls):
+        super(TestLogical, cls).setUpClass()
+
     def test_all(self):
         array_len = 9
 
         # check all over all float elements of 1d tensor locally
-        ones_noaxis = ht.ones(array_len, device=ht_device)
+        ones_noaxis = ht.ones(array_len, device=self.ht_device)
         x = (ones_noaxis == 1).all()
 
         self.assertIsInstance(x, ht.DNDarray)
@@ -22,12 +26,12 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(x.split, None)
         self.assertEqual(x._DNDarray__array, 1)
 
-        out_noaxis = ht.zeros((1,), device=ht_device)
+        out_noaxis = ht.zeros((1,), device=self.ht_device)
         ht.all(ones_noaxis, out=out_noaxis)
         self.assertEqual(out_noaxis._DNDarray__array, 1)
 
         # check all over all float elements of split 1d tensor
-        ones_noaxis_split = ht.ones(array_len, split=0, device=ht_device)
+        ones_noaxis_split = ht.ones(array_len, split=0, device=self.ht_device)
         floats_is_one = ones_noaxis_split.all()
 
         self.assertIsInstance(floats_is_one, ht.DNDarray)
@@ -38,12 +42,12 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(floats_is_one.split, None)
         self.assertEqual(floats_is_one._DNDarray__array, 1)
 
-        out_noaxis = ht.zeros((1,), device=ht_device)
+        out_noaxis = ht.zeros((1,), device=self.ht_device)
         ht.all(ones_noaxis_split, out=out_noaxis)
         self.assertEqual(out_noaxis._DNDarray__array, 1)
 
         # check all over all integer elements of 1d tensor locally
-        ones_noaxis_int = ht.ones(array_len, device=ht_device).astype(ht.int)
+        ones_noaxis_int = ht.ones(array_len, device=self.ht_device).astype(ht.int)
         int_is_one = ones_noaxis_int.all()
 
         self.assertIsInstance(int_is_one, ht.DNDarray)
@@ -54,12 +58,12 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(int_is_one.split, None)
         self.assertEqual(int_is_one._DNDarray__array, 1)
 
-        out_noaxis = ht.zeros((1,), device=ht_device)
+        out_noaxis = ht.zeros((1,), device=self.ht_device)
         ht.all(ones_noaxis_int, out=out_noaxis)
         self.assertEqual(out_noaxis._DNDarray__array, 1)
 
         # check all over all integer elements of split 1d tensor
-        ones_noaxis_split_int = ht.ones(array_len, split=0, device=ht_device).astype(ht.int)
+        ones_noaxis_split_int = ht.ones(array_len, split=0, device=self.ht_device).astype(ht.int)
         split_int_is_one = ones_noaxis_split_int.all()
 
         self.assertIsInstance(split_int_is_one, ht.DNDarray)
@@ -70,12 +74,12 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(split_int_is_one.split, None)
         self.assertEqual(split_int_is_one._DNDarray__array, 1)
 
-        out_noaxis = ht.zeros((1,), device=ht_device)
+        out_noaxis = ht.zeros((1,), device=self.ht_device)
         ht.all(ones_noaxis_split_int, out=out_noaxis)
         self.assertEqual(out_noaxis._DNDarray__array, 1)
 
         # check all over all float elements of 3d tensor locally
-        ones_noaxis_volume = ht.ones((3, 3, 3), device=ht_device)
+        ones_noaxis_volume = ht.ones((3, 3, 3), device=self.ht_device)
         volume_is_one = ones_noaxis_volume.all()
 
         self.assertIsInstance(volume_is_one, ht.DNDarray)
@@ -86,12 +90,12 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(volume_is_one.split, None)
         self.assertEqual(volume_is_one._DNDarray__array, 1)
 
-        out_noaxis = ht.zeros((1,), device=ht_device)
+        out_noaxis = ht.zeros((1,), device=self.ht_device)
         ht.all(ones_noaxis_volume, out=out_noaxis)
         self.assertEqual(out_noaxis._DNDarray__array, 1)
 
         # check sequence is not all one
-        sequence = ht.arange(array_len, device=ht_device)
+        sequence = ht.arange(array_len, device=self.ht_device)
         sequence_is_one = sequence.all()
 
         self.assertIsInstance(sequence_is_one, ht.DNDarray)
@@ -102,12 +106,12 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(sequence_is_one.split, None)
         self.assertEqual(sequence_is_one._DNDarray__array, 0)
 
-        out_noaxis = ht.zeros((1,), device=ht_device)
+        out_noaxis = ht.zeros((1,), device=self.ht_device)
         ht.all(sequence, out=out_noaxis)
         self.assertEqual(out_noaxis._DNDarray__array, 0)
 
         # check all over all float elements of split 3d tensor
-        ones_noaxis_split_axis = ht.ones((3, 3, 3), split=0, device=ht_device)
+        ones_noaxis_split_axis = ht.ones((3, 3, 3), split=0, device=self.ht_device)
         float_volume_is_one = ones_noaxis_split_axis.all(axis=0)
 
         self.assertIsInstance(float_volume_is_one, ht.DNDarray)
@@ -116,11 +120,11 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(float_volume_is_one._DNDarray__array.dtype, torch.bool)
         self.assertEqual(float_volume_is_one.split, None)
 
-        out_noaxis = ht.zeros((3, 3), device=ht_device)
+        out_noaxis = ht.zeros((3, 3), device=self.ht_device)
         ht.all(ones_noaxis_split_axis, axis=0, out=out_noaxis)
 
         # check all over all float elements of split 3d tensor with tuple axis
-        ones_noaxis_split_axis = ht.ones((3, 3, 3), split=0, device=ht_device)
+        ones_noaxis_split_axis = ht.ones((3, 3, 3), split=0, device=self.ht_device)
         float_volume_is_one = ones_noaxis_split_axis.all(axis=(0, 1))
 
         self.assertIsInstance(float_volume_is_one, ht.DNDarray)
@@ -130,7 +134,7 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(float_volume_is_one.split, None)
 
         # check all over all float elements of split 5d tensor with negative axis
-        ones_noaxis_split_axis_neg = ht.zeros((1, 2, 3, 4, 5), split=1, device=ht_device)
+        ones_noaxis_split_axis_neg = ht.zeros((1, 2, 3, 4, 5), split=1, device=self.ht_device)
         float_5d_is_one = ones_noaxis_split_axis_neg.all(axis=-2)
 
         self.assertIsInstance(float_5d_is_one, ht.DNDarray)
@@ -139,25 +143,25 @@ class TestLogical(unittest.TestCase):
         self.assertEqual(float_5d_is_one._DNDarray__array.dtype, torch.bool)
         self.assertEqual(float_5d_is_one.split, 1)
 
-        out_noaxis = ht.zeros((1, 2, 3, 5), device=ht_device)
+        out_noaxis = ht.zeros((1, 2, 3, 5), device=self.ht_device)
         ht.all(ones_noaxis_split_axis_neg, axis=-2, out=out_noaxis)
 
         # exceptions
         with self.assertRaises(ValueError):
-            ht.ones(array_len, device=ht_device).all(axis=1)
+            ht.ones(array_len, device=self.ht_device).all(axis=1)
         with self.assertRaises(ValueError):
-            ht.ones(array_len, device=ht_device).all(axis=-2)
+            ht.ones(array_len, device=self.ht_device).all(axis=-2)
         with self.assertRaises(ValueError):
-            ht.ones((4, 4), device=ht_device).all(axis=0, out=out_noaxis)
+            ht.ones((4, 4), device=self.ht_device).all(axis=0, out=out_noaxis)
         with self.assertRaises(TypeError):
-            ht.ones(array_len, device=ht_device).all(axis="bad_axis_type")
+            ht.ones(array_len, device=self.ht_device).all(axis="bad_axis_type")
 
     def test_allclose(self):
-        a = ht.float32([[2, 2], [2, 2]], device=ht_device)
-        b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]], device=ht_device)
-        c = ht.zeros((4, 6), split=0, device=ht_device)
-        d = ht.zeros((4, 6), split=1, device=ht_device)
-        e = ht.zeros((4, 6), device=ht_device)
+        a = ht.float32([[2, 2], [2, 2]], device=self.ht_device)
+        b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]], device=self.ht_device)
+        c = ht.zeros((4, 6), split=0, device=self.ht_device)
+        d = ht.zeros((4, 6), split=1, device=self.ht_device)
+        e = ht.zeros((4, 6), device=self.ht_device)
 
         self.assertFalse(ht.allclose(a, b))
         self.assertTrue(ht.allclose(a, b, atol=1e-04))
@@ -178,27 +182,27 @@ class TestLogical(unittest.TestCase):
 
     def test_any(self):
         # float values, minor axis
-        x = ht.float32([[2.7, 0, 0], [0, 0, 0], [0, 0.3, 0]], device=ht_device)
+        x = ht.float32([[2.7, 0, 0], [0, 0, 0], [0, 0.3, 0]], device=self.ht_device)
         any_tensor = x.any(axis=1)
-        res = ht.uint8([1, 0, 1], device=ht_device)
+        res = ht.uint8([1, 0, 1], device=self.ht_device)
         self.assertIsInstance(any_tensor, ht.DNDarray)
         self.assertEqual(any_tensor.shape, (3,))
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))
 
         # integer values, major axis, output tensor
-        any_tensor = ht.zeros((2,), device=ht_device)
-        x = ht.int32([[0, 0], [0, 0], [0, 1]], device=ht_device)
+        any_tensor = ht.zeros((2,), device=self.ht_device)
+        x = ht.int32([[0, 0], [0, 0], [0, 1]], device=self.ht_device)
         ht.any(x, axis=0, out=any_tensor)
-        res = ht.uint8([0, 1], device=ht_device)
+        res = ht.uint8([0, 1], device=self.ht_device)
         self.assertIsInstance(any_tensor, ht.DNDarray)
         self.assertEqual(any_tensor.shape, (2,))
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))
 
         # float values, no axis
-        x = ht.float64([[0, 0, 0], [0, 0, 0]], device=ht_device)
-        res = ht.zeros(1, dtype=ht.uint8, device=ht_device)
+        x = ht.float64([[0, 0, 0], [0, 0, 0]], device=self.ht_device)
+        res = ht.zeros(1, dtype=ht.uint8, device=self.ht_device)
         any_tensor = ht.any(x)
         self.assertIsInstance(any_tensor, ht.DNDarray)
         self.assertEqual(any_tensor.shape, (1,))
@@ -206,9 +210,9 @@ class TestLogical(unittest.TestCase):
         self.assertTrue(ht.equal(any_tensor, res))
 
         # split tensor, along axis
-        x = ht.arange(10, split=0, device=ht_device)
+        x = ht.arange(10, split=0, device=self.ht_device)
         any_tensor = ht.any(x, axis=0)
-        res = ht.uint8([1], device=ht_device)
+        res = ht.uint8([1], device=self.ht_device)
         self.assertIsInstance(any_tensor, ht.DNDarray)
         self.assertEqual(any_tensor.shape, (1,))
         self.assertEqual(any_tensor.dtype, ht.bool)
@@ -216,11 +220,11 @@ class TestLogical(unittest.TestCase):
 
     def test_isclose(self):
         size = ht.communication.MPI_WORLD.size
-        a = ht.float32([[2, 2], [2, 2]], device=ht_device)
-        b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]], device=ht_device)
-        c = ht.zeros((4 * size, 6), split=0, device=ht_device)
-        d = ht.zeros((4 * size, 6), split=1, device=ht_device)
-        e = ht.zeros((4 * size, 6), device=ht_device)
+        a = ht.float32([[2, 2], [2, 2]], device=self.ht_device)
+        b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]], device=self.ht_device)
+        c = ht.zeros((4 * size, 6), split=0, device=self.ht_device)
+        d = ht.zeros((4 * size, 6), split=1, device=self.ht_device)
+        e = ht.zeros((4 * size, 6), device=self.ht_device)
 
         self.assertIsInstance(ht.isclose(a, b), ht.DNDarray)
         self.assertTrue(ht.isclose(a, b).shape == (2, 2))

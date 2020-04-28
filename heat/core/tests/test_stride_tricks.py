@@ -2,10 +2,14 @@ import unittest
 import os
 import heat as ht
 
-ht_device, torch_device, _ = ht.use_envar_device()
+from heat.core.tests.test_suites.basic_test import BasicTest
 
 
-class TestStrideTricks(unittest.TestCase):
+class TestStrideTricks(BasicTest):
+    @classmethod
+    def setUpClass(cls):
+        super(TestStrideTricks, cls).setUpClass()
+
     def test_broadcast_shape(self):
         self.assertEqual(ht.core.stride_tricks.broadcast_shape((5, 4), (4,)), (5, 4))
         self.assertEqual(

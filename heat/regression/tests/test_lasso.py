@@ -4,20 +4,14 @@ import numpy as np
 import torch
 import heat as ht
 
-if os.environ.get("DEVICE") == "gpu" and torch.cuda.is_available():
-    ht.use_device("gpu")
-    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
-else:
-    ht.use_device("cpu")
-device = ht.get_device().torch_device
-ht_device = None
-if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
-    device = ht.gpu.torch_device
-    ht_device = ht.gpu
-    torch.cuda.set_device(device)
+from heat.core.tests.test_suites.basic_test import BasicTest
 
 
-class TestLasso(unittest.TestCase):
+class TestLasso(BasicTest):
+    @classmethod
+    def setUpClass(cls):
+        super(TestLasso, cls).setUpClass()
+
     def test_regressor(self):
         lasso = ht.regression.Lasso()
         self.assertTrue(ht.is_estimator(lasso))
@@ -45,12 +39,12 @@ class TestLasso(unittest.TestCase):
             X = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="x",
-                device=ht_device,
+                device=self.ht_device,
             )
             y = ht.load_hdf5(
                 os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"),
                 dataset="y",
-                device=ht_device,
+                device=self.ht_device,
             )
 
             # normalize dataset

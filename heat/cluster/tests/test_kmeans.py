@@ -3,10 +3,14 @@ import unittest
 
 import heat as ht
 
-ht_device, torch_device, _ = ht.use_envar_device()
+from heat.core.tests.test_suites.basic_test import BasicTest
 
 
-class TestKMeans(unittest.TestCase):
+class TestKMeans(BasicTest):
+    @classmethod
+    def setUpClass(cls):
+        super(TestKMeans, cls).setUpClass()
+
     def test_clusterer(self):
         kmeans = ht.cluster.KMeans()
         self.assertTrue(ht.is_estimator(kmeans))
@@ -28,7 +32,9 @@ class TestKMeans(unittest.TestCase):
     def test_fit_iris_unsplit(self):
         for split in [None, 0]:
             # get some test data
-            iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=split, device=ht_device)
+            iris = ht.load(
+                "heat/datasets/data/iris.csv", sep=";", split=split, device=self.ht_device
+            )
 
             # fit the clusters
             k = 3
@@ -48,7 +54,7 @@ class TestKMeans(unittest.TestCase):
 
     def test_exceptions(self):
         # get some test data
-        iris_split = ht.load("heat/datasets/data/iris.csv", sep=";", split=1, device=ht_device)
+        iris_split = ht.load("heat/datasets/data/iris.csv", sep=";", split=1, device=self.ht_device)
 
         # build a clusterer
         k = 3

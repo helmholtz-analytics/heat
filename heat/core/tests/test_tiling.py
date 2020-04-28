@@ -4,22 +4,14 @@ import unittest
 
 import heat as ht
 
-
-if os.environ.get("DEVICE") == "gpu" and torch.cuda.is_available():
-    ht.use_device("gpu")
-    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
-else:
-    ht.use_device("cpu")
-
-device = ht.get_device().torch_device
-ht_device = None
-if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
-    device = ht.gpu.torch_device
-    ht_device = ht.gpu
-    torch.cuda.set_device(device)
+from heat.core.tests.test_suites.basic_test import BasicTest
 
 
-class TestTiling(unittest.TestCase):
+class TestTiling(BasicTest):
+    @classmethod
+    def setUpClass(cls):
+        super(TestTiling, cls).setUpClass()
+
     if ht.MPI_WORLD.size > 1:
 
         def test_init_raises(self):

@@ -3,20 +3,14 @@ import unittest
 
 import heat as ht
 
-if os.environ.get("DEVICE") == "gpu" and ht.torch.cuda.is_available():
-    ht.use_device("gpu")
-    ht.torch.cuda.set_device(ht.torch.device(ht.get_device().torch_device))
-else:
-    ht.use_device("cpu")
-device = ht.get_device().torch_device
-ht_device = None
-if os.environ.get("DEVICE") == "lgpu" and ht.torch.cuda.is_available():
-    device = ht.gpu.torch_device
-    ht_device = ht.gpu
-    ht.torch.cuda.set_device(device)
+from heat.core.tests.test_suites.basic_test import BasicTest
 
 
-class TestSpectral(unittest.TestCase):
+class TestSpectral(BasicTest):
+    @classmethod
+    def setUpClass(cls):
+        super(TestSpectral, cls).setUpClass()
+
     def test_clusterer(self):
         spectral = ht.cluster.Spectral()
         self.assertTrue(ht.is_estimator(spectral))
@@ -46,7 +40,7 @@ class TestSpectral(unittest.TestCase):
 
     def test_fit_iris(self):
         # get some test data
-        iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
+        iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=0, device=self.ht_device)
         m = 10
 
         # fit the clusters
@@ -84,7 +78,7 @@ class TestSpectral(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             spectral = ht.cluster.Spectral(metric="ahalanobis", n_lanczos=m)
 
-        iris_split = ht.load("heat/datasets/data/iris.csv", sep=";", split=1)
+        iris_split = ht.load("heat/datasets/data/iris.csv", sep=";", split=1, device=self.ht_device)
         spectral = ht.cluster.Spectral(n_lanczos=20)
         with self.assertRaises(NotImplementedError):
             spectral.fit(iris_split)

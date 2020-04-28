@@ -6,30 +6,34 @@ import torch
 import heat as ht
 import numpy as np
 
-ht_device, torch_device, _ = ht.use_envar_device()
+from heat.core.tests.test_suites.basic_test import BasicTest
 
 
-class TestRandom(unittest.TestCase):
+class TestRandom(BasicTest):
+    @classmethod
+    def setUpClass(cls):
+        super(TestRandom, cls).setUpClass()
+
     def test_rand(self):
         # int64 tests
 
         # Resetting seed works
         seed = 12345
         ht.random.seed(seed)
-        a = ht.random.rand(2, 5, 7, 3, split=0, device=ht_device)
+        a = ht.random.rand(2, 5, 7, 3, split=0, device=self.ht_device)
         self.assertEqual(a.dtype, ht.float32)
         self.assertEqual(a._DNDarray__array.dtype, torch.float32)
-        b = ht.random.rand(2, 5, 7, 3, split=0, device=ht_device)
+        b = ht.random.rand(2, 5, 7, 3, split=0, device=self.ht_device)
         self.assertFalse(ht.equal(a, b))
         ht.random.seed(seed)
-        c = ht.random.rand(2, 5, 7, 3, dtype=ht.float32, split=0, device=ht_device)
+        c = ht.random.rand(2, 5, 7, 3, dtype=ht.float32, split=0, device=self.ht_device)
         self.assertTrue(ht.equal(a, c))
 
         # Random numbers with overflow
         ht.random.set_state(("Threefry", seed, 0xFFFFFFFFFFFFFFF0))
-        a = ht.random.rand(2, 3, 4, 5, split=0, device=ht_device)
+        a = ht.random.rand(2, 3, 4, 5, split=0, device=self.ht_device)
         ht.random.set_state(("Threefry", seed, 0x10000000000000000))
-        b = ht.random.rand(2, 44, split=0, device=ht_device)
+        b = ht.random.rand(2, 44, split=0, device=self.ht_device)
         a = a.numpy().flatten()
         b = b.numpy().flatten()
         self.assertEqual(a.dtype, np.float32)
@@ -38,47 +42,47 @@ class TestRandom(unittest.TestCase):
         # Check that random numbers don't repeat after first overflow
         seed = 12345
         ht.random.set_state(("Threefry", seed, 0x100000000))
-        a = ht.random.rand(2, 44, device=ht_device)
+        a = ht.random.rand(2, 44, device=self.ht_device)
         ht.random.seed(seed)
-        b = ht.random.rand(2, 44, device=ht_device)
+        b = ht.random.rand(2, 44, device=self.ht_device)
         self.assertFalse(ht.equal(a, b))
 
         # Check that we start from beginning after 128 bit overflow
         ht.random.seed(seed)
-        a = ht.random.rand(2, 34, split=0, device=ht_device)
+        a = ht.random.rand(2, 34, split=0, device=self.ht_device)
         ht.random.set_state(("Threefry", seed, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0))
-        b = ht.random.rand(2, 50, split=0, device=ht_device)
+        b = ht.random.rand(2, 50, split=0, device=self.ht_device)
         a = a.numpy().flatten()
         b = b.numpy().flatten()
         self.assertTrue(np.array_equal(a, b[32:]))
 
         # different split axis with resetting seed
         ht.random.seed(seed)
-        a = ht.random.rand(3, 5, 2, 9, split=3, device=ht_device)
+        a = ht.random.rand(3, 5, 2, 9, split=3, device=self.ht_device)
         ht.random.seed(seed)
-        c = ht.random.rand(3, 5, 2, 9, split=3, device=ht_device)
+        c = ht.random.rand(3, 5, 2, 9, split=3, device=self.ht_device)
         self.assertTrue(ht.equal(a, c))
 
         # Random values are in correct order
         ht.random.seed(seed)
-        a = ht.random.rand(2, 50, split=0, device=ht_device)
+        a = ht.random.rand(2, 50, split=0, device=self.ht_device)
         ht.random.seed(seed)
-        b = ht.random.rand(100, split=None, device=ht_device)
+        b = ht.random.rand(100, split=None, device=self.ht_device)
         a = a.numpy().flatten()
         b = b._DNDarray__array.cpu().numpy()
         self.assertTrue(np.array_equal(a, b))
 
         # On different shape and split the same random values are used
         ht.random.seed(seed)
-        a = ht.random.rand(3, 5, 2, 9, split=3, device=ht_device)
+        a = ht.random.rand(3, 5, 2, 9, split=3, device=self.ht_device)
         ht.random.seed(seed)
-        b = ht.random.rand(30, 9, split=1, device=ht_device)
+        b = ht.random.rand(30, 9, split=1, device=self.ht_device)
         a = np.sort(a.numpy().flatten())
         b = np.sort(b.numpy().flatten())
         self.assertTrue(np.array_equal(a, b))
 
         # One large array does not have two similar values
-        a = ht.random.rand(11, 15, 3, 7, split=2, device=ht_device)
+        a = ht.random.rand(11, 15, 3, 7, split=2, device=self.ht_device)
         a = a.numpy()
         _, counts = np.unique(a, return_counts=True)
         # Assert that no value appears more than once
@@ -86,7 +90,16 @@ class TestRandom(unittest.TestCase):
 
         # Two large arrays that were created after each other don't share any values
         b = ht.random.rand(
-            14, 7, 3, 12, 18, 42, split=5, comm=ht.MPI_WORLD, dtype=ht.float64, device=ht_device
+            14,
+            7,
+            3,
+            12,
+            18,
+            42,
+            split=5,
+            comm=ht.MPI_WORLD,
+            dtype=ht.float64,
+            device=self.ht_device,
         )
         c = np.concatenate((a.flatten(), b.numpy().flatten()))
         _, counts = np.unique(c, return_counts=True)
@@ -103,35 +116,35 @@ class TestRandom(unittest.TestCase):
 
         # No arguments work correctly
         ht.random.seed(seed)
-        a = ht.random.rand(device=ht_device)
+        a = ht.random.rand(device=self.ht_device)
         ht.random.seed(seed)
-        b = ht.random.rand(1, device=ht_device)
+        b = ht.random.rand(1, device=self.ht_device)
         self.assertTrue(ht.equal(a, b))
 
         # To big arrays cant be created
         with self.assertRaises(ValueError):
-            ht.random.randn(0xFFFFFFFFFFFFFFFF * 2 + 1, device=ht_device)
+            ht.random.randn(0xFFFFFFFFFFFFFFFF * 2 + 1, device=self.ht_device)
         with self.assertRaises(ValueError):
-            ht.random.rand(3, 2, -2, 5, split=1, device=ht_device)
+            ht.random.rand(3, 2, -2, 5, split=1, device=self.ht_device)
         with self.assertRaises(ValueError):
-            ht.random.randn(12, 43, dtype=ht.int32, split=0, device=ht_device)
+            ht.random.randn(12, 43, dtype=ht.int32, split=0, device=self.ht_device)
 
         # 32 Bit tests
         ht.random.seed(9876)
         shape = (13, 43, 13, 23)
-        a = ht.random.rand(*shape, dtype=ht.float32, split=0, device=ht_device)
+        a = ht.random.rand(*shape, dtype=ht.float32, split=0, device=self.ht_device)
         self.assertEqual(a.dtype, ht.float32)
         self.assertEqual(a._DNDarray__array.dtype, torch.float32)
 
         ht.random.seed(9876)
-        b = ht.random.rand(np.prod(shape), dtype=ht.float32, device=ht_device)
+        b = ht.random.rand(np.prod(shape), dtype=ht.float32, device=self.ht_device)
         a = a.numpy().flatten()
         b = b._DNDarray__array.cpu().numpy()
         self.assertTrue(np.array_equal(a, b))
         self.assertEqual(a.dtype, np.float32)
 
-        a = ht.random.rand(21, 16, 17, 21, dtype=ht.float32, split=2, device=ht_device)
-        b = ht.random.rand(15, 11, 19, 31, dtype=ht.float32, split=0, device=ht_device)
+        a = ht.random.rand(21, 16, 17, 21, dtype=ht.float32, split=2, device=self.ht_device)
+        b = ht.random.rand(15, 11, 19, 31, dtype=ht.float32, split=0, device=self.ht_device)
         a = a.numpy().flatten()
         b = b.numpy().flatten()
         c = np.concatenate((a, b))
@@ -146,20 +159,20 @@ class TestRandom(unittest.TestCase):
         self.assertTrue(((0 <= c) & (c < 1)).all())
 
         ht.random.seed(11111)
-        a = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, device=ht_device).numpy()
+        a = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, device=self.ht_device).numpy()
         # Overflow reached
         ht.random.set_state(("Threefry", 11111, 0x10000000000000000))
-        b = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, device=ht_device).numpy()
+        b = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, device=self.ht_device).numpy()
         self.assertTrue(np.array_equal(a, b))
 
         ht.random.set_state(("Threefry", 11111, 0x100000000))
-        c = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, device=ht_device).numpy()
+        c = ht.random.rand(12, 32, 44, split=1, dtype=ht.float32, device=self.ht_device).numpy()
         self.assertFalse(np.array_equal(a, c))
         self.assertFalse(np.array_equal(b, c))
 
     def test_randint(self):
         # Checked that the random values are in the correct range
-        a = ht.random.randint(low=0, high=10, size=(10, 10), dtype=ht.int64, device=ht_device)
+        a = ht.random.randint(low=0, high=10, size=(10, 10), dtype=ht.int64, device=self.ht_device)
         self.assertEqual(a.dtype, ht.int64)
         a = a.numpy()
         self.assertTrue(((0 <= a) & (a < 10)).all())
@@ -169,35 +182,37 @@ class TestRandom(unittest.TestCase):
         self.assertTrue(((100000 <= a) & (a < 150000)).all())
 
         # For the range [0, 1) only the value 0 is allowed
-        a = ht.random.randint(1, size=(10,), split=0, dtype=ht.int64, device=ht_device)
-        b = ht.zeros((10,), dtype=ht.int64, split=0, device=ht_device)
+        a = ht.random.randint(1, size=(10,), split=0, dtype=ht.int64, device=self.ht_device)
+        b = ht.zeros((10,), dtype=ht.int64, split=0, device=self.ht_device)
         self.assertTrue(ht.equal(a, b))
 
         # Two arrays with the same seed and same number of elements have the same random values
         ht.random.seed(13579)
         shape = (15, 13, 9, 21, 65)
-        a = ht.random.randint(15, 100, size=shape, split=0, dtype=ht.int64, device=ht_device)
+        a = ht.random.randint(15, 100, size=shape, split=0, dtype=ht.int64, device=self.ht_device)
         a = a.numpy().flatten()
 
         ht.random.seed(13579)
         elements = np.prod(shape)
-        b = ht.random.randint(low=15, high=100, size=(elements,), dtype=ht.int64, device=ht_device)
+        b = ht.random.randint(
+            low=15, high=100, size=(elements,), dtype=ht.int64, device=self.ht_device
+        )
         b = b.numpy()
         self.assertTrue(np.array_equal(a, b))
 
         # Two arrays with the same seed and shape have identical values
         ht.random.seed(13579)
-        a = ht.random.randint(10000, size=shape, split=2, dtype=ht.int64, device=ht_device)
+        a = ht.random.randint(10000, size=shape, split=2, dtype=ht.int64, device=self.ht_device)
         a = a.numpy()
 
         ht.random.seed(13579)
         b = ht.random.randint(
-            low=0, high=10000, size=shape, split=2, dtype=ht.int64, device=ht_device
+            low=0, high=10000, size=shape, split=2, dtype=ht.int64, device=self.ht_device
         )
         b = b.numpy()
 
         ht.random.seed(13579)
-        c = ht.random.randint(low=0, high=10000, dtype=ht.int64, device=ht_device)
+        c = ht.random.randint(low=0, high=10000, dtype=ht.int64, device=self.ht_device)
         self.assertTrue(np.equal(b[0, 0, 0, 0, 0], c))
 
         self.assertTrue(np.array_equal(a, b))
@@ -211,17 +226,21 @@ class TestRandom(unittest.TestCase):
         self.assertTrue(std < 2900)
 
         with self.assertRaises(ValueError):
-            ht.random.randint(5, 5, size=(10, 10), split=0, device=ht_device)
+            ht.random.randint(5, 5, size=(10, 10), split=0, device=self.ht_device)
         with self.assertRaises(ValueError):
-            ht.random.randint(low=0, high=10, size=(3, -4), device=ht_device)
+            ht.random.randint(low=0, high=10, size=(3, -4), device=self.ht_device)
         with self.assertRaises(ValueError):
-            ht.random.randint(low=0, high=10, size=(15,), dtype=ht.float32, device=ht_device)
+            ht.random.randint(low=0, high=10, size=(15,), dtype=ht.float32, device=self.ht_device)
 
         # int32 tests
         ht.random.seed(4545)
-        a = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0, device=ht_device)
+        a = ht.random.randint(
+            50, 1000, size=(13, 45), dtype=ht.int32, split=0, device=self.ht_device
+        )
         ht.random.set_state(("Threefry", 4545, 0x10000000000000000))
-        b = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0, device=ht_device)
+        b = ht.random.randint(
+            50, 1000, size=(13, 45), dtype=ht.int32, split=0, device=self.ht_device
+        )
 
         self.assertEqual(a.dtype, ht.int32)
         self.assertEqual(a._DNDarray__array.dtype, torch.int32)
@@ -233,7 +252,9 @@ class TestRandom(unittest.TestCase):
         self.assertTrue(((50 <= a) & (a < 1000)).all())
         self.assertTrue(((50 <= b) & (b < 1000)).all())
 
-        c = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0, device=ht_device)
+        c = ht.random.randint(
+            50, 1000, size=(13, 45), dtype=ht.int32, split=0, device=self.ht_device
+        )
         c = c.numpy()
         self.assertFalse(np.array_equal(a, c))
         self.assertFalse(np.array_equal(b, c))
@@ -246,7 +267,7 @@ class TestRandom(unittest.TestCase):
             split=3,
             dtype=ht.int32,
             comm=ht.MPI_WORLD,
-            device=ht_device,
+            device=self.ht_device,
         )
         a = a.numpy()
         mean = np.mean(a)
@@ -262,7 +283,7 @@ class TestRandom(unittest.TestCase):
         # Test that the random values have the correct distribution
         ht.random.seed(54321)
         shape = (5, 10, 13, 23, 15, 20)
-        a = ht.random.randn(*shape, split=0, dtype=ht.float64, device=ht_device)
+        a = ht.random.randn(*shape, split=0, dtype=ht.float64, device=self.ht_device)
         self.assertEqual(a.dtype, ht.float64)
         a = a.numpy()
         mean = np.mean(a)
@@ -275,13 +296,13 @@ class TestRandom(unittest.TestCase):
         # Compare to a second array with a different shape but same number of elements and same seed
         ht.random.seed(54321)
         elements = np.prod(shape)
-        b = ht.random.randn(elements, split=0, dtype=ht.float64, device=ht_device)
+        b = ht.random.randn(elements, split=0, dtype=ht.float64, device=self.ht_device)
         b = b.numpy()
         a = a.flatten()
         self.assertTrue(np.allclose(a, b))
 
         # Creating the same array two times without resetting seed results in different elements
-        c = ht.random.randn(elements, split=0, dtype=ht.float64, device=ht_device)
+        c = ht.random.randn(elements, split=0, dtype=ht.float64, device=self.ht_device)
         c = c.numpy()
         self.assertEqual(c.shape, b.shape)
         self.assertFalse(np.allclose(b, c))
@@ -293,9 +314,9 @@ class TestRandom(unittest.TestCase):
 
         # Two arrays are the same for same seed and split-axis != 0
         ht.random.seed(12345)
-        a = ht.random.randn(*shape, split=5, dtype=ht.float64, device=ht_device)
+        a = ht.random.randn(*shape, split=5, dtype=ht.float64, device=self.ht_device)
         ht.random.seed(12345)
-        b = ht.random.randn(*shape, split=5, dtype=ht.float64, device=ht_device)
+        b = ht.random.randn(*shape, split=5, dtype=ht.float64, device=self.ht_device)
         self.assertTrue(ht.equal(a, b))
         a = a.numpy()
         b = b.numpy()
@@ -303,7 +324,7 @@ class TestRandom(unittest.TestCase):
 
         # Tests with float32
         ht.random.seed(54321)
-        a = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2, device=ht_device)
+        a = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2, device=self.ht_device)
         self.assertEqual(a.dtype, ht.float32)
         self.assertEqual(a._DNDarray__array[0, 0, 0].dtype, torch.float32)
         a = a.numpy()
@@ -316,10 +337,10 @@ class TestRandom(unittest.TestCase):
         self.assertTrue(0.99 < std < 1.01)
 
         ht.random.set_state(("Threefry", 54321, 0x10000000000000000))
-        b = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2, device=ht_device).numpy()
+        b = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2, device=self.ht_device).numpy()
         self.assertTrue(np.allclose(a, b))
 
-        c = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2, device=ht_device).numpy()
+        c = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2, device=self.ht_device).numpy()
         self.assertFalse(np.allclose(a, c))
         self.assertFalse(np.allclose(b, c))
 

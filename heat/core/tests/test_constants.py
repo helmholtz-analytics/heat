@@ -4,8 +4,10 @@ import os
 
 import heat as ht
 
+from heat.core.tests.test_suites.basic_test import BasicTest
 
-class TestConstants(unittest.TestCase):
+
+class TestConstants(BasicTest):
     def test_constants(self):
         self.assertTrue(float("inf") == ht.Inf)
         self.assertTrue(ht.inf == np.inf)

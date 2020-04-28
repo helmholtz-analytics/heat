@@ -2,10 +2,16 @@ import unittest
 import os
 import heat as ht
 
-ht_device, torch_device, envar = ht.use_envar_device()
+from heat.core.tests.test_suites.basic_test import BasicTest
+
+envar = os.getenv("HEAT_USE_DEVICE", "cpu")
 
 
-class TestDevices(unittest.TestCase):
+class TestDevices(BasicTest):
+    @classmethod
+    def setUpClass(cls):
+        super(TestDevices, cls).setUpClass()
+
     @unittest.skipIf(envar not in ["cpu", "lgpu"], "only supported for cpu")
     def test_get_default_device_cpu(self):
         self.assertIs(ht.get_device(), ht.cpu)
