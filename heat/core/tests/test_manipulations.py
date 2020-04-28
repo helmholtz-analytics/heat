@@ -1316,7 +1316,7 @@ class TestManipulations(BasicTest):
 
             # order tests for resplit
             for dims in range(3, 5):
-                length = torch.tensor([i + 20 for i in range(dims)], device=device)
+                length = torch.tensor([i + 20 for i in range(dims)], device=self.torch_device)
                 test = torch.arange(torch.prod(length)).reshape(length.tolist())
                 for sp1 in range(dims):
                     for sp2 in range(dims):

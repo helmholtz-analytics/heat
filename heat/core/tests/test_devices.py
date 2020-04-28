@@ -4,7 +4,7 @@ import heat as ht
 
 from heat.core.tests.test_suites.basic_test import BasicTest
 
-envar = os.getenv("HEAT_USE_DEVICE", "cpu")
+envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
 
 
 class TestDevices(BasicTest):
