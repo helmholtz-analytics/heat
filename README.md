@@ -1,7 +1,8 @@
-HeAT - Helmholtz Analytics Toolkit
-==================================
+<div align="center">
+  <img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/logo.png">
+</div>
 
-![HeAT Logo](https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/logo_HeAT.png)
+---
 
 HeAT is a distributed tensor framework for high performance data analytics.
 
@@ -11,6 +12,8 @@ Project Status
 [![Build Status](https://travis-ci.com/helmholtz-analytics/heat.svg?branch=master)](https://travis-ci.com/helmholtz-analytics/heat)
 [![Documentation Status](https://readthedocs.org/projects/heat/badge/?version=latest)](https://heat.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/helmholtz-analytics/heat/branch/master/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
 
 Goals
 -----
