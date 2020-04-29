@@ -2,6 +2,8 @@
   <img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/logo.png">
 </div>
 
+---
+
 HeAT is a distributed tensor framework for high performance data analytics.
 
 Project Status
