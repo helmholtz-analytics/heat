@@ -1129,6 +1129,7 @@ class TestManipulations(BasicTest):
             ht.sort(data, axis="1")
 
         rank = ht.MPI_WORLD.rank
+        ht.random.seed(1)
         data = ht.random.randn(100, 1, split=0, device=ht_device)
         result, _ = ht.sort(data, axis=0)
         counts, _, _ = ht.get_comm().counts_displs_shape(data.gshape, axis=0)
