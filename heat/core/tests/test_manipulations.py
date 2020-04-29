@@ -1323,7 +1323,7 @@ class TestManipulations(BasicTest):
         self.assertEqual(result.dtype, ht.float32)
         self.assertEqual(result._DNDarray__array.dtype, torch.float32)
         self.assertEqual(result.shape, (3, 5, 6))
-        self.assertEqual(result.split, 1)
+        self.assertEqual(result.split, None)
 
         # 4D split tensor, axis = split = last dimension
         data = ht.array(ht.random.randn(3, 6, 5, 1), split=-1)
@@ -1332,7 +1332,7 @@ class TestManipulations(BasicTest):
         self.assertEqual(result.dtype, ht.float32)
         self.assertEqual(result._DNDarray__array.dtype, torch.float32)
         self.assertEqual(result.shape, (3, 6, 5))
-        self.assertEqual(result.split, 0)
+        self.assertEqual(result.split, None)
 
         # 3D split tensor, across the axis
         size = ht.MPI_WORLD.size

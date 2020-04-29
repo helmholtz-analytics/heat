@@ -1200,12 +1200,19 @@ def squeeze(x, axis=None):
 
     Note:
     -----
-    Split semantics: if the input tensor is distributed ('x.split is not None'), the output
-    tensor will be distributed along the same dimension. The case where 'x.split = axis'
-    implies a redistribution of the input tensor along the next possible split dimension
-    (cf. 'heat.resplit()') which may affect performance.
+    Split semantics: a distributed tensor will keep its original split dimension after "squeezing",
+    which, depending on the squeeze axis, may result in a lower numerical 'split' value, as in:
+    >>> x.shape
+    (10, 1, 12, 13)
+    >>> x.split
+    2
+    >>> x.squeeze().shape
+    (10, 12, 13)
+    >>> x.squeeze().split
+    1
 
     Examples:
+    ---------
     >>> import heat as ht
     >>> import torch
     >>> torch.manual_seed(1)
@@ -1249,18 +1256,13 @@ def squeeze(x, axis=None):
         if not dim_is_one:
             raise ValueError("Dimension along axis {} is not 1 for shape {}".format(axis, x.shape))
 
-    # Sanitize split
-    if x.split is not None:
-        splittable = list(dim for dim in range(x.numdims) if dim not in axis)
-        if x.split in axis:
-            new_split = x.split
-            while new_split not in splittable:
-                new_split = new_split + 1 if new_split + 1 < x.numdims else 0
-            x.resplit_(axis=new_split)
-
-    # Local squeeze
     if axis is None:
         axis = tuple(i for i, dim in enumerate(x.shape) if dim == 1)
+
+    if x.split is not None and x.split in axis:
+        # split dimension is about to disappear, set split to None
+        x.resplit_(axis=None)
+
     out_lshape = tuple(x.lshape[dim] for dim in range(x.numdims) if dim not in axis)
     out_gshape = tuple(x.gshape[dim] for dim in range(x.numdims) if dim not in axis)
     x_lsqueezed = x._DNDarray__array.reshape(out_lshape)
@@ -1269,7 +1271,7 @@ def squeeze(x, axis=None):
     if x.split is not None:
         split = x.split - len(list(dim for dim in axis if dim < x.split))
     else:
-        split = x.split
+        split = None
 
     return dndarray.DNDarray(
         x_lsqueezed, out_gshape, x.dtype, split=split, device=x.device, comm=x.comm
