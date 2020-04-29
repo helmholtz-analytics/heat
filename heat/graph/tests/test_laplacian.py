@@ -3,14 +3,10 @@ import unittest
 
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestLaplacian(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestLaplacian, cls).setUpClass()
-
+class TestLaplacian(TestCase):
     def test_laplacian(self):
         size = ht.communication.MPI_WORLD.size
         rank = ht.communication.MPI_WORLD.rank

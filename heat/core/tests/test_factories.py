@@ -3,14 +3,10 @@ import torch
 import os
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestFactories(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestFactories, cls).setUpClass()
-
+class TestFactories(TestCase):
     def test_arange(self):
         # testing one positional integer argument
         one_arg_arange_int = ht.arange(10, device=self.ht_device)

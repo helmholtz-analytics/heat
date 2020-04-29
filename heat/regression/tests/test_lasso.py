@@ -4,14 +4,10 @@ import numpy as np
 import torch
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestLasso(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestLasso, cls).setUpClass()
-
+class TestLasso(TestCase):
     def test_regressor(self):
         lasso = ht.regression.Lasso()
         self.assertTrue(ht.is_estimator(lasso))

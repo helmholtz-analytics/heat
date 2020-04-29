@@ -2,10 +2,10 @@ import unittest
 import os
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestRelational(BasicTest):
+class TestRelational(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestRelational, cls).setUpClass()

@@ -4,14 +4,10 @@ import unittest
 import heat as ht
 import numpy as np
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestSolver(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestSolver, cls).setUpClass()
-
+class TestSolver(TestCase):
     def test_cg(self):
         size = ht.communication.MPI_WORLD.size * 3
         b = ht.arange(1, size + 1, dtype=ht.float32, split=0, device=self.ht_device)

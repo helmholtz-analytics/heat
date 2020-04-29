@@ -4,10 +4,10 @@ import unittest
 import os
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestDNDarray(BasicTest):
+class TestDNDarray(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestDNDarray, cls).setUpClass()

@@ -4,10 +4,10 @@ import torch
 import os
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestCommunication(BasicTest):
+class TestCommunication(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestCommunication, cls).setUpClass()

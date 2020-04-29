@@ -2,14 +2,10 @@ import unittest
 import os
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestStrideTricks(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestStrideTricks, cls).setUpClass()
-
+class TestStrideTricks(TestCase):
     def test_broadcast_shape(self):
         self.assertEqual(ht.core.stride_tricks.broadcast_shape((5, 4), (4,)), (5, 4))
         self.assertEqual(

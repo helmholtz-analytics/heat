@@ -7,10 +7,10 @@ import os
 import heat as ht
 import numpy as np
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestArithmetics(BasicTest):
+class TestArithmetics(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestArithmetics, cls).setUpClass()

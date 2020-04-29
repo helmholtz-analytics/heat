@@ -5,14 +5,10 @@ from itertools import combinations
 import os
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestStatistics(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestStatistics, cls).setUpClass()
-
+class TestStatistics(TestCase):
     def test_argmax(self):
         torch.manual_seed(1)
         data = ht.random.randn(3, 4, 5, device=self.ht_device)

@@ -7,14 +7,10 @@ import heat as ht
 import numpy as np
 import math
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestDistances(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestDistances, cls).setUpClass()
-
+class TestDistances(TestCase):
     def test_cdist(self):
         n = ht.communication.MPI_WORLD.size
         X = ht.ones((n * 2, 4), dtype=ht.float32, split=None, device=self.ht_device)

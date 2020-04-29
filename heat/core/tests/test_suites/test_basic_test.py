@@ -3,14 +3,10 @@ import heat as ht
 import numpy as np
 import torch
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestBasicTest(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestBasicTest, cls).setUpClass()
-
+class TestBasicTest(TestCase):
     def test_assert_array_equal(self):
         heat_array = ht.ones(
             (self.get_size(), 10, 10), dtype=ht.int32, split=1, device=self.ht_device

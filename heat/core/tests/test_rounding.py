@@ -3,14 +3,10 @@ import unittest
 import numpy as np
 import heat as ht
 import os
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestRounding(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestRounding, cls).setUpClass()
-
+class TestRounding(TestCase):
     def test_abs(self):
         # for abs==absolute
         float32_tensor = ht.arange(-10, 10, dtype=ht.float32, split=0, device=self.ht_device)

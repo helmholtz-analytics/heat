@@ -3,14 +3,10 @@ import unittest
 import os
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestLogical(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestLogical, cls).setUpClass()
-
+class TestLogical(TestCase):
     def test_all(self):
         array_len = 9
 

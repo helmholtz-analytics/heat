@@ -4,20 +4,10 @@ import unittest
 
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestTiling(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestTiling, cls).setUpClass()
-
-
-class TestSplitTiles(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestSplitTiles, cls).setUpClass()
-
+class TestSplitTiles(TestCase):
     # most of the cases are covered by the resplit tests
     def test_raises(self):
         length = torch.tensor([i + 20 for i in range(2)], device=self.torch_device)
@@ -75,7 +65,7 @@ class TestSplitTiles(BasicTest):
                 self.assertTrue(sl is None)
 
 
-class TestSquareDiagTiles(unittest.TestCase):
+class TestSquareDiagTiles(TestCase):
     # arrs = (m_eq_n_s0, m_eq_n_s1, m_gr_n_s0, m_gr_n_s1, m_ls_n_s0, m_ls_n_s1)
     if ht.MPI_WORLD.size > 1:
 

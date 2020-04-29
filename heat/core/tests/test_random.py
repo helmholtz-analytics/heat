@@ -6,14 +6,10 @@ import torch
 import heat as ht
 import numpy as np
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestRandom(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestRandom, cls).setUpClass()
-
+class TestRandom(TestCase):
     def test_rand(self):
         # int64 tests
 

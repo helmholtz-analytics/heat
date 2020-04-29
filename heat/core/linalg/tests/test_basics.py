@@ -4,14 +4,10 @@ import unittest
 import heat as ht
 import numpy as np
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestLinalgBasics(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestLinalgBasics, cls).setUpClass()
-
+class TestLinalgBasics(TestCase):
     def test_dot(self):
         # ONLY TESTING CORRECTNESS! ALL CALLS IN DOT ARE PREVIOUSLY TESTED
         # cases to test:

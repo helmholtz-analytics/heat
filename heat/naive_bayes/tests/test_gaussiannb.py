@@ -3,14 +3,10 @@ import numpy as np
 import torch
 
 import heat as ht
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestGaussianNB(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestGaussianNB, cls).setUpClass()
-
+class TestGaussianNB(TestCase):
     def test_classifier(self):
         gnb = ht.naive_bayes.GaussianNB()
         self.assertTrue(ht.is_estimator(gnb))

@@ -2,14 +2,10 @@ import numpy as np
 import torch
 import heat as ht
 import os
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestManipulations(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestManipulations, cls).setUpClass()
-
+class TestManipulations(TestCase):
     def test_concatenate(self):
         # cases to test:
         # Matrices / Vectors

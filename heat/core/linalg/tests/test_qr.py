@@ -5,7 +5,7 @@ import torch
 import unittest
 import warnings
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 if os.environ.get("EXTENDED_TESTS"):
     extended_tests = True
@@ -14,11 +14,7 @@ else:
     extended_tests = False
 
 
-class TestQR(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestQR, cls).setUpClass()
-
+class TestQR(TestCase):
     @unittest.skipIf(not extended_tests, "extended tests")
     def test_qr_sp0_ext(self):
         st_whole = torch.randn(70, 70, device=self.torch_device)

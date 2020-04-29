@@ -3,14 +3,10 @@ import unittest
 
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestSpectral(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestSpectral, cls).setUpClass()
-
+class TestSpectral(TestCase):
     def test_clusterer(self):
         spectral = ht.cluster.Spectral()
         self.assertTrue(ht.is_estimator(spectral))

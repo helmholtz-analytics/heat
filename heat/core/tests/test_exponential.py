@@ -4,14 +4,10 @@ import os
 import numpy as np
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestExponential(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestExponential, cls).setUpClass()
-
+class TestExponential(TestCase):
     def test_exp(self):
         elements = 10
         tmp = torch.arange(elements, dtype=torch.float64, device=self.torch_device).exp()

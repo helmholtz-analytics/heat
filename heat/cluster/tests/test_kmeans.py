@@ -3,14 +3,10 @@ import unittest
 
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestKMeans(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestKMeans, cls).setUpClass()
-
+class TestKMeans(TestCase):
     def test_clusterer(self):
         kmeans = ht.cluster.KMeans()
         self.assertTrue(ht.is_estimator(kmeans))

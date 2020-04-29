@@ -3,14 +3,10 @@ import os
 import heat as ht
 import torch
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestIndexing(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestIndexing, cls).setUpClass()
-
+class TestIndexing(TestCase):
     def test_nonzero(self):
         # cases to test:
         # not split

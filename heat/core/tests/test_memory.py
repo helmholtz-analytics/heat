@@ -3,14 +3,10 @@ import os
 import heat as ht
 import torch
 import numpy as np
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestMemory(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestMemory, cls).setUpClass()
-
+class TestMemory(TestCase):
     def test_copy(self):
         tensor = ht.ones(5, device=self.ht_device)
         copied = tensor.copy()

@@ -4,14 +4,10 @@ import math
 import heat as ht
 import os
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestTrigonometrics(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestTrigonometrics, cls).setUpClass()
-
+class TestTrigonometrics(TestCase):
     def test_rad2deg(self):
         # base elements
         elements = [0.0, 0.2, 0.6, 0.9, 1.2, 2.7, 3.14]

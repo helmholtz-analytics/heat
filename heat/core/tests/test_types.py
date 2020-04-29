@@ -4,14 +4,10 @@ import unittest
 import os
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestTypes(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestTypes, cls).setUpClass()
-
+class TestTypes(TestCase):
     def assert_is_heat_type(self, heat_type):
         self.assertIsInstance(heat_type, type)
         self.assertTrue(issubclass(heat_type, ht.generic))
@@ -107,11 +103,7 @@ class TestTypes(BasicTest):
         self.assert_non_instantiable_heat_type(ht.flexible)
 
 
-class TestTypeConversion(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestTypeConversion, cls).setUpClass()
-
+class TestTypeConversion(TestCase):
     def test_can_cast(self):
         zeros_array = np.zeros((3,), dtype=np.int16)
 

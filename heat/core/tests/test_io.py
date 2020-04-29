@@ -6,10 +6,10 @@ import unittest
 
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestIO(BasicTest):
+class TestIO(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestIO, cls).setUpClass()

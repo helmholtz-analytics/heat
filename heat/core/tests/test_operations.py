@@ -3,14 +3,10 @@ import torch
 import os
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest
+from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
 
 
-class TestOperations(BasicTest):
-    @classmethod
-    def setUpClass(cls):
-        super(TestOperations, cls).setUpClass()
-
+class TestOperations(TestCase):
     def test___binary_bit_op_broadcast(self):
 
         # broadcast without split
