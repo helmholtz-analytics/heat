@@ -1,6 +1,3 @@
-HeAT - Helmholtz Analytics Toolkit
-==================================
-
 <div align="center">
   <img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/logo.png">
 </div>
