@@ -76,9 +76,19 @@ def dot(a, b, out=None):
 
 
 @torch.jit.script
-def gen_house_vec(x, n=2, alpha=1, overwrite=True):
-    # type: (torch.Tensor, int, int, bool) -> Tuple[torch.Tensor, torch.Tensor]
+def gen_house_mat(v, tau):
+    # type: (torch.Tensor, torch.Tensor) -> torch.Tensor
+    h = torch.eye(v.shape[0].item(), dtype=v.dtype, device=v.device)
+    h -= tau * torch.dot(v, v.t())
+    return h
+
+
+@torch.jit.script
+def gen_house_vec(x, n=2):
+    # type: (torch.Tensor, int) -> Tuple[torch.Tensor, torch.Tensor]
     """
+    What is implemented now is only generating ONE reflector, for more would need to implement the following:
+
     Note, this overwrites x, todo: does it?
     Parameters
     ----------
@@ -110,7 +120,7 @@ def gen_house_vec(x, n=2, alpha=1, overwrite=True):
     #     alpha = torch.tensor(alpha, device=x.device, dtype=x.dtype)
     if n <= 1:
         tau = torch.tensor(0, device=x.device, dtype=x.dtype)
-        return tau, v
+        return v, tau
     # traditional householder generation
     v[0] = 1.0
     sig = v[1:].t() @ v[1:]
@@ -128,7 +138,7 @@ def gen_house_vec(x, n=2, alpha=1, overwrite=True):
     tau = 2 * v[0] ** 2 / (sig + v[0] ** 2)
     v /= v[0].clone()
 
-    return tau, v.reshape(1, -1)
+    return v.reshape(1, -1), tau
 
 
 def matmul(a, b, allow_resplit=False):
