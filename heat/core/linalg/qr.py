@@ -206,7 +206,7 @@ def __split0_global_q_dict_set(
         torch.tensor(r_tiles.tile_rows_per_process, device=r_tiles.arr._DNDarray__array.device),
         dim=0,
     )
-    diag_proc = torch.nonzero(inpuyt=proc_tile_start > dim0, as_tuple=False)[0].item()
+    diag_proc = torch.nonzero(input=proc_tile_start > dim0, as_tuple=False)[0].item()
     proc_tile_start = torch.cat(
         (torch.tensor([0], device=r_tiles.arr._DNDarray__array.device), proc_tile_start[:-1]), dim=0
     )
@@ -866,7 +866,7 @@ def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None):
         dim1 = dim0
     if empties is None:
         # this will return the empty processes, Requires that lshape map is not none
-        empties = torch.nonzero(r_tiles.lshape_map[..., 0] == 0)
+        empties = torch.nonzero(input=r_tiles.lshape_map[..., 0] == 0, as_tuple=False)
         empties = empties.flatten().tolist() if empties.numel() > 0 else []
     r_torch_device = r_tiles.arr.device.torch_device
     r_torch_type = r_tiles.arr.dtype.torch_type()

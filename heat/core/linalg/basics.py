@@ -75,15 +75,15 @@ def dot(a, b, out=None):
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
 
-@torch.jit.script
+# @torch.jit.script
 def gen_house_mat(v, tau):
     # type: (torch.Tensor, torch.Tensor) -> torch.Tensor
-    h = torch.eye(v.shape[0].item(), dtype=v.dtype, device=v.device)
-    h -= tau * torch.dot(v, v.t())
+    h = torch.eye(v.numel(), dtype=v.dtype, device=v.device)
+    h -= tau.item() * torch.matmul(v.T, v)
     return h
 
 
-@torch.jit.script
+# @torch.jit.script
 def gen_house_vec(x, n=2):
     # type: (torch.Tensor, int) -> Tuple[torch.Tensor, torch.Tensor]
     """

@@ -6,7 +6,7 @@ from . import basics
 from .. import factories
 from .. import tiling
 
-__all__ = ["block_diagonalize"]
+__all__ = ["block_diagonalize", "gbelr"]
 
 
 def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True):
@@ -73,13 +73,13 @@ def block_diagonalize_sp0(arr, overwrite_arr=False, balance=True, ret_tiles=Fals
 
     active_procs = torch.arange(arr.comm.size)
     active_procs_t = active_procs.clone().detach()
-    empties = torch.nonzero(arr_tiles.lshape_map[..., arr.split] == 0)
+    empties = torch.nonzero(input=arr_tiles.lshape_map[..., arr.split] == 0, as_tuple=False)
     empties = empties[0] if empties.numel() > 0 else []
     for e in empties:
         active_procs = active_procs[active_procs != e]
     tile_rows_per_pr_trmd = arr_tiles.tile_rows_per_process[: active_procs[-1] + 1]
 
-    empties_t = torch.nonzero(arr_t_tiles.lshape_map[..., arr_t.split] == 0)
+    empties_t = torch.nonzero(input=arr_t_tiles.lshape_map[..., arr_t.split] == 0, as_tuple=False)
     empties_t = empties_t[0] if empties_t.numel() > 0 else []
     for e in empties_t:
         active_procs_t = active_procs_t[active_procs_t != e]
@@ -93,7 +93,9 @@ def block_diagonalize_sp0(arr, overwrite_arr=False, balance=True, ret_tiles=Fals
     rank = arr.comm.rank
     for col in range(tile_columns - 1):
         # 1. do QR on arr for column=col (standard QR as written) (this assumes split == 0)
-        not_completed_processes = torch.nonzero(col < proc_tile_start).flatten()
+        not_completed_processes = torch.nonzero(
+            input=col < proc_tile_start, as_tuple=False
+        ).flatten()
         diag_process = not_completed_processes[0].item()
         if rank in not_completed_processes and rank in active_procs:
             # if the process is done calculating R the break the loop
@@ -134,7 +136,7 @@ def block_diagonalize_sp0(arr, overwrite_arr=False, balance=True, ret_tiles=Fals
 
     # do the last column now
     col = tile_columns - 1
-    not_completed_processes = torch.nonzero(col < proc_tile_start).flatten()
+    not_completed_processes = torch.nonzero(input=col < proc_tile_start, as_tuple=False).flatten()
     diag_process = not_completed_processes[0].item()
     if rank in not_completed_processes and rank in active_procs:
         __split0_r_calc(
@@ -225,7 +227,7 @@ def block_diagonalize_sp1(arr, overwrite_arr=False, balance=True, ret_tiles=Fals
     torch_device = arr._DNDarray__array.device
 
     active_procs = torch.arange(arr.comm.size)
-    empties = torch.nonzero(arr_tiles.lshape_map[..., arr.split] == 0)
+    empties = torch.nonzero(input=arr_tiles.lshape_map[..., arr.split] == 0, as_tuple=False)
     empties = empties[0] if empties.numel() > 0 else []
     for e in empties:
         active_procs = active_procs[active_procs != e]
@@ -235,7 +237,7 @@ def block_diagonalize_sp1(arr, overwrite_arr=False, balance=True, ret_tiles=Fals
     # )
     # -------------------------- split = 0 stuff (arr_t) -------------------------------------------
     active_procs_t = torch.arange(arr_t.comm.size)
-    empties_t = torch.nonzero(arr_t_tiles.lshape_map[..., 0] == 0)
+    empties_t = torch.nonzero(input=arr_t_tiles.lshape_map[..., 0] == 0, as_tuple=False)
     empties_t = empties_t[0] if empties_t.numel() > 0 else []
     for e in empties_t:
         active_procs_t = active_procs_t[active_procs_t != e]
@@ -263,7 +265,9 @@ def block_diagonalize_sp1(arr, overwrite_arr=False, balance=True, ret_tiles=Fals
 
         arr_t_tiles.set_arr(arr_tiles.arr.T)
 
-        not_completed_processes = torch.nonzero(col + 1 < proc_tile_start_t).flatten()
+        not_completed_processes = torch.nonzero(
+            input=col + 1 < proc_tile_start_t, as_tuple=False
+        ).flatten()
         # print(not_completed_processes, active_procs_t)
         diag_process = not_completed_processes[0].item()
         if rank in not_completed_processes and rank in active_procs_t:
@@ -298,7 +302,9 @@ def block_diagonalize_sp1(arr, overwrite_arr=False, balance=True, ret_tiles=Fals
     arr_t_tiles.set_arr(arr.T)
     if arr.gshape[0] < arr.gshape[1]:
         # if m < n then need to do another round of LQ
-        not_completed_processes = torch.nonzero(col + 1 < proc_tile_start_t).flatten()
+        not_completed_processes = torch.nonzero(
+            input=col + 1 < proc_tile_start_t, as_tuple=False
+        ).flatten()
         diag_process = not_completed_processes[0].item()
         if rank in not_completed_processes and rank in active_procs_t:
             __split0_r_calc(
@@ -337,9 +343,9 @@ def block_diagonalize_sp1(arr, overwrite_arr=False, balance=True, ret_tiles=Fals
     return ret
 
 
-@torch.jit.script
-def __apply_house(side, v, tau, c1, c2):
-    # type: (str, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]
+# @torch.jit.script
+def __apply_house(side, v, tau, c):
+    # type: (str, torch.Tensor, torch.Tensor, torch.Tensor) -> torch.Tensor
     """
     replacement for plasma core__dlarfx2
     applies the matrix H = I - tau * v * v.T to c1 and c2
@@ -363,29 +369,23 @@ def __apply_house(side, v, tau, c1, c2):
 
     """
     if tau == 0:
-        return c1, c2
+        return c
+    h = basics.gen_house_mat(v, tau)
     if side == "left":
-        n = c1.shape[0]
+        r = torch.matmul(h, c)
     elif side == "right":
-        n = c1.shape[1]
+        r = torch.matmul(c, h)
     else:
         raise ValueError("side must be either 'left' or 'right', currently: {}".format(side))
-    h = torch.eye(n, dtype=v.dtype, device=v.device)
-    h -= tau * torch.dot(v, v.t())
-    if side == "left":
-        c1 = torch.matmul(h, c1)
-        c2 = torch.matmul(h, c2)
-    elif side == "right":
-        c1 = torch.matmul(c1, h)
-        c2 = torch.matmul(c2, h)
-    return c1, c2
+    return r
 
 
-@torch.jit.script
-def __larftx2ce(uplo, v, tau, c):
-    # type: (str, torch.Tensor, float, torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]
+# @torch.jit.script
+def __larftx2ce(uplo, vl, taul, c):
+    # type: (str, torch.Tensor, torch.Tensor, torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
     """
-    replacement for dlarfx2ce, this is the special case that the input is 2x2, it applies H on both sides
+    replacement for dlarfx2ce, this is the special case that the input is 2x2,
+    it applies H on both sides
     Parameters
     ----------
     uplo
@@ -397,67 +397,127 @@ def __larftx2ce(uplo, v, tau, c):
     -------
 
     """
-    if tau == 0:
-        return v, c
-    if uplo != "upper" and uplo != "lower":
-        raise ValueError("uplo must be lower or upper, currently {}".format(uplo))
+    if taul == 0:
+        return vl, taul, c, torch.zeros_like(vl), taul
+
     # generate H for first transform (the one passed)
-    h = torch.eye(2, dtype=v.dtype, device=v.device)
-    h -= tau * torch.dot(v, v.t())
+    h = basics.gen_house_mat(vl, taul)
+    # h = torch.eye(2, dtype=vl.dtype, device=vl.device)
+    # h -= tau * torch.dot(vl, vl.t())
     # apply to C
     # todo: not sure if the out keyword works here or not. found issues when combined with JIT
     c = torch.matmul(h, c)
     # generate Householder transforms to annihilate the created value
     # created value will be at (top right for LOWER, bottom left for UPPER)
     if uplo == "lower":
-        tau, v = basics.gen_house_vec(n=2, alpha=1, x=c[0].flatten().clone())
+        vr, taur = basics.gen_house_vec(n=2, x=c[0].flatten().clone())
+    elif uplo == "upper":
+        vr, taur = basics.gen_house_vec(n=2, x=c[:, 0].flatten().clone())
     else:
-        tau, v = basics.gen_house_vec(n=2, alpha=1, x=c[:, 0].flatten().clone())
+        raise ValueError("uplo must be lower or upper, currently {}".format(uplo))
     # create and apply the new H
-    h = torch.eye(2, dtype=v.dtype, device=v.device)
-    h -= tau * torch.dot(v, v.t())
+    h = basics.gen_house_mat(vr, taur)
+    # h = torch.eye(2, dtype=vr.dtype, device=vr.device)
+    # h -= taur * torch.dot(vr, vr.t())
     # apply to C
-    c = torch.matmul(h, c)
-    return v, c
+    c = torch.matmul(c, h)
+    return vl, taul, c, vr, taur
 
 
 # @torch.jit.script
-# def __gbelr(n, arr, st, end):
-#     # type: (int, torch.Tensor, int, int) -> Tuple[torch.Tensor, torch.Tensor]
-#     """
-#     partial function for bulge chasing, designed for the case that the matrix is upper block diagonal
-#     LOWEr case
-#
-#     Parameters
-#     ----------
-#     n : int
-#         order of matrix arr
-#     arr : torch.Tensor
-#         tensor on which to do the work, will be overwritten
-#     st : starting index
-#     end : ending index
-#
-#     Returns
-#     -------
-#     arr : torch.Tensor
-#         the same tile which was passed is returned, modified by function
-#     v : torch.Tensor
-#         the scalar elementary reflectors
-#     tau : torch.Tensor
-#         scalar factors of the elementary reflectors
-#
-#     Notes
-#     -----
-#     https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6267821
-#
-#     """
-#     # notes: n is the order of the matrix, doing UPPER case
-#     #   nb :
-#     #   j1 :
-#     #   j2 :
-#     #   len1 :
-#     #   len2 :
-#     #   t1ed : tile 1 end?
-#     #   t2st : tile 2 start?
-#     #   i :
-#     pass
+def gbelr(uplo, arr):
+    # (str, int, torch.Tensor, int, int) -> Tuple[torch.Tensor, torch.Tensor]
+    """
+    partial function for bulge chasing, designed for the case that the matrix is upper block diagonal
+    this function will start from the end of the block given to it. st and end give the global dimensions of the black,
+    if the matrix is lower
+
+    Parameters
+    ----------
+    n : int
+        order of matrix arr
+    arr : torch.Tensor
+        tensor on which to do the work, will be overwritten
+    st : starting index
+    end : ending index
+
+    Returns
+    -------
+    arr : torch.Tensor
+        the same tile which was passed is returned, modified by function
+    v : torch.Tensor
+        the scalar elementary reflectors
+    tau : torch.Tensor
+        scalar factors of the elementary reflectors
+
+    Notes
+    -----
+    https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6267821
+
+    """
+    # todo: need to make sure that the tile passed to this function has the full band width for it!
+    # first thing is the lower case, it is the same as PLASMA implementation
+    # | x . . . . . |
+    # | x x . . . . |
+    # | x x x . . . |
+    # | x x x x . . |
+    # | f x x x x * |
+    # | f x x x x x |
+    # get householder vector for the last two elements (f)
+    v_left_dict = {}
+    tau_left_dict = {}
+    v_right_dict = {}
+    tau_right_dict = {}
+    if uplo == "lower":
+        for i in range(arr.shape[0] - 1, 1, -1):  # this operates on the (i + 1)'th element
+            # 1. generate house vec for the last to elements of the first column
+            s, e = i - 1, i + 1
+            vl, taul = basics.gen_house_vec(x=arr[s:e, 0])
+            v_left_dict[s] = vl
+            tau_left_dict[s] = taul
+            arr[s:e, :] = __apply_house(side="left", v=vl, tau=taul, c=arr[s:e, :])
+            vr, taur = basics.gen_house_vec(
+                x=arr[s, s:e]
+            )  # this should eliminate the temp element at *
+            v_right_dict[s] = vr
+            tau_right_dict[s] = taur
+            # apply vr from right to the 2x2
+            arr[s:e, s:e] = __apply_house(side="right", v=vr, tau=taur, c=arr[s:e, s:e])
+        for i in range(arr.shape[0] - 1, 1, -1):
+            s, e = i - 1, arr.shape[0]
+            if s + 2 < arr.shape[0]:
+                arr[s + 2 :, i - 1 : i + 1] = __apply_house(
+                    side="right",
+                    v=v_right_dict[s],
+                    tau=tau_right_dict[s],
+                    c=arr[s + 2 :, i - 1 : i + 1],
+                )
+    elif uplo == "upper":
+        for i in range(arr.shape[1] - 1, 1, -1):  # this operates on the (i + 1)'th element
+            # 1. generate house vec for the last to elements of the first column
+            s, e = i - 1, i + 1
+            vl, taul = basics.gen_house_vec(x=arr[0, s:e])
+            v_left_dict[s] = vl
+            tau_left_dict[s] = taul
+            arr[:, s:e] = __apply_house(side="left", v=vl, tau=taul, c=arr[:, s:e].T).T
+            vr, taur = basics.gen_house_vec(
+                x=arr[s:e, s]
+            )  # this should eliminate the temp element at *
+            v_right_dict[s] = vr
+            tau_right_dict[s] = taur
+            # apply vr from right to the 2x2
+            arr[s:e, s:e] = __apply_house(side="right", v=vr, tau=taur, c=arr[s:e, s:e].T).T
+        for i in range(arr.shape[1] - 1, 1, -1):
+            s, e = i - 1, arr.shape[0]
+            if s + 2 < arr.shape[1]:
+                res = __apply_house(
+                    side="right",
+                    v=v_right_dict[s],
+                    tau=tau_right_dict[s],
+                    c=arr[i - 1 : i + 1, s + 2 :].T,
+                ).T
+                arr[i - 1 : i + 1, s + 2 :] = res
+    else:
+        raise ValueError("")
+    print((arr * 100000).round())
+    return arr, v_left_dict, tau_left_dict, v_right_dict, tau_right_dict
