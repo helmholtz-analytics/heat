@@ -308,7 +308,16 @@ else:
 
             return dndarray.DNDarray(data, gshape, dtype, split, device, comm)
 
-    def save_netcdf(data, path, variable, mode="w", dimension_names=None, is_unlimited=False, file_slices=slice(None), **kwargs):
+    def save_netcdf(
+        data,
+        path,
+        variable,
+        mode="w",
+        dimension_names=None,
+        is_unlimited=False,
+        file_slices=slice(None),
+        **kwargs
+    ):
         """
         Saves data to a netCDF4 file. Attempts to utilize parallel I/O if possible.
 
@@ -358,11 +367,21 @@ else:
             if isinstance(dimension_names, tuple):
                 dimension_names = list(dimension_names)
             if not isinstance(dimension_names, list):
-                raise TypeError("dimension_names must be list or tuple or string, not{}".format(type(dimension_names)))
+                raise TypeError(
+                    "dimension_names must be list or tuple or string, not{}".format(
+                        type(dimension_names)
+                    )
+                )
             if not len(dimension_names) == len(data.shape):
-                raise ValueError("{0} names given for {1} dimensions".format(len(dimension_names), len(data.shape)))
+                raise ValueError(
+                    "{0} names given for {1} dimensions".format(
+                        len(dimension_names), len(data.shape)
+                    )
+                )
         else:
-            dimension_names = [__NETCDF_DIM_TEMPLATE.format(variable, dim) for dim, _ in enumerate(data.shape)]
+            dimension_names = [
+                __NETCDF_DIM_TEMPLATE.format(variable, dim) for dim, _ in enumerate(data.shape)
+            ]
 
         # we only support a subset of possible modes
         if mode not in __VALID_WRITE_MODES:
@@ -384,7 +403,9 @@ else:
                 if variable in handle.variables:
                     var = handle.variables[variable]
                 else:
-                    var = handle.createVariable(variable, data.dtype.char(), dimension_names, **kwargs)
+                    var = handle.createVariable(
+                        variable, data.dtype.char(), dimension_names, **kwargs
+                    )
                 var.set_collective(True)
 
                 start, count, stride, _ = nc.utils._StartCountStride(
@@ -394,7 +415,7 @@ else:
                     grp=var.group(),
                     datashape=data.shape,
                     put=True,
-                    )
+                )
                 start = start.reshape(-1)
                 count = count.reshape(-1)
                 stride = stride.reshape(-1)
@@ -453,7 +474,7 @@ else:
                         grp=var.group(),
                         datashape=data.shape,
                         put=True,
-                        )
+                    )
                     start = start.reshape(-1)
                     count = count.reshape(-1)
                     stride = stride.reshape(-1)
