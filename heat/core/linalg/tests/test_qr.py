@@ -5,7 +5,7 @@ import torch
 import unittest
 import warnings
 
-from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
+from heat.core.tests.test_suites.basic_test import TestCase
 
 if os.environ.get("EXTENDED_TESTS"):
     extended_tests = True

@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
+from heat.core.tests.test_suites.basic_test import TestCase
 
 
 class TestLasso(TestCase):

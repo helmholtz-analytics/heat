@@ -1,4 +1,4 @@
-from unittest import TestCase
+import unittest
 import os
 
 from heat.core import dndarray, MPICommunication, MPI, types, factories
@@ -9,18 +9,18 @@ import torch
 
 
 # TODO adapt for GPU once this is working properly
-class BasicTest(TestCase):
+class TestCase(unittest.TestCase):
 
     __comm = MPICommunication()
     __device = None
 
     @property
     def comm(self):
-        return BasicTest.__comm
+        return TestCase.__comm
 
     @property
     def device(self):
-        return BasicTest.__device
+        return TestCase.__device
 
     @classmethod
     def setUpClass(cls):

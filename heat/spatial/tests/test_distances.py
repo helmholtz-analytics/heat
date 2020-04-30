@@ -7,7 +7,7 @@ import heat as ht
 import numpy as np
 import math
 
-from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
+from heat.core.tests.test_suites.basic_test import TestCase
 
 
 class TestDistances(TestCase):

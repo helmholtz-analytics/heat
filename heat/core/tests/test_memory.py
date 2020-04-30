@@ -3,7 +3,7 @@ import os
 import heat as ht
 import torch
 import numpy as np
-from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
+from heat.core.tests.test_suites.basic_test import TestCase
 
 
 class TestMemory(TestCase):

@@ -3,7 +3,7 @@ import heat as ht
 import numpy as np
 import torch
 
-from heat.core.tests.test_suites.basic_test import BasicTest as TestCase
+from heat.core.tests.test_suites.basic_test import TestCase
 
 
 class TestBasicTest(TestCase):
