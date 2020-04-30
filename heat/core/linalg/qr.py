@@ -219,6 +219,8 @@ def __split0_global_q_dict_set(
     # 2: loop over keys in the dictionary
     merge_list = list(q_dict_col.keys())
     merge_list.sort()
+    # print(merge_list)
+    # merge_list = ['0p01p13e', '5p01p14e', '0p02p14e', '2p01p12e']
     # todo: possible improvement -> make the keys have the process they are on as well,
     #  then can async get them if they are not on the diagonal process
     for key in merge_list:
@@ -310,6 +312,19 @@ def __split0_global_q_dict_set(
     return global_merge_dict
 
 
+def __split0_remainder_helper(r_tiles, pr0, pr1, lp_col, leftovers_list):
+    # overlap occurs if the height of the top tile is smaller than the width
+    hld = (
+        r_tiles.col_indices[lp_col + 1]
+        if lp_col + 1 < len(r_tiles.col_indices)
+        else r_tiles.arr.gshape[1]
+    )
+    # print(hld)
+    di = hld - r_tiles.col_indices[lp_col]
+    if r_tiles.lshape_map[pr0, 0] < di and pr1 not in leftovers_list:
+        leftovers_list.append(pr1)
+
+
 def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_prs, dim0=None):
     """
     Function to do the QR calculations to calculate the global R of the array `a`.
@@ -362,6 +377,7 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_
     completed = False if loop_size_remaining.size()[0] > 1 else True
     procs_remaining = loop_size_remaining.size()[0]
     loop = 0
+    leftover = []
     while not completed:
         if procs_remaining % 2 == 1:
             # if the number of processes active is odd need to save the remainders
@@ -381,30 +397,31 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_
         )
         for pr in zipped:
             pr0, pr1 = int(pr[0].item()), int(pr[1].item())
-            __split0_merge_tile_rows(
-                pr0=pr0,
-                pr1=pr1,
-                dim1=dim1,
-                rank=rank,
-                r_tiles=r_tiles,
-                diag_process=diag_pr,
-                key=str(loop) + "p0" + str(pr0) + "p1" + str(pr1) + "e",
-                q_dict=q_dict,
-                dim0=dim0,
-            )
-
-            __split0_send_q_to_diag_pr(
-                col=dim1,
-                pr0=pr0,
-                pr1=pr1,
-                diag_process=diag_pr,
-                comm=comm,
-                q_dict=q_dict,
-                key=str(loop) + "p0" + str(pr0) + "p1" + str(pr1) + "e",
-                q_dict_waits=q_dict_waits,
-                q_dtype=r_tiles.arr.dtype.torch_type(),
-                q_device=r_tiles.arr._DNDarray__array.device,
-            )
+            __split0_remainder_helper(r_tiles, pr0, pr1, dim1, leftover)
+            if pr1 not in leftover:
+                __split0_merge_tile_rows(
+                    pr0=pr0,
+                    pr1=pr1,
+                    dim1=dim1,
+                    rank=rank,
+                    r_tiles=r_tiles,
+                    diag_process=diag_pr,
+                    key=str(loop) + "p0" + str(pr0) + "p1" + str(pr1) + "e",
+                    q_dict=q_dict,
+                    dim0=dim0,
+                )
+                __split0_send_q_to_diag_pr(
+                    col=dim1,
+                    pr0=pr0,
+                    pr1=pr1,
+                    diag_process=diag_pr,
+                    comm=comm,
+                    q_dict=q_dict,
+                    key=str(loop) + "p0" + str(pr0) + "p1" + str(pr1) + "e",
+                    q_dict_waits=q_dict_waits,
+                    q_dtype=r_tiles.arr.dtype.torch_type(),
+                    q_device=r_tiles.arr._DNDarray__array.device,
+                )
 
         loop_size_remaining = loop_size_remaining[: -1 * (half_prs_rem)]
         procs_remaining = loop_size_remaining.size()[0]
@@ -412,6 +429,8 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_
         if rem1 is not None and rem2 is not None:
             # combine rem1 and rem2 in the same way as the other nodes,
             # then save the results in rem1 to be used later
+            rem1, rem2 = int(rem1), int(rem2)
+            __split0_remainder_helper(r_tiles, rem1, rem2, dim1, leftover)
             __split0_merge_tile_rows(
                 pr0=rem2,
                 pr1=rem1,
@@ -419,18 +438,16 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_
                 rank=rank,
                 r_tiles=r_tiles,
                 diag_process=diag_pr,
-                key=str(loop) + "p0" + str(int(rem1)) + "p1" + str(int(rem2)) + "e",
+                key=str(loop) + "p0" + str(rem1) + "p1" + str(rem2) + "e",
                 q_dict=q_dict if q_dict is not None else {},
                 dim0=dim0,
             )
-
-            rem1, rem2 = int(rem1), int(rem2)
             __split0_send_q_to_diag_pr(
                 col=dim1,
                 pr0=rem2,
                 pr1=rem1,
                 diag_process=diag_pr,
-                key=str(loop) + "p0" + str(int(rem1)) + "p1" + str(int(rem2)) + "e",
+                key=str(loop) + "p0" + str(rem1) + "p1" + str(rem2) + "e",
                 q_dict=q_dict if q_dict is not None else {},
                 comm=comm,
                 q_dict_waits=q_dict_waits,
@@ -440,10 +457,12 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_
             rem1 = rem2
             rem2 = None
 
-        loop += 1
+        loop += 2
         if rem1 is not None and rem2 is None and procs_remaining == 1:
             # combine rem1 with process 0 (offset) and set completed to True
             # this should be the last thing that happens
+            __split0_remainder_helper(r_tiles, offset, rem2, dim1, leftover)
+            offset, rem1 = int(offset), int(rem1)
             __split0_merge_tile_rows(
                 pr0=offset,
                 pr1=rem1,
@@ -451,18 +470,16 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_
                 rank=rank,
                 r_tiles=r_tiles,
                 diag_process=diag_pr,
-                key=str(loop) + "p0" + str(int(offset)) + "p1" + str(int(rem1)) + "e",
+                key=str(loop) + "p0" + str(offset) + "p1" + str(rem1) + "e",
                 q_dict=q_dict,
                 dim0=dim0,
             )
-
-            offset, rem1 = int(offset), int(rem1)
             __split0_send_q_to_diag_pr(
                 col=dim1,
                 pr0=offset,
                 pr1=rem1,
                 diag_process=diag_pr,
-                key=str(loop) + "p0" + str(int(offset)) + "p1" + str(int(rem1)) + "e",
+                key=str(loop) + "p0" + str(offset) + "p1" + str(rem1) + "e",
                 q_dict=q_dict,
                 comm=comm,
                 q_dict_waits=q_dict_waits,
@@ -470,8 +487,34 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_
                 q_device=r_tiles.arr._DNDarray__array.device,
             )
             rem1 = None
-
         completed = True if procs_remaining == 1 and rem1 is None and rem2 is None else False
+
+    if len(leftover) > 0:
+        for ex in leftover:
+            __split0_merge_tile_rows(
+                pr0=diag_pr,
+                pr1=ex,
+                dim1=dim1,
+                rank=rank,
+                r_tiles=r_tiles,
+                diag_process=diag_pr,
+                key=str(loop + 1) + "p0" + str(int(diag_pr)) + "p1" + str(int(ex)) + "e",
+                q_dict=q_dict,
+                dim0=dim0,
+            )
+            __split0_send_q_to_diag_pr(
+                col=dim1,
+                pr0=int(diag_pr),
+                pr1=ex,
+                diag_process=diag_pr,
+                key=str(loop + 1) + "p0" + str(int(diag_pr)) + "p1" + str(ex) + "e",
+                q_dict=q_dict,
+                comm=comm,
+                q_dict_waits=q_dict_waits,
+                q_dtype=r_tiles.arr.dtype.torch_type(),
+                q_device=r_tiles.arr._DNDarray__array.device,
+            )
+            del ex
 
 
 def __split0_merge_tile_rows(pr0, pr1, dim1, rank, r_tiles, diag_process, key, q_dict, dim0=None):
@@ -617,7 +660,8 @@ def __split0_send_q_to_diag_pr(
     None, sets the values of q_dict_waits with the with *waits* for the values of Q, upper.shape,
         and lower.shape
     """
-    if comm.rank not in [pr0, pr1, diag_process]:
+    # print(comm.rank, pr0, pr1, diag_process)
+    if comm.rank not in [pr0, pr1, diag_process] or pr0 == diag_process:
         return
     # this is to send the merged q to the diagonal process for the forming of q
     base_tag = "1" + str(pr1.item() if isinstance(pr1, torch.Tensor) else pr1)
@@ -651,15 +695,15 @@ def __split0_q_loop(
 
     Parameters
     ----------
-    col : int
+    dim1 : int
         current column for which to calculate Q
-    r : DNDarray
+    r_tiles : DNDarray
         the R array
     proc_tile_start : torch.Tensor
         Tensor containing the row tile start indices for each process
     active_procs : torch.Tensor
         Tensor containing the ranks of processes with have data
-    q0 : DNDarray
+    q0_tiles : DNDarray
         the Q array
     q_dict : Dictionary
         Dictionary created in the split=0 R calculation containing all of the Q matrices found
@@ -667,6 +711,8 @@ def __split0_q_loop(
         the column indices
     q_dict_waits : Dictionary
         Dictionary created while sending the Q matrices to the diagonal process
+    dim0: int
+        row of the target tile
 
     Returns
     -------
@@ -698,6 +744,7 @@ def __split0_q_loop(
             ]
         del q_dict_waits[dim1]
     # local Q calculation =====================================================================
+    # print(q_dict_waits.keys())
     if dim1 in q_dict.keys():
         lcl_col_shape = r_tiles.local_get(key=(slice(None), dim1)).shape
         # get the start and stop of all local tiles
@@ -767,6 +814,8 @@ def __split0_q_loop(
         if rank == diag_process
         else {}
     )
+
+    # print(global_merge_dict.keys())
 
     if rank == diag_process:
         merge_dict_keys = set(global_merge_dict.keys())
