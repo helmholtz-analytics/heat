@@ -927,7 +927,8 @@ class TestManipulations(BasicTest):
         # padding with default (0 for all dimensions)
         pad_torch = torch.nn.functional.pad(data, (1, 2, 1, 0, 2, 1))
         pad_ht = ht.pad(data_ht, pad_width=((2, 1), (1, 0), (1, 2)))
-        self.assertTrue(ht.all(pad_ht == ht.array(pad_torch)))
+
+        self.assert_array_equal(pad_ht, pad_torch)
         self.assertIsInstance(pad_ht, ht.DNDarray)
 
         # padding with other values than default
@@ -943,7 +944,7 @@ class TestManipulations(BasicTest):
             mode="constant",
             values=((0, 3), (1, 4), (2, 5)),
         )
-        self.assertTrue(ht.all(pad_ht == ht.array(pad_numpy)))
+        self.assert_array_equal(pad_ht, pad_numpy)
 
         # shortcuts pad_width===================================
         pad_numpy = np.pad(
@@ -952,25 +953,25 @@ class TestManipulations(BasicTest):
         pad_ht = ht.pad(
             data_ht, pad_width=((2, 1),), mode="constant", values=((0, 3), (1, 4), (2, 5))
         )
-        self.assertTrue(ht.all(pad_ht == ht.array(pad_numpy)))
+        self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
             data_np, pad_width=(2, 1), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
         )
         pad_ht = ht.pad(data_ht, pad_width=(2, 1), mode="constant", values=((0, 3), (1, 4), (2, 5)))
-        self.assertTrue(ht.all(pad_ht == ht.array(pad_numpy)))
+        self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
             data_np, pad_width=(2,), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
         )
         pad_ht = ht.pad(data_ht, pad_width=(2,), mode="constant", values=((0, 3), (1, 4), (2, 5)))
-        self.assertTrue(ht.all(pad_ht == ht.array(pad_numpy)))
+        self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
             data_np, pad_width=2, mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
         )
         pad_ht = ht.pad(data_ht, pad_width=2, mode="constant", values=((0, 3), (1, 4), (2, 5)))
-        self.assertTrue(ht.all(pad_ht == ht.array(pad_numpy)))
+        self.assert_array_equal(pad_ht, pad_numpy)
 
         # shortcuts values===================================
 
@@ -980,26 +981,25 @@ class TestManipulations(BasicTest):
         pad_ht = ht.pad(
             data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", values=((0, 3),)
         )
-        self.assertTrue(ht.all(pad_ht == ht.array(pad_numpy)))
+        self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
             data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(0, 3)
         )
         pad_ht = ht.pad(data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", values=(0, 3))
-        self.assertTrue(ht.all(pad_ht == ht.array(pad_numpy)))
+        self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
             data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(3,)
         )
         pad_ht = ht.pad(data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", values=(3,))
-        self.assertTrue(ht.all(pad_ht == ht.array(pad_numpy)))
+        self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
             data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=4
         )
         pad_ht = ht.pad(data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", values=4)
-        # self.assertTrue(ht.all(pad_ht == ht.array(pad_numpy)))
-        # self.assert_array_equal(pad_ht, pad_numpy)
+        self.assert_array_equal(pad_ht, pad_numpy)
 
         # ==================================
         # test padding of distributed tensor
