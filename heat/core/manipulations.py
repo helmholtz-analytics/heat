@@ -1013,9 +1013,10 @@ def pad(array, pad_width, mode="constant", values=0):
 
     # calculate gshape for output tensor
     output_shape_list = list(array.gshape)
+    #output_shape_list = list(array.lshape)
 
-    for i in range(len(array.gshape)):
-        output_shape_list[i] += sum(pad[len(pad) - 2 * (1 + i) : len(pad) - 2 * i])
+    for i in range(0,len(pad), 2):
+        output_shape_list[-(i//2 + 1)] += sum(pad[i:i+2])
 
     output_shape = tuple(output_shape_list)
 
