@@ -904,10 +904,6 @@ def pad(array, pad_width, mode="constant", values=0):
     if not isinstance(mode, str):
         raise TypeError("expected mode to be a string, but was {}".format(type(mode)))
 
-    # no data
-    if 0 in array.lshape:
-        return array
-
     # shortcut int for all dimensions
     if isinstance(pad_width, int):
         pad = (pad_width,) * 2 * len(array.shape)
@@ -1019,6 +1015,18 @@ def pad(array, pad_width, mode="constant", values=0):
 
     output_shape = tuple(output_shape_list)
 
+    # no data - return array with adapted gshape
+    # TODO how to keep lshape unchanged
+    if 0 in array.lshape:
+        return dndarray.DNDarray(
+            array=array,
+            gshape=output_shape,
+            dtype=array.dtype,
+            split=array.split,
+            device=array.device,
+            comm=array.comm,
+        )
+
     # -------------------------------------------------------------------------------------------------------------------
     # CASE 1: Padding in non split dimension or no distribution at all
     # ------------------------------------------------------------------------------------------------------------------
@@ -1099,10 +1107,12 @@ def pad(array, pad_width, mode="constant", values=0):
         padded_torch_tensor = torch.nn.functional.pad(
             array_torch, pad_tuple_curr_rank, mode, values
         )
+
     elif len(values) == 1 and (isinstance(values[0], int) or isinstance(values[0], float)):
         padded_torch_tensor = torch.nn.functional.pad(
             array_torch, pad_tuple_curr_rank, mode, values[0]
         )
+
     else:
         padded_torch_tensor = array_torch
         for i in range(len(value_tuple) - 1, -1, -1):
@@ -1113,14 +1123,14 @@ def pad(array, pad_width, mode="constant", values=0):
                 padded_torch_tensor, pad_tuple, mode, value_tuple[i]
             )
 
-        padded_tensor = dndarray.DNDarray(
-            array=padded_torch_tensor,
-            gshape=output_shape,
-            dtype=array.dtype,
-            split=array.split,
-            device=array.device,
-            comm=array.comm,
-        )
+    padded_tensor = dndarray.DNDarray(
+        array=padded_torch_tensor,
+        gshape=output_shape,
+        dtype=array.dtype,
+        split=array.split,
+        device=array.device,
+        comm=array.comm,
+    )
 
     # TODO ensure correct balancing
     # if not padded_tensor.is_balanced():

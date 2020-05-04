@@ -1016,12 +1016,13 @@ class TestManipulations(BasicTest):
             data_ht_split, pad_width=(2, 1), mode="constant", values=((0, 3), (1, 4), (2, 5))
         )
 
+        print(f"\n\nLShape Heat Rank {rank}: {pad_ht_split.lshape}")
+
         # padding in edge case (empty local tensor)
         if rank >= data_ht_split.gshape[data_ht_split.split]:
             self.assertTrue(0 in pad_ht_split.lshape)
-        # TODO else should be removed
-        else:
-            self.assert_array_equal(pad_ht_split, pad_np_split)
+
+        self.assert_array_equal(pad_ht_split, pad_np_split)
 
         # padding in non split dimension
         # weird syntax necessary due to np restrictions (tuples for every axis obligatory apart from shortcuts)
@@ -1038,9 +1039,8 @@ class TestManipulations(BasicTest):
         # padding in edge case (empty local tensor)
         if rank >= data_ht_split.gshape[data_ht_split.split]:
             self.assertTrue(0 in pad_ht_split.lshape)
-        # TODO else should be removed
-        else:
-            self.assert_array_equal(pad_ht_split, pad_np_split)
+
+        self.assert_array_equal(pad_ht_split, pad_np_split)
 
         # exceptions===================================
 
