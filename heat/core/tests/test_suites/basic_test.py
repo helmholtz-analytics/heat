@@ -35,7 +35,6 @@ class TestCase(unittest.TestCase):
 
         if envar == "cpu":
             ht.use_device("cpu")
-            torch_device = ht.cpu.torch_device
             ht_device = ht.cpu
             other_device = ht.cpu
             if torch.cuda.is_available():
