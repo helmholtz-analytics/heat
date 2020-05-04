@@ -1009,35 +1009,38 @@ class TestManipulations(BasicTest):
         data_ht_split = ht.array(data, split=0, device=ht_device)
 
         # padding in split dimension
-        # pad_np_split = np.pad(
-        #    data_np, pad_width=(2, 1), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
-        # )
+        pad_np_split = np.pad(
+            data_np, pad_width=(2, 1), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+        )
         pad_ht_split = ht.pad(
             data_ht_split, pad_width=(2, 1), mode="constant", values=((0, 3), (1, 4), (2, 5))
         )
 
-        # TODO
-
-        # padding in edge cases (empty local tensor)
+        # padding in edge case (empty local tensor)
         if rank >= data_ht_split.gshape[data_ht_split.split]:
             self.assertTrue(0 in pad_ht_split.lshape)
         # TODO else should be removed
-        # else:
-        #    self.assert_array_equal(pad_ht_split, pad_np_split)
+        else:
+            self.assert_array_equal(pad_ht_split, pad_np_split)
 
         # padding in non split dimension
         # weird syntax necessary due to np restrictions (tuples for every axis obligatory apart from shortcuts)
-        # pad_np_split = np.pad(
-        #    data_np,
-        #    pad_width=((0, 0), (2, 1), (1, 0)),
-        #    mode="constant",
-        #    constant_values=((-1, 1), (0, 3), (1, 4)),
-        # )
-        # pad_ht_split = ht.pad(
-        #    data_ht_split, pad_width=((2, 1), (1, 0)), mode="constant", values=((0, 3), (1, 4))
-        # )
+        pad_np_split = np.pad(
+            data_np,
+            pad_width=((0, 0), (2, 1), (1, 0)),
+            mode="constant",
+            constant_values=((-1, 1), (0, 3), (1, 4)),
+        )
+        pad_ht_split = ht.pad(
+            data_ht_split, pad_width=((2, 1), (1, 0)), mode="constant", values=((0, 3), (1, 4))
+        )
 
-        # self.assert_array_equal(pad_ht_split, pad_np_split)
+        # padding in edge case (empty local tensor)
+        if rank >= data_ht_split.gshape[data_ht_split.split]:
+            self.assertTrue(0 in pad_ht_split.lshape)
+        # TODO else should be removed
+        else:
+            self.assert_array_equal(pad_ht_split, pad_np_split)
 
         # exceptions===================================
 
