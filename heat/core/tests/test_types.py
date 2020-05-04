@@ -4,7 +4,7 @@ import unittest
 import os
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import TestCase
+from .test_suites.basic_test import TestCase
 
 
 class TestTypes(TestCase):
@@ -22,7 +22,7 @@ class TestTypes(TestCase):
         self.assert_is_heat_type(heat_type)
 
         # check a type constructor without any value
-        no_value = heat_type(device=self.ht_device)
+        no_value = heat_type()
         self.assertIsInstance(no_value, ht.DNDarray)
         self.assertEqual(no_value.shape, (1,))
         self.assertEqual((no_value._DNDarray__array == 0).all().item(), 1)
@@ -30,13 +30,13 @@ class TestTypes(TestCase):
 
         # check a type constructor with a complex value
         ground_truth = [[3, 2, 1], [4, 5, 6]]
-        elaborate_value = heat_type(ground_truth, device=self.ht_device)
+        elaborate_value = heat_type(ground_truth)
         self.assertIsInstance(elaborate_value, ht.DNDarray)
         self.assertEqual(elaborate_value.shape, (2, 3))
         self.assertEqual(
             (
                 elaborate_value._DNDarray__array
-                == torch.tensor(ground_truth, dtype=torch_type, device=self.torch_device)
+                == torch.tensor(ground_truth, dtype=torch_type, device=self.device.torch_device)
             )
             .all()
             .item(),
@@ -167,7 +167,7 @@ class TestTypeConversion(TestCase):
             ht.core.types.canonical_heat_type("i7")
 
     def test_heat_type_of(self):
-        ht_tensor = ht.zeros((1,), dtype=ht.bool, device=self.ht_device)
+        ht_tensor = ht.zeros((1,), dtype=ht.bool)
         self.assertEqual(ht.core.types.heat_type_of(ht_tensor), ht.bool)
 
         np_array = np.ones((3,), dtype=np.int32)

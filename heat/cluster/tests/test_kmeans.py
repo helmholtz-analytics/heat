@@ -3,7 +3,7 @@ import unittest
 
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import TestCase
+from ...core.tests.test_suites.basic_test import TestCase
 
 
 class TestKMeans(TestCase):
@@ -28,9 +28,7 @@ class TestKMeans(TestCase):
     def test_fit_iris_unsplit(self):
         for split in [None, 0]:
             # get some test data
-            iris = ht.load(
-                "heat/datasets/data/iris.csv", sep=";", split=split, device=self.ht_device
-            )
+            iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=split)
 
             # fit the clusters
             k = 3
@@ -50,7 +48,7 @@ class TestKMeans(TestCase):
 
     def test_exceptions(self):
         # get some test data
-        iris_split = ht.load("heat/datasets/data/iris.csv", sep=";", split=1, device=self.ht_device)
+        iris_split = ht.load("heat/datasets/data/iris.csv", sep=";", split=1)
 
         # build a clusterer
         k = 3

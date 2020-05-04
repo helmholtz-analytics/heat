@@ -3,14 +3,12 @@ import heat as ht
 import numpy as np
 import torch
 
-from heat.core.tests.test_suites.basic_test import TestCase
+from .basic_test import TestCase
 
 
 class TestBasicTest(TestCase):
     def test_assert_array_equal(self):
-        heat_array = ht.ones(
-            (self.get_size(), 10, 10), dtype=ht.int32, split=1, device=self.ht_device
-        )
+        heat_array = ht.ones((self.get_size(), 10, 10), dtype=ht.int32, split=1)
         np_array = np.ones((self.get_size(), 10, 10), dtype=np.int32)
         self.assert_array_equal(heat_array, np_array)
 
@@ -18,9 +16,7 @@ class TestBasicTest(TestCase):
         with self.assertRaises(AssertionError):
             self.assert_array_equal(heat_array, np_array)
 
-        heat_array = ht.zeros(
-            (25, 13, self.get_size(), 20), dtype=ht.float32, split=2, device=self.ht_device
-        )
+        heat_array = ht.zeros((25, 13, self.get_size(), 20), dtype=ht.float32, split=2)
         expected_array = torch.zeros(
             (25, 13, self.get_size(), 20),
             dtype=torch.float32,
@@ -87,7 +83,7 @@ class TestBasicTest(TestCase):
         np_func = np.exp
         self.assert_func_equal_for_tensor(array, heat_func=ht_func, numpy_func=np_func)
 
-        array = ht.ones((15, 15), device=self.ht_device)
+        array = ht.ones((15, 15))
         with self.assertRaises(TypeError):
             self.assert_func_equal_for_tensor(array, heat_func=ht_func, numpy_func=np_func)
 

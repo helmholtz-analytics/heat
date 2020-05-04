@@ -4,15 +4,15 @@ import unittest
 
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import TestCase
+from .test_suites.basic_test import TestCase
 
 
 class TestSplitTiles(TestCase):
     # most of the cases are covered by the resplit tests
     def test_raises(self):
-        length = torch.tensor([i + 20 for i in range(2)], device=self.torch_device)
+        length = torch.tensor([i + 20 for i in range(2)], device=self.device.torch_device)
         test = torch.arange(
-            torch.prod(length), dtype=torch.float64, device=self.torch_device
+            torch.prod(length), dtype=torch.float64, device=self.device.torch_device
         ).reshape([i + 20 for i in range(2)])
         a = ht.array(test, split=1)
         tiles = ht.tiling.SplitTiles(a)
@@ -24,9 +24,9 @@ class TestSplitTiles(TestCase):
             tiles["p"] = "p"
 
     def test_misc_coverage(self):
-        length = torch.tensor([i + 5 for i in range(3)], device=self.torch_device)
+        length = torch.tensor([i + 5 for i in range(3)], device=self.device.torch_device)
         test = torch.arange(
-            torch.prod(length), dtype=torch.float64, device=self.torch_device
+            torch.prod(length), dtype=torch.float64, device=self.device.torch_device
         ).reshape([i + 5 for i in range(3)])
         a = ht.array(test, split=None)
         tiles = ht.tiling.SplitTiles(a)
@@ -37,7 +37,7 @@ class TestSplitTiles(TestCase):
             # definition of adjusting tests is he same logic as the code itself,
             #   therefore, fixed tests are issued for one process confic
             tile_dims = torch.tensor(
-                [[2.0, 2.0, 1.0], [2.0, 2.0, 2.0], [3.0, 2.0, 2.0]], device=self.torch_device
+                [[2.0, 2.0, 1.0], [2.0, 2.0, 2.0], [3.0, 2.0, 2.0]], device=self.device.torch_device
             )
             res = tiles.tile_dimensions
             self.assertTrue(torch.equal(tile_dims, res))

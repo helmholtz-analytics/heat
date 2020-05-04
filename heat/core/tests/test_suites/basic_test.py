@@ -36,12 +36,16 @@ class TestCase(unittest.TestCase):
         if envar == "cpu":
             ht.use_device("cpu")
             torch_device = ht.cpu.torch_device
-            ht_device = None
+            ht_device = ht.cpu
+            other_device = ht.cpu
+            if torch.cuda.is_available():
+                torch.cuda.set_device(torch.device(ht.gpu.torch_device))
+                other_device = ht.gpu
         elif envar == "gpu" and torch.cuda.is_available():
             ht.use_device("gpu")
             torch.cuda.set_device(torch.device(ht.gpu.torch_device))
-            torch_device = ht.gpu.torch_device
-            ht_device = None
+            ht_device = ht.gpu
+            other_device = ht.cpu
         else:
             raise RuntimeError(
                 "Value '{}' of environment variable 'HEAT_TEST_USE_DEVICE' is unsupported".format(
@@ -49,7 +53,7 @@ class TestCase(unittest.TestCase):
                 )
             )
 
-        cls.ht_device, cls.torch_device, cls.envar = ht_device, torch_device, envar
+        cls.device, cls.other_device, cls.envar = ht_device, other_device, envar
 
     def get_rank(self):
         return self.comm.rank

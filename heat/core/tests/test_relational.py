@@ -2,7 +2,7 @@ import unittest
 import os
 import heat as ht
 
-from heat.core.tests.test_suites.basic_test import TestCase
+from .test_suites.basic_test import TestCase
 
 
 class TestRelational(TestCase):
@@ -12,18 +12,18 @@ class TestRelational(TestCase):
         cls.a_scalar = 2.0
         cls.an_int_scalar = 2
 
-        cls.a_vector = ht.float32([2, 2], device=cls.ht_device)
-        cls.another_vector = ht.float32([2, 2, 2], device=cls.ht_device)
+        cls.a_vector = ht.float32([2, 2])
+        cls.another_vector = ht.float32([2, 2, 2])
 
-        cls.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]], device=cls.ht_device)
-        cls.another_tensor = ht.array([[2.0, 2.0], [2.0, 2.0]], device=cls.ht_device)
+        cls.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])
+        cls.another_tensor = ht.array([[2.0, 2.0], [2.0, 2.0]])
         cls.a_split_tensor = cls.another_tensor.copy().resplit_(0)
-        cls.split_ones_tensor = ht.ones((2, 2), split=1, device=cls.ht_device)
+        cls.split_ones_tensor = ht.ones((2, 2), split=1)
 
         cls.errorneous_type = (2, 2)
 
     def test_eq(self):
-        result = ht.uint8([[0, 1], [0, 0]], device=self.ht_device)
+        result = ht.uint8([[0, 1], [0, 0]])
 
         self.assertTrue(ht.equal(ht.eq(self.a_scalar, self.a_scalar), ht.uint8([1])))
         self.assertTrue(ht.equal(ht.eq(self.a_tensor, self.a_scalar), result))
@@ -47,8 +47,8 @@ class TestRelational(TestCase):
         self.assertFalse(ht.equal(self.another_tensor, self.a_scalar))
 
     def test_ge(self):
-        result = ht.uint8([[0, 1], [1, 1]], device=self.ht_device)
-        commutated_result = ht.uint8([[1, 1], [0, 0]], device=self.ht_device)
+        result = ht.uint8([[0, 1], [1, 1]])
+        commutated_result = ht.uint8([[1, 1], [0, 0]])
 
         self.assertTrue(ht.equal(ht.ge(self.a_scalar, self.a_scalar), ht.uint8([1])))
         self.assertTrue(ht.equal(ht.ge(self.a_tensor, self.a_scalar), result))
@@ -66,8 +66,8 @@ class TestRelational(TestCase):
             ht.ge("self.a_tensor", "s")
 
     def test_gt(self):
-        result = ht.uint8([[0, 0], [1, 1]], device=self.ht_device)
-        commutated_result = ht.uint8([[1, 0], [0, 0]], device=self.ht_device)
+        result = ht.uint8([[0, 0], [1, 1]])
+        commutated_result = ht.uint8([[1, 0], [0, 0]])
 
         self.assertTrue(ht.equal(ht.gt(self.a_scalar, self.a_scalar), ht.uint8([0])))
         self.assertTrue(ht.equal(ht.gt(self.a_tensor, self.a_scalar), result))
@@ -85,8 +85,8 @@ class TestRelational(TestCase):
             ht.gt("self.a_tensor", "s")
 
     def test_le(self):
-        result = ht.uint8([[1, 1], [0, 0]], device=self.ht_device)
-        commutated_result = ht.uint8([[0, 1], [1, 1]], device=self.ht_device)
+        result = ht.uint8([[1, 1], [0, 0]])
+        commutated_result = ht.uint8([[0, 1], [1, 1]])
 
         self.assertTrue(ht.equal(ht.le(self.a_scalar, self.a_scalar), ht.uint8([1])))
         self.assertTrue(ht.equal(ht.le(self.a_tensor, self.a_scalar), result))
@@ -104,8 +104,8 @@ class TestRelational(TestCase):
             ht.le("self.a_tensor", "s")
 
     def test_lt(self):
-        result = ht.uint8([[1, 0], [0, 0]], device=self.ht_device)
-        commutated_result = ht.uint8([[0, 0], [1, 1]], device=self.ht_device)
+        result = ht.uint8([[1, 0], [0, 0]])
+        commutated_result = ht.uint8([[0, 0], [1, 1]])
 
         self.assertTrue(ht.equal(ht.lt(self.a_scalar, self.a_scalar), ht.uint8([0])))
         self.assertTrue(ht.equal(ht.lt(self.a_tensor, self.a_scalar), result))
@@ -123,7 +123,7 @@ class TestRelational(TestCase):
             ht.lt("self.a_tensor", "s")
 
     def test_ne(self):
-        result = ht.uint8([[1, 0], [1, 1]], device=self.ht_device)
+        result = ht.uint8([[1, 0], [1, 1]])
 
         # self.assertTrue(ht.equal(ht.ne(self.a_scalar, self.a_scalar), ht.uint8([0])))
         # self.assertTrue(ht.equal(ht.ne(self.a_tensor, self.a_scalar), result))
