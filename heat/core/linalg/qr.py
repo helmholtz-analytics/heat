@@ -116,7 +116,7 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     if a.split == 0:
         rank = r.comm.rank
         active_procs = torch.arange(r.comm.size, device=r.device.torch_device)
-        empties = torch.nonzero(r_tiles.lshape_map[..., 0] == 0)
+        empties = torch.nonzero(input=r_tiles.lshape_map[..., 0] == 0, as_tuple=False)
         empties = empties[0] if empties.numel() > 0 else []
         for e in empties:
             active_procs = active_procs[active_procs != e]
@@ -132,7 +132,9 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
             tile_columns
         ):  # for each tile column (need to do the last rank separately)
             # for each process need to do local qr
-            not_completed_processes = torch.nonzero(col < proc_tile_start).flatten()
+            not_completed_processes = torch.nonzero(
+                input=col < proc_tile_start, as_tuple=False
+            ).flatten()
             if rank not in not_completed_processes or rank not in active_procs:
                 # if the process is done calculating R the break the loop
                 break
@@ -202,7 +204,7 @@ def __split0_global_q_dict_set(q_dict_col, col, r_tiles, q_tiles, global_merge_d
         torch.tensor(r_tiles.tile_rows_per_process, device=r_tiles.arr._DNDarray__array.device),
         dim=0,
     )
-    diag_proc = torch.nonzero(proc_tile_start > col)[0].item()
+    diag_proc = torch.nonzero(input=proc_tile_start > col, as_tuple=False)[0].item()
     proc_tile_start = torch.cat(
         (torch.tensor([0], device=r_tiles.arr._DNDarray__array.device), proc_tile_start[:-1]), dim=0
     )
@@ -362,9 +364,10 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, col_num, diag_pr, not_complet
         if rank not in loop_size_remaining and rank not in [rem1, rem2]:
             break  # if the rank is done then exit the loop
         # send the data to the corresponding processes
+        half_prs_rem = torch.floor_divide(procs_remaining, 2)
         zipped = zip(
-            loop_size_remaining.flatten()[: procs_remaining // 2],
-            loop_size_remaining.flatten()[procs_remaining // 2 :],
+            loop_size_remaining.flatten()[:half_prs_rem],
+            loop_size_remaining.flatten()[half_prs_rem:],
         )
         for pr in zipped:
             pr0, pr1 = int(pr[0].item()), int(pr[1].item())
@@ -392,7 +395,7 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, col_num, diag_pr, not_complet
                 q_device=r_tiles.arr._DNDarray__array.device,
             )
 
-        loop_size_remaining = loop_size_remaining[: -1 * (procs_remaining // 2)]
+        loop_size_remaining = loop_size_remaining[: -1 * (half_prs_rem)]
         procs_remaining = loop_size_remaining.size()[0]
 
         if rem1 is not None and rem2 is not None:
@@ -655,7 +658,9 @@ def __split0_q_loop(col, r_tiles, proc_tile_start, active_procs, q0_tiles, q_dic
     """
     tile_columns = r_tiles.tile_columns
     diag_process = (
-        torch.nonzero(proc_tile_start > col)[0] if col != tile_columns else proc_tile_start[-1]
+        torch.nonzero(input=proc_tile_start > col, as_tuple=False)[0]
+        if col != tile_columns
+        else proc_tile_start[-1]
     )
     diag_process = diag_process.item()
     rank = r_tiles.arr.comm.rank
@@ -842,7 +847,7 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
     cols_on_proc = torch.cumsum(
         torch.tensor(r_tiles.tile_columns_per_process, device=r_torch_device), dim=0
     )
-    not_completed_processes = torch.nonzero(dcol < cols_on_proc).flatten()
+    not_completed_processes = torch.nonzero(input=dcol < cols_on_proc, as_tuple=False).flatten()
     diag_process = not_completed_processes[0].item()
     tile_rows = r_tiles.tile_rows
     # get the diagonal tile and do qr on it
@@ -893,11 +898,13 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
     # 2nd step: merged QR on the rows
     # ================================ R Calculation - merged tiles ============================
     diag_tile = r_tiles[dcol, dcol]
-    st_sp = r_tiles.get_start_stop(key=(dcol, dcol))
-    diag_sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
-    # (Q) need to get the start stop of diag tial
+    # st_sp = r_tiles.get_start_stop(key=(dcol, dcol))
     diag_st_sp = r_tiles.get_start_stop(key=(dcol, dcol))
+    diag_sz = diag_st_sp[1] - diag_st_sp[0], diag_st_sp[3] - diag_st_sp[2]
+    # (Q) need to get the start stop of diag tial
     for row in range(dcol + 1, tile_rows):
+        lp_st_sp = r_tiles.get_start_stop(key=(row, dcol))
+        lp_sz = lp_st_sp[1] - lp_st_sp[0], lp_st_sp[3] - lp_st_sp[2]
         if rank == diag_process:
             # cat diag tile and loop tile
             loop_tile = r_tiles[row, dcol]
@@ -905,7 +912,7 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
             # qr
             ql, rl = loop_cat.qr(some=False)
             # send ql to all
-            r_tiles.arr.comm.Bcast(ql.clone(), root=diag_process)
+            r_tiles.arr.comm.Bcast(ql.clone().contiguous(), root=diag_process)
             # set rs
             r_tiles[dcol, dcol] = rl[: diag_sz[0]]
             r_tiles[row, dcol] = rl[diag_sz[0] :]
@@ -919,8 +926,6 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
                 # set lower
                 r_tiles.local_set(key=(row, slice(loc_col + 1, None)), value=hold[diag_sz[0] :])
         elif rank > diag_process:
-            st_sp = r_tiles.get_start_stop(key=(row, dcol))
-            lp_sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
             ql = torch.zeros(
                 [lp_sz[0] + diag_sz[0]] * 2,
                 dtype=r_tiles.arr.dtype.torch_type(),
@@ -935,8 +940,6 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
             # set lower
             r_tiles.local_set(key=(row, slice(0, None)), value=hold[diag_sz[0] :])
         else:
-            st_sp = r_tiles.get_start_stop(key=(row, dcol))
-            lp_sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
             ql = torch.zeros(
                 [lp_sz[0] + diag_sz[0]] * 2,
                 dtype=r_tiles.arr.dtype.torch_type(),

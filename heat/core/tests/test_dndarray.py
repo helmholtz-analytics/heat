@@ -35,6 +35,101 @@ class TestDNDarray(unittest.TestCase):
             ht.equal(int16_tensor & int16_vector, ht.bitwise_and(int16_tensor, int16_vector))
         )
 
+    def test_gethalo(self):
+        data_np = np.array([[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12]])
+        data = ht.array(data_np, split=1)
+
+        if data.comm.size == 2:
+
+            halo_next = torch.tensor(np.array([[4, 5], [10, 11]]))
+            halo_prev = torch.tensor(np.array([[2, 3], [8, 9]]))
+
+            data.get_halo(2)
+
+            data_with_halos = data.array_with_halos
+            self.assertEqual(data_with_halos.shape, (2, 5))
+
+            if data.comm.rank == 0:
+                self.assertTrue(torch.equal(data.halo_next, halo_next))
+                self.assertEqual(data.halo_prev, None)
+            if data.comm.rank == 1:
+                self.assertTrue(torch.equal(data.halo_prev, halo_prev))
+                self.assertEqual(data.halo_next, None)
+
+            self.assertEqual(data.array_with_halos.shape, (2, 5))
+            # exception on wrong argument type in get_halo
+            with self.assertRaises(TypeError):
+                data.get_halo("wrong_type")
+            # exception on wrong argument in get_halo
+            with self.assertRaises(ValueError):
+                data.get_halo(-99)
+            # exception for too large halos
+            with self.assertRaises(ValueError):
+                data.get_halo(4)
+
+            data_np = np.array([[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]])
+            data = ht.array(data_np, split=1)
+
+            halo_next = torch.tensor(np.array([[4.0, 5.0], [10.0, 11.0]]))
+            halo_prev = torch.tensor(np.array([[2.0, 3.0], [8.0, 9.0]]))
+
+            data.get_halo(2)
+
+            if data.comm.rank == 0:
+                self.assertTrue(np.isclose(((data.halo_next - halo_next) ** 2).mean().item(), 0.0))
+                self.assertEqual(data.halo_prev, None)
+            if data.comm.rank == 1:
+                self.assertTrue(np.isclose(((data.halo_prev - halo_prev) ** 2).mean().item(), 0.0))
+                self.assertEqual(data.halo_next, None)
+
+            data = ht.ones((10, 2), split=0)
+
+            halo_next = torch.tensor(np.array([[1.0, 1.0], [1.0, 1.0]]))
+            halo_prev = torch.tensor(np.array([[1.0, 1.0], [1.0, 1.0]]))
+
+            data.get_halo(2)
+
+            if data.comm.rank == 0:
+                self.assertTrue(np.isclose(((data.halo_next - halo_next) ** 2).mean().item(), 0.0))
+                self.assertEqual(data.halo_prev, None)
+            if data.comm.rank == 1:
+                self.assertTrue(np.isclose(((data.halo_prev - halo_prev) ** 2).mean().item(), 0.0))
+                self.assertEqual(data.halo_next, None)
+
+        if data.comm.size == 3:
+
+            halo_1 = torch.tensor(np.array([[2], [8]]))
+            halo_2 = torch.tensor(np.array([[3], [9]]))
+            halo_3 = torch.tensor(np.array([[4], [10]]))
+            halo_4 = torch.tensor(np.array([[5], [11]]))
+
+            data.get_halo(1)
+
+            data_with_halos = data.array_with_halos
+
+            if data.comm.rank == 0:
+                self.assertTrue(torch.equal(data.halo_next, halo_2))
+                self.assertEqual(data.halo_prev, None)
+                self.assertEqual(data_with_halos.shape, (2, 3))
+            if data.comm.rank == 1:
+                self.assertTrue(torch.equal(data.halo_prev, halo_1))
+                self.assertTrue(torch.equal(data.halo_next, halo_4))
+                self.assertEqual(data_with_halos.shape, (2, 4))
+            if data.comm.rank == 2:
+                self.assertEqual(data.halo_next, None)
+                self.assertTrue(torch.equal(data.halo_prev, halo_3))
+                self.assertEqual(data_with_halos.shape, (2, 3))
+
+            # exception on wrong argument type in get_halo
+            with self.assertRaises(TypeError):
+                data.get_halo("wrong_type")
+            # exception on wrong argument in get_halo
+            with self.assertRaises(ValueError):
+                data.get_halo(-99)
+            # exception for too large halos
+            with self.assertRaises(ValueError):
+                data.get_halo(4)
+
     def test_astype(self):
         data = ht.float32([[1, 2, 3], [4, 5, 6]], device=ht_device)
 
@@ -163,6 +258,14 @@ class TestDNDarray(unittest.TestCase):
         if ht.MPI_WORLD.size > 1:
             with self.assertRaises(TypeError):
                 complex(ht.full((ht.MPI_WORLD.size,), 2, split=0, device=ht_device))
+
+    def test_flatten(self):
+        a = ht.ones((4, 4, 4), split=1)
+        result = ht.ones((64,), split=0)
+        flat = a.flatten()
+
+        self.assertEqual(flat.shape, result.shape)
+        self.assertTrue(ht.equal(flat, result))
 
     def test_fill_diagonal(self):
         ref = ht.zeros(

@@ -10,8 +10,10 @@
 - [#496](https://github.com/helmholtz-analytics/heat/pull/496) New feature: flipud()
 - [#498](https://github.com/helmholtz-analytics/heat/pull/498) Feature: flip()
 - [#499](https://github.com/helmholtz-analytics/heat/pull/499) Bugfix: MPI datatype mapping: `torch.int16` now maps to `MPI.SHORT` instead of `MPI.SHORT_INT`
+- [#501](https://github.com/helmholtz-analytics/heat/pull/501) New Feature: flatten
 - [#506](https://github.com/helmholtz-analytics/heat/pull/506) Bugfix: setup.py has correct version parsing
 - [#507](https://github.com/helmholtz-analytics/heat/pull/507) Bugfix: sanitize_axis changes axis of 0-dim scalars to None
+- [#511](https://github.com/helmholtz-analytics/heat/pull/511) New feature: reshape
 - [#515](https://github.com/helmholtz-analytics/heat/pull/515) ht.var() now returns the unadjusted sample variance by default, Bessel's correction can be applied by setting ddof=1.
 - [#518](https://github.com/helmholtz-analytics/heat/pull/518) Implementation of Spectral Clustering.
 - [#519](https://github.com/helmholtz-analytics/heat/pull/519) Bugfix: distributed slicing with empty list or scalar as input; distributed nonzero() of empty (local) tensor.
@@ -25,6 +27,8 @@
 - [#534](https://github.com/helmholtz-analytics/heat/pull/534) `eye()` supports all 2D split combinations and matrix configurations.
 - [#535](https://github.com/helmholtz-analytics/heat/pull/535) Introduction of BaseEstimator and clustering, classification and regression mixins.
 - [#536](https://github.com/helmholtz-analytics/heat/pull/536) Getting rid of the docs folder
+- [#558](https://github.com/helmholtz-analytics/heat/pull/558) `sanitize_memory_layout` assumes default memory layout of the input tensor
+- [#558](https://github.com/helmholtz-analytics/heat/pull/558) Support for PyTorch 1.5.0 added
 
 # v0.3.0
 
