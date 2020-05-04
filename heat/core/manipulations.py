@@ -1198,19 +1198,6 @@ def squeeze(x, axis=None):
                The input tensor, but with all or a subset of the dimensions of length 1 removed.
                Split semantics: see note below.
 
-    Note:
-    -----
-    Split semantics: a distributed tensor will keep its original split dimension after "squeezing",
-    which, depending on the squeeze axis, may result in a lower numerical 'split' value, as in:
-    >>> x.shape
-    (10, 1, 12, 13)
-    >>> x.split
-    2
-    >>> x.squeeze().shape
-    (10, 12, 13)
-    >>> x.squeeze().split
-    1
-
     Examples:
     ---------
     >>> import heat as ht
@@ -1240,6 +1227,19 @@ def squeeze(x, axis=None):
     Traceback (most recent call last):
     ...
     ValueError: Dimension along axis 1 is not 1 for shape (1, 3, 1, 5)
+
+    Note:
+    -----
+    Split semantics: a distributed tensor will keep its original split dimension after "squeezing",
+    which, depending on the squeeze axis, may result in a lower numerical 'split' value, as in:
+    >>> x.shape
+    (10, 1, 12, 13)
+    >>> x.split
+    2
+    >>> x.squeeze().shape
+    (10, 12, 13)
+    >>> x.squeeze().split
+    1
     """
 
     # Sanitize input
