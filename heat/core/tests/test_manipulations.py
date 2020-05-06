@@ -1465,7 +1465,7 @@ class TestManipulations(BasicTest):
     def test_topk(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
-        half_rank = int(rank / 2)
+        half_rank = int(rank/2)
         torch_array = torch.arange(size, dtype=torch.int32, device=device).expand(size, size)
         split_zero = ht.array(torch_array, split=0, device=ht_device)
 
