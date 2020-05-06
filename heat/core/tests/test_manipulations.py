@@ -1461,3 +1461,22 @@ class TestManipulations(BasicTest):
         b = ht.ones((12,), split=0, device=ht_device)
         res = ht.vstack((a, b))
         self.assertEqual(res.shape, (2, 12))
+
+    def test_topk(self):
+        size = ht.MPI_WORLD.size
+        rank = ht.MPI_WORLD.rank
+        half_rank = int(rank / 2)
+        torch_array = torch.arange(size, dtype=torch.int32, device=device).expand(size, size)
+        split_zero = ht.array(torch_array, split=0, device=ht_device)
+
+        exp_axis_none = ht.array([rank], dtype=ht.int32, device=ht_device)
+        res, ind = ht.topk(split_zero, rank, sorted=True)
+        self.assertTrue((res._DNDarray__array == exp_axis_none._DNDarray__array).all())
+
+        exp_axis_none = ht.array([half_rank], dtype=ht.int32, device=ht_device)
+        res, ind = ht.topk(split_zero, half_rank, sorted=True)
+        self.assertTrue((res._DNDarray__array == exp_axis_none._DNDarray__array).all())
+
+        exp_axis_zero = ht.arange(size, dtype=ht.int32, device=ht_device).expand_dims(0)
+        res, ind = ht.topk(split_zero, rank, sorted=True, dim=0)
+        self.assertTrue((res._DNDarray__array == exp_axis_zero._DNDarray__array).all())
