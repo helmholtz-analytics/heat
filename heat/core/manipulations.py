@@ -1017,124 +1017,128 @@ def pad(array, pad_width, mode="constant", values=0):
 
     # no data - return array with adapted gshape
     # TODO how to keep lshape unchanged
-    if 0 in array.lshape:
-        return dndarray.DNDarray(
-            array=array,
-            gshape=output_shape,
-            dtype=array.dtype,
-            split=array.split,
-            device=array.device,
-            comm=array.comm,
-        )
+    # if 0 in array.lshape:
+    #     return dndarray.DNDarray(
+    #         array=array,
+    #         gshape=output_shape,
+    #         dtype=array.dtype,
+    #         split=array.split,
+    #         device=array.device,
+    #         comm=array.comm,
+    #     )
 
     # -------------------------------------------------------------------------------------------------------------------
     # CASE 1: Padding in non split dimension or no distribution at all
     # ------------------------------------------------------------------------------------------------------------------
-    if array.split is None or array.split not in pad_dim or amount_of_processes == 1:
-        # values = scalar
-        if isinstance(values, int) or isinstance(values, float):
-            padded_torch_tensor = torch.nn.functional.pad(array_torch, pad, mode, values)
-        # values = sequence with one value for all dimensions
-        elif len(values) == 1 and (isinstance(values[0], int) or isinstance(values[0], float)):
-            padded_torch_tensor = torch.nn.functional.pad(array_torch, pad, mode, values[0])
-        else:
-            padded_torch_tensor = array_torch
-            for i in range(len(value_tuple) - 1, -1, -1):
-                pad_list = [0] * 2 * rank_array
-                pad_list[i] = pad[i]
-                pad_tuple = tuple(pad_list)
-                padded_torch_tensor = torch.nn.functional.pad(
-                    padded_torch_tensor, pad_tuple, mode, value_tuple[i]
-                )
-
-        padded_tensor = dndarray.DNDarray(
-            array=padded_torch_tensor,
-            gshape=output_shape,
-            dtype=array.dtype,
-            split=array.split,
-            device=array.device,
-            comm=array.comm,
-        )
-
-        return padded_tensor
-
-    # ------------------------------------------------------------------------------------------------------------------
-    # CASE 2: padding in split dimension and function runs on more than 1 process
-    #
-    # Pad only first/last tensor portion on node (i.e. only beginning/end in split dimension)
-    # --> "Calculate" pad tuple for the corresponding tensor portion/ the two indices which have to be set to zero
-    #      in different paddings depending on the dimension
-    #       Calculate the index of the first element in tuple that has to change/set to zero in
-    #       some dimensions (the following is the second)
-    # ------------------------------------------------------------------------------------------------------------------
-
-    pad_beginning_list = list(pad)
-    pad_end_list = list(pad)
-    pad_middle_list = list(pad)
-
-    # calculate the corresponding pad tuples
-
-    first_idx_set_zero = 2 * (rank_array - array.split - 1)
-
-    pad_end_list[first_idx_set_zero] = 0
-    pad_beginning_list[first_idx_set_zero + 1] = 0
-    pad_middle_list[first_idx_set_zero : first_idx_set_zero + 2] = [0, 0]
-
-    pad_beginning = tuple(pad_beginning_list)
-    pad_end = tuple(pad_end_list)
-    pad_middle = tuple(pad_middle_list)
-
-    if amount_of_processes >= array.shape[array.split]:
-        last_ps_with_data = array.shape[array.split] - 1
+    if 0 in list(array.lshape):
+        padded_torch_tensor = torch.tensor([])
     else:
-        last_ps_with_data = amount_of_processes - 1
+        if array.split is None or array.split not in pad_dim or amount_of_processes == 1:
+            # values = scalar
+            if isinstance(values, int) or isinstance(values, float):
+                padded_torch_tensor = torch.nn.functional.pad(array_torch, pad, mode, values)
+            # values = sequence with one value for all dimensions
+            elif len(values) == 1 and (isinstance(values[0], int) or isinstance(values[0], float)):
+                padded_torch_tensor = torch.nn.functional.pad(array_torch, pad, mode, values[0])
+            else:
+                padded_torch_tensor = array_torch
+                for i in range(len(value_tuple) - 1, -1, -1):
+                    pad_list = [0] * 2 * rank_array
+                    pad_list[i] = pad[i]
+                    pad_tuple = tuple(pad_list)
+                    padded_torch_tensor = torch.nn.functional.pad(
+                        padded_torch_tensor, pad_tuple, mode, value_tuple[i]
+                    )
 
-    rank = array.comm.rank
-
-    # first process - pad beginning
-    if rank == 0:
-        pad_tuple_curr_rank = pad_beginning
-
-    # last process - pad end
-    elif rank == last_ps_with_data:
-        pad_tuple_curr_rank = pad_end
-
-    # pad middle
-    else:
-        pad_tuple_curr_rank = pad_middle
-
-    if isinstance(values, int) or isinstance(values, float):
-        padded_torch_tensor = torch.nn.functional.pad(
-            array_torch, pad_tuple_curr_rank, mode, values
-        )
-
-    elif len(values) == 1 and (isinstance(values[0], int) or isinstance(values[0], float)):
-        padded_torch_tensor = torch.nn.functional.pad(
-            array_torch, pad_tuple_curr_rank, mode, values[0]
-        )
-
-    else:
-        padded_torch_tensor = array_torch
-        for i in range(len(value_tuple) - 1, -1, -1):
-            pad_list = [0] * 2 * rank_array
-            pad_list[i] = pad_tuple_curr_rank[i]
-            pad_tuple = tuple(pad_list)
-            padded_torch_tensor = torch.nn.functional.pad(
-                padded_torch_tensor, pad_tuple, mode, value_tuple[i]
+            padded_tensor = dndarray.DNDarray(
+                array=padded_torch_tensor,
+                gshape=output_shape,
+                dtype=array.dtype,
+                split=array.split,
+                device=array.device,
+                comm=array.comm,
             )
 
-    padded_tensor = dndarray.DNDarray(
-        array=padded_torch_tensor,
-        gshape=output_shape,
-        dtype=array.dtype,
-        split=array.split,
-        device=array.device,
-        comm=array.comm,
-    )
+        #        return padded_tensor
+        else:
+
+            # ------------------------------------------------------------------------------------------------------------------
+            # CASE 2: padding in split dimension and function runs on more than 1 process
+            #
+            # Pad only first/last tensor portion on node (i.e. only beginning/end in split dimension)
+            # --> "Calculate" pad tuple for the corresponding tensor portion/ the two indices which have to be set to zero
+            #      in different paddings depending on the dimension
+            #       Calculate the index of the first element in tuple that has to change/set to zero in
+            #       some dimensions (the following is the second)
+            # ------------------------------------------------------------------------------------------------------------------
+
+            pad_beginning_list = list(pad)
+            pad_end_list = list(pad)
+            pad_middle_list = list(pad)
+
+            # calculate the corresponding pad tuples
+
+            first_idx_set_zero = 2 * (rank_array - array.split - 1)
+
+            pad_end_list[first_idx_set_zero] = 0
+            pad_beginning_list[first_idx_set_zero + 1] = 0
+            pad_middle_list[first_idx_set_zero : first_idx_set_zero + 2] = [0, 0]
+
+            pad_beginning = tuple(pad_beginning_list)
+            pad_end = tuple(pad_end_list)
+            pad_middle = tuple(pad_middle_list)
+
+            if amount_of_processes >= array.shape[array.split]:
+                last_ps_with_data = array.shape[array.split] - 1
+            else:
+                last_ps_with_data = amount_of_processes - 1
+
+            rank = array.comm.rank
+
+            # first process - pad beginning
+            if rank == 0:
+                pad_tuple_curr_rank = pad_beginning
+
+            # last process - pad end
+            elif rank == last_ps_with_data:
+                pad_tuple_curr_rank = pad_end
+
+            # pad middle
+            else:
+                pad_tuple_curr_rank = pad_middle
+
+            if isinstance(values, int) or isinstance(values, float):
+                padded_torch_tensor = torch.nn.functional.pad(
+                    array_torch, pad_tuple_curr_rank, mode, values
+                )
+
+            elif len(values) == 1 and (isinstance(values[0], int) or isinstance(values[0], float)):
+                padded_torch_tensor = torch.nn.functional.pad(
+                    array_torch, pad_tuple_curr_rank, mode, values[0]
+                )
+
+            else:
+                padded_torch_tensor = array_torch
+                for i in range(len(value_tuple) - 1, -1, -1):
+                    pad_list = [0] * 2 * rank_array
+                    pad_list[i] = pad_tuple_curr_rank[i]
+                    pad_tuple = tuple(pad_list)
+                    padded_torch_tensor = torch.nn.functional.pad(
+                        padded_torch_tensor, pad_tuple, mode, value_tuple[i]
+                    )
+
+            padded_tensor = dndarray.DNDarray(
+                array=padded_torch_tensor,
+                gshape=output_shape,
+                dtype=array.dtype,
+                split=array.split,
+                device=array.device,
+                comm=array.comm,
+            )
 
     # TODO ensure correct balancing
-    # if not padded_tensor.is_balanced():
-    #    padded_tensor.balance_()
+    if padded_tensor.is_distributed() and not padded_tensor.is_balanced():
+        padded_tensor.balance_()
 
     return padded_tensor
 
