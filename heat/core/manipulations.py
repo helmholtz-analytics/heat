@@ -1050,14 +1050,14 @@ def pad(array, pad_width, mode="constant", values=0):
                         padded_torch_tensor, pad_tuple, mode, value_tuple[i]
                     )
 
-            padded_tensor = dndarray.DNDarray(
-                array=padded_torch_tensor,
-                gshape=output_shape,
-                dtype=array.dtype,
-                split=array.split,
-                device=array.device,
-                comm=array.comm,
-            )
+            # padded_tensor = dndarray.DNDarray(
+            #     array=padded_torch_tensor,
+            #     gshape=output_shape,
+            #     dtype=array.dtype,
+            #     split=array.split,
+            #     device=array.device,
+            #     comm=array.comm,
+            # )
 
         #        return padded_tensor
         else:
@@ -1127,18 +1127,18 @@ def pad(array, pad_width, mode="constant", values=0):
                         padded_torch_tensor, pad_tuple, mode, value_tuple[i]
                     )
 
-            padded_tensor = dndarray.DNDarray(
-                array=padded_torch_tensor,
-                gshape=output_shape,
-                dtype=array.dtype,
-                split=array.split,
-                device=array.device,
-                comm=array.comm,
-            )
+    padded_tensor = dndarray.DNDarray(
+        array=padded_torch_tensor,
+        gshape=output_shape,
+        dtype=array.dtype,
+        split=array.split,
+        device=array.device,
+        comm=array.comm,
+    )
 
     # TODO ensure correct balancing
-    if padded_tensor.is_distributed() and not padded_tensor.is_balanced():
-        padded_tensor.balance_()
+    # if padded_tensor.is_distributed() and not padded_tensor.is_balanced():
+    #    padded_tensor.balance_()
 
     return padded_tensor
 
