@@ -1017,6 +1017,7 @@ class TestManipulations(BasicTest):
         )
 
         print(f"\n\nLShape Heat Rank {rank}: {pad_ht_split.lshape}")
+        print(f"\n\nGShape Heat Rank {rank}: {pad_ht_split.gshape}")
 
         # padding in edge case (empty local tensor)
         if rank >= data_ht_split.gshape[data_ht_split.split]:

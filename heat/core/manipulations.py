@@ -1105,7 +1105,7 @@ def pad(array, pad_width, mode="constant", values=0):
                     padded_torch_tensor = torch.nn.functional.pad(
                         padded_torch_tensor, pad_tuple, mode, value_tuple[i]
                     )
-    print(f"Output gshape: {output_shape}")
+
     padded_tensor = dndarray.DNDarray(
         array=padded_torch_tensor,
         gshape=output_shape,
@@ -1116,8 +1116,8 @@ def pad(array, pad_width, mode="constant", values=0):
     )
 
     # TODO ensure correct balancing
-    # if padded_tensor.is_distributed() and not padded_tensor.is_balanced():
-    #    padded_tensor.balance_()
+    if padded_tensor.is_distributed() and not padded_tensor.is_balanced():
+        padded_tensor.balance_()
 
     return padded_tensor
 
