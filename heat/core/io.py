@@ -406,7 +406,6 @@ else:
                     var = handle.createVariable(
                         variable, data.dtype.char(), dimension_names, **kwargs
                     )
-                var.set_collective(True)
 
                 start, count, stride, _ = nc.utils._StartCountStride(
                     elem=file_slices,
@@ -449,9 +448,16 @@ else:
                     b = None if b < 0 else b
                     new_slices.append(slice(a, b, c))
 
-                var[tuple(new_slices)] = (
-                    data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
-                )
+                try:
+                    var[tuple(new_slices)] = (
+                        data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
+                    )
+                except RuntimeError:
+                    var.set_collective(True)
+                    var[tuple(new_slices)] = (
+                        data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
+                    )
+
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:

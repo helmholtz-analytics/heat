@@ -254,9 +254,10 @@ class TestIO(unittest.TestCase):
                 self.assertTrue((one._DNDarray__array == comparison).all())
 
             # indexing netcdf file: multiple indices
-            small_range = ht.arange(5, split=0, device=ht_device)
+            small_range_split = ht.arange(5, split=0, device=ht_device)
+            small_range = ht.arange(5, device=ht_device)
             indices = [[0, 1, 2, 3, 4]]
-            small_range.save(
+            small_range_split.save(
                 self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=indices
             )
             if split_range.comm.rank == 0:
@@ -267,9 +268,8 @@ class TestIO(unittest.TestCase):
                 self.assertTrue((small_range._DNDarray__array == comparison).all())
 
             # slicing netcdf file
-            small_range = ht.arange(5, split=0, device=ht_device)
             sslice = slice(7, 2, -1)
-            small_range.save(
+            small_range_split.save(
                 self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=sslice
             )
             if split_range.comm.rank == 0:
