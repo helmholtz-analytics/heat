@@ -1274,7 +1274,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     if not keepdim and output_shape[0] == 1:
         percentile = percentile.squeeze(axis=0)
 
-    percentile.resplit_(axis=None)
+    # percentile.resplit_(axis=None)
 
     return percentile
 
