@@ -1145,7 +1145,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         """
         Process-local percentile calculations
         Input:
-        data, torch.tensor
+        data, ht.tensor
         axis, int or TODO tuple of ints
         indices, torch.tensor or list or tuple or scalar
 
@@ -1153,7 +1153,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         percentile, torch.tensor, process-local
         """
 
-        axis_slice = data.ndim * (slice(None, None, None),)
+        axis_slice = data.numdims * (slice(None, None, None),)
         if indices.dtype == torch.long or indices.dtype == torch.int:
             # interpolation 'lower', 'higher', or 'nearest'
             axis_slice = axis_slice[:axis] + (indices.tolist(),) + axis_slice[axis + 1 :]
@@ -1163,13 +1163,14 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             ceil_indices = floor_indices + 1.0  # this one might spill over into next process: halo
             floor_slice = axis_slice[:axis] + (floor_indices.tolist(),) + axis_slice[axis + 1 :]
             ceil_slice = axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
-            lows = data[floor_slice]
+            lows = data._DNDarray__array[floor_slice]
             if ceil_indices.max().item() == chunk_stop:
                 data.get_halo(1)
-                highs = data.array_with_halos[ceil_slice]
+                highs = data.array_with_halos._DNDarray__array[ceil_slice]
             else:
-                highs = data[ceil_slice]
-            weights_shape = x.numdims * (1,)
+                highs = data._DNDarray__array[ceil_slice]
+            # NB: from now on, local (torch) operations
+            weights_shape = data.numdims * (1,)
             weights_shape = weights_shape[:axis] + (indices.shape[0],) + weights_shape[axis + 1 :]
             weights = torch.sub(
                 indices.reshape(weights_shape), torch.floor(indices).reshape(weights_shape)
@@ -1180,7 +1181,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             if axis != 0:
                 # dimension 'axis' corresponds to the number of percentiles q.numel()
                 # permute to have the number of percentiles at dimension 0
-                dims = tuple(range(data.ndim))
+                dims = tuple(range(data.numdims))
                 permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
                 percentile = percentile.permute(permute_dims)
 
@@ -1224,12 +1225,16 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     else:
         split = x.split
 
-    offset, _, chunk = x.comm.chunk(x.gshape, x.split)
-    chunk_start = chunk[x.split].start
-    chunk_stop = chunk[x.split].stop
-
     length = x.gshape[axis]
     indices = q.type(torch.float) / 100 * (length - 1)
+
+    if x.is_distributed() and x.split is not None:
+        offset, _, chunk = x.comm.chunk(x.gshape, x.split)
+        chunk_start = chunk[x.split].start
+        chunk_stop = chunk[x.split].stop
+    else:
+        offset = 0
+        chunk_stop = length
 
     if interpolation == "lower":
         indices = indices.floor().type(torch.long)
@@ -1247,11 +1252,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             "Invalid interpolation method. Interpolation can be 'lower', 'higher', 'midpoint', 'nearest', or 'linear'."
         )
 
-    data = (
-        manipulations.sort(x, axis=axis)[0]
-        .astype(types.canonical_heat_type(float))
-        ._DNDarray__array
-    )
+    data = manipulations.sort(x, axis=axis)[0].astype(types.canonical_heat_type(float))
 
     if x.comm.is_distributed() and x.split is not None and x.split == axis:
         indices = indices[(indices < chunk_stop) & (indices >= chunk_start)] - offset
