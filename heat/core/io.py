@@ -450,14 +450,17 @@ else:
 
                 try:
                     var[tuple(new_slices)] = (
-                        data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
+                        data._DNDarray__array.cpu()
+                        if is_split
+                        else data._DNDarray__array[slices].cpu()
                     )
                 except RuntimeError:
                     var.set_collective(True)
                     var[tuple(new_slices)] = (
-                        data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
+                        data._DNDarray__array.cpu()
+                        if is_split
+                        else data._DNDarray__array[slices].cpu()
                     )
-
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
