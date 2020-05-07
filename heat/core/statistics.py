@@ -1145,7 +1145,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         """
         Process-local percentile calculations
         Input:
-        x, torch.tensor
+        data, torch.tensor
         axis, int or TODO tuple of ints
         indices, torch.tensor or list or tuple or scalar
 
@@ -1161,31 +1161,28 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         else:
             floor_indices = torch.floor(indices).type(torch.long)
             ceil_indices = floor_indices + 1.0  # this one might spill over into next process: halo
-            if ceil_indices.max().item() < chunk_stop:
-                floor_slice = axis_slice[:axis] + (floor_indices.tolist(),) + axis_slice[axis + 1 :]
-                ceil_slice = axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
-                lows = data[floor_slice]
-                highs = data[ceil_slice]
-                weights_shape = x.numdims * (1,)
-                weights_shape = weights_shape[:axis] + (q.shape[0],) + weights_shape[axis + 1 :]
-                weights = torch.sub(
-                    indices.reshape(weights_shape), torch.floor(indices).reshape(weights_shape)
-                )
-
-                percentile = lows + weights * (torch.sub(highs, lows))
-
-                if axis != 0:
-                    # at this point, dim 'axis' corresponds to the number of percentiles q.numel()
-                    # permute to have the percentiles at dim 0
-                    dims = tuple(range(data.numdims))
-                    permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
-                    percentile = percentile.permute(permute_dims)
+            floor_slice = axis_slice[:axis] + (floor_indices.tolist(),) + axis_slice[axis + 1 :]
+            ceil_slice = axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
+            lows = data[floor_slice]
+            if ceil_indices.max().item() == chunk_stop:
+                data.get_halo(1)
+                highs = data.array_with_halos[ceil_slice]
             else:
-                # TODO: update after merging PR #541
-                percentile = torch.tensor([])
-                raise NotImplementedError(
-                    "Floor index on process, ceil index out of process: not implemented yet. (Cannot see my halo, halo, halo...)"
-                )
+                highs = data[ceil_slice]
+            weights_shape = x.numdims * (1,)
+            weights_shape = weights_shape[:axis] + (indices.shape[0],) + weights_shape[axis + 1 :]
+            weights = torch.sub(
+                indices.reshape(weights_shape), torch.floor(indices).reshape(weights_shape)
+            )
+
+            percentile = lows + weights * (torch.sub(highs, lows))
+
+            if axis != 0:
+                # dimension 'axis' corresponds to the number of percentiles q.numel()
+                # permute to have the number of percentiles at dimension 0
+                dims = tuple(range(data.ndim))
+                permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
+                percentile = percentile.permute(permute_dims)
 
             return percentile
 
@@ -1207,7 +1204,6 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         )
 
     output_shape = (q.shape[0],) + x.gshape[:axis] + x.gshape[axis + 1 :]
-    split = x.split if x.split < len(output_shape) else None
 
     if axis is None and x.numdims > 1:
         if not x.comm.is_distributed() or x.split is None:
@@ -1223,10 +1219,18 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
                 "Percentile of distributed tensor not implemented yet if axis is None."
             )
 
+    if x.split is None or x.split == axis:
+        split = None
+    else:
+        split = x.split
+
     if x.comm.is_distributed() and x.split is not None and x.split == axis:
-        _, _, chunk = x.comm.chunk(x.gshape, x.split)
+        offset, _, chunk = x.comm.chunk(x.gshape, x.split)
         chunk_start = chunk[x.split].start
         chunk_stop = chunk[x.split].stop
+    else:
+        offset = 0
+        chunk_stop = x.gshape[axis]
 
     length = x.gshape[axis]
     indices = q.type(torch.float) / 100 * (length - 1)
@@ -1254,7 +1258,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     )
 
     if x.comm.is_distributed() and x.split is not None and x.split == axis:
-        indices = indices[(indices < chunk_stop) & (indices >= chunk_start)]
+        indices = indices[(indices < chunk_stop) & (indices >= chunk_start)] - offset
 
     if indices.numel() == 0:
         result = torch.tensor([])
@@ -1271,9 +1275,9 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     )
 
     if not keepdim and output_shape[0] == 1:
-        percentile = percentile.squeeze(dim=0)
+        percentile = percentile.squeeze(axis=0)
 
-    # TODO: SET X BACK TO X_ORIG, DELETE X_ORIG
+    percentile.resplit_(axis=None)
 
     return percentile
 
