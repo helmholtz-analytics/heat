@@ -1224,13 +1224,9 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     else:
         split = x.split
 
-    if x.comm.is_distributed() and x.split is not None and x.split == axis:
-        offset, _, chunk = x.comm.chunk(x.gshape, x.split)
-        chunk_start = chunk[x.split].start
-        chunk_stop = chunk[x.split].stop
-    else:
-        offset = 0
-        chunk_stop = x.gshape[axis]
+    offset, _, chunk = x.comm.chunk(x.gshape, x.split)
+    chunk_start = chunk[x.split].start
+    chunk_stop = chunk[x.split].stop
 
     length = x.gshape[axis]
     indices = q.type(torch.float) / 100 * (length - 1)
