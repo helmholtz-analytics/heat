@@ -1015,21 +1015,10 @@ def pad(array, pad_width, mode="constant", values=0):
 
     output_shape = tuple(output_shape_list)
 
-    # no data - return array with adapted gshape
-    # TODO how to keep lshape unchanged
-    # if 0 in array.lshape:
-    #     return dndarray.DNDarray(
-    #         array=array,
-    #         gshape=output_shape,
-    #         dtype=array.dtype,
-    #         split=array.split,
-    #         device=array.device,
-    #         comm=array.comm,
-    #     )
-
     # -------------------------------------------------------------------------------------------------------------------
     # CASE 1: Padding in non split dimension or no distribution at all
     # ------------------------------------------------------------------------------------------------------------------
+    # no data
     if 0 in list(array.lshape):
         padded_torch_tensor = torch.tensor([])
     else:
@@ -1050,16 +1039,6 @@ def pad(array, pad_width, mode="constant", values=0):
                         padded_torch_tensor, pad_tuple, mode, value_tuple[i]
                     )
 
-            # padded_tensor = dndarray.DNDarray(
-            #     array=padded_torch_tensor,
-            #     gshape=output_shape,
-            #     dtype=array.dtype,
-            #     split=array.split,
-            #     device=array.device,
-            #     comm=array.comm,
-            # )
-
-        #        return padded_tensor
         else:
 
             # ------------------------------------------------------------------------------------------------------------------
@@ -1126,7 +1105,7 @@ def pad(array, pad_width, mode="constant", values=0):
                     padded_torch_tensor = torch.nn.functional.pad(
                         padded_torch_tensor, pad_tuple, mode, value_tuple[i]
                     )
-
+    print(f"Output gshape: {output_shape}")
     padded_tensor = dndarray.DNDarray(
         array=padded_torch_tensor,
         gshape=output_shape,
