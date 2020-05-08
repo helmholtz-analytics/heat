@@ -1187,9 +1187,8 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             percentile = lows + weights * (torch.sub(highs, lows))
 
             if axis != 0:
-                # dimension 'axis' corresponds to the number of percentiles q.numel()
                 # permute to have the number of percentiles at dimension 0
-                dims = tuple(range(data.numdims))
+                dims = tuple(range(percentile.ndim))
                 permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
                 percentile = percentile.permute(permute_dims)
 
@@ -1211,6 +1210,9 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         raise TypeError(
             "Only ht.tensors, numeric scalars and lists are supported, but q was {}".format(type(q))
         )
+
+    if keepdim:
+        raise NotImplementedError("keepdim=True not implemented yet for ht.percentile()")
 
     if axis is None:
         if x.numdims > 1:
@@ -1271,11 +1273,8 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         comm=x.comm,
     )
 
-    if not keepdim:
-        axis = tuple(dim + 1 for dim in [axis])
-        if q.numel() == 1:
-            axis = (0,) + axis
-        percentile = percentile.squeeze(axis=axis)
+    if q.numel() == 1:
+        percentile = percentile.squeeze(axis=0)
 
     # percentile.resplit_(axis=None)
 
