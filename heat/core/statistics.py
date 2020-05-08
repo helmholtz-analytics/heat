@@ -1166,10 +1166,11 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             lows = data._DNDarray__array[floor_slice]
             if ceil_indices.max().item() == chunk_stop:
                 data.get_halo(1)
-                highs = data.array_with_halos._DNDarray__array[ceil_slice]
+                # data.array_with_halos is a torch tensor
+                highs = data.array_with_halos[ceil_slice]
             else:
                 highs = data._DNDarray__array[ceil_slice]
-            # NB: from now on, local (torch) operations
+            # NB: from here on, local (torch) operations
             weights_shape = data.numdims * (1,)
             weights_shape = weights_shape[:axis] + (indices.shape[0],) + weights_shape[axis + 1 :]
             weights = torch.sub(
