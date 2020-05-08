@@ -1160,17 +1160,24 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             percentile = data[axis_slice]
         else:
             floor_indices = torch.floor(indices).type(torch.long)
-            ceil_indices = floor_indices + 1.0  # this one might spill over into next process: halo
             floor_slice = axis_slice[:axis] + (floor_indices.tolist(),) + axis_slice[axis + 1 :]
-            ceil_slice = axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
             lows = data._DNDarray__array[floor_slice]
-            if ceil_indices.max().item() == chunk_stop:
-                data.get_halo(1)
-                # data.array_with_halos is a torch tensor
-                highs = data.array_with_halos[ceil_slice]
+            ceil_indices = floor_indices + 1.0  # this one might spill over into next process: halo
+            ceil_slice = axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
+            if ceil_indices.max().item() == chunk_stop - offset:
+                if axis == data.split:
+                    data.get_halo(1)
+                    highs = data.array_with_halos[ceil_slice]
+                else:
+                    # max percentile is 100.0
+                    ceil_indices[ceil_indices.argmax()] -= 1
+                    ceil_slice = (
+                        axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
+                    )
+                    highs = data._DNDarray__array[ceil_slice]
             else:
                 highs = data._DNDarray__array[ceil_slice]
-            # NB: from here on, local (torch) operations
+            # from here on, local (torch) operations
             weights_shape = data.numdims * (1,)
             weights_shape = weights_shape[:axis] + (indices.shape[0],) + weights_shape[axis + 1 :]
             weights = torch.sub(
@@ -1223,14 +1230,6 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     length = x.gshape[axis]
     indices = q.type(torch.float) / 100 * (length - 1)
 
-    if x.is_distributed() and x.split is not None:
-        offset, _, chunk = x.comm.chunk(x.gshape, x.split)
-        chunk_start = chunk[x.split].start
-        chunk_stop = chunk[x.split].stop
-    else:
-        offset = 0
-        chunk_stop = length
-
     if interpolation == "lower":
         indices = indices.floor().type(torch.long)
     elif interpolation == "higher":
@@ -1247,10 +1246,16 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             "Invalid interpolation method. Interpolation can be 'lower', 'higher', 'midpoint', 'nearest', or 'linear'."
         )
 
-    data = manipulations.sort(x, axis=axis)[0].astype(types.canonical_heat_type(float))
-
     if x.comm.is_distributed() and x.split is not None and x.split == axis:
+        offset, _, chunk = x.comm.chunk(x.gshape, x.split)
+        chunk_start = chunk[x.split].start
+        chunk_stop = chunk[x.split].stop
         indices = indices[(indices < chunk_stop) & (indices >= chunk_start)] - offset
+    else:
+        offset = 0
+        chunk_stop = length
+
+    data = manipulations.sort(x, axis=axis)[0].astype(types.canonical_heat_type(float))
 
     if indices.numel() == 0:
         result = torch.tensor([])
