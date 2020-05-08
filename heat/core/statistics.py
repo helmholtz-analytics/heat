@@ -1204,21 +1204,15 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             "Only ht.tensors, numeric scalars and lists are supported, but q was {}".format(type(q))
         )
 
-    output_shape = (q.shape[0],) + x.gshape[:axis] + x.gshape[axis + 1 :]
-
-    if axis is None and x.numdims > 1:
-        if not x.comm.is_distributed() or x.split is None:
+    if axis is None:
+        if x.numdims > 1:
             x = x.copy()
-            flat_shape = (x.__DNDarray__array.numel(),)
-            x = dndarray.DNDarray(
-                x.__DNDarray__array.flatten(), flat_shape, split=None, device=x.device, comm=x.comm
-            )
-            axis = 0
-        else:
-            # TODO replace following with ht.flatten()
-            raise NotImplementedError(
-                "Percentile of distributed tensor not implemented yet if axis is None."
-            )
+            x = x.flatten()
+        elif x.numdims < 1:
+            x = factories.array([x._DNDarray__array], dtype=x.dtype, device=x.device, comm=x.comm)
+        axis = 0
+
+    output_shape = (q.shape[0],) + x.gshape[:axis] + x.gshape[axis + 1 :]
 
     if x.split is None or x.split == axis:
         split = None
