@@ -243,22 +243,24 @@ class TestIO(unittest.TestCase):
                 )
 
             # indexing netcdf file: single index
-            one = ht.ones(1, device=ht_device)
-            indices = [-1]
-            one.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=indices)
+            zeros = ht.zeros((20,1,20,2), device=ht_device)
+            zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
+            ones = ht.ones(20, device=ht_device)
+            indices = (-1,0,slice(None),1)
+            ones.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=indices)
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
                         handle[self.NETCDF_VARIABLE][indices], dtype=torch.int32, device=device
                     )
-                self.assertTrue((one._DNDarray__array == comparison).all())
+                self.assertTrue((ones._DNDarray__array == comparison).all())
 
             # indexing netcdf file: multiple indices
-            small_range_split = ht.arange(5, split=0, device=ht_device)
-            small_range = ht.arange(5, device=ht_device)
-            indices = [[0, 1, 2, 3, 4]]
+            small_range_split = ht.arange(10, split=0, device=ht_device)
+            small_range = ht.arange(10, device=ht_device)
+            indices = [[0, 9, 5, 2, 1, 3, 7, 4, 8, 6]]
             small_range_split.save(
-                self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=indices
+                self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w", file_slices=indices
             )
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
@@ -269,7 +271,9 @@ class TestIO(unittest.TestCase):
 
             # slicing netcdf file
             sslice = slice(7, 2, -1)
-            small_range_split.save(
+            range_five_split = ht.arange(5, split=0, device=ht_device)
+            range_five = ht.arange(5, device=ht_device)
+            range_five_split.save(
                 self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=sslice
             )
             if split_range.comm.rank == 0:
@@ -277,7 +281,7 @@ class TestIO(unittest.TestCase):
                     comparison = torch.tensor(
                         handle[self.NETCDF_VARIABLE][sslice], dtype=torch.int32, device=device
                     )
-                self.assertTrue((small_range._DNDarray__array == comparison).all())
+                self.assertTrue((range_five._DNDarray__array == comparison).all())
 
     def test_save_exception(self):
         data = ht.arange(1, device=ht_device)

@@ -1,6 +1,7 @@
 import os.path
 
 import torch
+import numpy as np
 import warnings
 
 from heat.core import factories
@@ -406,48 +407,67 @@ else:
                     var = handle.createVariable(
                         variable, data.dtype.char(), dimension_names, **kwargs
                     )
-
-                start, count, stride, _ = nc.utils._StartCountStride(
+                start, count, stride, inds = nc.utils._StartCountStride(
                     elem=file_slices,
                     shape=var.shape,
-                    dimensions=dimension_names,
+                    dimensions=var.dimensions,
                     grp=var.group(),
                     datashape=data.shape,
                     put=True,
                 )
-                start = start.reshape(-1)
-                count = count.reshape(-1)
-                stride = stride.reshape(-1)
+                start, count, stride = start.T, count.T, stride.T  # transpose for iteration
                 stop = start + stride * count
                 new_slices = []
-                for begin, end, step, htSlice in zip(start, stop, stride, slices):
-                    """
-                    We need var[file_slices][htSlices] = data, but netcdf can
-                    only parallelize the first call. Therefore, we need to
-                    merge the slices:
-                    var[new_slices] = data
-                    Because slices cannot be sliced but are similar to ranges
-                    (i.e. consist of start, stop, step) which can be sliced:
-                    1) Build a range
-                    2) slice the range
-                    3) Build slice of the resulting range
-                    """
-                    range_from_slice = range(begin, end, step)
-                    sliced = range_from_slice[htSlice]
-                    a, b, c = sliced.start, sliced.stop, sliced.step
-                    """
-                    Negative values in ranges exist to include zero (in case of
-                    negative stride) and actual negative numbers. This is
-                    incompatible with negative slicing. Because
-                    nc.utils._StartCountStride already transforms negative
-                    slice-indices to their corresponding positive value,
-                    negative values at this point only include zero. In slices,
-                    this is done by using None.
-                    """
-                    a = None if a < 0 else a
-                    b = None if b < 0 else b
-                    new_slices.append(slice(a, b, c))
 
+                htSlices = list(slices)
+                shape_index = 0
+                for i in range(count.shape[0]):  # append fixed dimensions to heat slices
+                    if shape_index >= len(data.shape):
+                        htSlices.append(slice(None))
+                    elif count[i].sum() != data.shape[shape_index]:
+                        htSlices.insert(i, slice(None))
+                    else:
+                        shape_index += 1
+                htSlices = tuple(htSlices)
+
+                for begin, end, step, htSlice in zip(start, stop, stride, htSlices):
+                    if begin.size == 1:
+                        begin, end, step = begin.item(), end.item(), step.item()
+                        """
+                        We need var[file_slices][htSlices] = data, but netcdf can
+                        only parallelize the first call. Therefore, we need to
+                        merge the slices:
+                        var[new_slices] = data
+                        Because slices cannot be sliced but are similar to ranges
+                        (i.e. consist of start, stop, step) which can be sliced:
+                        1) Build a range
+                        2) slice the range
+                        3) Build slice of the resulting range
+                        """
+                        range_from_slice = range(begin, end, step)
+                        sliced = range_from_slice[htSlice]
+                        a, b, c = sliced.start, sliced.stop, sliced.step
+                        """
+                        Negative values in ranges exist to include zero (in case of
+                        negative stride) and actual negative numbers. This is
+                        incompatible with negative slicing. Because
+                        nc.utils._StartCountStride already transforms negative
+                        slice-indices to their corresponding positive value,
+                        negative values at this point only include zero. In slices,
+                        this is done by using None.
+                        """
+                        a = None if a < 0 else a
+                        b = None if b < 0 else b
+                        new_slices.append(slice(a, b, c))
+                    else:
+                        """
+                        If there is more than one slice along one dimension, slice notation cannot be used.
+                        Fall back to using a list of integers as indices.
+                        """
+                        ranges = tuple(
+                            slice(b.item(), e.item(), s.item()) for b, e, s in zip(begin, end, step)
+                        )
+                        new_slices.append(np.r_[ranges][htSlice])
                 try:
                     var[tuple(new_slices)] = (
                         data._DNDarray__array.cpu()
@@ -484,18 +504,35 @@ else:
                         datashape=data.shape,
                         put=True,
                     )
-                    start = start.reshape(-1)
-                    count = count.reshape(-1)
-                    stride = stride.reshape(-1)
+                    start, count, stride = start.T, count.T, stride.T  # transpose for iteration
                     stop = start + stride * count
                     new_slices = []
-                    for begin, end, step, htSlice in zip(start, stop, stride, slices):
-                        range_from_slice = range(begin, end, step)
-                        sliced = range_from_slice[htSlice]
-                        a, b, c = sliced.start, sliced.stop, sliced.step
-                        a = None if a < 0 else a
-                        b = None if b < 0 else b
-                        new_slices.append(slice(a, b, c))
+
+                    htSlices = list(slices)
+                    shape_index = 0
+                    for i in range(count.shape[0]):  # append fixed dimensions to heat slices
+                        if shape_index >= len(data.shape):
+                            htSlices.append(slice(None))
+                        elif count[i].sum() != data.shape[shape_index]:
+                            htSlices.insert(i, slice(None))
+                        else:
+                            shape_index += 1
+                    htSlices = tuple(htSlices)
+
+                    for begin, end, step, htSlice in zip(start, stop, stride, htSlices):
+                        if begin.size == 1:
+                            range_from_slice = range(begin, end, step)
+                            sliced = range_from_slice[htSlice]
+                            a, b, c = sliced.start, sliced.stop, sliced.step
+                            a = None if a < 0 else a
+                            b = None if b < 0 else b
+                            new_slices.append(slice(a, b, c))
+                        else:
+                            ranges = tuple(
+                                slice(b.item(), e.item(), s.item())
+                                for b, e, s in zip(begin, end, step)
+                            )
+                            new_slices.append(np.r_[ranges][htSlice])
                     var[tuple(new_slices)] = data._DNDarray__array.cpu()
                 else:
                     var[file_slices] = data._DNDarray__array.cpu()
