@@ -521,6 +521,7 @@ else:
 
                     for begin, end, step, htSlice in zip(start, stop, stride, htSlices):
                         if begin.size == 1:
+                            begin, end, step = begin.item(), end.item(), step.item()
                             range_from_slice = range(begin, end, step)
                             sliced = range_from_slice[htSlice]
                             a, b, c = sliced.start, sliced.stop, sliced.step
