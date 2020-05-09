@@ -243,10 +243,10 @@ class TestIO(unittest.TestCase):
                 )
 
             # indexing netcdf file: single index
-            zeros = ht.zeros((20,1,20,2), device=ht_device)
+            zeros = ht.zeros((20, 1, 20, 2), device=ht_device)
             zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
             ones = ht.ones(20, device=ht_device)
-            indices = (-1,0,slice(None),1)
+            indices = (-1, 0, slice(None), 1)
             ones.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=indices)
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
