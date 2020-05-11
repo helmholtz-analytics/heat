@@ -1160,23 +1160,23 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             percentile = data[axis_slice]
         else:
             floor_indices = torch.floor(indices).type(torch.long)
-            floor_slice = axis_slice[:axis] + (floor_indices.tolist(),) + axis_slice[axis + 1 :]
-            lows = data._DNDarray__array[floor_slice]
+            axis_slice = axis_slice[:axis] + (floor_indices.tolist(),) + axis_slice[axis + 1 :]
+            lows = data._DNDarray__array[axis_slice]
             ceil_indices = floor_indices + 1.0  # this one might spill over into next process: halo
-            ceil_slice = axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
+            axis_slice = axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
             if ceil_indices.max().item() == chunk_stop - offset:
                 if axis == data.split:
                     data.get_halo(1)
-                    highs = data.array_with_halos[ceil_slice]
+                    highs = data.array_with_halos[axis_slice]
                 else:
                     # max percentile is 100.0
                     ceil_indices[ceil_indices.argmax()] -= 1
-                    ceil_slice = (
+                    axis_slice = (
                         axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
                     )
-                    highs = data._DNDarray__array[ceil_slice]
+                    highs = data._DNDarray__array[axis_slice]
             else:
-                highs = data._DNDarray__array[ceil_slice]
+                highs = data._DNDarray__array[axis_slice]
             # from here on, local (torch) operations
             weights_shape = data.numdims * (1,)
             weights_shape = weights_shape[:axis] + (indices.shape[0],) + weights_shape[axis + 1 :]
@@ -1191,6 +1191,9 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
                 dims = tuple(range(percentile.ndim))
                 permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
                 percentile = percentile.permute(permute_dims)
+
+            if 0 not in percentile.shape and q.numel() <= 1:
+                percentile.squeeze_(dim=0)
 
             return percentile
 
@@ -1222,12 +1225,10 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             x = factories.array([x._DNDarray__array], dtype=x.dtype, device=x.device, comm=x.comm)
         axis = 0
 
-    output_shape = (q.shape[0],) + x.gshape[:axis] + x.gshape[axis + 1 :]
-
-    if x.split is None or x.split == axis:
-        split = None
+    if q.numel() == 1:
+        output_shape = x.gshape[:axis] + x.gshape[axis + 1 :]
     else:
-        split = x.split
+        output_shape = (q.numel(),) + x.gshape[:axis] + x.gshape[axis + 1 :]
 
     length = x.gshape[axis]
     indices = q.type(torch.float) / 100 * (length - 1)
@@ -1268,15 +1269,21 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         result,
         output_shape,
         dtype=types.canonical_heat_type(torch.float),
-        split=split,
+        split=0,
         device=x.device,
         comm=x.comm,
     )
 
-    if q.numel() == 1:
-        percentile = percentile.squeeze(axis=0)
+    # TODO split semantics for percentile
+    # if x.split is None or axis is not None and x.split == axis:
+    #     new_split = None
+    # elif axis is not None and axis > x.split:
+    #     new_split = x.split
+    # elif axis is not None and axis < x.split:
+    #     new_split = x.split + 1
 
-    # percentile.resplit_(axis=None)
+    # if new_split != percentile.split:
+    #     percentile.resplit_(axis=new_split)
 
     return percentile
 
