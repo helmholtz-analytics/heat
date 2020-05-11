@@ -12,7 +12,7 @@ jobs:
           host: ${{ secrets.HDFML_HOST }}
           username: ${{ secrets.HDFML_NAME }}
           key: ${{ secrets.HDFML_KEY }}
-          envs: GITHUB_SHA
+          envs: GITHUB_SHA,GITHUB_REPOSITORY
           script: |
             cd ${{ secrets.HDFML_DIR }}
             cd heat
@@ -21,5 +21,6 @@ jobs:
             cd ..
             export SHA=$GITHUB_SHA
             export STATUS_TOKEN=${{ secrets.GITHUB_TOKEN }}
+            export REPOSITORY=$GITHUB_REPOSITORY
             sbatch test_batch_script.sh
-            curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d "{\"state\": \"pending\", \"description\": \"GPU Test Status $?\", \"context\": \"GPU Testing\"}" https://api.github.com/repos/mtar/heat/statuses/$SHA
+            curl -H "Content-Type: application/json" -H "Authorization: token $STATUS_TOKEN" -X POST -d "{\"state\": \"pending\", \"description\": \"GPU Test Status $?\", \"context\": \"GPU Testing\"}" https://api.github.com/repos/$REPOSITORY/statuses/$SHA
