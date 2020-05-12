@@ -81,6 +81,7 @@ class TestQR(unittest.TestCase):
         for t in range(1, 3):
             for sp in range(2):
                 a = ht.array(st, split=sp, device=ht_device, dtype=torch.float)
+                print(a.shape, t, sp)
                 qr = a.qr(tiles_per_proc=t)
                 self.assertTrue(ht.allclose((a_comp - (qr.Q @ qr.R)), 0, rtol=1e-5, atol=1e-5))
                 self.assertTrue(
@@ -111,6 +112,7 @@ class TestQR(unittest.TestCase):
             for sp in range(2):
                 a2 = ht.array(st2, split=sp, device=ht_device)
                 qr2 = a2.qr(tiles_per_proc=t)
+                # print(a_comp2 - (qr2.Q @ qr2.R))
                 self.assertTrue(ht.allclose(a_comp2, qr2.Q @ qr2.R, rtol=1e-5, atol=1e-5))
                 self.assertTrue(
                     ht.allclose(

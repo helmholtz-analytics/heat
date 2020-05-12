@@ -10,7 +10,7 @@ from .. import factories
 from .. import manipulations
 from .. import types
 
-__all__ = ["dot", "gen_house_vec", "matmul", "norm", "projection", "transpose", "tril", "triu"]
+__all__ = ["dot", "matmul", "norm", "projection", "transpose", "tril", "triu"]
 
 
 def dot(a, b, out=None):
@@ -73,72 +73,6 @@ def dot(a, b, out=None):
         return ret
     else:
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
-
-
-# @torch.jit.script
-def gen_house_mat(v, tau):
-    # type: (torch.Tensor, torch.Tensor) -> torch.Tensor
-    h = torch.eye(v.numel(), dtype=v.dtype, device=v.device)
-    h -= tau.item() * torch.matmul(v.T, v)
-    return h
-
-
-# @torch.jit.script
-def gen_house_vec(x, n=2):
-    # type: (torch.Tensor, int) -> Tuple[torch.Tensor, torch.Tensor]
-    """
-    What is implemented now is only generating ONE reflector, for more would need to implement the following:
-
-    Note, this overwrites x, todo: does it?
-    Parameters
-    ----------
-    n : int
-        order of the reflector
-    alpha : float
-        the value alpha
-    x : torch.Tensor
-        overwritten
-    overwrite: bool
-        if true: overwrite x with the transform vector
-        default: True
-
-    Returns
-    -------
-    tau : torch.Tensor
-        tau value
-    v : torch.Tensor
-        output vector
-    Notes
-    -----
-    https://www.netlib.org/lapack/explore-html/d8/d9b/group__double_o_t_h_e_rauxiliary_gaabb59655e820b3551af27781bd716143.html
-    What is implemented now is only generating ONE reflector, for more would need to implement the following:
-    http://icl.cs.utk.edu/plasma/docs/dlarft_8f_source.html
-
-    """
-    v = x.clone().reshape(-1, 1)
-    # if isinstance(alpha, (float, int)):
-    #     alpha = torch.tensor(alpha, device=x.device, dtype=x.dtype)
-    if n <= 1:
-        tau = torch.tensor(0, device=x.device, dtype=x.dtype)
-        return v, tau
-    # traditional householder generation
-    v[0] = 1.0
-    sig = v[1:].t() @ v[1:]
-    # tau = 0.
-    # if sig == 0 and x[0] >= 0:
-    #     tau = 0.
-    # elif sig == 0 and x[0] < 0:
-    #     tau = -2.
-    # else:
-    mu = (x[0] ** 2 + sig).sqrt()
-    if x[0] <= 0:
-        v[0] = x[0] - mu
-    else:
-        v[0] = (-1 * sig / (x[0] + mu))[0]
-    tau = 2 * v[0] ** 2 / (sig + v[0] ** 2)
-    v /= v[0].clone()
-
-    return v.reshape(1, -1), tau
 
 
 def matmul(a, b, allow_resplit=False):
