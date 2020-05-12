@@ -3058,6 +3058,12 @@ class DNDarray:
         Nothing
             The specified element/s (key) of self is set with the value
 
+        Notes
+        -----
+        If a DNDarray is given as the value to be set then the split axes are assumed to be equal.
+            If they are not, PyTorch will raise an error when the values are attempted to be set
+            on the local array
+
         Examples
         --------
         (2 processes)
@@ -3103,7 +3109,7 @@ class DNDarray:
                     ):
                         value = factories.array(value, split=self[key].split)
                     self.__setter(key, value)
-            elif isinstance(key, (tuple, list, torch.Tensor)):
+            elif isinstance(key, (tuple, torch.Tensor)):
                 if isinstance(key[self.split], slice):
                     key = list(key)
                     overlap = list(
