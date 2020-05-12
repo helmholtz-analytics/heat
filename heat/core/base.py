@@ -76,7 +76,7 @@ class BaseEstimator:
         for key, value in params.items():
             if key not in parameter_names:
                 raise ValueError(
-                    "Invalid parameter %s for estimator %s. Check the list of available parameters with `estimator.get_params().keys()`.".format(
+                    "Invalid parameter {} for estimator {}. Check the list of available parameters with `estimator.get_params().keys()`.".format(
                         key, self
                     )
                 )
