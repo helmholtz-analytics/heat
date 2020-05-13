@@ -317,6 +317,7 @@ else:
         dimension_names=None,
         is_unlimited=False,
         file_slices=slice(None),
+        debug=False,
         **kwargs
     ):
         """
@@ -394,6 +395,49 @@ else:
         is_split = data.split is not None
         _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
 
+        def mergeSlices(file_slices, var, data):
+            start, count, stride, _ = nc.utils._StartCountStride(
+                elem=file_slices,
+                shape=var.shape,
+                dimensions=dimension_names,
+                grp=var.group(),
+                datashape=data.shape,
+                put=True,
+            )
+            out_shape = nc._netCDF4._out_array_shape(count)
+            out_split = (
+                data.split + out_shape[: data.split].count(1) - data.shape[: data.split].count(1)
+            )
+            start, count, stride = start.T, count.T, stride.T  # transpose for iteration
+            stop = start + stride * count
+            new_slices = []
+
+            for begin, end, step in zip(start, stop, stride):
+                if begin.size == 1:
+                    begin, end, step = begin.item(), end.item(), step.item()
+                    new_slices.append(slice(begin, end, step))
+                else:
+                    ranges = tuple(
+                        slice(b.item(), e.item(), s.item()) for b, e, s in zip(begin, end, step)
+                    )
+                    new_slices.append(np.r_[ranges])
+            if isinstance(new_slices[out_split], slice):
+                start, stop, step = (
+                    new_slices[out_split].start,
+                    new_slices[out_split].stop,
+                    new_slices[out_split].step,
+                )
+                sliced = range(start, stop, step)[slices[data.split]]
+                a, b, c = sliced.start, sliced.stop, sliced.step
+                a = None if a < 0 else a
+                b = None if b < 0 else b
+                new_slices[out_split] = slice(a, b, c)
+            elif isinstance(new_slices[out_split], np.ndarray):
+                new_slices[out_split] = new_slices[out_split][slices[data.split]]
+            else:
+                new_slices[out_split] = np.r_[new_slices[out_split]][slices[data.split]]
+            return new_slices
+
         # attempt to perform parallel I/O if possible
         if __nc_has_par:
             with nc.Dataset(path, mode, parallel=True, comm=data.comm.handle) as handle:
@@ -407,6 +451,9 @@ else:
                     var = handle.createVariable(
                         variable, data.dtype.char(), dimension_names, **kwargs
                     )
+                # if file_slices is None:
+                #     new_slices = slices
+                # else:
                 start, count, stride, inds = nc.utils._StartCountStride(
                     elem=file_slices,
                     shape=var.shape,
@@ -415,59 +462,74 @@ else:
                     datashape=data.shape,
                     put=True,
                 )
+                out_shape = nc._netCDF4._out_array_shape(count)  # TODO: use this shape
+                out_split = (
+                    data.split
+                    + out_shape[: data.split].count(1)
+                    - data.shape[: data.split].count(1)
+                )
                 start, count, stride = start.T, count.T, stride.T  # transpose for iteration
                 stop = start + stride * count
                 new_slices = []
+                # print(inds, count, end="\n\n", flush=True)
+                # htSlices = list(slices)
+                # shape_index = 0
+                # for i in range(count.shape[0]):  # append fixed dimensions to heat slices
+                #     if shape_index >= len(data.shape):
+                #         htSlices.append(slice(None))
+                #     elif count[i].sum() != data.shape[shape_index]:
+                #         htSlices.insert(i, slice(None))
+                #     else:
+                #         shape_index += 1
+                # htSlices = tuple(htSlices)
 
-                htSlices = list(slices)
-                shape_index = 0
-                for i in range(count.shape[0]):  # append fixed dimensions to heat slices
-                    if shape_index >= len(data.shape):
-                        htSlices.append(slice(None))
-                    elif count[i].sum() != data.shape[shape_index]:
-                        htSlices.insert(i, slice(None))
-                    else:
-                        shape_index += 1
-                htSlices = tuple(htSlices)
-
-                for begin, end, step, htSlice in zip(start, stop, stride, htSlices):
+                for begin, end, step in zip(start, stop, stride):  # htSlice, htSlices):
                     if begin.size == 1:
                         begin, end, step = begin.item(), end.item(), step.item()
-                        """
-                        We need var[file_slices][htSlices] = data, but netcdf can
-                        only parallelize the first call. Therefore, we need to
-                        merge the slices:
-                        var[new_slices] = data
-                        Because slices cannot be sliced but are similar to ranges
-                        (i.e. consist of start, stop, step) which can be sliced:
-                        1) Build a range
-                        2) slice the range
-                        3) Build slice of the resulting range
-                        """
-                        range_from_slice = range(begin, end, step)
-                        sliced = range_from_slice[htSlice]
-                        a, b, c = sliced.start, sliced.stop, sliced.step
-                        """
-                        Negative values in ranges exist to include zero (in case of
-                        negative stride) and actual negative numbers. This is
-                        incompatible with negative slicing. Because
-                        nc.utils._StartCountStride already transforms negative
-                        slice-indices to their corresponding positive value,
-                        negative values at this point only include zero. In slices,
-                        this is done by using None.
-                        """
-                        a = None if a < 0 else a
-                        b = None if b < 0 else b
-                        new_slices.append(slice(a, b, c))
+                        # # We need var[file_slices][htSlices] = data, but netcdf can
+                        # # only parallelize the first call. Therefore, we need to
+                        # # merge the slices:
+                        # # var[new_slices] = data
+                        # # Because slices cannot be sliced but are similar to ranges
+                        # # (i.e. consist of start, stop, step) which can be sliced:
+                        # # 1) Build a range
+                        # # 2) slice the range
+                        # # 3) Build slice of the resulting range
+                        # range_from_slice = range(begin, end, step)
+                        # sliced = range_from_slice[htSlice]
+                        # a, b, c = sliced.start, sliced.stop, sliced.step
+                        # # Negative values in ranges exist to include zero (in case of
+                        # # negative stride) and actual negative numbers. This is
+                        # # incompatible with negative slicing. Because
+                        # # nc.utils._StartCountStride already transforms negative
+                        # # slice-indices to their corresponding positive value,
+                        # # negative values at this point only include zero. In slices,
+                        # # this is done by using None.
+                        # a = None if a < 0 else a
+                        # b = None if b < 0 else b
+                        # new_slices.append(slice(a, b, c))
+                        new_slices.append(slice(begin, end, step))
                     else:
-                        """
-                        If there is more than one slice along one dimension, slice notation cannot be used.
-                        Fall back to using a list of integers as indices.
-                        """
+                        # If there is more than one slice along one dimension, slice notation cannot be used.
+                        # Fall back to using a list of integers as indices.
                         ranges = tuple(
                             slice(b.item(), e.item(), s.item()) for b, e, s in zip(begin, end, step)
                         )
-                        new_slices.append(np.r_[ranges][htSlice])
+                        new_slices.append(np.r_[ranges])  # [htSlice])
+                # Add chunk-slice to new_slices
+                if isinstance(new_slices[out_split], slice):
+                    start, stop, step = (
+                        new_slices[out_split].start,
+                        new_slices[out_split].stop,
+                        new_slices[out_split].step,
+                    )
+                    sliced = range(start, stop, step)[slices[data.split]]
+                    a, b, c = sliced.start, sliced.stop, sliced.step
+                    a = None if a < 0 else a
+                    b = None if b < 0 else b
+                    new_slices[out_split] = slice(a, b, c)
+                else:
+                    new_slices[out_split] = np.r_[new_slices[out_split]][slices[data.split]]
                 try:
                     var[tuple(new_slices)] = (
                         data._DNDarray__array.cpu()
@@ -495,6 +557,7 @@ else:
                     var = handle.createVariable(
                         variable, data.dtype.char(), dimension_names, **kwargs
                     )
+                var.set_collective(False)
                 if is_split:
                     start, count, stride, _ = nc.utils._StartCountStride(
                         elem=file_slices,
@@ -504,55 +567,148 @@ else:
                         datashape=data.shape,
                         put=True,
                     )
+                    out_shape = nc._netCDF4._out_array_shape(count)
+                    out_split = (
+                        data.split
+                        + out_shape[: data.split].count(1)
+                        - data.shape[: data.split].count(1)
+                    )
                     start, count, stride = start.T, count.T, stride.T  # transpose for iteration
                     stop = start + stride * count
                     new_slices = []
 
-                    htSlices = list(slices)
-                    shape_index = 0
-                    for i in range(count.shape[0]):  # append fixed dimensions to heat slices
-                        if shape_index >= len(data.shape):
-                            htSlices.append(slice(None))
-                        elif count[i].sum() != data.shape[shape_index]:
-                            htSlices.insert(i, slice(None))
-                        else:
-                            shape_index += 1
-                    htSlices = tuple(htSlices)
+                    # htSlices = list(slices)
+                    # shape_index = 0
+                    # for i in range(count.shape[0]):  # append fixed dimensions to heat slices
+                    #     if shape_index >= len(data.shape):
+                    #         htSlices.append(slice(None))
+                    #     elif count[i].sum() != data.shape[shape_index]:
+                    #         htSlices.insert(i, slice(None))
+                    #     else:
+                    #         shape_index += 1
+                    # htSlices = tuple(htSlices)
 
-                    for begin, end, step, htSlice in zip(start, stop, stride, htSlices):
+                    for begin, end, step in zip(start, stop, stride):  # htSlice, htSlices):
                         if begin.size == 1:
                             begin, end, step = begin.item(), end.item(), step.item()
-                            range_from_slice = range(begin, end, step)
-                            sliced = range_from_slice[htSlice]
-                            a, b, c = sliced.start, sliced.stop, sliced.step
-                            a = None if a < 0 else a
-                            b = None if b < 0 else b
-                            new_slices.append(slice(a, b, c))
+                            # range_from_slice = range(begin, end, step)
+                            # sliced = range_from_slice[htSlice]
+                            # a, b, c = sliced.start, sliced.stop, sliced.step
+                            # a = None if a < 0 else a
+                            # b = None if b < 0 else b
+                            # new_slices.append(slice(a, b, c))
+                            new_slices.append(slice(begin, end, step))
                         else:
                             ranges = tuple(
                                 slice(b.item(), e.item(), s.item())
                                 for b, e, s in zip(begin, end, step)
                             )
-                            new_slices.append(np.r_[ranges][htSlice])
+                            new_slices.append(np.r_[ranges])  # [htSlice])
+                    if isinstance(new_slices[out_split], slice):
+                        start, stop, step = (
+                            new_slices[out_split].start,
+                            new_slices[out_split].stop,
+                            new_slices[out_split].step,
+                        )
+                        sliced = range(start, stop, step)[slices[data.split]]
+                        a, b, c = sliced.start, sliced.stop, sliced.step
+                        a = None if a < 0 else a
+                        b = None if b < 0 else b
+                        new_slices[out_split] = slice(a, b, c)
+                    elif isinstance(new_slices[out_split], np.ndarray):
+                        new_slices[out_split] = new_slices[out_split][slices[data.split]]
+                    else:
+                        new_slices[out_split] = np.r_[new_slices[out_split]][slices[data.split]]
+                    if debug:
+                        print("root proc new", new_slices, flush=True)
                     var[tuple(new_slices)] = data._DNDarray__array.cpu()
                 else:
                     var[file_slices] = data._DNDarray__array.cpu()
-
+            if debug:
+                print("root proc finished writing", flush=True)
             # ping next rank if it exists
             if is_split and data.comm.size > 1:
                 data.comm.Isend([None, 0, MPI.INT], dest=1)
                 data.comm.Recv([None, 0, MPI.INT], source=data.comm.size - 1)
+                if debug:
+                    print("root proc received signal", flush=True)
 
         # no MPI, but data is split, we have to serialize the writes
         elif is_split:
             # wait for the previous rank to finish writing its chunk, then write own part
             data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
+            if debug:
+                print("non-root beginning", flush=True)
             with nc.Dataset(path, "r+") as handle:
-                handle[variable][file_slices][slices] = data._DNDarray__array.cpu()
+                var = handle.variables[variable]
+                start, count, stride, _ = nc.utils._StartCountStride(
+                    elem=file_slices,
+                    shape=var.shape,
+                    dimensions=dimension_names,
+                    grp=var.group(),
+                    datashape=data.shape,
+                    put=True,
+                )
+                out_shape = nc._netCDF4._out_array_shape(count)
+                out_split = (
+                    data.split
+                    + out_shape[: data.split].count(1)
+                    - data.shape[: data.split].count(1)
+                )
+                start, count, stride = start.T, count.T, stride.T  # transpose for iteration
+                stop = start + stride * count
+                new_slices = []
+
+                # htSlices = list(slices)
+                # shape_index = 0
+                # for i in range(count.shape[0]):  # append fixed dimensions to heat slices
+                #     if shape_index >= len(data.shape):
+                #         htSlices.append(slice(None))
+                #     elif count[i].sum() != data.shape[shape_index]:
+                #         htSlices.insert(i, slice(None))
+                #     else:
+                #         shape_index += 1
+                # htSlices = tuple(htSlices)
+
+                for begin, end, step in zip(start, stop, stride):  # htSlice, htSlices):
+                    if begin.size == 1:
+                        begin, end, step = begin.item(), end.item(), step.item()
+                        # range_from_slice = range(begin, end, step)
+                        # sliced = range_from_slice[htSlice]
+                        # a, b, c = sliced.start, sliced.stop, sliced.step
+                        # a = None if a < 0 else a
+                        # b = None if b < 0 else b
+                        # new_slices.append(slice(a, b, c))
+                        new_slices.append(slice(begin, end, step))
+                    else:
+                        ranges = tuple(
+                            slice(b.item(), e.item(), s.item()) for b, e, s in zip(begin, end, step)
+                        )
+                        new_slices.append(np.r_[ranges])  # [htSlice])
+                if isinstance(new_slices[out_split], slice):
+                    start, stop, step = (
+                        new_slices[out_split].start,
+                        new_slices[out_split].stop,
+                        new_slices[out_split].step,
+                    )
+                    sliced = range(start, stop, step)[slices[data.split]]
+                    a, b, c = sliced.start, sliced.stop, sliced.step
+                    a = None if a < 0 else a
+                    b = None if b < 0 else b
+                    new_slices[out_split] = slice(a, b, c)
+                elif isinstance(new_slices[out_split], np.ndarray):
+                    new_slices[out_split] = new_slices[out_split][slices[data.split]]
+                else:
+                    new_slices[out_split] = np.r_[new_slices[out_split]][slices[data.split]]
+                var[tuple(new_slices)] = data._DNDarray__array.cpu()
+            if debug:
+                print("non-root finished", flush=True)
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
             next_rank = (data.comm.rank + 1) % data.comm.size
             data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
+            if debug:
+                print("non-root sent signal", flush=True)
 
 
 def load(path, *args, **kwargs):

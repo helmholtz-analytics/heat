@@ -204,16 +204,23 @@ class TestIO(unittest.TestCase):
                 self.assertTrue((local_range._DNDarray__array == comparison).all())
 
             # split range
+            ht.MPI_WORLD.Barrier()
+            print(ht.MPI_WORLD.rank, "split range", flush=True)
             split_range = ht.arange(100, split=0, device=ht_device)
-            split_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
+            split_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, debug=True)
             if split_range.comm.rank == 0:
+                print("root comparison beginning", flush=True)
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
                         handle[self.NETCDF_VARIABLE][:], dtype=torch.int32, device=device
                     )
+                    print(comparison, flush=True)
                 self.assertTrue((local_range._DNDarray__array == comparison).all())
+                print("root comparison finished", flush=True)
 
             # naming dimensions
+            # ht.MPI_WORLD.Barrier()
+            print(ht.MPI_WORLD.rank, "naming dims", flush=True)
             local_range = ht.arange(100, device=ht_device)
             local_range.save(
                 self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, dimension_names=self.NETCDF_DIMENSION
@@ -225,11 +232,14 @@ class TestIO(unittest.TestCase):
 
             # appending unlimited variable
             split_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, is_unlimited=True)
+            ht.MPI_WORLD.Barrier()
+            print(ht.MPI_WORLD.rank, "setting sliced var", flush=True)
             split_range.save(
                 self.NETCDF_OUT_PATH,
                 self.NETCDF_VARIABLE,
                 mode="r+",
                 file_slices=slice(split_range.size, None, None),
+                # debug=True,
             )
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
@@ -243,6 +253,8 @@ class TestIO(unittest.TestCase):
                 )
 
             # indexing netcdf file: single index
+            ht.MPI_WORLD.Barrier()
+            print(ht.MPI_WORLD.rank, "beginning single index", flush=True)
             zeros = ht.zeros((20, 1, 20, 2), device=ht_device)
             zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
             ones = ht.ones(20, device=ht_device)
@@ -256,6 +268,8 @@ class TestIO(unittest.TestCase):
                 self.assertTrue((ones._DNDarray__array == comparison).all())
 
             # indexing netcdf file: multiple indices
+            ht.MPI_WORLD.Barrier()
+            print(ht.MPI_WORLD.rank, "beginning multi index", flush=True)
             small_range_split = ht.arange(10, split=0, device=ht_device)
             small_range = ht.arange(10, device=ht_device)
             indices = [[0, 9, 5, 2, 1, 3, 7, 4, 8, 6]]
@@ -270,6 +284,8 @@ class TestIO(unittest.TestCase):
                 self.assertTrue((small_range._DNDarray__array == comparison).all())
 
             # slicing netcdf file
+            ht.MPI_WORLD.Barrier()
+            print(ht.MPI_WORLD.rank, "beginning slicing index", flush=True)
             sslice = slice(7, 2, -1)
             range_five_split = ht.arange(5, split=0, device=ht_device)
             range_five = ht.arange(5, device=ht_device)
