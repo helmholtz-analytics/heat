@@ -411,7 +411,6 @@ else:
             start, count, stride = start.T, count.T, stride.T  # transpose for iteration
             stop = start + stride * count
             new_slices = []
-
             for begin, end, step in zip(start, stop, stride):
                 if begin.size == 1:
                     begin, end, step = begin.item(), end.item(), step.item()
