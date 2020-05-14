@@ -746,7 +746,6 @@ class SquareDiagTiles:
             sp1 = col_inds[key[1] + 1] - col_start
         elif isinstance(key[1], slice):
             start = col_inds[key[1].start] if key[1].start is not None else 0
-            # print(len(col_inds), col_inds, key)
             stop = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
             st1, sp1 = start - col_start, stop - col_start
 
@@ -826,7 +825,6 @@ class SquareDiagTiles:
         See local_set function.
         """
         rank = self.__DNDarray.comm.rank
-        # print(key)
         key = self.local_to_global(key=key, rank=rank)
         return self.__getitem__(key)
 
@@ -890,7 +888,6 @@ class SquareDiagTiles:
         """
         rank = self.__DNDarray.comm.rank
         key = self.local_to_global(key=key, rank=rank)
-        # print(key)
         self.__getitem__(tuple(key)).__setitem__(slice(None), value)
 
     def local_to_global(self, key, rank):
@@ -1070,112 +1067,118 @@ class SquareDiagTiles:
         )
         self.__tile_map = tile_map
 
-    def match_tiles_qr_lq(self, other_tiles):
-        base_dnd = self.arr
-        other_dnd = other_tiles.arr
-        # match lshape redistribute if needed
-        target_map = torch.zeros_like(self.lshape_map)
-        target_map[..., 0] = other_tiles.lshape_map[..., 1]
-        target_map[..., 1] = other_tiles.lshape_map[..., 0]
-        base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=target_map)
-        cols_per = other_tiles.__row_per_proc_list.copy()
-        rows_per = other_tiles.__col_per_proc_list.copy()
-
-        if base_dnd.split == 1 and other_dnd.split == 0:
-            # the lshapes are used for the tiles because we need to have 1 tile/process, elsewise the tiles
-            #   do not line up. more sophisticated redistribution is required for that case.
-            # todo: if multiple tiles desired -> need the hard splits to have the number of tiles as a divisor actually
-            #  this could be an easy way to redo the tiling class to reduce the difficulties there
-            row_inds = other_tiles.__col_inds.copy()
-            col_inds = other_tiles.__row_inds.copy()
-            col_inds = [c for c in col_inds if c < base_dnd.gshape[1]]
-            row_inds = [r for r in row_inds if r < base_dnd.gshape[0]]
-
-            # print(base_dnd.gshape, other_dnd.shape)
-            # # todo: need to 1 N rows after the end of the diagonal, or just one at the gshape?
-            if base_dnd.shape[0] > base_dnd.shape[1] + 1:
-                # print(row_inds, col_inds, self.__col_inds, self.__row_inds)
-                row_inds.append(base_dnd.gshape[1] - 2)
-                rows_per = [r + 1 for r in rows_per]
-                # print(rows_per)
-
-            # if base_dnd.gshape[0] >= base_dnd.gshape[1] + row_inds[1]:
-            #     offset = row_inds[1]
-            #     row_inds = [r + offset for r in other_tiles.row_indices]
-            #     row_inds = [0] + row_inds
-
-            if len(row_inds) > 1:
-                # comp_size =
-                last_diag_pr = torch.where(
-                    torch.cumsum(self.lshape_map[..., 1], dim=0) >= base_dnd.gshape[0] - row_inds[1]
-                )[0]
-                last_diag_pr = (
-                    last_diag_pr[0] if last_diag_pr.numel() > 0 else base_dnd.comm.size - 1
-                )
-            else:
-                last_diag_pr = 0
-
-            # todo: abstract the tile map setting
-            tile_map = torch.zeros(
-                (len(row_inds), len(col_inds), 3),
-                dtype=other_tiles.tile_map.dtype,
-                device=other_tiles.tile_map.device,
-            )
-            for i in range(len(row_inds)):
-                tile_map[..., 0][i] = row_inds[i]
-            for i in range(len(col_inds)):
-                tile_map[..., 1][:, i] = col_inds[i]
-            st = 0
-            for pr, cols in enumerate(cols_per):
-                tile_map[:, st : st + cols, 2] = pr
-                st += cols
-            # print(tile_map)
-
-        elif base_dnd.split == 0 and other_dnd.split == 1:
-            # only working for 1 tile
-            # need to adjust the col_inds here
-            # the cols should start at 0,0 then the next one should be plus the size of the first
-            # after that it should be
-            row_inds = other_tiles.__col_inds.copy()
-            col_inds = other_tiles.__row_inds.copy()
-            col_inds = [c for c in col_inds if c < base_dnd.gshape[1]]
-            row_inds = [r for r in row_inds if r < base_dnd.gshape[0]]
-
-            if len(col_inds) > 1:
-                last_diag_pr = torch.where(
-                    torch.cumsum(self.lshape_map[..., 0], dim=0)
-                    >= min(base_dnd.gshape) + col_inds[1]
-                )[0]
-                last_diag_pr = (
-                    last_diag_pr[0] if last_diag_pr.numel() > 0 else base_dnd.comm.size - 1
-                )
-            else:
-                last_diag_pr = 0
-
-            tile_map = torch.zeros(
-                (len(row_inds), len(col_inds), 3),
-                dtype=other_tiles.tile_map.dtype,
-                device=other_tiles.tile_map.device,
-            )
-
-            for i in range(len(row_inds)):
-                tile_map[..., 0][i] = row_inds[i]
-            for i in range(len(col_inds)):
-                tile_map[..., 1][:, i] = col_inds[i]
-            for i in range(self.arr.comm.size - 1):
-                st = sum(rows_per[:i])
-                sp = st + rows_per[i]
-                tile_map[..., 2][st:sp] = i
-            i = self.arr.comm.size - 1
-            tile_map[..., 2][sum(rows_per[:i]) :] = i
-
-        else:
-            raise NotImplementedError("Both DNDarrays must have different splits")
+    def match_tiles_transposed(self, other_tiles):
+        # flip rows and cols in a stright up style
+        # splits are opposite
+        col_inds = other_tiles.__row_inds
+        cols_per = other_tiles.__row_per_proc_list
+        row_inds = other_tiles.__col_inds
+        rows_per = other_tiles.__col_per_proc_list
+        # base_dnd = self.arr
+        # other_dnd = other_tiles.arr
+        # # match lshape redistribute if needed
+        # target_map = torch.zeros_like(self.lshape_map)
+        # target_map[..., 0] = other_tiles.lshape_map[..., 1]
+        # target_map[..., 1] = other_tiles.lshape_map[..., 0]
+        # base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=target_map)
+        # cols_per = other_tiles.__row_per_proc_list.copy()
+        # rows_per = other_tiles.__col_per_proc_list.copy()
+        #
+        # if base_dnd.split == 1 and other_dnd.split == 0:
+        #     # the lshapes are used for the tiles because we need to have 1 tile/process, elsewise the tiles
+        #     #   do not line up. more sophisticated redistribution is required for that case.
+        #     # todo: if multiple tiles desired -> need the hard splits to have the number of tiles as a divisor actually
+        #     #  this could be an easy way to redo the tiling class to reduce the difficulties there
+        #     row_inds = other_tiles.__col_inds.copy()
+        #     col_inds = other_tiles.__row_inds.copy()
+        #     col_inds = [c for c in col_inds if c < base_dnd.gshape[1]]
+        #     row_inds = [r for r in row_inds if r < base_dnd.gshape[0]]
+        #
+        #     # print(base_dnd.gshape, other_dnd.shape)
+        #     # # todo: need to 1 N rows after the end of the diagonal, or just one at the gshape?
+        #     if base_dnd.shape[0] > base_dnd.shape[1] + 1:
+        #         # print(row_inds, col_inds, self.__col_inds, self.__row_inds)
+        #         row_inds.append(base_dnd.gshape[1] - 2)
+        #         rows_per = [r + 1 for r in rows_per]
+        #         # print(rows_per)
+        #
+        #     # if base_dnd.gshape[0] >= base_dnd.gshape[1] + row_inds[1]:
+        #     #     offset = row_inds[1]
+        #     #     row_inds = [r + offset for r in other_tiles.row_indices]
+        #     #     row_inds = [0] + row_inds
+        #
+        #     if len(row_inds) > 1:
+        #         # comp_size =
+        #         last_diag_pr = torch.where(
+        #             torch.cumsum(self.lshape_map[..., 1], dim=0) >= base_dnd.gshape[0] - row_inds[1]
+        #         )[0]
+        #         last_diag_pr = (
+        #             last_diag_pr[0] if last_diag_pr.numel() > 0 else base_dnd.comm.size - 1
+        #         )
+        #     else:
+        #         last_diag_pr = 0
+        #
+        #     # todo: abstract the tile map setting
+        #     tile_map = torch.zeros(
+        #         (len(row_inds), len(col_inds), 3),
+        #         dtype=other_tiles.tile_map.dtype,
+        #         device=other_tiles.tile_map.device,
+        #     )
+        #     for i in range(len(row_inds)):
+        #         tile_map[..., 0][i] = row_inds[i]
+        #     for i in range(len(col_inds)):
+        #         tile_map[..., 1][:, i] = col_inds[i]
+        #     st = 0
+        #     for pr, cols in enumerate(cols_per):
+        #         tile_map[:, st : st + cols, 2] = pr
+        #         st += cols
+        #     # print(tile_map)
+        #
+        # elif base_dnd.split == 0 and other_dnd.split == 1:
+        #     # only working for 1 tile
+        #     # need to adjust the col_inds here
+        #     # the cols should start at 0,0 then the next one should be plus the size of the first
+        #     # after that it should be
+        #     row_inds = other_tiles.__col_inds.copy()
+        #     col_inds = other_tiles.__row_inds.copy()
+        #     col_inds = [c for c in col_inds if c < base_dnd.gshape[1]]
+        #     row_inds = [r for r in row_inds if r < base_dnd.gshape[0]]
+        #
+        #     if len(col_inds) > 1:
+        #         last_diag_pr = torch.where(
+        #             torch.cumsum(self.lshape_map[..., 0], dim=0)
+        #             >= min(base_dnd.gshape) + col_inds[1]
+        #         )[0]
+        #         last_diag_pr = (
+        #             last_diag_pr[0] if last_diag_pr.numel() > 0 else base_dnd.comm.size - 1
+        #         )
+        #     else:
+        #         last_diag_pr = 0
+        #
+        #     tile_map = torch.zeros(
+        #         (len(row_inds), len(col_inds), 3),
+        #         dtype=other_tiles.tile_map.dtype,
+        #         device=other_tiles.tile_map.device,
+        #     )
+        #
+        #     for i in range(len(row_inds)):
+        #         tile_map[..., 0][i] = row_inds[i]
+        #     for i in range(len(col_inds)):
+        #         tile_map[..., 1][:, i] = col_inds[i]
+        #     for i in range(self.arr.comm.size - 1):
+        #         st = sum(rows_per[:i])
+        #         sp = st + rows_per[i]
+        #         tile_map[..., 2][st:sp] = i
+        #     i = self.arr.comm.size - 1
+        #     tile_map[..., 2][sum(rows_per[:i]) :] = i
+        #
+        # else:
+        #     raise NotImplementedError("Both DNDarrays must have different splits")
         self.__col_inds = list(col_inds)
         self.__col_per_proc_list = cols_per
-        self.__last_diag_pr = last_diag_pr
+        self.__last_diag_pr = other_tiles.__last_diag_pr
         self.__row_per_proc_list = rows_per
-        self.__tile_map = tile_map
+        self.__tile_map = self.__create_tile_map(row_inds, col_inds, rows_per, cols_per, self.arr)
         self.__row_inds = list(row_inds)
 
     def __setitem__(self, key, value):

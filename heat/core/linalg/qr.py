@@ -100,13 +100,13 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     r = a if overwrite_a else a.copy()
     # r.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
     r_tiles = tiling.SquareDiagTiles(r, tiles_per_proc)
-    print(r_tiles.lshape_map)
-    print(r_tiles.row_indices, r_tiles.col_indices)
-    print(
-        r_tiles.tile_rows_per_process,
-        r_tiles.tile_columns_per_process,
-        r_tiles.last_diagonal_process,
-    )
+    # print(r_tiles.lshape_map)
+    # print(r_tiles.row_indices, r_tiles.col_indices)
+    # print(
+    #     r_tiles.tile_rows_per_process,
+    #     r_tiles.tile_columns_per_process,
+    #     r_tiles.last_diagonal_process,
+    # )
     tile_columns = r_tiles.tile_columns
     tile_rows = r_tiles.tile_rows
     if calc_q:
@@ -115,15 +115,15 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         )
         # q.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
         q_tiles = tiling.SquareDiagTiles(q, tiles_per_proc)
-        print("Q")
+        # print("Q")
         q_tiles.match_tiles(r_tiles)
-        print(q_tiles.lshape_map)
-        print(q_tiles.row_indices, q_tiles.col_indices)
-        print(
-            q_tiles.tile_rows_per_process,
-            q_tiles.tile_columns_per_process,
-            q_tiles.last_diagonal_process,
-        )
+        # print(q_tiles.lshape_map)
+        # print(q_tiles.row_indices, q_tiles.col_indices)
+        # print(
+        #     q_tiles.tile_rows_per_process,
+        #     q_tiles.tile_columns_per_process,
+        #     q_tiles.last_diagonal_process,
+        # )
     else:
         # q = None
         q, q_tiles = None, None
@@ -925,7 +925,7 @@ def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None):
     if empties is None:
         # this will return the empty processes, Requires that lshape map is not none
         # todo: should this be the q tiles or the r tiles???
-        empties = torch.nonzero(input=q0_tiles.lshape_map[..., 0] == 0, as_tuple=False)
+        empties = torch.nonzero(input=r_tiles.lshape_map[..., 0] == 0, as_tuple=False)
         # print(empties, r_tiles.lshape_map[..., 1])
         empties = empties.flatten().tolist() if empties.numel() > 0 else []
     r_torch_device = r_tiles.arr.device.torch_device
