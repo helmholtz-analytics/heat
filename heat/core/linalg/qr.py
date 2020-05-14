@@ -102,71 +102,82 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     r_tiles = tiling.SquareDiagTiles(r, tiles_per_proc)
     print(r_tiles.lshape_map)
     print(r_tiles.row_indices, r_tiles.col_indices)
-    # tile_columns = r_tiles.tile_columns
-    # tile_rows = r_tiles.tile_rows
+    print(
+        r_tiles.tile_rows_per_process,
+        r_tiles.tile_columns_per_process,
+        r_tiles.last_diagonal_process,
+    )
+    tile_columns = r_tiles.tile_columns
+    tile_rows = r_tiles.tile_rows
     if calc_q:
         q = factories.eye(
             (r.gshape[0], r.gshape[0]), split=0, dtype=r.dtype, comm=r.comm, device=r.device
         )
         # q.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-        # q_tiles = tiling.SquareDiagTiles(q, tiles_per_proc)
-        # print(q_tiles.lshape_map)
-        # print(q_tiles.row_indices, q_tiles.col_indices)
-        # q_tiles.match_tiles(r_tiles)
+        q_tiles = tiling.SquareDiagTiles(q, tiles_per_proc)
+        print("Q")
+        q_tiles.match_tiles(r_tiles)
+        print(q_tiles.lshape_map)
+        print(q_tiles.row_indices, q_tiles.col_indices)
+        print(
+            q_tiles.tile_rows_per_process,
+            q_tiles.tile_columns_per_process,
+            q_tiles.last_diagonal_process,
+        )
     else:
-        q = None
-        # q, q_tiles = None, None
+        # q = None
+        q, q_tiles = None, None
     # ==============================================================================================
-    # if a.split == 0:
-    #     rank = r.comm.rank
-    #     active_procs = torch.arange(r.comm.size, device=r.device.torch_device)
-    #     empties = torch.nonzero(input=r_tiles.lshape_map[..., 0] == 0, as_tuple=False)
-    #     empties = empties.flatten().tolist() if empties.numel() > 0 else []
-    #     for e in empties:
-    #         active_procs = active_procs[active_procs != e]
-    #     tile_rows_per_pr_trmd = r_tiles.tile_rows_per_process[: active_procs[-1] + 1]
-    #
-    #     q_dict = {}
-    #     q_dict_waits = {}
-    #     proc_tile_start = torch.cumsum(
-    #         torch.tensor(tile_rows_per_pr_trmd, device=r.device.torch_device), dim=0
-    #     )
-    #     # ------------------------------------ R Calculation ---------------------------------------
-    #     for col in range(tile_columns):
-    #         # for each tile column (need to do the last rank separately)
-    #         # for each process need to do local qr
-    #         not_completed_processes = torch.nonzero(
-    #             input=col < proc_tile_start, as_tuple=False
-    #         ).flatten()
-    #         if rank not in not_completed_processes or rank not in active_procs:
-    #             # if the process is done calculating R the break the loop
-    #             break
-    #         diag_process = not_completed_processes[0]
-    #         __split0_r_calc(
-    #             r_tiles=r_tiles,
-    #             q_dict=q_dict,
-    #             q_dict_waits=q_dict_waits,
-    #             dim1=col,
-    #             diag_pr=diag_process,
-    #             not_completed_prs=not_completed_processes,
-    #         )
-    #     # ------------------------------------- Q Calculation --------------------------------------
-    #     if calc_q:
-    #         for col in range(tile_columns):
-    #             __split0_q_loop(
-    #                 dim1=col,
-    #                 r_tiles=r_tiles,
-    #                 proc_tile_start=proc_tile_start,
-    #                 active_procs=active_procs,
-    #                 q0_tiles=q_tiles,
-    #                 q_dict=q_dict,
-    #                 q_dict_waits=q_dict_waits,
-    #             )
-    # elif a.split == 1:
-    #     # loop over the tile columns
-    #     lp_cols = tile_columns if a.gshape[0] > a.gshape[1] else tile_rows
-    #     for dcol in range(lp_cols):  # dcol is the diagonal column
-    #         __split1_qr_loop(dim0=dcol, r_tiles=r_tiles, q0_tiles=q_tiles, calc_q=calc_q)
+    if a.split == 0:
+        rank = r.comm.rank
+        active_procs = torch.arange(r.comm.size, device=r.device.torch_device)
+        empties = torch.nonzero(input=r_tiles.lshape_map[..., 0] == 0, as_tuple=False)
+        empties = empties.flatten().tolist() if empties.numel() > 0 else []
+        for e in empties:
+            active_procs = active_procs[active_procs != e]
+        tile_rows_per_pr_trmd = r_tiles.tile_rows_per_process[: active_procs[-1] + 1]
+
+        q_dict = {}
+        q_dict_waits = {}
+        proc_tile_start = torch.cumsum(
+            torch.tensor(tile_rows_per_pr_trmd, device=r.device.torch_device), dim=0
+        )
+        # ------------------------------------ R Calculation ---------------------------------------
+        for col in range(tile_columns):
+            # for each tile column (need to do the last rank separately)
+            # for each process need to do local qr
+            not_completed_processes = torch.nonzero(
+                input=col < proc_tile_start, as_tuple=False
+            ).flatten()
+            if rank not in not_completed_processes or rank not in active_procs:
+                # if the process is done calculating R the break the loop
+                break
+            diag_process = not_completed_processes[0]
+            __split0_r_calc(
+                r_tiles=r_tiles,
+                q_dict=q_dict,
+                q_dict_waits=q_dict_waits,
+                dim1=col,
+                diag_pr=diag_process,
+                not_completed_prs=not_completed_processes,
+            )
+        # ------------------------------------- Q Calculation --------------------------------------
+        if calc_q:
+            for col in range(tile_columns):
+                __split0_q_loop(
+                    dim1=col,
+                    r_tiles=r_tiles,
+                    proc_tile_start=proc_tile_start,
+                    active_procs=active_procs,
+                    q0_tiles=q_tiles,
+                    q_dict=q_dict,
+                    q_dict_waits=q_dict_waits,
+                )
+    elif a.split == 1:
+        # loop over the tile columns
+        lp_cols = tile_columns if a.gshape[0] > a.gshape[1] else tile_rows
+        for dcol in range(lp_cols):  # dcol is the diagonal column
+            __split1_qr_loop(dim0=dcol, r_tiles=r_tiles, q0_tiles=q_tiles, calc_q=calc_q)
 
     r.balance_()
     if q is not None:
@@ -798,6 +809,7 @@ def __split0_q_loop(
             sum_row = sum(q0_tiles.tile_rows_per_process[:pr])
             end_row = q0_tiles.tile_rows_per_process[pr] + sum_row
             # slice of q_tiles -> [0: -> end local, 1: start -> stop]
+            # print(sum_row, end_row, q0_tiles.tile_rows_per_process, q0_tiles.tile_columns_per_process)
             q_rest_loc = q0_tiles.local_get(key=(slice(None), slice(sum_row, end_row)))
             # apply the local merge to q0 then update q0`
             q_rest_loc = q_rest_loc @ local_merge_q[pr][0]
