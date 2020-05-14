@@ -1077,13 +1077,24 @@ class SquareDiagTiles:
                 hold = tiles_to_match.lshape_map[..., 1].clone()
                 if hold.sum() > base_dnd.gshape[0]:
                     hold[-1] -= hold.sum() - base_dnd.gshape[0]
+                for i in range(base_dnd.comm.size - 1, 1, -1):
+                    if all(hold >= 0):
+                        break
+                    if hold[i] < 0:
+                        hold[i - 1] += hold[i]
+                        hold[i] = 0
                 target_map[..., 0] = hold
+                # print(target_map)
                 base_dnd.redistribute_(self.lshape_map, target_map)
                 self.__row_inds = tiles_to_match.__row_inds  # + [match_dnd.gshape[1]]
                 self.__col_inds = tiles_to_match.__row_inds  # + [match_dnd.gshape[1]]
                 hld = tiles_to_match.__col_per_proc_list.copy()
                 for i in range(tiles_to_match.last_diagonal_process + 1, base_dnd.comm.size):
                     hld[i] = 0
+                # need to adjust the last diag process,
+                ldp = tiles_to_match.last_diagonal_process
+                if hld[ldp] > hld[ldp - 1]:
+                    hld[ldp] = hld[ldp - 1]
                 self.__row_per_proc_list = hld
                 self.__col_per_proc_list = [len(self.__col_inds)] * base_dnd.comm.size
                 self.__last_diag_pr = tiles_to_match.last_diagonal_process
