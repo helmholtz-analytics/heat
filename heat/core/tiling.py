@@ -385,12 +385,10 @@ class SquareDiagTiles:
             row_inds = col_inds.copy()
             col_inds = col_inds[:-1]
             col_per_proc_list = [len(col_inds)] * arr.comm.size
-            # print('c', col_per_proc_list)
 
             redist_vec = lshape_map[..., arr.split].clone()
             for i in range(st_ldp):
                 redist_vec[i] = tile_shape * tiles_per_proc
-                # remaining_tiles -= redist_vec[i]
                 diff = redist_vec[i] - lshape_map[..., arr.split][i]
                 if diff < 0:
                     redist_vec[i + 1] -= diff
@@ -450,9 +448,7 @@ class SquareDiagTiles:
                 hld = col_per_proc_list
                 col_per_proc_list = row_per_proc_list
                 row_per_proc_list = hld
-                # hld
         else:
-            # print(mat_shape_type)
             # this covers the following cases:
             #       Square -> both splits
             #       TS -> split == 1  # diag covers whole size
@@ -479,8 +475,6 @@ class SquareDiagTiles:
             # original assumption is that there are tiles_per_proc tiles on each process with
             #       an maximum of ((m - n) % sz) * n * tiles_per_proc  additionally on the last process
             #       (for m x n)
-            # print(redist_v_sp, rem)
-            # todo: if determine distribution -> evenly divide it between the last processes
             div_inds1 = torch.tensor(
                 divs, dtype=torch.int32, device=arr.device.torch_device
             ).cumsum(dim=0)
@@ -494,16 +488,6 @@ class SquareDiagTiles:
                 # put the remainder on the last process
                 divs.append(shape_rem)
                 redist_v_sp[-1] += shape_rem
-                # divs_per_proc[-1] += 1
-                # print('r', row_inds, divs_per_proc)
-                # todo: does an extra tile need to be added??
-                #       -> only if tiles/proc > 1 and last_diag_pr != size
-                # if arr.gshape[0] == mgshape:  # m < n
-                #     pass
-                #     # col_inds.append(div_inds1[-1].item())
-                # elif arr.gshape[0] > arr.gshape[1]:  # m > n
-                #     # row_inds.append(div_inds1[-1].item())
-                #     divs_per_proc[-1] += 1
 
             if mat_shape_type == "TS" and arr.split == 1:
                 # need to add a division after the diagonal here
@@ -530,22 +514,9 @@ class SquareDiagTiles:
                     0
                 ][0].item()
 
-        tile_map = torch.zeros(
-            [len(row_inds), len(col_inds), 3], dtype=torch.int, device=arr._DNDarray__array.device
+        tile_map = self.__create_tile_map(
+            row_inds, col_inds, row_per_proc_list, col_per_proc_list, arr
         )
-
-        for num, c in enumerate(col_inds):  # set columns
-            tile_map[:, num, 1] = c
-        for num, r in enumerate(row_inds):  # set rows
-            tile_map[num, :, 0] = r
-
-        for i in range(arr.comm.size):
-            st = sum(row_per_proc_list[:i])
-            sp = st + row_per_proc_list[i]
-            tile_map[..., 2][st:sp] = i
-        # to adjust if the last process has more tiles
-        i = arr.comm.size - 1
-        tile_map[..., 2][sum(row_per_proc_list[:i]) :] = i
 
         if arr.split == 1:
             st = 0
@@ -561,6 +532,32 @@ class SquareDiagTiles:
         self.__tile_map = tile_map
         self.__row_inds = row_inds
         self.__col_inds = col_inds
+
+    @staticmethod
+    def __create_tile_map(rows, cols, rows_per, cols_per, arr):
+        tile_map = torch.zeros(
+            [len(rows), len(cols), 3], dtype=torch.int, device=arr._DNDarray__array.device
+        )
+
+        for num, c in enumerate(cols):  # set columns
+            tile_map[:, num, 1] = c
+        for num, r in enumerate(rows):  # set rows
+            tile_map[num, :, 0] = r
+
+        for i in range(arr.comm.size):
+            st = sum(rows_per[:i])
+            sp = st + rows_per[i]
+            tile_map[..., 2][st:sp] = i
+        # to adjust if the last process has more tiles
+        i = arr.comm.size - 1
+        tile_map[..., 2][sum(rows_per[:i]) :] = i
+
+        if arr.split == 1:
+            st = 0
+            for pr, cols in enumerate(cols_per):
+                tile_map[:, st : st + cols, 2] = pr
+                st += cols
+        return tile_map
 
     @property
     def arr(self):
@@ -995,86 +992,53 @@ class SquareDiagTiles:
             mat_shape_type = "TS"
         else:
             mat_shape_type = "SF"
-        # this map will take the same tile row and column sizes up to the last diagonal row/column
-        # the last row/column is determined by the number of rows/columns on the non-split dimension
 
-        # todo: cases: mostly square (m > n), mostly square (m < n), TS sp0, TS sp1, SF sp0, SF sp1
-        # todo: things to set: row inds, col inds, rows/proc, cols/proc, last diagonal process
-        if mat_shape_type == "square":
-            # todo: combine these 2 cases, lots of repetition here
-            if match_dnd.gshape[0] > match_dnd.gshape[1] and match_dnd.split == 1:
-                # match lshape
-                target_map = tiles_to_match.lshape_map.clone()
-                hold = target_map[..., 1].clone()
+        target_map = self.lshape_map.clone()
+        hold = tiles_to_match.lshape_map[..., match_dnd.split].clone()
+        if mat_shape_type == "square" and match_dnd.gshape[0] > match_dnd.gshape[1]:
+            # can only have split 1 or split 0
+            # match lshape, swap cols and
+            if match_dnd.split == 1:
                 target_map[..., 1] = target_map[..., 0]
                 if hold.sum() < base_dnd.gshape[0]:
                     hold[-1] += base_dnd.gshape[0] - hold.sum()
-                target_map[..., 0] = hold
-                base_dnd.redistribute_(self.lshape_map, target_map)
-                self.__row_inds = tiles_to_match.__row_inds
-                self.__col_inds = tiles_to_match.__col_inds
                 self.__row_per_proc_list = tiles_to_match.__col_per_proc_list
                 self.__col_per_proc_list = tiles_to_match.__row_per_proc_list
-                self.__last_diag_pr = tiles_to_match.last_diagonal_process
-            if match_dnd.gshape[0] > match_dnd.gshape[1] and match_dnd.split == 0:
-                # match lshape
-                target_map = self.lshape_map.clone()
-                hold = tiles_to_match.lshape_map[..., 0].clone()
+            else:
                 if hold.sum() < base_dnd.gshape[0]:
                     hold[-1] += base_dnd.gshape[0] - hold.sum()
-                target_map[..., 0] = hold
-                base_dnd.redistribute_(self.lshape_map, target_map)
-                self.__row_inds = tiles_to_match.__row_inds
-                self.__col_inds = tiles_to_match.__col_inds
                 self.__row_per_proc_list = tiles_to_match.__row_per_proc_list
                 self.__col_per_proc_list = tiles_to_match.__col_per_proc_list
-                self.__last_diag_pr = tiles_to_match.last_diagonal_process
+            self.__row_inds = tiles_to_match.__row_inds
+            self.__col_inds = tiles_to_match.__col_inds
             # for mostly square matrices the diagonal is stretched to the last process
+        elif mat_shape_type == "square":
+            return
 
         elif mat_shape_type == "TS":
+            if hold.sum() < base_dnd.gshape[0]:
+                hold[-1] += base_dnd.gshape[0] - hold.sum()
+
             if match_dnd.split == 0:
-                target_map = self.lshape_map.clone()
-                hold = tiles_to_match.lshape_map[..., 0].clone()
-                if hold.sum() < base_dnd.gshape[0]:
-                    hold[-1] += base_dnd.gshape[0] - hold.sum()
-                target_map[..., 0] = hold
-                base_dnd.redistribute_(self.lshape_map, target_map)
-                self.__row_inds = tiles_to_match.__row_inds
-                self.__col_inds = tiles_to_match.__row_inds
                 self.__row_per_proc_list = tiles_to_match.__row_per_proc_list
-                self.__col_per_proc_list = [len(self.__col_inds)] * base_dnd.comm.size
-                self.__last_diag_pr = tiles_to_match.last_diagonal_process
             elif match_dnd.split == 1:
-                target_map = self.lshape_map.clone()
-                hold = tiles_to_match.lshape_map[..., 1].clone()
                 if hold.sum() < base_dnd.gshape[0]:
                     hold[-1] += base_dnd.gshape[0] - hold.sum()
-                target_map[..., 0] = hold
-                base_dnd.redistribute_(self.lshape_map, target_map)
-                self.__row_inds = tiles_to_match.__row_inds  # + [match_dnd.gshape[1]]
-                self.__col_inds = tiles_to_match.__row_inds  # + [match_dnd.gshape[1]]
                 hld = tiles_to_match.__col_per_proc_list.copy()
                 hld[-1] += 1
                 self.__row_per_proc_list = hld
-                self.__col_per_proc_list = [len(self.__col_inds)] * base_dnd.comm.size
-                self.__last_diag_pr = tiles_to_match.last_diagonal_process
+            self.__row_inds = tiles_to_match.__row_inds
+            self.__col_inds = tiles_to_match.__row_inds
+            self.__col_per_proc_list = [len(self.__col_inds)] * base_dnd.comm.size
 
         else:  # mat_shape_type == "SF"
+            self.__row_inds = tiles_to_match.__row_inds
+            self.__col_inds = tiles_to_match.__row_inds
             if match_dnd.split == 0:
-                target_map = self.lshape_map.clone()
-                hold = tiles_to_match.lshape_map[..., 0].clone()
                 if hold.sum() < base_dnd.gshape[0]:
                     hold[-1] += base_dnd.gshape[0] - hold.sum()
-                target_map[..., 0] = hold
-                base_dnd.redistribute_(self.lshape_map, target_map)
-                self.__row_inds = tiles_to_match.__row_inds
-                self.__col_inds = tiles_to_match.__row_inds
                 self.__row_per_proc_list = tiles_to_match.__row_per_proc_list
-                self.__col_per_proc_list = [len(self.__col_inds)] * base_dnd.comm.size
-                self.__last_diag_pr = tiles_to_match.last_diagonal_process
             elif match_dnd.split == 1:
-                target_map = self.lshape_map.clone()
-                hold = tiles_to_match.lshape_map[..., 1].clone()
                 if hold.sum() > base_dnd.gshape[0]:
                     hold[-1] -= hold.sum() - base_dnd.gshape[0]
                 for i in range(base_dnd.comm.size - 1, 1, -1):
@@ -1083,11 +1047,6 @@ class SquareDiagTiles:
                     if hold[i] < 0:
                         hold[i - 1] += hold[i]
                         hold[i] = 0
-                target_map[..., 0] = hold
-                # print(target_map)
-                base_dnd.redistribute_(self.lshape_map, target_map)
-                self.__row_inds = tiles_to_match.__row_inds  # + [match_dnd.gshape[1]]
-                self.__col_inds = tiles_to_match.__row_inds  # + [match_dnd.gshape[1]]
                 hld = tiles_to_match.__col_per_proc_list.copy()
                 for i in range(tiles_to_match.last_diagonal_process + 1, base_dnd.comm.size):
                     hld[i] = 0
@@ -1096,166 +1055,20 @@ class SquareDiagTiles:
                 if hld[ldp] > hld[ldp - 1]:
                     hld[ldp] = hld[ldp - 1]
                 self.__row_per_proc_list = hld
-                self.__col_per_proc_list = [len(self.__col_inds)] * base_dnd.comm.size
-                self.__last_diag_pr = tiles_to_match.last_diagonal_process
+            self.__col_per_proc_list = [len(self.__col_inds)] * base_dnd.comm.size
+        target_map[..., 0] = hold
+        base_dnd.redistribute_(self.lshape_map, target_map)
 
-        tile_map = torch.zeros(
-            [len(self.__row_inds), len(self.__col_inds), 3],
-            dtype=torch.int,
-            device=base_dnd._DNDarray__array.device,
+        self.__last_diag_pr = tiles_to_match.last_diagonal_process
+
+        tile_map = self.__create_tile_map(
+            self.__row_inds,
+            self.__col_inds,
+            self.__row_per_proc_list,
+            self.__col_per_proc_list,
+            self.arr,
         )
-
-        for num, c in enumerate(self.__col_inds):  # set columns
-            tile_map[:, num, 1] = c
-        for num, r in enumerate(self.__row_inds):  # set rows
-            tile_map[num, :, 0] = r
-
-        for i in range(base_dnd.comm.size):
-            st = sum(self.__row_per_proc_list[:i])
-            sp = st + self.__row_per_proc_list[i]
-            tile_map[..., 2][st:sp] = i
-        # to adjust if the last process has more tiles
-        i = base_dnd.comm.size - 1
-        tile_map[..., 2][sum(self.__row_per_proc_list[:i]) :] = i
-
-        if base_dnd.split == 1:
-            st = 0
-            for pr, cols in enumerate(self.__col_per_proc_list):
-                tile_map[:, st : st + cols, 2] = pr
-                st += cols
         self.__tile_map = tile_map
-        # elif :
-
-        # if base_dnd.split == match_dnd.split == 0 and base_dnd.shape[0] == match_dnd.shape[0]:
-        #     # this implies that the gshape[0]'s are equal
-        #     # rows are the exact same, and the cols are also equal to the rows (square matrix)
-        #     base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=tiles_to_match.lshape_map)
-        #
-        #     self.__row_per_proc_list = tiles_to_match.__row_per_proc_list.copy()
-        #     self.__col_per_proc_list = [tiles_to_match.tile_rows] * len(self.__row_per_proc_list)
-        #     self.__row_inds = (
-        #         tiles_to_match.__row_inds.copy()
-        #         if base_dnd.gshape[0] >= base_dnd.gshape[1]
-        #         else tiles_to_match.__col_inds.copy()
-        #     )
-        #     self.__col_inds = (
-        #         tiles_to_match.__row_inds.copy()
-        #         if base_dnd.gshape[0] >= base_dnd.gshape[1]
-        #         else tiles_to_match.__col_inds.copy()
-        #     )
-        #     # todo: problem is in here somewhere, some index isnt being set correctly, which one?
-        #
-        #     self.__tile_map = torch.zeros(
-        #         (self.tile_rows, self.tile_columns, 3),
-        #         dtype=torch.int,
-        #         device=match_dnd._DNDarray__array.device,
-        #     )
-        #     for i in range(self.tile_rows):
-        #         self.__tile_map[..., 0][i] = self.__row_inds[i]
-        #     for i in range(self.tile_columns):
-        #         self.__tile_map[..., 1][:, i] = self.__col_inds[i]
-        #     for i in range(self.arr.comm.size - 1):
-        #         st = sum(self.__row_per_proc_list[:i])
-        #         sp = st + self.__row_per_proc_list[i]
-        #         self.__tile_map[..., 2][st:sp] = i
-        #     # to adjust if the last process has more tiles
-        #     i = self.arr.comm.size - 1
-        #     self.__tile_map[..., 2][sum(self.__row_per_proc_list[:i]) :] = i
-        # elif base_dnd.split == 0 and match_dnd.split == 1:
-        #     # rows determine the q sizes -> cols = rows
-        #     # col inds, row inds, rows per, cols per, last diag pr
-        #     # if base_dnd.gshape[0] <= base_dnd.gshape[1]:
-        #     #     self.__col_inds = tiles_to_match.row_indices
-        #     #     self.__row_inds = tiles_to_match.col_indices
-        #     # self.__col_inds = (
-        #     #     tiles_to_match.__row_inds.copy()
-        #     #     if base_dnd.gshape[0] <= base_dnd.gshape[1]
-        #     #     else tiles_to_match.__col_inds.copy()
-        #     # )
-        #     #
-        #     # self.__row_inds = (
-        #     #     tiles_to_match.__row_inds.copy()
-        #     #     if base_dnd.gshape[0] <= base_dnd.gshape[1]
-        #     #     else tiles_to_match.__col_inds.copy()
-        #     # )
-        #     # print('h', self.__col_inds, tiles_to_match.col_indices, tiles_to_match.lshape_map)
-        #     self.__row_inds = [r for r in tiles_to_match.__row_inds if r < base_dnd.gshape[0]]
-        #     self.__col_inds = [r for r in tiles_to_match.__col_inds if r < base_dnd.gshape[1]]
-        #     if match_dnd.gshape[0] <= match_dnd.gshape[1]:
-        #         rows_per = tiles_to_match.__row_per_proc_list.copy()
-        #     else:
-        #         rows_per = tiles_to_match.__col_per_proc_list.copy()
-        #     if sum(rows_per) < tiles_to_match.tile_rows_per_process[0]:
-        #         rows_per[-1] += 1
-        #     if len(self.__row_inds) == base_dnd.comm.size:
-        #         rows_per = [1 for _ in rows_per]
-        #
-        #     # print(tiles_to_match.lshape_map)
-        #     # rows_per = [x for x in self.__col_inds if x < base_dnd.shape[0]]
-        #
-        #     targe_map = self.lshape_map.clone()
-        #     target_0 = torch.zeros_like(tiles_to_match.lshape_map[..., 1])
-        #     c = 0
-        #     # print(rows_per)
-        #     i = 0
-        #     for i in range(base_dnd.comm.size):
-        #         try:
-        #             end_ind = self.__row_inds[rows_per[i]]
-        #             # print(i, rows_per[i], end_ind)
-        #             target_0[i] = end_ind - c
-        #         # if end_ind < base_dnd.gshape[0]:
-        #         except IndexError:
-        #             target_0[i] = base_dnd.gshape[0] - c
-        #             rows_per[i] = i
-        #             rows_per[i + 1:] *= 0
-        #             # cols_per =
-        #             # print(rows_per, i)
-        #             break
-        #         c = end_ind
-        #     cols_per = [sum(rows_per)] * len(rows_per)
-        #     rows_per.extend([0] * (base_dnd.comm.size - i - 1))
-        #     cols_per.extend([0] * (base_dnd.comm.size - i - 1))
-        #
-        #     # print('row', self.row_indices)
-        #     targe_map[..., 0] = target_0
-        #     # print(base_dnd.gshape, match_dnd.gshape, target_0)
-        #     # if match_dnd.gshape[0] != match_dnd.gshape[1]:
-        #     #     target_0[-1] -= match_dnd.gshape[1] - match_dnd.gshape[0]
-        #
-        #     base_dnd.redistribute_(lshape_map=self.lshape_map, target_map=targe_map)
-        #
-        #     # if base_dnd.gshape[0] > base_dnd.gshape[1]:
-        #     #     row_inds.append(row_inds[-1] + row_inds[1])
-        #     #     rows_per[-1] += 1
-        #
-        #     # self.__row_inds = row_inds
-        #
-        #     self.__tile_map = torch.zeros(
-        #         (self.tile_rows, self.tile_columns, 3),
-        #         dtype=torch.int,
-        #         device=tiles_to_match.arr._DNDarray__array.device,
-        #     )
-        #
-        #     for i in range(len(self.__row_inds)):
-        #         self.__tile_map[..., 0][i] = self.__row_inds[i]
-        #     for i in range(len(self.__col_inds)):
-        #         self.__tile_map[..., 1][:, i] = self.__col_inds[i]
-        #     for i in range(self.arr.comm.size):
-        #         st = sum(self.__row_per_proc_list[:i])
-        #         sp = st + self.__row_per_proc_list[i]
-        #         self.__tile_map[..., 2][st:sp] = i
-        #     # to adjust if the last process has more tiles
-        #     i = self.arr.comm.size - 1
-        #
-        #     self.__tile_map[..., 2][sum(self.__row_per_proc_list[:i]) :] = i
-        #     self.__col_per_proc_list = cols_per
-        #     # print(self.__col_inds, self.tile_columns, self.__col_per_proc_list)
-        #     self.__row_per_proc_list = rows_per
-        #     self.__last_diag_pr = tiles_to_match.__last_diag_pr
-        # else:
-        #     raise NotImplementedError(
-        #         "splits not implements, {}, {}".format(self.arr.split, tiles_to_match.arr.split)
-        #     )
 
     def match_tiles_qr_lq(self, other_tiles):
         base_dnd = self.arr
