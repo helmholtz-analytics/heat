@@ -1129,6 +1129,7 @@ class TestManipulations(BasicTest):
             ht.sort(data, axis="1")
 
         rank = ht.MPI_WORLD.rank
+        ht.random.seed(1)
         data = ht.random.randn(100, 1, split=0, device=ht_device)
         result, _ = ht.sort(data, axis=0)
         counts, _, _ = ht.get_comm().counts_displs_shape(data.gshape, axis=0)
@@ -1307,40 +1308,53 @@ class TestManipulations(BasicTest):
         self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze()).all())
 
         # 4D split tensor, along the axis
-        # TODO: reinstate this test of uneven dimensions distribution
-        # after update to Allgatherv implementation (Issue  #273 depending on #233)
-        # data = ht.array(ht.random.randn(1, 4, 5, 1), split=1)
-        # result = ht.squeeze(data, axis=-1)
-        # self.assertIsInstance(result, ht.DNDarray)
-        # # TODO: the following works locally but not when distributed,
-        # #self.assertEqual(result.dtype, ht.float32)
-        # #self.assertEqual(result._DNDarray__array.dtype, torch.float32)
-        # self.assertEqual(result.shape, (1, 12, 5))
-        # self.assertEqual(result.lshape, (1, 12, 5))
-        # self.assertEqual(result.split, 1)
+        data = ht.array(ht.random.randn(1, 4, 5, 1), split=1)
+        result = ht.squeeze(data, axis=-1)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.shape, (1, 4, 5))
+        self.assertEqual(result.split, 1)
+
+        # 4D split tensor, axis = split
+        data = ht.array(ht.random.randn(3, 1, 5, 6), split=1)
+        result = ht.squeeze(data, axis=1)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.shape, (3, 5, 6))
+        self.assertEqual(result.split, None)
+
+        # 4D split tensor, axis = split = last dimension
+        data = ht.array(ht.random.randn(3, 6, 5, 1), split=-1)
+        result = ht.squeeze(data, axis=-1)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.shape, (3, 6, 5))
+        self.assertEqual(result.split, None)
 
         # 3D split tensor, across the axis
-        size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((1, size, size), split=1, device=ht_device), k=1)
+        size = ht.MPI_WORLD.size
+        data = ht.triu(ht.ones((1, size * 2, size), split=1, device=ht_device), k=1)
 
         result = ht.squeeze(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
-        # TODO: the following works locally but not when distributed,
-        # self.assertEqual(result.dtype, ht.float32)
-        # self.assertEqual(result._DNDarray__array.dtype, torch.float32)
-        self.assertEqual(result.shape, (size, size))
-        self.assertEqual(result.lshape, (size, size))
-        # self.assertEqual(result.split, None)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.shape, (size * 2, size))
+        self.assertEqual(result.lshape, (2, size))
+        self.assertEqual(result.split, 0)
 
         # check exceptions
-        with self.assertRaises(ValueError):
-            data.squeeze(axis=(0, 1))
         with self.assertRaises(TypeError):
             data.squeeze(axis=1.1)
         with self.assertRaises(TypeError):
             data.squeeze(axis="y")
         with self.assertRaises(ValueError):
-            ht.argmin(data, axis=-4)
+            ht.squeeze(data, axis=-4)
+        with self.assertRaises(ValueError):
+            ht.squeeze(data, axis=1)
 
     def test_unique(self):
         size = ht.MPI_WORLD.size
