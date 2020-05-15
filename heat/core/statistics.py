@@ -1164,9 +1164,8 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             lows = data._DNDarray__array[axis_slice]
             ceil_indices = floor_indices + 1.0  # this one might spill over into next process: halo
             axis_slice = axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
-            if ceil_indices.max().item() == chunk_stop - offset:
+            if ceil_indices.max().item() == data.lshape[axis]:
                 if axis == data.split:
-                    data.get_halo(1)
                     highs = data.array_with_halos[axis_slice]
                 else:
                     # max percentile is 100.0
@@ -1192,10 +1191,9 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
                 permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
                 percentile = percentile.permute(permute_dims)
 
-            if 0 not in percentile.shape and q.numel() <= 1:
-                percentile.squeeze_(dim=0)
-
             return percentile
+
+    # sanitize input
 
     if not isinstance(x, dndarray.DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
@@ -1217,6 +1215,13 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     if keepdim:
         raise NotImplementedError("keepdim=True not implemented yet for ht.percentile()")
 
+    # MPI coordinates
+    rank = x.comm.rank
+    size = x.comm.size
+    gshape = x.gshape
+    split = x.split
+
+    # no axis
     if axis is None:
         if x.numdims > 1:
             x = x.copy()
@@ -1225,14 +1230,18 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             x = factories.array([x._DNDarray__array], dtype=x.dtype, device=x.device, comm=x.comm)
         axis = 0
 
+    # compute output shape
     if q.numel() == 1:
-        output_shape = x.gshape[:axis] + x.gshape[axis + 1 :]
+        if x.numdims > 1:
+            output_shape = gshape[:axis] + gshape[axis + 1 :]
+        else:
+            output_shape = (1,)
     else:
-        output_shape = (q.numel(),) + x.gshape[:axis] + x.gshape[axis + 1 :]
+        output_shape = (q.numel(),) + gshape[:axis] + gshape[axis + 1 :]
 
-    length = x.gshape[axis]
+    # compute indices
+    length = gshape[axis]
     indices = q.type(torch.float) / 100 * (length - 1)
-
     if interpolation == "lower":
         indices = indices.floor().type(torch.long)
     elif interpolation == "higher":
@@ -1249,41 +1258,52 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             "Invalid interpolation method. Interpolation can be 'lower', 'higher', 'midpoint', 'nearest', or 'linear'."
         )
 
-    if x.comm.is_distributed() and x.split is not None and x.split == axis:
-        offset, _, chunk = x.comm.chunk(x.gshape, x.split)
-        chunk_start = chunk[x.split].start
-        chunk_stop = chunk[x.split].stop
-        indices = indices[(indices < chunk_stop) & (indices >= chunk_start)] - offset
+    if x.comm.is_distributed() and split is not None and split == axis:
+        # each rank needs to know from what other ranks it will receive data and where to put them
+        offset_map = []
+        indices_map = []
+        perc_map = []
+        perc_map_start = perc_map_end = 0
+        for r in range(size):
+            offset, _, chunk = x.comm.chunk(gshape, split, rank=r, w_size=size)
+            chunk_start = chunk[split].start
+            chunk_stop = chunk[split].stop
+            # map of indices on all ranks
+            indices_map.append(indices[(indices < chunk_stop) & (indices >= chunk_start)] - offset)
+            indices_on_rank = indices_map[r].numel()
+            if indices_on_rank:
+                perc_map_end = perc_map_start + indices_on_rank
+                perc_map.append([slice(perc_map_start, perc_map_end, None), r])
+                perc_map_start = perc_map_end
+            offset_map.append(offset)
     else:
-        offset = 0
+        offset_map = [0]
         chunk_stop = length
 
+    # sort data
     data = manipulations.sort(x, axis=axis)[0].astype(types.canonical_heat_type(float))
 
-    if indices.numel() == 0:
-        result = torch.tensor([])
+    if x.comm.is_distributed():
+        if axis == split:
+            data.get_halo(1)
+
+        # allocate memory on all nodes
+        percentile = factories.empty(
+            output_shape, dtype=types.canonical_heat_type(q.dtype), split=None, device=x.device
+        )
+
+        # fill out percentile
+        for i in range(len(perc_map)):
+            indices = indices_map[rank]
+            local_p = factories.zeros(percentile[perc_map[i][0]].shape, comm=x.comm)
+            proc = perc_map[i][1]
+            if indices.numel() and rank == proc:
+                local_p = factories.array(local_percentile(data, axis, indices))
+            x.comm.Bcast(local_p, root=proc)
+            percentile[perc_map[i][0]] = local_p
     else:
-        result = local_percentile(data, axis, indices)
-
-    percentile = dndarray.DNDarray(
-        result,
-        output_shape,
-        dtype=types.canonical_heat_type(torch.float),
-        split=0,
-        device=x.device,
-        comm=x.comm,
-    )
-
-    # TODO split semantics for percentile
-    # if x.split is None or axis is not None and x.split == axis:
-    #     new_split = None
-    # elif axis is not None and axis > x.split:
-    #     new_split = x.split
-    # elif axis is not None and axis < x.split:
-    #     new_split = x.split + 1
-
-    # if new_split != percentile.split:
-    #     percentile.resplit_(axis=new_split)
+        local_p = local_percentile(data, axis, indices)
+        percentile = factories.array(local_p)  # TODO: split, device, dtype etc.
 
     return percentile
 
