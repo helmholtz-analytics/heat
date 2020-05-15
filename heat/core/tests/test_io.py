@@ -207,7 +207,7 @@ class TestIO(unittest.TestCase):
             ht.MPI_WORLD.Barrier()
             print(ht.MPI_WORLD.rank, "split range", flush=True)
             split_range = ht.arange(100, split=0, device=ht_device)
-            split_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, debug=True)
+            split_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
             if split_range.comm.rank == 0:
                 print("root comparison beginning", flush=True)
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
