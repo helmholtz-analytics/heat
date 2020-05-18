@@ -590,8 +590,8 @@ def load_csv(
             # Determine the number of columns that each line consists of
             if len(line_starts) > 1:
                 columns = 1
-                for l in r[line_starts[0] : line_starts[1]]:
-                    if chr(l) == sep:
+                for li in r[line_starts[0] : line_starts[1]]:
+                    if chr(li) == sep:
                         columns += 1
             else:
                 columns = 0

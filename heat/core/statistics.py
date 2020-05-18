@@ -848,7 +848,7 @@ def __merge_moments(m1, m2, bessel=True):
     """
     if len(m1) != len(m2):
         raise ValueError(
-            "m1 and m2 must be same length, currently {} and {}".format(len(m1, len(m2)))
+            "m1 and m2 must be same length, currently {} and {}".format(len(m1), len(m2))
         )
     n1, n2 = m1[-1], m2[-1]
     mu1, mu2 = m1[-2], m2[-2]
