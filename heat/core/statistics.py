@@ -1266,14 +1266,14 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         perc_map_start = perc_map_end = 0
         for r in range(size):
             if split == axis:
-                offset, _, chunk = x.comm.chunk(output_shape, split, rank=r, w_size=size)
+                offset, _, chunk = x.comm.chunk(x.gshape, split, rank=r, w_size=size)
                 chunk_start = chunk[split].start
                 chunk_stop = chunk[split].stop
             else:
                 offset = chunk_start = 0
                 chunk_stop = length
-                # fictitious chunks along axis
-                foffset, _, fchunk = x.comm.chunk(output_shape, axis, rank=r, w_size=size)
+                # fictitious chunks of percentile - will be filled with local_p below
+                _, _, fchunk = x.comm.chunk(output_shape, split, rank=r, w_size=size)
             # map of indices on all ranks
             indices_map.append(indices[(indices < chunk_stop) & (indices >= chunk_start)] - offset)
             indices_on_rank = indices_map[r].numel()
@@ -1283,7 +1283,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
                     perc_map.append([slice(perc_map_start, perc_map_end, None), r])
                     perc_map_start = perc_map_end
                 else:
-                    perc_map.append([slice(fchunk[axis].start, fchunk[axis].stop, None), r])
+                    perc_map.append([slice(fchunk[split].start, fchunk[split].stop, None), r])
             offset_map.append(offset)
     else:
         offset_map = [0]
@@ -1300,15 +1300,28 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         if axis == split:
             data.get_halo(1)
         # fill out percentile
-        perc_slice = percentile.numdims * (slice(None, None, None),)
         for i in range(len(perc_map)):
-            perc_slice = perc_slice[:axis] + (perc_map[i][0],) + perc_slice[axis + 1 :]
             indices = indices_map[rank]
+            perc_slice = percentile.numdims * (slice(None, None, None),)
+            if q.numel() > 1:
+                if axis == split:
+                    new_split = 0
+                elif axis > split:
+                    new_split = split + 1
+                else:
+                    new_split = split
+                perc_slice = (
+                    perc_slice[:new_split] + (perc_map[i][0],) + perc_slice[new_split + 1 :]
+                )
+            print("DEBUGGING: rank, perc_slice = ", i, rank, perc_slice)
             local_p = factories.zeros(percentile[perc_slice].shape, comm=x.comm)
+            print("DEBUGGING: rank, local_p.shape 1 = ", i, rank, local_p.shape)
             proc = perc_map[i][1]
             if indices.numel() and rank == proc:
                 local_p = factories.array(local_percentile(data, axis, indices))
+                print("DEBUGGING: rank, local_p.shape 2 = ", i, rank, local_p.shape)
             x.comm.Bcast(local_p, root=proc)
+            print("DEBUGGING: rank, local_p.shape 3 = ", i, rank, local_p.shape)
             percentile[perc_slice] = local_p
     else:
         local_p = local_percentile(data, axis, indices)
