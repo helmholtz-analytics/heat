@@ -1197,6 +1197,8 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
 
     if not isinstance(x, dndarray.DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+    if isinstance(axis, list) or isinstance(axis, tuple):
+        raise NotImplementedError("ht.percentile(), tuple axis not implemented yet")
 
     if isinstance(q, dndarray.DNDarray):
         if x.comm.is_distributed() and q.split is not None:
@@ -1211,9 +1213,6 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         raise TypeError(
             "Only ht.tensors, numeric scalars and lists are supported, but q was {}".format(type(q))
         )
-
-    if keepdim:
-        raise NotImplementedError("keepdim=True not implemented yet for ht.percentile()")
 
     # MPI coordinates
     rank = x.comm.rank
@@ -1230,14 +1229,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             x = factories.array([x._DNDarray__array], dtype=x.dtype, device=x.device, comm=x.comm)
         axis = 0
 
-    # compute output shape
-    if q.numel() == 1:
-        if x.numdims > 1:
-            output_shape = gshape[:axis] + gshape[axis + 1 :]
-        else:
-            output_shape = (1,)
-    else:
-        output_shape = (q.numel(),) + gshape[:axis] + gshape[axis + 1 :]
+    output_shape = (q.numel(),) + gshape[:axis] + gshape[axis + 1 :]
 
     # compute indices
     length = gshape[axis]
@@ -1269,9 +1261,9 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         if axis == split:
             join = 0
         elif axis > split:
-            join = split
+            join = split + 1
         elif axis < split:
-            join = split - 1
+            join = split
 
         # calculate percentage map across ranks
         for r in range(size):
@@ -1315,23 +1307,19 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
                 pass
             else:
                 perc_slice = perc_slice[:join] + (perc_map[i][0],) + perc_slice[join + 1 :]
-            print("DEBUGGING: rank, perc_slice = ", i, rank, perc_slice, perc_map)
             local_p = factories.zeros(
                 percentile[perc_slice].shape, dtype=percentile.dtype, comm=x.comm
             )
-            print("DEBUGGING: rank, local_p.shape 1 = ", i, rank, local_p.shape)
             proc = perc_map[i][1]
             if indices.numel() and rank == proc:
                 local_p = factories.array(local_percentile(data, axis, indices))
-                print("DEBUGGING: rank, local_p.shape 2 = ", i, rank, local_p.shape)
             x.comm.Bcast(local_p, root=proc)
-            print("DEBUGGING: rank, local_p.shape 3 = ", i, rank, local_p.shape)
             percentile[perc_slice] = local_p
     else:
         local_p = factories.array(local_percentile(data, axis, indices))
         percentile = local_p  # TODO: split, device, dtype etc.
 
-    if percentile.shape[0] == 1:
+    if percentile.shape[0] == 1 and not keepdim:
         percentile = manipulations.squeeze(percentile, axis=0)
 
     return percentile
