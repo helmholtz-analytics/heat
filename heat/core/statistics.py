@@ -1272,7 +1272,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             else:
                 offset = chunk_start = 0
                 chunk_stop = length
-                # fictitious chunks
+                # fictitious chunks along axis
                 foffset, _, fchunk = x.comm.chunk(output_shape, axis, rank=r, w_size=size)
             # map of indices on all ranks
             indices_map.append(indices[(indices < chunk_stop) & (indices >= chunk_start)] - offset)
@@ -1288,39 +1288,28 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     else:
         offset_map = [0]
         chunk_stop = length
-    print("DEBUGGING: perc_map = ", perc_map)
-    print("DEBUGGING: offset_map = ", offset_map)
-    print("DEBUGGING: indices_map = ", indices_map)
 
     # sort data
     data = manipulations.sort(x, axis=axis)[0].astype(types.canonical_heat_type(float))
-    print("DEBUGGING: data = ", data)
-    print("DEBUGGING: data.split = ", data.split)
 
     if x.comm.is_distributed() and split is not None:
         # allocate memory on all nodes
         percentile = factories.empty(
             output_shape, dtype=types.canonical_heat_type(q.dtype), split=None, device=x.device
         )
-        perc_slice = percentile.numdims * (slice(None, None, None),)
         if axis == split:
             data.get_halo(1)
         # fill out percentile
+        perc_slice = percentile.numdims * (slice(None, None, None),)
         for i in range(len(perc_map)):
-            if axis == split:
-                perc_slice = (perc_map[i][0],) + perc_slice[1:]
-            else:
-                perc_slice = perc_slice[:axis] + (perc_map[i][0],) + perc_slice[axis + 1 :]
-            print("DEBUGGING: perc_slice = ", i, perc_slice)
+            perc_slice = perc_slice[:axis] + (perc_map[i][0],) + perc_slice[axis + 1 :]
             indices = indices_map[rank]
-            local_p = factories.zeros(percentile[perc_map[i][0]].shape, comm=x.comm)
+            local_p = factories.zeros(percentile[perc_slice].shape, comm=x.comm)
             proc = perc_map[i][1]
             if indices.numel() and rank == proc:
                 local_p = factories.array(local_percentile(data, axis, indices))
-                print("DEBUGGING: I, LOCAL_P.SHAPE = ", i, local_p.shape)
             x.comm.Bcast(local_p, root=proc)
             percentile[perc_slice] = local_p
-
     else:
         local_p = local_percentile(data, axis, indices)
         percentile = factories.array(local_p)  # TODO: split, device, dtype etc.
