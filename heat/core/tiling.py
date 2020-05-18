@@ -423,6 +423,8 @@ class SquareDiagTiles:
                     # more space after the diagonal (more than 1 element) -> proc space > 1
                     divs_per_proc[st_ldp] += 1
                     row_inds.append(mgshape + proc_space_after_diag.item())
+            if redist_vec.sum() < arr.gshape[arr.split]:
+                redist_vec[-1] += arr.gshape[arr.split] - redist_vec.sum()
 
             target_map = lshape_map.clone()
             target_map[..., arr.split] = redist_vec
@@ -742,6 +744,8 @@ class SquareDiagTiles:
             start = row_inds[key[0].start] if key[0].start is not None else 0
             stop = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
             st0, sp0 = start - row_start, stop - row_start
+        else:
+            raise TypeError("key[0] must be int or slice, currently {}".format(type(key[0])))
         if isinstance(key[1], int):
             st1 = col_inds[key[1]] - col_start
             sp1 = col_inds[key[1] + 1] - col_start
@@ -749,7 +753,9 @@ class SquareDiagTiles:
             start = col_inds[key[1].start] if key[1].start is not None else 0
             stop = col_inds[key[1].stop] if key[1].stop is not None else col_inds[-1]
             st1, sp1 = start - col_start, stop - col_start
-            print("asdflj", col_inds, key[1], col_start, st1, sp1)
+            # print("asdflj", col_inds, key[1], col_start, st1, sp1)
+        else:
+            raise TypeError("key[1] must be int or slice, currently {}".format(type(key[1])))
         return st0, sp0, st1, sp1
 
     def __getitem__(self, key):
@@ -979,11 +985,12 @@ class SquareDiagTiles:
                     type(tiles_to_match)
                 )
             )
-        base_dnd = self.__DNDarray
-        match_dnd = tiles_to_match.__DNDarray
+        self.match_redist(tiles_to_match)
+
+        match_dnd = tiles_to_match.arr
         comp = match_dnd.gshape[0] / match_dnd.gshape[1]
         if 2.0 / match_dnd.comm.size <= comp <= match_dnd.comm.size / 2.0:
-            # if the diagonal crosses at least have the processes,
+            # if the diagonal crosses at least half the processes,
             # todo: tune this, might be faster to broaden this ratio
             mat_shape_type = "square"
         elif comp > match_dnd.comm.size / 2.0:
@@ -991,72 +998,56 @@ class SquareDiagTiles:
         else:
             mat_shape_type = "SF"
 
-        target_map = self.lshape_map.clone()
-        hold = tiles_to_match.lshape_map[..., match_dnd.split].clone()
         if mat_shape_type == "square" and match_dnd.gshape[0] > match_dnd.gshape[1]:
             # can only have split 1 or split 0
             # match lshape, swap cols and
             if match_dnd.split == 1:
-                target_map[..., 1] = target_map[..., 0]
-                if hold.sum() < base_dnd.gshape[0]:
-                    hold[-1] += base_dnd.gshape[0] - hold.sum()
                 self.__row_per_proc_list = tiles_to_match.__col_per_proc_list.copy()
                 self.__col_per_proc_list = tiles_to_match.__row_per_proc_list.copy()
+                # self.__row_inds = tiles_to_match.__col_inds.copy()
+                # self.__col_inds = tiles_to_match.__row_inds.copy()
             else:
-                if hold.sum() < base_dnd.gshape[0]:
-                    hold[-1] += base_dnd.gshape[0] - hold.sum()
                 self.__row_per_proc_list = tiles_to_match.__row_per_proc_list.copy()
                 self.__col_per_proc_list = tiles_to_match.__col_per_proc_list.copy()
+
+            if self.arr.split == 0 and sum(self.__row_per_proc_list) < self.__col_per_proc_list[0]:
+                self.__row_per_proc_list[-1] += 1
+
             # todo: row -> rows or row -> cols???
-            self.__row_inds = tiles_to_match.__col_inds.copy()
-            self.__col_inds = tiles_to_match.__col_inds.copy()
+            self.__row_inds = tiles_to_match.__row_inds.copy()
+            self.__col_inds = tiles_to_match.__row_inds.copy()
             # for mostly square matrices the diagonal is stretched to the last process
         elif mat_shape_type == "square":
             return
 
         elif mat_shape_type == "TS":
-            if hold.sum() < base_dnd.gshape[0]:
-                hold[-1] += base_dnd.gshape[0] - hold.sum()
-
             if match_dnd.split == 0:
                 self.__row_per_proc_list = tiles_to_match.__row_per_proc_list.copy()
-            elif match_dnd.split == 1:
-                if hold.sum() < base_dnd.gshape[0]:
-                    hold[-1] += base_dnd.gshape[0] - hold.sum()
+            else:
                 hld = tiles_to_match.__col_per_proc_list.copy()
                 hld[-1] += 1
                 self.__row_per_proc_list = hld
             self.__row_inds = tiles_to_match.__row_inds.copy()
             self.__col_inds = tiles_to_match.__row_inds.copy()
-            self.__col_per_proc_list = [len(self.__col_inds)] * base_dnd.comm.size
+            self.__col_per_proc_list = [len(self.__col_inds)] * self.arr.comm.size
 
         else:  # mat_shape_type == "SF"
+            # todo: something is fucked up in here...
             self.__row_inds = tiles_to_match.__row_inds.copy()
             self.__col_inds = tiles_to_match.__row_inds.copy()
             if match_dnd.split == 0:
-                if hold.sum() < base_dnd.gshape[0]:
-                    hold[-1] += base_dnd.gshape[0] - hold.sum()
                 self.__row_per_proc_list = tiles_to_match.__row_per_proc_list.copy()
             elif match_dnd.split == 1:
-                if hold.sum() > base_dnd.gshape[0]:
-                    hold[-1] -= hold.sum() - base_dnd.gshape[0]
-                for i in range(base_dnd.comm.size - 1, 1, -1):
-                    if all(hold >= 0):
-                        break
-                    if hold[i] < 0:
-                        hold[i - 1] += hold[i]
-                        hold[i] = 0
                 hld = tiles_to_match.__col_per_proc_list.copy()
-                for i in range(tiles_to_match.last_diagonal_process + 1, base_dnd.comm.size):
+                for i in range(tiles_to_match.last_diagonal_process + 1, self.arr.comm.size):
                     hld[i] = 0
                 # need to adjust the last diag process,
                 ldp = tiles_to_match.last_diagonal_process
                 if hld[ldp] > hld[ldp - 1]:
                     hld[ldp] = hld[ldp - 1]
                 self.__row_per_proc_list = hld
-            self.__col_per_proc_list = [len(self.__col_inds)] * base_dnd.comm.size
-        target_map[..., 0] = hold
-        base_dnd.redistribute_(self.lshape_map, target_map)
+
+            self.__col_per_proc_list = [len(self.__col_inds)] * self.arr.comm.size
 
         self.__last_diag_pr = tiles_to_match.last_diagonal_process
 
@@ -1068,35 +1059,54 @@ class SquareDiagTiles:
             self.arr,
         )
 
-    def add_row_column_qr_lq(self, ind):
-        # if abs(self.arr.gshape[1] - self.arr.gshape[0]) < 2:
-        #     return
-        # else:
-        #     if self.arr.gshape[1] > self.arr.gshape[0]:
-        #         # add a column after the diagonal
-        # self.__row_inds.append(ind)
-        # # todo: add the new tile in the proper place (where)
-        # lshape_cs = self.lshape_map[..., self.arr.split].cumsum(0)
-        # # loc = torch.where(lshape_cs < self.arr.gshape[0])[0]
-        # # print('l', loc[-1], lshape_cs)
-        # # self.__row_per_proc_list[loc[-1]] += 1
-        # #     else:
-        # #         # add a row after the diagonal
-        # #         # add a column at the diagonal (if the diff is > 1)
-        # self.__col_inds.append(ind)
-        # # todo: add the new tile in the proper place (where)
-        # lshape_cs = self.lshape_map[..., self.arr.split].cumsum(0)
-        # loc = torch.where(lshape_cs <= self.arr.gshape[1])[0]
-        # print('l', loc[-1], lshape_cs)
-        # self.__col_per_proc_list[loc[-1]] += 1
+    def match_redist(self, tiles_to_match):
+        base_dnd = self.arr
+        match_dnd = tiles_to_match.arr
+        comp = match_dnd.gshape[0] / match_dnd.gshape[1]
+        if 2.0 / match_dnd.comm.size <= comp <= match_dnd.comm.size / 2.0:
+            # if the diagonal crosses at least half the processes,
+            # todo: tune this, might be faster to broaden this ratio
+            mat_shape_type = "square"
+        elif comp > match_dnd.comm.size / 2.0:
+            mat_shape_type = "TS"
+        else:
+            mat_shape_type = "SF"
+        # print(mat_shape_type)
 
-        self.__tile_map = self.__create_tile_map(
-            self.__row_inds,
-            self.__col_inds,
-            self.__row_per_proc_list,
-            self.__col_per_proc_list,
-            self.arr,
-        )
+        target_map = self.lshape_map.clone()
+        hold = tiles_to_match.lshape_map[..., match_dnd.split].clone()
+        if mat_shape_type == "square":
+            if match_dnd.split == 1:
+                target_map[..., 1] = target_map[..., 0]
+                if hold.sum() != base_dnd.gshape[0]:
+                    hold[-1] += base_dnd.gshape[0] - hold.sum()
+            else:
+                # print('\there', hold.sum(), base_dnd.gshape[base_dnd.split])
+                if hold.sum() < base_dnd.gshape[base_dnd.split]:
+                    hold[-1] += base_dnd.gshape[base_dnd.split] - hold.sum()
+        elif mat_shape_type == "TS":
+            if hold.sum() < base_dnd.gshape[0]:
+                hold[-1] += base_dnd.gshape[0] - hold.sum()
+            if match_dnd.split == 1:
+                if hold.sum() < base_dnd.gshape[0]:
+                    hold[-1] += base_dnd.gshape[0] - hold.sum()
+        else:  # mat_shape_type == "SF"
+            if match_dnd.split == 0:
+                if hold.sum() < base_dnd.gshape[base_dnd.split]:
+                    hold[-1] += base_dnd.gshape[base_dnd.split] - hold.sum()
+            if match_dnd.split == 1:
+                if hold.sum() > base_dnd.gshape[0]:
+                    hold[-1] -= hold.sum() - base_dnd.gshape[0]
+                for i in range(base_dnd.comm.size - 1, 1, -1):
+                    if all(hold >= 0):
+                        break
+                    if hold[i] < 0:
+                        hold[i - 1] += hold[i]
+                        hold[i] = 0
+        # print('h', hold)
+        target_map[..., 0 if self.arr.split == 0 else 1] = hold
+        # print(target_map)
+        self.arr.redistribute_(lshape_map=self.lshape_map, target_map=target_map)
 
     def match_tiles_transposed(self, other_tiles):
         # flip rows and cols in a stright up style
@@ -1208,9 +1218,64 @@ class SquareDiagTiles:
         self.__col_inds = col_inds
         self.__col_per_proc_list = cols_per
         self.__last_diag_pr = other_tiles.__last_diag_pr
+        self.__row_inds = row_inds
         self.__row_per_proc_list = rows_per
         self.__tile_map = self.__create_tile_map(row_inds, col_inds, rows_per, cols_per, self.arr)
+
+    def match_tiles_qr_lq(self, other_tiles):
+        """
+        This function will add another row of the same width as the first rows
+        todo: change the logic so that it redistributes in one matrch tiles then sets the rows
+                and shit in another function
+        Parameters
+        ----------
+        tiles_to_match
+
+        Returns
+        -------
+
+        """
+        # match_dnd = other_tiles.__DNDarray
+
+        self.match_redist(other_tiles)
+
+        # todo: add a row before the last one
+        col_inds = other_tiles.__row_inds.copy()
+        cols_per = other_tiles.__row_per_proc_list.copy()
+        row_inds = other_tiles.__col_inds.copy()
+        rows_per = other_tiles.__col_per_proc_list.copy()
+        if self.arr.gshape[0] > self.arr.gshape[1] + 2:
+            # add a row before the last element that is equal
+            row_inds.append(row_inds[1] + row_inds[-1])
+            # todo: this wont work when the last process is empty (i think)
+            if self.__DNDarray.split == 1:
+                rows_per = [r + 1 for r in rows_per]
+            else:
+                rows_per[-1] += 1
+        elif (
+            self.arr.gshape[1] > self.arr.gshape[0] + 2
+            and self.arr.shape[1] > col_inds[1] + col_inds[-1]
+        ):
+            # add a row before the last element that is equal
+            col_inds.append(col_inds[1] + col_inds[-1])
+            # todo: this wont work when the last process is empty (i think)
+            if self.arr.split == 0:
+                cols_per = [r + 1 for r in cols_per]
+            else:
+                cols_per[-1] += 1
+        # else:
+        #     col_inds = other_tiles.__row_inds.copy()
+        #     cols_per = other_tiles.__row_per_proc_list.copy()
+        #     row_inds = other_tiles.__col_inds.copy()
+        #     rows_per = other_tiles.__col_per_proc_list.copy()
+        #     # row_inds.append(row_inds[1] + row_inds[-1])
+        #     # rows_per = [r + 1 for r in rows_per]
+        self.__col_inds = col_inds
+        self.__col_per_proc_list = cols_per
+        self.__last_diag_pr = other_tiles.__last_diag_pr
         self.__row_inds = row_inds
+        self.__row_per_proc_list = rows_per
+        self.__tile_map = self.__create_tile_map(row_inds, col_inds, rows_per, cols_per, self.arr)
 
     def __setitem__(self, key, value):
         """

@@ -100,13 +100,13 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     r = a if overwrite_a else a.copy()
     # r.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
     r_tiles = tiling.SquareDiagTiles(r, tiles_per_proc)
-    print(r_tiles.lshape_map)
-    print(r_tiles.row_indices, r_tiles.col_indices)
-    print(
-        r_tiles.tile_rows_per_process,
-        r_tiles.tile_columns_per_process,
-        r_tiles.last_diagonal_process,
-    )
+    # print(r_tiles.lshape_map)
+    # print(r_tiles.row_indices, r_tiles.col_indices)
+    # print(
+    #     r_tiles.tile_rows_per_process,
+    #     r_tiles.tile_columns_per_process,
+    #     r_tiles.last_diagonal_process,
+    # )
     tile_columns = r_tiles.tile_columns
     tile_rows = r_tiles.tile_rows
     if calc_q:
@@ -115,15 +115,15 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         )
         # q.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
         q_tiles = tiling.SquareDiagTiles(q, tiles_per_proc)
-        print("Q")
+        # print("Q")
         q_tiles.match_tiles(r_tiles)
-        print(q_tiles.lshape_map)
-        print(q_tiles.row_indices, q_tiles.col_indices)
-        print(
-            q_tiles.tile_rows_per_process,
-            q_tiles.tile_columns_per_process,
-            q_tiles.last_diagonal_process,
-        )
+        # print(q_tiles.lshape_map)
+        # print(q_tiles.row_indices, q_tiles.col_indices)
+        # print(
+        #     q_tiles.tile_rows_per_process,
+        #     q_tiles.tile_columns_per_process,
+        #     q_tiles.last_diagonal_process,
+        # )
     else:
         # q = None
         q, q_tiles = None, None
@@ -948,6 +948,7 @@ def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None):
     st_sp = r_tiles.get_start_stop(key=(dim0, dim1))
     sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
     q1 = torch.zeros((sz[0], sz[0]), dtype=r_torch_type, device=r_torch_device)
+    # print(dim0, dim1, st_sp)
     if rank == diag_pr:
         # do qr on diagonal process
         q1, r1 = r_tiles[dim0, dim1].qr(some=False)
@@ -984,7 +985,7 @@ def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None):
     diag_tile = r_tiles[dim0, dim1]
     # (Q) need to get the start stop of diag tile
     diag_st_sp = r_tiles.get_start_stop(key=(dim0, dim1))
-    print("d", diag_st_sp)
+    # print("d", diag_st_sp)
     diag_sz = diag_st_sp[1] - diag_st_sp[0], diag_st_sp[3] - diag_st_sp[2]
     for row in range(dim0 + 1, tile_rows):
         lp_st_sp = r_tiles.get_start_stop(key=(row, dim1))
@@ -1041,7 +1042,7 @@ def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None):
             # left tiles --------------------------------------------------------------------
             # create r column of the same size as the tile row of q0
             st_sp = r_tiles.get_start_stop(key=(slice(dim0, None), dim1))
-            print(st_sp)
+            # print(row, dim0, dim1, st_sp, diag_sz)
             qloop_col_left_sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
             qloop_col_left = torch.zeros(
                 qloop_col_left_sz, dtype=q0_tiles.arr.dtype.torch_type(), device=q0_torch_device
@@ -1055,14 +1056,14 @@ def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None):
             qloop_col_left[st:sp] = bottom_left
             # right tiles --------------------------------------------------------------------
             # create r columns tensor of the size of the tile column of index 'row'
-            print("\nstarting")
+            # print("\nstarting")
             st_sp = q0_tiles.get_start_stop(key=(row, slice(dim0, None)))
             sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
             qloop_col_right = torch.zeros(
                 (sz[1], sz[0]), dtype=q0_tiles.arr.dtype.torch_type(), device=q0_torch_device
             )
             # top left starts at 0 and goes until diag_sz[1]
-            print(row, dim0, dim1, st_sp)
+            # print(row, dim0, dim1, st_sp)
             qloop_col_right[: diag_sz[0]] = top_right
             # bottom left starts at ? and goes until ? (only care about 0th dim)
             st, sp, _, _ = r_tiles.get_start_stop(key=(row, 0))
