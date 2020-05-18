@@ -333,7 +333,8 @@ else:
         mode : str, one of 'w', 'a', 'r+'
             File access mode
         dimension_names : list or tuple or string
-            Specifies the netCDF Dimensions used by the variable.
+            Specifies the netCDF Dimensions used by the variable. Ignored if
+            Variable already exists.
         is_unlimited : bool
             If True, every dimension created for this variable (i.e. doesn't
             already exist) is unlimited. Already existing limited dimensions
@@ -432,19 +433,18 @@ else:
             if split is None:  # not split at all
                 return None
             if split in ind_nonempty:  # split along non-empty dimension
-                split_sq = ind_nonempty.index(split)  # split-axis in squeezed shape
+                split_sq = ind_nonempty.tolist().index(split)  # split-axis in squeezed shape
                 return ex_ind_nonempty[split_sq]
             # split along empty dimension: split doesnt matter, only one process contains data
             # return the last empty dimension (in expanded shape) before (the first nonempty dimension after split)
-            ne_before_split = split - shape[:split].count(
-                1
-            )  # number of nonempty elems before split
+            # number of nonempty elems before split
+            ne_before_split = split - shape[:split].count(1)
             ind_ne_after_split = ind_nonempty[
                 ne_before_split
             ]  # index of (first nonempty element after split) in squeezed shape
             return max(
                 i
-                for i, v in enumerate(expandedShape[: ex_ind_nonempty[ind_ne_after_split]])
+                for i, v in enumerate(expandedShape[: max(ex_ind_nonempty[:ind_ne_after_split])])
                 if v == 1
             )
 
@@ -482,7 +482,7 @@ else:
             start, count, stride, _ = nc.utils._StartCountStride(
                 elem=var_slices,
                 shape=var.shape,
-                dimensions=dimension_names,
+                dimensions=var.dimensions,
                 grp=var.group(),
                 datashape=data.shape,
                 put=True,
@@ -528,13 +528,12 @@ else:
         # attempt to perform parallel I/O if possible
         if __nc_has_par:
             with nc.Dataset(path, mode, parallel=True, comm=data.comm.handle) as handle:
-                for name, elements in zip(dimension_names, data.shape):
-                    if name not in handle.dimensions:
-                        handle.createDimension(name, elements if not is_unlimited else None)
-
                 if variable in handle.variables:
                     var = handle.variables[variable]
                 else:
+                    for name, elements in zip(dimension_names, data.shape):
+                        if name not in handle.dimensions:
+                            handle.createDimension(name, elements if not is_unlimited else None)
                     var = handle.createVariable(
                         variable, data.dtype.char(), dimension_names, **kwargs
                     )
@@ -556,13 +555,12 @@ else:
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
             with nc.Dataset(path, mode) as handle:
-                for name, elements in zip(dimension_names, data.shape):
-                    if name not in handle.dimensions:
-                        handle.createDimension(name, elements if not is_unlimited else None)
-
                 if variable in handle.variables:
                     var = handle.variables[variable]
                 else:
+                    for name, elements in zip(dimension_names, data.shape):
+                        if name not in handle.dimensions:
+                            handle.createDimension(name, elements if not is_unlimited else None)
                     var = handle.createVariable(
                         variable, data.dtype.char(), dimension_names, **kwargs
                     )
