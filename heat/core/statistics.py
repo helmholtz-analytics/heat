@@ -1207,11 +1207,13 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         q = q._DNDarray__array
     elif isinstance(q, list) or isinstance(q, tuple):
         q = torch.tensor(q)  # TODO: device
-    elif np.isscalar(q):
+    elif np.isscalar(q) or isinstance(q, torch.tensor) and q.ndim == 0:
         q = torch.tensor([q])  # TODO: device
+    elif isinstance(q, torch.tensor):
+        pass
     else:
         raise TypeError(
-            "Only ht.tensors, numeric scalars and lists are supported, but q was {}".format(type(q))
+            "ht.tensor, torch.tensor, list or tuple supported, but q was {}".format(type(q))
         )
 
     # MPI coordinates

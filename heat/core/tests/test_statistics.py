@@ -923,8 +923,8 @@ class TestStatistics(BasicTest):
         self.assertAlmostEqual(p_ht.numpy().all(), p_np.all())
 
         # test split q
-        q = ht.array(q, split=0, device=x_ht.device, comm=x_ht.comm)
-        p_ht = ht.percentile(x_ht, q, axis=axis)
+        q_ht = ht.array(q, split=0, device=x_ht.device, comm=x_ht.comm)
+        p_ht = ht.percentile(x_ht, q_ht, axis=axis)
         self.assertAlmostEqual(p_ht.numpy().all(), p_np.all())
 
         # test exceptions
@@ -934,6 +934,9 @@ class TestStatistics(BasicTest):
             ht.percentile(x_ht, q, interpolation="Homer!")
         with self.assertRaises(NotImplementedError):
             ht.percentile(x_ht, q, axis=(0, 1))
+        q_np = np.array(q)
+        with self.assertRaises(TypeError):
+            ht.percentile(x_ht, q_np)
 
     def test_std(self):
         # test basics
