@@ -1137,7 +1137,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     Returns:
     --------
 
-    percentile : ht.tensor
+    percentile : process-local ht.tensor
 
     """
 
@@ -1332,7 +1332,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             percentile[perc_slice] = local_p
     else:
         local_p = factories.array(local_percentile(data, axis, indices))
-        percentile = local_p  # TODO: split, device, dtype etc.
+        percentile = local_p
 
     if percentile.shape[0] == 1 and not keepdim:
         percentile = manipulations.squeeze(percentile, axis=0)
