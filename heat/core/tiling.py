@@ -390,12 +390,15 @@ class SquareDiagTiles:
             for i in range(st_ldp):
                 redist_vec[i] = tile_shape * tiles_per_proc
                 diff = redist_vec[i] - lshape_map[..., arr.split][i]
+                # this will push the data to the next process if
+                #   there is any leftover after the tiles
                 if diff < 0:
                     redist_vec[i + 1] -= diff
             if redist_vec[st_ldp] > tile_shape:
                 # include the process with however many shape will fit
                 diag_rem_el = mgshape - sum(redist_vec[:st_ldp])
                 proc_space_after_diag = redist_vec[st_ldp] - diag_rem_el
+                print("h", proc_space_after_diag, diag_rem_el)
                 if proc_space_after_diag < 0:
                     raise ValueError("wtf? proc space after diag: {}".format(proc_space_after_diag))
 
@@ -419,10 +422,13 @@ class SquareDiagTiles:
                     # 1 element after diagonal
                     redist_vec[st_ldp] -= 1
                     redist_vec[-1] += 1
-                else:
+                elif proc_space_after_diag >= tile_shape:
                     # more space after the diagonal (more than 1 element) -> proc space > 1
                     divs_per_proc[st_ldp] += 1
                     row_inds.append(mgshape + proc_space_after_diag.item())
+                else:
+                    redist_vec[st_ldp] -= proc_space_after_diag
+                    redist_vec[-1] += proc_space_after_diag
             if redist_vec.sum() < arr.gshape[arr.split]:
                 redist_vec[-1] += arr.gshape[arr.split] - redist_vec.sum()
 
@@ -431,6 +437,7 @@ class SquareDiagTiles:
             arr.redistribute_(lshape_map, target_map)
             # next, chunk each process
             for pr in range(arr.comm.size):
+                # print(pr)
                 if pr <= last_diag_pr:
                     row_per_proc_list[pr] = divs_per_proc[pr]
                 else:
@@ -439,9 +446,11 @@ class SquareDiagTiles:
                     lcl_inds = torch.tensor([base_sz] * tiles_per_proc)
                     for r in range(rem):
                         lcl_inds[r] += 1
+                    # print(lcl_inds)
                     lcl_inds = [i.item() + row_inds[-1] for i in lcl_inds.cumsum(0)]
                     row_inds.extend(lcl_inds)
                     row_per_proc_list[pr] = len(lcl_inds)
+            # print('r', row_inds)
             row_inds = row_inds[:-1]
             if mat_shape_type == "SF":
                 hld = row_inds
@@ -1032,6 +1041,7 @@ class SquareDiagTiles:
             self.__col_per_proc_list = [len(self.__col_inds)] * self.arr.comm.size
 
         else:  # mat_shape_type == "SF"
+            # print('here')
             # todo: something is fucked up in here...
             self.__row_inds = tiles_to_match.__row_inds.copy()
             self.__col_inds = tiles_to_match.__row_inds.copy()
@@ -1039,12 +1049,16 @@ class SquareDiagTiles:
                 self.__row_per_proc_list = tiles_to_match.__row_per_proc_list.copy()
             elif match_dnd.split == 1:
                 hld = tiles_to_match.__col_per_proc_list.copy()
-                for i in range(tiles_to_match.last_diagonal_process + 1, self.arr.comm.size):
+                # print(hld)
+                for i in range(tiles_to_match.last_diagonal_process + 1, self.arr.comm.size, 1):
+                    # print(i)
                     hld[i] = 0
                 # need to adjust the last diag process,
                 ldp = tiles_to_match.last_diagonal_process
-                if hld[ldp] > hld[ldp - 1]:
+                # print(hld)
+                if ldp > 0 and hld[ldp] > hld[ldp - 1]:
                     hld[ldp] = hld[ldp - 1]
+                # print(hld)
                 self.__row_per_proc_list = hld
 
             self.__col_per_proc_list = [len(self.__col_inds)] * self.arr.comm.size
@@ -1225,8 +1239,7 @@ class SquareDiagTiles:
     def match_tiles_qr_lq(self, other_tiles):
         """
         This function will add another row of the same width as the first rows
-        todo: change the logic so that it redistributes in one matrch tiles then sets the rows
-                and shit in another function
+
         Parameters
         ----------
         tiles_to_match
@@ -1237,6 +1250,9 @@ class SquareDiagTiles:
         """
         # match_dnd = other_tiles.__DNDarray
 
+        # todo: need to get the single element diff of the col inds. if there is one that is larger before the last one,
+        #   then need to shift it to be equal to the other sizes (only in specific cases...)
+
         self.match_redist(other_tiles)
 
         # todo: add a row before the last one
@@ -1244,11 +1260,14 @@ class SquareDiagTiles:
         cols_per = other_tiles.__row_per_proc_list.copy()
         row_inds = other_tiles.__col_inds.copy()
         rows_per = other_tiles.__col_per_proc_list.copy()
-        if self.arr.gshape[0] > self.arr.gshape[1] + 2:
+        if (
+            self.arr.gshape[0] > self.arr.gshape[1] + 2
+            and self.arr.shape[0] > row_inds[1] + row_inds[-1]
+        ):
             # add a row before the last element that is equal
             row_inds.append(row_inds[1] + row_inds[-1])
             # todo: this wont work when the last process is empty (i think)
-            if self.__DNDarray.split == 1:
+            if self.arr.split == 1:
                 rows_per = [r + 1 for r in rows_per]
             else:
                 rows_per[-1] += 1
@@ -1263,13 +1282,6 @@ class SquareDiagTiles:
                 cols_per = [r + 1 for r in cols_per]
             else:
                 cols_per[-1] += 1
-        # else:
-        #     col_inds = other_tiles.__row_inds.copy()
-        #     cols_per = other_tiles.__row_per_proc_list.copy()
-        #     row_inds = other_tiles.__col_inds.copy()
-        #     rows_per = other_tiles.__col_per_proc_list.copy()
-        #     # row_inds.append(row_inds[1] + row_inds[-1])
-        #     # rows_per = [r + 1 for r in rows_per]
         self.__col_inds = col_inds
         self.__col_per_proc_list = cols_per
         self.__last_diag_pr = other_tiles.__last_diag_pr
