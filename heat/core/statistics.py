@@ -21,6 +21,7 @@ __all__ = [
     "max",
     "maximum",
     "mean",
+    "median",
     "min",
     "minimum",
     "percentile",
@@ -814,6 +815,37 @@ def mean(x, axis=None):
         "axis (axis) must be an int or a list, ht.DNDarray, "
         "torch.Tensor, or tuple, but was {}".format(type(axis))
     )
+
+
+def median(x, axis=None, keepdim=False):
+    """
+    Compute the median of the data along the specified axis.
+    Returns the median of the tensor elements.
+
+    Parameters:
+    -----------
+
+    a : ht.tensor
+    Input tensor
+
+    axis : int, or None, optional #TODO tuple of ints
+    Axis along which the median is computed. Default is None, i.e.,
+    the median is computed along a flattened version of the tensor.
+
+    #TODO: out, optional. Output buffer.
+
+    keepdim : bool, optional
+    If True, the axes which are reduced are left in the result as dimensions with size one.
+    With this option, the result can broadcast correctly against the original array a.
+
+    Returns:
+    --------
+
+    median : process-local ht.tensor
+
+    """
+
+    return percentile(x, q=50, axis=axis, keepdim=keepdim)
 
 
 def __merge_moments(m1, m2, bessel=True):
