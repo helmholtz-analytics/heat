@@ -1216,6 +1216,11 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             "ht.tensor, torch.tensor, list or tuple supported, but q was {}".format(type(q))
         )
 
+    # edge-case: x is a scalar. Return x
+    if x.numdims == 0:
+        percentile = x._DNDarray__array * q / q
+        return factories.array(percentile, split=None, dtype=x.dtype, device=x.device, comm=x.comm)
+
     # MPI coordinates
     rank = x.comm.rank
     size = x.comm.size
@@ -1227,8 +1232,6 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         if x.numdims > 1:
             x = x.copy()
             x = x.flatten()
-        elif x.numdims < 1:
-            x = factories.array([x._DNDarray__array], dtype=x.dtype, device=x.device, comm=x.comm)
         axis = 0
 
     output_shape = (q.numel(),) + gshape[:axis] + gshape[axis + 1 :]

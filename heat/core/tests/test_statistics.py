@@ -892,7 +892,7 @@ class TestStatistics(BasicTest):
 
     def test_percentile(self):
         # test local, distributed, split/axis combination, no data on process
-        x_np = np.arange(10 * 10 * 10, dtype=np.float64).reshape(10, 10, 10)
+        x_np = np.arange(6 * 10 * 10, dtype=np.float64).reshape(6, 10, 10)
         x_ht = ht.array(x_np, device=ht_device)
         x_ht_split0 = ht.array(x_np, split=0, device=ht_device)
         x_ht_split1 = ht.array(x_np, split=1, device=ht_device)
@@ -926,6 +926,12 @@ class TestStatistics(BasicTest):
         q_ht = ht.array(q, split=0, device=x_ht.device, comm=x_ht.comm)
         p_ht = ht.percentile(x_ht, q_ht, axis=axis)
         self.assertAlmostEqual(p_ht.numpy().all(), p_np.all())
+
+        # test scalar x
+        x_sc = ht.array(4.5)
+        p_ht = ht.percentile(x_sc, q=q)
+        p_np = np.percentile(4.5, q=q)
+        self.assertEqual(p_ht.numpy().all(), p_np.all())
 
         # test exceptions
         with self.assertRaises(TypeError):
