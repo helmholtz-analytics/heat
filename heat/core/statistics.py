@@ -1113,11 +1113,11 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     a : ht.tensor
     Input tensor
 
-    q : ht.tensor, scalar, or list of scalars
+    q : ht.tensor, torch.tensor, scalar, or list of scalars
     Percentile or sequence of percentiles to compute. Must belong to the interval [0, 100].
 
     axis : int, or None, optional #TODO tuple of ints
-    Axis or axes along which the percentiles are computed. Default is None.
+    Axis along which the percentiles are computed. Default is None.
 
     #TODO: out, optional. Output buffer.
 
@@ -1144,12 +1144,15 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     def local_percentile(data, axis, indices):
         """
         Process-local percentile calculations
+
         Input:
-        data, ht.tensor
-        axis, int or TODO tuple of ints
-        indices, torch.tensor or list or tuple or scalar
+        ------
+        data : ht.tensor
+        axis : int or TODO tuple of ints
+        indices : torch.tensor
 
         Returns:
+        --------
         percentile, torch.tensor, process-local
         """
 
@@ -1194,7 +1197,6 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         return percentile
 
     # sanitize input
-
     if not isinstance(x, dndarray.DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
     if isinstance(axis, list) or isinstance(axis, tuple):
