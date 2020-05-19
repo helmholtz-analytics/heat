@@ -923,6 +923,8 @@ class TestStatistics(BasicTest):
         self.assertAlmostEqual(p_ht.numpy().all(), p_np.all())
 
         # test exceptions
+        with self.assertRaises(TypeError):
+            ht.percentile(x_np, q)
         with self.assertRaises(ValueError):
             ht.percentile(x_ht, q, interpolation="Homer!")
         with self.assertRaises(NotImplementedError):
