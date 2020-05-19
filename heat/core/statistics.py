@@ -1191,7 +1191,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
                 permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
                 percentile = percentile.permute(permute_dims)
 
-            return percentile
+        return percentile
 
     # sanitize input
 
@@ -1206,9 +1206,17 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             q.resplit_(axis=None)
         q = q._DNDarray__array
     elif isinstance(q, list) or isinstance(q, tuple):
-        q = torch.tensor(q)  # TODO: device
+        q = torch.tensor(
+            q,
+            dtype=torch.promote_types(type(q[0]), x._DNDarray__array.dtype),
+            device=x._DNDarray__array.device,
+        )
     elif np.isscalar(q) or isinstance(q, torch.tensor) and q.ndim == 0:
-        q = torch.tensor([q])  # TODO: device
+        q = torch.tensor(
+            [q],
+            dtype=torch.promote_types(type(q), x._DNDarray__array.dtype),
+            device=x._DNDarray__array.device,
+        )
     elif isinstance(q, torch.tensor):
         pass
     else:
@@ -1221,12 +1229,6 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         percentile = x._DNDarray__array * q / q
         return factories.array(percentile, split=None, dtype=x.dtype, device=x.device, comm=x.comm)
 
-    # MPI coordinates
-    rank = x.comm.rank
-    size = x.comm.size
-    gshape = x.gshape
-    split = x.split
-
     # no axis
     if axis is None:
         if x.numdims > 1:
@@ -1234,11 +1236,17 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             x = x.flatten()
         axis = 0
 
+    # MPI coordinates
+    rank = x.comm.rank
+    size = x.comm.size
+    gshape = x.gshape
+    split = x.split
+
     output_shape = (q.numel(),) + gshape[:axis] + gshape[axis + 1 :]
 
     # compute indices
     length = gshape[axis]
-    indices = q.type(torch.float) / 100 * (length - 1)
+    indices = q / 100 * (length - 1)
     if interpolation == "lower":
         indices = indices.floor().type(torch.long)
     elif interpolation == "higher":
