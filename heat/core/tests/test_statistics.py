@@ -909,11 +909,10 @@ class TestStatistics(BasicTest):
             self.assert_array_equal(p_ht_split1, p_np)
             self.assert_array_equal(p_ht_split2, p_np)
 
-        # test x, q dtypes combination
-        q = 50
+        # test x, q dtypes combination plus edge-case 100th percentile
+        q = 100
         p_np = np.percentile(x_np, q, axis=0)
         p_ht = ht.percentile(x_ht, q, axis=0)
-        #        self.assert_array_equal(p_ht, p_np)
         self.assertAlmostEqual(p_ht.numpy().all(), p_np.all())
 
         # test list q
@@ -921,7 +920,6 @@ class TestStatistics(BasicTest):
         axis = None
         p_np = np.percentile(x_np, q, axis=axis)
         p_ht = ht.percentile(x_ht, q, axis=axis)
-        # self.assert_array_equal(p_ht, p_np)
         self.assertAlmostEqual(p_ht.numpy().all(), p_np.all())
 
         # test exceptions
