@@ -12,8 +12,6 @@ from . import types
 from . import stride_tricks
 from . import logical
 from . import constants
-from . import arithmetics
-
 
 __all__ = [
     "argmax",
