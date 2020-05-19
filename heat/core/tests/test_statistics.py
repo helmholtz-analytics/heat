@@ -922,6 +922,11 @@ class TestStatistics(BasicTest):
         p_ht = ht.percentile(x_ht, q, axis=axis)
         self.assertAlmostEqual(p_ht.numpy().all(), p_np.all())
 
+        # test split q
+        q = ht.array(q, split=0, device=x_ht.device, comm=x_ht.comm)
+        p_ht = ht.percentile(x_ht, q, axis=axis)
+        self.assertAlmostEqual(p_ht.numpy().all(), p_np.all())
+
         # test exceptions
         with self.assertRaises(TypeError):
             ht.percentile(x_np, q)
