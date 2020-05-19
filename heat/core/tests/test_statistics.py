@@ -918,14 +918,21 @@ class TestStatistics(BasicTest):
         # test list q
         q = [0.1, 2.3, 15.9, 50.0, 84.1, 97.7, 99.9]
         axis = None
-        p_np = np.percentile(x_np, q, axis=axis)
-        p_ht = ht.percentile(x_ht, q, axis=axis)
-        self.assertAlmostEqual(p_ht.numpy().all(), p_np.all())
+        p_np = np.percentile(x_np, q, axis=axis, interpolation="lower")
+        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower")
+        self.assertEqual(p_ht.numpy()[5], p_np[5])
+        p_np = np.percentile(x_np, q, axis=axis, interpolation="higher")
+        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="higher")
+        self.assertEqual(p_ht.numpy()[6], p_np[6])
+        p_np = np.percentile(x_np, q, axis=axis, interpolation="nearest")
+        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="nearest")
+        self.assertEqual(p_ht.numpy()[2], p_np[2])
 
         # test split q
         q_ht = ht.array(q, split=0, device=x_ht.device, comm=x_ht.comm)
-        p_ht = ht.percentile(x_ht, q_ht, axis=axis)
-        self.assertAlmostEqual(p_ht.numpy().all(), p_np.all())
+        p_np = np.percentile(x_np, q, axis=axis, interpolation="midpoint")
+        p_ht = ht.percentile(x_ht, q_ht, axis=axis, interpolation="midpoint")
+        self.assertEqual(p_ht.numpy()[4], p_np[4])
 
         # test scalar x
         x_sc = ht.array(4.5)
