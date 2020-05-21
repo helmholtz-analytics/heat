@@ -1020,7 +1020,7 @@ def pad(array, pad_width, mode="constant", values=0):
     # ------------------------------------------------------------------------------------------------------------------
     # no data
     if 0 in list(array.lshape):
-        padded_torch_tensor = torch.tensor([])
+        padded_torch_tensor = torch.tensor([], dtype=array._DNDarray__array.dtype)
     else:
         if array.split is None or array.split not in pad_dim or amount_of_processes == 1:
             # values = scalar
