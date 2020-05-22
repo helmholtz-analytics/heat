@@ -316,6 +316,7 @@ class TestIO(unittest.TestCase):
             zeros = ht.zeros((2, 2), device=ht_device)
             zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
             ones = ht.ones((1, 2, 1), split=0, device=ht_device)
+            ones_nosplit = ht.ones((1, 2, 1), device=ht_device)
             indices = (0,)
             ones.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=indices)
             if split_range.comm.rank == 0:
@@ -323,7 +324,19 @@ class TestIO(unittest.TestCase):
                     comparison = torch.tensor(
                         handle[self.NETCDF_VARIABLE][indices], dtype=torch.int32, device=device
                     )
-                self.assertTrue((ones._DNDarray__array == comparison).all())
+                self.assertTrue((ones_nosplit._DNDarray__array == comparison).all())
+
+            # different split and dtype
+            ht.MPI_WORLD.Barrier()
+            zeros = ht.zeros((2, 2), split=1, dtype=ht.int32, device=ht_device)
+            zeros_nosplit = ht.zeros((2, 2), dtype=ht.int32, device=ht_device)
+            zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
+            if split_range.comm.rank == 0:
+                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                    comparison = torch.tensor(
+                        handle[self.NETCDF_VARIABLE][:], dtype=torch.int32, device=device
+                    )
+                self.assertTrue((zeros_nosplit._DNDarray__array == comparison).all())
 
     def test_save_exception(self):
         data = ht.arange(1, device=ht_device)

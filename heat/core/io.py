@@ -340,7 +340,8 @@ else:
             already exist) is unlimited. Already existing limited dimensions
             cannot be changed to unlimited and vice versa.
         file_slices : tuple of integer, slice, ellipsis or 1-d bool or
-            integer sequences used to slice the netCDF Variable, as given in
+            integer sequences
+            Keys used to slice the netCDF Variable, as given in
             the nc.utils._StartCountStride method.
         kwargs : dict
             additional arguments passed to the created dataset.
@@ -395,7 +396,7 @@ else:
         is_split = data.split is not None
         _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
 
-        def getExpandedSplit(shape, expandedShape, split):
+        def __get_expanded_split(shape, expandedShape, split):
             """Returns the hypothetical split-axis of a dndarray of shape=shape and
             split=split if it was expanded to expandedShape by adding empty dimensions.
 
@@ -448,7 +449,7 @@ else:
                 if v == 1
             )
 
-        def mergeSlices(var, var_slices, data, data_slices=None):
+        def __merge_slices(var, var_slices, data, data_slices=None):
             """ Using var[var_slices][data_slices] = data
             combines a __getitem__ with a __setitem__ call, therefore it does not allow
             parallelization of the write-operation and does not work is var_slices = slice(None)
@@ -469,12 +470,8 @@ else:
 
             Returns
             -------
-
-                Key for the set-operation.
-
-            Raises
-            -------
-
+            tuple of (slice or integer sequence)
+                Keys for the set-operation.
             """
             slices = data_slices
             if slices is None:
@@ -488,7 +485,7 @@ else:
                 put=True,
             )
             out_shape = nc._netCDF4._out_array_shape(count)
-            out_split = getExpandedSplit(data.shape, out_shape, data.split)
+            out_split = __get_expanded_split(data.shape, out_shape, data.split)
 
             start, count, stride = start.T, count.T, stride.T  # transpose for iteration
             stop = start + stride * count
@@ -519,6 +516,7 @@ else:
                     a = None if a < 0 else a
                     b = None if b < 0 else b
                     new_slices[out_split] = slice(a, b, c)
+                    # new_slices[out_split] = sliced
                 elif isinstance(new_slices[out_split], np.ndarray):
                     new_slices[out_split] = new_slices[out_split][slices[data.split]]
                 else:
@@ -537,7 +535,7 @@ else:
                     var = handle.createVariable(
                         variable, data.dtype.char(), dimension_names, **kwargs
                     )
-                mergedSlices = mergeSlices(var, file_slices, data)
+                mergedSlices = __merge_slices(var, file_slices, data)
                 try:
                     var[mergedSlices] = (
                         data._DNDarray__array.cpu()
@@ -566,7 +564,7 @@ else:
                     )
                 var.set_collective(False)  # not possible with non-parallel netcdf
                 if is_split:
-                    mergedSlices = mergeSlices(var, file_slices, data)
+                    mergedSlices = __merge_slices(var, file_slices, data)
                     var[mergedSlices] = data._DNDarray__array.cpu()
                 else:
                     var[file_slices] = data._DNDarray__array.cpu()
@@ -583,7 +581,7 @@ else:
             with nc.Dataset(path, "r+") as handle:
                 var = handle.variables[variable]
                 var.set_collective(False)  # not possible with non-parallel netcdf
-                mergedSlices = mergeSlices(var, file_slices, data)
+                mergedSlices = __merge_slices(var, file_slices, data)
                 var[mergedSlices] = data._DNDarray__array.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
