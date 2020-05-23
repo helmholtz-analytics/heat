@@ -98,11 +98,7 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
         return ret
     # =============================== Prep work ====================================================
     r = a if overwrite_a else a.copy()
-    # print("r")
     r_tiles = tiling.SquareDiagTiles(r, tiles_per_proc)
-    # print(r_tiles.lshape_map)
-    # print(r_tiles.row_indices, r_tiles.col_indices)
-    # print(r_tiles.tile_rows_per_process, r_tiles.tile_columns_per_process)
 
     tile_columns = r_tiles.tile_columns
     tile_rows = r_tiles.tile_rows
@@ -111,11 +107,7 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
             (r.gshape[0], r.gshape[0]), split=0, dtype=r.dtype, comm=r.comm, device=r.device
         )
         q_tiles = tiling.SquareDiagTiles(q, tiles_per_proc)
-        # print("Q")
         q_tiles.match_tiles(r_tiles)
-        # print(q_tiles.lshape_map)
-        # print(q_tiles.row_indices, q_tiles.col_indices)
-        # print(q_tiles.tile_rows_per_process, q_tiles.tile_columns_per_process)
     else:
         q, q_tiles = None, None
     # ==============================================================================================
@@ -239,7 +231,6 @@ def __split0_global_q_dict_set(
         r1 = int(key[p1 + 2 : end])
         lp_q = q_dict_col[key][0]
         base_size = q_dict_col[key][1]
-        # print(dim0, dim1, lp_q.shape, key, base_size)
         # cut the q into 4 bits (end of base array)
         # todo: modify this so that it will get what is needed from the process,
         #  instead of gathering all the qs
@@ -308,9 +299,7 @@ def __split0_global_q_dict_set(
             # check that we are not overwriting here
             global_merge_dict[ldim] = bottom_left
         else:  # -> do the mm for all of the mult keys
-            # print(s10)
             for k in s10:
-                # print(k, hold_dict[k].shape, bottom_left.shape)
                 global_merge_dict[k[0], ldim[1]] = hold_dict[k] @ bottom_left
         # (M)
         if not len(s11):

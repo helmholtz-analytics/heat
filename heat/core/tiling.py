@@ -389,7 +389,6 @@ class SquareDiagTiles:
                 col_per_proc_list = [len(col_inds)] * arr.comm.size
 
                 redist_vec = lshape_map[..., arr.split].clone()
-                # print(st_ldp, redist_vec, row_inds)
                 if st_ldp > 0:
                     redist_vec[0] = tile_shape * tiles_per_proc
                     for i in range(st_ldp):
@@ -405,8 +404,6 @@ class SquareDiagTiles:
                     diff = mgshape - redist_vec[0]
                     redist_vec[0] = mgshape
                     redist_vec[1] += abs(diff)
-                    # else:?
-                    #     redist_vec[i + 1] += diff
 
                 if redist_vec[st_ldp] > tile_shape:
                     # include the process with however many shape will fit

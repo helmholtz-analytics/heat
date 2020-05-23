@@ -60,10 +60,6 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
     if not overwrite_arr:
         arr = arr.copy()
     arr_tiles = tiling.SquareDiagTiles(arr, tiles_per_proc)
-    # print('arr')
-    # print(arr_tiles.lshape_map)
-    # print(arr_tiles.row_indices, arr_tiles.col_indices)
-    # print(arr_tiles.tile_rows_per_process, arr_tiles.tile_columns_per_process)
 
     q1 = factories.eye(
         (arr.gshape[1], arr.gshape[1]), split=0, dtype=arr.dtype, comm=arr.comm, device=arr.device
@@ -78,7 +74,6 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
     # 2. get transpose of arr
     arr_t = arr.T
     # 3. tile arr_t
-    # print("arr_t")
     arr_t_tiles = tiling.SquareDiagTiles(arr_t, tiles_per_proc, no_tiles=True)
 
     # 4. match tiles to arr
@@ -90,10 +85,6 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
     )
     q0_tiles = tiling.SquareDiagTiles(q0, tiles_per_proc)
     q0_tiles.match_tiles(arr_tiles)
-    # print('Q0')
-    # print(q0_tiles.lshape_map)
-    # print(q0_tiles.row_indices, q0_tiles.col_indices)
-    # print(q0_tiles.tile_rows_per_process, q0_tiles.tile_columns_per_process)
     q1_tiles = tiling.SquareDiagTiles(q1, tiles_per_proc)
     q1_tiles.match_tiles(arr_t_tiles)
 

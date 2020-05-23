@@ -1983,6 +1983,26 @@ class DNDarray:
         """
         return linalg.matmul(self, other)
 
+    def matrix_shape_classifier(self):
+        """
+        Classifies a 2D matrix as square (roughly), tall-skinny (TS), or short-fat (SF).
+        If the diagonal crosses half the processes it is mostly square, if the first dimension is
+        greater than or equal to twice the second dimension then it is TS, if vice versa then it is SF.
+
+        Returns
+        -------
+        shape classifier : str
+            square (roughly), tall-skinny (TS), or short-fat (SF)
+        """
+        comp = self.gshape[0] / self.gshape[1]
+        if 0.5 <= comp <= 2:
+            # if the diagonal crosses at least half the processes,
+            return "square"
+        elif comp > 2:
+            return "TS"
+        else:
+            return "SF"
+
     def max(self, axis=None, out=None, keepdim=None):
         """
         Return the maximum of an array or maximum along an axis.
