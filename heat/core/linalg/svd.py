@@ -1,6 +1,7 @@
 import torch
 
 from .qr import __split0_r_calc, __split0_q_loop, __split1_qr_loop
+from .. import dndarray
 from .. import factories
 from .. import tiling
 
@@ -49,12 +50,14 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
             Dictionary with the entries of the tiling objects, keys are as follows
             `{"q0": q0_tiles, "arr": arr_tiles, "arr_t": arr_t_tiles, "q1": q1_tiles}`
     """
+    if not isinstance(arr, dndarray.DNDarray):
+        raise TypeError("arr must be a DNDarray, not {}".format(type(arr)))
+    if not arr.is_distributed():
+        raise RuntimeError("Array must be distributed, see docs")
     if arr.split not in [0, 1]:
         raise NotImplementedError(
             "Split {} not implemented, arr must be 2D and split".format(arr.split)
         )
-    if arr.comm.size == 1:
-        raise RuntimeError("Array must be distributed, see docs")
     tiles_per_proc = 2
     # 1. tile arr if needed
     if not overwrite_arr:
