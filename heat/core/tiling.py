@@ -362,6 +362,7 @@ class SquareDiagTiles:
         lshape_map = arr.create_lshape_map()
         if not no_tiles:
             mat_shape_type = arr.matrix_shape_classifier()
+            torch_dev = arr.device.torch_device
             divs_per_proc = [tiles_per_proc] * arr.comm.size
             if (mat_shape_type == "TS" and arr.split == 0) or (
                 mat_shape_type == "SF" and arr.split == 1
@@ -380,7 +381,9 @@ class SquareDiagTiles:
                         "Dataset too small for tiles to be useful, resplit to None if possible"
                     )
 
-                col_inds = [0] + torch.tensor([tile_shape] * ntiles).cumsum(0).tolist()
+                col_inds = [0] + torch.tensor(
+                    [tile_shape] * ntiles, dtype=torch.int, device=torch_dev
+                ).cumsum(0).tolist()
                 if rem > 0:
                     col_inds[-1] += rem
                 row_per_proc_list = [0] * arr.comm.size
@@ -492,7 +495,7 @@ class SquareDiagTiles:
                     ed = divs_per_proc[i] + c
                     redist_v_sp.append(sum(divs[st:ed]))
                     c = ed
-                redist_v_sp = torch.tensor(redist_v_sp)
+                redist_v_sp = torch.tensor(redist_v_sp, dtype=torch.int, device=torch_dev)
                 # original assumption is that there are tiles_per_proc tiles on each process with
                 #       an maximum of ((m - n) % sz) * n * tiles_per_proc  additionally on the last process
                 #       (for m x n)
@@ -521,7 +524,7 @@ class SquareDiagTiles:
                 target_map[..., arr.split] = redist_v_sp
                 arr.redistribute_(lshape_map, target_map)
 
-                divs = torch.tensor(divs, dtype=torch.int32, device=arr.device.torch_device)
+                divs = torch.tensor(divs, dtype=torch.int32, device=torch_dev)
                 div_inds = divs.cumsum(dim=0)
                 fr_tile_ge = torch.where(div_inds >= mgshape)[0][0]
                 if mgshape == arr.gshape[0]:
@@ -532,7 +535,10 @@ class SquareDiagTiles:
                     last_diag_pr = 0
                 else:
                     last_diag_pr = torch.where(
-                        fr_tile_ge < torch.tensor(divs_per_proc).cumsum(dim=0)
+                        fr_tile_ge
+                        < torch.tensor(divs_per_proc, dtype=torch.int, device=torch_dev).cumsum(
+                            dim=0
+                        )
                     )[0][0].item()
 
             tile_map = self.__create_tile_map(
@@ -568,7 +574,7 @@ class SquareDiagTiles:
         # create the tile map from the given rows, columns, rows/process, cols/process,
         #   and the base array
         tile_map = torch.zeros(
-            [len(rows), len(cols), 3], dtype=torch.int, device=arr._DNDarray__array.device
+            [len(rows), len(cols), 3], dtype=torch.int, device=arr.device.torch_device
         )
 
         for num, c in enumerate(cols):  # set columns
@@ -1141,7 +1147,9 @@ class SquareDiagTiles:
                 [
                     row_inds[i + 1] - row_inds[i]
                     for i in range(sum(rows_per[:ldp]), sum(rows_per[:ldp]) + rows_per[ldp])
-                ]
+                ],
+                dtype=torch.int,
+                device=self.arr.device.torch_device,
             )
             row_diff_where = torch.where(row_diff > row_diff[0])[0]
             if row_diff_where.numel() > 0 and row_diff_where[0] < rows_per[ldp] - 1:
