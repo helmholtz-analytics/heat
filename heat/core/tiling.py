@@ -317,6 +317,10 @@ class SquareDiagTiles:
     tiles_per_proc : int, optional
         Default = 2
         the number of divisions per process,
+    no_tiles : bool, optional
+        Default = False
+        This will initilize the class but will not do any logic,
+        to be used when the tiles will be matched to another tiling class
 
     Properties
     -----------
@@ -342,7 +346,7 @@ class SquareDiagTiles:
         number of tile rows on each process
     """
 
-    def __init__(self, arr, tiles_per_proc=2):
+    def __init__(self, arr, tiles_per_proc=2, no_tiles=False):
         # lshape_map -> rank (int), lshape (tuple of the local lshape, self.lshape)
         if not isinstance(arr, dndarray.DNDarray):
             raise TypeError("arr must be a DNDarray, is currently a {}".format(type(self)))
@@ -356,214 +360,211 @@ class SquareDiagTiles:
             raise ValueError("DNDarray must be distributed")
 
         lshape_map = arr.create_lshape_map()
-        mat_shape_type = arr.matrix_shape_classifier()
-        divs_per_proc = [tiles_per_proc] * arr.comm.size
-        if (mat_shape_type == "TS" and arr.split == 0) or (
-            mat_shape_type == "SF" and arr.split == 1
-        ):
-            # for these cases the diagonal crosses all splits
-            # the min(gshape) -> dim1 for TS, dim0 for SF
-            mgshape = arr.gshape[1] if mat_shape_type == "TS" else arr.gshape[0]
+        if not no_tiles:
+            mat_shape_type = arr.matrix_shape_classifier()
+            divs_per_proc = [tiles_per_proc] * arr.comm.size
+            if (mat_shape_type == "TS" and arr.split == 0) or (
+                mat_shape_type == "SF" and arr.split == 1
+            ):
+                # for these cases the diagonal crosses all splits
+                # the min(gshape) -> dim1 for TS, dim0 for SF
+                mgshape = arr.gshape[1] if mat_shape_type == "TS" else arr.gshape[0]
 
-            lshape_cs_sp = lshape_map[..., arr.split].cumsum(0)
-            st_ldp = torch.where(lshape_cs_sp > mgshape)[0][0].item()
-            last_diag_pr = st_ldp
-            ntiles = (st_ldp + 1) * tiles_per_proc
-            tile_shape, rem = mgshape // ntiles, mgshape % ntiles
-            if tile_shape <= 1:  # this can be raised as these matrices are mostly square
-                raise ValueError(
-                    "Dataset too small for tiles to be useful, resplit to None if possible"
-                )
+                lshape_cs_sp = lshape_map[..., arr.split].cumsum(0)
+                st_ldp = torch.where(lshape_cs_sp > mgshape)[0][0].item()
+                last_diag_pr = st_ldp
+                ntiles = (st_ldp + 1) * tiles_per_proc
+                tile_shape, rem = mgshape // ntiles, mgshape % ntiles
+                if tile_shape <= 1:  # this can be raised as these matrices are mostly square
+                    raise ValueError(
+                        "Dataset too small for tiles to be useful, resplit to None if possible"
+                    )
 
-            col_inds = [0] + torch.tensor([tile_shape] * ntiles).cumsum(0).tolist()
-            if rem > 0:
-                col_inds[-1] += rem
-            row_per_proc_list = [0] * arr.comm.size
-            row_inds = col_inds.copy()
-            # print(row_inds)
-            col_inds = col_inds[:-1]
-            col_per_proc_list = [len(col_inds)] * arr.comm.size
+                col_inds = [0] + torch.tensor([tile_shape] * ntiles).cumsum(0).tolist()
+                if rem > 0:
+                    col_inds[-1] += rem
+                row_per_proc_list = [0] * arr.comm.size
+                row_inds = col_inds.copy()
+                col_inds = col_inds[:-1]
+                col_per_proc_list = [len(col_inds)] * arr.comm.size
 
-            redist_vec = lshape_map[..., arr.split].clone()
-            redist_vec[0] = tile_shape * tiles_per_proc
-            for i in range(st_ldp):
-                # this loop makes it so that the remainder of all processes is pushed to the last one
-                diff = redist_vec[i] - lshape_map[..., arr.split][i]
-                redist_vec[i] = tile_shape * tiles_per_proc
-                if diff < 0:
-                    redist_vec[i + 1] -= diff
+                redist_vec = lshape_map[..., arr.split].clone()
+                # print(st_ldp, redist_vec, row_inds)
+                if st_ldp > 0:
+                    redist_vec[0] = tile_shape * tiles_per_proc
+                    for i in range(st_ldp):
+                        # this loop makes it so that the remainder of all processes is pushed to the last one
+                        diff = redist_vec[i] - lshape_map[..., arr.split][i]
+                        redist_vec[i] = tile_shape * tiles_per_proc
+                        redist_vec[i + 1] += abs(diff)
+                    diff = mgshape - redist_vec[: st_ldp + 1].sum()
+                    if diff > 0:
+                        redist_vec[st_ldp] += diff
+                        redist_vec[-1] -= diff
+                else:
+                    diff = mgshape - redist_vec[0]
+                    redist_vec[0] = mgshape
+                    redist_vec[1] += abs(diff)
+                    # else:?
+                    #     redist_vec[i + 1] += diff
 
-            if redist_vec[st_ldp] > tile_shape:
-                # include the process with however many shape will fit
-                diag_rem_el = mgshape - sum(redist_vec[:st_ldp])
-                # this is the number of diagonal elements on the process
-                proc_space_after_diag = redist_vec[st_ldp] - diag_rem_el
-                # this is the number of elements on the process after the diagonal
-                if proc_space_after_diag < 0:
-                    # last_diag_pr += 1
-                    # row_inds.insert(-1, sum(redist_vec[:st_ldp + 1]).item())
-                    # # divs_per_proc[st_ldp] += 1
-                    # st_ldp += 1
-                    # # print('rrr', row_inds, divs_per_proc)
-                    # diag_rem_el = mgshape - sum(redist_vec[:st_ldp])
-                    # proc_space_after_diag = redist_vec[st_ldp] - diag_rem_el
-                    raise ValueError("wtf? proc space after diag: {}".format(proc_space_after_diag))
-                # print('d', diag_rem_el, proc_space_after_diag, redist_vec[st_ldp])
-                # if diag_rem_el == 1:
-                #     redist_vec[st_ldp] -= 1
-                #     redist_vec[st_ldp - 1] += 1
-                #     diag_rem_el = 0
-                #     st_ldp -= 1
-                # elif diag_rem_el < tile_shape:
-                #     # insert a tile onto this process
-                #     pass
+                if redist_vec[st_ldp] > tile_shape:
+                    # include the process with however many shape will fit
+                    diag_rem_el = mgshape - sum(redist_vec[:st_ldp])
+                    # this is the number of diagonal elements on the process
+                    proc_space_after_diag = redist_vec[st_ldp] - diag_rem_el
+                    # this is the number of elements on the process after the diagonal
+                    if proc_space_after_diag < 0:
+                        print(redist_vec, diag_rem_el, arr.gshape, proc_space_after_diag)
+                        raise ValueError(
+                            "wtf? proc space after diag: {}".format(proc_space_after_diag)
+                        )
 
-                if redist_vec[st_ldp] < diag_rem_el:
-                    # not enough space for any diagonal tiles, send diag rem el to process before
-                    redist_vec[st_ldp - 1] += diag_rem_el
-                    last_diag_pr = st_ldp - 1
-                # todo: need to add the end of the last
-                # elif diag_rem_el == 2
-                elif redist_vec[st_ldp] < tile_shape * tiles_per_proc:
-                    # not enough space for all requested tiles
-                    lcl_tiles = redist_vec[st_ldp] // tile_shape
-                    lcl_rem = redist_vec[st_ldp] % tile_shape
-                    if lcl_rem == 1:
+                    if redist_vec[st_ldp] < diag_rem_el:
+                        # not enough space for any diagonal tiles, send diag rem el to process before
+                        redist_vec[st_ldp - 1] += diag_rem_el
+                        last_diag_pr = st_ldp - 1
+                    elif redist_vec[st_ldp] < tile_shape * tiles_per_proc:
+                        # not enough space for all requested tiles
+                        lcl_tiles = redist_vec[st_ldp] // tile_shape
+                        lcl_rem = redist_vec[st_ldp] % tile_shape
+                        if lcl_rem == 1:
+                            redist_vec[st_ldp] -= 1
+                            redist_vec[-1] += 1
+                            divs_per_proc[st_ldp] = lcl_tiles
+                        else:
+                            # can fit one more tile on the process
+                            divs_per_proc[st_ldp] = lcl_tiles + 1
+                            row_inds.append(mgshape + proc_space_after_diag)
+                    elif proc_space_after_diag == 1:
+                        # 1 element after diagonal
                         redist_vec[st_ldp] -= 1
                         redist_vec[-1] += 1
-                        divs_per_proc[st_ldp] = lcl_tiles
+                    elif proc_space_after_diag >= tile_shape:
+                        # more space after the diagonal (more than 1 element) -> proc space > 1
+                        divs_per_proc[st_ldp] += 1
+                        row_inds.append(mgshape + proc_space_after_diag.item())
                     else:
-                        # can fit one more tile on the process
-                        divs_per_proc[st_ldp] = lcl_tiles + 1
-                        row_inds.append(mgshape + proc_space_after_diag)
-                elif proc_space_after_diag == 1:
-                    # 1 element after diagonal
-                    redist_vec[st_ldp] -= 1
-                    redist_vec[-1] += 1
-                elif proc_space_after_diag >= tile_shape:
-                    # more space after the diagonal (more than 1 element) -> proc space > 1
-                    divs_per_proc[st_ldp] += 1
-                    row_inds.append(mgshape + proc_space_after_diag.item())
-                    # print('here', row_inds)
-                else:
-                    redist_vec[st_ldp] -= proc_space_after_diag
-                    redist_vec[-1] += proc_space_after_diag
-            if redist_vec.sum() < arr.gshape[arr.split]:
-                redist_vec[-1] += arr.gshape[arr.split] - redist_vec.sum()
-            print(row_inds, st_ldp, redist_vec)
+                        redist_vec[st_ldp] -= proc_space_after_diag
+                        redist_vec[-1] += proc_space_after_diag
+                if redist_vec.sum() < arr.gshape[arr.split]:
+                    redist_vec[-1] += arr.gshape[arr.split] - redist_vec.sum()
 
-            target_map = lshape_map.clone()
-            target_map[..., arr.split] = redist_vec
-            arr.redistribute_(lshape_map, target_map)
-            # next, chunk each process
+                target_map = lshape_map.clone()
+                target_map[..., arr.split] = redist_vec
+                arr.redistribute_(lshape_map, target_map)
+                # next, chunk each process
 
-            for pr in range(arr.comm.size):
-                if pr <= last_diag_pr:
-                    row_per_proc_list[pr] = divs_per_proc[pr]
-                else:
-                    # print(pr)
-                    base_sz = redist_vec[pr] // tiles_per_proc
-                    rem = redist_vec[pr] % tiles_per_proc
-                    lcl_inds = torch.tensor([base_sz] * tiles_per_proc)
-                    for r in range(rem):
-                        lcl_inds[r] += 1
-                    lcl_inds = [i.item() + row_inds[-1] for i in lcl_inds.cumsum(0)]
-                    row_inds.extend(lcl_inds)
-                    row_per_proc_list[pr] = len(lcl_inds)
-
-            print("h", row_inds, row_per_proc_list, last_diag_pr, divs_per_proc)
-            row_inds = row_inds[:-1]
-            if mat_shape_type == "SF":
-                hld = row_inds
-                row_inds = col_inds
-                col_inds = hld
-                hld = col_per_proc_list
-                col_per_proc_list = row_per_proc_list
-                row_per_proc_list = hld
-        else:
-            # this covers the following cases:
-            #       Square -> both splits
-            #       TS -> split == 1  # diag covers whole size
-            #       SF -> split == 0  # diag covers whole size
-            divs_per_proc = [tiles_per_proc] * arr.comm.size
-            mgshape = min(arr.gshape)
-            ntiles = arr.comm.size * tiles_per_proc
-            tile_shape, rem = mgshape // ntiles, mgshape % ntiles
-            if tile_shape <= 1:  # this can be raised as these matrices are mostly square
-                raise ValueError(
-                    "Dataset too small for tiles to be useful, resplit to None if possible"
-                )
-            shape_rem = (
-                arr.gshape[0] - arr.gshape[1] if arr.split == 0 else arr.gshape[1] - arr.gshape[0]
-            )
-            divs = [tile_shape] * ntiles
-            redist_v_sp, c = [], 0
-            for i in range(arr.comm.size):
-                st = c
-                ed = divs_per_proc[i] + c
-                redist_v_sp.append(sum(divs[st:ed]))
-                c = ed
-            redist_v_sp = torch.tensor(redist_v_sp)
-            # original assumption is that there are tiles_per_proc tiles on each process with
-            #       an maximum of ((m - n) % sz) * n * tiles_per_proc  additionally on the last process
-            #       (for m x n)
-            div_inds1 = torch.tensor(
-                divs, dtype=torch.int32, device=arr.device.torch_device
-            ).cumsum(dim=0)
-            row_inds = [0] + div_inds1[:-1].tolist()
-            col_inds = [0] + div_inds1[:-1].tolist()
-
-            if rem > 0:
-                divs[-1] += rem
-                redist_v_sp[-1] += rem
-            if shape_rem > 0:
-                # put the remainder on the last process
-                divs.append(shape_rem)
-                redist_v_sp[-1] += shape_rem
-
-            if mat_shape_type == "TS" and arr.split == 1:
-                # need to add a division after the diagonal here
-                row_inds.append(arr.gshape[1])
-                ntiles += 1
-            col_per_proc_list = [ntiles] * arr.comm.size if arr.split == 0 else divs_per_proc
-            row_per_proc_list = [ntiles] * arr.comm.size if arr.split == 1 else divs_per_proc
-
-            target_map = lshape_map.clone()
-            target_map[..., arr.split] = redist_v_sp
-            arr.redistribute_(lshape_map, target_map)
-
-            divs = torch.tensor(divs, dtype=torch.int32, device=arr.device.torch_device)
-            div_inds = divs.cumsum(dim=0)
-            fr_tile_ge = torch.where(div_inds >= mgshape)[0][0]
-            if mgshape == arr.gshape[0]:
-                last_diag_pr = arr.comm.size - 1
-            elif mgshape == div_inds[fr_tile_ge]:
-                last_diag_pr = torch.floor_divide(fr_tile_ge, tiles_per_proc).item()
-            elif fr_tile_ge == 0:  # -> first tile above is 0, thus the last diag pr is also 0
-                last_diag_pr = 0
+                for pr in range(arr.comm.size):
+                    if pr <= last_diag_pr:
+                        row_per_proc_list[pr] = divs_per_proc[pr]
+                    else:
+                        # only 1 tile on the processes after the diagonal
+                        row_inds.append(row_inds[-1] + redist_vec[pr].item())
+                        row_per_proc_list[pr] = 1
+                row_inds = row_inds[:-1]
+                if mat_shape_type == "SF":
+                    hld = row_inds
+                    row_inds = col_inds
+                    col_inds = hld
+                    hld = col_per_proc_list
+                    col_per_proc_list = row_per_proc_list
+                    row_per_proc_list = hld
             else:
-                last_diag_pr = torch.where(fr_tile_ge < torch.tensor(divs_per_proc).cumsum(dim=0))[
-                    0
-                ][0].item()
+                # this covers the following cases:
+                #       Square -> both splits
+                #       TS -> split == 1  # diag covers whole size
+                #       SF -> split == 0  # diag covers whole size
+                divs_per_proc = [tiles_per_proc] * arr.comm.size
+                mgshape = min(arr.gshape)
+                ntiles = arr.comm.size * tiles_per_proc
+                tile_shape, rem = mgshape // ntiles, mgshape % ntiles
+                if tile_shape <= 1:  # this can be raised as these matrices are mostly square
+                    raise ValueError(
+                        "Dataset too small for tiles to be useful, resplit to None if possible"
+                    )
+                shape_rem = (
+                    arr.gshape[0] - arr.gshape[1]
+                    if arr.split == 0
+                    else arr.gshape[1] - arr.gshape[0]
+                )
+                divs = [tile_shape] * ntiles
+                redist_v_sp, c = [], 0
+                for i in range(arr.comm.size):
+                    st = c
+                    ed = divs_per_proc[i] + c
+                    redist_v_sp.append(sum(divs[st:ed]))
+                    c = ed
+                redist_v_sp = torch.tensor(redist_v_sp)
+                # original assumption is that there are tiles_per_proc tiles on each process with
+                #       an maximum of ((m - n) % sz) * n * tiles_per_proc  additionally on the last process
+                #       (for m x n)
+                div_inds1 = torch.tensor(
+                    divs, dtype=torch.int32, device=arr.device.torch_device
+                ).cumsum(dim=0)
+                row_inds = [0] + div_inds1[:-1].tolist()
+                col_inds = [0] + div_inds1[:-1].tolist()
 
-        tile_map = self.__create_tile_map(
-            row_inds, col_inds, row_per_proc_list, col_per_proc_list, arr
-        )
+                if rem > 0:
+                    divs[-1] += rem
+                    redist_v_sp[-1] += rem
+                if shape_rem > 0:
+                    # put the remainder on the last process
+                    divs.append(shape_rem)
+                    redist_v_sp[-1] += shape_rem
 
-        if arr.split == 1:
-            st = 0
-            for pr, cols in enumerate(col_per_proc_list):
-                tile_map[:, st : st + cols, 2] = pr
-                st += cols
+                if mat_shape_type == "TS" and arr.split == 1:
+                    # need to add a division after the diagonal here
+                    row_inds.append(arr.gshape[1])
+                    ntiles += 1
+                col_per_proc_list = [ntiles] * arr.comm.size if arr.split == 0 else divs_per_proc
+                row_per_proc_list = [ntiles] * arr.comm.size if arr.split == 1 else divs_per_proc
 
-        self.__DNDarray = arr
-        self.__col_per_proc_list = col_per_proc_list
-        self.__last_diag_pr = last_diag_pr
-        self.__lshape_map = lshape_map
-        self.__row_per_proc_list = row_per_proc_list
-        self.__tile_map = tile_map
-        self.__row_inds = row_inds
-        self.__col_inds = col_inds
+                target_map = lshape_map.clone()
+                target_map[..., arr.split] = redist_v_sp
+                arr.redistribute_(lshape_map, target_map)
+
+                divs = torch.tensor(divs, dtype=torch.int32, device=arr.device.torch_device)
+                div_inds = divs.cumsum(dim=0)
+                fr_tile_ge = torch.where(div_inds >= mgshape)[0][0]
+                if mgshape == arr.gshape[0]:
+                    last_diag_pr = arr.comm.size - 1
+                elif mgshape == div_inds[fr_tile_ge]:
+                    last_diag_pr = torch.floor_divide(fr_tile_ge, tiles_per_proc).item()
+                elif fr_tile_ge == 0:  # -> first tile above is 0, thus the last diag pr is also 0
+                    last_diag_pr = 0
+                else:
+                    last_diag_pr = torch.where(
+                        fr_tile_ge < torch.tensor(divs_per_proc).cumsum(dim=0)
+                    )[0][0].item()
+
+            tile_map = self.__create_tile_map(
+                row_inds, col_inds, row_per_proc_list, col_per_proc_list, arr
+            )
+
+            if arr.split == 1:
+                st = 0
+                for pr, cols in enumerate(col_per_proc_list):
+                    tile_map[:, st : st + cols, 2] = pr
+                    st += cols
+
+            self.__DNDarray = arr
+            self.__col_per_proc_list = col_per_proc_list
+            self.__last_diag_pr = last_diag_pr
+            self.__lshape_map = lshape_map
+            self.__row_per_proc_list = row_per_proc_list
+            self.__tile_map = tile_map
+            self.__row_inds = row_inds
+            self.__col_inds = col_inds
+        else:
+            self.__DNDarray = arr
+            self.__col_per_proc_list = None
+            self.__last_diag_pr = None
+            self.__lshape_map = lshape_map
+            self.__row_per_proc_list = None
+            self.__tile_map = None
+            self.__row_inds = None
+            self.__col_inds = None
 
     @staticmethod
     def __create_tile_map(rows, cols, rows_per, cols_per, arr):
