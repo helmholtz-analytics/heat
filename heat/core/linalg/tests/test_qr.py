@@ -73,8 +73,7 @@ class TestQR(unittest.TestCase):
                         )
                     )
 
-    def test_qr(self):
-        sz = ht.MPI_WORLD.size
+    def test_qr(self, sz=sz):
         m, n = 5 * sz, 10 * sz
         st = torch.randn(m, n, device=device, dtype=torch.float)
         a_comp = ht.array(st, split=0, device=ht_device)
@@ -89,7 +88,6 @@ class TestQR(unittest.TestCase):
                 self.assertTrue(
                     ht.allclose(ht.eye(m, device=ht_device), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5)
                 )
-        sz = ht.MPI_WORLD.size
         m, n = 10 * sz, 10 * sz
         st1 = torch.randn(m, n, device=device)
         a_comp1 = ht.array(st1, split=0, device=ht_device)
@@ -132,7 +130,6 @@ class TestQR(unittest.TestCase):
                 qr = ht.qr(a2, calc_q=False, overwrite_a=True)
                 self.assertTrue(qr.Q is None)
 
-        sz = ht.MPI_WORLD.size
         m, n = 10 * sz, 5 * sz
         st = torch.randn(m, n, device=device)
         a_comp = ht.array(st, split=None, device=ht_device)

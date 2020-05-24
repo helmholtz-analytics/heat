@@ -876,7 +876,8 @@ def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None):
     q1 = torch.zeros((sz[0], sz[0]), dtype=r_torch_type, device=r_torch_device)
     if rank == diag_pr:
         # do qr on diagonal process
-        q1, r1 = r_tiles[dim0, dim1].qr(some=False)
+        qrank, r1 = r_tiles[dim0, dim1].qr(some=False)
+        q1 += qrank
         comm.Bcast(q1.clone(), root=diag_pr)
         r_tiles[dim0, dim1] = r1
         # apply q1 to the trailing matrix (other processes)
