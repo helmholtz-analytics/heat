@@ -269,13 +269,13 @@ def matmul(a, b, allow_resplit=False):
     else:
         raise NotImplementedError("splits > 1 not implemented")
 
-    # block sizes dont need to be the same. thy just need the same inner dimmension (kB)
+    # block sizes dont need to be the same. thy just need the same inner dimension (kB)
     kB = 0
     rem_a, rem_b = [0] * 2
     if a.split == len(a.gshape) - 1 and b.split == len(a.gshape) - 2:
         # if the split direction is the last dim in a and the first dim in b
-        # the max inner dim (kB) is the min value from the result of the integer division of
-        # the last dim of a/world size and the first dim of b/world size
+        # the max inner dim (kB) is the min value from the result of the integer division
+        # of the last dim of a/world size and the first dim of b/world size
         kB = min([a.gshape[-1] // a.comm.size, b.gshape[0] // b.comm.size])
     elif a.split == len(a.gshape) - 2 and b.split == len(a.gshape) - 1:
         kB = a.gshape[-1]
@@ -813,8 +813,7 @@ def projection(a, b):
 def __mm_c_block_setter(
     b_proc, a_proc, a_data, b_data, b_block_map, a_block_map, b_split, a_split, mB, kB, nB, c
 ):
-    # type: (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor)
-    # -> None
+    # type: (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor) -> None
     shp_b = b_block_map.shape
     offset_a = b_proc * shp_b[1] if b_proc != 0 else 0
     shp_a = a_block_map.shape

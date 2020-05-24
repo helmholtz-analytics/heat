@@ -49,6 +49,12 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
         tiles : Dict
             Dictionary with the entries of the tiling objects, keys are as follows
             `{"q0": q0_tiles, "arr": arr_tiles, "arr_t": arr_t_tiles, "q1": q1_tiles}`
+
+    References
+    ----------
+    [0] A. Haidar, H. Ltaief, P. Luszczek and J. Dongarra, "A Comprehensive Study of Task Coalescing for Selecting
+        Parallelism Granularity in a Two-Stage Bidiagonal Reduction," 2012 IEEE 26th International Parallel and
+        Distributed Processing Symposium, Shanghai, 2012, pp. 25-35, doi: 10.1109/IPDPS.2012.13.
     """
     if not isinstance(arr, dndarray.DNDarray):
         raise TypeError("arr must be a DNDarray, not {}".format(type(arr)))

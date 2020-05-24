@@ -312,20 +312,6 @@ def __split0_global_q_dict_set(
     return global_merge_dict
 
 
-def __split0_remainder_helper(r_tiles, pr0, pr1, lp_col, leftovers_list):
-    # abstraction used to determine if there are any elements with leftover R values which need to
-    #   be accounted for. occurs when the diagonal runs from one the upper R to the bottom R, i.e.
-    #   overlap occurs if the height of the top tile is smaller than the width
-    hld = (
-        r_tiles.col_indices[lp_col + 1]
-        if lp_col + 1 < len(r_tiles.col_indices)
-        else r_tiles.arr.gshape[1]
-    )
-    di = hld - r_tiles.col_indices[lp_col]
-    if r_tiles.lshape_map[pr0, 0] < di and pr1 not in leftovers_list:
-        leftovers_list.append(pr1)
-
-
 def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_prs, dim0=None):
     """
     Function to do the QR calculations to calculate the global R of the array `a`.
@@ -401,7 +387,6 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_
         )
         for pr in zipped:
             pr0, pr1 = int(pr[0].item()), int(pr[1].item())
-            __split0_remainder_helper(r_tiles, pr0, pr1, dim1, leftover)
             if pr1 not in leftover:
                 __split0_merge_tile_rows(
                     pr0=pr0,
@@ -490,33 +475,6 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_
             )
             rem1 = None
         completed = True if procs_remaining == 1 and rem1 is None and rem2 is None else False
-
-    if len(leftover) > 0:
-        for ex in leftover:
-            __split0_merge_tile_rows(
-                pr0=diag_pr,
-                pr1=ex,
-                dim1=dim1,
-                rank=rank,
-                r_tiles=r_tiles,
-                diag_process=diag_pr,
-                key=str(loop + 2) + "p0" + str(int(diag_pr)) + "p1" + str(int(ex)) + "e",
-                q_dict=q_dict,
-                dim0=dim0,
-            )
-            __split0_send_q_to_diag_pr(
-                col=dim1,
-                pr0=int(diag_pr),
-                pr1=ex,
-                diag_process=diag_pr,
-                key=str(loop + 2) + "p0" + str(int(diag_pr)) + "p1" + str(ex) + "e",
-                q_dict=q_dict,
-                comm=comm,
-                q_dict_waits=q_dict_waits,
-                q_dtype=r_tiles.arr.dtype.torch_type(),
-                q_device=r_tiles.arr._DNDarray__array.device,
-            )
-            del ex
 
 
 def __split0_merge_tile_rows(pr0, pr1, dim1, rank, r_tiles, diag_process, key, q_dict, dim0=None):
