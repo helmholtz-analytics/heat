@@ -1009,7 +1009,7 @@ class SquareDiagTiles:
                 )
             )
         if self.arr.split != 0:
-            raise ValueError("self.arr.split must be 0, currently: {}}".format(self.arr.split))
+            raise ValueError("self.arr.split must be 0, currently: {}".format(self.arr.split))
         self.__match_redist(tiles_to_match)
 
         match_dnd = tiles_to_match.arr
