@@ -1255,6 +1255,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         raise TypeError(
             "ht.tensor, torch.tensor, list or tuple supported, but q was {}".format(type(q))
         )
+    nperc = q.numel()
 
     # edge-case: x is a scalar. Return x
     if x.numdims == 0:
@@ -1268,13 +1269,13 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             x = x.flatten()
         axis = 0
 
-    # MPI coordinates
+    # MPI coordinates #TODO: abstract
     rank = x.comm.rank
     size = x.comm.size
     gshape = x.gshape
     split = x.split
 
-    output_shape = (q.numel(),) + gshape[:axis] + gshape[axis + 1 :]
+    output_shape = (nperc,) + gshape[:axis] + gshape[axis + 1 :]
 
     # compute indices
     length = gshape[axis]
@@ -1296,12 +1297,6 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         )
 
     if x.comm.is_distributed() and split is not None:
-        # each rank needs to know from what other ranks it will receive data and where to put them
-        offset_map = []
-        indices_map = []
-        perc_map = []
-        perc_map_start = perc_map_end = 0
-
         # calculate dimension along which local percentile chunks will be joined
         if axis == split:
             join = 0
@@ -1310,56 +1305,48 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         elif axis < split:
             join = split
 
-        # calculate percentage map across ranks
-        for r in range(size):
-            if split == axis:
-                offset, _, chunk = x.comm.chunk(x.gshape, split, rank=r, w_size=size)
-                chunk_start = chunk[split].start
-                chunk_stop = chunk[split].stop
-            else:
-                offset = chunk_start = 0
-                chunk_stop = length
-                # fictitious chunks of percentile - will be filled with local_p below
-                _, _, fchunk = x.comm.chunk(output_shape, join, rank=r, w_size=size)
-            # map of indices on all ranks
-            indices_map.append(indices[(indices < chunk_stop) & (indices >= chunk_start)] - offset)
-            indices_on_rank = indices_map[r].numel()
-            if indices_on_rank:
-                perc_map_end = perc_map_start + indices_on_rank
-                if split == axis:
-                    perc_map.append([slice(perc_map_start, perc_map_end, None), r])
-                    perc_map_start = perc_map_end
-                else:
-                    perc_map.append([slice(fchunk[join].start, fchunk[join].stop, None), r])
-            offset_map.append(offset)
-    else:
-        offset_map = [0]
-        chunk_stop = length
+        # map percentile location: which q on what rank
+        indices_map = torch.ones((size, nperc), dtype=q.dtype) * -1.0  # TODO, device
+        local_indices = torch.ones((1, nperc), dtype=q.dtype) * -1.0
+        if split == axis:
+            offset, _, chunk = x.comm.chunk(gshape, split)
+            chunk_start = chunk[split].start
+            chunk_stop = chunk[split].stop
+        else:
+            offset = chunk_start = 0
+            chunk_stop = length
+        # fill in local indices
+        ind = indices[(indices < chunk_stop) & (indices >= chunk_start)]
+        for el_id, el in enumerate(ind):
+            which_q = torch.where(indices == el)
+            local_indices[:, which_q] = el - offset
+        x.comm.Allgather(local_indices, indices_map)
 
     # sort data
     data = manipulations.sort(x, axis=axis)[0].astype(types.promote_types(x.dtype, q.dtype))
 
-    # allocate memory on all nodes
+    # allocate memory on all ranks
     percentile = factories.empty(output_shape, dtype=data.dtype, split=None, device=x.device)
     if x.comm.is_distributed() and split is not None:
         if axis == split:
             data.get_halo(1)
         # fill out percentile
-        for i in range(len(perc_map)):
-            indices = indices_map[rank]
-            perc_slice = percentile.numdims * (slice(None, None, None),)
-            if q.numel() == 1 and axis == split:
-                pass
-            else:
-                perc_slice = perc_slice[:join] + (perc_map[i][0],) + perc_slice[join + 1 :]
+        perc_slice = percentile.numdims * (slice(None, None, None),)
+        map_sum = indices_map.sum(axis=1)
+        perc_ranks = torch.where(map_sum > -1 * nperc)[0].tolist()
+        for r in perc_ranks:
+            # chunk of the global percentile that will be populated by rank r
+            _, _, perc_chunk = x.comm.chunk(output_shape, join, rank=r, w_size=len(perc_ranks))
+            perc_slice = perc_slice[:join] + (perc_chunk[join],) + perc_slice[join + 1 :]
             local_p = factories.zeros(
                 percentile[perc_slice].shape, dtype=percentile.dtype, comm=x.comm
             )
-            proc = perc_map[i][1]
-            if indices.numel() and rank == proc:
-                local_p = factories.array(local_percentile(data, axis, indices))
-            x.comm.Bcast(local_p, root=proc)
+            if rank == r:
+                local_indices = local_indices[torch.where(local_indices > -1.0)]
+                local_p = factories.array(local_percentile(data, axis, local_indices))
+            x.comm.Bcast(local_p, root=r)
             percentile[perc_slice] = local_p
+
     else:
         local_p = factories.array(local_percentile(data, axis, indices))
         percentile = local_p
