@@ -2,8 +2,8 @@
 
 - Update documentation theme to "Read the Docs"
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Create submodule for Linear Algebra functions
-- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated QR
-- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implementated a tiling class to create Square tiles along the diagonal of a 2D matrix
+- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implemented QR
+- [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implemented a tiling class to create Square tiles along the diagonal of a 2D matrix
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Added PyTorch Jitter to inner function of matmul for increased speed
 - [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: Underlying torch tensor moves to the right device on array initialisation
 - [#483](https://github.com/helmholtz-analytics/heat/pull/483) Bugfix: DNDarray.cpu() changes heat device to cpu
@@ -29,6 +29,8 @@
 - [#536](https://github.com/helmholtz-analytics/heat/pull/536) Getting rid of the docs folder
 - [#558](https://github.com/helmholtz-analytics/heat/pull/558) `sanitize_memory_layout` assumes default memory layout of the input tensor
 - [#558](https://github.com/helmholtz-analytics/heat/pull/558) Support for PyTorch 1.5.0 added
+- [#562](https://github.com/helmholtz-analytics/heat/pull/562) Bugfix: split semantics of ht.squeeze()
+- [#567](https://github.com/helmholtz-analytics/heat/pull/567) Bugfix: split differences for setitem are now assumed to be correctly given, error will come from torch upon the setting of the value
 
 # v0.3.0
 
