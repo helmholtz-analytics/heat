@@ -27,11 +27,12 @@
 - [#534](https://github.com/helmholtz-analytics/heat/pull/534) `eye()` supports all 2D split combinations and matrix configurations.
 - [#535](https://github.com/helmholtz-analytics/heat/pull/535) Introduction of BaseEstimator and clustering, classification and regression mixins.
 - [#536](https://github.com/helmholtz-analytics/heat/pull/536) Getting rid of the docs folder
+- [#541](https://github.com/helmholtz-analytics/heat/pull/541) Introduction of basic halo scheme for inter-rank operations
 - [#558](https://github.com/helmholtz-analytics/heat/pull/558) `sanitize_memory_layout` assumes default memory layout of the input tensor
 - [#558](https://github.com/helmholtz-analytics/heat/pull/558) Support for PyTorch 1.5.0 added
 - [#562](https://github.com/helmholtz-analytics/heat/pull/562) Bugfix: split semantics of ht.squeeze()
 - [#567](https://github.com/helmholtz-analytics/heat/pull/567) Bugfix: split differences for setitem are now assumed to be correctly given, error will come from torch upon the setting of the value
-- [#569](https://github.com/helmholtz-analytics/heat/pull/569) Feature: implemented distributed percentile()
+- [#569](https://github.com/helmholtz-analytics/heat/pull/569) New feature: implemented percentile() and median()
 
 # v0.3.0
 
