@@ -1236,6 +1236,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     if isinstance(axis, list) or isinstance(axis, tuple):
         raise NotImplementedError("ht.percentile(), tuple axis not implemented yet")
 
+    # TODO: q must be 1d
     if isinstance(q, dndarray.DNDarray):
         if x.comm.is_distributed() and q.split is not None:
             # q needs to be local
@@ -1313,8 +1314,9 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             join = split
 
         # map percentile location: which q on what rank
-        indices_map = torch.ones((size, nperc), dtype=q.dtype) * -1.0  # TODO, device
-        local_indices = torch.ones((1, nperc), dtype=q.dtype) * -1.0
+        # TODO: this is redundant if split != axis, fix
+        indices_map = torch.ones((size, nperc), dtype=q.dtype, device=q.device) * -1.0
+        local_indices = torch.ones((1, nperc), dtype=q.dtype, device=q.device) * -1.0
         if split == axis:
             offset, _, chunk = x.comm.chunk(gshape, split)
             chunk_start = chunk[split].start
