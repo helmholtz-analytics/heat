@@ -237,7 +237,7 @@ def average(x, axis=None, weights=None, returned=False):
 
     Parameters
     ----------
-    x : ht.tensor
+    x : ht.DNDarray
         Tensor containing data to be averaged.
 
     axis : None or int or tuple of ints, optional
@@ -249,7 +249,7 @@ def average(x, axis=None, weights=None, returned=False):
         specified in the tuple instead of a single axis or all the axes as
         before.
 
-    weights : ht.tensor, optional
+    weights : ht.DNDarray, optional
         An tensor of weights associated with the values in x. Each value in
         x contributes to the average according to its associated weight.
         The weights tensor can either be 1D (in which case its length must be
@@ -265,7 +265,7 @@ def average(x, axis=None, weights=None, returned=False):
 
     Returns
     -------
-    average, [sum_of_weights] : ht.tensor or tuple of ht.tensors
+    average, [sum_of_weights] : ht.DNDarray or tuple of ht.DNDarrays
         Return the average along the specified axis. When returned=True,
         return a tuple with the average as the first element and the sum
         of the weights as the second element. sum_of_weights is of the
@@ -825,7 +825,7 @@ def median(x, axis=None, keepdim=False):
     Parameters:
     -----------
 
-    a : ht.tensor
+    a : ht.DNDarray
     Input tensor
 
     axis : int, or None, optional #TODO tuple of ints
@@ -841,7 +841,7 @@ def median(x, axis=None, keepdim=False):
     Returns:
     --------
 
-    median : process-local ht.tensor
+    median : process-local ht.DNDarray
 
     """
 
@@ -1140,10 +1140,10 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     Parameters:
     -----------
 
-    a : ht.tensor
+    a : ht.DNDarray
     Input tensor
 
-    q : ht.tensor, torch.tensor, scalar, or list of scalars
+    q : ht.DNDarray, torch.tensor, scalar, or list of scalars
     Percentile or sequence of percentiles to compute. Must belong to the interval [0, 100].
 
     axis : int, or None, optional #TODO tuple of ints
@@ -1167,7 +1167,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     Returns:
     --------
 
-    percentile : process-local ht.tensor
+    percentile : process-local ht.DNDarray
 
     """
 
@@ -1177,7 +1177,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
 
         Input:
         ------
-        data : ht.tensor
+        data : ht.DNDarray
         axis : int or TODO tuple of ints
         indices : torch.tensor
 
@@ -1253,7 +1253,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         pass
     else:
         raise TypeError(
-            "ht.tensor, torch.tensor, list or tuple supported, but q was {}".format(type(q))
+            "ht.DNDarray, torch.tensor, list or tuple supported, but q was {}".format(type(q))
         )
     nperc = q.numel()
 
