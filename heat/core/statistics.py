@@ -1143,7 +1143,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     x : ht.DNDarray
         Input tensor
 
-    q : ht.DNDarray, torch.tensor, scalar, or list of scalars
+    q : ht.DNDarray, scalar, or list of scalars
         Percentile or sequence of percentiles to compute. Must belong to the interval [0, 100].
 
     axis : int, or None, optional #TODO tuple of ints
@@ -1237,25 +1237,23 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         raise NotImplementedError("ht.percentile(), tuple axis not implemented yet")
 
     # TODO: q must be 1d
-    if isinstance(q, dndarray.DNDarray):
-        if x.comm.is_distributed() and q.split is not None:
-            # q needs to be local
-            q.resplit_(axis=None)
-        q = q._DNDarray__array
-    elif isinstance(q, list) or isinstance(q, tuple):
+    if isinstance(q, list) or isinstance(q, tuple):
         q = torch.tensor(
             q,
             dtype=torch.promote_types(type(q[0]), x._DNDarray__array.dtype),
             device=x._DNDarray__array.device,
         )
-    elif np.isscalar(q) or isinstance(q, torch.tensor) and q.ndim == 0:
+    elif np.isscalar(q):
         q = torch.tensor(
             [q],
             dtype=torch.promote_types(type(q), x._DNDarray__array.dtype),
             device=x._DNDarray__array.device,
         )
-    elif isinstance(q, torch.tensor):
-        pass
+    elif isinstance(q, dndarray.DNDarray):
+        if x.comm.is_distributed() and q.split is not None:
+            # q needs to be local
+            q.resplit_(axis=None)
+        q = q._DNDarray__array
     else:
         raise TypeError(
             "ht.DNDarray, torch.tensor, list or tuple supported, but q was {}".format(type(q))
