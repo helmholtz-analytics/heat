@@ -134,13 +134,8 @@ def __binary_op(operation, t1, t2):
             raise TypeError(
                 "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
             )
-
-        if t2.dtype != t1.dtype:
-            t2 = t2.astype(t1.dtype)
-
     else:
         raise NotImplementedError("Not implemented for non scalar")
-
     promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
     if t1.split is not None:
         if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:

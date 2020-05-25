@@ -550,7 +550,6 @@ def promote_types(type1, type2):
     """
     typecode_type1 = __type_codes[canonical_heat_type(type1)]
     typecode_type2 = __type_codes[canonical_heat_type(type2)]
-
     return __type_promotions[typecode_type1][typecode_type2]
 
 
