@@ -79,7 +79,7 @@ class TestSplitTiles(unittest.TestCase):
 
 class TestSquareDiagTiles(unittest.TestCase):
     # arrs = (m_eq_n_s0, m_eq_n_s1, m_gr_n_s0, m_gr_n_s1, m_ls_n_s0, m_ls_n_s1)
-    if ht.MPI_WORLD.size > 1:
+    if 1 < ht.MPI_WORLD.size < 5:
 
         def test_init_raises(self):
             # need to test the raises here
