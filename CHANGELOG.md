@@ -31,6 +31,9 @@
 - [#558](https://github.com/helmholtz-analytics/heat/pull/558) Support for PyTorch 1.5.0 added
 - [#562](https://github.com/helmholtz-analytics/heat/pull/562) Bugfix: split semantics of ht.squeeze()
 - [#567](https://github.com/helmholtz-analytics/heat/pull/567) Bugfix: split differences for setitem are now assumed to be correctly given, error will come from torch upon the setting of the value
+- [#571](https://github.com/helmholtz-analytics/heat/pull/571) Block Diagonalization implemented for distributed matrices using interlaced QR and LQ factorization
+- [#571](https://github.com/helmholtz-analytics/heat/pull/571) QR can operate on off-diagonal tiles now
+- [#571](https://github.com/helmholtz-analytics/heat/pull/571) SquareDiagTiles: all tiles are the same size except the last tile with diagonal elements. The DNDarray is arranged as necessary to allow for this
 
 # v0.3.0
 
