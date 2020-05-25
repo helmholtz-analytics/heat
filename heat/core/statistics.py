@@ -406,9 +406,11 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
 
     if ddof is None:
         if bias == 0:
-            ddof = 1
+            ddof = 1.0
         else:
-            ddof = 0
+            ddof = 0.0
+    elif isinstance(ddof, int):
+        ddof = float(ddof)
 
     if y is not None:
         if not isinstance(y, dndarray.DNDarray):
