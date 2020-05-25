@@ -1349,8 +1349,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
                 percentile[perc_slice].shape, dtype=percentile.dtype, comm=x.comm
             )
             if rank == r:
-                local_indices = local_indices[torch.where(local_indices > -1.0)]
-                local_p = factories.array(local_percentile(data, axis, local_indices))
+                local_p = factories.array(local_percentile(data, axis, ind - offset))
             x.comm.Bcast(local_p, root=r)
             percentile[perc_slice] = local_p
 
