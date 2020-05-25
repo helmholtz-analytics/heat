@@ -1140,19 +1140,19 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     Parameters:
     -----------
 
-    a : ht.DNDarray
-    Input tensor
+    x : ht.DNDarray
+        Input tensor
 
     q : ht.DNDarray, torch.tensor, scalar, or list of scalars
-    Percentile or sequence of percentiles to compute. Must belong to the interval [0, 100].
+        Percentile or sequence of percentiles to compute. Must belong to the interval [0, 100].
 
     axis : int, or None, optional #TODO tuple of ints
-    Axis along which the percentiles are computed. Default is None.
+        Axis along which the percentiles are computed. Default is None.
 
     #TODO: out, optional. Output buffer.
 
     interpolation : {‘linear’, ‘lower’, ‘higher’, ‘midpoint’, ‘nearest’}, optional
-    Interpolation method to use when the desired percentile lies between two data points i < j:
+        Interpolation method to use when the desired percentile lies between two data points i < j:
 
         ‘linear’: i + (j - i) * fraction, where fraction is the fractional part of the index surrounded by i and j.
         ‘lower’: i.
@@ -1161,8 +1161,8 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         ‘midpoint’: (i + j) / 2.
 
     keepdim : bool, optional
-    If True, the axes which are reduced are left in the result as dimensions with size one.
-    With this option, the result can broadcast correctly against the original array a.
+        If True, the axes which are reduced are left in the result as dimensions with size one.
+        With this option, the result can broadcast correctly against the original array x.
 
     Returns:
     --------
@@ -1173,7 +1173,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
 
     def local_percentile(data, axis, indices):
         """
-        Process-local percentile calculations
+        Process-local percentile determination.
 
         Input:
         ------
@@ -1190,7 +1190,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         if indices.dtype == torch.long or indices.dtype == torch.int:
             # interpolation 'lower', 'higher', or 'nearest'
             axis_slice = axis_slice[:axis] + (indices.tolist(),) + axis_slice[axis + 1 :]
-            percentile = data[axis_slice]
+            percentile = data._DNDarray__array[axis_slice]
         else:
             floor_indices = torch.floor(indices).type(torch.long)
             axis_slice = axis_slice[:axis] + (floor_indices.tolist(),) + axis_slice[axis + 1 :]
@@ -1218,11 +1218,15 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
 
             percentile = lows + weights * (torch.sub(highs, lows))
 
-            if axis != 0:
-                # permute to have the number of percentiles at dimension 0
-                dims = tuple(range(percentile.ndim))
-                permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
-                percentile = percentile.permute(permute_dims)
+        if axis != 0:
+            # permute to have the number of percentiles at dimension 0
+            dims = tuple(range(percentile.ndim))
+            permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
+            percentile = percentile.permute(permute_dims)
+
+        if keepdim:
+            # leave reduced dimension as size (1,)
+            percentile.unsqueeze_(dim=axis + 1)
 
         return percentile
 
@@ -1269,13 +1273,16 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             x = x.flatten()
         axis = 0
 
-    # MPI coordinates #TODO: abstract
+    # MPI coordinates #TODO: abstract?
     rank = x.comm.rank
     size = x.comm.size
     gshape = x.gshape
     split = x.split
 
-    output_shape = (nperc,) + gshape[:axis] + gshape[axis + 1 :]
+    if keepdim:
+        output_shape = (nperc,) + gshape[:axis] + (1,) + gshape[axis + 1 :]
+    else:
+        output_shape = (nperc,) + gshape[:axis] + gshape[axis + 1 :]
 
     # compute indices
     length = gshape[axis]
@@ -1348,10 +1355,9 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             percentile[perc_slice] = local_p
 
     else:
-        local_p = factories.array(local_percentile(data, axis, indices))
-        percentile = local_p
+        percentile = factories.array(local_percentile(data, axis, indices))
 
-    if percentile.shape[0] == 1 and not keepdim:
+    if percentile.shape[0] == 1:
         percentile = manipulations.squeeze(percentile, axis=0)
 
     return percentile

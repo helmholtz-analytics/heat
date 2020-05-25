@@ -917,13 +917,16 @@ class TestStatistics(BasicTest):
 
         # test list q
         q = [0.1, 2.3, 15.9, 50.0, 84.1, 97.7, 99.9]
+        axis = 2
+        p_np = np.percentile(x_np, q, axis=axis, interpolation="lower", keepdims=True)
+        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower", keepdim=True)
+        self.assertEqual(p_ht.numpy()[5].all(), p_np[5].all())
+        self.assertTrue(p_ht.shape == p_np.shape)
         axis = None
-        p_np = np.percentile(x_np, q, axis=axis, interpolation="lower")
-        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower")
-        self.assertEqual(p_ht.numpy()[5], p_np[5])
         p_np = np.percentile(x_np, q, axis=axis, interpolation="higher")
         p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="higher")
         self.assertEqual(p_ht.numpy()[6], p_np[6])
+        self.assertTrue(p_ht.shape == p_np.shape)
         p_np = np.percentile(x_np, q, axis=axis, interpolation="nearest")
         p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="nearest")
         self.assertEqual(p_ht.numpy()[2], p_np[2])
