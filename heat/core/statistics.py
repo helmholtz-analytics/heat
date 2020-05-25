@@ -1177,7 +1177,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
 
         Input:
         ------
-        data : ht.DNDarray
+        data : torch.tensor
         axis : int or TODO tuple of ints
         indices : torch.tensor
 
@@ -1186,31 +1186,29 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         percentile, torch.tensor, process-local
         """
 
-        axis_slice = data.numdims * (slice(None, None, None),)
+        axis_slice = data.ndim * (slice(None, None, None),)
         if indices.dtype == torch.long or indices.dtype == torch.int:
             # interpolation 'lower', 'higher', or 'nearest'
             axis_slice = axis_slice[:axis] + (indices.tolist(),) + axis_slice[axis + 1 :]
-            percentile = data._DNDarray__array[axis_slice]
+            percentile = data[axis_slice]
         else:
             floor_indices = torch.floor(indices).type(torch.long)
             axis_slice = axis_slice[:axis] + (floor_indices.tolist(),) + axis_slice[axis + 1 :]
-            lows = data._DNDarray__array[axis_slice]
-            ceil_indices = floor_indices + 1.0  # this one might spill over into next process: halo
+            lows = data[axis_slice]
+            ceil_indices = floor_indices + 1.0
             axis_slice = axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
-            if ceil_indices.max().item() == data.lshape[axis]:
-                if axis == data.split:
-                    highs = data.array_with_halos[axis_slice]
-                else:
-                    # max percentile is 100.0
-                    ceil_indices[ceil_indices.argmax()] -= 1
-                    axis_slice = (
-                        axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
-                    )
-                    highs = data._DNDarray__array[axis_slice]
+            if ceil_indices.max().item() == data.shape[axis]:
+                # if axis == data.split:
+                #     highs = data.array_with_halos[axis_slice]
+                # else:
+                # max percentile is 100.0
+                ceil_indices[ceil_indices.argmax()] -= 1
+                axis_slice = axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
+                highs = data[axis_slice]
             else:
-                highs = data._DNDarray__array[axis_slice]
-            # from here on, local (torch) operations
-            weights_shape = data.numdims * (1,)
+                highs = data[axis_slice]
+            # calculate weights based on interpolation method
+            weights_shape = data.ndim * (1,)
             weights_shape = weights_shape[:axis] + (indices.shape[0],) + weights_shape[axis + 1 :]
             weights = torch.sub(
                 indices.reshape(weights_shape), torch.floor(indices).reshape(weights_shape)
@@ -1337,6 +1335,9 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     if x.comm.is_distributed() and split is not None:
         if axis == split:
             data.get_halo(1)
+            data = data.array_with_halos
+        else:
+            data = data._DNDarray__array
         # fill out percentile
         perc_slice = percentile.numdims * (slice(None, None, None),)
         map_sum = indices_map.sum(axis=1)
@@ -1354,7 +1355,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             percentile[perc_slice] = local_p
 
     else:
-        percentile = factories.array(local_percentile(data, axis, indices))
+        percentile = factories.array(local_percentile(data._DNDarray__array, axis, indices))
 
     if percentile.shape[0] == 1:
         percentile = manipulations.squeeze(percentile, axis=0)
