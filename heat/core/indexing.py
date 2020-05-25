@@ -139,7 +139,7 @@ def where(cond, x=None, y=None):
             y = float(y)
         if isinstance(x, int):
             x = float(x)
-        return (cond == 0) * y + cond * x
+        return cond.dtype((cond == 0)) * y + cond * x
     elif x is None and y is None:
         return nonzero(cond)
     else:
