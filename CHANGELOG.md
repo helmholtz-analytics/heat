@@ -29,8 +29,10 @@
 - [#536](https://github.com/helmholtz-analytics/heat/pull/536) Getting rid of the docs folder
 - [#558](https://github.com/helmholtz-analytics/heat/pull/558) `sanitize_memory_layout` assumes default memory layout of the input tensor
 - [#558](https://github.com/helmholtz-analytics/heat/pull/558) Support for PyTorch 1.5.0 added
-- [#562](https://github.com/helmholtz-analytics/heat/pull/562) Bugfix: split semantics of ht.squeeze()
-- [#567](https://github.com/helmholtz-analytics/heat/pull/567) Bugfix: split differences for setitem are now assumed to be correctly given, error will come from torch upon the setting of the value
+- [#562](https://github.com/helmholtz-analytics/heat/pull/562) Bugfix: split semantics of `ht.squeeze()`
+- [#567](https://github.com/helmholtz-analytics/heat/pull/567) Bugfix: split differences for `setitem` are now assumed to be correctly given, error will come from torch upon the setting of the value
+- [#558](https://github.com/helmholtz-analytics/heat/pull/558) Binary operations use proper type casting
+- [#558](https://github.com/helmholtz-analytics/heat/pull/558) `where` and `cov` convert ints to floats when given as parameters
 
 # v0.3.0
 
