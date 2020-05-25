@@ -1020,8 +1020,12 @@ def pad(array, pad_width, mode="constant", values=0):
     # ------------------------------------------------------------------------------------------------------------------
     # no data
     if 0 in list(array.lshape):
+        adapted_lshape_list = [
+            0 if i == array.split else output_shape[i] for i in range(len(output_shape))
+        ]
+        adapted_lshape = tuple(adapted_lshape_list)
         padded_torch_tensor = torch.tensor([], dtype=array._DNDarray__array.dtype).reshape(
-            array.lshape
+            adapted_lshape
         )
     else:
         if array.split is None or array.split not in pad_dim or amount_of_processes == 1:
@@ -1117,7 +1121,6 @@ def pad(array, pad_width, mode="constant", values=0):
         comm=array.comm,
     )
 
-    # TODO ensure correct balancing
     if padded_tensor.is_distributed() and not padded_tensor.is_balanced():
         padded_tensor.balance_()
 
