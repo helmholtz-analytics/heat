@@ -1392,7 +1392,6 @@ class DNDarray:
             key = tuple(x.item() for x in key)
 
         if not self.is_distributed():
-
             if not self.comm.size == 1:
                 if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                     # this will return a 1D array as the shape cannot be determined automatically
@@ -1427,7 +1426,6 @@ class DNDarray:
                     )
 
         else:
-
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
@@ -1601,7 +1599,6 @@ class DNDarray:
                     gout[e] = self.comm.allreduce(gout[e], MPI.SUM)
                 else:
                     gout[e] = self.comm.allreduce(gout[e], MPI.MAX)
-
             return DNDarray(
                 arr.type(l_dtype),
                 gout if isinstance(gout, tuple) else tuple(gout),
@@ -1982,6 +1979,26 @@ class DNDarray:
                       [12., 13., 14.]])
         """
         return linalg.matmul(self, other)
+
+    def matrix_shape_classifier(self):
+        """
+        Classifies a 2D matrix as square (roughly), tall-skinny (TS), or short-fat (SF).
+        If the diagonal crosses half the processes it is mostly square, if the first dimension is
+        greater than or equal to twice the second dimension then it is TS, if vice versa then it is SF.
+
+        Returns
+        -------
+        shape classifier : str
+            square (roughly), tall-skinny (TS), or short-fat (SF)
+        """
+        comp = self.gshape[0] / self.gshape[1]
+        if 0.5 <= comp <= 2:
+            # if the diagonal crosses at least half the processes,
+            return "square"
+        elif comp > 2:
+            return "TS"
+        else:
+            return "SF"
 
     def max(self, axis=None, out=None, keepdim=None):
         """
@@ -3060,6 +3077,12 @@ class DNDarray:
         Nothing
             The specified element/s (key) of self is set with the value
 
+        Notes
+        -----
+        If a DNDarray is given as the value to be set then the split axes are assumed to be equal.
+            If they are not, PyTorch will raise an error when the values are attempted to be set
+            on the local array
+
         Examples
         --------
         (2 processes)
@@ -3085,12 +3108,8 @@ class DNDarray:
             else:
                 self.__setter(key, value)
         else:
-            if (
-                isinstance(value, DNDarray)
-                and value.split is not None
-                and value.split != self.split
-            ):
-                raise RuntimeError("split axis of array and the target value are not equal")
+            # raise RuntimeError("split axis of array and the target value are not equal") removed
+            # this will occur if the local shapes do not match
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
@@ -3109,7 +3128,7 @@ class DNDarray:
                     ):
                         value = factories.array(value, split=self[key].split)
                     self.__setter(key, value)
-            elif isinstance(key, (tuple, list, torch.Tensor)):
+            elif isinstance(key, (tuple, torch.Tensor)):
                 if isinstance(key[self.split], slice):
                     key = list(key)
                     overlap = list(
