@@ -175,16 +175,19 @@ def matmul(a, b, allow_resplit=False):
 
     # if they are vectors they need to be expanded to be the proper dimensions
     vector_flag = False  # flag to run squeeze at the end of the function
-    both_vec = 0
-    if len(a.gshape) < 2:
+    if len(a.gshape) < 2 and len(b.gshape) < 2:
+        # make both split 0, do a local mm then a sum
+        a.resplit_(0)
+        b.resplit_(0)
+        res = a._DNDarray__array @ b._DNDarray__array
+        a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
+        return factories.array(res, split=None, device=a.device)
+    elif len(a.gshape) < 2:
         a = manipulations.expand_dims(a, axis=0)
         vector_flag = True
-        both_vec += 1
-    if len(b.gshape) < 2:
+    elif len(b.gshape) < 2:
         b = manipulations.expand_dims(b, axis=1)
         vector_flag = True
-        both_vec += 1
-    both_vec = True if both_vec == 2 else False
 
     split_0_flag = False
     split_1_flag = False
@@ -749,16 +752,60 @@ def matmul(a, b, allow_resplit=False):
                 a._DNDarray__array[:mB, i * kB : i * kB + kB]
                 @ b._DNDarray__array[i * kB : i * kB + kB, :nB]
             )
-        if a.comm.rank in a_rem_locs1 and b.comm.rank in b_rem_locs0:
-            # these Nones are used to change the dims
+        if a.comm.rank in a_rem_locs1 and b.comm.rank in b_rem_locs0 and kB > 1:
+            # these Nones are used to change the dims if the full process is not covered
             res += a._DNDarray__array[:, -1, None] @ b._DNDarray__array[None, -1, :]
 
         a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
         split = a.split if b.gshape[1] > 1 else 0
         split = split if not vector_flag else 0
         res = res if not vector_flag else res.squeeze()
-        c = factories.array(res, split=split if not both_vec else None, device=a.device)
+        c = factories.array(res, split=split, device=a.device)
         return c
+
+
+@torch.jit.script
+def __mm_c_block_setter(
+    b_proc, a_proc, a_data, b_data, b_block_map, a_block_map, b_split, a_split, mB, kB, nB, c
+):
+    # type: (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor) -> None
+    shp_b = b_block_map.shape
+    offset_a = b_proc * shp_b[1] if b_proc != 0 else 0
+    shp_a = a_block_map.shape
+    offset_b = a_proc * shp_a[2] if a_proc != 0 else 0
+    # offsets are the number of blocks in the multiplication direction on previous nodes
+    # print(a_block_map[a_proc].shape[0])
+    for bl_1_a in (
+        torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long, device=c.device)
+        if b_split == 0
+        else torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device)
+    ):
+        # offset is the number of blocks on the previous node in the direction of multiplication
+        for bl_0_a in torch.arange(
+            a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device
+        ):  # dim0
+            for bl_1_b in torch.arange(
+                b_block_map[b_proc].shape[1], dtype=torch.long, device=c.device
+            ):
+                for bl_0_b in (
+                    torch.arange(offset_b, offset_b + shp_a[1], dtype=torch.long, device=c.device)
+                    if a_split == 1
+                    else torch.arange(
+                        b_block_map[b_proc].shape[0], dtype=torch.long, device=c.device
+                    )
+                ):
+                    # this offset is the same as before but for b
+                    a_start1 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 1].item())
+                    a_start0 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 0].item())
+                    a_block = a_data[a_start0 : a_start0 + mB, a_start1 : a_start1 + kB]
+
+                    b_start0 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 0].item())
+                    b_start1 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 1].item())
+                    b_block = b_data[b_start0 : b_start0 + kB, b_start1 : b_start1 + nB]
+
+                    c_start0 = a_start0
+                    c_start1 = b_start1
+                    c[c_start0 : c_start0 + mB, c_start1 : c_start1 + nB] += a_block @ b_block
 
 
 def norm(a):
@@ -810,50 +857,6 @@ def projection(a, b):
         )
 
     return (dot(a, b) / dot(b, b)) * b
-
-
-@torch.jit.script
-def __mm_c_block_setter(
-    b_proc, a_proc, a_data, b_data, b_block_map, a_block_map, b_split, a_split, mB, kB, nB, c
-):
-    # type: (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor) -> None
-    shp_b = b_block_map.shape
-    offset_a = b_proc * shp_b[1] if b_proc != 0 else 0
-    shp_a = a_block_map.shape
-    offset_b = a_proc * shp_a[2] if a_proc != 0 else 0
-    # offsets are the number of blocks in the multiplication direction on previous nodes
-    # print(a_block_map[a_proc].shape[0])
-    for bl_1_a in (
-        torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long, device=c.device)
-        if b_split == 0
-        else torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device)
-    ):
-        # offset is the number of blocks on the previous node in the direction of multiplication
-        for bl_0_a in torch.arange(
-            a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device
-        ):  # dim0
-            for bl_1_b in torch.arange(
-                b_block_map[b_proc].shape[1], dtype=torch.long, device=c.device
-            ):
-                for bl_0_b in (
-                    torch.arange(offset_b, offset_b + shp_a[1], dtype=torch.long, device=c.device)
-                    if a_split == 1
-                    else torch.arange(
-                        b_block_map[b_proc].shape[0], dtype=torch.long, device=c.device
-                    )
-                ):
-                    # this offset is the same as before but for b
-                    a_start1 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 1].item())
-                    a_start0 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 0].item())
-                    a_block = a_data[a_start0 : a_start0 + mB, a_start1 : a_start1 + kB]
-
-                    b_start0 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 0].item())
-                    b_start1 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 1].item())
-                    b_block = b_data[b_start0 : b_start0 + kB, b_start1 : b_start1 + nB]
-
-                    c_start0 = a_start0
-                    c_start1 = b_start1
-                    c[c_start0 : c_start0 + mB, c_start1 : c_start1 + nB] += a_block @ b_block
 
 
 def transpose(a, axes=None):
