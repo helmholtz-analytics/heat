@@ -58,7 +58,6 @@ def cg(A, b, x0, out=None) -> ht.DNDarray:
                 out = x
                 return out
             return x
-
         p = r + ((rsnew / rsold) * p)
         rsold = rsnew
 

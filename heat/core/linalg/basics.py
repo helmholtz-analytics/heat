@@ -5,7 +5,7 @@ from typing import List, Dict, Any, TypeVar, Union
 from ..communication import MPI
 from .. import arithmetics
 from .. import exponential
-from .. import dndarray
+from ..dndarray import DNDarray
 from .. import factories
 from .. import manipulations
 from .. import types
@@ -13,7 +13,7 @@ from .. import types
 __all__ = ["dot", "matmul", "norm", "projection", "transpose", "tril", "triu"]
 
 
-def dot(a, b, out=None) -> Union[ht.DNDarray, float]:
+def dot(a, b, out=None) -> Union[DNDarray, float]:
     """
     Returns the dot product of two arrays.
 
@@ -24,8 +24,8 @@ def dot(a, b, out=None) -> Union[ht.DNDarray, float]:
 
     Parameters
     ----------
-    a : ht.DNDarray
-    b : ht.DNDarray
+    a : DNDarray
+    b : DNDarray
 
     """
     if (
@@ -69,7 +69,7 @@ def dot(a, b, out=None) -> Union[ht.DNDarray, float]:
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
 
-def matmul(a, b, allow_resplit=False) -> ht.DNDarray:
+def matmul(a, b, allow_resplit=False) -> DNDarray:
     """
     Matrix multiplication of two DNDarrays: a @ b = c or A @ B = c
 
@@ -79,9 +79,9 @@ def matmul(a, b, allow_resplit=False) -> ht.DNDarray:
 
     Parameters
     ----------
-    a : ht.DNDarray
+    a : DNDarray
         2 dimensional: L x P
-    b : ht.DNDarray
+    b : DNDarray
         2 dimensional: P x Q
     allow_resplit : bool, optional
         Flag for if to resplit the DNDarray 'a' in the case that both 'a' and 'b' are not split.
@@ -170,16 +170,19 @@ def matmul(a, b, allow_resplit=False) -> ht.DNDarray:
 
     # if they are vectors they need to be expanded to be the proper dimensions
     vector_flag = False  # flag to run squeeze at the end of the function
-    both_vec = 0
-    if len(a.gshape) < 2:
+    if len(a.gshape) < 2 and len(b.gshape) < 2:
+        # make both split 0, do a local mm then a sum
+        a.resplit_(0)
+        b.resplit_(0)
+        res = a._DNDarray__array @ b._DNDarray__array
+        a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
+        return factories.array(res, split=None, device=a.device)
+    elif len(a.gshape) < 2:
         a = manipulations.expand_dims(a, axis=0)
         vector_flag = True
-        both_vec += 1
-    if len(b.gshape) < 2:
+    elif len(b.gshape) < 2:
         b = manipulations.expand_dims(b, axis=1)
         vector_flag = True
-        both_vec += 1
-    both_vec = True if both_vec == 2 else False
 
     split_0_flag = False
     split_1_flag = False
@@ -744,15 +747,15 @@ def matmul(a, b, allow_resplit=False) -> ht.DNDarray:
                 a._DNDarray__array[:mB, i * kB : i * kB + kB]
                 @ b._DNDarray__array[i * kB : i * kB + kB, :nB]
             )
-        if a.comm.rank in a_rem_locs1 and b.comm.rank in b_rem_locs0:
-            # these Nones are used to change the dims
+        if a.comm.rank in a_rem_locs1 and b.comm.rank in b_rem_locs0 and kB > 1:
+            # these Nones are used to change the dims if the full process is not covered
             res += a._DNDarray__array[:, -1, None] @ b._DNDarray__array[None, -1, :]
 
         a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
         split = a.split if b.gshape[1] > 1 else 0
         split = split if not vector_flag else 0
         res = res if not vector_flag else res.squeeze()
-        c = factories.array(res, split=split if not both_vec else None, device=a.device)
+        c = factories.array(res, split=split, device=a.device)
         return c
 
 
@@ -762,11 +765,11 @@ def norm(a) -> float:
 
     Parameters
     ----------
-    a : ht.DNDarray
+    a : DNDarray
         Input vector
 
     """
-    if not isinstance(a, dndarray.DNDarray):
+    if not isinstance(a, DNDarray):
         raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
 
     d = a ** 2
@@ -777,18 +780,18 @@ def norm(a) -> float:
     return exponential.sqrt(d).item()
 
 
-def projection(a, b) -> ht.DNDarray:
+def projection(a, b) -> DNDarray:
     """
     Projection of vector a onto vector b
 
     Parameters
     ----------
-    a : ht.DNDarray (1D)
+    a : DNDarray (1D)
         The vector to be projected. Must be a 1D DNDarray
-    b : ht.DNDarray (1D)
+    b : DNDarray (1D)
         The vector to project onto. Must be a 1D DNDarray
     """
-    if not isinstance(a, dndarray.DNDarray) or not isinstance(b, dndarray.DNDarray):
+    if not isinstance(a, DNDarray) or not isinstance(b, DNDarray):
         raise TypeError(
             "a, b must be of type ht.DNDarray, but were {}, {}".format(type(a), type(b))
         )
@@ -845,21 +848,21 @@ def __mm_c_block_setter(
                     c[c_start0 : c_start0 + mB, c_start1 : c_start1 + nB] += a_block @ b_block
 
 
-def transpose(a, axes=None) -> ht.DNDarray:
+def transpose(a, axes=None) -> DNDarray:
     """
 
     Permute the dimensions of an array.
 
     Parameters
     ----------
-    a : ht.DNDarray
+    a : DNDarray
         Input array.
     axes : None or list of ints, optional
         By default, reverse the dimensions, otherwise permute the axes according to the values given.
 
     """
     # type check the input tensor
-    if not isinstance(a, dndarray.DNDarray):
+    if not isinstance(a, DNDarray):
         raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
 
     # set default value for axes permutations
@@ -893,7 +896,7 @@ def transpose(a, axes=None) -> ht.DNDarray:
         transposed_data = a._DNDarray__array.permute(*axes)
         transposed_shape = tuple(a.shape[axis] for axis in axes)
 
-        return dndarray.DNDarray(
+        return DNDarray(
             transposed_data, transposed_shape, a.dtype, transposed_split, a.device, a.comm
         )
     # if not possible re- raise any torch exception as ValueError
@@ -905,14 +908,14 @@ def transpose(a, axes=None) -> ht.DNDarray:
 __index_base = (slice(None), slice(None))
 
 
-def __tri_op(m, k, op) -> ht.DNDarray:
+def __tri_op(m, k, op) -> DNDarray:
     """
     Generic implementation of triangle operations on a tensor. It takes care of input sanitation and non-standard
     broadcast behavior of the 2D triangle-operators.
 
     Parameters
     ----------
-    m : ht.DNDarray
+    m : DNDarray
         Input tensor for which to compute the triangle operator.
     k : int, optional
         Diagonal above which to apply the triangle operator, k<0 is below and k>0 is above.
@@ -924,7 +927,7 @@ def __tri_op(m, k, op) -> ht.DNDarray:
     TypeError
         If the input is not a tensor or the diagonal offset cannot be converted to an integral value.
     """
-    if not isinstance(m, dndarray.DNDarray):
+    if not isinstance(m, DNDarray):
         raise TypeError("Expected m to be a tensor but was {}".format(type(m)))
 
     try:
@@ -942,7 +945,7 @@ def __tri_op(m, k, op) -> ht.DNDarray:
         if torch.numel(triangle > 0):
             triangle = op(triangle, k - offset)
 
-        return dndarray.DNDarray(
+        return DNDarray(
             triangle,
             (m.shape[0], m.shape[0]),
             m.dtype,
@@ -972,10 +975,10 @@ def __tri_op(m, k, op) -> ht.DNDarray:
             index = partial_index + __index_base
             op(original[index], k, out=output[index])
 
-    return dndarray.DNDarray(output, m.shape, m.dtype, m.split, m.device, m.comm)
+    return DNDarray(output, m.shape, m.dtype, m.split, m.device, m.comm)
 
 
-def tril(m, k=0) -> ht.DNDarray:
+def tril(m, k=0) -> DNDarray:
     """
     Returns the lower triangular part of the tensor.
 
@@ -986,7 +989,7 @@ def tril(m, k=0) -> ht.DNDarray:
 
     Parameters
     ----------
-    m : ht.DNDarray
+    m : DNDarray
         Input tensor for which to compute the lower triangle.
     k : int, optional
         Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
@@ -995,7 +998,7 @@ def tril(m, k=0) -> ht.DNDarray:
     return __tri_op(m, k, torch.tril)
 
 
-def triu(m, k=0) -> ht.DNDarray:
+def triu(m, k=0) -> DNDarray:
     """
     Returns the upper triangular part of the tensor.
 
@@ -1006,7 +1009,7 @@ def triu(m, k=0) -> ht.DNDarray:
 
     Parameters
     ----------
-    m : ht.DNDarray
+    m : DNDarray
         Input tensor for which to compute the upper triangle.
     k : int, optional
         Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
