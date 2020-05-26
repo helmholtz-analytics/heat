@@ -93,7 +93,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         """
         return self._labels
 
-    def _spectral_embedding(self, X) -> Tuple[ht.DNDarray, ht.DNDarray] :
+    def _spectral_embedding(self, X) -> Tuple[ht.DNDarray, ht.DNDarray]:
         """
         Helper function for dataset X embedding
 

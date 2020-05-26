@@ -1,13 +1,14 @@
 import numpy as np
 import torch
+from typing import Union, Tuple
 
 from .communication import MPI
+from .dndarray import DNDarray
 from . import exponential
 from . import factories
 from . import linalg
 from . import manipulations
 from . import operations
-from . import dndarray
 from . import types
 from . import stride_tricks
 from . import logical
@@ -29,23 +30,19 @@ __all__ = [
 ]
 
 
-def argmax(x, axis=None, out=None, **kwargs):
+def argmax(x, axis=None, out=None, **kwargs) -> DNDarray:
     """
-    Returns the indices of the maximum values along an axis.
+    Returns an array of the indices of the maximum values along an axis. It has the same shape as x.shape with the
+    dimension along axis removed.
 
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         Input array.
     axis : int, optional
         By default, the index is into the flattened tensor, otherwise along the specified axis.
-    out : ht.DNDarray, optional.
+    out : DNDarray, optional.
         If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
-
-    Returns
-    -------
-    index_tensor : ht.DNDarray of ints
-        Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
 
     Examples
     --------
@@ -129,23 +126,20 @@ def argmax(x, axis=None, out=None, **kwargs):
     return reduced_result
 
 
-def argmin(x, axis=None, out=None, **kwargs):
+def argmin(x, axis=None, out=None, **kwargs) -> DNDarray:
     """
-    Returns the indices of the minimum values along an axis.
+    Returns an array of the indices of the minimum values along an axis.It has the same shape as x.shape with the
+    dimension along axis removed.
 
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         Input array.
     axis : int, optional
         By default, the index is into the flattened tensor, otherwise along the specified axis.
-    out : ht.DNDarray, optional. Issue #100
+    out : DNDarray, optional. Issue #100
         If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
-    Returns
-    -------
-    index_tensor : ht.DNDarray of ints
-        Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
 
     Examples
     --------
@@ -230,13 +224,16 @@ def argmin(x, axis=None, out=None, **kwargs):
     return reduced_result
 
 
-def average(x, axis=None, weights=None, returned=False):
+def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple[DNDarray, ...]]:
     """
     Compute the weighted average along the specified axis.
 
+    When returned=True, return a tuple with the average as the first element and the sum
+    of the weights as the second element. sum_of_weights is of the same type as `average`.
+
     Parameters
     ----------
-    x : ht.tensor
+    x : DNDarray
         Tensor containing data to be averaged.
 
     axis : None or int or tuple of ints, optional
@@ -248,7 +245,7 @@ def average(x, axis=None, weights=None, returned=False):
         specified in the tuple instead of a single axis or all the axes as
         before.
 
-    weights : ht.tensor, optional
+    weights : DNDarray, optional
         An tensor of weights associated with the values in x. Each value in
         x contributes to the average according to its associated weight.
         The weights tensor can either be 1D (in which case its length must be
@@ -261,14 +258,6 @@ def average(x, axis=None, weights=None, returned=False):
         is returned, otherwise only the average is returned.
         If weights=None, sum_of_weights is equivalent to the number of
         elements over which the average is taken.
-
-    Returns
-    -------
-    average, [sum_of_weights] : ht.tensor or tuple of ht.tensors
-        Return the average along the specified axis. When returned=True,
-        return a tuple with the average as the first element and the sum
-        of the weights as the second element. sum_of_weights is of the
-        same type as `average`.
 
     Raises
     ------
@@ -302,9 +291,9 @@ def average(x, axis=None, weights=None, returned=False):
     """
 
     # perform sanitation
-    if not isinstance(x, dndarray.DNDarray):
+    if not isinstance(x, DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
-    if weights is not None and not isinstance(weights, dndarray.DNDarray):
+    if weights is not None and not isinstance(weights, DNDarray):
         raise TypeError("expected weights to be a ht.DNDarray, but was {}".format(type(x)))
     axis = stride_tricks.sanitize_axis(x.shape, axis)
 
@@ -363,16 +352,16 @@ def average(x, axis=None, weights=None, returned=False):
     return result
 
 
-def cov(m, y=None, rowvar=True, bias=False, ddof=None):
+def cov(m, y=None, rowvar=True, bias=False, ddof=None) -> DNDarray:
     """
     Estimate the covariance matrix of some data, m. For more imformation on the algorithm please see the numpy function of the same name
 
     Parameters
     ----------
-    m : array_like
+    m : DNDarray
         A 1-D or 2-D array containing multiple variables and observations. Each row of `m` represents a variable, and each column a single
         observation of all those variables. Also see `rowvar` below.
-    y : array_like, optional
+    y : DNDarray, optional
         An additional set of variables and observations. `y` has the same form as that of `m`.
     rowvar : bool, optional
         If `rowvar` is True (default), then each row represents a variable, with observations in the columns. Otherwise, the relationship
@@ -384,14 +373,10 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
         If not ``None`` the default value implied by `bias` is overridden. Note that ``ddof=1`` will return the unbiased estimate and
         ``ddof=0`` will return the simple average. The default value is ``None``.
 
-    Returns
-    -------
-    cov : DNDarray
-        the covariance matrix of the variables
     """
     if ddof is not None and not isinstance(ddof, int):
         raise TypeError("ddof must be integer")
-    if not isinstance(m, dndarray.DNDarray):
+    if not isinstance(m, DNDarray):
         raise TypeError("m must be a DNDarray")
     if not m.is_balanced():
         raise RuntimeError("balance is required for cov(). use balance_() to balance m")
@@ -411,7 +396,7 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
             ddof = 0
 
     if y is not None:
-        if not isinstance(y, dndarray.DNDarray):
+        if not isinstance(y, DNDarray):
             raise TypeError("y must be a DNDarray")
         if y.numdims > 2:
             raise ValueError("y has too many dimensions, max=2")
@@ -435,30 +420,25 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     return c
 
 
-def max(x, axis=None, out=None, keepdim=None):
+def max(x, axis=None, out=None, keepdim=None) -> DNDarray:
     # TODO: initial : scalar, optional Issue #101
     """
     Return the maximum along a given axis.
 
     Parameters
     ----------
-    x : ht.DNDarray
+    x : .DNDarray
         Input data.
     axis : None or int or tuple of ints, optional
         Axis or axes along which to operate. By default, flattened input is used.
         If this is a tuple of ints, the maximum is selected over multiple axes,
         instead of a single axis or all the axes as before.
-    out : ht.DNDarray, optional
+    out : DNDarray, optional
         Tuple of two output tensors (max, max_indices). Must be of the same shape and buffer length as the expected
         output. The minimum value of an output element. Must be present to allow computation on empty slice.
     keepdim : bool, optional
         If this is set to True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original arr.
-
-    Returns
-    -------
-    maximums : ht.DNDarray
-        The maximum along a given axis.
 
     Examples
     --------
@@ -491,28 +471,27 @@ def max(x, axis=None, out=None, keepdim=None):
     )
 
 
-def maximum(x1, x2, out=None):
+def maximum(x1, x2, out=None) -> DNDarray:
     """
-    Compares two tensors and returns a new tensor containing the element-wise maxima.
-    If one of the elements being compared is a NaN, then that element is returned. TODO: Check this: If both elements are NaNs then the first is returned.
-    The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
+    Compares two DNDarrays and returns a new DNDarrays containing the element-wise maxima.
+
+    The DNDarrays must have the same shape, or shapes that can be broadcast to a single shape.
+    For broadcasting semantics, see: https://pytorch.org/docs/stable/notes/broadcasting.html
+    If one of the elements being compared is a NaN, then that element is returned.
+    TODO: Check this: If both elements are NaNs then the first is returned.
+    The latter distinction is important for complex NaNs, which are defined as at least one of the real or
+    imaginary parts being a NaN. The net effect is that NaNs are propagated.
 
     Parameters:
     -----------
-
-    x1, x2 : ht.DNDarray
-            The tensors containing the elements to be compared. They must have the same shape, or shapes that can be broadcast to a single shape.
-            For broadcasting semantics, see: https://pytorch.org/docs/stable/notes/broadcasting.html
-
-    out : ht.DNDarray or None, optional
+    x1: DNDarray
+            The first DNDarray containing the elements to be compared.
+    x2: DNDarray
+            The second DNDarray containing the elements to be compared.
+    out : DNDarray or None, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated tensor is returned.
 
-    Returns:
-    --------
-
-    maximum: ht.DNDarray
-            Element-wise maximum of the two input tensors.
 
     Examples:
     ---------
@@ -562,11 +541,11 @@ def maximum(x1, x2, out=None):
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     """
     # perform sanitation
-    if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
+    if not isinstance(x1, DNDarray) or not isinstance(x2, DNDarray):
         raise TypeError(
             "expected x1 and x2 to be a ht.DNDarray, but were {}, {} ".format(type(x1), type(x2))
         )
-    if out is not None and not isinstance(out, dndarray.DNDarray):
+    if out is not None and not isinstance(out, DNDarray):
         raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
     # apply split semantics
@@ -634,31 +613,25 @@ def maximum(x1, x2, out=None):
     return lresult
 
 
-def mean(x, axis=None):
+def mean(x, axis=None) -> DNDarray:
     """
-    Calculates and returns the mean of a tensor.
+    Calculates and returns the mean of a DNDarray.
     If a axis is given, the mean will be taken in that direction.
 
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         Values for which the mean is calculated for.
         The dtype of x must be a float
-    axis : None, Int, iterable, defaults to None
+    axis : None, int, iterable
         Axis which the mean is taken in. Default None calculates mean of all data items.
-
-    Returns
-    -------
-    means : ht.DNDarray
-        The mean/s, if split, then split in the same direction as x, if possible. Fpr more
-        information on the split semantics see Notes.
 
     Notes
     -----
     Split semantics when axis is an integer:
-        if axis = x.split, then means.split = None
-        if axis > split, then means.split = x.split
-        if axis < split, then means.split = x.split - 1
+    - if axis = x.split, then means.split = None
+    - if axis > split, then means.split = x.split
+    - if axis < split, then means.split = x.split - 1
 
     Examples
     --------
@@ -689,9 +662,10 @@ def mean(x, axis=None):
     tensor(0.4730)
     """
 
-    def reduce_means_elementwise(output_shape_i):
+    def reduce_means_elementwise(output_shape_i) -> DNDarray:
         """
         Function to combine the calculated means together.
+
         This does an element-wise update of the calculated means to merge them together using the
         merge_means function. This function operates using x from the mean function parameters.
 
@@ -700,10 +674,6 @@ def mean(x, axis=None):
         output_shape_i : iterable
             Iterable with the dimensions of the output of the mean function.
 
-        Returns
-        -------
-        means : ht.DNDarray
-            The calculated means.
         """
         if x.lshape[x.split] != 0:
             mu = torch.mean(x._DNDarray__array, dim=axis)
@@ -751,11 +721,11 @@ def mean(x, axis=None):
             return mu_tot[0][0]
 
     output_shape = list(x.shape)
-    if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
+    if isinstance(axis, (list, tuple, DNDarray, torch.Tensor)):
         if isinstance(axis, (list, tuple)):
             if len(set(axis)) != len(axis):
                 raise ValueError("duplicate value in axis")
-        if isinstance(axis, (dndarray.DNDarray, torch.Tensor)):
+        if isinstance(axis, (DNDarray, torch.Tensor)):
             if axis.unique().numel() != axis.numel():
                 raise ValueError("duplicate value in axis")
         if any([not isinstance(j, int) for j in axis]):
@@ -818,16 +788,18 @@ def mean(x, axis=None):
 
 def __merge_moments(m1, m2, bessel=True):
     """
-    Merge two statistical moments. If the length of m1/m2 (must be equal) is == 3 then the second moment (variance)
+    Merge two statistical moments.
+
+    If the length of m1/m2 (must be equal) is == 3 then the second moment (variance)
     is merged. This function can be expanded to merge other moments according to Reference 1 as well.
     Note: all tensors/arrays must be either the same size or individual values
 
     Parameters
     ----------
-    m1 : tuple
+    m1 : Tuple
         Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
         sorted in descending order of moments
-    m2 : tuple
+    m2 : Tuple
         Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
         sorted in descending order of moments
     bessel : bool
@@ -846,7 +818,7 @@ def __merge_moments(m1, m2, bessel=True):
     """
     if len(m1) != len(m2):
         raise ValueError(
-            "m1 and m2 must be same length, currently {} and {}".format(len(m1, len(m2)))
+            "m1 and m2 must be same length, currently {} and {}".format(len(m1), len(m2))
         )
     n1, n2 = m1[-1], m2[-1]
     mu1, mu2 = m1[-2], m2[-2]
@@ -866,30 +838,26 @@ def __merge_moments(m1, m2, bessel=True):
         return var_m, mu, n
 
 
-def min(x, axis=None, out=None, keepdim=None):
+def min(x, axis=None, out=None, keepdim=None) -> DNDarray:
     # TODO: initial : scalar, optional Issue #101
     """
     Return the minimum along a given axis.
 
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         Input data.
-    axis : None or int or tuple of ints
+    axis : None or int or Tuple[int,...]
         Axis or axes along which to operate. By default, flattened input is used.
         If this is a tuple of ints, the minimum is selected over multiple axes,
         instead of a single axis or all the axes as before.
-    out : ht.DNDarray, optional
+    out : DNDarray, optional
         Tuple of two output tensors (min, min_indices). Must be of the same shape and buffer length as the expected
         output. The maximum value of an output element. Must be present to allow computation on empty slice.
     keepdim : bool, optional
         If this is set to True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original arr.
 
-    Returns
-    -------
-    minimums : ht.DNDarray
-        The minimums along a given axis.
 
     Examples
     --------
@@ -922,30 +890,29 @@ def min(x, axis=None, out=None, keepdim=None):
     )
 
 
-def minimum(x1, x2, out=None):
+def minimum(x1, x2, out=None) -> DNDarray:
     """
     Compares two tensors and returns a new tensor containing the element-wise minima.
-    If one of the elements being compared is a NaN, then that element is returned. TODO: Check this: If both elements are NaNs then the first is returned.
-    The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
+
+    If one of the elements being compared is a NaN, then that element is returned.  They must have the same shape,
+    or shapes that can be broadcast to a single shape. For broadcasting semantics,
+    see: https://pytorch.org/docs/stable/notes/broadcasting.html
+    TODO: Check this: If both elements are NaNs then the first is returned.
+    The latter distinction is important for complex NaNs, which are defined as at least one of the real or
+    imaginary parts being a NaN. The net effect is that NaNs are propagated.
 
     Parameters:
     -----------
 
-    x1, x2 : ht.DNDarray
-            The tensors containing the elements to be compared. They must have the same shape, or shapes that can be broadcast to a single shape.
-            For broadcasting semantics, see: https://pytorch.org/docs/stable/notes/broadcasting.html
-
-    out : ht.DNDarray or None, optional
+    x1 : DNDarray
+            The first DNDarray containing the elements to be compared.
+    x2 : DNDarray
+            The second DNDarray containing the elements to be compared.
+    out : DNDarray or None, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated tensor is returned.
 
-    Returns:
-    --------
-
-    minimum: ht.DNDarray
-            Element-wise minimum of the two input tensors.
-
-    Examples:
+    Examples
     ---------
     >>> import heat as ht
     >>> import torch
@@ -993,11 +960,11 @@ def minimum(x1, x2, out=None):
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     """
     # perform sanitation
-    if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
+    if not isinstance(x1, DNDarray) or not isinstance(x2, DNDarray):
         raise TypeError(
             "expected x1 and x2 to be a ht.DNDarray, but were {}, {} ".format(type(x1), type(x2))
         )
-    if out is not None and not isinstance(out, dndarray.DNDarray):
+    if out is not None and not isinstance(out, DNDarray):
         raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
     # apply split semantics
@@ -1298,11 +1265,11 @@ def var(x, axis=None, ddof=0, **kwargs):
     else:  # axis is given
         # case for var in one dimension
         output_shape = list(x.shape)
-        if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
+        if isinstance(axis, (list, tuple, DNDarray, torch.Tensor)):
             if isinstance(axis, (list, tuple)):
                 if len(set(axis)) != len(axis):
                     raise ValueError("duplicate value in axis")
-            if isinstance(axis, (dndarray.DNDarray, torch.Tensor)):
+            if isinstance(axis, (DNDarray, torch.Tensor)):
                 if axis.unique().numel() != axis.numel():
                     raise ValueError("duplicate value in axis")
             if any([not isinstance(j, int) for j in axis]):

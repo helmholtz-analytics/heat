@@ -1,6 +1,7 @@
 import torch
+from typing import List, Tuple
 
-from . import dndarray
+from .dndarray import DNDarray
 from . import factories
 
 __all__ = ["SplitTiles", "SquareDiagTiles"]
@@ -14,7 +15,7 @@ class SplitTiles:
 
         Parameters
         ----------
-        arr : dndarray.DNDarray
+        arr : DNDarray
             base array for which to create the tiles
 
         Examples
@@ -87,9 +88,9 @@ class SplitTiles:
         self.__tile_dims = tile_dims
 
     @staticmethod
-    def set_tile_locations(split, tile_dims, arr):
+    def set_tile_locations(split, tile_dims, arr) -> torch.Tensor:
         """
-        Create a torch Tensor with the locations of the tiles for SplitTiles
+        Create a torch Tensor which contains the locations of the tiles of arr for the given split
 
         Parameters
         ----------
@@ -100,10 +101,6 @@ class SplitTiles:
         arr : DNDarray
             array for which the tiles are being created for
 
-        Returns
-        -------
-        tile_locations : torch.Tensor
-            a tensor which contains the locations of the tiles of arr for the given split
         """
         # this is split off specifically for the resplit function
         tile_locations = torch.zeros(
@@ -140,12 +137,9 @@ class SplitTiles:
         return self.__tile_locations
 
     @property
-    def tile_ends_g(self):
+    def tile_ends_g(self) -> torch.Tensor:
         """
-        Returns
-        -------
-        end_of_tiles_global : torch.Tensor
-            tensor wih the global indces with the end points of the tiles in every dimension
+        Returns a torch tensor wih the global indces with the end points of the tiles in every dimension
 
         Examples
         --------
@@ -343,7 +337,7 @@ class SquareDiagTiles:
 
     def __init__(self, arr, tiles_per_proc=2):
         # lshape_map -> rank (int), lshape (tuple of the local lshape, self.lshape)
-        if not isinstance(arr, dndarray.DNDarray):
+        if not isinstance(arr, DNDarray):
             raise TypeError("arr must be a DNDarray, is currently a {}".format(type(self)))
         if not isinstance(tiles_per_proc, int):
             raise TypeError("tiles_per_proc must be an int, is currently a {}".format(type(self)))
@@ -566,9 +560,10 @@ class SquareDiagTiles:
         return last_diag_pr, col_per_proc_list, col_inds, tile_columns
 
     @staticmethod
-    def __create_cols(arr, lshape_map, tiles_per_proc):
+    def __create_cols(
+        arr, lshape_map, tiles_per_proc
+    ) -> Tuple[torch.Tensor, List[int, ...], List[int, ...], torch.Tensor]:
         """
-
         Calculates the last diagonal process, then creates a list of the number of tile columns per
         process, then calculates the starting indices of the columns. Also returns the number of tile
         columns.
@@ -578,20 +573,9 @@ class SquareDiagTiles:
         arr : DNDarray
             DNDarray for which to find the tile columns for
         lshape_map : torch.Tensor
-            the map of the local shapes (for more info see: dndarray.DNDarray.create_lshape_map())
+            the map of the local shapes (for more info see: DNDarray.create_lshape_map())
         tiles_per_proc : int
             the number of divisions per process
-
-        Returns
-        -------
-        last_dia_pr : single element torch.Tensor
-            the process number which has the last diagonal tile
-        col_per_proc_list : list
-            a list of how many tile columns are on each process
-        col_inds : list
-            the starting index of each column
-        tile_columns : single element torch.Tensor
-            the number of tile columns
         """
         last_tile_cols = tiles_per_proc
         last_dia_pr = torch.where(lshape_map[..., arr.split].cumsum(dim=0) >= min(arr.gshape))[0][0]
@@ -642,7 +626,6 @@ class SquareDiagTiles:
     @staticmethod
     def __def_end_row_inds_sp0_m_ge_n(arr, row_inds, last_diag_pr, tiles_per_proc, lshape_map):
         """
-
         Adjust the rows on the processes which are greater than the last diagonal processs to have
         rows which are chunked evenly into `tiles_per_proc` rows/
         """
@@ -663,7 +646,6 @@ class SquareDiagTiles:
     @staticmethod
     def __last_tile_row_adjust_sp1(arr, row_inds):
         """
-
         Add extra row/s if there is space below the diagonal (split=1)
         """
         if arr.gshape[0] - arr.gshape[1] > 10:  # todo: determine best value for this
@@ -681,84 +663,61 @@ class SquareDiagTiles:
             row_inds[-1] = arr.gshape[0] - sum(row_inds[:-1])
 
     @property
-    def arr(self):
+    def arr(self) -> DNDarray:
         """
-
-        Returns
-        -------
-        DNDarray : the DNDarray for which the tiles are defined on
+        Returns the DNDarray for which the tiles are defined on
         """
         return self.__DNDarray
 
     @property
-    def col_indices(self):
+    def col_indices(self) -> List[int, ...]:
         """
-
-        Returns
-        -------
-        list : list containing the indices of the tile columns
+        Returns a list containing the indices of the tile columns
         """
         return self.__col_inds
 
     @property
-    def lshape_map(self):
+    def lshape_map(self) -> torch.Tensor:
         """
-        Returns
-        -------
-        torch.Tensor : map of the lshape tuples for the DNDarray given
-             units -> rank (int), lshape (tuple of the local shape)
+        Returns the map of the lshape tuples for the DNDarray given
+        units -> rank (int), lshape (tuple of the local shape)
         """
         return self.__lshape_map
 
     @property
-    def last_diagonal_process(self):
+    def last_diagonal_process(self) -> int:
         """
-
-        Returns
-        -------
-        int : the rank of the last process with diagonal elements
+        Returns the rank of the last process with diagonal elements
         """
         return self.__last_diag_pr
 
     @property
-    def row_indices(self):
+    def row_indices(self) -> List[int, ...]:
         """
-
-        Returns
-        -------
-        list : list containing the indices of the tile rows
+        Returns a list containing the indices of the tile rows
         """
         return self.__row_inds
 
     @property
-    def tile_columns(self):
+    def tile_columns(self) -> int:
         """
-
-        Returns
-        -------
-        int : number of tile columns
+        Returns the number of tile columns
         """
         return len(self.__col_inds)
 
     @property
-    def tile_columns_per_process(self):
+    def tile_columns_per_process(self) -> List[int, ...]:
         """
-
-        Returns
-        -------
-        list : list containing the number of columns on all processes
+        Returns a list containing the number of columns on all processes
         """
         return self.__col_per_proc_list
 
     @property
-    def tile_map(self):
+    def tile_map(self) -> torch.Tensor:
         """
 
-        Returns
-        -------
-        torch.Tensor : map of tiles
-            tile_map contains the sizes of the tiles
-            units -> row, column, start index in each direction, process
+        Returns tile_map which contains the sizes of the tiles
+        units -> row, column, start index in each direction, process
 
         Examples
         --------
@@ -791,40 +750,30 @@ class SquareDiagTiles:
         return self.__tile_map
 
     @property
-    def tile_rows(self):
+    def tile_rows(self) -> int:
         """
-
-        Returns
-        -------
-        int : number of tile rows
+        Returns the number of tile rows
         """
         return len(self.__row_inds)
 
     @property
-    def tile_rows_per_process(self):
+    def tile_rows_per_process(self) -> List[int, ...]:
         """
+        Returns a list containing the number of rows on all processes
 
-        Returns
-        -------
-        list : list containing the number of rows on all processes
         """
         return self.__row_per_proc_list
 
-    def get_start_stop(self, key):
+    def get_start_stop(self, key) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-
-        Returns the start and stop indices which correspond to the tile/s which corresponds to the
-        given key. The key MUST use global indices.
+        Returns the start and stop indices in form of (dim0 start, dim0 stop, dim1 start, dim1 stop)
+        which correspond to the tile/s which corresponds to the given key. The key MUST use global indices.
 
         Parameters
         ----------
         key : int, tuple, list, slice
             indices to select the tile
             STRIDES ARE NOT ALLOWED, MUST BE GLOBAL INDICES
-
-        Returns
-        -------
-        tuple : (dim0 start, dim0 stop, dim1 start, dim1 stop)
 
         Examples
         --------
@@ -879,8 +828,9 @@ class SquareDiagTiles:
 
         return st0, sp0, st1, sp1
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> torch.Tensor:
         """
+        Returns a local selection of the DNDarray corresponding to the tile/s desired
 
         Standard getitem function for the tiles. The returned item is a view of the original
         DNDarray, operations which are done to this view will change the original array.
@@ -890,11 +840,6 @@ class SquareDiagTiles:
         ----------
         key : int, slice, tuple, list
             indices of the tile/s desired
-
-        Returns
-        -------
-        DNDarray_view : torch.Tensor
-            A local selection of the DNDarray corresponding to the tile/s desired
 
         Examples
         --------
@@ -933,8 +878,9 @@ class SquareDiagTiles:
         else:
             return None
 
-    def local_get(self, key):
+    def local_get(self, key) -> torch.Tensor:
         """
+        Returns the local tile/s corresponding to the key given
 
         Getitem routing using local indices, converts to global indices then uses getitem
 
@@ -944,10 +890,6 @@ class SquareDiagTiles:
             indices of the tile/s desired
             if the stop index of a slice is larger than the end will be adjusted to the maximum
             allowed
-
-        Returns
-        -------
-        torch.Tensor : the local tile/s corresponding to the key given
 
         Examples
         --------
@@ -959,7 +901,6 @@ class SquareDiagTiles:
 
     def local_set(self, key, value):
         """
-
         Setitem routing to set data to a local tile (using local indices)
 
         Parameters
@@ -1020,9 +961,8 @@ class SquareDiagTiles:
         key = self.local_to_global(key=key, rank=rank)
         self.__getitem__(tuple(key)).__setitem__(slice(0, None), value)
 
-    def local_to_global(self, key, rank):
+    def local_to_global(self, key, rank) -> Tuple[int, ...]:
         """
-
         Convert local indices to global indices
 
         Parameters
@@ -1032,10 +972,6 @@ class SquareDiagTiles:
             if the stop index of a slice is larger than the end will be adjusted to the maximum
             allowed
         rank : process rank
-
-        Returns
-        -------
-        tuple : key with global indices
 
         Examples
         --------
@@ -1086,23 +1022,17 @@ class SquareDiagTiles:
 
     def match_tiles(self, tiles_to_match):
         """
-
-        function to match the tile sizes of another tile map
-        NOTE: this is intended for use with the Q matrix, to match the tiling of a/R
-        For this to work properly it is required that the 0th dim of both matrices is equal
+        Function to match the tile sizes of another tile map
 
         Parameters
         ----------
         tiles_to_match : SquareDiagTiles
             the tiles which should be matched by the current tiling scheme
 
-        Returns
-        -------
-        None
-
         Notes
         -----
-        This function overwrites most, if not all, of the elements of this class
+        This function overwrites most, if not all, of the elements of this class. Intended for use with the Q matrix,
+        to match the tiling of a/R. For this to work properly it is required that the 0th dim of both matrices is equal
         """
         if not isinstance(tiles_to_match, SquareDiagTiles):
             raise TypeError(

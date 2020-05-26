@@ -1,8 +1,9 @@
 import itertools
 import numpy as np
+from typing import Tuple, Union
 
 
-def broadcast_shape(shape_a, shape_b):
+def broadcast_shape(shape_a, shape_b) -> Tuple[int, ...]:
     """
     Infers, if possible, the broadcast output shape of two operands a and b. Inspired by stackoverflow post:
     https://stackoverflow.com/questions/24743753/test-if-an-array-is-broadcastable-to-a-shape
@@ -13,11 +14,6 @@ def broadcast_shape(shape_a, shape_b):
         shape of operand a
     shape_b : tuple of ints
         shape of operand b
-
-    Returns
-    -------
-    broadcast_shape : tuple of ints
-        the broadcast shape
 
     Raises
     -------
@@ -52,7 +48,7 @@ def broadcast_shape(shape_a, shape_b):
     return tuple(resulting_shape[::-1])
 
 
-def sanitize_axis(shape, axis):
+def sanitize_axis(shape, axis) -> Union[int, Tuple[int, ...]]:
     """
     Checks conformity of an axis with respect to a given shape. The axis will be converted to its positive equivalent
     and is checked to be within bounds
@@ -63,11 +59,6 @@ def sanitize_axis(shape, axis):
         shape of an array
     axis : ints or tuple of ints
         the axis to be sanitized
-
-    Returns
-    -------
-    sane_axis : int or tuple of ints
-        the sane axis
 
     Raises
     -------
@@ -115,7 +106,7 @@ def sanitize_axis(shape, axis):
     return axis
 
 
-def sanitize_shape(shape):
+def sanitize_shape(shape) -> Tuple[int, ...]:
     """
     Verifies and normalizes the given shape.
 
@@ -123,11 +114,6 @@ def sanitize_shape(shape):
     ----------
     shape : int or sequence of ints
         Shape of an array.
-
-    Returns
-    -------
-    sane_shape : tuple of ints
-        The sanitized shape.
 
     Raises
     -------

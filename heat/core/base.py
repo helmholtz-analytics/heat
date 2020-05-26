@@ -1,7 +1,10 @@
 import inspect
 import json
 from typing import List, Dict, Any, TypeVar
-self = TypeVar('self')
+from .dndarray import DNDarray
+
+self = TypeVar("self")
+
 
 class BaseEstimator:
     @classmethod
@@ -66,8 +69,9 @@ class BaseEstimator:
         for key, value in params.items():
             if key not in parameter_names:
                 raise ValueError(
-                    "Invalid parameter %s for estimator %s. Check the list of available parameters "
-                    "with `estimator.get_params().keys()`.".format(key, self)
+                    "Invalid parameter {} for estimator {}. Check the list of available parameters with `estimator.get_params().keys()`.".format(
+                        key, self
+                    )
                 )
 
             if isinstance(value, dict):
@@ -89,16 +93,16 @@ class ClassificationMixin:
 
         Args
         ----------
-        X : ht.DNDarray
+        X : DNDarray
             Training instances to train on. Shape = (n_samples, n_features)
 
-        Y : ht.DNDarray
+        Y : DNDarray
             Class values to fit. Shape = (n_samples, )
 
         """
         raise NotImplementedError()
 
-    def fit_predict(self, X, Y) -> ht.DNDarray:
+    def fit_predict(self, X, Y) -> DNDarray:
         """
         Fits model and returns classes for each input sample
 
@@ -106,9 +110,9 @@ class ClassificationMixin:
 
         Args
         ----------
-        X : ht.DNDarray
+        X : DNDarray
             Input data to be predicted. Shape = (n_samples, n_features)
-        Y : ht.DNDarray
+        Y : DNDarray
             Class values to fit. Shape = (n_samples, )
         """
         self.fit(X, Y)
@@ -120,7 +124,7 @@ class ClassificationMixin:
 
         Args
         ----------
-        X : ht.DNDarray
+        X : DNDarray
             Values to predict the classes for. Shape = (n_samples, n_features)
 
         """
@@ -138,13 +142,13 @@ class ClusteringMixin:
 
         Args
         ----------
-        X : ht.DNDarray
+        X : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
 
         """
         raise NotImplementedError()
 
-    def fit_predict(self, X) -> ht.DNDarray:
+    def fit_predict(self, X) -> DNDarray:
         """
         Compute clusters and returns the predicted cluster assignment for each sample.
 
@@ -153,7 +157,7 @@ class ClusteringMixin:
 
         Parameters
         ----------
-        X : ht.DNDarray
+        X : DNDarray
             Input data to be clustered. Shape = (n_samples, n_features)
 
         """
@@ -172,16 +176,16 @@ class RegressionMixin:
 
         Args
         ----------
-        X : ht.DNDarray
+        X : DNDarray
             Training instances to train on. Shape = (n_samples, n_features)
 
-        Y : ht.DNDarray
+        Y : DNDarray
             Continuous values to fit. Shape = (n_samples,)
 
         """
         raise NotImplementedError()
 
-    def fit_predict(self, X, Y) -> ht.DNDarray:
+    def fit_predict(self, X, Y) -> DNDarray:
         """
         Fits model and returns regression predictions for each input sample
 
@@ -189,9 +193,9 @@ class RegressionMixin:
 
         Args
         ----------
-        X : ht.DNDarray,
+        X : DNDarray,
             Input data to be predicted. Shape = (n_samples, n_features)
-        Y : ht.DNDarray
+        Y : DNDarray
             Continuous values to fit. Shape = (n_samples,)
 
         """
@@ -204,7 +208,7 @@ class RegressionMixin:
 
         Args
         ----------
-        X : ht.DNDarray
+        X : DNDarray
             Values to let the model predict. Shape = (n_samples, n_features)
         """
         raise NotImplementedError()

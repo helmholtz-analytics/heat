@@ -1,4 +1,5 @@
 import torch
+from .dndarray import DNDarray
 from .constants import pi
 from .operations import __local_op as local_op
 
@@ -20,23 +21,20 @@ __all__ = [
 ]
 
 
-def arccos(x, out=None):
+def arccos(x, out=None) -> DNDarray:
     """
     Return the trigonometric arccos, element-wise.
 
+    Result is a tensor of the same shape as x, containing the trigonometric arccos of each element in this tensor.
+    Input elements outside [-1., 1.] are returned as nan. If out was provided, arccos is a reference to it.
+
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         The value for which to compute the trigonometric cosine.
-    out : ht.DNDarray or None, optional
+    out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    arccos : ht.DNDarray
-        A tensor of the same shape as x, containing the trigonometric arccos of each element in this tensor.
-        Input elements outside [-1., 1.] are returned as nan. If out was provided, arccos is a reference to it.
 
     Examples
     --------
@@ -46,23 +44,21 @@ def arccos(x, out=None):
     return local_op(torch.acos, x, out)
 
 
-def arcsin(x, out=None):
+def arcsin(x, out=None) -> DNDarray:
     """
     Return the trigonometric arcsin, element-wise.
 
+    Result is a tensor of the same shape as x, containing the trigonometric arcsin of each element in this tensor.
+    Input elements outside [-1., 1.] are returned as nan. If out was provided, arcsin is a reference to it.
+
+
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         The value for which to compute the trigonometric cosine.
-    out : ht.DNDarray or None, optional
+    out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    arcsin : ht.DNDarray
-        A tensor of the same shape as x, containing the trigonometric arcsin of each element in this tensor.
-        Input elements outside [-1., 1.] are returned as nan. If out was provided, arcsin is a reference to it.
 
     Examples
     --------
@@ -72,23 +68,21 @@ def arcsin(x, out=None):
     return local_op(torch.asin, x, out)
 
 
-def arctan(x, out=None):
+def arctan(x, out=None) -> DNDarray:
     """
     Return the trigonometric arctan, element-wise.
 
+    Result is a tensor of the same shape as x, containing the trigonometric arctan of each element in this tensor.
+    If out was provided, arctan is a reference to it.
+
+
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         The value for which to compute the trigonometric cosine.
-    out : ht.DNDarray or None, optional
+    out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    arcstan : ht.DNDarray
-        A tensor of the same shape as x, containing the trigonometric arctan of each element in this tensor.
-        If out was provided, arctan is a reference to it.
 
     Examples
     --------
@@ -99,23 +93,20 @@ def arctan(x, out=None):
     return local_op(torch.atan, x, out)
 
 
-def cos(x, out=None):
+def cos(x, out=None) -> DNDarray:
     """
     Return the trigonometric cosine, element-wise.
 
+    Result is a tensor of the same shape as x, containing the trigonometric cosine of each element in this tensor.
+    Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         The value for which to compute the trigonometric cosine.
-    out : ht.DNDarray or None, optional
+    out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    cosine : ht.DNDarray
-        A tensor of the same shape as x, containing the trigonometric cosine of each element in this tensor.
-        Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
     Examples
     --------
@@ -125,23 +116,20 @@ def cos(x, out=None):
     return local_op(torch.cos, x, out)
 
 
-def cosh(x, out=None):
+def cosh(x, out=None) -> DNDarray:
     """
     Return the hyperbolic cosine, element-wise.
 
+    Result is a tensor of the same shape as x, containing the hyperbolic cosine of each element in this tensor.
+    Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         The value for which to compute the hyperbolic cosine.
-    out : ht.DNDarray or None, optional
+    out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    hyperbolic cosine : ht.DNDarray
-        A tensor of the same shape as x, containing the hyperbolic cosine of each element in this tensor.
-        Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
     Examples
     --------
@@ -151,24 +139,19 @@ def cosh(x, out=None):
     return local_op(torch.cosh, x, out)
 
 
-def deg2rad(x, out=None):
+def deg2rad(x, out=None) -> DNDarray:
     """
     Convert angles from degrees to radians.
 
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         The value for which to compute the angles in radians.
-    out : ht.DNDarray or None, optional
+    out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
 
-    Returns
-    -------
-    y : ht.DNDarray
-        The corresponding angle in radians
-
-    Examples elements =
+    Examples
     --------
     >>> ht.deg2rad(ht.array([0.,20.,45.,78.,94.,120.,180., 270., 311.]))
     tensor([0.0000, 0.3491, 0.7854, 1.3614, 1.6406, 2.0944, 3.1416, 4.7124, 5.4280])
@@ -182,22 +165,17 @@ def deg2rad(x, out=None):
     return local_op(torch_deg2rad, x, out)
 
 
-def degrees(x, out=None):
+def degrees(x, out=None) -> DNDarray:
     """
     Convert angles from radians to degrees.
 
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         The value for which to compute the angles in degrees.
-    out : ht.DNDarray or None, optional
+    out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    y : ht.DNDarray
-        The corresponding angle in degrees
 
     Examples
     --------
@@ -207,22 +185,18 @@ def degrees(x, out=None):
     return rad2deg(x, out=out)
 
 
-def rad2deg(x, out=None):
+def rad2deg(x, out=None) -> DNDarray:
     """
     Convert angles from radians to degrees.
 
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         The value for which to compute the angles in degrees.
-    out : ht.DNDarray or None, optional
+    out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
 
-    Returns
-    -------
-    y : ht.DNDarray
-        The corresponding angle in degrees
 
     Examples
     --------
@@ -238,22 +212,17 @@ def rad2deg(x, out=None):
     return local_op(torch_rad2deg, x, out=out)
 
 
-def radians(x, out=None):
+def radians(x, out=None) -> DNDarray:
     """
     Convert angles from degrees to radians.
 
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         The value for which to compute the angles in radians.
-    out : ht.DNDarray or None, optional
+    out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    y : ht.DNDarray
-        The corresponding angle in radians
 
     Examples
     --------
@@ -264,23 +233,20 @@ def radians(x, out=None):
     return deg2rad(x, out=None)
 
 
-def sin(x, out=None):
+def sin(x, out=None) -> DNDarray:
     """
     Return the trigonometric sine, element-wise.
 
+    Result is a tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
+    Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         The value for which to compute the trigonometric tangent.
-    out : ht.DNDarray or None, optional
+    out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    sine : ht.DNDarray
-        A tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
-        Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
     Examples
     --------
@@ -290,23 +256,20 @@ def sin(x, out=None):
     return local_op(torch.sin, x, out)
 
 
-def sinh(x, out=None):
+def sinh(x, out=None) -> DNDarray:
     """
     Return the hyperbolic sine, element-wise.
 
+    Result is a tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
+    Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         The value for which to compute the hyperbolic sine.
-    out : ht.DNDarray or None, optional
+    out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    hyperbolic sine : ht.DNDarray
-        A tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
-        Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
     Examples
     --------
@@ -316,24 +279,20 @@ def sinh(x, out=None):
     return local_op(torch.sinh, x, out)
 
 
-def tan(x, out=None):
+def tan(x, out=None) -> DNDarray:
     """
     Compute tangent element-wise.
 
+    Result tensor of the same shape as x, containing the trigonometric tangent of each element in this tensor.
     Equivalent to ht.sin(x) / ht.cos(x) element-wise.
 
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         The value for which to compute the trigonometric tangent.
-    out : ht.DNDarray or None, optional
+    out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    tangent : ht.DNDarray
-        A tensor of the same shape as x, containing the trigonometric tangent of each element in this tensor.
 
     Examples
     --------
@@ -347,18 +306,15 @@ def tanh(x, out=None):
     """
     Return the hyperbolic tangent, element-wise.
 
+    Result is A tensor of the same shape as x, containing the hyperbolic tangent of each element in this tensor.
+
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         The value for which to compute the hyperbolic tangent.
-    out : ht.DNDarray or None, optional
+    out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    hyperbolic tangent : ht.DNDarray
-        A tensor of the same shape as x, containing the hyperbolic tangent of each element in this tensor.
 
     Examples
     --------

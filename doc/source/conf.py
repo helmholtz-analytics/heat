@@ -40,9 +40,9 @@ extensions = ["autoapi.extension", "sphinx_rtd_theme", "sphinxcontrib.napoleon"]
 autoapi_type = "python"
 autoapi_dirs = ["../../heat/"]
 autoapi_ignore = ["*/tests/*"]
-autoapi_template_dir = '_templates/autoapi'
+autoapi_template_dir = "_templates/autoapi"
 
-napoleon_custom_sections = ['Shape']
+napoleon_custom_sections = ["Shape"]
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
@@ -176,9 +176,7 @@ html_logo = "../images/logo_emblem.png"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-html_css_files = [
-    'css/custom.css',
-]
+html_css_files = ["css/custom.css"]
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
