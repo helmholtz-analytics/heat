@@ -1,7 +1,7 @@
 import torch
 from typing import Tuple
 
-__all__ = ["gen_house_mat", "gen_house_vec", "apply_house", "larftx2ce", "gbelr"]
+__all__ = ["gen_house_mat", "gen_house_vec", "apply_house", "gbelr"]
 
 
 # @torch.jit.script
@@ -16,7 +16,7 @@ def gen_house_mat(v, tau):
 def gen_house_vec(x, n=2):
     # type: (torch.Tensor, int) -> Tuple[torch.Tensor, torch.Tensor]
     """
-    What is implemented now is only generating ONE reflector, for more would need to implement the following:
+    What is implemented now is only generating ONE reflector,
 
     Note, this overwrites x, todo: does it?
     Parameters
@@ -74,7 +74,6 @@ def gen_house_vec(x, n=2):
 def apply_house(side, v, tau, c):
     # type: (str, torch.Tensor, torch.Tensor, torch.Tensor) -> torch.Tensor
     """
-    replacement for plasma core__dlarfx2
     applies the matrix H = I - tau * v * v.T to c1 and c2
     if side == left: return H @ c1 and H @ c2
     elif side == right: return c1 @ H and c2 @ H
@@ -105,50 +104,6 @@ def apply_house(side, v, tau, c):
     else:
         raise ValueError("side must be either 'left' or 'right', currently: {}".format(side))
     return r
-
-
-# @torch.jit.script
-def larftx2ce(uplo, vl, taul, c):
-    # type: (str, torch.Tensor, torch.Tensor, torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
-    """
-    replacement for dlarfx2ce, this is the special case that the input is 2x2,
-    it applies H on both sides
-    Parameters
-    ----------
-    uplo
-    v
-    tau
-    c : the 2x2 matrix
-
-    Returns
-    -------
-
-    """
-    if taul == 0:
-        return vl, taul, c, torch.zeros_like(vl), taul
-
-    # generate H for first transform (the one passed)
-    h = gen_house_mat(vl, taul)
-    # h = torch.eye(2, dtype=vl.dtype, device=vl.device)
-    # h -= tau * torch.dot(vl, vl.t())
-    # apply to C
-    # todo: not sure if the out keyword works here or not. found issues when combined with JIT
-    c = torch.matmul(h, c)
-    # generate Householder transforms to annihilate the created value
-    # created value will be at (top right for LOWER, bottom left for UPPER)
-    if uplo == "lower":
-        vr, taur = gen_house_vec(n=2, x=c[0].flatten().clone())
-    elif uplo == "upper":
-        vr, taur = gen_house_vec(n=2, x=c[:, 0].flatten().clone())
-    else:
-        raise ValueError("uplo must be lower or upper, currently {}".format(uplo))
-    # create and apply the new H
-    h = gen_house_mat(vr, taur)
-    # h = torch.eye(2, dtype=vr.dtype, device=vr.device)
-    # h -= taur * torch.dot(vr, vr.t())
-    # apply to C
-    c = torch.matmul(c, h)
-    return vl, taul, c, vr, taur
 
 
 # @torch.jit.script
@@ -203,7 +158,8 @@ def gbelr(uplo, arr):
             v_left_dict[s] = vl
             tau_left_dict[s] = taul
             arr[s:e, :] = apply_house(side="left", v=vl, tau=taul, c=arr[s:e, :])
-            vr, taur = gen_house_vec(x=arr[s, s:e])  # this should eliminate the temp element at *
+            # eleminate the bludge created by above
+            vr, taur = gen_house_vec(x=arr[s, s:e])
             v_right_dict[s] = vr
             tau_right_dict[s] = taur
             # apply vr from right to the 2x2
@@ -241,6 +197,42 @@ def gbelr(uplo, arr):
                 ).T
                 arr[i - 1 : i + 1, s + 2 :] = res
     else:
-        raise ValueError("")
+        raise ValueError("?")
     # print((arr * 100000).round())
     return arr, v_left_dict, tau_left_dict, v_right_dict, tau_right_dict
+
+
+def gbrce(uplo, arr, st, v_left, tau_left, v_right, tau_right):
+    # this is the same stuff as the gbelr without the initial generation
+    # first step: apply house vectors from right (upper, left for lower)
+    #   generate the householder vectors to eliminate the bulge
+    #   apply these to the left
+    # todo: st and end should be global indices, need to convert to local ones
+    if uplo == "lower":
+        pass
+        # end = arr.shape[1]
+        # # apply the vectors from the right (essentially this continues the application form the first last function)
+        # #   (starting at st, should be the same as in the function which created the vectors)
+        # # st, end = 0, arr.size[1]
+        # # todo: only need to pass in the section of the band with elements:
+        # #   starting column is 1 more than the start index of the previous function
+        # for i in range(end - 1, -1, -1):
+        #     # each vector is 2 elements and operates on two columns, i and i + 1
+        #     s0, s1, e = 0, i, i + 1
+        #     if s0 + 2 < arr.shape[0]:
+        #         arr[s0:e, s1:e] = apply_house(
+        #             side="right", v=v_right[st + i], tau=tau_right[st + i], c=arr[s0:e, s1:e]
+        #         )
+        #     # todo: move to next loop? same order i guess....
+        #     # generate the vectors to eliminate the created bulges
+        #     vl, taul = gen_house_vec(x=arr[i : e + 1, i])
+        #     v_left[st + i] = vl
+        #     tau_left[st + i] = taul
+        # for i in range(end - 1, -1, -1):
+        #     # after the house vectors are created, need to apply them from the left
+        #     s0, s1, e = i, i, i + 1
+        #     if s0 + 2 < arr.shape[0]:
+        #         arr[s0:e, s1:] = apply_house(
+        #             side="left", v=v_left[st + i], tau=taur, c=arr[s:e, s:e]
+        #         )
+        #     pass

@@ -1,6 +1,5 @@
 import itertools
 import torch
-from typing import Tuple
 
 from ..communication import MPI
 from .. import arithmetics

@@ -4,8 +4,9 @@ from .qr import __split0_r_calc, __split0_q_loop, __split1_qr_loop
 from .. import dndarray
 from .. import factories
 from .. import tiling
+from . import utils
 
-__all__ = ["block_diagonalize"]
+__all__ = ["block_diagonalize", "bulge_chasing"]
 
 
 def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True):
@@ -333,3 +334,38 @@ def __block_diagonalize_sp1(
         return q0_tiles.arr, arr_tiles.arr, q1_tiles.arr.T, tiles
     else:
         return q0_tiles.arr, arr_tiles.arr, q1_tiles.arr.T
+
+
+def bulge_chasing(arr, q0, q1, tiles=None):
+    # assuming that the matrix is upper band diagonal
+    # need the tile shape first
+    rank = arr.comm.rank
+    # size = arr.comm.size
+    if tiles is not None:
+        band_width = tiles["arr"].col_indices[1] + 1
+    else:
+        band_width = arr.gshape[1]
+
+    lshape_map = tiles["arr"].lshape_map
+    splits = lshape_map[..., arr.split].cumsum(0)
+    # need to start on the first process and continue onward...
+    # todo: should ldp come from arr_tiles or arr_t_tiles (depends on the lshape)
+    ldp = tiles["arr"].last_diagonal_process
+    active_procs = list(range(ldp + 1))
+    lcl_array = arr._DNDarray__array
+    # lcl_right_apply = {}
+    # lcl_left_apply = {}
+    if rank <= ldp:
+        # todo: each column or row (smallest)
+        ncols = min(arr.gshape) - 1 if arr.gshape[0] >= arr.gshape[1] else min(arr.gshape) + 1
+        for col in range(ncols):
+            if any(col >= splits[active_procs[0] :]):
+                if rank == active_procs[0]:
+                    break
+                del active_procs[0]
+            # get the first row
+            if rank == active_procs[0]:
+                # generate the vector to eliminate the row
+                v, t = utils.gen_house_vec(lcl_array[col, col + 1 : col + band_width])
+                # lcl_right_apply[(col, col + band_width)]
+                print(col, v)
