@@ -2,44 +2,45 @@ import heat as ht
 
 
 class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
+    """
+    K-Means clustering algorithm. An implementation of Lloyd's algorithm [1].
+
+    Parameters
+    ----------
+    n_clusters : int
+        The number of clusters to form as well as the number of centroids to generate.
+    init : ‘random’ or ‘k-means++’ or ht.dndarray
+        Method for initialization, defaults to ‘random’:
+        ‘k-means++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
+        ‘random’: choose k observations (rows) at random from data for the initial centroids.
+        ht.DNDarray: it should be of shape (n_clusters, n_features) and gives the initial centers.
+    max_iter : int
+        Maximum number of iterations of the k-means algorithm for a single run.
+    tol : float
+        Relative tolerance with regards to inertia to declare convergence.
+    random_state : int
+        Determines random number generation for centroid initialization.
+
+    Notes
+    -----
+    The average complexity is given by :math:`O(k\cdot n\cdot T)`, were n is the number of samples and :math:`T` is the number of iterations.
+
+    In practice, the k-means algorithm is very fast, but it may fall into local minima. That is why it can be useful
+    to restart it several times. If the algorithm stops before fully converging (because of tol or max_iter),
+    labels_ and cluster_centers_ will not be consistent, i.e. the cluster_centers_ will not be the means of the
+    points in each cluster. Also, the estimator will reassign labels_ after the last iteration to make labels_
+    consistent with predict on the training set.
+
+    References
+    ----------
+    [1] Lloyd, Stuart P., "Least squares quantization in PCM", IEEE Transactions on Information Theory, 28 (2), pp.
+    129–137, 1982. \n
+    [2] Arthur, D., Vassilvitskii, S., "k-means++: The Advantages of Careful Seeding", Proceedings of the Eighteenth
+    Annual ACM-SIAM Symposium on Discrete Algorithms, Society for Industrial and Applied Mathematics
+    Philadelphia, PA, USA. pp. 1027–1035, 2007.
+    """
+
     def __init__(self, n_clusters=8, init="random", max_iter=300, tol=1e-4, random_state=None):
-        """
-        K-Means clustering algorithm. An implementation of Lloyd's algorithm [1].
-
-        Parameters
-        ----------
-        n_clusters : int, optional, default: 8
-            The number of clusters to form as well as the number of centroids to generate.
-        init : {‘random’ or an ndarray}
-            Method for initialization, defaults to ‘random’:
-            ‘k-means++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
-            ‘random’: choose k observations (rows) at random from data for the initial centroids.
-            If an ht.DNDarray is passed, it should be of shape (n_clusters, n_features) and gives the initial centers.
-        max_iter : int, default: 300
-            Maximum number of iterations of the k-means algorithm for a single run.
-        tol : float, default: 1e-4
-            Relative tolerance with regards to inertia to declare convergence.
-        random_state : int
-            Determines random number generation for centroid initialization.
-
-        Notes
-        -----
-        The average complexity is given by O(k*n*T), were n is the number of samples and T is the number of iterations.
-
-        In practice, the k-means algorithm is very fast, but it may fall into local minima. That is why it can be useful
-        to restart it several times. If the algorithm stops before fully converging (because of tol or max_iter),
-        labels_ and cluster_centers_ will not be consistent, i.e. the cluster_centers_ will not be the means of the
-        points in each cluster. Also, the estimator will reassign labels_ after the last iteration to make labels_
-        consistent with predict on the training set.
-
-        References
-        ----------
-        [1] Lloyd, Stuart P., "Least squares quantization in PCM", IEEE Transactions on Information Theory, 28 (2), pp.
-            129–137, 1982.
-        [2] Arthur, D., Vassilvitskii, S., "k-means++: The Advantages of Careful Seeding", Proceedings of the Eighteenth
-            Annual ACM-SIAM Symposium on Discrete Algorithms, Society for Industrial and Applied Mathematics
-            Philadelphia, PA, USA. pp. 1027–1035, 2007.
-        """
         self.init = init
         self.max_iter = max_iter
         self.n_clusters = n_clusters
@@ -53,43 +54,33 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
         self._n_iter = None
 
     @property
-    def cluster_centers_(self):
+    def cluster_centers_(self) -> ht.DNDarray:
         """
-        Returns
-        -------
-        ht.DNDarray, shape =  [n_clusters, n_features]:
-            Coordinates of cluster centers. If the algorithm stops before fully converging (see tol and max_iter),
-            these will not be consistent with labels_.
+        Returns the coordinates of the cluster centers.
+
+        If the algorithm stops before fully converging (see tol and max_iter),
+        these will not be consistent with labels_.
         """
         return self._cluster_centers
 
     @property
-    def labels_(self):
+    def labels_(self) -> ht.DNDarray:
         """
-        Returns
-        -------
-        ht.DNDarray, shape = [n_points]:
-            Labels of each point.
+        Returns the labels of each point
         """
         return self._labels
 
     @property
-    def inertia_(self):
+    def inertia_(self) -> float:
         """
-        Returns
-        -------
-        float:
-            Sum of squared distances of samples to their closest cluster center.
+        Returns the sum of squared distances of samples to their closest cluster center.
         """
         return self._inertia
 
     @property
-    def n_iter_(self):
+    def n_iter_(self) -> int:
         """
-        Returns
-        -------
-        int:
-            Number of iterations run.
+        Returns the number of iterations run.
         """
         return self._n_iter
 
@@ -99,8 +90,8 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.DNDarray, shape = [n_point, n_features]:
-            The data to initialize the clusters for.
+        X : ht.DNDarray
+            The data to initialize the clusters for. Shape = (n_samples, n_features)
         """
         # always initialize the random state
         if self.random_state is not None:
@@ -209,9 +200,10 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.DNDarray, shape = [n_samples, n_features]:
-            Training instances to cluster.
-        """
+        X : ht.DNDarray
+            Training instances to cluster. Shape = (n_samples, n_features)
+
+       """
         # calculate the distance matrix and determine the closest centroid
         distances = ht.spatial.distance.cdist(X, self._cluster_centers, quadratic_expansion=True)
         matching_centroids = distances.argmin(axis=1, keepdim=True)
@@ -224,8 +216,9 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.DNDarray, shape = [n_samples, n_features]:
-            Training instances to cluster.
+        X : ht.DNDarray
+            Training instances to cluster. Shape = (n_samples, n_features)
+
         """
         # input sanitation
         if not isinstance(X, ht.DNDarray):
@@ -269,22 +262,18 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
         return self
 
-    def predict(self, X):
+    def predict(self, X) -> ht.DNDarray:
         """
-        Predict the closest cluster each sample in X belongs to.
+        Returns the index of the closest cluster each sample in X belongs to.
 
         In the vector quantization literature, cluster_centers_ is called the code book and each value returned by
         predict is the index of the closest code in the code book.
 
         Parameters
         ----------
-        X : ht.DNDarray, shape = [n_samples, n_features]:
-            New data to predict.
+        X : ht.DNDarray
+            New data to predict. Shape = (n_samples, n_features)
 
-        Returns
-        -------
-        labels : ht.DNDarray, shape = [n_samples,]
-            Index of the cluster each sample belongs to.
         """
         # input sanitation
         if not isinstance(X, ht.DNDarray):

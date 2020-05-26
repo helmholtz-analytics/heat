@@ -1,5 +1,6 @@
 import itertools
 import torch
+from typing import List, Dict, Any, TypeVar, Union
 
 from ..communication import MPI
 from .. import arithmetics
@@ -12,10 +13,11 @@ from .. import types
 __all__ = ["dot", "matmul", "norm", "projection", "transpose", "tril", "triu"]
 
 
-def dot(a, b, out=None):
+def dot(a, b, out=None) -> Union[ht.DNDarray, float]:
     """
-    Dot product of two arrays. Specifically,
+    Returns the dot product of two arrays.
 
+    Specifically,
     1. If both a and b are 1-D arrays, it is inner product of vectors.
     2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or `a @ b` is preferred.
     3. If either a or b is 0-D (scalar), it is equivalent to multiply and using `ht.multiply(a, b)` or `a * b` is preferred.
@@ -25,11 +27,6 @@ def dot(a, b, out=None):
     a : ht.DNDarray
     b : ht.DNDarray
 
-    Returns
-    -------
-    ht.DNDarray or single value (float or int)
-        Returns the dot product of a and b. If a and b are both scalars or both 1-D arrays then a scalar is returned;
-        otherwise an array is returned. If out is given, then it is returned.
     """
     if (
         isinstance(a, (float, int))
@@ -72,10 +69,13 @@ def dot(a, b, out=None):
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
 
-def matmul(a, b, allow_resplit=False):
+def matmul(a, b, allow_resplit=False) -> ht.DNDarray:
     """
-    Matrix multiplication of two DNDarrays
-    for comment context -> a @ b = c or A @ B = c
+    Matrix multiplication of two DNDarrays: a @ b = c or A @ B = c
+
+    Returns a tensor with the result of a @ b. The split dimension of the returned array is
+    typically the split dimension of a. However, if a.split = None then the the c.split will be
+    set as the split dimension of b. If both are None then c.split is also None.
 
     Parameters
     ----------
@@ -85,30 +85,25 @@ def matmul(a, b, allow_resplit=False):
         2 dimensional: P x Q
     allow_resplit : bool, optional
         Flag for if to resplit the DNDarray 'a' in the case that both 'a' and 'b' are not split.
-        Default: if both are not split then both will remain not split.
-        True: if both are not split then 'a' will be split in-place along axis 0, i.e. the split
-            axis of 'a' will become 0 and the DNDarray will be distributed in the standard fashion.
-            The default case should be the most efficient case for large matrices.
-    Returns
-    -------
-    ht.DNDarray
-        returns a tensor with the result of a @ b. The split dimension of the returned array is
-        typically the split dimension of a. However, if a.split = None then the the c.split will be
-        set as the split dimension of b. If both are None then c.split is also None.
+
+        - Default: if both are not split then both will remain not split.
+        - True: if both are not split then 'a' will be split in-place along axis 0, i.e. the split axis of 'a' will become 0 and the DNDarray will be distributed in the standard fashion.
+        - The default case should be the most efficient case for large matrices.
+
     Notes
     -----
-    - If a is a split vector then the returned vector will be of shape (1xQ) and will be split in
-        the 1st dimension
-    - If b is a vector and either a or b is split, then the returned vector will be of shape (Lx1)
-        and will be split in the 0th dimension
+    - If a is a split vector then the returned vector will be of shape (1xQ) and will be split in the 1st dimension
+    - If b is a vector and either a or b is split, then the returned vector will be of shape (Lx1) and will be split in the 0th dimension
+
     References
     ----------
     [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on
-        Distributed Data-parallel Platforms," IEEE Transactions on Parallel and Distributed Systems,
-         vol 28, no. 9. 2017.
+    Distributed Data-parallel Platforms," IEEE Transactions on Parallel and Distributed Systems,
+    vol 28, no. 9. 2017. \n
     [2] S. Ryu and D. Kim, "Parallel Huge Matrix Multiplication on a Cluster with GPGPU
-        Accelerators," 2018 IEEE International Parallel and Distributed Processing Symposium
-        Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
+    Accelerators," 2018 IEEE International Parallel and Distributed Processing Symposium
+    Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
+
     Example
     -------
     >>> a = ht.ones((n, m), split=1)
@@ -761,18 +756,15 @@ def matmul(a, b, allow_resplit=False):
         return c
 
 
-def norm(a):
+def norm(a) -> float:
     """
-    Frobenius norm of vector a
+    Returns the vector norm (Frobenius norm) of vector a
 
     Parameters
     ----------
     a : ht.DNDarray
+        Input vector
 
-    Returns
-    -------
-    float
-        Returns the vector norm (lenght) of a
     """
     if not isinstance(a, dndarray.DNDarray):
         raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
@@ -785,19 +777,16 @@ def norm(a):
     return exponential.sqrt(d).item()
 
 
-def projection(a, b):
+def projection(a, b) -> ht.DNDarray:
     """
     Projection of vector a onto vector b
 
     Parameters
     ----------
     a : ht.DNDarray (1D)
+        The vector to be projected. Must be a 1D DNDarray
     b : ht.DNDarray (1D)
-
-    Returns
-    -------
-    ht.DNDarray
-        Returns the vector projection of b in the direction of a
+        The vector to project onto. Must be a 1D DNDarray
     """
     if not isinstance(a, dndarray.DNDarray) or not isinstance(b, dndarray.DNDarray):
         raise TypeError(
@@ -856,22 +845,18 @@ def __mm_c_block_setter(
                     c[c_start0 : c_start0 + mB, c_start1 : c_start1 + nB] += a_block @ b_block
 
 
-def transpose(a, axes=None):
+def transpose(a, axes=None) -> ht.DNDarray:
     """
 
     Permute the dimensions of an array.
 
     Parameters
     ----------
-    a : array_like
+    a : ht.DNDarray
         Input array.
     axes : None or list of ints, optional
         By default, reverse the dimensions, otherwise permute the axes according to the values given.
 
-    Returns
-    -------
-    p : ht.DNDarray
-        a with its axes permuted.
     """
     # type check the input tensor
     if not isinstance(a, dndarray.DNDarray):
@@ -920,9 +905,9 @@ def transpose(a, axes=None):
 __index_base = (slice(None), slice(None))
 
 
-def __tri_op(m, k, op):
+def __tri_op(m, k, op) -> ht.DNDarray:
     """
-    Generic implementation of triangle operations on tensors. It takes care of input sanitation and non-standard
+    Generic implementation of triangle operations on a tensor. It takes care of input sanitation and non-standard
     broadcast behavior of the 2D triangle-operators.
 
     Parameters
@@ -933,11 +918,6 @@ def __tri_op(m, k, op):
         Diagonal above which to apply the triangle operator, k<0 is below and k>0 is above.
     op : callable
         Implementation of the triangle operator.
-
-    Returns
-    -------
-    triangle_tensor : ht.DNDarray
-        DNDarray with the applied triangle operation
 
     Raises
     ------
@@ -995,12 +975,11 @@ def __tri_op(m, k, op):
     return dndarray.DNDarray(output, m.shape, m.dtype, m.split, m.device, m.comm)
 
 
-def tril(m, k=0):
+def tril(m, k=0) -> ht.DNDarray:
     """
-    Returns the lower triangular part of the tensor, the other elements of the result tensor are set to 0.
+    Returns the lower triangular part of the tensor.
 
-    The lower triangular part of the tensor is defined as the elements on and below the diagonal.
-
+    The lower triangular part of the tensor is defined as the elements on and below the diagonal, the other elements of the result tensor are set to 0.
     The argument k controls which diagonal to consider. If k=0, all elements on and below the main diagonal are
     retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
     value excludes just as many diagonals below the main diagonal.
@@ -1012,20 +991,15 @@ def tril(m, k=0):
     k : int, optional
         Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
 
-    Returns
-    -------
-    lower_triangle : ht.DNDarray
-        Lower triangle of the input tensor.
     """
     return __tri_op(m, k, torch.tril)
 
 
-def triu(m, k=0):
+def triu(m, k=0) -> ht.DNDarray:
     """
-    Returns the upper triangular part of the tensor, the other elements of the result tensor are set to 0.
+    Returns the upper triangular part of the tensor.
 
-    The upper triangular part of the tensor is defined as the elements on and below the diagonal.
-
+    The upper triangular part of the tensor is defined as the elements on and below the diagonal, the other elements of the result tensor are set to 0.
     The argument k controls which diagonal to consider. If k=0, all elements on and below the main diagonal are
     retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
     value excludes just as many diagonals below the main diagonal.
@@ -1037,9 +1011,5 @@ def triu(m, k=0):
     k : int, optional
         Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
 
-    Returns
-    -------
-    upper_triangle : ht.DNDarray
-        Upper triangle of the input tensor.
     """
     return __tri_op(m, k, torch.triu)

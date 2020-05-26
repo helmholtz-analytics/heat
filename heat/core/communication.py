@@ -4,6 +4,7 @@ import numpy as np
 import os
 import subprocess
 import torch
+from typing import List, Dict, Any, TypeVar, Union, Tuple
 
 from .stride_tricks import sanitize_axis
 
@@ -28,24 +29,21 @@ class Communication:
     def __init__(self):
         return NotImplemented
 
-    def chunk(self, shape, split):
+    def chunk(self, shape, split) -> Tuple[int, Tuple[int], Tuple[slice]]:
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
         axis.
+        Returns (offset, local_shape, slices): the offset in the split dimension, the resulting local shape if the
+        global input shape is chunked on the split axis and the chunk slices with respect to the given shape
+
+
         Parameters
         ----------
         shape : tuple of ints
             the global shape of the data to be split
         split : int
             the axis along which to chunk the data
-        Returns
-        -------
-        offset : int
-            the offset in the split dimension
-        local_shape : tuple of ints
-            the resulting local shape if the global input shape is chunked on the split axis
-        slices : tuple of slices
-            the chunk slices with respect to the given shape
+
         """
         return NotImplemented
 
@@ -68,21 +66,19 @@ class MPICommunication(Communication):
         self.rank = handle.Get_rank()
         self.size = handle.Get_size()
 
-    def is_distributed(self):
+    def is_distributed(self) -> bool:
         """
         Determines whether the communicator is distributed, i.e. handles more than one node.
 
-        Returns
-        -------
-            distribution_flag : bool
-                flag indicating whether the communicator contains distributed resources
         """
         return self.size > 1
 
-    def chunk(self, shape, split, rank=None, w_size=None):
+    def chunk(self, shape, split, rank=None, w_size=None) -> Tuple[int, Tuple[int], Tuple[slice]]:
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
         axis.
+        Returns (offset, local_shape, slices): the offset in the split dimension, the resulting local shape if the
+        global input shape is chunked on the split axis and the chunk slices with respect to the given shape
 
         Parameters
         ----------
@@ -99,14 +95,6 @@ class MPICommunication(Communication):
             defaults to self.size
             intended for creating chunk maps without communication
 
-        Returns
-        -------
-        offset : int
-            the offset in the split dimension
-        local_shape : tuple of ints
-            the resulting local shape if the global input shape is chunked on the split axis
-        slices : tuple of slices
-            the chunk slices with respect to the given shape
         """
         # ensure the split axis is valid, we actually do not need it
         split = sanitize_axis(shape, split)
@@ -135,7 +123,7 @@ class MPICommunication(Communication):
             tuple(slice(0, shape[i]) if i != split else slice(start, end) for i in range(dims)),
         )
 
-    def counts_displs_shape(self, shape, axis):
+    def counts_displs_shape(self, shape, axis) -> Tuple[Tuple[int], Tuple[int], Tuple[int]]:
         """
         Calculates the item counts, displacements and output shape for a variable sized all-to-all MPI-call (e.g.
         MPI_Alltoallv). The passed shape is regularly chunk along the given axis and for all nodes.
@@ -147,10 +135,6 @@ class MPICommunication(Communication):
         axis : int
             The axis along which the chunking is performed.
 
-        Returns
-        -------
-        counts_and_displs : two-tuple of tuple of ints
-            The counts and displacements for all nodes
         """
         # the elements send/received by all nodes
         counts = np.full((self.size,), shape[axis] // self.size)

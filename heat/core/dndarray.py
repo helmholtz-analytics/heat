@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import warnings
+from typing import List, Dict, Any, TypeVar, Union, Tuple
 
 from . import arithmetics
 from . import devices
@@ -109,24 +110,16 @@ class DNDarray:
         return self.__gshape
 
     @property
-    def numdims(self):
+    def numdims(self) -> int:
         """
-
-        Returns
-        -------
-        number_of_dimensions : int
-            the number of dimensions of the DNDarray
+        Number of dimensions of the DNDarray
         """
         return len(self.__gshape)
 
     @property
-    def size(self):
+    def size(self) -> int:
         """
-
-        Returns
-        -------
-        size : int
-            number of total elements of the tensor
+        Number of total elements of the tensor
         """
         try:
             return np.prod(self.__gshape)
@@ -134,34 +127,26 @@ class DNDarray:
             return 1
 
     @property
-    def gnumel(self):
+    def gnumel(self) -> int:
         """
-
-        Returns
-        -------
-        global_shape : int
-            number of total elements of the tensor
+        Number of total elements of the tensor
         """
         return self.size
 
     @property
-    def lnumel(self):
+    def lnumel(self) -> int:
         """
-
-        Returns
-        -------
-        number_of_local_elements : int
-            number of elements of the tensor on each process
+        Number of elements of the tensor on each process
         """
         return np.prod(self.__array.shape)
 
     @property
-    def lloc(self):
+    def lloc(self) -> Union[ht.DNDarray, None]:
         """
-
         Local item setter and getter. i.e. this function operates on a local
         level and only on the PyTorch tensors composing the HeAT DNDarray.
-        This function uses the LocalIndex class.
+        This function uses the LocalIndex class. As getter, it returns a ht.DNDarray
+        with the indices selected at a *local* level
 
         Parameters
         ----------
@@ -169,11 +154,6 @@ class DNDarray:
             indices of the desired data
         value : all types compatible with pytorch tensors
             optional (if none given then this is a getter function)
-
-        Returns
-        -------
-        (getter) -> ht.DNDarray with the indices selected at a *local* level
-        (setter) -> nothing
 
         Examples
         --------
@@ -196,59 +176,37 @@ class DNDarray:
         return LocalIndex(self.__array)
 
     @property
-    def lshape(self):
+    def lshape(self) -> Tuple[int]:
         """
-
-        Returns
-        -------
-        local_shape : tuple
-            the shape of the data on each node
+        Returns the shape of the data on each node
         """
         return tuple(self.__array.shape)
 
     @property
-    def shape(self):
+    def shape(self) -> Tuple[int]:
         """
-
-        Returns
-        -------
-        global_shape : tuple
-            the shape of the tensor as a whole
+        Returns the shape of the tensor as a whole
         """
         return self.__gshape
 
     @property
-    def split(self):
+    def split(self) -> int:
         """
-
-        Returns
-        -------
-        split_axis : int
-            the axis on which the tensor split
+        Returns the axis on which the tensor split
         """
         return self.__split
 
     @property
-    def stride(self):
+    def stride(self) -> Tuple[int]:
         """
-
-        Returns
-        -------
-        stride : tuple
-            steps in each dimension when traversing a tensor.
-            torch-like usage: self.stride()
+        Returns the steps in each dimension when traversing a tensor. torch-like usage: self.stride()
         """
         return self.__array.stride
 
     @property
-    def strides(self):
+    def strides(self) -> Tuple[int]:
         """
-
-        Returns
-        -------
-        strides : tuple of ints
-            bytes to step in each dimension when traversing a tensor.
-            numpy-like usage: self.strides
+        Returns bytes to step in each dimension when traversing a tensor. numpy-like usage: self.strides
         """
         steps = list(self._DNDarray__array.stride())
         itemsize = self._DNDarray__array.storage().element_size()
@@ -263,7 +221,7 @@ class DNDarray:
     def array_with_halos(self):
         return self.__cat_halo()
 
-    def __prephalo(self, start, end):
+    def __prephalo(self, start, end) -> torch.Tensor:
         """
         Extracts the halo indexed by start, end from self.array in the direction of self.split
 
@@ -273,11 +231,6 @@ class DNDarray:
             start index of the halo extracted from self.array
         end : int
             end index of the halo extracted from self.array
-
-        Returns
-        -------
-        halo : torch.Tensor
-            The halo extracted from self.array
         """
         ix = [slice(None, None, None)] * len(self.shape)
         try:
@@ -360,9 +313,9 @@ class DNDarray:
             self.split,
         )
 
-    def abs(self, out=None, dtype=None):
+    def abs(self, out=None, dtype=None) -> ht.DNDarray:
         """
-        Calculate the absolute value element-wise.
+        Calculate the absolute value element-wise. Returns tensor containing the absolute value of each element in x.
 
         Parameters
         ----------
@@ -375,8 +328,8 @@ class DNDarray:
 
         Returns
         -------
-        absolute_values : ht.DNDarray
-            A tensor containing the absolute value of each element in x.
+        absolute_values :
+            A
         """
         return rounding.abs(self, out, dtype)
 

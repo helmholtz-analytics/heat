@@ -1,11 +1,12 @@
 import heat as ht
+from typing import List, Dict, Any, TypeVar, Union, Tuple
 
 import torch
 
 __all__ = ["cg", "lanczos"]
 
 
-def cg(A, b, x0, out=None):
+def cg(A, b, x0, out=None) -> ht.DNDarray:
     """
     Conjugate gradients method for solving a system of linear equations Ax = b
 
@@ -20,11 +21,6 @@ def cg(A, b, x0, out=None):
     out : ht.DNDarray, optional
         Output Vector
 
-
-    Returns
-    -------
-    ht.DNDarray
-        Returns the solution x of the system of linear equations. If out is given, it is returned
     """
 
     if (
@@ -72,29 +68,28 @@ def cg(A, b, x0, out=None):
     return x
 
 
-def lanczos(A, m, v0=None, V_out=None, T_out=None):
+def lanczos(A, m, v0=None, V_out=None, T_out=None) -> Tuple[ht.DNDarray, ht.DNDarray]:
     """
-    Lanczos algorithm for iterative approximation of the solution to the eigenvalue problem,  an adaptation of power methods to find the m "most useful" (tending towards extreme highest/lowest) eigenvalues and eigenvectors of an n x n Hermitian matrix, where often m<<n
+    Lanczos algorithm
+
+    This is an iterative approximation of the solution to the eigenvalue problem, as an adaptation of power methods to
+    find the m "most useful" (tending towards extreme highest/lowest) eigenvalues and eigenvectors of an :math: `n x n`
+    Hermitian matrix, where often :math: `m<<n`. It returns two matrices :math: `V` and :math: `T`, where:
+    - V is a Matrix of size nxm, with orthonormal columns, that span the Krylow subspace \
+    - T is a Tridiagonal matrix of size mxm, with coefficients alpha_1,...alpha_n on the diagonal and coefficients beta_1,...,beta_n-1 on the side-diagonals
+
     Parameters
     ----------
     A : ht.DNDarray
         2D symmetric, positive definite Matrix
     m : int
         number of Lanczos iterations
-    v0 : ht.DNDarray, optiona
-        1D starting vector of euclidian norm 1. If not provided, a random vector will be used to start the algorithm
+    v0 : ht.DNDarray, optional
+        1D starting vector of Euclidian norm 1. If not provided, a random vector will be used to start the algorithm
     V_out ht.DNDarray, optional
         Output Matrix of size (n, m) for the Krylow vectors
     T_out ht.DNDarray, optional
         Output Matrix of size (m, m) for the Tridiagonal matrix
-
-
-    Returns
-    -------
-    V ht.DNDarray
-        Matrix of size nxm, with orthonormal columns, that span the Krylow subspace. If V_out is given, it is returned
-    T ht.DNDarray
-        Tridiagonal matrix of size mxm, with coefficients alpha_1,...alpha_n on the diagonal and coefficients beta_1,...,beta_n-1 on the side-diagonals. If T_out is given, it is returned
 
     """
     if not isinstance(A, ht.DNDarray):

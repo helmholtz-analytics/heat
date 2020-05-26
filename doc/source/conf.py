@@ -33,13 +33,16 @@ sys.path.insert(0, os.path.abspath("../../"))
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["autoapi.extension", "sphinx_rtd_theme"]
+extensions = ["autoapi.extension", "sphinx_rtd_theme", "sphinxcontrib.napoleon"]
+
 
 # Document Python Code
 autoapi_type = "python"
-autoapi_dirs = ["../../heat"]
+autoapi_dirs = ["../../heat/"]
 autoapi_ignore = ["*/tests/*"]
+autoapi_template_dir = '_templates/autoapi'
 
+napoleon_custom_sections = ['Shape']
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
@@ -144,7 +147,7 @@ html_theme = "sphinx_rtd_theme"
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-html_theme_options = {"logo_only": True, "style_nav_header_background": "#005aa0"}
+html_theme_options = {"logo_only": True, "style_nav_header_background": "white"}
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
@@ -161,7 +164,7 @@ html_theme_options = {"logo_only": True, "style_nav_header_background": "#005aa0
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
-html_logo = "../images/logo_HeAT_white.png"
+html_logo = "../images/logo_emblem.png"
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -173,6 +176,9 @@ html_logo = "../images/logo_HeAT_white.png"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+html_css_files = [
+    'css/custom.css',
+]
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied

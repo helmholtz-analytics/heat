@@ -1,6 +1,7 @@
 import heat as ht
 import math
 import torch
+from typing import Tuple
 
 
 class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
@@ -86,24 +87,18 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         self._labels = None
 
     @property
-    def labels_(self):
+    def labels_(self) -> ht.DNDarray:
         """
-        Returns
-        -------
-        ht.DNDarray, shape=(n_points):
-            Labels of each point.
+        Returns labels of each point.
         """
         return self._labels
 
-    def _spectral_embedding(self, X):
+    def _spectral_embedding(self, X) -> Tuple[ht.DNDarray, ht.DNDarray] :
         """
-        Helper function to embed the dataset X into the eigenvectors of the graph Laplacian matrix
-        Returns
-        -------
-        ht.DNDarray, shape=(m_lanczos):
-            Eigenvalues of the graph's Laplacian matrix.
-        ht.DNDarray, shape=(n, m_lanczos):
-            Eigenvectors of the graph's Laplacian matrix.
+        Helper function for dataset X embedding
+
+        Returns tupel (Eigenvalues, Eigenvectors) of the graph's Laplacian matrix.
+
         """
         L = self._laplacian.construct(X)
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
@@ -121,6 +116,8 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
 
     def fit(self, X):
         """
+        Clusters dataset X via spectral embedding
+
         Computes the low-dim representation by calculation of eigenspectrum (eigenvalues and eigenvectors) of the graph
         laplacian from the similarity matrix and fits the eigenvectors that correspond to the k lowest eigenvalues with
         a seperate clustering algorithm (currently only kmeans is supported). Similarity metrics for adjacency
@@ -130,8 +127,8 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.DNDarray, shape=(n_samples, n_features)
-            Training instances to cluster.
+        X : ht.DNDarray
+            Training instances to cluster. Shape=(n_samples, n_features)
         """
         # 1. input sanitation
         if not isinstance(X, ht.DNDarray):
@@ -158,25 +155,24 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
 
         return self
 
-    def predict(self, X):
+    def predict(self, X) -> ht.DNDarray:
         """
-        Predict the closest cluster each sample in X belongs to.
+        Return the label each sample in X belongs to.
 
         X is transformed to the low-dim representation by calculation of eigenspectrum (eigenvalues and eigenvectors) of
         the graph laplacian from the similarity matrix. Inference of lables is done by extraction of the closest
         centroid of the n_clusters eigenvectors from the previously fitted clustering algorithm (kmeans).
 
-        Caution: Calculation of the low-dim representation requires some time!
 
         Parameters
         ----------
-        X : ht.DNDarray, shape = [n_samples, n_features]
-            New data to predict.
+        X : ht.DNDarray
+            New data to predict. Shape = (n_samples, n_features)
 
-        Returns
+        Warning
         -------
-        labels : ht.DNDarray, shape = [n_samples,]
-            Index of the cluster each sample belongs to.
+        Caution: Calculation of the low-dim representation requires some time!
+
         """
         # input sanitation
         if not isinstance(X, ht.DNDarray):
