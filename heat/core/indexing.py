@@ -1,31 +1,26 @@
 import torch
 
 from .communication import MPI
-from . import dndarray
+from .dndarray import DNDarray
 from . import factories
 from . import types
 
 __all__ = ["nonzero", "where"]
 
 
-def nonzero(a):
+def nonzero(a) -> DNDarray:
     """
     Return the indices of the elements that are non-zero. (using torch.nonzero)
+    If 'a' is split then the result is split in the 0th dimension. However, this DNDarray can be UNBALANCED as it contains the indices of the
+    non-zero elements on each node.
 
-    Returns a tuple of arrays, one for each dimension of a, containing the indices of the non-zero elements in that dimension.
+    Returns an array with one entry for each dimension of a, containing the indices of the non-zero elements in that dimension.
     The values in a are always tested and returned in row-major, C-style order. The corresponding non-zero values can be obtained with: a[nonzero(a)].
 
     Parameters
     ----------
-    a: ht.DNDarray
+    a: DNDarray
         Input array
-
-    Returns
-    -------
-    result: ht.DNDarray
-        Indices of elements that are non-zero.
-        If 'a' is split then the result is split in the 0th dimension. However, this DNDarray can be UNBALANCED as it contains the indices of the
-        non-zero elements on each node.
 
     Examples
     --------
@@ -78,7 +73,7 @@ def nonzero(a):
     if a.numdims == 1:
         lcl_nonzero = lcl_nonzero.squeeze(dim=1)
 
-    return dndarray.DNDarray(
+    return DNDarray(
         lcl_nonzero,
         gshape=tuple(gout),
         dtype=types.canonical_heat_type(lcl_nonzero.dtype),
@@ -88,22 +83,23 @@ def nonzero(a):
     )
 
 
-def where(cond, x=None, y=None):
+def where(cond, x=None, y=None) -> DNDarray:
     """
     Return elements chosen from x or y depending on condition.
-    **NOTE** When only condition is provided, this function is a shorthand for ht.nonzero(cond).
+    Result is a DNDarray with elements from x where cond is True(1), and elements from y elsewhere (False/0).
 
     Parameters
     ----------
-    cond: DNDarray
+    cond : DNDarray
         condition of interest, where true yield x otherwise yield y
-    x, y: DNDarray, int, or float
+    x : DNDarray, int, or float
+        Values from which to choose. x, y and condition need to be broadcastable to some shape.
+    y : DNDarray or int or float
         Values from which to choose. x, y and condition need to be broadcastable to some shape.
 
-    Returns
+    Notes
     -------
-    out: DNDarray
-        A DNDarray with elements from x where cond is True(1), and elements from y elsewhere (False/0).
+    When only condition is provided, this function is a shorthand for ht.nonzero(cond).
 
     Examples
     --------
@@ -124,17 +120,13 @@ def where(cond, x=None, y=None):
     [1/1] tensor([[ 0.,  3., -1.]])
 
     """
-    if cond.split is not None and (
-        isinstance(x, dndarray.DNDarray) or isinstance(y, dndarray.DNDarray)
-    ):
-        if (isinstance(x, dndarray.DNDarray) and cond.split != x.split) or (
-            isinstance(y, dndarray.DNDarray) and cond.split != y.split
+    if cond.split is not None and (isinstance(x, DNDarray) or isinstance(y, DNDarray)):
+        if (isinstance(x, DNDarray) and cond.split != x.split) or (
+            isinstance(y, DNDarray) and cond.split != y.split
         ):
             if len(y.shape) >= 1 and y.shape[0] > 1:
                 raise NotImplementedError("binary op not implemented for different split axes")
-    if isinstance(x, (dndarray.DNDarray, int, float)) and isinstance(
-        y, (dndarray.DNDarray, int, float)
-    ):
+    if isinstance(x, (DNDarray, int, float)) and isinstance(y, (DNDarray, int, float)):
         cond = types.float(cond, device=cond.device)
         return types.float(cond == 0, device=cond.device) * y + cond * x
     elif x is None and y is None:

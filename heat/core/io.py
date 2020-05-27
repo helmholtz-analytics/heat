@@ -8,6 +8,7 @@ from .communication import MPI, MPI_WORLD, sanitize_comm
 from . import devices
 from .stride_tricks import sanitize_axis
 from . import types
+from .dndarray import DNDarray
 
 __VALID_WRITE_MODES = frozenset(["w", "a", "r+"])
 __CSV_EXTENSION = frozenset([".csv"])
@@ -39,7 +40,9 @@ else:
     def supports_hdf5():
         return True
 
-    def load_hdf5(path, dataset, dtype=types.float32, split=None, device=None, comm=None):
+    def load_hdf5(
+        path, dataset, dtype=types.float32, split=None, device=None, comm=None
+    ) -> DNDarray:
         """
         Loads data from an HDF5 file. The data may be distributed among multiple processing nodes via the split flag.
 
@@ -57,11 +60,6 @@ else:
             The device id on which to place the data, defaults to globally set default device.
         comm : Communication, optional
             The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
-
-        Returns
-        -------
-        out : ht.DNDarray
-            Data read from the HDF5 file.
 
         Raises
         -------
@@ -130,14 +128,14 @@ else:
 
         Parameters
         ----------
-        data : ht.DNDarray
+        data : DNDarray
             The data to be saved on disk.
         path : str
             Path to the HDF5 file to be written.
         dataset : str
             Name of the dataset the data is saved to.
-        mode : str, one of 'w', 'a', 'r+'
-            File access mode
+        mode : str
+            File access mode, one of 'w', 'a', 'r+'
         kwargs : dict
             additional arguments passed to the created dataset.
 
@@ -232,7 +230,9 @@ else:
     def supports_netcdf():
         return True
 
-    def load_netcdf(path, variable, dtype=types.float32, split=None, device=None, comm=None):
+    def load_netcdf(
+        path, variable, dtype=types.float32, split=None, device=None, comm=None
+    ) -> DNDarray:
         """
         Loads data from a NetCDF4 file. The data may be distributed among multiple processing nodes via the split flag.
 
@@ -250,11 +250,6 @@ else:
             The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
         device : None or str, optional
             The device id on which to place the data, defaults to globally set default device.
-
-        Returns
-        -------
-        out : ht.DNDarray
-            Data read from the NetCDF4 file.
 
         Raises
         -------
@@ -314,14 +309,14 @@ else:
 
         Parameters
         ----------
-        data : ht.DNDarray
+        data : DNDarray
             The data to be saved on disk.
         path : str
             Path to the netCDF4 file to be written.
         variable : str
             Name of the variable the data is saved to.
-        mode : str, one of 'w', 'a', 'r+'
-            File access mode
+        mode : str
+            File access mode, one of 'w', 'a', 'r+'
         kwargs : dict
             additional arguments passed to the created dataset.
 
@@ -402,7 +397,7 @@ else:
             data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
 
 
-def load(path, *args, **kwargs):
+def load(path, *args, **kwargs) -> DNDarray:
     """
     Attempts to load data from a file stored on disk. Attempts to auto-detect the file format by determining the
     extension.
@@ -413,11 +408,6 @@ def load(path, *args, **kwargs):
         Path to the file to be read.
     args/kwargs : list/dict
         additional options passed to the particular functions.
-
-    Returns
-    -------
-    out : ht.DNDarray
-        Data read from the file.
 
     Raises
     -------
@@ -454,7 +444,7 @@ def load_csv(
     split=None,
     device=None,
     comm=MPI_WORLD,
-):
+) -> DNDarray:
     """
     Loads data from an CSV file. The data will be distributed along the 0 axis.
 
@@ -481,11 +471,6 @@ def load_csv(
         The device id on which to place the data, defaults to globally set default device.
     comm : Communication, optional
         The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
-
-    Returns
-    -------
-    out : ht.DNDarray
-        Data read from the CSV file.
 
     Raises
     -------
@@ -670,7 +655,7 @@ def save(data, path, *args, **kwargs):
 
     Parameters
     ----------
-    data : ht.DNDarray
+    data : DNDarray
         The tensor holding the data to be stored
     path : str
         Path to the file to be stored.

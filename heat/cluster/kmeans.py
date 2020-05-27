@@ -23,8 +23,7 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
     Notes
     -----
-    The average complexity is given by :math:`O(k\cdot n\cdot T)`, were n is the number of samples and :math:`T` is the number of iterations.
-
+    The average complexity is given by :math:`O(k n T)`, were n is the number of samples and :math:`T` is the number of iterations.
     In practice, the k-means algorithm is very fast, but it may fall into local minima. That is why it can be useful
     to restart it several times. If the algorithm stops before fully converging (because of tol or max_iter),
     labels_ and cluster_centers_ will not be consistent, i.e. the cluster_centers_ will not be the means of the

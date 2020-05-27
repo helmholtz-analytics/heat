@@ -7,6 +7,7 @@ from typing import List, Dict, Any, TypeVar, Union, Tuple
 
 from . import arithmetics
 from . import devices
+from .devices import Device
 from . import exponential
 from . import factories
 from . import indexing
@@ -48,7 +49,6 @@ class LocalIndex:
 
 class DNDarray:
     """
-
     Distributed N-Dimensional array. The core element of HeAT. It is composed of
     PyTorch tensors local to each process.
 
@@ -60,9 +60,9 @@ class DNDarray:
         the global shape of the DNDarray
     dtype : ht.type
         the datatype of the array
-    split : int
+    split : int or None
         The axis on which the DNDarray is divided between processes
-    device : ht.device
+    device : Device
         The device on which the local arrays are using (cpu or gpu)
     comm : ht.communication.MPICommunication
         The communications object for sending and recieving data
@@ -82,7 +82,7 @@ class DNDarray:
         # handle inconsistencies between torch and heat devices
         if (
             isinstance(array, torch.Tensor)
-            and isinstance(device, devices.Device)
+            and isinstance(device, Device)
             and array.device.type != device.device_type
         ):
             self.__array = self.__array.to(devices.sanitize_device(self.__device).torch_device)
@@ -147,7 +147,7 @@ class DNDarray:
         """
         Local item setter and getter. i.e. this function operates on a local
         level and only on the PyTorch tensors composing the HeAT DNDarray.
-        This function uses the LocalIndex class. As getter, it returns a ht.DNDarray
+        This function uses the LocalIndex class. As getter, it returns a DNDarray
         with the indices selected at a *local* level
 
         Parameters
@@ -159,7 +159,6 @@ class DNDarray:
 
         Examples
         --------
-        (2 processes)
         >>> a = ht.zeros((4, 5), split=0)
         (1/2) tensor([[0., 0., 0., 0., 0.],
                       [0., 0., 0., 0., 0.]])
@@ -296,46 +295,35 @@ class DNDarray:
             self.__halo_prev = res_next
             self.__ishalo = True
 
-    def __cat_halo(self):
+    def __cat_halo(self) -> Tuple[torch.tensor, torch.tensor]:
         """
         Fetch halos of size 'halo_size' from neighboring ranks and save them in self.halo_next/self.halo_prev
         in case they are not already stored. If 'halo_size' differs from the size of already stored halos,
         the are overwritten.
 
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        array + halos: pytorch tensors
         """
         return torch.cat(
             [_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None],
             self.split,
         )
 
-    def abs(self, out=None, dtype=None):
+    def abs(self, out=None, dtype=None) -> DNDarray:
         """
         Calculate the absolute value element-wise. Returns tensor containing the absolute value of each element in x.
 
         Parameters
         ----------
-        out : ht.DNDarray, optional
+        out : DNDarray, optional
             A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
             If not provided or None, a freshly-allocated array is returned.
-        dtype : ht.type, optional
+        dtype : type, optional
             Determines the data type of the output array. The values are cast to this type with potential loss of
             precision.
 
-        Returns
-        -------
-        absolute_values : DNDarray
-            A
         """
         return rounding.abs(self, out, dtype)
 
-    def absolute(self, out=None, dtype=None):
+    def absolute(self, out=None, dtype=None) -> DNDarray:
         """
         Calculate the absolute value element-wise.
 
@@ -343,44 +331,33 @@ class DNDarray:
 
         Parameters
         ----------
-        out : ht.DNDarray, optional
+        out : DNDarray, optional
             A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
             If not provided or None, a freshly-allocated array is returned.
-        dtype : ht.type, optional
+        dtype : type, optional
             Determines the data type of the output array. The values are cast to this type with potential loss of
             precision.
-
-        Returns
-        -------
-        absolute_values : ht.DNDarray
-            A tensor containing the absolute value of each element in x.
 
         """
         return self.abs(out, dtype)
 
-    def __add__(self, other):
+    def __add__(self, other) -> DNDarray:
         """
         Element-wise addition of another tensor or a scalar to the tensor.
         Takes the second operand (scalar or tensor) whose elements are to be added as argument.
 
         Parameters
         ----------
-        other: tensor or scalar
+        other: DNDarray or scalar
             The value(s) to be added element-wise to the tensor
 
-        Returns
-        -------
-        result: ht.DNDarray
-            A tensor containing the results of element-wise addition.
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
         >>> T1 = ht.float32([[1, 2], [3, 4]])
         >>> T1.__add__(2.0)
         tensor([[3., 4.],
                [5., 6.]])
-
         >>> T2 = ht.float32([[2, 2], [2, 2]])
         >>> T1.__add__(T2)
         tensor([[3., 4.],
@@ -388,26 +365,22 @@ class DNDarray:
         """
         return arithmetics.add(self, other)
 
-    def all(self, axis=None, out=None, keepdim=None):
+    def all(self, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
         """
-        Test whether all array elements along a given axis evaluate to True.
+        Test whether all array elements along a given axis evaluate to True. Returns a new boolean or DNDarray is returned unless out is specified, in which case a reference to out is
+        returned.
 
-        Parameters:
+        Parameters
         -----------
-        axis : None or int or tuple of ints, optional
+        axis: None or int or Tuple[int], optional
             Axis or axes along which a logical AND reduction is performed. The default (axis = None) is to perform a
             logical AND over all the dimensions of the input array. axis may be negative, in which case it counts
             from the last to the first axis.
-        out : ht.DNDarray, optional
+        out: DNDarray, optional
             Alternate output array in which to place the result. It must have the same shape as the expected output
             and its type is preserved.
 
-        Returns:
-        --------
-        all : ht.DNDarray, bool
-            A new boolean or ht.DNDarray is returned unless out is specified, in which case a reference to out is returned.
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
         >>> a = ht.random.randn(4,5)
@@ -431,8 +404,6 @@ class DNDarray:
                 [0],
                 [0],
                 [0]], dtype=torch.uint8)
-
-        Write out to predefined buffer:
         >>> out = ht.zeros((1,5))
         >>> x.all(axis=0, out=out)
         >>> out
@@ -440,14 +411,14 @@ class DNDarray:
         """
         return logical.all(self, axis=axis, out=out, keepdim=keepdim)
 
-    def allclose(self, other, rtol=1e-05, atol=1e-08, equal_nan=False):
+    def allclose(self, other, rtol=1e-05, atol=1e-08, equal_nan=False) -> bool:
         """
         Test whether self and other are element-wise equal within a tolerance. Returns True if |self - other| <= atol +
         rtol * |other| for all elements, False otherwise.
 
-        Parameters:
+        Parameters
         -----------
-        other : ht.DNDarray
+        other : DNDarray
             Input tensor to compare to
         atol: float, optional
             Absolute tolerance. Defaults to 1e-08
@@ -456,17 +427,11 @@ class DNDarray:
         equal_nan: bool, optional
             Whether to compare NaN’s as equal. If True, NaN’s in a will be considered equal to NaN’s in b in the output array.
 
-        Returns:
-        --------
-        allclose : bool
-            True if the two tensors are equal within the given tolerance; False otherwise.
-
-        Examples:
+        Examples
         ---------
         >>> a = ht.float32([[2, 2], [2, 2]])
         >>> a.allclose(a)
         True
-
         >>> b = ht.float32([[2.00005,2.00005],[2.00005,2.00005]])
         >>> a.allclose(b)
         False
@@ -475,63 +440,50 @@ class DNDarray:
         """
         return logical.allclose(self, other, rtol, atol, equal_nan)
 
-    def __and__(self, other):
+    def __and__(self, other) -> DNDarray:
         """
         Compute the bit-wise AND of self and other arrays element-wise.
 
         Parameters
         ----------
-        other: tensor or scalar
-            Only integer and boolean types are handled. If self.shape != other.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
+        other: DNDarray or scalar
+            Only integer and boolean types are handled. If self.shape != other.shape, they must be broadcastable to a
+            common shape (which becomes the shape of the output).
 
-        Returns
-        -------
-        result: ht.DNDarray
-            A tensor containing the results of element-wise AND of self and other.
-
-        Examples:
+        Examples
         ---------
-        import heat as ht
+        >>> import heat as ht
         >>> ht.array([13]) & 17
         tensor([1])
-
         >>> ht.array([14]) & ht.array([13])
         tensor([12])
-
         >>> ht.array([14,3]) & 13
         tensor([12,  1])
-
         >>> ht.array([11,7]) & ht.array([4,25])
         tensor([0, 1])
-
         >>> ht.array([2,5,255]) & ht.array([3,14,16])
         tensor([ 2,  4, 16])
-
         >>> ht.array([True, True]) & ht.array([False, True])
         tensor([False,  True])
         """
         return arithmetics.bitwise_and(self, other)
 
-    def any(self, axis=None, out=None, keepdim=False):
+    def any(self, axis=None, out=None, keepdim=False) -> DNDarray:
         """
         Test whether any array element along a given axis evaluates to True.
+        Returns a tensor of booleans that are 1, if any non-zero values exist on this axis, 0 otherwise.
         The returning tensor is one dimensional unless axis is not None.
 
-        Parameters:
+        Parameters
         -----------
         axis : int, optional
             Axis along which a logic OR reduction is performed. With axis=None, the logical OR is performed over all
             dimensions of the tensor.
-        out : tensor, optional
+        out : DNDarray, optional
             Alternative output tensor in which to place the result. It must have the same shape as the expected output.
             The output is a tensor with dtype=bool.
 
-        Returns:
-        --------
-        boolean_tensor : tensor of type bool
-            Returns a tensor of booleans that are 1, if any non-zero values exist on this axis, 0 otherwise.
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
         >>> t = ht.float32([[0.3, 0, 0.5]])
@@ -541,7 +493,6 @@ class DNDarray:
         tensor([[1, 0, 1]], dtype=torch.uint8)
         >>> t.any(axis=1)
         tensor([[1]], dtype=torch.uint8)
-
         >>> t = ht.int32([[0, 0, 1], [0, 0, 0]])
         >>> res = ht.zeros((1, 3), dtype=ht.bool)
         >>> t.any(axis=0, out=res)
@@ -551,25 +502,21 @@ class DNDarray:
         """
         return logical.any(self, axis=axis, out=out, keepdim=keepdim)
 
-    def argmax(self, axis=None, out=None, **kwargs):
+    def argmax(self, axis=None, out=None, **kwargs) -> DNDarray:
         """
         Returns the indices of the maximum values along an axis.
+        It has the same shape as x.shape with the dimension along axis removed.
 
-        Parameters:
+        Parameters
         ----------
-        x : ht.DNDarray
+        x : DNDarray
             Input array.
         axis : int, optional
             By default, the index is into the flattened tensor, otherwise along the specified axis.
-        out : array, optional
+        out : DNDarray, optional
             If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
-        Returns:
-        -------
-        index_tensor : ht.DNDarray of ints
-            Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
-
-        Examples:
+        Examples
         --------
         >>> import heat as ht
         >>> import torch
@@ -590,23 +537,19 @@ class DNDarray:
         """
         return statistics.argmax(self, axis=axis, out=out, **kwargs)
 
-    def argmin(self, axis=None, out=None, **kwargs):
+    def argmin(self, axis=None, out=None, **kwargs) -> DNDarray:
         """
         Returns the indices of the minimum values along an axis.
+        It has the same shape as x.shape with the dimension along axis removed.
 
-        Parameters:
+        Parameters
         ----------
-        x : ht.DNDarray
+        x : DNDarray
             Input array.
         axis : int, optional
             By default, the index is into the flattened tensor, otherwise along the specified axis.
-        out : array, optional
+        out : DNDarray, optional
             If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
-
-        Returns:
-        -------
-        index_tensor : ht.DNDarray of ints
-            Array of indices into the array. It has the same shape as x.shape with the dimension along axis removed.
 
         Examples
         --------
@@ -629,23 +572,20 @@ class DNDarray:
         """
         return statistics.argmin(self, axis=axis, out=out, **kwargs)
 
-    def astype(self, dtype, copy=True):
+    def astype(self, dtype, copy=True) -> DNDarray:
         """
         Returns a casted version of this array.
+        Casted_tensor is a new tensor of the same shape but with given type of this tensor. If copy is True, the
+        same tensor is returned instead.
 
         Parameters
         ----------
-        dtype : ht.dtype
+        dtype : type
             HeAT type to which the array is cast
         copy : bool, optional
             By default the operation returns a copy of this array. If copy is set to false the cast is performed
             in-place and this tensor is returned
 
-        Returns
-        -------
-        casted_tensor : ht.DNDarray
-            casted_tensor is a new tensor of the same shape but with given type of this tensor. If copy is True, the
-            same tensor is returned instead.
         """
         dtype = types.canonical_heat_type(dtype)
         casted_array = self.__array.type(dtype.torch_type())
@@ -657,25 +597,28 @@ class DNDarray:
 
         return self
 
-    def average(self, axis=None, weights=None, returned=False):
+    def average(self, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple[DNDarray]]:
         """
         Compute the weighted average along the specified axis.
+        Return the average along the specified axis. When returned=True,
+        return a tuple with the average as the first element and the sum
+        of the weights as the second element. sum_of_weights is of the
+        same type as `average`.
 
         Parameters
         ----------
-        x : ht.tensor
+        x : DNDarray
             Tensor containing data to be averaged.
 
-        axis : None or int or tuple of ints, optional
+        axis : None or int or Tuple[ints,...], optional
             Axis or axes along which to average x.  The default,
             axis=None, will average over all of the elements of the input tensor.
             If axis is negative it counts from the last to the first axis.
-
             #TODO Issue #351: If axis is a tuple of ints, averaging is performed on all of the axes
             specified in the tuple instead of a single axis or all the axes as
             before.
 
-        weights : ht.tensor, optional
+        weights : DNDarray, optional
             An tensor of weights associated with the values in x. Each value in
             x contributes to the average according to its associated weight.
             The weights tensor can either be 1D (in which case its length must be
@@ -689,14 +632,6 @@ class DNDarray:
             If weights=None, sum_of_weights is equivalent to the number of
             elements over which the average is taken.
 
-        Returns
-        -------
-        average, [sum_of_weights] : ht.tensor or tuple of ht.tensors
-            Return the average along the specified axis. When returned=True,
-            return a tuple with the average as the first element and the sum
-            of the weights as the second element. sum_of_weights is of the
-            same type as `average`.
-
         Raises
         ------
         ZeroDivisionError
@@ -705,7 +640,6 @@ class DNDarray:
         TypeError
             When the length of 1D weights is not the same as the shape of x
             along axis.
-
 
         Examples
         --------
@@ -768,18 +702,13 @@ class DNDarray:
             return
         self.redistribute_()
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         """
         Boolean scalar casting.
-
-        Returns
-        -------
-        casted : bool
-            The corresponding bool scalar value
         """
         return self.__cast(bool)
 
-    def __cast(self, cast_function):
+    def __cast(self, cast_function) -> Union[float, int]:
         """
         Implements a generic cast function for HeAT DNDarray objects.
 
@@ -793,10 +722,6 @@ class DNDarray:
         TypeError
             If the DNDarray object cannot be converted into a scalar.
 
-        Returns
-        -------
-        casted : scalar
-            The corresponding casted scalar value
         """
         if np.prod(self.shape) == 1:
             if self.split is None:
@@ -809,7 +734,7 @@ class DNDarray:
 
         raise TypeError("only size-1 arrays can be converted to Python scalars")
 
-    def ceil(self, out=None):
+    def ceil(self, out=None) -> DNDarray:
         """
         Return the ceil of the input, element-wise.
 
@@ -817,21 +742,9 @@ class DNDarray:
 
         Parameters
         ----------
-        out : ht.DNDarray or None, optional
+        out : DNDarray, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        ceiled : ht.DNDarray
-            A tensor of the same shape as x, containing the ceiled valued of each element in this tensor. If out was
-            provided, ceiled is a reference to it.
-
-        Returns
-        -------
-        ceiled : ht.DNDarray
-            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
-            provided, ceiled is a reference to it.
 
         Examples
         --------
@@ -840,8 +753,11 @@ class DNDarray:
         """
         return rounding.ceil(self, out)
 
-    def clip(self, a_min, a_max, out=None):
+    def clip(self, a_min, a_max, out=None) -> DNDarray:
         """
+        Returns a DNDarray with the elements of this tensor, but where values < a_min are replaced with a_min,
+        and those > a_max with a_max.
+
         Parameters
         ----------
         a_min : scalar or None
@@ -850,55 +766,36 @@ class DNDarray:
         a_max : scalar or None
             Maximum value. If None, clipping is not performed on upper interval edge. Not more than one of a_min and
             a_max may be None.
-        out : ht.DNDarray, optional
+        out : DNDarray, optional
             The results will be placed in this array. It may be the input array for in-place clipping. out must be of
             the right shape to hold the output. Its type is preserved.
 
-        Returns
-        -------
-        clipped_values : ht.DNDarray
-            A tensor with the elements of this tensor, but where values < a_min are replaced with a_min, and those >
-            a_max with a_max.
         """
         return rounding.clip(self, a_min, a_max, out)
 
     def __complex__(self):
         """
         Complex scalar casting.
-
-        Returns
-        -------
-        casted : complex
-            The corresponding complex scalar value
         """
         return self.__cast(complex)
 
-    def copy(self):
+    def copy(self) -> DNDarray:
         """
         Return an array copy of the given object.
-
-        Returns
-        -------
-        copied : ht.DNDarray
-            A copy of the original
         """
         return memory.copy(self)
 
-    def cos(self, out=None):
+    def cos(self, out=None) -> DNDarray:
         """
-        Return the trigonometric cosine, element-wise.
+        Return the trigonometric cosine, element-wise. The result tensor is of the same shape as x, containing the
+        trigonometric cosine of each element in this tensor. Negative input elements are returned as nan.
+        If out was provided, square_roots is a reference to it.
 
         Parameters
         ----------
-        out : ht.DNDarray or None, optional
+        out : DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        cosine : ht.DNDarray
-            A tensor of the same shape as x, containing the trigonometric cosine of each element in this tensor.
-            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
         Examples
         --------
@@ -907,23 +804,19 @@ class DNDarray:
         """
         return trigonometrics.cos(self, out)
 
-    def cosh(self, out=None):
+    def cosh(self, out=None) -> DNDarray:
         """
-        Return the hyperbolic cosine, element-wise.
+        Return the hyperbolic cosine, element-wise. The resulting tensor is of the same shape as x, containing the
+        hyperbolic cosine of each element in this tensor. Negative input elements are returned as nan.
+        If out was provided, square_roots is a reference to it.
 
         Parameters
         ----------
-        x : ht.DNDarray
+        x : DNDarray
             The value for which to compute the hyperbolic cosine.
-        out : ht.DNDarray or None, optional
+        out : DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        hyperbolic cosine : ht.DNDarray
-            A tensor of the same shape as x, containing the hyperbolic cosine of each element in this tensor.
-            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
         Examples
         --------
@@ -932,29 +825,19 @@ class DNDarray:
         """
         return trigonometrics.cosh(self, out)
 
-    def cpu(self):
+    def cpu(self) -> DNDarray:
         """
         Returns a copy of this object in main memory. If this object is already in main memory, then no copy is
         performed and the original object is returned.
-
-        Returns
-        -------
-        tensor_on_device : ht.DNDarray
-            A copy of this object on the CPU.
         """
         self.__array = self.__array.cpu()
         self.__device = devices.cpu
         return self
 
-    def create_lshape_map(self):
+    def create_lshape_map(self) -> torch.Tensor:
         """
         Generate a 'map' of the lshapes of the data on all processes.
         Units -> (process rank, lshape)
-
-        Returns
-        -------
-        lshape_map : torch.Tensor
-            Units -> (process rank, lshape)
         """
         lshape_map = torch.zeros(
             (self.comm.size, len(self.gshape)), dtype=torch.int, device=self.device.torch_device
@@ -963,30 +846,25 @@ class DNDarray:
         self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
         return lshape_map
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> DNDarray:
         """
         Element-wise rich comparison of equality with values from second operand (scalar or tensor)
-        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument. Returns a DNDarray
+        holding 1 for all elements in which values of self are equal to values of other, 0 for all other elements
 
         Parameters
         ----------
-        other: tensor or scalar
+        other: DNDarray or scalar
             The value(s) to which to compare equality
 
-        Returns
-        -------
-        result: ht.DNDarray
-            DNDarray holding 1 for all elements in which values of self are equal to values of other, 0 for all other
-            elements
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
         >>> T1 = ht.float32([[1, 2],[3, 4]])
         >>> T1.__eq__(3.0)
         tensor([[0, 0],
                 [1, 0]])
-
         >>> T2 = ht.float32([[2, 2], [2, 2]])
         >>> T1.__eq__(T2)
         tensor([[0, 1],
@@ -994,13 +872,15 @@ class DNDarray:
         """
         return relational.eq(self, other)
 
-    def isclose(self, other, rtol=1e-05, atol=1e-08, equal_nan=False):
+    def isclose(self, other, rtol=1e-05, atol=1e-08, equal_nan=False) -> DNDarray:
         """
-        Parameters:
-        -----------
+        Returns a boolean DNDarray of whether elements of other are equal to the original DNDarray within the given
+        tolerance.
 
-        x, y : tensor
-            Input tensors to compare.
+        Parameters
+        -----------
+        other: DNDarray
+            Input DNDarray to compare.
         rtol : float
             The relative tolerance parameter.
         atol : float
@@ -1008,29 +888,20 @@ class DNDarray:
         equal_nan : bool
             Whether to compare NaN’s as equal. If True, NaN’s in x will be considered equal to NaN’s in y in the output array.
 
-        Returns:
-        --------
-
-        isclose : boolean tensor of where a and b are equal within the given tolerance.
-            If both x and y are scalars, returns a single boolean value.
         """
         return logical.isclose(self, other, rtol, atol, equal_nan)
 
-    def exp(self, out=None):
+    def exp(self, out=None) -> DNDarray:
         """
         Calculate the exponential of all elements in the input array.
+        Returns a tensor of the same shape as x, containing the positive exponentials of each element in this tensor. If out
+        was provided, logarithms is a reference to it.
 
         Parameters
         ----------
-        out : ht.DNDarray or None, optional
+        out : DNDarray, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        exponentials : ht.DNDarray
-            A tensor of the same shape as x, containing the positive exponentials of each element in this tensor. If out
-            was provided, logarithms is a reference to it.
 
         Examples
         --------
@@ -1039,21 +910,17 @@ class DNDarray:
         """
         return exponential.exp(self, out)
 
-    def expm1(self, out=None):
+    def expm1(self, out=None) -> DNDarray:
         """
         Calculate exp(x) - 1 for all elements in the array.
+        Returns a tensor of the same shape as x, containing the positive exponentials minus one of each element in this
+        tensor. If out was provided, logarithms is a reference to it.
 
         Parameters
         ----------
-        out : ht.DNDarray or None, optional
+        out : DNDarray, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        exponentials : ht.DNDarray
-            A tensor of the same shape as x, containing the positive exponentials minus one of each element in this tensor. If out
-            was provided, logarithms is a reference to it.
 
         Examples
         --------
@@ -1062,21 +929,17 @@ class DNDarray:
         """
         return exponential.expm1(self, out)
 
-    def exp2(self, out=None):
+    def exp2(self, out=None) -> DNDarray:
         """
         Calculate the exponential of all elements in the input array.
+        Returns A tensor of the same shape as x, containing the positive exponentials of each element in this tensor. If out
+        was provided, logarithms is a reference to it.
 
         Parameters
         ----------
-        out : ht.DNDarray or None, optional
+        out : DNDarray, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        exponentials : ht.DNDarray
-            A tensor of the same shape as x, containing the positive exponentials of each element in this tensor. If out
-            was provided, logarithms is a reference to it.
 
         Examples
         --------
@@ -1085,21 +948,17 @@ class DNDarray:
         """
         return exponential.exp2(self, out)
 
-    def expand_dims(self, axis):
+    def expand_dims(self, axis) -> DNDarray:
         """
         Expand the shape of an array.
 
-        Insert a new axis that will appear at the axis position in the expanded array shape.
+        Insert a new axis that will appear at the axis position in the expanded array shape. The number of dimensions
+        of the output tensor is one greater than that of the input array.
 
         Parameters
         ----------
         axis : int
             Position in the expanded axes where the new axis is placed.
-
-        Returns
-        -------
-        res : ht.DNDarray
-            Output array. The number of dimensions is one greater than that of the input array.
 
         Raises
         ------
@@ -1111,14 +970,12 @@ class DNDarray:
         >>> x = ht.array([1,2])
         >>> x.shape
         (2,)
-
         >>> y = ht.expand_dims(x, axis=0)
         >>> y
         array([[1, 2]])
         >>> y.shape
         (1, 2)
-
-        y = ht.expand_dims(x, axis=1)
+        >>>y = ht.expand_dims(x, axis=1)
         >>> y
         array([[1],
                [2]])
@@ -1127,14 +984,9 @@ class DNDarray:
         """
         return manipulations.expand_dims(self, axis)
 
-    def flatten(self):
+    def flatten(self) -> DNDarray:
         """
         Return a flat tensor.
-
-        Returns
-        -------
-        flattened : ht.DNDarray
-            The flattened tensor
 
         Examples
         --------
@@ -1144,18 +996,13 @@ class DNDarray:
         """
         return manipulations.flatten(self)
 
-    def __float__(self):
+    def __float__(self) -> float:
         """
         Float scalar casting.
-
-        Returns
-        -------
-        casted : float
-            The corresponding float scalar value
         """
         return self.__cast(float)
 
-    def floor(self, out=None):
+    def floor(self, out=None) -> DNDarray:
         """
         Return the floor of the input, element-wise.
 
@@ -1164,15 +1011,9 @@ class DNDarray:
 
         Parameters
         ----------
-        out : ht.DNDarray or None, optional
+        out : DNDarray, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        floored : ht.DNDarray
-            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
-            provided, floored is a reference to it.
 
         Examples
         --------
@@ -1181,23 +1022,17 @@ class DNDarray:
         """
         return rounding.floor(self, out)
 
-    def __floordiv__(self, other):
+    def __floordiv__(self, other) -> DNDarray:
         """
-        Element-wise floor division (i.e. result is rounded int (floor))
-        of the tensor by another tensor or scalar. Takes the first tensor by which it divides the second
-        not-heat-typed-parameter.
+        Element-wise floor division (i.e. result is rounded int (floor)).
+        Takes the first tensor by which it divides the second not-heat-typed-parameter.
 
         Parameters
         ----------
-        other: tensor or scalar
+        other: DNDarray or scalar
             The second operand by whose values is divided
 
-        Return
-        ------
-        result: ht.tensor
-            A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
         >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
@@ -1211,38 +1046,28 @@ class DNDarray:
         """
         return arithmetics.floordiv(self, other)
 
-    def fabs(self, out=None):
+    def fabs(self, out=None) -> DNDarray:
         """
         Calculate the absolute value element-wise and return floating-point tensor.
         This function exists besides abs==absolute since it will be needed in case complex numbers will be introduced in the future.
 
         Parameters
         ----------
-        out : ht.tensor, optional
+        out : DNDarray, optional
             A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
             If not provided or None, a freshly-allocated array is returned.
-
-        Returns
-        -------
-        absolute_values : ht.tensor
-            A tensor containing the absolute value of each element in x.
         """
         return rounding.fabs(self, out)
 
-    def fill_diagonal(self, value):
+    def fill_diagonal(self, value) -> DNDarray:
         """
-        Fill the main diagonal of a 2D dndarray . This function modifies the input tensor in-place, and returns the input tensor.
+        Fill the main diagonal of a 2D dndarray.
+        This function modifies the input tensor in-place, and returns the input tensor.
 
         Parameters
         ----------
         value : float
-            The value to be placed in the dndarrays main diagonal
-
-        Returns
-        -------
-        out : ht.DNDarray
-            The modified input tensor with value along the diagonal
-
+            The value to be placed in the DNDarrays main diagonal
         """
         # Todo: make this 3D/nD
         if len(self.shape) != 2:
@@ -1274,22 +1099,18 @@ class DNDarray:
 
         return self
 
-    def __ge__(self, other):
+    def __ge__(self, other) -> DNDarray:
         """
         Element-wise rich comparison of relation "greater than or equal" with values from second operand (scalar or
         tensor).
-        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument. Returns a DNDarray
+        holding 1 for all elements in which values in self are greater than or equal to values of other
+        (x1 >= x2), 0 for all other elements
 
         Parameters
         ----------
-        other: tensor or scalar
+        other: DNDarray or scalar
             The value(s) to which to compare elements from tensor
-
-        Returns
-        -------
-        result: ht.DNDarray
-            DNDarray holding 1 for all elements in which values in self are greater than or equal to values of other
-            (x1 >= x2), 0 for all other elements
 
         Examples
         -------
@@ -1305,33 +1126,27 @@ class DNDarray:
         """
         return relational.ge(self, other)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> DNDarray:
         """
-        Global getter function for ht.DNDarrays
+        Global getter function for DNDarrays.
+        Returns a new DNDarray composed of the elements of the original tensor selected by the indices
+        given. This does *NOT* redistribute or rebalance the resulting tensor. If the selection of values is
+        unbalanced then the resultant tensor is also unbalanced!
+        To redistributed the tensor use balance() (issue #187)
 
         Parameters
         ----------
-        key : int, slice, tuple, list
-            indices to get from the tensor.
-
-        Returns
-        -------
-        result : ht.DNDarray
-            getter returns a new ht.DNDarray composed of the elements of the original tensor selected by the indices
-            given. This does *NOT* redistribute or rebalance the resulting tensor. If the selection of values is
-            unbalanced then the resultant tensor is also unbalanced!
-            To redistributed the tensor use balance() (issue #187)
+        key : int, slice, Tuple[int,...], List[int,...]
+            Indices to get from the tensor.
 
         Examples
         --------
-        (2 processes)
         >>> a = ht.arange(10, split=0)
         (1/2) >>> tensor([0, 1, 2, 3, 4], dtype=torch.int32)
         (2/2) >>> tensor([5, 6, 7, 8, 9], dtype=torch.int32)
         >>> a[1:6]
         (1/2) >>> tensor([1, 2, 3, 4], dtype=torch.int32)
         (2/2) >>> tensor([5], dtype=torch.int32)
-
         >>> a = ht.zeros((4,5), split=0)
         (1/2) >>> tensor([[0., 0., 0., 0., 0.],
                           [0., 0., 0., 0., 0.]])
@@ -1565,35 +1380,27 @@ class DNDarray:
 
     if torch.cuda.device_count() > 0:
 
-        def gpu(self):
+        def gpu(self) -> DNDarray:
             """
             Returns a copy of this object in GPU memory. If this object is already in GPU memory, then no copy is
             performed and the original object is returned.
 
-            Returns
-            -------
-            tensor_on_device : ht.DNDarray
-                A copy of this object on the GPU.
             """
             self.__array = self.__array.cuda(devices.gpu.torch_device)
             self.__device = devices.gpu
             return self
 
-    def __gt__(self, other):
+    def __gt__(self, other) -> DNDarray:
         """
         Element-wise rich comparison of relation "greater than" with values from second operand (scalar or tensor)
         Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+        Returns aDNDarray holding 1 for all elements in which values in self are greater than values of other (x1 > x2),
+        0 for all other elements
 
         Parameters
         ----------
-        other: tensor or scalar
+        other: DNDarray or scalar
             The value(s) to which to compare elements from tensor
-
-        Returns
-        -------
-        result: ht.DNDarray
-            DNDarray holding 1 for all elements in which values in self are greater than values of other (x1 > x2),
-            0 for all other elements
 
          Examples
          -------
@@ -1602,7 +1409,6 @@ class DNDarray:
          >>> T1.__gt__(3.0)
          tensor([[0, 0],
                  [0, 1]], dtype=torch.uint8)
-
          >>> T2 = ht.float32([[2, 2], [2, 2]])
          >>> T1.__gt__(T2)
          tensor([[0, 0],
@@ -1611,36 +1417,21 @@ class DNDarray:
         """
         return relational.gt(self, other)
 
-    def __int__(self):
+    def __int__(self) -> int:
         """
         Integer scalar casting.
-
-        Returns
-        -------
-        casted : int
-            The corresponding float scalar value
         """
         return self.__cast(int)
 
-    def __invert__(self):
+    def __invert__(self) -> DNDarray:
         """
         Bit-wise inversion, or bit-wise NOT, element-wise.
-
-        Returns
-        -------
-        result: ht.DNDarray
-            A tensor containing the results of element-wise inversion.
         """
         return arithmetics.invert(self)
 
-    def is_balanced(self):
+    def is_balanced(self) -> bool:
         """
         Determine if a DNDarray is balanced evenly (or as evenly as possible) across all nodes
-
-        Returns
-        -------
-        balanced : bool
-            True if balanced, False if not
         """
         _, _, chk = self.comm.chunk(self.shape, self.split)
         test_lshape = tuple([x.stop - x.start for x in chk])
@@ -1649,23 +1440,19 @@ class DNDarray:
         out = self.comm.allreduce(balanced, MPI.SUM)
         return True if out == self.comm.size else False
 
-    def is_distributed(self):
+    def is_distributed(self) -> bool:
         """
         Determines whether the data of this tensor is distributed across multiple processes.
-
-        Returns
-        -------
-        is_distributed : bool
-            Whether the data of the tensor is distributed across multiple processes
         """
         return self.split is not None and self.comm.is_distributed()
 
     def item(self):
         """
-        Returns the only element of a 1-element tensor. Mirror of the pytorch command by the same name
-        If size of tensor is >1 element, then a ValueError is raised (by pytorch)
+        Returns the only element of a 1-element DNDarray.
+        Mirror of the pytorch command by the same name. If size of tensor is >1 element, then a ValueError is
+        raised (by pytorch)
 
-        Example
+        Examples
         -------
         >>> import heat as ht
         >>> x = ht.zeros((1))
@@ -1674,21 +1461,17 @@ class DNDarray:
         """
         return self.__array.item()
 
-    def __le__(self, other):
+    def __le__(self, other) -> DNDarray:
         """
         Element-wise rich comparison of relation "less than or equal" with values from second operand (scalar or tensor)
         Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+        Returns a DNDarray holding 1 for all elements in which values in self are less than or equal to values of other (x1 <= x2),
+        0 for all other elements
 
         Parameters
         ----------
         other: tensor or scalar
             The value(s) to which to compare elements from tensor
-
-        Returns
-        -------
-        result: ht.DNDarray
-            DNDarray holding 1 for all elements in which values in self are less than or equal to values of other (x1 <= x2),
-            0 for all other elements
 
         Examples
         -------
@@ -1697,44 +1480,32 @@ class DNDarray:
         >>> T1.__le__(3.0)
         tensor([[1, 1],
                 [1, 0]], dtype=torch.uint8)
-
         >>> T2 = ht.float32([[2, 2], [2, 2]])
         >>> T1.__le__(T2)
         tensor([[1, 1],
                 [0, 0]], dtype=torch.uint8)
-
         """
         return relational.le(self, other)
 
-    def __len__(self):
+    def __len__(self) -> int:
         """
         The length of the DNDarray, i.e. the number of items in the first dimension.
-
-        Returns
-        -------
-        length : int
-            The number of items in the first dimension
         """
         return self.shape[0]
 
-    def log(self, out=None):
+    def log(self, out=None) -> DNDarray:
         """
         Natural logarithm, element-wise.
-
         The natural logarithm log is the inverse of the exponential function, so that log(exp(x)) = x. The natural
-        logarithm is logarithm in base e.
+        logarithm is logarithm in base e. Returns a tensor of the same shape as x, containing the positive logarithms
+        of each element in this tensor. Negative input elements are returned as nan.
+        If out was provided, logarithms is a reference to it.
 
         Parameters
         ----------
-        out : ht.DNDarray or None, optional
+        out : DNDarray, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        logarithms : ht.DNDarray
-            A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
-            Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
 
         Examples
         --------
@@ -1743,23 +1514,19 @@ class DNDarray:
         """
         return exponential.log(self, out)
 
-    def log2(self, out=None):
+    def log2(self, out=None) -> DNDarray:
         """
-        log base 2, element-wise.
+        Log base 2, element-wise.
+        Returns a tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
+        Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
 
         Parameters
         ----------
-        self : ht.DNDarray
+        self : DNDarray
             The value for which to compute the logarithm.
-        out : ht.DNDarray or None, optional
+        out : DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        logarithms : ht.DNDarray
-            A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
-            Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
 
         Examples
         --------
@@ -1768,23 +1535,17 @@ class DNDarray:
         """
         return exponential.log2(self, out)
 
-    def log10(self, out=None):
+    def log10(self, out=None) -> DNDarray:
         """
-        log base 10, element-wise.
+        Log base 10, element-wise.
+        Returns a tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
+        Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
 
         Parameters
         ----------
-        self : ht.DNDarray
-            The value for which to compute the logarithm.
-        out : ht.DNDarray or None, optional
+        out : DNDarray, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        logarithms : ht.DNDarray
-            A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
-            Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
 
         Examples
         --------
@@ -1793,23 +1554,19 @@ class DNDarray:
         """
         return exponential.log10(self, out)
 
-    def log1p(self, out=None):
+    def log1p(self, out=None) -> DNDarray:
         """
         Return the natural logarithm of one plus the input array, element-wise.
+        Result is a tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
+        Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
 
         Parameters
         ----------
-        self : ht.DNDarray
+        self : DNDarray
             The value for which to compute the logarithm.
-        out : ht.DNDarray or None, optional
+        out : DNDarray or None, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        logarithms : ht.DNDarray
-            A tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
-            Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
 
         Examples
         --------
@@ -1818,42 +1575,33 @@ class DNDarray:
         """
         return exponential.log1p(self, out)
 
-    def __lshift__(self, other):
+    def __lshift__(self, other) -> DNDarray:
         """
         Shift the bits of an integer to the left.
 
         Parameters
         ----------
-        other: scalar or tensor
+        other: scalar or DNDarray
            number of zero bits to add
 
-        Returns
-        -------
-        result: ht.NDNarray
-           A tensor containing the results of element-wise left shift operation.
-
-        Examples:
+        Examples
         ---------
         >>> ht.array([1, 2, 4]) << 1
         tensor([2, 4, 8])
         """
         return arithmetics.left_shift(self, other)
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> DNDarray:
         """
         Element-wise rich comparison of relation "less than" with values from second operand (scalar or tensor)
         Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
+        Result is DNDarray holding 1 for all elements in which values in self are less than values of other (x1 < x2),
+        0 for all other elements
 
         Parameters
         ----------
-        other: tensor or scalar
+        other: DNDarray or scalar
             The value(s) to which to compare elements from tensor
-
-        Returns
-        -------
-        result: ht.DNDarray
-            DNDarray holding 1 for all elements in which values in self are less than values of other (x1 < x2),
-            0 for all other elements
 
         Examples
         -------
@@ -1862,42 +1610,40 @@ class DNDarray:
         >>> T1.__lt__(3.0)
         tensor([[1, 1],
                [0, 0]], dtype=torch.uint8)
-
         >>> T2 = ht.float32([[2, 2], [2, 2]])
         >>> T1.__lt__(T2)
         tensor([[1, 0],
                [0, 0]], dtype=torch.uint8)
-
         """
         return relational.lt(self, other)
 
-    def __matmul__(self, other):
+    def __matmul__(self, other) -> DNDarray:
         """
         Matrix multiplication of two DNDarrays
 
-        for comment context -> a @ b = c or A @ B = c
+        For comment context -> a @ b = c or A @ B = c
+        Returns a tensor with the result of a @ b. The split dimension of the returned array is typically the split dimension of a.
+        However, if a.split = None then the the c.split will be set as the split dimension of b. If both are None then c.split is also None.
 
         Parameters
         ----------
-        a : ht.DNDarray
+        a : DNDarray
             2 dimensional: L x P
-        b : ht.DNDarray
+        b : DNDarray
             2 dimensional: P x Q
 
-        Returns
+        Notes
         -------
-        ht.DNDarray
-            returns a tensor with the result of a @ b. The split dimension of the returned array is typically the split dimension of a.
-            However, if a.split = None then the the c.split will be set as the split dimension of b. If both are None then c.split is also None.
-            ** NOTE ** if a is a split vector, then the returned vector will be of shape (1xQ) and will be split in the 1st dimension
-            ** NOTE ** if b is a vector and either a or b is split, then the returned vector will be of shape (Lx1) and will be split in the 0th dimension
+        If a is a split vector, then the returned vector will be of shape (1xQ) and will be split in the 1st dimension
+        If b is a vector and either a or b is split, then the returned vector will be of shape (Lx1) and will be split
+        in the 0th dimension
 
         References
         ----------
         [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on Distributed Data-parallel Platforms,"
-            IEEE Transactions on Parallel and Distributed Systems, vol 28, no. 9. 2017.
+        IEEE Transactions on Parallel and Distributed Systems, vol 28, no. 9. 2017.
         [2] S. Ryu and D. Kim, "Parallel Huge Matrix Multiplication on a Cluster with GPGPU Accelerators,"
-            2018 IEEE International Parallel and Distributed Processing Symposium Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
+        2018 IEEE International Parallel and Distributed Processing Symposium Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
 
         Example
         -------
@@ -1935,18 +1681,17 @@ class DNDarray:
         """
         return linalg.matmul(self, other)
 
-    def max(self, axis=None, out=None, keepdim=None):
+    def max(self, axis=None, out=None, keepdim=None) -> DNDarray:
         """
         Return the maximum of an array or maximum along an axis.
 
         Parameters
         ----------
-        self : ht.DNDarray
+        self : DNDarray
             Input data.
-
         axis : None or int
             Axis or axes along which to operate. By default, flattened input is used.
-        #TODO: out : ht.DNDarray, optional
+        #TODO: out : DNDarray, optional
             Alternative output array in which to place the result. Must be of the same shape and buffer length as the
             expected output.
         #TODO: initial : scalar, optional
@@ -1954,16 +1699,16 @@ class DNDarray:
         """
         return statistics.max(self, axis=axis, out=out, keepdim=keepdim)
 
-    def mean(self, axis=None):
+    def mean(self, axis=None) -> DNDarray:
         """
         Calculates and returns the mean of a tensor.
         If a axis is given, the mean will be taken in that direction.
 
         Parameters
         ----------
-        self : ht.DNDarray
+        self : DNDarray
             Values for which the mean is calculated for
-        axis : None, Int, iterable
+        axis : int or Iterable, optional
             axis which the mean is taken in.
             Default: None -> mean of all data calculated
 
@@ -1974,7 +1719,6 @@ class DNDarray:
         tensor([[-1.2435,  1.1813,  0.3509]])
         >>> ht.mean(a)
         tensor(0.0962)
-
         >>> a = ht.random.randn(4,4)
         >>> a
         tensor([[ 0.0518,  0.9550,  0.3755,  0.3564],
@@ -1985,7 +1729,6 @@ class DNDarray:
         tensor([ 0.4347,  0.7307, -0.3922, -0.0716])
         >>> ht.mean(a, 0)
         tensor([-0.2835,  0.6026,  0.4746, -0.0921])
-
         >>> a = ht.random.randn(4,4)
         >>> a
         tensor([[ 2.5893,  1.5934, -0.2870, -0.6637],
@@ -1994,10 +1737,6 @@ class DNDarray:
                 [ 2.0528, -0.1121, -0.8847,  0.8214]])
         >>> ht.mean(a, (0,1))
         tensor(0.4730)
-
-        Returns
-        -------
-        ht.DNDarray containing the mean/s, if split, then split in the same direction as x.
         """
         return statistics.mean(self, axis)
 
@@ -2007,11 +1746,9 @@ class DNDarray:
 
         Parameters
         ----------
-        self : ht.DNDarray
-            Input data.
         axis : None or int
             Axis or axes along which to operate. By default, flattened input is used.
-        #TODO: out : ht.DNDarray, optional
+        #TODO: out : DNDarray, optional
             Alternative output array in which to place the result. Must be of the same shape and buffer length as the
             expected output.
         #TODO: initial : scalar, optional
@@ -2019,7 +1756,7 @@ class DNDarray:
         """
         return statistics.min(self, axis=axis, out=out, keepdim=keepdim)
 
-    def __mod__(self, other):
+    def __mod__(self, other) -> DNDarray:
         """
         Element-wise division remainder of values of self by values of operand other (i.e. self % other), not commutative.
         Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2)
@@ -2027,26 +1764,19 @@ class DNDarray:
 
         Parameters
         ----------
-        other: tensor or scalar
+        other: DNDarray or scalar
             The second operand by whose values it self to be divided.
 
-        Returns
-        -------
-        result: ht.DNDarray
-            A tensor containing the remainder of the element-wise division of self by other.
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
         >>> ht.mod(2, 2)
         tensor([0])
-
         >>> T1 = ht.int32([[1, 2], [3, 4]])
         >>> T2 = ht.int32([[2, 2], [2, 2]])
         >>> T1 % T2
         tensor([[1, 0],
                 [1, 0]], dtype=torch.int32)
-
         >>> s = ht.int32([2])
         >>> s % T1
         tensor([[0, 0]
@@ -2054,55 +1784,40 @@ class DNDarray:
         """
         return arithmetics.mod(self, other)
 
-    def modf(self, out=None):
+    def modf(self, out=None) -> Tuple[DNDarray, DNDarray]:
         """
         Return the fractional and integral parts of an array, element-wise.
         The fractional and integral parts are negative if the given number is negative.
+        If x is a scalar, both fractional and integral part are also scalars
 
         Parameters
         ----------
-        x : ht.DNDarray
+        x : DNDarray
             Input array
-        out : ht.DNDarray, optional
+        out : DNDarray, optional
             A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
             If not provided or None, a freshly-allocated array is returned.
-
-        Returns
-        -------
-        tuple(ht.DNDarray: fractionalParts, ht.DNDarray: integralParts)
-
-        fractionalParts : ht.DNDdarray
-            Fractional part of x. This is a scalar if x is a scalar.
-
-        integralParts : ht.DNDdarray
-            Integral part of x. This is a scalar if x is a scalar.
         """
 
         return rounding.modf(self, out)
 
-    def __mul__(self, other):
+    def __mul__(self, other) -> DNDarray:
         """
         Element-wise multiplication (not matrix multiplication) with values from second operand (scalar or tensor)
         Takes the second operand (scalar or tensor) whose values to multiply to the first tensor as argument.
 
         Parameters
         ----------
-        other: tensor or scalar
+        other: DNDarray or scalar
            The value(s) to multiply to the tensor (element-wise)
 
-        Returns
-        -------
-        result: ht.DNDarray
-           A tensor containing the results of element-wise multiplication.
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
         >>> T1 = ht.float32([[1, 2], [3, 4]])
         >>> T1.__mul__(3.0)
         tensor([[3., 6.],
             [9., 12.]])
-
         >>> T2 = ht.float32([[2, 2], [2, 2]])
         >>> T1.__mul__(T2)
         tensor([[2., 4.],
@@ -2110,30 +1825,24 @@ class DNDarray:
         """
         return arithmetics.mul(self, other)
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> DNDarray:
         """
-        Element-wise rich comparison of non-equality with values from second operand (scalar or tensor)
+        Element-wise rich comparison of non-equality with values from second operand (scalar or DNDarray)
         Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
-
+        Result is a DNDarray holding 1 for all elements in which values of self are equal to values of other,
+        0 for all other elements
         Parameters
         ----------
-        other: tensor or scalar
+        other: DNDarray or scalar
             The value(s) to which to compare equality
 
-        Returns
-        -------
-        result: ht.DNDarray
-            DNDarray holding 1 for all elements in which values of self are equal to values of other,
-            0 for all other elements
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
         >>> T1 = ht.float32([[1, 2],[3, 4]])
         >>> T1.__ne__(3.0)
         tensor([[1, 1],
                 [0, 1]])
-
         >>> T2 = ht.float32([[2, 2], [2, 2]])
         >>> T1.__ne__(T2)
         tensor([[1, 0],
@@ -2141,23 +1850,13 @@ class DNDarray:
         """
         return relational.ne(self, other)
 
-    def nonzero(self):
+    def nonzero(self) -> DNDarray:
         """
         Return the indices of the elements that are non-zero. (using torch.nonzero)
-
-        Returns a tuple of arrays, one for each dimension of a, containing the indices of the non-zero elements in that dimension.
+        Result is 1D DNDarray, one entry for each dimension of self, containing the indices of the non-zero elements in that dimension.
         The values in a are always tested and returned in row-major, C-style order. The corresponding non-zero values can be obtained with: a[nonzero(a)].
-
-        Parameters
-        ----------
-        self: ht.DNDarray
-
-        Returns
-        -------
-        result: ht.DNDarray
-            Indices of elements that are non-zero.
-            If 'a' is split then the result is split in the 0th dimension. However, this DNDarray can be UNBALANCED as it contains the indices of the
-            non-zero elements on each node.
+        If self is split then the result is split in the 0th dimension. However, this DNDarray can be UNBALANCED
+        as it contains the indices of the non-zero elements on each node.
 
         Examples
         --------
@@ -2170,7 +1869,6 @@ class DNDarray:
         [1/2] tensor([[1, 1],
         [1/2]         [1, 2]])
         [2/2] tensor([[2, 1]])
-
         >>> a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=0)
         [0/1] tensor([[1, 2, 3],
         [0/1]         [4, 5, 6]])
@@ -2192,49 +1890,40 @@ class DNDarray:
         """
         return indexing.nonzero(self)
 
-    def numpy(self):
+    def numpy(self) -> np.array:
         """
         Convert heat tensor to numpy tensor. If the tensor is distributed it will be merged beforehand. If the tensor
         resides on the GPU, it will be copied to the CPU first.
 
-
         Examples
         --------
         >>> import heat as ht
-
         T1 = ht.random.randn((10,8))
         T1.numpy()
         """
         dist = manipulations.resplit(self, axis=None)
         return dist._DNDarray__array.cpu().numpy()
 
-    def __or__(self, other):
+    def __or__(self, other) -> DNDarray:
         """
         Compute the bit-wise OR of two arrays element-wise.
 
         Parameters
         ----------
-        other: tensor or scalar
+        other: DNDarray or scalar
         Only integer and boolean types are handled. If self.shape != other.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
 
-        Returns
-        -------
-        result: ht.DNDArray
-        A tensor containing the results of element-wise OR of self and other.
-
-        Examples:
+        Examples
         ---------
-        import heat as ht
+        >>> import heat as ht
         >>> ht.array([13]) | 16
         tensor([29])
-
         >>> ht.array([32]) | ht.array([2])
         tensor([34])
         >>> ht.array([33, 4]) | 1
         tensor([33,  5])
         >>> ht.array([33, 4]) | ht.array([1, 2])
         tensor([33,  6])
-
         >>> ht.array([2, 5, 255]) | ht.array([4, 4, 4])
         tensor([  6,   5, 255])
         >>> ht.array([2, 5, 255, 2147483647], dtype=ht.int32) | ht.array([4, 4, 4, 2147483647], dtype=ht.int32)
@@ -2244,7 +1933,7 @@ class DNDarray:
         """
         return arithmetics.bitwise_or(self, other)
 
-    def __pow__(self, other):
+    def __pow__(self, other) -> DNDarray:
         """
         Element-wise exponential function with values from second operand (scalar or tensor)
         Takes the second operand (scalar or tensor) whose values are the exponent to be applied to the first
@@ -2252,23 +1941,16 @@ class DNDarray:
 
         Parameters
         ----------
-        other: tensor or scalar
+        other: DNDarray or scalar
            The value(s) in the exponent (element-wise)
 
-        Returns
-        -------
-        result: ht.DNDarray
-           A tensor containing the results of element-wise exponential operation.
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
-
         >>> T1 = ht.float32([[1, 2], [3, 4]])
         >>> T1.__pow__(3.0)
         tensor([[1., 8.],
                 [27., 64.]])
-
         >>> T2 = ht.float32([[3, 3], [2, 2]])
         >>> T1.__pow__(T2)
         tensor([[1., 8.],
@@ -2276,7 +1958,7 @@ class DNDarray:
         """
         return arithmetics.pow(self, other)
 
-    def prod(self, axis=None, out=None, keepdim=None):
+    def prod(self, axis=None, out=None, keepdim=None) -> DNDarray:
         """
         Return the product of array elements over a given axis.
 
@@ -2285,33 +1967,25 @@ class DNDarray:
         axis : None or int or tuple of ints, optional
             Axis or axes along which a product is performed. The default, axis=None, will calculate the product of all
             the elements in the input array. If axis is negative it counts from the last to the first axis.
-
             If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple instead of a
             single axis or all the axes as before.
-        out : ndarray, optional
+        out : DNDarray, optional
             Alternative output tensor in which to place the result. It must have the same shape as the expected output,
             but the type of the output values will be cast if necessary.
         keepdims : bool, optional
             If this is set to True, the axes which are reduced are left in the result as dimensions with size one. With
             this option, the result will broadcast correctly against the input array.
 
-        Returns
-        -------
-        product_along_axis : ht.DNDarray
-            An array shaped as a but with the specified axis removed. Returns a reference to out if specified.
-
         Examples
         --------
         >>> import heat as ht
         >>> ht.array([1.,2.]).prod()
         ht.tensor([2.0])
-
         >>> ht.tensor([
             [1.,2.],
             [3.,4.]
         ]).prod()
         ht.tensor([24.0])
-
         >>> ht.array([
             [1.,2.],
             [3.,4.]
@@ -2320,16 +1994,19 @@ class DNDarray:
         """
         return arithmetics.prod(self, axis, out, keepdim)
 
-    def qr(self, tiles_per_proc=1, calc_q=True, overwrite_a=False):
+    def qr(self, tiles_per_proc=1, calc_q=True, overwrite_a=False) -> Tuple[DNDarray, DNDarray]:
         """
-        Calculates the QR decomposition of a 2D DNDarray. The algorithms are based on the CAQR and TSQR
-        algorithms. For more information see the references.
+        Calculates the QR decomposition of a 2D DNDarray.
+        Returns a Tuple of Q and R
+        - if calc_q == True, function returns (Q, R)
+        - if calc_q == False, function returns (None, R)
+        The algorithms are based on the CAQR and TSQR algorithms. For more information see the references.
 
         Parameters
         ----------
         a : DNDarray
             DNDarray which will be decomposed
-        tiles_per_proc : int, singlt element torch.Tensor
+        tiles_per_proc : int or torch.Tensor
             optional, default: 1
             number of tiles per process to operate on
         calc_q : bool
@@ -2342,21 +2019,15 @@ class DNDarray:
             if True, function overwrites the DNDarray a, with R
             if False, a new array will be created for R
 
-        Returns
-        -------
-        tuple of Q and R
-            if calc_q == True, function returns (Q, R)
-            if calc_q == False, function returns (None, R)
-
         References
         ----------
-        [0]  W. Zheng, F. Song, L. Lin, and Z. Chen, “Scaling Up Parallel Computation of Tiled QR
-                Factorizations by a Distributed Scheduling Runtime System and Analytical Modeling,”
-                Parallel Processing Letters, vol. 28, no. 01, p. 1850004, 2018.
+        [0] W. Zheng, F. Song, L. Lin, and Z. Chen, “Scaling Up Parallel Computation of Tiled QR
+        Factorizations by a Distributed Scheduling Runtime System and Analytical Modeling,”
+        Parallel Processing Letters, vol. 28, no. 01, p. 1850004, 2018.
         [1] Bilel Hadri, Hatem Ltaief, Emmanuel Agullo, Jack Dongarra. Tile QR Factorization with
-                Parallel Panel Processing for Multicore Architectures. 24th IEEE International Parallel
-                and DistributedProcessing Symposium (IPDPS 2010), Apr 2010, Atlanta, United States.
-                inria-00548899
+        Parallel Panel Processing for Multicore Architectures. 24th IEEE International Parallel
+        and DistributedProcessing Symposium (IPDPS 2010), Apr 2010, Atlanta, United States.
+        inria-00548899
         [2] Gene H. Golub and Charles F. Van Loan. 1996. Matrix Computations (3rd Ed.).
         """
         return linalg.qr(
@@ -2385,9 +2056,6 @@ class DNDarray:
             Note: the only important parts of the target map are the values along the split axis,
             values which are not along this axis are there to mimic the shape of the lshape_map
 
-        Returns
-        -------
-        None, the local shapes of the DNDarray are modified
         Examples
         --------
         >>> st = ht.ones((50, 81, 67), split=2)
@@ -2535,18 +2203,14 @@ class DNDarray:
 
         Parameters
         ----------
-        snd_pr : int, single element torch.Tensor
+        snd_pr : int or torch.Tensor
             Sending process
-        send_amt : int, single element torch.Tensor
+        send_amt : int or torch.Tensor
             Amount of data to be sent by the sending process
-        rcv_pr : int, single element torch.Tensor
+        rcv_pr : int or torch.Tensor
             Recieving process
         snd_dtype : torch.type
             Torch type of the data in question
-
-        Returns
-        -------
-        None
         """
         rank = self.comm.rank
         send_slice = [slice(None)] * self.numdims
@@ -2573,24 +2237,18 @@ class DNDarray:
             if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
                 self.__array = torch.cat((self.__array, data), dim=self.split)
 
-    def reshape(self, shape, axis=None):
+    def reshape(self, shape, axis=None) -> DNDarray:
         """
         Returns a tensor with the same data and number of elements as a, but with the specified shape.
 
         Parameters
         ----------
-        a : ht.DNDarray
+        a : DNDarray
             The input tensor
-        shape : tuple, list
+        shape : Tuple[int,...] or List[int,...]
             Shape of the new tensor
         axis : int, optional
             The new split axis. None denotes same axis
-            Default : None
-
-        Returns
-        -------
-        reshaped : ht.DNDarray
-            The tensor with the specified shape
 
         Raises
         ------
@@ -2614,13 +2272,8 @@ class DNDarray:
 
         Parameters
         ----------
-        axis : int, None
+        axis : int
             The new split axis, None denotes gathering, an int will set the new split axis
-
-        Returns
-        -------
-        resplit: ht.DNDarray
-            The redistributed tensor. Will overwrite the old DNDarray in memory.
 
         Examples
         --------
@@ -2734,23 +2387,17 @@ class DNDarray:
         self.__split = axis
         return self
 
-    def __rfloordiv__(self, other):
+    def __rfloordiv__(self, other) -> DNDarray:
         """
         Element-wise floor division (i.e. result is rounded int (floor))
-        of the not-heat-typed parameter by another tensor. Takes the first operand (scalar or tensor) by which to divide
-        as argument.
+        Takes the first operand (scalar or DNDarray) by which to divide as argument.
 
         Parameters
         ----------
-        other: scalar or unknown data-type
+        other: scalar
             this will be divided by the self-tensor
 
-        Return
-        ------
-        result: ht.tensor
-            A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
         >>> T = ht.float32([[1.7, 2.0], [1.9, 4.2]])
@@ -2760,7 +2407,7 @@ class DNDarray:
         """
         return arithmetics.floordiv(other, self)
 
-    def __rmod__(self, other):
+    def __rmod__(self, other) -> DNDarray:
         """
         Element-wise division remainder of values of other by values of operand self (i.e. other % self),
         not commutative.
@@ -2769,15 +2416,10 @@ class DNDarray:
 
         Parameters
         ----------
-        other: scalar or unknown data-type
+        other: scalar
             The second operand which values will be divided by self.
 
-        Returns
-        -------
-        result: ht.tensor
-            A tensor containing the remainder of the element-wise division of other by self.
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
         >>> T = ht.int32([1, 3])
@@ -2786,33 +2428,27 @@ class DNDarray:
         """
         return arithmetics.mod(other, self)
 
-    def round(self, decimals=0, out=None, dtype=None):
+    def round(self, decimals=0, out=None, dtype=None) -> DNDarray:
         """
         Calculate the rounded value element-wise.
 
         Parameters
         ----------
-        x : ht.DNDarray
+        x : DNDarray
             The values for which the compute the rounded value.
-        out : ht.DNDarray, optional
+        out : DNDarray, optional
             A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
             If not provided or None, a freshly-allocated array is returned.
-        dtype : ht.type, optional
+        dtype : type, optional
             Determines the data type of the output array. The values are cast to this type with potential loss of
             precision.
-
         decimals: int, optional
             Number of decimal places to round to (default: 0).
             If decimals is negative, it specifies the number of positions to the left of the decimal point.
-
-        Returns
-        -------
-        rounded_values : ht.DNDarray
-            A tensor containing the rounded value of each element in x.
         """
         return rounding.round(self, decimals, out, dtype)
 
-    def __rpow__(self, other):
+    def __rpow__(self, other) -> DNDarray:
         """
         Element-wise exponential function of second operand (not-heat-typed) with values from first operand (tensor).
         Takes the first operand (tensor) whose values are the exponent to be applied to the second
@@ -2820,18 +2456,12 @@ class DNDarray:
 
         Parameters
         ----------
-        other: scalar or unknown data-type
+        other: scalar
            The value(s) in the base (element-wise)
 
-        Returns
-        -------
-        result: ht.NDNarray
-           A tensor containing the results of element-wise exponential operation.
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
-
         >>> T = ht.float32([[1, 2], [3, 4]])
         >>> 3 ** T
         tensor([[ 3., 9.],
@@ -2839,28 +2469,23 @@ class DNDarray:
         """
         return arithmetics.pow(other, self)
 
-    def __rshift__(self, other):
+    def __rshift__(self, other) -> DNDarray:
         """
         Shift the bits of an integer to the right.
 
         Parameters
         ----------
-        other: scalar or tensor
+        other: DNDarray or scalar
            number of bits to remove
 
-        Returns
-        -------
-        result: ht.NDNarray
-           A tensor containing the results of element-wise right shift operation.
-
-        Examples:
+        Examples
         ---------
         >>> ht.array([1, 2, 4]) >> 1
         tensor([0, 1, 2])
         """
         return arithmetics.right_shift(self, other)
 
-    def __rsub__(self, other):
+    def __rsub__(self, other) -> DNDarray:
         """
         Element-wise subtraction of another tensor or a scalar from the tensor.
         Takes the first operand (tensor) whose elements are to be subtracted from the second argument
@@ -2868,15 +2493,10 @@ class DNDarray:
 
         Parameters
         ----------
-        other: scalar or unknown data-type
+        other: scalar
             The value(s) from which the self-tensor will be element wise subtracted.
 
-        Returns
-        -------
-        result: ht.DNDarray
-            A tensor containing the results of element-wise subtraction.
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
         >>> T = ht.float32([[1, 2], [3, 4]])
@@ -2886,23 +2506,17 @@ class DNDarray:
         """
         return arithmetics.sub(other, self)
 
-    def __rtruediv__(self, other):
+    def __rtruediv__(self, other) -> DNDarray:
         """
         Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
-        of the not-heat-type parameter by another tensor. Takes the first tensor by which it divides the second
-        not-heat-typed-parameter.
+        Takes the first tensor by which it divides the second not-heat-typed-parameter.
 
         Parameters
         ----------
-        other: scalar or unknown data-type
+        other: scalar
             this will be divided by the self-tensor
 
-        Returns
-        -------
-        result: ht.DNDarray
-           A tensor containing the results of element-wise division.
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
         >>> T = ht.float32([2,3])
@@ -2917,7 +2531,7 @@ class DNDarray:
 
         Parameters
         ----------
-        self : ht.DNDarray
+        self : DNDarray
             The tensor holding the data to be stored
         path : str
             Path to the file to be stored.
@@ -3006,22 +2620,14 @@ class DNDarray:
         key : int, tuple, list, slice
             index/indices to be set
         value: np.scalar, tensor, torch.Tensor
-            value to be set to the specified positions in the ht.DNDarray (self)
-
-        Returns
-        -------
-        Nothing
-            The specified element/s (key) of self is set with the value
-
+            value to be set to the specified positions in the DNDarray (self)
         Notes
         -----
         If a DNDarray is given as the value to be set then the split axes are assumed to be equal.
-            If they are not, PyTorch will raise an error when the values are attempted to be set
-            on the local array
+        If they are not, PyTorch will raise an error when the values are attempted to be set on the local array
 
         Examples
         --------
-        (2 processes)
         >>> a = ht.zeros((4,5), split=0)
         (1/2) >>> tensor([[0., 0., 0., 0., 0.],
                           [0., 0., 0., 0., 0.]])
@@ -3136,21 +2742,17 @@ class DNDarray:
         else:
             raise NotImplementedError("Not implemented for {}".format(value.__class__.__name__))
 
-    def sin(self, out=None):
+    def sin(self, out=None) -> DNDarray:
         """
-        Return the trigonometric sine, element-wise.
+        Trigonometric sine, element-wise.
+        Returns tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
+        Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
         Parameters
         ----------
-        out : ht.DNDarray or None, optional
+        out : DNDarray, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        sine : ht.DNDarray
-            A tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
-            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
         Examples
         --------
@@ -3159,23 +2761,19 @@ class DNDarray:
         """
         return trigonometrics.sin(self, out)
 
-    def sinh(self, out=None):
+    def sinh(self, out=None) -> DNDarray:
         """
-        Return the hyperbolic sine, element-wise.
+        Hyperbolic sine, element-wise.
+        Returns a tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
+        Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
         Parameters
         ----------
-        x : ht.DNDarray
+        x : DNDarray
             The value for which to compute the hyperbolic sine.
-        out : ht.DNDarray or None, optional
+        out : DNDarray, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        hyperbolic sine : ht.DNDarray
-            A tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
-            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
         Examples
         --------
@@ -3184,21 +2782,17 @@ class DNDarray:
         """
         return trigonometrics.sinh(self, out)
 
-    def sqrt(self, out=None):
+    def sqrt(self, out=None) -> DNDarray:
         """
-        Return the non-negative square-root of the tensor element-wise.
+        Non-negative square-root of the tensor element-wise.
+        Result is a tensor of the same shape as x, containing the positive square-root of each element in this tensor.
+        Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
         Parameters
         ----------
-        out : ht.DNDarray or None, optional
+        out : DNDarray, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        square_roots : ht.DNDarray
-            A tensor of the same shape as x, containing the positive square-root of each element in this tensor.
-            Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
         Examples
         --------
@@ -3209,13 +2803,13 @@ class DNDarray:
         """
         return exponential.sqrt(self, out)
 
-    def squeeze(self, axis=None):
+    def squeeze(self, axis=None) -> DNDarray:
         """
         Remove single-dimensional entries from the shape of a tensor.
 
-        Parameters:
+        Parameters
         -----------
-        x : ht.tensor
+        x : DNDarray
             Input data.
 
         axis : None or int or tuple of ints, optional
@@ -3223,15 +2817,8 @@ class DNDarray:
                If axis is None, all single-dimensional entries will be removed from the shape.
                If an axis is selected with shape entry greater than one, a ValueError is raised.
 
-
-
-        Returns:
-        --------
-        squeezed : ht.tensor
-                   The input tensor, but with all or a subset of the dimensions of length 1 removed.
-
-
-        Examples:
+        Examples
+        -----------
         >>> import heat as ht
         >>> import torch
         >>> torch.manual_seed(1)
@@ -3239,9 +2826,7 @@ class DNDarray:
         >>> a = ht.random.randn(1,3,1,5)
         >>> a
         tensor([[[[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232]],
-
                 [[ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255]],
-
                 [[-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]]]])
         >>> a.shape
         (1, 3, 1, 5)
@@ -3262,24 +2847,27 @@ class DNDarray:
         """
         return manipulations.squeeze(self, axis)
 
-    def std(self, axis=None, ddof=0, **kwargs):
+    def std(self, axis=None, ddof=0, **kwargs) -> DNDarray:
         """
         Calculates and returns the standard deviation of a tensor with the bessel correction
         If a axis is given, the variance will be taken in that direction.
 
         Parameters
         ----------
-        x : ht.DNDarray
+        x : DNDarray
             Values for which the std is calculated for
-        axis : None, Int
+        axis : int, optional
             axis which the mean is taken in.
-            Default: None -> std of all data calculated
-            NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+            If None -> std of all data calculated
         ddof : int, optional
             Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
             represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
             Setting ddof > 1 raises a NotImplementedError.
 
+        Notes
+        --------
+        If multidemensional var is implemented in pytorch, this can be an iterable.
+        Only thing which muse be changed is the raise
 
         Examples
         --------
@@ -3301,40 +2889,33 @@ class DNDarray:
         >>> ht.std(a, 1)
         tensor([0.9877, 0.6267, 0.3037, 0.3745])
 
-        Returns
-        -------
-        ht.DNDarray containing the std/s, if split, then split in the same direction as x.
         """
         return statistics.std(self, axis, ddof=ddof, **kwargs)
 
     def __str__(self, *args):
-        # TODO: document me
+        """
+        String representation of the tensor
+        """
         # TODO: generate none-PyTorch str
         return self.__array.__str__(*args)
 
-    def __sub__(self, other):
+    def __sub__(self, other) -> DNDarray:
         """
         Element-wise subtraction of another tensor or a scalar from the tensor.
         Takes the second operand (scalar or tensor) whose elements are to be subtracted  as argument.
 
         Parameters
         ----------
-        other: tensor or scalar
+        other: DNDarray or scalar
             The value(s) to be subtracted element-wise from the tensor
 
-        Returns
-        -------
-        result: ht.DNDarray
-            A tensor containing the results of element-wise subtraction.
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
         >>> T1 = ht.float32([[1, 2], [3, 4]])
         >>> T1.__sub__(2.0)
         tensor([[ 1.,  0.],
                 [-1., -2.]])
-
         >>> T2 = ht.float32([[2, 2], [2, 2]])
         >>> T1.__sub__(T2)
         tensor([[-1., 0.],
@@ -3342,61 +2923,47 @@ class DNDarray:
         """
         return arithmetics.sub(self, other)
 
-    def sum(self, axis=None, out=None, keepdim=None):
+    def sum(self, axis=None, out=None, keepdim=None) -> DNDarray:
         """
         Sum of array elements over a given axis.
+        Returns an array with the same shape as self.__array except for the specified axis which
+        becomes one, e.g. a.shape = (1,2,3) => ht.ones((1,2,3)).sum(axis=1).shape = (1,1,3)
 
         Parameters
         ----------
         axis : None or int or tuple of ints, optional
-            Axis along which a sum is performed. The default, axis=None, will sum
-            all of the elements of the input array. If axis is negative it counts
-            from the last to the first axis.
-
-            If axis is a tuple of ints, a sum is performed on all of the axes specified
+            Axis along which a sum is performed.
+            The default, axis=None, will sum all of the elements of the input array. If axis is negative it counts
+            from the last to the first axis. If axis is a tuple of ints, a sum is performed on all of the axes specified
             in the tuple instead of a single axis or all the axes as before.
-
-         Returns
-         -------
-         sum_along_axis : ht.DNDarray
-             An array with the same shape as self.__array except for the specified axis which
-             becomes one, e.g. a.shape = (1,2,3) => ht.ones((1,2,3)).sum(axis=1).shape = (1,1,3)
 
         Examples
         --------
         >>> ht.ones(2).sum()
         tensor([2.])
-
         >>> ht.ones((3,3)).sum()
         tensor([9.])
-
         >>> ht.ones((3,3)).astype(ht.int).sum()
         tensor([9])
-
         >>> ht.ones((3,2,1)).sum(axis=-3)
         tensor([[[3.],
                  [3.]]])
         """
         return arithmetics.sum(self, axis=axis, out=out, keepdim=keepdim)
 
-    def tan(self, out=None):
+    def tan(self, out=None) -> DNDarray:
         """
         Compute tangent element-wise.
-
-        Equivalent to ht.sin(x) / ht.cos(x) element-wise.
+        Equivalent to ht.sin(x) / ht.cos(x) element-wise. Result is A tensor of the same shape as x, containing the
+        trigonometric tangent of each element in this tensor.
 
         Parameters
         ----------
-        x : ht.DNDarray
+        x : DNDarray
             The value for which to compute the trigonometric tangent.
-        out : ht.DNDarray or None, optional
+        out : DNDarray, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        tangent : ht.DNDarray
-            A tensor of the same shape as x, containing the trigonometric tangent of each element in this tensor.
 
         Examples
         --------
@@ -3405,14 +2972,10 @@ class DNDarray:
         """
         return trigonometrics.tan(self, out)
 
-    def tanh(self, out=None):
+    def tanh(self, out=None) -> DNDarray:
         """
         Return the hyperbolic tangent, element-wise.
-
-        Returns
-        -------
-        hyperbolic tangent : ht.DNDarray
-            A tensor of the same shape as x, containing the hyperbolic tangent of each element in this tensor.
+        Result is a tensor of the same shape as x, containing the hyperbolic tangent of each element in this tensor.
 
         Examples
         --------
@@ -3421,19 +2984,14 @@ class DNDarray:
         """
         return trigonometrics.tanh(self, out)
 
-    def transpose(self, axes=None):
+    def transpose(self, axes=None) -> DNDarray:
         """
         Permute the dimensions of an array.
 
         Parameters
         ----------
-        axes : None or list of ints, optional
+        axes : None or List[int,...], optional
             By default, reverse the dimensions, otherwise permute the axes according to the values given.
-
-        Returns
-        -------
-        p : ht.DNDarray
-            a with its axes permuted.
 
         Examples
         --------
@@ -3450,19 +3008,16 @@ class DNDarray:
         >>> a.transpose(1, 0)
         tensor([[1, 3],
                 [2, 4]])
-
         >>> x = ht.ones((1, 2, 3))
         >>> ht.transpose(x, (1, 0, 2)).shape
         (2, 1, 3)
         """
         return linalg.transpose(self, axes)
 
-    def tril(self, k=0):
+    def tril(self, k=0) -> DNDarray:
         """
         Returns the lower triangular part of the tensor, the other elements of the result tensor are set to 0.
-
         The lower triangular part of the tensor is defined as the elements on and below the diagonal.
-
         The argument k controls which diagonal to consider. If k=0, all elements on and below the main diagonal are
         retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
         value excludes just as many diagonals below the main diagonal.
@@ -3471,20 +3026,13 @@ class DNDarray:
         ----------
         k : int, optional
             Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
-
-        Returns
-        -------
-        lower_triangle : ht.DNDarray
-            Lower triangle of the input tensor.
         """
         return linalg.tril(self, k)
 
-    def triu(self, k=0):
+    def triu(self, k=0) -> DNDarray:
         """
         Returns the upper triangular part of the tensor, the other elements of the result tensor are set to 0.
-
         The upper triangular part of the tensor is defined as the elements on and below the diagonal.
-
         The argument k controls which diagonal to consider. If k=0, all elements on and below the main diagonal are
         retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
         value excludes just as many diagonals below the main diagonal.
@@ -3493,15 +3041,10 @@ class DNDarray:
         ----------
         k : int, optional
             Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
-
-        Returns
-        -------
-        upper_triangle : ht.DNDarray
-            Upper triangle of the input tensor.
         """
         return linalg.triu(self, k)
 
-    def __truediv__(self, other):
+    def __truediv__(self, other) -> DNDarray:
         """
         Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
         of the tensor by another tensor or scalar. Takes the second operand (scalar or tensor) by which to divide
@@ -3509,15 +3052,10 @@ class DNDarray:
 
         Parameters
         ----------
-        other: tensor or scalar
+        other: DNDarray or scalar
            The value(s) by which to divide the tensor (element-wise)
 
-        Returns
-        -------
-        result: ht.DNDarray
-           A tensor containing the results of element-wise division.
-
-        Examples:
+        Examples
         ---------
         >>> import heat as ht
         >>> ht.div(2.0, 2.0)
@@ -3534,30 +3072,18 @@ class DNDarray:
         """
         return arithmetics.div(self, other)
 
-    def trunc(self, out=None):
+    def trunc(self, out=None) -> DNDarray:
         """
         Return the trunc of the input, element-wise.
-
         The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the
-        fractional part of the signed number x is discarded.
+        fractional part of the signed number x is discarded. Result is a tensor of the same shape as x, containing the
+        trunced valued of each element in this tensor. If out was provided, trunced is a reference to it.
 
         Parameters
         ----------
-        out : ht.DNDarray or None, optional
+        out : DNDarray, optional
             A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
             or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        trunced : ht.DNDarray
-            A tensor of the same shape as x, containing the trunced valued of each element in this tensor. If out was
-            provided, trunced is a reference to it.
-
-        Returns
-        -------
-        trunced : ht.DNDarray
-            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
-            provided, trunced is a reference to it.
 
         Examples
         --------
@@ -3566,72 +3092,65 @@ class DNDarray:
         """
         return rounding.trunc(self, out)
 
-    def unique(self, sorted=False, return_inverse=False, axis=None):
+    def unique(
+        self, sorted=False, return_inverse=False, axis=None
+    ) -> Tuple[DNDarray, torch.Tensor]:
         """
         Finds and returns the unique elements of the tensor.
-
+        If return_inverse is True, a torch.Tensor will be returned as well whcih holds the list of inverse indices
         Works most effective if axis != self.split.
+
 
         Parameters
         ----------
         sorted : bool
             Whether the found elements should be sorted before returning as output.
-        return_inverse:
+        return_inverse: bool
             Whether to also return the indices for where elements in the original input ended up in the returned
             unique list.
         axis : int
             Axis along which unique elements should be found. Default to None, which will return a one dimensional list of
             unique values.
 
-        Returns
-        -------
-        res : ht.DNDarray
-            Output array. The unique elements. Elements are distributed the same way as the input tensor.
-        inverse_indices : torch.tensor (optional)
-            If return_inverse is True, this tensor will hold the list of inverse indices
-
         Examples
         --------
         >>> x = ht.array([[3, 2], [1, 3]])
         >>> x.unique(x, sorted=True)
         array([1, 2, 3])
-
         >>> x.unique(x, sorted=True, axis=0)
         array([[1, 3],
                [2, 3]])
-
         >>> x.unique(x, sorted=True, axis=1)
         array([[2, 3],
                [3, 1]])
         """
         return manipulations.unique(self, sorted, return_inverse, axis)
 
-    def var(self, axis=None, ddof=0, **kwargs):
+    def var(self, axis=None, ddof=0, **kwargs) -> DNDarray:
         """
-        Calculates and returns the variance of a tensor.
+        Calculates and returns the variance of a DNDarray.
         If a axis is given, the variance will be taken in that direction.
 
         Parameters
         ----------
-        x : ht.DNDarray
+        x : DNDarray
             Values for which the variance is calculated for
-        axis : None, Int
+        axis : int
             axis which the variance is taken in.
-            Default: None -> var of all data calculated
-            NOTE -> if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+            If None -> var of all data calculated
         ddof : int, optional
             Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
             represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
             Setting ddof > 1 raises a NotImplementedError.
 
-        Notes on ddof (from numpy)
-        --------------------------
-        The variance is the average of the squared deviations from the mean, i.e., var = mean(abs(x - x.mean())**2).
-        The mean is normally calculated as x.sum() / N, where N = len(x). If, however, ddof is specified, the divisor
-        N - ddof is used instead. In standard statistical practice, ddof=1 provides an unbiased estimator of the
-        variance of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate of the variance
-        for normally distributed variables.
-
+        Notes
+        --------
+        - if multidemensional var is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
+        - The variance is the average of the squared deviations from the mean, i.e., var = mean(abs(x - x.mean())**2).
+        - The mean is normally calculated as x.sum() / N, where N = len(x). If, however, ddof is specified, the divisor
+            N - ddof is used instead. In standard statistical practice, ddof=1 provides an unbiased estimator of the
+            variance of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate of the variance
+            for normally distributed variables.
 
         Examples
         --------
@@ -3640,7 +3159,6 @@ class DNDarray:
         tensor([[-1.9755,  0.3522,  0.4751]])
         >>> a.var()
         tensor(1.2710)
-
         >>> a = ht.random.randn(4,4)
         >>> a
         tensor([[-0.8665, -2.6848, -0.0215, -1.7363],
@@ -3653,38 +3171,28 @@ class DNDarray:
         tensor([1.3624, 3.2563, 0.1447, 1.2042])
         >>> ht.var(a, 0)
         tensor([1.0218, 2.4422, 0.1085, 0.9032])
-
-        Returns
-        -------
-        ht.DNDarray containing the var/s, if split, then split in the same direction as x.
         """
         return statistics.var(self, axis, ddof=ddof, **kwargs)
 
-    def __xor__(self, other):
+    def __xor__(self, other) -> DNDarray:
         """
         Compute the bit-wise XOR of two arrays element-wise.
 
         Parameters
         ----------
-        other: tensor or scalar
-        Only integer and boolean types are handled. If self.shape != other.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
+        other: DNDarray or scalar
+        Only integer and boolean types are handled. If self.shape != other.shape, they must be broadcastable to a
+        common shape (which becomes the shape of the output).
 
-        Returns
-        -------
-        result: ht.DNDArray
-        A tensor containing the results of element-wise OR of self and other.
-
-        Examples:
+        Examples
         ---------
-        import heat as ht
+        >>> import heat as ht
         >>> ht.array([13]) ^ 17
         tensor([28])
-
         >>> ht.array([31]) ^ ht.array([5])
         tensor([26])
         >>> ht.array[31,3] ^ 5
         tensor([26,  6])
-
         >>> ht.array([31,3]) ^ ht.array([5,6])
         tensor([26,  5])
         >>> ht.array([True, True]) ^ ht.array([False, True])

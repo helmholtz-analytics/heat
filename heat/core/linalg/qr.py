@@ -3,12 +3,13 @@ import torch
 from typing import List, Dict, Any, TypeVar, Union, Tuple
 
 from .. import dndarray, tiling
+from ..dndarray import DNDarray
 from .. import factories
 
 __all__ = ["qr"]
 
 
-def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False) -> Tuple[ht.DNDarray, ht.DNDarray]:
+def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False) -> Tuple[DNDarray, DNDarray]:
     """
     Calculates the QR decomposition of a 2D DNDarray.
 
@@ -63,7 +64,7 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False) -> Tuple[ht.DNDarray
     [0/1] True
     [1/1] True
     """
-    if not isinstance(a, dndarray.DNDarray):
+    if not isinstance(a, DNDarray):
         raise TypeError("'a' must be a DNDarray")
     if not isinstance(tiles_per_proc, (int, torch.Tensor)):
         raise TypeError(
