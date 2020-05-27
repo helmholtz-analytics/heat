@@ -20,7 +20,7 @@ script:
   # See https://github.com/open-mpi/ompi/issues/4948 and https://github.com/open-mpi/ompi/issues/1393 for the --mca settings
   - |
     docker exec -t unittest /bin/bash -c '. /root/.bashrc && \
-      for i in {1..7}; do mpirun --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ || exit; done && \
+      for i in {1..4}; do mpirun --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np $i coverage run --source=heat --parallel-mode -m pytest heat/ || exit; done && \
       mpirun --mca btl_vader_single_copy_mechanism none --mca btl ^openib --allow-run-as-root -np 7 coverage run --source=heat --parallel-mode -m pytest heat/ && \
       coverage combine && \
       coverage report && \
