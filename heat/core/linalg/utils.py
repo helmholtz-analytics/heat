@@ -82,8 +82,7 @@ def apply_house(side, v, tau, c):
     side
     v
     tau
-    c1
-    c2
+    c
 
     Returns
     -------

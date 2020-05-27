@@ -352,20 +352,82 @@ def bulge_chasing(arr, q0, q1, tiles=None):
     # todo: should ldp come from arr_tiles or arr_t_tiles (depends on the lshape)
     ldp = tiles["arr"].last_diagonal_process
     active_procs = list(range(ldp + 1))
-    lcl_array = arr._DNDarray__array
-    # lcl_right_apply = {}
+    lcl_right_apply = {}
     # lcl_left_apply = {}
     if rank <= ldp:
-        # todo: each column or row (smallest)
-        ncols = min(arr.gshape) - 1 if arr.gshape[0] >= arr.gshape[1] else min(arr.gshape) + 1
-        for col in range(ncols):
-            if any(col >= splits[active_procs[0] :]):
+        # get the lshape with the diagonal element
+        start1 = splits[rank - 1] if rank > 0 else 0
+        stop1 = splits[rank + 1] if rank < arr.comm.size - 1 else arr.gshape[arr.split - 1]
+        stop1 += band_width + 1
+        lcl_array = arr._DNDarray__array[:, start1:stop1]
+        lcl_d_st = 0 if rank == 0 else splits[rank - 1]
+        lcl_d_sp = splits[rank] + band_width + 1
+        # todo: send a copy of the data on the processes to the next and previous ones
+        wait_before = None
+        wait_after = None
+        if rank != arr.comm.size - 1:
+            arr.comm.Send(lcl_array[:, lcl_d_st:lcl_d_sp].clone(), dest=rank + 1)
+            rcv_shape = [splits[rank + 1], 0]
+            rcv_shape[1] = splits[rank + 1] + band_width + 1 - splits[rank]
+            rcv = torch.zeros(
+                tuple(rcv_shape), dtype=arr.dtype.torch_type(), device=arr.device.torch_device
+            )
+            wait_after = arr.comm.Irecv(rcv, source=rank + 1)
+        if rank != 0:
+            # print('s', rank - 1)
+            arr.comm.Send(lcl_array[:, lcl_d_st:lcl_d_sp].clone(), dest=rank - 1)
+            rcv_shape = [splits[rank - 1], 0]
+            rcv_shape[1] = splits[rank - 1] + band_width + 1 - splits[rank - 1]
+            rcv = torch.zeros(
+                tuple(rcv_shape), dtype=arr.dtype.torch_type(), device=arr.device.torch_device
+            )
+            # print('r', rank - 1)
+            wait_before = arr.comm.Irecv(rcv, source=rank - 1)
+
+        if wait_after is not None:
+            wait_after.wait()
+        if wait_before is not None:
+            wait_before.wait()
+
+        nrows = min(arr.gshape) - 1 if arr.gshape[0] >= arr.gshape[1] else min(arr.gshape) + 1
+        app_sz = band_width - 1
+        # first round:
+        #   - gen vector (shape=(app_sz,)),
+        #   - apply from right (down the matrix) on a (app_sz + 1 x app_sz) starting at (row, row + 1)
+        # if rank == 0:
+        #     # this only works for the first loop
+        #     # need something like this for every loop
+        #     v, t = utils.gen_house_vec(lcl_array[0, 1: 1 + band_width])
+        #     st_ind = (0, 1)
+        #     end_ind = (len(v) + 1, )
+
+        for row in range(nrows):
+            # this is the loop for the start index
+            if any(row >= splits[active_procs[0] :]):
                 if rank == active_procs[0]:
                     break
                 del active_procs[0]
-            # get the first row
+            # 1. get start element
+            st_ind = (row, row + 1)
+            end_ind_first = (row + 1 + app_sz, row + 1 + app_sz)
+            # 2. determine where it will be applied to
+            #       first round is a special case: it wont be the full thing, only 1 other element below the target point
+            # get which processes are involved, need to figure out how to deal with the overlapping ones still
             if rank == active_procs[0]:
-                # generate the vector to eliminate the row
-                v, t = utils.gen_house_vec(lcl_array[col, col + 1 : col + band_width])
-                # lcl_right_apply[(col, col + band_width)]
-                print(col, v)
+                # generate the vector to eliminate the row (working on split 0 now)
+                # todo: split 1 version
+                v, t = utils.gen_house_vec(
+                    lcl_array[row - splits[rank], row + 1 : row + band_width]
+                )
+                # save v and t for updating Q0/Q1
+                lcl_right_apply[(row, row + band_width)] = (v, t)
+                # apply v ant t to from right (down the matrix)
+                lcl_array[
+                    st_ind[0] : end_ind_first[0], st_ind[1] : end_ind_first[1]
+                ] = utils.apply_house(
+                    side="right",
+                    v=v,
+                    tau=t,
+                    c=lcl_array[st_ind[0] : end_ind_first[0], st_ind[1] : end_ind_first[1]],
+                )
+            break
