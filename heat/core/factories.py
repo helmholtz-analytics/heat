@@ -9,7 +9,7 @@ from . import devices
 from .dndarray import DNDarray
 from . import memory
 from . import types
-from .types import generic
+from .types import dtype
 
 __all__ = [
     "arange",
@@ -26,7 +26,7 @@ __all__ = [
     "zeros",
     "zeros_like",
 ]
-heat_type = types.generic
+heat_type = dtype
 
 
 def arange(*args, dtype=None, split=None, device=None, comm=None) -> DNDarray:
@@ -51,7 +51,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=None) -> DNDarray:
     step : scalar, optional
         Spacing between values.  For any output `out`, this is the distance between two adjacent values, ``out[i+1] -
         out[i]``. The default step size is 1. If `step` is specified as a position argument, `start` must also be given.
-    dtype : generic, optional
+    dtype : dtype, optional
         The type of the output array.  If `dtype` is not given, infer the data type from the other input arguments.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
@@ -148,7 +148,7 @@ def array(
     obj : array_like
         A tensor or array, any object exposing the array interface, an object whose __array__ method returns an array,
         or any (nested) sequence.
-    dtype : type, optional
+    dtype : dtype, optional
         The desired data-type for the array. If not given, then the type will be determined as the minimum type required
         to hold the objects in the sequence. This argument can only be used to ‘upcast’ the array. For downcasting, use
         the .astype(t) method.
@@ -404,7 +404,7 @@ def empty_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> 
     a : object
         The shape and data-type of 'a' define these same attributes of the returned array.
         Uninitialized tensor with the same shape, type and split axis as 'a' unless overriden.
-    dtype : ht.dtype, optional
+    dtype : dtype, optional
         Overrides the data type of the result.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
@@ -437,11 +437,11 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
     shape : int or Sequence[int,...]
             The shape of the data-type. If only one number is provided, returning tensor will be square with that size.
             In other cases, the first value represents the number rows, the second the number of columns.
-    dtype : ht.dtype, optional
+    dtype : dtype, optional
             Overrides the data type of the result.
     split : int, optional
             The axis along which the tensor is split and distributed, defaults to None (no distribution).
-    device : str, ht.Device or None, optional
+    device : str or Device, optional
             Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm : Communication, optional
             Handle to the nodes holding distributed parts or copies of this tensor.

@@ -30,7 +30,7 @@ from . import factories
 
 
 __all__ = [
-    "generic",
+    "dtype",
     "number",
     "integer",
     "signedinteger",
@@ -59,7 +59,7 @@ __all__ = [
 ]
 
 
-class generic:
+class dtype:
     def __new__(cls, *value, device=None, comm=None):
         torch_type = cls.torch_type()
         if torch_type is NotImplemented:
@@ -107,7 +107,7 @@ class generic:
         return NotImplemented
 
 
-class bool(generic):
+class bool(dtype):
     @classmethod
     def torch_type(cls):
         return torch.bool
@@ -117,7 +117,7 @@ class bool(generic):
         return "u1"
 
 
-class number(generic):
+class number(dtype):
     pass
 
 
@@ -207,7 +207,7 @@ class float64(floating):
         return "f8"
 
 
-class flexible(generic):
+class flexible(dtype):
     pass
 
 
@@ -294,7 +294,7 @@ def canonical_heat_type(a_type):
     """
     # already a heat type
     try:
-        if issubclass(a_type, generic):
+        if issubclass(a_type, dtype):
             return a_type
     except TypeError:
         pass

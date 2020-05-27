@@ -27,7 +27,7 @@ def abs(x, out=None, dtype=None):
     absolute_values : ht.DNDarray
         A tensor containing the absolute value of each element in x.
     """
-    if dtype is not None and not issubclass(dtype, types.generic):
+    if dtype is not None and not issubclass(dtype, types.dtype):
         raise TypeError("dtype must be a heat data type")
 
     absolute_values = operations.__local_op(torch.abs, x, out)
@@ -267,7 +267,7 @@ def round(x, decimals=0, out=None, dtype=None):
         tensor([-2., -2., -1., -1., -0.,  0.,  0.,  1.,  1.,  2.])
 
     """
-    if dtype is not None and not issubclass(dtype, types.generic):
+    if dtype is not None and not issubclass(dtype, types.dtype):
         raise TypeError("dtype must be a heat data type")
 
     if decimals != 0:
