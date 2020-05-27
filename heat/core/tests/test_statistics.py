@@ -894,20 +894,20 @@ class TestStatistics(BasicTest):
         # test local, distributed, split/axis combination, TODO no data on process, Issue #568
         x_np = np.arange(10 * 10 * 10).reshape(10, 10, 10)
         x_ht = ht.array(x_np, device=ht_device)
-        # x_ht_split0 = ht.array(x_np, split=0, device=ht_device)
-        # x_ht_split1 = ht.array(x_np, split=1, device=ht_device)
-        # x_ht_split2 = ht.array(x_np, split=2, device=ht_device)
+        x_ht_split0 = ht.array(x_np, split=0, device=ht_device)
+        x_ht_split1 = ht.array(x_np, split=1, device=ht_device)
+        x_ht_split2 = ht.array(x_np, split=2, device=ht_device)
         q = 15.9
-        # for dim in range(x_ht.numdims):
-        #     p_np = np.percentile(x_np, q, axis=dim)
-        #     p_ht = ht.percentile(x_ht, q, axis=dim)
-        #     p_ht_split0 = ht.percentile(x_ht_split0, q, axis=dim)
-        #     p_ht_split1 = ht.percentile(x_ht_split1, q, axis=dim)
-        #     p_ht_split2 = ht.percentile(x_ht_split2, q, axis=dim)
-        #     self.assert_array_equal(p_ht, p_np)
-        #     self.assert_array_equal(p_ht_split0, p_np)
-        #     self.assert_array_equal(p_ht_split1, p_np)
-        #     self.assert_array_equal(p_ht_split2, p_np)
+        for dim in range(x_ht.numdims):
+            p_np = np.percentile(x_np, q, axis=dim)
+            p_ht = ht.percentile(x_ht, q, axis=dim)
+            p_ht_split0 = ht.percentile(x_ht_split0, q, axis=dim)
+            p_ht_split1 = ht.percentile(x_ht_split1, q, axis=dim)
+            p_ht_split2 = ht.percentile(x_ht_split2, q, axis=dim)
+            self.assert_array_equal(p_ht, p_np)
+            self.assert_array_equal(p_ht_split0, p_np)
+            self.assert_array_equal(p_ht_split1, p_np)
+            self.assert_array_equal(p_ht_split2, p_np)
 
         # test x, q dtypes combination plus edge-case 100th percentile
         q = 100
