@@ -1360,6 +1360,8 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     if percentile.shape[0] == 1:
         percentile = manipulations.squeeze(percentile, axis=0)
 
+    del data
+
     return percentile
 
 
