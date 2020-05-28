@@ -898,15 +898,16 @@ class TestStatistics(BasicTest):
         x_ht_split1 = ht.array(x_np, split=1, device=ht_device)
         x_ht_split2 = ht.array(x_np, split=2, device=ht_device)
         q = 15.9
-        p_np = np.percentile(x_np, q, axis=0)
-        p_ht = ht.percentile(x_ht, q, axis=0)
-        self.assert_array_equal(p_ht, p_np)
-        p_ht_split0 = ht.percentile(x_ht_split0, q, axis=0)
-        self.assert_array_equal(p_ht_split0, p_np)
-        p_ht_split1 = ht.percentile(x_ht_split1, q, axis=2)
-        self.assert_array_equal(p_ht_split1, np.percentile(x_np, q, axis=2))
-        p_ht_split2 = ht.percentile(x_ht_split2, q, axis=0)
-        self.assert_array_equal(p_ht_split2, p_np)
+        for dim in range(x_ht.numdims):
+            p_np = np.percentile(x_np, q, axis=dim)
+            p_ht = ht.percentile(x_ht, q, axis=dim)
+            p_ht_split0 = ht.percentile(x_ht_split0, q, axis=dim)
+            p_ht_split1 = ht.percentile(x_ht_split1, q, axis=dim)
+            p_ht_split2 = ht.percentile(x_ht_split2, q, axis=dim)
+            self.assert_array_equal(p_ht, p_np)
+            self.assert_array_equal(p_ht_split0, p_np)
+            self.assert_array_equal(p_ht_split1, p_np)
+            self.assert_array_equal(p_ht_split2, p_np)
 
         # test x, q dtypes combination plus edge-case 100th percentile
         q = 100
