@@ -1,5 +1,6 @@
 import torch
 import heat as ht
+from heat.core.dndarray import DNDarray
 
 
 class Laplacian:
@@ -12,34 +13,30 @@ class Laplacian:
         threshold_key="upper",
         threshold_value=1.0,
         neighbours=10,
-    ):
+    ) -> DNDarray:
         """
         Graph Laplacians from a dataset
 
         Parameters
         ----------
-        similarity : function f(X) --> similarity matrix
+        similarity : function
             Metric function that defines similarity between vertices. Should accept a data matrix (n,f) as input and return an (n,n) similarity matrix.
             Additional required parameters can be passed via a lambda function.
-        definition : string
+        definition : str
             Type of Laplacian
             'simple': Laplacian matrix for simple graphs L = D - A
             'norm_sym': Symmetric normalized Laplacian L^sym = D^{-1/2} L D^{-1/2} = I - D^{-1/2} A D^{-1/2}
             'norm_rw': L^rw = D^{-1} L = I - D^{-1} A
-        mode : "fc", "eNeighbour"
+        mode : str
             How to calculate adjacency from the similarity matrix
             "fully_connected" is fully-connected, so A = S
             "eNeighbour" is the epsilon neighbourhood, with A_ji = 0 if S_ij </> lower/upper; for eNeighbour an upper or lower boundary needs to be set
-        threshold_key : string
+        threshold_key : str
             "upper" or "lower", defining the type of threshold for the epsilon-neighrborhood
         threshold_value : float
             Boundary value for the epsilon-neighrborhood
         neighbours : int
             Number of neirest neighbors to be considered for adjacency definition. Currently not implemented
-        Returns
-        -------
-        L : ht.DNDarray
-
         """
         self.similarity_metric = similarity
         self.weighted = weighted

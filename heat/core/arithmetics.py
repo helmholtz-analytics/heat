@@ -42,7 +42,6 @@ __all__ = [
 def add(t1, t2) -> DNDarray:
     """
     Element-wise addition of values from two operands, commutative.
-
     Takes the first and second operand (scalar or tensor) whose elements are to be added as argument and returns s tensor containing the results of element-wise addition of t1 and t2.
 
     Parameters
@@ -76,7 +75,6 @@ def add(t1, t2) -> DNDarray:
 def bitwise_and(t1, t2) -> DNDarray:
     """
     Compute the bit-wise AND of two arrays t1 and t2 element-wise.
-
     Only integer and boolean types are handled. If x1.shape != x2.shape, they must be broadcastable to a common shape
     (which becomes the shape of the output)
 
@@ -107,8 +105,8 @@ def bitwise_and(t1, t2) -> DNDarray:
     """
     dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
 
-    for dtype in dtypes:
-        if types.heat_type_is_inexact(dtype):
+    for dt in dtypes:
+        if types.heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__and__, t1, t2)
@@ -117,7 +115,6 @@ def bitwise_and(t1, t2) -> DNDarray:
 def bitwise_or(t1, t2) -> DNDarray:
     """
     Compute the bit-wise OR of two arrays t1 and t2 element-wise.
-
     Only integer and boolean types are handled. If x1.shape != x2.shape, they must be broadcastable to a common shape
     (which becomes the shape of the output)
 
@@ -151,8 +148,8 @@ def bitwise_or(t1, t2) -> DNDarray:
     """
     dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
 
-    for dtype in dtypes:
-        if types.heat_type_is_inexact(dtype):
+    for dt in dtypes:
+        if types.heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__or__, t1, t2)
@@ -161,10 +158,8 @@ def bitwise_or(t1, t2) -> DNDarray:
 def bitwise_xor(t1, t2) -> DNDarray:
     """
     Compute the bit-wise XOR of two arrays element-wise t1 and t2.
-
     Only integer and boolean types are handled. If x1.shape != x2.shape, they must be broadcastable to a common shape
     (which becomes the shape of the output)
-
 
     Parameters
     ----------
@@ -190,8 +185,8 @@ def bitwise_xor(t1, t2) -> DNDarray:
     """
     dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
 
-    for dtype in dtypes:
-        if types.heat_type_is_inexact(dtype):
+    for dt in dtypes:
+        if types.heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__xor__, t1, t2)
@@ -207,7 +202,7 @@ def cumprod(a, axis, dtype=None, out=None) -> DNDarray:
         Input array.
     axis : int
         Axis along which the cumulative product is computed.
-    dtype : dtype, optional
+    dtype : types.dtype, optional
         Type of the returned array, as well as of the accumulator in which
         the elements are multiplied.  If *dtype* is not specified, it
         defaults to the dtype of `a`, unless `a` has an integer dtype with
@@ -243,7 +238,7 @@ def cumsum(a, axis, dtype=None, out=None) -> DNDarray:
         Input array.
     axis : int
         Axis along which the cumulative sum is computed.
-    dtype : dtype, optional
+    dtype : types.dtype, optional
         Type of the returned array and of the accumulator in which the
         elements are summed.  If `dtype` is not specified, it defaults
         to the dtype of `a`, unless `a` has an integer dtype with a
@@ -472,9 +467,9 @@ def invert(t, out=None) -> DNDarray:
     >>> ht.bitwise_not(ht.array([-1, -2, 3], dtype=ht.int8))
     tensor([ 0,  1, -4], dtype=ht.int8)
     """
-    dtype = types.heat_type_of(t)
+    dt = types.heat_type_of(t)
 
-    if types.heat_type_is_inexact(dtype):
+    if types.heat_type_is_inexact(dt):
         raise TypeError("Operation is not supported for float types")
 
     return operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
@@ -502,9 +497,9 @@ def left_shift(t1, t2) -> DNDarray:
     """
     dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
 
-    for dtype in dtypes:
-        if not types.heat_type_is_exact(dtype):
-            raise TypeError("Operation is supported for integer types only")
+    for dt in dtypes:
+        if types.heat_type_is_inexact(dt):
+            raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
 
@@ -670,8 +665,8 @@ def right_shift(t1, t2) -> DNDarray:
     """
     dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
 
-    for dtype in dtypes:
-        if not types.heat_type_is_exact(dtype):
+    for dt in dtypes:
+        if not types.heat_type_is_exact(dt):
             raise TypeError("Operation is supported for integer types only")
 
     return operations.__binary_op(torch.Tensor.__rshift__, t1, t2)
@@ -685,7 +680,7 @@ def prod(x, axis=None, out=None, keepdim=None) -> DNDarray:
     ----------
     x : DNDarray
         Input data.
-    axis : None or int or tuple of ints, optional
+    axis : None or int or Tuple[int,...], optional
         Axis or axes along which a product is performed. The default, axis=None, will calculate the product of all the
         elements in the input array. If axis is negative it counts from the last to the first axis.
         If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple instead of a single
@@ -764,11 +759,10 @@ def sum(x, axis=None, out=None, keepdim=None) -> DNDarray:
     ----------
     x : DNDarray
         Input data.
-    axis : None or int or tuple of ints, optional
+    axis : None or int or Tuple[int,...], optional
         Axis along which a sum is performed. The default, axis=None, will sum
         all of the elements of the input array. If axis is negative it counts
         from the last to the first axis.
-
         If axis is a tuple of ints, a sum is performed on all of the axes specified
         in the tuple instead of a single axis or all the axes as before.
     out : DNDarray, optional

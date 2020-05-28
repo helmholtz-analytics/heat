@@ -16,7 +16,6 @@ __all__ = ["dot", "matmul", "norm", "projection", "transpose", "tril", "triu"]
 def dot(a, b, out=None) -> Union[DNDarray, float]:
     """
     Returns the dot product of two arrays.
-
     Specifically,
     1. If both a and b are 1-D arrays, it is inner product of vectors.
     2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or `a @ b` is preferred.
@@ -72,7 +71,6 @@ def dot(a, b, out=None) -> Union[DNDarray, float]:
 def matmul(a, b, allow_resplit=False) -> DNDarray:
     """
     Matrix multiplication of two DNDarrays: a @ b = c or A @ B = c
-
     Returns a tensor with the result of a @ b. The split dimension of the returned array is
     typically the split dimension of a. However, if a.split = None then the the c.split will be
     set as the split dimension of b. If both are None then c.split is also None.
@@ -85,7 +83,6 @@ def matmul(a, b, allow_resplit=False) -> DNDarray:
         2 dimensional: P x Q
     allow_resplit : bool, optional
         Flag for if to resplit the DNDarray 'a' in the case that both 'a' and 'b' are not split.
-
         - Default: if both are not split then both will remain not split.
         - True: if both are not split then 'a' will be split in-place along axis 0, i.e. the split axis of 'a' will become 0 and the DNDarray will be distributed in the standard fashion.
         - The default case should be the most efficient case for large matrices.
@@ -786,9 +783,9 @@ def projection(a, b) -> DNDarray:
 
     Parameters
     ----------
-    a : DNDarray (1D)
+    a : DNDarray
         The vector to be projected. Must be a 1D DNDarray
-    b : DNDarray (1D)
+    b : DNDarray
         The vector to project onto. Must be a 1D DNDarray
     """
     if not isinstance(a, DNDarray) or not isinstance(b, DNDarray):
@@ -857,7 +854,7 @@ def transpose(a, axes=None) -> DNDarray:
     ----------
     a : DNDarray
         Input array.
-    axes : None or list of ints, optional
+    axes : None or List[int,...], optional
         By default, reverse the dimensions, otherwise permute the axes according to the values given.
 
     """

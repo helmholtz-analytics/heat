@@ -1,11 +1,12 @@
 import numpy as np
 import torch
+from typing import Tuple, Union
 
 from .communication import MPI
 from . import factories
 from . import manipulations
 from . import operations
-from . import dndarray
+from .dndarray import DNDarray
 from . import stride_tricks
 from . import types
 
@@ -21,26 +22,21 @@ __all__ = [
 ]
 
 
-def all(x, axis=None, out=None, keepdim=None):
+def all(x, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
     """
     Test whether all array elements along a given axis evaluate to True.
-
+    A new boolean or ht.DNDarray is returned unless out is specified, in which case a reference to out is returned.
     Parameters:
     -----------
-    x : ht.DNDarray
+    x : DNDarray
         Input array or object that can be converted to an array.
-    axis : None or int or tuple of ints, optional
+    axis : None or int or Tuple[int,...], optional
         Axis or axes along which a logical AND reduction is performed. The default (axis = None) is to perform a
         logical AND over all the dimensions of the input array. axis may be negative, in which case it counts
         from the last to the first axis.
-    out : ht.DNDarray, optional
+    out : DNDarray, optional
         Alternate output array in which to place the result. It must have the same shape as the expected output
         and its type is preserved.
-
-    Returns:
-    --------
-    all : ht.DNDarray, bool
-        A new boolean or ht.DNDarray is returned unless out is specified, in which case a reference to out is returned.
 
     Examples:
     ---------
@@ -82,16 +78,16 @@ def all(x, axis=None, out=None, keepdim=None):
     )
 
 
-def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
+def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> bool:
     """
     Test whether two tensors are element-wise equal within a tolerance. Returns True if |x - y| <= atol + rtol * |y|
     for all elements of x and y, False otherwise
 
     Parameters:
     -----------
-    x : ht.DNDarray
+    x : DNDarray
         First tensor to compare
-    y : ht.DNDarray
+    y : DNDarray
         Second tensor to compare
     atol: float, optional
         Absolute tolerance. Default is 1e-08
@@ -100,11 +96,6 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     equal_nan: bool, optional
         Whether to compare NaN’s as equal. If True, NaN’s in a will be considered equal to NaN’s in b in the output
         array.
-
-    Returns:
-    --------
-    allclose : bool
-        True if the two tensors are equal within the given tolerance; False otherwise.
 
     Examples:
     ---------
@@ -132,26 +123,21 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     return bool(_local_allclose.item())
 
 
-def any(x, axis=None, out=None, keepdim=False):
+def any(x, axis=None, out=None, keepdim=False) -> DNDarray:
     """
     Test whether any array element along a given axis evaluates to True.
     The returning tensor is one dimensional unless axis is not None.
 
     Parameters:
     -----------
-    x : tensor
+    x : DNDarray
         Input tensor
     axis : int, optional
         Axis along which a logic OR reduction is performed. With axis=None, the logical OR is performed over all
         dimensions of the tensor.
-    out : tensor, optional
+    out : DNDarray, optional
         Alternative output tensor in which to place the result. It must have the same shape as the expected output.
         The output is a tensor with dtype=bool.
-
-    Returns:
-    --------
-    boolean_tensor : tensor of type bool
-        Returns a tensor of booleans that are 1, if any non-zero values exist on this axis, 0 otherwise.
 
     Examples:
     ---------
@@ -180,11 +166,16 @@ def any(x, axis=None, out=None, keepdim=False):
     )
 
 
-def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
+def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> DNDarray:
     """
+    Returns a boolean tensor of where a and b are equal within the given tolerance.
+    If both x and y are scalars, returns a single boolean value.
+
     Parameters:
     -----------
-    x, y : tensor
+    x : DNDarray
+        Input tensors to compare.
+    y : DNDarray
         Input tensors to compare.
     rtol : float
         The relative tolerance parameter (see Notes).
@@ -192,11 +183,6 @@ def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
         The absolute tolerance parameter (see Notes).
     equal_nan : bool
         Whether to compare NaN’s as equal. If True, NaN’s in x will be considered equal to NaN’s in y in the output array.
-
-    Returns:
-    --------
-    isclose : boolean tensor of where a and b are equal within the given tolerance.
-        If both x and y are scalars, returns a single boolean value.
     """
     t1, t2 = __sanitize_close_input(x, y)
 
@@ -219,19 +205,16 @@ def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     return result
 
 
-def logical_and(t1, t2):
+def logical_and(t1, t2) -> DNDarray:
     """
     Compute the truth value of t1 AND t2 element-wise.
 
     Parameters:
     -----------
-    t1, t2: tensor
+    t1 : DNDarray
         input tensors of same shape
-
-    Returns:
-    --------
-    boolean_tensor : tensor of type bool
-        Element-wise result of t1 AND t2.
+    t2 : DNDarray
+        input tensors of same shape
 
     Examples:
     ---------
@@ -243,22 +226,17 @@ def logical_and(t1, t2):
     )
 
 
-def logical_not(t, out=None):
+def logical_not(t, out=None) -> DNDarray:
     """
     Computes the element-wise logical NOT of the given input tensor.
 
     Parameters:
     -----------
-    t1: tensor
+    t1: DNDarray
         input tensor
-    out : tensor, optional
+    out : DNDarray, optional
         Alternative output tensor in which to place the result. It must have the same shape as the expected output.
         The output is a tensor with dtype=bool.
-
-    Returns:
-    --------
-    boolean_tensor : tensor of type bool
-        Element-wise result of NOT t.
 
     Examples:
     ---------
@@ -268,19 +246,16 @@ def logical_not(t, out=None):
     return operations.__local_op(torch.logical_not, t, out)
 
 
-def logical_or(t1, t2):
+def logical_or(t1, t2) -> DNDarray:
     """
     Compute the truth value of t1 OR t2 element-wise.
 
     Parameters:
     -----------
-    t1, t2: tensor
+    t1 : DNDarray
         input tensors of same shape
-
-    Returns:
-    --------
-    boolean_tensor : tensor of type bool
-        Element-wise result of t1 OR t2.
+    t2 : DNDarray
+        input tensors of same shape
 
     Examples:
     ---------
@@ -292,19 +267,16 @@ def logical_or(t1, t2):
     )
 
 
-def logical_xor(t1, t2):
+def logical_xor(t1, t2) -> DNDarray:
     """
     Computes the element-wise logical XOR of the given input tensors.
 
     Parameters:
     -----------
-    t1, t2: tensor
+    t1 : DNDarray
         input tensors of same shape
-
-    Returns:
-    --------
-    boolean_tensor : tensor of type bool
-        Element-wise result of t1 XOR t2.
+    t2 : DNDarray
+        input tensors of same shape
 
     Examples:
     ---------
@@ -325,7 +297,7 @@ def __sanitize_close_input(x, y):
         Verifies that x is either a scalar, or a ht.DNDarray. If a scalar, x gets wrapped in a ht.DNDarray.
         Raises TypeError if x is neither.
         """
-        if not isinstance(x, dndarray.DNDarray):
+        if not isinstance(x, DNDarray):
             if np.ndim(x) == 0:
                 dtype = getattr(x, "dtype", float)
                 device = getattr(y, "device", None)

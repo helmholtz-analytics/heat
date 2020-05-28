@@ -1,4 +1,5 @@
 import heat as ht
+from ..dndarray import DNDarray
 from typing import List, Dict, Any, TypeVar, Union, Tuple
 
 import torch
@@ -6,28 +7,24 @@ import torch
 __all__ = ["cg", "lanczos"]
 
 
-def cg(A, b, x0, out=None) -> ht.DNDarray:
+def cg(A, b, x0, out=None) -> DNDarray:
     """
     Conjugate gradients method for solving a system of linear equations Ax = b
 
     Parameters
     ----------
-    A : ht.DNDarray
+    A : DNDarray
         2D symmetric, positive definite Matrix
-    b : ht.DNDarray
+    b : DNDarray
         1D vector
-    x0 : ht.DNDarray
+    x0 : DNDarray
         Arbitrary 1D starting vector
-    out : ht.DNDarray, optional
+    out : DNDarray, optional
         Output Vector
 
     """
 
-    if (
-        not isinstance(A, ht.DNDarray)
-        or not isinstance(b, ht.DNDarray)
-        or not isinstance(x0, ht.DNDarray)
-    ):
+    if not isinstance(A, DNDarray) or not isinstance(b, DNDarray) or not isinstance(x0, DNDarray):
         raise TypeError(
             "A, b and x0 need to be of type ht.dndarra, but were {}, {}, {}".format(
                 type(A), type(b), type(x0)
@@ -67,10 +64,9 @@ def cg(A, b, x0, out=None) -> ht.DNDarray:
     return x
 
 
-def lanczos(A, m, v0=None, V_out=None, T_out=None) -> Tuple[ht.DNDarray, ht.DNDarray]:
+def lanczos(A, m, v0=None, V_out=None, T_out=None) -> Tuple[DNDarray, DNDarray]:
     """
     Lanczos algorithm
-
     This is an iterative approximation of the solution to the eigenvalue problem, as an adaptation of power methods to
     find the m "most useful" (tending towards extreme highest/lowest) eigenvalues and eigenvectors of an :math: `n x n`
     Hermitian matrix, where often :math: `m<<n`. It returns two matrices :math: `V` and :math: `T`, where:
@@ -79,19 +75,19 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None) -> Tuple[ht.DNDarray, ht.DNDa
 
     Parameters
     ----------
-    A : ht.DNDarray
+    A : DNDarray
         2D symmetric, positive definite Matrix
     m : int
         number of Lanczos iterations
-    v0 : ht.DNDarray, optional
+    v0 : DNDarray, optional
         1D starting vector of Euclidian norm 1. If not provided, a random vector will be used to start the algorithm
-    V_out ht.DNDarray, optional
+    V_out DNDarray, optional
         Output Matrix of size (n, m) for the Krylow vectors
-    T_out ht.DNDarray, optional
+    T_out DNDarray, optional
         Output Matrix of size (m, m) for the Tridiagonal matrix
 
     """
-    if not isinstance(A, ht.DNDarray):
+    if not isinstance(A, DNDarray):
         raise TypeError("A needs to be of type ht.dndarra, but was {}".format(type(A)))
 
     if not (A.numdims == 2):

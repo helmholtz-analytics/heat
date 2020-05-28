@@ -6,14 +6,14 @@ import warnings
 from .communication import MPI, MPI_WORLD
 from . import factories
 from . import stride_tricks
-from . import dndarray
+from .dndarray import DNDarray
 from . import types
 
 __all__ = []
 __BOOLEAN_OPS = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
 
 
-def __binary_op(operation, t1, t2):
+def __binary_op(operation, t1, t2) -> DNDarray:
     """
     Generic wrapper for element-wise binary operations of two operands (either can be tensor or scalar).
     Takes the operation function and the two operands involved in the operation as arguments.
@@ -24,16 +24,11 @@ def __binary_op(operation, t1, t2):
         The operation to be performed. Function that performs operation elements-wise on the involved tensors,
         e.g. add values from other to self
 
-    t1: dndarray or scalar
+    t1: DNDarray or scalar
         The first operand involved in the operation,
 
-    t2: dndarray or scalar
+    t2: DNDarray or scalar
         The second operand involved in the operation,
-
-    Returns
-    -------
-    result: ht.DNDarray
-        A DNDarray containing the results of element-wise operation.
     """
     if np.isscalar(t1):
         try:
@@ -52,7 +47,7 @@ def __binary_op(operation, t1, t2):
             output_split = None
             output_device = None
             output_comm = MPI_WORLD
-        elif isinstance(t2, dndarray.DNDarray):
+        elif isinstance(t2, DNDarray):
             t1.gpu() if t2.device.device_type == "gpu" else t1.cpu()
 
             output_shape = t2.shape
@@ -67,7 +62,7 @@ def __binary_op(operation, t1, t2):
         if t1.dtype != t2.dtype:
             t1 = t1.astype(t2.dtype)
 
-    elif isinstance(t1, dndarray.DNDarray):
+    elif isinstance(t1, DNDarray):
         if np.isscalar(t2):
             try:
                 t2 = factories.array([t2], device=t1.device)
@@ -78,7 +73,7 @@ def __binary_op(operation, t1, t2):
             except (ValueError, TypeError):
                 raise TypeError("Data type not supported, input was {}".format(type(t2)))
 
-        elif isinstance(t2, dndarray.DNDarray):
+        elif isinstance(t2, DNDarray):
             if t1.split is None:
                 t1 = factories.array(
                     t1,
@@ -165,12 +160,12 @@ def __binary_op(operation, t1, t2):
     if not isinstance(result, torch.Tensor):
         result = torch.tensor(result)
 
-    return dndarray.DNDarray(
+    return DNDarray(
         result, output_shape, types.heat_type_of(result), output_split, output_device, output_comm
     )
 
 
-def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
+def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out) -> DNDarray:
     """
     Generic wrapper for cumulative operations, i.e. cumsum(), cumprod(). Performs a three-stage cumulative operation. First, a partial
     cumulative operation is performed node-local that is combined into a global cumulative result via an MPI_Op and a final local
@@ -178,7 +173,7 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
 
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         The heat DNDarray on which to perform the cumulative operation
     partial_op: function
         The function performing a partial cumulative operation on the process-local data portion, e.g. cumsum().
@@ -191,15 +186,10 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
         result.
     axis: int
         The axis direction of the cumulative operation
-    dtype: ht.type
+    dtype: types.dtype
         The type of the result tensor.
-    out: ht.DNDarray
+    out: DNDarray, optional
         The explicitly returned output tensor.
-
-    Returns
-    -------
-    result: ht.DNDarray
-        A DNDarray containing the result of the reduction operation
 
     Raises
     ------
@@ -213,9 +203,9 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
         If the split or device parameters do not match the parameters of the input
     """
     # perform sanitation
-    if not isinstance(x, dndarray.DNDarray):
+    if not isinstance(x, DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
-    if out is not None and not isinstance(out, dndarray.DNDarray):
+    if out is not None and not isinstance(out, DNDarray):
         raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
     if axis is None:
@@ -273,29 +263,26 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
     )
 
 
-def __local_op(operation, x, out, no_cast=False, **kwargs):
+def __local_op(operation, x, out, no_cast=False, **kwargs) -> DNDarray:
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
     argument and takes only care of buffer allocation/writing. This function is intended to work on an element-wise bases
-    WARNING: the gshape of the result will be the same as x
 
     Parameters
     ----------
     operation : function
         A function implementing the element-wise local operation, e.g. torch.sqrt
-    x : ht.DNDarray
+    x : DNDarray
         The value for which to compute 'operation'.
     no_cast : bool
         Flag to avoid casting to floats
-    out : ht.DNDarray or None
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided or
         set to None, a fresh tensor is allocated.
 
-    Returns
+    Warning
     -------
-    result : ht.DNDarray
-        A tensor of the same shape as x, containing the result of 'operation' for each element in x. If out was
-        provided, result is a reference to it.
+    The gshape of the result DNDarray will be the same as that of x
 
     Raises
     -------
@@ -303,9 +290,9 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
         If the input is not a tensor or the output is not a tensor or None.
     """
     # perform sanitation
-    if not isinstance(x, dndarray.DNDarray):
+    if not isinstance(x, DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
-    if out is not None and not isinstance(out, dndarray.DNDarray):
+    if out is not None and not isinstance(out, DNDarray):
         raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
     # infer the output type of the tensor
@@ -319,7 +306,7 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
     # no defined output tensor, return a freshly created one
     if out is None:
         result = operation(x._DNDarray__array.type(torch_type), **kwargs)
-        return dndarray.DNDarray(
+        return DNDarray(
             result, x.gshape, types.canonical_heat_type(result.dtype), x.split, x.device, x.comm
         )
 
@@ -341,15 +328,15 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
     return out
 
 
-def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
+def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs) -> DNDarray:
     """
     Generic wrapper for reduction operations, e.g. sum(), prod() etc. Performs a two-stage reduction. First, a partial
     reduction is performed node-local that is combined into a global reduction result via an MPI_Op.
 
     Parameters
     ----------
-    x : ht.DNDarray
-        The heat DNDarray on which to perform the reduction operation
+    x : DNDarray
+        The DNDarray on which to perform the reduction operation
 
     partial_op: function
         The function performing a partial reduction on the process-local data portion, e.g. sum() for implementing a
@@ -363,11 +350,6 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
         those cases where 'x.gshape[x.split] < x.comm.rank', that is, the shape of the distributed tensor is such
         that one or more processes will be left without data.
 
-    Returns
-    -------
-    result: ht.DNDarray
-        A DNDarray containing the result of the reduction operation
-
     Raises
     ------
     TypeError
@@ -376,10 +358,10 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
         If the shape of the optional output parameters does not match the shape of the reduced result
     """
     # perform sanitation
-    if not isinstance(x, dndarray.DNDarray):
+    if not isinstance(x, DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
     out = kwargs.get("out")
-    if out is not None and not isinstance(out, dndarray.DNDarray):
+    if out is not None and not isinstance(out, DNDarray):
         raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
     # no further checking needed, sanitize axis will raise the proper exceptions
@@ -442,7 +424,7 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
 
         return out
 
-    return dndarray.DNDarray(
+    return DNDarray(
         partial,
         output_shape,
         types.canonical_heat_type(tensor_type),

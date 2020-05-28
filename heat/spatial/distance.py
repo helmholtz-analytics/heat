@@ -4,14 +4,15 @@ from mpi4py import MPI
 
 from ..core import factories
 from ..core import types
+from ..core.dndarray import DNDarray
 
 __all__ = ["cdist", "rbf"]
 
 
-def _euclidian(x, y):
+def _euclidian(x, y) -> torch.tensor:
     """
     Helper function to calculate euclidian distance between torch.tensors x and y: sqrt(|x-y|**2)
-    Based on torch.cdist
+    Based on torch.cdist. Returns 2D tensor of size m x n
 
     Parameters
     ----------
@@ -19,19 +20,14 @@ def _euclidian(x, y):
         2D tensor of size m x f
     y : torch.tensor
         2D tensor of size n x f
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
     """
     return torch.cdist(x, y)
 
 
-def _euclidian_fast(x, y):
+def _euclidian_fast(x, y) -> torch.tensor:
     """
     Helper function to calculate euclidian distance between torch.tensors x and y: sqrt(|x-y|**2)
-    Uses quadratic expansion to calculate (x-y)**2
+    Uses quadratic expansion to calculate (x-y)**2. Returns 2D tensor of size m x n
 
     Parameters
     ----------
@@ -39,18 +35,14 @@ def _euclidian_fast(x, y):
         2D tensor of size m x f
     y : torch.tensor
         2D tensor of size n x f
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
     """
     return torch.sqrt(_quadratic_expand(x, y))
 
 
-def _quadratic_expand(x, y):
+def _quadratic_expand(x, y) -> torch.tensor:
     """
     Helper function to calculate quadratic expansion |x-y|**2=|x|**2 + |y|**2 - 2xy
+    Returns 2D tensor of size m x n
 
     Parameters
     ----------
@@ -58,11 +50,6 @@ def _quadratic_expand(x, y):
         2D tensor of size m x f
     y : torch.tensor
         2D tensor of size n x f
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
     """
     x_norm = (x ** 2).sum(1).view(-1, 1)
     y_t = torch.transpose(y, 0, 1)
@@ -72,10 +59,10 @@ def _quadratic_expand(x, y):
     return torch.clamp(dist, 0.0, np.inf)
 
 
-def _gaussian(x, y, sigma=1.0):
+def _gaussian(x, y, sigma=1.0) -> torch.tensor:
     """
     Helper function to calculate gaussian distance between torch.tensors x and y: exp(-(|x-y|**2/2sigma**2)
-    Based on torch.cdist
+    Based on torch.cdist. Returns a 2D tensor of size m x n
 
     Parameters
     ----------
@@ -83,23 +70,19 @@ def _gaussian(x, y, sigma=1.0):
         2D tensor of size m x f
     y : torch.tensor
         2D tensor of size n x f
-    sigma: float, default=1.0
+    sigma: float
         scaling factor for gaussian kernel
 
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
     """
     d2 = _euclidian(x, y) ** 2
     result = torch.exp(-d2 / (2 * sigma * sigma))
     return result
 
 
-def _gaussian_fast(x, y, sigma=1.0):
+def _gaussian_fast(x, y, sigma=1.0) -> torch.tensor:
     """
     Helper function to calculate gaussian distance between torch.tensors x and y: exp(-(|x-y|**2/2sigma**2)
-    Uses quadratic expansion to calculate (x-y)**2
+    Uses quadratic expansion to calculate (x-y)**2. Returns a 2D tensor of size m x n
 
     Parameters
     ----------
@@ -107,13 +90,8 @@ def _gaussian_fast(x, y, sigma=1.0):
         2D tensor of size m x f
     y : torch.tensor
         2D tensor of size n x f
-    sigma: float, default=1.0
+    sigma: float
         scaling factor for gaussian kernel
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
     """
 
     d2 = _quadratic_expand(x, y)
@@ -121,7 +99,20 @@ def _gaussian_fast(x, y, sigma=1.0):
     return result
 
 
-def cdist(X, Y=None, quadratic_expansion=False):
+def cdist(X, Y=None, quadratic_expansion=False) -> torch.tensor:
+    """
+    Calculate euclidian distance between torch.tensors x and y: sqrt(|x-y|**2)
+    Returns 2D tensor of size m x n
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+    quadratic_expansion : bool
+        Whether to use quadratic expansion for sqrt(|x-y|**2) (Might yield speed-up)
+    """
     if quadratic_expansion:
         return _dist(X, Y, _euclidian_fast)
     else:
@@ -129,37 +120,51 @@ def cdist(X, Y=None, quadratic_expansion=False):
 
 
 def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False):
+    """
+    Calculate gaussian distance between torch.tensors x and y: exp(-(|x-y|**2/2sigma**2)
+    Returns 2D tensor of size m x n
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+    sigma: float
+        scaling factor for gaussian kernel
+    quadratic_expansion : bool
+        Whether to use quadratic expansion for sqrt(|x-y|**2) (Might yield speed-up)
+    """
     if quadratic_expansion:
         return _dist(X, Y, lambda x, y: _gaussian_fast(x, y, sigma))
     else:
         return _dist(X, Y, lambda x, y: _gaussian(x, y, sigma))
 
 
-def _dist(X, Y=None, metric=_euclidian):
+def _dist(X, Y=None, metric=_euclidian) -> DNDarray:
     """
-    Pairwise distance caclualation between all elements along axis 0 of X and Y
-    X.split and Y.split can be distributed among axis 0
+    Pairwise distance calculation between all elements along axis 0 of X and Y
+    Returns 2D array of size m x n
+    X.split and Y.split can be distributed among axis 0.
+    - if neither X nor Y is split, result will also be split=None
+    - if X.split == 0, result will be split=0 regardless of Y.split
     The distance matrix is calculated tile-wise with ring communication between the processes
     holding each a piece of X and/or Y.
 
     Parameters
     ----------
-    X : ht.DNDarray
+    X : DNDarray
         2D Array of size m x f
-    Y : ht.DNDarray, optional
+    Y : DNDarray, optional
         2D array of size n x f
         if Y in None, the distances will be calculated between all elements of X
     metric: function
         the distance to be calculated between X and Y
         if metric requires additional arguments, it must be handed over as a lambda function: lambda x, y: metric(x, y, **args)
 
-    Returns
+    Notes
     -------
-    ht.DNDarray
-        2D array of size m x n
-        if neither X nor Y is split, result will also be split=None
-        if X.split == 0, result will be split=0 regardless of Y.split
-        Caution: if X.split=None and Y.split=0, result will be split=1
+    If X.split=None and Y.split=0, result will be split=1
 
     """
 

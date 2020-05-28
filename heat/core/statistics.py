@@ -137,8 +137,8 @@ def argmin(x, axis=None, out=None, **kwargs) -> DNDarray:
         Input array.
     axis : int, optional
         By default, the index is into the flattened tensor, otherwise along the specified axis.
-    out : DNDarray, optional. Issue #100
-        If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
+    out : DNDarray, optional
+        Issue #100 If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
 
 
     Examples
@@ -236,7 +236,7 @@ def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple
     x : DNDarray
         Tensor containing data to be averaged.
 
-    axis : None or int or tuple of ints, optional
+    axis : None or int or Tuple[int,...], optional
         Axis or axes along which to average x.  The default,
         axis=None, will average over all of the elements of the input tensor.
         If axis is negative it counts from the last to the first axis.
@@ -429,7 +429,7 @@ def max(x, axis=None, out=None, keepdim=None) -> DNDarray:
     ----------
     x : .DNDarray
         Input data.
-    axis : None or int or tuple of ints, optional
+    axis : None or int or Tuple[int,...], optional
         Axis or axes along which to operate. By default, flattened input is used.
         If this is a tuple of ints, the maximum is selected over multiple axes,
         instead of a single axis or all the axes as before.
@@ -488,7 +488,7 @@ def maximum(x1, x2, out=None) -> DNDarray:
             The first DNDarray containing the elements to be compared.
     x2: DNDarray
             The second DNDarray containing the elements to be compared.
-    out : DNDarray or None, optional
+    out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated tensor is returned.
 
@@ -623,7 +623,7 @@ def mean(x, axis=None) -> DNDarray:
     x : DNDarray
         Values for which the mean is calculated for.
         The dtype of x must be a float
-    axis : None, int, iterable
+    axis : None or int or iterable
         Axis which the mean is taken in. Default None calculates mean of all data items.
 
     Notes
@@ -786,10 +786,9 @@ def mean(x, axis=None) -> DNDarray:
     )
 
 
-def __merge_moments(m1, m2, bessel=True):
+def __merge_moments(m1, m2, bessel=True) -> Tuple:
     """
     Merge two statistical moments.
-
     If the length of m1/m2 (must be equal) is == 3 then the second moment (variance)
     is merged. This function can be expanded to merge other moments according to Reference 1 as well.
     Note: all tensors/arrays must be either the same size or individual values
@@ -805,10 +804,6 @@ def __merge_moments(m1, m2, bessel=True):
     bessel : bool
         Flag for the use of the bessel correction for the calculation of the variance
 
-    Returns
-    -------
-    merged_moments : tuple
-        a tuple of the merged moments
 
     References
     ----------
@@ -908,7 +903,7 @@ def minimum(x1, x2, out=None) -> DNDarray:
             The first DNDarray containing the elements to be compared.
     x2 : DNDarray
             The second DNDarray containing the elements to be compared.
-    out : DNDarray or None, optional
+    out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated tensor is returned.
 
@@ -1067,27 +1062,23 @@ def mpi_argmin(a, b, _):
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
-def std(x, axis=None, ddof=0, **kwargs):
+def std(x, axis=None, ddof=0, **kwargs) -> DNDarray:
     """
     Calculates and returns the standard deviation of a tensor with the bessel correction.
     If a axis is given, the variance will be taken in that direction.
 
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         Values for which the std is calculated for.
         The dtype of x must be a float
-    axis : None, Int, iterable, defaults to None
+    axis : None or int or iterable
         Axis which the std is taken in. Default None calculates std of all data items.
     ddof : int, optional
         Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
         represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
         Setting ddof > 1 raises a NotImplementedError.
 
-    Returns
-    -------
-    stds : ht.DNDarray
-        The std/s, if split, then split in the same direction as x.
 
     Examples
     --------
@@ -1115,38 +1106,36 @@ def std(x, axis=None, ddof=0, **kwargs):
         return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
-def var(x, axis=None, ddof=0, **kwargs):
+def var(x, axis=None, ddof=0, **kwargs) -> DNDarray:
     """
     Calculates and returns the variance of a tensor. If an axis is given, the variance will be
     taken in that direction.
 
     Parameters
     ----------
-    x : ht.DNDarray
+    x : DNDarray
         Values for which the variance is calculated for.
         The dtype of x must be a float
-    axis : None, Int, iterable, defaults to None
+    axis : None or int or iterable
         Axis which the variance is taken in. Default None calculates variance of all data items.
-    ddof : int, optional (see Notes)
+    ddof : int, optional
         Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
         represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
         Setting ddof > 1 raises a NotImplementedError.
 
     Returns
     -------
-    variances : ht.DNDarray
+    variances : ht.
         The var/s, if split, then split in the same direction as x, if possible. Fpr more
         information on the split semantics see Notes.
 
     Notes
     -----
     Split semantics when axis is an integer:
-        if axis = x.split, then variances.split = None
-        if axis > split, then variances.split = x.split
-        if axis < split, then variances.split = x.split - 1
+    - if axis = x.split, then variances.split = None
+    - if axis > split, then variances.split = x.split
+    - if axis < split, then variances.split = x.split - 1
 
-    Notes on ddof (from numpy)
-    --------------------------
     The variance is the average of the squared deviations from the mean, i.e., var = mean(abs(x - x.mean())**2).
     The mean is normally calculated as x.sum() / N, where N = len(x). If, however, ddof is specified, the divisor
     N - ddof is used instead. In standard statistical practice, ddof=1 provides an unbiased estimator of the
@@ -1191,21 +1180,16 @@ def var(x, axis=None, ddof=0, **kwargs):
         else:
             bessel = bool(ddof)
 
-    def reduce_vars_elementwise(output_shape_i):
+    def reduce_vars_elementwise(output_shape_i) -> DNDarray:
         """
         Function to combine the calculated vars together. This does an element-wise update of the
         calculated vars to merge them together using the merge_vars function. This function operates
-         using x from the var function parameters.
+        using x from the var function parameters.
 
         Parameters
         ----------
         output_shape_i : iterable
             Iterable with the dimensions of the output of the var function.
-
-        Returns
-        -------
-        variances : ht.DNDarray
-            The calculated variances.
         """
 
         if x.lshape[x.split] != 0:

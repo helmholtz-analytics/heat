@@ -4,7 +4,7 @@ import torch
 import warnings
 
 from heat.core import factories
-from .communication import MPI, MPI_WORLD, sanitize_comm
+from .communication import MPI, MPI_WORLD, sanitize_comm, Communication
 from . import devices
 from .stride_tricks import sanitize_axis
 from . import types
@@ -52,11 +52,11 @@ else:
             Path to the HDF5 file to be read.
         dataset : str
             Name of the dataset to be read.
-        dtype : ht.dtype
+        dtype : types.dtype
             Data type of the resulting array; default: ht.float32.
-        split : int, optional
+        split : int or None, optional
             The axis along which the data is distributed among the processing cores.
-        device : None or str, optional
+        device : str, optional
             The device id on which to place the data, defaults to globally set default device.
         comm : Communication, optional
             The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
@@ -242,13 +242,13 @@ else:
             Path to the NetCDF4 file to be read.
         variable : str
             Name of the variable to be read.
-        dtype : ht.dtype
+        dtype : types.dtype
             Data type of the resulting array; default: ht.float32.
-        split : int, optional
+        split : int or None, optional
             The axis along which the data is distributed among the processing cores.
-        comm : ht.Communication, optional
+        comm : Communication, optional
             The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
-        device : None or str, optional
+        device : str, optional
             The device id on which to place the data, defaults to globally set default device.
 
         Raises
@@ -458,16 +458,16 @@ def load_csv(
     sep : str, optional
         The single char or string that separates the values in each row.
         default: ';'
-    dtype : ht.dtype, optional
+    dtype : types.dtype, optional
         Data type of the resulting array;
         default: ht.float32.
     encoding : str, optional
         The type of encoding which will be used to interpret the lines of the csv file as strings.
         default: 'UTF-8'
-    split : None, 0, 1 : optional
+    split : int or None : optional
         Along which axis the resulting tensor should be split.
         Default is None which means each node will have the full tensor.
-    device : None or str, optional
+    device : str, optional
         The device id on which to place the data, defaults to globally set default device.
     comm : Communication, optional
         The communication to use for the data distribution. defaults to MPI_COMM_WORLD.

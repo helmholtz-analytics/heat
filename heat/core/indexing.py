@@ -92,7 +92,7 @@ def where(cond, x=None, y=None) -> DNDarray:
     ----------
     cond : DNDarray
         condition of interest, where true yield x otherwise yield y
-    x : DNDarray, int, or float
+    x : DNDarray or int or float
         Values from which to choose. x, y and condition need to be broadcastable to some shape.
     y : DNDarray or int or float
         Values from which to choose. x, y and condition need to be broadcastable to some shape.

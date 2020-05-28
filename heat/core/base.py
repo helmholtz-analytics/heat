@@ -52,7 +52,6 @@ class BaseEstimator:
     def set_params(self, **params) -> self:
         """
         Set the parameters of this estimator.
-
         The method works on simple estimators as well as on nested objects (such
         as pipelines). The latter have to be nested dictionaries.
 
@@ -60,7 +59,6 @@ class BaseEstimator:
         ----------
         **params : Dict[str, Any]
             Estimator parameters to bet set.
-
         """
         if not params:
             return self
@@ -105,7 +103,6 @@ class ClassificationMixin:
     def fit_predict(self, X, Y) -> DNDarray:
         """
         Fits model and returns classes for each input sample
-
         Convenience method; equivalent to calling fit(X) followed by predict(X).
 
         Args
@@ -151,7 +148,6 @@ class ClusteringMixin:
     def fit_predict(self, X) -> DNDarray:
         """
         Compute clusters and returns the predicted cluster assignment for each sample.
-
         Returns index of the cluster each sample belongs to.
         Convenience method; equivalent to calling fit(X) followed by predict(X).
 
@@ -178,7 +174,6 @@ class RegressionMixin:
         ----------
         X : DNDarray
             Training instances to train on. Shape = (n_samples, n_features)
-
         Y : DNDarray
             Continuous values to fit. Shape = (n_samples,)
 
@@ -188,7 +183,6 @@ class RegressionMixin:
     def fit_predict(self, X, Y) -> DNDarray:
         """
         Fits model and returns regression predictions for each input sample
-
         Convenience method; equivalent to calling fit(X) followed by predict(X).
 
         Args
@@ -252,7 +246,8 @@ def is_clusterer(estimator) -> bool:
 
 
 def is_regressor(estimator) -> bool:
-    """Return True if the given estimator is a regressor, False otherwise.
+    """
+    Return True if the given estimator is a regressor, False otherwise.
 
     Args
     ----------

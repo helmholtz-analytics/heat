@@ -23,8 +23,7 @@ __all__ = [
 
 def arccos(x, out=None) -> DNDarray:
     """
-    Return the trigonometric arccos, element-wise.
-
+    Compute the trigonometric arccos, element-wise.
     Result is a tensor of the same shape as x, containing the trigonometric arccos of each element in this tensor.
     Input elements outside [-1., 1.] are returned as nan. If out was provided, arccos is a reference to it.
 
@@ -46,8 +45,7 @@ def arccos(x, out=None) -> DNDarray:
 
 def arcsin(x, out=None) -> DNDarray:
     """
-    Return the trigonometric arcsin, element-wise.
-
+    Compute the trigonometric arcsin, element-wise.
     Result is a tensor of the same shape as x, containing the trigonometric arcsin of each element in this tensor.
     Input elements outside [-1., 1.] are returned as nan. If out was provided, arcsin is a reference to it.
 
@@ -70,8 +68,7 @@ def arcsin(x, out=None) -> DNDarray:
 
 def arctan(x, out=None) -> DNDarray:
     """
-    Return the trigonometric arctan, element-wise.
-
+    Compute the trigonometric arctan, element-wise.
     Result is a tensor of the same shape as x, containing the trigonometric arctan of each element in this tensor.
     If out was provided, arctan is a reference to it.
 
@@ -95,8 +92,7 @@ def arctan(x, out=None) -> DNDarray:
 
 def cos(x, out=None) -> DNDarray:
     """
-    Return the trigonometric cosine, element-wise.
-
+    Compute the trigonometric cosine, element-wise.
     Result is a tensor of the same shape as x, containing the trigonometric cosine of each element in this tensor.
     Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
@@ -118,8 +114,7 @@ def cos(x, out=None) -> DNDarray:
 
 def cosh(x, out=None) -> DNDarray:
     """
-    Return the hyperbolic cosine, element-wise.
-
+    Compute the hyperbolic cosine, element-wise.
     Result is a tensor of the same shape as x, containing the hyperbolic cosine of each element in this tensor.
     Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
@@ -235,8 +230,7 @@ def radians(x, out=None) -> DNDarray:
 
 def sin(x, out=None) -> DNDarray:
     """
-    Return the trigonometric sine, element-wise.
-
+    Compute the trigonometric sine, element-wise.
     Result is a tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
     Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
@@ -258,8 +252,7 @@ def sin(x, out=None) -> DNDarray:
 
 def sinh(x, out=None) -> DNDarray:
     """
-    Return the hyperbolic sine, element-wise.
-
+    Compute the hyperbolic sine, element-wise.
     Result is a tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
     Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
@@ -282,7 +275,6 @@ def sinh(x, out=None) -> DNDarray:
 def tan(x, out=None) -> DNDarray:
     """
     Compute tangent element-wise.
-
     Result tensor of the same shape as x, containing the trigonometric tangent of each element in this tensor.
     Equivalent to ht.sin(x) / ht.cos(x) element-wise.
 
@@ -304,8 +296,7 @@ def tan(x, out=None) -> DNDarray:
 
 def tanh(x, out=None):
     """
-    Return the hyperbolic tangent, element-wise.
-
+    Compute the hyperbolic tangent, element-wise.
     Result is A tensor of the same shape as x, containing the hyperbolic tangent of each element in this tensor.
 
     Parameters

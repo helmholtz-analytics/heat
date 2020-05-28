@@ -1,38 +1,40 @@
+from typing import Tuple
 import heat as ht
+from heat.core.dndarray import DNDarray
 import torch
 
 
 class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
     """
     Gaussian Naive Bayes (GaussianNB), based on scikit-learn.naive_bayes.GaussianNB.
-
     Can perform online updates to model parameters via method `partial_fit`.
     For details on algorithm used to update feature means and variance online,
     see Chan, Golub, and LeVeque 1983 [1]
 
     Parameters
     ----------
-    priors : ht.tensor of shape (n_classes,)
+    priors : DNDarray
         Prior probabilities of the classes. If specified the priors are not
         adjusted according to the data.
-    var_smoothing : float, optional (default=1e-9)
+        Shape = (n_classes,)
+    var_smoothing : float, optional
         Portion of the largest variance of all features that is added to
         variances for calculation stability.
 
     Attributes
     ----------
-    class_count_ : ht.tensor of shape (n_classes,)
-        number of training samples observed in each class.
-    class_prior_ : ht.tensor of shape (n_classes,)
-        probability of each class.
-    classes_ : ht.tensor of shape (n_classes,)
-        class labels known to the classifier
+    class_count_ : DNDarray
+        number of training samples observed in each class. Shape = (n_classes,)
+    class_prior_ : DNDarray
+        probability of each class. Shape = (n_classes,)
+    classes_ : DNDarray
+        class labels known to the classifier. Shape = (n_classes,)
     epsilon_ : float
         absolute additive value to variances
-    sigma_ : ht.tensor of shape (n_classes, n_features)
-        variance of each feature per class
-    theta_ : ht.tensor of shape (n_classes, n_features)
-        mean of each feature per class
+    sigma_ : DNDarray
+        variance of each feature per class. Shape = (n_classes, n_features)
+    theta_ : DNDarray
+        mean of each feature per class. Shape = (n_classes, n_features)
 
     References
     ----------
@@ -67,17 +69,13 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.tensor of shape (n_samples, n_features)
+        X : DNDarray
             Training set, where n_samples is the number of samples
-            and n_features is the number of features.
-        y : ht.tensor of shape (n_samples,)
-            Labels for training set.
-        sample_weight : ht.tensor of shape (n_samples,), optional (default=None)
-            Weights applied to individual samples (1. for unweighted).
-
-        Returns
-        -------
-        self : object
+            and n_features is the number of features.  Shape = (n_samples, n_features)
+        y : DNDarray
+            Labels for training set. Shape = (n_samples, )
+        sample_weight : DNDarray, optional
+            Weights applied to individual samples (1. for unweighted). Shape = (n_samples, )
         """
         # sanitize input - to be moved to sanitation module, cf. #468
         if not isinstance(X, ht.DNDarray):
@@ -102,7 +100,6 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
     def __check_partial_fit_first_call(self, classes=None):
         """
         Adapted to HeAT from scikit-learn.
-
         Private helper function for factorizing common classes param logic
         Estimators that implement the ``partial_fit`` API need to be provided with
         the list of possible classes at the first call to partial_fit.
@@ -131,10 +128,9 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         return False
 
     @staticmethod
-    def __update_mean_variance(n_past, mu, var, X, sample_weight=None):
+    def __update_mean_variance(n_past, mu, var, X, sample_weight=None) -> Tuple[DNDarray, DNDarray]:
         """
         Adapted to HeAT from scikit-learn.
-
         Compute online update of Gaussian mean and variance.
         Given starting sample count, mean, and variance, a new set of
         points X, and optionally sample weights, return the updated mean and
@@ -150,19 +146,12 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             Number of samples represented in old mean and variance. If sample
             weights were given, this should contain the sum of sample
             weights represented in old mean and variance.
-        mu : ht.tensor of shape (number of Gaussians,)
-            Means for Gaussians in original set.
-        var : ht.tensor of shape (number of Gaussians,)
-            Variances for Gaussians in original set.
-        sample_weight : ht.tensor of shape (n_samples,), optional (default=None)
-            Weights applied to individual samples (1. for unweighted).
-
-        Returns
-        -------
-        total_mu : ht.tensor of shape (number of Gaussians,)
-            Updated mean for each Gaussian over the combined set.
-        total_var : ht.tensor of shape (number of Gaussians,)
-            Updated variance for each Gaussian over the combined set.
+        mu : DNDarray
+            Means for Gaussians in original set. Shape = (number of Gaussians,)
+        var : DNDarray
+            Variances for Gaussians in original set. Shape = (number of Gaussians,)
+        sample_weight : DNDarray, optional
+            Weights applied to individual samples (1. for unweighted). Shape = (n_samples,)
 
         References
         ----------
@@ -203,7 +192,6 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
     def partial_fit(self, X, y, classes=None, sample_weight=None):
         """
         Adapted to HeAT from scikit-learn.
-
         Incremental fit on a batch of samples.
         This method is expected to be called several times consecutively
         on different chunks of a dataset so as to implement out-of-core
@@ -217,21 +205,17 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.tensor of shape (n_samples, n_features)
+        X : DNDarray
             Training set, where n_samples is the number of samples and
-            n_features is the number of features.
-        y : ht.tensor of shape (n_samples,)
-            Labels for training set.
-        classes : ht.tensor of shape (n_classes,), optional (default=None)
+            n_features is the number of features. Shape = (n_samples, n_features)
+        y : DNDarray
+            Labels for training set. Shape = (n_samples,)
+        classes : DNDarray, optional
             List of all the classes that can possibly appear in the y vector.
             Must be provided at the first call to partial_fit, can be omitted
-            in subsequent calls.
-        sample_weight : ht.tensor of shape (n_samples,), optional (default=None)
-            Weights applied to individual samples (1. for unweighted).
-
-        Returns
-        -------
-        self : object
+            in subsequent calls. Shape = (n_classes,)
+        sample_weight : DNDarray, optional
+            Weights applied to individual samples (1. for unweighted). Shape = (n_samples,)
         """
         return self.__partial_fit(X, y, classes, _refit=False, sample_weight=sample_weight)
 
@@ -241,24 +225,20 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.tensor of shape (n_samples, n_features)
+        X : DNDarray
             Training set, where n_samples is the number of samples and
-            n_features is the number of features.
-        y : ht.tensor of shape (n_samples,)
-            Labels for training set.
-        classes : ht.tensor of shape (n_classes,), optional (default=None)
+            n_features is the number of features. Shape = (n_samples, n_features)
+        y : DNDarray
+            Labels for training set. Shape = (n_samples,)
+        classes : DNDarray, optional
             List of all the classes that can possibly appear in the y vector.
             Must be provided at the first call to partial_fit, can be omitted
-            in subsequent calls.
-        _refit : bool, optional (default=False)
+            in subsequent calls. Shape = (n_classes,)
+        _refit : bool, optional
             If true, act as though this were the first time __partial_fit is called
             (ie, throw away any past fitting and start over).
-        sample_weight : ht.tensor of shape (n_samples,), optional (default=None)
-            Weights applied to individual samples (1. for unweighted).
-
-        Returns
-        -------
-        self : object
+        sample_weight : DNDarray, optional
+            Weights applied to individual samples (1. for unweighted). Shape = (n_samples,)
         """
 
         # TODO: sanitize X and y shape: sanitation/validation module, cf. #468
@@ -387,9 +367,8 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
     def __joint_log_likelihood(self, X):
         """
         Adapted to HeAT from scikit-learn.
-
         Calculates joint log-likelihood for n_samples to be assigned to each class.
-        Returns ht.DNDarray joint_log_likelihood(n_samples, n_classes).
+        Returns DNDarray joint_log_likelihood(n_samples, n_classes).
         """
 
         jll_size = self.classes_._DNDarray__array.numel()
@@ -403,41 +382,35 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         return joint_log_likelihood
 
-    def logsumexp(self, a, axis=None, b=None, keepdim=False, return_sign=False):
+    def logsumexp(self, a, axis=None, b=None, keepdim=False, return_sign=False) -> DNDarray:
         """
         Adapted to HeAT from scikit-learn.
-
-        Compute the log of the sum of exponentials of input elements.
+        Compute the log of the sum of exponentials of input elements. The result, ``np.log(np.sum(np.exp(a)))``
+        calculated in a numerically more stable way. If `b` is given then ``np.log(np.sum(b*np.exp(a)))``
+        is returned.
 
         Parameters
         ----------
-        a : ht.tensor
+        a : DNDarray
             Input array.
-        axis : None or int or tuple of ints, optional
+        axis : None or int or Tuple [int,...], optional
             Axis or axes over which the sum is taken. By default `axis` is None,
             and all elements are summed.
         keepdim : bool, optional
             If this is set to True, the axes which are reduced are left in the
             result as dimensions with size one. With this option, the result
             will broadcast correctly against the original array.
-        b : ht.tensor, optional
+        b : DNDarray, optional
             Scaling factor for exp(`a`) must be of the same shape as `a` or
             broadcastable to `a`. These values may be negative in order to
             implement subtraction.
-        #return_sign : bool, optional
+        return_sign : bool, optional
             If this is set to True, the result will be a pair containing sign
             information; if False, results that are negative will be returned
             as NaN. Default is False (no sign information).
             #TODO: returns NotImplementedYet error.
-
-        Returns
-        -------
-        res : ht.tensor
-            The result, ``np.log(np.sum(np.exp(a)))`` calculated in a numerically
-            more stable way. If `b` is given then ``np.log(np.sum(b*np.exp(a)))``
-            is returned.
-        #TODO sgn : ndarray NOT IMPLEMENTED YET
-            If return_sign is True, this will be an array of floating-point
+        sgn : DNDarray, NOT IMPLEMENTED YET
+            #TODO If return_sign is True, this will be an array of floating-point
             numbers matching res and +1, 0, or -1 depending on the sign
             of the result. If False, only one result is returned.
 
@@ -477,20 +450,15 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # else:
         return out
 
-    def predict(self, X):
+    def predict(self, X) -> DNDarray:
         """
         Adapted to HeAT from scikit-learn.
-
         Perform classification on a tensor of test data X.
 
         Parameters
         ----------
-        X : ht.tensor of shape (n_samples, n_features)
-
-        Returns
-        -------
-        C : ht.tensor of shape (n_samples,)
-            Predicted labels for X
+        X : DNDarray
+            Shape = (n_samples, n_features)
         """
         # sanitize input
         # TODO: sanitation/validation module, cf. #468
@@ -499,22 +467,17 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         jll = self.__joint_log_likelihood(X)
         return self.classes_[ht.argmax(jll, axis=1).numpy()]
 
-    def predict_log_proba(self, X):
+    def predict_log_proba(self, X) -> DNDarray:
         """
         Adapted to HeAT from scikit-learn.
-
-        Return log-probability estimates for the test tensor X.
+        Return log-probability estimates of the samples for each class in
+        the model. The columns correspond to the classes in sorted
+        order, as they appear in the attribute `classes_`.
 
         Parameters
         ----------
-        X : ht.tensor of shape (n_samples, n_features)
-
-        Returns
-        -------
-        C : ht.tensor of shape (n_samples, n_classes)
-            Returns the log-probability of the samples for each class in
-            the model. The columns correspond to the classes in sorted
-            order, as they appear in the attribute `classes_`.
+        X : DNDarray
+            Shape = (n_samples, n_features)
         """
         # TODO: sanitation/validation module, cf. #468, log_prob_x must be 2D (cf. np.atleast_2D)
         jll = self.__joint_log_likelihood(X)
@@ -524,21 +487,16 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         log_prob_x._DNDarray__array = self.logsumexp(jll, axis=1)._DNDarray__array.unsqueeze(1)
         return jll - log_prob_x
 
-    def predict_proba(self, X):
+    def predict_proba(self, X) -> DNDarray:
         """
         Adapted to HeAT from scikit-learn.
-
-        Return probability estimates for the test tensor X.
+        Return probability estimates for the test tensor X of the samples for each class in
+        the model. The columns correspond to the classes in sorted
+        order, as they appear in the attribute `classes_`.
 
         Parameters
         ----------
-        X : ht.tensor of shape (n_samples, n_features)
-
-        Returns
-        -------
-        C : ht.tensor of shape (n_samples, n_classes)
-            Returns the probability of the samples for each class in
-            the model. The columns correspond to the classes in sorted
-            order, as they appear in the attribute `classes_`.
+        X : DNDarray
+            Shape = (n_samples, n_features)
         """
         return ht.exp(self.predict_log_proba(X))

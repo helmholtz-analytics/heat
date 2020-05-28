@@ -2,7 +2,7 @@ import collections
 import torch
 from typing import List, Dict, Any, TypeVar, Union, Tuple
 
-from .. import dndarray, tiling
+from ..tiling import SquareDiagTiles, Tiles
 from ..dndarray import DNDarray
 from .. import factories
 
@@ -19,16 +19,13 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False) -> Tuple[DNDarray, D
     ----------
     a : DNDarray
         DNDarray which will be decomposed
-    tiles_per_proc : int, singlt element torch.Tensor
-        optional, default: 1
-        number of tiles per process to operate on
-    calc_q : bool
-        optional, default: True
+    tiles_per_proc : int or torch.Tensor, optional
+        number of tiles per process to operate on,
+    calc_q : bool, optional
         whether or not to calculate Q
         if True, function returns (Q, R)
         if False, function returns (None, R)
-    overwrite_a : bool
-        optional, default: False
+    overwrite_a : bool, optional
         if True, function overwrites the DNDarray a, with R
         if False, a new array will be created for R
 
@@ -94,14 +91,14 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False) -> Tuple[DNDarray, D
     # =============================== Prep work ====================================================
     r = a if overwrite_a else a.copy()
     # r.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
-    r_tiles = tiling.SquareDiagTiles(arr=r, tiles_per_proc=tiles_per_proc)
+    r_tiles = SquareDiagTiles(arr=r, tiles_per_proc=tiles_per_proc)
     tile_columns = r_tiles.tile_columns
     tile_rows = r_tiles.tile_rows
     if calc_q:
         q = factories.eye(
             (r.gshape[0], r.gshape[0]), split=0, dtype=r.dtype, comm=r.comm, device=r.device
         )
-        q_tiles = tiling.SquareDiagTiles(arr=q, tiles_per_proc=tiles_per_proc)
+        q_tiles = SquareDiagTiles(arr=q, tiles_per_proc=tiles_per_proc)
         q_tiles.match_tiles(r_tiles)
     else:
         q, q_tiles = None, None
@@ -179,9 +176,9 @@ def __split0_global_q_dict_set(q_dict_col, col, r_tiles, q_tiles, global_merge_d
         The dictionary of the Q values for a given column, should be given as q_dict[col]
     col : int, single element torch.Tensor
         current column for which Q is being calculated for
-    r_tiles : tiling.SquareDiagTiles
+    r_tiles : SquareDiagTiles
         tiling object for 'r'
-    q_tiles : tiling.SquareDiagTiles
+    q_tiles : SquareDiagTiles
         tiling object for Q0
     global_merge_dict : Dict, optional
         the output of the function will be in this dictionary
@@ -298,7 +295,7 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, col_num, diag_pr, not_complet
 
     Parameters
     ----------
-    r_tiles : tiling.SquareDiagTiles
+    r_tiles : SquareDiagTiles
         tiling object for 'r'
     q_dict : Dict
         dictionary to save the calculated Q matrices to
@@ -463,7 +460,7 @@ def __split0_merge_tile_rows(pr0, pr1, column, rank, r_tiles, diag_process, key,
         the current process of the QR calculation
     rank : int
         the rank of the process
-    r_tiles : ht.tiles.SquareDiagTiles
+    r_tiles : SquareDiagTiles
         tiling object used for getting/setting the tiles required
     diag_process : int
         The rank of the process which has the tile along the diagonal for the given column
@@ -557,7 +554,6 @@ def __split0_send_q_to_diag_pr(
     """
     Sets the values of q_dict_waits with the with *waits* for the values of Q, upper.shape,
     and lower.shape
-
     This function sends the merged Q to the diagonal process. Buffered send it used for sending
     Q. This is needed for the Q calculation when two processes are merged and neither is the diagonal
     process.
@@ -574,7 +570,7 @@ def __split0_send_q_to_diag_pr(
         The communicator used. (Intended as the communication of the DNDarray 'a' given to qr)
     q_dict : Dict
         dictionary containing the Q values calculated for finding R
-    key : string
+    key : str
         key for q_dict[col] which corresponds to the Q to send
     q_dict_waits : Dict
         Dictionary used in the collection of the Qs which are sent to the diagonal process
@@ -612,19 +608,18 @@ def __split0_send_q_to_diag_pr(
 def __split0_q_loop(col, r_tiles, proc_tile_start, active_procs, q0_tiles, q_dict, q_dict_waits):
     """
     Function for Calculating Q for split=0 for QR. col is the index of the tile column.
-
     The assumption here is that the diagonal tile is (col, col).
 
     Parameters
     ----------
     col : int
         current column for which to calculate Q
-    t_tiles : ht.Tiles
+    t_tiles : SquareDiagTiles
     proc_tile_start : torch.Tensor
         Tensor containing the row tile start indices for each process
     active_procs : torch.Tensor
         Tensor containing the ranks of processes with have data
-    q0_tiles : ht.Tiles
+    q0_tiles : SquareDiagTiles
     q_dict : Dictionary
         Dictionary created in the split=0 R calculation containing all of the Q matrices found
         transforming the matrix to upper triangular for each column. The keys of this dictionary are
@@ -804,12 +799,12 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
     ----------
     dcol : int
         column of the diagonal process
-    r_tiles : tiling.SquareDiagTiles
+    r_tiles : SquareDiagTiles
         input matrix tiles to QR,
         if copy is true in QR then it is a copy of the data, else it is the same as the input
-    q0_tiles : tiling.SquareDiagTiles
+    q0_tiles : SquareDiagTiles
         the Q matrix tiles as created in the QR function.
-    calc_q : Boolean
+    calc_q : bool
         Flag for weather to calculate Q or not, if False, then Q=None
 
     """

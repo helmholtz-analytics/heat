@@ -1,10 +1,12 @@
 import numpy as np
 import time
 import torch
+from typing import Tuple
 
 from . import communication
+from .communication import Communication
 from . import devices
-from . import dndarray
+from .dndarray import DNDarray
 from . import stride_tricks
 from . import types
 
@@ -20,16 +22,20 @@ __INT64_TO_FLOAT64 = 1.0 / 9007199254740992.0
 __KUNDU_INVERSE = 1.0 / 0.3807
 
 
-def __counter_sequence(shape, dtype, split, device, comm):
+def __counter_sequence(
+    shape, dtype, split, device, comm
+) -> Tuple[torch.tensor, torch.tensor, Tuple[int, ...], slice]:
     """
     Generates a sequence of numbers to be used as the "clear text" for the threefry encryption, i.e. the pseudo random
     number generator. Due to the fact that threefry always requires pairs of inputs, the input sequence may not just be
     a simple range including the global offset, but rather needs to be to independent vectors, one containing the range
     and the other having the interleaved high-bits counter in it.
+    Returns the high-bits and low-bits vectors for the threefry encryption (torch.tensor), the shape x_0 and x_1 and
+    the slice that needs to be applied to the resulting random number tensor.
 
     Parameters
     ----------
-    shape : tuple of ints
+    shape : Tuple[int,...]
         The global shape of the random tensor to be generated.
     dtype : torch.dtype
         The data type of the elements to be generated. Needs to be either torch.int32 or torch.int64.
@@ -37,20 +43,8 @@ def __counter_sequence(shape, dtype, split, device, comm):
         The split axis along which the random number tensor is split
     device : 'str'
         Specifies the device the tensor shall be allocated on.
-    comm: ht.Communication
+    comm: Communication
         Handle to the nodes holding distributed parts or copies of this tensor.
-
-    Returns
-    -------
-    x_0 : torch.Tensor
-        The high-bits vector for the threefry encryption.
-    x_1 : torch.Tensor
-        The low-bits vector for the threefry encryption.
-    lshape : tuple of ints
-        The shape x_0 and x_1 need to be reshaped to after encryption. May be slightly larger than the actual local
-        portion of the random number tensor due to sequence overlaps of the counter sequence.
-    slice : python slice
-        The slice that needs to be applied to the resulting random number tensor
     """
     # get the global random state into the function, might want to factor this out into a class later
     global __counter
@@ -158,24 +152,20 @@ def __counter_sequence(shape, dtype, split, device, comm):
     return x_0, x_1, lshape, lslice
 
 
-def get_state():
+def get_state() -> Tuple[str, int, int, int, float]:
     """
     Return a tuple representing the internal state of the generator.
-
-    Returns
-    -------
-    out : tuple(str, int, int, int, float)
-        The returned tuple has the following items:
-            1. the string ‘Threefry’,
-            2. the Threefry key value, aka seed,
-            3. the internal counter value,
-            4. an integer has_gauss, always set to 0 (present for compatibility with numpy) and
-            5. a float cached_gaussian, always set to 0.0 (present for compatibility with numpy).
+    The returned tuple has the following items:
+    1. the string ‘Threefry’,
+    2. the Threefry key value, aka seed,
+    3. the internal counter value,
+    4. an integer has_gauss, always set to 0 (present for compatibility with numpy) and
+    5. a float cached_gaussian, always set to 0.0 (present for compatibility with numpy).
     """
     return "Threefry", __seed, __counter, 0, 0.0
 
 
-def __int32_to_float32(values):
+def __int32_to_float32(values) -> torch.Tensor:
     """
     Converts a tensor of 32-bit (random) numbers to matching single-precision floating point numbers (equally 32-bit) in
     the bounded interval [0.0, 1.0). Extracts the 23 least-significant bits of the integers (0x7fffff) and sets them to
@@ -185,16 +175,11 @@ def __int32_to_float32(values):
     ----------
     values : torch.Tensor (int32)
         Values to be converted to floating points numbers in interval [0.0, 1.0).
-
-    Returns
-    -------
-    floats : torch.Tensor (float32)
-        Corresponding single-precision floating point numbers.
     """
     return (values & 0x7FFFFF).type(torch.float32) * __INT32_TO_FLOAT32
 
 
-def __int64_to_float64(values):
+def __int64_to_float64(values) -> torch.Tensor:
     """
     Converts a tensor of 64-bit (random) numbers to matching double-precision floating point numbers (equally 64-bit) in
     the bounded interval [0.0, 1.0). Extracts the 53 least-significant bits of the integers (0x1fffffffffffff) and sets
@@ -204,16 +189,11 @@ def __int64_to_float64(values):
     ----------
     values : torch.Tensor (int64)
         Values to be converted to floating points numbers in interval [0.0, 1.0).
-
-    Returns
-    -------
-    floats : torch.Tensor (float64)
-        Corresponding single-precision floating point numbers.
     """
     return (values & 0x1FFFFFFFFFFFFF).type(torch.float64) * __INT64_TO_FLOAT64
 
 
-def __kundu_transform(values):
+def __kundu_transform(values) -> torch.Tensor:
     """
     Transforms uniformly distributed floating point random values in the interval [0.0, 1.0) into normal distributed
     floating point random values with mean 0.0 and standard deviation 1.0. The algorithm makes use of the generalized
@@ -224,12 +204,6 @@ def __kundu_transform(values):
     values : torch.Tensor
         A tensor containing uniformly distributed floating point values in the interval [0.0, 1.0).
 
-    Returns
-    -------
-    normal_values : torch.Tensor
-        A tensor containing the equivalent normally distributed floating point values with mean of 0.0 and standard
-        deviation of 1.0.
-
     References
     ----------
     [1] Boiroju, N. K. and Reddy, K. M., "Generation of Standard Normal Random Numbers", Interstat, vol 5., 2012.
@@ -237,30 +211,25 @@ def __kundu_transform(values):
     return (torch.log(-torch.log(1 - values ** 0.0775)) - 1.0821) * __KUNDU_INVERSE
 
 
-def rand(*args, dtype=types.float32, split=None, device=None, comm=None):
+def rand(*args, dtype=types.float32, split=None, device=None, comm=None) -> DNDarray:
     """
     Random values in a given shape.
-
     Create a tensor of the given shape and populate it with random samples from a uniform distribution over [0, 1).
 
     Parameters
     ----------
-    d0, d1, …, dn : int, optional
+    d0, d1, …, dn : Tuple[int,...], optional
         The dimensions of the returned array, should all be positive. If no argument is given a single random samples is
         generated.
-    dtype: ht.types, optional
+    dtype: types.dtype, optional
         The datatype of the returned values. Has to be one of [ht.float32, ht.float64]. Default is ht.float32.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
-    device : str or None, optional
+    device : str, optional
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
-    Returns
-    -------
-    out : ht.dndarray, shape (d0, d1, ..., dn)
-        The uniformly distributed [0.0, 1.0)-bound random values.
     """
     # if args are not set, generate a single sample
     if not args:
@@ -297,13 +266,12 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None):
         # Unsupported type
         raise ValueError("dtype is none of ht.float32 or ht.float64 but was {}".format(dtype))
 
-    return dndarray.DNDarray(values, shape, dtype, split, device, comm)
+    return DNDarray(values, shape, dtype, split, device, comm)
 
 
-def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm=None):
+def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm=None) -> DNDarray:
     """
     Random values in a given shape.
-
     Create a tensor of the given shape and populate it with random integer samples from a uniform distribution over
     [low, high) or [0, low) if high is not provided.
 
@@ -314,22 +282,17 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
         above the highest such integer).
     high : int, optional
         If provided, one above the largest (signed) integer to be drawn from the distribution (see above for behavior if high=None).
-    size : int or tuple of ints, optional
+    size : int or Tuple[int,...], optional
         Output shape. If the given shape is, e.g., (m, n, k), then m * n * k samples are drawn. Default is None, in
         which case a single value is returned.
-    dtype : dtype, optional
+    dtype : types.dtype, optional
         Desired dtype of the result. Must be an integer type. Defaults to ht.int64.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
-    device : str or None, optional
+    device : str, optional
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
-
-    Returns
-    -------
-    out : ht.dndarray, shape (d0, d1, ..., dn)
-        The uniformly distributed [0.0, 1.0)-bound random values.
     """
     # determine range bounds
     if high is None:
@@ -371,30 +334,25 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     # ATTENTION: this is biased and known, bias-free rejection sampling is difficult to do in parallel
     values = (values.abs_() % span) + low
 
-    return dndarray.DNDarray(values, shape, dtype, split, device, comm)
+    return DNDarray(values, shape, dtype, split, device, comm)
 
 
-def randn(*args, dtype=types.float32, split=None, device=None, comm=None):
+def randn(*args, dtype=types.float32, split=None, device=None, comm=None) -> DNDarray:
     """
     Returns a tensor filled with random numbers from a standard normal distribution with zero mean and variance of one.
 
     Parameters
     ----------
-    d0, d1, …, dn : int, optional
+    d0, d1, …, dn : Tuple[int,...], optional
         The dimensions of the returned array, should be all positive.
-    dtype: ht.types, optional
+    dtype: types.dtype, optional
         The datatype of the returned values. Has to be one of [ht.float32, ht.float64]. Default is ht.float32.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
-    device : str or None, optional
+    device : str, optional
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
-
-    Returns
-    -------
-    out : ht.dndarray, shape (d0, d1, ..., dn)
-        The normal distributed random values.
 
     Raises
     -------
@@ -443,16 +401,16 @@ def seed(seed=None):
 def set_state(state):
     """
     Set the internal state of the generator from a tuple.
+    The tuple has the following items:
+    1. the string ‘Threefry’,
+    2. the Threefry key value, aka seed,
+    3. the internal counter value,
+    4. an integer has_gauss, ignored (present for compatibility with numpy), optional and
+    5. a float cached_gaussian, ignored (present for compatibility with numpy), optional.
 
     Parameters
     ----------
-    state : tuple(str, int, int, int, float)
-        The returned tuple has the following items:
-            1. the string ‘Threefry’,
-            2. the Threefry key value, aka seed,
-            3. the internal counter value,
-            4. an integer has_gauss, ignored (present for compatibility with numpy), optional and
-            5. a float cached_gaussian, ignored (present for compatibility with numpy), optional.
+    state : Tuple[str, int, int, int, float]
 
     Raises
     ------
@@ -472,10 +430,10 @@ def set_state(state):
     __counter = int(state[2])
 
 
-def __threefry32(X_0, X_1):
+def __threefry32(X_0, X_1) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. This is the
-    32-bit version.
+    Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. Returns
+    Two vectors with num_samples / 2 (rounded-up) pseudo random numbers. This is the 32-bit version.
 
     Parameters
     ----------
@@ -483,11 +441,6 @@ def __threefry32(X_0, X_1):
         Upper bits of the to be encoded random sequence
     X_1 : torch.Tensor
         Lower bits of the to be encoded random sequence
-
-    Returns
-    -------
-    random_numbers : tuple(torch.Tensor (int32))
-        Two vectors with num_samples / 2 (rounded-up) pseudo random numbers.
 
     References
     ----------
@@ -565,10 +518,10 @@ def __threefry32(X_0, X_1):
     return X_0, X_1
 
 
-def __threefry64(X_0, X_1):
+def __threefry64(X_0, X_1) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. This is the
-    64-bit version.
+    Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1].
+    Returns two vectors with num_samples / 2 (rounded-up) pseudo random numbers. This is the 64-bit version.
 
     Parameters
     ----------
@@ -576,11 +529,6 @@ def __threefry64(X_0, X_1):
         Upper bits of the to be encoded random sequence
     X_1 : torch.Tensor
         Lower bits of the to be encoded random sequence
-
-    Returns
-    -------
-    random_numbers : tuple(torch.Tensor (int64))
-        Two vectors with num_samples / 2 (rounded-up) pseudo random numbers.
 
     References
     ----------

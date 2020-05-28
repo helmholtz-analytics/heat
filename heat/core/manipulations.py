@@ -1,10 +1,11 @@
 import numpy as np
 import torch
 import warnings
+from typing import List, Dict, Any, TypeVar, Union, Tuple, Sequence
 
 from .communication import MPI
 
-from . import dndarray
+from .dndarray import DNDarray
 from . import factories
 from . import stride_tricks
 from . import tiling
@@ -29,21 +30,16 @@ __all__ = [
 ]
 
 
-def concatenate(arrays, axis=0):
+def concatenate(arrays, axis=0) -> DNDarray:
     """
     Join 2 arrays along an existing axis.
 
     Parameters
     ----------
-    arrays: tuple of 2 DNDarrays
+    arrays: Tuple[DNDarray, DNDarray]
         The arrays must have the same shape, except in the dimension corresponding to axis (the first, by default).
     axis: int, optional
         The axis along which the arrays will be joined. Default is 0.
-
-    Returns
-    -------
-    res: DNDarray
-        The concatenated DNDarray
 
     Raises
     ------
@@ -121,7 +117,7 @@ def concatenate(arrays, axis=0):
     arr0, arr1 = arrays[0], arrays[1]
 
     # input sanitation
-    if not isinstance(arr0, dndarray.DNDarray) or not isinstance(arr1, dndarray.DNDarray):
+    if not isinstance(arr0, DNDarray) or not isinstance(arr1, DNDarray):
         raise TypeError("Both arrays must be DNDarrays")
     if not isinstance(axis, int):
         raise TypeError("axis must be an integer, currently: {}".format(type(axis)))
@@ -376,25 +372,20 @@ def concatenate(arrays, axis=0):
             return out
 
 
-def diag(a, offset=0):
+def diag(a, offset=0) -> DNDarray:
     """
     Extract a diagonal or construct a diagonal array.
     See the documentation for `heat.diagonal` for more information about extracting the diagonal.
 
     Parameters
     ----------
-    a: ht.DNDarray
+    a: DNDarray
         The array holding data for creating a diagonal array or extracting a diagonal.
         If a is a 1-dimensional array a diagonal 2d-array will be returned.
         If a is a n-dimensional array with n > 1 the diagonal entries will be returned in an n-1 dimensional array.
     offset: int, optional
         The offset from the main diagonal.
         Offset greater than zero means above the main diagonal, smaller than zero is below the main diagonal.
-
-    Returns
-    -------
-    res: ht.DNDarray
-        The extracted diagonal or the constructed diagonal array
 
     Examples
     --------
@@ -421,7 +412,7 @@ def diag(a, offset=0):
         raise ValueError("input array must be of dimension 1 or greater")
     if not isinstance(offset, int):
         raise ValueError("offset must be an integer, got", type(offset))
-    if not isinstance(a, dndarray.DNDarray):
+    if not isinstance(a, DNDarray):
         raise ValueError("a must be a DNDarray, got", type(a))
 
     # 1-dimensional array, must be extended to a square diagonal matrix
@@ -454,14 +445,14 @@ def diag(a, offset=0):
     return factories.array(local, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
 
 
-def diagonal(a, offset=0, dim1=0, dim2=1):
+def diagonal(a, offset=0, dim1=0, dim2=1) -> DNDarray:
     """
     Extract a diagonal of an n-dimensional array with n > 1.
     The returned array will be of dimension n-1.
 
     Parameters
     ----------
-    a: ht.DNDarray
+    a: DNDarray
         The array of which the diagonal should be extracted.
     offset: int, optional
         The offset from the main diagonal.
@@ -473,10 +464,6 @@ def diagonal(a, offset=0, dim1=0, dim2=1):
     dim2: int, optional
         Second dimension with respect to which to take the diagonal.
         Default is 1.
-    Returns
-    -------
-    res: ht.DNDarray
-        An array holding the extracted diagonal.
 
     Examples
     --------
@@ -504,7 +491,7 @@ def diagonal(a, offset=0, dim1=0, dim2=1):
 
     if dim1 == dim2:
         raise ValueError("Dim1 and dim2 need to be different")
-    if not isinstance(a, dndarray.DNDarray):
+    if not isinstance(a, DNDarray):
         raise ValueError("a must be a DNDarray, got", type(a))
     if not isinstance(offset, int):
         raise ValueError("offset must be an integer, got", type(offset))
@@ -538,23 +525,17 @@ def diagonal(a, offset=0, dim1=0, dim2=1):
     return factories.array(result, dtype=a.dtype, is_split=split, device=a.device, comm=a.comm)
 
 
-def expand_dims(a, axis):
+def expand_dims(a, axis) -> DNDarray:
     """
     Expand the shape of an array.
-
     Insert a new axis that will appear at the axis position in the expanded array shape.
 
     Parameters
     ----------
-    a : ht.DNDarray
+    a : DNDarray
         Input array to be expanded.
     axis : int
         Position in the expanded axes where the new axis is placed.
-
-    Returns
-    -------
-    res : ht.DNDarray
-        Output array. The number of dimensions is one greater than that of the input array.
 
     Raises
     ------
@@ -581,13 +562,13 @@ def expand_dims(a, axis):
     (2, 1)
     """
     # ensure type consistency
-    if not isinstance(a, dndarray.DNDarray):
+    if not isinstance(a, DNDarray):
         raise TypeError("expected ht.DNDarray, but was {}".format(type(a)))
 
     # sanitize axis, introduce arbitrary dummy dimension to model expansion
     axis = stride_tricks.sanitize_axis(a.shape + (1,), axis)
 
-    return dndarray.DNDarray(
+    return DNDarray(
         a._DNDarray__array.unsqueeze(dim=axis),
         a.shape[:axis] + (1,) + a.shape[axis:],
         a.dtype,
@@ -597,19 +578,19 @@ def expand_dims(a, axis):
     )
 
 
-def flatten(a):
+def flatten(a) -> DNDarray:
     """
     Flattens an array into one dimension.
-    WARNING: if a.split > 0, then the array must be resplit.
 
     Parameters
     ----------
     a : DNDarray
         array to collapse
-    Returns
-    -------
-    ret : DNDarray
-        flattened copy
+
+    Warning
+    ----------
+    If a.split > 0, then the array must be resplit.
+
     Examples
     --------
     >>> a = ht.array([[[1,2],[3,4]],[[5,6],[7,8]]])
@@ -640,23 +621,17 @@ def flatten(a):
     return a
 
 
-def flip(a, axis=None):
+def flip(a, axis=None) -> DNDarray:
     """
     Reverse the order of elements in an array along the given axis.
-
     The shape of the array is preserved, but the elements are reordered.
 
     Parameters
     ----------
-    a: ht.DNDarray
+    a: DNDarray
         Input array to be flipped
-    axis: int, tuple
+    axis: int or Tuple[int,...]
         A list of axes to be flipped
-
-    Returns
-    -------
-    res: ht.DNDarray
-        The flipped array.
 
     Examples
     --------
@@ -702,19 +677,14 @@ def flip(a, axis=None):
     return res
 
 
-def flipud(a):
+def flipud(a) -> DNDarray:
     """
         Flip array in the up/down direction.
 
         Parameters
         ----------
-        a: ht.DNDarray
+        a: DNDarray
             Input array to be flipped
-
-        Returns
-        -------
-        res: ht.DNDarray
-            The flipped array.
 
         Examples
         --------
@@ -731,7 +701,7 @@ def flipud(a):
     return flip(a, 0)
 
 
-def hstack(tup):
+def hstack(tup) -> DNDarray:
     """
     Stack arrays in sequence horizontally (column wise).
     This is equivalent to concatenation along the second axis, except for 1-D
@@ -740,13 +710,9 @@ def hstack(tup):
 
     Parameters
     ----------
-    tup : sequence of DNDarrays
+    tup : Sequence[DNDarrays,...]
         The arrays must have the same shape along all but the second axis,
         except 1-D arrays which can be any length.
-    Returns
-    -------
-    stacked : DNDarray
-        The array formed by stacking the given arrays.
 
     Examples
     --------
@@ -781,24 +747,18 @@ def hstack(tup):
     return concatenate(tup, axis=axis)
 
 
-def reshape(a, shape, axis=None):
+def reshape(a, shape, axis=None) -> DNDarray:
     """
     Returns a tensor with the same data and number of elements as a, but with the specified shape.
 
     Parameters
     ----------
-    a : ht.DNDarray
+    a : DNDarray
         The input tensor
-    shape : tuple, list
+    shape : Tuple[int,...]
         Shape of the new tensor
     axis : int, optional
         The new split axis. None denotes same axis
-        Default : None
-
-    Returns
-    -------
-    reshaped : ht.DNDarray
-        The DNDarray with the specified shape
 
     Raises
     ------
@@ -819,7 +779,7 @@ def reshape(a, shape, axis=None):
     (1/2) tensor([[0., 2., 4., 6.]])
     (2/2) tensor([[ 8., 10., 12., 14.]])
     """
-    if not isinstance(a, dndarray.DNDarray):
+    if not isinstance(a, DNDarray):
         raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
     if not isinstance(shape, (list, tuple)):
         raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
@@ -906,18 +866,16 @@ def reshape(a, shape, axis=None):
     return factories.array(data, dtype=a.dtype, is_split=axis, device=a.device, comm=a.comm)
 
 
-def sort(a, axis=None, descending=False, out=None):
+def sort(a, axis=None, descending=False, out=None) -> Tuple[DNDarray, DNDarray]:
     """
     Sorts the elements of the DNDarray a along the given dimension (by default in ascending order) by their value.
-
     The sorting is not stable which means that equal elements in the result may have a different ordering than in the
     original array.
-
     Sorting where `axis == a.split` needs a lot of communication between the processes of MPI.
-
+    Returns a a tuple (values, indices) with the sorted local results and the indices of the elements in the original data
     Parameters
     ----------
-    a : ht.DNDarray
+    a : DNDarray
         Input array to be sorted.
     axis : int, optional
         The dimension to sort along.
@@ -925,16 +883,9 @@ def sort(a, axis=None, descending=False, out=None):
     descending : bool, optional
         If set to true values are sorted in descending order
         Default is false
-    out : ht.DNDarray or None, optional
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    values : ht.DNDarray
-        The sorted local results.
-    indices
-        The indices of the elements in the original data
 
     Raises
     ------
@@ -1165,7 +1116,7 @@ def sort(a, axis=None, descending=False, out=None):
             final_indices[idx] = second_indices[val.item()][idx[1:]]
         final_indices = final_indices.transpose(0, axis)
     return_indices = factories.array(
-        final_indices, dtype=dndarray.types.int32, is_split=a.split, device=a.device, comm=a.comm
+        final_indices, dtype=types.int32, is_split=a.split, device=a.device, comm=a.comm
     )
     if out is not None:
         out._DNDarray__array = final_result
@@ -1177,26 +1128,32 @@ def sort(a, axis=None, descending=False, out=None):
         return tensor, return_indices
 
 
-def squeeze(x, axis=None):
+def squeeze(x, axis=None) -> DNDarray:
     """
     Remove single-dimensional entries from the shape of a tensor.
-
+    Returns she input tensor, but with all or a subset of the dimensions of length 1 removed.
+    Split semantics: see note below.
     Parameters:
     -----------
     x : ht.DNDarray
         Input data.
-
-    axis : None or int or tuple of ints, optional
+    axis : None or int or Tuple[int,...], optional
            Selects a subset of the single-dimensional entries in the shape.
            If axis is None, all single-dimensional entries will be removed from the shape.
            If an axis is selected with shape entry greater than one, a ValueError is raised.
 
-
-    Returns:
-    --------
-    squeezed : ht.DNDarray
-               The input tensor, but with all or a subset of the dimensions of length 1 removed.
-               Split semantics: see note below.
+    Notes:
+    -----
+    Split semantics: a distributed tensor will keep its original split dimension after "squeezing",
+    which, depending on the squeeze axis, may result in a lower numerical 'split' value, as in:
+    >>> x.shape
+    (10, 1, 12, 13)
+    >>> x.split
+    2
+    >>> x.squeeze().shape
+    (10, 12, 13)
+    >>> x.squeeze().split
+    1
 
     Examples:
     ---------
@@ -1227,23 +1184,10 @@ def squeeze(x, axis=None):
     Traceback (most recent call last):
     ...
     ValueError: Dimension along axis 1 is not 1 for shape (1, 3, 1, 5)
-
-    Note:
-    -----
-    Split semantics: a distributed tensor will keep its original split dimension after "squeezing",
-    which, depending on the squeeze axis, may result in a lower numerical 'split' value, as in:
-    >>> x.shape
-    (10, 1, 12, 13)
-    >>> x.split
-    2
-    >>> x.squeeze().shape
-    (10, 12, 13)
-    >>> x.squeeze().split
-    1
     """
 
     # Sanitize input
-    if not isinstance(x, dndarray.DNDarray):
+    if not isinstance(x, DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
     # Sanitize axis
     axis = stride_tricks.sanitize_axis(x.shape, axis)
@@ -1273,39 +1217,29 @@ def squeeze(x, axis=None):
     else:
         split = None
 
-    return dndarray.DNDarray(
-        x_lsqueezed, out_gshape, x.dtype, split=split, device=x.device, comm=x.comm
-    )
+    return DNDarray(x_lsqueezed, out_gshape, x.dtype, split=split, device=x.device, comm=x.comm)
 
 
-def unique(a, sorted=False, return_inverse=False, axis=None):
+def unique(a, sorted=False, return_inverse=False, axis=None) -> Tuple[DNDarray, torch.tensor]:
     """
     Finds and returns the unique elements of an array.
+    If return_inverse is True, the second tensor will hold the list of inverse indices
 
     Works most effective if axis != a.split.
 
     Parameters
     ----------
-    a : ht.DNDarray
+    a : DNDarray
         Input array where unique elements should be found.
     sorted : bool, optional
         Whether the found elements should be sorted before returning as output.
         Warning: sorted is not working if 'axis != None and axis != a.split'
-        Default: False
     return_inverse : bool, optional
         Whether to also return the indices for where elements in the original input ended up in the returned
         unique list.
-        Default: False
     axis : int, optional
         Axis along which unique elements should be found. Default to None, which will return a one dimensional list of
         unique values.
-
-    Returns
-    -------
-    res : ht.DNDarray
-        Output array. The unique elements. Elements are distributed the same way as the input tensor.
-    inverse_indices : torch.tensor (optional)
-        If return_inverse is True, this tensor will hold the list of inverse indices
 
     Examples
     --------
@@ -1489,7 +1423,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     return return_value
 
 
-def resplit(arr, axis=None):
+def resplit(arr, axis=None) -> DNDarray:
     """
     Out-of-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
     nodes as well as the definition of new axis along which the tensor is split without changes to the values.
@@ -1498,15 +1432,10 @@ def resplit(arr, axis=None):
 
     Parameters
     ----------
-    arr : ht.DNDarray
+    arr : DNDarray
         The tensor from which to resplit
-    axis : int, None
+    axis : int or None
         The new split axis, None denotes gathering, an int will set the new split axis
-
-    Returns
-    -------
-    resplit: ht.DNDarray
-        A new tensor that is a copy of 'arr', but split along 'axis'
 
     Examples
     --------
@@ -1584,7 +1513,7 @@ def resplit(arr, axis=None):
     return new_arr
 
 
-def vstack(tup):
+def vstack(tup) -> DNDarray:
     """
     Stack arrays in sequence vertically (row wise).
     This is equivalent to concatenation along the first axis.
@@ -1593,16 +1522,15 @@ def vstack(tup):
     and r/g/b channels (third axis). The functions `concatenate`, `stack` and
     `block` provide more general stacking and concatenation operations.
 
-    NOTE: the split axis will be switched to 1 in the case that both elements are 1D and split=0
     Parameters
     ----------
-    tup : sequence of DNDarrays
+    tup : Tuple[DNDarray,...]
         The arrays must have the same shape along all but the first axis.
         1-D arrays must have the same length.
-    Returns
+
+    Notes
     -------
-    stacked : ndarray
-        The array formed by stacking the given arrays, will be at least 2-D.
+    The split axis will be switched to 1 in the case that both elements are 1D and split=0
 
     Examples
     --------

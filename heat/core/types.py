@@ -272,7 +272,7 @@ __type_mappings = {
 }
 
 
-def canonical_heat_type(a_type):
+def canonical_heat_type(a_type) -> dtype:
     """
     Canonicalize the builtin Python type, type string or HeAT type into a canonical HeAT type.
 
@@ -281,11 +281,6 @@ def canonical_heat_type(a_type):
     a_type : type, str, ht.dtype
         A description for the type. It may be a a Python builtin type, string or an HeAT type already.
         In the three former cases the according mapped type is looked up, in the latter the type is simply returned.
-
-    Returns
-    -------
-    out : ht.dtype
-        The canonical HeAT type.
 
     Raises
     -------
@@ -306,41 +301,31 @@ def canonical_heat_type(a_type):
         raise TypeError("data type {} is not understood".format(a_type))
 
 
-def heat_type_is_exact(ht_dtype):
+def heat_type_is_exact(ht_dtype) -> bool:
     """
-    Check if HeAT type is an exact type, i.e an integer type
+    Check if HeAT type is an exact type, i.e an integer type. True if ht_dtype is an integer, False otherwise
 
     Parameters
     ----------
-    ht_dtype: ht.dtype
+    ht_dtype: dtype
         HeAT type to check
-
-    Returns
-    -------
-    out: bool
-        True if ht_dtype is an integer, False otherwise
     """
     return ht_dtype in _exact
 
 
-def heat_type_is_inexact(ht_dtype):
+def heat_type_is_inexact(ht_dtype) -> bool:
     """
-    Check if HeAT type is an inexact type, i.e floating point type
+    Check if HeAT type is an inexact type, i.e floating point type. True if ht_dtype is a float, False otherwise
 
     Parameters
     ----------
-    ht_dtype: ht.dtype
+    ht_dtype: dtype
         HeAT type to check
-
-    Returns
-    -------
-    out: bool
-        True if ht_dtype is a float, False otherwise
     """
     return ht_dtype in _inexact
 
 
-def heat_type_of(obj):
+def heat_type_of(obj) -> dtype:
     """
     Returns the corresponding HeAT data type of given object, i.e. scalar, array or iterable. Attempts to determine the
     canonical data type based on the following priority list:
@@ -350,13 +335,8 @@ def heat_type_of(obj):
 
     Parameters
     ----------
-    obj : scalar, array, iterable
+    obj : scalar or DNDarray or iterable
         The object for which to infer the type.
-
-    Returns
-    -------
-    out : ht.dtype
-        The object's corresponding HeAT type.
 
     Raises
     -------
@@ -428,28 +408,25 @@ __same_kind = [
 __cast_kinds = ["no", "safe", "same_kind", "unsafe"]
 
 
-def can_cast(from_, to, casting="safe"):
+def can_cast(from_, to, casting="safe") -> bool:
     """
     Returns True if cast between data types can occur according to the casting rule. If from is a scalar or array
     scalar, also returns True if the scalar value can be cast without overflow or truncation to an integer.
 
     Parameters
     ----------
-    from_ : scalar, tensor, type, str, ht.dtype
+    from_ : scalar or DNDarray or dtype or str or type
         Scalar, data type or type specifier to cast from.
-    to : type, str, ht.dtype
+    to : type or str or dtype
         Target type to cast to.
-    casting: str {'no', 'safe', 'same_kind', 'unsafe'}, optional
+    casting: str, optional
+        One of {'no', 'safe', 'same_kind', 'unsafe'}
         Controls the way the cast is evaluated
-            * 'no' the types may not be cast, i.e. they need to be identical
-            * 'safe' allows only casts that can preserve values with complete precision
-            * 'same_kind' safe casts are possible and down_casts within the same type family, e.g. int32 -> int8
-            * 'unsafe' means any conversion can be performed, i.e. this casting is always possible
+        * 'no' the types may not be cast, i.e. they need to be identical
+        * 'safe' allows only casts that can preserve values with complete precision
+        * 'same_kind' safe casts are possible and down_casts within the same type family, e.g. int32 -> int8
+        * 'unsafe' means any conversion can be performed, i.e. this casting is always possible
 
-    Returns
-    -------
-    out : bool
-        True if cast can occur according to the casting rules, False otherwise.
 
     Raises
     -------
@@ -522,22 +499,17 @@ for i, operand_a in enumerate(__type_codes.keys()):
                 break
 
 
-def promote_types(type1, type2):
+def promote_types(type1, type2) -> dtype:
     """
     Returns the data type with the smallest size and smallest scalar kind to which both type1 and type2 may be safely
     cast. This function is symmetric.
 
     Parameters
     ----------
-    type1 : type, str, ht.dtype
+    type1 : type or str or dtype
         type of first operand
-    type2 : type, str, ht.dtype
+    type2 : type or str or dtype
         type of second operand
-
-    Returns
-    -------
-    out : ht.dtype
-        The promoted data type.
 
     Examples
     --------
@@ -568,9 +540,9 @@ class finfo:
         The smallest representable positive number such that
         ``1.0 + eps != 1.0``.  Type of `eps` is an appropriate floating
         point type.
-    max : floating point number of the appropriate type
+    max : float
         The largest representable number.
-    min : floating point number of the appropriate type
+    min : float
         The smallest representable number, typically ``-max``.
     tiny : float
         The smallest positive usable number.  Type of `tiny` is an
@@ -578,7 +550,7 @@ class finfo:
 
     Parameters
     ----------
-    dtype : ht.dtype
+    dtype : dtype
         Kind of floating point data-type about which to get information.
 
     Examples:
@@ -587,7 +559,6 @@ class finfo:
     >>> info = ht.types.finfo(ht.float32)
     >>> info.bits
     32
-
     >>> info.eps
     1.1920928955078125e-07
     """
@@ -617,21 +588,20 @@ class finfo:
 class iinfo:
     """
     iinfo(dtype)
-
     Class describing machine limits (bit representation) of integer types.
 
     Attributes
     ----------
     bits : int
         The number of bits occupied by the type.
-    max : floating point number of the appropriate type
+    max : float
         The largest representable number.
-    min : floating point number of the appropriate type
+    min : float
         The smallest representable number, typically ``-max``.
 
     Parameters
     ----------
-    dtype : ht.dtype
+    dtype : dtype
         Kind of floating point data-type about which to get information.
 
     Examples:

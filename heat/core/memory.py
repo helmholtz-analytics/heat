@@ -1,11 +1,11 @@
 import numpy as np
 import torch
-from . import dndarray
+from .dndarray import DNDarray
 
 __all__ = ["copy", "sanitize_memory_layout"]
 
 
-def copy(a):
+def copy(a) -> DNDarray:
     """
     Return an array copy of the given object.
 
@@ -14,16 +14,10 @@ def copy(a):
     a : ht.DNDarray
         Input data to be copied.
 
-    Returns
-    -------
-    copied : ht.DNDarray
-        A copy of the original
     """
-    if not isinstance(a, dndarray.DNDarray):
+    if not isinstance(a, DNDarray):
         raise TypeError("input needs to be a tensor")
-    return dndarray.DNDarray(
-        a._DNDarray__array.clone(), a.shape, a.dtype, a.split, a.device, a.comm
-    )
+    return DNDarray(a._DNDarray__array.clone(), a.shape, a.dtype, a.split, a.device, a.comm)
 
 
 def sanitize_memory_layout(x, order="C"):

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import torch
 
 from .communication import MPI_WORLD
@@ -9,7 +11,6 @@ __all__ = ["cpu", "get_device", "sanitize_device", "use_device"]
 class Device:
     """
     Implements a compute device.
-
     HeAT can run computations on different compute devices or backends. A device describes the device type and id on
     which said computation should be carried out.
 
@@ -75,32 +76,22 @@ if torch.cuda.device_count() > 0:
     __all__.append("gpu")
 
 
-def get_device():
+def get_device() -> Device:
     """
     Retrieves the currently globally set default device.
-
-    Returns
-    -------
-    defaults device : Device
-        The currently set default device.
     """
     return __default_device
 
 
-def sanitize_device(device):
+def sanitize_device(device) -> Device:
     """
     Sanitizes a device or device identifier, i.e. checks whether it is already an instance of Device or a string with
     known device identifier and maps it to a proper Device.
 
     Parameters
     ----------
-    device : str, Device or None
+    device : str or Device
         The device to be sanitized
-
-    Returns
-    -------
-    sanitized_device : Device
-        The matching Device instance
 
     Raises
     ------
@@ -127,7 +118,7 @@ def use_device(device=None):
 
     Parameters
     ----------
-    device : str, Device or None
+    device : str or Device
         The device to be set
     """
     global __default_device

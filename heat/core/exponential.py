@@ -175,7 +175,7 @@ def sqrt(x, out=None) -> DNDarray:
     ----------
     x : DNDarray
         The value for which to compute the square-roots.
-    out : DNDarray or None, optional
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided or
         set to None, a fresh tensor is allocated.
 

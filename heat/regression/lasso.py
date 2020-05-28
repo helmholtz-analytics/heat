@@ -1,4 +1,5 @@
 import heat as ht
+from heat.core.dndarray import DNDarray
 
 
 class Lasso(ht.RegressionMixin, ht.BaseEstimator):
@@ -19,18 +20,19 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         least square (OLS). For numerical reasons, using ``lam = 0.,`` with the ``Lasso`` object is not advised.
     max_iter : int, optional
         The maximum number of iterations. Default value: 100
-    tol : float, optional. Default value: 1e-8
-        The tolerance for the optimization.
+    tol : float, optional.
+        The tolerance for the optimization. Default value: 1e-8
 
     Attributes
     ----------
-    __theta : array, shape (n_features + 1,), first element is the interception parameter vector w.
-    coef_ : array, shape (n_features,) | (n_targets, n_features)
-        parameter vector (w in the cost function formula)
-    intercept_ : float | array, shape (n_targets,)
-        independent term in decision function.
-    n_iter_ : int or None | array-like, shape (n_targets,)
-        number of iterations run by the coordinate descent solver to reach the specified tolerance.
+    __theta : DNDarray
+        First element is the interception parameter vector w. Shape = (n_features + 1,),
+    coef_ : DNDarray
+        parameter vector (w in the cost function formula). Shape  = (n_targets, n_features)
+    intercept_ : float or DNDarra
+        independent term in decision function. Shape = (n_targets,)
+    n_iter_ : int or None or shape (n_targets,)
+        number of iterations run by the coordinate descent solver to reach the specified tolerance. Shape = (n_targets,)
 
     Examples
     --------
@@ -77,10 +79,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        rho : HeAT tensor, shape (1,)
-            Input model data
-        out : HeAT tensor, shape (1,)
-            Thresholded model data
+        rho : DNDarray
+            Input model data, Shape = (1,)
+        out : DNDarray
+            Thresholded model data, Shape = (1,)
         """
         if rho < -self.__lam:
             return rho + self.__lam
@@ -95,10 +97,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        gt : HeAT tensor, shape (1,)
-            Input model data
-        yest : HeAT tensor, shape (1,)
-            Thresholded model data
+        gt : DNDarray
+            Input model data, Shape = (1,)
+        yest : DNDarray
+            Thresholded model data, Shape = (1,)
         """
         return ht.sqrt((ht.mean((gt - yest) ** 2)))._DNDarray__array.item()
 
@@ -108,10 +110,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : HeAT tensor, shape (n_samples, n_features)
-            Input data.
-        y : HeAT tensor, shape (n_samples,)
-            Labels
+        X : DNDarray
+            Input data, Shape = (n_samples, n_features)
+        y : DNDarray
+            Labels, Shape = (n_samples,)
         """
         # Get number of model parameters
         _, n = X.shape
@@ -164,7 +166,7 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : HeAT tensor, shape (n_samples, n_features)
-            Input data.
+        X : DNDarray
+            Input data, Shape = (n_samples, n_features)
         """
         return X @ self.__theta

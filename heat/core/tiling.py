@@ -1,3 +1,4 @@
+from __future__ import annotations
 import torch
 from typing import List, Tuple
 
@@ -151,19 +152,14 @@ class SplitTiles:
     def tile_dimensions(self):
         return self.__tile_dims
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> torch.Tensor:
         """
-        Getitem function for getting tiles
+        Getitem function for getting tiles. Returns the tile which is specified is returned, but only on the process which it resides
 
         Parameters
         ----------
-        key : int, tuple, slice
+        key : int or Tuple or Slice
             key which identifies the tile/s to get
-
-        Returns
-        -------
-        tile/s : torch.Tensor
-             the tile which is specified is returned, but only on the process which it resides
 
         Examples
         --------
@@ -268,14 +264,10 @@ class SplitTiles:
 
         Parameters
         ----------
-        key : int, tuple, slice
+        key : int or Tuple or slice
             key which identifies the tile/s to get
-        value : int, torch.Tensor
+        value : int or torch.Tensor
             Value to be set on the tile
-
-        Returns
-        -------
-        None
 
         Examples
         --------
@@ -715,7 +707,6 @@ class SquareDiagTiles:
     @property
     def tile_map(self) -> torch.Tensor:
         """
-
         Returns tile_map which contains the sizes of the tiles
         units -> row, column, start index in each direction, process
 
@@ -760,7 +751,6 @@ class SquareDiagTiles:
     def tile_rows_per_process(self) -> List[int, ...]:
         """
         Returns a list containing the number of rows on all processes
-
         """
         return self.__row_per_proc_list
 
@@ -771,7 +761,7 @@ class SquareDiagTiles:
 
         Parameters
         ----------
-        key : int, tuple, list, slice
+        key : int or Tuple or List or slice
             indices to select the tile
             STRIDES ARE NOT ALLOWED, MUST BE GLOBAL INDICES
 
@@ -967,7 +957,7 @@ class SquareDiagTiles:
 
         Parameters
         ----------
-        key : int, slice, tuple, list
+        key : int or slice or Tuple or List
             indices of the tile/s desired
             if the stop index of a slice is larger than the end will be adjusted to the maximum
             allowed

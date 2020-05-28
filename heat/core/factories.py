@@ -53,8 +53,8 @@ def arange(*args, dtype=None, split=None, device=None, comm=None) -> DNDarray:
         out[i]``. The default step size is 1. If `step` is specified as a position argument, `start` must also be given.
     dtype : dtype, optional
         The type of the output array.  If `dtype` is not given, infer the data type from the other input arguments.
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
+    split: int or None, optional
+        The axis along which the array is split and distributed; None means no distribution.
     device : str, optional
         Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
@@ -166,7 +166,7 @@ def array(
     split : int or None, optional
         The axis along which the passed array content obj is split and distributed in memory. Mutually exclusive with
         is_split.
-    is_split : int, optional
+    is_split : int or None, optional
         Specifies the axis along which the local data portions, passed in obj, are split across all machines. Useful for
         interfacing with other HPC code. The shape of the global tensor is automatically inferred. Mutually exclusive
         with split.
@@ -368,9 +368,9 @@ def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order=
     dtype : dtype
         The desired HeAT data type for the array, defaults to ht.float32.
     split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-    device : str, ht.Device or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+        The axis along which the array is split and distributed; None means no distribution.
+    device : str or Device, optional
+        Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
@@ -401,15 +401,15 @@ def empty_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> 
 
     Parameters
     ----------
-    a : object
+    a : DNDarray
         The shape and data-type of 'a' define these same attributes of the returned array.
         Uninitialized tensor with the same shape, type and split axis as 'a' unless overriden.
     dtype : dtype, optional
         Overrides the data type of the result.
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-    device : str, ht.Device or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    split: int or None, optional
+        The axis along which the array is split and distributed; None means no distribution.
+    device : str or Device, optional
+        Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
@@ -439,10 +439,10 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
             In other cases, the first value represents the number rows, the second the number of columns.
     dtype : dtype, optional
             Overrides the data type of the result.
-    split : int, optional
-            The axis along which the tensor is split and distributed, defaults to None (no distribution).
+    split : int or None, optional
+            The axis along which the tensor is split and distributed; None means no distribution.
     device : str or Device, optional
-            Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+            Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm : Communication, optional
             Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
@@ -499,14 +499,14 @@ def __factory(shape, dtype, split, local_factory, device, comm, order) -> DNDarr
     ----------
     shape : int or Sequence[ints,...]
         Desired shape of the output array, e.g. 1 or (1, 2, 3,).
-    dtype : ht.dtype
+    dtype : dtype
         The desired HeAT data type for the array, defaults to ht.float32.
-    split : int
+    split : int or None
         The axis along which the array is split and distributed.
     local_factory : function
         Function that creates the local PyTorch tensor for the HeAT tensor.
-    device : str or None
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    device : str
+        Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication
         Handle to the nodes holding distributed parts or copies of this tensor.
 
@@ -534,14 +534,14 @@ def __factory_like(a, dtype, split, factory, device, comm, order="C", **kwargs) 
     ----------
     a : DNDarray
         The shape and data-type of 'a' define these same attributes of the returned array.
-    dtype : ht.dtype
+    dtype : dtype
         The desired HeAT data type for the array, defaults to ht.float32.
-    split: int, optional
+    split: int or None, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
     factory : function
         Function that creates a HeAT tensor.
-    device : str or None
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    device : str
+        Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
@@ -589,16 +589,16 @@ def full(
 
     Parameters
     ----------
-    shape : int or sequence of ints
+    shape : int or Sequence[int,...]
         Shape of the new array, e.g., (2, 3) or 2.
     fill_value : scalar
         Fill value.
-    dtype : data-type, optional
+    dtype : dtype, optional
         The desired data-type for the array
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-    device : str, ht.Device or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    split: int or None, optional
+        The axis along which the array is split and distributed; None means no distribution.
+    device : str or Device, optional
+        Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
@@ -630,12 +630,12 @@ def full_like(
         The shape and data-type of 'a' define these same attributes of the returned array.
     fill_value : scalar
         Fill value.
-    dtype : ht.dtype, optional
+    dtype : dtype, optional
         Overrides the data type of the result.
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-    device : str, ht.Device or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    split: int or None, optional
+        The axis along which the array is split and distributed; None means no distribution.
+    device : str or Device, optional
+        Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
@@ -667,7 +667,7 @@ def linspace(
     """
     Returns num evenly spaced samples, calculated over the interval [start, stop]. The endpoint of the interval can
     optionally be excluded. There are num equally spaced samples in the closed interval [start, stop] or the half-open interval
-        [start, stop) (depending on whether endpoint is True or False).
+    [start, stop) (depending on whether endpoint is True or False).
 
     Parameters
     ----------
@@ -685,10 +685,10 @@ def linspace(
         If True, return (samples, step), where step is the spacing between samples.
     dtype: dtype, optional
         The type of the output array.
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-    device : str, ht.Device or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    split: int or None, optional
+        The axis along which the array is split and distributed; None means no distribution.
+    device : str or Device, optional
+        Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
@@ -762,13 +762,13 @@ def logspace(
         The base of the log space. The step size between the elements in
         ``ln(samples) / ln(base)`` (or ``log_base(samples)``) is uniform.
         Default is 10.0.
-    dtype : dtype
+    dtype : dtype, optional
         The type of the output array.  If `dtype` is not given, infer the data
         type from the other input arguments.
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-    device : str, ht.Device or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    split: int or None, optional
+        The axis along which the array is split and distributed; None means no distribution.
+    device : str or Device, optional
+        Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
@@ -804,12 +804,12 @@ def ones(shape, dtype=types.float32, split=None, device=None, comm=None, order="
     ----------
     shape : int or Sequence[int,...]
         Desired shape of the output array, e.g. 1 or (1, 2, 3,).
-    dtype : ht.dtype
+    dtype : dtype, optional
         The desired HeAT data type for the array, defaults to ht.float32.
-    split : int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-    device : str, ht.Device or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    split : int or None, optional
+        The axis along which the array is split and distributed; None means no distribution.
+    device : str or Device, optional
+        Specifies the device the tensor shall be allocated on, defaults to  globally set default device.
     comm : Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
@@ -842,12 +842,12 @@ def ones_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> D
     ----------
     a : DNDarray
         The shape and data-type of 'a' define these same attributes of the returned array.
-    dtype : ht.dtype, optional
+    dtype : dtype, optional
         Overrides the data type of the result.
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-    device : str, ht.Device or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    split: int or None, optional
+        The axis along which the array is split and distributed; None means no distribution.
+    device : str or Device, optional
+        Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
@@ -874,12 +874,12 @@ def zeros(shape, dtype=types.float32, split=None, device=None, comm=None, order=
     ----------
     shape : int or Sequence[int,...]
         Desired shape of the output array, e.g. 1 or (1, 2, 3,).
-    dtype : ht.dtype
+    dtype : dtype
         The desired HeAT data type for the array, defaults to ht.float32.
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-    device : str, ht.Device or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    split: int or None, optional
+        The axis along which the array is split and distributed; None means no distribution.
+    device : str or Device, optional
+        Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
@@ -912,12 +912,12 @@ def zeros_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> 
     ----------
     a : DNDarray
         The shape and data-type of 'a' define these same attributes of the returned array.
-    dtype : ht.dtype, optional
+    dtype : dtype, optional
         Overrides the data type of the result.
-    split: int, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
-    device : str, ht.Device or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+    split: int or None, optional
+        The axis along which the array is split and distributed; None means no distribution.
+    device : str or Device, optional
+        Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
