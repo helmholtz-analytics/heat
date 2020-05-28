@@ -5,7 +5,7 @@ from .dndarray import DNDarray
 from . import factories
 from . import operations
 from . import stride_tricks
-from . import types
+from .types import datatype, heat_type_of, heat_type_is_inexact, heat_type_is_exact
 
 
 __all__ = [
@@ -103,10 +103,10 @@ def bitwise_and(t1, t2) -> DNDarray:
     >>> ht.bitwise_and(ht.array([True, True]), ht.array([False, True]))
     tensor([False,  True])
     """
-    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
 
     for dt in dtypes:
-        if types.heat_type_is_inexact(dt):
+        if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__and__, t1, t2)
@@ -146,10 +146,10 @@ def bitwise_or(t1, t2) -> DNDarray:
     >>> ht.bitwise_or(ht.array([True, True]), ht.array([False, True]))
     tensor([ True,  True])
     """
-    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
 
     for dt in dtypes:
-        if types.heat_type_is_inexact(dt):
+        if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__or__, t1, t2)
@@ -183,10 +183,10 @@ def bitwise_xor(t1, t2) -> DNDarray:
     >>> ht.bitwise_xor(ht.array([True, True]), ht.array([False, True]))
     tensor([ True, False])
     """
-    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
 
     for dt in dtypes:
-        if types.heat_type_is_inexact(dt):
+        if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__xor__, t1, t2)
@@ -202,7 +202,7 @@ def cumprod(a, axis, dtype=None, out=None) -> DNDarray:
         Input array.
     axis : int
         Axis along which the cumulative product is computed.
-    dtype : types.dtype, optional
+    dtype : datatype, optional
         Type of the returned array, as well as of the accumulator in which
         the elements are multiplied.  If *dtype* is not specified, it
         defaults to the dtype of `a`, unless `a` has an integer dtype with
@@ -238,7 +238,7 @@ def cumsum(a, axis, dtype=None, out=None) -> DNDarray:
         Input array.
     axis : int
         Axis along which the cumulative sum is computed.
-    dtype : types.dtype, optional
+    dtype : datatype, optional
         Type of the returned array and of the accumulator in which the
         elements are summed.  If `dtype` is not specified, it defaults
         to the dtype of `a`, unless `a` has an integer dtype with a
@@ -467,9 +467,9 @@ def invert(t, out=None) -> DNDarray:
     >>> ht.bitwise_not(ht.array([-1, -2, 3], dtype=ht.int8))
     tensor([ 0,  1, -4], dtype=ht.int8)
     """
-    dt = types.heat_type_of(t)
+    dt = heat_type_of(t)
 
-    if types.heat_type_is_inexact(dt):
+    if heat_type_is_inexact(dt):
         raise TypeError("Operation is not supported for float types")
 
     return operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
@@ -495,10 +495,10 @@ def left_shift(t1, t2) -> DNDarray:
     >>> ht.left_shift(ht.array[1,2,3], 1)
     tensor([2, 4, 6])
     """
-    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
 
     for dt in dtypes:
-        if types.heat_type_is_inexact(dt):
+        if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
@@ -663,10 +663,10 @@ def right_shift(t1, t2) -> DNDarray:
     >>> ht.right_shift(ht.array[1,2,3], 1)
     tensor([0, 1, 1])
     """
-    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
 
     for dt in dtypes:
-        if not types.heat_type_is_exact(dt):
+        if not heat_type_is_exact(dt):
             raise TypeError("Operation is supported for integer types only")
 
     return operations.__binary_op(torch.Tensor.__rshift__, t1, t2)

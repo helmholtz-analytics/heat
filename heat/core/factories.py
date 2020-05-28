@@ -9,7 +9,7 @@ from . import devices
 from .dndarray import DNDarray
 from . import memory
 from . import types
-from .types import dtype
+from .types import datatype
 
 __all__ = [
     "arange",
@@ -26,7 +26,7 @@ __all__ = [
     "zeros",
     "zeros_like",
 ]
-heat_type = dtype
+heat_type = datatype
 
 
 def arange(*args, dtype=None, split=None, device=None, comm=None) -> DNDarray:
@@ -51,7 +51,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=None) -> DNDarray:
     step : scalar, optional
         Spacing between values.  For any output `out`, this is the distance between two adjacent values, ``out[i+1] -
         out[i]``. The default step size is 1. If `step` is specified as a position argument, `start` must also be given.
-    dtype : dtype, optional
+    dtype : datatype, optional
         The type of the output array.  If `dtype` is not given, infer the data type from the other input arguments.
     split: int or None, optional
         The axis along which the array is split and distributed; None means no distribution.
@@ -148,7 +148,7 @@ def array(
     obj : array_like
         A tensor or array, any object exposing the array interface, an object whose __array__ method returns an array,
         or any (nested) sequence.
-    dtype : dtype, optional
+    dtype : datatype, optional
         The desired data-type for the array. If not given, then the type will be determined as the minimum type required
         to hold the objects in the sequence. This argument can only be used to ‘upcast’ the array. For downcasting, use
         the .astype(t) method.
@@ -365,7 +365,7 @@ def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order=
     ----------
     shape : int or Sequence[int,...]
         Desired shape of the output array, e.g. 1 or (1, 2, 3,).
-    dtype : dtype
+    dtype : datatype
         The desired HeAT data type for the array, defaults to ht.float32.
     split: int, optional
         The axis along which the array is split and distributed; None means no distribution.
@@ -404,7 +404,7 @@ def empty_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> 
     a : DNDarray
         The shape and data-type of 'a' define these same attributes of the returned array.
         Uninitialized tensor with the same shape, type and split axis as 'a' unless overriden.
-    dtype : dtype, optional
+    dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
         The axis along which the array is split and distributed; None means no distribution.
@@ -437,7 +437,7 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
     shape : int or Sequence[int,...]
             The shape of the data-type. If only one number is provided, returning tensor will be square with that size.
             In other cases, the first value represents the number rows, the second the number of columns.
-    dtype : dtype, optional
+    dtype : datatype, optional
             Overrides the data type of the result.
     split : int or None, optional
             The axis along which the tensor is split and distributed; None means no distribution.
@@ -499,7 +499,7 @@ def __factory(shape, dtype, split, local_factory, device, comm, order) -> DNDarr
     ----------
     shape : int or Sequence[ints,...]
         Desired shape of the output array, e.g. 1 or (1, 2, 3,).
-    dtype : dtype
+    dtype : datatype
         The desired HeAT data type for the array, defaults to ht.float32.
     split : int or None
         The axis along which the array is split and distributed.
@@ -534,7 +534,7 @@ def __factory_like(a, dtype, split, factory, device, comm, order="C", **kwargs) 
     ----------
     a : DNDarray
         The shape and data-type of 'a' define these same attributes of the returned array.
-    dtype : dtype
+    dtype : datatype
         The desired HeAT data type for the array, defaults to ht.float32.
     split: int or None, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
@@ -593,7 +593,7 @@ def full(
         Shape of the new array, e.g., (2, 3) or 2.
     fill_value : scalar
         Fill value.
-    dtype : dtype, optional
+    dtype : datatype, optional
         The desired data-type for the array
     split: int or None, optional
         The axis along which the array is split and distributed; None means no distribution.
@@ -630,7 +630,7 @@ def full_like(
         The shape and data-type of 'a' define these same attributes of the returned array.
     fill_value : scalar
         Fill value.
-    dtype : dtype, optional
+    dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
         The axis along which the array is split and distributed; None means no distribution.
@@ -762,7 +762,7 @@ def logspace(
         The base of the log space. The step size between the elements in
         ``ln(samples) / ln(base)`` (or ``log_base(samples)``) is uniform.
         Default is 10.0.
-    dtype : dtype, optional
+    dtype : datatype, optional
         The type of the output array.  If `dtype` is not given, infer the data
         type from the other input arguments.
     split: int or None, optional
@@ -804,7 +804,7 @@ def ones(shape, dtype=types.float32, split=None, device=None, comm=None, order="
     ----------
     shape : int or Sequence[int,...]
         Desired shape of the output array, e.g. 1 or (1, 2, 3,).
-    dtype : dtype, optional
+    dtype : datatype, optional
         The desired HeAT data type for the array, defaults to ht.float32.
     split : int or None, optional
         The axis along which the array is split and distributed; None means no distribution.
@@ -842,7 +842,7 @@ def ones_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> D
     ----------
     a : DNDarray
         The shape and data-type of 'a' define these same attributes of the returned array.
-    dtype : dtype, optional
+    dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
         The axis along which the array is split and distributed; None means no distribution.
@@ -874,7 +874,7 @@ def zeros(shape, dtype=types.float32, split=None, device=None, comm=None, order=
     ----------
     shape : int or Sequence[int,...]
         Desired shape of the output array, e.g. 1 or (1, 2, 3,).
-    dtype : dtype
+    dtype : datatype
         The desired HeAT data type for the array, defaults to ht.float32.
     split: int or None, optional
         The axis along which the array is split and distributed; None means no distribution.
@@ -912,7 +912,7 @@ def zeros_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> 
     ----------
     a : DNDarray
         The shape and data-type of 'a' define these same attributes of the returned array.
-    dtype : dtype, optional
+    dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
         The axis along which the array is split and distributed; None means no distribution.

@@ -8,6 +8,7 @@ from . import factories
 from . import stride_tricks
 from .dndarray import DNDarray
 from . import types
+from .types import datatype
 
 __all__ = []
 __BOOLEAN_OPS = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
@@ -186,7 +187,7 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out) -> D
         result.
     axis: int
         The axis direction of the cumulative operation
-    dtype: types.dtype
+    dtype: datatype
         The type of the result tensor.
     out: DNDarray, optional
         The explicitly returned output tensor.

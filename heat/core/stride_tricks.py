@@ -24,13 +24,10 @@ def broadcast_shape(shape_a, shape_b) -> Tuple[int, ...]:
     -------
     >>> broadcast_shape((5,4),(4,))
     (5,4)
-
     >>> broadcast_shape((1,100,1),(10,1,5))
     (10,100,5)
-
     >>> broadcast_shape((8,1,6,1),(7,1,5,))
     (8,7,6,5))
-
     >>> broadcast_shape((2,1),(8,4,3))
     ValueError
     """

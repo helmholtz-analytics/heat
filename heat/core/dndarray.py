@@ -22,6 +22,7 @@ from . import statistics
 from . import tiling
 from . import trigonometrics
 from . import types
+from .types import datatype, canonical_heat_type
 
 from .communication import MPI
 from .stride_tricks import sanitize_axis
@@ -58,7 +59,7 @@ class DNDarray:
         local array elements
     gshape : tuple
         the global shape of the DNDarray
-    dtype : ht.type
+    dtype : datatype
         the datatype of the array
     split : int or None
         The axis on which the DNDarray is divided between processes
@@ -587,7 +588,7 @@ class DNDarray:
             in-place and this tensor is returned
 
         """
-        dtype = types.canonical_heat_type(dtype)
+        dtype = canonical_heat_type(dtype)
         casted_array = self.__array.type(dtype.torch_type())
         if copy:
             return DNDarray(casted_array, self.shape, dtype, self.split, self.device, self.comm)
@@ -2439,7 +2440,7 @@ class DNDarray:
         out : DNDarray, optional
             A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
             If not provided or None, a freshly-allocated array is returned.
-        dtype : type, optional
+        dtype : datatype, optional
             Determines the data type of the output array. The values are cast to this type with potential loss of
             precision.
         decimals: int, optional

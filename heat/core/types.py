@@ -30,7 +30,7 @@ from . import factories
 
 
 __all__ = [
-    "dtype",
+    "datatype",
     "number",
     "integer",
     "signedinteger",
@@ -59,7 +59,7 @@ __all__ = [
 ]
 
 
-class dtype:
+class datatype:
     def __new__(cls, *value, device=None, comm=None):
         torch_type = cls.torch_type()
         if torch_type is NotImplemented:
@@ -107,7 +107,7 @@ class dtype:
         return NotImplemented
 
 
-class bool(dtype):
+class bool(datatype):
     @classmethod
     def torch_type(cls):
         return torch.bool
@@ -117,7 +117,7 @@ class bool(dtype):
         return "u1"
 
 
-class number(dtype):
+class number(datatype):
     pass
 
 
@@ -207,7 +207,7 @@ class float64(floating):
         return "f8"
 
 
-class flexible(dtype):
+class flexible(datatype):
     pass
 
 
@@ -272,7 +272,7 @@ __type_mappings = {
 }
 
 
-def canonical_heat_type(a_type) -> dtype:
+def canonical_heat_type(a_type) -> datatype:
     """
     Canonicalize the builtin Python type, type string or HeAT type into a canonical HeAT type.
 
@@ -289,7 +289,7 @@ def canonical_heat_type(a_type) -> dtype:
     """
     # already a heat type
     try:
-        if issubclass(a_type, dtype):
+        if issubclass(a_type, datatype):
             return a_type
     except TypeError:
         pass
@@ -307,7 +307,7 @@ def heat_type_is_exact(ht_dtype) -> bool:
 
     Parameters
     ----------
-    ht_dtype: dtype
+    ht_dtype: datatype
         HeAT type to check
     """
     return ht_dtype in _exact
@@ -319,13 +319,13 @@ def heat_type_is_inexact(ht_dtype) -> bool:
 
     Parameters
     ----------
-    ht_dtype: dtype
+    ht_dtype: datatype
         HeAT type to check
     """
     return ht_dtype in _inexact
 
 
-def heat_type_of(obj) -> dtype:
+def heat_type_of(obj) -> datatype:
     """
     Returns the corresponding HeAT data type of given object, i.e. scalar, array or iterable. Attempts to determine the
     canonical data type based on the following priority list:
@@ -415,9 +415,9 @@ def can_cast(from_, to, casting="safe") -> bool:
 
     Parameters
     ----------
-    from_ : scalar or DNDarray or dtype or str or type
+    from_ : scalar or DNDarray or datatype or str or type
         Scalar, data type or type specifier to cast from.
-    to : type or str or dtype
+    to : type or str or datatype
         Target type to cast to.
     casting: str, optional
         One of {'no', 'safe', 'same_kind', 'unsafe'}
@@ -499,16 +499,16 @@ for i, operand_a in enumerate(__type_codes.keys()):
                 break
 
 
-def promote_types(type1, type2) -> dtype:
+def promote_types(type1, type2) -> datatype:
     """
     Returns the data type with the smallest size and smallest scalar kind to which both type1 and type2 may be safely
     cast. This function is symmetric.
 
     Parameters
     ----------
-    type1 : type or str or dtype
+    type1 : type or str or datatype
         type of first operand
-    type2 : type or str or dtype
+    type2 : type or str or datatype
         type of second operand
 
     Examples
@@ -550,7 +550,7 @@ class finfo:
 
     Parameters
     ----------
-    dtype : dtype
+    dtype : datatype
         Kind of floating point data-type about which to get information.
 
     Examples:
@@ -601,7 +601,7 @@ class iinfo:
 
     Parameters
     ----------
-    dtype : dtype
+    dtype : datatype
         Kind of floating point data-type about which to get information.
 
     Examples:

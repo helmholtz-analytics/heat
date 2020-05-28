@@ -2,7 +2,7 @@ import torch
 from typing import Tuple
 from . import operations
 from .dndarray import DNDarray
-from . import types
+from .types import datatype
 
 __all__ = ["abs", "absolute", "ceil", "clip", "fabs", "floor", "modf", "round", "trunc"]
 
@@ -18,7 +18,7 @@ def abs(x, out=None, dtype=None) -> DNDarray:
     out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated array is returned.
-    dtype : types.dtype, optional
+    dtype : datatype, optional
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
     """
@@ -45,7 +45,7 @@ def absolute(x, out=None, dtype=None) -> DNDarray:
     out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated array is returned.
-    dtype : types.dtype, optional
+    dtype : datatype, optional
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
     """
@@ -206,7 +206,7 @@ def round(x, decimals=0, out=None, dtype=None) -> DNDarray:
     out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated array is returned.
-    dtype : types.dtype, optional
+    dtype : datatype, optional
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
 
@@ -216,7 +216,7 @@ def round(x, decimals=0, out=None, dtype=None) -> DNDarray:
         tensor([-2., -2., -1., -1., -0.,  0.,  0.,  1.,  1.,  2.])
 
     """
-    if dtype is not None and not issubclass(dtype, types.dtype):
+    if dtype is not None and not issubclass(dtype, datatype):
         raise TypeError("dtype must be a heat data type")
 
     if decimals != 0:

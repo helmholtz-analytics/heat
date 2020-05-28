@@ -9,6 +9,7 @@ from . import devices
 from .stride_tricks import sanitize_axis
 from . import types
 from .dndarray import DNDarray
+from .types import datatype
 
 __VALID_WRITE_MODES = frozenset(["w", "a", "r+"])
 __CSV_EXTENSION = frozenset([".csv"])
@@ -52,7 +53,7 @@ else:
             Path to the HDF5 file to be read.
         dataset : str
             Name of the dataset to be read.
-        dtype : types.dtype
+        dtype : datatype
             Data type of the resulting array; default: ht.float32.
         split : int or None, optional
             The axis along which the data is distributed among the processing cores.
@@ -242,7 +243,7 @@ else:
             Path to the NetCDF4 file to be read.
         variable : str
             Name of the variable to be read.
-        dtype : types.dtype
+        dtype : datatype
             Data type of the resulting array; default: ht.float32.
         split : int or None, optional
             The axis along which the data is distributed among the processing cores.
@@ -458,7 +459,7 @@ def load_csv(
     sep : str, optional
         The single char or string that separates the values in each row.
         default: ';'
-    dtype : types.dtype, optional
+    dtype : datatype, optional
         Data type of the resulting array;
         default: ht.float32.
     encoding : str, optional

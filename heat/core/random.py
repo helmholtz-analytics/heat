@@ -9,6 +9,7 @@ from . import devices
 from .dndarray import DNDarray
 from . import stride_tricks
 from . import types
+from .types import datatype
 
 
 # introduce the global random state variables, will be correctly initialized at the end of file
@@ -221,7 +222,7 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None) -> DNDa
     d0, d1, …, dn : Tuple[int,...], optional
         The dimensions of the returned array, should all be positive. If no argument is given a single random samples is
         generated.
-    dtype: types.dtype, optional
+    dtype: datatype, optional
         The datatype of the returned values. Has to be one of [ht.float32, ht.float64]. Default is ht.float32.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
@@ -285,7 +286,7 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     size : int or Tuple[int,...], optional
         Output shape. If the given shape is, e.g., (m, n, k), then m * n * k samples are drawn. Default is None, in
         which case a single value is returned.
-    dtype : types.dtype, optional
+    dtype : datatype, optional
         Desired dtype of the result. Must be an integer type. Defaults to ht.int64.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
@@ -345,7 +346,7 @@ def randn(*args, dtype=types.float32, split=None, device=None, comm=None) -> DND
     ----------
     d0, d1, …, dn : Tuple[int,...], optional
         The dimensions of the returned array, should be all positive.
-    dtype: types.dtype, optional
+    dtype: datatype, optional
         The datatype of the returned values. Has to be one of [ht.float32, ht.float64]. Default is ht.float32.
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).

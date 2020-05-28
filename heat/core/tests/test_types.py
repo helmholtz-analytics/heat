@@ -20,7 +20,7 @@ if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
 class TestTypes(unittest.TestCase):
     def assert_is_heat_type(self, heat_type):
         self.assertIsInstance(heat_type, type)
-        self.assertTrue(issubclass(heat_type, ht.dtype))
+        self.assertTrue(issubclass(heat_type, ht.datatype))
 
     def assert_non_instantiable_heat_type(self, heat_type):
         self.assert_is_heat_type(heat_type)
@@ -59,7 +59,7 @@ class TestTypes(unittest.TestCase):
             heat_type(ground_truth, ground_truth)
 
     def test_generic(self):
-        self.assert_non_instantiable_heat_type(ht.dtype)
+        self.assert_non_instantiable_heat_type(ht.datatype)
 
     def test_bool(self):
         self.assert_is_instantiable_heat_type(ht.bool, torch.bool)
