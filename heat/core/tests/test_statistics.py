@@ -311,19 +311,19 @@ class TestStatistics(unittest.TestCase):
 
         # check weighted average over all float elements of split 3d tensor, across split axis
         random_volume = ht.array(
-            torch.randn((3, 3, 3), dtype=torch.float64, device=device), is_split=1, device=ht_device
+            torch.randn((3, 3, 3), dtype=torch.float32, device=device), is_split=1, device=ht_device
         )
         size = random_volume.comm.size
         random_weights = ht.array(
-            torch.randn((3 * size,), dtype=torch.float64, device=device), split=0, device=ht_device
+            torch.randn((3 * size,), dtype=torch.float32, device=device), split=0, device=ht_device
         )
         avg_volume = ht.average(random_volume, weights=random_weights, axis=1)
         np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)
         self.assertIsInstance(avg_volume, ht.DNDarray)
         self.assertEqual(avg_volume.shape, (3, 3))
         self.assertEqual(avg_volume.lshape, (3, 3))
-        self.assertEqual(avg_volume.dtype, ht.float64)
-        self.assertEqual(avg_volume._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(avg_volume.dtype, ht.float32)
+        self.assertEqual(avg_volume._DNDarray__array.dtype, torch.float32)
         self.assertEqual(avg_volume.split, None)
         self.assertAlmostEqual(avg_volume.numpy().all(), np_avg_volume.all())
         avg_volume_with_cumwgt = ht.average(
@@ -337,15 +337,15 @@ class TestStatistics(unittest.TestCase):
         # check weighted average over all float elements of split 3d tensor (3d weights)
 
         random_weights_3d = ht.array(
-            torch.randn((3, 3, 3), dtype=torch.float64, device=device), is_split=1, device=ht_device
+            torch.randn((3, 3, 3), dtype=torch.float32, device=device), is_split=1, device=ht_device
         )
         avg_volume = ht.average(random_volume, weights=random_weights_3d, axis=1)
         np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)
         self.assertIsInstance(avg_volume, ht.DNDarray)
         self.assertEqual(avg_volume.shape, (3, 3))
         self.assertEqual(avg_volume.lshape, (3, 3))
-        self.assertEqual(avg_volume.dtype, ht.float64)
-        self.assertEqual(avg_volume._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(avg_volume.dtype, ht.float32)
+        self.assertEqual(avg_volume._DNDarray__array.dtype, torch.float32)
         self.assertEqual(avg_volume.split, None)
         self.assertAlmostEqual(avg_volume.numpy().all(), np_avg_volume.all())
         avg_volume_with_cumwgt = ht.average(
