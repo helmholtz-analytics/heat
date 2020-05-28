@@ -1,4 +1,5 @@
 import heat as ht
+from heat.core.dndarray import DNDarray
 
 
 class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
@@ -9,11 +10,11 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
     ----------
     n_clusters : int
         The number of clusters to form as well as the number of centroids to generate.
-    init : ‘random’ or ‘k-means++’ or ht.dndarray
+    init : ‘random’ or ‘k-means++’ or DNDarray
         Method for initialization, defaults to ‘random’:
         ‘k-means++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
         ‘random’: choose k observations (rows) at random from data for the initial centroids.
-        ht.DNDarray: it should be of shape (n_clusters, n_features) and gives the initial centers.
+        DNDarray: it should be of shape (n_clusters, n_features) and gives the initial centers.
     max_iter : int
         Maximum number of iterations of the k-means algorithm for a single run.
     tol : float
@@ -53,7 +54,7 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
         self._n_iter = None
 
     @property
-    def cluster_centers_(self) -> ht.DNDarray:
+    def cluster_centers_(self) -> DNDarray:
         """
         Returns the coordinates of the cluster centers.
 
@@ -63,7 +64,7 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
         return self._cluster_centers
 
     @property
-    def labels_(self) -> ht.DNDarray:
+    def labels_(self) -> DNDarray:
         """
         Returns the labels of each point
         """
@@ -89,7 +90,7 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.DNDarray
+        X : DNDarray
             The data to initialize the clusters for. Shape = (n_samples, n_features)
         """
         # always initialize the random state
@@ -128,7 +129,7 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
             self._cluster_centers = centroids
 
         # directly passed centroids
-        elif isinstance(self.init, ht.DNDarray):
+        elif isinstance(self.init, DNDarray):
             if len(self.init.shape) != 2:
                 raise ValueError(
                     "passed centroids need to be two-dimensional, but are {}".format(len(self.init))
@@ -199,7 +200,7 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.DNDarray
+        X : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
 
        """
@@ -215,12 +216,12 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.DNDarray
+        X : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
 
         """
         # input sanitation
-        if not isinstance(X, ht.DNDarray):
+        if not isinstance(X, DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
 
         # initialize the clustering
@@ -261,7 +262,7 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
         return self
 
-    def predict(self, X) -> ht.DNDarray:
+    def predict(self, X) -> DNDarray:
         """
         Returns the index of the closest cluster each sample in X belongs to.
 
@@ -270,12 +271,12 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.DNDarray
+        X : DNDarray
             New data to predict. Shape = (n_samples, n_features)
 
         """
         # input sanitation
-        if not isinstance(X, ht.DNDarray):
+        if not isinstance(X, DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
 
         # determine the centroids

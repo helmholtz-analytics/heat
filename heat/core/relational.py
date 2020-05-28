@@ -19,14 +19,13 @@ def eq(t1, t2) -> DNDarray:
     t2: DNDarray or scalar
         The second operand involved in the comparison
 
-    Examples:
+    Examples
     ---------
     >>> import heat as ht
     >>> T1 = ht.float32([[1, 2],[3, 4]])
     >>> ht.eq(T1, 3.0)
     tensor([[0, 0],
             [1, 0]])
-
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.eq(T1, T2)
     tensor([[0, 1],
@@ -47,7 +46,7 @@ def equal(t1, t2) -> bool:
     t2: DNDarray or scalar
         The second operand involved in the comparison
 
-    Examples:
+    Examples
     ---------
     >>> import heat as ht
     >>> T1 = ht.float32([[1, 2],[3, 4]])
@@ -89,7 +88,6 @@ def ge(t1, t2) -> DNDarray:
     >>> ht.ge(T1, 3.0)
     tensor([[0, 0],
             [1, 1]], dtype=torch.uint8)
-
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.ge(T1, T2)
     tensor([[0, 1],
@@ -118,7 +116,6 @@ def gt(t1, t2) -> DNDarray:
     >>> ht.gt(T1, 3.0)
     tensor([[0, 0],
             [0, 1]], dtype=torch.uint8)
-
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.gt(T1, T2)
     tensor([[0, 0],
@@ -147,7 +144,6 @@ def le(t1, t2) -> DNDarray:
     >>> ht.le(T1, 3.0)
     tensor([[1, 1],
             [1, 0]], dtype=torch.uint8)
-
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.le(T1, T2)
     tensor([[1, 1],
@@ -196,14 +192,13 @@ def ne(t1, t2) -> DNDarray:
     t2: DNDarray or scalar
         The second operand involved in the comparison
 
-    Examples:
+    Examples
     ---------
     >>> import heat as ht
     >>> T1 = ht.float32([[1, 2],[3, 4]])
     >>> ht.ne(T1, 3.0)
     tensor([[1, 1],
             [0, 1]])
-
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.ne(T1, T2)
     tensor([[1, 0],

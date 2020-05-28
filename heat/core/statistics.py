@@ -235,7 +235,6 @@ def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple
     ----------
     x : DNDarray
         Tensor containing data to be averaged.
-
     axis : None or int or Tuple[int,...], optional
         Axis or axes along which to average x.  The default,
         axis=None, will average over all of the elements of the input tensor.
@@ -252,7 +251,6 @@ def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple
         the size of x along the given axis) or of the same shape as x.
         If weights=None, then all data in x are assumed to have a
         weight equal to one, the result is equivalent to ht.mean(x).
-
     returned : bool, optional
         Default is False. If True, the tuple (average, sum_of_weights)
         is returned, otherwise only the average is returned.
@@ -263,11 +261,9 @@ def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple
     ------
     ZeroDivisionError
         When all weights along axis are zero.
-
     TypeError
         When the length of 1D weights is not the same as the shape of x
         along axis.
-
 
     Examples
     --------
@@ -427,7 +423,7 @@ def max(x, axis=None, out=None, keepdim=None) -> DNDarray:
 
     Parameters
     ----------
-    x : .DNDarray
+    x : DNDarray
         Input data.
     axis : None or int or Tuple[int,...], optional
         Axis or axes along which to operate. By default, flattened input is used.
@@ -482,50 +478,44 @@ def maximum(x1, x2, out=None) -> DNDarray:
     The latter distinction is important for complex NaNs, which are defined as at least one of the real or
     imaginary parts being a NaN. The net effect is that NaNs are propagated.
 
-    Parameters:
+    Parameters
     -----------
-    x1: DNDarray
+    x1 : DNDarray
             The first DNDarray containing the elements to be compared.
-    x2: DNDarray
+    x2 : DNDarray
             The second DNDarray containing the elements to be compared.
     out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or None, a freshly-allocated tensor is returned.
 
 
-    Examples:
+    Examples
     ---------
     >>> import heat as ht
     >>> import torch
     >>> torch.manual_seed(1)
     <torch._C.Generator object at 0x105c50b50>
-
     >>> a = ht.random.randn(3, 4)
     >>> a
     tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
             [-0.4212, -0.5107, -1.5727, -0.1232],
             [ 3.5870, -1.8313,  1.5987, -1.2770]])
-
     >>> b = ht.random.randn(3, 4)
     >>> b
     tensor([[ 0.8310, -0.2477, -0.8029,  0.2366],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [-0.6842,  0.4533,  0.2912, -0.8317]])
-
     >>> ht.maximum(a, b)
     tensor([[ 0.8310, -0.2477,  0.4224,  0.2673],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [ 3.5870,  0.4533,  1.5987, -0.8317]])
-
     >>> c = ht.random.randn(1, 4)
     >>> c
     tensor([[-1.6428,  0.9803, -0.0421, -0.8206]])
-
     >>> ht.maximum(a, c)
     tensor([[-0.1955,  0.9803,  0.4224,  0.2673],
             [-0.4212,  0.9803, -0.0421, -0.1232],
             [ 3.5870,  0.9803,  1.5987, -0.8206]])
-
     >>> b.__setitem__((0, 1), ht.nan)
     >>> b
     tensor([[ 0.8310,     nan, -0.8029,  0.2366],
@@ -535,7 +525,6 @@ def maximum(x1, x2, out=None) -> DNDarray:
     tensor([[ 0.8310,     nan,  0.4224,  0.2673],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [ 3.5870,  0.4533,  1.5987, -0.8317]])
-
     >>> d = ht.random.randn(3, 4, 5)
     >>> ht.maximum(a, d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
@@ -640,7 +629,6 @@ def mean(x, axis=None) -> DNDarray:
     tensor([[-1.2435,  1.1813,  0.3509]])
     >>> ht.mean(a)
     tensor(0.0962)
-
     >>> a = ht.random.randn(4,4)
     >>> a
     tensor([[ 0.0518,  0.9550,  0.3755,  0.3564],
@@ -651,7 +639,6 @@ def mean(x, axis=None) -> DNDarray:
     tensor([ 0.4347,  0.7307, -0.3922, -0.0716])
     >>> ht.mean(a, 0)
     tensor([-0.2835,  0.6026,  0.4746, -0.0921])
-
     >>> a = ht.random.randn(4,4)
     >>> a
     tensor([[ 2.5893,  1.5934, -0.2870, -0.6637],
@@ -1079,7 +1066,6 @@ def std(x, axis=None, ddof=0, **kwargs) -> DNDarray:
         represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
         Setting ddof > 1 raises a NotImplementedError.
 
-
     Examples
     --------
     >>> a = ht.random.randn(1,3)
@@ -1151,7 +1137,6 @@ def var(x, axis=None, ddof=0, **kwargs) -> DNDarray:
     tensor(1.2710)
     >>> ht.var(a, ddof=1)
     tensor(1.9065)
-
     >>> a = ht.random.randn(4,4)
     >>> a
     tensor([[-0.8665, -2.6848, -0.0215, -1.7363],

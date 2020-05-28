@@ -68,13 +68,10 @@ def sanitize_axis(shape, axis) -> Union[int, Tuple[int, ...]]:
     -------
     >>> sanitize_axis((5,4,4),1)
     1
-
     >>> sanitize_axis((5,4,4),-1)
     2
-
     >>> sanitize_axis((5, 4), (1,))
     (1,)
-
     >>> sanitize_axis((5, 4), 1.0)
     TypeError
     """
@@ -123,10 +120,8 @@ def sanitize_shape(shape) -> Tuple[int, ...]:
     --------
     >>> sanitize_shape(3)
     (3,)
-
     >>> sanitize_shape([1, 2, 3])
     (1, 2, 3,)
-
     >>> sanitize_shape(1.0)
     TypeError
     """

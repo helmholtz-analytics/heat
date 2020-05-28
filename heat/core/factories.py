@@ -3,13 +3,13 @@ import torch
 from typing import Union, Tuple, List, Sequence, TypeVar
 
 from .communication import MPI, sanitize_comm, Communication
-from .devices import Device
 from .stride_tricks import sanitize_axis, sanitize_shape
 from . import devices
-from .dndarray import DNDarray
 from . import memory
 from . import types
+from .dndarray import DNDarray
 from .types import datatype
+from .devices import Device
 
 __all__ = [
     "arange",
@@ -383,10 +383,8 @@ def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order=
     --------
     >>> ht.empty(3)
     tensor([ 0.0000e+00, -2.0000e+00,  3.3113e+35])
-
     >>> ht.empty(3, dtype=ht.int)
     tensor([ 0.0000e+00, -2.0000e+00,  3.3113e+35])
-
     >>> ht.empty((2, 3,))
     tensor([[ 0.0000e+00, -2.0000e+00,  3.3113e+35],
             [ 3.6902e+19,  1.2096e+04,  7.1846e+22]])
@@ -419,7 +417,6 @@ def empty_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> 
     >>> x
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
-
     >>> ht.empty_like(x)
     tensor([[ 0.0000e+00, -2.0000e+00,  3.3113e+35],
             [ 3.6902e+19,  1.2096e+04,  7.1846e+22]])
@@ -457,7 +454,6 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
     >>> ht.eye(2)
     tensor([[1., 0.],
             [0., 1.]])
-
     >>> ht.eye((2, 3), dtype=ht.int32)
     tensor([[1, 0, 0],
             [0, 1, 0]], dtype=torch.int32)
@@ -645,7 +641,6 @@ def full_like(
     >>> x
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
-
     >>> ht.full_like(a, 1.0)
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
@@ -822,10 +817,8 @@ def ones(shape, dtype=types.float32, split=None, device=None, comm=None, order="
     --------
     >>> ht.ones(3)
     tensor([1., 1., 1.])
-
     >>> ht.ones(3, dtype=ht.int)
     tensor([1, 1, 1])
-
     >>> ht.ones((2, 3,))
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
@@ -857,7 +850,6 @@ def ones_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> D
     >>> x
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
-
     >>> ht.ones_like(a)
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
@@ -892,10 +884,8 @@ def zeros(shape, dtype=types.float32, split=None, device=None, comm=None, order=
     --------
     >>> ht.zeros(3)
     tensor([0., 0., 0.])
-
     >>> ht.zeros(3, dtype=ht.int)
     tensor([0, 0, 0])
-
     >>> ht.zeros((2, 3,))
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
@@ -932,7 +922,6 @@ def zeros_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> 
     >>> x
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
-
     >>> ht.zeros_like(x)
     tensor([[0., 0., 0.],
             [0., 0., 0.]])

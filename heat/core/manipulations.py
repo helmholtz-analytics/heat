@@ -67,7 +67,6 @@ def concatenate(arrays, axis=0) -> DNDarray:
     [0/1] tensor([[0., 0., 0., 0., 0., 1., 1., 1., 1., 1., 1.],
     [0/1]         [0., 0., 0., 0., 0., 1., 1., 1., 1., 1., 1.]])
     [1/1] tensor([[0., 0., 0., 0., 0., 1., 1., 1., 1., 1., 1.]])
-
     >>> x = ht.zeros((4, 5), split=1)
     [0/1] tensor([[0., 0., 0.],
     [0/1]         [0., 0., 0.],
@@ -394,12 +393,10 @@ def diag(a, offset=0) -> DNDarray:
     >>> ht.diag(a)
     tensor([[1, 0],
            [0, 2]])
-
     >>> ht.diag(a, offset=1)
     tensor([[0, 1, 0],
            [0, 0, 2],
            [0, 0, 0]])
-
     >>> ht.equal(ht.diag(ht.diag(a)), a)
     True
     >>> a = ht.array([[1, 2], [3, 4]])
@@ -471,18 +468,14 @@ def diagonal(a, offset=0, dim1=0, dim2=1) -> DNDarray:
     >>> a = ht.array([[1, 2], [3, 4]])
     >>> ht.diagonal(a)
     tensor([1, 4])
-
     >>> ht.diagonal(a, offset=1)
     tensor([2])
-
     >>> ht.diagonal(a, offset=-1)
     tensor([3])
-
     >>> a = ht.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
     >>> ht.diagonal(a)
     tensor([[0, 6],
            [1, 7]])
-
     >>> ht.diagonal(a, dim2=2)
     tensor([[0, 5],
            [2, 7]])
@@ -547,13 +540,11 @@ def expand_dims(a, axis) -> DNDarray:
     >>> x = ht.array([1,2])
     >>> x.shape
     (2,)
-
     >>> y = ht.expand_dims(x, axis=0)
     >>> y
     array([[1, 2]])
     >>> y.shape
     (1, 2)
-
     >>> y = ht.expand_dims(x, axis=1)
     >>> y
     array([[1],
@@ -639,7 +630,6 @@ def flip(a, axis=None) -> DNDarray:
     >>> ht.flip(a, [0])
     tensor([[2, 3],
         [0, 1]])
-
     >>> b = ht.array([[0,1,2],[3,4,5]], split=1)
     >>> ht.flip(a, [0,1])
     (1/2) tensor([5,4,3])
@@ -692,7 +682,6 @@ def flipud(a) -> DNDarray:
         >>> ht.flipud(a)
         tensor([[2, 3],
             [0, 1]])
-
         >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
         >>> ht.flipud(b)
         (1/2) tensor([3,4,5])
@@ -773,7 +762,6 @@ def reshape(a, shape, axis=None) -> DNDarray:
             [0,0,0],
             [0,0,0],
             [0,0,0]])
-
     >>> a = ht.linspace(0, 14, 8, split=0)
     >>> ht.reshape(a, (2,4))
     (1/2) tensor([[0., 2., 4., 6.]])
@@ -898,12 +886,10 @@ def sort(a, axis=None, descending=False, out=None) -> Tuple[DNDarray, DNDarray]:
     >>> x.shape
     (1, 2)
     (1, 2)
-
     >>> y = ht.sort(x, axis=0)
     >>> y
     (array([[2, 1]], array([[1, 0]]))
     (array([[4, 3]], array([[0, 1]]))
-
     >>> ht.sort(x, descending=True)
     (array([[4, 1]], array([[0, 1]]))
     (array([[3, 2]], array([[1, 0]]))
@@ -1133,7 +1119,8 @@ def squeeze(x, axis=None) -> DNDarray:
     Remove single-dimensional entries from the shape of a tensor.
     Returns she input tensor, but with all or a subset of the dimensions of length 1 removed.
     Split semantics: see note below.
-    Parameters:
+
+    Parameters
     -----------
     x : ht.DNDarray
         Input data.
@@ -1142,7 +1129,7 @@ def squeeze(x, axis=None) -> DNDarray:
            If axis is None, all single-dimensional entries will be removed from the shape.
            If an axis is selected with shape entry greater than one, a ValueError is raised.
 
-    Notes:
+    Notes
     -----
     Split semantics: a distributed tensor will keep its original split dimension after "squeezing",
     which, depending on the squeeze axis, may result in a lower numerical 'split' value, as in:
@@ -1155,7 +1142,7 @@ def squeeze(x, axis=None) -> DNDarray:
     >>> x.squeeze().split
     1
 
-    Examples:
+    Examples
     ---------
     >>> import heat as ht
     >>> import torch
@@ -1246,11 +1233,9 @@ def unique(a, sorted=False, return_inverse=False, axis=None) -> Tuple[DNDarray, 
     >>> x = ht.array([[3, 2], [1, 3]])
     >>> ht.unique(x, sorted=True)
     array([1, 2, 3])
-
     >>> ht.unique(x, sorted=True, axis=0)
     array([[1, 3],
            [2, 3]])
-
     >>> ht.unique(x, sorted=True, axis=1)
     array([[2, 3],
            [3, 1]])
@@ -1557,7 +1542,6 @@ def vstack(tup) -> DNDarray:
     [1] tensor([[2],
     [1]         [3],
     [1]         [4]])
-
     """
     tup = list(tup)
     for cn, arr in enumerate(tup):

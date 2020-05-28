@@ -161,8 +161,8 @@ def modf(x, out=None) -> Tuple[DNDarray, DNDarray]:
     Examples
     --------
     >>> ht.modf(ht.arange(-2.0, 2.0, 0.4))
-        (tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.]),
-        tensor([ 0.0000, -0.6000, -0.2000, -0.8000, -0.4000,  0.0000,  0.4000,  0.8000, 0.2000,  0.6000]))
+    (tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.]),
+    tensor([ 0.0000, -0.6000, -0.2000, -0.8000, -0.4000,  0.0000,  0.4000,  0.8000, 0.2000,  0.6000]))
     """
     if not isinstance(x, DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
@@ -213,7 +213,7 @@ def round(x, decimals=0, out=None, dtype=None) -> DNDarray:
     Examples
     --------
     >>> ht.round(ht.arange(-2.0, 2.0, 0.4))
-        tensor([-2., -2., -1., -1., -0.,  0.,  0.,  1.,  1.,  2.])
+    tensor([-2., -2., -1., -1., -0.,  0.,  0.,  1.,  1.,  2.])
 
     """
     if dtype is not None and not issubclass(dtype, datatype):

@@ -5,10 +5,11 @@ from typing import Tuple
 
 from . import communication
 from .communication import Communication
-from . import devices
-from .dndarray import DNDarray
 from . import stride_tricks
 from . import types
+from . import devices
+
+from .dndarray import DNDarray
 from .types import datatype
 
 
@@ -166,7 +167,7 @@ def get_state() -> Tuple[str, int, int, int, float]:
     return "Threefry", __seed, __counter, 0, 0.0
 
 
-def __int32_to_float32(values) -> torch.Tensor:
+def __int32_to_float32(values) -> torch.tensor:
     """
     Converts a tensor of 32-bit (random) numbers to matching single-precision floating point numbers (equally 32-bit) in
     the bounded interval [0.0, 1.0). Extracts the 23 least-significant bits of the integers (0x7fffff) and sets them to
@@ -174,13 +175,13 @@ def __int32_to_float32(values) -> torch.Tensor:
 
     Parameters
     ----------
-    values : torch.Tensor (int32)
+    values : torch.tensor (int32)
         Values to be converted to floating points numbers in interval [0.0, 1.0).
     """
     return (values & 0x7FFFFF).type(torch.float32) * __INT32_TO_FLOAT32
 
 
-def __int64_to_float64(values) -> torch.Tensor:
+def __int64_to_float64(values) -> torch.tensor:
     """
     Converts a tensor of 64-bit (random) numbers to matching double-precision floating point numbers (equally 64-bit) in
     the bounded interval [0.0, 1.0). Extracts the 53 least-significant bits of the integers (0x1fffffffffffff) and sets
@@ -188,13 +189,13 @@ def __int64_to_float64(values) -> torch.Tensor:
 
     Parameters
     ----------
-    values : torch.Tensor (int64)
+    values : torch.tensor (int64)
         Values to be converted to floating points numbers in interval [0.0, 1.0).
     """
     return (values & 0x1FFFFFFFFFFFFF).type(torch.float64) * __INT64_TO_FLOAT64
 
 
-def __kundu_transform(values) -> torch.Tensor:
+def __kundu_transform(values) -> torch.tensor:
     """
     Transforms uniformly distributed floating point random values in the interval [0.0, 1.0) into normal distributed
     floating point random values with mean 0.0 and standard deviation 1.0. The algorithm makes use of the generalized
@@ -202,7 +203,7 @@ def __kundu_transform(values) -> torch.Tensor:
 
     Parameters
     ----------
-    values : torch.Tensor
+    values : torch.tensor
         A tensor containing uniformly distributed floating point values in the interval [0.0, 1.0).
 
     References
@@ -366,7 +367,6 @@ def randn(*args, dtype=types.float32, split=None, device=None, comm=None) -> DND
     --------
     >>> ht.randn(3)
     tensor([ 0.1921, -0.9635,  0.5047])
-
     >>> ht.randn(4, 4)
     tensor([[-1.1261,  0.5971,  0.2851,  0.9998],
             [-1.8548, -1.2574,  0.2391, -0.3302],
@@ -431,23 +431,23 @@ def set_state(state):
     __counter = int(state[2])
 
 
-def __threefry32(X_0, X_1) -> Tuple[torch.Tensor, torch.Tensor]:
+def __threefry32(X_0, X_1) -> Tuple[torch.tensor, torch.tensor]:
     """
     Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. Returns
     Two vectors with num_samples / 2 (rounded-up) pseudo random numbers. This is the 32-bit version.
 
     Parameters
     ----------
-    X_0 : torch.Tensor
+    X_0 : torch.tensor
         Upper bits of the to be encoded random sequence
-    X_1 : torch.Tensor
+    X_1 : torch.tensor
         Lower bits of the to be encoded random sequence
 
     References
     ----------
     [1] Salmon, John K., Moraes, Mark A., Dror, Ron O. and Shaw, David E., "Parallel random numbers: as easy as 1, 2, 3"
-        Proceedings of 2011 International Conference for High Performance Computing, Networking, Storage and Analysis,
-        p. 16, 2011
+    Proceedings of 2011 International Conference for High Performance Computing, Networking, Storage and Analysis,
+    p. 16, 2011
     """
     samples = len(X_0)
 
@@ -519,23 +519,23 @@ def __threefry32(X_0, X_1) -> Tuple[torch.Tensor, torch.Tensor]:
     return X_0, X_1
 
 
-def __threefry64(X_0, X_1) -> Tuple[torch.Tensor, torch.Tensor]:
+def __threefry64(X_0, X_1) -> Tuple[torch.tensor, torch.tensor]:
     """
     Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1].
     Returns two vectors with num_samples / 2 (rounded-up) pseudo random numbers. This is the 64-bit version.
 
     Parameters
     ----------
-    X_0 : torch.Tensor
+    X_0 : torch.tensor
         Upper bits of the to be encoded random sequence
-    X_1 : torch.Tensor
+    X_1 : torch.tensor
         Lower bits of the to be encoded random sequence
 
     References
     ----------
     [1] Salmon, John K., Moraes, Mark A., Dror, Ron O. and Shaw, David E., "Parallel random numbers: as easy as 1, 2, 3"
-        Proceedings of 2011 International Conference for High Performance Computing, Networking, Storage and Analysis,
-        p. 16, 2011
+    Proceedings of 2011 International Conference for High Performance Computing, Networking, Storage and Analysis,
+    p. 16, 2011
     """
     samples = len(X_0)
 

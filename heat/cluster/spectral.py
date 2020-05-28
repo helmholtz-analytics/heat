@@ -2,6 +2,7 @@ import heat as ht
 import math
 import torch
 from typing import Tuple
+from heat.core.dndarray import DNDarray
 
 
 class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
@@ -87,13 +88,13 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         self._labels = None
 
     @property
-    def labels_(self) -> ht.DNDarray:
+    def labels_(self) -> DNDarray:
         """
         Returns labels of each point.
         """
         return self._labels
 
-    def _spectral_embedding(self, X) -> Tuple[ht.DNDarray, ht.DNDarray]:
+    def _spectral_embedding(self, X) -> Tuple[DNDarray, DNDarray]:
         """
         Helper function for dataset X embedding
 
@@ -127,11 +128,11 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.DNDarray
+        X : DNDarray
             Training instances to cluster. Shape=(n_samples, n_features)
         """
         # 1. input sanitation
-        if not isinstance(X, ht.DNDarray):
+        if not isinstance(X, DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
         if X.split is not None and X.split != 0:
             raise NotImplementedError("Not implemented for other splitting-axes")
@@ -155,7 +156,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
 
         return self
 
-    def predict(self, X) -> ht.DNDarray:
+    def predict(self, X) -> DNDarray:
         """
         Return the label each sample in X belongs to.
 
@@ -166,7 +167,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.DNDarray
+        X : DNDarray
             New data to predict. Shape = (n_samples, n_features)
 
         Warning
@@ -175,7 +176,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
 
         """
         # input sanitation
-        if not isinstance(X, ht.DNDarray):
+        if not isinstance(X, DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
         if X.split is not None and X.split != 0:
             raise NotImplementedError("Not implemented for other splitting-axes")

@@ -85,7 +85,7 @@ def arctan(x, out=None) -> DNDarray:
     --------
     >>> ht.arctan(ht.arange(-6, 7, 2))
     tensor([-1.4056, -1.3258, -1.1071,  0.0000,  1.1071,  1.3258,  1.4056],
-       dtype=torch.float64)
+    dtype=torch.float64)
     """
     return local_op(torch.atan, x, out)
 

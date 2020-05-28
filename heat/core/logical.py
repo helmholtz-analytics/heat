@@ -26,7 +26,8 @@ def all(x, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
     """
     Test whether all array elements along a given axis evaluate to True.
     A new boolean or ht.DNDarray is returned unless out is specified, in which case a reference to out is returned.
-    Parameters:
+
+    Parameters
     -----------
     x : DNDarray
         Input array or object that can be converted to an array.
@@ -38,7 +39,7 @@ def all(x, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
         Alternate output array in which to place the result. It must have the same shape as the expected output
         and its type is preserved.
 
-    Examples:
+    Examples
     ---------
     >>> import heat as ht
     >>> a = ht.random.randn(4, 5)
@@ -83,7 +84,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> bool:
     Test whether two tensors are element-wise equal within a tolerance. Returns True if |x - y| <= atol + rtol * |y|
     for all elements of x and y, False otherwise
 
-    Parameters:
+    Parameters
     -----------
     x : DNDarray
         First tensor to compare
@@ -97,7 +98,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> bool:
         Whether to compare NaN’s as equal. If True, NaN’s in a will be considered equal to NaN’s in b in the output
         array.
 
-    Examples:
+    Examples
     ---------
     >>> a = ht.float32([[2, 2], [2, 2]])
     >>> ht.allclose(a, a)
@@ -128,7 +129,7 @@ def any(x, axis=None, out=None, keepdim=False) -> DNDarray:
     Test whether any array element along a given axis evaluates to True.
     The returning tensor is one dimensional unless axis is not None.
 
-    Parameters:
+    Parameters
     -----------
     x : DNDarray
         Input tensor
@@ -139,7 +140,7 @@ def any(x, axis=None, out=None, keepdim=False) -> DNDarray:
         Alternative output tensor in which to place the result. It must have the same shape as the expected output.
         The output is a tensor with dtype=bool.
 
-    Examples:
+    Examples
     ---------
     >>> import heat as ht
     >>> t = ht.float32([[0.3, 0, 0.5]])
@@ -171,7 +172,7 @@ def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> DNDarray:
     Returns a boolean tensor of where a and b are equal within the given tolerance.
     If both x and y are scalars, returns a single boolean value.
 
-    Parameters:
+    Parameters
     -----------
     x : DNDarray
         Input tensors to compare.
@@ -209,14 +210,14 @@ def logical_and(t1, t2) -> DNDarray:
     """
     Compute the truth value of t1 AND t2 element-wise.
 
-    Parameters:
+    Parameters
     -----------
     t1 : DNDarray
         input tensors of same shape
     t2 : DNDarray
         input tensors of same shape
 
-    Examples:
+    Examples
     ---------
     >>> ht.logical_and(ht.array([True, False]), ht.array([False, False]))
     tensor([ False, False])
@@ -230,7 +231,7 @@ def logical_not(t, out=None) -> DNDarray:
     """
     Computes the element-wise logical NOT of the given input tensor.
 
-    Parameters:
+    Parameters
     -----------
     t1: DNDarray
         input tensor
@@ -238,7 +239,7 @@ def logical_not(t, out=None) -> DNDarray:
         Alternative output tensor in which to place the result. It must have the same shape as the expected output.
         The output is a tensor with dtype=bool.
 
-    Examples:
+    Examples
     ---------
     >>> ht.logical_not(ht.array([True, False]))
     tensor([ False,  True])
@@ -250,14 +251,14 @@ def logical_or(t1, t2) -> DNDarray:
     """
     Compute the truth value of t1 OR t2 element-wise.
 
-    Parameters:
+    Parameters
     -----------
     t1 : DNDarray
         input tensors of same shape
     t2 : DNDarray
         input tensors of same shape
 
-    Examples:
+    Examples
     ---------
     >>> ht.logical_or(ht.array([True, False]), ht.array([False, False]))
     tensor([True, False])
@@ -271,14 +272,14 @@ def logical_xor(t1, t2) -> DNDarray:
     """
     Computes the element-wise logical XOR of the given input tensors.
 
-    Parameters:
+    Parameters
     -----------
     t1 : DNDarray
         input tensors of same shape
     t2 : DNDarray
         input tensors of same shape
 
-    Examples:
+    Examples
     ---------
     >>> ht.logical_xor(ht.array([True, False, True]), ht.array([True, False, False]))
     tensor([ False, False,  True])

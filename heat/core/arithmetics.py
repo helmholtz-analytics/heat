@@ -56,13 +56,11 @@ def add(t1, t2) -> DNDarray:
     >>> import heat as ht
     >>> ht.add(1.0, 4.0)
     tensor([5.])
-
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.add(T1, T2)
     tensor([[3., 4.],
             [5., 6.]])
-
     >>> s = 2.0
     >>> ht.add(T1, s)
     tensor([[3., 4.],
@@ -91,15 +89,12 @@ def bitwise_and(t1, t2) -> DNDarray:
     tensor([1])
     >>> ht.bitwise_and(14, 13)
     tensor([12])
-
     >>> ht.bitwise_and(ht.array([14,3]), 13)
     tensor([12,  1])
-
     >>> ht.bitwise_and(ht.array([11,7]), ht.array([4,25]))
     tensor([0, 1])
     >>> ht.bitwise_and(ht.array([2,5,255]), ht.array([3,14,16]))
     tensor([ 2,  4, 16])
-
     >>> ht.bitwise_and(ht.array([True, True]), ht.array([False, True]))
     tensor([False,  True])
     """
@@ -130,14 +125,12 @@ def bitwise_or(t1, t2) -> DNDarray:
     ---------
     >>> ht.bitwise_or(13, 16)
     tensor([29])
-
     >>> ht.bitwise_or(32, 2)
     tensor([34])
     >>> ht.bitwise_or(ht.array([33, 4]), 1)
     tensor([33,  5])
     >>> ht.bitwise_or(ht.array([33, 4]), ht.array([1, 2]))
     tensor([33,  6])
-
     >>> ht.bitwise_or(ht.array([2, 5, 255]), ht.array([4, 4, 4]))
     tensor([  6,   5, 255])
     >>> ht.bitwise_or(ht.array([2, 5, 255, 2147483647], dtype=ht.int32),
@@ -172,12 +165,10 @@ def bitwise_xor(t1, t2) -> DNDarray:
     ---------
     >>> ht.bitwise_xor(13, 17)
     tensor([28])
-
     >>> ht.bitwise_xor(31, 5)
     tensor([26])
     >>> ht.bitwise_xor(ht.array[31,3], 5)
     tensor([26,  6])
-
     >>> ht.bitwise_xor(ht.array([31,3]), ht.array([5,6]))
     tensor([26,  5])
     >>> ht.bitwise_xor(ht.array([True, True]), ht.array([False, True]))
@@ -352,7 +343,6 @@ def diff(a, n=1, axis=-1) -> DNDarray:
 def div(t1, t2) -> DNDarray:
     """
     Element-wise true division of values of operand t1 by values of operands t2 (i.e t1 / t2).
-
     Operation is not commutative.
     Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2)
     as argument.
@@ -368,13 +358,11 @@ def div(t1, t2) -> DNDarray:
     ---------
     >>> ht.div(2.0, 2.0)
     tensor([1.])
-
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.div(T1, T2)
     tensor([[0.5000, 1.0000],
             [1.5000, 2.0000]])
-
     >>> s = 2.0
     >>> ht.div(s, T1)
     tensor([[2.0000, 1.0000],
@@ -405,13 +393,11 @@ def fmod(t1, t2) -> DNDarray:
     ---------
     >>> ht.fmod(2.0, 2.0)
     tensor([0.])
-
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.fmod(T1, T2)
     tensor([[1., 0.],
             [1., 0.]])
-
     >>> s = 2.0
     >>> ht.fmod(s, T1)
     tensor([[0., 0.]
@@ -487,7 +473,7 @@ def left_shift(t1, t2) -> DNDarray:
     ----------
     t1: DNDarray
         Input tensor
-    t2: scalar or DNDarray
+    t2: DNDarray or scalar
         Integer number of zero bits to add
 
     Example
@@ -523,13 +509,11 @@ def mod(t1, t2) -> DNDarray:
     ---------
     >>> ht.mod(2, 2)
     tensor([0])
-
     >>> T1 = ht.int32([[1, 2], [3, 4]])
     >>> T2 = ht.int32([[2, 2], [2, 2]])
     >>> ht.mod(T1, T2)
     tensor([[1, 0],
             [1, 0]], dtype=torch.int32)
-
     >>> s = 2
     >>> ht.mod(s, T1)
     tensor([[0, 0]
@@ -554,7 +538,6 @@ def mul(t1, t2) -> DNDarray:
     ---------
     >>> ht.mul(2.0, 4.0)
     tensor([8.])
-
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> s = 3.0
     >>> ht.mul(T1, s)
@@ -565,7 +548,6 @@ def mul(t1, t2) -> DNDarray:
     >>> ht.mul(T1, T2)
     tensor([[2., 4.],
             [6., 8.]])
-
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.mul(T1, T2)
     tensor([[2., 4.],
@@ -597,7 +579,6 @@ def pow(t1, t2) -> DNDarray:
     ---------
     >>> ht.pow (3.0, 2.0)
     tensor([9.])
-
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[3, 3], [2, 2]])
     >>> ht.pow(T1, T2)
@@ -632,13 +613,11 @@ def remainder(t1, t2) -> DNDarray:
     ---------
     >>> ht.mod(2, 2)
     tensor([0])
-
     >>> T1 = ht.int32([[1, 2], [3, 4]])
     >>> T2 = ht.int32([[2, 2], [2, 2]])
     >>> ht.mod(T1, T2)
     tensor([[1, 0],
             [1, 0]], dtype=torch.int32)
-
     >>> s = 2
     >>> ht.mod(s, T1)
     tensor([[0, 0]
@@ -653,9 +632,8 @@ def right_shift(t1, t2) -> DNDarray:
 
     Parameters
     ----------
-    t1: scalar or DNDarray
-
-    t2: scalar or DNDarray
+    t1: DNDarray or scalar
+    t2: DNDarray or scalar
         integer number of bits to remove
 
     Example
@@ -696,13 +674,11 @@ def prod(x, axis=None, out=None, keepdim=None) -> DNDarray:
     --------
     >>> ht.prod([1.,2.])
     ht.tensor([2.0])
-
     >>> ht.prod([
         [1.,2.],
         [3.,4.]
     ])
     ht.tensor([24.0])
-
     >>> ht.prod([
         [1.,2.],
         [3.,4.]
@@ -731,13 +707,11 @@ def sub(t1, t2) -> DNDarray:
     ---------
     >>> ht.sub(4.0, 1.0)
     tensor([3.])
-
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.sub(T1, T2)
     tensor([[-1., 0.],
             [1., 2.]])
-
     >>> s = 2.0
     >>> ht.sub(s, T1)
     tensor([[ 1.,  0.],
@@ -776,13 +750,10 @@ def sum(x, axis=None, out=None, keepdim=None) -> DNDarray:
     --------
     >>> ht.sum(ht.ones(2))
     tensor([2.])
-
     >>> ht.sum(ht.ones((3,3)))
     tensor([9.])
-
     >>> ht.sum(ht.ones((3,3)).astype(ht.int))
     tensor([9])
-
     >>> ht.sum(ht.ones((3,2,1)), axis=-3)
     tensor([[[3.],
              [3.]]])

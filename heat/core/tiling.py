@@ -3,7 +3,6 @@ import torch
 from typing import List, Tuple
 
 from .dndarray import DNDarray
-from . import factories
 
 __all__ = ["SplitTiles", "SquareDiagTiles"]
 
@@ -309,7 +308,7 @@ class SquareDiagTiles:
         Default = 2
         the number of divisions per process,
 
-    Properties
+    Attributes
     -----------
     __col_per_proc_list : list
         list is length of the number of processes, each element has the number of tile
@@ -473,7 +472,6 @@ class SquareDiagTiles:
     @staticmethod
     def __adjust_cols_sp1_m_ls_n(arr, col_per_proc_list, last_diag_pr, col_inds, lshape_map):
         """
-
         Add more columns after the diagonal ends if m < n and arr.split == 1
         """
         # need to add to col inds with the rest of the columns
@@ -503,7 +501,6 @@ class SquareDiagTiles:
         arr, lshape_map, last_diag_pr, row_inds, row_per_proc_list, tile_columns
     ):
         """
-
         Need to adjust the size of last row if arr.split == 0 and the diagonal ends before the
         last tile. This should only be run if arr,split == 0 and last_diag_pr < arr.comm.size - 1.
         """
@@ -523,7 +520,6 @@ class SquareDiagTiles:
     @staticmethod
     def __adjust_lshape_sp0_1tile(arr, col_inds, lshape_map, tiles_per_proc):
         """
-
         if the split is 0 and the number of tiles per proc is 1 then the local data may need to be
         redistributed to fit the full diagonal on as many processes as possible. If there is a
         process where there is only 1 element, this function will adjust the lshape_map then

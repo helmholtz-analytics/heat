@@ -447,12 +447,14 @@ def can_cast(from_, to, casting="safe") -> bool:
     False
 
     The usage of scalars is also possible
+
     >>> ht.can_cast(1, ht.float64)
     True
     >>> ht.can_cast(2.0e200, 'u1')
     False
 
     can_cast supports different casting rules
+
     >>> ht.can_cast('i8', 'i4', 'no')
     False
     >>> ht.can_cast('i8', 'i4', 'safe')
@@ -553,7 +555,7 @@ class finfo:
     dtype : datatype
         Kind of floating point data-type about which to get information.
 
-    Examples:
+    Examples
     ---------
     >>> import heat as ht
     >>> info = ht.types.finfo(ht.float32)
@@ -604,7 +606,7 @@ class iinfo:
     dtype : datatype
         Kind of floating point data-type about which to get information.
 
-    Examples:
+    Examples
     ---------
     >>> import heat as ht
     >>> info = ht.types.finfo(ht.int32)

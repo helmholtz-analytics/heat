@@ -7,7 +7,6 @@ from typing import List, Dict, Any, TypeVar, Union, Tuple
 
 from . import arithmetics
 from . import devices
-from .devices import Device
 from . import exponential
 from . import factories
 from . import indexing
@@ -21,7 +20,8 @@ from . import rounding
 from . import statistics
 from . import tiling
 from . import trigonometrics
-from . import types
+
+from .devices import Device
 from .types import datatype, canonical_heat_type
 
 from .communication import MPI
@@ -1582,7 +1582,7 @@ class DNDarray:
 
         Parameters
         ----------
-        other: scalar or DNDarray
+        other: DNDarray or scalar
            number of zero bits to add
 
         Examples

@@ -39,10 +39,9 @@ class Communication:
         Returns (offset, local_shape, slices): the offset in the split dimension, the resulting local shape if the
         global input shape is chunked on the split axis and the chunk slices with respect to the given shape
 
-
         Parameters
         ----------
-        shape : tuple of ints
+        shape : Tuple[int,...]
             the global shape of the data to be split
         split : int
             the axis along which to chunk the data
@@ -88,11 +87,11 @@ class MPICommunication(Communication):
             the global shape of the data to be split
         split : int
             the axis along which to chunk the data
-        rank : int (optional)
+        rank : int, optional
             process for which the chunking is calculated for
             defaults to self.rank
             intended for creating chunk maps without communication
-        w_size : int (optional)
+        w_size : int, optional
             the MPI world size
             defaults to self.size
             intended for creating chunk maps without communication
@@ -708,10 +707,6 @@ class MPICommunication(Communication):
             - if send_axis or recv_axis are None, an error will be thrown
         recv_axis: int
             prior split axis, along which blocks are received from the individual ranks
-
-        Returns
-        -------
-        exit code: of func
         """
         if send_axis is None:
             raise NotImplementedError(
@@ -1118,14 +1113,9 @@ MPI_SELF = MPICommunication(MPI.COMM_SELF)
 __default_comm = MPI_WORLD
 
 
-def get_comm():
+def get_comm() -> Communication:
     """
     Retrieves the currently globally set default communication.
-
-    Returns
-    -------
-    comm : Communication
-        The currently set default communication.
     """
     return __default_comm
 
