@@ -2,9 +2,8 @@
 :orphan:
 
 {% endif %}
-:mod:`{{ obj.name }}`
+:mod:`{{ obj.name.replace('.core', '') }}`
 ======={{ "=" * obj.name|length }}
-
 .. py:module:: {{ obj.name }}
 
 {% if obj.docstring %}

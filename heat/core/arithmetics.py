@@ -78,9 +78,9 @@ def bitwise_and(t1, t2) -> DNDarray:
 
     Parameters
     ----------
-    t1: DNDarray, scalar
+    t1: DNDarray or scalar
         Input tensor
-    t2: DNDarray, scalar
+    t2: DNDarray or scalar
         Input tensor
 
     Example
@@ -116,9 +116,9 @@ def bitwise_or(t1, t2) -> DNDarray:
 
     Parameters
     ----------
-    t1: DNDarray, scalar
+    t1: DNDarray or scalar
         Input tensor
-    t2: DNDarray, scalar
+    t2: DNDarray or scalar
         Input tensor
 
     Example
@@ -156,9 +156,9 @@ def bitwise_xor(t1, t2) -> DNDarray:
 
     Parameters
     ----------
-    t1: DNDarray, scalar
+    t1: DNDarray or scalar
         Input tensor
-    t2: DNDarray, scalar
+    t2: DNDarray or scalar
         Input tensor
 
     Example
@@ -440,11 +440,6 @@ def invert(t, out=None) -> DNDarray:
     """
     Computes the bitwise NOT of the given input tensor. The input tensor must be of integral or Boolean types. For bool tensors, it computes the logical NOT.
     Bitwise_not is an alias for invert.
-
-    Returns
-    -------
-    t: DNDarray
-        Input tensor
 
     Example
     ---------
