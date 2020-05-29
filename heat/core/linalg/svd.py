@@ -87,6 +87,8 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
     arr_t_tiles = tiling.SquareDiagTiles(arr_t, tiles_per_proc, no_tiles=True)
 
     # 4. match tiles to arr
+
+    print(arr_tiles.row_indices, arr_tiles.col_indices, arr_tiles.tile_rows_per_process)
     arr_t_tiles.match_tiles_qr_lq(arr_tiles)
     arr_t_tiles.set_arr(arr.T)
 
@@ -116,7 +118,6 @@ def __block_diagonalize_sp0(
     torch_device = arr_tiles.arr.device.torch_device
     q0_dict = {}
     q0_dict_waits = {}
-
     active_procs = torch.arange(arr_tiles.arr.comm.size)
     active_procs_t = active_procs.clone().detach()
     empties = torch.nonzero(
@@ -158,6 +159,7 @@ def __block_diagonalize_sp0(
                 not_completed_prs=not_completed_processes,
             )
         # 2. do full QR on the next column for LQ on arr_t
+        print(col + 1, col)
         __split1_qr_loop(
             dim1=col,
             r_tiles=arr_t_tiles,
@@ -352,21 +354,23 @@ def bulge_chasing(arr, q0, q1, tiles=None):
     # todo: should ldp come from arr_tiles or arr_t_tiles (depends on the lshape)
     ldp = tiles["arr"].last_diagonal_process
     active_procs = list(range(ldp + 1))
-    lcl_right_apply = {}
+    # lcl_right_apply = {}
     # lcl_left_apply = {}
     # todo: is it needed to only run it on <= ldp?
     # if rank <= ldp:
     # get the lshape with the diagonal element
     start1 = splits[rank - 1] if rank > 0 else 0
-    stop1 = splits[rank + 1].clone() if rank < arr.comm.size - 1 else arr.gshape[arr.split - 1]
-    stop1 += band_width + 1
+    stop1 = splits[rank] + band_width - 1
+    # stop1 += band_width + 1
+    # print(start1, stop1)
     lcl_array = arr._DNDarray__array[:, start1:stop1]
-    lcl_d_st = 0 if rank == 0 else splits[rank - 1]
-    lcl_d_sp = splits[rank] + band_width + 1 if rank < arr.comm.size - 1 else arr.gshape[1]
+    # lcl_d_st = 0 if rank == 0 else splits[rank - 1]
+    # lcl_d_sp = splits[rank] + band_width + 1 if rank < arr.comm.size - 1 else arr.gshape[1]
     # todo: send a copy of the data on the processes to the next and previous ones
-
+    # print(band_width)
     nrows = min(arr.gshape) - 1 if arr.gshape[0] >= arr.gshape[1] else min(arr.gshape) + 1
-    app_sz = band_width - 1
+    # app_sz = band_width - 1
+    cor = 2 * band_width - 3
     # if rank <= 1:
     #     min_i = 0
     # else:
@@ -380,145 +384,236 @@ def bulge_chasing(arr, q0, q1, tiles=None):
     #     v, t = utils.gen_house_vec(lcl_array[0, 1: 1 + band_width])
     #     st_ind = (0, 1)
     #     end_ind = (len(v) + 1, )
+    # todo: abstract this ==========================================================================
+    rcv_next = None
+    rcv_prev = None
+    st, sp = 0, 2 * band_width - 3
+    rcv_shape = [sp - st] * 2
+    if rank != arr.comm.size - 1:
+        # send to next
+        # st0, sp0 = splits[rank] - (band_width * 2), -1
+        # if st0 < 0:
+        #     st0 = 0
+        st1 = splits[rank] - (band_width - 2)
+        st1 = st1 if rank == 0 else st1 - splits[rank - 1]
+        sp1 = splits[0] + 2 * band_width - 2
 
+        arr.comm.Send(lcl_array[sp * -1 :, st1:].clone(), dest=rank + 1)
+        # print('n', lcl_array[sp * -1:, st1:sp1], st1, sp1)
+        # print('n', rcv_shape, splits)
+        rcv_next = torch.zeros(
+            tuple(rcv_shape), dtype=arr.dtype.torch_type(), device=arr.device.torch_device
+        )
+        arr.comm.Recv(rcv_next, source=rank + 1)
+    if rank != 0:
+        # send / recv data to the previous process
+        # only need to send
+        # print(lcl_d_st, lcl_d_sp)
+        arr.comm.Send(lcl_array[st:sp, st:sp].clone(), dest=rank - 1)
+        # arr.comm.Send(lcl_array[:, lcl_d_st:lcl_d_sp].clone(), dest=rank - 1)
+        # print(rcv_shape)
+        # rcv_shape[1] = (
+        #     splits[rank - 1] + band_width + 1 - (splits[rank - 1] if rank != 1 else 0)
+        # )
+        # st1 = splits[rank - 1] - (band_width - 2)
+        # st1 = st1 if rank - 1 == 0 else st1 - splits[rank - 2]
+        # sp1 = splits[0] + 2 * band_width - 2
+        # rcv_shape = [sp, sp1-st1]
+        # todo: technically rcv shape here is not correct, but its too large so it isnt a problem ....
+        rcv_prev = torch.zeros(
+            tuple(rcv_shape), dtype=arr.dtype.torch_type(), device=arr.device.torch_device
+        )
+        arr.comm.Recv(rcv_prev, source=rank - 1)
+    if rcv_next is not None and rcv_prev is not None:
+        # rcv from both directions
+        work_arr = torch.zeros(
+            (
+                lcl_array.shape[0] + rcv_prev.shape[0] + cor,
+                lcl_array.shape[1] + (band_width - 2) + (rcv_next.shape[1] - band_width + 1),
+            ),
+            dtype=lcl_array.dtype,
+            device=lcl_array.device,
+        )
+        work_arr[: rcv_prev.shape[0], : rcv_prev.shape[1]] = rcv_prev
+
+        st0, sp0 = rcv_prev.shape[0], lcl_array.shape[0] + rcv_prev.shape[0]
+        st1, sp1 = band_width - 2, lcl_array.shape[1] + band_width - 2
+        work_arr[st0:sp0, st1:sp1] += lcl_array
+        work_arr[rcv_next.shape[0] * -1 :, rcv_next.shape[1] * -1 :] = rcv_next
+    else:
+        # only one side receiving
+        if rcv_next is not None:  # only get from rank + 1 (lcl data on top)
+            work_arr = torch.zeros(
+                (
+                    lcl_array.shape[0] + rcv_next.shape[0],
+                    lcl_array.shape[1] + rcv_next.shape[1] - band_width + 1,
+                ),
+                dtype=lcl_array.dtype,
+                device=lcl_array.device,
+            )
+            work_arr[: lcl_array.shape[0], : lcl_array.shape[1]] += lcl_array
+            work_arr[
+                lcl_array.shape[0] :, lcl_array.shape[0] : lcl_array.shape[0] + rcv_next.shape[1]
+            ] = rcv_next
+        else:  # only get from rank - 1 (lcl data on bottom)
+            work_arr = torch.zeros(
+                (lcl_array.shape[0] + rcv_prev.shape[0], lcl_array.shape[1] + band_width - 2),
+                dtype=lcl_array.dtype,
+                device=lcl_array.device,
+            )
+            work_arr[: rcv_prev.shape[0], : rcv_prev.shape[1]] = rcv_prev
+            work_arr[rcv_prev.shape[0] :, lcl_array.shape[1] * -1 :] += lcl_array
+    pass
+    # if wait_before is not None:
+    #     # todo: move this wait, need to extend the lcl array and add the received one to to
+    #     wait_before.wait()
+    # if wait_after is not None:
+    #     # todo: create a new matrix with more space and set the diag bit in the right place
+    #     # new end of the array is that of the next process
+    #     # todo: move this wait, need to extend the lcl array and add the received one to to
+    #     wait_after.wait()
+    # print(rcv.shape)
+    # todo: abstract above =======================================================================
     for row in range(nrows):
-        # todo: abstract this ==========================================================================
-        wait_before = None
-        wait_after = None
-        if rank != arr.comm.size - 1:
-            arr.comm.Send(lcl_array[:, lcl_d_st:lcl_d_sp].clone(), dest=rank + 1)
-            rcv_shape = [lshape_map[rank + 1, 0], 0]
-            rcv_shape[1] = splits[rank + 1] + band_width + 1 - splits[rank]
-            rcv = torch.zeros(
-                tuple(rcv_shape), dtype=arr.dtype.torch_type(), device=arr.device.torch_device
-            )
-            # todo: pad the lclarray to fit the stuff that will be recv'ed
-            wait_after = arr.comm.Irecv(rcv, source=rank + 1)
-        if rank != 0:
-            # send / recv data to the previous process
-            arr.comm.Send(lcl_array[:, lcl_d_st:lcl_d_sp].clone(), dest=rank - 1)
-            rcv_shape = [splits[rank - 1], 0]
-            rcv_shape[1] = (
-                splits[rank - 1] + band_width + 1 - (splits[rank - 1] if rank != 1 else 0)
-            )
-            rcv = torch.zeros(
-                tuple(rcv_shape), dtype=arr.dtype.torch_type(), device=arr.device.torch_device
-            )
-            # todo: pad the lclarray to fit the stuff that will be recv'ed
-            wait_before = arr.comm.Irecv(rcv, source=rank - 1)
-        if wait_before is not None:
-            # todo: move this wait, need to extend the lcl array and add the received one to to
-            wait_before.wait()
-        if wait_after is not None:
-            # todo: create a new matrix with more space and set the diag bit in the right place
-            # new end of the array is that of the next process
-            # todo: move this wait, need to extend the lcl array and add the received one to to
-            wait_after.wait()
-        # todo: abstract above =======================================================================
-
         # this is the loop for the start index
         if any(row >= splits[active_procs[0] :]):
             if rank == active_procs[0]:
                 break
             del active_procs[0]
-        # 1. get start element
-        st_ind = (row, row + 1)
-        end_ind_first = (row + 1 + app_sz, row + 1 + app_sz)
-        # 2. determine where it will be applied to
-        #       first round is a special case: it wont be the full thing, only 1 other element below the target point
-        # get which processes are involved, need to figure out how to deal with the overlapping ones still
-        inds = [st_ind]
-        num = 0
-        nxt_ind = list(st_ind)
-        end = min(
-            arr.gshape
-        )  # todo: if the diagonal extends beyond the minimum dim (SF) + band_width - 2
-        completed = False
-        # determine all the indices
-        while not completed:
-            if nxt_ind[0] == nxt_ind[1]:
-                nxt_ind[1] += band_width - 1
-            else:
-                nxt_ind[0] = nxt_ind[1]
-            num += 1
-            if any([n >= end for n in nxt_ind]):
-                break
-            inds.append(tuple(nxt_ind))
-        # the side to apply the vectors on starts with right and then alternates until the end of inds
-        side = "right"
-        for i in inds:
-            # print(i, side)
-            # determine the area effected in each loop
-            if i == inds[0]:
-                lp_end_inds = end_ind_first
-            elif side == "right":
-                lp_end_inds = [2 * app_sz + i[0], app_sz + i[1]]
-            else:  # side == "left"
-
-                lp_end_inds = [app_sz + i[0], 2 * app_sz + i[1]]
-                if lp_end_inds[1] > arr.gshape[1]:
-                    lp_end_inds[1] = arr.gshape[1]
-                if lp_end_inds[0] > arr.gshape[0]:
-                    lp_end_inds[0] = arr.gshape[0]
-
-            # todo: determine the processes which have this data, also have the
-            #       use splits to determine if it overlaps processes
-            if i[0] > splits[rank]:
-                break
-            # do work if i[0] is on the rank or rank - 1
-            first_pr = torch.where(i[0] <= splits)[0][0]
-            second_pr = torch.where(lp_end_inds[0] <= splits)[0]
-            second_pr = second_pr[0] if len(second_pr) > 0 else arr.comm.size - 1
-            # print(i, lp_end_inds, first_pr, second_pr)
-            if first_pr == second_pr == rank:
-                # only need to work on this one
-                # target row should be row or column based on the side
-                sl = (
-                    (i[0] - start1, slice(i[1], lp_end_inds[1]))
-                    if side == "right"
-                    else (slice(i[0], lp_end_inds[0]), i[1] - start1)
-                )
-                # target = lcl_array[i[0] - start1, i[1]: lp_end_inds[1]]
-                # print(sl, side)
-                # print(lcl_array[sl].shape)
-                v, t = utils.gen_house_vec(lcl_array[sl])
-                # save v and t for updating Q0/Q1
-                lcl_right_apply[(row, row + band_width)] = (v, t)
-                # apply v ant t to from right (down the matrix)
-                print(i[0] - start1, lp_end_inds, i, splits)
-                lcl_array[
-                    i[0] - start1 : lp_end_inds[0] - start1, i[1] : lp_end_inds[1]
-                ] = utils.apply_house(
-                    side=side,
-                    v=v,
-                    tau=t,
-                    c=lcl_array[i[0] - start1 : lp_end_inds[0] - start1, i[1] : lp_end_inds[1]],
-                )
-            elif rank in [first_pr, second_pr]:
-                if rank == first_pr:
-                    if wait_after is None:
-                        wait_after.wait()  # rcv has the data from rank + 1
-                        wait_after = None
-                    # recv data from second
-                    pass
-                else:  # rank == second_pr
-                    if wait_before is None:
-                        wait_before.wait()  # rcv has the data from rank - 1
-                    # recv data from first
-                    pass
-            if i == (1, 1):
-                break
-            # print(i, splits, )
-            # print(i, lp_end_inds, )
-            # if min_i <= i[0] <= splits[rank]:
-            # translate global start index into local
-            # todo: how many processes have the info? does that matter?
-
-            # print(splits, i, i[0], lp_end_inds[0], min_i)
-
-            # change right to left or vice versa
-            side = "right" if side == "left" else "left"
-            # break
+        # # 1. get start element
+        # st_ind = (row, row + 1)
+        # end_ind_first = (row + 1 + app_sz, row + 1 + app_sz)
+        # # 2. determine where it will be applied to
+        # #       first round is a special case: it wont be the full thing, only 1 other element below the target point
+        # # get which processes are involved, need to figure out how to deal with the overlapping ones still
+        # inds = [st_ind]
+        # num = 0
+        # nxt_ind = list(st_ind)
+        # end = min(
+        #     arr.gshape
+        # )  # todo: if the diagonal extends beyond the minimum dim (SF) + band_width - 2
+        # completed = False
+        # # determine all the indices
+        # while not completed:
+        #     if nxt_ind[0] == nxt_ind[1]:
+        #         nxt_ind[1] += band_width - 1
+        #     else:
+        #         nxt_ind[0] = nxt_ind[1]
+        #     num += 1
+        #     if any([n >= end for n in nxt_ind]):
+        #         break
+        #     inds.append(tuple(nxt_ind))
+        # # the side to apply the vectors on starts with right and then alternates until the end of inds
+        # side = "right"
+        # for i in inds:
+        #     # todo: make sure that the previous process is done before starting (in the mixed loop)
+        #     # print(i, side)
+        #     # determine the area effected in each loop
+        #     if i == inds[0]:
+        #         lp_end_inds = end_ind_first
+        #     elif side == "right":
+        #         lp_end_inds = [2 * app_sz + i[0], app_sz + i[1]]
+        #     else:  # side == "left"
+        #
+        #         lp_end_inds = [app_sz + i[0], 2 * app_sz + i[1]]
+        #         if lp_end_inds[1] > arr.gshape[1]:
+        #             lp_end_inds[1] = arr.gshape[1]
+        #         if lp_end_inds[0] > arr.gshape[0]:
+        #             lp_end_inds[0] = arr.gshape[0]
+        #
+        #     # todo: determine the processes which have this data, also have the
+        #     #       use splits to determine if it overlaps processes
+        #     if i[0] > splits[rank]:
+        #         break
+        #     # do work if i[0] is on the rank or rank - 1
+        #     first_pr = torch.where(i[0] <= splits)[0][0]
+        #     second_pr = torch.where(lp_end_inds[0] <= splits)[0]
+        #     second_pr = second_pr[0] if len(second_pr) > 0 else arr.comm.size - 1
+        #     # print(i, lp_end_inds, first_pr, second_pr)
+        #     if first_pr == second_pr == rank:
+        #         # only need to work on this one
+        #         # target row should be row or column based on the side
+        #         sl = (
+        #             (i[0] - start1, slice(i[1], lp_end_inds[1]))
+        #             if side == "right"
+        #             else (slice(i[0], lp_end_inds[0]), i[1] - start1)
+        #         )
+        #         # target = lcl_array[i[0] - start1, i[1]: lp_end_inds[1]]
+        #         # print(sl, side)
+        #         # print(lcl_array[sl].shape)
+        #         v, t = utils.gen_house_vec(lcl_array[sl])
+        #         # save v and t for updating Q0/Q1
+        #         lcl_right_apply[(row, row + band_width)] = (v, t)
+        #         # apply v ant t to from right (down the matrix)
+        #         # print(i[0] - start1, lp_end_inds, i, splits)
+        #         lcl_array[
+        #             i[0] - start1 : lp_end_inds[0] - start1, i[1] : lp_end_inds[1]
+        #         ] = utils.apply_house(
+        #             side=side,
+        #             v=v,
+        #             tau=t,
+        #             c=lcl_array[i[0] - start1 : lp_end_inds[0] - start1, i[1] : lp_end_inds[1]],
+        #         )
+        #     elif rank in [first_pr, second_pr]:
+        #         # create a tensor of zeros of the proper shape for the bulge chasing
+        #         loop_array = torch.zeros(
+        #             (lp_end_inds[0] - i[0], lp_end_inds[1] - i[1]),
+        #             dtype=lcl_array.dtype, device=lcl_array.device
+        #         )
+        #         # receive the data if it isn't already there and get the local indices for where to set the values
+        #         # st0, sp0 = 0, band_width * 2 + 1
+        #         # st1 = splits[rank - 1] - band_width if rank > 0 else 0
+        #         # sp1 = splits[rank] + 1 - band_width
+        #         second_offset0 = splits[second_pr - 1]
+        #         second_offset1 = splits[second_pr - 1] - band_width if second_pr > 0 else 0
+        #         # todo: split = 1
+        #         # lcl_inds_top = i[0], splits[first_pr].item(), i[1], lp_end_inds[1]
+        #         # lcl_inds_bottom = 0, lp_end_inds[0] - splits[first_pr].item(), i[1] - second_offset1, lp_end_inds[1] - second_offset1
+        #         # print(lcl_inds_top, lcl_inds_bottom, second_offset1)
+        #         if rank == first_pr:
+        #             if wait_after is None:
+        #                 wait_after.wait()  # rcv has the data from rank + 1
+        #                 wait_after = None
+        #             # do a blocking send to sync these two processes
+        #             ready = True
+        #             arr.comm.send(ready, dest=second_pr, tag=123)
+        #             # recv data from second
+        #             first_arr = lcl_array
+        #             second_arr = rcv
+        #             lcl_inds_top = i[0], splits[first_pr].item(), i[1], lp_end_inds[1]
+        #             lcl_inds_bottom = (
+        #                 0, lp_end_inds[0] - splits[first_pr].item(),
+        #                 i[1] - second_offset1, lp_end_inds[1] - second_offset1
+        #             )
+        #             print((rcv * 10).round())
+        #             print(rcv[lcl_inds_bottom[0]:lcl_inds_bottom[1], lcl_inds_bottom[2]:lcl_inds_bottom[3] + 1])
+        #         else:  # rank == second_pr
+        #             if wait_before is None:
+        #                 wait_before.wait()  # rcv has the data from rank - 1
+        #                 # recv data from first
+        #             ready = arr.comm.recv(source=first_pr, tag=123)
+        #             first_arr = rcv  # todo: slice
+        #             second_arr = lcl_array  # todo: slice
+        #             # this blocking recv is just to sync the processes
+        #             pass
+        #         # print(second_arr)
+        #         # do the bulge chasing
+        #         # set the values of the local array using the local indices
+        #         # move on to the next one
+        #     if i == (1, 4):
+        #         print(i, lp_end_inds, first_pr, second_pr)
+        #         break
+        #     # print(i, splits, )
+        #     # print(i, lp_end_inds, )
+        #     # if min_i <= i[0] <= splits[rank]:
+        #     # translate global start index into local
+        #     # todo: how many processes have the info? does that matter?
+        #
+        #     # print(splits, i, i[0], lp_end_inds[0], min_i)
+        #
+        #     # change right to left or vice versa
+        #     side = "right" if side == "left" else "left"
+        #     # break
         pass
         # if rank == active_procs[0]:
         #     # generate the vector to eliminate the row (working on split 0 now)
