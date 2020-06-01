@@ -517,6 +517,15 @@ class SquareDiagTiles:
                     # need to add a division after the diagonal here
                     row_inds.append(arr.gshape[1])
                     ntiles += 1
+
+                # if mat_shape_type == "square" and arr.gshape[0] - row_inds[-1] > row_inds[1]:
+                #     # add another row/col on the last process if there enough data after the last tile
+                #     #       before the end of the diagonal
+                #     row_inds.append(row_inds[1] + row_inds[-1])
+                #     col_inds.append(col_inds[1] + col_inds[-1])
+                #     divs.append(divs[1] + divs[-1])
+                #     divs_per_proc[-1] += 1
+                #     ntiles += 1
                 col_per_proc_list = [ntiles] * arr.comm.size if arr.split == 0 else divs_per_proc
                 row_per_proc_list = [ntiles] * arr.comm.size if arr.split == 1 else divs_per_proc
 
@@ -1018,6 +1027,7 @@ class SquareDiagTiles:
         if mat_shape_type == "square" and match_dnd.gshape[0] > match_dnd.gshape[1]:
             # can only have split 1 or split 0
             # match lshape, swap cols and
+            # print('here', match_dnd.split)
             if match_dnd.split == 1:
                 self.__row_per_proc_list = tiles_to_match.__col_per_proc_list.copy()
                 self.__col_per_proc_list = tiles_to_match.__row_per_proc_list.copy()
@@ -1032,6 +1042,21 @@ class SquareDiagTiles:
             self.__col_inds = tiles_to_match.__row_inds.copy()
             # for mostly square matrices the diagonal is stretched to the last process
 
+        # elif mat_shape_type == "square" and match_dnd.gshape[0] == match_dnd.gshape[1]:
+        #     if match_dnd.split == 1:
+        #         # print('here')
+        #         self.__row_per_proc_list = tiles_to_match.__col_per_proc_list.copy()
+        #         self.__col_per_proc_list = tiles_to_match.__row_per_proc_list.copy()
+        #     else:
+        #         self.__row_per_proc_list = tiles_to_match.__row_per_proc_list.copy()
+        #         self.__col_per_proc_list = tiles_to_match.__col_per_proc_list.copy()
+        #
+        #     # if self.arr.split == 0 and sum(self.__row_per_proc_list) < self.__col_per_proc_list[0]:
+        #     #     self.__row_per_proc_list[-1] += 1
+        #
+        #     self.__row_inds = tiles_to_match.__row_inds.copy()
+        #     self.__col_inds = tiles_to_match.__row_inds.copy()
+        #     # return
         elif mat_shape_type == "square":
             return
 
@@ -1176,6 +1201,19 @@ class SquareDiagTiles:
                 cols_per = [r + 1 for r in cols_per]
             else:
                 cols_per[-1] += 1
+        # if ldp == other_tiles.arr.comm.size - 1 and self.arr.gshape[0] - row_inds[-1] > row_inds[1]:
+        #     row_inds.append(row_inds[1] + row_inds[-1])
+        #     # col_inds.append(col_inds[1] + col_inds[-1])
+        #     if self.arr.split == 0:
+        #         # cols_per = [r + 1 for r in cols_per]
+        #         rows_per[-1] += 1
+        #     else:
+        #         rows_per = [r + 1 for r in rows_per]
+        #         # cols_per[-1] += 1
+
+        # todo: add another row to self rows if it can be fit,
+        #   unsure about how often this is needed, def needed in square case when there is more than band_width remaining after the diagonal
+        #   possibly needed always if possible to fit it there
         self.__col_inds = col_inds
         self.__col_per_proc_list = cols_per
         self.__last_diag_pr = ldp
