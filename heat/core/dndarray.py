@@ -120,7 +120,7 @@ class DNDarray:
         return len(self.__gshape)
 
     @property
-    def ndims(self):
+    def ndim(self):
         """
 
         Returns
