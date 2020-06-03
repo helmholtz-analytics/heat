@@ -3466,6 +3466,24 @@ class DNDarray:
         """
         return trigonometrics.tanh(self, out)
 
+    def tolist(self):
+        """
+        Return a copy of the local array data as a (nested) Python list. For scalars, a standard Python number is returned.
+
+        Returns
+        -------
+        list: list
+            A copy of the array as a python list.
+        
+        Examples
+        --------
+        >>> a = ht.array([[0,1],[2,3]], split=1)
+        >>> a.tolist()
+        (1/2) [[0], [2]]
+        (2/2) [[1], [3]]
+        """
+        return self.__array.tolist()
+
     def transpose(self, axes=None):
         """
         Permute the dimensions of an array.
