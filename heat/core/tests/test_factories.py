@@ -400,9 +400,9 @@ class TestFactories(TestCase):
         def get_offset(tensor_array):
             x, y = tensor_array.shape
             for k in range(x):
-                for l in range(y):
-                    if tensor_array[k][l] == 1:
-                        return k, l
+                for li in range(y):
+                    if tensor_array[k][li] == 1:
+                        return k, li
             return x, y
 
         shape = 5

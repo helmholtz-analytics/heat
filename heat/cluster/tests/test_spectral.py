@@ -47,7 +47,7 @@ class TestSpectral(TestCase):
         self.assertIsInstance(spectral.labels_, ht.DNDarray)
 
         spectral = ht.cluster.Spectral(
-            metric="euclidean", laplacian="eNeighbour", theshold=0.5, boundary="upper", n_lanczos=m
+            metric="euclidean", laplacian="eNeighbour", threshold=0.5, boundary="upper", n_lanczos=m
         )
         labels = spectral.fit_predict(iris)
         self.assertIsInstance(labels, ht.DNDarray)
@@ -56,7 +56,7 @@ class TestSpectral(TestCase):
             gamma=0.1,
             metric="rbf",
             laplacian="eNeighbour",
-            theshold=0.5,
+            threshold=0.5,
             boundary="upper",
             n_lanczos=m,
         )
