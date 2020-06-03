@@ -6,6 +6,38 @@ from heat.core.dndarray import DNDarray
 
 
 class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
+    """
+    Spectral clustering
+
+    Attributes
+    ----------
+    n_clusters : int
+        Number of clusters to fit
+    gamma : float
+        Kernel coefficient sigma for 'rbf', ignored for metric='euclidean'
+    metric : string
+        How to construct the similarity matrix.
+
+        - 'rbf' : construct the similarity matrix using a radial basis function (RBF) kernel.
+
+        - 'euclidean' : construct the similarity matrix as only euclidean distance
+    laplacian : str
+        How to calculate the graph laplacian (affinity)
+        Currently supported : 'fully_connected', 'eNeighbour'
+    threshold : float
+        Threshold for affinity matrix if laplacian='eNeighbour'
+        Ignorded for laplacian='fully_connected'
+    boundary : str
+        How to interpret threshold: 'upper', 'lower'
+        Ignorded for laplacian='fully_connected'
+    n_lanczos : int
+        number of Lanczos iterations for Eigenvalue decomposition
+    assign_labels: str
+         The strategy to use to assign labels in the embedding space.
+    **params: dict
+          Parameter dictionary for the assign_labels estimator
+    """
+
     def __init__(
         self,
         n_clusters=None,
@@ -18,35 +50,6 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         assign_labels="kmeans",
         **params
     ):
-        """
-        Spectral clustering
-
-        Parameters
-        ----------
-        n_clusters : int, optional
-        gamma : float, default=1.0
-            Kernel coefficient sigma for 'rbf', ignored for affinity='euclidean'
-        metric : string
-            How to construct the similarity matrix.
-            'rbf' : construct the similarity matrix using a radial basis function (RBF) kernel.
-            'euclidean' : construct the similarity matrix as only euclidean distance
-        laplacian : string
-            How to calculate the graph laplacian (affinity)
-            Currently supported : 'fully_connected', 'eNeighbour'
-        threshold : float
-            Threshold for affinity matrix if laplacian='eNeighbour'
-            Ignorded for laplacian='fully_connected'
-        boundary : string
-            How to interpret threshold: 'upper', 'lower'
-            Ignorded for laplacian='fully_connected'
-        n_lanczos : int
-            number of Lanczos iterations for Eigenvalue decomposition
-        assign_labels: str, default = 'kmeans'
-             The strategy to use to assign labels in the embedding space.
-             'kmeans'
-        **params: dict
-              Parameter dictionary for the assign_labels estimator
-        """
         self.n_clusters = n_clusters
         self.gamma = gamma
         self.metric = metric
@@ -97,9 +100,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
     def _spectral_embedding(self, X) -> Tuple[DNDarray, DNDarray]:
         """
         Helper function for dataset X embedding
-
-        Returns tupel (Eigenvalues, Eigenvectors) of the graph's Laplacian matrix.
-
+        Returns Tupel(Eigenvalues, Eigenvectors) of the graph's Laplacian matrix.
         """
         L = self._laplacian.construct(X)
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
@@ -118,7 +119,6 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
     def fit(self, X):
         """
         Clusters dataset X via spectral embedding
-
         Computes the low-dim representation by calculation of eigenspectrum (eigenvalues and eigenvectors) of the graph
         laplacian from the similarity matrix and fits the eigenvectors that correspond to the k lowest eigenvalues with
         a seperate clustering algorithm (currently only kmeans is supported). Similarity metrics for adjacency
@@ -129,7 +129,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         Parameters
         ----------
         X : DNDarray
-            Training instances to cluster. Shape=(n_samples, n_features)
+            Training instances to cluster. Shape = (n_samples, n_features)
         """
         # 1. input sanitation
         if not isinstance(X, DNDarray):
@@ -159,7 +159,6 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
     def predict(self, X) -> DNDarray:
         """
         Return the label each sample in X belongs to.
-
         X is transformed to the low-dim representation by calculation of eigenspectrum (eigenvalues and eigenvectors) of
         the graph laplacian from the similarity matrix. Inference of lables is done by extraction of the closest
         centroid of the n_clusters eigenvectors from the previously fitted clustering algorithm (kmeans).

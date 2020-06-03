@@ -11,14 +11,14 @@ __all__ = ["qr"]
 
 def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False) -> Tuple[DNDarray, DNDarray]:
     """
-    Calculates the QR decomposition of a 2D DNDarray.
+    Calculates the QR decomposition of a 2D ``DNDarray``.
+    Factor the matrix ``a`` as *QR*, where ``Q`` is orthonormal and ``R`` is upper-triangular.
+    If ``calc_q == True``, function returns ``QR(Q=Q, R=R)``, else function returns ``QR(Q=None, R=R)``
 
-    Factor the matrix `a` as *qr*, where `q` is orthonormal and `r` is upper-triangular.
-    If calc_q == True, function returns QR(Q=Q, R=R), else function returns QR(Q=None, R=R)
     Parameters
     ----------
     a : DNDarray
-        DNDarray which will be decomposed
+        Array which will be decomposed
     tiles_per_proc : int or torch.Tensor, optional
         number of tiles per process to operate on,
     calc_q : bool, optional

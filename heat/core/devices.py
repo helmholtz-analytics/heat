@@ -17,11 +17,11 @@ class Device:
     Parameters
     ----------
     device_type : str
-        represents HeAT's device name
+        Represents HeAT's device name
     device_id : int
-        the device id
+        The device id
     torch_device : str
-        the corresponding PyTorch device type
+        The corresponding PyTorch device type
 
     Examples
     --------

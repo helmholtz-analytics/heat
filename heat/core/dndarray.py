@@ -35,7 +35,7 @@ __all__ = ["DNDarray"]
 class LocalIndex:
     """
     Indexing class for local operations (primarily for lloc function)
-    For docs on __getitem__ and __setitem__ see lloc(self)
+    For docs on ``__getitem__`` and ``__setitem__`` see lloc(self)
     """
 
     def __init__(self, obj):
@@ -56,17 +56,17 @@ class DNDarray:
     Parameters
     ----------
     array : torch.Tensor
-        local array elements
+        Local array elements
     gshape : tuple
-        the global shape of the DNDarray
+        The global shape of the array
     dtype : datatype
-        the datatype of the array
+        The datatype of the array
     split : int or None
-        The axis on which the DNDarray is divided between processes
+        The axis on which the array is divided between processes
     device : Device
         The device on which the local arrays are using (cpu or gpu)
     comm : ht.communication.MPICommunication
-        The communications object for sending and recieving data
+        The communications object for sending and receiving data
     """
 
     def __init__(self, array, gshape, dtype, split, device, comm):
@@ -153,10 +153,10 @@ class DNDarray:
 
         Parameters
         ----------
-        key : int, slice, list, tuple
+        key : int or slice or Tuple[int,...]
             indices of the desired data
-        value : all types compatible with pytorch tensors
-            optional (if none given then this is a getter function)
+        value : scalar, optional
+            all types compatible with pytorch tensors, if none given then this is a getter function
 
         Examples
         --------

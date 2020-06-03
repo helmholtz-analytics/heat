@@ -5741,7 +5741,7 @@ code,
 	white-space: nowrap;
 	max-width: 100%;
 	background: #fff;
-	border: solid 1px #e1e4e5;
+	border: none;
 	font-size: 75%;
 	padding: 0 5px;
 	font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", Courier, monospace;

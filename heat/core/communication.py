@@ -35,8 +35,7 @@ class Communication:
     def chunk(self, shape, split) -> Tuple[int, Tuple[int], Tuple[slice]]:
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
-        axis.
-        Returns (offset, local_shape, slices): the offset in the split dimension, the resulting local shape if the
+        axis. Returns (offset, local_shape, slices): the offset in the split dimension, the resulting local shape if the
         global input shape is chunked on the split axis and the chunk slices with respect to the given shape
 
         Parameters
@@ -52,6 +51,7 @@ class Communication:
 
 class MPICommunication(Communication):
     # static mapping of torch types to the respective MPI type handle
+    # ToDo Document me!
     __mpi_type_mappings = {
         torch.bool: MPI.BOOL,
         torch.uint8: MPI.UNSIGNED_CHAR,
@@ -84,17 +84,15 @@ class MPICommunication(Communication):
         Parameters
         ----------
         shape : Tuple[int,...]
-            the global shape of the data to be split
+            The global shape of the data to be split
         split : int
-            the axis along which to chunk the data
+            The axis along which to chunk the data
         rank : int, optional
-            process for which the chunking is calculated for
-            defaults to self.rank
-            intended for creating chunk maps without communication
+            Process for which the chunking is calculated for, defaults to ``self.rank``.
+            Intended for creating chunk maps without communication
         w_size : int, optional
-            the MPI world size
-            defaults to self.size
-            intended for creating chunk maps without communication
+            The MPI world size, defaults to ``self.size``.
+            Intended for creating chunk maps without communication
 
         """
         # ensure the split axis is valid, we actually do not need it
@@ -127,7 +125,7 @@ class MPICommunication(Communication):
     def counts_displs_shape(self, shape, axis) -> Tuple[Tuple[int], Tuple[int], Tuple[int]]:
         """
         Calculates the item counts, displacements and output shape for a variable sized all-to-all MPI-call (e.g.
-        MPI_Alltoallv). The passed shape is regularly chunk along the given axis and for all nodes.
+        ``MPI_Alltoallv``). The passed shape is regularly chunk along the given axis and for all nodes.
 
         Parameters
         ----------
@@ -206,7 +204,7 @@ class MPICommunication(Communication):
     @classmethod
     def as_mpi_memory(cls, obj) -> MPI.memory:
         """
-        Converts the passed Torch tensor into an MPI compatible memory view.
+        Converts the passed ``Torch.tensor`` into an MPI compatible memory view.
 
         Parameters
         ----------
@@ -224,7 +222,7 @@ class MPICommunication(Communication):
         cls, obj, counts=None, displs=None
     ) -> List[MPI.memory, Tuple[int, ...], MPI.Datatype]:
         """
-        Converts a passed torch tensor into a memory buffer object with associated number of elements and MPI data type.
+        Converts a passed `torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
 
         Parameters
         ----------
@@ -535,6 +533,7 @@ class MPICommunication(Communication):
 
     def __allgather_like(self, func, sendbuf, recvbuf, axis, **kwargs):
         """
+        #ToDo Proper documentation
         Parameters
         ----------
         func: function
@@ -544,7 +543,7 @@ class MPICommunication(Communication):
         recvbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
             Input Receivebuffer
         axis: int
-            concatenation axis: The axis along which sendbuf is packed and along which recvbuf puts together individual chunks
+            concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
         """
         # dummy allocation for *v calls
         # ToDO: Propper implementation of usage
@@ -617,14 +616,15 @@ class MPICommunication(Communication):
 
     def Allgather(self, sendbuf, recvbuf, recv_axis=0):
         """
+        #ToDo Proper documentation
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
-            Input Sendbuffer
-        recvbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
-            Input Receivebuffer
+        sendbuf: DNDarray or torch.Tensor or Tuple = [torch.Tensor, int, int]
+            Input Send buffer
+        recvbuf: DNDarray or torch.Tensor or Tuple = [torch.Tensor, int, int]
+            Input Receive buffer
         recv_axis: int
-            concatenation axis: The axis among which sendbuffer is distributed before allgather is performed
+            Concatenation axis: The axis among which ``sendbuf`` is distributed before allgather is performed
         """
         ret, sbuf, rbuf, buf, permutation = self.__allgather_like(
             self.handle.Allgather, sendbuf, recvbuf, recv_axis
@@ -641,12 +641,12 @@ class MPICommunication(Communication):
         """
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
-            Input Sendbuffer
-        recvbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
-            Input Receivebuffer
+        sendbuf: DNDarray or torch.Tensor or Tuple = [torch.Tensor, int, int]
+            Input Send buffer
+        recvbuf: DNDarray or torch.Tensor or Tuple = [torch.Tensor, int, int]
+            Input Receive buffer
         recv_axis: int
-            concatenation axis: The axis among which sendbuffer is distributed before allgather is performed
+            Concatenation axis: The axis among which ``sendbuf`` is distributed before allgather is performed
         """
         ret, sbuf, rbuf, buf, permutation = self.__allgather_like(
             self.handle.Allgatherv, sendbuf, recvbuf, recv_axis
@@ -663,12 +663,12 @@ class MPICommunication(Communication):
         """
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
-            Input Sendbuffer
-        recvbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
-            Input Receivebuffer
+        sendbuf: DNDarray or torch.Tensor or Tuple = [torch.Tensor, int, int]
+            Input Send buffer
+        recvbuf: DNDarray or torch.Tensor or Tuple = [torch.Tensor, int, int]
+            Input Receive buffer
         recv_axis: int
-            concatenation axis: The axis among which sendbuffer is distributed before allgather is performed
+            Concatenation axis: The axis among which ``sendbuf`` is distributed before allgather is performed
         """
         return MPIRequest(
             *self.__allgather_like(self.handle.Iallgather, sendbuf, recvbuf, recv_axis)
@@ -680,12 +680,12 @@ class MPICommunication(Communication):
         """
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
-            Input Sendbuffer
-        recvbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
-            Input Receivebuffer
+        sendbuf: DNDarray or torch.Tensor or Tuple = [torch.Tensor, int, int]
+            Input Send buffer
+        recvbuf: DNDarray or torch.Tensor or Tuple = [torch.Tensor, int, int]
+            Input Receive buffer
         recv_axis: int
-            concatenation axis: The axis among which sendbuffer is distributed before allgather is performed
+            Concatenation axis: The axis among which ``sendbuf`` is distributed before allgather is performed
         """
         return MPIRequest(
             *self.__allgather_like(self.handle.Iallgatherv, sendbuf, recvbuf, recv_axis)
@@ -698,13 +698,15 @@ class MPICommunication(Communication):
         Parameters
         ----------
         sendbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
-            Input send buffer; can also be any other numpy supported type (only if send_axis == 0)
+            Input send buffer; can also be any other numpy supported type (only if ``send_axis == 0``)
         recvbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
-            Input receive buffer; can also be any other numpy supported type (only if send_axis == 0)
+            Input receive buffer; can also be any other numpy supported type (only if ``send_axis == 0``)
         send_axis: int
             future split axis, along which data blocks will be created that will be send to individual ranks
-            - if send_axis == recv_axis, an error will be thrown
-            - if send_axis or recv_axis are None, an error will be thrown
+
+            - if ``send_axis == recv_axis``, an error will be thrown
+
+            - if ``send_axis`` or ``recv_axis`` are ``None``, an error will be thrown
         recv_axis: int
             prior split axis, along which blocks are received from the individual ranks
         """

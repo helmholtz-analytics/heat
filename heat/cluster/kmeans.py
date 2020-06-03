@@ -6,15 +6,18 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
     """
     K-Means clustering algorithm. An implementation of Lloyd's algorithm [1].
 
-    Parameters
+    Attributes
     ----------
     n_clusters : int
         The number of clusters to form as well as the number of centroids to generate.
-    init : ‘random’ or ‘k-means++’ or DNDarray
-        Method for initialization, defaults to ‘random’:
-        ‘k-means++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
-        ‘random’: choose k observations (rows) at random from data for the initial centroids.
-        DNDarray: it should be of shape (n_clusters, n_features) and gives the initial centers.
+    init : str or DNDarray
+        Method for initialization:
+
+        - ‘k-means++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
+
+        - ‘random’: choose k observations (rows) at random from data for the initial centroids.
+
+        - DNDarray: it should be of shape (n_clusters, n_features) and gives the initial centers.
     max_iter : int
         Maximum number of iterations of the k-means algorithm for a single run.
     tol : float
@@ -24,9 +27,9 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
     Notes
     -----
-    The average complexity is given by :math:`O(k n T)`, were n is the number of samples and :math:`T` is the number of iterations.
+    The average complexity is given by :math:`O(k \\cdot n \\cdot T)`, were n is the number of samples and :math:`T` is the number of iterations.
     In practice, the k-means algorithm is very fast, but it may fall into local minima. That is why it can be useful
-    to restart it several times. If the algorithm stops before fully converging (because of tol or max_iter),
+    to restart it several times. If the algorithm stops before fully converging (because of ``tol`` or ``max_iter``),
     labels_ and cluster_centers_ will not be consistent, i.e. the cluster_centers_ will not be the means of the
     points in each cluster. Also, the estimator will reassign labels_ after the last iteration to make labels_
     consistent with predict on the training set.
@@ -57,7 +60,6 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
     def cluster_centers_(self) -> DNDarray:
         """
         Returns the coordinates of the cluster centers.
-
         If the algorithm stops before fully converging (see tol and max_iter),
         these will not be consistent with labels_.
         """

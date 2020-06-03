@@ -4,6 +4,31 @@ from heat.core.dndarray import DNDarray
 
 
 class Laplacian:
+    """
+    Graph Laplacians from a dataset
+
+    Parameters
+    ----------
+    similarity : function
+        Metric function that defines similarity between vertices. Should accept a data matrix (n,f) as input and return an (n,n) similarity matrix.
+        Additional required parameters can be passed via a lambda function.
+    definition : str
+        Type of Laplacian
+            - 'simple': Laplacian matrix for simple graphs :math:`L = D - A`
+            - 'norm_sym': Symmetric normalized Laplacian :math:`L^{sym} = D^{-1/2} L D^{-1/2} = I - D^{-1/2} A D^{-1/2}`
+            - 'norm_rw': Random walk normalized Laplacian :math:`L^{rw} = D^{-1} L = I - D^{-1}`
+    mode : str
+        How to calculate adjacency from the similarity matrix
+            - 'fully_connected' is fully-connected, so :math:`A = S`
+            - 'eNeighbour' is the epsilon neighbourhood, with :math:`A_{ji} = 0` if :math:`S_{ij} > upper` or :math:`S_{ij} < lower`; for eNeighbour an upper or lower boundary needs to be set
+    threshold_key : str
+        'upper' or 'lower', defining the type of threshold for the epsilon-neighrborhood
+    threshold_value : float
+        Boundary value for the epsilon-neighrborhood
+    neighbours : int
+        Number of neirest neighbors to be considered for adjacency definition. Currently not implemented
+    """
+
     def __init__(
         self,
         similarity,
@@ -14,30 +39,6 @@ class Laplacian:
         threshold_value=1.0,
         neighbours=10,
     ) -> DNDarray:
-        """
-        Graph Laplacians from a dataset
-
-        Parameters
-        ----------
-        similarity : function
-            Metric function that defines similarity between vertices. Should accept a data matrix (n,f) as input and return an (n,n) similarity matrix.
-            Additional required parameters can be passed via a lambda function.
-        definition : str
-            Type of Laplacian
-            'simple': Laplacian matrix for simple graphs L = D - A
-            'norm_sym': Symmetric normalized Laplacian L^sym = D^{-1/2} L D^{-1/2} = I - D^{-1/2} A D^{-1/2}
-            'norm_rw': L^rw = D^{-1} L = I - D^{-1} A
-        mode : str
-            How to calculate adjacency from the similarity matrix
-            "fully_connected" is fully-connected, so A = S
-            "eNeighbour" is the epsilon neighbourhood, with A_ji = 0 if S_ij </> lower/upper; for eNeighbour an upper or lower boundary needs to be set
-        threshold_key : str
-            "upper" or "lower", defining the type of threshold for the epsilon-neighrborhood
-        threshold_value : float
-            Boundary value for the epsilon-neighrborhood
-        neighbours : int
-            Number of neirest neighbors to be considered for adjacency definition. Currently not implemented
-        """
         self.similarity_metric = similarity
         self.weighted = weighted
         if definition not in ["simple", "norm_sym"]:
@@ -62,7 +63,17 @@ class Laplacian:
 
         self.neighbours = neighbours
 
-    def _normalized_symmetric_L(self, A):
+    def _normalized_symmetric_L(self, A) -> DNDarray:
+        """
+        Helper function to calculate the normalized symmetric Laplacian
+
+        .. math:: L^{sym} = D^{-1/2} L D^{-1/2} = I - D^{-1/2} A D^{-1/2}
+
+        Parameters
+        ----------
+        A : DNDarray
+            The Adjacency Matrix of the graph
+        """
         degree = ht.sum(A, axis=1)
         degree.resplit_(axis=None)
         # Find stand-alone vertices with no connections
@@ -79,11 +90,29 @@ class Laplacian:
         return L
 
     def _simple_L(self, A):
+        """
+        Helper function to calculate the simple graph Laplacian
+
+        .. math:: L = D - A
+
+        Parameters
+        ----------
+        A : DNDarray
+            The Adjacency Matrix of the graph
+        """
         degree = ht.sum(A, axis=1)
         L = ht.diag(degree) - A
         return L
 
-    def construct(self, X):
+    def construct(self, X) -> DNDarray:
+        """
+        Callable to get the Laplacian matrix from the Dataset X according to the specified ``Laplacian``
+
+        Parameters
+        ----------
+        C : DNDarray
+            The Data Matrix, Shape = (n_samples, n_features)
+       """
         S = self.similarity_metric(X)
         S.fill_diagonal(0.0)
 

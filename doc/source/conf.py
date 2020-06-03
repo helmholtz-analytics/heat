@@ -20,9 +20,11 @@
 import os
 import sys
 import sphinx_rtd_theme
+from sphinx.ext.napoleon.docstring import NumpyDocstring, GoogleDocstring
 
 # sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath("../../"))
+
 
 # -- General configuration ------------------------------------------------
 
@@ -33,7 +35,14 @@ sys.path.insert(0, os.path.abspath("../../"))
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["autoapi.extension", "sphinx_rtd_theme", "sphinxcontrib.napoleon"]
+extensions = [
+    "autoapi.extension",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.inheritance_diagram",
+    "sphinx_rtd_theme",
+    "sphinxcontrib.napoleon",
+]
 
 
 # Document Python Code
@@ -42,9 +51,12 @@ autoapi_dirs = ["../../heat/"]
 autoapi_ignore = ["*/tests/*"]
 autoapi_template_dir = "_templates/autoapi"
 
-napoleon_custom_sections = ["Shape"]
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
+napoleon_numpy_docstring = True
+napoleon_use_ivar = True
+
+html_show_sourcelink = True
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:

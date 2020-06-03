@@ -17,9 +17,12 @@ def dot(a, b, out=None) -> Union[DNDarray, float]:
     """
     Returns the dot product of two arrays.
     Specifically,
-    1. If both a and b are 1-D arrays, it is inner product of vectors.
-    2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or `a @ b` is preferred.
-    3. If either a or b is 0-D (scalar), it is equivalent to multiply and using `ht.multiply(a, b)` or `a * b` is preferred.
+
+        1. If both a and b are 1-D arrays, it is inner product of vectors.
+
+        2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or ``a @ b`` is preferred.
+
+        3. If either a or b is 0-D (scalar), it is equivalent to multiply and using ``ht.multiply(a, b)`` or ``a * b` is preferred.
 
     Parameters
     ----------
@@ -70,27 +73,31 @@ def dot(a, b, out=None) -> Union[DNDarray, float]:
 
 def matmul(a, b, allow_resplit=False) -> DNDarray:
     """
-    Matrix multiplication of two DNDarrays: a @ b = c or A @ B = c
-    Returns a tensor with the result of a @ b. The split dimension of the returned array is
-    typically the split dimension of a. However, if a.split = None then the the c.split will be
-    set as the split dimension of b. If both are None then c.split is also None.
+    Matrix multiplication of two DNDarrays: ``a @ b = c`` or ``A @ B = c``.
+    Returns a tensor with the result of ``a @ b``. The split dimension of the returned array is
+    typically the split dimension of a. However, if ``a.split = None`` then the the ``c.split`` will be
+    set as the split dimension of ``b``. If both are None then ``c.split`` is also None.
 
     Parameters
     ----------
     a : DNDarray
-        2 dimensional: L x P
+        2 dimensional: :math:`L \\times P`
     b : DNDarray
-        2 dimensional: P x Q
+        2 dimensional: :math:`P \\times Q`
     allow_resplit : bool, optional
-        Flag for if to resplit the DNDarray 'a' in the case that both 'a' and 'b' are not split.
+        Flag for if to resplit the DNDarray ``a`` in the case that both 'a' and 'b' are not split.
+
         - Default: if both are not split then both will remain not split.
-        - True: if both are not split then 'a' will be split in-place along axis 0, i.e. the split axis of 'a' will become 0 and the DNDarray will be distributed in the standard fashion.
+
+        - True: if both are not split then ``a``  will be split in-place along axis 0, i.e. the split axis of ``a``  will
+        become 0 and the DNDarray will be distributed in the standard fashion.
+
         - The default case should be the most efficient case for large matrices.
 
     Notes
     -----
-    - If a is a split vector then the returned vector will be of shape (1xQ) and will be split in the 1st dimension
-    - If b is a vector and either a or b is split, then the returned vector will be of shape (Lx1) and will be split in the 0th dimension
+    - If ``a`` is a split vector then the returned vector will be of shape (:math:`1xQ`) and will be split in the 1st dimension
+    - If ``b`` is a vector and either ``a`` or ``b`` is split, then the returned vector will be of shape (:math:`Lx1`) and will be split in the 0th dimension
 
     References
     ----------
@@ -758,7 +765,7 @@ def matmul(a, b, allow_resplit=False) -> DNDarray:
 
 def norm(a) -> float:
     """
-    Returns the vector norm (Frobenius norm) of vector a
+    Returns the vector norm (Frobenius norm) of vector ``a``
 
     Parameters
     ----------
@@ -978,9 +985,8 @@ def __tri_op(m, k, op) -> DNDarray:
 def tril(m, k=0) -> DNDarray:
     """
     Returns the lower triangular part of the tensor.
-
     The lower triangular part of the tensor is defined as the elements on and below the diagonal, the other elements of the result tensor are set to 0.
-    The argument k controls which diagonal to consider. If k=0, all elements on and below the main diagonal are
+    The argument k controls which diagonal to consider. If ``k=0``, all elements on and below the main diagonal are
     retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
     value excludes just as many diagonals below the main diagonal.
 
@@ -998,9 +1004,8 @@ def tril(m, k=0) -> DNDarray:
 def triu(m, k=0) -> DNDarray:
     """
     Returns the upper triangular part of the tensor.
-
     The upper triangular part of the tensor is defined as the elements on and below the diagonal, the other elements of the result tensor are set to 0.
-    The argument k controls which diagonal to consider. If k=0, all elements on and below the main diagonal are
+    The argument k controls which diagonal to consider. If ``k=0``, all elements on and below the main diagonal are
     retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
     value excludes just as many diagonals below the main diagonal.
 

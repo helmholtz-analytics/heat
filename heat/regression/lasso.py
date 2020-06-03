@@ -4,14 +4,15 @@ from heat.core.dndarray import DNDarray
 
 class Lasso(ht.RegressionMixin, ht.BaseEstimator):
     """
-    ``Least absolute shrinkage and selection operator``(LASSO), a linear model with L1 regularization. The optimization
+    `Least absolute shrinkage and selection operator` (LASSO), a linear model with :math:`L1` regularization. The optimization
     objective for Lasso is:
 
     .. math:: E(w) = (1 / (2 * m)) * ||y - Xw||^2_2 + lam * ||w\\_||_1
 
     with
 
-    .. math:: w\\_=(w_1,w_2,...,w_n) \\land w=(w_0,w_1,w_2,...,w_n), y \\in M(m \\times 1), w \\in M(n \\times 1), X \\in M(m \\times n)
+    .. math:: w\\_=(w_1,w_2,...,w_n) \\land w=(w_0,w_1,w_2,...,w_n),
+    .. math:: y \\in M(m \\times 1), w \\in M(n \\times 1), X \\in M(m \\times n)
 
     Parameters
     ----------

@@ -11,7 +11,7 @@ __all__ = ["cdist", "rbf"]
 
 def _euclidian(x, y) -> torch.tensor:
     """
-    Helper function to calculate euclidian distance between torch.tensors x and y: sqrt(|x-y|**2)
+    Helper function to calculate euclidian distance between torch.tensors x and y: :math:`\\sqrt(|x-y|^2)`
     Based on torch.cdist. Returns 2D tensor of size m x n
 
     Parameters
@@ -26,8 +26,8 @@ def _euclidian(x, y) -> torch.tensor:
 
 def _euclidian_fast(x, y) -> torch.tensor:
     """
-    Helper function to calculate euclidian distance between torch.tensors x and y: sqrt(|x-y|**2)
-    Uses quadratic expansion to calculate (x-y)**2. Returns 2D tensor of size m x n
+    Helper function to calculate euclidian distance between torch.tensors x and y: :math:`\\sqrt(|x-y|^2)`
+    Uses quadratic expansion to calculate :math:`(x-y)^2`. Returns 2D tensor of size m x n
 
     Parameters
     ----------
@@ -41,7 +41,7 @@ def _euclidian_fast(x, y) -> torch.tensor:
 
 def _quadratic_expand(x, y) -> torch.tensor:
     """
-    Helper function to calculate quadratic expansion |x-y|**2=|x|**2 + |y|**2 - 2xy
+    Helper function to calculate quadratic expansion :math:`|x-y|^2=|x|^2 + |y|^2 - 2xy`
     Returns 2D tensor of size m x n
 
     Parameters
@@ -61,7 +61,7 @@ def _quadratic_expand(x, y) -> torch.tensor:
 
 def _gaussian(x, y, sigma=1.0) -> torch.tensor:
     """
-    Helper function to calculate gaussian distance between torch.tensors x and y: exp(-(|x-y|**2/2sigma**2)
+    Helper function to calculate gaussian distance between torch.tensors x and y: :math:`exp(-(|x-y|^2/2\\sigma^2)`
     Based on torch.cdist. Returns a 2D tensor of size m x n
 
     Parameters
@@ -81,8 +81,8 @@ def _gaussian(x, y, sigma=1.0) -> torch.tensor:
 
 def _gaussian_fast(x, y, sigma=1.0) -> torch.tensor:
     """
-    Helper function to calculate gaussian distance between torch.tensors x and y: exp(-(|x-y|**2/2sigma**2)
-    Uses quadratic expansion to calculate (x-y)**2. Returns a 2D tensor of size m x n
+    Helper function to calculate gaussian distance between torch.tensors x and y: :math:`exp(-(|x-y|^2/2\\sigma^2)
+    Uses quadratic expansion to calculate :math:`(x-y)^2`. Returns a 2D tensor of size m x n
 
     Parameters
     ----------
@@ -99,19 +99,22 @@ def _gaussian_fast(x, y, sigma=1.0) -> torch.tensor:
     return result
 
 
-def cdist(X, Y=None, quadratic_expansion=False) -> torch.tensor:
+def cdist(X, Y=None, quadratic_expansion=False) -> DNDarray:
     """
-    Calculate euclidian distance between torch.tensors x and y: sqrt(|x-y|**2)
+    Calculate euclidian distance between torch.tensors x and y:
+
+    .. math:: d(x,y) = \\sqrt{(|x-y|^2)}
+
     Returns 2D tensor of size m x n
 
     Parameters
     ----------
-    x : torch.tensor
+    x : DNDarray
         2D tensor of size m x f
-    y : torch.tensor
+    y : DNDarray
         2D tensor of size n x f
     quadratic_expansion : bool
-        Whether to use quadratic expansion for sqrt(|x-y|**2) (Might yield speed-up)
+        Whether to use quadratic expansion for :math:`\\sqrt{(|x-y|^2)}` (Might yield speed-up)
     """
     if quadratic_expansion:
         return _dist(X, Y, _euclidian_fast)
@@ -119,21 +122,24 @@ def cdist(X, Y=None, quadratic_expansion=False) -> torch.tensor:
         return _dist(X, Y, _euclidian)
 
 
-def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False):
+def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False) -> DNDarray:
     """
-    Calculate gaussian distance between torch.tensors x and y: exp(-(|x-y|**2/2sigma**2)
+    Calculate gaussian distance between torch.tensors x and y:
+
+    .. math:: d(x,y) = exp(-(|x-y|^2/2\\sigma^2)
+
     Returns 2D tensor of size m x n
 
     Parameters
     ----------
-    x : torch.tensor
+    x : DNDarray
         2D tensor of size m x f
-    y : torch.tensor
+    y : DNDarray
         2D tensor of size n x f
     sigma: float
         scaling factor for gaussian kernel
     quadratic_expansion : bool
-        Whether to use quadratic expansion for sqrt(|x-y|**2) (Might yield speed-up)
+        Whether to use quadratic expansion for :math:`\\sqrt{(|x-y|^2)}` (Might yield speed-up)
     """
     if quadratic_expansion:
         return _dist(X, Y, lambda x, y: _gaussian_fast(x, y, sigma))

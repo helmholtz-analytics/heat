@@ -9,7 +9,7 @@ __all__ = ["cg", "lanczos"]
 
 def cg(A, b, x0, out=None) -> DNDarray:
     """
-    Conjugate gradients method for solving a system of linear equations Ax = b
+    Conjugate gradients method for solving a system of linear equations :math: `Ax = b`
 
     Parameters
     ----------
@@ -66,25 +66,26 @@ def cg(A, b, x0, out=None) -> DNDarray:
 
 def lanczos(A, m, v0=None, V_out=None, T_out=None) -> Tuple[DNDarray, DNDarray]:
     """
-    Lanczos algorithm
-    This is an iterative approximation of the solution to the eigenvalue problem, as an adaptation of power methods to
-    find the m "most useful" (tending towards extreme highest/lowest) eigenvalues and eigenvectors of an :math: `n x n`
-    Hermitian matrix, where often :math: `m<<n`. It returns two matrices :math: `V` and :math: `T`, where:
-    - V is a Matrix of size nxm, with orthonormal columns, that span the Krylow subspace \
-    - T is a Tridiagonal matrix of size mxm, with coefficients alpha_1,...alpha_n on the diagonal and coefficients beta_1,...,beta_n-1 on the side-diagonals
+    The Lanczos algorithm is an iterative approximation of the solution to the eigenvalue problem, as an adaptation of
+    power methods to find the m "most useful" (tending towards extreme highest/lowest) eigenvalues and eigenvectors of
+    an :math: `n \\times n` Hermitian matrix, where often :math: `m<<n`.
+    It returns two matrices :math: `V` and :math: `T`, where:
+    - :math: `V` is a Matrix of size :math: `n\\times m`, with orthonormal columns, that span the Krylow subspace \
+    - :math: `T` is a Tridiagonal matrix of size :math: `m\\times m`, with coefficients :math: '\\alpha_1,..., \\alpha_n`
+    on the diagonal and coefficients :math: `\\beta_1,...,\\beta_{n-1}` on the side-diagonals
 
     Parameters
     ----------
     A : DNDarray
         2D symmetric, positive definite Matrix
     m : int
-        number of Lanczos iterations
+        Number of Lanczos iterations
     v0 : DNDarray, optional
         1D starting vector of Euclidian norm 1. If not provided, a random vector will be used to start the algorithm
     V_out DNDarray, optional
-        Output Matrix of size (n, m) for the Krylow vectors
+        Output Matrix for the Krylow vectors, Shape = (n, m)
     T_out DNDarray, optional
-        Output Matrix of size (m, m) for the Tridiagonal matrix
+        Output Matrix for the Tridiagonal matrix, Shape = (m, m)
 
     """
     if not isinstance(A, DNDarray):

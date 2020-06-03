@@ -30,10 +30,10 @@ class BaseEstimator:
         """
         Get parameters for this estimator.
 
-        Args
+        Parameters
         ----------
         deep : bool
-            If True, will return the parameters for this estimator and contained sub-objects that are estimators.
+            If ``True``, will return the parameters for this estimator and contained sub-objects that are estimators.
         """
         params = dict()
 
@@ -51,11 +51,10 @@ class BaseEstimator:
 
     def set_params(self, **params) -> self:
         """
-        Set the parameters of this estimator.
-        The method works on simple estimators as well as on nested objects (such
-        as pipelines). The latter have to be nested dictionaries.
+        Set the parameters of this estimator. The method works on simple estimators as well as on nested objects
+        (such as pipelines). The latter have to be nested dictionaries.
 
-        Args
+        Parameters
         ----------
         **params : Dict[str, Any]
             Estimator parameters to bet set.
@@ -89,7 +88,7 @@ class ClassificationMixin:
         """
         Fits the classification model.
 
-        Args
+        Parameters
         ----------
         X : DNDarray
             Training instances to train on. Shape = (n_samples, n_features)
@@ -103,9 +102,9 @@ class ClassificationMixin:
     def fit_predict(self, X, Y) -> DNDarray:
         """
         Fits model and returns classes for each input sample
-        Convenience method; equivalent to calling fit(X) followed by predict(X).
+        Convenience method; equivalent to calling ``fit(X)`` followed by ``predict(X)``.
 
-        Args
+        Parameters
         ----------
         X : DNDarray
             Input data to be predicted. Shape = (n_samples, n_features)
@@ -119,7 +118,7 @@ class ClassificationMixin:
         """
         Predicts the class labels for each sample.
 
-        Args
+        Parameters
         ----------
         X : DNDarray
             Values to predict the classes for. Shape = (n_samples, n_features)
@@ -137,7 +136,7 @@ class ClusteringMixin:
         """
         Computes the clustering.
 
-        Args
+        Parameters
         ----------
         X : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
@@ -149,7 +148,7 @@ class ClusteringMixin:
         """
         Compute clusters and returns the predicted cluster assignment for each sample.
         Returns index of the cluster each sample belongs to.
-        Convenience method; equivalent to calling fit(X) followed by predict(X).
+        Convenience method; equivalent to calling ``fit(X)`` followed by ``predict(X)``.
 
         Parameters
         ----------
@@ -170,7 +169,7 @@ class RegressionMixin:
         """
         Fits the regression model.
 
-        Args
+        Parameters
         ----------
         X : DNDarray
             Training instances to train on. Shape = (n_samples, n_features)
@@ -183,7 +182,7 @@ class RegressionMixin:
     def fit_predict(self, X, Y) -> DNDarray:
         """
         Fits model and returns regression predictions for each input sample
-        Convenience method; equivalent to calling fit(X) followed by predict(X).
+        Convenience method; equivalent to calling ``fit(X)`` followed by ``predict(X)``.
 
         Args
         ----------
@@ -210,9 +209,9 @@ class RegressionMixin:
 
 def is_classifier(estimator) -> bool:
     """
-    Return True if the given estimator is a classifier, False otherwise.
+    Return ``True`` if the given estimator is a classifier, ``False`` otherwise.
 
-    Args
+    Parameters
     ----------
     estimator : object
         Estimator object to test.
@@ -222,9 +221,9 @@ def is_classifier(estimator) -> bool:
 
 def is_estimator(estimator) -> bool:
     """
-    Return True if the given estimator is an estimator, False otherwise.
+    Return ``True`` if the given estimator is an estimator, ``False`` otherwise.
 
-    Args
+    Parameters
     ----------
     estimator : object
         Estimator object to test.
@@ -234,9 +233,9 @@ def is_estimator(estimator) -> bool:
 
 def is_clusterer(estimator) -> bool:
     """
-    Return True if the given estimator is a clusterer, False otherwise.
+    Return ``True`` if the given estimator is a clusterer, ``False`` otherwise.
 
-    Args
+    Parameters
     ----------
     estimator : object
         Estimator object to test.
@@ -247,9 +246,9 @@ def is_clusterer(estimator) -> bool:
 
 def is_regressor(estimator) -> bool:
     """
-    Return True if the given estimator is a regressor, False otherwise.
+    Return ``True`` if the given estimator is a regressor, ``False`` otherwise.
 
-    Args
+    Parameters
     ----------
     estimator : object
         Estimator object to test.
