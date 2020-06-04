@@ -1,5 +1,6 @@
 # Pending Additions
 
+- [#488](https://github.com/helmholtz-analytics/heat/pull/488) Enhancement: Rework of the test device selection.
 - [#573](https://github.com/helmholtz-analytics/heat/pull/573) Bugfix: matmul fixes: early out for 2 vectors, remainders not added if inner block is 1 for split 10 case
 - [#580](https://github.com/helmholtz-analytics/heat/pull/580) New feature: fliplr()
 
@@ -16,8 +17,6 @@
 - [#496](https://github.com/helmholtz-analytics/heat/pull/496) New feature: flipud()
 - [#498](https://github.com/helmholtz-analytics/heat/pull/498) Feature: flip()
 - [#499](https://github.com/helmholtz-analytics/heat/pull/499) Bugfix: MPI datatype mapping: `torch.int16` now maps to `MPI.SHORT` instead of `MPI.SHORT_INT`
-- [#488](https://github.com/helmholtz-analytics/heat/pull/488) Enhancement: Rework of the test device selection. Environment variable is now called HEAT_USE_DEVICE and has more options.
-
 - [#501](https://github.com/helmholtz-analytics/heat/pull/501) New Feature: flatten
 - [#506](https://github.com/helmholtz-analytics/heat/pull/506) Bugfix: setup.py has correct version parsing
 - [#507](https://github.com/helmholtz-analytics/heat/pull/507) Bugfix: sanitize_axis changes axis of 0-dim scalars to None
