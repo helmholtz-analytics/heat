@@ -1,5 +1,10 @@
 # Pending Additions
 
+- [#573](https://github.com/helmholtz-analytics/heat/pull/573) Bugfix: matmul fixes: early out for 2 vectors, remainders not added if inner block is 1 for split 10 case
+
+
+# v0.4.0
+
 - Update documentation theme to "Read the Docs"
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Create submodule for Linear Algebra functions
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implemented QR
