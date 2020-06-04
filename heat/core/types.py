@@ -1,23 +1,4 @@
-"""
-types: Defines the basic heat data types in the hierarchy as shown below. Design inspired by the Python package numpy.
-
-As part of the type-hierarchy: xx -- is bit-width
-generic
- +-> bool, bool_                                (kind=?)
- +-> number
- |   +-> integer
- |   |   +-> signedinteger         (intxx)      (kind=b, i)
- |   |   |     int8, byte
- |   |   |     int16, short
- |   |   |     int32, int
- |   |   |     int64, long
- |   |   \\-> unsignedinteger      (uintxx)     (kind=B, u)
- |   |         uint8, ubyte
- |   \\-> floating                 (floatxx)    (kind=f)
- |         float32, float, float_
- |         float64, double         (double)
- \\-> flexible (currently unused, placeholder for characters)
-"""
+from __future__ import annotations
 
 import builtins
 import collections
@@ -55,11 +36,39 @@ __all__ = [
     "double",
     "flexible",
     "can_cast",
+    "canonical_heat_type",
+    "heat_type_is_exact",
+    "heat_type_is_inexact",
+    "heat_type_of",
     "promote_types",
+    "finfo",
+    "iinfo",
 ]
+__api__ = []
 
 
 class datatype:
+    """
+    types: Defines the basic heat data types in the hierarchy as shown below. Design inspired by the Python package numpy.
+
+    As part of the type-hierarchy: xx -- is bit-width
+    generic
+     +-> bool, bool_                                (kind=?)
+     +-> number
+     |   +-> integer
+     |   |   +-> signedinteger         (intxx)      (kind=b, i)
+     |   |   |     int8, byte
+     |   |   |     int16, short
+     |   |   |     int32, int
+     |   |   |     int64, long
+     |   |   \\-> unsignedinteger      (uintxx)     (kind=B, u)
+     |   |         uint8, ubyte
+     |   \\-> floating                 (floatxx)    (kind=f)
+     |         float32, float, float_
+     |         float64, double         (double)
+     \\-> flexible (currently unused, placeholder for characters)
+    """
+
     def __new__(cls, *value, device=None, comm=None):
         torch_type = cls.torch_type()
         if torch_type is NotImplemented:
@@ -99,21 +108,33 @@ class datatype:
         )
 
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> NotImplemented:
+        """
+        Torch Datatye
+        """
         return NotImplemented
 
     @classmethod
-    def char(cls):
+    def char(cls) -> NotImplemented:
+        """
+        Datatype short-hand name
+        """
         return NotImplemented
 
 
 class bool(datatype):
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatye
+        """
         return torch.bool
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "u1"
 
 
@@ -131,41 +152,65 @@ class signedinteger(integer):
 
 class int8(signedinteger):
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatye
+        """
         return torch.int8
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "i1"
 
 
 class int16(signedinteger):
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatye
+        """
         return torch.int16
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "i2"
 
 
 class int32(signedinteger):
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatye
+        """
         return torch.int32
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "i4"
 
 
 class int64(signedinteger):
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatye
+        """
         return torch.int64
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "i8"
 
 
@@ -175,11 +220,17 @@ class unsignedinteger(integer):
 
 class uint8(unsignedinteger):
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatye
+        """
         return torch.uint8
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "u1"
 
 
@@ -189,21 +240,33 @@ class floating(number):
 
 class float32(floating):
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatye
+        """
         return torch.float32
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "f4"
 
 
 class float64(floating):
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatye
+        """
         return torch.float64
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "f8"
 
 
@@ -422,10 +485,14 @@ def can_cast(from_, to, casting="safe") -> bool:
     casting: str, optional
         One of {'no', 'safe', 'same_kind', 'unsafe'}
         Controls the way the cast is evaluated
-        * 'no' the types may not be cast, i.e. they need to be identical
-        * 'safe' allows only casts that can preserve values with complete precision
-        * 'same_kind' safe casts are possible and down_casts within the same type family, e.g. int32 -> int8
-        * 'unsafe' means any conversion can be performed, i.e. this casting is always possible
+
+        * ``'no'`` the types may not be cast, i.e. they need to be identical
+
+        * ``'safe'`` allows only casts that can preserve values with complete precision
+
+        * ``'same_kind'`` safe casts are possible and down_casts within the same type family, e.g. ``int32`` -> ``int8``
+
+        * ``'unsafe'`` means any conversion can be performed, i.e. this casting is always possible
 
 
     Raises
@@ -437,24 +504,16 @@ def can_cast(from_, to, casting="safe") -> bool:
 
     Examples
     --------
-    Basic examples with types
-
     >>> ht.can_cast(ht.int32, ht.int64)
     True
     >>> ht.can_cast(ht.int64, ht.float64)
     True
     >>> ht.can_cast(ht.int16, ht.int8)
     False
-
-    The usage of scalars is also possible
-
     >>> ht.can_cast(1, ht.float64)
     True
     >>> ht.can_cast(2.0e200, 'u1')
     False
-
-    can_cast supports different casting rules
-
     >>> ht.can_cast('i8', 'i4', 'no')
     False
     >>> ht.can_cast('i8', 'i4', 'safe')
@@ -503,7 +562,7 @@ for i, operand_a in enumerate(__type_codes.keys()):
 
 def promote_types(type1, type2) -> datatype:
     """
-    Returns the data type with the smallest size and smallest scalar kind to which both type1 and type2 may be safely
+    Returns the data type with the smallest size and smallest scalar kind to which both ``type1`` and ``type2`` may be safely
     cast. This function is symmetric.
 
     Parameters
@@ -530,8 +589,6 @@ def promote_types(type1, type2) -> datatype:
 
 class finfo:
     """
-    finfo(dtype)
-
     Class describing machine limits (bit representation) of floating point types.
 
     Attributes
@@ -540,14 +597,14 @@ class finfo:
         The number of bits occupied by the type.
     eps : float
         The smallest representable positive number such that
-        ``1.0 + eps != 1.0``.  Type of `eps` is an appropriate floating
+        ``1.0 + eps != 1.0``.  Type of ``eps`` is an appropriate floating
         point type.
     max : float
         The largest representable number.
     min : float
         The smallest representable number, typically ``-max``.
     tiny : float
-        The smallest positive usable number.  Type of `tiny` is an
+        The smallest positive usable number.  Type of ``tiny`` is an
         appropriate floating point type.
 
     Parameters
@@ -589,7 +646,6 @@ class finfo:
 
 class iinfo:
     """
-    iinfo(dtype)
     Class describing machine limits (bit representation) of integer types.
 
     Attributes

@@ -54,7 +54,7 @@ else:
         dataset : str
             Name of the dataset to be read.
         dtype : datatype
-            Data type of the resulting array; default: ht.float32.
+            Data type of the resulting array.
         split : int or None, optional
             The axis along which the data is distributed among the processing cores.
         device : str, optional
@@ -136,7 +136,7 @@ else:
         dataset : str
             Name of the dataset the data is saved to.
         mode : str
-            File access mode, one of 'w', 'a', 'r+'
+            File access mode, one of ``'w', 'a', 'r+'``
         kwargs : dict
             additional arguments passed to the created dataset.
 
@@ -244,11 +244,11 @@ else:
         variable : str
             Name of the variable to be read.
         dtype : datatype
-            Data type of the resulting array; default: ht.float32.
+            Data type of the resulting array
         split : int or None, optional
             The axis along which the data is distributed among the processing cores.
         comm : Communication, optional
-            The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
+            The communication to use for the data distribution. Defaults to MPI_COMM_WORLD.
         device : str, optional
             The device id on which to place the data, defaults to globally set default device.
 
@@ -317,7 +317,7 @@ else:
         variable : str
             Name of the variable the data is saved to.
         mode : str
-            File access mode, one of 'w', 'a', 'r+'
+            File access mode, one of ``'w', 'a', 'r+'``
         kwargs : dict
             additional arguments passed to the created dataset.
 
@@ -408,7 +408,7 @@ def load(path, *args, **kwargs) -> DNDarray:
     path : str
         Path to the file to be read.
     args/kwargs : list/dict
-        additional options passed to the particular functions.
+        Additional options passed to the particular functions.
 
     Raises
     -------
@@ -455,23 +455,19 @@ def load_csv(
         Path to the CSV file to be read.
     header_lines : int, optional
         The number of columns at the beginning of the file that should not be considered as data.
-        default: 0.
     sep : str, optional
         The single char or string that separates the values in each row.
-        default: ';'
     dtype : datatype, optional
         Data type of the resulting array;
-        default: ht.float32.
-    encoding : str, optional
+     encoding : str, optional
         The type of encoding which will be used to interpret the lines of the csv file as strings.
-        default: 'UTF-8'
     split : int or None : optional
         Along which axis the resulting tensor should be split.
-        Default is None which means each node will have the full tensor.
+        Default is ``None`` which means each node will have the full tensor.
     device : str, optional
         The device id on which to place the data, defaults to globally set default device.
     comm : Communication, optional
-        The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
+        The communication to use for the data distribution. Defaults to MPI_COMM_WORLD.
 
     Raises
     -------

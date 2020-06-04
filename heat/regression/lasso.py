@@ -17,20 +17,20 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
     Parameters
     ----------
     lam : float, optional
-        Constant that multiplies the L1 term. Default value: 0.1 ``lam = 0.`` is equivalent to an ordinary
-        least square (OLS). For numerical reasons, using ``lam = 0.,`` with the ``Lasso`` object is not advised.
+        Constant that multiplies the :math:`L1` term. ``lam = 0.`` is equivalent to an Ordinary
+        Least Square (OLS). For numerical reasons, using ``lam = 0.,`` with the ``Lasso`` object is not advised.
     max_iter : int, optional
-        The maximum number of iterations. Default value: 100
+        The maximum number of iterations.
     tol : float, optional.
-        The tolerance for the optimization. Default value: 1e-8
+        The tolerance for the optimization.
 
     Attributes
     ----------
     __theta : DNDarray
-        First element is the interception parameter vector w. Shape = (n_features + 1,),
+        First element is the interception parameter vector :math:`w`. Shape = (n_features + 1,),
     coef_ : DNDarray
-        parameter vector (w in the cost function formula). Shape  = (n_targets, n_features)
-    intercept_ : float or DNDarra
+        parameter vector (:math:`w` in the cost function formula). Shape  = (n_targets, n_features)
+    intercept_ : float or DNDarray
         independent term in decision function. Shape = (n_targets,)
     n_iter_ : int or None or shape (n_targets,)
         number of iterations run by the coordinate descent solver to reach the specified tolerance. Shape = (n_targets,)

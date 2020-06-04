@@ -53,16 +53,16 @@ def expm1(x, out=None) -> DNDarray:
 def exp2(x, out=None) -> DNDarray:
     """
     Calculate the exponential of all elements in the input array.
-    Result is a tensor of the same shape as x, containing the 2**p of each element p in this tensor. If out
+    Result is a tensor of the same shape as ``x``, containing the ``2**p`` of each element ``p`` in this tensor. If ``out``
     was provided, logarithms is a reference to it.
 
     Parameters
     ----------
     x : DNDarray
-        The value for which to compute the 2**p.
+        The value for which to compute the ``2**p``.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -79,9 +79,9 @@ def exp2(x, out=None) -> DNDarray:
 def log(x, out=None) -> DNDarray:
     """
     Natural logarithm, element-wise.
-    The natural logarithm log is the inverse of the exponential function, so that log(exp(x)) = x. The natural
-    logarithm is logarithm in base e. Result is a tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
-    Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
+    The natural logarithm log is the inverse of the exponential function, so that ``log(exp(x)) = x``. The natural
+    logarithm is logarithm in base e. Result is a tensor of the same shape as ``x``, containing the positive logarithms of each element in this tensor.
+    Negative input elements are returned as nan. If ``out`` was provided, logarithms is a reference to it.
 
     Parameters
     ----------
@@ -89,7 +89,7 @@ def log(x, out=None) -> DNDarray:
         The value for which to compute the logarithm.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -102,8 +102,8 @@ def log(x, out=None) -> DNDarray:
 def log2(x, out=None) -> DNDarray:
     """
     log base 2, element-wise.
-    Result is a tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
-    Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
+    Result is a tensor of the same shape as ``x``, containing the positive logarithms of each element in this tensor.
+    Negative input elements are returned as ``NaN``. If ``out`` was provided, logarithms is a reference to it.
 
     Parameters
     ----------
@@ -111,7 +111,7 @@ def log2(x, out=None) -> DNDarray:
         The value for which to compute the logarithm.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -124,8 +124,8 @@ def log2(x, out=None) -> DNDarray:
 def log10(x, out=None) -> DNDarray:
     """
     log base 10, element-wise.
-    Result is a tensor of the same shape as x, containing the positive logarithms of each element in this tensor.
-    Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
+    Result is a tensor of the same shape as ``x``, containing the positive logarithms of each element in this tensor.
+    Negative input elements are returned as ``NaN``. If ``out`` was provided, logarithms is a reference to it.
 
     Parameters
     ----------
@@ -133,7 +133,7 @@ def log10(x, out=None) -> DNDarray:
         The value for which to compute the logarithm.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -146,8 +146,8 @@ def log10(x, out=None) -> DNDarray:
 def log1p(x, out=None) -> DNDarray:
     """
     Return the natural logarithm of one plus the input array, element-wise.
-    Result is a tensor of the same shape as x, containing the positive logarithms plus one of each element in this tensor.
-    Negative input elements are returned as nan. If out was provided, logarithms is a reference to it.
+    Result is a tensor of the same shape as ``x``, containing the positive logarithms plus one of each element in this tensor.
+    Negative input elements are returned as ``NaN``. If ``out`` was provided, logarithms is a reference to it.
 
     Parameters
     ----------
@@ -155,7 +155,7 @@ def log1p(x, out=None) -> DNDarray:
         The value for which to compute the logarithm.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -168,8 +168,8 @@ def log1p(x, out=None) -> DNDarray:
 def sqrt(x, out=None) -> DNDarray:
     """
     Return the non-negative square-root of a tensor element-wise.
-    Result is a tensor of the same shape as x, containing the positive square-root of each element in x. Negative input
-    elements are returned as nan. If out was provided, square_roots is a reference to it.
+    Result is a tensor of the same shape as ``x``, containing the positive square-root of each element in ``x``. Negative input
+    elements are returned as ``NaN``. If ``out`` was provided, square_roots is a reference to it.
 
     Parameters
     ----------
@@ -177,7 +177,7 @@ def sqrt(x, out=None) -> DNDarray:
         The value for which to compute the square-roots.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided or
-        set to None, a fresh tensor is allocated.
+        set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------

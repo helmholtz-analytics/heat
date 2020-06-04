@@ -17,7 +17,7 @@ def abs(x, out=None, dtype=None) -> DNDarray:
         The values for which the compute the absolute value.
     out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-        If not provided or None, a freshly-allocated array is returned.
+        If not provided or ``None``, a freshly-allocated array is returned.
     dtype : datatype, optional
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
@@ -44,7 +44,7 @@ def absolute(x, out=None, dtype=None) -> DNDarray:
         The values for which the compute the absolute value.
     out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-        If not provided or None, a freshly-allocated array is returned.
+        If not provided or ``None``, a freshly-allocated array is returned.
     dtype : datatype, optional
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
@@ -54,8 +54,8 @@ def absolute(x, out=None, dtype=None) -> DNDarray:
 
 def ceil(x, out=None) -> DNDarray:
     """
-    Return the ceil of the input, element-wise. Result is a DNDarray of the same shape as x.
-    The ceil of the scalar x is the smallest integer i, such that i >= x. It is often denoted as :math:`\\lceil x \\rceil`.
+    Return the ceil of the input, element-wise. Result is a DNDarray of the same shape as ``x``.
+    The ceil of the scalar ``x`` is the smallest integer i, such that ``i >= x``. It is often denoted as :math:`\\lceil x \\rceil`.
 
     Parameters
     ----------
@@ -63,7 +63,7 @@ def ceil(x, out=None) -> DNDarray:
         The value for which to compute the ceiled values.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -75,21 +75,21 @@ def ceil(x, out=None) -> DNDarray:
 
 def clip(a, a_min, a_max, out=None) -> DNDarray:
     """
-    Returns a tensor with the elements of this tensor, but where values < a_min are replaced with a_min, and those >
-    a_max with a_max.
+    Returns a tensor with the elements of this tensor, but where values ``< a_min`` are replaced with ``a_min``, and those
+    ``> a_max`` with ``a_max``.
 
     Parameters
     ----------
     a : DNDarray
         Array containing elements to clip.
     a_min : scalar or None
-        Minimum value. If None, clipping is not performed on lower interval edge. Not more than one of a_min and
-        a_max may be None.
+        Minimum value. If ``None``, clipping is not performed on lower interval edge. Not more than one of ``a_min`` and
+        ``a_max`` may be ``None``.
     a_max : scalar or None
-        Maximum value. If None, clipping is not performed on upper interval edge. Not more than one of a_min and
-        a_max may be None.
+        Maximum value. If ``None``, clipping is not performed on upper interval edge. Not more than one of ``a_min`` and
+        ``a_max`` may be None.
     out : DNDarray, optional
-        The results will be placed in this array. It may be the input array for in-place clipping. out must be of
+        The results will be placed in this array. It may be the input array for in-place clipping. ``out`` must be of
         the right shape to hold the output. Its type is preserved.
     """
     if not isinstance(a, DNDarray):
@@ -110,7 +110,7 @@ def clip(a, a_min, a_max, out=None) -> DNDarray:
 def fabs(x, out=None) -> DNDarray:
     """
     Calculate the absolute value element-wise and return floating-point tensor.
-    This function exists besides abs==absolute since it will be needed in case complex numbers will be introduced in the future.
+    This function exists besides ``abs==absolute`` since it will be needed in case complex numbers will be introduced in the future.
 
     Parameters
     ----------
@@ -118,7 +118,7 @@ def fabs(x, out=None) -> DNDarray:
         The values for which the compute the absolute value.
     out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-        If not provided or None, a freshly-allocated array is returned.
+        If not provided or ``None``, a freshly-allocated array is returned.
     """
 
     return abs(x, out, dtype=None)
@@ -127,15 +127,16 @@ def fabs(x, out=None) -> DNDarray:
 def floor(x, out=None) -> DNDarray:
     """
     Return the floor of the input, element-wise.
-    The floor of the scalar x is the largest integer i, such that i <= x. It is often denoted as :math:`\\lfloor x \\rfloor`.
+    The floor of the scalar ``x`` is the largest integer i, such that ``i <= x``.
+     It is often denoted as :math:`\\lfloor x \\rfloor`.
 
     Parameters
     ----------
     x : DNDarray
         The value for which to compute the floored values.
-    out : DNDarray or None, optional
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -156,7 +157,7 @@ def modf(x, out=None) -> Tuple[DNDarray, DNDarray]:
         Input tensor
     out : Tuple[DNDarray, DNDarray], optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-        If not provided or None, a freshly-allocated tensor is returned.
+        If not provided or ``None``, a freshly-allocated tensor is returned.
 
     Examples
     --------
@@ -201,11 +202,11 @@ def round(x, decimals=0, out=None, dtype=None) -> DNDarray:
     x : DNDarray
         The values for which the compute the rounded value.
     decimals: int, optional
-        Number of decimal places to round to (default: 0).
+        Number of decimal places to round to.
         If decimals is negative, it specifies the number of positions to the left of the decimal point.
     out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-        If not provided or None, a freshly-allocated array is returned.
+        If not provided or ``None``, a freshly-allocated array is returned.
     dtype : datatype, optional
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
@@ -237,8 +238,8 @@ def round(x, decimals=0, out=None, dtype=None) -> DNDarray:
 def trunc(x, out=None) -> DNDarray:
     """
     Return the trunc of the input, element-wise.
-    The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the
-    fractional part of the signed number x is discarded.
+    The truncated value of the scalar ``x`` is the nearest integer ``i`` which is closer to zero than ``x`` is. In short, the
+    fractional part of the signed number ``x`` is discarded.
 
     Parameters
     ----------
@@ -246,7 +247,7 @@ def trunc(x, out=None) -> DNDarray:
         The value for which to compute the trunced values.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------

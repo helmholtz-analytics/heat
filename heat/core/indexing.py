@@ -10,12 +10,11 @@ __all__ = ["nonzero", "where"]
 
 def nonzero(a) -> DNDarray:
     """
-    Return the indices of the elements that are non-zero. (using torch.nonzero)
-    If 'a' is split then the result is split in the 0th dimension. However, this DNDarray can be UNBALANCED as it contains the indices of the
+    Return the indices of the elements that are non-zero. (using ``torch.nonzero``)
+    If 'a' is split then the result is split in the 0th dimension. However, this :class:`~heat.core.dndarray.DNDarray` can be UNBALANCED as it contains the indices of the
     non-zero elements on each node.
-
     Returns an array with one entry for each dimension of a, containing the indices of the non-zero elements in that dimension.
-    The values in a are always tested and returned in row-major, C-style order. The corresponding non-zero values can be obtained with: a[nonzero(a)].
+    The values in a are always tested and returned in row-major, C-style order. The corresponding non-zero values can be obtained with: ``a[nonzero(a)]``.
 
     Parameters
     ----------
@@ -84,17 +83,17 @@ def nonzero(a) -> DNDarray:
 
 def where(cond, x=None, y=None) -> DNDarray:
     """
-    Return elements chosen from x or y depending on condition.
-    Result is a DNDarray with elements from x where cond is True(1), and elements from y elsewhere (False/0).
+    Return elements chosen from ``x`` or ``y`` depending on condition.
+    Result is a :class:`~heat.core.dndarray.DNDarray` with elements from ``x`` where cond is ``True``, and elements from ``y`` elsewhere (``False``).
 
     Parameters
     ----------
     cond : DNDarray
-        condition of interest, where true yield x otherwise yield y
+        condition of interest, where true yield x otherwise yield ``y``
     x : DNDarray or int or float
-        Values from which to choose. x, y and condition need to be broadcastable to some shape.
+        Values from which to choose. ``x``, ``y`` and condition need to be broadcastable to some shape.
     y : DNDarray or int or float
-        Values from which to choose. x, y and condition need to be broadcastable to some shape.
+        Values from which to choose. ``x``, ``y`` and condition need to be broadcastable to some shape.
 
     Notes
     -------

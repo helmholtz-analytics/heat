@@ -1052,19 +1052,19 @@ MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 def std(x, axis=None, ddof=0, **kwargs) -> DNDarray:
     """
     Calculates and returns the standard deviation of a tensor with the bessel correction.
-    If a axis is given, the variance will be taken in that direction.
+    If an axis is given, the variance will be taken in that direction.
 
     Parameters
     ----------
     x : DNDarray
         Values for which the std is calculated for.
-        The dtype of x must be a float
+        The datatype of x must be a float
     axis : None or int or iterable
-        Axis which the std is taken in. Default None calculates std of all data items.
+        Axis which the std is taken in. Default ``None`` calculates std of all data items.
     ddof : int, optional
-        Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
-        represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
-        Setting ddof > 1 raises a NotImplementedError.
+        Delta Degrees of Freedom: the denominator implicitely used in the calculation is :math:`_N - ddof`, where :math:`N`
+        represents the number of elements. If ``ddof=1``, the Bessel correction will be applied.
+        Setting ``ddof > 1`` raises a ``NotImplementedError``.
 
     Examples
     --------
@@ -1101,31 +1101,28 @@ def var(x, axis=None, ddof=0, **kwargs) -> DNDarray:
     ----------
     x : DNDarray
         Values for which the variance is calculated for.
-        The dtype of x must be a float
+        The datatype of x must be a float
     axis : None or int or iterable
-        Axis which the variance is taken in. Default None calculates variance of all data items.
+        Axis which the std is taken in. Default ``None`` calculates std of all data items.
     ddof : int, optional
-        Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
-        represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
-        Setting ddof > 1 raises a NotImplementedError.
-
-    Returns
-    -------
-    variances : ht.
-        The var/s, if split, then split in the same direction as x, if possible. Fpr more
-        information on the split semantics see Notes.
+        Delta Degrees of Freedom: the denominator implicitely used in the calculation is :math:`_N - ddof`, where :math:`N`
+        represents the number of elements. If ``ddof=1``, the Bessel correction will be applied.
+        Setting ``ddof > 1`` raises a ``NotImplementedError``.
 
     Notes
     -----
     Split semantics when axis is an integer:
-    - if axis = x.split, then variances.split = None
-    - if axis > split, then variances.split = x.split
-    - if axis < split, then variances.split = x.split - 1
 
-    The variance is the average of the squared deviations from the mean, i.e., var = mean(abs(x - x.mean())**2).
-    The mean is normally calculated as x.sum() / N, where N = len(x). If, however, ddof is specified, the divisor
-    N - ddof is used instead. In standard statistical practice, ddof=1 provides an unbiased estimator of the
-    variance of a hypothetical infinite population. ddof=0 provides a maximum likelihood estimate of the variance
+    - if ``axis = x.split``, then ``variances.split = None``
+
+    - if ``axis > split``, then ``variances.split = x.split``
+
+    - if ``axis < split``, then ``variances.split = x.split - 1``
+
+    The variance is the average of the squared deviations from the mean, i.e., ``var = mean(abs(x - x.mean())**2)``.
+    The mean is normally calculated as ``x.sum() / N``, where ``N = len(x)``. If, however, ``ddof`` is specified, the divisor
+    ``N - ddof`` is used instead. In standard statistical practice, ``ddof=1`` provides an unbiased estimator of the
+    variance of a hypothetical infinite population. ``ddof=0`` provides a maximum likelihood estimate of the variance
     for normally distributed variables.
 
     Examples

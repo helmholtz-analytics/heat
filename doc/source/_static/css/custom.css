@@ -4090,7 +4090,7 @@ a .icon {
 .rst-content .wy-alert-warning.seealso,
 .rst-content .admonition-todo,
 .rst-content .wy-alert-warning.admonition {
-	background: #ffedcc
+	background: #f0781e80
 }
 
 .wy-alert.wy-alert-warning .wy-alert-title,
@@ -4120,7 +4120,7 @@ a .icon {
 .rst-content .wy-alert-warning.seealso .admonition-title,
 .rst-content .admonition-todo .admonition-title,
 .rst-content .wy-alert-warning.admonition .admonition-title {
-	background: #f0b37e
+	background: var(--horange)
 }
 
 .wy-alert.wy-alert-info,

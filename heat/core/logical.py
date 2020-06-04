@@ -24,16 +24,16 @@ __all__ = [
 
 def all(x, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
     """
-    Test whether all array elements along a given axis evaluate to True.
-    A new boolean or ht.DNDarray is returned unless out is specified, in which case a reference to out is returned.
+    Test whether all array elements along a given axis evaluate to ``True``.
+    A new boolean or :class:`~heat.core.dndarray.DNDarray` is returned unless out is specified, in which case a reference to ``out`` is returned.
 
     Parameters
     -----------
     x : DNDarray
         Input array or object that can be converted to an array.
     axis : None or int or Tuple[int,...], optional
-        Axis or axes along which a logical AND reduction is performed. The default (axis = None) is to perform a
-        logical AND over all the dimensions of the input array. axis may be negative, in which case it counts
+        Axis or axes along which a logical AND reduction is performed. The default (``axis = None``) is to perform a
+        logical AND over all the dimensions of the input array. ``axis`` may be negative, in which case it counts
         from the last to the first axis.
     out : DNDarray, optional
         Alternate output array in which to place the result. It must have the same shape as the expected output
@@ -63,8 +63,6 @@ def all(x, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
             [0],
             [0],
             [0]], dtype=ht.uint8)
-
-    Write out to predefined buffer:
     >>> out = ht.zeros((1, 5))
     >>> ht.all(x, axis=0, out=out)
     >>> out
@@ -81,8 +79,8 @@ def all(x, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
 
 def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> bool:
     """
-    Test whether two tensors are element-wise equal within a tolerance. Returns True if |x - y| <= atol + rtol * |y|
-    for all elements of x and y, False otherwise
+    Test whether two tensors are element-wise equal within a tolerance. Returns ``True`` if ``|x - y| <= atol + rtol * |y|``
+    for all elements of ``x`` and ``y``, ``False`` otherwise
 
     Parameters
     -----------
@@ -91,11 +89,11 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> bool:
     y : DNDarray
         Second tensor to compare
     atol: float, optional
-        Absolute tolerance. Default is 1e-08
+        Absolute tolerance.
     rtol: float, optional
-        Relative tolerance (with respect to y). Default is 1e-05
+        Relative tolerance (with respect to ``y``).
     equal_nan: bool, optional
-        Whether to compare NaN’s as equal. If True, NaN’s in a will be considered equal to NaN’s in b in the output
+        Whether to compare NaN’s as equal. If ``True``, NaN’s in a will be considered equal to NaN’s in b in the output
         array.
 
     Examples
@@ -126,19 +124,19 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> bool:
 
 def any(x, axis=None, out=None, keepdim=False) -> DNDarray:
     """
-    Test whether any array element along a given axis evaluates to True.
-    The returning tensor is one dimensional unless axis is not None.
+    Test whether any array element along a given axis evaluates to ``True``.
+    The returning tensor is one dimensional unless axis is not ``None``.
 
     Parameters
     -----------
     x : DNDarray
         Input tensor
     axis : int, optional
-        Axis along which a logic OR reduction is performed. With axis=None, the logical OR is performed over all
+        Axis along which a logic OR reduction is performed. With ``axis=None``, the logical OR is performed over all
         dimensions of the tensor.
     out : DNDarray, optional
         Alternative output tensor in which to place the result. It must have the same shape as the expected output.
-        The output is a tensor with dtype=bool.
+        The output is a tensor with ``datatype=bool``.
 
     Examples
     ---------
@@ -170,7 +168,7 @@ def any(x, axis=None, out=None, keepdim=False) -> DNDarray:
 def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> DNDarray:
     """
     Returns a boolean tensor of where a and b are equal within the given tolerance.
-    If both x and y are scalars, returns a single boolean value.
+    If both ``x`` and ``y`` are scalars, returns a single boolean value.
 
     Parameters
     -----------
@@ -183,7 +181,7 @@ def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> DNDarray:
     atol : float
         The absolute tolerance parameter (see Notes).
     equal_nan : bool
-        Whether to compare NaN’s as equal. If True, NaN’s in x will be considered equal to NaN’s in y in the output array.
+        Whether to compare NaN’s as equal. If ``True``, NaN’s in x will be considered equal to NaN’s in y in the output array.
     """
     t1, t2 = __sanitize_close_input(x, y)
 
@@ -208,7 +206,7 @@ def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> DNDarray:
 
 def logical_and(t1, t2) -> DNDarray:
     """
-    Compute the truth value of t1 AND t2 element-wise.
+    Compute the truth value of ``t1`` AND ``t2`` element-wise.
 
     Parameters
     -----------
@@ -234,10 +232,10 @@ def logical_not(t, out=None) -> DNDarray:
     Parameters
     -----------
     t1: DNDarray
-        input tensor
+        Input tensor
     out : DNDarray, optional
         Alternative output tensor in which to place the result. It must have the same shape as the expected output.
-        The output is a tensor with dtype=bool.
+        The output is a tensor with ``datatype=bool``.
 
     Examples
     ---------
@@ -249,7 +247,7 @@ def logical_not(t, out=None) -> DNDarray:
 
 def logical_or(t1, t2) -> DNDarray:
     """
-    Compute the truth value of t1 OR t2 element-wise.
+    Compute the truth value of ``t1`` OR ``t2`` element-wise.
 
     Parameters
     -----------
@@ -289,14 +287,15 @@ def logical_xor(t1, t2) -> DNDarray:
 
 def __sanitize_close_input(x, y):
     """
-    Makes sure that both x and y are ht.DNDarrays.
-    Provides copies of x and y distributed along the same split axis (if original split axes do not match).
+    Makes sure that both ``x`` and ``y`` are :class:`~heat.core.dndarray.DNDarray`.
+    Provides copies of ``x`` and ``y`` distributed along the same split axis (if original split axes do not match).
     """
 
     def sanitize_input_type(x, y):
         """
-        Verifies that x is either a scalar, or a ht.DNDarray. If a scalar, x gets wrapped in a ht.DNDarray.
-        Raises TypeError if x is neither.
+        Verifies that ``x`` is either a scalar, or a :class:`~heat.core.dndarray.DNDarray`.
+        If a scalar, ``x`` gets wrapped in a :class:`~heat.core.dndarray.DNDarray`.
+        Raises TypeError if ``x`` is neither.
         """
         if not isinstance(x, DNDarray):
             if np.ndim(x) == 0:

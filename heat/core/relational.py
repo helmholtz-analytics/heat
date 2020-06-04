@@ -36,8 +36,8 @@ def eq(t1, t2) -> DNDarray:
 
 def equal(t1, t2) -> bool:
     """
-    Overall comparison of equality between two tensors. Returns True if two tensors have the same size and elements,
-    and False otherwise.
+    Overall comparison of equality between two tensors. Returns ``True`` if two tensors have the same size and elements,
+    and ``False`` otherwise.
 
     Parameters
     ----------
@@ -70,8 +70,8 @@ def equal(t1, t2) -> bool:
 
 def ge(t1, t2) -> DNDarray:
     """
-    Element-wise rich greater than or equal comparison between values from operand t1 with respect to values of
-    operand t2 (i.e. t1 >= t2), not commutative.
+    Element-wise rich greater than or equal comparison between values from operand ``t1`` with respect to values of
+    operand ``t2`` (i.e. ``t1 >= t2``), not commutative.
     Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
 
     Parameters
@@ -99,7 +99,7 @@ def ge(t1, t2) -> DNDarray:
 def gt(t1, t2) -> DNDarray:
     """
     Element-wise rich greater than comparison between values from operand t1 with respect to values of
-    operand t2 (i.e. t1 > t2), not commutative.
+    operand ``t2`` (i.e. ``t1 > t2``), not commutative.
     Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
 
     Parameters
@@ -126,8 +126,8 @@ def gt(t1, t2) -> DNDarray:
 
 def le(t1, t2) -> DNDarray:
     """
-    Element-wise rich less than or equal comparison between values from operand t1 with respect to values of
-    operand t2 (i.e. t1 <= t2), not commutative.
+    Element-wise rich less than or equal comparison between values from operand ``t1`` with respect to values of
+    operand ``t2`` (i.e. ``t1 <= t2``), not commutative.
     Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
 
     Parameters
@@ -155,7 +155,7 @@ def le(t1, t2) -> DNDarray:
 def lt(t1, t2) -> DNDarray:
     """
     Element-wise rich less than comparison between values from operand t1 with respect to values of
-    operand t2 (i.e. t1 < t2), not commutative.
+    operand ``t2`` (i.e. ``t1 < t2``), not commutative.
     Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
 
     Parameters

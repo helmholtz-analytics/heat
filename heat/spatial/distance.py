@@ -105,14 +105,14 @@ def cdist(X, Y=None, quadratic_expansion=False) -> DNDarray:
 
     .. math:: d(x,y) = \\sqrt{(|x-y|^2)}
 
-    Returns 2D tensor of size m x n
+    Returns 2D tensor of size :math: `m \\times n`
 
     Parameters
     ----------
     x : DNDarray
-        2D tensor of size m x f
+        2D tensor of size :math: `m \\times f`
     y : DNDarray
-        2D tensor of size n x f
+        2D tensor of size :math: `n \\times f`
     quadratic_expansion : bool
         Whether to use quadratic expansion for :math:`\\sqrt{(|x-y|^2)}` (Might yield speed-up)
     """
@@ -128,16 +128,16 @@ def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False) -> DNDarray:
 
     .. math:: d(x,y) = exp(-(|x-y|^2/2\\sigma^2)
 
-    Returns 2D tensor of size m x n
+    Returns 2D tensor of size :math: `m \\times n`
 
     Parameters
     ----------
     x : DNDarray
-        2D tensor of size m x f
+        2D tensor of size :math: `m \\times f`
     y : DNDarray
-        2D tensor of size n x f
+        2D tensor of size `n \\times f`
     sigma: float
-        scaling factor for gaussian kernel
+        Scaling factor for gaussian kernel
     quadratic_expansion : bool
         Whether to use quadratic expansion for :math:`\\sqrt{(|x-y|^2)}` (Might yield speed-up)
     """
@@ -149,24 +149,25 @@ def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False) -> DNDarray:
 
 def _dist(X, Y=None, metric=_euclidian) -> DNDarray:
     """
-    Pairwise distance calculation between all elements along axis 0 of X and Y
-    Returns 2D array of size m x n
-    X.split and Y.split can be distributed among axis 0.
-    - if neither X nor Y is split, result will also be split=None
-    - if X.split == 0, result will be split=0 regardless of Y.split
+    Pairwise distance calculation between all elements along axis 0 of ``X`` and ``Y`` Returns 2D array of size :math: `m \\times n`
+    ``X.split`` and ``Y.split`` can be distributed among axis 0.
+        - if neither ``X`` nor ``Y`` is split, result will also be ``split = None``
+
+        - if ``X.split == 0``, result will be ``split = 0`` regardless of ``Y.split``
+
     The distance matrix is calculated tile-wise with ring communication between the processes
-    holding each a piece of X and/or Y.
+    holding each a piece of ``X`` and/or ``Y``.
 
     Parameters
     ----------
     X : DNDarray
-        2D Array of size m x f
+        2D Array of size :math: `m \\times f`
     Y : DNDarray, optional
-        2D array of size n x f
-        if Y in None, the distances will be calculated between all elements of X
+        2D array of size `n \\times f``.
+        If `Y in None, the distances will be calculated between all elements of ``X``
     metric: function
-        the distance to be calculated between X and Y
-        if metric requires additional arguments, it must be handed over as a lambda function: lambda x, y: metric(x, y, **args)
+        The distance to be calculated between ``X`` and ``Y``
+        If metric requires additional arguments, it must be handed over as a lambda function: ``lambda x, y: metric(x, y, **args)``
 
     Notes
     -------

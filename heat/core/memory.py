@@ -26,11 +26,11 @@ def sanitize_memory_layout(x, order="C"):
 
     Parameters
     -----------
-    x: torch.tensor
+    x: torch.Tensor
         Input data
     order: str, optional.
-        Default is 'C' as in C-like (row-major) memory layout. The array is stored first dimension first (rows first if ndim=2).
-        Alternative is 'F', as in Fortran-like (column-major) memory layout. The array is stored last dimension first (columns first if ndim=2).
+        Default is ``'C'`` as in C-like (row-major) memory layout. The array is stored first dimension first (rows first if ``ndim=2``).
+        Alternative is ``'F'``, as in Fortran-like (column-major) memory layout. The array is stored last dimension first (columns first if ``ndim=2``).
     """
     if order == "K":
         raise NotImplementedError(

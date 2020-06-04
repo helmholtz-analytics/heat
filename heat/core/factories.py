@@ -46,11 +46,11 @@ def arange(*args, dtype=None, split=None, device=None, comm=None) -> DNDarray:
     start : scalar, optional
         Start of interval.  The interval includes this value.  The default start value is 0.
     stop : scalar
-        End of interval.  The interval does not include this value, except in some cases where `step` is not an integer
-        and floating point round-off affects the length of `out`.
+        End of interval.  The interval does not include this value, except in some cases where ``step`` is not an integer
+        and floating point round-off affects the length of ``out``.
     step : scalar, optional
-        Spacing between values.  For any output `out`, this is the distance between two adjacent values, ``out[i+1] -
-        out[i]``. The default step size is 1. If `step` is specified as a position argument, `start` must also be given.
+        Spacing between values.  For any output ``out``, this is the distance between two adjacent values, ``out[i+1] -
+        out[i]``. The default step size is 1. If ``step`` is specified as a position argument, ``start`` must also be given.
     dtype : datatype, optional
         The type of the output array.  If `dtype` is not given, infer the data type from the other input arguments.
     split: int or None, optional
@@ -146,30 +146,30 @@ def array(
     Parameters
     ----------
     obj : array_like
-        A tensor or array, any object exposing the array interface, an object whose __array__ method returns an array,
+        A tensor or array, any object exposing the array interface, an object whose ``__array__`` method returns an array,
         or any (nested) sequence.
     dtype : datatype, optional
         The desired data-type for the array. If not given, then the type will be determined as the minimum type required
         to hold the objects in the sequence. This argument can only be used to ‘upcast’ the array. For downcasting, use
-        the .astype(t) method.
+        the ``.astype(t)`` method.
     copy : bool, optional
-        If true (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested sequence or
+        If ``True`` (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested sequence or
         if a copy is needed to satisfy any of the other requirements, e.g. dtype.
     ndmin : int, optional
         Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be
-        attached to the shape if  ndim>0  and prefaced in case of ndim<0 to meet the requirement.
+        attached to the shape if  ``ndim>0``  and prefaced in case of ``ndim<0`` to meet the requirement.
     order: str, optional
-        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
-        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options 'K' and 'A'.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created tensor. Default is ``order='C'``, meaning the array
+        will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
         #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     split : int or None, optional
         The axis along which the passed array content obj is split and distributed in memory. Mutually exclusive with
-        is_split.
+        ``is_split``.
     is_split : int or None, optional
         Specifies the axis along which the local data portions, passed in obj, are split across all machines. Useful for
         interfacing with other HPC code. The shape of the global tensor is automatically inferred. Mutually exclusive
-        with split.
+        with ``split``.
     device : str or Device, optional
         Specifies the device the tensor shall be allocated on (i.e. globally set default device).
     comm: Communication, optional
@@ -368,15 +368,15 @@ def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order=
     dtype : datatype
         The desired HeAT data type for the array, defaults to ht.float32.
     split: int, optional
-        The axis along which the array is split and distributed; None means no distribution.
+        The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
         Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
-        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
-        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options 'K' and 'A'.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created tensor. Default is ``order='C'``, meaning the array
+        will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
         #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Examples
@@ -400,12 +400,12 @@ def empty_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of 'a' define these same attributes of the returned array.
-        Uninitialized tensor with the same shape, type and split axis as 'a' unless overriden.
+        The shape and data-type of ``a`` define these same attributes of the returned array.
+        Uninitialized tensor with the same shape, type and split axis as ``a`` unless overriden.
     dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
-        The axis along which the array is split and distributed; None means no distribution.
+        The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
         Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
@@ -437,15 +437,15 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
     dtype : datatype, optional
             Overrides the data type of the result.
     split : int or None, optional
-            The axis along which the tensor is split and distributed; None means no distribution.
+            The axis along which the tensor is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
             Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm : Communication, optional
             Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
-        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
-        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options 'K' and 'A'.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created tensor. Default is ``order='C'``, meaning the array
+        will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
         #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Examples
@@ -529,11 +529,11 @@ def __factory_like(a, dtype, split, factory, device, comm, order="C", **kwargs) 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of 'a' define these same attributes of the returned array.
+        The shape and data-type of ``a`` define these same attributes of the returned array.
     dtype : datatype
-        The desired HeAT data type for the array, defaults to ht.float32.
+        The desired HeAT data type for the array.
     split: int or None, optional
-        The axis along which the array is split and distributed, defaults to None (no distribution).
+        The axis along which the array is split and distributed, defaults to no distribution).
     factory : function
         Function that creates a HeAT tensor.
     device : str
@@ -541,9 +541,9 @@ def __factory_like(a, dtype, split, factory, device, comm, order="C", **kwargs) 
     comm: Communication
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
-        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
-        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options 'K' and 'A'.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created tensor. Default is ``order='C'``, meaning the array
+        will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
         #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     """
     # determine the global shape of the object to create
@@ -592,7 +592,7 @@ def full(
     dtype : datatype, optional
         The desired data-type for the array
     split: int or None, optional
-        The axis along which the array is split and distributed; None means no distribution.
+        The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
         Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
@@ -623,13 +623,13 @@ def full_like(
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of 'a' define these same attributes of the returned array.
+        The shape and data-type of ``a`` define these same attributes of the returned array.
     fill_value : scalar
         Fill value.
     dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
-        The axis along which the array is split and distributed; None means no distribution.
+        The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
         Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
@@ -660,9 +660,9 @@ def linspace(
     comm=None,
 ) -> Tuple[DNDarray, float]:
     """
-    Returns num evenly spaced samples, calculated over the interval [start, stop]. The endpoint of the interval can
-    optionally be excluded. There are num equally spaced samples in the closed interval [start, stop] or the half-open interval
-    [start, stop) (depending on whether endpoint is True or False).
+    Returns num evenly spaced samples, calculated over the interval ``[start, stop]``. The endpoint of the interval can
+    optionally be excluded. There are num equally spaced samples in the closed interval ``[start, stop]`` or the half-open interval
+    ``[start, stop)`` (depending on whether endpoint is True or False).
 
     Parameters
     ----------
@@ -670,18 +670,18 @@ def linspace(
         The starting value of the sample interval, maybe a sequence if convertible to scalar
     stop: scalar or scalar-convertible
         The end value of the sample interval, unless is set to False. In that case, the sequence consists of all but the
-        last of num + 1 evenly spaced samples, so that stop is excluded. Note that the step size changes when endpoint
-        is False.
+        last of ``num + 1`` evenly spaced samples, so that stop is excluded. Note that the step size changes when endpoint
+        is ``False``.
     num: int, optional
         Number of samples to generate, defaults to 50. Must be non-negative.
     endpoint: bool, optional
-        If True, stop is the last sample, otherwise, it is not included. Defaults to True.
+        If ``True``, stop is the last sample, otherwise, it is not included.
     retstep: bool, optional
-        If True, return (samples, step), where step is the spacing between samples.
+        If ``True``, return (samples, step), where step is the spacing between samples.
     dtype: dtype, optional
         The type of the output array.
     split: int or None, optional
-        The axis along which the array is split and distributed; None means no distribution.
+        The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
         Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
@@ -736,8 +736,8 @@ def logspace(
     """
     Return numbers spaced evenly on a log scale.
     In linear space, the sequence starts at ``base ** start``
-    (`base` to the power of `start`) and ends with ``base ** stop``
-    (see `endpoint` below).
+    (``base`` to the power of ``start``) and ends with ``base ** stop``
+    (see ``endpoint`` below).
 
     Parameters
     ----------
@@ -745,23 +745,22 @@ def logspace(
         ``base ** start`` is the starting value of the sequence.
     stop : array_like
         ``base ** stop`` is the final value of the sequence, unless `endpoint`
-        is False.  In that case, ``num + 1`` values are spaced over the
+        is ``False``.  In that case, ``num + 1`` values are spaced over the
         interval in log-space, of which all but the last (a sequence of
         length `num`) are returned.
     num : int, optional
-        Number of samples to generate.  Default is 50.
+        Number of samples to generate.
     endpoint : bool, optional
-        If true, `stop` is the last sample. Otherwise, it is not included.
+        If ``True``, `stop` is the last sample. Otherwise, it is not included.
         Default is True.
     base : float, optional
         The base of the log space. The step size between the elements in
         ``ln(samples) / ln(base)`` (or ``log_base(samples)``) is uniform.
-        Default is 10.0.
     dtype : datatype, optional
-        The type of the output array.  If `dtype` is not given, infer the data
+        The type of the output array.  If ``dtype`` is not given, infer the data
         type from the other input arguments.
     split: int or None, optional
-        The axis along which the array is split and distributed; None means no distribution.
+        The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
         Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
@@ -769,10 +768,10 @@ def logspace(
 
     See Also
     --------
-    arange : Similar to linspace, with the step size specified instead of the
+    :func:`arange` : Similar to :func:`linspace`, with the step size specified instead of the
              number of samples. Note that, when used with a float endpoint, the
              endpoint may or may not be included.
-    linspace : Similar to logspace, but with the samples uniformly distributed
+    :func:`linspace` : Similar to ``logspace``, but with the samples uniformly distributed
                in linear space, instead of log space.
 
     Examples
@@ -802,15 +801,15 @@ def ones(shape, dtype=types.float32, split=None, device=None, comm=None, order="
     dtype : datatype, optional
         The desired HeAT data type for the array, defaults to ht.float32.
     split : int or None, optional
-        The axis along which the array is split and distributed; None means no distribution.
+        The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
         Specifies the device the tensor shall be allocated on, defaults to  globally set default device.
     comm : Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
-        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
-        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options 'K' and 'A'.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created tensor. Default is ``order='C'``, meaning the array
+        will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
         #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Examples
@@ -834,11 +833,11 @@ def ones_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> D
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of 'a' define these same attributes of the returned array.
+        The shape and data-type of ``a`` define these same attributes of the returned array.
     dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
-        The axis along which the array is split and distributed; None means no distribution.
+        The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
         Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
@@ -867,17 +866,17 @@ def zeros(shape, dtype=types.float32, split=None, device=None, comm=None, order=
     shape : int or Sequence[int,...]
         Desired shape of the output array, e.g. 1 or (1, 2, 3,).
     dtype : datatype
-        The desired HeAT data type for the array, defaults to ht.float32.
+        The desired HeAT data type for the array.
     split: int or None, optional
-        The axis along which the array is split and distributed; None means no distribution.
+        The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
         Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
-        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
-        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options 'K' and 'A'.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created tensor. Default is ``order='C'``, meaning the array
+        will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
         #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Examples
@@ -901,19 +900,19 @@ def zeros_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of 'a' define these same attributes of the returned array.
+        The shape and data-type of ``a`` define these same attributes of the returned array.
     dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
-        The axis along which the array is split and distributed; None means no distribution.
+        The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
         Specifies the device the tensor shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
     order: str, optional
-        Options: 'C' or 'F'. Specifies the memory layout of the newly created tensor. Default is order='C', meaning the array
-        will be stored in row-major order (C-like). If order=‘F’, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options 'K' and 'A'.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created tensor. Default is ``order='C'``, meaning the array
+        will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
         #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Examples

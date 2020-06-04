@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import torch
 from .dndarray import DNDarray
 from .constants import pi
@@ -24,16 +26,16 @@ __all__ = [
 def arccos(x, out=None) -> DNDarray:
     """
     Compute the trigonometric arccos, element-wise.
-    Result is a tensor of the same shape as x, containing the trigonometric arccos of each element in this tensor.
-    Input elements outside [-1., 1.] are returned as nan. If out was provided, arccos is a reference to it.
+    Result is a tensor of the same shape as ``x``, containing the trigonometric arccos of each element in this tensor.
+    Input elements outside :math:`[-1., 1.]` are returned as ``NaN``. If out was provided, ``arccos`` is a reference to it.
 
     Parameters
     ----------
     x : DNDarray
         The value for which to compute the trigonometric cosine.
-    out : DNDarray or None, optional
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -45,18 +47,17 @@ def arccos(x, out=None) -> DNDarray:
 
 def arcsin(x, out=None) -> DNDarray:
     """
-    Compute the trigonometric arcsin, element-wise.
-    Result is a tensor of the same shape as x, containing the trigonometric arcsin of each element in this tensor.
-    Input elements outside [-1., 1.] are returned as nan. If out was provided, arcsin is a reference to it.
+    Result is a tensor of the same shape as ``x``, containing the trigonometric arcsin of each element in this tensor.
+    Input elements outside :math:`[-1., 1.]` are returned as ``NaN``. If out was provided, ``arcsin`` is a reference to it.
 
 
     Parameters
     ----------
     x : DNDarray
         The value for which to compute the trigonometric cosine.
-    out : DNDarray or None, optional
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -69,17 +70,17 @@ def arcsin(x, out=None) -> DNDarray:
 def arctan(x, out=None) -> DNDarray:
     """
     Compute the trigonometric arctan, element-wise.
-    Result is a tensor of the same shape as x, containing the trigonometric arctan of each element in this tensor.
-    If out was provided, arctan is a reference to it.
+    Result is a tensor of the same shape as ``x``, containing the trigonometric arctan of each element in this tensor.
+    Input elements outside :math:`[-1., 1.]` are returned as ``NaN``. If out was provided, ``arctan`` is a reference to it.
 
 
     Parameters
     ----------
     x : DNDarray
         The value for which to compute the trigonometric cosine.
-    out : DNDarray or None, optional
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -93,16 +94,16 @@ def arctan(x, out=None) -> DNDarray:
 def cos(x, out=None) -> DNDarray:
     """
     Compute the trigonometric cosine, element-wise.
-    Result is a tensor of the same shape as x, containing the trigonometric cosine of each element in this tensor.
-    Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+    Result is a tensor of the same shape as ``x``, containing the trigonometric cosine of each element in this tensor.
+    Negative input elements are returned as ``NaN``. If out was provided, ``cos`` is a reference to it.
 
     Parameters
     ----------
     x : DNDarray
         The value for which to compute the trigonometric cosine.
-    out : DNDarray or None, optional
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -115,16 +116,16 @@ def cos(x, out=None) -> DNDarray:
 def cosh(x, out=None) -> DNDarray:
     """
     Compute the hyperbolic cosine, element-wise.
-    Result is a tensor of the same shape as x, containing the hyperbolic cosine of each element in this tensor.
-    Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+    Result is a tensor of the same shape as ``x``, containing the hyperbolic cosine of each element in this tensor.
+    Negative input elements are returned as ``NaN``. If out was provided, cosh is a reference to it.
 
     Parameters
     ----------
     x : DNDarray
         The value for which to compute the hyperbolic cosine.
-    out : DNDarray or None, optional
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -142,9 +143,9 @@ def deg2rad(x, out=None) -> DNDarray:
     ----------
     x : DNDarray
         The value for which to compute the angles in radians.
-    out : DNDarray or None, optional
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -168,9 +169,9 @@ def degrees(x, out=None) -> DNDarray:
     ----------
     x : DNDarray
         The value for which to compute the angles in degrees.
-    out : DNDarray or None, optional
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -188,9 +189,9 @@ def rad2deg(x, out=None) -> DNDarray:
     ----------
     x : DNDarray
         The value for which to compute the angles in degrees.
-    out : DNDarray or None, optional
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
 
     Examples
@@ -215,9 +216,9 @@ def radians(x, out=None) -> DNDarray:
     ----------
     x : DNDarray
         The value for which to compute the angles in radians.
-    out : DNDarray or None, optional
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -231,16 +232,16 @@ def radians(x, out=None) -> DNDarray:
 def sin(x, out=None) -> DNDarray:
     """
     Compute the trigonometric sine, element-wise.
-    Result is a tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
-    Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+    Result is a tensor of the same shape as ``x``, containing the trigonometric sine of each element in this tensor.
+    Negative input elements are returned as ``NaN``. If out was provided, ``sin`` is a reference to it.
 
     Parameters
     ----------
     x : DNDarray
         The value for which to compute the trigonometric tangent.
-    out : DNDarray or None, optional
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -253,8 +254,8 @@ def sin(x, out=None) -> DNDarray:
 def sinh(x, out=None) -> DNDarray:
     """
     Compute the hyperbolic sine, element-wise.
-    Result is a tensor of the same shape as x, containing the trigonometric sine of each element in this tensor.
-    Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
+    Result is a tensor of the same shape as ``x``, containing the trigonometric sine of each element in this tensor.
+    Negative input elements are returned as ``NaN``. If out was provided, ``sinh`` is a reference to it.
 
     Parameters
     ----------
@@ -262,7 +263,7 @@ def sinh(x, out=None) -> DNDarray:
         The value for which to compute the hyperbolic sine.
     out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -275,8 +276,8 @@ def sinh(x, out=None) -> DNDarray:
 def tan(x, out=None) -> DNDarray:
     """
     Compute tangent element-wise.
-    Result tensor of the same shape as x, containing the trigonometric tangent of each element in this tensor.
-    Equivalent to ht.sin(x) / ht.cos(x) element-wise.
+    Result tensor of the same shape as ``x``, containing the trigonometric tangent of each element in this tensor.
+    Equivalent to :func:`sin` / :func:`cos` element-wise.
 
     Parameters
     ----------
@@ -284,7 +285,7 @@ def tan(x, out=None) -> DNDarray:
         The value for which to compute the trigonometric tangent.
     out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------
@@ -297,7 +298,7 @@ def tan(x, out=None) -> DNDarray:
 def tanh(x, out=None):
     """
     Compute the hyperbolic tangent, element-wise.
-    Result is A tensor of the same shape as x, containing the hyperbolic tangent of each element in this tensor.
+    Result is a tensor of the same shape as ``x``, containing the hyperbolic tangent of each element in this tensor.
 
     Parameters
     ----------
@@ -305,7 +306,7 @@ def tanh(x, out=None):
         The value for which to compute the hyperbolic tangent.
     out : DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Examples
     --------

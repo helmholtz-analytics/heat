@@ -1,7 +1,7 @@
 # Definition of HeAT Constants
 import torch
 
-__all__ = ["e", "Euler", "inf", "Inf", "Infty", "Infinity", "nan", "NaN", "pi"]
+__all__ = ["e", "Euler", "inf", "Inf", "Infty", "Infinity", "nan", "NaN", "pi", "sanitize_infinity"]
 
 INF = float("inf")
 NAN = float("nan")
@@ -18,7 +18,7 @@ e = Euler = E
 
 def sanitize_infinity(dtype):
     """
-    Returns largest possible value for the specified dtype.
+    Returns largest possible value for the specified datatype.
 
     Parameters:
     -----------

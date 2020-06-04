@@ -1,6 +1,7 @@
 from .. import core
 from ..core.dndarray import DNDarray
 from ..core.communication import Communication
+from ..core.devices import Device
 from ..core.types import datatype
 
 __all__ = ["parter"]
@@ -18,7 +19,7 @@ def parter(n, split=None, device=None, comm=None, dtype=core.float32) -> DNDarra
     split: None or int, optional
         The axis along which the array content is split and distributed in memory.
     device: str or Device, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+        Specifies the device the tensor shall be allocated on, defaults globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed tensor chunks.
     dtype: datatype, optional
@@ -27,7 +28,9 @@ def parter(n, split=None, device=None, comm=None, dtype=core.float32) -> DNDarra
     References
     ----------
     [1] https://blogs.mathworks.com/cleve/2019/06/24/bohemian-matrices-in-the-matlab-gallery/
+
     [2] https://blogs.mathworks.com/cleve/2014/02/03/surprising-svd-square-waves-and-pi/
+
     [3] Seymour V. Parter, On the distribution of the singular values of Toeplitz matrices, Linear Algebra and its
     Applications 80, 1986, 115-130, http://www.sciencedirect.com/science/article/pii/0024379586902806
     """

@@ -23,7 +23,7 @@ import sphinx_rtd_theme
 from sphinx.ext.napoleon.docstring import NumpyDocstring, GoogleDocstring
 
 # sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath("../../"))
+sys.path.insert(0, os.path.abspath("../../heat"))
 
 
 # -- General configuration ------------------------------------------------
@@ -48,7 +48,7 @@ extensions = [
 # Document Python Code
 autoapi_type = "python"
 autoapi_dirs = ["../../heat/"]
-autoapi_ignore = ["*/tests/*"]
+autoapi_ignore = ["*/operations.py", "*/tests/*"]
 autoapi_template_dir = "_templates/autoapi"
 
 # Add any paths that contain templates here, relative to this directory.

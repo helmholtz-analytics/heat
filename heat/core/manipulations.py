@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 import torch
 import warnings
@@ -39,12 +41,12 @@ def concatenate(arrays, axis=0) -> DNDarray:
     arrays: Tuple[DNDarray, DNDarray]
         The arrays must have the same shape, except in the dimension corresponding to axis (the first, by default).
     axis: int, optional
-        The axis along which the arrays will be joined. Default is 0.
+        The axis along which the arrays will be joined.
 
     Raises
     ------
     RuntimeError
-        If the concatted DNDarray meta information, e.g. split or comm, does not match.
+        If the concatenated :class:`~heat.core.dndarray.DNDarray` meta information, e.g. ``split`` or ``comm``, does not match.
     TypeError
         If the passed parameters are not of correct type (see documentation above).
     ValueError
@@ -374,7 +376,7 @@ def concatenate(arrays, axis=0) -> DNDarray:
 def diag(a, offset=0) -> DNDarray:
     """
     Extract a diagonal or construct a diagonal array.
-    See the documentation for `heat.diagonal` for more information about extracting the diagonal.
+    See the documentation for :func:`diagonal` for more information about extracting the diagonal.
 
     Parameters
     ----------
@@ -444,8 +446,8 @@ def diag(a, offset=0) -> DNDarray:
 
 def diagonal(a, offset=0, dim1=0, dim2=1) -> DNDarray:
     """
-    Extract a diagonal of an n-dimensional array with n > 1.
-    The returned array will be of dimension n-1.
+    Extract a diagonal of an n-dimensional array with ``n > 1``.
+    The returned array will be of dimension ``n-1``.
 
     Parameters
     ----------
@@ -457,10 +459,8 @@ def diagonal(a, offset=0, dim1=0, dim2=1) -> DNDarray:
         Default is 0 which means the main diagonal will be selected.
     dim1: int, optional
         First dimension with respect to which to take the diagonal.
-        Default is 0.
     dim2: int, optional
         Second dimension with respect to which to take the diagonal.
-        Default is 1.
 
     Examples
     --------
@@ -580,7 +580,7 @@ def flatten(a) -> DNDarray:
 
     Warning
     ----------
-    If a.split > 0, then the array must be resplit.
+    If ``a.split > 0``, then the array must be resplit.
 
     Examples
     --------
@@ -856,11 +856,11 @@ def reshape(a, shape, axis=None) -> DNDarray:
 
 def sort(a, axis=None, descending=False, out=None) -> Tuple[DNDarray, DNDarray]:
     """
-    Sorts the elements of the DNDarray a along the given dimension (by default in ascending order) by their value.
+    Sorts the elements of the :class:`~heat.core.dndarray.DNDarray` a along the given dimension (by default in ascending order) by their value.
     The sorting is not stable which means that equal elements in the result may have a different ordering than in the
     original array.
-    Sorting where `axis == a.split` needs a lot of communication between the processes of MPI.
-    Returns a a tuple (values, indices) with the sorted local results and the indices of the elements in the original data
+    Sorting where ``axis == a.split`` needs a lot of communication between the processes of MPI.
+    Returns a a tuple ``(values, indices)`` with the sorted local results and the indices of the elements in the original data
     Parameters
     ----------
     a : DNDarray
@@ -873,7 +873,7 @@ def sort(a, axis=None, descending=False, out=None) -> Tuple[DNDarray, DNDarray]:
         Default is false
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
+        or set to ``None``, a fresh tensor is allocated.
 
     Raises
     ------
@@ -1126,8 +1126,8 @@ def squeeze(x, axis=None) -> DNDarray:
         Input data.
     axis : None or int or Tuple[int,...], optional
            Selects a subset of the single-dimensional entries in the shape.
-           If axis is None, all single-dimensional entries will be removed from the shape.
-           If an axis is selected with shape entry greater than one, a ValueError is raised.
+           If axis is ``None``, all single-dimensional entries will be removed from the shape.
+           If an axis is selected with shape entry greater than one, a ``ValueError`` is raised.
 
     Notes
     -----
@@ -1210,9 +1210,8 @@ def squeeze(x, axis=None) -> DNDarray:
 def unique(a, sorted=False, return_inverse=False, axis=None) -> Tuple[DNDarray, torch.tensor]:
     """
     Finds and returns the unique elements of an array.
-    If return_inverse is True, the second tensor will hold the list of inverse indices
-
-    Works most effective if axis != a.split.
+    If return_inverse is ``True``, the second tensor will hold the list of inverse indices
+    Works most effective if ``axis != a.split``.
 
     Parameters
     ----------
@@ -1220,12 +1219,12 @@ def unique(a, sorted=False, return_inverse=False, axis=None) -> Tuple[DNDarray, 
         Input array where unique elements should be found.
     sorted : bool, optional
         Whether the found elements should be sorted before returning as output.
-        Warning: sorted is not working if 'axis != None and axis != a.split'
+        Warning: sorted is not working if ``axis != None and axis != a.split``
     return_inverse : bool, optional
         Whether to also return the indices for where elements in the original input ended up in the returned
         unique list.
     axis : int, optional
-        Axis along which unique elements should be found. Default to None, which will return a one dimensional list of
+        Axis along which unique elements should be found. Default to ``None``, which will return a one dimensional list of
         unique values.
 
     Examples
@@ -1504,8 +1503,8 @@ def vstack(tup) -> DNDarray:
     This is equivalent to concatenation along the first axis.
     This function makes most sense for arrays with up to 3 dimensions. For
     instance, for pixel-data with a height (first axis), width (second axis),
-    and r/g/b channels (third axis). The functions `concatenate`, `stack` and
-    `block` provide more general stacking and concatenation operations.
+    and r/g/b channels (third axis). The :func:`concatenate` function provides more general
+    stacking operations.
 
     Parameters
     ----------

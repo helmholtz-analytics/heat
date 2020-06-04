@@ -8,58 +8,58 @@ __all__ = ["SplitTiles", "SquareDiagTiles"]
 
 
 class SplitTiles:
+    """
+    Initialize tiles with the tile divisions equal to the theoretical split dimensions in
+    every dimension
+
+    Parameters
+    ----------
+    arr : DNDarray
+        base array for which to create the tiles
+
+    Examples
+    --------
+    >>> a = ht.zeros((10, 11,), split=None)
+    >>> a.create_split_tiles()
+    >>> print(a.tiles.tile_ends_g)
+    [0] tensor([[ 4,  7, 10],
+    [0]         [ 4,  8, 11]], dtype=torch.int32)
+    [1] tensor([[ 4,  7, 10],
+    [1]         [ 4,  8, 11]], dtype=torch.int32)
+    [2] tensor([[ 4,  7, 10],
+    [2]         [ 4,  8, 11]], dtype=torch.int32)
+    >>> print(a.tiles.tile_locations)
+    [0] tensor([[0, 0, 0],
+    [0]         [0, 0, 0],
+    [0]         [0, 0, 0]], dtype=torch.int32)
+    [1] tensor([[1, 1, 1],
+    [1]         [1, 1, 1],
+    [1]         [1, 1, 1]], dtype=torch.int32)
+    [2] tensor([[2, 2, 2],
+    [2]         [2, 2, 2],
+    [2]         [2, 2, 2]], dtype=torch.int32)
+    >>> a = ht.zeros((10, 11), split=1)
+    >>> a.create_split_tiles()
+    >>> print(a.tiles.tile_ends_g)
+    [0] tensor([[ 4,  7, 10],
+    [0]         [ 4,  8, 11]], dtype=torch.int32)
+    [1] tensor([[ 4,  7, 10],
+    [1]         [ 4,  8, 11]], dtype=torch.int32)
+    [2] tensor([[ 4,  7, 10],
+    [2]         [ 4,  8, 11]], dtype=torch.int32)
+    >>> print(a.tiles.tile_locations)
+    [0] tensor([[0, 1, 2],
+    [0]         [0, 1, 2],
+    [0]         [0, 1, 2]], dtype=torch.int32)
+    [1] tensor([[0, 1, 2],
+    [1]         [0, 1, 2],
+    [1]         [0, 1, 2]], dtype=torch.int32)
+    [2] tensor([[0, 1, 2],
+    [2]         [0, 1, 2],
+    [2]         [0, 1, 2]], dtype=torch.int32)
+    """
+
     def __init__(self, arr):
-        """
-        Initialize tiles with the tile divisions equal to the theoretical split dimensions in
-        every dimension
-
-        Parameters
-        ----------
-        arr : DNDarray
-            base array for which to create the tiles
-
-        Examples
-        --------
-        (3 processes)
-        >>> a = ht.zeros((10, 11,), split=None)
-        >>> a.create_split_tiles()
-        >>> print(a.tiles.tile_ends_g)
-        [0] tensor([[ 4,  7, 10],
-        [0]         [ 4,  8, 11]], dtype=torch.int32)
-        [1] tensor([[ 4,  7, 10],
-        [1]         [ 4,  8, 11]], dtype=torch.int32)
-        [2] tensor([[ 4,  7, 10],
-        [2]         [ 4,  8, 11]], dtype=torch.int32)
-        >>> print(a.tiles.tile_locations)
-        [0] tensor([[0, 0, 0],
-        [0]         [0, 0, 0],
-        [0]         [0, 0, 0]], dtype=torch.int32)
-        [1] tensor([[1, 1, 1],
-        [1]         [1, 1, 1],
-        [1]         [1, 1, 1]], dtype=torch.int32)
-        [2] tensor([[2, 2, 2],
-        [2]         [2, 2, 2],
-        [2]         [2, 2, 2]], dtype=torch.int32)
-        >>> a = ht.zeros((10, 11), split=1)
-        >>> a.create_split_tiles()
-        >>> print(a.tiles.tile_ends_g)
-        [0] tensor([[ 4,  7, 10],
-        [0]         [ 4,  8, 11]], dtype=torch.int32)
-        [1] tensor([[ 4,  7, 10],
-        [1]         [ 4,  8, 11]], dtype=torch.int32)
-        [2] tensor([[ 4,  7, 10],
-        [2]         [ 4,  8, 11]], dtype=torch.int32)
-        >>> print(a.tiles.tile_locations)
-        [0] tensor([[0, 1, 2],
-        [0]         [0, 1, 2],
-        [0]         [0, 1, 2]], dtype=torch.int32)
-        [1] tensor([[0, 1, 2],
-        [1]         [0, 1, 2],
-        [1]         [0, 1, 2]], dtype=torch.int32)
-        [2] tensor([[0, 1, 2],
-        [2]         [0, 1, 2],
-        [2]         [0, 1, 2]], dtype=torch.int32)
-        """
         #  1. get the lshape map
         #  2. get the split axis numbers for the other axes
         #  3. build tile map
@@ -95,11 +95,11 @@ class SplitTiles:
         Parameters
         ----------
         split : int
-            target split dimension. does not need to be equal to arr.split
-        tile_dims : torch.tensor
-            torch Tensor containing the sizes of the each tile
+            Target split dimension. Does not need to be equal to ``arr.split``
+        tile_dims : torch.Tensor
+            ``torch.Tensor`` containing the sizes of the each tile
         arr : DNDarray
-            array for which the tiles are being created for
+            Array for which the tiles are being created for
 
         """
         # this is split off specifically for the resplit function
@@ -128,11 +128,11 @@ class SplitTiles:
     @property
     def tile_locations(self):
         """
-        Get the torch Tensor with the locations of the tiles for SplitTiles
+        Get the ``torch.Tensor`` with the locations of the tiles for SplitTiles
 
         Examples
         --------
-        see :func:`~SplitTiles.__init__`
+        see :class:`~SplitTiles`
         """
         return self.__tile_locations
 
@@ -143,7 +143,7 @@ class SplitTiles:
 
         Examples
         --------
-        see :func:`~SplitTiles.__init__`
+        see :class:`~SplitTiles`
         """
         return self.__tile_ends_g
 
@@ -151,7 +151,7 @@ class SplitTiles:
     def tile_dimensions(self):
         return self.__tile_dims
 
-    def __getitem__(self, key) -> torch.tensor:
+    def __getitem__(self, key) -> torch.Tensor:
         """
         Getitem function for getting tiles. Returns the tile which is specified is returned, but only on the process which it resides
 
@@ -202,6 +202,7 @@ class SplitTiles:
         return arr._DNDarray__array[tuple(arb_slices)]
 
     def get_tile_slices(self, key):
+        # ToDo Document me
         arr = self.__DNDarray
         arb_slices = [None] * arr.numdims
         # print(self.tile_locations[key])
@@ -264,8 +265,8 @@ class SplitTiles:
         Parameters
         ----------
         key : int or Tuple or Slice
-            key which identifies the tile/s to get
-        value : int or torch.tensor
+            Key which identifies the tile/s to get
+        value : int or torch.Tensor
             Value to be set on the tile
 
         Examples
@@ -287,43 +288,46 @@ class SplitTiles:
 
 class SquareDiagTiles:
     """
-
     Generate the tile map and the other objects which may be useful.
     The tiles generated here are based of square tiles along the diagonal. The size of these
     tiles along the diagonal dictate the divisions across all processes. If
-    gshape[0] >> gshape[1] then there will be extra tiles generated below the diagonal.
-    If gshape[0] is close to gshape[1], then the last tile (as well as the other tiles which
+    ``gshape[0] >> gshape[1]`` then there will be extra tiles generated below the diagonal.
+    If ``gshape[0]`` is close to ``gshape[1]``, then the last tile (as well as the other tiles which
     correspond with said tile) will be extended to cover the whole array. However, extra tiles
-    are not generated above the diagonal in the case that gshape[0] << gshape[1].
-
-    WARNING: The generation of these tiles may unbalance the original tensor!
-
-    Note: This tiling scheme is intended for use with the QR function.
+    are not generated above the diagonal in the case that ``gshape[0] << gshape[1]``.
 
     Parameters
     ----------
     arr : DNDarray
-        the array to be tiled
+        The array to be tiled
     tiles_per_proc : int, optional
-        Default = 2
-        the number of divisions per process,
+        The number of divisions per process,
 
     Attributes
     -----------
-    __col_per_proc_list : list
-        list is length of the number of processes, each element has the number of tile
+    __col_per_proc_list : List
+        List is length of the number of processes, each element has the number of tile
         columns on the process whos rank equals the index
     __DNDarray = arr : DNDarray
-        the whole DNDarray
+        The whole DNDarray
     __lshape_map : torch.Tensor
-        unit -> [rank, row size, column size]
-        tensor filled with the shapes of the local tensors
+        ``unit -> [rank, row size, column size]``
+        Tensor filled with the shapes of the local tensors
     __tile_map : torch.Tensor
-        units -> row, column, start index in each direction, process
-        tensor filled with the global indices of the generated tiles
-    __row_per_proc_list : list
-        list is length of the number of processes, each element has the number of tile
+        ``units -> row, column, start index in each direction, process``
+        Tensor filled with the global indices of the generated tiles
+    __row_per_proc_list : List
+        List is length of the number of processes, each element has the number of tile
         rows on the process whos rank equals the index
+
+    Warnings
+    -----------
+    The generation of these tiles may unbalance the original tensor!
+
+    Notes
+    -----------
+    This tiling scheme is intended for use with the :func:`~heat.core.linal.qr.qr` function.
+
     """
 
     def __init__(self, arr, tiles_per_proc=2):
@@ -472,7 +476,7 @@ class SquareDiagTiles:
     @staticmethod
     def __adjust_cols_sp1_m_ls_n(arr, col_per_proc_list, last_diag_pr, col_inds, lshape_map):
         """
-        Add more columns after the diagonal ends if m < n and arr.split == 1
+        Add more columns after the diagonal ends if :math:`m < n` and ``arr.split == 1``
         """
         # need to add to col inds with the rest of the columns
         tile_columns = sum(col_per_proc_list)
@@ -501,8 +505,8 @@ class SquareDiagTiles:
         arr, lshape_map, last_diag_pr, row_inds, row_per_proc_list, tile_columns
     ):
         """
-        Need to adjust the size of last row if arr.split == 0 and the diagonal ends before the
-        last tile. This should only be run if arr,split == 0 and last_diag_pr < arr.comm.size - 1.
+        Need to adjust the size of last row if ``arr.split == 0`` and the diagonal ends before the
+        last tile. This should only be run if ``arr,split == 0`` and ``last_diag_pr < arr.comm.size - 1``.
         """
         # need to find the amount of data after the diagonal
         lshape_cumsum = torch.cumsum(lshape_map[..., 0], dim=0)
@@ -560,10 +564,10 @@ class SquareDiagTiles:
         ----------
         arr : DNDarray
             DNDarray for which to find the tile columns for
-        lshape_map : torch.tensor
-            the map of the local shapes (for more info see: DNDarray.create_lshape_map())
+        lshape_map : torch.Tensor
+            The map of the local shapes (for more info see: DNDarray.create_lshape_map())
         tiles_per_proc : int
-            the number of divisions per process
+            The number of divisions per process
         """
         last_tile_cols = tiles_per_proc
         last_dia_pr = torch.where(lshape_map[..., arr.split].cumsum(dim=0) >= min(arr.gshape))[0][0]
@@ -668,7 +672,7 @@ class SquareDiagTiles:
     def lshape_map(self) -> torch.tensor:
         """
         Returns the map of the lshape tuples for the DNDarray given
-        units -> rank (int), lshape (tuple of the local shape)
+        ``units -> rank (int), lshape`` (tuple of the local shape)
         """
         return self.__lshape_map
 
@@ -704,7 +708,7 @@ class SquareDiagTiles:
     def tile_map(self) -> torch.tensor:
         """
         Returns tile_map which contains the sizes of the tiles
-        units -> row, column, start index in each direction, process
+        ``units -> row, column, start index in each direction, process``
 
         Examples
         --------
@@ -758,7 +762,7 @@ class SquareDiagTiles:
         Parameters
         ----------
         key : int or Tuple or List or slice
-            indices to select the tile
+            Indices to select the tile
             STRIDES ARE NOT ALLOWED, MUST BE GLOBAL INDICES
 
         Examples
@@ -817,7 +821,6 @@ class SquareDiagTiles:
     def __getitem__(self, key) -> torch.tensor:
         """
         Returns a local selection of the DNDarray corresponding to the tile/s desired
-
         Standard getitem function for the tiles. The returned item is a view of the original
         DNDarray, operations which are done to this view will change the original array.
         **STRIDES ARE NOT AVAILABLE, NOR ARE CROSS-SPLIT SLICES**
@@ -867,14 +870,13 @@ class SquareDiagTiles:
     def local_get(self, key) -> torch.tensor:
         """
         Returns the local tile/s corresponding to the key given
-
         Getitem routing using local indices, converts to global indices then uses getitem
 
         Parameters
         ----------
         key : int, slice, tuple, list
-            indices of the tile/s desired
-            if the stop index of a slice is larger than the end will be adjusted to the maximum
+            Indices of the tile/s desired.
+            If the stop index of a slice is larger than the end will be adjusted to the maximum
             allowed
 
         Examples
@@ -892,11 +894,11 @@ class SquareDiagTiles:
         Parameters
         ----------
         key : int or slice or Tuple[int,...]
-            indices of the tile/s desired
-            if the stop index of a slice is larger than the end will be adjusted to the maximum
+            Indices of the tile/s desired
+            If the stop index of a slice is larger than the end will be adjusted to the maximum
             allowed
-        value : torch.tensor or int or float
-            data to be written to the tile
+        value : torch.Tensor or int or float
+            Data to be written to the tile
 
         Examples
         --------
@@ -941,7 +943,6 @@ class SquareDiagTiles:
         [1/1]         [ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.],
         [1/1]         [ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.],
         [1/1]         [ 0.,  0.,  0., 10., 10., 10.,  0.,  0.,  0.,  0.]])
-
         """
         rank = self.__DNDarray.comm.rank
         key = self.local_to_global(key=key, rank=rank)
@@ -954,10 +955,11 @@ class SquareDiagTiles:
         Parameters
         ----------
         key : int or slice or Tuple or List
-            indices of the tile/s desired
-            if the stop index of a slice is larger than the end will be adjusted to the maximum
+            Indices of the tile/s desired.
+            If the stop index of a slice is larger than the end will be adjusted to the maximum
             allowed
-        rank : process rank
+        rank : int
+            Process rank
 
         Examples
         --------
@@ -1013,7 +1015,7 @@ class SquareDiagTiles:
         Parameters
         ----------
         tiles_to_match : SquareDiagTiles
-            the tiles which should be matched by the current tiling scheme
+            The tiles which should be matched by the current tiling scheme
 
         Notes
         -----
@@ -1140,9 +1142,9 @@ class SquareDiagTiles:
         Parameters
         ----------
         key : int or slice or Tuple[int,...]
-            tile indices to identify the target tiles
-        value : int or torch.tensor
-            values to be set
+            Tile indices to identify the target tiles
+        value : int or torch.Tensor
+            Values to be set
 
         Example
         -------
