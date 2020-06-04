@@ -111,24 +111,23 @@ class DNDarray:
     @property
     def numdims(self):
         """
+        Returns
+        -------
+        number_of_dimensions : int
+            the number of dimensions of the DNDarray
+        """
+        warnings.warn("numdims is deprecated, use ndim instead", DeprecationWarning)
+        return len(self.__gshape)
 
+    @property
+    def ndim(self):
+        """
         Returns
         -------
         number_of_dimensions : int
             the number of dimensions of the DNDarray
         """
         return len(self.__gshape)
-
-    @property
-    def ndim(self):
-        """
-
-        Returns
-        -------
-        number_of_dimensions : int
-            the number of dimensions of the DNDarray
-        """
-        return self.numdims
 
     @property
     def size(self):
