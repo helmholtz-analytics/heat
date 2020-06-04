@@ -857,27 +857,22 @@ class TestManipulations(TestCase):
         self.assertTrue(ht.equal(ht.flip(a, [1, 2]), r_a))
 
     def test_fliplr(self):
-        b = ht.array([[1, 2], [3, 4]], device=ht_device)
-        r_b = ht.array([[2, 1], [4, 3]], device=ht_device)
+        b = ht.array([[1, 2], [3, 4]])
+        r_b = ht.array([[2, 1], [4, 3]])
         self.assertTrue(ht.equal(ht.fliplr(b), r_b))
 
         # splitted
         c = ht.array(
-            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]],
-            split=0,
-            device=ht_device,
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]], split=0
         )
         r_c = ht.array(
-            [[[2, 3], [0, 1]], [[6, 7], [4, 5]], [[10, 11], [8, 9]], [[14, 15], [12, 13]]],
-            split=0,
-            device=ht_device,
+            [[[2, 3], [0, 1]], [[6, 7], [4, 5]], [[10, 11], [8, 9]], [[14, 15], [12, 13]]], split=0
         )
         self.assertTrue(ht.equal(ht.fliplr(c), r_c))
 
         c = ht.array(
             [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]],
             split=1,
-            device=ht_device,
             dtype=ht.float32,
         )
         self.assertTrue(ht.equal(ht.resplit(ht.fliplr(c), 0), r_c))
@@ -885,13 +880,12 @@ class TestManipulations(TestCase):
         c = ht.array(
             [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]],
             split=2,
-            device=ht_device,
             dtype=ht.int8,
         )
         self.assertTrue(ht.equal(ht.resplit(ht.fliplr(c), 0), r_c))
 
         # test exception
-        a = ht.arange(10, device=ht_device)
+        a = ht.arange(10)
         with self.assertRaises(IndexError):
             ht.fliplr(a)
 
