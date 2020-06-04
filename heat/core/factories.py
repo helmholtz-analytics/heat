@@ -769,10 +769,8 @@ def logspace(
     See Also
     --------
     :func:`arange` : Similar to :func:`linspace`, with the step size specified instead of the
-             number of samples. Note that, when used with a float endpoint, the
-             endpoint may or may not be included.
-    :func:`linspace` : Similar to ``logspace``, but with the samples uniformly distributed
-               in linear space, instead of log space.
+    number of samples. Note that, when used with a float endpoint, the endpoint may or may not be included.
+    :func:`linspace` : Similar to ``logspace``, but with the samples uniformly distributed in linear space, instead of log space.
 
     Examples
     --------

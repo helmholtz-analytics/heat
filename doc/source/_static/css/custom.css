@@ -4136,7 +4136,7 @@ a .icon {
 .rst-content .seealso,
 .rst-content .wy-alert-info.admonition-todo,
 .rst-content .wy-alert-info.admonition {
-	background: #e7f2fa
+	background: var(--hgrey-light)
 }
 
 .wy-alert.wy-alert-info .wy-alert-title,
@@ -4166,7 +4166,7 @@ a .icon {
 .rst-content .seealso .admonition-title,
 .rst-content .wy-alert-info.admonition-todo .admonition-title,
 .rst-content .wy-alert-info.admonition .admonition-title {
-	background: #6ab0de
+	background: var(--hgrey)
 }
 
 .wy-alert.wy-alert-success,
@@ -5585,17 +5585,17 @@ input[type="checkbox"][disabled] {
 }
 
 a {
-	color: var(--hgrey);
+	color: var(--black);
 	text-decoration: none;
 	cursor: pointer
 }
 
 a:hover {
-	color: #3091d1
+	color: var(--black)
 }
 
 a:visited {
-	color: var(--hblue)
+	color: var(--hgrey)
 }
 
 html {
@@ -5740,7 +5740,7 @@ code,
 .rst-content code {
 	white-space: nowrap;
 	max-width: 100%;
-	background: #fff;
+	background: none;
 	border: none;
 	font-size: 75%;
 	padding: 0 5px;
@@ -7094,7 +7094,7 @@ footer span.commit .rst-content tt,
 .rst-content code {
 	color: #000;
 	font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", Courier, monospace;
-	padding: 2px 5px
+	padding: 1px 1px
 }
 
 .rst-content tt big,
