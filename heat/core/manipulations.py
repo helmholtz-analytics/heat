@@ -18,6 +18,7 @@ __all__ = [
     "expand_dims",
     "flatten",
     "flip",
+    "fliplr",
     "flipud",
     "hstack",
     "reshape",
@@ -700,6 +701,35 @@ def flip(a, axis=None):
     res.balance_()  # after swapping, first processes may be empty
     req.Wait()
     return res
+
+
+def fliplr(a):
+    """
+        Flip array in the left/right direction. If a.ndim > 2, flip along dimension 1.
+
+        Parameters
+        ----------
+        a: ht.DNDarray
+            Input array to be flipped, must be at least 2-D
+
+        Returns
+        -------
+        res: ht.DNDarray
+            The flipped array.
+
+        Examples
+        --------
+        >>> a = ht.array([[0,1],[2,3]])
+        >>> ht.fliplr(a)
+        tensor([[1, 0],
+                [3, 2]])
+
+        >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
+        >>> ht.fliplr(b)
+        (1/2) tensor([[2, 1, 0]])
+        (2/2) tensor([[5, 4, 3]])
+    """
+    return flip(a, 1)
 
 
 def flipud(a):
