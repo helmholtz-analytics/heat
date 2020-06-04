@@ -1,5 +1,6 @@
 # Pending Additions
 
+- [#569](https://github.com/helmholtz-analytics/heat/pull/569) New feature: implemented percentile() and median()
 - [#573](https://github.com/helmholtz-analytics/heat/pull/573) Bugfix: matmul fixes: early out for 2 vectors, remainders not added if inner block is 1 for split 10 case
 
 
@@ -37,8 +38,6 @@
 - [#558](https://github.com/helmholtz-analytics/heat/pull/558) Support for PyTorch 1.5.0 added
 - [#562](https://github.com/helmholtz-analytics/heat/pull/562) Bugfix: split semantics of ht.squeeze()
 - [#567](https://github.com/helmholtz-analytics/heat/pull/567) Bugfix: split differences for setitem are now assumed to be correctly given, error will come from torch upon the setting of the value
-- [#569](https://github.com/helmholtz-analytics/heat/pull/569) New feature: implemented percentile() and median()
-- [#573](https://github.com/helmholtz-analytics/heat/pull/573) Bugfix: matmul fixes: early out for 2 vectors, remainders not added if inner block is 1 for split 10 case
 
 # v0.3.0
 
