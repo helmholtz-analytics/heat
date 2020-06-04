@@ -1198,9 +1198,6 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             ceil_indices = floor_indices + 1.0
             axis_slice = axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
             if ceil_indices.max().item() == data.shape[axis]:
-                # if axis == data.split:
-                #     highs = data.array_with_halos[axis_slice]
-                # else:
                 # max percentile is 100.0
                 ceil_indices[ceil_indices.argmax()] -= 1
                 axis_slice = axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
