@@ -1130,6 +1130,24 @@ class TestDNDarray(unittest.TestCase):
         )
         self.assertEqual(heat_float64_F_split.strides, numpy_float64_F_split_strides)
 
+    def test_tolist(self):
+        a = ht.zeros([ht.MPI_WORLD.size,ht.MPI_WORLD.size,ht.MPI_WORLD.size], dtype=ht.int32)
+        res = [[[0 for z in range(ht.MPI_WORLD.size)] for y in range(ht.MPI_WORLD.size)] for x in range(ht.MPI_WORLD.size)]
+        self.assertListEqual(a.tolist(), res)
+
+        a = ht.zeros([ht.MPI_WORLD.size,ht.MPI_WORLD.size,ht.MPI_WORLD.size], dtype=ht.int32, split=0)
+        res = [[[0 for z in range(ht.MPI_WORLD.size)] for y in range(ht.MPI_WORLD.size)] for x in [ht.MPI_WORLD.rank]]
+        self.assertListEqual(a.tolist(), res)
+
+        a = ht.zeros([ht.MPI_WORLD.size,ht.MPI_WORLD.size,ht.MPI_WORLD.size], dtype=ht.float32, split=1)
+        res = [[[0. for z in range(ht.MPI_WORLD.size)] for y in [ht.MPI_WORLD.rank]] for x in range(ht.MPI_WORLD.size)]
+        self.assertListEqual(a.tolist(), res)
+
+        a = ht.zeros([ht.MPI_WORLD.size,ht.MPI_WORLD.size,ht.MPI_WORLD.size], dtype=ht.bool, split=2)
+        res = [[[False for z in [ht.MPI_WORLD.rank]] for y in range(ht.MPI_WORLD.size)] for x in range(ht.MPI_WORLD.size)]
+        self.assertListEqual(a.tolist(), res)
+
+
     def test_xor(self):
         int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16, device=ht_device)
         int16_vector = ht.array([[3, 4]], dtype=ht.int16, device=ht_device)

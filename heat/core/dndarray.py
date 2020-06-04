@@ -3477,6 +3477,15 @@ class DNDarray:
         
         Examples
         --------
+        >>> a = ht.array([[0,1],[2,3]])
+        >>> a.tolist()
+        [[0, 1], [2, 3]]
+        
+        >>> a = ht.array([[0,1],[2,3]], split=0)
+        >>> a.tolist()
+        (1/2) [[0, 1]]
+        (2/2) [[2, 3]]
+
         >>> a = ht.array([[0,1],[2,3]], split=1)
         >>> a.tolist()
         (1/2) [[0], [2]]
