@@ -2,6 +2,7 @@
 
 - [#569](https://github.com/helmholtz-analytics/heat/pull/569) New feature: implemented percentile() and median()
 - [#573](https://github.com/helmholtz-analytics/heat/pull/573) Bugfix: matmul fixes: early out for 2 vectors, remainders not added if inner block is 1 for split 10 case
+- [#580](https://github.com/helmholtz-analytics/heat/pull/580) New feature: fliplr()
 
 
 # v0.4.0
