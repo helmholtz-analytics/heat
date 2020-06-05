@@ -668,54 +668,48 @@ def flip(a, axis=None) -> DNDarray:
     return res
 
 
-def fliplr(a):
+def fliplr(a) -> DNDarray:
     """
-        Flip array in the left/right direction. If a.ndim > 2, flip along dimension 1.
+    Flip array in the left/right direction. If a.ndim > 2, flip along dimension 1.
 
-        Parameters
-        ----------
-        a: ht.DNDarray
-            Input array to be flipped, must be at least 2-D
+    Parameters
+    ----------
+    a: DNDarray
+        Input array to be flipped, must be at least 2-D
 
-        Returns
-        -------
-        res: ht.DNDarray
-            The flipped array.
-
-        Examples
-        --------
-        >>> a = ht.array([[0,1],[2,3]])
-        >>> ht.fliplr(a)
-        tensor([[1, 0],
-                [3, 2]])
-
-        >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
-        >>> ht.fliplr(b)
-        (1/2) tensor([[2, 1, 0]])
-        (2/2) tensor([[5, 4, 3]])
+    Examples
+    --------
+    >>> a = ht.array([[0,1],[2,3]])
+    >>> ht.fliplr(a)
+    tensor([[1, 0],
+            [3, 2]])
+    >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
+    >>> ht.fliplr(b)
+    (1/2) tensor([[2, 1, 0]])
+    (2/2) tensor([[5, 4, 3]])
     """
     return flip(a, 1)
 
 
 def flipud(a) -> DNDarray:
     """
-        Flip array in the up/down direction.
+    Flip array in the up/down direction.
 
-        Parameters
-        ----------
-        a: DNDarray
-            Input array to be flipped
+    Parameters
+    ----------
+    a: DNDarray
+        Input array to be flipped
 
-        Examples
-        --------
-        >>> a = ht.array([[0,1],[2,3]])
-        >>> ht.flipud(a)
-        tensor([[2, 3],
+    Examples
+    --------
+    >>> a = ht.array([[0,1],[2,3]])
+    >>> ht.flipud(a)
+    tensor([[2, 3],
             [0, 1]])
-        >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
-        >>> ht.flipud(b)
-        (1/2) tensor([3,4,5])
-        (2/2) tensor([0,1,2])
+    >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
+    >>> ht.flipud(b)
+    (1/2) tensor([3,4,5])
+    (2/2) tensor([0,1,2])
     """
     return flip(a, 0)
 
@@ -1151,7 +1145,7 @@ def squeeze(x, axis=None) -> DNDarray:
 
     Parameters
     -----------
-    x : ht.DNDarray
+    x : DNDarray
         Input data.
     axis : None or int or Tuple[int,...], optional
            Selects a subset of the single-dimensional entries in the shape.
