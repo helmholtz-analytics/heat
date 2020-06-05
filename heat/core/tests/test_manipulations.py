@@ -1068,6 +1068,7 @@ class TestManipulations(BasicTest):
 
         a = ht.resplit(m, 0)
 
+        self.assertTrue(ht.equal(ht.rot90(a, 0), a))
         self.assertTrue(ht.equal(ht.rot90(a), ht.resplit(ht.rot90(m), 1)))
         self.assertTrue(ht.equal(ht.rot90(a, 2), ht.resplit(ht.rot90(m, 2), 0)))
         self.assertTrue(ht.equal(ht.rot90(a, 3, (1, 2)), ht.resplit(ht.rot90(m, 3, (1, 2)), 0)))
@@ -1075,12 +1076,14 @@ class TestManipulations(BasicTest):
         m = ht.arange(size ** 3, dtype=ht.float).reshape((size, size, size))
         a = ht.resplit(m, 1)
 
+        self.assertTrue(ht.equal(ht.rot90(a, 0), a))
         self.assertTrue(ht.equal(ht.rot90(a), ht.resplit(ht.rot90(m), 0)))
         self.assertTrue(ht.equal(ht.rot90(a, 2), ht.resplit(ht.rot90(m, 2), 1)))
         self.assertTrue(ht.equal(ht.rot90(a, 3, (1, 2)), ht.resplit(ht.rot90(m, 3, (1, 2)), 2)))
 
         a = ht.resplit(m, 2)
 
+        self.assertTrue(ht.equal(ht.rot90(a, 0), a))
         self.assertTrue(ht.equal(ht.rot90(a), ht.resplit(ht.rot90(m), 2)))
         self.assertTrue(ht.equal(ht.rot90(a, 2), ht.resplit(ht.rot90(m, 2), 2)))
         self.assertTrue(ht.equal(ht.rot90(a, 3, (1, 2)), ht.resplit(ht.rot90(m, 3, (1, 2)), 1)))
