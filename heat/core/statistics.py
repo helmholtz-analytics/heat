@@ -321,22 +321,22 @@ def average(x, axis=None, weights=None, returned=False):
                 raise TypeError("Axis must be specified when shapes of x and weights differ.")
             elif isinstance(axis, tuple):
                 raise NotImplementedError("Weighted average over tuple axis not implemented yet.")
-            if weights.numdims != 1:
+            if weights.ndim != 1:
                 raise TypeError("1D weights expected when shapes of x and weights differ.")
             if weights.gshape[0] != x.gshape[axis]:
                 raise ValueError("Length of weights not compatible with specified axis.")
 
             wgt_lshape = tuple(
-                weights.lshape[0] if dim == axis else 1 for dim in list(range(x.numdims))
+                weights.lshape[0] if dim == axis else 1 for dim in list(range(x.ndim))
             )
-            wgt_slice = [slice(None) if dim == axis else 0 for dim in list(range(x.numdims))]
+            wgt_slice = [slice(None) if dim == axis else 0 for dim in list(range(x.ndim))]
             wgt_split = None if weights.split is None else axis
             wgt = factories.empty(wgt_lshape, dtype=weights.dtype, device=x.device)
             wgt._DNDarray__array[wgt_slice] = weights._DNDarray__array
             wgt = factories.array(wgt._DNDarray__array, is_split=wgt_split)
         else:
             if x.comm.is_distributed():
-                if x.split is not None and weights.split != x.split and weights.numdims != 1:
+                if x.split is not None and weights.split != x.split and weights.ndim != 1:
                     # fix after Issue #425 is solved
                     raise NotImplementedError(
                         "weights.split does not match data.split: not implemented yet."
@@ -395,10 +395,10 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
         raise TypeError("m must be a DNDarray")
     if not m.is_balanced():
         raise RuntimeError("balance is required for cov(). use balance_() to balance m")
-    if m.numdims > 2:
+    if m.ndim > 2:
         raise ValueError("m has more than 2 dimensions")
 
-    if m.numdims == 1:
+    if m.ndim == 1:
         m = m.expand_dims(1)
     x = m.copy()
     if not rowvar and x.shape[0] != 1:
@@ -413,9 +413,9 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     if y is not None:
         if not isinstance(y, dndarray.DNDarray):
             raise TypeError("y must be a DNDarray")
-        if y.numdims > 2:
+        if y.ndim > 2:
             raise ValueError("y has too many dimensions, max=2")
-        if y.numdims == 1:
+        if y.ndim == 1:
             y = y.expand_dims(1)
         if not y.is_balanced():
             raise RuntimeError("balance is required for cov(). use balance_() to balance y")
