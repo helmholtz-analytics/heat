@@ -9,7 +9,7 @@ from .. import factories
 from .. import manipulations
 from .. import types
 
-__all__ = ["dot", "matmul", "norm", "projection", "transpose", "tril", "triu"]
+__all__ = ["dot", "matmul", "norm", "outer", "projection", "transpose", "tril", "triu"]
 
 
 def dot(a, b, out=None):
@@ -825,6 +825,58 @@ def norm(a):
         d = arithmetics.sum(d, axis=i)
 
     return exponential.sqrt(d).item()
+
+
+def outer(a, b, out=None):
+    """
+    Compute the outer product of two vectors.
+
+    Given two vectors, a = [a0, a1, ..., aM] and b = [b0, b1, ..., bN], the outer product is:
+
+    [[a0*b0  a0*b1 ... a0*bN ]
+    [a1*b0    .
+    [ ...          .
+    [aM*b0            aM*bN ]]
+
+    Parameters
+    ----------
+
+    a(M,): ht.DNDarray
+            First input tensor. Input is flattened if not already 1-dimensional.
+
+    b(N,): ht.DNDarray
+            Second input tensor. Input is flattened if not already 1-dimensional.
+
+    out(M, N): ht.DNDarray, optional
+            A location where the result is stored
+
+    Returns
+    -------
+
+    out(M, N): ht.DNDarray
+
+        out[i, j] = a[i] * b[j]
+
+    """
+    # TODO sanitize input
+    # TODO sanitize shape (1d or flatten)
+
+    out_dtype = types.promote_types(a.dtype, b.dtype)
+    out_shape = (a.gshape[0], b.gshape[0])
+    out_split = 0
+
+    t_a = a._DNDarray__array
+    t_b = b._DNDarray__array
+
+    # outer product, local
+    if not a.comm.is_distributed():
+        t_out = torch.einsum("i,j->ij", t_a, t_b)
+
+    out = dndarray.DNDarray(
+        t_out, gshape=out_shape, dtype=out_dtype, split=out_split, device=a.device, comm=a.comm
+    )
+
+    return out
 
 
 def projection(a, b):
