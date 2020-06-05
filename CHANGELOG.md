@@ -4,6 +4,7 @@
 - [#580](https://github.com/helmholtz-analytics/heat/pull/580) New feature: fliplr()
 - [#577](https://github.com/helmholtz-analytics/heat/pull/577) Add ndims property in dndarray
 - [#577](https://github.com/helmholtz-analytics/heat/pull/577) Add ndim property in dndarray
+- [#582](https://github.com/helmholtz-analytics/heat/pull/582) New feature: rot90
 
 
 # v0.4.0
