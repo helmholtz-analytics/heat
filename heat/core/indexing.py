@@ -75,7 +75,7 @@ def nonzero(a):
         gout[0] = a.comm.allreduce(gout[0], MPI.SUM)
         is_split = 0
 
-    if a.numdims == 1:
+    if a.ndim == 1:
         lcl_nonzero = lcl_nonzero.squeeze(dim=1)
 
     return dndarray.DNDarray(
