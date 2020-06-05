@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import torch
 
 from .communication import MPI
@@ -42,8 +44,8 @@ __all__ = [
 def add(t1, t2) -> DNDarray:
     """
     Element-wise addition of values from two operands, commutative.
-    Takes the first and second operand (scalar or tensor) whose elements are to be added as argument and returns a
-    tensor containing the results of element-wise addition of ``t1`` and ``t2``.
+    Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be added
+    as argument and returns a ``DNDarray`` containing the results of element-wise addition of ``t1`` and ``t2``.
 
     Parameters
     ----------
@@ -73,8 +75,8 @@ def add(t1, t2) -> DNDarray:
 
 def bitwise_and(t1, t2) -> DNDarray:
     """
-    Compute the bit-wise AND of two arrays ``t1`` and ``t2`` element-wise.
-    Only integer and boolean types are handled. If ``x1.shape != x2.shape``, they must be broadcastable to a common shape
+    Compute the bit-wise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` element-wise.
+    Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape
     (which becomes the shape of the output)
 
     Parameters
@@ -110,10 +112,9 @@ def bitwise_and(t1, t2) -> DNDarray:
 
 def bitwise_or(t1, t2) -> DNDarray:
     """
-    Compute the bit-wise OR of two arrays ``t1`` and ``t2`` element-wise.
-    Only integer and boolean types are handled. If ``x1.shape != x2.shape``, they must be broadcastable to a common shape
+    Compute the bit-wise OR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` element-wise.
+    Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape
     (which becomes the shape of the output)
-
 
     Parameters
     ----------
@@ -152,7 +153,7 @@ def bitwise_or(t1, t2) -> DNDarray:
 def bitwise_xor(t1, t2) -> DNDarray:
     """
     Compute the bit-wise XOR of two arrays element-wise ``t1`` and ``t2``.
-    Only integer and boolean types are handled. If ``x1.shape != x2.shape``, they must be broadcastable to a common shape
+    Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape
     (which becomes the shape of the output)
 
     Parameters
@@ -197,7 +198,7 @@ def cumprod(a, axis, dtype=None, out=None) -> DNDarray:
     dtype : datatype, optional
         Type of the returned array, as well as of the accumulator in which
         the elements are multiplied.  If ``dtype`` is not specified, it
-        defaults to the dtype of ``a``, unless ``a`` has an integer dtype with
+        defaults to the datatype of ``a``, unless ``a`` has an integer dtype with
         a precision less than that of the default platform integer.  In
         that case, the default platform integer is used instead.
     out : DNDarray, optional
@@ -233,14 +234,13 @@ def cumsum(a, axis, dtype=None, out=None) -> DNDarray:
     dtype : datatype, optional
         Type of the returned array and of the accumulator in which the
         elements are summed.  If ``dtype`` is not specified, it defaults
-        to the dtype of ``a``, unless ``a`` has an integer dtype with a
+        to the datatype of ``a``, unless ``a`` has an integer dtype with a
         precision less than that of the default platform integer.  In
         that case, the default platform integer is used.
     out : DNDarray, optional
         Alternative output array in which to place the result. It must
         have the same shape and buffer length as the expected output
-        but the type will be cast if necessary. See `doc.ufuncs`
-        (Section "Output arguments") for more details.
+        but the type will be cast if necessary.
 
     Example
     --------
@@ -256,9 +256,9 @@ def cumsum(a, axis, dtype=None, out=None) -> DNDarray:
 def diff(a, n=1, axis=-1) -> DNDarray:
     """
     Calculate the n-th discrete difference along the given axis.
-    The first difference is given by ``out[i] = a[i+1] - a[i]`` along the given axis, higher differences are calculated
-    by using diff recursively. The shape of the output is the same as a except along axis where the dimension is smaller
-    by ``n``. The type of the output is the same as the type of the difference between any two elements of ``a``.
+    The first difference is given by ``out[i]=a[i+1]-a[i]`` along the given axis, higher differences are calculated
+    by using diff recursively. The shape of the output is the same as ``a`` except along axis where the dimension is smaller
+    by ``n``. The datatype of the output is the same as the datatype of the difference between any two elements of ``a``.
     The split does not change. The output array is balanced.
 
     Parameters
@@ -267,7 +267,7 @@ def diff(a, n=1, axis=-1) -> DNDarray:
         Input array
     n : int, optional
         The number of times values are differenced. If zero, the input is returned as-is.
-        ``n=2`` is equivalent to ``ht.diff(ht.diff(a))``
+        ``n=2`` is equivalent to ``diff(diff(a))``
     axis : int, optional
         The axis along which the difference is taken, default is the last axis.
     """
@@ -341,7 +341,7 @@ def diff(a, n=1, axis=-1) -> DNDarray:
 
 def div(t1, t2) -> DNDarray:
     """
-    Element-wise true division of values of operand ``t1`` by values of operands ``t2`` (i.e ``t1 / t2``).
+    Element-wise true division of values of operand ``t1`` by values of operands ``t2`` (i.e ``t1/t2``).
     Operation is not commutative.
 
     Parameters
@@ -403,7 +403,7 @@ def fmod(t1, t2) -> DNDarray:
 
 def floordiv(t1, t2) -> DNDarray:
     """
-    Element-wise floor division of value of operand ``t1`` by values of operands t2 (i.e. ``t1 // t2``), not commutative.
+    Element-wise floor division of value of operand ``t1`` by values of operands ``t2`` (i.e. ``t1//t2``), not commutative.
 
     Parameters
     ----------
@@ -432,9 +432,8 @@ floor_divide = floordiv
 
 def invert(t, out=None) -> DNDarray:
     """
-    Computes the bitwise NOT of the given input tensor. The input tensor must be of integral or Boolean types.
-    For bool tensors, it computes the logical NOT.
-    Bitwise_not is an alias for invert.
+    Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray`. The input array must be of integral
+    or Boolean types. For boolean arrays, it computes the logical NOT. Bitwise_not is an alias for invert.
 
     Example
     ---------
@@ -482,8 +481,8 @@ def left_shift(t1, t2) -> DNDarray:
 
 def mod(t1, t2) -> DNDarray:
     """
-    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. ``t1 % t2``).
-    Operation is not commutative. Result has the same sign as the devisor t2.
+    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. ``t1%t2``).
+    Operation is not commutative. Result has the same sign as the devisor ``t2``.
     Currently ``t1`` and ``t2`` are just passed to remainder.
 
     Parameters
@@ -513,7 +512,8 @@ def mod(t1, t2) -> DNDarray:
 def mul(t1, t2) -> DNDarray:
     """
     Element-wise multiplication (NOT matrix multiplication) of values from two operands, commutative.
-    Takes the first and second operand (scalar or tensor) whose elements are to be multiplied as argument.
+    Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be
+    multiplied as argument.
 
     Parameters
     ----------
@@ -550,7 +550,7 @@ multiply = mul
 
 def pow(t1, t2) -> DNDarray:
     """
-    Element-wise exponential function of values of operand ``t1`` to the power of values of operand ``t2`` (i.e ``t1 ** t2``).
+    Element-wise exponential function of values of operand ``t1`` to the power of values of operand ``t2`` (i.e ``t1**t2``).
     Operation is not commutative.
 
     Parameters
@@ -583,8 +583,8 @@ power = pow
 
 def remainder(t1, t2) -> DNDarray:
     """
-    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. ``t1 % t2``).
-    Operation is not commutative. Result has the same sign as the devisor t2.
+    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. ``t1%t2``).
+    Operation is not commutative. Result has the same sign as the devisor ``t2``.
 
     Parameters
     ----------
@@ -617,6 +617,7 @@ def right_shift(t1, t2) -> DNDarray:
     Parameters
     ----------
     t1: DNDarray or scalar
+        Input array
     t2: DNDarray or scalar
         Integer number of bits to remove
 
@@ -641,15 +642,15 @@ def prod(x, axis=None, out=None, keepdim=None) -> DNDarray:
     Parameters
     ----------
     x : DNDarray
-        Input data.
+        Input array.
     axis : None or int or Tuple[int,...], optional
         Axis or axes along which a product is performed. The default, ``axis=None``, will calculate the product of all the
         elements in the input array. If axis is negative it counts from the last to the first axis.
         If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple instead of a single
         axis or all the axes as before.
     out : DNDarray, optional
-        Alternative output tensor in which to place the result. It must have the same shape as the expected output, but
-        the type of the output values will be cast if necessary.
+        Alternative output array in which to place the result. It must have the same shape as the expected output, but
+        the datatype of the output values will be cast if necessary.
     keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
         option, the result will broadcast correctly against the input array.
@@ -676,9 +677,8 @@ def prod(x, axis=None, out=None, keepdim=None) -> DNDarray:
 
 def sub(t1, t2) -> DNDarray:
     """
-    Element-wise subtraction of values of operand ``t2`` from values of operands ``t1`` (i.e ``t1 - t2``)
+    Element-wise subtraction of values of operand ``t2`` from values of operands ``t1`` (i.e ``t1-t2``)
     Operation is not commutative.
-
 
     Parameters
     ----------
@@ -711,19 +711,19 @@ subtract = sub
 def sum(x, axis=None, out=None, keepdim=None) -> DNDarray:
     """
     Sum of array elements over a given axis. An array with the same shape as ``self.__array`` except for the specified
-    axis which becomes one, e.g. ``a.shape = (1, 2, 3) => ht.ones((1, 2, 3)).sum(axis=1).shape = (1, 1, 3)``
+    axis which becomes one, e.g. ``a.shape=(1, 2, 3)`` => ``ht.ones((1, 2, 3)).sum(axis=1).shape=(1, 1, 3)``
 
     Parameters
     ----------
     x : DNDarray
-        Input data.
+        Input array.
     axis : None or int or Tuple[int,...], optional
         Axis along which a sum is performed. The default, ``axis=None``, will sum all of the elements of the input array.
         If ``axis`` is negative it counts from the last to the first axis. If ``axis`` is a tuple of ints, a sum is performed
         on all of the axes specified in the tuple instead of a single axis or all the axes as before.
     out : DNDarray, optional
-        Alternative output tensor in which to place the result. It must have the same shape as the expected output, but
-        the type of the output values will be cast if necessary.
+        Alternative output array in which to place the result. It must have the same shape as the expected output, but
+        the datatype of the output values will be cast if necessary.
     keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
         option, the result will broadcast correctly against the input array.

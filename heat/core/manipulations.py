@@ -34,7 +34,7 @@ __all__ = [
 
 def concatenate(arrays, axis=0) -> DNDarray:
     """
-    Join 2 arrays along an existing axis.
+    Join 2 :class:`~heat.core.dndarray.DNDarray`s along an existing axis.
 
     Parameters
     ----------
@@ -48,7 +48,7 @@ def concatenate(arrays, axis=0) -> DNDarray:
     RuntimeError
         If the concatenated :class:`~heat.core.dndarray.DNDarray` meta information, e.g. ``split`` or ``comm``, does not match.
     TypeError
-        If the passed parameters are not of correct type (see documentation above).
+        If the passed parameters are not of correct type.
     ValueError
         If the number of passed arrays is less than two or their shapes do not match.
 
@@ -382,8 +382,8 @@ def diag(a, offset=0) -> DNDarray:
     ----------
     a: DNDarray
         The array holding data for creating a diagonal array or extracting a diagonal.
-        If a is a 1-dimensional array a diagonal 2d-array will be returned.
-        If a is a n-dimensional array with n > 1 the diagonal entries will be returned in an n-1 dimensional array.
+        If ``a`` is a 1-dimensional array, a diagonal 2d-array will be returned.
+        If ``a`` is a n-dimensional array with n > 1 the diagonal entries will be returned in an n-1 dimensional array.
     offset: int, optional
         The offset from the main diagonal.
         Offset greater than zero means above the main diagonal, smaller than zero is below the main diagonal.
@@ -446,8 +446,8 @@ def diag(a, offset=0) -> DNDarray:
 
 def diagonal(a, offset=0, dim1=0, dim2=1) -> DNDarray:
     """
-    Extract a diagonal of an n-dimensional array with ``n > 1``.
-    The returned array will be of dimension ``n-1``.
+    Extract a diagonal of an n-dimensional array with n > 1.
+    The returned array will be of dimension n-1.
 
     Parameters
     ----------
@@ -576,11 +576,11 @@ def flatten(a) -> DNDarray:
     Parameters
     ----------
     a : DNDarray
-        array to collapse
+        Array to collapse
 
     Warning
     ----------
-    If ``a.split > 0``, then the array must be resplit.
+    If ``a.split>0``, then the array must be resplit.
 
     Examples
     --------
@@ -694,8 +694,7 @@ def hstack(tup) -> DNDarray:
     """
     Stack arrays in sequence horizontally (column wise).
     This is equivalent to concatenation along the second axis, except for 1-D
-    arrays where it concatenates along the first axis. Rebuilds arrays divided
-    by `hsplit`.
+    arrays where it concatenates along the first axis.
 
     Parameters
     ----------
@@ -738,16 +737,16 @@ def hstack(tup) -> DNDarray:
 
 def reshape(a, shape, axis=None) -> DNDarray:
     """
-    Returns a tensor with the same data and number of elements as a, but with the specified shape.
+    Returns an array with the same data and number of elements as ``a``, but with the specified shape.
 
     Parameters
     ----------
     a : DNDarray
-        The input tensor
+        The input array
     shape : Tuple[int,...]
-        Shape of the new tensor
+        Shape of the new array
     axis : int, optional
-        The new split axis. None denotes same axis
+        The new split axis. ``None`` denotes same axis
 
     Raises
     ------
@@ -856,11 +855,12 @@ def reshape(a, shape, axis=None) -> DNDarray:
 
 def sort(a, axis=None, descending=False, out=None) -> Tuple[DNDarray, DNDarray]:
     """
-    Sorts the elements of the :class:`~heat.core.dndarray.DNDarray` a along the given dimension (by default in ascending order) by their value.
+    Sorts the elements of ``a`` along the given dimension (by default in ascending order) by their value.
     The sorting is not stable which means that equal elements in the result may have a different ordering than in the
     original array.
-    Sorting where ``axis == a.split`` needs a lot of communication between the processes of MPI.
+    Sorting where ``axis==a.split`` needs a lot of communication between the processes of MPI.
     Returns a a tuple ``(values, indices)`` with the sorted local results and the indices of the elements in the original data
+
     Parameters
     ----------
     a : DNDarray
@@ -870,10 +870,9 @@ def sort(a, axis=None, descending=False, out=None) -> Tuple[DNDarray, DNDarray]:
         Default is the last axis.
     descending : bool, optional
         If set to true values are sorted in descending order
-        Default is false
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh tensor is allocated.
+        or set to ``None``, a fresh array is allocated.
 
     Raises
     ------
@@ -1116,8 +1115,8 @@ def sort(a, axis=None, descending=False, out=None) -> Tuple[DNDarray, DNDarray]:
 
 def squeeze(x, axis=None) -> DNDarray:
     """
-    Remove single-dimensional entries from the shape of a tensor.
-    Returns she input tensor, but with all or a subset of the dimensions of length 1 removed.
+    Remove single-dimensional entries from the shape of a ``DNDarray``.
+    Returns the input array, but with all or a subset of the dimensions of length 1 removed.
     Split semantics: see note below.
 
     Parameters
@@ -1131,16 +1130,9 @@ def squeeze(x, axis=None) -> DNDarray:
 
     Notes
     -----
-    Split semantics: a distributed tensor will keep its original split dimension after "squeezing",
-    which, depending on the squeeze axis, may result in a lower numerical 'split' value, as in:
-    >>> x.shape
-    (10, 1, 12, 13)
-    >>> x.split
-    2
-    >>> x.squeeze().shape
-    (10, 12, 13)
-    >>> x.squeeze().split
-    1
+    Split semantics: a distributed DNDarray will keep its original split dimension after "squeezing",
+    which, depending on the squeeze axis, may result in a lower numerical ``split`` value (see Examples)
+
 
     Examples
     ---------
@@ -1171,6 +1163,15 @@ def squeeze(x, axis=None) -> DNDarray:
     Traceback (most recent call last):
     ...
     ValueError: Dimension along axis 1 is not 1 for shape (1, 3, 1, 5)
+
+    >>> x.shape
+    (10, 1, 12, 13)
+    >>> x.split
+    2
+    >>> x.squeeze().shape
+    (10, 12, 13)
+    >>> x.squeeze().split
+    1
     """
 
     # Sanitize input
@@ -1209,9 +1210,9 @@ def squeeze(x, axis=None) -> DNDarray:
 
 def unique(a, sorted=False, return_inverse=False, axis=None) -> Tuple[DNDarray, torch.tensor]:
     """
-    Finds and returns the unique elements of an array.
+    Finds and returns the unique elements of a ``DNDarray``.
     If return_inverse is ``True``, the second tensor will hold the list of inverse indices
-    Works most effective if ``axis != a.split``.
+    Works most effective if ``axis!=a.split``.
 
     Parameters
     ----------
@@ -1219,7 +1220,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None) -> Tuple[DNDarray, 
         Input array where unique elements should be found.
     sorted : bool, optional
         Whether the found elements should be sorted before returning as output.
-        Warning: sorted is not working if ``axis != None and axis != a.split``
+        Warning: sorted is not working if ``axis!=None and axis!=a.split``
     return_inverse : bool, optional
         Whether to also return the indices for where elements in the original input ended up in the returned
         unique list.
@@ -1409,17 +1410,17 @@ def unique(a, sorted=False, return_inverse=False, axis=None) -> Tuple[DNDarray, 
 
 def resplit(arr, axis=None) -> DNDarray:
     """
-    Out-of-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
-    nodes as well as the definition of new axis along which the tensor is split without changes to the values.
+    Out-of-place redistribution of the content of the ``DNDarray``. Allows to "unsplit" (i.e. gather) all values from all
+    nodes as well as the definition of new axis along which the array is split without changes to the values.
     WARNING: this operation might involve a significant communication overhead. Use it sparingly and preferably for
-    small tensors.
+    small arrays.
 
     Parameters
     ----------
     arr : DNDarray
-        The tensor from which to resplit
+        The array from which to resplit
     axis : int or None
-        The new split axis, None denotes gathering, an int will set the new split axis
+        The new split axis, ``None`` denotes gathering, an int will set the new split axis
 
     Examples
     --------

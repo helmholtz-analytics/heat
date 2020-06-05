@@ -32,7 +32,7 @@ __all__ = [
 
 def argmax(x, axis=None, out=None, **kwargs) -> DNDarray:
     """
-    Returns an array of the indices of the maximum values along an axis. It has the same shape as x.shape with the
+    Returns an array of the indices of the maximum values along an axis. It has the same shape as ``x.shape`` with the
     dimension along axis removed.
 
     Parameters
@@ -40,9 +40,9 @@ def argmax(x, axis=None, out=None, **kwargs) -> DNDarray:
     x : DNDarray
         Input array.
     axis : int, optional
-        By default, the index is into the flattened tensor, otherwise along the specified axis.
+        By default, the index is into the flattened array, otherwise along the specified axis.
     out : DNDarray, optional.
-        If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
+        If provided, the result will be inserted into this array. It should be of the appropriate shape and dtype.
 
     Examples
     --------
@@ -128,7 +128,7 @@ def argmax(x, axis=None, out=None, **kwargs) -> DNDarray:
 
 def argmin(x, axis=None, out=None, **kwargs) -> DNDarray:
     """
-    Returns an array of the indices of the minimum values along an axis.It has the same shape as x.shape with the
+    Returns an array of the indices of the minimum values along an axis. It has the same shape as ``x.shape`` with the
     dimension along axis removed.
 
     Parameters
@@ -136,9 +136,9 @@ def argmin(x, axis=None, out=None, **kwargs) -> DNDarray:
     x : DNDarray
         Input array.
     axis : int, optional
-        By default, the index is into the flattened tensor, otherwise along the specified axis.
+        By default, the index is into the flattened array, otherwise along the specified axis.
     out : DNDarray, optional
-        Issue #100 If provided, the result will be inserted into this tensor. It should be of the appropriate shape and dtype.
+        Issue #100 If provided, the result will be inserted into this array. It should be of the appropriate shape and dtype.
 
 
     Examples
@@ -228,33 +228,32 @@ def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple
     """
     Compute the weighted average along the specified axis.
 
-    When returned=True, return a tuple with the average as the first element and the sum
-    of the weights as the second element. sum_of_weights is of the same type as `average`.
+    If ``returned=True``, return a tuple with the average as the first element and the sum
+    of the weights as the second element. ``sum_of_weights`` is of the same type as ``average``.
 
     Parameters
     ----------
     x : DNDarray
-        Tensor containing data to be averaged.
+        Array containing data to be averaged.
     axis : None or int or Tuple[int,...], optional
-        Axis or axes along which to average x.  The default,
-        axis=None, will average over all of the elements of the input tensor.
+        Axis or axes along which to average ``x``.  The default,
+        ``axis=None``, will average over all of the elements of the input array.
         If axis is negative it counts from the last to the first axis.
 
         #TODO Issue #351: If axis is a tuple of ints, averaging is performed on all of the axes
         specified in the tuple instead of a single axis or all the axes as
         before.
-
     weights : DNDarray, optional
-        An tensor of weights associated with the values in x. Each value in
-        x contributes to the average according to its associated weight.
-        The weights tensor can either be 1D (in which case its length must be
-        the size of x along the given axis) or of the same shape as x.
-        If weights=None, then all data in x are assumed to have a
-        weight equal to one, the result is equivalent to ht.mean(x).
+        An array of weights associated with the values in ``x``. Each value in
+        ``x`` contributes to the average according to its associated weight.
+        The weights array can either be 1D (in which case its length must be
+        the size of ``x` along the given axis) or of the same shape as ``x`.
+        If ``weights=None``, then all data in ``x` are assumed to have a
+        weight equal to one, the result is equivalent to :fund:`mean`.
     returned : bool, optional
-        Default is False. If True, the tuple (average, sum_of_weights)
+        If ``True``, the tuple ``(average, sum_of_weights)``
         is returned, otherwise only the average is returned.
-        If weights=None, sum_of_weights is equivalent to the number of
+        If ``weights=None``, ``sum_of_weights`` is equivalent to the number of
         elements over which the average is taken.
 
     Raises
@@ -262,7 +261,7 @@ def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple
     ZeroDivisionError
         When all weights along axis are zero.
     TypeError
-        When the length of 1D weights is not the same as the shape of x
+        When the length of 1D weights is not the same as the shape of ``x``
         along axis.
 
     Examples
@@ -355,20 +354,19 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None) -> DNDarray:
     Parameters
     ----------
     m : DNDarray
-        A 1-D or 2-D array containing multiple variables and observations. Each row of `m` represents a variable, and each column a single
-        observation of all those variables. Also see `rowvar` below.
+        A 1-D or 2-D array containing multiple variables and observations. Each row of ``m`` represents a variable, and each column a single
+        observation of all those variables.
     y : DNDarray, optional
-        An additional set of variables and observations. `y` has the same form as that of `m`.
+        An additional set of variables and observations. ``y`` has the same form as that of ``m``.
     rowvar : bool, optional
-        If `rowvar` is True (default), then each row represents a variable, with observations in the columns. Otherwise, the relationship
+        If ``True`` (default), then each row represents a variable, with observations in the columns. Otherwise, the relationship
         is transposed: each column represents a variable, while the rows contain observations.
     bias : bool, optional
-        Default normalization (False) is by ``(N - 1)``, where ``N`` is the number of observations given (unbiased estimate). If `bias` is True,
-        then normalization is by ``N``. These values can be overridden by using the keyword ``ddof`` in numpy versions >= 1.5.
+        Default normalization (``False``) is by (N - 1), where N is the number of observations given (unbiased estimate).
+        If ``True``, then normalization is by N. These values can be overridden by using the keyword ``ddof`` in numpy versions >= 1.5.
     ddof : int, optional
-        If not ``None`` the default value implied by `bias` is overridden. Note that ``ddof=1`` will return the unbiased estimate and
-        ``ddof=0`` will return the simple average. The default value is ``None``.
-
+        If not ``None`` the default value implied by ``bias`` is overridden. Note that ``ddof=1`` will return the unbiased estimate and
+        ``ddof=0`` will return the simple average.
     """
     if ddof is not None and not isinstance(ddof, int):
         raise TypeError("ddof must be integer")
@@ -424,17 +422,17 @@ def max(x, axis=None, out=None, keepdim=None) -> DNDarray:
     Parameters
     ----------
     x : DNDarray
-        Input data.
+        Input array.
     axis : None or int or Tuple[int,...], optional
         Axis or axes along which to operate. By default, flattened input is used.
         If this is a tuple of ints, the maximum is selected over multiple axes,
         instead of a single axis or all the axes as before.
     out : DNDarray, optional
-        Tuple of two output tensors (max, max_indices). Must be of the same shape and buffer length as the expected
+        Tuple of two output arrays (max, max_indices). Must be of the same shape and buffer length as the expected
         output. The minimum value of an output element. Must be present to allow computation on empty slice.
     keepdim : bool, optional
-        If this is set to True, the axes which are reduced are left in the result as dimensions with size one.
-        With this option, the result will broadcast correctly against the original arr.
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
+        With this option, the result will broadcast correctly against the original array.
 
     Examples
     --------
@@ -469,24 +467,23 @@ def max(x, axis=None, out=None, keepdim=None) -> DNDarray:
 
 def maximum(x1, x2, out=None) -> DNDarray:
     """
-    Compares two DNDarrays and returns a new DNDarrays containing the element-wise maxima.
-
-    The DNDarrays must have the same shape, or shapes that can be broadcast to a single shape.
+    Compares two ``DNDarrays`` and returns a new :class:`~heat.core.dndarray.DNDarray` containing the element-wise maxima.
+    The ``DNDarrays`` must have the same shape, or shapes that can be broadcast to a single shape.
     For broadcasting semantics, see: https://pytorch.org/docs/stable/notes/broadcasting.html
-    If one of the elements being compared is a NaN, then that element is returned.
+    If one of the elements being compared is ``NaN``, then that element is returned.
     TODO: Check this: If both elements are NaNs then the first is returned.
     The latter distinction is important for complex NaNs, which are defined as at least one of the real or
-    imaginary parts being a NaN. The net effect is that NaNs are propagated.
+    imaginary parts being ``NaN``. The net effect is that NaNs are propagated.
 
     Parameters
     -----------
     x1 : DNDarray
-            The first DNDarray containing the elements to be compared.
+            The first array containing the elements to be compared.
     x2 : DNDarray
-            The second DNDarray containing the elements to be compared.
+            The second array containing the elements to be compared.
     out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-        If not provided or None, a freshly-allocated tensor is returned.
+        If not provided or ``None``, a freshly-allocated array is returned.
 
 
     Examples
@@ -604,23 +601,26 @@ def maximum(x1, x2, out=None) -> DNDarray:
 
 def mean(x, axis=None) -> DNDarray:
     """
-    Calculates and returns the mean of a DNDarray.
-    If a axis is given, the mean will be taken in that direction.
+    Calculates and returns the mean of a ``DNDarray``.
+    If an axis is given, the mean will be taken in that direction.
 
     Parameters
     ----------
     x : DNDarray
         Values for which the mean is calculated for.
-        The dtype of x must be a float
+        The dtype of ``x`` must be a float
     axis : None or int or iterable
-        Axis which the mean is taken in. Default None calculates mean of all data items.
+        Axis which the mean is taken in. Default ``None`` calculates mean of all data items.
 
     Notes
     -----
     Split semantics when axis is an integer:
-    - if axis = x.split, then means.split = None
-    - if axis > split, then means.split = x.split
-    - if axis < split, then means.split = x.split - 1
+
+    - if ``axis==x.split``, then ``mean(x).split=None``
+
+    - if ``axis>split``, then ``mean(x).split=x.split``
+
+    - if ``axis<split``, then ``mean(x).split=x.split-1``
 
     Examples
     --------
@@ -776,9 +776,9 @@ def mean(x, axis=None) -> DNDarray:
 def __merge_moments(m1, m2, bessel=True) -> Tuple:
     """
     Merge two statistical moments.
-    If the length of m1/m2 (must be equal) is == 3 then the second moment (variance)
-    is merged. This function can be expanded to merge other moments according to Reference 1 as well.
-    Note: all tensors/arrays must be either the same size or individual values
+    If the length of ``m1`` and ``m2`` (must be equal) is ``==3`` then the second moment (variance)
+    is merged. This function can be expanded to merge other moments according to Reference [1] as well.
+    Note: all arrays must be either the same size or individual values
 
     Parameters
     ----------
@@ -828,17 +828,17 @@ def min(x, axis=None, out=None, keepdim=None) -> DNDarray:
     Parameters
     ----------
     x : DNDarray
-        Input data.
+        Input array.
     axis : None or int or Tuple[int,...]
         Axis or axes along which to operate. By default, flattened input is used.
         If this is a tuple of ints, the minimum is selected over multiple axes,
         instead of a single axis or all the axes as before.
-    out : DNDarray, optional
-        Tuple of two output tensors (min, min_indices). Must be of the same shape and buffer length as the expected
+    out : Tuple[DNDarray,DNDarray], optional
+        Tuple of two output arrays ``(min, min_indices)``. Must be of the same shape and buffer length as the expected
         output. The maximum value of an output element. Must be present to allow computation on empty slice.
     keepdim : bool, optional
-        If this is set to True, the axes which are reduced are left in the result as dimensions with size one.
-        With this option, the result will broadcast correctly against the original arr.
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
+        With this option, the result will broadcast correctly against the original array.
 
 
     Examples
@@ -874,25 +874,24 @@ def min(x, axis=None, out=None, keepdim=None) -> DNDarray:
 
 def minimum(x1, x2, out=None) -> DNDarray:
     """
-    Compares two tensors and returns a new tensor containing the element-wise minima.
-
-    If one of the elements being compared is a NaN, then that element is returned.  They must have the same shape,
+    Compares two ``DNDarrays`` and returns a new :class:`~heat.core.dndarray.DNDarray`  containing the element-wise minima.
+    If one of the elements being compared is ``NaN``, then that element is returned. They must have the same shape,
     or shapes that can be broadcast to a single shape. For broadcasting semantics,
     see: https://pytorch.org/docs/stable/notes/broadcasting.html
     TODO: Check this: If both elements are NaNs then the first is returned.
     The latter distinction is important for complex NaNs, which are defined as at least one of the real or
-    imaginary parts being a NaN. The net effect is that NaNs are propagated.
+    imaginary parts being ``NaN``. The net effect is that NaNs are propagated.
 
     Parameters:
     -----------
 
     x1 : DNDarray
-            The first DNDarray containing the elements to be compared.
+        The first array containing the elements to be compared.
     x2 : DNDarray
-            The second DNDarray containing the elements to be compared.
+        The second array containing the elements to be compared.
     out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-        If not provided or None, a freshly-allocated tensor is returned.
+        If not provided or ``None``, a freshly-allocated array is returned.
 
     Examples
     ---------
@@ -1051,20 +1050,20 @@ MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 def std(x, axis=None, ddof=0, **kwargs) -> DNDarray:
     """
-    Calculates and returns the standard deviation of a tensor with the bessel correction.
+    Calculates the standard deviation of a ``DNDarray`` with the bessel correction.
     If an axis is given, the variance will be taken in that direction.
 
     Parameters
     ----------
     x : DNDarray
-        Values for which the std is calculated for.
-        The datatype of x must be a float
+        array for which the std is calculated for.
+        The datatype of ``x`` must be a float
     axis : None or int or iterable
         Axis which the std is taken in. Default ``None`` calculates std of all data items.
     ddof : int, optional
-        Delta Degrees of Freedom: the denominator implicitely used in the calculation is :math:`_N - ddof`, where :math:`N`
+        Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
         represents the number of elements. If ``ddof=1``, the Bessel correction will be applied.
-        Setting ``ddof > 1`` raises a ``NotImplementedError``.
+        Setting ``ddof>1`` raises a ``NotImplementedError``.
 
     Examples
     --------
@@ -1094,33 +1093,33 @@ def std(x, axis=None, ddof=0, **kwargs) -> DNDarray:
 
 def var(x, axis=None, ddof=0, **kwargs) -> DNDarray:
     """
-    Calculates and returns the variance of a tensor. If an axis is given, the variance will be
+    Calculates and returns the variance of a ``DNDarray``. If an axis is given, the variance will be
     taken in that direction.
 
     Parameters
     ----------
     x : DNDarray
-        Values for which the variance is calculated for.
-        The datatype of x must be a float
+        Array for which the variance is calculated for.
+        The datatype of ``x`` must be a float
     axis : None or int or iterable
         Axis which the std is taken in. Default ``None`` calculates std of all data items.
     ddof : int, optional
-        Delta Degrees of Freedom: the denominator implicitely used in the calculation is :math:`_N - ddof`, where :math:`N`
+        Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
         represents the number of elements. If ``ddof=1``, the Bessel correction will be applied.
-        Setting ``ddof > 1`` raises a ``NotImplementedError``.
+        Setting ``ddof>1`` raises a ``NotImplementedError``.
 
     Notes
     -----
     Split semantics when axis is an integer:
 
-    - if ``axis = x.split``, then ``variances.split = None``
+    - if ``axis=x.split``, then ``var(x).split=None``
 
-    - if ``axis > split``, then ``variances.split = x.split``
+    - if ``axis>split``, then ``var(x).split = x.split``
 
-    - if ``axis < split``, then ``variances.split = x.split - 1``
+    - if ``axis<split``, then ``var(x).split=x.split - 1``
 
-    The variance is the average of the squared deviations from the mean, i.e., ``var = mean(abs(x - x.mean())**2)``.
-    The mean is normally calculated as ``x.sum() / N``, where ``N = len(x)``. If, however, ``ddof`` is specified, the divisor
+    The variance is the average of the squared deviations from the mean, i.e., ``var=mean(abs(x - x.mean())**2)``.
+    The mean is normally calculated as ``x.sum()/N``, where ``N = len(x)``. If, however, ``ddof`` is specified, the divisor
     ``N - ddof`` is used instead. In standard statistical practice, ``ddof=1`` provides an unbiased estimator of the
     variance of a hypothetical infinite population. ``ddof=0`` provides a maximum likelihood estimate of the variance
     for normally distributed variables.

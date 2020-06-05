@@ -35,15 +35,15 @@ class Communication:
     def chunk(self, shape, split) -> Tuple[int, Tuple[int], Tuple[slice]]:
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
-        axis. Returns (offset, local_shape, slices): the offset in the split dimension, the resulting local shape if the
+        axis. Returns ``(offset, local_shape, slices)``: the offset in the split dimension, the resulting local shape if the
         global input shape is chunked on the split axis and the chunk slices with respect to the given shape
 
         Parameters
         ----------
         shape : Tuple[int,...]
-            the global shape of the data to be split
+            The global shape of the data to be split
         split : int
-            the axis along which to chunk the data
+            The axis along which to chunk the data
 
         """
         return NotImplemented
@@ -78,7 +78,7 @@ class MPICommunication(Communication):
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
         axis.
-        Returns (offset, local_shape, slices): the offset in the split dimension, the resulting local shape if the
+        Returns ``(offset, local_shape, slices)``: the offset in the split dimension, the resulting local shape if the
         global input shape is chunked on the split axis and the chunk slices with respect to the given shape
 
         Parameters
@@ -153,9 +153,9 @@ class MPICommunication(Communication):
     @classmethod
     def mpi_type_and_elements_of(cls, obj, counts, displs) -> Tuple[MPI.Datatype, Tuple[int, ...]]:
         """
-        Determines the MPI data type and number of respective elements for the given tensor. In case the tensor is
-        contiguous in memory, a native MPI data type can be used. Otherwise, a derived data type is automatically
-        constructed using the storage information of the passed object.
+        Determines the MPI data type and number of respective elements for the given tensor (:class:`~heat.core.dndarray.DNDarray`
+        or ``torch.Tensor). In case the tensor is contiguous in memory, a native MPI data type can be used.
+        Otherwise, a derived data type is automatically constructed using the storage information of the passed object.
 
         Parameters
         ----------
@@ -204,7 +204,7 @@ class MPICommunication(Communication):
     @classmethod
     def as_mpi_memory(cls, obj) -> MPI.memory:
         """
-        Converts the passed ``Torch.tensor`` into an MPI compatible memory view.
+        Converts the passed ``torch.Tensor`` into an MPI compatible memory view.
 
         Parameters
         ----------
@@ -222,7 +222,7 @@ class MPICommunication(Communication):
         cls, obj, counts=None, displs=None
     ) -> List[MPI.memory, Tuple[int, ...], MPI.Datatype]:
         """
-        Converts a passed `torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
+        Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
 
         Parameters
         ----------
@@ -239,14 +239,13 @@ class MPICommunication(Communication):
 
     def alltoall_sendbuffer(self, obj):
         """
-        Converts a passed torch tensor into a memory buffer object with associated number of elements and MPI data type.
+        Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
         XXX: might not work for all MPI stacks. Might require multiple type commits or so
 
         Parameters
         ----------
         obj: torch.Tensor
              The object to be transformed into a custom MPI datatype
-
         """
         mpi_type, _ = self.__mpi_type_mappings[obj.dtype], torch.numel(obj)
 
@@ -303,7 +302,7 @@ class MPICommunication(Communication):
 
     def alltoall_recvbuffer(self, obj):
         """
-        Converts a passed torch tensor into a memory buffer object with associated number of elements and MPI data type.
+        Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
         XXX: might not work for all MPI stacks. Might require multiple type commits or so
 
         Parameters
@@ -537,13 +536,13 @@ class MPICommunication(Communication):
         Parameters
         ----------
         func: function
-            type of MPI Allgather function (i.e. allgather, allgatherv, iallgather)
-        sendbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
+            Type of MPI Allgather function (i.e. allgather, allgatherv, iallgather)
+        sendbuf: DNDarray or torch.Tensor or Tuple = [torch.Tensor, int, int]
             Input Sendbuffer
-        recvbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
+        recvbuf: DNDarray or torch.Tensor or Tuple = [torch.Tensor, int, int]
             Input Receivebuffer
         axis: int
-            concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
+            Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
         """
         # dummy allocation for *v calls
         # ToDO: Propper implementation of usage
@@ -697,18 +696,18 @@ class MPICommunication(Communication):
         """
         Parameters
         ----------
-        sendbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
-            Input send buffer; can also be any other numpy supported type (only if ``send_axis == 0``)
-        recvbuf: DNDarray or torch.Tensor, Tuple = [torch.Tensor, int, int]
-            Input receive buffer; can also be any other numpy supported type (only if ``send_axis == 0``)
+        sendbuf: DNDarray or torch.Tensor or Tuple = [torch.Tensor, int, int]
+            Input send buffer; can also be any other numpy supported type (only if ``send_axis==0``)
+        recvbuf: DNDarray or torch.Tensor or Tuple = [torch.Tensor, int, int]
+            Input receive buffer; can also be any other numpy supported type (only if ``send_axis==0``)
         send_axis: int
-            future split axis, along which data blocks will be created that will be send to individual ranks
+            Future split axis, along which data blocks will be created that will be send to individual ranks
 
-            - if ``send_axis == recv_axis``, an error will be thrown
+            - if ``send_axis==recv_axis``, an error will be thrown
 
             - if ``send_axis`` or ``recv_axis`` are ``None``, an error will be thrown
         recv_axis: int
-            prior split axis, along which blocks are received from the individual ranks
+            Prior split axis, along which blocks are received from the individual ranks
         """
         if send_axis is None:
             raise NotImplementedError(
@@ -1124,8 +1123,8 @@ def get_comm() -> Communication:
 
 def sanitize_comm(comm) -> Communication:
     """
-    Sanitizes a device or device identifier, i.e. checks whether it is already an instance of Device or a string with
-    known device identifier and maps it to a proper Device.
+    Sanitizes a device or device identifier, i.e. checks whether it is already an instance of :class:`heat.core.devices.Device`
+    or a string with known device identifier and maps it to a proper ``Device``.
 
     Parameters
     ----------

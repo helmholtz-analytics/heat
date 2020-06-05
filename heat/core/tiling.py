@@ -15,7 +15,7 @@ class SplitTiles:
     Parameters
     ----------
     arr : DNDarray
-        base array for which to create the tiles
+        Base array for which to create the tiles
 
     Examples
     --------
@@ -90,14 +90,14 @@ class SplitTiles:
     @staticmethod
     def set_tile_locations(split, tile_dims, arr) -> torch.tensor:
         """
-        Create a torch Tensor which contains the locations of the tiles of arr for the given split
+        Create a ``torch.Tensor`` which contains the locations of the tiles of ``arr`` for the given split
 
         Parameters
         ----------
         split : int
             Target split dimension. Does not need to be equal to ``arr.split``
         tile_dims : torch.Tensor
-            ``torch.Tensor`` containing the sizes of the each tile
+            Tensor containing the sizes of the each tile
         arr : DNDarray
             Array for which the tiles are being created for
 
@@ -139,7 +139,7 @@ class SplitTiles:
     @property
     def tile_ends_g(self) -> torch.tensor:
         """
-        Returns a torch tensor wih the global indces with the end points of the tiles in every dimension
+        Returns a ``torch.Tensor`` wih the global indces with the end points of the tiles in every dimension
 
         Examples
         --------
@@ -158,7 +158,7 @@ class SplitTiles:
         Parameters
         ----------
         key : int or Tuple or Slice
-            key which identifies the tile/s to get
+            Key which identifies the tile/s to get
 
         Examples
         --------
@@ -291,10 +291,10 @@ class SquareDiagTiles:
     Generate the tile map and the other objects which may be useful.
     The tiles generated here are based of square tiles along the diagonal. The size of these
     tiles along the diagonal dictate the divisions across all processes. If
-    ``gshape[0] >> gshape[1]`` then there will be extra tiles generated below the diagonal.
+    ``gshape[0]>>gshape[1]`` then there will be extra tiles generated below the diagonal.
     If ``gshape[0]`` is close to ``gshape[1]``, then the last tile (as well as the other tiles which
     correspond with said tile) will be extended to cover the whole array. However, extra tiles
-    are not generated above the diagonal in the case that ``gshape[0] << gshape[1]``.
+    are not generated above the diagonal in the case that ``gshape[0]<<gshape[1]``.
 
     Parameters
     ----------
@@ -308,7 +308,7 @@ class SquareDiagTiles:
     __col_per_proc_list : List
         List is length of the number of processes, each element has the number of tile
         columns on the process whos rank equals the index
-    __DNDarray = arr : DNDarray
+    __DNDarray: DNDarray
         The whole DNDarray
     __lshape_map : torch.Tensor
         ``unit -> [rank, row size, column size]``
@@ -322,7 +322,7 @@ class SquareDiagTiles:
 
     Warnings
     -----------
-    The generation of these tiles may unbalance the original tensor!
+    The generation of these tiles may unbalance the original ``DNDarray``!
 
     Notes
     -----------
@@ -476,7 +476,7 @@ class SquareDiagTiles:
     @staticmethod
     def __adjust_cols_sp1_m_ls_n(arr, col_per_proc_list, last_diag_pr, col_inds, lshape_map):
         """
-        Add more columns after the diagonal ends if :math:`m < n` and ``arr.split == 1``
+        Add more columns after the diagonal ends if `m<n` and ``arr.split==1``
         """
         # need to add to col inds with the rest of the columns
         tile_columns = sum(col_per_proc_list)
@@ -505,8 +505,8 @@ class SquareDiagTiles:
         arr, lshape_map, last_diag_pr, row_inds, row_per_proc_list, tile_columns
     ):
         """
-        Need to adjust the size of last row if ``arr.split == 0`` and the diagonal ends before the
-        last tile. This should only be run if ``arr,split == 0`` and ``last_diag_pr < arr.comm.size - 1``.
+        Need to adjust the size of last row if ``arr.split==0`` and the diagonal ends before the
+        last tile. This should only be run if ``arr,split==0`` and ``last_diag_pr<arr.comm.size-1``.
         """
         # need to find the amount of data after the diagonal
         lshape_cumsum = torch.cumsum(lshape_map[..., 0], dim=0)
@@ -524,10 +524,10 @@ class SquareDiagTiles:
     @staticmethod
     def __adjust_lshape_sp0_1tile(arr, col_inds, lshape_map, tiles_per_proc):
         """
-        if the split is 0 and the number of tiles per proc is 1 then the local data may need to be
+        If the split is 0 and the number of tiles per proc is 1 then the local data may need to be
         redistributed to fit the full diagonal on as many processes as possible. If there is a
-        process where there is only 1 element, this function will adjust the lshape_map then
-        redistribute arr so that there is not a single diagonal element on one process
+        process where there is only 1 element, this function will adjust the ``lshape_map`` then
+        redistribute ``arr`` so that there is not a single diagonal element on one process
         """
 
         def adjust_lshape(lshape_mapi, pri, cnti):
@@ -565,7 +565,7 @@ class SquareDiagTiles:
         arr : DNDarray
             DNDarray for which to find the tile columns for
         lshape_map : torch.Tensor
-            The map of the local shapes (for more info see: DNDarray.create_lshape_map())
+            The map of the local shapes (for more info see: :func:`~heat.core.dndarray.DNDarray.create_lshape_map`)
         tiles_per_proc : int
             The number of divisions per process
         """
@@ -619,7 +619,7 @@ class SquareDiagTiles:
     def __def_end_row_inds_sp0_m_ge_n(arr, row_inds, last_diag_pr, tiles_per_proc, lshape_map):
         """
         Adjust the rows on the processes which are greater than the last diagonal processs to have
-        rows which are chunked evenly into `tiles_per_proc` rows/
+        rows which are chunked evenly into ``tiles_per_proc`` rows.
         """
         nz = torch.nonzero(
             input=torch.tensor(row_inds, device=arr._DNDarray__array.device) == 0, as_tuple=False
@@ -638,7 +638,7 @@ class SquareDiagTiles:
     @staticmethod
     def __last_tile_row_adjust_sp1(arr, row_inds):
         """
-        Add extra row/s if there is space below the diagonal (split=1)
+        Add extra row/s if there is space below the diagonal (``split=1``)
         """
         if arr.gshape[0] - arr.gshape[1] > 10:  # todo: determine best value for this
             # use chunk and a loop over the however many tiles are desired
@@ -657,7 +657,7 @@ class SquareDiagTiles:
     @property
     def arr(self) -> DNDarray:
         """
-        Returns the DNDarray for which the tiles are defined on
+        Returns the ``DNDarray`` for which the tiles are defined on
         """
         return self.__DNDarray
 
@@ -671,8 +671,8 @@ class SquareDiagTiles:
     @property
     def lshape_map(self) -> torch.tensor:
         """
-        Returns the map of the lshape tuples for the DNDarray given
-        ``units -> rank (int), lshape`` (tuple of the local shape)
+        Returns the map of the lshape tuples for the ``DNDarray`` given.
+        Units are ``(rank (int), lshape)`` (tuple of the local shape)
         """
         return self.__lshape_map
 
@@ -708,7 +708,7 @@ class SquareDiagTiles:
     def tile_map(self) -> torch.tensor:
         """
         Returns tile_map which contains the sizes of the tiles
-        ``units -> row, column, start index in each direction, process``
+        units are ``(row, column, start index in each direction, process)``
 
         Examples
         --------
@@ -756,7 +756,7 @@ class SquareDiagTiles:
 
     def get_start_stop(self, key) -> Tuple[torch.tensor, torch.tensor, torch.tensor, torch.tensor]:
         """
-        Returns the start and stop indices in form of (dim0 start, dim0 stop, dim1 start, dim1 stop)
+        Returns the start and stop indices in form of ``(dim0 start, dim0 stop, dim1 start, dim1 stop)``
         which correspond to the tile/s which corresponds to the given key. The key MUST use global indices.
 
         Parameters

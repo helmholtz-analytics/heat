@@ -32,7 +32,7 @@ def all(x, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
     x : DNDarray
         Input array or object that can be converted to an array.
     axis : None or int or Tuple[int,...], optional
-        Axis or axes along which a logical AND reduction is performed. The default (``axis = None``) is to perform a
+        Axis or axes along which a logical AND reduction is performed. The default (``axis=None``) is to perform a
         logical AND over all the dimensions of the input array. ``axis`` may be negative, in which case it counts
         from the last to the first axis.
     out : DNDarray, optional
@@ -79,15 +79,15 @@ def all(x, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
 
 def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> bool:
     """
-    Test whether two tensors are element-wise equal within a tolerance. Returns ``True`` if ``|x - y| <= atol + rtol * |y|``
+    Test whether two tensors are element-wise equal within a tolerance. Returns ``True`` if ``|x-y|<=atol+rtol*|y|``
     for all elements of ``x`` and ``y``, ``False`` otherwise
 
     Parameters
     -----------
     x : DNDarray
-        First tensor to compare
+        First array to compare
     y : DNDarray
-        Second tensor to compare
+        Second array to compare
     atol: float, optional
         Absolute tolerance.
     rtol: float, optional
@@ -125,7 +125,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> bool:
 def any(x, axis=None, out=None, keepdim=False) -> DNDarray:
     """
     Test whether any array element along a given axis evaluates to ``True``.
-    The returning tensor is one dimensional unless axis is not ``None``.
+    The returning array is one dimensional unless axis is not ``None``.
 
     Parameters
     -----------
@@ -133,10 +133,10 @@ def any(x, axis=None, out=None, keepdim=False) -> DNDarray:
         Input tensor
     axis : int, optional
         Axis along which a logic OR reduction is performed. With ``axis=None``, the logical OR is performed over all
-        dimensions of the tensor.
+        dimensions of the array.
     out : DNDarray, optional
         Alternative output tensor in which to place the result. It must have the same shape as the expected output.
-        The output is a tensor with ``datatype=bool``.
+        The output is a array with ``datatype=bool``.
 
     Examples
     ---------
@@ -167,19 +167,19 @@ def any(x, axis=None, out=None, keepdim=False) -> DNDarray:
 
 def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> DNDarray:
     """
-    Returns a boolean tensor of where a and b are equal within the given tolerance.
-    If both ``x`` and ``y`` are scalars, returns a single boolean value.
+    Returns a boolean :class:`~heat.core.dndarray.DNDarray`, with elements ``True`` where ``a`` and ``b`` are equal
+    within the given tolerance. If both ``x`` and ``y`` are scalars, returns a single boolean value.
 
     Parameters
     -----------
     x : DNDarray
-        Input tensors to compare.
+        Input array to compare.
     y : DNDarray
-        Input tensors to compare.
+        Input array to compare.
     rtol : float
-        The relative tolerance parameter (see Notes).
+        The relative tolerance parameter.
     atol : float
-        The absolute tolerance parameter (see Notes).
+        The absolute tolerance parameter.
     equal_nan : bool
         Whether to compare NaN’s as equal. If ``True``, NaN’s in x will be considered equal to NaN’s in y in the output array.
     """
@@ -211,9 +211,9 @@ def logical_and(t1, t2) -> DNDarray:
     Parameters
     -----------
     t1 : DNDarray
-        input tensors of same shape
+        Input array of same shape
     t2 : DNDarray
-        input tensors of same shape
+        Input array of same shape
 
     Examples
     ---------
@@ -227,15 +227,15 @@ def logical_and(t1, t2) -> DNDarray:
 
 def logical_not(t, out=None) -> DNDarray:
     """
-    Computes the element-wise logical NOT of the given input tensor.
+    Computes the element-wise logical NOT of the given input :class:`~heat.core.dndarray.DNDarray` .
 
     Parameters
     -----------
     t1: DNDarray
-        Input tensor
+        Input array
     out : DNDarray, optional
-        Alternative output tensor in which to place the result. It must have the same shape as the expected output.
-        The output is a tensor with ``datatype=bool``.
+        Alternative output array in which to place the result. It must have the same shape as the expected output.
+        The output is a ``DNDarray`` with ``datatype=bool``.
 
     Examples
     ---------
@@ -252,9 +252,9 @@ def logical_or(t1, t2) -> DNDarray:
     Parameters
     -----------
     t1 : DNDarray
-        input tensors of same shape
+        Input array of same shape
     t2 : DNDarray
-        input tensors of same shape
+        Input array of same shape
 
     Examples
     ---------
@@ -268,14 +268,14 @@ def logical_or(t1, t2) -> DNDarray:
 
 def logical_xor(t1, t2) -> DNDarray:
     """
-    Computes the element-wise logical XOR of the given input tensors.
+    Computes the element-wise logical XOR of the given input :class:`~heat.core.dndarray.DNDarray` .
 
     Parameters
     -----------
     t1 : DNDarray
-        input tensors of same shape
+        Input array of same shape
     t2 : DNDarray
-        input tensors of same shape
+        Input array of same shape
 
     Examples
     ---------

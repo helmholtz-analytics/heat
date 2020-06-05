@@ -11,9 +11,9 @@ def broadcast_shape(shape_a, shape_b) -> Tuple[int, ...]:
     Parameters
     ----------
     shape_a : Tuple[int,...]
-        shape of operand a
+        Shape of first operand
     shape_b : Tuple[int,...]
-        shape of operand b
+        Shape of second operand
 
     Raises
     -------
@@ -53,9 +53,9 @@ def sanitize_axis(shape, axis) -> Union[int, Tuple[int, ...]]:
     Parameters
     ----------
     shape : Tuple[int,...]
-        shape of an array
+        Shape of an array
     axis : ints or Tuple[int,...]
-        the axis to be sanitized
+        The axis to be sanitized
 
     Raises
     -------

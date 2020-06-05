@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import torch
 
 from .communication import MPI
@@ -10,7 +12,7 @@ __all__ = ["eq", "equal", "ge", "gt", "le", "lt", "ne"]
 def eq(t1, t2) -> DNDarray:
     """
     Element-wise rich comparison of equality between values from two operands, commutative.
-    Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+    Takes the first and second operand (scalar or ``DNDarray``) whose elements are to be compared as argument.
 
     Parameters
     ----------
@@ -36,7 +38,7 @@ def eq(t1, t2) -> DNDarray:
 
 def equal(t1, t2) -> bool:
     """
-    Overall comparison of equality between two tensors. Returns ``True`` if two tensors have the same size and elements,
+    Overall comparison of equality between two ``DNDarray``s. Returns ``True`` if two arrays have the same size and elements,
     and ``False`` otherwise.
 
     Parameters
@@ -72,7 +74,7 @@ def ge(t1, t2) -> DNDarray:
     """
     Element-wise rich greater than or equal comparison between values from operand ``t1`` with respect to values of
     operand ``t2`` (i.e. ``t1 >= t2``), not commutative.
-    Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+    Takes the first and second operand (scalar or ``DNDarray``) whose elements are to be compared as argument.
 
     Parameters
     ----------
@@ -98,9 +100,9 @@ def ge(t1, t2) -> DNDarray:
 
 def gt(t1, t2) -> DNDarray:
     """
-    Element-wise rich greater than comparison between values from operand t1 with respect to values of
-    operand ``t2`` (i.e. ``t1 > t2``), not commutative.
-    Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+    Element-wise rich greater than comparison between values from operand ``t1`` with respect to values of
+    operand ``t2`` (i.e. ``t1>t2``), not commutative.
+    Takes the first and second operand (scalar or ``DNDarray``) whose elements are to be compared as argument.
 
     Parameters
     ----------
@@ -128,7 +130,7 @@ def le(t1, t2) -> DNDarray:
     """
     Element-wise rich less than or equal comparison between values from operand ``t1`` with respect to values of
     operand ``t2`` (i.e. ``t1 <= t2``), not commutative.
-    Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+    Takes the first and second operand (scalar or ``DNDarray``) whose elements are to be compared as argument.
 
     Parameters
     ----------
@@ -155,8 +157,8 @@ def le(t1, t2) -> DNDarray:
 def lt(t1, t2) -> DNDarray:
     """
     Element-wise rich less than comparison between values from operand t1 with respect to values of
-    operand ``t2`` (i.e. ``t1 < t2``), not commutative.
-    Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+    operand ``t2`` (i.e. ``t1<t2``), not commutative.
+    Takes the first and second operand (scalar or ``DNDarray``) whose elements are to be compared as argument.
 
     Parameters
     ----------
@@ -183,7 +185,7 @@ def lt(t1, t2) -> DNDarray:
 def ne(t1, t2) -> DNDarray:
     """
     Element-wise rich comparison of non-equality between values from two operands, commutative.
-    Takes the first and second operand (scalar or tensor) whose elements are to be compared as argument.
+    Takes the first and second operand (scalar or ``DNDarray``) whose elements are to be compared as argument.
 
     Parameters
     ----------

@@ -14,7 +14,7 @@ def abs(x, out=None, dtype=None) -> DNDarray:
     Parameters
     ----------
     x : DNDarray
-        The values for which the compute the absolute value.
+        The array for which the compute the absolute value.
     out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or ``None``, a freshly-allocated array is returned.
@@ -36,12 +36,12 @@ def abs(x, out=None, dtype=None) -> DNDarray:
 def absolute(x, out=None, dtype=None) -> DNDarray:
     """
     Calculate the absolute value element-wise.
-    ht.abs is a shorthand for this function.
+    :func:`abs` is a shorthand for this function.
 
     Parameters
     ----------
     x : DNDarray
-        The values for which the compute the absolute value.
+        The array for which the compute the absolute value.
     out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or ``None``, a freshly-allocated array is returned.
@@ -54,8 +54,8 @@ def absolute(x, out=None, dtype=None) -> DNDarray:
 
 def ceil(x, out=None) -> DNDarray:
     """
-    Return the ceil of the input, element-wise. Result is a DNDarray of the same shape as ``x``.
-    The ceil of the scalar ``x`` is the smallest integer i, such that ``i >= x``. It is often denoted as :math:`\\lceil x \\rceil`.
+    Return the ceil of the input, element-wise. Result is a ``DNDarray`` of the same shape as ``x``.
+    The ceil of the scalar ``x`` is the smallest integer i, such that ``i>=x``. It is often denoted as :math:`\\lceil x \\rceil`.
 
     Parameters
     ----------
@@ -63,7 +63,7 @@ def ceil(x, out=None) -> DNDarray:
         The value for which to compute the ceiled values.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh tensor is allocated.
+        or set to ``None``, a fresh array is allocated.
 
     Examples
     --------
@@ -75,8 +75,8 @@ def ceil(x, out=None) -> DNDarray:
 
 def clip(a, a_min, a_max, out=None) -> DNDarray:
     """
-    Returns a tensor with the elements of this tensor, but where values ``< a_min`` are replaced with ``a_min``, and those
-    ``> a_max`` with ``a_max``.
+    Returns a :class:`~heat.core.dndarray.DNDarray` with the elements of this array, but where values ``<a_min`` are replaced with ``a_min``, and those
+    ``>a_max`` with ``a_max``.
 
     Parameters
     ----------
@@ -109,13 +109,13 @@ def clip(a, a_min, a_max, out=None) -> DNDarray:
 
 def fabs(x, out=None) -> DNDarray:
     """
-    Calculate the absolute value element-wise and return floating-point tensor.
+    Calculate the absolute value element-wise and return floating-point ``DNDarray``.
     This function exists besides ``abs==absolute`` since it will be needed in case complex numbers will be introduced in the future.
 
     Parameters
     ----------
     x : DNDarray
-        The values for which the compute the absolute value.
+        The array for which the compute the absolute value.
     out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or ``None``, a freshly-allocated array is returned.
@@ -127,16 +127,16 @@ def fabs(x, out=None) -> DNDarray:
 def floor(x, out=None) -> DNDarray:
     """
     Return the floor of the input, element-wise.
-    The floor of the scalar ``x`` is the largest integer i, such that ``i <= x``.
-     It is often denoted as :math:`\\lfloor x \\rfloor`.
+    The floor of the scalar ``x`` is the largest integer i, such that ``i<=x``.
+    It is often denoted as :math:`\\lfloor x \\rfloor`.
 
     Parameters
     ----------
     x : DNDarray
-        The value for which to compute the floored values.
+        The array for which to compute the floored values.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh tensor is allocated.
+        or set to ``None``, a fresh ``DNDarray`` is allocated.
 
     Examples
     --------
@@ -148,16 +148,16 @@ def floor(x, out=None) -> DNDarray:
 
 def modf(x, out=None) -> Tuple[DNDarray, DNDarray]:
     """
-    Return the fractional and integral parts of a tensor, element-wise.
+    Return the fractional and integral parts of a ``DNDarray``, element-wise.
     The fractional and integral parts are negative if the given number is negative.
 
     Parameters
     ----------
     x : DNDarray
-        Input tensor
+        Input array
     out : Tuple[DNDarray, DNDarray], optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-        If not provided or ``None``, a freshly-allocated tensor is returned.
+        If not provided or ``None``, a freshly-allocated array is returned.
 
     Examples
     --------
@@ -200,7 +200,7 @@ def round(x, decimals=0, out=None, dtype=None) -> DNDarray:
     Parameters
     ----------
     x : DNDarray
-        The values for which the compute the rounded value.
+        The array for which the compute the rounded value.
     decimals: int, optional
         Number of decimal places to round to.
         If decimals is negative, it specifies the number of positions to the left of the decimal point.
@@ -244,10 +244,10 @@ def trunc(x, out=None) -> DNDarray:
     Parameters
     ----------
     x : DNDarray
-        The value for which to compute the trunced values.
+        The array for which to compute the trunced values.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh tensor is allocated.
+        or set to ``None``, a fresh array is allocated.
 
     Examples
     --------

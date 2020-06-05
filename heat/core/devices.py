@@ -5,14 +5,13 @@ import torch
 from .communication import MPI_WORLD
 
 
-__all__ = ["cpu", "get_device", "sanitize_device", "use_device"]
+__all__ = ["Device", "cpu", "get_device", "sanitize_device", "use_device"]
 
 
 class Device:
     """
-    Implements a compute device.
-    HeAT can run computations on different compute devices or backends. A device describes the device type and id on
-    which said computation should be carried out.
+    Implements a compute device. HeAT can run computations on different compute devices or backends.
+    A device describes the device type and id on which said computation should be carried out.
 
     Parameters
     ----------
@@ -85,8 +84,8 @@ def get_device() -> Device:
 
 def sanitize_device(device) -> Device:
     """
-    Sanitizes a device or device identifier, i.e. checks whether it is already an instance of Device or a string with
-    known device identifier and maps it to a proper Device.
+    Sanitizes a device or device identifier, i.e. checks whether it is already an instance of :class:`Device` or a string with
+    known device identifier and maps it to a proper ``Device``.
 
     Parameters
     ----------

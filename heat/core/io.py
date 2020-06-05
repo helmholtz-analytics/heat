@@ -8,8 +8,8 @@ from .communication import MPI, MPI_WORLD, sanitize_comm, Communication
 from . import devices
 from .stride_tricks import sanitize_axis
 from . import types
-from .dndarray import DNDarray
 from .types import datatype
+from .dndarray import DNDarray
 
 __VALID_WRITE_MODES = frozenset(["w", "a", "r+"])
 __CSV_EXTENSION = frozenset([".csv"])
@@ -60,7 +60,7 @@ else:
         device : str, optional
             The device id on which to place the data, defaults to globally set default device.
         comm : Communication, optional
-            The communication to use for the data distribution. defaults to MPI_COMM_WORLD.
+            The communication to use for the data distribution. Defaults to ``MPI_COMM_WORLD``.
 
         Raises
         -------
@@ -125,7 +125,7 @@ else:
 
     def save_hdf5(data, path, dataset, mode="w", **kwargs):
         """
-        Saves data to an HDF5 file. Attempts to utilize parallel I/O if possible.
+        Saves ``data`` to an HDF5 file. Attempts to utilize parallel I/O if possible.
 
         Parameters
         ----------
@@ -138,7 +138,7 @@ else:
         mode : str
             File access mode, one of ``'w', 'a', 'r+'``
         kwargs : dict
-            additional arguments passed to the created dataset.
+            Additional arguments passed to the created dataset.
 
         Raises
         -------
@@ -456,18 +456,18 @@ def load_csv(
     header_lines : int, optional
         The number of columns at the beginning of the file that should not be considered as data.
     sep : str, optional
-        The single char or string that separates the values in each row.
+        The single ``char`` or ``str`` that separates the values in each row.
     dtype : datatype, optional
-        Data type of the resulting array;
+        Data type of the resulting array.
      encoding : str, optional
         The type of encoding which will be used to interpret the lines of the csv file as strings.
     split : int or None : optional
-        Along which axis the resulting tensor should be split.
-        Default is ``None`` which means each node will have the full tensor.
+        Along which axis the resulting array should be split.
+        Default is ``None`` which means each node will have the full array.
     device : str, optional
         The device id on which to place the data, defaults to globally set default device.
     comm : Communication, optional
-        The communication to use for the data distribution. Defaults to MPI_COMM_WORLD.
+        The communication to use for the data distribution. Defaults to ``MPI_COMM_WORLD``.
 
     Raises
     -------
@@ -648,16 +648,17 @@ def load_csv(
 
 def save(data, path, *args, **kwargs):
     """
-    Attempts to save data from a tensor to disk. Attempts to auto-detect the file format by determining the extension.
+    Attempts to save data from a :class:`~heat.core.dndarray.DNDarray`  to disk.
+    Attempts to auto-detect the file format by determining the extension.
 
     Parameters
     ----------
     data : DNDarray
-        The tensor holding the data to be stored
+        The array holding the data to be stored
     path : str
         Path to the file to be stored.
     args/kwargs : list/dict
-        additional options passed to the particular functions.
+        Additional options passed to the particular functions.
 
     Raises
     -------

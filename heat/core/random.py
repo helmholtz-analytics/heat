@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 import time
 import torch
@@ -28,6 +30,7 @@ def __counter_sequence(
     shape, dtype, split, device, comm
 ) -> Tuple[torch.tensor, torch.tensor, Tuple[int, ...], slice]:
     """
+    #ToDo check Documentation: Correct assignment of torch.Tensor vs DNDarray?
     Generates a sequence of numbers to be used as the "clear text" for the threefry encryption, i.e. the pseudo random
     number generator. Due to the fact that threefry always requires pairs of inputs, the input sequence may not just be
     a simple range including the global offset, but rather needs to be to independent vectors, one containing the range
@@ -159,15 +162,15 @@ def get_state() -> Tuple[str, int, int, int, float]:
     Return a tuple representing the internal state of the generator.
     The returned tuple has the following items:
 
-    1. the string ‘Threefry’,
+    1. The string ‘Threefry’,
 
-    2. the Threefry key value, aka seed,
+    2. The Threefry key value, aka seed,
 
-    3. the internal counter value,
+    3. The internal counter value,
 
-    4. an integer has_gauss, always set to 0 (present for compatibility with numpy) and
+    4. An integer has_gauss, always set to 0 (present for compatibility with numpy) and
 
-    5. a float cached_gaussian, always set to 0.0 (present for compatibility with numpy).
+    5. A float cached_gaussian, always set to 0.0 (present for compatibility with numpy).
     """
     return "Threefry", __seed, __counter, 0, 0.0
 
@@ -221,7 +224,8 @@ def __kundu_transform(values) -> torch.Tensor:
 def rand(*args, dtype=types.float32, split=None, device=None, comm=None) -> DNDarray:
     """
     Random values in a given shape.
-    Create a tensor of the given shape and populate it with random samples from a uniform distribution over [0, 1).
+    Create a :class:`~heat.core.dndarray.DNDarray`  of the given shape and populate it with random samples from a
+    uniform distribution over [0, 1).
 
     Parameters
     ----------
@@ -229,13 +233,15 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None) -> DNDa
         The dimensions of the returned array, should all be positive. If no argument is given a single random samples is
         generated.
     dtype: datatype, optional
-        The datatype of the returned values. Has to be one of [:class:`~heat.core.types.float32, :class:`~heat.core.types.float64`].
+        The datatype of the returned values. Has to be one of
+        [:class:`~heat.core.types.float32, :class:`~heat.core.types.float64`].
     split: int, optional
         The axis along which the array is split and distributed, defaults to no distribution.
     device : str, optional
-        Specifies the device the tensor shall be allocated on, defaults to globally set default device.
+        Specifies the :class:`~heat.core.devices.Device`  the array shall be allocated on, defaults to globally
+        set default device.
     comm: Communication, optional
-        Handle to the nodes holding distributed parts or copies of this tensor.
+        Handle to the nodes holding distributed parts or copies of this array.
 
     """
     # if args are not set, generate a single sample
@@ -290,16 +296,17 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     high : int, optional
         If provided, one above the largest (signed) integer to be drawn from the distribution (see above for behavior if ``high=None``).
     size : int or Tuple[int,...], optional
-        Output shape. If the given shape is, e.g., ``(m, n, k)``, then :math:`m \\times n \\times k`` samples are drawn. #
+        Output shape. If the given shape is, e.g., ``(m, n, k)``, then :math:`m \\times n \\times k`` samples are drawn.
         Default is None, in which case a single value is returned.
     dtype : datatype, optional
         Desired datatype of the result. Must be an integer type.
     split: int, optional
         The axis along which the array is split and distributed, defaults to no distribution.
     device : str, optional
-        Specifies the device the tensor shall be allocated on, defaults to globally set default device.
+        Specifies the :class:`~heat.core.devices.Device`  the array shall be allocated on, defaults to globally
+        set default device.
     comm: Communication, optional
-        Handle to the nodes holding distributed parts or copies of this tensor.
+        Handle to the nodes holding distributed parts or copies of this array.
     """
     # determine range bounds
     if high is None:
@@ -357,9 +364,10 @@ def randn(*args, dtype=types.float32, split=None, device=None, comm=None) -> DND
     split: int, optional
         The axis along which the array is split and distributed, defaults to no distribution.
     device : str, optional
-        Specifies the device the tensor shall be allocated on, defaults to globally set default device.
+        Specifies the :class:`~heat.core.devices.Device`  the array shall be allocated on, defaults to globally
+        set default device.
     comm: Communication, optional
-        Handle to the nodes holding distributed parts or copies of this tensor.
+        Handle to the nodes holding distributed parts or copies of this array.
 
     Raises
     -------
@@ -409,15 +417,15 @@ def set_state(state):
     Set the internal state of the generator from a tuple.
     The tuple has the following items:
 
-    1. the string ‘Threefry’,
+    1. The string ‘Threefry’,
 
-    2. the Threefry key value, aka seed,
+    2. The Threefry key value, aka seed,
 
-    3. the internal counter value,
+    3. The internal counter value,
 
-    4. an integer has_gauss, ignored (present for compatibility with numpy), optional and
+    4. An integer ``has_gauss``, ignored (present for compatibility with numpy), optional and
 
-    5. a float cached_gaussian, ignored (present for compatibility with numpy), optional.
+    5. A float ``cached_gaussian``, ignored (present for compatibility with numpy), optional.
 
     Parameters
     ----------

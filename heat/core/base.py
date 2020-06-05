@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 import json
 from typing import List, Dict, Any, TypeVar
@@ -7,6 +9,7 @@ self = TypeVar("self")
 
 
 class BaseEstimator:
+    # ToDo Document Me
     @classmethod
     def _parameter_names(cls) -> List[str]:
         """
@@ -102,7 +105,7 @@ class ClassificationMixin:
     def fit_predict(self, X, Y) -> DNDarray:
         """
         Fits model and returns classes for each input sample
-        Convenience method; equivalent to calling ``fit(X)`` followed by ``predict(X)``.
+        Convenience method; equivalent to calling :func:`fit(X)` followed by :func:`predict(X)`.
 
         Parameters
         ----------
@@ -148,7 +151,7 @@ class ClusteringMixin:
         """
         Compute clusters and returns the predicted cluster assignment for each sample.
         Returns index of the cluster each sample belongs to.
-        Convenience method; equivalent to calling ``fit(X)`` followed by ``predict(X)``.
+        Convenience method; equivalent to calling :func:`fit(X)` followed by :func:`predict(X)`.
 
         Parameters
         ----------
@@ -182,9 +185,9 @@ class RegressionMixin:
     def fit_predict(self, X, Y) -> DNDarray:
         """
         Fits model and returns regression predictions for each input sample
-        Convenience method; equivalent to calling ``fit(X)`` followed by ``predict(X)``.
+        Convenience method; equivalent to calling :func:`fit(X)` followed by :func:`predict(X)`.
 
-        Args
+        Parameters
         ----------
         X : DNDarray,
             Input data to be predicted. Shape = (n_samples, n_features)
@@ -199,7 +202,7 @@ class RegressionMixin:
         """
         Predicts the continuous labels for each sample.
 
-        Args
+        Parameters
         ----------
         X : DNDarray
             Values to let the model predict. Shape = (n_samples, n_features)
