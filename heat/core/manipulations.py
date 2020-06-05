@@ -670,7 +670,7 @@ def flip(a, axis=None) -> DNDarray:
 
 def fliplr(a) -> DNDarray:
     """
-    Flip array in the left/right direction. If a.ndim > 2, flip along dimension 1.
+    Flip array in the left/right direction. If ``a.ndim>2``, flip along dimension 1.
 
     Parameters
     ----------
