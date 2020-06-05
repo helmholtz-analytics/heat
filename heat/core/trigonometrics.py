@@ -275,7 +275,7 @@ def tan(x, out=None) -> DNDarray:
     """
     Compute tangent element-wise.
     Result is a ``DNDarray`` of the same shape as ``x``.
-    Equivalent to :func:`sin` / :func:`cos` element-wise. If ``out`` was provided, ``tan`` is a reference to it.
+    Equivalent to :func:`sin`/:func:`cos` element-wise. If ``out`` was provided, ``tan`` is a reference to it.
 
 
     Parameters

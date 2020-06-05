@@ -35,7 +35,7 @@ __all__ = [
 
 def concatenate(arrays, axis=0) -> DNDarray:
     """
-    Join 2 :class:`~heat.core.dndarray.DNDarray`s along an existing axis.
+    Join 2 ``DNDarrays`` along an existing axis.
 
     Parameters
     ----------
@@ -697,7 +697,7 @@ def fliplr(a):
     return flip(a, 1)
 
 
-def flipud(a):
+def flipud(a) -> DNDarray:
     """
         Flip array in the up/down direction.
 
@@ -1173,9 +1173,7 @@ def squeeze(x, axis=None) -> DNDarray:
     >>> a = ht.random.randn(1,3,1,5)
     >>> a
     tensor([[[[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232]],
-
             [[ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255]],
-
             [[-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]]]])
     >>> a.shape
     (1, 3, 1, 5)

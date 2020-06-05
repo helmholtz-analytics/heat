@@ -248,7 +248,7 @@ def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple
         The weights array can either be 1D (in which case its length must be
         the size of ``x`` along the given axis) or of the same shape as ``x``.
         If ``weights=None``, then all data in ``x`` are assumed to have a
-        weight equal to one, the result is equivalent to :fund:`mean`.
+        weight equal to one, the result is equivalent to :func:`mean`.
     returned : bool, optional
         If ``True``, the tuple ``(average, sum_of_weights)``
         is returned, otherwise only the average is returned.
@@ -427,7 +427,7 @@ def max(x, axis=None, out=None, keepdim=None) -> DNDarray:
         If this is a tuple of ints, the maximum is selected over multiple axes,
         instead of a single axis or all the axes as before.
     out : DNDarray, optional
-        Tuple of two output arrays (max, max_indices). Must be of the same shape and buffer length as the expected
+        Tuple of two output arrays ``(max, max_indices)``. Must be of the same shape and buffer length as the expected
         output. The minimum value of an output element. Must be present to allow computation on empty slice.
     keepdim : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
@@ -881,9 +881,8 @@ def minimum(x1, x2, out=None) -> DNDarray:
     The latter distinction is important for complex NaNs, which are defined as at least one of the real or
     imaginary parts being ``NaN``. The net effect is that NaNs are propagated.
 
-    Parameters:
+    Parameters
     -----------
-
     x1 : DNDarray
         The first array containing the elements to be compared.
     x2 : DNDarray
@@ -898,33 +897,27 @@ def minimum(x1, x2, out=None) -> DNDarray:
     >>> import torch
     >>> torch.manual_seed(1)
     <torch._C.Generator object at 0x105c50b50>
-
     >>> a = ht.random.randn(3,4)
     >>> a
     tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
             [-0.4212, -0.5107, -1.5727, -0.1232],
             [ 3.5870, -1.8313,  1.5987, -1.2770]])
-
     >>> b = ht.random.randn(3,4)
     >>> b
     tensor([[ 0.8310, -0.2477, -0.8029,  0.2366],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [-0.6842,  0.4533,  0.2912, -0.8317]])
-
     >>> ht.minimum(a,b)
     tensor([[-0.1955, -0.9656, -0.8029,  0.2366],
             [-0.4212, -0.5107, -1.5727, -0.1232],
             [-0.6842, -1.8313,  0.2912, -1.2770]])
-
     >>> c = ht.random.randn(1,4)
     >>> c
     tensor([[-1.6428,  0.9803, -0.0421, -0.8206]])
-
     >>> ht.minimum(a,c)
     tensor([[-1.6428, -0.9656, -0.0421, -0.8206],
             [-1.6428, -0.5107, -1.5727, -0.8206],
             [-1.6428, -1.8313, -0.0421, -1.2770]])
-
     >>> b.__setitem__((0,1), ht.nan)
     >>> b
     tensor([[ 0.8310,     nan, -0.8029,  0.2366],
@@ -934,7 +927,6 @@ def minimum(x1, x2, out=None) -> DNDarray:
     tensor([[-0.1955,     nan, -0.8029,  0.2366],
             [-0.4212, -0.5107, -1.5727, -0.1232],
             [-0.6842, -1.8313,  0.2912, -1.2770]])
-
     >>> d = ht.random.randn(3,4,5)
     >>> ht.minimum(a,d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
