@@ -239,7 +239,6 @@ def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple
         Axis or axes along which to average ``x``.  The default,
         ``axis=None``, will average over all of the elements of the input array.
         If axis is negative it counts from the last to the first axis.
-
         #TODO Issue #351: If axis is a tuple of ints, averaging is performed on all of the axes
         specified in the tuple instead of a single axis or all the axes as
         before.
@@ -247,8 +246,8 @@ def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple
         An array of weights associated with the values in ``x``. Each value in
         ``x`` contributes to the average according to its associated weight.
         The weights array can either be 1D (in which case its length must be
-        the size of ``x` along the given axis) or of the same shape as ``x`.
-        If ``weights=None``, then all data in ``x` are assumed to have a
+        the size of ``x`` along the given axis) or of the same shape as ``x``.
+        If ``weights=None``, then all data in ``x`` are assumed to have a
         weight equal to one, the result is equivalent to :fund:`mean`.
     returned : bool, optional
         If ``True``, the tuple ``(average, sum_of_weights)``
