@@ -97,12 +97,11 @@ def apply_house(side, v, tau, c):
         return c
     h = gen_house_mat(v, tau)
     if side == "left":
-        r = torch.matmul(h, c)
+        return torch.matmul(h, c)
     elif side == "right":
-        r = torch.matmul(c, h)
+        return torch.matmul(c, h)
     else:
         raise ValueError("side must be either 'left' or 'right', currently: {}".format(side))
-    return r
 
 
 # @torch.jit.script

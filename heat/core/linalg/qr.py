@@ -874,7 +874,6 @@ def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None):
     st_sp = r_tiles.get_start_stop(key=(dim0, dim1))
     sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
     q1 = torch.zeros((sz[0], sz[0]), dtype=r_torch_type, device=r_torch_device)
-    print(st_sp)
     if rank == diag_pr:
         # do qr on diagonal process
         qrank, r1 = r_tiles[dim0, dim1].qr(some=False)
@@ -895,7 +894,6 @@ def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None):
         slices = r_tiles.local_to_global(key=(dim0, slice(0, None)), rank=rank)
         hold = r_tiles[slices]
         r_tiles[slices] = torch.matmul(q1.T, hold)
-    # print(r_tiles.arr)
     # ================================ Q Calculation - single tile =============================
     if calc_q:
         for row in range(q0_tiles.tile_rows_per_process[rank]):
