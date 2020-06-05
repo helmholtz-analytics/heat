@@ -1019,6 +1019,48 @@ class TestManipulations(BasicTest):
         with self.assertRaises(TypeError):
             ht.reshape(ht.zeros((4, 3)), "(5, 7)")
 
+    def test_rot90(self):
+        size = ht.MPI_WORLD.size
+        m = ht.arange(size ** 3, dtype=ht.int).reshape((size, size, size))
+
+        self.assertTrue(ht.equal(ht.rot90(m, 0), m))
+        self.assertTrue(ht.equal(ht.rot90(m, 4), m))
+        self.assertTrue(ht.equal(ht.rot90(ht.rot90(m, 1), 1, (1, 0)), m))
+
+        a = ht.resplit(m, 0)
+
+        self.assertTrue(ht.equal(ht.rot90(a), ht.resplit(ht.rot90(m), 1)))
+        self.assertTrue(ht.equal(ht.rot90(a, 2), ht.resplit(ht.rot90(m, 2), 0)))
+        self.assertTrue(ht.equal(ht.rot90(a, 3, (1, 2)), ht.resplit(ht.rot90(m, 3, (1, 2)), 0)))
+
+        m = ht.arange(size ** 3, dtype=ht.float).reshape((size, size, size))
+        a = ht.resplit(m, 1)
+
+        self.assertTrue(ht.equal(ht.rot90(a), ht.resplit(ht.rot90(m), 0)))
+        self.assertTrue(ht.equal(ht.rot90(a, 2), ht.resplit(ht.rot90(m, 2), 1)))
+        self.assertTrue(ht.equal(ht.rot90(a, 3, (1, 2)), ht.resplit(ht.rot90(m, 3, (1, 2)), 2)))
+
+        a = ht.resplit(m, 2)
+
+        self.assertTrue(ht.equal(ht.rot90(a), ht.resplit(ht.rot90(m), 2)))
+        self.assertTrue(ht.equal(ht.rot90(a, 2), ht.resplit(ht.rot90(m, 2), 2)))
+        self.assertTrue(ht.equal(ht.rot90(a, 3, (1, 2)), ht.resplit(ht.rot90(m, 3, (1, 2)), 1)))
+
+        with self.assertRaises(ValueError):
+            ht.rot90(ht.ones((2, 3)), 1, (0, 1, 2))
+        with self.assertRaises(TypeError):
+            ht.rot90(torch.tensor((2, 3)))
+        with self.assertRaises(ValueError):
+            ht.rot90(ht.zeros((2, 2)), 1, (0, 0))
+        with self.assertRaises(ValueError):
+            ht.rot90(ht.zeros((2, 2)), 1, (-3, 1))
+        with self.assertRaises(ValueError):
+            ht.rot90(ht.zeros((2, 2)), 1, (4, 1))
+        with self.assertRaises(ValueError):
+            ht.rot90(ht.zeros((2, 2)), 1, (0, -2))
+        with self.assertRaises(ValueError):
+            ht.rot90(ht.zeros((2, 2)), 1, (0, 3))
+
     def test_sort(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
