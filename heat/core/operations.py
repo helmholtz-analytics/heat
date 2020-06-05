@@ -77,21 +77,11 @@ def __binary_op(operation, t1, t2) -> DNDarray:
         elif isinstance(t2, DNDarray):
             if t1.split is None:
                 t1 = factories.array(
-                    t1,
-                    split=t2.split,
-                    copy=False,
-                    comm=t1.comm,
-                    device=t1.device,
-                    ndmin=-t2.numdims,
+                    t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device, ndmin=-t2.ndim
                 )
             elif t2.split is None:
                 t2 = factories.array(
-                    t2,
-                    split=t1.split,
-                    copy=False,
-                    comm=t2.comm,
-                    device=t2.device,
-                    ndmin=-t1.numdims,
+                    t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device, ndmin=-t1.ndim
                 )
             elif t1.split != t2.split:
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0

@@ -125,6 +125,23 @@ class DNDarray:
     def numdims(self) -> int:
         """
         Number of dimensions of the ``DNDarray``
+
+        Returns
+        -------
+        number_of_dimensions : int
+            The number of dimensions of the DNDarray
+
+        .. deprecated:: 0.5.0
+          ``numdims`` will be removed in HeAT 1.0.0, it is replaced by ``ndim`` because the latter is numpy API compliant.
+        """
+        warnings.warn("numdims is deprecated, use ndim instead", DeprecationWarning)
+        return len(self.__gshape)
+
+    @property
+    def ndim(self) -> int:
+        """
+        Number of dimensions of the ``DNDarray``
+
         """
         return len(self.__gshape)
 
@@ -1202,7 +1219,7 @@ class DNDarray:
             if isinstance(key, int):
                 gout = [0] * (len(self.gshape) - 1)
                 if key < 0:
-                    key += self.numdims
+                    key += self.ndim
                 # handle the reduction of the split to accommodate for the reduced dimension
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
@@ -2193,8 +2210,8 @@ class DNDarray:
             Torch type of the data in question
         """
         rank = self.comm.rank
-        send_slice = [slice(None)] * self.numdims
-        keep_slice = [slice(None)] * self.numdims
+        send_slice = [slice(None)] * self.ndim
+        keep_slice = [slice(None)] * self.ndim
         if rank == snd_pr:
             if snd_pr < rcv_pr:  # data passed to a higher rank (off the bottom)
                 send_slice[self.split] = slice(
@@ -2313,7 +2330,7 @@ class DNDarray:
             # need to get where the tiles are on the new one first
             # rpr is the destination
             new_locs = torch.where(new_tile_locs == rpr)
-            new_locs = torch.stack([new_locs[i] for i in range(self.numdims)], dim=1)
+            new_locs = torch.stack([new_locs[i] for i in range(self.ndim)], dim=1)
             for i in range(new_locs.shape[0]):
                 key = tuple(new_locs[i].tolist())
                 spr = tiles.tile_locations[key].item()
@@ -2330,7 +2347,7 @@ class DNDarray:
                     )
                     w = self.comm.Irecv(buf=buf, source=spr, tag=spr)
                     rcv[key] = [w, buf]
-        dims = list(range(self.numdims))
+        dims = list(range(self.ndim))
         del dims[axis]
         sorted_keys = sorted(rcv.keys())
         # todo: reduce the problem to 1D cats for each dimension, then work up
@@ -2633,7 +2650,7 @@ class DNDarray:
 
             if isinstance(key, int):
                 if key < 0:
-                    key += self.numdims
+                    key += self.ndim
                 if self.split == 0:
                     if key in range(chunk_start, chunk_end):
                         self.__setter(key - chunk_start, value)

@@ -30,18 +30,13 @@ def dot(a, b, out=None) -> Union[DNDarray, float]:
     b : DNDarray
 
     """
-    if (
-        isinstance(a, (float, int))
-        or isinstance(b, (float, int))
-        or a.numdims == 0
-        or b.numdims == 0
-    ):
+    if isinstance(a, (float, int)) or isinstance(b, (float, int)) or a.ndim == 0 or b.ndim == 0:
         # 3. If either a or b is 0-D (scalar), it is equivalent to multiply and using numpy.multiply(a, b) or a * b is preferred.
         if out is not None:
             out = a * b
             return out
         return a * b
-    elif a.numdims == 1 and b.numdims == 1:
+    elif a.ndim == 1 and b.ndim == 1:
         # 1. If both a and b are 1-D arrays, it is inner product of vectors.
         if a.split is None and b.split is None:
             sl = slice(None)
@@ -55,7 +50,7 @@ def dot(a, b, out=None) -> Union[DNDarray, float]:
             out = ret.item()
             return out
         return ret.item()
-    elif a.numdims == 2 and b.numdims == 2:
+    elif a.ndim == 2 and b.ndim == 2:
         # 2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or a @ b is preferred.
         ret = matmul(a, b)
         if out is not None:

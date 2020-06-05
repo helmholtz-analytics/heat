@@ -119,10 +119,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         # Get number of model parameters
         _, n = X.shape
 
-        if y.numdims > 2:
-            raise ValueError("y.numdims must <= 2, currently: {}".format(y.numdims))
-        if X.numdims != 2:
-            raise ValueError("X.numdims must == 2, currently: {}".format(X.numdims))
+        if y.ndim > 2:
+            raise ValueError("y.ndim must <= 2, currently: {}".format(y.ndim))
+        if X.ndim != 2:
+            raise ValueError("X.ndim must == 2, currently: {}".format(X.ndim))
 
         if len(y.shape) == 1:
             y = ht.expand_dims(y, axis=1)
