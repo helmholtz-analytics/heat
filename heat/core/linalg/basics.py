@@ -15,14 +15,14 @@ __all__ = ["dot", "matmul", "norm", "projection", "transpose", "tril", "triu"]
 
 def dot(a, b, out=None) -> Union[DNDarray, float]:
     """
-    Returns the dot product of two arrays.
+    Returns the dot product of two ``DNDarrays``.
     Specifically,
 
         1. If both a and b are 1-D arrays, it is inner product of vectors.
 
-        2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or ``a @ b`` is preferred.
+        2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or ``a@b`` is preferred.
 
-        3. If either a or b is 0-D (scalar), it is equivalent to multiply and using ``ht.multiply(a, b)`` or ``a * b` is preferred.
+        3. If either a or b is 0-D (scalar), it is equivalent to multiply and using ``multiply(a, b)`` or ``a*b`` is preferred.
 
     Parameters
     ----------
@@ -73,10 +73,10 @@ def dot(a, b, out=None) -> Union[DNDarray, float]:
 
 def matmul(a, b, allow_resplit=False) -> DNDarray:
     """
-    Matrix multiplication of two DNDarrays: ``a @ b = c`` or ``A @ B = c``.
-    Returns a tensor with the result of ``a @ b``. The split dimension of the returned array is
-    typically the split dimension of a. However, if ``a.split = None`` then the the ``c.split`` will be
-    set as the split dimension of ``b``. If both are None then ``c.split`` is also None.
+    Matrix multiplication of two ``DNDarrays``: ``a@b=c`` or ``A@B=c``.
+    Returns a tensor with the result of ``a@b``. The split dimension of the returned array is
+    typically the split dimension of a. However, if ``a.split=None`` then the the ``c.split`` will be
+    set as the split dimension of ``b``. If both are ``None`` then ``c.split`` is also ``None``.
 
     Parameters
     ----------
@@ -85,12 +85,12 @@ def matmul(a, b, allow_resplit=False) -> DNDarray:
     b : DNDarray
         2 dimensional: :math:`P \\times Q`
     allow_resplit : bool, optional
-        Flag for if to resplit the DNDarray ``a`` in the case that both 'a' and 'b' are not split.
+        Flag for if to resplit the DNDarray ``a`` in the case that both ``a`` and ``b`` are not split.
 
         - Default: if both are not split then both will remain not split.
 
         - True: if both are not split then ``a``  will be split in-place along axis 0, i.e. the split axis of ``a``  will
-        become 0 and the DNDarray will be distributed in the standard fashion.
+            become 0 and the ``DNDarray`` will be distributed in the standard fashion.
 
         - The default case should be the most efficient case for large matrices.
 
@@ -786,14 +786,14 @@ def norm(a) -> float:
 
 def projection(a, b) -> DNDarray:
     """
-    Projection of vector a onto vector b
+    Projection of vector ``a`` onto vector ``b``
 
     Parameters
     ----------
     a : DNDarray
-        The vector to be projected. Must be a 1D DNDarray
+        The vector to be projected. Must be a 1D ``DNDarray``
     b : DNDarray
-        The vector to project onto. Must be a 1D DNDarray
+        The vector to project onto. Must be a 1D ``DNDarray``
     """
     if not isinstance(a, DNDarray) or not isinstance(b, DNDarray):
         raise TypeError(
@@ -854,7 +854,6 @@ def __mm_c_block_setter(
 
 def transpose(a, axes=None) -> DNDarray:
     """
-
     Permute the dimensions of an array.
 
     Parameters
@@ -914,15 +913,15 @@ __index_base = (slice(None), slice(None))
 
 def __tri_op(m, k, op) -> DNDarray:
     """
-    Generic implementation of triangle operations on a tensor. It takes care of input sanitation and non-standard
+    Generic implementation of triangle operations on a ``DNDarray``. It takes care of input sanitation and non-standard
     broadcast behavior of the 2D triangle-operators.
 
     Parameters
     ----------
     m : DNDarray
-        Input tensor for which to compute the triangle operator.
+        Input array for which to compute the triangle operator.
     k : int, optional
-        Diagonal above which to apply the triangle operator, k<0 is below and k>0 is above.
+        Diagonal above which to apply the triangle operator, ``k<0`` is below and ``k>0`` is above.
     op : callable
         Implementation of the triangle operator.
 
@@ -984,18 +983,19 @@ def __tri_op(m, k, op) -> DNDarray:
 
 def tril(m, k=0) -> DNDarray:
     """
-    Returns the lower triangular part of the tensor.
-    The lower triangular part of the tensor is defined as the elements on and below the diagonal, the other elements of the result tensor are set to 0.
-    The argument k controls which diagonal to consider. If ``k=0``, all elements on and below the main diagonal are
+    Returns the lower triangular part of the ``DNDarray``.
+    The lower triangular part of the array is defined as the elements on and below the diagonal, the other elements of
+    the result array are set to 0.
+    The argument ``k`` controls which diagonal to consider. If ``k=0``, all elements on and below the main diagonal are
     retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
     value excludes just as many diagonals below the main diagonal.
 
     Parameters
     ----------
     m : DNDarray
-        Input tensor for which to compute the lower triangle.
+        Input array for which to compute the lower triangle.
     k : int, optional
-        Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
+        Diagonal above which to zero elements. ``k=0`` (default) is the main diagonal, ``k<0`` is below and ``k>0`` is above.
 
     """
     return __tri_op(m, k, torch.tril)
@@ -1003,18 +1003,18 @@ def tril(m, k=0) -> DNDarray:
 
 def triu(m, k=0) -> DNDarray:
     """
-    Returns the upper triangular part of the tensor.
-    The upper triangular part of the tensor is defined as the elements on and below the diagonal, the other elements of the result tensor are set to 0.
-    The argument k controls which diagonal to consider. If ``k=0``, all elements on and below the main diagonal are
+    Returns the upper triangular part of the ``DNDarray``.
+    The upper triangular part of the array is defined as the elements on and below the diagonal, the other elements of the result array are set to 0.
+    The argument ``k`` controls which diagonal to consider. If ``k=0``, all elements on and below the main diagonal are
     retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
     value excludes just as many diagonals below the main diagonal.
 
     Parameters
     ----------
     m : DNDarray
-        Input tensor for which to compute the upper triangle.
+        Input array for which to compute the upper triangle.
     k : int, optional
-        Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
+        Diagonal above which to zero elements. ``k=0`` (default) is the main diagonal, ``k<0`` is below and ``k>0`` is above.
 
     """
     return __tri_op(m, k, torch.triu)
