@@ -914,18 +914,17 @@ def rot90(m, k=1, axes=(0,1)):
     Rotation direction is from the first towards the second axis.
     Parameters
     ----------
-    m : array_like
+    m : DNDarray
         Array of two or more dimensions.
     k : integer
         Number of times the array is rotated by 90 degrees.
-    axes: (2,) array_like
+    axes: (2,) integer
         The array is rotated in the plane defined by the axes.
         Axes must be different.
-        .. versionadded:: 1.12.0
     
     Returns
     -------
-    y : ndarray
+    y : DNDarray
         A rotated view of `m`.
 
     Notes
@@ -935,22 +934,22 @@ def rot90(m, k=1, axes=(0,1)):
     
     Examples
     --------
-    >>> m = np.array([[1,2],[3,4]], int)
+    >>> m = ht.array([[1,2],[3,4]], dtype=ht.int)
     >>> m
-    array([[1, 2],
-           [3, 4]])
-    >>> np.rot90(m)
-    array([[2, 4],
-           [1, 3]])
-    >>> np.rot90(m, 2)
-    array([[4, 3],
-           [2, 1]])
-    >>> m = np.arange(8).reshape((2,2,2))
-    >>> np.rot90(m, 1, (1,2))
-    array([[[1, 3],
-            [0, 2]],
-           [[5, 7],
-            [4, 6]]])
+    tensor([[1, 2],
+            [3, 4]], dtype=torch.int32)
+    >>> ht.rot90(m)
+    tensor([[2, 4],
+            [1, 3]], dtype=torch.int32)
+    >>> ht.rot90(m, 2)
+    tensor([[4, 3],
+            [2, 1]], dtype=torch.int32)
+    >>> m = ht.arange(8).reshape((2,2,2))
+    >>> ht.rot90(m, 1, (1,2))
+    tensor([[[1, 3],
+             [0, 2]],
+            [[5, 7],
+             [4, 6]]], dtype=torch.int32)
     """
     axes = tuple(axes)
     if len(axes) != 2:
