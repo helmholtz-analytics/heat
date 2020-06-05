@@ -13,7 +13,7 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False) -> Tuple[DNDarray, D
     """
     Calculates the QR decomposition of a 2D ``DNDarray``.
     Factor the matrix ``a`` as *QR*, where ``Q`` is orthonormal and ``R`` is upper-triangular.
-    If ``calc_q == True``, function returns ``QR(Q=Q, R=R)``, else function returns ``QR(Q=None, R=R)``
+    If ``calc_q==True``, function returns ``QR(Q=Q, R=R)``, else function returns ``QR(Q=None, R=R)``
 
     Parameters
     ----------
