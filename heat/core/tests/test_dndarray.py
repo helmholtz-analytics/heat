@@ -498,6 +498,13 @@ class TestDNDarray(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.array([True]) << 2
 
+    def test_ndim(self):
+        a = ht.empty([2, 3, 3, 2])
+        self.assertEqual(a.ndim, 4)
+
+        with self.assertWarns(Warning):
+            a.numdims
+
     def test_numpy(self):
         # ToDo: numpy does not work for distributed tensors du to issue#
         # Add additional tests if the issue is solved
