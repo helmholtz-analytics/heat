@@ -7307,12 +7307,8 @@ span[id*='MathJax-Span'] {
 	text-align: center
 }
 
-.wy-menu:after {
-    display: block;
-    background: #00000;
-    hide: 300px;
-    content: ""
-
+.ethicl-rtd ethical-dark-theme {
+    background: var(--hgrey)
 }
 
 @font-face {
