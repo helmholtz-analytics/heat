@@ -827,9 +827,9 @@ def norm(a):
     return exponential.sqrt(d).item()
 
 
-def outer(a, b, out=None):
+def outer(a, b, out=None, split=0):
     """
-    Compute the outer product of two vectors.
+    Compute the outer product of two 1-D DNDarrays.
 
     Given two vectors, a = [a0, a1, ..., aM] and b = [b0, b1, ..., bN], the outer product is:
 
@@ -841,39 +841,74 @@ def outer(a, b, out=None):
     Parameters
     ----------
 
-    a(M,): ht.DNDarray
-            First input tensor. Input is flattened if not already 1-dimensional.
+    a(M,): DNDarray
+            First input DNDarray. Input is flattened if not already 1-dimensional.
 
-    b(N,): ht.DNDarray
-            Second input tensor. Input is flattened if not already 1-dimensional.
+    b(N,): DNDarray
+            Second input DNDarray. Input is flattened if not already 1-dimensional.
 
-    out(M, N): ht.DNDarray, optional
+    out(M, N): DNDarray, optional
             A location where the result is stored
+
+    split: int, optional #TODO check out docstring format
+            Split dimension of the resulting DNDarray. Can be 0, 1, or None.
+            Default is split=0.
 
     Returns
     -------
 
-    out(M, N): ht.DNDarray
+    out(M, N): DNDarray
 
         out[i, j] = a[i] * b[j]
+
+    Examples #TODO
+    --------
 
     """
     # TODO sanitize input
     # TODO sanitize shape (1d or flatten)
 
-    out_dtype = types.promote_types(a.dtype, b.dtype)
-    out_shape = (a.gshape[0], b.gshape[0])
-    out_split = 0
+    out_gshape = (a.gshape[0], b.gshape[0])
 
     t_a = a._DNDarray__array
     t_b = b._DNDarray__array
+    t_out_dtype = torch.promote_types(t_a.dtype, t_b.dtype)
 
-    # outer product, local
-    if not a.comm.is_distributed():
+    # TODO: determine sparseness of data, if necessary skip steps below
+    if a.comm.is_distributed() and a.split is not None and b.split is not None:
+        # MPI coordinates
+        rank = a.comm.rank
+        size = a.comm.size
+
+        # Decide which DNDarray gets sent around ring communication
+        # case 1: out.split = 0 --> a stays put, b gets sent around
+        # case 2: out.split = 1 --> a gets sent around, b stays put
+        # case 3: out.split = None --> bigger (element size) DNDarray stays put, smaller one gets sent around
+        if split == 0:
+            lshape_map = b.create_lshape_map()
+            t_out_shape = (a.lshape[0], b.gshape[0])
+            t_out = torch.zeros(t_out_shape, dtype=t_out_dtype, device=t_a.device)
+            _, _, t_out_slice = b.comm.chunk(b.gshape, b.split)
+            t_out[:, t_out_slice[0]] = torch.einsum("i,j->ij", t_a, t_b)
+            for i in range(size):
+                # prepare for shipping
+                dest_rank = rank + 1 if rank != size - 1 else 0
+                # prepare for receiving
+                origin_rank = rank - 1 if rank != 0 else size - 1
+                # blocking send and recv
+                b.comm.Send(t_b, dest_rank)
+                t_inbox = torch.empty(lshape_map[origin_rank], dtype=t_b.dtype, device=t_b.device)
+                b.comm.Recv(t_inbox, origin_rank)
+                _, _, t_out_slice = b.comm.chunk(b.gshape, b.split, rank=origin_rank)
+                t_out[:, t_out_slice[0]] = torch.einsum("i,j->ij", t_a, t_inbox)
+                # TODO: check that original a and b haven't been modified
+    else:
+        # outer product, local
         t_out = torch.einsum("i,j->ij", t_a, t_b)
 
+    out_dtype = types.canonical_heat_type(t_out_dtype)
     out = dndarray.DNDarray(
-        t_out, gshape=out_shape, dtype=out_dtype, split=out_split, device=a.device, comm=a.comm
+        t_out, gshape=out_gshape, dtype=out_dtype, split=split, device=a.device, comm=a.comm
     )
 
     return out
