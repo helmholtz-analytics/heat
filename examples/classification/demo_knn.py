@@ -130,4 +130,5 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
         accuracies.append(calculate_accuracy(result_y, verification_y))
     return accuracies
 
-print(verify_algorithm(X, Y, 5, 30, 10))
+print(verify_algorithm(X, Y, 5, 30, 5))
+
