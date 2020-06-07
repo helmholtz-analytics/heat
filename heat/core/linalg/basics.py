@@ -880,8 +880,19 @@ def outer(a, b, out=None, split=0):
         # MPI coordinates
         rank = a.comm.rank
         size = a.comm.size
+        outer_split = split
 
         # Decide which DNDarray gets sent around ring communication
+        # case 3: out.split = None --> bigger (element size) DNDarray stays put, smaller one gets sent around
+        if split is None:
+            # TODO replace with nbytes property when available #590
+            a_nbytes = a._DNDarray__array.storage().element_size() * a.size
+            b_nbytes = b._DNDarray__array.storage().element_size() * b.size
+            if b_nbytes <= a_nbytes:
+                split = 0
+            else:
+                split = 1
+
         # case 1: out.split = 0 --> a stays put, b gets sent around
         if split == 0:
             lshape_map = b.create_lshape_map()
@@ -905,7 +916,6 @@ def outer(a, b, out=None, split=0):
                 t_out[:, t_out_slice[0]] = torch.einsum("i,j->ij", t_a, t_b)
 
         # case 2: out.split = 1 --> a gets sent around, b stays put
-        # case 3: out.split = None --> bigger (element size) DNDarray stays put, smaller one gets sent around
 
     else:
         # outer product, local
@@ -913,7 +923,7 @@ def outer(a, b, out=None, split=0):
 
     out_dtype = types.canonical_heat_type(t_out_dtype)
     out = dndarray.DNDarray(
-        t_out, gshape=out_gshape, dtype=out_dtype, split=split, device=a.device, comm=a.comm
+        t_out, gshape=out_gshape, dtype=out_dtype, split=outer_split, device=a.device, comm=a.comm
     )
 
     return out
