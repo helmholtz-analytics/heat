@@ -1685,41 +1685,46 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     """
     if dim is None:
         dim = len(a.shape) - 1
-    if a.split is None or dim != a.split:
-        torch_array, torch_indices = torch.topk(
-            a._DNDarray__array, k, dim=dim, largest=largest, sorted=sorted
-        )
 
-        final_array = factories.array(torch_array, dtype=a.dtype, split=None, device=a.device)
-        final_indices = factories.array(torch_indices, split=None, device=a.device)
-    else:
+    if dim == a.split:
+        '''
         local_data = a._DNDarray__array
-        lres, lindcs = torch.topk(local_data, k, dim=dim, largest=largest, sorted=sorted)
+        lres, lindcs = torch.topk(local_data, 1, dim=0, largest=largest, sorted=sorted)
 
-        # Set up buffer for top elements
-        top = torch.tensor([lres.shape[0]]).to(torch.int32)
-        top_buf = torch.empty((a.comm.Get_size(),), dtype=torch.int32)
-        a.comm.Allgatherv(top, top_buf)
+        gres_buf = torch.empty((a.comm.Get_size(),k,), dtype=a.dtype.torch_type())
 
-        # Set up buffer for indices
-        indices = torch.tensor([lres.shape[0]]).to(torch.int32)
-        indices_buf = torch.empty((a.comm.Get_size(),), dtype=torch.int32)
-        a.comm.Allgatherv(indices, indices_buf)
-
-        gindices_buf = torch.empty((top_buf.sum().item(), k), dtype=a.dtype.torch_type())
-        a.comm.Allgatherv(lindcs, gindices_buf, recv_axis=0)
-
-        gres_buf = torch.empty((top_buf.sum().item(), k), dtype=a.dtype.torch_type())
-        a.comm.Allgatherv(lres, gres_buf, recv_axis=0)
-
-        gres, gindcs = torch.topk(gres_buf, k, dim=dim, largest=largest, sorted=sorted)
-
-        final_array = factories.array(
-            gres, dtype=a.dtype, device=a.device, comm=a.comm, split=a.split
+        a.comm.Allgather(lres, gres_buf, recv_axis=0)
+        gres_buf.reshape((a.comm.Get_size(),k))
+        print(gres_buf)
+        # Run topk a second time
+        gres, gindcs = torch.topk(
+            gres_buf, k, dim=dim, largest=largest, sorted=sorted
         )
-        final_indices = factories.array(
-            gindcs, dtype=a.dtype, device=a.device, comm=a.comm, split=a.split
-        )
+
+        #gres = torch.unsqueeze(gres, dim)
+
+        #gindcs = gindcs + offset
+        '''
+
+        global_buf = torch.empty(a.shape, dtype=a.dtype.torch_type())
+        a.comm.Allgather(a._DNDarray__array, global_buf)
+
+        gres, gindcs = torch.topk(global_buf, k, dim=0, largest=largest, sorted=sorted)
+
+    else:
+        local_data = a._DNDarray__array.transpose(0, dim)
+        lres, lindcs = torch.topk(local_data, k, dim=0, largest=largest, sorted=sorted)
+
+        gres_buf = torch.empty((a.comm.Get_size(),k,), dtype=a.dtype.torch_type())
+        gindcs_buf = torch.empty((a.comm.Get_size(),k,), dtype=lindcs.dtype)
+        a.comm.Allgather(lres, gres_buf, recv_axis=0)
+        a.comm.Allgather(lindcs, gindcs_buf, recv_axis=0)
+
+        gres = gres_buf
+        gindcs = gindcs_buf
+
+    final_array = factories.array(gres, dtype=a.dtype, split=a.split, device=a.device)
+    final_indices = factories.array(gindcs, split=None, device=a.device)
 
     if out is not None:
         out._DNDarray__array = final_array
