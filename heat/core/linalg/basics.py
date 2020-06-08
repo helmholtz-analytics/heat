@@ -867,25 +867,28 @@ def outer(a, b, out=None, split=0):
     """
     # TODO sanitize input
     # TODO sanitize shape (1d or flatten)
-    # TODO sanitize out.split
-
-    out_gshape = (a.gshape[0], b.gshape[0])
+    # TODO sanitize output, out.split
 
     t_a = a._DNDarray__array
     t_b = b._DNDarray__array
     t_out_dtype = torch.promote_types(t_a.dtype, t_b.dtype)
 
     # TODO: determine sparseness of data, if necessary skip steps below
-    if a.comm.is_distributed() and a.split is not None and b.split is not None:
+    if a.comm.is_distributed() and a.split is not None or b.split is not None:
         # MPI coordinates
         rank = a.comm.rank
         size = a.comm.size
         outer_split = split
         t_out_slice = 2 * [slice(None, None, None)]
 
-        # Decide which DNDarray gets sent around ring communication
-        # out.split = None --> bigger (element size) DNDarray stays put, smaller one gets sent around
+        # Decide whether a or b gets passed around the ranks in ring communication
+        # Note: if 'b' is sent around, the outer product is split along the rows dimension (split = 0).
+        #       if 'a' is sent around, the outer product is split along the columns (split = 1).
+        # So if 'split' is not None, 'split' defines which DNDarray stays put and which one is passed around.
+
         if split is None:
+            # If 'a' and 'b' are both distributed, but outer(a,b) should be local:
+            # bigger (in bytes) DNDarray stays put, smaller one gets sent around
             # TODO replace with nbytes property when available, #590
             a_nbytes = a._DNDarray__array.storage().element_size() * a.size
             b_nbytes = b._DNDarray__array.storage().element_size() * b.size
@@ -894,8 +897,12 @@ def outer(a, b, out=None, split=0):
             else:
                 split = 1
 
-        # out.split = 0 --> a stays put, b gets sent around
-        # out.split = 1 --> a gets sent around, b stays put
+        if split == 0 and b.split is None:
+            b.resplit_(axis=0)
+        elif split == 1 and a.split is None:
+            a.resplit_(axis=0)
+
+        # calculate local slice of outer product
         if split == 0:
             lshape_map = b.create_lshape_map()
             t_out_shape = (a.lshape[0], b.gshape[0])
@@ -908,6 +915,8 @@ def outer(a, b, out=None, split=0):
             t_out_slice[0] = local_slice[0]
         t_out = torch.zeros(t_out_shape, dtype=t_out_dtype, device=t_a.device)
         t_out[t_out_slice] = torch.einsum("i,j->ij", t_a, t_b)
+
+        # Ring: fill in missing slices of outer product
         for p in range(size - 1):
             # prepare for shipping
             dest_rank = rank + 1 if rank != size - 1 else 0
@@ -935,15 +944,23 @@ def outer(a, b, out=None, split=0):
                 t_out_slice[0] = remote_slice[0]
             t_out[t_out_slice] = torch.einsum("i,j->ij", t_a, t_b)
     else:
-        # outer product, local
+        # outer product, all local
         t_out = torch.einsum("i,j->ij", t_a, t_b)
 
+    out_gshape = (a.gshape[0], b.gshape[0])
     out_dtype = types.canonical_heat_type(t_out_dtype)
-    out = dndarray.DNDarray(
-        t_out, gshape=out_gshape, dtype=out_dtype, split=outer_split, device=a.device, comm=a.comm
+    outer = dndarray.DNDarray(
+        t_out, gshape=out_gshape, dtype=out_dtype, split=split, device=a.device, comm=a.comm
     )
 
-    return out
+    if outer_split is None:
+        outer.resplit_(axis=outer_split)
+
+    if out is not None:
+        out._DNDarray__array = outer._DNDarray__array
+        return out
+
+    return outer
 
 
 def projection(a, b):
