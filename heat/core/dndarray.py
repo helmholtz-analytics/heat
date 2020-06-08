@@ -1439,11 +1439,19 @@ class DNDarray:
                     )
 
         else:
+            rank = self.comm.rank
+            # lshape_map = self.create_lshape_map()
+            ends = []
+            for pr in range(self.comm.size):
+                _, _, e = self.comm.chunk(self.shape, self.split, rank=pr)
+                ends.append(e[self.split].stop - e[self.split].start)
+            ends = torch.tensor(ends, device=self.device.torch_device)
+            chunk_ends = ends.cumsum(dim=0)
+            chunk_starts = torch.tensor([0] + chunk_ends.tolist(), device=self.device.torch_device)
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
-            chunk_set = set(range(chunk_start, chunk_end))
-
+            # print(chunk_start, chunk_end)
             arr = torch.Tensor()
 
             # if a singular index is given and the tensor is split
@@ -1495,22 +1503,38 @@ class DNDarray:
                 # if a slice is given in the split direction
                 # below allows for the split given to contain Nones
                 elif isinstance(key[self.split], slice):
-                    key_stop = key[self.split].stop
-                    if key_stop is not None and key_stop < 0:
-                        key_stop = self.gshape[self.split] + key[self.split].stop
-                    key_set = set(
-                        range(
-                            key[self.split].start if key[self.split].start is not None else 0,
-                            key_stop if key_stop is not None else self.gshape[self.split],
-                            key[self.split].step if key[self.split].step else 1,
-                        )
-                    )
                     key = list(key)
-                    overlap = list(key_set & chunk_set)
-                    if overlap:  # if the slice is requesting data on the nodes
-                        overlap.sort()
-                        hold = [x - chunk_start for x in overlap]
-                        key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
+                    key_start = key[self.split].start if key[self.split].start is not None else 0
+                    key_stop = (
+                        key[self.split].stop
+                        if key[self.split].stop is not None
+                        else self.gshape[self.split]
+                    )
+                    if key_stop < 0:
+                        key_stop = self.gshape[self.split] + key[self.split].stop
+                    key_step = key[self.split].step
+                    og_key_start = key_start
+                    st_pr = torch.where(key_start < chunk_ends)[0]
+                    st_pr = st_pr[0] if len(st_pr) > 0 else self.comm.size
+                    sp_pr = torch.where(key_stop >= chunk_starts)[0]
+                    sp_pr = sp_pr[-1] if len(sp_pr) > 0 else 0
+                    actives = list(range(st_pr, sp_pr + 1))
+                    if rank in actives:
+                        key_start = 0 if rank != actives[0] else key_start - chunk_starts[rank]
+                        key_stop = (
+                            ends[rank] if rank != actives[-1] else key_stop - chunk_starts[rank]
+                        )
+                        if key_step is not None and rank > actives[0]:
+                            offset = (chunk_ends[rank - 1] - og_key_start) % key_step
+                            if key_step > 2 and offset > 0:
+                                key_start += key_step - offset
+                            elif key_step == 2 and offset > 0:
+                                key_start += (chunk_ends[rank - 1] - og_key_start) % key_step
+                        if isinstance(key_start, torch.Tensor):
+                            key_start = key_start.item()
+                        if isinstance(key_stop, torch.Tensor):
+                            key_stop = key_stop.item()
+                        key[self.split] = slice(key_start, key_stop, key_step)
                         arr = self.__array[tuple(key)]
                         gout = list(arr.shape)
                 else:
@@ -1565,17 +1589,30 @@ class DNDarray:
                 start = key.start if key.start is not None else 0
                 stop = key.stop if key.stop is not None else self.gshape[0]
                 step = key.step if key.step is not None else 1
-
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
                 else:
                     new_split = self.split
-                key_set = set(range(start, stop, step))
-                overlap = list(key_set & chunk_set)
-                if overlap:
-                    overlap.sort()
-                    hold = [x - chunk_start for x in overlap]
-                    key = slice(min(hold), max(hold) + 1, step)
+                og_key_start = start
+                st_pr = torch.where(start < chunk_ends)[0]
+                st_pr = st_pr[0] if len(st_pr) > 0 else self.comm.size
+                sp_pr = torch.where(stop >= chunk_starts)[0]
+                sp_pr = sp_pr[-1] if len(sp_pr) > 0 else 0
+                actives = list(range(st_pr, sp_pr + 1))
+                if rank in actives:
+                    start = 0 if rank != actives[0] else start - chunk_starts[rank]
+                    stop = ends[rank] if rank != actives[-1] else stop - chunk_starts[rank]
+                    if step is not None and rank > actives[0]:
+                        offset = (chunk_ends[rank - 1] - og_key_start) % step
+                        if step > 2 and offset > 0:
+                            start += step - offset
+                        elif step == 2 and offset > 0:
+                            start += offset
+                    if isinstance(start, torch.Tensor):
+                        start = start.item()
+                    if isinstance(stop, torch.Tensor):
+                        stop = stop.item()
+                    key = slice(start, stop, step)
                     arr = self.__array[key]
                     gout = list(arr.shape)
                 else:
