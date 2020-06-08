@@ -877,9 +877,9 @@ def outer(a, b, out=None, split=0):
 
     t_a = a._DNDarray__array
     t_b = b._DNDarray__array
-    t_out_dtype = torch.promote_types(t_a.dtype, t_b.dtype)
+    t_outer_dtype = torch.promote_types(t_a.dtype, t_b.dtype)
     outer_gshape = (a.gshape[0], b.gshape[0])
-    outer_dtype = types.canonical_heat_type(t_out_dtype)
+    outer_dtype = types.canonical_heat_type(t_outer_dtype)
 
     if out is not None:
         if not isinstance(out, dndarray.DNDarray):
@@ -901,7 +901,7 @@ def outer(a, b, out=None, split=0):
         rank = a.comm.rank
         size = a.comm.size
         outer_split = split
-        t_out_slice = 2 * [slice(None, None, None)]
+        t_outer_slice = 2 * [slice(None, None, None)]
 
         # Decide whether a or b gets passed around the ranks in ring communication
         # Note: if 'b' is sent around, the outer product is split along the rows dimension (split = 0).
@@ -927,16 +927,16 @@ def outer(a, b, out=None, split=0):
         # calculate local slice of outer product
         if split == 0:
             lshape_map = b.create_lshape_map()
-            t_out_shape = (a.lshape[0], b.gshape[0])
+            t_outer_shape = (a.lshape[0], b.gshape[0])
             _, _, local_slice = b.comm.chunk(b.gshape, b.split)
-            t_out_slice[1] = local_slice[0]
+            t_outer_slice[1] = local_slice[0]
         elif split == 1:
             lshape_map = a.create_lshape_map()
-            t_out_shape = (a.gshape[0], b.lshape[0])
+            t_outer_shape = (a.gshape[0], b.lshape[0])
             _, _, local_slice = a.comm.chunk(a.gshape, a.split)
-            t_out_slice[0] = local_slice[0]
-        t_out = torch.zeros(t_out_shape, dtype=t_out_dtype, device=t_a.device)
-        t_out[t_out_slice] = torch.einsum("i,j->ij", t_a, t_b)
+            t_outer_slice[0] = local_slice[0]
+        t_outer = torch.zeros(t_outer_shape, dtype=t_outer_dtype, device=t_a.device)
+        t_outer[t_outer_slice] = torch.einsum("i,j->ij", t_a, t_b)
 
         # Ring: fill in missing slices of outer product
         for p in range(size - 1):
@@ -950,27 +950,27 @@ def outer(a, b, out=None, split=0):
             # blocking send and recv
             if split == 0:
                 b.comm.Send(t_b, dest_rank)
-                t_b = torch.empty(lshape_map[actual_origin], dtype=t_out_dtype, device=t_a.device)
+                t_b = torch.empty(lshape_map[actual_origin], dtype=t_outer_dtype, device=t_a.device)
                 b.comm.Recv(t_b, origin_rank)
                 _, _, remote_slice = b.comm.chunk(
                     b.gshape, b.split, rank=actual_origin, w_size=size
                 )
-                t_out_slice[1] = remote_slice[0]
+                t_outer_slice[1] = remote_slice[0]
             elif split == 1:
                 a.comm.Send(t_a, dest_rank)
-                t_a = torch.empty(lshape_map[actual_origin], dtype=t_out_dtype, device=t_a.device)
+                t_a = torch.empty(lshape_map[actual_origin], dtype=t_outer_dtype, device=t_a.device)
                 a.comm.Recv(t_a, origin_rank)
                 _, _, remote_slice = a.comm.chunk(
                     a.gshape, a.split, rank=actual_origin, w_size=size
                 )
-                t_out_slice[0] = remote_slice[0]
-            t_out[t_out_slice] = torch.einsum("i,j->ij", t_a, t_b)
+                t_outer_slice[0] = remote_slice[0]
+            t_outer[t_outer_slice] = torch.einsum("i,j->ij", t_a, t_b)
     else:
         # outer product, all local
-        t_out = torch.einsum("i,j->ij", t_a, t_b)
+        t_outer = torch.einsum("i,j->ij", t_a, t_b)
 
     outer = dndarray.DNDarray(
-        t_out, gshape=outer_gshape, dtype=outer_dtype, split=split, device=a.device, comm=a.comm
+        t_outer, gshape=outer_gshape, dtype=outer_dtype, split=split, device=a.device, comm=a.comm
     )
 
     if outer_split is None and outer.split is not None:
