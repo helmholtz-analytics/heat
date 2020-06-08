@@ -127,14 +127,14 @@ def arctan2(x1, x2, out=None):
     """
     # Special Case: integer -> float because torch.atan2() does not work with integer types on version 1.5.0.
     if types.heat_type_is_exact(x1.dtype):
-        if types.can_cast(x1.dtype,types.float32):
+        if types.can_cast(x1.dtype, types.float32):
             x1 = x1.astype(types.float32)
-        elif types.can_cast(x1.dtype,types.float64):
+        elif types.can_cast(x1.dtype, types.float64):
             x1 = x1.astype(types.float64)
         else:
-            raise TypeError('dtype {} cannot be casted to float'.format(x1.dtype))
+            raise TypeError("dtype {} cannot be casted to float".format(x1.dtype))
     if types.heat_type_is_exact(x2.dtype):
-        if types.can_cast(x2.dtype,types.float32):
+        if types.can_cast(x2.dtype, types.float32):
             x2 = x2.astype(types.float32)
         else:
             x2 = x2.astype(types.float64)
