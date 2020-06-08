@@ -865,13 +865,35 @@ def outer(a, b, out=None, split=0):
     --------
 
     """
-    # TODO sanitize input
-    # TODO sanitize shape (1d or flatten)
-    # TODO sanitize output, out.split
+    if not isinstance(a, dndarray.DNDarray) or not isinstance(b, dndarray.DNDarray):
+        raise TypeError(
+            "a, b must be of type ht.DNDarray, but were {}, {}".format(type(a), type(b))
+        )
+
+    if a.ndim != 1 or b.ndim != 1:
+        raise RuntimeError(
+            "a, b must be 1-D DNDarrays, but were {}-D and {}-D".format(a.ndim, b.ndim)
+        )
 
     t_a = a._DNDarray__array
     t_b = b._DNDarray__array
     t_out_dtype = torch.promote_types(t_a.dtype, t_b.dtype)
+    outer_gshape = (a.gshape[0], b.gshape[0])
+    outer_dtype = types.canonical_heat_type(t_out_dtype)
+
+    if out is not None:
+        if not isinstance(out, dndarray.DNDarray):
+            raise TypeError("out must be of type ht.DNDarray, was {}".format(type(out)))
+        if out.dtype is not outer_dtype:
+            raise TypeError(
+                "Wrong datatype for out: expected {}, got {}".format(outer_dtype, out.dtype)
+            )
+        if out.gshape is not outer_gshape:
+            raise ValueError("out must have shape {}, got {}".format(outer_gshape, out.gshape))
+        if out.split is not split:
+            raise ValueError(
+                "Split dimension mismatch for out: expected {}, got {}".format(split, out.split)
+            )
 
     # TODO: determine sparseness of data, if necessary skip steps below
     if a.comm.is_distributed() and a.split is not None or b.split is not None:
@@ -947,13 +969,11 @@ def outer(a, b, out=None, split=0):
         # outer product, all local
         t_out = torch.einsum("i,j->ij", t_a, t_b)
 
-    out_gshape = (a.gshape[0], b.gshape[0])
-    out_dtype = types.canonical_heat_type(t_out_dtype)
     outer = dndarray.DNDarray(
-        t_out, gshape=out_gshape, dtype=out_dtype, split=split, device=a.device, comm=a.comm
+        t_out, gshape=outer_gshape, dtype=outer_dtype, split=split, device=a.device, comm=a.comm
     )
 
-    if outer_split is None:
+    if outer_split is None and outer.split is not None:
         outer.resplit_(axis=outer_split)
 
     if out is not None:
