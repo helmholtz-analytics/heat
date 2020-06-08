@@ -364,27 +364,24 @@ else:
             raise TypeError("path must be str, not {}".format(type(path)))
         if not isinstance(variable, str):
             raise TypeError("variable must be str, not {}".format(type(path)))
-        if dimension_names is not None:
-            if isinstance(dimension_names, str):
-                dimension_names = [dimension_names]
-            if isinstance(dimension_names, tuple):
-                dimension_names = list(dimension_names)
-            if not isinstance(dimension_names, list):
-                raise TypeError(
-                    "dimension_names must be list or tuple or string, not{}".format(
-                        type(dimension_names)
-                    )
-                )
-            if not len(dimension_names) == len(data.shape):
-                raise ValueError(
-                    "{0} names given for {1} dimensions".format(
-                        len(dimension_names), len(data.shape)
-                    )
-                )
-        else:
+        if dimension_names is None:
             dimension_names = [
                 __NETCDF_DIM_TEMPLATE.format(variable, dim) for dim, _ in enumerate(data.shape)
             ]
+        elif isinstance(dimension_names, str):
+            dimension_names = [dimension_names]
+        elif isinstance(dimension_names, tuple):
+            dimension_names = list(dimension_names)
+        elif not isinstance(dimension_names, list):
+            raise TypeError(
+                "dimension_names must be list or tuple or string, not{}".format(
+                    type(dimension_names)
+                )
+            )
+        elif not len(dimension_names) == len(data.shape):
+            raise ValueError(
+                "{0} names given for {1} dimensions".format(len(dimension_names), len(data.shape))
+            )
 
         # we only support a subset of possible modes
         if mode not in __VALID_WRITE_MODES:
@@ -397,7 +394,8 @@ else:
         _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
 
         def __get_expanded_split(shape, expandedShape, split):
-            """Returns the hypothetical split-axis of a dndarray of shape=shape and
+            """
+            Returns the hypothetical split-axis of a dndarray of shape=shape and
             split=split if it was expanded to expandedShape by adding empty dimensions.
 
             Parameters
@@ -417,15 +415,13 @@ else:
             Raises
             -------
             ValueError
-                If the shapes differ in non-empty dimensions.
-
             """
             # Get indices of non-empty dimensions and squeezed shapes
-            ind_nonempty, sq_shape = np.array([[i, v] for i, v in enumerate(shape) if v != 1]).T
-            ex_ind_nonempty, sq_ex = np.array(
-                [[i, v] for i, v in enumerate(expandedShape) if v != 1]
-            ).T
-            if not all(sq_shape == sq_ex):
+            enumerated = [[i, v] for i, v in enumerate(shape) if v != 1]
+            ind_nonempty, sq_shape = list(zip(*enumerated))  # transpose
+            enumerated = [[i, v] for i, v in enumerate(expandedShape) if v != 1]
+            ex_ind_nonempty, sq_ex = list(zip(*enumerated))  # transpose
+            if not sq_shape == sq_ex:
                 raise ValueError(
                     "Shapes %s and %s differ in non-empty dimensions" % (shape, expandedShape)
                 )
@@ -434,7 +430,7 @@ else:
             if split is None:  # not split at all
                 return None
             if split in ind_nonempty:  # split along non-empty dimension
-                split_sq = ind_nonempty.tolist().index(split)  # split-axis in squeezed shape
+                split_sq = ind_nonempty.index(split)  # split-axis in squeezed shape
                 return ex_ind_nonempty[split_sq]
             # split along empty dimension: split doesnt matter, only one process contains data
             # return the last empty dimension (in expanded shape) before (the first nonempty dimension after split)
@@ -450,7 +446,8 @@ else:
             )
 
         def __merge_slices(var, var_slices, data, data_slices=None):
-            """ Using var[var_slices][data_slices] = data
+            """
+            Using var[var_slices][data_slices] = data
             combines a __getitem__ with a __setitem__ call, therefore it does not allow
             parallelization of the write-operation and does not work is var_slices = slice(None)
             (in that casem __getitem__ returns a copy and not a view).
@@ -535,16 +532,16 @@ else:
                     var = handle.createVariable(
                         variable, data.dtype.char(), dimension_names, **kwargs
                     )
-                mergedSlices = __merge_slices(var, file_slices, data)
+                merged_slices = __merge_slices(var, file_slices, data)
                 try:
-                    var[mergedSlices] = (
+                    var[merged_slices] = (
                         data._DNDarray__array.cpu()
                         if is_split
                         else data._DNDarray__array[slices].cpu()
                     )
                 except RuntimeError:
                     var.set_collective(True)
-                    var[mergedSlices] = (
+                    var[merged_slices] = (
                         data._DNDarray__array.cpu()
                         if is_split
                         else data._DNDarray__array[slices].cpu()
@@ -564,8 +561,8 @@ else:
                     )
                 var.set_collective(False)  # not possible with non-parallel netcdf
                 if is_split:
-                    mergedSlices = __merge_slices(var, file_slices, data)
-                    var[mergedSlices] = data._DNDarray__array.cpu()
+                    merged_slices = __merge_slices(var, file_slices, data)
+                    var[merged_slices] = data._DNDarray__array.cpu()
                 else:
                     var[file_slices] = data._DNDarray__array.cpu()
 
@@ -581,8 +578,8 @@ else:
             with nc.Dataset(path, "r+") as handle:
                 var = handle.variables[variable]
                 var.set_collective(False)  # not possible with non-parallel netcdf
-                mergedSlices = __merge_slices(var, file_slices, data)
-                var[mergedSlices] = data._DNDarray__array.cpu()
+                merged_slices = __merge_slices(var, file_slices, data)
+                var[merged_slices] = data._DNDarray__array.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
             next_rank = (data.comm.rank + 1) % data.comm.size
