@@ -187,13 +187,25 @@ class TestTrigonometrics(unittest.TestCase):
         self.assertTrue(torch.allclose(float64_arctan2._DNDarray__array, float64_comparison))
 
         # Rare Special Case with integers
-        int_x = ht.array([-1, +1, +1, -1])
-        int_y = ht.array([-1, -1, +1, +1])
+        int32_x = ht.array([-1, +1, +1, -1])
+        int32_y = ht.array([-1, -1, +1, +1])
 
-        int_comparison = ht.array([-135.0, -45.0, 45.0, 135.0], dtype=ht.float64)
-        int_arctan2 = ht.arctan2(int_y, int_x) * 180 / ht.pi
+        int32_comparison = ht.array([-135.0, -45.0, 45.0, 135.0], dtype=ht.float64)
+        int32_arctan2 = ht.arctan2(int32_y, int32_x) * 180 / ht.pi
 
-        self.assertTrue(ht.allclose(int_arctan2, int_comparison))
+        self.assertIsInstance(int32_arctan2, ht.DNDarray)
+        self.assertEqual(int32_arctan2.dtype, ht.float64)
+        self.assertTrue(ht.allclose(int32_arctan2, int32_comparison))
+
+        int16_x = ht.array([-1, +1, +1, -1], dtype=ht.int16)
+        int16_y = ht.array([-1, -1, +1, +1], dtype=ht.int16)
+
+        int16_comparison = ht.array([-135.0, -45.0, 45.0, 135.0], dtype=ht.float32)
+        int16_arctan2 = ht.arctan2(int16_y, int16_x) * 180 / ht.pi
+
+        self.assertIsInstance(int16_arctan2, ht.DNDarray)
+        self.assertEqual(int16_arctan2.dtype, ht.float32)
+        self.assertTrue(ht.allclose(int16_arctan2, int16_comparison))
 
     def test_arcsin(self):
         # base elements
