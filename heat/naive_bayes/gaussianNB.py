@@ -353,11 +353,17 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                     (classes._DNDarray__array, y_i._DNDarray__array.unsqueeze(0))
                 )
                 i = torch.argsort(classes_ext)[-1].item()
-            where_y_i = ht.where(y == y_i)._DNDarray__array.tolist()
+            where_y_i = ht.where(y == y_i)
+            # print(y_i, 'e', where_y_i.shape)
+            # print("\nSTART")
             X_i = X[where_y_i, :]
+            # print(X_i)
+            # print(X_i.shape)
 
             if sample_weight is not None:
+                # print('sample', sample_weight)
                 sw_i = sample_weight[where_y_i]
+                # print('after sample')
                 if 0 not in sw_i.shape:
                     N_i = sw_i.sum()
                 else:
@@ -376,6 +382,8 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             self.class_count_[i] += N_i
 
         self.sigma_[:, :] += self.epsilon_
+
+        # print(self.theta_)
 
         # Update if only no priors is provided
         if self.priors is None:
@@ -400,7 +408,6 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             n_ij = -0.5 * ht.sum(ht.log(2.0 * ht.pi * self.sigma_[i, :]))
             n_ij -= 0.5 * ht.sum(((X - self.theta_[i, :]) ** 2) / (self.sigma_[i, :]), 1)
             joint_log_likelihood[:, i] = jointi + n_ij
-
         return joint_log_likelihood
 
     def logsumexp(self, a, axis=None, b=None, keepdim=False, return_sign=False):
