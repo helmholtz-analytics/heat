@@ -852,7 +852,16 @@ def outer(a, b, out=None, split=0):
 
     split: int, optional #TODO check out docstring format
             Split dimension of the resulting DNDarray. Can be 0, 1, or None.
+            This is only relevant if the calculations are memory-distributed (see Note)
             Default is split=0.
+
+    Note: parallel implementation of outer product, arrays are dense. #TODO sparse
+    In the classical case, one DNDarray stays put, the other one is passed around the ranks in
+    ring communication. The slice-by-slice outer product is calculated locally via torch.einsum().
+    N.B.: if 'b' is sent around, the resulting outer product is split along the rows dimension (split = 0).
+          if 'a' is sent around, the resulting outer product is split along the columns (split = 1).
+    So if 'split' is not None, 'split' defines which DNDarray stays put and which one is passed around. No
+    communication is needed beyond ring communication of one of the DNDarrays.
 
     Returns
     -------
@@ -895,7 +904,7 @@ def outer(a, b, out=None, split=0):
                 "Split dimension mismatch for out: expected {}, got {}".format(split, out.split)
             )
 
-    # TODO: determine sparseness of data, if necessary skip steps below
+    # distributed outer product (dense, TODO: implement sparse version, #??)
     if a.comm.is_distributed() and a.split is not None or b.split is not None:
         # MPI coordinates
         rank = a.comm.rank
@@ -903,13 +912,8 @@ def outer(a, b, out=None, split=0):
         outer_split = split
         t_outer_slice = 2 * [slice(None, None, None)]
 
-        # Decide whether a or b gets passed around the ranks in ring communication
-        # Note: if 'b' is sent around, the outer product is split along the rows dimension (split = 0).
-        #       if 'a' is sent around, the outer product is split along the columns (split = 1).
-        # So if 'split' is not None, 'split' defines which DNDarray stays put and which one is passed around.
-
+        # Decide whether a or b gets passed around
         if split is None:
-            # If 'a' and 'b' are both distributed, but outer(a,b) should be local:
             # bigger (in bytes) DNDarray stays put, smaller one gets sent around
             # TODO replace with nbytes property when available, #590
             a_nbytes = a._DNDarray__array.storage().element_size() * a.size
