@@ -892,7 +892,7 @@ def reshape(a, shape, axis=None):
         displs = torch.zeros_like(counts)
         argsort = torch.empty_like(mask, dtype=torch.long)
         plz = 0
-        for i in range(len(new_displs) - 1):
+        for i in range(len(displs2) - 1):
             mat = torch.where((mask >= displs2[i]) & (mask < displs2[i + 1]))[0]
             counts[i] = mat.numel()
             argsort[plz : counts[i] + plz] = mat

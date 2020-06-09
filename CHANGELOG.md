@@ -2,6 +2,7 @@
 
 - [#573](https://github.com/helmholtz-analytics/heat/pull/573) Bugfix: matmul fixes: early out for 2 vectors, remainders not added if inner block is 1 for split 10 case
 - [#577](https://github.com/helmholtz-analytics/heat/pull/577) Add ndim property in dndarray
+- [#578](https://github.com/helmholtz-analytics/heat/pull/578) Bugfix: Bad variable in reshape
 - [#580](https://github.com/helmholtz-analytics/heat/pull/580) New feature: fliplr()
 - [#583](https://github.com/helmholtz-analytics/heat/pull/583) New feature: rot90()
 
