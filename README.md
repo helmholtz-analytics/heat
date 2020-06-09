@@ -14,6 +14,7 @@ Project Status
 [![codecov](https://codecov.io/gh/helmholtz-analytics/heat/branch/master/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
+[![Mattermost Chat](https://img.shields.io/badge/chat-on%20mattermost-blue.svg)](https://mattermost-haf.fz-juelich.de/signup_user_complete/?id=iqrr6pmxb38fzqffa51qqhcu8w)
 
 Goals
 -----
