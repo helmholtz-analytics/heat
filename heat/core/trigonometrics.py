@@ -105,21 +105,17 @@ def arctan(x, out=None):
     return local_op(torch.atan, x, out)
 
 
-def arctan2(x1, x2, out=None) -> dndarray.DNDarray:
+def arctan2(x1, x2) -> dndarray.DNDarray:
     """
     Element-wise arc tangent of ``x1/x2`` choosing the quadrant correctly.
     Returns a new ``DNDarray`` with the signed angles in radians between vector (``x2``,``x1``) and vector (1,0)
 
     Parameters
     ----------
-    x1 : DNDarray
+    x1 : :class:DNDarray
          y-coordinates
-    x2 : DNDarray
+    x2 : :class:DNDarray
          x-coordinates. If ``x1.shape != x2.shape``, they must be broadcastable to a common shape (which becomes the shape of the output).
-    out : DNDarray, NOT USED
-          A location into which the result is stored.
-          If provided, it must have a shape that the inputs broadcast to.
-          If not provided or None, a freshly-allocated array is returned.
 
     Example
     -------
@@ -128,17 +124,9 @@ def arctan2(x1, x2, out=None) -> dndarray.DNDarray:
     >>> ht.arctan2(y, x) * 180 / ht.pi
     tensor([-135.0000,  -45.0000,   45.0000,  135.0000], dtype=torch.float64)
     """
-    # Special Case: integer -> float because torch.atan2() does not work with integer types on version 1.5.0.
-    if types.heat_type_is_exact(x1.dtype):
-        if types.can_cast(x1.dtype, types.float32):
-            x1 = x1.astype(types.float32)
-        elif types.can_cast(x1.dtype, types.float64):
-            x1 = x1.astype(types.float64)
-    if types.heat_type_is_exact(x2.dtype):
-        if types.can_cast(x2.dtype, types.float32):
-            x2 = x2.astype(types.float32)
-        else:
-            x2 = x2.astype(types.float64)
+    # Cast integer to float because torch.atan2() only supports integer types on PyTorch 1.5.0.
+    x1 = x1.astype(types.promote_types(x1.dtype, types.float))
+    x2 = x2.astype(types.promote_types(x2.dtype, types.float))
 
     return binary_op(torch.atan2, x1, x2)
 
