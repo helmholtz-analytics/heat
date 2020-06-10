@@ -354,16 +354,10 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                 )
                 i = torch.argsort(classes_ext)[-1].item()
             where_y_i = ht.where(y == y_i)
-            # print(y_i, 'e', where_y_i.shape)
-            # print("\nSTART")
             X_i = X[where_y_i, :]
-            # print(X_i)
-            # print(X_i.shape)
 
             if sample_weight is not None:
-                # print('sample', sample_weight)
                 sw_i = sample_weight[where_y_i]
-                # print('after sample')
                 if 0 not in sw_i.shape:
                     N_i = sw_i.sum()
                 else:
@@ -372,18 +366,14 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             else:
                 sw_i = None
                 N_i = X_i.shape[0]
-
             new_theta, new_sigma = self.__update_mean_variance(
                 self.class_count_[i], self.theta_[i, :], self.sigma_[i, :], X_i, sw_i
             )
-
             self.theta_[i, :] = new_theta
             self.sigma_[i, :] = new_sigma
             self.class_count_[i] += N_i
 
         self.sigma_[:, :] += self.epsilon_
-
-        # print(self.theta_)
 
         # Update if only no priors is provided
         if self.priors is None:
