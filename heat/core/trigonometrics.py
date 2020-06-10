@@ -108,7 +108,7 @@ def arctan(x, out=None):
 def arctan2(x1, x2) -> dndarray.DNDarray:
     """
     Element-wise arc tangent of ``x1/x2`` choosing the quadrant correctly.
-    Returns a new ``DNDarray`` with the signed angles in radians between vector (``x2``,``x1``) and vector (1,0)
+    Returns a new :class:``DNDarray`` with the signed angles in radians between vector (``x2``,``x1``) and vector (1,0)
 
     Parameters
     ----------
