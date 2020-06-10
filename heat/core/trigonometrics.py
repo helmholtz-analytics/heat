@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import torch
 from .constants import pi
 from .operations import __local_op as local_op
 from .operations import __binary_op as binary_op
+from . import dndarray
 from . import types
 
 
@@ -102,7 +105,7 @@ def arctan(x, out=None):
     return local_op(torch.atan, x, out)
 
 
-def arctan2(x1, x2, out=None):
+def arctan2(x1, x2, out=None) -> dndarray.DNDarray:
     """
     Element-wise arc tangent of ``x1/x2`` choosing the quadrant correctly.
     Returns a new ``DNDarray`` with the signed angles in radians between vector (``x2``,``x1``) and vector (1,0)
