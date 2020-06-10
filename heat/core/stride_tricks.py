@@ -160,9 +160,9 @@ def sanitize_shape(shape):
     return shape
 
 
-def sanitize_slice(sl, max_dim):
+def sanitize_slice(sl, max_dim) -> slice:
     """
-    Remove Nonetypes from a slice
+    Remove None-types from a slice
 
     Parameters
     ----------
@@ -170,9 +170,10 @@ def sanitize_slice(sl, max_dim):
     max_dim : int
         maximum index for the given slice
 
-    Returns
-    -------
-
+    Raises
+    ------
+    TypeError
+        if sl is not a slice
     """
     if not isinstance(sl, slice):
         raise TypeError("This function is only for slices!")
