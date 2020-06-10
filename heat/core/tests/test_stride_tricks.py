@@ -78,3 +78,18 @@ class TestStrideTricks(unittest.TestCase):
             ht.core.stride_tricks.sanitize_shape(1.0)
         with self.assertRaises(TypeError):
             ht.core.stride_tricks.sanitize_shape((1, 1.0))
+
+    def test_sanitize_slice(self):
+        test_slice = slice(None, None, None)
+        ret_slice = ht.core.stride_tricks.sanitize_slice(test_slice, 100)
+        self.assertEqual(ret_slice.start, 0)
+        self.assertEqual(ret_slice.stop, 100)
+        self.assertEqual(ret_slice.step, 1)
+        test_slice = slice(-50, -5, 2)
+        ret_slice = ht.core.stride_tricks.sanitize_slice(test_slice, 100)
+        self.assertEqual(ret_slice.start, 50)
+        self.assertEqual(ret_slice.stop, 95)
+        self.assertEqual(ret_slice.step, 2)
+
+        with self.assertRaises(TypeError):
+            ht.core.stride_tricks.sanitize_slice("test_slice", 100)
