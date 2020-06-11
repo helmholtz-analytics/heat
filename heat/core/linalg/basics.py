@@ -870,9 +870,66 @@ def outer(a, b, out=None, split=None):
 
         out[i, j] = a[i] * b[j]
 
-    Examples #TODO
+    Examples
     --------
-
+    >>> a = ht.arange(4)
+    >>> b = ht.arange(3)
+    >>> ht.outer(a, b)
+    (3 processes)
+    (0/3)   tensor([[0, 0, 0],
+                    [0, 1, 2],
+                    [0, 2, 4],
+                    [0, 3, 6]], dtype=torch.int32)
+    (1/3)   tensor([[0, 0, 0],
+                    [0, 1, 2],
+                    [0, 2, 4],
+                    [0, 3, 6]], dtype=torch.int32)
+    (2/3)   tensor([[0, 0, 0],
+                    [0, 1, 2],
+                    [0, 2, 4],
+                    [0, 3, 6]], dtype=torch.int32)
+    >>> a = ht.arange(4, split=0)
+    >>> b = ht.arange(3, split=0)
+    >>> ht.outer(a, b, split=1)
+    (0/3)   tensor([[0],
+                    [0],
+                    [0],
+                    [0]], dtype=torch.int32)
+    (1/3)   tensor([[0],
+                    [1],
+                    [2],
+                    [3]], dtype=torch.int32)
+    (2/3)   tensor([[0],
+                    [2],
+                    [4],
+                    [6]], dtype=torch.int32)
+    >>> a = ht.arange(4)
+    >>> b = ht.arange(3, split=0)
+    >>> ht.outer(a, b, split=0)
+    (0/3)   tensor([[0, 0, 0],
+                    [0, 1, 2]], dtype=torch.int32)
+    (1/3)   tensor([[0, 2, 4]], dtype=torch.int32)
+    (2/3)   tensor([[0, 3, 6]], dtype=torch.int32)
+    >>> a = ht.arange(5, dtype=ht.float32, split=0)
+    >>> b = ht.arange(4, dtype=ht.float64, split=0)
+    >>> out = ht.empty((5,4), dtype=ht.float64, split=1)
+    >>> ht.outer(a, b, split=1, out=out)
+    >>> out
+    (0/3)   tensor([[0., 0.],
+                    [0., 1.],
+                    [0., 2.],
+                    [0., 3.],
+                    [0., 4.]], dtype=torch.float64)
+    (1/3)   tensor([[0.],
+                    [2.],
+                    [4.],
+                    [6.],
+                    [8.]], dtype=torch.float64)
+    (2/3)   tensor([[ 0.],
+                    [ 3.],
+                    [ 6.],
+                    [ 9.],
+                    [12.]], dtype=torch.float64)
     """
     if not isinstance(a, dndarray.DNDarray) or not isinstance(b, dndarray.DNDarray):
         raise TypeError(
@@ -907,7 +964,7 @@ def outer(a, b, out=None, split=None):
             )
 
     # distributed outer product (dense, TODO: implement sparse version, #??)
-    if a.comm.is_distributed() and a.split is not None or b.split is not None:
+    if a.comm.is_distributed() and split is not None or a.split is not None or b.split is not None:
         # MPI coordinates
         rank = a.comm.rank
         size = a.comm.size
@@ -924,12 +981,12 @@ def outer(a, b, out=None, split=None):
             else:
                 split = 1
 
-        if split == 0 and b.split is None:
-            b.resplit_(axis=0)
-            t_b = b._DNDarray__array.type(t_outer_dtype)
-        elif split == 1 and a.split is None:
+        if a.split is None:
             a.resplit_(axis=0)
             t_a = a._DNDarray__array.type(t_outer_dtype)
+        if b.split is None:
+            b.resplit_(axis=0)
+            t_b = b._DNDarray__array.type(t_outer_dtype)
 
         # calculate local slice of outer product
         if split == 0:
