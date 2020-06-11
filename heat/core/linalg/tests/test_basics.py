@@ -516,8 +516,6 @@ class TestLinalgBasics(unittest.TestCase):
 
         # a not distributed, outer.split = 1
         ht_outer_split = ht.outer(a, b_split, split=1)
-        print("DEBUGGING: ht_outer_split = ", ht_outer_split)
-        print("DEBUGGING: np_outer = ", np_outer)
         self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 1)
 
