@@ -827,7 +827,7 @@ def norm(a):
     return exponential.sqrt(d).item()
 
 
-def outer(a, b, out=None, split=0):
+def outer(a, b, out=None, split=None):
     """
     Compute the outer product of two 1-D DNDarrays.
 
@@ -842,10 +842,10 @@ def outer(a, b, out=None, split=0):
     ----------
 
     a(M,): DNDarray
-            First input DNDarray. Input is flattened if not already 1-dimensional.
+            First input DNDarray. Must be 1-dimensional.
 
     b(N,): DNDarray
-            Second input DNDarray. Input is flattened if not already 1-dimensional.
+            Second input DNDarray. Must be 1-dimensional.
 
     out(M, N): DNDarray, optional
             A location where the result is stored
@@ -884,10 +884,12 @@ def outer(a, b, out=None, split=0):
             "a, b must be 1-D DNDarrays, but were {}-D and {}-D".format(a.ndim, b.ndim)
         )
 
+    outer_gshape = (a.gshape[0], b.gshape[0])
+    outer_split = split
     t_a = a._DNDarray__array
     t_b = b._DNDarray__array
     t_outer_dtype = torch.promote_types(t_a.dtype, t_b.dtype)
-    outer_gshape = (a.gshape[0], b.gshape[0])
+    t_a, t_b = t_a.type(t_outer_dtype), t_b.type(t_outer_dtype)
     outer_dtype = types.canonical_heat_type(t_outer_dtype)
 
     if out is not None:
@@ -897,7 +899,7 @@ def outer(a, b, out=None, split=0):
             raise TypeError(
                 "Wrong datatype for out: expected {}, got {}".format(outer_dtype, out.dtype)
             )
-        if out.gshape is not outer_gshape:
+        if out.gshape != outer_gshape:
             raise ValueError("out must have shape {}, got {}".format(outer_gshape, out.gshape))
         if out.split is not split:
             raise ValueError(
@@ -909,10 +911,9 @@ def outer(a, b, out=None, split=0):
         # MPI coordinates
         rank = a.comm.rank
         size = a.comm.size
-        outer_split = split
         t_outer_slice = 2 * [slice(None, None, None)]
 
-        # Decide whether a or b gets passed around
+        # Decide which between a or b gets passed around
         if split is None:
             # bigger (in bytes) DNDarray stays put, smaller one gets sent around
             # TODO replace with nbytes property when available, #590
@@ -925,8 +926,10 @@ def outer(a, b, out=None, split=0):
 
         if split == 0 and b.split is None:
             b.resplit_(axis=0)
+            t_b = b._DNDarray__array.type(t_outer_dtype)
         elif split == 1 and a.split is None:
             a.resplit_(axis=0)
+            t_a = a._DNDarray__array.type(t_outer_dtype)
 
         # calculate local slice of outer product
         if split == 0:
@@ -940,7 +943,8 @@ def outer(a, b, out=None, split=0):
             _, _, local_slice = a.comm.chunk(a.gshape, a.split)
             t_outer_slice[0] = local_slice[0]
         t_outer = torch.zeros(t_outer_shape, dtype=t_outer_dtype, device=t_a.device)
-        t_outer[t_outer_slice] = torch.einsum("i,j->ij", t_a, t_b)
+        if lshape_map[rank] != 0:
+            t_outer[t_outer_slice] = torch.einsum("i,j->ij", t_a, t_b)
 
         # Ring: fill in missing slices of outer product
         for p in range(size - 1):
@@ -972,12 +976,13 @@ def outer(a, b, out=None, split=0):
     else:
         # outer product, all local
         t_outer = torch.einsum("i,j->ij", t_a, t_b)
+        split = None
 
     outer = dndarray.DNDarray(
         t_outer, gshape=outer_gshape, dtype=outer_dtype, split=split, device=a.device, comm=a.comm
     )
 
-    if outer_split is None and outer.split is not None:
+    if outer.split is not outer_split:
         outer.resplit_(axis=outer_split)
 
     if out is not None:
