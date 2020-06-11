@@ -542,6 +542,20 @@ class TestLinalgBasics(unittest.TestCase):
         a_2d = ht.random.randn(2, 2)
         with self.assertRaises(RuntimeError):
             ht.outer(a_2d, b)
+        t_out = torch.empty((a.gshape[0], b.gshape[0]), dtype=torch.float32)
+        with self.assertRaises(TypeError):
+            ht.outer(a, b, out=t_out)
+        ht_out_wrong_dtype = ht.empty((a.gshape[0], b.gshape[0]), dtype=ht.float64)
+        with self.assertRaises(TypeError):
+            ht.outer(a, b, out=ht_out_wrong_dtype)
+        ht_out_wrong_shape = ht.empty((7, b.gshape[0]), dtype=ht.float32)
+        with self.assertRaises(ValueError):
+            ht.outer(a, b, out=ht_out_wrong_shape)
+        ht_out_wrong_split = ht.empty(
+            (a_split.gshape[0], b_split.gshape[0]), dtype=ht.float32, split=1
+        )
+        with self.assertRaises(ValueError):
+            ht.outer(a_split, b_split, out=ht_out_wrong_split, split=0)
 
     def test_projection(self):
         a = ht.arange(1, 4, dtype=ht.float32, split=None)
