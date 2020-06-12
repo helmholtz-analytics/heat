@@ -524,6 +524,13 @@ class TestLinalgBasics(unittest.TestCase):
         self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 0)
 
+        # a_split.ndim > 1 and a.split != 0
+        a_split_3d = ht.random.randn(3, 3, 3, dtype=ht.float64, split=2)
+        ht_outer_split = ht.outer(a_split_3d, b_split)
+        np_outer_3d = np.outer(a_split_3d.numpy(), b_split.numpy())
+        self.assertTrue((ht_outer_split.numpy() == np_outer_3d).all())
+        self.assertTrue(ht_outer_split.split == 0)
+
         # write to out buffer
         ht_out = ht.empty((a.gshape[0], b.gshape[0]), dtype=ht.float32)
         ht.outer(a, b, out=ht_out)
@@ -539,9 +546,9 @@ class TestLinalgBasics(unittest.TestCase):
         np_b = np.arange(8)
         with self.assertRaises(TypeError):
             ht.outer(a, np_b)
-        a_2d = ht.random.randn(2, 2)
+        a_0d = ht.array(2.3)
         with self.assertRaises(RuntimeError):
-            ht.outer(a_2d, b)
+            ht.outer(a_0d, b)
         t_out = torch.empty((a.gshape[0], b.gshape[0]), dtype=torch.float32)
         with self.assertRaises(TypeError):
             ht.outer(a, b, out=t_out)

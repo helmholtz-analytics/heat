@@ -852,8 +852,8 @@ def outer(a, b, out=None, split=None):
 
     split: int, optional #TODO check out docstring format
             Split dimension of the resulting DNDarray. Can be 0, 1, or None.
-            This is only relevant if the calculations are memory-distributed (see Note)
-            Default is split=None, i.e. result will reside on each rank.
+            This is only relevant if the calculations are memory-distributed,
+            default is split=0 (see Note).
 
     Note: parallel implementation of outer product, arrays are dense. #TODO sparse
         In the classical (dense) case, one DNDarray stays put, the other one is passed around the ranks in
@@ -931,12 +931,19 @@ def outer(a, b, out=None, split=None):
                     [ 9.],
                     [12.]], dtype=torch.float64)
     """
+    # sanitize input
     if not isinstance(a, dndarray.DNDarray) or not isinstance(b, dndarray.DNDarray):
         raise TypeError(
             "a, b must be of type ht.DNDarray, but were {}, {}".format(type(a), type(b))
         )
 
-    if a.ndim != 1 or b.ndim != 1:
+    # sanitize dimensions
+    # TODO move to sanitation module #468
+    if a.ndim > 1:
+        a = manipulations.flatten(a)
+    if b.ndim > 1:
+        b = manipulations.flatten(b)
+    if a.ndim == 0 or b.ndim == 0:
         raise RuntimeError(
             "a, b must be 1-D DNDarrays, but were {}-D and {}-D".format(a.ndim, b.ndim)
         )
