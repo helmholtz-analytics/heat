@@ -2,8 +2,8 @@ import sys
 import os
 
 # Fix python Path if run from terminal
-curdir = os.path.dirname(os.path.abspath(__file__)) 
-sys.path.insert(0, os.path.abspath(os.path.join(curdir, '../../'))) 
+curdir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(curdir, "../../")))
 
 import heat as ht
 from heat.classification.knn import KNN
@@ -130,5 +130,5 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
         accuracies.append(calculate_accuracy(result_y, verification_y))
     return accuracies
 
-print(verify_algorithm(X, Y, 5, 30, 5))
 
+print(verify_algorithm(X, Y, 5, 30, 5))
