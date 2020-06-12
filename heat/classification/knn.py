@@ -3,13 +3,18 @@ import heat as ht
 
 class KNN(ht.ClassificationMixin, ht.BaseEstimator):
     """
-    HeAT implementation of the K-Nearest-Neighbours Algorithm
+    HeAT implementation of the K-Nearest-Neighbours Algorithm.
+
+    This algorithm predicts labels to data vectors by using an already labeled training dataset as reference.
+    The input vector to be predicted is compared to the training vectors by calculating the distance.
+    We use the euclidean distance, this can be expanded to other distance functions as well.
+    Then a majority vote of the k nearest (smallest distances) training vectors labels is chosen as prediction.
 
     Parameters
     ----------
     x : ht.DNDarray
         array of shape (n_samples,), required
-        The Training samples
+        The Training vectors
     y : ht.DNDarray
         array of shape (n_samples,), required
         Labels for the training set
@@ -27,20 +32,16 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         self.x = X
         self.y = Y
 
-    def predict(self, X):
+    def predict(self, X) -> ht.dndarray:
         """
         Parameters
         ----------
         X : ht.DNDarray
             Input data to be predicted
-        Returns
-        -------
-        labels : ht.DNDarray
-            The predicted classes
         """
 
         distances = ht.spatial.cdist(X, self.x)
-        _ , indices = ht.topk(distances, self.num_neighbours, largest=False)
+        _, indices = ht.topk(distances, self.num_neighbours, largest=False)
 
         labels = self.y[indices._DNDarray__array]
         uniques = ht.unique(labels, sorted=True)
@@ -48,4 +49,3 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         labels = ht.expand_dims(labels, axis=2)
 
         return ht.argmax(ht.sum(labels == uniques, axis=1), axis=1)
-
