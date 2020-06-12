@@ -6,7 +6,7 @@ curdir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(curdir, '../../'))) 
 
 import heat as ht
-from heat.classification.kNN import KNN
+from heat.classification.knn import KNN
 
 # Load Dataset from hdf5 file
 X = ht.load_hdf5("../../heat/datasets/data/iris.h5", dataset="data", split=0)
