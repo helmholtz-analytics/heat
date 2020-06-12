@@ -767,6 +767,43 @@ class TestManipulations(BasicTest):
         with self.assertRaises(ValueError):
             ht.empty((3, 4, 5), device=ht_device).expand_dims(-5)
 
+    def test_flatten(self):
+        a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]], device=ht_device)
+        res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], device=ht_device, dtype=a.dtype)
+        self.assertTrue(ht.equal(ht.flatten(a), res))
+        self.assertEqual(a.dtype, res.dtype)
+        self.assertEqual(a.device, res.device)
+
+        a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]], split=0, device=ht_device, dtype=ht.int8)
+        res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], split=0, device=ht_device, dtype=ht.int8)
+        self.assertTrue(ht.equal(ht.flatten(a), res))
+        self.assertEqual(a.dtype, res.dtype)
+        self.assertEqual(a.device, res.device)
+
+        a = ht.array(
+            [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]], split=1, device=ht_device
+        )
+        res = ht.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], split=0, device=ht_device)
+        self.assertTrue(ht.equal(ht.flatten(a), res))
+        self.assertEqual(a.dtype, res.dtype)
+        self.assertEqual(a.device, res.device)
+
+        a = ht.array(
+            [[[False, False], [False, True]], [[True, False], [True, True]]],
+            split=2,
+            device=ht_device,
+            dtype=ht.bool,
+        )
+        res = ht.array(
+            [False, False, False, True, True, False, True, True],
+            split=0,
+            device=ht_device,
+            dtype=a.dtype,
+        )
+        self.assertTrue(ht.equal(ht.flatten(a), res))
+        self.assertEqual(a.dtype, res.dtype)
+        self.assertEqual(a.device, res.device)
+
     def test_flip(self):
         a = ht.array([1, 2], device=ht_device)
         r_a = ht.array([2, 1], device=ht_device)
@@ -789,6 +826,45 @@ class TestManipulations(BasicTest):
             [[[3, 2], [1, 0]], [[7, 6], [5, 4]]], split=0, dtype=ht.uint8, device=ht_device
         )
         self.assertTrue(ht.equal(ht.flip(a, [1, 2]), r_a))
+
+    def test_fliplr(self):
+        b = ht.array([[1, 2], [3, 4]], device=ht_device)
+        r_b = ht.array([[2, 1], [4, 3]], device=ht_device)
+        self.assertTrue(ht.equal(ht.fliplr(b), r_b))
+
+        # splitted
+        c = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]],
+            split=0,
+            device=ht_device,
+        )
+        r_c = ht.array(
+            [[[2, 3], [0, 1]], [[6, 7], [4, 5]], [[10, 11], [8, 9]], [[14, 15], [12, 13]]],
+            split=0,
+            device=ht_device,
+        )
+        self.assertTrue(ht.equal(ht.fliplr(c), r_c))
+
+        c = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]],
+            split=1,
+            device=ht_device,
+            dtype=ht.float32,
+        )
+        self.assertTrue(ht.equal(ht.resplit(ht.fliplr(c), 0), r_c))
+
+        c = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]],
+            split=2,
+            device=ht_device,
+            dtype=ht.int8,
+        )
+        self.assertTrue(ht.equal(ht.resplit(ht.fliplr(c), 0), r_c))
+
+        # test exception
+        a = ht.arange(10, device=ht_device)
+        with self.assertRaises(IndexError):
+            ht.fliplr(a)
 
     def test_flipud(self):
         a = ht.array([1, 2], device=ht_device)
@@ -877,6 +953,110 @@ class TestManipulations(BasicTest):
         b = ht.ones((12,), split=0, device=ht_device)
         res = ht.hstack((a, b))
         self.assertEqual(res.shape, (24,))
+
+    def test_reshape(self):
+        # split = None
+        a = ht.zeros((3, 4), device=ht_device)
+        result = ht.zeros((2, 6), device=ht_device)
+        reshaped = ht.reshape(a, (2, 6))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        # 1-dim distributed vector
+        a = ht.arange(8, dtype=ht.float64, split=0, device=ht_device)
+        result = ht.array(
+            [[[0, 1], [2, 3]], [[4, 5], [6, 7]]], dtype=ht.float64, split=0, device=ht_device
+        )
+        reshaped = ht.reshape(a, (2, 2, 2))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.linspace(0, 14, 8, split=0, device=ht_device)
+        result = ht.array(
+            [[0, 2, 4, 6], [8, 10, 12, 14]], dtype=ht.float32, split=0, device=ht_device
+        )
+        reshaped = ht.reshape(a, (2, 4))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.zeros((4, 3), dtype=ht.int32, split=0, device=ht_device)
+        result = ht.zeros((3, 4), dtype=ht.int32, split=0, device=ht_device)
+        reshaped = ht.reshape(a, (3, 4))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.arange(16, split=0, device=ht_device)
+        result = ht.array([[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15]])
+        reshaped = a.reshape((4, 4))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = reshaped
+        result = ht.array(
+            [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15]], split=0, device=ht_device
+        )
+        reshaped = a.reshape((2, 8))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(3 * 4 * 5).reshape((3, 4, 5)), split=1)
+        result = ht.array(torch.arange(4 * 5 * 3).reshape((4, 5, 3)), split=1)
+        reshaped = a.reshape((4, 5, 3))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(6 * 4 * 8).reshape([6, 4, 8]), split=2)
+        result = ht.array(torch.arange(4 * 12 * 4).reshape([4, 12, 4]), split=2)
+        reshaped = ht.reshape(a, [4, 12, 4])
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=2)
+        result = ht.array(torch.arange(4 * 5 * 3).reshape([4, 5, 3]), split=1)
+        reshaped = ht.reshape(a, [4, 5, 3], axis=1)
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertEqual(reshaped.split, 1)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=1)
+        result = ht.array(torch.arange(4 * 5 * 3).reshape([4 * 5, 3]), split=0)
+        reshaped = ht.reshape(a, [4 * 5, 3], axis=0)
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertEqual(reshaped.split, 0)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=0)
+        result = ht.array(torch.arange(4 * 5 * 3).reshape([4, 5 * 3]), split=1)
+        reshaped = ht.reshape(a, [4, 5 * 3], axis=1)
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertEqual(reshaped.split, 1)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            ht.reshape(ht.zeros((4, 3)), (5, 7))
+        with self.assertRaises(TypeError):
+            ht.reshape("ht.zeros((4, 3)), (5, 7)", (2, 3))
+        with self.assertRaises(TypeError):
+            ht.reshape(ht.zeros((4, 3)), "(5, 7)")
 
     def test_sort(self):
         size = ht.MPI_WORLD.size
@@ -988,6 +1168,7 @@ class TestManipulations(BasicTest):
             ht.sort(data, axis="1")
 
         rank = ht.MPI_WORLD.rank
+        ht.random.seed(1)
         data = ht.random.randn(100, 1, split=0, device=ht_device)
         result, _ = ht.sort(data, axis=0)
         counts, _, _ = ht.get_comm().counts_displs_shape(data.gshape, axis=0)
@@ -999,156 +1180,6 @@ class TestManipulations(BasicTest):
                             result._DNDarray__array[idx], result._DNDarray__array[idx + 1]
                         ).all()
                     )
-
-    def test_squeeze(self):
-        torch.manual_seed(1)
-        data = ht.random.randn(1, 4, 5, 1, device=ht_device)
-
-        # 4D local tensor, no axis
-        result = ht.squeeze(data)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
-        self.assertEqual(result.shape, (4, 5))
-        self.assertEqual(result.lshape, (4, 5))
-        self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze()).all())
-
-        # 4D local tensor, major axis
-        result = ht.squeeze(data, axis=0)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
-        self.assertEqual(result.shape, (4, 5, 1))
-        self.assertEqual(result.lshape, (4, 5, 1))
-        self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze(0)).all())
-
-        # 4D local tensor, minor axis
-        result = ht.squeeze(data, axis=-1)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
-        self.assertEqual(result.shape, (1, 4, 5))
-        self.assertEqual(result.lshape, (1, 4, 5))
-        self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze(-1)).all())
-
-        # 4D local tensor, tuple axis
-        result = data.squeeze(axis=(0, -1))
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
-        self.assertEqual(result.shape, (4, 5))
-        self.assertEqual(result.lshape, (4, 5))
-        self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze()).all())
-
-        # 4D split tensor, along the axis
-        # TODO: reinstate this test of uneven dimensions distribution
-        # after update to Allgatherv implementation (Issue  #273 depending on #233)
-        # data = ht.array(ht.random.randn(1, 4, 5, 1), split=1)
-        # result = ht.squeeze(data, axis=-1)
-        # self.assertIsInstance(result, ht.DNDarray)
-        # # TODO: the following works locally but not when distributed,
-        # #self.assertEqual(result.dtype, ht.float32)
-        # #self.assertEqual(result._DNDarray__array.dtype, torch.float32)
-        # self.assertEqual(result.shape, (1, 12, 5))
-        # self.assertEqual(result.lshape, (1, 12, 5))
-        # self.assertEqual(result.split, 1)
-
-        # 3D split tensor, across the axis
-        size = ht.MPI_WORLD.size * 2
-        data = ht.triu(ht.ones((1, size, size), split=1, device=ht_device), k=1)
-
-        result = ht.squeeze(data, axis=0)
-        self.assertIsInstance(result, ht.DNDarray)
-        # TODO: the following works locally but not when distributed,
-        # self.assertEqual(result.dtype, ht.float32)
-        # self.assertEqual(result._DNDarray__array.dtype, torch.float32)
-        self.assertEqual(result.shape, (size, size))
-        self.assertEqual(result.lshape, (size, size))
-        # self.assertEqual(result.split, None)
-
-        # check exceptions
-        with self.assertRaises(ValueError):
-            data.squeeze(axis=(0, 1))
-        with self.assertRaises(TypeError):
-            data.squeeze(axis=1.1)
-        with self.assertRaises(TypeError):
-            data.squeeze(axis="y")
-        with self.assertRaises(ValueError):
-            ht.argmin(data, axis=-4)
-
-    def test_unique(self):
-        size = ht.MPI_WORLD.size
-        rank = ht.MPI_WORLD.rank
-        torch_array = torch.arange(size, dtype=torch.int32, device=device).expand(size, size)
-        split_zero = ht.array(torch_array, split=0, device=ht_device)
-
-        exp_axis_none = ht.array([rank], dtype=ht.int32, device=ht_device)
-        res = split_zero.unique(sorted=True)
-        self.assertTrue((res._DNDarray__array == exp_axis_none._DNDarray__array).all())
-
-        exp_axis_zero = ht.arange(size, dtype=ht.int32, device=ht_device).expand_dims(0)
-        res = ht.unique(split_zero, sorted=True, axis=0)
-        self.assertTrue((res._DNDarray__array == exp_axis_zero._DNDarray__array).all())
-
-        exp_axis_one = ht.array([rank], dtype=ht.int32, device=ht_device).expand_dims(0)
-        split_zero_transposed = ht.array(torch_array.transpose(0, 1), split=0, device=ht_device)
-        res = ht.unique(split_zero_transposed, sorted=False, axis=1)
-        self.assertTrue((res._DNDarray__array == exp_axis_one._DNDarray__array).all())
-
-        split_one = ht.array(torch_array, dtype=ht.int32, split=1, device=ht_device)
-
-        exp_axis_none = ht.arange(size, dtype=ht.int32, device=ht_device)
-        res = ht.unique(split_one, sorted=True)
-        self.assertTrue((res._DNDarray__array == exp_axis_none._DNDarray__array).all())
-
-        exp_axis_zero = ht.array([rank], dtype=ht.int32, device=ht_device).expand_dims(0)
-        res = ht.unique(split_one, sorted=False, axis=0)
-        self.assertTrue((res._DNDarray__array == exp_axis_zero._DNDarray__array).all())
-
-        exp_axis_one = ht.array([rank] * size, dtype=ht.int32, device=ht_device).expand_dims(1)
-        res = ht.unique(split_one, sorted=True, axis=1)
-        self.assertTrue((res._DNDarray__array == exp_axis_one._DNDarray__array).all())
-
-        torch_array = torch.tensor(
-            [[1, 2], [2, 3], [1, 2], [2, 3], [1, 2]], dtype=torch.int32, device=device
-        )
-        data = ht.array(torch_array, split=0, device=ht_device)
-
-        res, inv = ht.unique(data, return_inverse=True, axis=0)
-        _, exp_inv = torch_array.unique(dim=0, return_inverse=True, sorted=True)
-        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
-
-        res, inv = ht.unique(data, return_inverse=True, axis=1)
-        _, exp_inv = torch_array.unique(dim=1, return_inverse=True, sorted=True)
-        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
-
-        torch_array = torch.tensor(
-            [[1, 1, 2], [1, 2, 2], [2, 1, 2], [1, 3, 2], [0, 1, 2]],
-            dtype=torch.int32,
-            device=device,
-        )
-        exp_res, exp_inv = torch_array.unique(return_inverse=True, sorted=True)
-
-        data_split_none = ht.array(torch_array, device=ht_device)
-        res = ht.unique(data_split_none, sorted=True)
-        self.assertIsInstance(res, ht.DNDarray)
-        self.assertEqual(res.split, None)
-        self.assertEqual(res.dtype, data_split_none.dtype)
-        self.assertEqual(res.device, data_split_none.device)
-        res, inv = ht.unique(data_split_none, return_inverse=True, sorted=True)
-        self.assertIsInstance(inv, ht.DNDarray)
-        self.assertEqual(inv.split, None)
-        self.assertEqual(inv.dtype, data_split_none.dtype)
-        self.assertEqual(inv.device, data_split_none.device)
-        self.assertTrue(torch.equal(inv._DNDarray__array, exp_inv.int()))
-
-        data_split_zero = ht.array(torch_array, split=0, device=ht_device)
-        res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
-        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
 
     def test_resplit(self):
         if ht.MPI_WORLD.size > 1:
@@ -1271,6 +1302,169 @@ class TestManipulations(BasicTest):
                             del a
                             del resplit_a
 
+    def test_squeeze(self):
+        torch.manual_seed(1)
+        data = ht.random.randn(1, 4, 5, 1, device=ht_device)
+
+        # 4D local tensor, no axis
+        result = ht.squeeze(data)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.shape, (4, 5))
+        self.assertEqual(result.lshape, (4, 5))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze()).all())
+
+        # 4D local tensor, major axis
+        result = ht.squeeze(data, axis=0)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.shape, (4, 5, 1))
+        self.assertEqual(result.lshape, (4, 5, 1))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze(0)).all())
+
+        # 4D local tensor, minor axis
+        result = ht.squeeze(data, axis=-1)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.shape, (1, 4, 5))
+        self.assertEqual(result.lshape, (1, 4, 5))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze(-1)).all())
+
+        # 4D local tensor, tuple axis
+        result = data.squeeze(axis=(0, -1))
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.shape, (4, 5))
+        self.assertEqual(result.lshape, (4, 5))
+        self.assertEqual(result.split, None)
+        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze()).all())
+
+        # 4D split tensor, along the axis
+        data = ht.array(ht.random.randn(1, 4, 5, 1), split=1)
+        result = ht.squeeze(data, axis=-1)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.shape, (1, 4, 5))
+        self.assertEqual(result.split, 1)
+
+        # 4D split tensor, axis = split
+        data = ht.array(ht.random.randn(3, 1, 5, 6), split=1)
+        result = ht.squeeze(data, axis=1)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.shape, (3, 5, 6))
+        self.assertEqual(result.split, None)
+
+        # 4D split tensor, axis = split = last dimension
+        data = ht.array(ht.random.randn(3, 6, 5, 1), split=-1)
+        result = ht.squeeze(data, axis=-1)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.shape, (3, 6, 5))
+        self.assertEqual(result.split, None)
+
+        # 3D split tensor, across the axis
+        size = ht.MPI_WORLD.size
+        data = ht.triu(ht.ones((1, size * 2, size), split=1, device=ht_device), k=1)
+
+        result = ht.squeeze(data, axis=0)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.dtype, ht.float32)
+        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.shape, (size * 2, size))
+        self.assertEqual(result.lshape, (2, size))
+        self.assertEqual(result.split, 0)
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            data.squeeze(axis=1.1)
+        with self.assertRaises(TypeError):
+            data.squeeze(axis="y")
+        with self.assertRaises(ValueError):
+            ht.squeeze(data, axis=-4)
+        with self.assertRaises(ValueError):
+            ht.squeeze(data, axis=1)
+
+    def test_unique(self):
+        size = ht.MPI_WORLD.size
+        rank = ht.MPI_WORLD.rank
+        torch_array = torch.arange(size, dtype=torch.int32, device=device).expand(size, size)
+        split_zero = ht.array(torch_array, split=0, device=ht_device)
+
+        exp_axis_none = ht.array([rank], dtype=ht.int32, device=ht_device)
+        res = split_zero.unique(sorted=True)
+        self.assertTrue((res._DNDarray__array == exp_axis_none._DNDarray__array).all())
+
+        exp_axis_zero = ht.arange(size, dtype=ht.int32, device=ht_device).expand_dims(0)
+        res = ht.unique(split_zero, sorted=True, axis=0)
+        self.assertTrue((res._DNDarray__array == exp_axis_zero._DNDarray__array).all())
+
+        exp_axis_one = ht.array([rank], dtype=ht.int32, device=ht_device).expand_dims(0)
+        split_zero_transposed = ht.array(torch_array.transpose(0, 1), split=0, device=ht_device)
+        res = ht.unique(split_zero_transposed, sorted=False, axis=1)
+        self.assertTrue((res._DNDarray__array == exp_axis_one._DNDarray__array).all())
+
+        split_one = ht.array(torch_array, dtype=ht.int32, split=1, device=ht_device)
+
+        exp_axis_none = ht.arange(size, dtype=ht.int32, device=ht_device)
+        res = ht.unique(split_one, sorted=True)
+        self.assertTrue((res._DNDarray__array == exp_axis_none._DNDarray__array).all())
+
+        exp_axis_zero = ht.array([rank], dtype=ht.int32, device=ht_device).expand_dims(0)
+        res = ht.unique(split_one, sorted=False, axis=0)
+        self.assertTrue((res._DNDarray__array == exp_axis_zero._DNDarray__array).all())
+
+        exp_axis_one = ht.array([rank] * size, dtype=ht.int32, device=ht_device).expand_dims(1)
+        res = ht.unique(split_one, sorted=True, axis=1)
+        self.assertTrue((res._DNDarray__array == exp_axis_one._DNDarray__array).all())
+
+        torch_array = torch.tensor(
+            [[1, 2], [2, 3], [1, 2], [2, 3], [1, 2]], dtype=torch.int32, device=device
+        )
+        data = ht.array(torch_array, split=0, device=ht_device)
+
+        res, inv = ht.unique(data, return_inverse=True, axis=0)
+        _, exp_inv = torch_array.unique(dim=0, return_inverse=True, sorted=True)
+        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+
+        res, inv = ht.unique(data, return_inverse=True, axis=1)
+        _, exp_inv = torch_array.unique(dim=1, return_inverse=True, sorted=True)
+        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+
+        torch_array = torch.tensor(
+            [[1, 1, 2], [1, 2, 2], [2, 1, 2], [1, 3, 2], [0, 1, 2]],
+            dtype=torch.int32,
+            device=device,
+        )
+        exp_res, exp_inv = torch_array.unique(return_inverse=True, sorted=True)
+
+        data_split_none = ht.array(torch_array, device=ht_device)
+        res = ht.unique(data_split_none, sorted=True)
+        self.assertIsInstance(res, ht.DNDarray)
+        self.assertEqual(res.split, None)
+        self.assertEqual(res.dtype, data_split_none.dtype)
+        self.assertEqual(res.device, data_split_none.device)
+        res, inv = ht.unique(data_split_none, return_inverse=True, sorted=True)
+        self.assertIsInstance(inv, ht.DNDarray)
+        self.assertEqual(inv.split, None)
+        self.assertEqual(inv.dtype, data_split_none.dtype)
+        self.assertEqual(inv.device, data_split_none.device)
+        self.assertTrue(torch.equal(inv._DNDarray__array, exp_inv.int()))
+
+        data_split_zero = ht.array(torch_array, split=0, device=ht_device)
+        res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
+        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+
     def test_vstack(self):
         # cases to test:
         # MM===================================
@@ -1320,3 +1514,20 @@ class TestManipulations(BasicTest):
         b = ht.ones((12,), split=0, device=ht_device)
         res = ht.vstack((a, b))
         self.assertEqual(res.shape, (2, 12))
+
+    def test_topk(self):
+        size = ht.MPI_WORLD.size
+        rank = ht.MPI_WORLD.rank
+
+        torch_array = torch.arange(size, dtype=torch.int32, device=device).expand(size, size)
+        split_zero = ht.array(torch_array, split=0, device=ht_device)
+        split_one = ht.array(torch_array, split=1, device=ht_device)
+        res, indcs = ht.topk(split_zero, 2, sorted=True)
+        exp_zero = ht.array([[size - 1, size -2] for i in range(size)], dtype=ht.int32, device=ht_device)
+        self.assertTrue((res._DNDarray__array == exp_zero._DNDarray__array).all())
+        self.assertTrue((indcs._DNDarray__array == exp_zero._DNDarray__array).all())
+
+        res, indcs = ht.topk(split_one, 2, sorted=True)
+        exp_one = ht.array([size - 1, size - 2], dtype=ht.int32, device=ht_device).expand_dims(1)
+        self.assertTrue((res._DNDarray__array == exp_one._DNDarray__array).all())
+        self.assertTrue((indcs == exp_one).all())

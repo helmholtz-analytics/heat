@@ -58,21 +58,24 @@ def nonzero(a):
     [0/1] tensor([[4, 5, 6]])
     [1/1] tensor([[7, 8, 9]])
     """
+    if a.dtype == types.bool:
+        a._DNDarray__array = a._DNDarray__array.float()
     if a.split is None:
         # if there is no split then just return the values from torch
-        lcl_nonzero = torch.nonzero(a._DNDarray__array)
+        # print(a._DNDarray__array)
+        lcl_nonzero = torch.nonzero(input=a._DNDarray__array, as_tuple=False)
         gout = list(lcl_nonzero.size())
         is_split = None
     else:
         # a is split
-        lcl_nonzero = torch.nonzero(a._DNDarray__array)
+        lcl_nonzero = torch.nonzero(input=a._DNDarray__array, as_tuple=False)
         _, _, slices = a.comm.chunk(a.shape, a.split)
         lcl_nonzero[..., a.split] += slices[a.split].start
         gout = list(lcl_nonzero.size())
         gout[0] = a.comm.allreduce(gout[0], MPI.SUM)
         is_split = 0
 
-    if a.numdims == 1:
+    if a.ndim == 1:
         lcl_nonzero = lcl_nonzero.squeeze(dim=1)
 
     return dndarray.DNDarray(

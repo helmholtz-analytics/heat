@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import warnings
 
 from .communication import MPI
 
@@ -15,14 +16,18 @@ __all__ = [
     "diag",
     "diagonal",
     "expand_dims",
+    "flatten",
     "flip",
+    "fliplr",
     "flipud",
     "hstack",
+    "reshape",
     "resplit",
     "sort",
     "squeeze",
     "unique",
     "vstack",
+    "topk",
 ]
 
 
@@ -124,7 +129,7 @@ def concatenate(arrays, axis=0):
         raise TypeError("axis must be an integer, currently: {}".format(type(axis)))
     axis = stride_tricks.sanitize_axis(arr0.gshape, axis)
 
-    if arr0.numdims != arr1.numdims:
+    if arr0.ndim != arr1.ndim:
         raise ValueError("DNDarrays must have the same number of dimensions")
 
     if not all([arr0.gshape[i] == arr1.gshape[i] for i in range(len(arr0.gshape)) if i != axis]):
@@ -217,8 +222,8 @@ def concatenate(arrays, axis=0):
             chunk_map_comm.wait()
 
             if s0 is not None:
-                send_slice = [slice(None)] * arr0.numdims
-                keep_slice = [slice(None)] * arr0.numdims
+                send_slice = [slice(None)] * arr0.ndim
+                keep_slice = [slice(None)] * arr0.ndim
                 # data is first front-loaded onto the first size/2 processes
                 for spr in range(1, arr0.comm.size):
                     if arr0.comm.rank == spr:
@@ -260,8 +265,8 @@ def concatenate(arrays, axis=0):
                         lshape_map[0, spr, arr0.split] -= snt
 
             if s1 is not None:
-                send_slice = [slice(None)] * arr0.numdims
-                keep_slice = [slice(None)] * arr0.numdims
+                send_slice = [slice(None)] * arr0.ndim
+                keep_slice = [slice(None)] * arr0.ndim
                 # push the data backwards (arr1), making the data the proper size for arr1 on the last nodes
                 # the data is "compressed" on np/2 processes. data is sent from
                 for spr in range(arr0.comm.size - 1, -1, -1):
@@ -317,14 +322,14 @@ def concatenate(arrays, axis=0):
 
                 # after adjusting arr1 need to now select the target data in arr0 on each node with a local slice
                 if arr0.comm.rank == 0:
-                    lcl_slice = [slice(None)] * arr0.numdims
+                    lcl_slice = [slice(None)] * arr0.ndim
                     lcl_slice[axis] = slice(chunk_map[0, axis].item())
                     arr0._DNDarray__array = arr0._DNDarray__array[lcl_slice].clone().squeeze()
                 ttl = chunk_map[0, axis].item()
                 for en in range(1, arr0.comm.size):
                     sz = chunk_map[en, axis]
                     if arr0.comm.rank == en:
-                        lcl_slice = [slice(None)] * arr0.numdims
+                        lcl_slice = [slice(None)] * arr0.ndim
                         lcl_slice[axis] = slice(ttl, sz.item() + ttl, 1)
                         arr0._DNDarray__array = arr0._DNDarray__array[lcl_slice].clone().squeeze()
                     ttl += sz.item()
@@ -340,7 +345,7 @@ def concatenate(arrays, axis=0):
 
                 # get the desired data in arr1 on each node with a local slice
                 if arr1.comm.rank == arr1.comm.size - 1:
-                    lcl_slice = [slice(None)] * arr1.numdims
+                    lcl_slice = [slice(None)] * arr1.ndim
                     lcl_slice[axis] = slice(
                         arr1.lshape[axis] - chunk_map[-1, axis].item(), arr1.lshape[axis], 1
                     )
@@ -349,7 +354,7 @@ def concatenate(arrays, axis=0):
                 for en in range(arr1.comm.size - 2, -1, -1):
                     sz = chunk_map[en, axis]
                     if arr1.comm.rank == en:
-                        lcl_slice = [slice(None)] * arr1.numdims
+                        lcl_slice = [slice(None)] * arr1.ndim
                         lcl_slice[axis] = slice(
                             arr1.lshape[axis] - (sz.item() + ttl), arr1.lshape[axis] - ttl, 1
                         )
@@ -594,6 +599,49 @@ def expand_dims(a, axis):
     )
 
 
+def flatten(a):
+    """
+    Flattens an array into one dimension.
+    WARNING: if a.split > 0, then the array must be resplit.
+
+    Parameters
+    ----------
+    a : DNDarray
+        array to collapse
+    Returns
+    -------
+    ret : DNDarray
+        flattened copy
+    Examples
+    --------
+    >>> a = ht.array([[[1,2],[3,4]],[[5,6],[7,8]]])
+    >>> ht.flatten(a)
+    tensor([1,2,3,4,5,6,7,8])
+    """
+    if a.split is None:
+        return factories.array(
+            torch.flatten(a._DNDarray__array),
+            dtype=a.dtype,
+            is_split=None,
+            device=a.device,
+            comm=a.comm,
+        )
+
+    if a.split > 0:
+        a = resplit(a, 0)
+
+    a = factories.array(
+        torch.flatten(a._DNDarray__array),
+        dtype=a.dtype,
+        is_split=a.split,
+        device=a.device,
+        comm=a.comm,
+    )
+    a.balance_()
+
+    return a
+
+
 def flip(a, axis=None):
     """
     Reverse the order of elements in an array along the given axis.
@@ -626,7 +674,7 @@ def flip(a, axis=None):
     """
     # flip all dimensions
     if axis is None:
-        axis = tuple(range(a.numdims))
+        axis = tuple(range(a.ndim))
 
     # torch.flip only accepts tuples
     if isinstance(axis, int):
@@ -654,6 +702,35 @@ def flip(a, axis=None):
     res.balance_()  # after swapping, first processes may be empty
     req.Wait()
     return res
+
+
+def fliplr(a):
+    """
+        Flip array in the left/right direction. If a.ndim > 2, flip along dimension 1.
+
+        Parameters
+        ----------
+        a: ht.DNDarray
+            Input array to be flipped, must be at least 2-D
+
+        Returns
+        -------
+        res: ht.DNDarray
+            The flipped array.
+
+        Examples
+        --------
+        >>> a = ht.array([[0,1],[2,3]])
+        >>> ht.fliplr(a)
+        tensor([[1, 0],
+                [3, 2]])
+
+        >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
+        >>> ht.fliplr(b)
+        (1/2) tensor([[2, 1, 0]])
+        (2/2) tensor([[5, 4, 3]])
+    """
+    return flip(a, 1)
 
 
 def flipud(a):
@@ -733,6 +810,131 @@ def hstack(tup):
                 tup[cn] = arr.expand_dims(1)
 
     return concatenate(tup, axis=axis)
+
+
+def reshape(a, shape, axis=None):
+    """
+    Returns a tensor with the same data and number of elements as a, but with the specified shape.
+
+    Parameters
+    ----------
+    a : ht.DNDarray
+        The input tensor
+    shape : tuple, list
+        Shape of the new tensor
+    axis : int, optional
+        The new split axis. None denotes same axis
+        Default : None
+
+    Returns
+    -------
+    reshaped : ht.DNDarray
+        The DNDarray with the specified shape
+
+    Raises
+    ------
+    ValueError
+        If the number of elements changes in the new shape.
+
+    Examples
+    --------
+    >>> a = ht.zeros((3,4))
+    >>> ht.reshape(a, (4,3))
+    tensor([[0,0,0],
+            [0,0,0],
+            [0,0,0],
+            [0,0,0]])
+
+    >>> a = ht.linspace(0, 14, 8, split=0)
+    >>> ht.reshape(a, (2,4))
+    (1/2) tensor([[0., 2., 4., 6.]])
+    (2/2) tensor([[ 8., 10., 12., 14.]])
+    """
+    if not isinstance(a, dndarray.DNDarray):
+        raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
+    if not isinstance(shape, (list, tuple)):
+        raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
+        # check axis parameter
+    if axis is None:
+        axis = a.split
+    stride_tricks.sanitize_axis(shape, axis)
+    tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
+    # Check the type of shape and number elements
+    shape = stride_tricks.sanitize_shape(shape)
+    if torch.prod(torch.tensor(shape, device=tdevice)) != a.size:
+        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
+
+    def reshape_argsort_counts_displs(
+        shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm
+    ):
+        """
+        Compute the send order, counts, and displacements.
+        """
+        shape1 = torch.tensor(shape1, dtype=tdtype, device=tdevice)
+        lshape1 = torch.tensor(lshape1, dtype=tdtype, device=tdevice)
+        shape2 = torch.tensor(shape2, dtype=tdtype, device=tdevice)
+        # constants
+        width = torch.prod(lshape1[axis1:], dtype=torch.int)
+        height = torch.prod(lshape1[:axis1], dtype=torch.int)
+        global_len = torch.prod(shape1[axis1:])
+        ulen = torch.prod(shape2[axis2 + 1 :])
+        gindex = displs1[comm.rank] * torch.prod(shape1[axis1 + 1 :])
+
+        # Get axis position on new split axis
+        mask = torch.arange(width, device=tdevice) + gindex
+        mask = mask + torch.arange(height, device=tdevice).reshape([height, 1]) * global_len
+        mask = (torch.floor_divide(mask, ulen)) % shape2[axis2]
+        mask = mask.flatten()
+
+        # Compute return values
+        counts = torch.zeros(comm.size, dtype=torch.int, device=tdevice)
+        displs = torch.zeros_like(counts)
+        argsort = torch.empty_like(mask, dtype=torch.long)
+        plz = 0
+        for i in range(len(displs2) - 1):
+            mat = torch.where((mask >= displs2[i]) & (mask < displs2[i + 1]))[0]
+            counts[i] = mat.numel()
+            argsort[plz : counts[i] + plz] = mat
+            plz += counts[i]
+        displs[1:] = torch.cumsum(counts[:-1], dim=0)
+        return argsort, counts, displs
+
+    # Forward to Pytorch directly
+    if a.split is None:
+        return factories.array(
+            torch.reshape(a._DNDarray__array, shape), dtype=a.dtype, device=a.device, comm=a.comm
+        )
+
+    # Create new flat result tensor
+    _, local_shape, _ = a.comm.chunk(shape, axis)
+    data = torch.empty(local_shape, dtype=tdtype, device=tdevice).flatten()
+
+    # Calculate the counts and displacements
+    _, old_displs, _ = a.comm.counts_displs_shape(a.shape, a.split)
+    _, new_displs, _ = a.comm.counts_displs_shape(shape, axis)
+
+    old_displs += (a.shape[a.split],)
+    new_displs += (shape[axis],)
+
+    sendsort, sendcounts, senddispls = reshape_argsort_counts_displs(
+        a.shape, a.lshape, old_displs, a.split, shape, new_displs, axis, a.comm
+    )
+    recvsort, recvcounts, recvdispls = reshape_argsort_counts_displs(
+        shape, local_shape, new_displs, axis, a.shape, old_displs, a.split, a.comm
+    )
+
+    # rearange order
+    send = a._DNDarray__array.flatten()[sendsort]
+    a.comm.Alltoallv((send, sendcounts, senddispls), (data, recvcounts, recvdispls))
+
+    # original order
+    backsort = torch.argsort(recvsort)
+    data = data[backsort]
+
+    # Reshape local tensor
+    data = data.reshape(local_shape)
+
+    return factories.array(data, dtype=a.dtype, is_split=axis, device=a.device, comm=a.comm)
 
 
 def sort(a, axis=None, descending=False, out=None):
@@ -993,7 +1195,6 @@ def sort(a, axis=None, descending=False, out=None):
             val = tmp_indices[idx]
             final_indices[idx] = second_indices[val.item()][idx[1:]]
         final_indices = final_indices.transpose(0, axis)
-
     return_indices = factories.array(
         final_indices, dtype=dndarray.types.int32, is_split=a.split, device=a.device, comm=a.comm
     )
@@ -1026,9 +1227,10 @@ def squeeze(x, axis=None):
     --------
     squeezed : ht.DNDarray
                The input tensor, but with all or a subset of the dimensions of length 1 removed.
-
+               Split semantics: see note below.
 
     Examples:
+    ---------
     >>> import heat as ht
     >>> import torch
     >>> torch.manual_seed(1)
@@ -1056,6 +1258,19 @@ def squeeze(x, axis=None):
     Traceback (most recent call last):
     ...
     ValueError: Dimension along axis 1 is not 1 for shape (1, 3, 1, 5)
+
+    Note:
+    -----
+    Split semantics: a distributed tensor will keep its original split dimension after "squeezing",
+    which, depending on the squeeze axis, may result in a lower numerical 'split' value, as in:
+    >>> x.shape
+    (10, 1, 12, 13)
+    >>> x.split
+    2
+    >>> x.squeeze().shape
+    (10, 12, 13)
+    >>> x.squeeze().split
+    1
     """
 
     # Sanitize input
@@ -1066,58 +1281,31 @@ def squeeze(x, axis=None):
     if axis is not None:
         if isinstance(axis, int):
             dim_is_one = x.shape[axis] == 1
-        if isinstance(axis, tuple):
-            dim_is_one = bool(
-                factories.array(list(x.shape[dim] == 1 for dim in axis)).all()._DNDarray__array
-            )
+            axis = (axis,)
+        elif isinstance(axis, tuple):
+            dim_is_one = bool(torch.tensor(list(x.shape[dim] == 1 for dim in axis)).all())
         if not dim_is_one:
             raise ValueError("Dimension along axis {} is not 1 for shape {}".format(axis, x.shape))
 
-    # Local squeeze
     if axis is None:
         axis = tuple(i for i, dim in enumerate(x.shape) if dim == 1)
-    if isinstance(axis, int):
-        axis = (axis,)
-    out_lshape = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
+
+    if x.split is not None and x.split in axis:
+        # split dimension is about to disappear, set split to None
+        x.resplit_(axis=None)
+
+    out_lshape = tuple(x.lshape[dim] for dim in range(x.ndim) if dim not in axis)
+    out_gshape = tuple(x.gshape[dim] for dim in range(x.ndim) if dim not in axis)
     x_lsqueezed = x._DNDarray__array.reshape(out_lshape)
 
-    # Calculate split axis according to squeezed shape
+    # Calculate new split axis according to squeezed shape
     if x.split is not None:
         split = x.split - len(list(dim for dim in axis if dim < x.split))
     else:
-        split = x.split
-
-    # Distributed squeeze
-    if x.split is not None:
-        if x.comm.is_distributed():
-            if x.split in axis:
-                raise ValueError(
-                    "Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}".format(
-                        x.split, axis, x.shape
-                    )
-                )
-            out_gshape = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
-            x_gsqueezed = factories.empty(out_gshape, dtype=x.dtype)
-            loffset = factories.zeros(1, dtype=types.int64)
-            loffset.__setitem__(0, x.comm.chunk(x.gshape, x.split)[0])
-            displs = factories.zeros(x.comm.size, dtype=types.int64)
-            x.comm.Allgather(loffset, displs)
-
-            # TODO: address uneven distribution of dimensions (Allgatherv). Issue #273, #233
-            x.comm.Allgather(
-                x_lsqueezed, x_gsqueezed
-            )  # works with evenly distributed dimensions only
-            return dndarray.DNDarray(
-                x_gsqueezed,
-                out_gshape,
-                x_lsqueezed.dtype,
-                split=split,
-                device=x.device,
-                comm=x.comm,
-            )
+        split = None
 
     return dndarray.DNDarray(
-        x_lsqueezed, out_lshape, x.dtype, split=split, device=x.device, comm=x.comm
+        x_lsqueezed, out_gshape, x.dtype, split=split, device=x.device, comm=x.comm
     )
 
 
@@ -1405,7 +1593,7 @@ def resplit(arr, axis=None):
         # need to get where the tiles are on the new one first
         # rpr is the destination
         new_locs = torch.where(new_tiles.tile_locations == rpr)
-        new_locs = torch.stack([new_locs[i] for i in range(arr.numdims)], dim=1)
+        new_locs = torch.stack([new_locs[i] for i in range(arr.ndim)], dim=1)
 
         for i in range(new_locs.shape[0]):
             key = tuple(new_locs[i].tolist())
@@ -1480,3 +1668,81 @@ def vstack(tup):
             tup[cn] = arr.expand_dims(0).resplit_(arr.split)
 
     return concatenate(tup, axis=0)
+
+
+def topk(a, k, dim=None, largest=True, sorted=True, out=None):
+    """
+    Returns the k highest entries in the array.
+    (Not Stable for split arrays)
+
+    Parameters:
+    -------
+    a: ht.DNDarray
+        Array to take items from
+    k: int
+        Number of items to take
+    dim: int
+        Dimension along which to take, per default takes the last dimension
+    largest: Boolean
+        Return either the k largest or smallest items
+    sorted: Boolean
+        Whether to sort the output
+    out: ht.DNDarray to put the result in
+    Returns
+    -------
+    items: ht.DNDarray of shape (k,)
+        The selected items
+    indices: ht.DNDarray of shape (k,)
+        The indices of the selected items
+    Examples
+    --------
+    >>> a = ht.array([1, 2, 3], split=0)
+    >>> ht.topk(a,2)
+    [0] tensor([2, 3])
+    """
+    if dim is None:
+        dim = len(a.shape) - 1
+
+    if dim == a.split:
+        '''
+        local_data = a._DNDarray__array
+        lres, lindcs = torch.topk(local_data, 1, dim=0, largest=largest, sorted=sorted)
+
+        gres_buf = torch.empty((a.comm.Get_size(),k,), dtype=a.dtype.torch_type())
+
+        a.comm.Allgather(lres, gres_buf, recv_axis=0)
+        gres_buf.reshape((a.comm.Get_size(),k))
+        print(gres_buf)
+        # Run topk a second time
+        gres, gindcs = torch.topk(
+            gres_buf, k, dim=dim, largest=largest, sorted=sorted
+        )
+
+        #gres = torch.unsqueeze(gres, dim)
+
+        #gindcs = gindcs + offset
+        '''
+
+        global_buf = torch.empty(a.shape, dtype=a.dtype.torch_type())
+        a.comm.Allgather(a._DNDarray__array, global_buf)
+
+        gres, gindcs = torch.topk(global_buf, k, dim=0, largest=largest, sorted=sorted)
+
+    else:
+        local_data = a._DNDarray__array.transpose(0, dim)
+        lres, lindcs = torch.topk(local_data, k, dim=0, largest=largest, sorted=sorted)
+
+        gres_buf = torch.empty((a.comm.Get_size(),k,), dtype=a.dtype.torch_type())
+        gindcs_buf = torch.empty((a.comm.Get_size(),k,), dtype=lindcs.dtype)
+        a.comm.Allgather(lres, gres_buf, recv_axis=0)
+        a.comm.Allgather(lindcs, gindcs_buf, recv_axis=0)
+
+        gres = gres_buf
+        gindcs = gindcs_buf
+
+    final_array = factories.array(gres, dtype=a.dtype, split=a.split, device=a.device)
+    final_indices = factories.array(gindcs, split=None, device=a.device)
+
+    if out is not None:
+        out._DNDarray__array = final_array
+    return final_array, final_indices

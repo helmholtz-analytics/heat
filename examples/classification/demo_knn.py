@@ -125,13 +125,10 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
 
     for split_index in range(split_number):
         fold_x, fold_y, verification_x, verification_y = create_fold(x, y, split_size, seed)
-        network = KNN(fold_x, fold_y, k)
-        result_y = []
-        for item in verification_x:
-            label = network.assign_label(ht.copy(item))
-            result_y.append(label)
+        classifier = KNN(fold_x, fold_y, k)
+        result_y = classifier.predict(verification_x)
         accuracies.append(calculate_accuracy(result_y, verification_y))
     return accuracies
 
+print(verify_algorithm(X, Y, 5, 30, 5))
 
-print(verify_algorithm(X, Y, 5, 30, 10))

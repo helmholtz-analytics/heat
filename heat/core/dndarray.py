@@ -72,6 +72,9 @@ class DNDarray:
         self.__split = split
         self.__device = device
         self.__comm = comm
+        self.__ishalo = False
+        self.__halo_next = None
+        self.__halo_prev = None
 
         # handle inconsistencies between torch and heat devices
         if (
@@ -80,6 +83,14 @@ class DNDarray:
             and array.device.type != device.device_type
         ):
             self.__array = self.__array.to(devices.sanitize_device(self.__device).torch_device)
+
+    @property
+    def halo_next(self):
+        return self.__halo_next
+
+    @property
+    def halo_prev(self):
+        return self.__halo_prev
 
     @property
     def comm(self):
@@ -100,7 +111,20 @@ class DNDarray:
     @property
     def numdims(self):
         """
+        Returns
+        -------
+        number_of_dimensions : int
+            the number of dimensions of the DNDarray
 
+        .. deprecated:: 0.5.0
+          `numdims` will be removed in HeAT 1.0.0, it is replaced by `ndim` because the latter is numpy API compliant.
+        """
+        warnings.warn("numdims is deprecated, use ndim instead", DeprecationWarning)
+        return len(self.__gshape)
+
+    @property
+    def ndim(self):
+        """
         Returns
         -------
         number_of_dimensions : int
@@ -247,6 +271,107 @@ class DNDarray:
     @property
     def T(self):
         return linalg.transpose(self, axes=None)
+
+    @property
+    def array_with_halos(self):
+        return self.__cat_halo()
+
+    def __prephalo(self, start, end):
+        """
+        Extracts the halo indexed by start, end from self.array in the direction of self.split
+
+        Parameters
+        ----------
+        start : int
+            start index of the halo extracted from self.array
+        end : int
+            end index of the halo extracted from self.array
+
+        Returns
+        -------
+        halo : torch.Tensor
+            The halo extracted from self.array
+        """
+        ix = [slice(None, None, None)] * len(self.shape)
+        try:
+            ix[self.split] = slice(start, end)
+        except IndexError:
+            print("Indices out of bound")
+
+        return self.__array[ix].clone().contiguous()
+
+    def get_halo(self, halo_size):
+        """
+        Fetch halos of size 'halo_size' from neighboring ranks and save them in self.halo_next/self.halo_prev
+        in case they are not already stored. If 'halo_size' differs from the size of already stored halos,
+        the are overwritten.
+
+        Parameters
+        ----------
+        halo_size : int
+            Size of the halo.
+        """
+        if not isinstance(halo_size, int):
+            raise TypeError(
+                "halo_size needs to be of Python type integer, {} given)".format(type(halo_size))
+            )
+        if halo_size < 0:
+            raise ValueError(
+                "halo_size needs to be a positive Python integer, {} given)".format(type(halo_size))
+            )
+
+        if self.comm.is_distributed() and self.split is not None:
+            min_chunksize = self.shape[self.split] // self.comm.size
+            if halo_size > min_chunksize:
+                raise ValueError(
+                    "halo_size {} needs to smaller than chunck-size {} )".format(
+                        halo_size, min_chunksize
+                    )
+                )
+
+            a_prev = self.__prephalo(0, halo_size)
+            a_next = self.__prephalo(-halo_size, None)
+
+            res_prev = None
+            res_next = None
+
+            req_list = list()
+
+            if self.comm.rank != self.comm.size - 1:
+                self.comm.Isend(a_next, self.comm.rank + 1)
+                res_prev = torch.zeros(a_prev.size(), dtype=a_prev.dtype)
+                req_list.append(self.comm.Irecv(res_prev, source=self.comm.rank + 1))
+
+            if self.comm.rank != 0:
+                self.comm.Isend(a_prev, self.comm.rank - 1)
+                res_next = torch.zeros(a_next.size(), dtype=a_next.dtype)
+                req_list.append(self.comm.Irecv(res_next, source=self.comm.rank - 1))
+
+            for req in req_list:
+                req.wait()
+
+            self.__halo_next = res_prev
+            self.__halo_prev = res_next
+            self.__ishalo = True
+
+    def __cat_halo(self):
+        """
+        Fetch halos of size 'halo_size' from neighboring ranks and save them in self.halo_next/self.halo_prev
+        in case they are not already stored. If 'halo_size' differs from the size of already stored halos,
+        the are overwritten.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        array + halos: pytorch tensors
+        """
+        return torch.cat(
+            [_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None],
+            self.split,
+        )
 
     def abs(self, out=None, dtype=None):
         """
@@ -1060,6 +1185,23 @@ class DNDarray:
         """
         return manipulations.expand_dims(self, axis)
 
+    def flatten(self):
+        """
+        Return a flat tensor.
+
+        Returns
+        -------
+        flattened : ht.DNDarray
+            The flattened tensor
+
+        Examples
+        --------
+        >>> x = ht.array([[1,2],[3,4]])
+        >>> x.flatten()
+        tensor([1,2,3,4])
+        """
+        return manipulations.flatten(self)
+
     def __float__(self):
         """
         Float scalar casting.
@@ -1263,7 +1405,6 @@ class DNDarray:
             key = tuple(x.item() for x in key)
 
         if not self.is_distributed():
-
             if not self.comm.size == 1:
                 if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                     # this will return a 1D array as the shape cannot be determined automatically
@@ -1298,7 +1439,6 @@ class DNDarray:
                     )
 
         else:
-
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
@@ -1310,7 +1450,7 @@ class DNDarray:
             if isinstance(key, int):
                 gout = [0] * (len(self.gshape) - 1)
                 if key < 0:
-                    key += self.numdims
+                    key += self.ndim
                 # handle the reduction of the split to accommodate for the reduced dimension
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
@@ -1472,7 +1612,6 @@ class DNDarray:
                     gout[e] = self.comm.allreduce(gout[e], MPI.SUM)
                 else:
                     gout[e] = self.comm.allreduce(gout[e], MPI.MAX)
-
             return DNDarray(
                 arr.type(l_dtype),
                 gout if isinstance(gout, tuple) else tuple(gout),
@@ -2397,8 +2536,16 @@ class DNDarray:
                 # if there is less data on the process than need to get the data from the next data
                 # with data
                 # need processes > rcv_pr with lshape > 0
-                st_pr = torch.nonzero(lshape_map[rcv_pr:, self.split] > 0)[0].item() + rcv_pr
-                hld = torch.nonzero(sp <= lshape_cumsum[rcv_pr:]).flatten() + rcv_pr
+                st_pr = (
+                    torch.nonzero(input=lshape_map[rcv_pr:, self.split] > 0, as_tuple=False)[
+                        0
+                    ].item()
+                    + rcv_pr
+                )
+                hld = (
+                    torch.nonzero(input=sp <= lshape_cumsum[rcv_pr:], as_tuple=False).flatten()
+                    + rcv_pr
+                )
                 sp_pr = hld[0].item() if hld.numel() > 0 else self.comm.size
 
             # st_pr and sp_pr are the processes on which the data sits at the beginning
@@ -2460,8 +2607,8 @@ class DNDarray:
         None
         """
         rank = self.comm.rank
-        send_slice = [slice(None)] * self.numdims
-        keep_slice = [slice(None)] * self.numdims
+        send_slice = [slice(None)] * self.ndim
+        keep_slice = [slice(None)] * self.ndim
         if rank == snd_pr:
             if snd_pr < rcv_pr:  # data passed to a higher rank (off the bottom)
                 send_slice[self.split] = slice(
@@ -2483,6 +2630,41 @@ class DNDarray:
                 self.__array = torch.cat((data, self.__array), dim=self.split)
             if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
                 self.__array = torch.cat((self.__array, data), dim=self.split)
+
+    def reshape(self, shape, axis=None):
+        """
+        Returns a tensor with the same data and number of elements as a, but with the specified shape.
+
+        Parameters
+        ----------
+        a : ht.DNDarray
+            The input tensor
+        shape : tuple, list
+            Shape of the new tensor
+        axis : int, optional
+            The new split axis. None denotes same axis
+            Default : None
+
+        Returns
+        -------
+        reshaped : ht.DNDarray
+            The tensor with the specified shape
+
+        Raises
+        ------
+        ValueError
+            If the number of elements changes in the new shape.
+
+        Examples
+        --------
+        >>> a = ht.arange(16, split=0)
+        >>> a.reshape((4,4))
+        (1/2) tensor([[0, 1, 2, 3],
+                    [4, 5, 6, 7]], dtype=torch.int32)
+        (2/2) tensor([[ 8,  9, 10, 11],
+                    [12, 13, 14, 15]], dtype=torch.int32)
+        """
+        return manipulations.reshape(self, shape, axis)
 
     def resplit_(self, axis=None):
         """
@@ -2558,7 +2740,7 @@ class DNDarray:
             # need to get where the tiles are on the new one first
             # rpr is the destination
             new_locs = torch.where(new_tile_locs == rpr)
-            new_locs = torch.stack([new_locs[i] for i in range(self.numdims)], dim=1)
+            new_locs = torch.stack([new_locs[i] for i in range(self.ndim)], dim=1)
             for i in range(new_locs.shape[0]):
                 key = tuple(new_locs[i].tolist())
                 spr = tiles.tile_locations[key].item()
@@ -2575,7 +2757,7 @@ class DNDarray:
                     )
                     w = self.comm.Irecv(buf=buf, source=spr, tag=spr)
                     rcv[key] = [w, buf]
-        dims = list(range(self.numdims))
+        dims = list(range(self.ndim))
         del dims[axis]
         sorted_keys = sorted(rcv.keys())
         # todo: reduce the problem to 1D cats for each dimension, then work up
@@ -2889,6 +3071,12 @@ class DNDarray:
         Nothing
             The specified element/s (key) of self is set with the value
 
+        Notes
+        -----
+        If a DNDarray is given as the value to be set then the split axes are assumed to be equal.
+            If they are not, PyTorch will raise an error when the values are attempted to be set
+            on the local array
+
         Examples
         --------
         (2 processes)
@@ -2914,19 +3102,15 @@ class DNDarray:
             else:
                 self.__setter(key, value)
         else:
-            if (
-                isinstance(value, DNDarray)
-                and value.split is not None
-                and value.split != self.split
-            ):
-                raise RuntimeError("split axis of array and the target value are not equal")
+            # raise RuntimeError("split axis of array and the target value are not equal") removed
+            # this will occur if the local shapes do not match
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
 
             if isinstance(key, int):
                 if key < 0:
-                    key += self.numdims
+                    key += self.ndim
                 if self.split == 0:
                     if key in range(chunk_start, chunk_end):
                         self.__setter(key - chunk_start, value)
@@ -2938,7 +3122,7 @@ class DNDarray:
                     ):
                         value = factories.array(value, split=self[key].split)
                     self.__setter(key, value)
-            elif isinstance(key, (tuple, list, torch.Tensor)):
+            elif isinstance(key, (tuple, torch.Tensor)):
                 if isinstance(key[self.split], slice):
                     key = list(key)
                     overlap = list(
