@@ -853,15 +853,17 @@ def outer(a, b, out=None, split=None):
     split: int, optional #TODO check out docstring format
             Split dimension of the resulting DNDarray. Can be 0, 1, or None.
             This is only relevant if the calculations are memory-distributed (see Note)
-            Default is split=0.
+            Default is split=None, i.e. result will reside on each rank.
 
     Note: parallel implementation of outer product, arrays are dense. #TODO sparse
-    In the classical case, one DNDarray stays put, the other one is passed around the ranks in
-    ring communication. The slice-by-slice outer product is calculated locally via torch.einsum().
-    N.B.: if 'b' is sent around, the resulting outer product is split along the rows dimension (split = 0).
-          if 'a' is sent around, the resulting outer product is split along the columns (split = 1).
-    So if 'split' is not None, 'split' defines which DNDarray stays put and which one is passed around. No
-    communication is needed beyond ring communication of one of the DNDarrays.
+        In the classical (dense) case, one DNDarray stays put, the other one is passed around the ranks in
+        ring communication. The slice-by-slice outer product is calculated locally (here via torch.einsum()).
+        N.B.: if 'b' is sent around, the resulting outer product is split along the rows dimension (split = 0).
+              if 'a' is sent around, the resulting outer product is split along the columns (split = 1).
+        So if 'split' is not None, 'split' defines which DNDarray stays put and which one is passed around. No
+        communication is needed beyond ring communication of one of the DNDarrays.
+        If 'split' is None or unspecified, the result will be distributed along axis 0, i.e. by default b is
+        passed around, a stays put.
 
     Returns
     -------
@@ -890,6 +892,11 @@ def outer(a, b, out=None, split=None):
                     [0, 3, 6]], dtype=torch.int32)
     >>> a = ht.arange(4, split=0)
     >>> b = ht.arange(3, split=0)
+    >>> ht.outer(a, b)
+    (0/3)   tensor([[0, 0, 0],
+                    [0, 1, 2]], dtype=torch.int32)
+    (1/3)   tensor([[0, 2, 4]], dtype=torch.int32)
+    (2/3)   tensor([[0, 3, 6]], dtype=torch.int32)
     >>> ht.outer(a, b, split=1)
     (0/3)   tensor([[0],
                     [0],
@@ -903,13 +910,6 @@ def outer(a, b, out=None, split=None):
                     [2],
                     [4],
                     [6]], dtype=torch.int32)
-    >>> a = ht.arange(4)
-    >>> b = ht.arange(3, split=0)
-    >>> ht.outer(a, b, split=0)
-    (0/3)   tensor([[0, 0, 0],
-                    [0, 1, 2]], dtype=torch.int32)
-    (1/3)   tensor([[0, 2, 4]], dtype=torch.int32)
-    (2/3)   tensor([[0, 3, 6]], dtype=torch.int32)
     >>> a = ht.arange(5, dtype=ht.float32, split=0)
     >>> b = ht.arange(4, dtype=ht.float64, split=0)
     >>> out = ht.empty((5,4), dtype=ht.float64, split=1)
@@ -942,7 +942,6 @@ def outer(a, b, out=None, split=None):
         )
 
     outer_gshape = (a.gshape[0], b.gshape[0])
-    outer_split = split
     t_a = a._DNDarray__array
     t_b = b._DNDarray__array
     t_outer_dtype = torch.promote_types(t_a.dtype, t_b.dtype)
@@ -970,23 +969,17 @@ def outer(a, b, out=None, split=None):
         size = a.comm.size
         t_outer_slice = 2 * [slice(None, None, None)]
 
-        # Decide which between a or b gets passed around
-        if split is None:
-            # bigger (in bytes) DNDarray stays put, smaller one gets sent around
-            # TODO replace with nbytes property when available, #590
-            a_nbytes = a._DNDarray__array.storage().element_size() * a.size
-            b_nbytes = b._DNDarray__array.storage().element_size() * b.size
-            if b_nbytes <= a_nbytes:
-                split = 0
-            else:
-                split = 1
-
         if a.split is None:
             a.resplit_(axis=0)
             t_a = a._DNDarray__array.type(t_outer_dtype)
         if b.split is None:
             b.resplit_(axis=0)
             t_b = b._DNDarray__array.type(t_outer_dtype)
+        if split is None:
+            # Split semantics: default out.split = a.split
+            split = a.split
+            if out is not None and out.split is None:
+                out.resplit_(axis=split)
 
         # calculate local slice of outer product
         if split == 0:
@@ -1005,7 +998,7 @@ def outer(a, b, out=None, split=None):
 
         # Ring: fill in missing slices of outer product
         for p in range(size - 1):
-            # prepare for shipping
+            # prepare for sending
             dest_rank = rank + 1 if rank != size - 1 else 0
             # prepare for receiving
             origin_rank = rank - 1 if rank != 0 else size - 1
@@ -1038,9 +1031,6 @@ def outer(a, b, out=None, split=None):
     outer = dndarray.DNDarray(
         t_outer, gshape=outer_gshape, dtype=outer_dtype, split=split, device=a.device, comm=a.comm
     )
-
-    if outer.split is not outer_split:
-        outer.resplit_(axis=outer_split)
 
     if out is not None:
         out._DNDarray__array = outer._DNDarray__array
