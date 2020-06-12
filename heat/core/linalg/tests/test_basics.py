@@ -509,10 +509,10 @@ class TestLinalgBasics(unittest.TestCase):
         self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 1)
 
-        # a and b distributed, outer local
+        # a and b distributed, outer split unspecified
         ht_outer_split = ht.outer(a_split, b_split, split=None)
         self.assertTrue((ht_outer_split.numpy() == np_outer).all())
-        self.assertTrue(ht_outer_split.split is None)
+        self.assertTrue(ht_outer_split.split == 0)
 
         # a not distributed, outer.split = 1
         ht_outer_split = ht.outer(a, b_split, split=1)
