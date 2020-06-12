@@ -842,10 +842,10 @@ def outer(a, b, out=None, split=None):
     ----------
 
     a(M,): DNDarray
-            First input DNDarray. Must be 1-dimensional.
+            First input DNDarray. Must be 1-dimensional. Will be flattened by default if more than 1D
 
     b(N,): DNDarray
-            Second input DNDarray. Must be 1-dimensional.
+            Second input DNDarray. Must be 1-dimensional. Will be flattened by default if more than 1D
 
     out(M, N): DNDarray, optional
             A location where the result is stored
