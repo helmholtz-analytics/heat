@@ -63,11 +63,11 @@ class SplitTiles:
         #  2. get the split axis numbers for the other axes
         #  3. build tile map
         lshape_map = arr.create_lshape_map()
-        tile_dims = torch.zeros((arr.numdims, arr.comm.size), device=arr.device.torch_device)
+        tile_dims = torch.zeros((arr.ndim, arr.comm.size), device=arr.device.torch_device)
         if arr.split is not None:
             tile_dims[arr.split] = lshape_map[..., arr.split]
         w_size = arr.comm.size
-        for ax in range(arr.numdims):
+        for ax in range(arr.ndim):
             if arr.split is None or not ax == arr.split:
                 size = arr.gshape[ax]
                 chunk = size // w_size
@@ -107,14 +107,14 @@ class SplitTiles:
         """
         # this is split off specifically for the resplit function
         tile_locations = torch.zeros(
-            [tile_dims[x].numel() for x in range(arr.numdims)],
+            [tile_dims[x].numel() for x in range(arr.ndim)],
             dtype=torch.int64,
             device=arr.device.torch_device,
         )
         if split is None:
             tile_locations += arr.comm.rank
             return tile_locations
-        arb_slice = [slice(None)] * arr.numdims
+        arb_slice = [slice(None)] * arr.ndim
         for pr in range(1, arr.comm.size):
             arb_slice[split] = pr
             tile_locations[tuple(arb_slice)] = pr
@@ -214,7 +214,7 @@ class SplitTiles:
 
     def get_tile_slices(self, key):
         arr = self.__DNDarray
-        arb_slices = [None] * arr.numdims
+        arb_slices = [None] * arr.ndim
         # print(self.tile_locations[key])
         end_rank = (
             max(self.tile_locations[key].unique())
@@ -224,11 +224,11 @@ class SplitTiles:
 
         if isinstance(key, int):
             key = [key]
-        if len(key) < arr.numdims or key[-1] is None:
+        if len(key) < arr.ndim or key[-1] is None:
             lkey = list(key)
-            lkey.extend([slice(0, None)] * (arr.numdims - len(key)))
+            lkey.extend([slice(0, None)] * (arr.ndim - len(key)))
             key = lkey
-        for d in range(arr.numdims):
+        for d in range(arr.ndim):
             # todo: implement advanced indexing (lists of positions to iterate through)
             lkey = key
             stop = self.tile_ends_g[d][lkey[d]].max().item()

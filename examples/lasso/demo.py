@@ -30,8 +30,8 @@ theta_list = list()
 lamda = np.logspace(0, 4, 10) / 10
 
 # compute the lasso path
-for l in lamda:
-    estimator.lam = l
+for la in lamda:
+    estimator.lam = la
     estimator.fit(X, y)
     theta_list.append(estimator.theta.numpy().flatten())
 

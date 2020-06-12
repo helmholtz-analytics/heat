@@ -38,11 +38,11 @@ def cg(A, b, x0, out=None):
             )
         )
 
-    if not A.numdims == 2:
+    if not A.ndim == 2:
         raise RuntimeError("A needs to be a 2D matrix")
-    if not b.numdims == 1:
+    if not b.ndim == 1:
         raise RuntimeError("b needs to be a 1D vector")
-    if not x0.numdims == 1:
+    if not x0.ndim == 1:
         raise RuntimeError("c needs to be a 1D vector")
 
     r = b - ht.matmul(A, x0)
@@ -62,7 +62,6 @@ def cg(A, b, x0, out=None):
                 out = x
                 return out
             return x
-
         p = r + ((rsnew / rsold) * p)
         rsold = rsnew
 
@@ -100,7 +99,7 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
     if not isinstance(A, ht.DNDarray):
         raise TypeError("A needs to be of type ht.dndarra, but was {}".format(type(A)))
 
-    if not (A.numdims == 2):
+    if not (A.ndim == 2):
         raise RuntimeError("A needs to be a 2D matrix")
     if not isinstance(m, (int, float)):
         raise TypeError("m must be eiter int or float, but was {}".format(type(m)))
