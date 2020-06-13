@@ -5742,7 +5742,7 @@ code,
 	max-width: 100%;
 	background: none;
 	border: none;
-	font-size: 75%;
+	font-size: 85%;
 	padding: 0 5px;
 	font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", Courier, monospace;
 	color: #E74C3C;
@@ -7307,8 +7307,8 @@ span[id*='MathJax-Span'] {
 	text-align: center
 }
 
-.ethicl-rtd ethical-dark-theme {
-    background: var(--hgrey)
+.keep-us-sustainable {
+    background-color: var(--hgrey);
 }
 
 @font-face {
