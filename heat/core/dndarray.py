@@ -1401,11 +1401,12 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-        # print('start getitem', key)
-        # print()
         l_dtype = self.dtype.torch_type()
         kgshape_flag = False
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
+            """ if the key is a DNDarray and it has as many dimensions as self, then each of the entries in the 0th
+                dim refer to a single element. To handle this, the key is split into the torch tensors for each dimension.
+                This signals that advanced indexing is to be used. """
             lkey = [slice(None, None, None)] * self.ndim
             kgshape_flag = True
             kgshape = [0] * len(self.gshape)
@@ -1418,6 +1419,9 @@ class DNDarray:
                 lkey[0] = key._DNDarray__array
             key = tuple(lkey)
         elif not isinstance(key, tuple):
+            """ this loop handles all other cases. DNDarrays which make it to here refer to advanced indexing slices,
+                as do the torch tensors. Both DNDaarrys and torch.Tensors are cast into lists here by PyTorch.
+                lists mean advanced indexing will be used"""
             h = [slice(None, None, None)] * self.ndim
             if isinstance(key, DNDarray):
                 h[0] = key._DNDarray__array.tolist()
@@ -1428,6 +1432,8 @@ class DNDarray:
             key = tuple(h)
 
         gout_full = [None] * len(self.gshape)
+        # below generates the expected shape of the output.
+        #   If lists or torch.Tensors remain in the key, some change may be made later
         key = list(key)
         for c, k in enumerate(key):
             if isinstance(k, slice):
@@ -1439,9 +1445,10 @@ class DNDarray:
                 gout_full[c] = k.shape[0] if not kgshape_flag else kgshape[c]
             if isinstance(k, DNDarray):
                 key[c] = k._DNDarray__array
-        if all([g == 1 for g in gout_full]):
+        if all(g == 1 for g in gout_full):
             gout_full = [1]
         else:
+            # delete the dimensions from gout_full if they are not touched (they will be removed)
             for i in range(len(gout_full) - 1, -1, -1):
                 if gout_full[i] is None:
                     del gout_full[i]
@@ -1482,22 +1489,23 @@ class DNDarray:
             # all keys should be tuples here
             gout = [0] * len(self.gshape)
             # handle the dimensional reduction for integers
-            ints = sum([isinstance(it, int) for it in key])
+            ints = sum(isinstance(it, int) for it in key)
             gout = gout[: len(gout) - ints]
             if self.split >= len(gout):
                 new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
             else:
                 new_split = self.split
-            # handle empty list
-            if len(key) == 0:
+            if len(key) == 0:  # handle empty list
                 # this will return an array of shape (0, ...)
                 arr = self.__array[key]
                 gout_full = list(arr.shape)
-            # if a slice is given in the split direction
-            # below allows for the split given to contain Nones
-            # if the given axes are not splits (must be ints OR LISTS for python)
-            # this means the whole slice is on one node
+
+            """ At the end of the following if/elif/elif block the output array will be set.
+                each block handles the case where the element of the key along the split axis is a different type
+                and converts the key from global indices to local indices.
+            """
             if isinstance(key[self.split], (list, torch.Tensor, DNDarray)):
+                # advanced indexing, elements in the split dimension are adjusted to the local indices
                 lkey = list(key)
                 if isinstance(key[self.split], DNDarray):
                     lkey[self.split] = key[self.split]._DNDarray__array
@@ -1511,10 +1519,13 @@ class DNDarray:
 
                 loc_inds = torch.where((inds >= chunk_start) & (inds < chunk_end))
                 if len(loc_inds[0]) != 0:
+                    # if there are no local indices on a process, then `arr` is empty
                     inds = inds[loc_inds] - chunk_start
                     lkey[self.split] = inds
                     arr = self.__array[tuple(lkey)]
             elif isinstance(key[self.split], slice):
+                # standard slicing along the split axis,
+                #   adjust the slice start, stop, and step, then run it on the processes which have the requested data
                 key = list(key)
                 key_start = key[self.split].start if key[self.split].start is not None else 0
                 key_stop = (
@@ -1548,6 +1559,7 @@ class DNDarray:
                     arr = self.__array[tuple(key)]
 
             elif isinstance(key[self.split], int):
+                # if there is an integer in the key along the split axis, adjust it and then get `arr`
                 key = list(key)
                 key[self.split] = (
                     key[self.split] + self.gshape[self.split]
@@ -1557,13 +1569,13 @@ class DNDarray:
                 if key[self.split] in range(chunk_start, chunk_end):
                     key[self.split] = key[self.split] - chunk_start
                     arr = self.__array[tuple(key)]
+
             if 0 in arr.shape:
                 # arr is empty
-                # gout is all 0s and is the proper shape
+                # gout is all 0s as is the shape
                 warnings.warn(
-                    "This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
-                        self.comm.rank
-                    ),
+                    "This process (rank: {}) is without data after slicing, "
+                    "running the .balance_() function is recommended".format(self.comm.rank),
                     ResourceWarning,
                 )
 
@@ -3051,6 +3063,7 @@ class DNDarray:
                           [0., 1., 0., 0., 0.]])
         """
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
+            # this splits the key into torch.Tensors in each dimension for advanced indexing
             lkey = [slice(None, None, None)] * self.ndim
             for i in range(key.ndim):
                 lkey[i] = key._DNDarray__array[..., i]
