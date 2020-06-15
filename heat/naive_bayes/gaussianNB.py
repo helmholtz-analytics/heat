@@ -84,8 +84,8 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
         if not isinstance(y, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(y)))
-        if y.numdims != 1:
-            raise ValueError("expected y to be a 1-D tensor, is {}-D".format(y.numdims))
+        if y.ndim != 1:
+            raise ValueError("expected y to be a 1-D tensor, is {}-D".format(y.ndim))
         if sample_weight is not None:
             if not isinstance(sample_weight, ht.DNDarray):
                 raise ValueError(
@@ -263,8 +263,8 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         # TODO: sanitize X and y shape: sanitation/validation module, cf. #468
         n_samples = X.shape[0]
-        if X.numdims != 2:
-            raise ValueError("expected X to be a 2-D tensor, is {}-D".format(X.numdims))
+        if X.ndim != 2:
+            raise ValueError("expected X to be a 2-D tensor, is {}-D".format(X.ndim))
         if y.shape[0] != n_samples:
             raise ValueError(
                 "y.shape[0] must match number of samples {}, is {}".format(n_samples, y.shape[0])
@@ -272,7 +272,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         # TODO: sanitize sample_weight: sanitation/validation module, cf. #468
         if sample_weight is not None:
-            if sample_weight.numdims != 1:
+            if sample_weight.ndim != 1:
                 raise ValueError("Sample weights must be 1D tensor")
             if sample_weight.shape != (n_samples,):
                 raise ValueError(
@@ -449,7 +449,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         a_max = ht.max(a, axis=axis, keepdim=True)
 
         # TODO: sanitize a_max / implement isfinite(): sanitation module, cf. #468
-        # if a_max.numdims > 0:
+        # if a_max.ndim > 0:
         #     a_max[~np.isfinite(a_max)] = 0
         # elif not np.isfinite(a_max):
         #     a_max = 0
