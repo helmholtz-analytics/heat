@@ -962,7 +962,9 @@ class TestDNDarray(unittest.TestCase):
         a = ht.zeros((4, 5), split=1, device=ht_device)
         a[1, 0:4] = ht.arange(4, device=ht_device)
         for c, i in enumerate(range(4)):
-            self.assertEqual(a[1, c], i)
+            b = a[1, c]
+            if b._DNDarray__array.numel() > 0:
+                self.assertEqual(b.item(), i)
 
         # setting with torch tensor
         a = ht.zeros((4, 5), split=1, device=ht_device)
