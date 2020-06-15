@@ -81,14 +81,8 @@ def convolve1D(a, v, mode="full"):
     if a.dtype is not v.dtype:
         raise TypeError("Signal and filter weight must be of same type")
 
-    # print("------------------------------------")
-    # print("kernal:", v)
-    # print("signal:", a)
-
     # compute halo size
     halo_size = v.shape[0] // 2 if v.shape[0] % 2 == 0 else (v.shape[0] - 1) // 2
-
-    print("halo size: ", halo_size)
 
     # fetch halos and store them in a.halo_next/a.halo_prev
     a.get_halo(halo_size)
@@ -97,8 +91,6 @@ def convolve1D(a, v, mode="full"):
     signal = (
         a.array_with_halos
     )  # torch.cat(tuple(_ for _ in (a.halo_prev, a.array, a.halo_next) if _ is not None))
-
-    print("signal with halo:", signal)
 
     # check if a local chunk is smaller than the filter size
     if a.is_distributed() and signal.size()[0] < v.shape[0]:
@@ -112,12 +104,9 @@ def convolve1D(a, v, mode="full"):
     has_left = a.halo_prev is not None
     has_right = a.halo_next is not None
 
-    print("has_left", has_left)
-    print("has_right", has_right)
-
     if mode == "full":
         pad_prev = pad_next = None
-        # pad_prev = pad_next = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type())
+        
         if not a.is_distributed():
             pad_prev = pad_next = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type())
 
@@ -154,20 +143,12 @@ def convolve1D(a, v, mode="full"):
     else:
         raise ValueError("Only {'full', 'valid', 'same'} are allowed for mode")
 
-    print("pad_prev: ", pad_prev)
-    print("pad_next: ", pad_next)
-    print("gshape: ", gshape)
-
     # add padding to the borders according to mode
     signal = a.genpad(signal, pad_prev, pad_next)
-
-    # print('signal padded', signal)
 
     # make signal and filter weight 3D for Pytorch conv1d function
     signal.unsqueeze_(0)
     signal.unsqueeze_(0)
-
-    # print("signal unsqueezed", signal)
 
     # flip filter for convolution as Pytorch conv1d computes correlations
     weight = v._DNDarray__array.clone()
