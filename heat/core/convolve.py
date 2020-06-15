@@ -4,10 +4,14 @@ from .communication import MPI
 from . import dndarray
 import torch.nn.functional as fc
 
-__all__ = ["convolve"]
+__all__ = ["convolve", "convolve1D"]
 
 
 def convolve(a, v, mode="full"):
+    return
+
+
+def convolve1D(a, v, mode="full"):
     """
     Returns the discrete, linear convolution of two one-dimensional HeAT tensors.
 
@@ -24,7 +28,7 @@ def convolve(a, v, mode="full"):
           the end-points of the convolution, the signals do not overlap
           completely, and boundary effects may be seen.
         'same':
-          Mode 'same' returns output of length 'N'. Boundary
+          Mode 'same' returns output  of length 'N'. Boundary
           effects are still visible.
         'valid':
           Mode 'valid' returns output of length 'N-M+1'. The
@@ -77,8 +81,14 @@ def convolve(a, v, mode="full"):
     if a.dtype is not v.dtype:
         raise TypeError("Signal and filter weight must be of same type")
 
+    # print("------------------------------------")
+    #print("kernal:", v)
+    #print("signal:", a)
+
     # compute halo size
-    halo_size = (v.shape[0] - 1) // 2
+    halo_size = v.shape[0] // 2 if v.shape[0] % 2 == 0 else (v.shape[0] - 1) // 2
+
+    print("halo size: ", halo_size)
 
     # fetch halos and store them in a.halo_next/a.halo_prev
     a.get_halo(halo_size)
@@ -88,20 +98,52 @@ def convolve(a, v, mode="full"):
         a.array_with_halos
     )  # torch.cat(tuple(_ for _ in (a.halo_prev, a.array, a.halo_next) if _ is not None))
 
+    print("signal with halo:", signal)
+
     # check if a local chunk is smaller than the filter size
     if a.is_distributed() and signal.size()[0] < v.shape[0]:
         raise ValueError("Local chunk size is smaller than filter size, this is not supported yet")
 
+    # ----- we need different cases for the first and last processes
+    # rank 0:                   only pad on the left
+    # rank n-1:                 only pad on the right
+    # rank i: 0 < i < n-1:      no padding at all
+
+    has_left = (a.halo_prev is not None)
+    has_right = (a.halo_next is not None)
+
+    print("has_left", has_left)
+    print("has_right", has_right)
+
     if mode == "full":
-        pad_prev = pad_next = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type())
+        pad_prev = pad_next = None
+        #pad_prev = pad_next = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type())
+        if not a.is_distributed():
+            pad_prev = pad_next = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type())
+
+        elif (not has_left) and has_right:  # maybe just check for rank?
+            # first process, pad only left
+            pad_prev = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type())
+            pad_next = None
+
+        elif has_left and (not has_right):
+            # last process, pad only right
+            pad_prev = None
+            pad_next = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type())
+
+        else:
+            # all processes in between don't need padding
+            pad_prev = pad_next = None
+
         gshape = v.shape[0] + a.shape[0] - 1
 
     elif mode == "same":
-        if v.shape[0] % 2 == 0:
-            pad_prev = torch.zeros(halo_size + 1, dtype=a.dtype.torch_type())
+        # first and last need padding
+        pad_prev = pad_next = None
+        if a.comm.rank == 0:
+            pad_prev = torch.zeros(halo_size, dtype=a.dtype.torch_type())
+        elif a.comm.rank == a.comm.size - 1:
             pad_next = torch.zeros(halo_size, dtype=a.dtype.torch_type())
-        else:
-            pad_prev = pad_next = torch.zeros(halo_size, dtype=a.dtype.torch_type())
 
         gshape = a.shape[0]
 
@@ -112,12 +154,20 @@ def convolve(a, v, mode="full"):
     else:
         raise ValueError("Only {'full', 'valid', 'same'} are allowed for mode")
 
+    print("pad_prev: ", pad_prev)
+    print("pad_next: ", pad_next)
+    print("gshape: ", gshape)
+
     # add padding to the borders according to mode
     signal = a.genpad(signal, pad_prev, pad_next)
+
+    #print('signal padded', signal)
 
     # make signal and filter weight 3D for Pytorch conv1d function
     signal.unsqueeze_(0)
     signal.unsqueeze_(0)
+
+    #print("signal unsqueezed", signal)
 
     # flip filter for convolution as Pytorch conv1d computes correlations
     weight = v._DNDarray__array.clone()
@@ -129,6 +179,27 @@ def convolve(a, v, mode="full"):
     # apply torch convolution operator
     signal_filtered = fc.conv1d(signal, weight)
 
+    # unpack 3D result into 1D
+    signal_filtered = signal_filtered[0, 0, :]
+
+    # if kernel shape along split axis is even we need to get rid of duplicated values
+    if v.shape[0] % 2 == 0:
+        s = slice(None, None)
+        if mode == "full" or mode == "valid":
+            # if not first rank cut first element
+            if a.comm.rank != 0:
+                s = slice(1, None)
+
+        if mode == "same":
+            # if not first or last rank cut first element
+            if a.comm.rank != 0 and a.comm.rank != a.comm.size - 1:
+                s = slice(1, None)
+            # if last rank cut last element
+            elif a.comm.rank == a.comm.size - 1:
+                s = slice(1, -1)
+
+        signal_filtered = signal_filtered[s]
+
     return dndarray.DNDarray(
-        signal_filtered[0, 0, :], (gshape,), signal_filtered.dtype, a.split, a.device, a.comm
-    )
+        signal_filtered.contiguous(), (gshape,), signal_filtered.dtype, a.split, a.device, a.comm
+    ).astype(a.dtype.torch_type())
