@@ -3489,7 +3489,7 @@ class DNDarray:
         Parameters
         ----------
         keepsplit: bool
-            Whether the list should be returned locally or globally. 
+            Whether the list should be returned locally or globally.
 
         Examples
         --------
