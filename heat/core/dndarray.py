@@ -111,7 +111,20 @@ class DNDarray:
     @property
     def numdims(self):
         """
+        Returns
+        -------
+        number_of_dimensions : int
+            the number of dimensions of the DNDarray
 
+        .. deprecated:: 0.5.0
+          `numdims` will be removed in HeAT 1.0.0, it is replaced by `ndim` because the latter is numpy API compliant.
+        """
+        warnings.warn("numdims is deprecated, use ndim instead", DeprecationWarning)
+        return len(self.__gshape)
+
+    @property
+    def ndim(self):
+        """
         Returns
         -------
         number_of_dimensions : int
@@ -1392,7 +1405,6 @@ class DNDarray:
             key = tuple(x.item() for x in key)
 
         if not self.is_distributed():
-
             if not self.comm.size == 1:
                 if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
                     # this will return a 1D array as the shape cannot be determined automatically
@@ -1427,7 +1439,6 @@ class DNDarray:
                     )
 
         else:
-
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
@@ -1439,7 +1450,7 @@ class DNDarray:
             if isinstance(key, int):
                 gout = [0] * (len(self.gshape) - 1)
                 if key < 0:
-                    key += self.numdims
+                    key += self.ndim
                 # handle the reduction of the split to accommodate for the reduced dimension
                 if self.split >= len(gout):
                     new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
@@ -1601,7 +1612,6 @@ class DNDarray:
                     gout[e] = self.comm.allreduce(gout[e], MPI.SUM)
                 else:
                     gout[e] = self.comm.allreduce(gout[e], MPI.MAX)
-
             return DNDarray(
                 arr.type(l_dtype),
                 gout if isinstance(gout, tuple) else tuple(gout),
@@ -2597,8 +2607,8 @@ class DNDarray:
         None
         """
         rank = self.comm.rank
-        send_slice = [slice(None)] * self.numdims
-        keep_slice = [slice(None)] * self.numdims
+        send_slice = [slice(None)] * self.ndim
+        keep_slice = [slice(None)] * self.ndim
         if rank == snd_pr:
             if snd_pr < rcv_pr:  # data passed to a higher rank (off the bottom)
                 send_slice[self.split] = slice(
@@ -2730,7 +2740,7 @@ class DNDarray:
             # need to get where the tiles are on the new one first
             # rpr is the destination
             new_locs = torch.where(new_tile_locs == rpr)
-            new_locs = torch.stack([new_locs[i] for i in range(self.numdims)], dim=1)
+            new_locs = torch.stack([new_locs[i] for i in range(self.ndim)], dim=1)
             for i in range(new_locs.shape[0]):
                 key = tuple(new_locs[i].tolist())
                 spr = tiles.tile_locations[key].item()
@@ -2747,7 +2757,7 @@ class DNDarray:
                     )
                     w = self.comm.Irecv(buf=buf, source=spr, tag=spr)
                     rcv[key] = [w, buf]
-        dims = list(range(self.numdims))
+        dims = list(range(self.ndim))
         del dims[axis]
         sorted_keys = sorted(rcv.keys())
         # todo: reduce the problem to 1D cats for each dimension, then work up
@@ -3061,6 +3071,12 @@ class DNDarray:
         Nothing
             The specified element/s (key) of self is set with the value
 
+        Notes
+        -----
+        If a DNDarray is given as the value to be set then the split axes are assumed to be equal.
+            If they are not, PyTorch will raise an error when the values are attempted to be set
+            on the local array
+
         Examples
         --------
         (2 processes)
@@ -3086,19 +3102,15 @@ class DNDarray:
             else:
                 self.__setter(key, value)
         else:
-            if (
-                isinstance(value, DNDarray)
-                and value.split is not None
-                and value.split != self.split
-            ):
-                raise RuntimeError("split axis of array and the target value are not equal")
+            # raise RuntimeError("split axis of array and the target value are not equal") removed
+            # this will occur if the local shapes do not match
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
 
             if isinstance(key, int):
                 if key < 0:
-                    key += self.numdims
+                    key += self.ndim
                 if self.split == 0:
                     if key in range(chunk_start, chunk_end):
                         self.__setter(key - chunk_start, value)
@@ -3110,7 +3122,7 @@ class DNDarray:
                     ):
                         value = factories.array(value, split=self[key].split)
                     self.__setter(key, value)
-            elif isinstance(key, (tuple, list, torch.Tensor)):
+            elif isinstance(key, (tuple, torch.Tensor)):
                 if isinstance(key[self.split], slice):
                     key = list(key)
                     overlap = list(
