@@ -1671,6 +1671,7 @@ def vstack(tup):
 
 
 def topk(a, k, dim=None, largest=True, sorted=True, out=None):
+
     """
     Returns the k highest entries in the array.
     (Not Stable for split arrays)
@@ -1704,32 +1705,65 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         dim = len(a.shape) - 1
 
     if dim == a.split:
-        '''
+        split = None
         local_data = a._DNDarray__array
-        lres, lindcs = torch.topk(local_data, 1, dim=0, largest=largest, sorted=sorted)
+        chunk_size = local_data.shape[dim]
 
-        gres_buf = torch.empty((a.comm.Get_size(),k,), dtype=a.dtype.torch_type())
+        # Numer of chunks (concatenated) needed to get chunks of size >= k
+        block_count = int(k / chunk_size) + (k % chunk_size > 0)
 
-        a.comm.Allgather(lres, gres_buf, recv_axis=0)
-        gres_buf.reshape((a.comm.Get_size(),k))
-        print(gres_buf)
-        # Run topk a second time
-        gres, gindcs = torch.topk(
-            gres_buf, k, dim=dim, largest=largest, sorted=sorted
-        )
+        # Number of iterations until all share the same result
+        iterations = int(a.comm.Get_size() / block_count) + (a.comm.Get_size() % block_count > 0)
 
-        #gres = torch.unsqueeze(gres, dim)
+        gbuf = torch.empty((a.comm.Get_size(),) + tuple(a.lshape), dtype=a.dtype.torch_type())
+        a.comm.Allgather(local_data, gbuf, recv_axis=0)
 
-        #gindcs = gindcs + offset
-        '''
+        count = a.comm.rank + 1
+        if count == a.comm.Get_size():
+            count = 0
 
-        global_buf = torch.empty(a.shape, dtype=a.dtype.torch_type())
-        a.comm.Allgather(a._DNDarray__array, global_buf)
-        gres, gindcs = torch.topk(global_buf, k, dim=0, largest=largest, sorted=sorted)
+        for i in range(block_count):
+            neighbour = gbuf[count]
+            local_data = torch.cat((local_data, neighbour), dim)
+
+            if count == (a.comm.Get_size() - 1):
+                count = 0 if a.comm.rank != 0 else 1
+            else:
+                count = count + 1
+
+        local_data, local_indices = torch.topk(local_data, k, dim=dim, largest=largest, sorted=sorted)
+        g_res_buf = torch.empty((a.comm.Get_size(),) + tuple(local_data.shape), dtype=a.dtype.torch_type())
+        g_indcs_buf = torch.empty((a.comm.Get_size(),) + tuple(local_indices.shape), dtype=local_indices.dtype)
+
+        a.comm.Allgather(local_data, g_res_buf, recv_axis=0)
+        a.comm.Allgather(local_indices, g_indcs_buf, recv_axis=0)
+
+        for i in range(iterations - 1):
+            if a.comm.rank == (a.comm.Get_size() - 1):
+                neighbour = g_res_buf[0]
+                neighbour_indices = g_indcs_buf[0]
+            else:
+                neighbour = g_res_buf[a.comm.rank + 1]
+                neighbour_indices = g_indcs_buf[a.comm.rank + 1]
+
+            local_data = torch.cat((g_res_buf[a.comm.rank], neighbour), dim)
+            local_indices = torch.cat((g_indcs_buf[a.comm.rank], neighbour_indices), dim)
+            l_res, l_indices = torch.topk(local_data, k, dim=dim, largest=largest, sorted=sorted)
+
+            local_indices = local_indices[l_indices]
+
+            a.comm.Allgather(l_res, g_res_buf, recv_axis=0)
+            #a.comm.Allgather(local_indices, g_indcs_buf, recv_axis=0)
+
+        gres = g_res_buf[0].squeeze()
+        gindcs = g_indcs_buf[0].squeeze()
 
     else:
+        split = a.split
+
         local_data = a._DNDarray__array.transpose(0, dim)
         lres, lindcs = torch.topk(local_data, k, dim=0, largest=largest, sorted=sorted)
+
         gres_buf = torch.empty((a.comm.Get_size(), k, lres.shape[1]), dtype=a.dtype.torch_type())
         gindcs_buf = torch.empty((a.comm.Get_size(), k, lindcs.shape[1]), dtype=lindcs.dtype)
 
@@ -1739,7 +1773,7 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         gres = gres_buf.squeeze()
         gindcs = gindcs_buf.squeeze()
 
-    final_array = factories.array(gres, dtype=a.dtype, split=a.split, device=a.device)
+    final_array = factories.array(gres, dtype=a.dtype, device=a.device, split=split)
     final_indices = factories.array(gindcs, split=None, device=a.device)
 
     if out is not None:
