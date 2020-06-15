@@ -853,7 +853,7 @@ def outer(a, b, out=None, split=None):
     split: int, optional #TODO check out docstring format
             Split dimension of the resulting DNDarray. Can be 0, 1, or None.
             This is only relevant if the calculations are memory-distributed,
-            default is split=0 (see Note).
+            in which case default is split=0 (see Note).
 
     Note: parallel implementation of outer product, arrays are dense. #TODO sparse
         In the classical (dense) case, one DNDarray stays put, the other one is passed around the ranks in
@@ -862,8 +862,8 @@ def outer(a, b, out=None, split=None):
               if 'a' is sent around, the resulting outer product is split along the columns (split = 1).
         So if 'split' is not None, 'split' defines which DNDarray stays put and which one is passed around. No
         communication is needed beyond ring communication of one of the DNDarrays.
-        If 'split' is None or unspecified, the result will be distributed along axis 0, i.e. by default b is
-        passed around, a stays put.
+        If 'split' is None or unspecified, the result will be distributed along axis 0, i.e. by default 'b' is
+        passed around, 'a' stays put.
 
     Returns
     -------
