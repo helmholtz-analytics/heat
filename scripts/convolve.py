@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import sys
 
-sys.path.append('../')
+sys.path.append("../")
 
 import heat as ht
 from heat import manipulations
@@ -14,7 +14,7 @@ v = ht.ones(7).astype(ht.float)
 rank, size = [a.comm.rank, a.comm.size]
 print("[{0}/{1}], a shape: {2}".format(rank, size, a.lshape))
 # c = ht.vstack((a, b))
-conv = ht.convolve1D(a, v, mode='full')
+conv = ht.convolve1D(a, v, mode="full")
 
 # rebalance is necessary for gather
 
@@ -37,7 +37,7 @@ gathered = manipulations.resplit(conv, axis=None)
 print("[{0}/{1}], gathered: {2}".format(rank, size, gathered))
 
 exit()
-'''
+"""
 t = torch.rand((1, 1, 16, 16), dtype=torch.float32)
 filter1d = torch.tensor([[
     [1, 2, 1]
@@ -57,4 +57,4 @@ print(t)
 print(filter2d)
 print(result)
 print(result.shape)
-'''
+"""
