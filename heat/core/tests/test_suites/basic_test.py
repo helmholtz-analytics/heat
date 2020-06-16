@@ -32,7 +32,7 @@ class TestCase(unittest.TestCase):
 
         Raises
         ------
-        RuntimeError if value is not recognized
+        RuntimeError if value of 'HEAT_TEST_USE_DEVICE' is not recognized
 
         """
 
