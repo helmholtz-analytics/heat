@@ -4,9 +4,9 @@
 - [#577](https://github.com/helmholtz-analytics/heat/pull/577) Add ndim property in dndarray
 - [#578](https://github.com/helmholtz-analytics/heat/pull/578) Bugfix: Bad variable in reshape
 - [#580](https://github.com/helmholtz-analytics/heat/pull/580) New feature: fliplr()
-- [#596](https://github.com/helmholtz-analytics/heat/pull/596) New feature: outer()
 - [#594](https://github.com/helmholtz-analytics/heat/pull/594) New feature: Advanced indexing
 - [#594](https://github.com/helmholtz-analytics/heat/pull/594) Bugfix: getitem and setitem memory consumption heavily reduced
+- [#596](https://github.com/helmholtz-analytics/heat/pull/596) New feature: outer()
 
 # v0.4.0
 
