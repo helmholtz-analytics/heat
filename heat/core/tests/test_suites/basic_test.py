@@ -29,7 +29,7 @@ class TestCase(unittest.TestCase):
         Supported values
             - cpu: Use CPU only (default)
             - gpu: Use GPU only
-        
+
         Raises
         ------
         RuntimeError if value is not recognized
