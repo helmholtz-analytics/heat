@@ -18,114 +18,6 @@ if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
 
 
 class TestTrigonometrics(unittest.TestCase):
-    def test_rad2deg(self):
-        # base elements
-        elements = [0.0, 0.2, 0.6, 0.9, 1.2, 2.7, 3.14]
-        comparison = (
-            180.0 * torch.tensor(elements, dtype=torch.float64, device=device) / 3.141592653589793
-        )
-
-        # rad2deg with float32
-        float32_tensor = ht.array(elements, dtype=ht.float32, device=ht_device)
-        float32_rad2deg = ht.rad2deg(float32_tensor)
-        self.assertIsInstance(float32_rad2deg, ht.DNDarray)
-        self.assertEqual(float32_rad2deg.dtype, ht.float32)
-        self.assertTrue(torch.allclose(float32_rad2deg._DNDarray__array.double(), comparison))
-
-        # rad2deg with float64
-        float64_tensor = ht.array(elements, dtype=ht.float64, device=ht_device)
-        float64_rad2deg = ht.rad2deg(float64_tensor)
-        self.assertIsInstance(float64_rad2deg, ht.DNDarray)
-        self.assertEqual(float64_rad2deg.dtype, ht.float64)
-        self.assertTrue(torch.allclose(float64_rad2deg._DNDarray__array.double(), comparison))
-
-        # check exceptions
-        with self.assertRaises(TypeError):
-            ht.rad2deg([1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.rad2deg("hello world")
-
-    def test_degrees(self):
-        # base elements
-        elements = [0.0, 0.2, 0.6, 0.9, 1.2, 2.7, 3.14]
-        comparison = (
-            180.0 * torch.tensor(elements, dtype=torch.float64, device=device) / 3.141592653589793
-        )
-
-        # degrees with float32
-        float32_tensor = ht.array(elements, dtype=ht.float32, device=ht_device)
-        float32_degrees = ht.degrees(float32_tensor)
-        self.assertIsInstance(float32_degrees, ht.DNDarray)
-        self.assertEqual(float32_degrees.dtype, ht.float32)
-        self.assertTrue(torch.allclose(float32_degrees._DNDarray__array.double(), comparison))
-
-        # degrees with float64
-        float64_tensor = ht.array(elements, dtype=ht.float64, device=ht_device)
-        float64_degrees = ht.degrees(float64_tensor)
-        self.assertIsInstance(float64_degrees, ht.DNDarray)
-        self.assertEqual(float64_degrees.dtype, ht.float64)
-        self.assertTrue(torch.allclose(float64_degrees._DNDarray__array.double(), comparison))
-
-        # check exceptions
-        with self.assertRaises(TypeError):
-            ht.degrees([1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.degrees("hello world")
-
-    def test_deg2rad(self):
-        # base elements
-        elements = [0.0, 20.0, 45.0, 78.0, 94.0, 120.0, 180.0, 270.0, 311.0]
-        comparison = (
-            3.141592653589793 * torch.tensor(elements, dtype=torch.float64, device=device) / 180.0
-        )
-
-        # deg2rad with float32
-        float32_tensor = ht.array(elements, dtype=ht.float32, device=ht_device)
-        float32_deg2rad = ht.deg2rad(float32_tensor)
-        self.assertIsInstance(float32_deg2rad, ht.DNDarray)
-        self.assertEqual(float32_deg2rad.dtype, ht.float32)
-        self.assertTrue(torch.allclose(float32_deg2rad._DNDarray__array.double(), comparison))
-
-        # deg2rad with float64
-        float64_tensor = ht.array(elements, dtype=ht.float64, device=ht_device)
-        float64_deg2rad = ht.deg2rad(float64_tensor)
-        self.assertIsInstance(float64_deg2rad, ht.DNDarray)
-        self.assertEqual(float64_deg2rad.dtype, ht.float64)
-        self.assertTrue(torch.allclose(float64_deg2rad._DNDarray__array.double(), comparison))
-
-        # check exceptions
-        with self.assertRaises(TypeError):
-            ht.deg2rad([1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.deg2rad("hello world")
-
-    def test_radians(self):
-        # base elements
-        elements = [0.0, 20.0, 45.0, 78.0, 94.0, 120.0, 180.0, 270.0, 311.0]
-        comparison = (
-            3.141592653589793 * torch.tensor(elements, dtype=torch.float64, device=device) / 180.0
-        )
-
-        # radians with float32
-        float32_tensor = ht.array(elements, dtype=ht.float32, device=ht_device)
-        float32_radians = ht.radians(float32_tensor)
-        self.assertIsInstance(float32_radians, ht.DNDarray)
-        self.assertEqual(float32_radians.dtype, ht.float32)
-        self.assertTrue(torch.allclose(float32_radians._DNDarray__array.double(), comparison))
-
-        # radians with float64
-        float64_tensor = ht.array(elements, dtype=ht.float64, device=ht_device)
-        float64_radians = ht.radians(float64_tensor)
-        self.assertIsInstance(float64_radians, ht.DNDarray)
-        self.assertEqual(float64_radians.dtype, ht.float64)
-        self.assertTrue(torch.allclose(float64_radians._DNDarray__array.double(), comparison))
-
-        # check exceptions
-        with self.assertRaises(TypeError):
-            ht.radians([1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.radians("hello world")
-
     def test_arctan(self):
         # base elements
         elements = 30
@@ -201,7 +93,7 @@ class TestTrigonometrics(unittest.TestCase):
         int16_y = ht.array([-1, -1, +1, +1], dtype=ht.int16)
 
         int16_comparison = ht.array([-135.0, -45.0, 45.0, 135.0], dtype=ht.float32)
-        int16_arctan2 = ht.arctan2(int16_y, int16_x) * 180 / ht.pi
+        int16_arctan2 = ht.arctan2(int16_y, int16_x) * 180.0 / ht.pi
 
         self.assertIsInstance(int16_arctan2, ht.DNDarray)
         self.assertEqual(int16_arctan2.dtype, ht.float32)
@@ -270,6 +162,60 @@ class TestTrigonometrics(unittest.TestCase):
             ht.arccos([1, 2, 3])
         with self.assertRaises(TypeError):
             ht.arccos("hello world")
+
+    def test_degrees(self):
+        # base elements
+        elements = [0.0, 0.2, 0.6, 0.9, 1.2, 2.7, 3.14]
+        comparison = (
+            180.0 * torch.tensor(elements, dtype=torch.float64, device=device) / 3.141592653589793
+        )
+
+        # degrees with float32
+        float32_tensor = ht.array(elements, dtype=ht.float32, device=ht_device)
+        float32_degrees = ht.degrees(float32_tensor)
+        self.assertIsInstance(float32_degrees, ht.DNDarray)
+        self.assertEqual(float32_degrees.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_degrees._DNDarray__array.double(), comparison))
+
+        # degrees with float64
+        float64_tensor = ht.array(elements, dtype=ht.float64, device=ht_device)
+        float64_degrees = ht.degrees(float64_tensor)
+        self.assertIsInstance(float64_degrees, ht.DNDarray)
+        self.assertEqual(float64_degrees.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_degrees._DNDarray__array.double(), comparison))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.degrees([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.degrees("hello world")
+
+    def test_deg2rad(self):
+        # base elements
+        elements = [0.0, 20.0, 45.0, 78.0, 94.0, 120.0, 180.0, 270.0, 311.0]
+        comparison = (
+            3.141592653589793 * torch.tensor(elements, dtype=torch.float64, device=device) / 180.0
+        )
+
+        # deg2rad with float32
+        float32_tensor = ht.array(elements, dtype=ht.float32, device=ht_device)
+        float32_deg2rad = ht.deg2rad(float32_tensor)
+        self.assertIsInstance(float32_deg2rad, ht.DNDarray)
+        self.assertEqual(float32_deg2rad.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_deg2rad._DNDarray__array.double(), comparison))
+
+        # deg2rad with float64
+        float64_tensor = ht.array(elements, dtype=ht.float64, device=ht_device)
+        float64_deg2rad = ht.deg2rad(float64_tensor)
+        self.assertIsInstance(float64_deg2rad, ht.DNDarray)
+        self.assertEqual(float64_deg2rad.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_deg2rad._DNDarray__array.double(), comparison))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.deg2rad([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.deg2rad("hello world")
 
     def test_cos(self):
         # base elements
@@ -348,6 +294,60 @@ class TestTrigonometrics(unittest.TestCase):
             ht.cosh([1, 2, 3])
         with self.assertRaises(TypeError):
             ht.cosh("hello world")
+
+    def test_rad2deg(self):
+        # base elements
+        elements = [0.0, 0.2, 0.6, 0.9, 1.2, 2.7, 3.14]
+        comparison = (
+            180.0 * torch.tensor(elements, dtype=torch.float64, device=device) / 3.141592653589793
+        )
+
+        # rad2deg with float32
+        float32_tensor = ht.array(elements, dtype=ht.float32, device=ht_device)
+        float32_rad2deg = ht.rad2deg(float32_tensor)
+        self.assertIsInstance(float32_rad2deg, ht.DNDarray)
+        self.assertEqual(float32_rad2deg.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_rad2deg._DNDarray__array.double(), comparison))
+
+        # rad2deg with float64
+        float64_tensor = ht.array(elements, dtype=ht.float64, device=ht_device)
+        float64_rad2deg = ht.rad2deg(float64_tensor)
+        self.assertIsInstance(float64_rad2deg, ht.DNDarray)
+        self.assertEqual(float64_rad2deg.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_rad2deg._DNDarray__array.double(), comparison))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.rad2deg([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.rad2deg("hello world")
+
+    def test_radians(self):
+        # base elements
+        elements = [0.0, 20.0, 45.0, 78.0, 94.0, 120.0, 180.0, 270.0, 311.0]
+        comparison = (
+            3.141592653589793 * torch.tensor(elements, dtype=torch.float64, device=device) / 180.0
+        )
+
+        # radians with float32
+        float32_tensor = ht.array(elements, dtype=ht.float32, device=ht_device)
+        float32_radians = ht.radians(float32_tensor)
+        self.assertIsInstance(float32_radians, ht.DNDarray)
+        self.assertEqual(float32_radians.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_radians._DNDarray__array.double(), comparison))
+
+        # radians with float64
+        float64_tensor = ht.array(elements, dtype=ht.float64, device=ht_device)
+        float64_radians = ht.radians(float64_tensor)
+        self.assertIsInstance(float64_radians, ht.DNDarray)
+        self.assertEqual(float64_radians.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_radians._DNDarray__array.double(), comparison))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.radians([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.radians("hello world")
 
     def test_sin(self):
         # base elements
