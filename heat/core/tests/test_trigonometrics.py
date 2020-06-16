@@ -165,6 +165,48 @@ class TestTrigonometrics(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.arctan("hello world")
 
+    def test_arctan2(self):
+        float32_y = torch.randn(30, device=device)
+        float32_x = torch.randn(30, device=device)
+
+        float32_comparison = torch.atan2(float32_y, float32_x)
+        float32_arctan2 = ht.arctan2(ht.array(float32_y), ht.array(float32_x))
+
+        self.assertIsInstance(float32_arctan2, ht.DNDarray)
+        self.assertEqual(float32_arctan2.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_arctan2._DNDarray__array, float32_comparison))
+
+        float64_y = torch.randn(30, dtype=torch.float64, device=device)
+        float64_x = torch.randn(30, dtype=torch.float64, device=device)
+
+        float64_comparison = torch.atan2(float64_y, float64_x)
+        float64_arctan2 = ht.arctan2(ht.array(float64_y), ht.array(float64_x))
+
+        self.assertIsInstance(float64_arctan2, ht.DNDarray)
+        self.assertEqual(float64_arctan2.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_arctan2._DNDarray__array, float64_comparison))
+
+        # Rare Special Case with integers
+        int32_x = ht.array([-1, +1, +1, -1])
+        int32_y = ht.array([-1, -1, +1, +1])
+
+        int32_comparison = ht.array([-135.0, -45.0, 45.0, 135.0], dtype=ht.float64)
+        int32_arctan2 = ht.arctan2(int32_y, int32_x) * 180 / ht.pi
+
+        self.assertIsInstance(int32_arctan2, ht.DNDarray)
+        self.assertEqual(int32_arctan2.dtype, ht.float64)
+        self.assertTrue(ht.allclose(int32_arctan2, int32_comparison))
+
+        int16_x = ht.array([-1, +1, +1, -1], dtype=ht.int16)
+        int16_y = ht.array([-1, -1, +1, +1], dtype=ht.int16)
+
+        int16_comparison = ht.array([-135.0, -45.0, 45.0, 135.0], dtype=ht.float32)
+        int16_arctan2 = ht.arctan2(int16_y, int16_x) * 180 / ht.pi
+
+        self.assertIsInstance(int16_arctan2, ht.DNDarray)
+        self.assertEqual(int16_arctan2.dtype, ht.float32)
+        self.assertTrue(ht.allclose(int16_arctan2, int16_comparison))
+
     def test_arcsin(self):
         # base elements
         elements = [-1.0, -0.83, -0.12, 0.0, 0.24, 0.67, 1.0]
