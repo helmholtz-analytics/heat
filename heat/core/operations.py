@@ -124,10 +124,6 @@ def __binary_op(operation, t1, t2):
             raise TypeError(
                 "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
             )
-
-        if t2.dtype != t1.dtype:
-            t2 = t2.astype(t1.dtype)
-
     else:
         raise NotImplementedError("Not implemented for non scalar")
 
