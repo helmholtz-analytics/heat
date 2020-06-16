@@ -166,8 +166,8 @@ class TestTrigonometrics(TestCase):
             ht.arctan("hello world")
 
     def test_arctan2(self):
-        float32_y = torch.randn(30, device=device)
-        float32_x = torch.randn(30, device=device)
+        float32_y = torch.randn(30, device=self.device.torch_device)
+        float32_x = torch.randn(30, device=self.device.torch_device)
 
         float32_comparison = torch.atan2(float32_y, float32_x)
         float32_arctan2 = ht.arctan2(ht.array(float32_y), ht.array(float32_x))
@@ -176,8 +176,8 @@ class TestTrigonometrics(TestCase):
         self.assertEqual(float32_arctan2.dtype, ht.float32)
         self.assertTrue(torch.allclose(float32_arctan2._DNDarray__array, float32_comparison))
 
-        float64_y = torch.randn(30, dtype=torch.float64, device=device)
-        float64_x = torch.randn(30, dtype=torch.float64, device=device)
+        float64_y = torch.randn(30, dtype=torch.float64, device=self.device.torch_device)
+        float64_x = torch.randn(30, dtype=torch.float64, device=self.device.torch_device)
 
         float64_comparison = torch.atan2(float64_y, float64_x)
         float64_arctan2 = ht.arctan2(ht.array(float64_y), ht.array(float64_x))
