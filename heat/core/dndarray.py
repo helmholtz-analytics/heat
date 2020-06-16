@@ -3482,7 +3482,7 @@ class DNDarray:
         """
         return trigonometrics.tanh(self, out)
 
-    def tolist(self, keepsplit=True) -> List:
+    def tolist(self, keepsplit=False) -> List:
         """
         Return a copy of the local array data as a (nested) Python list. For scalars, a standard Python number is returned.
 
@@ -3509,7 +3509,7 @@ class DNDarray:
         """
 
         if not keepsplit:
-            return manipulations.resplit(self, axis=None).tolist()
+            return manipulations.resplit(self, axis=None).__array.tolist()
 
         return self.__array.tolist()
 

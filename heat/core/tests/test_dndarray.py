@@ -1150,7 +1150,7 @@ class TestDNDarray(unittest.TestCase):
         )
         res = [
             [[0 for z in range(ht.MPI_WORLD.size)] for y in range(ht.MPI_WORLD.size)]
-            for x in [ht.MPI_WORLD.rank]
+            for x in range(ht.MPI_WORLD.size)
         ]
         self.assertListEqual(a.tolist(), res)
 
@@ -1161,7 +1161,7 @@ class TestDNDarray(unittest.TestCase):
             [[0.0 for z in range(ht.MPI_WORLD.size)] for y in [ht.MPI_WORLD.rank]]
             for x in range(ht.MPI_WORLD.size)
         ]
-        self.assertListEqual(a.tolist(), res)
+        self.assertListEqual(a.tolist(keepsplit=True), res)
 
         a = ht.zeros(
             [ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.bool, split=2
@@ -1170,7 +1170,7 @@ class TestDNDarray(unittest.TestCase):
             [[False for z in [ht.MPI_WORLD.rank]] for y in range(ht.MPI_WORLD.size)]
             for x in range(ht.MPI_WORLD.size)
         ]
-        self.assertListEqual(a.tolist(), res)
+        self.assertListEqual(a.tolist(keepsplit=True), res)
 
     def test_xor(self):
         int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16, device=ht_device)
