@@ -962,7 +962,9 @@ class TestDNDarray(unittest.TestCase):
         a = ht.zeros((4, 5), split=1, device=ht_device)
         a[1, 0:4] = ht.arange(4, device=ht_device)
         for c, i in enumerate(range(4)):
-            self.assertEqual(a[1, c], i)
+            b = a[1, c]
+            if b._DNDarray__array.numel() > 0:
+                self.assertEqual(b.item(), i)
 
         # setting with torch tensor
         a = ht.zeros((4, 5), split=1, device=ht_device)
@@ -1136,6 +1138,41 @@ class TestDNDarray(unittest.TestCase):
             np.array(numpy_float64_F.strides[split + 1 :]) / size
         )
         self.assertEqual(heat_float64_F_split.strides, numpy_float64_F_split_strides)
+
+    def test_tolist(self):
+        a = ht.zeros([ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.int32)
+        res = [
+            [[0 for z in range(ht.MPI_WORLD.size)] for y in range(ht.MPI_WORLD.size)]
+            for x in range(ht.MPI_WORLD.size)
+        ]
+        self.assertListEqual(a.tolist(), res)
+
+        a = ht.zeros(
+            [ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.int32, split=0
+        )
+        res = [
+            [[0 for z in range(ht.MPI_WORLD.size)] for y in range(ht.MPI_WORLD.size)]
+            for x in range(ht.MPI_WORLD.size)
+        ]
+        self.assertListEqual(a.tolist(), res)
+
+        a = ht.zeros(
+            [ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.float32, split=1
+        )
+        res = [
+            [[0.0 for z in range(ht.MPI_WORLD.size)] for y in [ht.MPI_WORLD.rank]]
+            for x in range(ht.MPI_WORLD.size)
+        ]
+        self.assertListEqual(a.tolist(keepsplit=True), res)
+
+        a = ht.zeros(
+            [ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.bool, split=2
+        )
+        res = [
+            [[False for z in [ht.MPI_WORLD.rank]] for y in range(ht.MPI_WORLD.size)]
+            for x in range(ht.MPI_WORLD.size)
+        ]
+        self.assertListEqual(a.tolist(keepsplit=True), res)
 
     def test_xor(self):
         int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16, device=ht_device)

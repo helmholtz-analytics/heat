@@ -379,8 +379,14 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
     if 0 in x.lshape and (axis is None or (x.split in axis)):
         if neutral is None:
             neutral = float("nan")
-        neutral_shape = x.lshape[:split] + (1,) + x.lshape[split + 1 :]
-        partial = torch.full(neutral_shape, fill_value=neutral, dtype=x._DNDarray__array.dtype)
+        neutral_shape = x.gshape[:split] + (1,) + x.gshape[split + 1 :]
+        partial = torch.full(
+            neutral_shape,
+            fill_value=neutral,
+            dtype=x.dtype.torch_type(),
+            device=x.device.torch_device,
+        )
+
     else:
         partial = x._DNDarray__array
 
@@ -402,7 +408,8 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
                 lshape_losedim = (partial.shape[0],) + lshape_losedim
             if 0 not in axis and partial.shape[0] != x.lshape[0]:
                 lshape_losedim = (partial.shape[0],) + lshape_losedim[1:]
-            partial = partial.reshape(lshape_losedim)
+            if len(lshape_losedim) > 0:
+                partial = partial.reshape(lshape_losedim)
 
     # Check shape of output buffer, if any
     if out is not None and out.shape != output_shape:

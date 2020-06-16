@@ -77,6 +77,9 @@ def nonzero(a):
 
     if a.ndim == 1:
         lcl_nonzero = lcl_nonzero.squeeze(dim=1)
+    for g in range(len(gout) - 1, -1, -1):
+        if gout[g] == 1:
+            del gout[g]
 
     return dndarray.DNDarray(
         lcl_nonzero,
