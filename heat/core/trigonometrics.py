@@ -1,10 +1,7 @@
-from __future__ import annotations
-
 import torch
 from .constants import pi
 from .operations import __local_op as local_op
 from .operations import __binary_op as binary_op
-from . import dndarray
 from . import types
 
 
@@ -105,20 +102,24 @@ def arctan(x, out=None):
     return local_op(torch.atan, x, out)
 
 
-def arctan2(x1, x2) -> dndarray.DNDarray:
+def arctan2(x1, x2):
     """
     Element-wise arc tangent of ``x1/x2`` choosing the quadrant correctly.
-    Returns a new :class:``DNDarray`` with the signed angles in radians between vector (``x2``,``x1``) and vector (1,0)
+    Returns a new ``DNDarray`` with the signed angles in radians between vector (``x2``,``x1``) and vector (1,0)
 
     Parameters
     ----------
-    x1 : :class:DNDarray
+    x1 : DNDarray
          y-coordinates
-    x2 : :class:DNDarray
-         x-coordinates. If ``x1.shape != x2.shape``, they must be broadcastable to a common shape (which becomes the shape of the output).
+    x2 : DNDarray
+         x-coordinates. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape (which becomes the shape of the output).
 
-    Example
+    Returns
     -------
+    DNDarray
+
+    Examples
+    --------
     >>> x = ht.array([-1, +1, +1, -1])
     >>> y = ht.array([-1, -1, +1, +1])
     >>> ht.arctan2(y, x) * 180 / ht.pi
