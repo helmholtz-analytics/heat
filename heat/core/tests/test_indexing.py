@@ -45,12 +45,8 @@ class TestIndexing(TestCase):
         self.assertEqual(wh.split, 0)
 
         # not split cond
-        a = ht.array(
-            [[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=None
-        )
-        res = ht.array(
-            [[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=None
-        )
+        a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=None)
+        res = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=None)
         wh = ht.where(a < 4.0, a, -1)
         self.assertTrue(
             ht.equal(a[ht.nonzero(a < 4)], ht.array([0.0, 1.0, 2.0, 0.0, 2.0, 0.0, 3.0]))
@@ -70,9 +66,7 @@ class TestIndexing(TestCase):
         self.assertEqual(wh.split, 0)
 
         a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=1)
-        res = ht.array(
-            [[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=1
-        )
+        res = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=1)
         wh = ht.where(a < 4.0, a, -1.0)
         self.assertTrue(ht.equal(wh, res))
         self.assertEqual(wh.gshape, (3, 3))
