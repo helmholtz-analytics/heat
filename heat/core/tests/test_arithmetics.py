@@ -256,8 +256,9 @@ class TestArithmetics(TestCase):
                     # loop to 3 for the number of times to do the diff
                     for nl in range(1, 4):
                         # only generating the number once and then
-                        lp_array = ht.manipulations.resplit(ht_array[arb_slice], sp)
-                        np_array = ht_array[arb_slice].numpy()
+                        tup_arb = tuple(arb_slice)
+                        lp_array = ht.manipulations.resplit(ht_array[tup_arb], sp)
+                        np_array = ht_array[tup_arb].numpy()
 
                         ht_diff = ht.diff(lp_array, n=nl, axis=ax)
                         np_diff = ht.array(np.diff(np_array, n=nl, axis=ax))
