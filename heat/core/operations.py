@@ -81,21 +81,11 @@ def __binary_op(operation, t1, t2):
         elif isinstance(t2, dndarray.DNDarray):
             if t1.split is None:
                 t1 = factories.array(
-                    t1,
-                    split=t2.split,
-                    copy=False,
-                    comm=t1.comm,
-                    device=t1.device,
-                    ndmin=-t2.numdims,
+                    t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device, ndmin=-t2.ndim
                 )
             elif t2.split is None:
                 t2 = factories.array(
-                    t2,
-                    split=t1.split,
-                    copy=False,
-                    comm=t2.comm,
-                    device=t2.device,
-                    ndmin=-t1.numdims,
+                    t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device, ndmin=-t1.ndim
                 )
             elif t1.split != t2.split:
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
@@ -359,8 +349,9 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
         The MPI operator for performing the full reduction based on the results returned by the partial_op function.
 
     neutral: scalar
-        Neutral element for the reduction operation, i.e. an element that does not change the reductions operations
-        result. Required in cases where
+        Neutral element, i.e. an element that does not change the result of the reduction operation. Needed for
+        those cases where 'x.gshape[x.split] < x.comm.rank', that is, the shape of the distributed tensor is such
+        that one or more processes will be left without data.
 
     Returns
     -------
@@ -392,8 +383,14 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
     if 0 in x.lshape and (axis is None or (x.split in axis)):
         if neutral is None:
             neutral = float("nan")
-        neutral_shape = x.lshape[:split] + (1,) + x.lshape[split + 1 :]
-        partial = torch.full(neutral_shape, fill_value=neutral, dtype=x._DNDarray__array.dtype)
+        neutral_shape = x.gshape[:split] + (1,) + x.gshape[split + 1 :]
+        partial = torch.full(
+            neutral_shape,
+            fill_value=neutral,
+            dtype=x.dtype.torch_type(),
+            device=x.device.torch_device,
+        )
+
     else:
         partial = x._DNDarray__array
 
@@ -415,7 +412,8 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
                 lshape_losedim = (partial.shape[0],) + lshape_losedim
             if 0 not in axis and partial.shape[0] != x.lshape[0]:
                 lshape_losedim = (partial.shape[0],) + lshape_losedim[1:]
-            partial = partial.reshape(lshape_losedim)
+            if len(lshape_losedim) > 0:
+                partial = partial.reshape(lshape_losedim)
 
     # Check shape of output buffer, if any
     if out is not None and out.shape != output_shape:

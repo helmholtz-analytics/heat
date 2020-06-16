@@ -18,6 +18,7 @@ __all__ = [
     "expand_dims",
     "flatten",
     "flip",
+    "fliplr",
     "flipud",
     "hstack",
     "reshape",
@@ -127,7 +128,7 @@ def concatenate(arrays, axis=0):
         raise TypeError("axis must be an integer, currently: {}".format(type(axis)))
     axis = stride_tricks.sanitize_axis(arr0.gshape, axis)
 
-    if arr0.numdims != arr1.numdims:
+    if arr0.ndim != arr1.ndim:
         raise ValueError("DNDarrays must have the same number of dimensions")
 
     if not all([arr0.gshape[i] == arr1.gshape[i] for i in range(len(arr0.gshape)) if i != axis]):
@@ -200,7 +201,7 @@ def concatenate(arrays, axis=0):
             arr0 = arr0.copy()
             arr1 = arr1.copy()
             # maps are created for where the data is and the output shape is calculated
-            lshape_map = factories.zeros((2, arr0.comm.size, len(arr0.gshape)), dtype=int)
+            lshape_map = torch.zeros((2, arr0.comm.size, len(arr0.gshape)), dtype=torch.int)
             lshape_map[0, arr0.comm.rank, :] = torch.Tensor(arr0.lshape)
             lshape_map[1, arr0.comm.rank, :] = torch.Tensor(arr1.lshape)
             lshape_map_comm = arr0.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
@@ -210,7 +211,7 @@ def concatenate(arrays, axis=0):
             out_shape = tuple(arr0_shape)
 
             # the chunk map is used for determine how much data should be on each process
-            chunk_map = factories.zeros((arr0.comm.size, len(arr0.gshape)), dtype=int)
+            chunk_map = torch.zeros((arr0.comm.size, len(arr0.gshape)), dtype=torch.int)
             _, _, chk = arr0.comm.chunk(out_shape, s0 if s0 is not None else s1)
             for i in range(len(out_shape)):
                 chunk_map[arr0.comm.rank, i] = chk[i].stop - chk[i].start
@@ -220,8 +221,8 @@ def concatenate(arrays, axis=0):
             chunk_map_comm.wait()
 
             if s0 is not None:
-                send_slice = [slice(None)] * arr0.numdims
-                keep_slice = [slice(None)] * arr0.numdims
+                send_slice = [slice(None)] * arr0.ndim
+                keep_slice = [slice(None)] * arr0.ndim
                 # data is first front-loaded onto the first size/2 processes
                 for spr in range(1, arr0.comm.size):
                     if arr0.comm.rank == spr:
@@ -263,8 +264,8 @@ def concatenate(arrays, axis=0):
                         lshape_map[0, spr, arr0.split] -= snt
 
             if s1 is not None:
-                send_slice = [slice(None)] * arr0.numdims
-                keep_slice = [slice(None)] * arr0.numdims
+                send_slice = [slice(None)] * arr0.ndim
+                keep_slice = [slice(None)] * arr0.ndim
                 # push the data backwards (arr1), making the data the proper size for arr1 on the last nodes
                 # the data is "compressed" on np/2 processes. data is sent from
                 for spr in range(arr0.comm.size - 1, -1, -1):
@@ -320,14 +321,14 @@ def concatenate(arrays, axis=0):
 
                 # after adjusting arr1 need to now select the target data in arr0 on each node with a local slice
                 if arr0.comm.rank == 0:
-                    lcl_slice = [slice(None)] * arr0.numdims
+                    lcl_slice = [slice(None)] * arr0.ndim
                     lcl_slice[axis] = slice(chunk_map[0, axis].item())
                     arr0._DNDarray__array = arr0._DNDarray__array[lcl_slice].clone().squeeze()
                 ttl = chunk_map[0, axis].item()
                 for en in range(1, arr0.comm.size):
                     sz = chunk_map[en, axis]
                     if arr0.comm.rank == en:
-                        lcl_slice = [slice(None)] * arr0.numdims
+                        lcl_slice = [slice(None)] * arr0.ndim
                         lcl_slice[axis] = slice(ttl, sz.item() + ttl, 1)
                         arr0._DNDarray__array = arr0._DNDarray__array[lcl_slice].clone().squeeze()
                     ttl += sz.item()
@@ -343,7 +344,7 @@ def concatenate(arrays, axis=0):
 
                 # get the desired data in arr1 on each node with a local slice
                 if arr1.comm.rank == arr1.comm.size - 1:
-                    lcl_slice = [slice(None)] * arr1.numdims
+                    lcl_slice = [slice(None)] * arr1.ndim
                     lcl_slice[axis] = slice(
                         arr1.lshape[axis] - chunk_map[-1, axis].item(), arr1.lshape[axis], 1
                     )
@@ -352,7 +353,7 @@ def concatenate(arrays, axis=0):
                 for en in range(arr1.comm.size - 2, -1, -1):
                     sz = chunk_map[en, axis]
                     if arr1.comm.rank == en:
-                        lcl_slice = [slice(None)] * arr1.numdims
+                        lcl_slice = [slice(None)] * arr1.ndim
                         lcl_slice[axis] = slice(
                             arr1.lshape[axis] - (sz.item() + ttl), arr1.lshape[axis] - ttl, 1
                         )
@@ -672,7 +673,7 @@ def flip(a, axis=None):
     """
     # flip all dimensions
     if axis is None:
-        axis = tuple(range(a.numdims))
+        axis = tuple(range(a.ndim))
 
     # torch.flip only accepts tuples
     if isinstance(axis, int):
@@ -700,6 +701,35 @@ def flip(a, axis=None):
     res.balance_()  # after swapping, first processes may be empty
     req.Wait()
     return res
+
+
+def fliplr(a):
+    """
+        Flip array in the left/right direction. If a.ndim > 2, flip along dimension 1.
+
+        Parameters
+        ----------
+        a: ht.DNDarray
+            Input array to be flipped, must be at least 2-D
+
+        Returns
+        -------
+        res: ht.DNDarray
+            The flipped array.
+
+        Examples
+        --------
+        >>> a = ht.array([[0,1],[2,3]])
+        >>> ht.fliplr(a)
+        tensor([[1, 0],
+                [3, 2]])
+
+        >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
+        >>> ht.fliplr(b)
+        (1/2) tensor([[2, 1, 0]])
+        (2/2) tensor([[5, 4, 3]])
+    """
+    return flip(a, 1)
 
 
 def flipud(a):
@@ -860,7 +890,7 @@ def reshape(a, shape, axis=None):
         displs = torch.zeros_like(counts)
         argsort = torch.empty_like(mask, dtype=torch.long)
         plz = 0
-        for i in range(len(new_displs) - 1):
+        for i in range(len(displs2) - 1):
             mat = torch.where((mask >= displs2[i]) & (mask < displs2[i + 1]))[0]
             counts[i] = mat.numel()
             argsort[plz : counts[i] + plz] = mat
@@ -1196,9 +1226,10 @@ def squeeze(x, axis=None):
     --------
     squeezed : ht.DNDarray
                The input tensor, but with all or a subset of the dimensions of length 1 removed.
-
+               Split semantics: see note below.
 
     Examples:
+    ---------
     >>> import heat as ht
     >>> import torch
     >>> torch.manual_seed(1)
@@ -1226,6 +1257,19 @@ def squeeze(x, axis=None):
     Traceback (most recent call last):
     ...
     ValueError: Dimension along axis 1 is not 1 for shape (1, 3, 1, 5)
+
+    Note:
+    -----
+    Split semantics: a distributed tensor will keep its original split dimension after "squeezing",
+    which, depending on the squeeze axis, may result in a lower numerical 'split' value, as in:
+    >>> x.shape
+    (10, 1, 12, 13)
+    >>> x.split
+    2
+    >>> x.squeeze().shape
+    (10, 12, 13)
+    >>> x.squeeze().split
+    1
     """
 
     # Sanitize input
@@ -1236,58 +1280,31 @@ def squeeze(x, axis=None):
     if axis is not None:
         if isinstance(axis, int):
             dim_is_one = x.shape[axis] == 1
-        if isinstance(axis, tuple):
-            dim_is_one = bool(
-                factories.array(list(x.shape[dim] == 1 for dim in axis)).all()._DNDarray__array
-            )
+            axis = (axis,)
+        elif isinstance(axis, tuple):
+            dim_is_one = bool(torch.tensor(list(x.shape[dim] == 1 for dim in axis)).all())
         if not dim_is_one:
             raise ValueError("Dimension along axis {} is not 1 for shape {}".format(axis, x.shape))
 
-    # Local squeeze
     if axis is None:
         axis = tuple(i for i, dim in enumerate(x.shape) if dim == 1)
-    if isinstance(axis, int):
-        axis = (axis,)
-    out_lshape = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
+
+    if x.split is not None and x.split in axis:
+        # split dimension is about to disappear, set split to None
+        x.resplit_(axis=None)
+
+    out_lshape = tuple(x.lshape[dim] for dim in range(x.ndim) if dim not in axis)
+    out_gshape = tuple(x.gshape[dim] for dim in range(x.ndim) if dim not in axis)
     x_lsqueezed = x._DNDarray__array.reshape(out_lshape)
 
-    # Calculate split axis according to squeezed shape
+    # Calculate new split axis according to squeezed shape
     if x.split is not None:
         split = x.split - len(list(dim for dim in axis if dim < x.split))
     else:
-        split = x.split
-
-    # Distributed squeeze
-    if x.split is not None:
-        if x.comm.is_distributed():
-            if x.split in axis:
-                raise ValueError(
-                    "Cannot split AND squeeze along same axis. Split is {}, axis is {} for shape {}".format(
-                        x.split, axis, x.shape
-                    )
-                )
-            out_gshape = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
-            x_gsqueezed = factories.empty(out_gshape, dtype=x.dtype)
-            loffset = factories.zeros(1, dtype=types.int64)
-            loffset.__setitem__(0, x.comm.chunk(x.gshape, x.split)[0])
-            displs = factories.zeros(x.comm.size, dtype=types.int64)
-            x.comm.Allgather(loffset, displs)
-
-            # TODO: address uneven distribution of dimensions (Allgatherv). Issue #273, #233
-            x.comm.Allgather(
-                x_lsqueezed, x_gsqueezed
-            )  # works with evenly distributed dimensions only
-            return dndarray.DNDarray(
-                x_gsqueezed,
-                out_gshape,
-                x_lsqueezed.dtype,
-                split=split,
-                device=x.device,
-                comm=x.comm,
-            )
+        split = None
 
     return dndarray.DNDarray(
-        x_lsqueezed, out_lshape, x.dtype, split=split, device=x.device, comm=x.comm
+        x_lsqueezed, out_gshape, x.dtype, split=split, device=x.device, comm=x.comm
     )
 
 
@@ -1575,7 +1592,7 @@ def resplit(arr, axis=None):
         # need to get where the tiles are on the new one first
         # rpr is the destination
         new_locs = torch.where(new_tiles.tile_locations == rpr)
-        new_locs = torch.stack([new_locs[i] for i in range(arr.numdims)], dim=1)
+        new_locs = torch.stack([new_locs[i] for i in range(arr.ndim)], dim=1)
 
         for i in range(new_locs.shape[0]):
             key = tuple(new_locs[i].tolist())
