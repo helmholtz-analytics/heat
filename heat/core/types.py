@@ -441,7 +441,7 @@ __same_kind = [
 __cast_kinds = ["no", "safe", "same_kind", "unsafe", "intuitive"]
 
 
-def can_cast(from_, to, casting="safe"):
+def can_cast(from_, to, casting="intuitive"):
     """
     Returns True if cast between data types can occur according to the casting rule. If from is a scalar or array
     scalar, also returns True if the scalar value can be cast without overflow or truncation to an integer.
@@ -452,12 +452,13 @@ def can_cast(from_, to, casting="safe"):
         Scalar, data type or type specifier to cast from.
     to : type, str, ht.dtype
         Target type to cast to.
-    casting: str {'no', 'safe', 'same_kind', 'unsafe'}, optional
+    casting: str {'no', 'safe', 'same_kind', 'unsafe', "intuitive"}, optional
         Controls the way the cast is evaluated
             * 'no' the types may not be cast, i.e. they need to be identical
             * 'safe' allows only casts that can preserve values with complete precision
             * 'same_kind' safe casts are possible and down_casts within the same type family, e.g. int32 -> int8
             * 'unsafe' means any conversion can be performed, i.e. this casting is always possible
+            * 'intuitive' allows all of the casts of safe plus casting from int32 to float32
 
     Returns
     -------

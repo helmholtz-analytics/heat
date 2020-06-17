@@ -187,7 +187,7 @@ class TestTypeConversion(TestCase):
     def test_type_promotions(self):
         self.assertEqual(ht.promote_types(ht.uint8, ht.uint8), ht.uint8)
         self.assertEqual(ht.promote_types(ht.int8, ht.uint8), ht.int16)
-        self.assertEqual(ht.promote_types(ht.int32, ht.float32), ht.float64)
+        self.assertEqual(ht.promote_types(ht.int32, ht.float32), ht.float32)
         self.assertEqual(ht.promote_types("f4", ht.float), ht.float32)
         self.assertEqual(ht.promote_types(ht.bool_, "?"), ht.bool)
 
