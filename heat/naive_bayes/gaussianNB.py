@@ -84,8 +84,8 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
         if not isinstance(y, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(y)))
-        if y.numdims != 1:
-            raise ValueError("expected y to be a 1-D tensor, is {}-D".format(y.numdims))
+        if y.ndim != 1:
+            raise ValueError("expected y to be a 1-D tensor, is {}-D".format(y.ndim))
         if sample_weight is not None:
             if not isinstance(sample_weight, ht.DNDarray):
                 raise ValueError(
@@ -263,8 +263,8 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         # TODO: sanitize X and y shape: sanitation/validation module, cf. #468
         n_samples = X.shape[0]
-        if X.numdims != 2:
-            raise ValueError("expected X to be a 2-D tensor, is {}-D".format(X.numdims))
+        if X.ndim != 2:
+            raise ValueError("expected X to be a 2-D tensor, is {}-D".format(X.ndim))
         if y.shape[0] != n_samples:
             raise ValueError(
                 "y.shape[0] must match number of samples {}, is {}".format(n_samples, y.shape[0])
@@ -272,7 +272,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         # TODO: sanitize sample_weight: sanitation/validation module, cf. #468
         if sample_weight is not None:
-            if sample_weight.numdims != 1:
+            if sample_weight.ndim != 1:
                 raise ValueError("Sample weights must be 1D tensor")
             if sample_weight.shape != (n_samples,):
                 raise ValueError(
@@ -353,7 +353,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                     (classes._DNDarray__array, y_i._DNDarray__array.unsqueeze(0))
                 )
                 i = torch.argsort(classes_ext)[-1].item()
-            where_y_i = ht.where(y == y_i)._DNDarray__array.tolist()
+            where_y_i = ht.where(y == y_i)
             X_i = X[where_y_i, :]
 
             if sample_weight is not None:
@@ -366,11 +366,9 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             else:
                 sw_i = None
                 N_i = X_i.shape[0]
-
             new_theta, new_sigma = self.__update_mean_variance(
                 self.class_count_[i], self.theta_[i, :], self.sigma_[i, :], X_i, sw_i
             )
-
             self.theta_[i, :] = new_theta
             self.sigma_[i, :] = new_sigma
             self.class_count_[i] += N_i
@@ -400,7 +398,6 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             n_ij = -0.5 * ht.sum(ht.log(2.0 * ht.pi * self.sigma_[i, :]))
             n_ij -= 0.5 * ht.sum(((X - self.theta_[i, :]) ** 2) / (self.sigma_[i, :]), 1)
             joint_log_likelihood[:, i] = jointi + n_ij
-
         return joint_log_likelihood
 
     def logsumexp(self, a, axis=None, b=None, keepdim=False, return_sign=False):
@@ -449,7 +446,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         a_max = ht.max(a, axis=axis, keepdim=True)
 
         # TODO: sanitize a_max / implement isfinite(): sanitation module, cf. #468
-        # if a_max.numdims > 0:
+        # if a_max.ndim > 0:
         #     a_max[~np.isfinite(a_max)] = 0
         # elif not np.isfinite(a_max):
         #     a_max = 0

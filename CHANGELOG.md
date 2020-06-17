@@ -1,5 +1,21 @@
 # Pending Additions
 
+
+- [#488](https://github.com/helmholtz-analytics/heat/pull/488) Enhancement: Rework of the test device selection.
+- [#572](https://github.com/helmholtz-analytics/heat/pull/572) New feature: pad
+- [#573](https://github.com/helmholtz-analytics/heat/pull/573) Bugfix: matmul fixes: early out for 2 vectors, remainders not added if inner block is 1 for split 10 case
+- [#575](https://github.com/helmholtz-analytics/heat/pull/558) Bugfix: Binary operations use proper type casting
+- [#575](https://github.com/helmholtz-analytics/heat/pull/558) Bugfix: `where` and `cov` convert ints to floats when given as parameters
+- [#577](https://github.com/helmholtz-analytics/heat/pull/577) Add ndim property in dndarray
+- [#578](https://github.com/helmholtz-analytics/heat/pull/578) Bugfix: Bad variable in reshape
+- [#580](https://github.com/helmholtz-analytics/heat/pull/580) New feature: fliplr()
+- [#581](https://github.com/helmholtz-analytics/heat/pull/581) New feature: DNDarray.tolist()
+- [#593](https://github.com/helmholtz-analytics/heat/pull/593) New feature arctan2()
+- [#594](https://github.com/helmholtz-analytics/heat/pull/594) New feature: Advanced indexing
+- [#594](https://github.com/helmholtz-analytics/heat/pull/594) Bugfix: getitem and setitem memory consumption heavily reduced
+
+# v0.4.0
+
 - Update documentation theme to "Read the Docs"
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Create submodule for Linear Algebra functions
 - [#429](https://github.com/helmholtz-analytics/heat/pull/429) Implemented QR
@@ -27,11 +43,11 @@
 - [#534](https://github.com/helmholtz-analytics/heat/pull/534) `eye()` supports all 2D split combinations and matrix configurations.
 - [#535](https://github.com/helmholtz-analytics/heat/pull/535) Introduction of BaseEstimator and clustering, classification and regression mixins.
 - [#536](https://github.com/helmholtz-analytics/heat/pull/536) Getting rid of the docs folder
+- [#541](https://github.com/helmholtz-analytics/heat/pull/541) Introduction of basic halo scheme for inter-rank operations
 - [#558](https://github.com/helmholtz-analytics/heat/pull/558) `sanitize_memory_layout` assumes default memory layout of the input tensor
 - [#558](https://github.com/helmholtz-analytics/heat/pull/558) Support for PyTorch 1.5.0 added
 - [#562](https://github.com/helmholtz-analytics/heat/pull/562) Bugfix: split semantics of ht.squeeze()
 - [#567](https://github.com/helmholtz-analytics/heat/pull/567) Bugfix: split differences for setitem are now assumed to be correctly given, error will come from torch upon the setting of the value
-- [#572](https://github.com/helmholtz-analytics/heat/pull/572) New feature: pad
 
 # v0.3.0
 

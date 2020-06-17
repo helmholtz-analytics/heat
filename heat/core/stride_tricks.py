@@ -158,3 +158,35 @@ def sanitize_shape(shape):
             raise ValueError("negative dimensions are not allowed")
 
     return shape
+
+
+def sanitize_slice(sl, max_dim) -> slice:
+    """
+    Remove None-types from a slice
+
+    Parameters
+    ----------
+    sl : slice
+        slice to adjust
+    max_dim : int
+        maximum index for the given slice
+
+    Raises
+    ------
+    TypeError
+        if sl is not a slice
+    """
+    if not isinstance(sl, slice):
+        raise TypeError("This function is only for slices!")
+
+    new_sl = [None] * 3
+    new_sl[0] = 0 if sl.start is None else sl.start
+    if new_sl[0] < 0:
+        new_sl[0] += max_dim
+
+    new_sl[1] = max_dim if sl.stop is None else sl.stop
+    if new_sl[1] < 0:
+        new_sl[1] += max_dim
+
+    new_sl[2] = 1 if sl.step is None else sl.step
+    return slice(new_sl[0], new_sl[1], new_sl[2])
