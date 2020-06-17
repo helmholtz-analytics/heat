@@ -1176,7 +1176,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
 
     def local_percentile(data, axis, indices):
         """
-        Process-local percentile determination.
+        Process-local percentile calculation.
 
         Input:
         ------
@@ -1259,13 +1259,13 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     nperc = q.numel()
 
     # edge-case: x is a scalar. Return x
-    if x.numdims == 0:
-        percentile = x._DNDarray__array * q / q
+    if x.ndim == 0:
+        percentile = x._DNDarray__array * torch.ones(nperc)
         return factories.array(percentile, split=None, dtype=x.dtype, device=x.device, comm=x.comm)
 
     # no axis
     if axis is None:
-        if x.numdims > 1:
+        if x.ndim > 1:
             x = x.copy()
             x = x.flatten()
         axis = 0
@@ -1339,7 +1339,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         else:
             data = data._DNDarray__array
         # fill out percentile
-        perc_slice = percentile.numdims * (slice(None, None, None),)
+        perc_slice = percentile.ndim * (slice(None, None, None),)
         map_sum = indices_map.sum(axis=1)
         perc_ranks = torch.where(map_sum > -1 * nperc)[0].tolist()
         for r in perc_ranks:
