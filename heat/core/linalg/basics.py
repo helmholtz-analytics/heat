@@ -831,36 +831,36 @@ def outer(a, b, out=None, split=None):
     """
     Compute the outer product of two 1-D DNDarrays.
 
-    Given two vectors, a = [a0, a1, ..., aM] and b = [b0, b1, ..., bN], the outer product is:
+    Given two vectors, ``a`` = [a_0, a_1, ..., a_n] and ``b`` = [b_0, b_1, ..., b_m], the outer product is:
 
-    [[a0*b0  a0*b1 ... a0*bN ]
-    [a1*b0    .
-    [ ...          .
-    [aM*b0            aM*bN ]]
+    [[a_0*b_0  a_0*b_1 ... a_0*b_m]
+     [a_1*b_0     .
+     [ ...        .
+     [a_n*b_0     .        a_n*b_m]]
 
     Parameters
     ----------
 
-    a(M,): DNDarray
-            First input DNDarray. Must be 1-dimensional. Will be flattened by default if more than 1D
+    a(n,): DNDarray
+            First input DNDarray. Must be 1-dimensional. Will be flattened by default if more than 1-D
 
-    b(N,): DNDarray
-            Second input DNDarray. Must be 1-dimensional. Will be flattened by default if more than 1D
+    b(m,): DNDarray
+            Second input DNDarray. Must be 1-dimensional. Will be flattened by default if more than 1-D
 
-    out(M, N): DNDarray, optional
+    out(n, m): DNDarray, optional
             A location where the result is stored
 
     split: int, optional #TODO check out docstring format
             Split dimension of the resulting DNDarray. Can be 0, 1, or None.
             This is only relevant if the calculations are memory-distributed,
-            in which case default is split=0 (see Note).
+            in which case default is ``split=0`` (see Note).
 
-    Note: parallel implementation of outer product, arrays are dense. #TODO sparse
+    Note: parallel implementation of outer product, arrays are dense. #TODO sparse #384
         In the classical (dense) case, one DNDarray stays put, the other one is passed around the ranks in
         ring communication. The slice-by-slice outer product is calculated locally (here via torch.einsum()).
-        N.B.: if 'b' is sent around, the resulting outer product is split along the rows dimension (split = 0).
-              if 'a' is sent around, the resulting outer product is split along the columns (split = 1).
-        So if 'split' is not None, 'split' defines which DNDarray stays put and which one is passed around. No
+        N.B.: if ``b`` is sent around, the resulting outer product is split along the rows dimension (``split = 0``).
+              if ``a`` is sent around, the resulting outer product is split along the columns (``split = 1``).
+        So if ``split`` is not None, ``split`` defines which DNDarray stays put and which one is passed around. No
         communication is needed beyond ring communication of one of the DNDarrays.
         If 'split' is None or unspecified, the result will be distributed along axis 0, i.e. by default 'b' is
         passed around, 'a' stays put.
@@ -868,7 +868,7 @@ def outer(a, b, out=None, split=None):
     Returns
     -------
 
-    out(M, N): DNDarray
+    out(n, m): DNDarray
 
         out[i, j] = a[i] * b[j]
 
@@ -969,7 +969,7 @@ def outer(a, b, out=None, split=None):
                 "Split dimension mismatch for out: expected {}, got {}".format(split, out.split)
             )
 
-    # distributed outer product (dense, TODO: implement sparse version, #??)
+    # distributed outer product (dense, TODO: implement sparse version, #384)
     if a.comm.is_distributed() and split is not None or a.split is not None or b.split is not None:
         # MPI coordinates
         rank = a.comm.rank
