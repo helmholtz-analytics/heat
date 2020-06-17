@@ -1143,10 +1143,10 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     Parameters:
     -----------
 
-    x : ht.DNDarray
+    x : DNDarray
         Input tensor
 
-    q : ht.DNDarray, scalar, or list of scalars
+    q : DNDarray, scalar, or list of scalars
         Percentile or sequence of percentiles to compute. Must belong to the interval [0, 100].
 
     axis : int, or None, optional #TODO tuple of ints
@@ -1170,7 +1170,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     Returns:
     --------
 
-    percentile : process-local ht.DNDarray
+    percentile : process-local DNDarray
 
     """
 
