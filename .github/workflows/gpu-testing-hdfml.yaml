@@ -12,6 +12,7 @@ jobs:
           host: ${{ secrets.HDFML_HOST }}
           username: ${{ secrets.HDFML_NAME }}
           key: ${{ secrets.HDFML_KEY }}
+          passphrase: ${{ secrets.HDFML_PASSPHRASE }}
           envs: GITHUB_SHA,GITHUB_REPOSITORY
           script: |
             cd ${{ secrets.HDFML_DIR }}
