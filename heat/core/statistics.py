@@ -1349,15 +1349,15 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
             percentile[perc_slice] = local_p
     else:
         if x.comm.is_distributed() and split is not None:
-            # split != axis, calculate percentiles locally and join along ``join``
+            # split != axis, calculate percentiles locally, then gather
             percentile = factories.empty(
                 output_shape, dtype=perc_dtype, split=join, device=x.device
             )
+            percentile._DNDarray__array = local_percentile(t_data, axis, t_indices)
+            percentile.resplit_(axis=None)
         else:
-            percentile = factories.empty(
-                output_shape, dtype=perc_dtype, split=None, device=x.device
-            )
-        percentile._DNDarray__array = local_percentile(t_data, axis, t_indices)
+            # non-distributed case
+            percentile = factories.array(local_percentile(t_data, axis, t_indices))
 
     if percentile.shape[0] == 1:
         percentile = manipulations.squeeze(percentile, axis=0)
