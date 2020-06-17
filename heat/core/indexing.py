@@ -75,8 +75,11 @@ def nonzero(a):
         gout[0] = a.comm.allreduce(gout[0], MPI.SUM)
         is_split = 0
 
-    if a.numdims == 1:
+    if a.ndim == 1:
         lcl_nonzero = lcl_nonzero.squeeze(dim=1)
+    for g in range(len(gout) - 1, -1, -1):
+        if gout[g] == 1:
+            del gout[g]
 
     return dndarray.DNDarray(
         lcl_nonzero,
@@ -97,7 +100,7 @@ def where(cond, x=None, y=None):
     ----------
     cond: DNDarray
         condition of interest, where true yield x otherwise yield y
-    x, y: DNDarray, int, or float
+    x, y: DNDarray, int, float
         Values from which to choose. x, y and condition need to be broadcastable to some shape.
 
     Returns
@@ -135,8 +138,11 @@ def where(cond, x=None, y=None):
     if isinstance(x, (dndarray.DNDarray, int, float)) and isinstance(
         y, (dndarray.DNDarray, int, float)
     ):
-        cond = types.float(cond, device=cond.device)
-        return types.float(cond == 0, device=cond.device) * y + cond * x
+        if isinstance(y, int):
+            y = float(y)
+        if isinstance(x, int):
+            x = float(x)
+        return cond.dtype((cond == 0)) * y + cond * x
     elif x is None and y is None:
         return nonzero(cond)
     else:
