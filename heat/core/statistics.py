@@ -1135,7 +1135,7 @@ def mpi_argmin(a, b, _):
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
-def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
+def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False):
     """
     Compute the q-th percentile of the data along the specified axis.
     Returns the q-th percentile(s) of the tensor elements.
@@ -1259,26 +1259,42 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
         t_perc_dtype = torch.promote_types(t_q.dtype, t_x.dtype)
     else:
         raise TypeError("ht.DNDarray, list or tuple supported, but q was {}".format(type(q)))
+
+    nperc = t_q.numel()
     perc_dtype = types.canonical_heat_type(t_perc_dtype)
 
     # q must be 1-D
     if t_q.ndim > 1:
         t_q = t_q.flatten()
+
+    # shape of output DNDarray
+    if keepdim:
+        output_shape = (nperc,) + gshape[:axis] + (1,) + gshape[axis + 1 :]
+    else:
+        output_shape = (nperc,) + gshape[:axis] + gshape[axis + 1 :]
+
+    # sanitize out
+    if out is not None:
+        if not isinstance(out, dndarray.DNDarray):
+            raise TypeError("out must be of type ht.DNDarray, was {}".format(type(out)))
+        if out.dtype is not perc_dtype:
+            raise TypeError(
+                "Wrong datatype for out: expected {}, got {}".format(perc_dtype, out.dtype)
+            )
+        if out.gshape != output_shape:
+            raise ValueError("out must have shape {}, got {}".format(output_shape, out.gshape))
+        if out.split is not None:
+            raise ValueError(
+                "Split dimension mismatch for out: expected {}, got {}".format(None, out.split)
+            )
     # END OF SANITATION
 
-    nperc = t_q.numel()
     # edge-case: x is a scalar. Return x
     if x.ndim == 0:
         percentile = t_x * torch.ones(nperc, dtype=t_perc_dtype, device=t_x.device)
         return factories.array(
             percentile, split=None, dtype=perc_dtype, device=x.device, comm=x.comm
         )
-
-    # calculate shape of output DNDarray
-    if keepdim:
-        output_shape = (nperc,) + gshape[:axis] + (1,) + gshape[axis + 1 :]
-    else:
-        output_shape = (nperc,) + gshape[:axis] + gshape[axis + 1 :]
 
     # compute indices
     length = gshape[axis]
@@ -1361,6 +1377,10 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
 
     if percentile.shape[0] == 1:
         percentile = manipulations.squeeze(percentile, axis=0)
+
+    if out is not None:
+        out._DNDarray__array = percentile._DNDarray__array
+        return out
 
     return percentile
 
