@@ -862,8 +862,8 @@ def outer(a, b, out=None, split=None):
               if ``a`` is sent around, the resulting outer product is split along the columns (``split = 1``).
         So if ``split`` is not None, ``split`` defines which DNDarray stays put and which one is passed around. No
         communication is needed beyond ring communication of one of the DNDarrays.
-        If 'split' is None or unspecified, the result will be distributed along axis 0, i.e. by default 'b' is
-        passed around, 'a' stays put.
+        If ``split`` is None or unspecified, the result will be distributed along axis 0, i.e. by default ``b`` is
+        passed around, ``a`` stays put.
 
     Returns
     -------
