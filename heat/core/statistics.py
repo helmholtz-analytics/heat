@@ -1228,7 +1228,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
 
         return percentile
 
-    ## SANITATION
+    # SANITATION
     # sanitize input
     if not isinstance(x, dndarray.DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
@@ -1264,7 +1264,7 @@ def percentile(x, q, axis=None, interpolation="linear", keepdim=False):
     # q must be 1-D
     if t_q.ndim > 1:
         t_q = t_q.flatten()
-    ## END OF SANITATION
+    # END OF SANITATION
 
     nperc = t_q.numel()
     # edge-case: x is a scalar. Return x
