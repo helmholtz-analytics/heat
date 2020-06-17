@@ -1,4 +1,5 @@
-from unittest import TestCase
+import unittest
+import os
 
 from heat.core import dndarray, MPICommunication, MPI, types, factories
 import heat as ht
@@ -8,18 +9,55 @@ import torch
 
 
 # TODO adapt for GPU once this is working properly
-class BasicTest(TestCase):
+class TestCase(unittest.TestCase):
 
     __comm = MPICommunication()
     __device = None
 
     @property
     def comm(self):
-        return BasicTest.__comm
+        return TestCase.__comm
 
     @property
     def device(self):
-        return BasicTest.__device
+        return TestCase.__device
+
+    @classmethod
+    def setUpClass(cls):
+        """
+        Read the environment variable 'HEAT_TEST_USE_DEVICE' and return the requested devices.
+        Supported values
+            - cpu: Use CPU only (default)
+            - gpu: Use GPU only
+
+        Raises
+        ------
+        RuntimeError if value of 'HEAT_TEST_USE_DEVICE' is not recognized
+
+        """
+
+        envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
+
+        if envar == "cpu":
+            ht.use_device("cpu")
+            ht_device = ht.cpu
+            other_device = ht.cpu
+            if torch.cuda.is_available():
+                torch.cuda.set_device(torch.device(ht.gpu.torch_device))
+                other_device = ht.gpu
+        elif envar == "gpu" and torch.cuda.is_available():
+            ht.use_device("gpu")
+            torch.cuda.set_device(torch.device(ht.gpu.torch_device))
+            ht_device = ht.gpu
+            other_device = ht.cpu
+        else:
+            raise RuntimeError(
+                "Value '{}' of environment variable 'HEAT_TEST_USE_DEVICE' is unsupported".format(
+                    envar
+                )
+            )
+
+        cls.device, cls.other_device, cls.envar = ht_device, other_device, envar
 
     def get_rank(self):
         return self.comm.rank
