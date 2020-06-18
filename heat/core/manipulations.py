@@ -2,6 +2,8 @@ import numpy as np
 import torch
 import warnings
 
+from functools import partial
+
 from .communication import MPI
 
 from . import dndarray
@@ -9,7 +11,8 @@ from . import factories
 from . import stride_tricks
 from . import tiling
 from . import types
-
+from . import constants
+from . import operations
 
 __all__ = [
     "concatenate",
@@ -1688,94 +1691,118 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         Return either the k largest or smallest items
     sorted: Boolean
         Whether to sort the output
-    out: ht.DNDarray to put the result in
+    out: tuple of ht.DNDarrays to put the result in
     Returns
     -------
     items: ht.DNDarray of shape (k,)
         The selected items
     indices: ht.DNDarray of shape (k,)
-        The indices of the selected items
+        The respective indices
     Examples
     --------
     >>> a = ht.array([1, 2, 3], split=0)
     >>> ht.topk(a,2)
     [0] tensor([2, 3])
     """
+
     if dim is None:
         dim = len(a.shape) - 1
 
-    if dim == a.split:
-        split = None
-        local_data = a._DNDarray__array
-        chunk_size = local_data.shape[dim]
+    def mpi_topk(a, b, mpi_type, local_k=1, dim=0, sorted=True, largest=True):
+        a_parsed = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
+        b_parsed = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
+        # chunk into values, indices
+        a_values, a_indices = a_parsed.chunk(2)
+        b_values, b_indices = b_parsed.chunk(2)
 
-        # Numer of chunks (concatenated) needed to get chunks of size >= k
-        block_count = int(k / chunk_size) + (k % chunk_size > 0)
+        values = torch.stack((a_values, b_values), dim=dim)
+        indices = torch.stack((a_indices, b_indices), dim=dim)
+        if len(values) <= local_k:
+            result, k_indices = torch.topk(
+                values, len(values), dim=dim, largest=largest, sorted=sorted
+            )
+        else:
+            result, k_indices = torch.topk(values, local_k, dim=dim, largest=largest, sorted=sorted)
+        final_result = torch.cat((result, indices.double()), dim=0)
+        b_parsed.copy_(final_result)
 
-        # Number of iterations until all share the same result
-        iterations = int(a.comm.Get_size() / block_count) + (a.comm.Get_size() % block_count > 0)
+    def local_topk(*args, **kwargs):
+        shape = a.lshape
 
-        gbuf = torch.empty((a.comm.Get_size(),) + tuple(a.lshape), dtype=a.dtype.torch_type())
-        a.comm.Allgather(local_data, gbuf, recv_axis=0)
+        if shape[dim] < k:
+            result, indices = torch.topk(args[0], shape[dim], largest=largest, sorted=sorted)
+        else:
+            result, indices = torch.topk(args[0], k=k, dim=dim, largest=largest, sorted=sorted)
 
-        count = a.comm.rank + 1
-        if count == a.comm.Get_size():
-            count = 0
+        # add offset of data chunks if reduction is computed across split axis
+        if dim == a.split:
+            offset, _, _ = a.comm.chunk(shape, a.split)
+            indices += torch.tensor(offset, dtype=indices.dtype)
 
-        for i in range(block_count):
-            neighbour = gbuf[count]
-            local_data = torch.cat((local_data, neighbour), dim)
+        res_shape = result.shape
+        if res_shape[dim] < k:
+            res_shape = list(res_shape)
+            res_shape[dim] = k
 
-            if count == (a.comm.Get_size() - 1):
-                count = 0 if a.comm.rank != 0 else 1
-            else:
-                count = count + 1
+        send_buffer = torch.empty((2,) + tuple(res_shape))
+        send_buffer[0] = result
+        send_buffer[1] = indices
 
-        local_data, local_indices = torch.topk(local_data, k, dim=dim, largest=largest, sorted=sorted)
-        g_res_buf = torch.empty((a.comm.Get_size(),) + tuple(local_data.shape), dtype=a.dtype.torch_type())
-        g_indcs_buf = torch.empty((a.comm.Get_size(),) + tuple(local_indices.shape), dtype=local_indices.dtype)
+        return send_buffer
 
-        a.comm.Allgather(local_data, g_res_buf, recv_axis=0)
-        a.comm.Allgather(local_indices, g_indcs_buf, recv_axis=0)
-
-        for i in range(iterations - 1):
-            if a.comm.rank == (a.comm.Get_size() - 1):
-                neighbour = g_res_buf[0]
-                neighbour_indices = g_indcs_buf[0]
-            else:
-                neighbour = g_res_buf[a.comm.rank + 1]
-                neighbour_indices = g_indcs_buf[a.comm.rank + 1]
-
-            local_data = torch.cat((g_res_buf[a.comm.rank], neighbour), dim)
-            local_indices = torch.cat((g_indcs_buf[a.comm.rank], neighbour_indices), dim)
-            l_res, l_indices = torch.topk(local_data, k, dim=dim, largest=largest, sorted=sorted)
-
-            local_indices = local_indices[l_indices]
-
-            a.comm.Allgather(l_res, g_res_buf, recv_axis=0)
-            #a.comm.Allgather(local_indices, g_indcs_buf, recv_axis=0)
-
-        gres = g_res_buf[0].squeeze()
-        gindcs = g_indcs_buf[0].squeeze()
-
+    if largest:
+        neutral_value = -constants.sanitize_infinity(a._DNDarray__array.dtype)
     else:
-        split = a.split
+        neutral_value = constants.sanitize_infinity(a._DNDarray__array.dtype)
 
-        local_data = a._DNDarray__array.transpose(0, dim)
-        lres, lindcs = torch.topk(local_data, k, dim=0, largest=largest, sorted=sorted)
+    partial_mpi_topk = partial(mpi_topk, local_k=k, dim=dim, sorted=sorted, largest=largest)
+    partial_local = partial(local_topk, k=k, dim=dim, largest=largest, sorted=sorted)
+    MPI_TOPK = MPI.Op.Create(partial_mpi_topk, commute=True)
 
-        gres_buf = torch.empty((a.comm.Get_size(), k, lres.shape[1]), dtype=a.dtype.torch_type())
-        gindcs_buf = torch.empty((a.comm.Get_size(), k, lindcs.shape[1]), dtype=lindcs.dtype)
+    gres = operations.__reduce_op(
+        a,
+        partial_local,
+        MPI_TOPK,
+        axis=dim,
+        out=out,
+        neutral=neutral_value,
+        dim=dim,
+        sorted=sorted,
+        largest=largest,
+        keepdim=True,
+    )
 
-        a.comm.Allgather(lres, gres_buf)
-        a.comm.Allgather(lindcs, gindcs_buf)
+    data = gres._DNDarray__array[0]
+    indices = gres._DNDarray__array[1]
 
-        gres = gres_buf.squeeze()
-        gindcs = gindcs_buf.squeeze()
-
-    final_array = factories.array(gres, dtype=a.dtype, device=a.device, split=split)
-    final_indices = factories.array(gindcs, split=None, device=a.device)
+    if dim == 0:
+        data._DNDarray__gshape = (1,) + data._DNDarray__gshape
+        data = data.squeeze(axis=0)
 
     if out is not None:
-        out._DNDarray__array = final_array
+        if out[0].shape != data.shape or out[1].shape != indices.shape:
+            raise ValueError(
+                "Expecting output buffer tuple of shape ({}, {}), got ({}, {})".format(
+                    data.shape, indices.shape, out[0].shape, out[1].shape
+                )
+            )
+        out[0]._DNDarray__array.storage().copy_(data._DNDarray__array.storage())
+        out[1]._DNDarray__array.storage().copy_(indices._DNDarray__array.storage())
+
+        out._DNDarray__array = out._DNDarray__array.type(torch.int64)
+        out._DNDarray__dtype = types.int64
+
+    if a.split is not None:
+        is_split = a.split
+        split = None
+    else:
+        is_split = None
+        split = None
+    final_array = factories.array(
+        data, dtype=a.dtype, device=a.device, split=split, is_split=is_split
+    )
+    final_indices = factories.array(
+        indices, dtype=torch.int64, device=a.device, split=split, is_split=is_split
+    )
+
     return final_array, final_indices
