@@ -1012,6 +1012,12 @@ def outer(a, b, out=None, split=None):
             t_outer[t_outer_slice] = torch.einsum("i,j->ij", t_a, t_b)
 
         # Ring: fill in missing slices of outer product
+        # allocate memory for traveling data
+        if split == 0:
+            t_b_run = torch.empty(lshape_map[0], dtype=t_outer_dtype, device=t_a.device)
+        elif split == 1:
+            t_a_run = torch.empty(lshape_map[0], dtype=t_outer_dtype, device=t_b.device)
+
         for p in range(size - 1):
             # prepare for sending
             dest_rank = rank + 1 if rank != size - 1 else 0
@@ -1023,16 +1029,18 @@ def outer(a, b, out=None, split=None):
             # blocking send and recv
             if split == 0:
                 b.comm.Send(t_b, dest_rank)
-                t_b = torch.empty(lshape_map[actual_origin], dtype=t_outer_dtype, device=t_a.device)
-                b.comm.Recv(t_b, origin_rank)
+                b.comm.Recv(t_b_run, origin_rank)
+                # buffer from actual_origin could be smaller than allocated buffer
+                t_b = t_b_run[: lshape_map[actual_origin]]
                 _, _, remote_slice = b.comm.chunk(
                     b.gshape, b.split, rank=actual_origin, w_size=size
                 )
                 t_outer_slice[1] = remote_slice[0]
             elif split == 1:
                 a.comm.Send(t_a, dest_rank)
-                t_a = torch.empty(lshape_map[actual_origin], dtype=t_outer_dtype, device=t_a.device)
-                a.comm.Recv(t_a, origin_rank)
+                a.comm.Recv(t_a_run, origin_rank)
+                # buffer from actual_origin could be smaller than allocated buffer
+                t_a = t_a_run[: lshape_map[actual_origin]]
                 _, _, remote_slice = a.comm.chunk(
                     a.gshape, a.split, rank=actual_origin, w_size=size
                 )
