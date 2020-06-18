@@ -89,3 +89,31 @@ def set_printoptions(
         __PRINT_OPTIONS.linewidth = max(1, int(linewidth))
 
     __PRINT_OPTIONS.sci_mode = bool(sci_mode) if sci_mode is not None else None
+
+
+__PREFIX = "DNDarray"
+__INDENT = len(__PREFIX)
+
+
+def __repr__(dndarray) -> str:
+    """
+    Computes a printable representation of the passed DNDarray.
+
+    dndarray: DNDarray
+        The array for which to obtain the corresponding string
+    """
+    return "{}({}, device={}, split={})".format(
+        __PREFIX, __str__(dndarray, __INDENT), dndarray.device, dndarray.split
+    )
+
+
+def __str__(dndarray, indent=0) -> str:
+    """
+    Computes a string representation of the passed DNDarray.
+
+    dndarray: DNDarray
+        The array for which to obtain the corresponding string
+    indent: int
+        The number of spaces the array content is indented.
+    """
+    return ""
