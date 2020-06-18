@@ -1102,6 +1102,8 @@ class TestManipulations(BasicTest):
             ht.rot90(ht.zeros((2, 2)), 1, (0, -2))
         with self.assertRaises(ValueError):
             ht.rot90(ht.zeros((2, 2)), 1, (0, 3))
+        with self.assertRaises(TypeError):
+            ht.rot90(ht.zeros((2, 3)), "k", (0, 1))
 
     def test_sort(self):
         size = ht.MPI_WORLD.size

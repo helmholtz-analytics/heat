@@ -6,10 +6,10 @@ from .communication import MPI
 
 from . import dndarray
 from . import factories
+from . import linalg
 from . import stride_tricks
 from . import tiling
 from . import types
-from . import linalg
 
 
 __all__ = [
@@ -942,6 +942,7 @@ def rot90(m, k=1, axes=(0, 1)):
     """
     Rotate an array by 90 degrees in the plane specified by axes.
     Rotation direction is from the first towards the second axis.
+
     Parameters
     ----------
     m : DNDarray
@@ -954,8 +955,7 @@ def rot90(m, k=1, axes=(0, 1)):
 
     Returns
     -------
-    y : DNDarray
-        A rotated view of `m`.
+    DNDarray
 
     Notes
     -----
@@ -963,6 +963,16 @@ def rot90(m, k=1, axes=(0, 1)):
     rot90(m, k=1, axes=(1,0)) is equivalent to rot90(m, k=-1, axes=(0,1))
 
     May change the split axis on distributed tensors
+
+    Raises
+    ------
+    TypeError
+        If first parameter is not a :class:DNDarray
+        If parameter ``k`` is not castable to integer
+    ValueError
+        If ``len(axis)!=2``
+        If the axes are the same
+        If axes are out of range
 
     Examples
     --------
@@ -1001,10 +1011,15 @@ def rot90(m, k=1, axes=(0, 1)):
             torch.rot90(m._DNDarray__array, k, axes), dtype=m.dtype, device=m.device, comm=m.comm
         )
 
+    try:
+        k = int(k)
+    except (TypeError, ValueError):
+        raise TypeError("Unknown type, must be castable to integer")
+
     k %= 4
 
     if k == 0:
-        return m[:]
+        return m.copy()
     if k == 2:
         return flip(flip(m, axes[0]), axes[1])
 
