@@ -1069,6 +1069,16 @@ class TestManipulations(TestCase):
         with self.assertRaises(TypeError):
             ht.reshape(ht.zeros((4, 3)), "(5, 7)")
 
+    def test_shape(self):
+        x = ht.random.randn(3, 4, 5, split=2)
+        self.assertEqual(ht.shape(x), (3, 4, 5))
+        self.assertEqual(ht.shape(x), x.shape)
+
+        # test exceptions
+        x = torch.randn(3, 4, 5)
+        with self.assertRaises(TypeError):
+            ht.shape(x)
+
     def test_sort(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
