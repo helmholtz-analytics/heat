@@ -1152,7 +1152,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
     axis : int, or None, optional #TODO tuple of ints
         Axis along which the percentiles are computed. Default is None.
 
-    #TODO: out, optional. Output buffer.
+    out : optional. Output buffer.
 
     interpolation : {‘linear’, ‘lower’, ‘higher’, ‘midpoint’, ‘nearest’}, optional
         Interpolation method to use when the desired percentile lies between two data points i < j:
