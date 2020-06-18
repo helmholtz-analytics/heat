@@ -1708,9 +1708,9 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     if dim is None:
         dim = len(a.shape) - 1
 
-    def mpi_topk(a, b, mpi_type, local_k=1, dim=0, sorted=True, largest=True):
-        a_parsed = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
-        b_parsed = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
+    def mpi_topk(a, b, mpi_type, local_k=1, dim=0, sorted=True, largest=True, buffer_shape=(0,)):
+        a_parsed = torch.from_numpy(np.frombuffer(a, dtype=np.float64)).reshape(buffer_shape)
+        b_parsed = torch.from_numpy(np.frombuffer(b, dtype=np.float64)).reshape(buffer_shape)
         # chunk into values, indices
         a_values, a_indices = a_parsed.chunk(2)
         b_values, b_indices = b_parsed.chunk(2)
@@ -1747,7 +1747,6 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         send_buffer = torch.empty((2,) + tuple(res_shape))
         send_buffer[0] = result
         send_buffer[1] = indices
-
         return send_buffer
 
     if largest:
@@ -1755,8 +1754,15 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     else:
         neutral_value = constants.sanitize_infinity(a._DNDarray__array.dtype)
 
-    partial_mpi_topk = partial(mpi_topk, local_k=k, dim=dim, sorted=sorted, largest=largest)
+    # Prepare Buffer shape
+    buffer_shape = list(a.lshape)
+    buffer_shape[dim] = k
+    buffer_shape.insert(0, 2)
+
     partial_local = partial(local_topk, k=k, dim=dim, largest=largest, sorted=sorted)
+    partial_mpi_topk = partial(
+        mpi_topk, local_k=k, dim=dim, sorted=sorted, largest=largest, buffer_shape=buffer_shape
+    )
     MPI_TOPK = MPI.Op.Create(partial_mpi_topk, commute=True)
 
     gres = operations.__reduce_op(

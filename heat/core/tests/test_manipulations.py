@@ -1554,15 +1554,16 @@ class TestManipulations(TestCase):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
 
-        torch_array = torch.arange(size, dtype=torch.int32, device=device).expand(size, size)
-        split_zero = ht.array(torch_array, split=0, device=ht_device)
-        split_one = ht.array(torch_array, split=1, device=ht_device)
+        torch_array = torch.arange(size, dtype=torch.int32).expand(size, size)
+        split_zero = ht.array(torch_array, split=0)
+        split_one = ht.array(torch_array, split=1)
+        """
         res, indcs = ht.topk(split_zero, 2, sorted=True)
-        exp_zero = ht.array([[size - 1, size -2] for i in range(size)], dtype=ht.int32, device=ht_device)
+        exp_zero = ht.array([[size - 1, size -2] for i in range(size)], dtype=ht.int32)
         self.assertTrue((res._DNDarray__array == exp_zero._DNDarray__array).all())
         self.assertTrue((indcs._DNDarray__array == exp_zero._DNDarray__array).all())
-
+        """
         res, indcs = ht.topk(split_one, 2, sorted=True)
-        exp_one = ht.array([size - 1, size - 2], dtype=ht.int32, device=ht_device).expand_dims(1)
+        exp_one = ht.array([size - 1, size - 2], dtype=ht.int32).expand_dims(1)
         self.assertTrue((res._DNDarray__array == exp_one._DNDarray__array).all())
         self.assertTrue((indcs == exp_one).all())
