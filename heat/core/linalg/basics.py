@@ -831,14 +831,17 @@ def outer(a, b, out=None, split=None):
     """
     Compute the outer product of two 1-D DNDarrays.
 
-    Given two vectors, ``a`` = [a_0, a_1, ..., a_n] and ``b`` = [b_0, b_1, ..., b_m], the outer product is:
+    Given two vectors, :math:`a = (a_0, a_1, ..., a_N)` and :math:`b = (b_0, b_1, ..., b_M)`, the outer product is:
 
     .. math::
+        :nowrap:
 
-           a_0 \times b_0  & a_0 \times b_1 & . & . &  a_0 \times b_m \\
-           a_1 \times b_0 & a_1 \times b_1 & . & . & a_1 \times b_m \\
+        \\begin{pmatrix}
+           a_0 \\cdot b_0  & a_0 \\cdot b_1 & . & . &  a_0 \\cdot b_M \\
+           a_1 \\cdot b_0 & a_1 \\cdot b_1 & . & . & a_1 \\cdot b_M \\
            . & . & . & . & .   \\
-           a_n \times b_0 & a_n \times b_1 & . & . & a_n \times b_m
+           a_N \\cdot b_0 & a_N \\cdot b_1 & . & . & a_N \\cdot b_M
+        \\end{pmatrix}
 
     Parameters
     ----------
