@@ -1709,18 +1709,18 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         dim = len(a.shape) - 1
 
     def mpi_topk(a, b, mpi_type, local_k=1, dim=0, sorted=True, largest=True, buffer_shape=(0,)):
+        #Parse Buffer
         a_parsed = torch.from_numpy(np.frombuffer(a, dtype=np.float64)).reshape(buffer_shape)
         b_parsed = torch.from_numpy(np.frombuffer(b, dtype=np.float64)).reshape(buffer_shape)
-        # chunk into values, indices
+
+        # separate into values, indices
         a_values, a_indices = a_parsed.chunk(2)
         b_values, b_indices = b_parsed.chunk(2)
 
         values = torch.stack((a_values, b_values), dim=dim)
         indices = torch.stack((a_indices, b_indices), dim=dim)
         if len(values) <= local_k:
-            result, k_indices = torch.topk(
-                values, len(values), dim=dim, largest=largest, sorted=sorted
-            )
+            result, k_indices = values, indices
         else:
             result, k_indices = torch.topk(values, local_k, dim=dim, largest=largest, sorted=sorted)
         final_result = torch.cat((result, indices.double()), dim=0)
@@ -1759,6 +1759,7 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     buffer_shape[dim] = k
     buffer_shape.insert(0, 2)
 
+    # generate partial functions to pass on kwargs that are the same for all instances
     partial_local = partial(local_topk, k=k, dim=dim, largest=largest, sorted=sorted)
     partial_mpi_topk = partial(
         mpi_topk, local_k=k, dim=dim, sorted=sorted, largest=largest, buffer_shape=buffer_shape
@@ -1778,13 +1779,11 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         keepdim=True,
     )
 
+    # Split data again to return a tuple
     data = gres._DNDarray__array[0]
     indices = gres._DNDarray__array[1]
 
-    if dim == 0:
-        data._DNDarray__gshape = (1,) + data._DNDarray__gshape
-        data = data.squeeze(axis=0)
-
+    # Fix the result in out to be a tuple
     if out is not None:
         if out[0].shape != data.shape or out[1].shape != indices.shape:
             raise ValueError(
@@ -1798,6 +1797,7 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         out._DNDarray__array = out._DNDarray__array.type(torch.int64)
         out._DNDarray__dtype = types.int64
 
+    # Make sure the split is right and generate output arrays
     if a.split is not None:
         is_split = a.split
         split = None
