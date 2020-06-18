@@ -833,29 +833,34 @@ def outer(a, b, out=None, split=None):
 
     Given two vectors, ``a`` = [a_0, a_1, ..., a_n] and ``b`` = [b_0, b_1, ..., b_m], the outer product is:
 
-    [[a_0*b_0  a_0*b_1 ... a_0*b_m]
-     [a_1*b_0     .
-     [ ...        .
-     [a_n*b_0     .        a_n*b_m]]
+    .. math::
+
+           a_0 \times b_0  & a_0 \times b_1 & . & . &  a_0 \times b_m \\
+           a_1 \times b_0 & a_1 \times b_1 & . & . & a_1 \times b_m \\
+           . & . & . & . & .   \\
+           a_n \times b_0 & a_n \times b_1 & . & . & a_n \times b_m
 
     Parameters
     ----------
 
-    a(n,): DNDarray
-            First input DNDarray. Must be 1-dimensional. Will be flattened by default if more than 1-D
+    a : DNDarray
+        1-dimensional: :math: `N`
+        Will be flattened by default if more than 1-D.
 
-    b(m,): DNDarray
-            Second input DNDarray. Must be 1-dimensional. Will be flattened by default if more than 1-D
+    b : DNDarray
+        1-dimensional: :math: `M`
+        Will be flattened by default if more than 1-D.
 
-    out(n, m): DNDarray, optional
-            A location where the result is stored
+    out : DNDarray, optional
+          2-dimensional: :math: `N \\times M`
+          A location where the result is stored
 
-    split: int, optional #TODO check out docstring format
+    split : int, optional
             Split dimension of the resulting DNDarray. Can be 0, 1, or None.
             This is only relevant if the calculations are memory-distributed,
             in which case default is ``split=0`` (see Note).
 
-    Note: parallel implementation of outer product, arrays are dense. #TODO sparse #384
+    Note: parallel implementation of outer product, arrays are dense.
         In the classical (dense) case, one DNDarray stays put, the other one is passed around the ranks in
         ring communication. The slice-by-slice outer product is calculated locally (here via torch.einsum()).
         N.B.: if ``b`` is sent around, the resulting outer product is split along the rows dimension (``split = 0``).
@@ -969,7 +974,7 @@ def outer(a, b, out=None, split=None):
                 "Split dimension mismatch for out: expected {}, got {}".format(split, out.split)
             )
 
-    # distributed outer product (dense, TODO: implement sparse version, #384)
+    # distributed outer product, dense arrays (TODO: sparse, #384)
     if a.comm.is_distributed() and split is not None or a.split is not None or b.split is not None:
         # MPI coordinates
         rank = a.comm.rank
