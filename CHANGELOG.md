@@ -1,15 +1,15 @@
 # Pending Additions
 
-- [#569](https://github.com/helmholtz-analytics/heat/pull/569) New feature: implemented percentile() and median()
 - [#488](https://github.com/helmholtz-analytics/heat/pull/488) Enhancement: Rework of the test device selection.
+- [#569](https://github.com/helmholtz-analytics/heat/pull/569) New feature: percentile() and median()
 - [#573](https://github.com/helmholtz-analytics/heat/pull/573) Bugfix: matmul fixes: early out for 2 vectors, remainders not added if inner block is 1 for split 10 case
 - [#575](https://github.com/helmholtz-analytics/heat/pull/558) Bugfix: Binary operations use proper type casting
 - [#575](https://github.com/helmholtz-analytics/heat/pull/558) Bugfix: `where` and `cov` convert ints to floats when given as parameters
 - [#577](https://github.com/helmholtz-analytics/heat/pull/577) Add ndim property in dndarray
 - [#578](https://github.com/helmholtz-analytics/heat/pull/578) Bugfix: Bad variable in reshape
 - [#580](https://github.com/helmholtz-analytics/heat/pull/580) New feature: fliplr()
-- [#581](https://github.com/helmholtz-analytics/heat/pull/581) New Feature: DNDarray.tolist()
-- [#593](https://github.com/helmholtz-analytics/heat/pull/593) New feature arctan2()
+- [#581](https://github.com/helmholtz-analytics/heat/pull/581) New feature: DNDarray.tolist()
+- [#593](https://github.com/helmholtz-analytics/heat/pull/593) New feature: arctan2()
 - [#594](https://github.com/helmholtz-analytics/heat/pull/594) New feature: Advanced indexing
 - [#594](https://github.com/helmholtz-analytics/heat/pull/594) Bugfix: getitem and setitem memory consumption heavily reduced
 
