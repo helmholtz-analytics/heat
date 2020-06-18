@@ -74,7 +74,7 @@ def set_printoptions(
         __PRINT_OPTIONS = copy.copy(__SHORT_OPTIONS)
     elif profile == "full":
         __PRINT_OPTIONS = copy.copy(__FULL_OPTIONS)
-    else:
+    elif profile is not None:
         raise ValueError(
             f"Expected 'profile' to be one of 'default', 'short' or 'full', but was {profile}"
         )
