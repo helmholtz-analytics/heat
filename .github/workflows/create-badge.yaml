@@ -8,4 +8,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: read badge
-      - run: echo $GITHUB_EVENT_NAME
+        run: echo $GITHUB_EVENT_NAME
