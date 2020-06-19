@@ -1,6 +1,6 @@
 name: Badge Creation
 
-on: status
+on: deployment_status
 
 jobs:
   statusreturn:
