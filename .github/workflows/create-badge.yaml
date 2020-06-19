@@ -1,0 +1,11 @@
+name: Badge Creation
+
+on: status
+
+jobs:
+  statusreturn:
+    name: create badge
+    runs-on: ubuntu-latest
+    steps:
+      - name: read badge
+      - run: echo $GITHUB_EVENT_NAME
