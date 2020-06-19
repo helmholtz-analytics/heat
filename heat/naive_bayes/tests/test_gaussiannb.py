@@ -3,22 +3,10 @@ import numpy as np
 import torch
 
 import heat as ht
-from heat.core.tests.test_suites.basic_test import BasicTest
-
-if os.environ.get("DEVICE") == "gpu" and ht.torch.cuda.is_available():
-    ht.use_device("gpu")
-    ht.torch.cuda.set_device(ht.torch.device(ht.get_device().torch_device))
-else:
-    ht.use_device("cpu")
-device = ht.get_device().torch_device
-ht_device = None
-if os.environ.get("DEVICE") == "lgpu" and ht.torch.cuda.is_available():
-    device = ht.gpu.torch_device
-    ht_device = ht.gpu
-    ht.torch.cuda.set_device(device)
+from heat.core.tests.test_suites.basic_test import TestCase
 
 
-class TestGaussianNB(BasicTest):
+class TestGaussianNB(TestCase):
     def test_classifier(self):
         gnb = ht.naive_bayes.GaussianNB()
         self.assertTrue(ht.is_estimator(gnb))
@@ -36,20 +24,12 @@ class TestGaussianNB(BasicTest):
 
     def test_fit_iris(self):
         # load sklearn train/test sets and resulting probabilities
-        X_train = ht.load(
-            "heat/datasets/data/iris_X_train.csv", sep=";", dtype=ht.float64, device=ht_device
-        )
-        X_test = ht.load(
-            "heat/datasets/data/iris_X_test.csv", sep=";", dtype=ht.float64, device=ht_device
-        )
-        y_train = ht.load(
-            "heat/datasets/data/iris_y_train.csv", sep=";", dtype=ht.int64, device=ht_device
-        ).squeeze()
-        y_test = ht.load(
-            "heat/datasets/data/iris_y_test.csv", sep=";", dtype=ht.int64, device=ht_device
-        ).squeeze()
+        X_train = ht.load("heat/datasets/data/iris_X_train.csv", sep=";", dtype=ht.float64)
+        X_test = ht.load("heat/datasets/data/iris_X_test.csv", sep=";", dtype=ht.float64)
+        y_train = ht.load("heat/datasets/data/iris_y_train.csv", sep=";", dtype=ht.int64).squeeze()
+        y_test = ht.load("heat/datasets/data/iris_y_test.csv", sep=";", dtype=ht.int64).squeeze()
         y_pred_proba_sklearn = ht.load(
-            "heat/datasets/data/iris_y_pred_proba.csv", sep=";", dtype=ht.float64, device=ht_device
+            "heat/datasets/data/iris_y_pred_proba.csv", sep=";", dtype=ht.float64
         )
 
         # test ht.GaussianNB
@@ -79,7 +59,6 @@ class TestGaussianNB(BasicTest):
                 [6.77692308, 3.09230769, 5.73461538, 2.10769231],
             ],
             dtype=X_train.dtype,
-            device=ht_device,
         )
         sklearn_sigma = ht.array(
             [
@@ -88,7 +67,6 @@ class TestGaussianNB(BasicTest):
                 [0.38869823, 0.10147929, 0.31303255, 0.04763314],
             ],
             dtype=X_train.dtype,
-            device=ht_device,
         )
         self.assertIsInstance(y_pred_local, ht.DNDarray)
         self.assertEqual((y_pred_local != y_test).sum(), ht.array(4))
@@ -133,17 +111,17 @@ class TestGaussianNB(BasicTest):
         # test exceptions
         X_torch = torch.ones(75, 4)
         y_np = np.zeros(75)
-        y_2D = ht.ones((75, 1), split=None, device=ht_device)
+        y_2D = ht.ones((75, 1), split=None)
         weights_torch = torch.zeros(75)
-        X_3D = ht.ones((75, 4, 4), split=None, device=ht_device)
-        X_wrong_size = ht.ones((75, 5), split=None, device=ht_device)
-        y_wrong_size = ht.zeros(76, device=ht_device)
+        X_3D = ht.ones((75, 4, 4), split=None)
+        X_wrong_size = ht.ones((75, 5), split=None)
+        y_wrong_size = ht.zeros(76)
         X_train_split = ht.resplit(X_train, axis=0)
         y_train_split = ht.resplit(y_train, axis=0)
-        weights_2D_split = y_2D = ht.ones((75, 1), split=0, device=ht_device)
-        weights_wrong_size = ht.ones(76, device=ht_device)
-        priors_wrong_shape = ht.random.randn(4, device=ht_device)
-        priors_wrong_sum = ht.random.randn(3, dtype=ht.float32, device=ht_device)
+        weights_2D_split = y_2D = ht.ones((75, 1), split=0)
+        weights_wrong_size = ht.ones(76)
+        priors_wrong_shape = ht.random.randn(4)
+        priors_wrong_sum = ht.random.randn(3, dtype=ht.float32)
         priors_wrong_sign = ht.array([-0.3, 0.7, 0.6])
         wrong_classes = ht.array([3, 4, 5])
 

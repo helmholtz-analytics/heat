@@ -3,24 +3,14 @@ import os
 import heat as ht
 import torch
 
-if os.environ.get("DEVICE") == "gpu" and torch.cuda.is_available():
-    ht.use_device("gpu")
-    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
-else:
-    ht.use_device("cpu")
-device = ht.get_device().torch_device
-ht_device = None
-if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
-    device = ht.gpu.torch_device
-    ht_device = ht.gpu
-    torch.cuda.set_device(device)
+from .test_suites.basic_test import TestCase
 
 
-class TestIndexing(unittest.TestCase):
+class TestIndexing(TestCase):
     def test_nonzero(self):
         # cases to test:
         # not split
-        a = ht.array([[1, 2, 3], [4, 5, 2], [7, 8, 9]], split=None, device=ht_device)
+        a = ht.array([[1, 2, 3], [4, 5, 2], [7, 8, 9]], split=None)
         cond = a > 3
         nz = ht.nonzero(cond)
         self.assertEqual(nz.gshape, (5, 2))
@@ -28,7 +18,7 @@ class TestIndexing(unittest.TestCase):
         self.assertEqual(nz.split, None)
 
         # split
-        a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=1, device=ht_device)
+        a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=1)
         cond = a > 3
         nz = cond.nonzero()
         self.assertEqual(nz.gshape, (6, 2))
@@ -40,14 +30,14 @@ class TestIndexing(unittest.TestCase):
     def test_where(self):
         # cases to test
         # no x and y
-        a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=None, device=ht_device)
+        a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=None)
         cond = a > 3
         wh = ht.where(cond)
         self.assertEqual(wh.gshape, (6, 2))
         self.assertEqual(wh.dtype, ht.int64)
         self.assertEqual(wh.split, None)
         # split
-        a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=1, device=ht_device)
+        a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=1)
         cond = a > 3
         wh = ht.where(cond)
         self.assertEqual(wh.gshape, (6, 2))
@@ -55,28 +45,19 @@ class TestIndexing(unittest.TestCase):
         self.assertEqual(wh.split, 0)
 
         # not split cond
-        a = ht.array(
-            [[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=None, device=ht_device
-        )
-        res = ht.array(
-            [[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=None, device=ht_device
-        )
-        wh = ht.where(a < 4.0, a, -1.0)
+        a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=None)
+        res = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=None)
+        wh = ht.where(a < 4.0, a, -1)
         self.assertTrue(
-            ht.equal(
-                a[ht.nonzero(a < 4)],
-                ht.array([0.0, 1.0, 2.0, 0.0, 2.0, 0.0, 3.0], device=ht_device),
-            )
+            ht.equal(a[ht.nonzero(a < 4)], ht.array([0.0, 1.0, 2.0, 0.0, 2.0, 0.0, 3.0]))
         )
         self.assertTrue(ht.equal(wh, res))
         self.assertEqual(wh.gshape, (3, 3))
         self.assertEqual(wh.dtype, ht.float)
 
         # split cond
-        a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=0, device=ht_device)
-        res = ht.array(
-            [[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=0, device=ht_device
-        )
+        a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=0)
+        res = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=0)
         wh = ht.where(a < 4.0, a, -1)
         self.assertTrue(ht.all(wh[ht.nonzero(a >= 4)] == -1))
         self.assertTrue(ht.equal(wh, res))
@@ -84,11 +65,9 @@ class TestIndexing(unittest.TestCase):
         self.assertEqual(wh.dtype, ht.float)
         self.assertEqual(wh.split, 0)
 
-        a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=1, device=ht_device)
-        res = ht.array(
-            [[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=1, device=ht_device
-        )
-        wh = ht.where(a < 4.0, a, -1)
+        a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=1)
+        res = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, -1.0], [0.0, 3.0, -1.0]], split=1)
+        wh = ht.where(a < 4.0, a, -1.0)
         self.assertTrue(ht.equal(wh, res))
         self.assertEqual(wh.gshape, (3, 3))
         self.assertEqual(wh.dtype, ht.float)
@@ -98,8 +77,4 @@ class TestIndexing(unittest.TestCase):
             ht.where(cond, a)
 
         with self.assertRaises(NotImplementedError):
-            ht.where(
-                cond,
-                ht.ones((3, 3), split=0, device=ht_device),
-                ht.ones((3, 3), split=1, device=ht_device),
-            )
+            ht.where(cond, ht.ones((3, 3), split=0), ht.ones((3, 3), split=1))

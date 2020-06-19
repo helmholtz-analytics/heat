@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import numpy as np
 import math
 import torch
 import warnings
+from typing import List
 
 from . import arithmetics
 from . import devices
@@ -3458,6 +3461,36 @@ class DNDarray:
         tensor([-1.0000, -0.9993, -0.9640,  0.0000,  0.9640,  0.9993,  1.0000])
         """
         return trigonometrics.tanh(self, out)
+
+    def tolist(self, keepsplit=False) -> List:
+        """
+        Return a copy of the local array data as a (nested) Python list. For scalars, a standard Python number is returned.
+
+        Parameters
+        ----------
+        keepsplit: bool
+            Whether the list should be returned locally or globally.
+
+        Examples
+        --------
+        >>> a = ht.array([[0,1],[2,3]])
+        >>> a.tolist()
+        [[0, 1], [2, 3]]
+
+        >>> a = ht.array([[0,1],[2,3]], split=0)
+        >>> a.tolist()
+        [[0, 1], [2, 3]]
+
+        >>> a = ht.array([[0,1],[2,3]], split=1)
+        >>> a.tolist(keepsplit=True)
+        (1/2) [[0], [2]]
+        (2/2) [[1], [3]]
+        """
+
+        if not keepsplit:
+            return manipulations.resplit(self, axis=None).__array.tolist()
+
+        return self.__array.tolist()
 
     def transpose(self, axes=None):
         """

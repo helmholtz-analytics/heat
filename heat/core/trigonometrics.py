@@ -1,12 +1,15 @@
 import torch
 from .constants import pi
 from .operations import __local_op as local_op
+from .operations import __binary_op as binary_op
+from . import types
 
 
 __all__ = [
     "arccos",
     "arcsin",
     "arctan",
+    "arctan2",
     "cos",
     "cosh",
     "deg2rad",
@@ -97,6 +100,36 @@ def arctan(x, out=None):
        dtype=torch.float64)
     """
     return local_op(torch.atan, x, out)
+
+
+def arctan2(x1, x2):
+    """
+    Element-wise arc tangent of ``x1/x2`` choosing the quadrant correctly.
+    Returns a new ``DNDarray`` with the signed angles in radians between vector (``x2``,``x1``) and vector (1,0)
+
+    Parameters
+    ----------
+    x1 : DNDarray
+         y-coordinates
+    x2 : DNDarray
+         x-coordinates. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape (which becomes the shape of the output).
+
+    Returns
+    -------
+    DNDarray
+
+    Examples
+    --------
+    >>> x = ht.array([-1, +1, +1, -1])
+    >>> y = ht.array([-1, -1, +1, +1])
+    >>> ht.arctan2(y, x) * 180 / ht.pi
+    tensor([-135.0000,  -45.0000,   45.0000,  135.0000], dtype=torch.float64)
+    """
+    # Cast integer to float because torch.atan2() only supports integer types on PyTorch 1.5.0.
+    x1 = x1.astype(types.promote_types(x1.dtype, types.float))
+    x2 = x2.astype(types.promote_types(x2.dtype, types.float))
+
+    return binary_op(torch.atan2, x1, x2)
 
 
 def cos(x, out=None):
