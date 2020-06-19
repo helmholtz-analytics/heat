@@ -1,39 +1,21 @@
 import copy
-import math
+import torch
+
 from typing import Dict
 
 __all__ = ["get_printoptions", "set_printoptions"]
 
 
-class __PrintingOptions:
-    def __init__(self, precision, threshold, edgeitems, linewidth, sci_mode):
-        self.precision = precision
-        self.threshold = threshold
-        self.edgeitems = edgeitems
-        self.linewidth = linewidth
-        self.sci_mode = sci_mode
-
-
-# define standard printing profiles
-__DEFAULT_OPTIONS = __PrintingOptions(4, 1000, 3, 80, None)
-__SHORT_OPTIONS = __PrintingOptions(2, 1000, 2, 80, None)
-__FULL_OPTIONS = __PrintingOptions(4, math.inf, 3, 80, None)
-
-# copy over the default profile
-__PRINT_OPTIONS = copy.copy(__DEFAULT_OPTIONS)
+# set the default printing width to a 120
+_DEFAULT_LINEWIDTH = 120
+torch.set_printoptions(profile="default", linewidth=_DEFAULT_LINEWIDTH)
 
 
 def get_printoptions() -> Dict:
     """
     Returns the currently configured printing options.
     """
-    return {
-        "precision": __PRINT_OPTIONS.precision,
-        "threshold": __PRINT_OPTIONS.threshold,
-        "edgeitems": __PRINT_OPTIONS.edgeitems,
-        "linewidth": __PRINT_OPTIONS.linewidth,
-        "sci_mode": __PRINT_OPTIONS.sci_mode,
-    }
+    return copy.copy(torch._tensor_str.PRINT_OPTS.__dict__)
 
 
 def set_printoptions(
@@ -58,37 +40,16 @@ def set_printoptions(
     sci_mode: bool
         Enable (True) or disable (False) scientific notation. If None (default) is specified, the value is automatically
         inferred by HeAT.
-
-    Raises
-    ------
-    TypeError
-        When any parameter except `profile` cannot be interpreted as an integer or bool for `sci_mode` respectively.
-    ValueError
-        If the profile string is not understood.
     """
-    global __PRINT_OPTIONS
+    torch.set_printoptions(precision, threshold, edgeitems, linewidth, profile, sci_mode)
 
-    if profile == "default":
-        __PRINT_OPTIONS = copy.copy(__DEFAULT_OPTIONS)
-    elif profile == "short":
-        __PRINT_OPTIONS = copy.copy(__SHORT_OPTIONS)
-    elif profile == "full":
-        __PRINT_OPTIONS = copy.copy(__FULL_OPTIONS)
-    elif profile is not None:
-        raise ValueError(
-            f"Expected 'profile' to be one of 'default', 'short' or 'full', but was {profile}"
-        )
-
-    if precision is not None:
-        __PRINT_OPTIONS.precision = max(0, int(precision))
-    if threshold is not None:
-        __PRINT_OPTIONS.threshold = int(threshold)
-    if edgeitems is not None:
-        __PRINT_OPTIONS.edgeitems = max(1, int(edgeitems))
-    if linewidth is not None:
-        __PRINT_OPTIONS.linewidth = max(1, int(linewidth))
-
-    __PRINT_OPTIONS.sci_mode = bool(sci_mode) if sci_mode is not None else None
+    # HeAT profiles will print a bit wider than PyTorch does
+    if profile == "default" and linewidth is None:
+        torch._tensor_str.PRINT_OPTS.linewidth = _DEFAULT_LINEWIDTH
+    elif profile == "short" and linewidth is None:
+        torch._tensor_str.PRINT_OPTS.linewidth = _DEFAULT_LINEWIDTH
+    elif profile == "full" and linewidth is None:
+        torch._tensor_str.PRINT_OPTS.linewidth = _DEFAULT_LINEWIDTH
 
 
 __PREFIX = "DNDarray"
@@ -99,21 +60,88 @@ def __repr__(dndarray) -> str:
     """
     Computes a printable representation of the passed DNDarray.
 
+    Parameters
+    ----------
     dndarray: DNDarray
         The array for which to obtain the corresponding string
     """
-    return "{}({}, device={}, split={})".format(
-        __PREFIX, __str__(dndarray, __INDENT), dndarray.device, dndarray.split
+    return "{}({}, dtype=ht.{}, device={}, split={})".format(
+        __PREFIX,
+        _tensor_str(dndarray, __INDENT + 1),
+        dndarray.dtype.__name__,
+        dndarray.device,
+        dndarray.split,
     )
 
 
-def __str__(dndarray, indent=0) -> str:
+def _torch_data(dndarray, summarize) -> torch.Tensor:
+    """
+    Extracts the data to be printed from the DNDarray in form of a torch tensor and returns it.
+
+    Parameters
+    ----------
+    dndarray: DNDarray
+        The HeAT DNDarray to be printed.
+    summarize: bool
+        Flag indicating whether to print the full data or summarized, i.e. ellipsed, version of the data.
+    """
+    # data is not split, we can use it as is
+    if dndarray.split is None:
+        data = dndarray._DNDarray__array
+    # split, but no summary required, we collect it
+    elif not summarize:
+        data = dndarray.copy().resplit_(None)._DNDarray__array
+    # split, but summarized, collect the slices from all nodes and pass it on
+    else:
+        edgeitems = torch._tensor_str.PRINT_OPTS.edgeitems
+        double_items = 2 * edgeitems
+        ndims = dndarray.ndim
+        data = dndarray._DNDarray__array
+
+        for i in range(ndims):
+            # skip over dimensions that are smaller than twice the number of edge items to display
+            if dndarray.gshape[i] <= double_items:
+                continue
+
+            # non-split dimension, can slice locally
+            if i != dndarray.split:
+                data = torch.stack([data[: edgeitems + 1], data[-edgeitems:]], dim=i)
+            # split-dimension , need to respect the global offset
+            elif i == dndarray.split and dndarray.gshape[i] > double_items:
+                offset, _, _ = dndarray.comm.chunk(dndarray.gshape, i)
+
+                if offset < edgeitems:
+                    data = data[: edgeitems + 1 - offset]
+                elif dndarray.gshape[i] - edgeitems < offset:
+                    edge_start = dndarray.gshape[i] - edgeitems
+                    local_end = offset + dndarray.lshape[i]
+                    data = data[local_end - edge_start :]
+
+        # TODO: combine the slice parts globally alltoallv
+        data = dndarray.comm.alltoallv()
+
+    return data
+
+
+def _tensor_str(dndarray, indent) -> str:
     """
     Computes a string representation of the passed DNDarray.
 
+    Parameters
+    ----------
     dndarray: DNDarray
         The array for which to obtain the corresponding string
     indent: int
         The number of spaces the array content is indented.
     """
-    return ""
+    elements = dndarray.gnumel
+    if elements == 0:
+        return "[]"
+
+    # we will recycle torch's printing features here
+    # to do so, we slice up the torch data and forward it to torch internal printing mechanism
+    summarize = elements > get_printoptions()["threshold"]
+    torch_data = _torch_data(dndarray, summarize)
+    formatter = torch._tensor_str._Formatter(torch_data)
+
+    return torch._tensor_str._tensor_str_with_formatter(torch_data, indent, formatter, summarize)
