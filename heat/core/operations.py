@@ -416,7 +416,6 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
         raise ValueError(
             "Expecting output buffer of shape {}, got {}".format(output_shape, out.shape)
         )
-    print(partial.shape)
     # perform a reduction operation in case the tensor is distributed across the reduction axis
     if x.split is not None and (axis is None or (x.split in axis)):
         split = None

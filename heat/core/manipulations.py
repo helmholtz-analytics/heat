@@ -1708,63 +1708,46 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     if dim is None:
         dim = len(a.shape) - 1
 
-    def mpi_topk(a, b, mpi_type, local_k=1, dim=0, sorted=True, largest=True, buffer_shape=(0,)):
-        #Parse Buffer
-        a_parsed = torch.from_numpy(np.frombuffer(a, dtype=np.float64)).reshape(buffer_shape)
-        b_parsed = torch.from_numpy(np.frombuffer(b, dtype=np.float64)).reshape(buffer_shape)
-
-        # separate into values, indices
-        a_values, a_indices = a_parsed.chunk(2)
-        b_values, b_indices = b_parsed.chunk(2)
-
-        values = torch.stack((a_values, b_values), dim=dim)
-        indices = torch.stack((a_indices, b_indices), dim=dim)
-        if len(values) <= local_k:
-            result, k_indices = values, indices
-        else:
-            result, k_indices = torch.topk(values, local_k, dim=dim, largest=largest, sorted=sorted)
-        final_result = torch.cat((result, indices.double()), dim=0)
-        b_parsed.copy_(final_result)
+    if largest:
+        neutral_value = -constants.sanitize_infinity(a._DNDarray__array.dtype)
+    else:
+        neutral_value = constants.sanitize_infinity(a._DNDarray__array.dtype)
 
     def local_topk(*args, **kwargs):
         shape = a.lshape
 
         if shape[dim] < k:
             result, indices = torch.topk(args[0], shape[dim], largest=largest, sorted=sorted)
+            if dim == a.split:
+                # Pad the result with neutral values to fit the buffer
+                size = list(result.shape)
+                padding_sizes = [k - size[dim] if index == dim else 0 for index, item in enumerate(list(result.shape))]
+                padding = torch.nn.ConstantPad1d(padding_sizes, neutral_value)
+                result = padding(result)
+                indices = padding(indices)
         else:
             result, indices = torch.topk(args[0], k=k, dim=dim, largest=largest, sorted=sorted)
 
         # add offset of data chunks if reduction is computed across split axis
         if dim == a.split:
             offset, _, _ = a.comm.chunk(shape, a.split)
-            indices += torch.tensor(offset, dtype=indices.dtype)
+            indices = indices.clone()
+            indices += torch.tensor(offset * a.comm.rank, dtype=indices.dtype)
 
-        res_shape = result.shape
-        if res_shape[dim] < k:
-            res_shape = list(res_shape)
-            res_shape[dim] = k
+        local_shape = list(result.shape)
+        local_shape_len = len(shape)
 
-        send_buffer = torch.empty((2,) + tuple(res_shape))
-        send_buffer[0] = result
-        send_buffer[1] = indices
+        metadata = torch.tensor([k, dim, largest, sorted, local_shape_len, *local_shape])
+        send_buffer = torch.cat((metadata, result.long().flatten(), indices.flatten()))
+
         return send_buffer
-
-    if largest:
-        neutral_value = -constants.sanitize_infinity(a._DNDarray__array.dtype)
-    else:
-        neutral_value = constants.sanitize_infinity(a._DNDarray__array.dtype)
 
     # Prepare Buffer shape
     buffer_shape = list(a.lshape)
     buffer_shape[dim] = k
-    buffer_shape.insert(0, 2)
 
     # generate partial functions to pass on kwargs that are the same for all instances
     partial_local = partial(local_topk, k=k, dim=dim, largest=largest, sorted=sorted)
-    partial_mpi_topk = partial(
-        mpi_topk, local_k=k, dim=dim, sorted=sorted, largest=largest, buffer_shape=buffer_shape
-    )
-    MPI_TOPK = MPI.Op.Create(partial_mpi_topk, commute=True)
 
     gres = operations.__reduce_op(
         a,
@@ -1780,8 +1763,11 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     )
 
     # Split data again to return a tuple
-    data = gres._DNDarray__array[0]
-    indices = gres._DNDarray__array[1]
+    local_result = gres._DNDarray__array
+    shape_len = local_result[4]
+    gres, gindices = local_result[5 + shape_len :].chunk(2)
+    gres = gres.reshape(*local_result[5 : 5 + shape_len])
+    gindices = gindices.reshape(*local_result[5 : 5 + shape_len])
 
     # Fix the result in out to be a tuple
     if out is not None:
@@ -1791,24 +1777,71 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
                     data.shape, indices.shape, out[0].shape, out[1].shape
                 )
             )
-        out[0]._DNDarray__array.storage().copy_(data._DNDarray__array.storage())
-        out[1]._DNDarray__array.storage().copy_(indices._DNDarray__array.storage())
+        out[0]._DNDarray__array.storage().copy_(gres._DNDarray__array.storage())
+        out[1]._DNDarray__array.storage().copy_(gindices._DNDarray__array.storage())
 
         out._DNDarray__array = out._DNDarray__array.type(torch.int64)
         out._DNDarray__dtype = types.int64
 
     # Make sure the split is right and generate output arrays
     if a.split is not None:
-        is_split = a.split
-        split = None
+        is_split = None
+        split = a.split
     else:
         is_split = None
         split = None
     final_array = factories.array(
-        data, dtype=a.dtype, device=a.device, split=split, is_split=is_split
+        gres, dtype=a.dtype, device=a.device, split=split, is_split=is_split
     )
     final_indices = factories.array(
-        indices, dtype=torch.int64, device=a.device, split=split, is_split=is_split
+        gindices, dtype=torch.int64, device=a.device, split=split, is_split=is_split
     )
 
     return final_array, final_indices
+
+
+def mpi_topk(a, b, mpi_type):
+    # Parse Buffer
+    a_parsed = torch.from_numpy(np.frombuffer(a, dtype=np.int64))
+    b_parsed = torch.from_numpy(np.frombuffer(b, dtype=np.int64))
+
+    # Collect metadata from Buffer
+    k = a_parsed[0].item()
+    dim = a_parsed[1].item()
+    largest = bool(a_parsed[2].item())
+    sorted = bool(a_parsed[3].item())
+
+    # Offset is the length of the shape on the buffer
+    len_shape_a = a_parsed[4]
+    shape_a = a_parsed[5 : 5 + len_shape_a].tolist()
+    len_shape_b = b_parsed[4]
+    shape_b = b_parsed[5 : 5 + len_shape_b].tolist()
+
+    # separate into values, indices
+    a_values, a_indices = a_parsed[len_shape_a + 5 :].chunk(2)
+    b_values, b_indices = b_parsed[len_shape_b + 5 :].chunk(2)
+
+    a_values = a_values.reshape(shape_a)
+    a_indices = a_indices.reshape(shape_a)
+
+    b_values = b_values.reshape(shape_b)
+    b_indices = b_indices.reshape(shape_b)
+
+    values = torch.cat((a_values, b_values), dim=dim)
+    indices = torch.cat((a_indices, b_indices), dim=dim)
+
+    if len(values) <= k:
+        result, indices = values, indices
+    else:
+        result, k_indices = torch.topk(values, k, dim=dim, largest=largest, sorted=sorted)
+        indices = torch.gather(indices, dim, k_indices)
+
+    shape = list(result.shape)
+    shape_len = len(shape)
+    metadata = torch.cat((a_parsed[0:4], torch.tensor([shape_len, *shape])))
+    final_result = torch.cat((metadata, result.flatten(), indices.flatten()))
+
+    b_parsed.copy_(final_result)
+
+
+MPI_TOPK = MPI.Op.Create(mpi_topk, commute=True)
