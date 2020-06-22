@@ -1691,7 +1691,7 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         Return either the k largest or smallest items
     sorted: Boolean
         Whether to sort the output
-    out: tuple of ht.DNDarrays to put the result in
+    out: tuple of ht.DNDarrays (items, indices) to put the result in
     Returns
     -------
     items: ht.DNDarray of shape (k,)
@@ -1719,9 +1719,12 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         if shape[dim] < k:
             result, indices = torch.topk(args[0], shape[dim], largest=largest, sorted=sorted)
             if dim == a.split:
-                # Pad the result with neutral values to fit the buffer
+                # Pad the result with neutral values to fill the buffer
                 size = list(result.shape)
-                padding_sizes = [k - size[dim] if index == dim else 0 for index, item in enumerate(list(result.shape))]
+                padding_sizes = [
+                    k - size[dim] if index == dim else 0
+                    for index, item in enumerate(list(result.shape))
+                ]
                 padding = torch.nn.ConstantPad1d(padding_sizes, neutral_value)
                 result = padding(result)
                 indices = padding(indices)
@@ -1738,20 +1741,15 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         local_shape_len = len(shape)
 
         metadata = torch.tensor([k, dim, largest, sorted, local_shape_len, *local_shape])
-        send_buffer = torch.cat((metadata, result.long().flatten(), indices.flatten()))
+        send_buffer = torch.cat(
+            (metadata.double(), result.double().flatten(), indices.flatten().double())
+        )
 
         return send_buffer
 
-    # Prepare Buffer shape
-    buffer_shape = list(a.lshape)
-    buffer_shape[dim] = k
-
-    # generate partial functions to pass on kwargs that are the same for all instances
-    partial_local = partial(local_topk, k=k, dim=dim, largest=largest, sorted=sorted)
-
     gres = operations.__reduce_op(
         a,
-        partial_local,
+        local_topk,
         MPI_TOPK,
         axis=dim,
         out=out,
@@ -1764,26 +1762,27 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
 
     # Split data again to return a tuple
     local_result = gres._DNDarray__array
-    shape_len = local_result[4]
-    gres, gindices = local_result[5 + shape_len :].chunk(2)
-    gres = gres.reshape(*local_result[5 : 5 + shape_len])
-    gindices = gindices.reshape(*local_result[5 : 5 + shape_len])
+    shape_len = int(local_result[4])
+
+    gres, gindices = local_result[5 + shape_len:].chunk(2)
+    gres = gres.reshape(*local_result[5: 5 + shape_len].int())
+    gindices = gindices.reshape(*local_result[5: 5 + shape_len].int())
 
     # Fix the result in out to be a tuple
     if out is not None:
-        if out[0].shape != data.shape or out[1].shape != indices.shape:
+        if out[0].shape != gres.shape or out[1].shape != gindices.shape:
             raise ValueError(
                 "Expecting output buffer tuple of shape ({}, {}), got ({}, {})".format(
-                    data.shape, indices.shape, out[0].shape, out[1].shape
+                    gres.shape, gindices.shape, out[0].shape, out[1].shape
                 )
             )
         out[0]._DNDarray__array.storage().copy_(gres._DNDarray__array.storage())
         out[1]._DNDarray__array.storage().copy_(gindices._DNDarray__array.storage())
 
-        out._DNDarray__array = out._DNDarray__array.type(torch.int64)
-        out._DNDarray__dtype = types.int64
+        out[0]._DNDarray__dtype = a.dtype
+        out[1]._DNDarray__dtype = types.int64
 
-    # Make sure the split is right and generate output arrays
+    # Create output with correct split
     if a.split is not None:
         is_split = None
         split = a.split
@@ -1802,44 +1801,40 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
 
 def mpi_topk(a, b, mpi_type):
     # Parse Buffer
-    a_parsed = torch.from_numpy(np.frombuffer(a, dtype=np.int64))
-    b_parsed = torch.from_numpy(np.frombuffer(b, dtype=np.int64))
+    a_parsed = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
+    b_parsed = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
 
     # Collect metadata from Buffer
-    k = a_parsed[0].item()
-    dim = a_parsed[1].item()
+    k = int(a_parsed[0].item())
+    dim = int(a_parsed[1].item())
     largest = bool(a_parsed[2].item())
     sorted = bool(a_parsed[3].item())
 
     # Offset is the length of the shape on the buffer
-    len_shape_a = a_parsed[4]
-    shape_a = a_parsed[5 : 5 + len_shape_a].tolist()
-    len_shape_b = b_parsed[4]
-    shape_b = b_parsed[5 : 5 + len_shape_b].tolist()
+    len_shape_a = int(a_parsed[4])
+    shape_a = a_parsed[5: 5 + len_shape_a].int().tolist()
+    len_shape_b = int(b_parsed[4])
+    shape_b = b_parsed[5: 5 + len_shape_b].int().tolist()
 
-    # separate into values, indices
-    a_values, a_indices = a_parsed[len_shape_a + 5 :].chunk(2)
-    b_values, b_indices = b_parsed[len_shape_b + 5 :].chunk(2)
+    # separate the data into values, indices
+    a_values, a_indices = a_parsed[len_shape_a + 5:].chunk(2)
+    b_values, b_indices = b_parsed[len_shape_b + 5:].chunk(2)
 
+    # reconstruct the flatened data by shape
     a_values = a_values.reshape(shape_a)
     a_indices = a_indices.reshape(shape_a)
-
     b_values = b_values.reshape(shape_b)
     b_indices = b_indices.reshape(shape_b)
 
+    # stack the data to actually run topk on
     values = torch.cat((a_values, b_values), dim=dim)
     indices = torch.cat((a_indices, b_indices), dim=dim)
 
-    if len(values) <= k:
-        result, indices = values, indices
-    else:
-        result, k_indices = torch.topk(values, k, dim=dim, largest=largest, sorted=sorted)
-        indices = torch.gather(indices, dim, k_indices)
+    result, k_indices = torch.topk(values, k, dim=dim, largest=largest, sorted=sorted)
+    indices = torch.gather(indices, dim, k_indices)
 
-    shape = list(result.shape)
-    shape_len = len(shape)
-    metadata = torch.cat((a_parsed[0:4], torch.tensor([shape_len, *shape])))
-    final_result = torch.cat((metadata, result.flatten(), indices.flatten()))
+    metadata = a_parsed[0:len_shape_a + 5]
+    final_result = torch.cat((metadata, result.double().flatten(), indices.double().flatten()))
 
     b_parsed.copy_(final_result)
 
