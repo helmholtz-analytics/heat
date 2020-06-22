@@ -6,7 +6,7 @@ curdir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(curdir, '../../'))) 
 
 import heat as ht
-from heat.classification.kNN import KNN
+from heat.classification.knn import KNN
 
 # Load Dataset from hdf5 file
 X = ht.load_hdf5("../../heat/datasets/data/iris.h5", dataset="data", split=0)
@@ -83,16 +83,14 @@ def create_fold(dataset_x, dataset_y, size, seed=None):
         additional = ht.random.randint(low=0, high=data_length, size=(diff,), split=0)
         indices = ht.concatenate((indices, additional))
         indices = ht.unique(indices, sorted=True)
-
-    indices = [ind.item() for ind in indices]
+    indices = indices.tolist()
     all_indices = [index for index in range(data_length)]
     verification_indices = [index for index in all_indices if index not in indices]
 
-    fold_x = dataset_x[indices]
-    fold_y = dataset_y[indices]
-    verification_y = dataset_y[verification_indices]
-    verification_x = dataset_x[verification_indices]
-
+    fold_x = ht.array(dataset_x[indices], is_split=0)
+    fold_y = ht.array(dataset_y[indices], is_split=0)
+    verification_y = ht.array(dataset_y[verification_indices], is_split=0)
+    verification_x = ht.array(dataset_x[verification_indices], is_split=0)
     return fold_x, fold_y, verification_x, verification_y
 
 

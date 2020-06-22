@@ -39,7 +39,8 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         X : ht.DNDarray
             Input data to be predicted
         """
-
+        print(self.x.split, X.split)
+        print(self.x.lshape, X.lshape)
         distances = ht.spatial.cdist(X, self.x)
         _, indices = ht.topk(distances, self.num_neighbours, largest=False)
 
