@@ -1686,7 +1686,7 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     k: int
         Number of items to take
     dim: int
-        Dimension along which to take, per default takes the last dimension
+        Dimension along which to take, per default the last dimension
     largest: Boolean
         Return either the k largest or smallest items
     sorted: Boolean
@@ -1700,9 +1700,15 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         The respective indices
     Examples
     --------
-    >>> a = ht.array([1, 2, 3], split=0)
+    >>> a = ht.array([1, 2, 3])
     >>> ht.topk(a,2)
-    [0] tensor([2, 3])
+    (tensor([3, 2]), tensor([2, 1]))
+    >>> a = ht.array([[1,2,3],[1,2,3]])
+    >>> ht.topk(a,2,dim=1)
+   (tensor([[3, 2],
+        [3, 2]]),
+    tensor([[2, 1],
+        [2, 1]]))
     """
 
     if dim is None:
@@ -1764,9 +1770,9 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     local_result = gres._DNDarray__array
     shape_len = int(local_result[4])
 
-    gres, gindices = local_result[5 + shape_len:].chunk(2)
-    gres = gres.reshape(*local_result[5: 5 + shape_len].int())
-    gindices = gindices.reshape(*local_result[5: 5 + shape_len].int())
+    gres, gindices = local_result[5 + shape_len :].chunk(2)
+    gres = gres.reshape(*local_result[5 : 5 + shape_len].int())
+    gindices = gindices.reshape(*local_result[5 : 5 + shape_len].int())
 
     # Fix the result in out to be a tuple
     if out is not None:
@@ -1783,14 +1789,15 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         out[1]._DNDarray__dtype = types.int64
 
     # Create output with correct split
-    if a.split is not None:
+    if dim == a.split:
         is_split = None
         split = a.split
     else:
-        is_split = None
+        is_split = a.split
         split = None
+
     final_array = factories.array(
-        gres, dtype=a.dtype, device=a.device, split=split, is_split=is_split
+        gres, dtype=a.dtype, device=a.device, split=split, is_split=is_split,
     )
     final_indices = factories.array(
         gindices, dtype=torch.int64, device=a.device, split=split, is_split=is_split
@@ -1812,13 +1819,13 @@ def mpi_topk(a, b, mpi_type):
 
     # Offset is the length of the shape on the buffer
     len_shape_a = int(a_parsed[4])
-    shape_a = a_parsed[5: 5 + len_shape_a].int().tolist()
+    shape_a = a_parsed[5 : 5 + len_shape_a].int().tolist()
     len_shape_b = int(b_parsed[4])
-    shape_b = b_parsed[5: 5 + len_shape_b].int().tolist()
+    shape_b = b_parsed[5 : 5 + len_shape_b].int().tolist()
 
     # separate the data into values, indices
-    a_values, a_indices = a_parsed[len_shape_a + 5:].chunk(2)
-    b_values, b_indices = b_parsed[len_shape_b + 5:].chunk(2)
+    a_values, a_indices = a_parsed[len_shape_a + 5 :].chunk(2)
+    b_values, b_indices = b_parsed[len_shape_b + 5 :].chunk(2)
 
     # reconstruct the flatened data by shape
     a_values = a_values.reshape(shape_a)
@@ -1833,7 +1840,7 @@ def mpi_topk(a, b, mpi_type):
     result, k_indices = torch.topk(values, k, dim=dim, largest=largest, sorted=sorted)
     indices = torch.gather(indices, dim, k_indices)
 
-    metadata = a_parsed[0:len_shape_a + 5]
+    metadata = a_parsed[0 : len_shape_a + 5]
     final_result = torch.cat((metadata, result.double().flatten(), indices.double().flatten()))
 
     b_parsed.copy_(final_result)
