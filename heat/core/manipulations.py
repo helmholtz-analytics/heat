@@ -1737,7 +1737,7 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     if largest:
         neutral_value = -constants.sanitize_infinity(a._DNDarray__array.dtype)
     else:
-        neutral_value = constants.sanitize_infinity(a._DNDarray__array.dtype)
+        neutral_value = constants.sanitize_infinity(a._DNDarray__array.dtype.torch)
 
     def local_topk(*args, **kwargs):
         shape = a.lshape
@@ -1753,6 +1753,8 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
                 ]
                 padding = torch.nn.ConstantPad1d(padding_sizes, neutral_value)
                 result = padding(result)
+                # Different value for indices padding to prevent type casting issues
+                padding = torch.nn.ConstantPad1d(padding_sizes, 0)
                 indices = padding(indices)
         else:
             result, indices = torch.topk(args[0], k=k, dim=dim, largest=largest, sorted=sorted)
