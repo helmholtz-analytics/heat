@@ -12,6 +12,7 @@ from . import types
 from . import constants
 from . import operations
 
+
 __all__ = [
     "concatenate",
     "diag",
@@ -1708,7 +1709,7 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     largest: Boolean
         Return either the k largest or smallest items
     sorted: Boolean
-        Whether to sort the output
+        Whether to sort the output (descending if largest=True, else ascending)
     out: tuple of ht.DNDarrays (items, indices) to put the result in
     Returns
     -------
@@ -1735,7 +1736,7 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     if largest:
         neutral_value = -constants.sanitize_infinity(a._DNDarray__array.dtype)
     else:
-        neutral_value = constants.sanitize_infinity(a._DNDarray__array.dtype.torch)
+        neutral_value = constants.sanitize_infinity(a._DNDarray__array.dtype)
 
     def local_topk(*args, **kwargs):
         shape = a.lshape
@@ -1778,12 +1779,10 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         local_topk,
         MPI_TOPK,
         axis=dim,
-        out=out,
         neutral=neutral_value,
         dim=dim,
         sorted=sorted,
         largest=largest,
-        keepdim=True,
     )
 
     # Split data again to return a tuple
@@ -1795,18 +1794,6 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     gindices = gindices.reshape(*local_result[5 : 5 + shape_len].int())
 
     # Fix the result in out to be a tuple
-    if out is not None:
-        if out[0].shape != gres.shape or out[1].shape != gindices.shape:
-            raise ValueError(
-                "Expecting output buffer tuple of shape ({}, {}), got ({}, {})".format(
-                    gres.shape, gindices.shape, out[0].shape, out[1].shape
-                )
-            )
-        out[0]._DNDarray__array.storage().copy_(gres._DNDarray__array.storage())
-        out[1]._DNDarray__array.storage().copy_(gindices._DNDarray__array.storage())
-
-        out[0]._DNDarray__dtype = a.dtype
-        out[1]._DNDarray__dtype = types.int64
 
     # Create output with correct split
     if dim == a.split:
@@ -1822,6 +1809,19 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     final_indices = factories.array(
         gindices, dtype=torch.int64, device=a.device, split=split, is_split=is_split
     )
+
+    if out is not None:
+        if out[0].shape != final_array.shape or out[1].shape != final_indices.shape:
+            raise ValueError(
+                "Expecting output buffer tuple of shape ({}, {}), got ({}, {})".format(
+                    gres.shape, gindices.shape, out[0].shape, out[1].shape
+                )
+            )
+        out[0]._DNDarray__array.storage().copy_(final_array._DNDarray__array.storage())
+        out[1]._DNDarray__array.storage().copy_(final_indices._DNDarray__array.storage())
+
+        out[0]._DNDarray__dtype = a.dtype
+        out[1]._DNDarray__dtype = types.int64
 
     return final_array, final_indices
 
