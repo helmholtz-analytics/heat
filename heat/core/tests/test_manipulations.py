@@ -1569,17 +1569,21 @@ class TestManipulations(TestCase):
 
         res, indcs = ht.topk(split_zero, 2, sorted=True)
         exp_zero = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.int32, split=0)
-        exp_zero_indcs = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=0)
+        exp_zero_indcs = ht.array(
+            [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=0
+        )
         self.assertTrue((res._DNDarray__array == exp_zero._DNDarray__array).all())
         self.assertTrue((indcs._DNDarray__array == exp_zero._DNDarray__array).all())
-        self.assertTrue(indcs._DNDarray__array.dtype==exp_zero_indcs._DNDarray__array.dtype)
+        self.assertTrue(indcs._DNDarray__array.dtype == exp_zero_indcs._DNDarray__array.dtype)
 
         res, indcs = ht.topk(split_one, 2, sorted=True)
         exp_one = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.int32, split=1)
-        exp_one_indcs = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=1)
+        exp_one_indcs = ht.array(
+            [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=1
+        )
         self.assertTrue((res._DNDarray__array == exp_one._DNDarray__array).all())
         self.assertTrue((indcs._DNDarray__array == exp_one._DNDarray__array).all())
-        self.assertTrue(indcs._DNDarray__array.dtype==exp_one_indcs._DNDarray__array.dtype)
+        self.assertTrue(indcs._DNDarray__array.dtype == exp_one_indcs._DNDarray__array.dtype)
 
         torch_array = torch.arange(size, dtype=torch.float64).expand(size, size)
         split_zero = ht.array(torch_array, split=0)
@@ -1587,14 +1591,18 @@ class TestManipulations(TestCase):
 
         res, indcs = ht.topk(split_zero, 2, sorted=True)
         exp_zero = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.float64, split=0)
-        exp_zero_indcs = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=0)
+        exp_zero_indcs = ht.array(
+            [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=0
+        )
         self.assertTrue((res._DNDarray__array == exp_zero._DNDarray__array).all())
         self.assertTrue((indcs._DNDarray__array == exp_zero_indcs._DNDarray__array).all())
-        self.assertTrue(indcs._DNDarray__array.dtype==exp_zero_indcs._DNDarray__array.dtype)
+        self.assertTrue(indcs._DNDarray__array.dtype == exp_zero_indcs._DNDarray__array.dtype)
 
         res, indcs = ht.topk(split_one, 2, sorted=True)
         exp_one = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.float64, split=1)
-        exp_one_indcs = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=1)
+        exp_one_indcs = ht.array(
+            [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=1
+        )
         self.assertTrue((res._DNDarray__array == exp_one._DNDarray__array).all())
         self.assertTrue((indcs._DNDarray__array == exp_one_indcs._DNDarray__array).all())
-        self.assertTrue(indcs._DNDarray__array.dtype==exp_one_indcs._DNDarray__array.dtype)
+        self.assertTrue(indcs._DNDarray__array.dtype == exp_one_indcs._DNDarray__array.dtype)
