@@ -541,8 +541,9 @@ for i, operand_a in enumerate(__type_codes.keys()):
 
 def promote_types(type1, type2):
     """
-    Returns the data type with the smallest size and smallest scalar kind to which both type1 and type2 may be safely
-    cast. This function is symmetric.
+    Returns the data type with the smallest size and smallest scalar kind to which both type1 and type2 may be
+    intuitively cast to, where intuitive casting refers to maintaining the same bit length if possible. This
+    function is symmetric.
 
     Parameters
     ----------
@@ -560,6 +561,8 @@ def promote_types(type1, type2):
     --------
     >>> ht.promote_types(ht.uint8, ht.uint8)
     ht.uint8
+    >>> ht.promote_types(ht.int32, ht.float32)
+    ht.float32
     >>> ht.promote_types(ht.int8, ht.uint8)
     ht.int16
     >>> ht.promote_types("i8", "f4")
