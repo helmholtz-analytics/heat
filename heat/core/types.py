@@ -452,13 +452,13 @@ def can_cast(from_, to, casting="intuitive"):
         Scalar, data type or type specifier to cast from.
     to : type, str, ht.dtype
         Target type to cast to.
-    casting: str {'no', 'safe', 'same_kind', 'unsafe', "intuitive"}, optional
+    casting: str {"no", "safe", "same_kind", "unsafe", "intuitive"}, optional
         Controls the way the cast is evaluated
-            * 'no' the types may not be cast, i.e. they need to be identical
-            * 'safe' allows only casts that can preserve values with complete precision
-            * 'same_kind' safe casts are possible and down_casts within the same type family, e.g. int32 -> int8
-            * 'unsafe' means any conversion can be performed, i.e. this casting is always possible
-            * 'intuitive' allows all of the casts of safe plus casting from int32 to float32
+            * "no" the types may not be cast, i.e. they need to be identical
+            * "safe" allows only casts that can preserve values with complete precision
+            * "same_kind" safe casts are possible and down_casts within the same type family, e.g. int32 -> int8
+            * "unsafe" means any conversion can be performed, i.e. this casting is always possible
+            * "intuitive" allows all of the casts of safe plus casting from int32 to float32
 
     Returns
     -------
@@ -486,17 +486,17 @@ def can_cast(from_, to, casting="intuitive"):
     The usage of scalars is also possible
     >>> ht.can_cast(1, ht.float64)
     True
-    >>> ht.can_cast(2.0e200, 'u1')
+    >>> ht.can_cast(2.0e200, "u1")
     False
 
     can_cast supports different casting rules
-    >>> ht.can_cast('i8', 'i4', 'no')
+    >>> ht.can_cast("i8", "i4", "no")
     False
-    >>> ht.can_cast('i8', 'i4', 'safe')
+    >>> ht.can_cast("i8", "i4", "safe")
     False
-    >>> ht.can_cast('i8', 'i4', 'same_kind')
+    >>> ht.can_cast("i8", "i4", "same_kind")
     True
-    >>> ht.can_cast('i8', 'i4', 'unsafe')
+    >>> ht.can_cast("i8", "i4", "unsafe")
     True
     """
     if not isinstance(casting, str):
@@ -562,7 +562,7 @@ def promote_types(type1, type2):
     ht.uint8
     >>> ht.promote_types(ht.int8, ht.uint8)
     ht.int16
-    >>> ht.promote_types('i8', 'f4')
+    >>> ht.promote_types("i8", "f4")
     ht.float64
     """
     typecode_type1 = __type_codes[canonical_heat_type(type1)]
