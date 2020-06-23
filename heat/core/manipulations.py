@@ -2,8 +2,6 @@ import numpy as np
 import torch
 import warnings
 
-from functools import partial
-
 from .communication import MPI
 
 from . import dndarray
