@@ -1562,6 +1562,8 @@ class TestManipulations(TestCase):
 
     def test_topk(self):
         size = ht.MPI_WORLD.size
+        if size == 1:
+            size = 4
 
         torch_array = torch.arange(size, dtype=torch.int32).expand(size, size)
         split_zero = ht.array(torch_array, split=0)
@@ -1582,7 +1584,7 @@ class TestManipulations(TestCase):
             [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=1
         )
         self.assertTrue((res._DNDarray__array == exp_one._DNDarray__array).all())
-        self.assertTrue((indcs._DNDarray__array == exp_one._DNDarray__array).all())
+        self.assertTrue((indcs._DNDarray__array == exp_one_indcs._DNDarray__array).all())
         self.assertTrue(indcs._DNDarray__array.dtype == exp_one_indcs._DNDarray__array.dtype)
 
         torch_array = torch.arange(size, dtype=torch.float64).expand(size, size)

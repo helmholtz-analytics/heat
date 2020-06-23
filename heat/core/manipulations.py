@@ -1817,7 +1817,7 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         split = None
 
     final_array = factories.array(
-        gres, dtype=a.dtype, device=a.device, split=split, is_split=is_split,
+        gres, dtype=a.dtype, device=a.device, split=split, is_split=is_split
     )
     final_indices = factories.array(
         gindices, dtype=torch.int64, device=a.device, split=split, is_split=is_split
