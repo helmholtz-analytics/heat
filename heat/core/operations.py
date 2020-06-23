@@ -53,7 +53,7 @@ def __binary_op(operation, t1, t2):
             output_device = None
             output_comm = MPI_WORLD
         elif isinstance(t2, dndarray.DNDarray):
-            t1.gpu() if t2.device.device_type == "gpu" else t1.cpu()
+            t1 = t1.gpu() if t2.device.device_type == "gpu" else t1.cpu()
 
             output_shape = t2.shape
             output_split = t2.split
@@ -124,10 +124,6 @@ def __binary_op(operation, t1, t2):
             raise TypeError(
                 "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
             )
-
-        if t2.dtype != t1.dtype:
-            t2 = t2.astype(t1.dtype)
-
     else:
         raise NotImplementedError("Not implemented for non scalar")
 
