@@ -479,6 +479,81 @@ class TestLinalgBasics(TestCase):
             c = np.arange(9) - 4
             ht.linalg.norm(c)
 
+    def test_outer(self):
+        # test outer, a and b local, different dtypes
+        a = ht.arange(3, dtype=ht.int32)
+        b = ht.arange(8, dtype=ht.float32)
+        ht_outer = ht.outer(a, b, split=None)
+        np_outer = np.outer(a.numpy(), b.numpy())
+        t_outer = torch.einsum("i,j->ij", a._DNDarray__array, b._DNDarray__array)
+        self.assertTrue((ht_outer.numpy() == np_outer).all())
+        self.assertTrue(ht_outer._DNDarray__array.dtype is t_outer.dtype)
+
+        # test outer, a and b distributed, no data on some ranks
+        a_split = ht.arange(3, dtype=ht.float32, split=0)
+        b_split = ht.arange(8, dtype=ht.float32, split=0)
+        ht_outer_split = ht.outer(a_split, b_split, split=None)
+
+        # a and b split 0, outer split 1
+        ht_outer_split = ht.outer(a_split, b_split, split=1)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
+        self.assertTrue(ht_outer_split.split == 1)
+
+        # a and b distributed, outer split unspecified
+        ht_outer_split = ht.outer(a_split, b_split, split=None)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
+        self.assertTrue(ht_outer_split.split == 0)
+
+        # a not distributed, outer.split = 1
+        ht_outer_split = ht.outer(a, b_split, split=1)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
+        self.assertTrue(ht_outer_split.split == 1)
+
+        # b not distributed, outer.split = 0
+        ht_outer_split = ht.outer(a_split, b, split=0)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
+        self.assertTrue(ht_outer_split.split == 0)
+
+        # a_split.ndim > 1 and a.split != 0
+        a_split_3d = ht.random.randn(3, 3, 3, dtype=ht.float64, split=2)
+        ht_outer_split = ht.outer(a_split_3d, b_split)
+        np_outer_3d = np.outer(a_split_3d.numpy(), b_split.numpy())
+        self.assertTrue((ht_outer_split.numpy() == np_outer_3d).all())
+        self.assertTrue(ht_outer_split.split == 0)
+
+        # write to out buffer
+        ht_out = ht.empty((a.gshape[0], b.gshape[0]), dtype=ht.float32)
+        ht.outer(a, b, out=ht_out)
+        self.assertTrue((ht_out.numpy() == np_outer).all())
+        ht_out_split = ht.empty((a_split.gshape[0], b_split.gshape[0]), dtype=ht.float32, split=1)
+        ht.outer(a_split, b_split, out=ht_out_split, split=1)
+        self.assertTrue((ht_out_split.numpy() == np_outer).all())
+
+        # test exceptions
+        t_a = torch.arange(3)
+        with self.assertRaises(TypeError):
+            ht.outer(t_a, b)
+        np_b = np.arange(8)
+        with self.assertRaises(TypeError):
+            ht.outer(a, np_b)
+        a_0d = ht.array(2.3)
+        with self.assertRaises(RuntimeError):
+            ht.outer(a_0d, b)
+        t_out = torch.empty((a.gshape[0], b.gshape[0]), dtype=torch.float32)
+        with self.assertRaises(TypeError):
+            ht.outer(a, b, out=t_out)
+        ht_out_wrong_dtype = ht.empty((a.gshape[0], b.gshape[0]), dtype=ht.float64)
+        with self.assertRaises(TypeError):
+            ht.outer(a, b, out=ht_out_wrong_dtype)
+        ht_out_wrong_shape = ht.empty((7, b.gshape[0]), dtype=ht.float32)
+        with self.assertRaises(ValueError):
+            ht.outer(a, b, out=ht_out_wrong_shape)
+        ht_out_wrong_split = ht.empty(
+            (a_split.gshape[0], b_split.gshape[0]), dtype=ht.float32, split=1
+        )
+        with self.assertRaises(ValueError):
+            ht.outer(a_split, b_split, out=ht_out_wrong_split, split=0)
+
     def test_projection(self):
         a = ht.arange(1, 4, dtype=ht.float32, split=None)
         e1 = ht.array([1, 0, 0], dtype=ht.float32, split=None)
