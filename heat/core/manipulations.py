@@ -25,6 +25,7 @@ __all__ = [
     "pad",
     "reshape",
     "resplit",
+    "shape",
     "sort",
     "squeeze",
     "unique",
@@ -1279,6 +1280,25 @@ def reshape(a, shape, axis=None):
     data = data.reshape(local_shape)
 
     return factories.array(data, dtype=a.dtype, is_split=axis, device=a.device, comm=a.comm)
+
+
+def shape(a):
+    """
+    Returns the shape of a DNDarray `a`.
+
+    Parameters
+    ----------
+    a : DNDarray
+
+    Returns
+    -------
+    tuple of ints
+    """
+    # sanitize input
+    if not isinstance(a, dndarray.DNDarray):
+        raise TypeError("Expected a to be a DNDarray but was {}".format(type(a)))
+
+    return a.gshape
 
 
 def sort(a, axis=None, descending=False, out=None):
