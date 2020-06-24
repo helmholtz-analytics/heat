@@ -2295,18 +2295,9 @@ class DNDarray:
                                             padding_top, padding_bottom,
                                             padding_front, padding_back
                                         )
-        mode : 'constant', 'reflect' or 'replicate' , optional
-            - 'constant': Pads the input tensor boundaries with a constant value.
-                --> available for arbitrary dimensions
-            - 'reflect': Pads the input tensor using the reflection of the input boundary
-                --> available dimensions:
-                    - last 2 of 4D tensor
-                    - last of 3D tensor
-            - 'replicate': Pads the input tensor using replication of the input boundary
-                --> available dimensions:
-                    - last 3 of 5D tensor
-                    - last 2 of 4D tensor
-            - 'circular':
+        mode : string, optional
+        - 'constant' (default): Pads the input tensor boundaries with a constant value.
+            --> available for arbitrary dimensions
         value: number, optional
             fill value for padding operations
 
@@ -2318,6 +2309,60 @@ class DNDarray:
         Examples
         --------
         >>> import heat as ht
+        >>> a = torch.arange(2 * 3 * 4).reshape(2, 3, 4)
+        >>> b = ht.array(a, split = 0)
+
+
+    Pad last dimension
+    >>> c = ht.pad(b, (2,1), value=1)
+    tensor([[[ 1,  1,  0,  1,  2,  3,  1],
+         [ 1,  1,  4,  5,  6,  7,  1],
+         [ 1,  1,  8,  9, 10, 11,  1]],
+
+        [[ 1,  1, 12, 13, 14, 15,  1],
+         [ 1,  1, 16, 17, 18, 19,  1],
+         [ 1,  1, 20, 21, 22, 23,  1]]])
+
+
+    Pad last 2 dimensions
+    >>> d = ht.pad(b, [(1,0), (2,1)])
+    tensor([[[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  1,  2,  3,  0],
+         [ 0,  0,  4,  5,  6,  7,  0],
+         [ 0,  0,  8,  9, 10, 11,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0, 12, 13, 14, 15,  0],
+         [ 0,  0, 16, 17, 18, 19,  0],
+         [ 0,  0, 20, 21, 22, 23,  0]]])
+
+
+    Pad last 3 dimensions
+    >>> e = ht.pad(b, ((2,1), [1,0], (2,1)))
+    tensor([[[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  1,  2,  3,  0],
+         [ 0,  0,  4,  5,  6,  7,  0],
+         [ 0,  0,  8,  9, 10, 11,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0, 12, 13, 14, 15,  0],
+         [ 0,  0, 16, 17, 18, 19,  0],
+         [ 0,  0, 20, 21, 22, 23,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0]]])
         """
 
         return manipulations.pad(self, pad, mode, value)

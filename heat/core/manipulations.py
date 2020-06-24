@@ -938,7 +938,7 @@ def pad(array, pad_width, mode="constant", values=0):
     if isinstance(pad_width, int):
         pad = (pad_width,) * 2 * len(array.shape)
 
-    elif not (isinstance(pad_width, tuple) or isinstance(pad_width, list)):
+    elif not isinstance(pad_width, (tuple, list)):
         raise TypeError(
             "expected pad_width to be an integer or a sequence (tuple or list), but was {}".format(
                 type(pad_width)
@@ -1122,12 +1122,12 @@ def pad(array, pad_width, mode="constant", values=0):
             else:
                 pad_tuple_curr_rank = pad_middle
 
-            if isinstance(values, int) or isinstance(values, float):
+            if isinstance(values, (int, float)):
                 padded_torch_tensor = torch.nn.functional.pad(
                     array_torch, pad_tuple_curr_rank, mode, values
                 )
 
-            elif len(values) == 1 and (isinstance(values[0], int) or isinstance(values[0], float)):
+            elif len(values) == 1 and isinstance(values[0], (int, float)):
                 padded_torch_tensor = torch.nn.functional.pad(
                     array_torch, pad_tuple_curr_rank, mode, values[0]
                 )
@@ -1151,8 +1151,8 @@ def pad(array, pad_width, mode="constant", values=0):
         comm=array.comm,
     )
 
-    if padded_tensor.is_distributed() and not padded_tensor.is_balanced():
-        padded_tensor.balance_()
+
+    padded_tensor.balance_()
 
     return padded_tensor
 

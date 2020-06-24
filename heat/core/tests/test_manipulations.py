@@ -977,7 +977,7 @@ class TestManipulations(TestCase):
         # ======================================
 
         data = torch.arange(2 * 3 * 4).reshape(2, 3, 4)
-        data_ht = ht.array(data, device=ht_device)
+        data_ht = ht.array(data, device=self.device)
         data_np = data_ht.numpy()
 
         # padding with default (0 for all dimensions)
@@ -1131,7 +1131,7 @@ class TestManipulations(TestCase):
         # ==================================
 
         # rank = ht.MPI_WORLD.rank
-        data_ht_split = ht.array(data, split=0, device=ht_device)
+        data_ht_split = ht.array(data, split=0, device=self.device)
 
         # padding in split dimension
         pad_np_split = np.pad(
