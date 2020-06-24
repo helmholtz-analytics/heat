@@ -26,6 +26,7 @@ __all__ = [
     "shape",
     "sort",
     "squeeze",
+    "stack",
     "unique",
     "vstack",
 ]
@@ -1326,6 +1327,77 @@ def squeeze(x, axis=None):
     return dndarray.DNDarray(
         x_lsqueezed, out_gshape, x.dtype, split=split, device=x.device, comm=x.comm
     )
+
+
+def stack(arrays, axis=0, out=None):
+    """
+    Join a sequence of ``DNDarray``s along a new axis.
+
+    The ``axis`` parameter specifies the index of the new axis in the dimensions of the result.
+    For example, if axis=0 it will be the first dimension and if axis=-1 it will be the last dimension.
+
+
+    Parameters
+    ----------
+
+    arrays : sequence (#TODO specify tuple or list) of DNDarray
+
+        Each DNDarray must have the same shape, must be split along the same axis, and must be balanced.
+    axis : int, optional
+
+        The axis in the result array along which the input arrays are stacked.
+
+    out : DNDarray, optional
+
+        If provided, the destination to place the result. The shape must be correct, matching that of what stack would have returned if no out argument were specified.
+
+    Returns
+    -------
+
+    DNDarray
+
+        The stacked DNDarray has one more dimension than the input arrays.
+
+    Note
+    ----
+    Watch your splits!!
+    """
+
+    # sanitate input, shape
+    # TODO arrays are dndarray.DNDarray
+    arrays_metadata = list(
+        [array.gshape, array.split, array.dtype, array.device, array.comm, array.is_balanced()]
+        for array in arrays
+    )
+    # metadata must be identical for all arrays
+    if arrays_metadata.count(arrays_metadata[0]) != len(arrays_metadata):
+        raise ValueError(
+            "Sequence of DNDarrays must be of same shape, same dtype, must be split along the same axis, and must be balanced."
+            "Use heat.resplit() to change the split axis of a DNDarray if needed."
+            "Use the balance_() method to balance a DNDarray across ranks if needed."
+        )  # TODO write specific error messages
+    else:
+        array_shape, array_split, array_dtype, array_device, array_comm = arrays_metadata[0][:5]
+
+    # sanitate axis
+
+    # sanitate output
+
+    output_shape = array_shape[:axis] + (len(arrays),) + array_shape[axis:]
+    output_split = array_split + 1 if axis <= array_split else array_split
+    # extract torch tensors
+    t_arrays = tuple(array._DNDarray__array for array in arrays)
+    # stack locally
+    t_stacked = torch.stack(t_arrays, dim=axis)
+    out = dndarray.DNDarray(
+        t_stacked,
+        gshape=output_shape,
+        dtype=array_dtype,
+        split=output_split,
+        device=array_device,
+        comm=array_comm,
+    )
+    return out
 
 
 def unique(a, sorted=False, return_inverse=False, axis=None):
