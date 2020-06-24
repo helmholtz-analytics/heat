@@ -11,6 +11,8 @@ Project Status
 [![Build Status](https://travis-ci.com/helmholtz-analytics/heat.svg?branch=master)](https://travis-ci.com/helmholtz-analytics/heat)
 [![Documentation Status](https://readthedocs.org/projects/heat/badge/?version=latest)](https://heat.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/helmholtz-analytics/heat/branch/master/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
+![GPU Test](https://github.com/helmholtz-analytics/heat/workflows/GPU%20Test/badge.svg)
+
 
 Goals
 -----
