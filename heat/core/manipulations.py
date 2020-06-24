@@ -1151,7 +1151,6 @@ def pad(array, pad_width, mode="constant", values=0):
         comm=array.comm,
     )
 
-
     padded_tensor.balance_()
 
     return padded_tensor
