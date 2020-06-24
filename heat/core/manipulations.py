@@ -1380,15 +1380,31 @@ def stack(arrays, axis=0, out=None):
         array_shape, array_split, array_dtype, array_device, array_comm = arrays_metadata[0][:5]
 
     # sanitate axis
-
-    # sanitate output
+    axis = stride_tricks.sanitize_axis(array_shape + (len(arrays),), axis)
 
     output_shape = array_shape[:axis] + (len(arrays),) + array_shape[axis:]
-    output_split = array_split + 1 if axis <= array_split else array_split
-    # extract torch tensors
+    if array_split is not None:
+        output_split = array_split + 1 if axis <= array_split else array_split
+    else:
+        output_split = None
+
+    # sanitate output
+    if out is not None:
+        if not isinstance(out, dndarray.DNDarray):
+            raise TypeError("expected out to be None or ht.DNDarray, but was {}".format(type(out)))
+        if out.gshape != output_shape:
+            raise ValueError("expected out.shape to be {}, got {}".format(out.gshape, output_shape))
+        if out.split is not output_split:
+            raise ValueError("expected out.split to be {}, got {}".format(out.split, output_split))
+
+    # extract torch tensors, stack locally
     t_arrays = tuple(array._DNDarray__array for array in arrays)
-    # stack locally
     t_stacked = torch.stack(t_arrays, dim=axis)
+
+    if out is not None:
+        out._DNDarray__array = t_stacked
+        return out
+
     out = dndarray.DNDarray(
         t_stacked,
         gshape=output_shape,
