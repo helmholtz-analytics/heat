@@ -1,0 +1,16 @@
+name: GPU Test
+
+on: status
+
+jobs:
+  status:
+    name: create badge
+    runs-on: ubuntu-latest
+    steps:
+      - name: read badge
+        run: |
+          echo $GITHUB_EVENT_NAME
+          echo $GITHUB_EVENT_PATH
+          RESULT=$(python3 -c "import json; myfile = open(\"$GITHUB_EVENT_PATH\", 'r'); print(json.load(myfile)['state']); myfile.close()")
+          if [ $RESULT == "failure" ]; then exit 1; fi
+          
