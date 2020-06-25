@@ -1,7 +1,6 @@
 import h5py
 import numpy as np
-import torch
-import tarfile
+import base64
 import os
 
 __all__ = ["merge_files_imagenet_tfrecord"]
@@ -22,6 +21,8 @@ def merge_files_imagenet_tfrecord(folder_name, output_name=None):
     output_name : str, optional
 
     """
+    import tensorflow as tf
+
     """
     labels:
         image/encoded: string containing JPEG encoded image in RGB colorspace
@@ -44,8 +45,7 @@ def merge_files_imagenet_tfrecord(folder_name, output_name=None):
         image/object/bbox/label: integer specifying the index in a classification
                 layer. The label ranges from [1, 1000] where 0 is not used. Note this is
                 always identical to the image label."""
-
-    # todo: get the number of files, either from the filenames or the contents of the folder
+    # get the number of files from the contents of the folder
     if folder_name is not None:
         train_names = [folder_name + f for f in os.listdir(folder_name) if f.startswith("train")]
         val_names = [folder_name + f for f in os.listdir(folder_name) if f.startswith("val")]
@@ -53,12 +53,12 @@ def merge_files_imagenet_tfrecord(folder_name, output_name=None):
     val_names.sort()
     num_train = len(train_names)
     num_val = len(val_names)
-    # todo: split the files between the available processes
 
     def _find_output_name_and_stsp(num_names):
         start = 0
         stop = num_names + 1
-        output_name_lcl = output_name + "imagenet_merged.h5"
+        output_name_lcl = output_name
+        output_name_lcl += "imagenet_merged.h5"
         return start, stop, output_name_lcl
 
     train_start, train_stop, output_name_lcl_train = _find_output_name_and_stsp(num_train)
@@ -67,29 +67,33 @@ def merge_files_imagenet_tfrecord(folder_name, output_name=None):
 
     # create the output files
     train_lcl_file = h5py.File(output_name_lcl_train, "w")
-    train_lcl_file.create_dataset("images", (1282048, 1), maxshape=(None, 179729), dtype="i8")
-    train_lcl_file.create_dataset("metadata", (1282048, 9), maxshape=(None, 9))
-    train_lcl_file.create_dataset("file_info", (1282048, 4), maxshape=(None, 4), dtype="S10")
+    dt = h5py.string_dtype(encoding="ascii")
+    train_lcl_file.create_dataset("images", (2502,), chunks=(1251,), maxshape=(None,), dtype=dt)
+    train_lcl_file.create_dataset("metadata", (2502, 9), chunks=(1251, 9), maxshape=(None, 9))
+    train_lcl_file.create_dataset(
+        "file_info", (2502, 4), chunks=(1251, 4), maxshape=(None, 4), dtype="S10"
+    )
 
     val_lcl_file = h5py.File(output_name_lcl_val, "w")
-    val_lcl_file.create_dataset("images", (50000, 1), maxshape=(None, 179729), dtype="i8")
-    val_lcl_file.create_dataset("metadata", (50000, 9), maxshape=(None, 9))
-    val_lcl_file.create_dataset("file_info", (50000, 4), maxshape=(None, 4), dtype="S10")
+    val_lcl_file.create_dataset("images", (50000,), chunks=True, maxshape=(None,), dtype=dt)
+    val_lcl_file.create_dataset("metadata", (50000, 9), chunks=True, maxshape=(None, 9))
+    val_lcl_file.create_dataset(
+        "file_info", (50000, 4), chunks=True, maxshape=(None, 4), dtype="S10"
+    )
 
     def __single_file_load(src):
-        import tensorflow as tf
-
         # load a file and read it to a numpy array
-        # src, entries = "train-01023-of-01024.tfrecord", 1252
         dataset = tf.data.TFRecordDataset(filenames=[src])
         imgs = []
         img_meta = [[] for _ in range(9)]
         file_arr = [[] for _ in range(4)]
-        for raw_exmaple in iter(dataset):
-            parsed = tf.train.Example.FromString(raw_exmaple.numpy())
+        for raw_example in iter(dataset):
+            parsed = tf.train.Example.FromString(raw_example.numpy())
             img_str = parsed.features.feature["image/encoded"].bytes_list.value[0]
             img = tf.image.decode_jpeg(img_str, channels=3).numpy()
-            imgs.append(img)
+            string_repr = base64.binascii.b2a_base64(img).decode("ascii")
+            imgs.append(string_repr)
+            # to decode: np.frombuffer(base64.binascii.a2b_base64(string_repr.encode('ascii')))
             img_meta[0].append(
                 tf.cast(
                     parsed.features.feature["image/height"].int64_list.value[0], tf.float32
@@ -131,38 +135,42 @@ def merge_files_imagenet_tfrecord(folder_name, output_name=None):
             file_arr[3].append(
                 np.array(parsed.features.feature["image/class/text"].bytes_list.value[0])
             )
-
-        out_images = np.array(imgs)
         # need to transpose because of the way that numpy understands nested lists
-        out_img_meta = np.array(img_meta, dtype=np.float64).T
-        out_file_array = np.array(file_arr, dtype=np.str).T
-        return out_images, out_img_meta, out_file_array
+        img_meta = np.array(img_meta, dtype=np.float64).T
+        file_arr = np.array(file_arr).T
+        return imgs, img_meta, file_arr
 
     def __write_datasets(img_outl, img_metal, file_arrl, past_sizel, file):
-        file["images"].resize((past_sizel + img_outl.shape[0], 1))
-        file["images"][past_sizel : img_outl.shape[0]] = img_outl
+        file["images"].resize((past_sizel + len(img_outl),))
+        file["images"][past_sizel : len(img_outl) + past_sizel] = img_outl
         file["metadata"].resize((past_sizel + img_metal.shape[0], 9))
-        file["metadata"][past_sizel : img_metal.shape[0]] = img_metal
+        file["metadata"][past_sizel : img_metal.shape[0] + past_sizel] = img_metal
         file["file_info"].resize((past_sizel + img_metal.shape[0], 4))
-        file["file_info"][past_sizel : img_metal.shape[0]] = file_arrl
+        file["file_info"][past_sizel : img_metal.shape[0] + past_sizel] = file_arrl
 
     def __load_multiple_files(train_names, train_start, train_stop, file):
         loc_files = train_names[train_start:train_stop]
         img_out, img_meta, file_arr = None, None, None
-        i, past_size = 0, 0
+        past_size, i = 0, 0
         for f in loc_files:  # train
+            # print(f)
             # this is where the data is created for
             imgs, img_metaf, file_arrf = __single_file_load(f)
             # create a larger ndarray with the results
-            img_out = np.vstack((img_out, imgs)) if img_out is not None else imgs
+            if img_out is not None:
+                img_out.extend(imgs)
+            else:
+                img_out = imgs
             img_meta = np.vstack((img_meta, img_metaf)) if img_meta is not None else img_metaf
             file_arr = np.vstack((file_arr, file_arrf)) if file_arr is not None else file_arrf
-            # when 16 files are read then write to the lcl file
-            i += 1
-            if i % 16 == 15:
+            # when 2 files are read, write to the output file
+            if i % 2 == 1:
+                print(past_size)
                 __write_datasets(img_out, img_meta, file_arr, past_size, file)
-                past_size = img_out.shape[0]
+                past_size += len(img_out)
                 img_out, img_meta, file_arr = None, None, None
+                del imgs, img_metaf, file_arrf
+            i += 1
 
         if img_out is not None:
             __write_datasets(img_out, img_meta, file_arr, past_size, file)
@@ -170,8 +178,7 @@ def merge_files_imagenet_tfrecord(folder_name, output_name=None):
     __load_multiple_files(train_names, train_start, train_stop, train_lcl_file)
     __load_multiple_files(val_names, val_start, val_stop, val_lcl_file)
 
-    #  add the column names to the datasets
-    # labels:
+    #  add the label names to the datasets
     img_list = [1, 2, 4, 7, 10, 11, 12, 13, 14]
     file_list = [5, 6, 8, 9]
     feature_list = [
