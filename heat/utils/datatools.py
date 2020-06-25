@@ -6,19 +6,53 @@ import os
 __all__ = ["merge_files_imagenet_tfrecord"]
 
 
-def merge_files_imagenet_tfrecord(folder_name, output_name=None):
+def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
     """
     merge multiple files together, result is one HDF5 file with all of the images stacked in the 0th dimension
 
+
     Parameters
     ----------
-    filenames : str, optional*
-        names of the files to join, either filenames or folder_names must not be None
     folder_name : str, optional*
         folder location of the files to join, either filenames or folder_names must not be None
-    save_dtype : types, optional
-    flatten : bool, optional
-    output_name : str, optional
+    output_folder : str, optional
+        location to create the output files. Defaults to current directory
+
+    Notes
+    -----
+    Metadata for both the created files (`imagenet_merged.h5` and `imagenet_merged_validation.h5`):
+
+    The datasets are the combination of all of the images in the Image-net 2012 dataset.
+    The data is split into training and validation.
+
+    imagenet_merged.h5 -> training
+    imagenet_merged_validation.h5 -> validation
+
+    both files have the same internal structure:
+    - file
+            * "images" : encoded ASCII string of the decoded RGB JPEG image.
+                    - to decode: `np.frombuffer(base64.binascii.a2b_base64(string_repr.encode('ascii')))`
+                    - note: the images must be reshaped using: `.reshape(file["metadata"]["image/height"], file["metadata"]["image/height"], 3)`
+                            (3 is the number of channels, all images are RGB)
+            * "metadata" : the metadata for each image quotes are the titles for each column
+                    0. "image/height"
+                    1. "image/width"
+                    2. "image/channels"
+                    3. "image/class/label"
+                    4. "image/object/bbox/xmin"
+                    5. "image/object/bbox/xmax"
+                    6. "image/object/bbox/ymin"
+                    7. "image/object/bbox/ymax"
+                    8. "image/object/bbox/label"
+            * "file_info" : string information related to each image
+                    0. "image/format"
+                    1. "image/filename"
+                    2. "image/class/synset"
+                    3. "image/class/text"
+
+
+    The dataset was created using the preprocessed data from the script:
+            https://github.com/tensorflow/models/blob/master/research/inception/inception/data/download_and_preprocess_imagenet.sh
 
     """
     import tensorflow as tf
@@ -57,7 +91,7 @@ def merge_files_imagenet_tfrecord(folder_name, output_name=None):
     def _find_output_name_and_stsp(num_names):
         start = 0
         stop = num_names + 1
-        output_name_lcl = output_name
+        output_name_lcl = output_folder
         output_name_lcl += "imagenet_merged.h5"
         return start, stop, output_name_lcl
 
