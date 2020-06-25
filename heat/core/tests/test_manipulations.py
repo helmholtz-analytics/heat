@@ -1220,6 +1220,54 @@ class TestManipulations(TestCase):
                         ).all()
                     )
 
+    def test_stack(self):
+        a = np.arange(20, dtype=np.float32).reshape(5, 4)
+        b = np.arange(20, 40, dtype=np.float32).reshape(5, 4)
+        c = np.arange(40, 60, dtype=np.float32).reshape(5, 4)
+        axis = 0
+        d = np.stack((a, b, c), axis=axis)
+
+        # test stack on non-distributed DNDarrays
+        ht_a = ht.array(a)
+        ht_b = ht.array(b)
+        ht_c = ht.array(c)
+        ht_d = ht.stack((ht_a, ht_b, ht_c), axis=axis)
+        self.assertTrue(ht_d.shape == (3, 5, 4))
+        self.assertTrue((d == ht_d.numpy()).all())
+
+        # test stack on distributed DNDarrays, split/axis combinations
+        axis = 1
+        split = 0
+        d = np.stack((a, b, c), axis=axis)
+        ht_a_split = ht.array(a, split=split)
+        ht_b_split = ht.array(b, split=split)
+        ht_c_split = ht.array(c, split=split)
+        ht_d_split = ht.stack((ht_a_split, ht_b_split, ht_c_split), axis=axis)
+        self.assertTrue(ht_d_split.shape == (5, 3, 4))
+        self.assertTrue(ht_d_split.split == split)
+        self.assertTrue((d == ht_d_split.numpy()).all())
+
+        axis = 1
+        split = 1
+        ht_a_split = ht.array(a, split=split)
+        ht_b_split = ht.array(b, split=split)
+        ht_c_split = ht.array(c, split=split)
+        ht_d_split = ht.stack((ht_a_split, ht_b_split, ht_c_split), axis=axis)
+        self.assertTrue(ht_d_split.shape == (5, 3, 4))
+        self.assertTrue(ht_d_split.split == split + 1)
+        self.assertTrue((d == ht_d_split.numpy()).all())
+
+        axis = -1
+        split = 0
+        d = np.stack((a, b, c), axis=axis)
+        ht_a_split = ht.array(a, split=split)
+        ht_b_split = ht.array(b, split=split)
+        ht_c_split = ht.array(c, split=split)
+        ht_d_split = ht.stack((ht_a_split, ht_b_split, ht_c_split), axis=axis)
+        self.assertTrue(ht_d_split.shape == (5, 4, 3))
+        self.assertTrue(ht_d_split.split == split)
+        self.assertTrue((d == ht_d_split.numpy()).all())
+
     def test_resplit(self):
         if ht.MPI_WORLD.size > 1:
             # resplitting with same axis, should leave everything unchanged
