@@ -25,6 +25,7 @@ __all__ = [
     "mean",
     "min",
     "minimum",
+    "skew",
     "std",
     "var",
 ]
@@ -1062,55 +1063,7 @@ def mpi_argmin(a, b, _):
 MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
-def std(x, axis=None, ddof=0, **kwargs):
-    """
-    Calculates and returns the standard deviation of a tensor with the bessel correction.
-    If a axis is given, the variance will be taken in that direction.
-
-    Parameters
-    ----------
-    x : ht.DNDarray
-        Values for which the std is calculated for.
-        The dtype of x must be a float
-    axis : None, Int, iterable, defaults to None
-        Axis which the std is taken in. Default None calculates std of all data items.
-    ddof : int, optional
-        Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
-        represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
-        Setting ddof > 1 raises a NotImplementedError.
-
-    Returns
-    -------
-    stds : ht.DNDarray
-        The std/s, if split, then split in the same direction as x.
-
-    Examples
-    --------
-    >>> a = ht.random.randn(1,3)
-    >>> a
-    tensor([[ 0.3421,  0.5736, -2.2377]])
-    >>> ht.std(a)
-    tensor(1.2742)
-    >>> a = ht.random.randn(4,4)
-    >>> a
-    tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
-            [ 0.2732, -0.0965, -0.1087, -1.3805],
-            [ 0.2647,  0.5998, -0.1635, -0.0848],
-            [ 0.0343,  0.1618, -0.8064, -0.1031]])
-    >>> ht.std(a, 0, ddof=1)
-    tensor([0.6157, 0.2918, 0.8324, 1.1996])
-    >>> ht.std(a, 1, ddof=1)
-    tensor([1.1405, 0.7236, 0.3506, 0.4324])
-    >>> ht.std(a, 1)
-    tensor([0.9877, 0.6267, 0.3037, 0.3745])
-    """
-    if not axis:
-        return np.sqrt(var(x, axis, ddof, **kwargs))
-    else:
-        return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
-
-
-def skew(x, axis, unbiased=True):
+def skew(x, axis=None, unbiased=True):
     bessel = unbiased
 
     def reduce_skews_elementwise(output_shape_i):
@@ -1163,9 +1116,9 @@ def skew(x, axis, unbiased=True):
             return factories.array(ret)
 
         else:  # case for full matrix calculation (axis is None)
-            mu_in = torch.mean(x._DNDarray__array)
-            var_in = torch.var(x._DNDarray__array, unbiased=unbiased)
-            skew_in = __torch_skew(x._DNDarray__array.float(), biased=unbiased)
+            mu_in = torch.mean(x._DNDarray__array.float())
+            var_in = torch.var(x._DNDarray__array.float(), unbiased=unbiased)
+            skew_in = __torch_skew(x._DNDarray__array.float(), unbiased=unbiased)
             # Nan is returned when local tensor is empty
             if torch.isnan(skew_in):
                 skew_in = 0.0
@@ -1190,6 +1143,54 @@ def skew(x, axis, unbiased=True):
 
     else:  # axis is given
         return __moment_w_axis(__torch_skew, x, axis, reduce_skews_elementwise, unbiased)
+
+
+def std(x, axis=None, ddof=0, **kwargs):
+    """
+    Calculates and returns the standard deviation of a tensor with the bessel correction.
+    If a axis is given, the variance will be taken in that direction.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        Values for which the std is calculated for.
+        The dtype of x must be a float
+    axis : None, Int, iterable, defaults to None
+        Axis which the std is taken in. Default None calculates std of all data items.
+    ddof : int, optional
+        Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
+        represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
+        Setting ddof > 1 raises a NotImplementedError.
+
+    Returns
+    -------
+    stds : ht.DNDarray
+        The std/s, if split, then split in the same direction as x.
+
+    Examples
+    --------
+    >>> a = ht.random.randn(1,3)
+    >>> a
+    tensor([[ 0.3421,  0.5736, -2.2377]])
+    >>> ht.std(a)
+    tensor(1.2742)
+    >>> a = ht.random.randn(4,4)
+    >>> a
+    tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
+            [ 0.2732, -0.0965, -0.1087, -1.3805],
+            [ 0.2647,  0.5998, -0.1635, -0.0848],
+            [ 0.0343,  0.1618, -0.8064, -0.1031]])
+    >>> ht.std(a, 0, ddof=1)
+    tensor([0.6157, 0.2918, 0.8324, 1.1996])
+    >>> ht.std(a, 1, ddof=1)
+    tensor([1.1405, 0.7236, 0.3506, 0.4324])
+    >>> ht.std(a, 1)
+    tensor([0.9877, 0.6267, 0.3037, 0.3745])
+    """
+    if not axis:
+        return np.sqrt(var(x, axis, ddof, **kwargs))
+    else:
+        return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
 def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None):
@@ -1262,10 +1263,11 @@ def __torch_skew(torch_tensor, dim=None, unbiased=False):
     # calculate the sample skewness of a torch tensor
     # return the bias corrected Fischer-Pearson standardized moment coefficient by default
     n = torch_tensor.numel()
-    diff = torch_tensor - torch.mean(torch_tensor, dim)
-    m3 = torch.true_divide(torch.pow(diff, 3), n)
-    m2 = torch.true_divide(torch.pow(diff, 2), n)
-    coeff = torch.sqrt(n * (n - 1)) / (n - 2)
+    diff = torch_tensor - torch.mean(torch_tensor)
+    m3 = torch.true_divide(torch.sum(torch.pow(diff, 3)), n)
+    m2 = torch.true_divide(torch.sum(torch.pow(diff, 2)), n)
+    print(n)
+    coeff = (n * (n - 1) / float((n - 2))) ** 0.5
     if not unbiased:
         return torch.true_divide(m3, torch.pow(m2, 1.5))
     return coeff * torch.true_divide(m3, torch.pow(m2, 1.5))
