@@ -1334,32 +1334,32 @@ def stack(arrays, axis=0, out=None):
     Join a sequence of ``DNDarray``s along a new axis.
 
     The ``axis`` parameter specifies the index of the new axis in the dimensions of the result.
-    For example, if axis=0 it will be the first dimension and if axis=-1 it will be the last dimension.
-
+    For example, if ``axis=0``, the arrays will be stacked along the first dimension; if ``axis=-1``,
+    they will be stacked along the last dimension.
 
     Parameters
     ----------
-
-    arrays : sequence (#TODO specify tuple or list) of DNDarray
-
+    arrays : Sequence[DNDarrays,...]
         Each DNDarray must have the same shape, must be split along the same axis, and must be balanced.
     axis : int, optional
-
         The axis in the result array along which the input arrays are stacked.
-
     out : DNDarray, optional
-
         If provided, the destination to place the result. The shape must be correct, matching that of what stack would have returned if no out argument were specified.
 
+    Raises
+    ------
+    TypeError
+        If arrays in sequence are not ``DNDarray``s, or if their ``dtype`` attribute does not match.
+    ValueError
+        If the ``DNDarray``s are of different shapes, or if they are split along different axes (``split`` attribute).
+    RuntimeError
+        If the ``DNDarrays`` reside of different devices, or if they are unevenly distributed across ranks (method ``is_balanced()`` returns ``False``)
     Returns
     -------
-
     DNDarray
-
-        The stacked DNDarray has one more dimension than the input arrays.
     """
 
-    # sanitate input
+    # sanitation
     for i, array in enumerate(arrays):
         if not isinstance(array, dndarray.DNDarray):
             raise TypeError(
@@ -1406,6 +1406,7 @@ def stack(arrays, axis=0, out=None):
     # sanitate axis
     axis = stride_tricks.sanitize_axis(array_shape + (num_arrays,), axis)
 
+    # output shape and split
     stacked_shape = array_shape[:axis] + (num_arrays,) + array_shape[axis:]
     if array_split is not None:
         stacked_split = array_split + 1 if axis <= array_split else array_split
@@ -1422,6 +1423,7 @@ def stack(arrays, axis=0, out=None):
             )
         if out.split is not stacked_split:
             raise ValueError("expected out.split to be {}, got {}".format(out.split, stacked_split))
+    # end of sanitation
 
     # extract torch tensors, stack locally
     t_arrays = tuple(array._DNDarray__array for array in arrays)
