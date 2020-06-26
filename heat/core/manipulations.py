@@ -12,6 +12,7 @@ from . import types
 
 
 __all__ = [
+    "column_stack",
     "concatenate",
     "diag",
     "diagonal",
@@ -30,6 +31,30 @@ __all__ = [
     "unique",
     "vstack",
 ]
+
+
+def column_stack(arrays):
+    """
+    Stack 1-D or 2-D ``DNDarray``s as columns into a 2-D ``DNDarray``.
+    If the input arrays are 1-D, they will be stacked as columns. If they are 2-D,
+    they will be concatenated along the second (column) axis.
+
+    Parameters
+    ----------
+    arrays : Sequence[DNDarrays,...]
+
+    Returns
+    -------
+    DNDarray
+    """
+    # sanitation, see sanitation module #468
+
+    arr_dims = list(array.ndim for array in arrays)
+    if arr_dims.count(1) == len(arr_dims):
+        # all arrays are 1-D, stack
+        return stack(arrays, axis=1)
+    else:
+        return concatenate(arrays, axis=1)
 
 
 def concatenate(arrays, axis=0):
