@@ -59,13 +59,13 @@ def column_stack(arrays):
 
 def concatenate(arrays, axis=0):
     """
-    Join 2 arrays along an existing axis.
+    Join a sequence of arrays along an existing axis.
 
     Parameters
     ----------
-    arrays: tuple of 2 DNDarrays
+    arrays : Sequence[DNDarrays,...]
         The arrays must have the same shape, except in the dimension corresponding to axis (the first, by default).
-    axis: int, optional
+    axis : int, optional
         The axis along which the arrays will be joined. Default is 0.
 
     Returns
