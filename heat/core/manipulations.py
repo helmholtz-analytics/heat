@@ -1429,6 +1429,7 @@ def stack(arrays, axis=0, out=None):
     t_arrays = tuple(array._DNDarray__array for array in arrays)
     t_stacked = torch.stack(t_arrays, dim=axis)
 
+    # return stacked DNDarrays
     if out is not None:
         out._DNDarray__array = t_stacked
         return out

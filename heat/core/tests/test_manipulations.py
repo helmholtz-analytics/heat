@@ -1282,6 +1282,9 @@ class TestManipulations(TestCase):
         ht_a_wrong_dtype = ht.array(a, dtype=ht.float64)
         with self.assertRaises(TypeError):
             ht.stack((ht_a_wrong_dtype, ht_b, ht_c))
+        out_wrong_split = ht.empty((3, 5, 4), dtype=ht.float32, split=0)
+        with self.assertRaises(ValueError):
+            ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_split)
         if ht_a_split.comm.is_distributed():
             rank = ht_a_split.comm.rank
             if rank == 0:
