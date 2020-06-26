@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import torch
 
@@ -729,7 +730,6 @@ def mean(x, axis=None):
         return mu_tot[0][0] if mu_tot[0].size == 1 else mu_tot[0]
 
     # ----------------------------------------------------------------------------------------------
-
     if axis is None:
         # full matrix calculation
         if not x.is_distributed():
@@ -752,71 +752,7 @@ def mean(x, axis=None):
                     (mu_tot[0, 0], mu_tot[0, 1]), (mu_tot[i, 0], mu_tot[i, 1])
                 )
             return mu_tot[0][0]
-
-    output_shape = list(x.shape)
-    if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
-        if isinstance(axis, (list, tuple)):
-            if len(set(axis)) != len(axis):
-                raise ValueError("duplicate value in axis")
-        if isinstance(axis, (dndarray.DNDarray, torch.Tensor)):
-            if axis.unique().numel() != axis.numel():
-                raise ValueError("duplicate value in axis")
-        if any([not isinstance(j, int) for j in axis]):
-            raise ValueError(
-                "items in axis iterable must be integers, axes: {}".format([type(q) for q in axis])
-            )
-        if any(d < 0 for d in axis):
-            axis = [stride_tricks.sanitize_axis(x.shape, j) for j in axis]
-        if any(d > len(x.shape) for d in axis):
-            raise ValueError(
-                "axes (axis) must be < {}, currently are {}".format(len(x.shape), axis)
-            )
-
-        output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
-        # multiple dimensions
-        if x.split is None:
-            return factories.array(
-                torch.mean(x._DNDarray__array, dim=axis), is_split=x.split, device=x.device
-            )
-
-        if x.split in axis:
-            # merge in the direction of the split
-            return reduce_means_elementwise(output_shape)
-        else:
-            # multiple dimensions which does *not* include the split axis
-            # combine along the split axis
-            return factories.array(
-                torch.mean(x._DNDarray__array, dim=axis),
-                is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
-                device=x.device,
-            )
-    elif isinstance(axis, int):
-        if axis >= len(x.shape):
-            raise ValueError("axis (axis) must be < {}, currently is {}".format(len(x.shape), axis))
-        axis = stride_tricks.sanitize_axis(x.shape, axis=axis)
-
-        # only one axis given
-        output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
-        output_shape = output_shape if output_shape else (1,)
-
-        if x.split is None:
-
-            return factories.array(
-                torch.mean(x._DNDarray__array, dim=axis), is_split=None, device=x.device
-            )
-        elif axis == x.split:
-            return reduce_means_elementwise(output_shape)
-        else:
-            # singular axis given (axis) not equal to split direction (x.split)
-            return factories.array(
-                torch.mean(x._DNDarray__array, dim=axis),
-                is_split=x.split if axis > x.split else x.split - 1,
-                device=x.device,
-            )
-    raise TypeError(
-        "axis (axis) must be an int or a list, ht.DNDarray, "
-        "torch.Tensor, or tuple, but was {}".format(type(axis))
-    )
+    return __moment_w_axis(torch.mean, x, axis, reduce_means_elementwise)
 
 
 def __merge_moments(m1, m2, bessel=True):
@@ -867,6 +803,29 @@ def __merge_moments(m1, m2, bessel=True):
 
     if len(m1) == 3:  # merge vars
         return var_m, mu, n
+
+    sk1, sk2 = m1[-4], m2[-4]
+    dn = delta / n
+    if var_m != 0:  # Skewness does nto exist of var is 0
+        skew_m = (
+            sk1
+            + sk2
+            + 3 * ((n1 * var2 - n2 * var1) + (dn ** 2) * (n1 * n2) * ((n1 ** 2) - (n2 ** 2))) * dn
+        )
+    else:
+        skew_m = None
+    if len(m1) == 4:
+        return skew_m, var_m, mu, n
+
+    k1, k2 = m1[-5], m2[-5]
+    if skew_m is None:
+        return None, skew_m, var_m, mu, n
+    s1 = 4 * dn * (n1 * sk2 - n2 * sk1)
+    s2 = 6 * (dn ** 2) * ((n1 ** 2) * var2 + (n2 ** 2) * var1)
+    s3 = (dn ** 4) * n1 * n2 * ((n1 ** 3) + (n2 ** 3))
+    k = k1 + k2 + s1 + s2 + s3
+    if len(m1) == 5:
+        return k, skew_m, var_m, mu, n
 
 
 def min(x, axis=None, out=None, keepdim=None):
@@ -1151,6 +1110,181 @@ def std(x, axis=None, ddof=0, **kwargs):
         return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
+def skew(x, axis, unbiased=True):
+    bessel = unbiased
+
+    def reduce_skews_elementwise(output_shape_i):
+        """
+        Function to combine the calculated vars together. This does an element-wise update of the
+        calculated vars to merge them together using the merge_vars function. This function operates
+         using x from the var function parameters.
+
+        Parameters
+        ----------
+        output_shape_i : iterable
+            Iterable with the dimensions of the output of the var function.
+
+        Returns
+        -------
+        variances : ht.DNDarray
+            The calculated variances.
+        """
+
+        if x.lshape[x.split] != 0:
+            mu = torch.mean(x._DNDarray__array, dim=axis)
+            var = torch.var(x._DNDarray__array, dim=axis, unbiased=bessel)
+            sk = __torch_skew(x._DNDarray__array, dim=axis, unbiased=unbiased)
+        else:
+            mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+            var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+            sk = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+
+        sk_shape = list(sk.shape) if list(sk.shape) else [1]
+
+        tot = factories.zeros(([x.comm.size, 4] + sk_shape), dtype=x.dtype, device=x.device)
+        tot[x.comm.rank, 0, :] = sk
+        tot[x.comm.rank, 1, :] = var
+        tot[x.comm.rank, 2, :] = mu
+        tot[x.comm.rank, 3, :] = float(x.lshape[x.split])
+        x.comm.Allreduce(MPI.IN_PLACE, tot, MPI.SUM)
+
+        for i in range(1, x.comm.size):
+            tot[0, 0, :], tot[0, 1, :], tot[0, 2, :], tot[0, 3, :] = __merge_moments(
+                (tot[0, 0, :], tot[0, 1, :], tot[0, 2, :], tot[0, 3, :]),
+                (tot[i, 0, :], tot[i, 1, :], tot[0, 2, :], tot[0, 3, :]),
+                bessel=bessel,
+            )
+        return tot[0, 0, :][0] if tot[0, 0, :].size == 1 else tot[0, 0, :]
+
+    # ----------------------------------------------------------------------------------------------
+    if axis is None:  # no axis given
+        if not x.is_distributed():  # not distributed (full tensor on one node)
+            ret = __torch_skew(x._DNDarray__array.float(), unbiased=unbiased)
+            return factories.array(ret)
+
+        else:  # case for full matrix calculation (axis is None)
+            mu_in = torch.mean(x._DNDarray__array)
+            var_in = torch.var(x._DNDarray__array, unbiased=unbiased)
+            skew_in = __torch_skew(x._DNDarray__array.float(), biased=unbiased)
+            # Nan is returned when local tensor is empty
+            if torch.isnan(skew_in):
+                skew_in = 0.0
+            if torch.isnan(var_in):
+                var_in = 0.0
+            if torch.isnan(mu_in):
+                mu_in = 0.0
+
+            n = x.lnumel
+            tot = factories.zeros((x.comm.size, 4), dtype=x.dtype, device=x.device)
+            skew_proc = factories.zeros((x.comm.size, 4), dtype=x.dtype, device=x.device)
+            skew_proc[x.comm.rank] = skew_in, var_in, mu_in, float(n)
+            x.comm.Allreduce(skew_proc, tot, MPI.SUM)
+
+            for i in range(1, x.comm.size):
+                tot[0, 0], tot[0, 1], tot[0, 2], tot[0, 3] = __merge_moments(
+                    (tot[0, 0], tot[0, 1], tot[0, 2], tot[0, 3]),
+                    (tot[i, 0], tot[i, 1], tot[i, 2], tot[0, 3]),
+                    bessel=bessel,
+                )
+            return tot[0][0]
+
+    else:  # axis is given
+        return __moment_w_axis(__torch_skew, x, axis, reduce_skews_elementwise, unbiased)
+
+
+def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None):
+    # helper for calculating statistical moment with a given axis
+    # case for var in one dimension
+    kwargs = {"dim": axis}
+    if unbiased:
+        kwargs["unbiased"] = unbiased
+
+    output_shape = list(x.shape)
+    if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
+        if isinstance(axis, (list, tuple)) and len(set(axis)) != len(axis):
+            raise ValueError("duplicate value in axis")
+        if (
+            isinstance(axis, (dndarray.DNDarray, torch.Tensor))
+            and axis.unique().numel() != axis.numel()
+        ):
+            raise ValueError("duplicate value in axis")
+        if any([not isinstance(j, int) for j in axis]):
+            raise ValueError(
+                "items in axis iterable must be integers, axes: {}".format([type(q) for q in axis])
+            )
+        if any(d < 0 for d in axis):
+            axis = [stride_tricks.sanitize_axis(x.shape, j) for j in axis]
+        if any(d > len(x.shape) for d in axis):
+            raise ValueError(
+                "axes (axis) must be < {}, currently are {}".format(len(x.shape), axis)
+            )
+
+        output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
+        # multiple dimensions
+        if x.split is None:
+            return factories.array(
+                function(x._DNDarray__array, **kwargs), is_split=x.split, device=x.device
+            )
+        if x.split in axis:
+            # merge in the direction of the split
+            return elementwise_function(output_shape)
+        # multiple dimensions which does *not* include the split axis
+        # combine along the split axis
+        return factories.array(
+            function(x._DNDarray__array, **kwargs),
+            is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
+            device=x.device,
+        )
+    elif isinstance(axis, int):
+        if axis >= len(x.shape):
+            raise ValueError("axis must be < {}, currently is {}".format(len(x.shape), axis))
+        axis = stride_tricks.sanitize_axis(x.shape, axis)
+        # only one axis given
+        output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
+        output_shape = output_shape if output_shape else (1,)
+
+        if x.split is None:  # x is *not* distributed -> no need to distributed
+            return factories.array(
+                function(x._DNDarray__array, **kwargs), dtype=x.dtype, device=x.device
+            )
+        elif axis == x.split:  # x is distributed and axis chosen is == to split
+            return elementwise_function(output_shape)
+        # singular axis given (axis) not equal to split direction (x.split)
+        lcl = function(x._DNDarray__array, **kwargs)
+        return factories.array(
+            lcl, is_split=x.split if axis > x.split else x.split - 1, dtype=x.dtype, device=x.device
+        )
+    else:
+        raise TypeError("axis (axis) must be an int, tuple, list, etc.; currently it is {}. ")
+
+
+def __torch_skew(torch_tensor, dim=None, unbiased=False):
+    # calculate the sample skewness of a torch tensor
+    # return the bias corrected Fischer-Pearson standardized moment coefficient by default
+    n = torch_tensor.numel()
+    diff = torch_tensor - torch.mean(torch_tensor, dim)
+    m3 = torch.true_divide(torch.pow(diff, 3), n)
+    m2 = torch.true_divide(torch.pow(diff, 2), n)
+    coeff = torch.sqrt(n * (n - 1)) / (n - 2)
+    if not unbiased:
+        return torch.true_divide(m3, torch.pow(m2, 1.5))
+    return coeff * torch.true_divide(m3, torch.pow(m2, 1.5))
+
+
+def __torch_kurtosis(torch_tensor, dim=None, excess=True):
+    # calculate the sample kurtosis of a torch tensor, Pearson's definition
+    # returns the excess Kurtosis if excess is True
+    # there is not unbiased estimator for Kurtosis
+    n = torch_tensor.numel()
+    diff = torch_tensor - torch.mean(torch_tensor, dim)
+    m4 = torch.true_divide(torch.pow(diff, 4), n)
+    m2 = torch.true_divide(torch.pow(diff, 2), n)
+    k = torch.true_divide(m4, torch.pow(m2, 2))
+    if excess:
+        k -= 3.0
+    return k
+
+
 def var(x, axis=None, ddof=0, **kwargs):
     """
     Calculates and returns the variance of a tensor. If an axis is given, the variance will be
@@ -1299,69 +1433,4 @@ def var(x, axis=None, ddof=0, **kwargs):
             return var_tot[0][0]
 
     else:  # axis is given
-        # case for var in one dimension
-        output_shape = list(x.shape)
-        if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
-            if isinstance(axis, (list, tuple)):
-                if len(set(axis)) != len(axis):
-                    raise ValueError("duplicate value in axis")
-            if isinstance(axis, (dndarray.DNDarray, torch.Tensor)):
-                if axis.unique().numel() != axis.numel():
-                    raise ValueError("duplicate value in axis")
-            if any([not isinstance(j, int) for j in axis]):
-                raise ValueError(
-                    "items in axis iterable must be integers, axes: {}".format(
-                        [type(q) for q in axis]
-                    )
-                )
-            if any(d < 0 for d in axis):
-                axis = [stride_tricks.sanitize_axis(x.shape, j) for j in axis]
-            if any(d > len(x.shape) for d in axis):
-                raise ValueError(
-                    "axes (axis) must be < {}, currently are {}".format(len(x.shape), axis)
-                )
-
-            output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
-            # multiple dimensions
-            if x.split is None:
-                return factories.array(
-                    torch.var(x._DNDarray__array, dim=axis), is_split=x.split, device=x.device
-                )
-            if x.split in axis:
-                # merge in the direction of the split
-                return reduce_vars_elementwise(output_shape)
-            else:
-                # multiple dimensions which does *not* include the split axis
-                # combine along the split axis
-                return factories.array(
-                    torch.var(x._DNDarray__array, dim=axis),
-                    is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
-                    device=x.device,
-                )
-        elif isinstance(axis, int):
-            if axis >= len(x.shape):
-                raise ValueError("axis must be < {}, currently is {}".format(len(x.shape), axis))
-            axis = stride_tricks.sanitize_axis(x.shape, axis)
-            # only one axis given
-            output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
-            output_shape = output_shape if output_shape else (1,)
-
-            if x.split is None:  # x is *not* distributed -> no need to distributed
-                return factories.array(
-                    torch.var(x._DNDarray__array, dim=axis, unbiased=bessel),
-                    dtype=x.dtype,
-                    device=x.device,
-                )
-            elif axis == x.split:  # x is distributed and axis chosen is == to split
-                return reduce_vars_elementwise(output_shape)
-            else:
-                # singular axis given (axis) not equal to split direction (x.split)
-                lcl = torch.var(x._DNDarray__array, dim=axis, keepdim=False)
-                return factories.array(
-                    lcl,
-                    is_split=x.split if axis > x.split else x.split - 1,
-                    dtype=x.dtype,
-                    device=x.device,
-                )
-        else:
-            raise TypeError("axis (axis) must be an int, tuple, list, etc.; currently it is {}. ")
+        return __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, bessel)
