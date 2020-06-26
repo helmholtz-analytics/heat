@@ -1268,6 +1268,33 @@ class TestManipulations(TestCase):
         self.assertTrue(ht_d_split.split == split)
         self.assertTrue((d == ht_d_split.numpy()).all())
 
+        # test exceptions
+        with self.assertRaises(TypeError):
+            ht.stack((ht_a, b, ht_c))
+        ht_c_wrong_shape = ht.array(c.reshape(2, 10))
+        with self.assertRaises(ValueError):
+            ht.stack((ht_a, ht_b, ht_c_wrong_shape))
+        ht_b_wrong_split = ht.array(b, split=1)
+        with self.assertRaises(ValueError):
+            ht.stack((ht_a_split, ht_b_wrong_split, ht_c_split))
+        with self.assertRaises(ValueError):
+            ht.stack((ht_a_split, ht_b, ht_c_split))
+        ht_a_wrong_dtype = ht.array(a, dtype=ht.float64)
+        with self.assertRaises(TypeError):
+            ht.stack((ht_a_wrong_dtype, ht_b, ht_c))
+        if ht_a_split.comm.is_distributed():
+            rank = ht_a_split.comm.rank
+            if rank == 0:
+                t_a = torch.randn(4, 4, dtype=torch.float32)
+            elif rank == 1:
+                t_a = torch.randn(1, 4, dtype=torch.float32)
+            else:
+                t_a = torch.randn(0, 4, dtype=torch.float32)
+            ht_a_unbalanced = ht.array(t_a, is_split=0)
+            with self.assertRaises(RuntimeError):
+                ht.stack((ht_a_unbalanced, ht_b_split, ht_c_split))
+        # TODO test with DNDarrays on different devices
+
     def test_resplit(self):
         if ht.MPI_WORLD.size > 1:
             # resplitting with same axis, should leave everything unchanged
