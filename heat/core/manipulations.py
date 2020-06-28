@@ -4,12 +4,12 @@ import warnings
 
 from .communication import MPI
 
+from . import constants
 from . import dndarray
 from . import factories
 from . import stride_tricks
 from . import tiling
 from . import types
-from . import constants
 from . import operations
 
 
@@ -28,9 +28,9 @@ __all__ = [
     "shape",
     "sort",
     "squeeze",
+    "topk",
     "unique",
     "vstack",
-    "topk",
 ]
 
 
@@ -1693,30 +1693,32 @@ def vstack(tup):
 
 
 def topk(a, k, dim=None, largest=True, sorted=True, out=None):
-
     """
     Returns the k highest entries in the array.
     (Not Stable for split arrays)
 
     Parameters:
     -------
-    a: ht.DNDarray
+    a: DNDarray
         Array to take items from
     k: int
         Number of items to take
     dim: int
         Dimension along which to take, per default the last dimension
-    largest: Boolean
+    largest: bool
         Return either the k largest or smallest items
-    sorted: Boolean
+    sorted: bool
         Whether to sort the output (descending if largest=True, else ascending)
-    out: tuple of ht.DNDarrays (items, indices) to put the result in
+    out: tuple of ht.DNDarrays
+        (items, indices) to put the result in
+
     Returns
     -------
     items: ht.DNDarray of shape (k,)
         The selected items
     indices: ht.DNDarray of shape (k,)
         The respective indices
+
     Examples
     --------
     >>> a = ht.array([1, 2, 3])
@@ -1728,6 +1730,14 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         [3, 2]]),
     tensor([[2, 1],
         [2, 1]]))
+    >>> a = ht.array([[1,2,3],[1,2,3]], split=1)
+    >>> ht.topk(a,2,dim=1)
+   (tensor([[3],
+        [3]]), tensor([[1],
+        [1]]))
+    (tensor([[2],
+        [2]]), tensor([[1],
+        [1]]))
     """
 
     if dim is None:
@@ -1792,8 +1802,6 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     gres, gindices = local_result[5 + shape_len :].chunk(2)
     gres = gres.reshape(*local_result[5 : 5 + shape_len].int())
     gindices = gindices.reshape(*local_result[5 : 5 + shape_len].int())
-
-    # Fix the result in out to be a tuple
 
     # Create output with correct split
     if dim == a.split:
