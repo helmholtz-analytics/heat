@@ -80,7 +80,7 @@ def column_stack(arrays):
     else:
         if arr_dims.count(1) > 0:
             arr_1d = [i for i, j in enumerate(arr_dims) if j == 1]
-            # 1-D array must be columns
+            # 1-D arrays must be columns
             arrays = list(arrays)
             for ind in arr_1d:
                 arrays[ind] = arrays[ind].reshape((1, arrays[ind].size)).T
