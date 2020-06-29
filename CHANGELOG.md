@@ -12,6 +12,8 @@
 - [#593](https://github.com/helmholtz-analytics/heat/pull/593) New feature: arctan2()
 - [#594](https://github.com/helmholtz-analytics/heat/pull/594) New feature: Advanced indexing
 - [#594](https://github.com/helmholtz-analytics/heat/pull/594) Bugfix: getitem and setitem memory consumption heavily reduced
+- [#596](https://github.com/helmholtz-analytics/heat/pull/596) New feature: outer()
+- [#600](https://github.com/helmholtz-analytics/heat/pull/600) New feature: shape()
 
 # v0.4.0
 
