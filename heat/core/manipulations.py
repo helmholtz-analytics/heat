@@ -24,6 +24,7 @@ __all__ = [
     "hstack",
     "reshape",
     "resplit",
+    # "row_stack",
     "shape",
     "sort",
     "squeeze",
@@ -46,14 +47,43 @@ def column_stack(arrays):
     Returns
     -------
     DNDarray
+
+    Examples
+    --------
+    # 1-D tensors
+    >>> a = ht.array([1, 2, 3])
+    >>> b = ht.array([2, 3, 4])
+    >>> ht.column_stack((a, b))
+    tensor([[1, 2],
+        [2, 3],
+        [3, 4]])
+    # 1-D and 2-D tensors
+    >>> a = ht.array([1, 2, 3])
+    >>> b = ht.array([[2, 5], [3, 6], [4, 7]])
+    >>> c = ht.array([[7, 10], [8, 11], [9, 12]])
+    >>> ht.column_stack((a, b, c))
+    tensor([[ 1,  2,  5,  7, 10],
+            [ 2,  3,  6,  8, 11],
+            [ 3,  4,  7,  9, 12]])
+    # distributed tensors, 3 procs
+    #TODO
     """
-    # sanitation, see sanitation module #468
 
     arr_dims = list(array.ndim for array in arrays)
+    # sanitation, arrays can be 1-d or 2-d, see sanitation module #468
+    over_dims = [i for i, j in enumerate(arr_dims) if j > 2]
+    if len(over_dims) > 0:
+        raise ValueError("Arrays must be 1-D or 2-D")
     if arr_dims.count(1) == len(arr_dims):
         # all arrays are 1-D, stack
         return stack(arrays, axis=1)
     else:
+        if arr_dims.count(1) > 0:
+            arr_1d = [i for i, j in enumerate(arr_dims) if j == 1]
+            # 1-D array must be columns
+            arrays = list(arrays)
+            for ind in arr_1d:
+                arrays[ind] = arrays[ind].reshape((1, arrays[ind].size)).T
         return concatenate(arrays, axis=1)
 
 
