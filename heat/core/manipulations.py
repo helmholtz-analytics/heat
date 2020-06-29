@@ -48,6 +48,13 @@ def column_stack(arrays):
     -------
     DNDarray
 
+    Note
+    ----
+    All ``DNDarray``s in the sequence must have the same number of rows.
+    All ``DNDarray``s must be split along the same axis! Note that distributed
+    1-D arrays (``split = 0``) by default will be transposed into distributed
+    column arrays with ``split == 1``.
+
     Examples
     --------
     # 1-D tensors
@@ -65,8 +72,35 @@ def column_stack(arrays):
     tensor([[ 1,  2,  5,  7, 10],
             [ 2,  3,  6,  8, 11],
             [ 3,  4,  7,  9, 12]])
-    # distributed tensors, 3 procs
-    #TODO
+    # distributed DNDarrays, 3 processes
+    >>> a = ht.arange(10, split=0).reshape((5, 2))
+    >>> b = ht.arange(5, 20, split=0).reshape((5, 3))
+    >>> c = ht.arange(20, 40, split=0).reshape((5, 4))
+    >>> ht_column_stack((a, b, c))
+    [1,0]tensor([[ 0,  1,  5,  6,  7, 20, 21, 22, 23],
+    [1,0]        [ 2,  3,  8,  9, 10, 24, 25, 26, 27]], dtype=torch.int32)
+    [1,1]tensor([[ 4,  5, 11, 12, 13, 28, 29, 30, 31],
+    [1,1]        [ 6,  7, 14, 15, 16, 32, 33, 34, 35]], dtype=torch.int32)
+    [1,2]tensor([[ 8,  9, 17, 18, 19, 36, 37, 38, 39]], dtype=torch.int32)
+    # distributed 1-D and 2-D DNDarrays, 3 processes
+    >>> a = ht.arange(5, split=0)
+    >>> b = ht.arange(5, 20, split=1).reshape((5, 3))
+    >>> ht_column_stack((a, b))
+    [0/2]   tensor([[ 0,  5],
+    [0/2]           [ 1,  8],
+    [0/2]           [ 2, 11],
+    [0/2]           [ 3, 14],
+    [0/2]           [ 4, 17]], dtype=torch.int32)
+    [1/2]   tensor([[ 6],
+    [1/2]           [ 9],
+    [1/2]           [12],
+    [1/2]           [15],
+    [1/2]           [18]], dtype=torch.int32)
+    [2/2]   tensor([[ 7],
+    [2/2]           [10],
+    [2/2]           [13],
+    [2/2]           [16],
+    [2/2]           [19]], dtype=torch.int32)
     """
 
     arr_dims = list(array.ndim for array in arrays)
