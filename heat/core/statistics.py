@@ -3,6 +3,7 @@ import numpy as np
 import torch
 
 from .communication import MPI
+from . import arithmetics
 from . import exponential
 from . import factories
 from . import linalg
@@ -756,7 +757,7 @@ def mean(x, axis=None):
     return __moment_w_axis(torch.mean, x, axis, reduce_means_elementwise)
 
 
-def __merge_moments(m1, m2, bessel=True):
+def __merge_moments(m1, m2, unbiased=True):
     """
     Merge two statistical moments. If the length of m1/m2 (must be equal) is == 3 then the second moment (variance)
     is merged. This function can be expanded to merge other moments according to Reference 1 as well.
@@ -770,8 +771,8 @@ def __merge_moments(m1, m2, bessel=True):
     m2 : tuple
         Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
         sorted in descending order of moments
-    bessel : bool
-        Flag for the use of the bessel correction for the calculation of the variance
+    unbiased : bool
+        Flag for the use of unbiased estimators (when available)
 
     Returns
     -------
@@ -797,7 +798,7 @@ def __merge_moments(m1, m2, bessel=True):
         return mu, n
 
     var1, var2 = m1[-3], m2[-3]
-    if bessel:
+    if unbiased:
         var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1)
     else:
         var_m = (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n
@@ -806,13 +807,17 @@ def __merge_moments(m1, m2, bessel=True):
         return var_m, mu, n
 
     sk1, sk2 = m1[-4], m2[-4]
+    # print(sk1)
+    # print(sk2)
     dn = delta / n
-    if var_m != 0:  # Skewness does nto exist of var is 0
-        skew_m = (
-            sk1
-            + sk2
-            + 3 * ((n1 * var2 - n2 * var1) + (dn ** 2) * (n1 * n2) * ((n1 ** 2) - (n2 ** 2))) * dn
-        )
+    # todo: fix this condition
+    if all(var_m != 0):  # Skewness does not exist if var is 0
+        s1 = sk1 + sk2
+        s2 = dn * (n1 * var2 - n2 * var1) / 6.0
+        # print('n', dn / 6)
+        s3 = (dn ** 3) * n1 * n2 * (n1 ** 2 - n2 ** 2)
+        # print(s1, s2)
+        skew_m = s1 + s2 + s3
     else:
         skew_m = None
     if len(m1) == 4:
@@ -821,8 +826,8 @@ def __merge_moments(m1, m2, bessel=True):
     k1, k2 = m1[-5], m2[-5]
     if skew_m is None:
         return None, skew_m, var_m, mu, n
-    s1 = 4 * dn * (n1 * sk2 - n2 * sk1)
-    s2 = 6 * (dn ** 2) * ((n1 ** 2) * var2 + (n2 ** 2) * var1)
+    s1 = (1 / 24.0) * dn * (n1 * sk2 - n2 * sk1)
+    s2 = (1 / 12.0) * (dn ** 2) * ((n1 ** 2) * var2 + (n2 ** 2) * var1)
     s3 = (dn ** 4) * n1 * n2 * ((n1 ** 3) + (n2 ** 3))
     k = k1 + k2 + s1 + s2 + s3
     if len(m1) == 5:
@@ -1064,90 +1069,135 @@ MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
 def skew(x, axis=None, unbiased=True):
-    bessel = unbiased
+    """
+    Compute the sample skewness of a data set.
 
-    def reduce_skews_elementwise(output_shape_i):
+    Parameters
+    ----------
+    x : ht.DNDarray
+        Input array
+    axis : NoneType or Int or iterable
+        Axis along which skewness is calculated, Default is to compute over the whole array `x`
+    unbiased : Bool
+        if True (default) the calculations are corrected for bias
+
+    """
+
+    def __reduce_skews_elementwise(output_shape_i):
         """
-        Function to combine the calculated vars together. This does an element-wise update of the
+        Function to combine the calculated skews together. This does an element-wise update of the
         calculated vars to merge them together using the merge_vars function. This function operates
-         using x from the var function parameters.
+        using x from the var function parameters.
 
         Parameters
         ----------
         output_shape_i : iterable
             Iterable with the dimensions of the output of the var function.
-
-        Returns
-        -------
-        variances : ht.DNDarray
-            The calculated variances.
         """
 
         if x.lshape[x.split] != 0:
             mu = torch.mean(x._DNDarray__array, dim=axis)
-            var = torch.var(x._DNDarray__array, dim=axis, unbiased=bessel)
-            sk = __torch_skew(x._DNDarray__array, dim=axis, unbiased=unbiased)
+            var = torch.var(x._DNDarray__array, dim=axis, unbiased=unbiased)
+            skl = __torch_skew(x._DNDarray__array, dim=axis, unbiased=unbiased)
         else:
             mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
             var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
-            sk = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+            skl = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
 
-        sk_shape = list(sk.shape) if list(sk.shape) else [1]
+        sk_shape = list(skl.shape) if list(skl.shape) else [1]
 
-        tot = factories.zeros(([x.comm.size, 4] + sk_shape), dtype=x.dtype, device=x.device)
-        tot[x.comm.rank, 0, :] = sk
-        tot[x.comm.rank, 1, :] = var
-        tot[x.comm.rank, 2, :] = mu
-        tot[x.comm.rank, 3, :] = float(x.lshape[x.split])
-        x.comm.Allreduce(MPI.IN_PLACE, tot, MPI.SUM)
+        rtot = factories.zeros(([x.comm.size, 4] + sk_shape), dtype=x.dtype, device=x.device)
+        rtot[x.comm.rank, 0, :] = skl
+        rtot[x.comm.rank, 1, :] = var
+        rtot[x.comm.rank, 2, :] = mu
+        rtot[x.comm.rank, 3, :] = float(x.lshape[x.split])
+        x.comm.Allreduce(MPI.IN_PLACE, rtot, MPI.SUM)
 
+        # print(rtot[x.comm.rank, 0, :])
         for i in range(1, x.comm.size):
-            tot[0, 0, :], tot[0, 1, :], tot[0, 2, :], tot[0, 3, :] = __merge_moments(
-                (tot[0, 0, :], tot[0, 1, :], tot[0, 2, :], tot[0, 3, :]),
-                (tot[i, 0, :], tot[i, 1, :], tot[0, 2, :], tot[0, 3, :]),
-                bessel=bessel,
+            rtot[0, 0, :], rtot[0, 1, :], rtot[0, 2, :], rtot[0, 3, :] = __merge_moments(
+                (rtot[0, 0, :], rtot[0, 1, :], rtot[0, 2, :], rtot[0, 3, :]),
+                (rtot[i, 0, :], rtot[i, 1, :], rtot[i, 2, :], rtot[i, 3, :]),
+                unbiased=unbiased,
             )
-        return tot[0, 0, :][0] if tot[0, 0, :].size == 1 else tot[0, 0, :]
+        return rtot[0, 0, :][0] if rtot[0, 0, :].size == 1 else rtot[0, 0, :]
 
     # ----------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
-        if not x.is_distributed():  # not distributed (full tensor on one node)
-            ret = __torch_skew(x._DNDarray__array.float(), unbiased=unbiased)
-            return factories.array(ret)
+        # todo: determine if this is a valid (and fast implementation)
+        mu = mean(x)
+        # diff = x
+        # diff._DNDarray__array -= float(mu.item())
+        diff = x - mu
+        n = x.numel
 
-        else:  # case for full matrix calculation (axis is None)
-            mu_in = torch.mean(x._DNDarray__array.float())
-            var_in = torch.var(x._DNDarray__array.float(), unbiased=unbiased)
-            skew_in = __torch_skew(x._DNDarray__array.float(), unbiased=unbiased)
-            # Nan is returned when local tensor is empty
-            if torch.isnan(skew_in):
-                skew_in = 0.0
-            if torch.isnan(var_in):
-                var_in = 0.0
-            if torch.isnan(mu_in):
-                mu_in = 0.0
+        m3 = arithmetics.sum(arithmetics.pow(diff, 3)) / n
+        m2 = arithmetics.sum(arithmetics.pow(diff, 2)) / n
+        res = m3 / arithmetics.pow(m2, 1.5)
+        if unbiased:
+            res *= ((n * (n - 1)) ** 0.5) / (n - 2.0)
+        return res.item()
+        # if not x.is_distributed():  # not distributed (full tensor on one node)
+        #     print('here')
+        #     ret = __torch_skew(x._DNDarray__array.float(), unbiased=unbiased)
+        #     return factories.array(ret)
+        #
+        # else:  # case for full matrix calculation (axis is None)
+        #     # todo: time this to see if its faster to do this than merging
+        #
+        #     m2 = torch.true_divide(torch.sum(torch.pow(diff, 2)), n)
+        #     work_arr = x._DNDarray__array.float()
+        #     mu_in = torch.mean(work_arr)
+        #     # work_arr -= mu_in
+        #     var_in = torch.var(work_arr, unbiased=unbiased)
+        #     skew_in = __torch_skew(work_arr, unbiased=unbiased)
+        #     # Nan is returned when local tensor is empty
+        #     if torch.isnan(skew_in):
+        #         skew_in = 0.0
+        #     if torch.isnan(var_in):
+        #         var_in = 0.0
+        #     if torch.isnan(mu_in):
+        #         mu_in = 0.0
+        #
+        #     n = x.lnumel
+        #     tot = factories.zeros(
+        #         (x.comm.size, 4), dtype=types.promote_types(x.dtype, types.float), device=x.device
+        #     )
+        #     skew_proc = factories.zeros(
+        #         (x.comm.size, 4), dtype=types.promote_types(x.dtype, types.float), device=x.device
+        #     )
+        #     skew_proc[x.comm.rank] = skew_in, var_in, mu_in, n
+        #     x.comm.Allreduce(skew_proc, tot, MPI.SUM)
+        #     print(skew_proc[x.comm.rank])
+        #
+        #     for i in range(1, x.comm.size):
+        #         tot[0, 0], tot[0, 1], tot[0, 2], tot[0, 3] = __merge_moments(
+        #             (tot[0, 0], tot[0, 1], tot[0, 2], tot[0, 3]),
+        #             (tot[i, 0], tot[i, 1], tot[i, 2], tot[0, 3]),
+        #             unbiased=unbiased,
+        #         )
+        #     return tot[0][0]
 
-            n = x.lnumel
-            tot = factories.zeros((x.comm.size, 4), dtype=x.dtype, device=x.device)
-            skew_proc = factories.zeros((x.comm.size, 4), dtype=x.dtype, device=x.device)
-            skew_proc[x.comm.rank] = skew_in, var_in, mu_in, float(n)
-            x.comm.Allreduce(skew_proc, tot, MPI.SUM)
+    elif isinstance(axis, int) and x.split == axis:  # axis is given
+        if axis > 0:
+            diff = x - mean(x, axis=axis).expand_dims(axis)
+        else:
+            diff = x - mean(x, axis=axis)
+        n = float(x.shape[axis])
 
-            for i in range(1, x.comm.size):
-                tot[0, 0], tot[0, 1], tot[0, 2], tot[0, 3] = __merge_moments(
-                    (tot[0, 0], tot[0, 1], tot[0, 2], tot[0, 3]),
-                    (tot[i, 0], tot[i, 1], tot[i, 2], tot[0, 3]),
-                    bessel=bessel,
-                )
-            return tot[0][0]
-
-    else:  # axis is given
-        return __moment_w_axis(__torch_skew, x, axis, reduce_skews_elementwise, unbiased)
+        m3 = arithmetics.sum(arithmetics.pow(diff, 3.0), axis) / n
+        m2 = arithmetics.sum(arithmetics.pow(diff, 2.0), axis) / n
+        res = m3 / arithmetics.pow(m2, 1.5)
+        if unbiased:
+            res *= ((n * (n - 1.0)) ** 0.5) / (n - 2.0)
+        return res
+    else:
+        return __moment_w_axis(__torch_skew, x, axis, __reduce_skews_elementwise, unbiased)
 
 
 def std(x, axis=None, ddof=0, **kwargs):
     """
-    Calculates and returns the standard deviation of a tensor with the bessel correction.
+    Calculates and returns the standard deviation of a tensor. The default estimator is biased.
     If a axis is given, the variance will be taken in that direction.
 
     Parameters
@@ -1194,8 +1244,7 @@ def std(x, axis=None, ddof=0, **kwargs):
 
 
 def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None):
-    # helper for calculating statistical moment with a given axis
-    # case for var in one dimension
+    # helper for calculating a statistical moment with a given axis
     kwargs = {"dim": axis}
     if unbiased:
         kwargs["unbiased"] = unbiased
@@ -1262,14 +1311,19 @@ def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None):
 def __torch_skew(torch_tensor, dim=None, unbiased=False):
     # calculate the sample skewness of a torch tensor
     # return the bias corrected Fischer-Pearson standardized moment coefficient by default
-    n = torch_tensor.numel()
-    diff = torch_tensor - torch.mean(torch_tensor)
-    m3 = torch.true_divide(torch.sum(torch.pow(diff, 3)), n)
-    m2 = torch.true_divide(torch.sum(torch.pow(diff, 2)), n)
-    print(n)
-    coeff = (n * (n - 1) / float((n - 2))) ** 0.5
+    if dim is not None:
+        n = torch_tensor.shape[dim]
+        diff = torch_tensor - torch.mean(torch_tensor, dim=dim, keepdim=True)
+        m3 = torch.true_divide(torch.sum(torch.pow(diff, 3), dim=dim), n)
+        m2 = torch.true_divide(torch.sum(torch.pow(diff, 2), dim=dim), n)
+    else:
+        n = torch_tensor.numel()
+        diff = torch_tensor - torch.mean(torch_tensor)
+        m3 = torch.true_divide(torch.sum(torch.pow(diff, 3)), n)
+        m2 = torch.true_divide(torch.sum(torch.pow(diff, 2)), n)
     if not unbiased:
         return torch.true_divide(m3, torch.pow(m2, 1.5))
+    coeff = ((n * (n - 1)) ** 0.5) / (n - 2.0)
     return coeff * torch.true_divide(m3, torch.pow(m2, 1.5))
 
 
@@ -1277,10 +1331,16 @@ def __torch_kurtosis(torch_tensor, dim=None, excess=True):
     # calculate the sample kurtosis of a torch tensor, Pearson's definition
     # returns the excess Kurtosis if excess is True
     # there is not unbiased estimator for Kurtosis
-    n = torch_tensor.numel()
-    diff = torch_tensor - torch.mean(torch_tensor, dim)
-    m4 = torch.true_divide(torch.pow(diff, 4), n)
-    m2 = torch.true_divide(torch.pow(diff, 2), n)
+    if dim is not None:
+        n = torch_tensor.shape[dim]
+        diff = torch_tensor - torch.mean(torch_tensor, dim=dim, keepdim=True)
+        m4 = torch.true_divide(torch.sum(torch.pow(diff, 4), dim=dim), n)
+        m2 = torch.true_divide(torch.sum(torch.pow(diff, 2), dim=dim), n)
+    else:
+        n = torch_tensor.numel()
+        diff = torch_tensor - torch.mean(torch_tensor)
+        m4 = torch.true_divide(torch.pow(diff, 4), n)
+        m2 = torch.true_divide(torch.pow(diff, 2), n)
     k = torch.true_divide(m4, torch.pow(m2, 2))
     if excess:
         k -= 3.0
@@ -1289,8 +1349,8 @@ def __torch_kurtosis(torch_tensor, dim=None, excess=True):
 
 def var(x, axis=None, ddof=0, **kwargs):
     """
-    Calculates and returns the variance of a tensor. If an axis is given, the variance will be
-    taken in that direction.
+    Calculates and returns the variance of a tensor. The default estimator is biased.
+    If an axis is given, the variance will be taken in that direction.
 
     Parameters
     ----------
@@ -1359,9 +1419,9 @@ def var(x, axis=None, ddof=0, **kwargs):
         raise ValueError("Expected ddof=0 or ddof=1, got {}".format(ddof))
     else:
         if kwargs.get("bessel"):
-            bessel = kwargs.get("bessel")
+            unbiased = kwargs.get("bessel")
         else:
-            bessel = bool(ddof)
+            unbiased = bool(ddof)
 
     def reduce_vars_elementwise(output_shape_i):
         """
@@ -1382,38 +1442,36 @@ def var(x, axis=None, ddof=0, **kwargs):
 
         if x.lshape[x.split] != 0:
             mu = torch.mean(x._DNDarray__array, dim=axis)
-            var = torch.var(x._DNDarray__array, dim=axis, unbiased=bessel)
+            var = torch.var(x._DNDarray__array, dim=axis, unbiased=unbiased)
         else:
             mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
             var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
 
         var_shape = list(var.shape) if list(var.shape) else [1]
 
-        var_tot = factories.zeros(([x.comm.size, 2] + var_shape), dtype=x.dtype, device=x.device)
-        n_tot = factories.zeros(x.comm.size, device=x.device)
+        var_tot = factories.zeros(([x.comm.size, 3] + var_shape), dtype=x.dtype, device=x.device)
         var_tot[x.comm.rank, 0, :] = var
         var_tot[x.comm.rank, 1, :] = mu
-        n_tot[x.comm.rank] = float(x.lshape[x.split])
+        var_tot[x.comm.rank, 2, :] = float(x.lshape[x.split])
         x.comm.Allreduce(MPI.IN_PLACE, var_tot, MPI.SUM)
-        x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
-            var_tot[0, 0, :], var_tot[0, 1, :], n_tot[0] = __merge_moments(
-                (var_tot[0, 0, :], var_tot[0, 1, :], n_tot[0]),
-                (var_tot[i, 0, :], var_tot[i, 1, :], n_tot[i]),
-                bessel=bessel,
+            var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :] = __merge_moments(
+                (var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :]),
+                (var_tot[i, 0, :], var_tot[i, 1, :], var_tot[i, 2, :]),
+                unbiased=unbiased,
             )
         return var_tot[0, 0, :][0] if var_tot[0, 0, :].size == 1 else var_tot[0, 0, :]
 
     # ----------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
         if not x.is_distributed():  # not distributed (full tensor on one node)
-            ret = torch.var(x._DNDarray__array.float(), unbiased=bessel)
+            ret = torch.var(x._DNDarray__array.float(), unbiased=unbiased)
             return factories.array(ret)
 
         else:  # case for full matrix calculation (axis is None)
             mu_in = torch.mean(x._DNDarray__array)
-            var_in = torch.var(x._DNDarray__array, unbiased=bessel)
+            var_in = torch.var(x._DNDarray__array, unbiased=unbiased)
             # Nan is returned when local tensor is empty
             if torch.isnan(var_in):
                 var_in = 0.0
@@ -1430,9 +1488,9 @@ def var(x, axis=None, ddof=0, **kwargs):
                 var_tot[0, 0], var_tot[0, 1], var_tot[0, 2] = __merge_moments(
                     (var_tot[0, 0], var_tot[0, 1], var_tot[0, 2]),
                     (var_tot[i, 0], var_tot[i, 1], var_tot[i, 2]),
-                    bessel=bessel,
+                    unbiased=unbiased,
                 )
             return var_tot[0][0]
 
     else:  # axis is given
-        return __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, bessel)
+        return __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, unbiased)

@@ -147,12 +147,12 @@ class DNDarray:
             number of total elements of the tensor
         """
         try:
-            return np.prod(self.__gshape)
+            return torch.prod(torch.tensor(self.gshape, device=self.device.torch_device)).item()
         except TypeError:
             return 1
 
     @property
-    def gnumel(self):
+    def numel(self):
         """
 
         Returns
@@ -3224,6 +3224,9 @@ class DNDarray:
         tensor([[-201.7132,  -27.2899,   -3.6269,    0.0000,    3.6269,   27.2899,  201.7132])
         """
         return trigonometrics.sinh(self, out)
+
+    def skew(self, axis=None, unbiased=True):
+        return statistics.skew(self, axis, unbiased)
 
     def sqrt(self, out=None):
         """

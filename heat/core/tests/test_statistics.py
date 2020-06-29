@@ -3,6 +3,7 @@ import torch
 import unittest
 from itertools import combinations
 import os
+from scipy import stats as ss
 import heat as ht
 
 from .test_suites.basic_test import TestCase
@@ -836,6 +837,103 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.minimum(random_volume_1, random_volume_2, out=output)
 
+    def test_skew(self):
+        # x = ht.zeros((2, 3, 4))
+        # with self.assertRaises(ValueError):
+        #     x.skew(axis=10)
+        # with self.assertRaises(ValueError):
+        #     x.skew(axis=[4])
+        # with self.assertRaises(ValueError):
+        #     x.skew(axis=[-4])
+        # with self.assertRaises(TypeError):
+        #     ht.skew(x, axis="01")
+        # with self.assertRaises(ValueError):
+        #     ht.skew(x, axis=(0, "10"))
+        # with self.assertRaises(ValueError):
+        #     ht.skew(x, axis=(0, 0))
+        # with self.assertRaises(ValueError):
+        #     ht.skew(x, axis=torch.Tensor([0, 0]))
+
+        a = ht.arange(1, 5)
+        self.assertEqual(a.skew(), 0.0)
+
+        # todo: 1 dim, 2 dims, 3 dims, 1 axis, 2 axes, 3 axes,
+        #       split != axis, split == axis, split in axis, split not in axis
+        #       comp with numpy for all, rand and randn
+
+        def __split_calc(ht_split, axis):
+            if ht_split is None:
+                return None
+            else:
+                sp = ht_split if axis > ht_split else ht_split - 1
+                if axis == ht_split:
+                    sp = None
+                return sp
+
+        # 1 dim
+        ht_data = ht.random.rand(50)
+        np_data = ht_data.copy().numpy()
+        np_skew32 = ht.array((ss.skew(np_data, bias=False)), dtype=ht_data.dtype)
+        self.assertAlmostEqual(ht.skew(ht_data), np_skew32.item(), places=5)
+        ht_data = ht.resplit(ht_data, 0)
+        self.assertAlmostEqual(ht.skew(ht_data), np_skew32.item(), places=5)
+
+        # 2 dim
+        ht_data = ht.random.rand(50, 30)
+        np_data = ht_data.copy().numpy()
+        np_skew32 = ss.skew(np_data, axis=None, bias=False)
+        self.assertAlmostEqual(ht.skew(ht_data) - np_skew32, 0, places=5)
+        ht_data = ht.resplit(ht_data, 0)
+        for ax in range(2):
+            np_skew32 = ht.array((ss.skew(np_data, axis=ax, bias=False)), dtype=ht_data.dtype)
+            ht_skew = ht.skew(ht_data, axis=ax)
+            self.assertTrue(ht.allclose(ht_skew, np_skew32, atol=1e-5))
+            sp = __split_calc(ht_data.split, ax)
+            self.assertEqual(ht_skew.split, sp)
+        ht_data = ht.resplit(ht_data, 1)
+        for ax in range(2):
+            np_skew32 = ht.array((ss.skew(np_data, axis=ax, bias=False)), dtype=ht_data.dtype)
+            ht_skew = ht.skew(ht_data, axis=ax)
+            self.assertTrue(ht.allclose(ht_skew, np_skew32, atol=1e-5))
+            sp = __split_calc(ht_data.split, ax)
+            self.assertEqual(ht_skew.split, sp)
+
+        # 2 dim float64
+        ht_data = ht.random.rand(50, 30, dtype=ht.float64)
+        np_data = ht_data.copy().numpy()
+        np_skew32 = ss.skew(np_data, axis=None, bias=False)
+        self.assertAlmostEqual(ht.skew(ht_data) - np_skew32, 0, places=5)
+        ht_data = ht.resplit(ht_data, 0)
+        for ax in range(2):
+            np_skew32 = ht.array((ss.skew(np_data, axis=ax, bias=False)), dtype=ht_data.dtype)
+            ht_skew = ht.skew(ht_data, axis=ax)
+            self.assertTrue(ht.allclose(ht_skew, np_skew32, atol=1e-5))
+            sp = __split_calc(ht_data.split, ax)
+            self.assertEqual(ht_skew.split, sp)
+            self.assertEqual(ht_skew.dtype, ht.float64)
+        ht_data = ht.resplit(ht_data, 1)
+        for ax in range(2):
+            np_skew32 = ht.array((ss.skew(np_data, axis=ax, bias=False)), dtype=ht_data.dtype)
+            ht_skew = ht.skew(ht_data, axis=ax)
+            self.assertTrue(ht.allclose(ht_skew, np_skew32, atol=1e-5))
+            sp = __split_calc(ht_data.split, ax)
+            self.assertEqual(ht_skew.split, sp)
+            self.assertEqual(ht_skew.dtype, ht.float64)
+
+        # 3 dim
+        ht_data = ht.random.rand(50, 30, 16)
+        np_data = ht_data.copy().numpy()
+        np_skew32 = ss.skew(np_data, axis=None, bias=False)
+        self.assertAlmostEqual(ht.skew(ht_data) - np_skew32, 0, places=5)
+        for split in range(3):
+            ht_data = ht.resplit(ht_data, split)
+            for ax in range(3):
+                np_skew32 = ht.array((ss.skew(np_data, axis=ax, bias=False)), dtype=ht_data.dtype)
+                ht_skew = ht.skew(ht_data, axis=ax)
+                self.assertTrue(ht.allclose(ht_skew, np_skew32, atol=1e-5))
+                sp = __split_calc(ht_data.split, ax)
+                self.assertEqual(ht_skew.split, sp)
+
     def test_std(self):
         # test basics
         a = ht.arange(1, 5)
@@ -881,7 +979,7 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.var(x, ddof=-2)
         with self.assertRaises(ValueError):
-            ht.mean(x, axis=torch.Tensor([0, 0]))
+            ht.var(x, axis=torch.Tensor([0, 0]))
 
         a = ht.arange(1, 5)
         self.assertEqual(a.var(ddof=1), 1.666666666666666)
