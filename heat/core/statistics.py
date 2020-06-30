@@ -500,9 +500,7 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
 
         # print(rtot[x.comm.rank, 0, :])
         for i in range(1, x.comm.size):
-            rtot[0, 0, :], rtot[0, 1, :], rtot[0, 2, :], rtot[0, 3, :], rtot[
-                0, 4, :
-            ] = __merge_moments(
+            rtot[0] = __merge_moments(
                 (rtot[0, 0, :], rtot[0, 1, :], rtot[0, 2, :], rtot[0, 3, :], rtot[0, 4, :]),
                 (rtot[i, 0, :], rtot[i, 1, :], rtot[i, 2, :], rtot[i, 3, :], rtot[i, 4, :]),
                 unbiased=unbiased,
@@ -1214,7 +1212,7 @@ def skew(x, axis=None, unbiased=True):
 
         # print(rtot[x.comm.rank, 0, :])
         for i in range(1, x.comm.size):
-            rtot[0, 0, :], rtot[0, 1, :], rtot[0, 2, :], rtot[0, 3, :] = __merge_moments(
+            rtot[0] = __merge_moments(
                 (rtot[0, 0, :], rtot[0, 1, :], rtot[0, 2, :], rtot[0, 3, :]),
                 (rtot[i, 0, :], rtot[i, 1, :], rtot[i, 2, :], rtot[i, 3, :]),
                 unbiased=unbiased,
