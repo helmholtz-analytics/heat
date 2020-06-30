@@ -24,7 +24,7 @@ __all__ = [
     "hstack",
     "reshape",
     "resplit",
-    # "row_stack",
+    "row_stack",
     "shape",
     "sort",
     "squeeze",
@@ -38,7 +38,7 @@ def column_stack(arrays):
     """
     Stack 1-D or 2-D ``DNDarray``s as columns into a 2-D ``DNDarray``.
     If the input arrays are 1-D, they will be stacked as columns. If they are 2-D,
-    they will be concatenated along the second (column) axis.
+    they will be concatenated along the second axis.
 
     Parameters
     ----------
@@ -77,30 +77,30 @@ def column_stack(arrays):
     >>> b = ht.arange(5, 20, split=0).reshape((5, 3))
     >>> c = ht.arange(20, 40, split=0).reshape((5, 4))
     >>> ht_column_stack((a, b, c))
-    [1,0]tensor([[ 0,  1,  5,  6,  7, 20, 21, 22, 23],
-    [1,0]        [ 2,  3,  8,  9, 10, 24, 25, 26, 27]], dtype=torch.int32)
-    [1,1]tensor([[ 4,  5, 11, 12, 13, 28, 29, 30, 31],
-    [1,1]        [ 6,  7, 14, 15, 16, 32, 33, 34, 35]], dtype=torch.int32)
-    [1,2]tensor([[ 8,  9, 17, 18, 19, 36, 37, 38, 39]], dtype=torch.int32)
+    [1,0] tensor([[ 0,  1,  5,  6,  7, 20, 21, 22, 23],
+    [1,0]         [ 2,  3,  8,  9, 10, 24, 25, 26, 27]], dtype=torch.int32)
+    [1,1] tensor([[ 4,  5, 11, 12, 13, 28, 29, 30, 31],
+    [1,1]         [ 6,  7, 14, 15, 16, 32, 33, 34, 35]], dtype=torch.int32)
+    [1,2] tensor([[ 8,  9, 17, 18, 19, 36, 37, 38, 39]], dtype=torch.int32)
     # distributed 1-D and 2-D DNDarrays, 3 processes
     >>> a = ht.arange(5, split=0)
     >>> b = ht.arange(5, 20, split=1).reshape((5, 3))
     >>> ht_column_stack((a, b))
-    [0/2]   tensor([[ 0,  5],
-    [0/2]           [ 1,  8],
-    [0/2]           [ 2, 11],
-    [0/2]           [ 3, 14],
-    [0/2]           [ 4, 17]], dtype=torch.int32)
-    [1/2]   tensor([[ 6],
-    [1/2]           [ 9],
-    [1/2]           [12],
-    [1/2]           [15],
-    [1/2]           [18]], dtype=torch.int32)
-    [2/2]   tensor([[ 7],
-    [2/2]           [10],
-    [2/2]           [13],
-    [2/2]           [16],
-    [2/2]           [19]], dtype=torch.int32)
+    [0/2] tensor([[ 0,  5],
+    [0/2]         [ 1,  8],
+    [0/2]         [ 2, 11],
+    [0/2]         [ 3, 14],
+    [0/2]         [ 4, 17]], dtype=torch.int32)
+    [1/2] tensor([[ 6],
+    [1/2]         [ 9],
+    [1/2]         [12],
+    [1/2]         [15],
+    [1/2]         [18]], dtype=torch.int32)
+    [2/2] tensor([[ 7],
+    [2/2]         [10],
+    [2/2]         [13],
+    [2/2]         [16],
+    [2/2]         [19]], dtype=torch.int32)
     """
 
     arr_dims = list(array.ndim for array in arrays)
@@ -1838,6 +1838,85 @@ def resplit(arr, axis=None):
         new_tiles[k] = rcv_waits[k][1]
 
     return new_arr
+
+
+def row_stack(arrays):
+    """
+    Stack 1-D or 2-D ``DNDarray``s as rows into a 2-D ``DNDarray``.
+    If the input arrays are 1-D, they will be stacked as rows. If they are 2-D,
+    they will be concatenated along the first axis.
+
+    Parameters
+    ----------
+    arrays : Sequence[DNDarrays,...]
+
+    Returns
+    -------
+    DNDarray
+
+    Note
+    ----
+    All ``DNDarray``s in the sequence must have the same number of columns.
+    All ``DNDarray``s must be split along the same axis!
+
+    Examples
+    --------
+    # 1-D tensors
+    >>> a = ht.array([1, 2, 3])
+    >>> b = ht.array([2, 3, 4])
+    >>> ht.row_stack((a, b))
+    tensor([[1, 2, 3],
+            [2, 3, 4]])
+    # 1-D and 2-D tensors
+    >>> a = ht.array([1, 2, 3])
+    >>> b = ht.array([[2, 3, 4], [5, 6, 7]])
+    >>> c = ht.array([[7, 8, 9], [10, 11, 12]])
+    >>> ht.row_stack((a, b, c))
+    tensor([[ 1,  2,  3],
+            [ 2,  3,  4],
+            [ 5,  6,  7],
+            [ 7,  8,  9],
+            [10, 11, 12]])
+    # distributed DNDarrays, 3 processes
+    >>> a = ht.arange(10, split=0).reshape((2, 5))
+    >>> b = ht.arange(5, 20, split=0).reshape((3, 5))
+    >>> c = ht.arange(20, 40, split=0).reshape((4, 5))
+    >>> ht.row_stack((a, b, c))
+    [0/2] tensor([[0, 1, 2, 3, 4],
+    [0/2]         [5, 6, 7, 8, 9],
+    [0/2]         [5, 6, 7, 8, 9]], dtype=torch.int32)
+    [1/2] tensor([[10, 11, 12, 13, 14],
+    [1/2]         [15, 16, 17, 18, 19],
+    [1/2]         [20, 21, 22, 23, 24]], dtype=torch.int32)
+    [2/2] tensor([[25, 26, 27, 28, 29],
+    [2/2]         [30, 31, 32, 33, 34],
+    [2/2]         [35, 36, 37, 38, 39]], dtype=torch.int32)
+    # distributed 1-D and 2-D DNDarrays, 3 processes
+    >>> a = ht.arange(5, split=0)
+    >>> b = ht.arange(5, 20, split=0).reshape((3, 5))
+    >>> ht.row_stack((a, b))
+    [0/2] tensor([[0, 1, 2, 3, 4],
+    [0/2]         [5, 6, 7, 8, 9]])
+    [1/2] tensor([[10, 11, 12, 13, 14]])
+    [2/2] tensor([[15, 16, 17, 18, 19]])
+    """
+
+    arr_dims = list(array.ndim for array in arrays)
+    # sanitation, arrays can be 1-d or 2-d, see sanitation module #468
+    over_dims = [i for i, j in enumerate(arr_dims) if j > 2]
+    if len(over_dims) > 0:
+        raise ValueError("Arrays must be 1-D or 2-D")
+    if arr_dims.count(1) == len(arr_dims):
+        # all arrays are 1-D, stack
+        return stack(arrays, axis=0)
+    else:
+        if arr_dims.count(1) > 0:
+            arr_1d = [i for i, j in enumerate(arr_dims) if j == 1]
+            # 1-D arrays must be row arrays
+            arrays = list(arrays)
+            for ind in arr_1d:
+                arrays[ind] = arrays[ind].reshape((1, arrays[ind].size))
+        return concatenate(arrays, axis=0)
 
 
 def vstack(tup):
