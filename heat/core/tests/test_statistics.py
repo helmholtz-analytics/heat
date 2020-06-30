@@ -193,64 +193,6 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.argmin(data, axis=-4)
 
-    def test_cov(self):
-        x = ht.array([[0, 2], [1, 1], [2, 0]], dtype=ht.float, split=1).T
-        if x.comm.size < 3:
-            cov = ht.cov(x)
-            actual = ht.array([[1, -1], [-1, 1]], split=0)
-            self.assertTrue(ht.equal(cov, actual))
-
-        data = np.loadtxt("heat/datasets/data/iris.csv", delimiter=";")
-        np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False)
-
-        htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
-        ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
-        comp = ht.array(np_cov, dtype=ht.float)
-        self.assertTrue(ht.allclose(comp - ht_cov, 0, atol=1e-4))
-
-        np_cov = np.cov(data, rowvar=False)
-        ht_cov = ht.cov(htdata, rowvar=False)
-        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
-
-        np_cov = np.cov(data, rowvar=False, ddof=1)
-        ht_cov = ht.cov(htdata, rowvar=False, ddof=1)
-        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
-
-        np_cov = np.cov(data, rowvar=False, bias=True)
-        ht_cov = ht.cov(htdata, rowvar=False, bias=True)
-        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
-
-        if 1 < x.comm.size < 5:
-            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=1)
-            np_cov = np.cov(data, rowvar=False)
-            ht_cov = ht.cov(htdata, rowvar=False)
-            self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
-
-            np_cov = np.cov(data, data, rowvar=True)
-
-            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
-            ht_cov = ht.cov(htdata, htdata, rowvar=True)
-            self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
-
-            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
-            with self.assertRaises(RuntimeError):
-                ht.cov(htdata[1:], rowvar=False)
-            with self.assertRaises(RuntimeError):
-                ht.cov(htdata, htdata[1:], rowvar=False)
-
-        with self.assertRaises(TypeError):
-            ht.cov(np_cov)
-        with self.assertRaises(TypeError):
-            ht.cov(htdata, np_cov)
-        with self.assertRaises(TypeError):
-            ht.cov(htdata, ddof="str")
-        with self.assertRaises(ValueError):
-            ht.cov(ht.zeros((1, 2, 3)))
-        with self.assertRaises(ValueError):
-            ht.cov(htdata, ht.zeros((1, 2, 3)))
-        with self.assertRaises(ValueError):
-            ht.cov(htdata, ddof=10000)
-
     def test_average(self):
         data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
@@ -389,6 +331,160 @@ class TestStatistics(TestCase):
             ht_array.average(axis="y")
         with self.assertRaises(ValueError):
             ht.average(ht_array, axis=-4)
+
+    def test_cov(self):
+        x = ht.array([[0, 2], [1, 1], [2, 0]], dtype=ht.float, split=1).T
+        if x.comm.size < 3:
+            cov = ht.cov(x)
+            actual = ht.array([[1, -1], [-1, 1]], split=0)
+            self.assertTrue(ht.equal(cov, actual))
+
+        data = np.loadtxt("heat/datasets/data/iris.csv", delimiter=";")
+        np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False)
+
+        htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
+        ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
+        comp = ht.array(np_cov, dtype=ht.float)
+        self.assertTrue(ht.allclose(comp - ht_cov, 0, atol=1e-4))
+
+        np_cov = np.cov(data, rowvar=False)
+        ht_cov = ht.cov(htdata, rowvar=False)
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+
+        np_cov = np.cov(data, rowvar=False, ddof=1)
+        ht_cov = ht.cov(htdata, rowvar=False, ddof=1)
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+
+        np_cov = np.cov(data, rowvar=False, bias=True)
+        ht_cov = ht.cov(htdata, rowvar=False, bias=True)
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+
+        if 1 < x.comm.size < 5:
+            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=1)
+            np_cov = np.cov(data, rowvar=False)
+            ht_cov = ht.cov(htdata, rowvar=False)
+            self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
+
+            np_cov = np.cov(data, data, rowvar=True)
+
+            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
+            ht_cov = ht.cov(htdata, htdata, rowvar=True)
+            self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
+
+            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
+            with self.assertRaises(RuntimeError):
+                ht.cov(htdata[1:], rowvar=False)
+            with self.assertRaises(RuntimeError):
+                ht.cov(htdata, htdata[1:], rowvar=False)
+
+        with self.assertRaises(TypeError):
+            ht.cov(np_cov)
+        with self.assertRaises(TypeError):
+            ht.cov(htdata, np_cov)
+        with self.assertRaises(TypeError):
+            ht.cov(htdata, ddof="str")
+        with self.assertRaises(ValueError):
+            ht.cov(ht.zeros((1, 2, 3)))
+        with self.assertRaises(ValueError):
+            ht.cov(htdata, ht.zeros((1, 2, 3)))
+        with self.assertRaises(ValueError):
+            ht.cov(htdata, ddof=10000)
+
+    def test_kurtosis(self):
+        x = ht.zeros((2, 3, 4))
+        with self.assertRaises(ValueError):
+            x.kurtosis(axis=10)
+        with self.assertRaises(ValueError):
+            x.kurtosis(axis=[4])
+        with self.assertRaises(ValueError):
+            x.kurtosis(axis=[-4])
+        with self.assertRaises(TypeError):
+            ht.kurtosis(x, axis="01")
+        with self.assertRaises(ValueError):
+            ht.kurtosis(x, axis=(0, "10"))
+        with self.assertRaises(ValueError):
+            ht.kurtosis(x, axis=(0, 0))
+        with self.assertRaises(ValueError):
+            ht.kurtosis(x, axis=torch.Tensor([0, 0]))
+
+        # 1 dim, 2 dims, 3 dims, 1 axis, 2 axes, 3 axes,
+        #       split != axis, split == axis, split in axis, split not in axis
+        #       comp with numpy for all, rand and randn
+
+        def __split_calc(ht_split, axis):
+            if ht_split is None:
+                return None
+            else:
+                sp = ht_split if axis > ht_split else ht_split - 1
+                if axis == ht_split:
+                    sp = None
+                return sp
+
+        # 1 dim
+        ht_data = ht.random.rand(50)
+        np_data = ht_data.copy().numpy()
+        np_skew32 = ht.array((ss.kurtosis(np_data, bias=False)), dtype=ht_data.dtype)
+        self.assertAlmostEqual(ht.kurtosis(ht_data), np_skew32.item(), places=5)
+        ht_data = ht.resplit(ht_data, 0)
+        self.assertAlmostEqual(ht.kurtosis(ht_data), np_skew32.item(), places=5)
+
+        # 2 dim
+        ht_data = ht.random.rand(50, 30)
+        np_data = ht_data.copy().numpy()
+        np_skew32 = ss.kurtosis(np_data, axis=None, bias=False)
+        self.assertAlmostEqual(ht.kurtosis(ht_data) - np_skew32, 0, places=5)
+        ht_data = ht.resplit(ht_data, 0)
+        for ax in range(2):
+            np_skew32 = ht.array((ss.kurtosis(np_data, axis=ax, bias=True)), dtype=ht_data.dtype)
+            ht_skew = ht.kurtosis(ht_data, axis=ax, unbiased=False)
+            self.assertTrue(ht.allclose(ht_skew, np_skew32, atol=1e-5))
+            sp = __split_calc(ht_data.split, ax)
+            self.assertEqual(ht_skew.split, sp)
+        ht_data = ht.resplit(ht_data, 1)
+        for ax in range(2):
+            np_skew32 = ht.array((ss.kurtosis(np_data, axis=ax, bias=True)), dtype=ht_data.dtype)
+            ht_skew = ht.kurtosis(ht_data, axis=ax, unbiased=False)
+            self.assertTrue(ht.allclose(ht_skew, np_skew32, atol=1e-5))
+            sp = __split_calc(ht_data.split, ax)
+            self.assertEqual(ht_skew.split, sp)
+
+        # 2 dim float64
+        ht_data = ht.random.rand(50, 30, dtype=ht.float64)
+        np_data = ht_data.copy().numpy()
+        np_skew32 = ss.kurtosis(np_data, axis=None, bias=False)
+        self.assertAlmostEqual(ht.kurtosis(ht_data) - np_skew32, 0, places=5)
+        ht_data = ht.resplit(ht_data, 0)
+        for ax in range(2):
+            np_skew32 = ht.array((ss.kurtosis(np_data, axis=ax, bias=False)), dtype=ht_data.dtype)
+            ht_skew = ht.kurtosis(ht_data, axis=ax)
+            self.assertTrue(ht.allclose(ht_skew, np_skew32, atol=1e-5))
+            sp = __split_calc(ht_data.split, ax)
+            self.assertEqual(ht_skew.split, sp)
+            self.assertEqual(ht_skew.dtype, ht.float64)
+        ht_data = ht.resplit(ht_data, 1)
+        for ax in range(2):
+            np_skew32 = ht.array((ss.kurtosis(np_data, axis=ax, bias=False)), dtype=ht_data.dtype)
+            ht_skew = ht.kurtosis(ht_data, axis=ax)
+            self.assertTrue(ht.allclose(ht_skew, np_skew32, atol=1e-5))
+            sp = __split_calc(ht_data.split, ax)
+            self.assertEqual(ht_skew.split, sp)
+            self.assertEqual(ht_skew.dtype, ht.float64)
+
+        # 3 dim
+        ht_data = ht.random.rand(50, 30, 16)
+        np_data = ht_data.copy().numpy()
+        np_skew32 = ss.kurtosis(np_data, axis=None, bias=False)
+        self.assertAlmostEqual(ht.kurtosis(ht_data) - np_skew32, 0, places=5)
+        for split in range(3):
+            ht_data = ht.resplit(ht_data, split)
+            for ax in range(3):
+                np_skew32 = ht.array(
+                    (ss.kurtosis(np_data, axis=ax, bias=False)), dtype=ht_data.dtype
+                )
+                ht_skew = ht.kurtosis(ht_data, axis=ax)
+                self.assertTrue(ht.allclose(ht_skew, np_skew32, atol=1e-5))
+                sp = __split_calc(ht_data.split, ax)
+                self.assertEqual(ht_skew.split, sp)
 
     def test_max(self):
         data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
@@ -838,21 +934,21 @@ class TestStatistics(TestCase):
             ht.minimum(random_volume_1, random_volume_2, out=output)
 
     def test_skew(self):
-        # x = ht.zeros((2, 3, 4))
-        # with self.assertRaises(ValueError):
-        #     x.skew(axis=10)
-        # with self.assertRaises(ValueError):
-        #     x.skew(axis=[4])
-        # with self.assertRaises(ValueError):
-        #     x.skew(axis=[-4])
-        # with self.assertRaises(TypeError):
-        #     ht.skew(x, axis="01")
-        # with self.assertRaises(ValueError):
-        #     ht.skew(x, axis=(0, "10"))
-        # with self.assertRaises(ValueError):
-        #     ht.skew(x, axis=(0, 0))
-        # with self.assertRaises(ValueError):
-        #     ht.skew(x, axis=torch.Tensor([0, 0]))
+        x = ht.zeros((2, 3, 4))
+        with self.assertRaises(ValueError):
+            x.skew(axis=10)
+        with self.assertRaises(ValueError):
+            x.skew(axis=[4])
+        with self.assertRaises(ValueError):
+            x.skew(axis=[-4])
+        with self.assertRaises(TypeError):
+            ht.skew(x, axis="01")
+        with self.assertRaises(ValueError):
+            ht.skew(x, axis=(0, "10"))
+        with self.assertRaises(ValueError):
+            ht.skew(x, axis=(0, 0))
+        with self.assertRaises(ValueError):
+            ht.skew(x, axis=torch.Tensor([0, 0]))
 
         a = ht.arange(1, 5)
         self.assertEqual(a.skew(), 0.0)
@@ -881,19 +977,19 @@ class TestStatistics(TestCase):
         # 2 dim
         ht_data = ht.random.rand(50, 30)
         np_data = ht_data.copy().numpy()
-        np_skew32 = ss.skew(np_data, axis=None, bias=False)
-        self.assertAlmostEqual(ht.skew(ht_data) - np_skew32, 0, places=5)
+        np_skew32 = ss.skew(np_data, axis=None, bias=True)
+        self.assertAlmostEqual(ht.skew(ht_data, unbiased=False) - np_skew32, 0, places=5)
         ht_data = ht.resplit(ht_data, 0)
         for ax in range(2):
-            np_skew32 = ht.array((ss.skew(np_data, axis=ax, bias=False)), dtype=ht_data.dtype)
-            ht_skew = ht.skew(ht_data, axis=ax)
+            np_skew32 = ht.array((ss.skew(np_data, axis=ax, bias=True)), dtype=ht_data.dtype)
+            ht_skew = ht.skew(ht_data, axis=ax, unbiased=False)
             self.assertTrue(ht.allclose(ht_skew, np_skew32, atol=1e-5))
             sp = __split_calc(ht_data.split, ax)
             self.assertEqual(ht_skew.split, sp)
         ht_data = ht.resplit(ht_data, 1)
         for ax in range(2):
-            np_skew32 = ht.array((ss.skew(np_data, axis=ax, bias=False)), dtype=ht_data.dtype)
-            ht_skew = ht.skew(ht_data, axis=ax)
+            np_skew32 = ht.array((ss.skew(np_data, axis=ax, bias=True)), dtype=ht_data.dtype)
+            ht_skew = ht.skew(ht_data, axis=ax, unbiased=False)
             self.assertTrue(ht.allclose(ht_skew, np_skew32, atol=1e-5))
             sp = __split_calc(ht_data.split, ax)
             self.assertEqual(ht_skew.split, sp)

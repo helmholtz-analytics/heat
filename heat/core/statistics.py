@@ -481,7 +481,9 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
             mu = torch.mean(x._DNDarray__array, dim=axis)
             var = torch.var(x._DNDarray__array, dim=axis, unbiased=unbiased)
             skl = __torch_skew(x._DNDarray__array, dim=axis, unbiased=unbiased)
-            kurtl = __torch_kurtosis(x._DNDarray__array, dim=axis, Fischer=Fischer)
+            kurtl = __torch_kurtosis(
+                x._DNDarray__array, dim=axis, unbiased=unbiased, Fischer=Fischer
+            )
         else:
             mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
             var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
@@ -490,7 +492,7 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
 
         sk_shape = list(skl.shape) if list(skl.shape) else [1]
 
-        rtot = factories.zeros(([x.comm.size, 4] + sk_shape), dtype=x.dtype, device=x.device)
+        rtot = factories.zeros(([x.comm.size, 5] + sk_shape), dtype=x.dtype, device=x.device)
         rtot[x.comm.rank, 0, :] = kurtl
         rtot[x.comm.rank, 1, :] = skl
         rtot[x.comm.rank, 2, :] = var
@@ -505,7 +507,10 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
                 (rtot[i, 0, :], rtot[i, 1, :], rtot[i, 2, :], rtot[i, 3, :], rtot[i, 4, :]),
                 unbiased=unbiased,
             )
-        return rtot[0, 0, :][0] if rtot[0, 0, :].size == 1 else rtot[0, 0, :]
+        res = rtot[0, 0, :][0] if rtot[0, 0, :].size == 1 else rtot[0, 0, :]
+        if unbiased:
+            res = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * res - 3.0 * (n - 1.0)) + 3.0
+        return res
 
     # ----------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
@@ -517,6 +522,8 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
         m4 = arithmetics.sum(arithmetics.pow(diff, 4.0)) / n
         m2 = arithmetics.sum(arithmetics.pow(diff, 2.0)) / n
         res = m4 / arithmetics.pow(m2, 2.0)
+        if unbiased:
+            res = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * res - 3 * (n - 1.0)) + 3.0
         if Fischer:
             res -= 3.0
         return res.item()
@@ -531,11 +538,15 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
         m4 = arithmetics.sum(arithmetics.pow(diff, 4.0), axis) / n
         m2 = arithmetics.sum(arithmetics.pow(diff, 2.0), axis) / n
         res = m4 / arithmetics.pow(m2, 2.0)
+        if unbiased:
+            res = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * res - 3 * (n - 1.0)) + 3.0
         if Fischer:
             res -= 3.0
         return res
     else:
-        return __moment_w_axis(__torch_kurtosis, x, axis, __reduce_kurts_elementwise, Fischer)
+        return __moment_w_axis(
+            __torch_kurtosis, x, axis, __reduce_kurts_elementwise, unbiased, Fischer
+        )
 
 
 def max(x, axis=None, out=None, keepdim=None):
@@ -1300,11 +1311,13 @@ def std(x, axis=None, ddof=0, **kwargs):
         return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
-def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None):
+def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None, Fischer=None):
     # helper for calculating a statistical moment with a given axis
     kwargs = {"dim": axis}
     if unbiased:
         kwargs["unbiased"] = unbiased
+    if Fischer:
+        kwargs["Fischer"] = Fischer
 
     output_shape = list(x.shape)
     if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
@@ -1384,24 +1397,26 @@ def __torch_skew(torch_tensor, dim=None, unbiased=False):
     return coeff * torch.true_divide(m3, torch.pow(m2, 1.5))
 
 
-def __torch_kurtosis(torch_tensor, dim=None, Fischer=True):
+def __torch_kurtosis(torch_tensor, dim=None, Fischer=True, unbiased=False):
     # calculate the sample kurtosis of a torch tensor, Pearson's definition
     # returns the excess Kurtosis if excess is True
     # there is not unbiased estimator for Kurtosis
     if dim is not None:
         n = torch_tensor.shape[dim]
         diff = torch_tensor - torch.mean(torch_tensor, dim=dim, keepdim=True)
-        m4 = torch.true_divide(torch.sum(torch.pow(diff, 4), dim=dim), n)
-        m2 = torch.true_divide(torch.sum(torch.pow(diff, 2), dim=dim), n)
+        m4 = torch.true_divide(torch.sum(torch.pow(diff, 4.0), dim=dim), n)
+        m2 = torch.true_divide(torch.sum(torch.pow(diff, 2.0), dim=dim), n)
     else:
         n = torch_tensor.numel()
         diff = torch_tensor - torch.mean(torch_tensor)
-        m4 = torch.true_divide(torch.pow(diff, 4), n)
-        m2 = torch.true_divide(torch.pow(diff, 2), n)
-    k = torch.true_divide(m4, torch.pow(m2, 2))
+        m4 = torch.true_divide(torch.pow(diff, 4.0), n)
+        m2 = torch.true_divide(torch.pow(diff, 2.0), n)
+    res = torch.true_divide(m4, torch.pow(m2, 2.0))
+    if unbiased:
+        res = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * res - 3.0 * (n - 1.0)) + 3.0
     if Fischer:
-        k -= 3.0
-    return k
+        res -= 3.0
+    return res
 
 
 def var(x, axis=None, ddof=0, **kwargs):
