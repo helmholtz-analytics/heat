@@ -12,7 +12,7 @@ _DEFAULT_LINEWIDTH = 120
 torch.set_printoptions(profile="default", linewidth=_DEFAULT_LINEWIDTH)
 
 
-def get_printoptions() -> Dict:
+def get_printoptions() -> Dict[str, int]:
     """
     Returns the currently configured printing options.
     """
