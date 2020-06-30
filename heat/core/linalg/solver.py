@@ -155,13 +155,13 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
                 b = torch.dot(vi_loc, vi_loc)
                 A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
                 A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
-                vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
+                vr._DNDarray__array -= a / b * vi_loc
 
             vi = vr / ht.norm(vr)
 
         w = ht.matmul(A, vi)
         alpha = ht.dot(w, vi)
-        w = w - alpha * vi - beta * V[:, i - 1]
+        w -= alpha * vi - beta * V[:, i - 1]
 
         T[i - 1, i] = beta
         T[i, i - 1] = beta

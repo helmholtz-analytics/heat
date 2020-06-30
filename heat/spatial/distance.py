@@ -69,7 +69,8 @@ def _quadratic_expand(x, y):
     y_norm = (y ** 2).sum(1).view(1, -1)
 
     dist = x_norm + y_norm - 2.0 * torch.mm(x, y_t)
-    return torch.clamp(dist, 0.0, np.inf)
+    info = torch.finfo(dist.dtype)
+    return torch.clamp(dist, 0.0, info.max)
 
 
 def _gaussian(x, y, sigma=1.0):

@@ -313,7 +313,7 @@ def average(x, axis=None, weights=None, returned=False):
 
     if weights is None:
         result = mean(x, axis)
-        num_elements = x.gnumel / result.gnumel
+        num_elements = x.numel / result.numel
         cumwgt = factories.empty(1, dtype=result.dtype)
         cumwgt._DNDarray__array = num_elements
     else:
@@ -434,7 +434,7 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     norm = x.shape[1] - ddof
     # find normalization:
     if norm <= 0:
-        raise ValueError("ddof >= number of elements in m, {} {}".format(ddof, m.gnumel))
+        raise ValueError("ddof >= number of elements in m, {} {}".format(ddof, m.numel))
     x -= avg.expand_dims(1)
     c = linalg.dot(x, x.T)
     c /= norm
