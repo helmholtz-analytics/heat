@@ -92,7 +92,7 @@ def _torch_data(dndarray, summarize: bool) -> torch.Tensor:
         Flag indicating whether to print the full data or summarized, i.e. ellipsed, version of the data.
     """
     # data is not split, we can use it as is
-    if dndarray.split is None:
+    if dndarray.split is None or dndarray.comm.size == 1:
         data = dndarray._DNDarray__array
     # split, but no summary required, we collect it
     elif not summarize:
