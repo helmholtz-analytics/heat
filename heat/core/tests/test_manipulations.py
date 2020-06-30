@@ -1220,84 +1220,6 @@ class TestManipulations(TestCase):
                         ).all()
                     )
 
-    def test_stack(self):
-        a = np.arange(20, dtype=np.float32).reshape(5, 4)
-        b = np.arange(20, 40, dtype=np.float32).reshape(5, 4)
-        c = np.arange(40, 60, dtype=np.float32).reshape(5, 4)
-        axis = 0
-        d = np.stack((a, b, c), axis=axis)
-
-        # test stack on non-distributed DNDarrays
-        ht_a = ht.array(a)
-        ht_b = ht.array(b)
-        ht_c = ht.array(c)
-        ht_d = ht.stack((ht_a, ht_b, ht_c), axis=axis)
-        self.assertTrue(ht_d.shape == (3, 5, 4))
-        self.assertTrue((d == ht_d.numpy()).all())
-
-        # test stack on distributed DNDarrays, split/axis combinations
-        axis = 1
-        split = 0
-        d = np.stack((a, b, c), axis=axis)
-        ht_a_split = ht.array(a, split=split)
-        ht_b_split = ht.array(b, split=split)
-        ht_c_split = ht.array(c, split=split)
-        ht_d_split = ht.stack((ht_a_split, ht_b_split, ht_c_split), axis=axis)
-        self.assertTrue(ht_d_split.shape == (5, 3, 4))
-        self.assertTrue(ht_d_split.split == split)
-        self.assertTrue((d == ht_d_split.numpy()).all())
-
-        axis = 1
-        split = 1
-        ht_a_split = ht.array(a, split=split)
-        ht_b_split = ht.array(b, split=split)
-        ht_c_split = ht.array(c, split=split)
-        ht_d_split = ht.stack((ht_a_split, ht_b_split, ht_c_split), axis=axis)
-        self.assertTrue(ht_d_split.shape == (5, 3, 4))
-        self.assertTrue(ht_d_split.split == split + 1)
-        self.assertTrue((d == ht_d_split.numpy()).all())
-
-        axis = -1
-        split = 0
-        d = np.stack((a, b, c), axis=axis)
-        ht_a_split = ht.array(a, split=split)
-        ht_b_split = ht.array(b, split=split)
-        ht_c_split = ht.array(c, split=split)
-        ht_d_split = ht.stack((ht_a_split, ht_b_split, ht_c_split), axis=axis)
-        self.assertTrue(ht_d_split.shape == (5, 4, 3))
-        self.assertTrue(ht_d_split.split == split)
-        self.assertTrue((d == ht_d_split.numpy()).all())
-
-        # test exceptions
-        with self.assertRaises(TypeError):
-            ht.stack((ht_a, b, ht_c))
-        ht_c_wrong_shape = ht.array(c.reshape(2, 10))
-        with self.assertRaises(ValueError):
-            ht.stack((ht_a, ht_b, ht_c_wrong_shape))
-        ht_b_wrong_split = ht.array(b, split=1)
-        with self.assertRaises(ValueError):
-            ht.stack((ht_a_split, ht_b_wrong_split, ht_c_split))
-        with self.assertRaises(ValueError):
-            ht.stack((ht_a_split, ht_b, ht_c_split))
-        ht_a_wrong_dtype = ht.array(a, dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            ht.stack((ht_a_wrong_dtype, ht_b, ht_c))
-        out_wrong_split = ht.empty((3, 5, 4), dtype=ht.float32, split=0)
-        with self.assertRaises(ValueError):
-            ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_split)
-        if ht_a_split.comm.is_distributed():
-            rank = ht_a_split.comm.rank
-            if rank == 0:
-                t_a = torch.randn(4, 4, dtype=torch.float32)
-            elif rank == 1:
-                t_a = torch.randn(1, 4, dtype=torch.float32)
-            else:
-                t_a = torch.randn(0, 4, dtype=torch.float32)
-            ht_a_unbalanced = ht.array(t_a, is_split=0)
-            with self.assertRaises(RuntimeError):
-                ht.stack((ht_a_unbalanced, ht_b_split, ht_c_split))
-        # TODO test with DNDarrays on different devices
-
     def test_resplit(self):
         if ht.MPI_WORLD.size > 1:
             # resplitting with same axis, should leave everything unchanged
@@ -1513,6 +1435,153 @@ class TestManipulations(TestCase):
             ht.squeeze(data, axis=-4)
         with self.assertRaises(ValueError):
             ht.squeeze(data, axis=1)
+
+    def test_stack(self):
+        a = np.arange(20, dtype=np.float32).reshape(5, 4)
+        b = np.arange(20, 40, dtype=np.float32).reshape(5, 4)
+        c = np.arange(40, 60, dtype=np.float32).reshape(5, 4)
+        axis = 0
+        d = np.stack((a, b, c), axis=axis)
+
+        # test stack on non-distributed DNDarrays
+        ht_a = ht.array(a)
+        ht_b = ht.array(b)
+        ht_c = ht.array(c)
+        ht_d = ht.stack((ht_a, ht_b, ht_c), axis=axis)
+        self.assertTrue(ht_d.shape == (3, 5, 4))
+        self.assertTrue((d == ht_d.numpy()).all())
+
+        # test stack on distributed DNDarrays, split/axis combinations
+        axis = 1
+        split = 0
+        d = np.stack((a, b, c), axis=axis)
+        ht_a_split = ht.array(a, split=split)
+        ht_b_split = ht.array(b, split=split)
+        ht_c_split = ht.array(c, split=split)
+        ht_d_split = ht.stack((ht_a_split, ht_b_split, ht_c_split), axis=axis)
+        self.assertTrue(ht_d_split.shape == (5, 3, 4))
+        self.assertTrue(ht_d_split.split == split)
+        self.assertTrue((d == ht_d_split.numpy()).all())
+
+        axis = 1
+        split = 1
+        ht_a_split = ht.array(a, split=split)
+        ht_b_split = ht.array(b, split=split)
+        ht_c_split = ht.array(c, split=split)
+        ht_d_split = ht.stack((ht_a_split, ht_b_split, ht_c_split), axis=axis)
+        self.assertTrue(ht_d_split.shape == (5, 3, 4))
+        self.assertTrue(ht_d_split.split == split + 1)
+        self.assertTrue((d == ht_d_split.numpy()).all())
+
+        axis = -1
+        split = 0
+        d = np.stack((a, b, c), axis=axis)
+        ht_a_split = ht.array(a, split=split)
+        ht_b_split = ht.array(b, split=split)
+        ht_c_split = ht.array(c, split=split)
+        ht_d_split = ht.stack((ht_a_split, ht_b_split, ht_c_split), axis=axis)
+        self.assertTrue(ht_d_split.shape == (5, 4, 3))
+        self.assertTrue(ht_d_split.split == split)
+        self.assertTrue((d == ht_d_split.numpy()).all())
+
+        # test exceptions
+        with self.assertRaises(TypeError):
+            ht.stack((ht_a, b, ht_c))
+        ht_c_wrong_shape = ht.array(c.reshape(2, 10))
+        with self.assertRaises(ValueError):
+            ht.stack((ht_a, ht_b, ht_c_wrong_shape))
+        ht_b_wrong_split = ht.array(b, split=1)
+        with self.assertRaises(ValueError):
+            ht.stack((ht_a_split, ht_b_wrong_split, ht_c_split))
+        with self.assertRaises(ValueError):
+            ht.stack((ht_a_split, ht_b, ht_c_split))
+        ht_a_wrong_dtype = ht.array(a, dtype=ht.float64)
+        with self.assertRaises(TypeError):
+            ht.stack((ht_a_wrong_dtype, ht_b, ht_c))
+        out_wrong_split = ht.empty((3, 5, 4), dtype=ht.float32, split=0)
+        with self.assertRaises(ValueError):
+            ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_split)
+        if ht_a_split.comm.is_distributed():
+            rank = ht_a_split.comm.rank
+            if rank == 0:
+                t_a = torch.randn(4, 4, dtype=torch.float32)
+            elif rank == 1:
+                t_a = torch.randn(1, 4, dtype=torch.float32)
+            else:
+                t_a = torch.randn(0, 4, dtype=torch.float32)
+            ht_a_unbalanced = ht.array(t_a, is_split=0)
+            with self.assertRaises(RuntimeError):
+                ht.stack((ht_a_unbalanced, ht_b_split, ht_c_split))
+        # TODO test with DNDarrays on different devices
+
+    def test_topk(self):
+        size = ht.MPI_WORLD.size
+        if size == 1:
+            size = 4
+
+        torch_array = torch.arange(size, dtype=torch.int32).expand(size, size)
+        split_zero = ht.array(torch_array, split=0)
+        split_one = ht.array(torch_array, split=1)
+
+        res, indcs = ht.topk(split_zero, 2, sorted=True)
+        exp_zero = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.int32, split=0)
+        exp_zero_indcs = ht.array(
+            [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=0
+        )
+        self.assertTrue((res._DNDarray__array == exp_zero._DNDarray__array).all())
+        self.assertTrue((indcs._DNDarray__array == exp_zero._DNDarray__array).all())
+        self.assertTrue(indcs._DNDarray__array.dtype == exp_zero_indcs._DNDarray__array.dtype)
+
+        res, indcs = ht.topk(split_one, 2, sorted=True)
+        exp_one = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.int32, split=1)
+        exp_one_indcs = ht.array(
+            [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=1
+        )
+        self.assertTrue((res._DNDarray__array == exp_one._DNDarray__array).all())
+        self.assertTrue((indcs._DNDarray__array == exp_one_indcs._DNDarray__array).all())
+        self.assertTrue(indcs._DNDarray__array.dtype == exp_one_indcs._DNDarray__array.dtype)
+
+        torch_array = torch.arange(size, dtype=torch.float64).expand(size, size)
+        split_zero = ht.array(torch_array, split=0)
+        split_one = ht.array(torch_array, split=1)
+
+        res, indcs = ht.topk(split_zero, 2, sorted=True)
+        exp_zero = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.float64, split=0)
+        exp_zero_indcs = ht.array(
+            [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=0
+        )
+        self.assertTrue((res._DNDarray__array == exp_zero._DNDarray__array).all())
+        self.assertTrue((indcs._DNDarray__array == exp_zero_indcs._DNDarray__array).all())
+        self.assertTrue(indcs._DNDarray__array.dtype == exp_zero_indcs._DNDarray__array.dtype)
+
+        res, indcs = ht.topk(split_one, 2, sorted=True)
+        exp_one = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.float64, split=1)
+        exp_one_indcs = ht.array(
+            [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=1
+        )
+        self.assertTrue((res._DNDarray__array == exp_one._DNDarray__array).all())
+        self.assertTrue((indcs._DNDarray__array == exp_one_indcs._DNDarray__array).all())
+        self.assertTrue(indcs._DNDarray__array.dtype == exp_one_indcs._DNDarray__array.dtype)
+
+        res, indcs = ht.topk(split_zero, 2, sorted=True, largest=False)
+        exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht.int32, split=0)
+        exp_zero_indcs = ht.array([[0, 1] for i in range(size)], dtype=ht.int64, split=0)
+        self.assertTrue((res._DNDarray__array == exp_zero._DNDarray__array).all())
+        self.assertTrue((indcs._DNDarray__array == exp_zero._DNDarray__array).all())
+        self.assertTrue(indcs._DNDarray__array.dtype == exp_zero_indcs._DNDarray__array.dtype)
+
+        exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht.int32, split=0)
+        exp_zero_indcs = ht.array([[0, 1] for i in range(size)], dtype=ht.int64, split=0)
+        out = (ht.empty_like(exp_zero), ht.empty_like(exp_zero_indcs))
+        res, indcs = ht.topk(split_zero, 2, sorted=True, largest=False, out=out)
+
+        self.assertTrue((res._DNDarray__array == exp_zero._DNDarray__array).all())
+        self.assertTrue((indcs._DNDarray__array == exp_zero._DNDarray__array).all())
+        self.assertTrue(indcs._DNDarray__array.dtype == exp_zero_indcs._DNDarray__array.dtype)
+
+        self.assertTrue((out[0]._DNDarray__array == exp_zero._DNDarray__array).all())
+        self.assertTrue((out[1]._DNDarray__array == exp_zero._DNDarray__array).all())
+        self.assertTrue(out[1]._DNDarray__array.dtype == exp_zero_indcs._DNDarray__array.dtype)
 
     def test_unique(self):
         size = ht.MPI_WORLD.size
