@@ -1,6 +1,6 @@
-import math
 import numpy as np
 import torch
+from typing import Callable, Union, Tuple
 
 from .communication import MPI
 from . import arithmetics
@@ -435,7 +435,7 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     norm = x.shape[1] - ddof
     # find normalization:
     if norm <= 0:
-        raise ValueError("ddof >= number of elements in m, {} {}".format(ddof, m.numel))
+        raise ValueError(f"ddof >= number of elements in m, {ddof} {m.numel}")
     x -= avg.expand_dims(1)
     c = linalg.dot(x, x.T)
     c /= norm
@@ -445,6 +445,8 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
 def kurtosis(x, axis=None, unbiased=True, Fischer=True):
     """
     Compute the kurtosis (Fisher or Pearson) of a dataset.
+    TODO: type annotations:
+            def kurtosis(x : DNDarray, axis : Union[None, int] = None, unbiased : bool = True, Fischer : bool = True) -> DNDarray:
 
     Kurtosis is the fourth central moment divided by the square of the variance.
     If Fisher’s definition is used, then 3.0 is subtracted from the result to give 0.0 for a normal distribution.
@@ -456,64 +458,20 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
     ----------
     x : ht.DNDarray
         Input array
-    axis : NoneType or Int or iterable
+    axis : NoneType or Int
         Axis along which skewness is calculated, Default is to compute over the whole array `x`
     unbiased : Bool
         if True (default) the calculations are corrected for bias
     Fischer : bool
-        Whether use Fischer's definition or not, if true 3. is subtracted from the result
+        Whether use Fischer's definition or not. If true 3. is subtracted from the result.
 
+    Warnings
+    --------
+    UserWarning: Dependent on the axis given and the split configuration a UserWarning may be thrown during this
+        function as data is transferred between processes
     """
-
-    def __reduce_kurts_elementwise(output_shape_i):
-        """
-        Function to combine the calculated skews together. This does an element-wise update of the
-        calculated vars to merge them together using the merge_vars function. This function operates
-        using x from the var function parameters.
-
-        Parameters
-        ----------
-        output_shape_i : iterable
-            Iterable with the dimensions of the output of the var function.
-        """
-
-        if x.lshape[x.split] != 0:
-            mu = torch.mean(x._DNDarray__array, dim=axis)
-            var = torch.var(x._DNDarray__array, dim=axis, unbiased=unbiased)
-            skl = __torch_skew(x._DNDarray__array, dim=axis, unbiased=unbiased)
-            kurtl = __torch_kurtosis(
-                x._DNDarray__array, dim=axis, unbiased=unbiased, Fischer=Fischer
-            )
-        else:
-            mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
-            var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
-            skl = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
-            kurtl = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
-
-        sk_shape = list(skl.shape) if list(skl.shape) else [1]
-
-        rtot = factories.zeros(([x.comm.size, 5] + sk_shape), dtype=x.dtype, device=x.device)
-        rtot[x.comm.rank, 0, :] = kurtl
-        rtot[x.comm.rank, 1, :] = skl
-        rtot[x.comm.rank, 2, :] = var
-        rtot[x.comm.rank, 3, :] = mu
-        rtot[x.comm.rank, 4, :] = float(x.lshape[x.split])
-        x.comm.Allreduce(MPI.IN_PLACE, rtot, MPI.SUM)
-
-        for i in range(1, x.comm.size):
-            rtot[0] = __merge_moments(
-                (rtot[0, 0, :], rtot[0, 1, :], rtot[0, 2, :], rtot[0, 3, :], rtot[0, 4, :]),
-                (rtot[i, 0, :], rtot[i, 1, :], rtot[i, 2, :], rtot[i, 3, :], rtot[i, 4, :]),
-                unbiased=unbiased,
-            )
-        res = rtot[0, 0, :][0] if rtot[0, 0, :].size == 1 else rtot[0, 0, :]
-        if unbiased:
-            res = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * res - 3.0 * (n - 1.0)) + 3.0
-        return res
-
-    # ----------------------------------------------------------------------------------------------
     if axis is None or (isinstance(axis, int) and x.split == axis):  # no axis given
-        # todo: determine if this is a valid (and fast implementation)
+        # TODO: determine if this is a valid (and fast implementation)
         mu = mean(x, axis=axis)
         if axis is not None and axis > 0:
             mu = mu.expand_dims(axis)
@@ -528,10 +486,10 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
         if Fischer:
             res -= 3.0
         return res.item() if res.numel == 1 else res
+    elif isinstance(axis, (list, tuple)):
+        raise TypeError("axis cannot be a list or a tuple, currently {}".format(type(axis)))
     else:
-        return __moment_w_axis(
-            __torch_kurtosis, x, axis, __reduce_kurts_elementwise, unbiased, Fischer
-        )
+        return __moment_w_axis(__torch_kurtosis, x, axis, None, unbiased, Fischer)
 
 
 def max(x, axis=None, out=None, keepdim=None):
@@ -855,12 +813,15 @@ def __merge_moments(m1, m2, unbiased=True):
     Merge two statistical moments. If the length of m1/m2 (must be equal) is == 3 then the second moment (variance)
     is merged. This function can be expanded to merge other moments according to Reference 1 as well.
     Note: all tensors/arrays must be either the same size or individual values
+    TODO: Type annotation:
+        def __merge_moments(m1 : Tuple, m2 : Tuple, unbiased : bool=True) -> Tuple:
 
     Parameters
     ----------
     m1 : tuple
         Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
         sorted in descending order of moments
+        Can be
     m2 : tuple
         Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
         sorted in descending order of moments
@@ -899,27 +860,28 @@ def __merge_moments(m1, m2, unbiased=True):
     if len(m1) == 3:  # merge vars
         return var_m, mu, n
 
-    sk1, sk2 = m1[-4], m2[-4]
-    dn = delta / n
-    if all(var_m != 0):  # Skewness does not exist if var is 0
-        s1 = sk1 + sk2
-        s2 = dn * (n1 * var2 - n2 * var1) / 6.0
-        s3 = (dn ** 3) * n1 * n2 * (n1 ** 2 - n2 ** 2)
-        skew_m = s1 + s2 + s3
-    else:
-        skew_m = None
-    if len(m1) == 4:
-        return skew_m, var_m, mu, n
-
-    k1, k2 = m1[-5], m2[-5]
-    if skew_m is None:
-        return None, skew_m, var_m, mu, n
-    s1 = (1 / 24.0) * dn * (n1 * sk2 - n2 * sk1)
-    s2 = (1 / 12.0) * (dn ** 2) * ((n1 ** 2) * var2 + (n2 ** 2) * var1)
-    s3 = (dn ** 4) * n1 * n2 * ((n1 ** 3) + (n2 ** 3))
-    k = k1 + k2 + s1 + s2 + s3
-    if len(m1) == 5:
-        return k, skew_m, var_m, mu, n
+    # TODO: This code block can be added if skew or kurtosis support multiple axes:
+    # sk1, sk2 = m1[-4], m2[-4]
+    # dn = delta / n
+    # if all(var_m != 0):  # Skewness does not exist if var is 0
+    #     s1 = sk1 + sk2
+    #     s2 = dn * (n1 * var2 - n2 * var1) / 6.0
+    #     s3 = (dn ** 3) * n1 * n2 * (n1 ** 2 - n2 ** 2)
+    #     skew_m = s1 + s2 + s3
+    # else:
+    #     skew_m = None
+    # if len(m1) == 4:
+    #     return skew_m, var_m, mu, n
+    #
+    # k1, k2 = m1[-5], m2[-5]
+    # if skew_m is None:
+    #     return None, skew_m, var_m, mu, n
+    # s1 = (1 / 24.0) * dn * (n1 * sk2 - n2 * sk1)
+    # s2 = (1 / 12.0) * (dn ** 2) * ((n1 ** 2) * var2 + (n2 ** 2) * var1)
+    # s3 = (dn ** 4) * n1 * n2 * ((n1 ** 3) + (n2 ** 3))
+    # k = k1 + k2 + s1 + s2 + s3
+    # if len(m1) == 5:
+    #     return k, skew_m, var_m, mu, n
 
 
 def min(x, axis=None, out=None, keepdim=None):
@@ -1121,6 +1083,76 @@ def minimum(x1, x2, out=None):
     return lresult
 
 
+def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None, Fischer=None):
+    # TODO: type annotations:
+    #    def __moment_w_axis(function: Callable, x, axis: Union[None, int, list, tuple], elementwise_function: Callable,
+    #                        unbiased: bool = None, Fischer: bool = None) -> DNDarray:
+
+    # helper for calculating a statistical moment with a given axis
+    kwargs = {"dim": axis}
+    if unbiased:
+        kwargs["unbiased"] = unbiased
+    if Fischer:
+        kwargs["Fischer"] = Fischer
+
+    output_shape = list(x.shape)
+    if isinstance(axis, int):
+        if axis >= len(x.shape):
+            raise ValueError("axis must be < {}, currently is {}".format(len(x.shape), axis))
+        axis = stride_tricks.sanitize_axis(x.shape, axis)
+        # only one axis given
+        output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
+        output_shape = output_shape if output_shape else (1,)
+
+        if x.split is None:  # x is *not* distributed -> no need to distributed
+            return factories.array(
+                function(x._DNDarray__array, **kwargs), dtype=x.dtype, device=x.device
+            )
+        elif axis == x.split:  # x is distributed and axis chosen is == to split
+            return elementwise_function(output_shape)
+        # singular axis given (axis) not equal to split direction (x.split)
+        lcl = function(x._DNDarray__array, **kwargs)
+        return factories.array(
+            lcl, is_split=x.split if axis > x.split else x.split - 1, dtype=x.dtype, device=x.device
+        )
+    elif not isinstance(axis, (list, tuple, torch.Tensor)):
+        raise TypeError(
+            f"axis must be an int, tuple, list, or torch.Tensor; currently it is {type(axis)}."
+        )
+    # else:
+    if isinstance(axis, torch.Tensor):
+        axis = axis.tolist()
+
+    if isinstance(axis, (list, tuple)) and len(set(axis)) != len(axis):  # most common case
+        raise ValueError("duplicate value in axis")
+    if any(not isinstance(j, int) for j in axis):
+        raise ValueError(
+            f"items in axis iterable must be integers, axes: {[type(q) for q in axis]}"
+        )
+
+    if any(d < 0 for d in axis):
+        axis = [stride_tricks.sanitize_axis(x.shape, j) for j in axis]
+    if any(d > len(x.shape) for d in axis):
+        raise ValueError(f"axes (axis) must be < {len(x.shape)}, currently are {axis}")
+
+    output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
+    # multiple dimensions
+    if x.split is None:
+        return factories.array(
+            function(x._DNDarray__array, **kwargs), is_split=x.split, device=x.device
+        )
+    if x.split in axis:
+        # merge in the direction of the split
+        return elementwise_function(output_shape)
+    # multiple dimensions which does *not* include the split axis
+    # combine along the split axis
+    return factories.array(
+        function(x._DNDarray__array, **kwargs),
+        is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
+        device=x.device,
+    )
+
+
 def mpi_argmax(a, b, _):
     lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
     rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
@@ -1159,59 +1191,26 @@ MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 def skew(x, axis=None, unbiased=True):
     """
     Compute the sample skewness of a data set.
+    TODO: type annotations
+        def skew(x : DNDarray, axis : Union[None, int] = None, unbiased : bool = True) -> DNDarray:
+
 
     Parameters
     ----------
     x : ht.DNDarray
         Input array
-    axis : NoneType or Int or iterable
+    axis : NoneType or Int
         Axis along which skewness is calculated, Default is to compute over the whole array `x`
     unbiased : Bool
         if True (default) the calculations are corrected for bias
 
+    Warnings
+    --------
+    UserWarning: Dependent on the axis given and the split configuration a UserWarning may be thrown during this
+        function as data is transferred between processes
     """
-
-    def __reduce_skews_elementwise(output_shape_i):
-        """
-        Function to combine the calculated skews together. This does an element-wise update of the
-        calculated vars to merge them together using the merge_vars function. This function operates
-        using x from the var function parameters.
-
-        Parameters
-        ----------
-        output_shape_i : iterable
-            Iterable with the dimensions of the output of the var function.
-        """
-
-        if x.lshape[x.split] != 0:
-            mu = torch.mean(x._DNDarray__array, dim=axis)
-            var = torch.var(x._DNDarray__array, dim=axis, unbiased=unbiased)
-            skl = __torch_skew(x._DNDarray__array, dim=axis, unbiased=unbiased)
-        else:
-            mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
-            var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
-            skl = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
-
-        sk_shape = list(skl.shape) if list(skl.shape) else [1]
-
-        rtot = factories.zeros(([x.comm.size, 4] + sk_shape), dtype=x.dtype, device=x.device)
-        rtot[x.comm.rank, 0, :] = skl
-        rtot[x.comm.rank, 1, :] = var
-        rtot[x.comm.rank, 2, :] = mu
-        rtot[x.comm.rank, 3, :] = float(x.lshape[x.split])
-        x.comm.Allreduce(MPI.IN_PLACE, rtot, MPI.SUM)
-
-        for i in range(1, x.comm.size):
-            rtot[0] = __merge_moments(
-                (rtot[0, 0, :], rtot[0, 1, :], rtot[0, 2, :], rtot[0, 3, :]),
-                (rtot[i, 0, :], rtot[i, 1, :], rtot[i, 2, :], rtot[i, 3, :]),
-                unbiased=unbiased,
-            )
-        return rtot[0, 0, :][0] if rtot[0, 0, :].size == 1 else rtot[0, 0, :]
-
-    # ----------------------------------------------------------------------------------------------
     if axis is None or (isinstance(axis, int) and x.split == axis):  # no axis given
-        # todo: determine if this is a valid (and fast implementation)
+        # TODO: determine if this is a valid (and fast implementation)
         mu = mean(x, axis=axis)
         if axis is not None and axis > 0:
             mu = mu.expand_dims(axis)
@@ -1225,8 +1224,11 @@ def skew(x, axis=None, unbiased=True):
         if unbiased:
             res *= ((n * (n - 1.0)) ** 0.5) / (n - 2.0)
         return res.item() if res.numel == 1 else res
+    elif isinstance(axis, (list, tuple)):
+        raise TypeError(f"axis cannot be a list or a tuple, currently {type(axis)}")
     else:
-        return __moment_w_axis(__torch_skew, x, axis, __reduce_skews_elementwise, unbiased)
+        # if multiple axes are required, need to add a reduce_skews_elementwise function
+        return __moment_w_axis(__torch_skew, x, axis, None, unbiased)
 
 
 def std(x, axis=None, ddof=0, **kwargs):
@@ -1277,74 +1279,9 @@ def std(x, axis=None, ddof=0, **kwargs):
         return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
-def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None, Fischer=None):
-    # helper for calculating a statistical moment with a given axis
-    kwargs = {"dim": axis}
-    if unbiased:
-        kwargs["unbiased"] = unbiased
-    if Fischer:
-        kwargs["Fischer"] = Fischer
-
-    output_shape = list(x.shape)
-    if isinstance(axis, (list, tuple, dndarray.DNDarray, torch.Tensor)):
-        if isinstance(axis, (list, tuple)) and len(set(axis)) != len(axis):
-            raise ValueError("duplicate value in axis")
-        if (
-            isinstance(axis, (dndarray.DNDarray, torch.Tensor))
-            and axis.unique().numel() != axis.numel()
-        ):
-            raise ValueError("duplicate value in axis")
-        if any([not isinstance(j, int) for j in axis]):
-            raise ValueError(
-                "items in axis iterable must be integers, axes: {}".format([type(q) for q in axis])
-            )
-        if any(d < 0 for d in axis):
-            axis = [stride_tricks.sanitize_axis(x.shape, j) for j in axis]
-        if any(d > len(x.shape) for d in axis):
-            raise ValueError(
-                "axes (axis) must be < {}, currently are {}".format(len(x.shape), axis)
-            )
-
-        output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
-        # multiple dimensions
-        if x.split is None:
-            return factories.array(
-                function(x._DNDarray__array, **kwargs), is_split=x.split, device=x.device
-            )
-        if x.split in axis:
-            # merge in the direction of the split
-            return elementwise_function(output_shape)
-        # multiple dimensions which does *not* include the split axis
-        # combine along the split axis
-        return factories.array(
-            function(x._DNDarray__array, **kwargs),
-            is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
-            device=x.device,
-        )
-    elif isinstance(axis, int):
-        if axis >= len(x.shape):
-            raise ValueError("axis must be < {}, currently is {}".format(len(x.shape), axis))
-        axis = stride_tricks.sanitize_axis(x.shape, axis)
-        # only one axis given
-        output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
-        output_shape = output_shape if output_shape else (1,)
-
-        if x.split is None:  # x is *not* distributed -> no need to distributed
-            return factories.array(
-                function(x._DNDarray__array, **kwargs), dtype=x.dtype, device=x.device
-            )
-        elif axis == x.split:  # x is distributed and axis chosen is == to split
-            return elementwise_function(output_shape)
-        # singular axis given (axis) not equal to split direction (x.split)
-        lcl = function(x._DNDarray__array, **kwargs)
-        return factories.array(
-            lcl, is_split=x.split if axis > x.split else x.split - 1, dtype=x.dtype, device=x.device
-        )
-    else:
-        raise TypeError("axis (axis) must be an int, tuple, list, etc.; currently it is {}. ")
-
-
 def __torch_skew(torch_tensor, dim=None, unbiased=False):
+    # TODO: type annotations:
+    #   def __torch_skew(torch_tensor : torch.Tensor, dim : int = None, unbiased : bool = False) -> torch.Tensor:
     # calculate the sample skewness of a torch tensor
     # return the bias corrected Fischer-Pearson standardized moment coefficient by default
     if dim is not None:
@@ -1364,6 +1301,8 @@ def __torch_skew(torch_tensor, dim=None, unbiased=False):
 
 
 def __torch_kurtosis(torch_tensor, dim=None, Fischer=True, unbiased=False):
+    # TODO: type annotations:
+    #   def __torch_kurtosis(torch_tensor : torch.Tensor, dim : int = None, Fischer : bool = True, unbiased : bool = False) -> torch.Tensor:
     # calculate the sample kurtosis of a torch tensor, Pearson's definition
     # returns the excess Kurtosis if excess is True
     # there is not unbiased estimator for Kurtosis
@@ -1450,11 +1389,11 @@ def var(x, axis=None, ddof=0, **kwargs):
     """
 
     if not isinstance(ddof, int):
-        raise TypeError("ddof must be integer, is {}".format(type(ddof)))
+        raise TypeError(f"ddof must be integer, is {type(ddof)}")
     elif ddof > 1:
-        raise NotImplementedError("Not implemented for ddof > 1.")
+        raise NotImplementedError(f"Not implemented for ddof > 1.")
     elif ddof < 0:
-        raise ValueError("Expected ddof=0 or ddof=1, got {}".format(ddof))
+        raise ValueError(f"Expected ddof=0 or ddof=1, got {ddof}")
     else:
         if kwargs.get("bessel"):
             unbiased = kwargs.get("bessel")

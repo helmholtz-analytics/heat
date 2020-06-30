@@ -4,7 +4,7 @@ import numpy as np
 import math
 import torch
 import warnings
-from typing import List
+from typing import List, Union
 
 from . import arithmetics
 from . import devices
@@ -146,10 +146,7 @@ class DNDarray:
         size : int
             number of total elements of the tensor
         """
-        try:
-            return torch.prod(torch.tensor(self.gshape, device=self.device.torch_device)).item()
-        except TypeError:
-            return 1
+        return torch.prod(torch.tensor(self.gshape, device=self.device.torch_device)).item()
 
     @property
     def numel(self):
@@ -1705,6 +1702,7 @@ class DNDarray:
     def kurtosis(self, axis=None, unbiased=True, Fischer=True):
         """
         Compute the kurtosis (Fisher or Pearson) of a dataset.
+        TODO: add return type annotation (DNDarray) and x annotation (DNDarray)
 
         Kurtosis is the fourth central moment divided by the square of the variance.
         If Fisher’s definition is used, then 3.0 is subtracted from the result to give 0.0 for a normal distribution.
@@ -1716,13 +1714,17 @@ class DNDarray:
         ----------
         x : ht.DNDarray
             Input array
-        axis : NoneType or Int or iterable
+        axis : NoneType or Int
             Axis along which skewness is calculated, Default is to compute over the whole array `x`
         unbiased : Bool
             if True (default) the calculations are corrected for bias
         Fischer : bool
-            Wheather use Fischer's definition or not, if true 3. is subtracted from the result
+            Whether use Fischer's definition or not. If true 3. is subtracted from the result.
 
+        Warnings
+        --------
+        UserWarning: Dependent on the axis given and the split configuration a UserWarning may be thrown during this
+            function as data is transferred between processes
         """
         return statistics.kurtosis(self, axis, unbiased, Fischer)
 
@@ -3250,6 +3252,23 @@ class DNDarray:
         return trigonometrics.sinh(self, out)
 
     def skew(self, axis=None, unbiased=True):
+        """
+        Compute the sample skewness of a data set.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            Input array
+        axis : NoneType or Int
+            Axis along which skewness is calculated, Default is to compute over the whole array `x`
+        unbiased : Bool
+            if True (default) the calculations are corrected for bias
+
+        Warnings
+        --------
+        UserWarning: Dependent on the axis given and the split configuration a UserWarning may be thrown during this
+            function as data is transferred between processes
+        """
         return statistics.skew(self, axis, unbiased)
 
     def sqrt(self, out=None):
