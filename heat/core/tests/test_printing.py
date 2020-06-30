@@ -84,21 +84,21 @@ class TestPrinting(TestCase):
     def test_empty(self):
         tensor = ht.array([], dtype=ht.int64)
         comparison = "DNDarray([], dtype=ht.int64, device=cpu:0, split=None)"
-        __repr = repr(tensor)
+        __str = str(tensor)
 
         if tensor.comm.rank == 0:
-            self.assertEqual(comparison, __repr)
+            self.assertEqual(comparison, __str)
 
     def test_scalar(self):
         tensor = ht.array(42)
         comparison = "DNDarray(42, dtype=ht.int64, device=cpu:0, split=None)"
-        __repr = repr(tensor)
+        __str = str(tensor)
 
         if tensor.comm.rank == 0:
-            self.assertEqual(comparison, __repr)
+            self.assertEqual(comparison, __str)
 
     def test_unsplit_below_threshold(self):
-        tensor = ht.arange(2 * 3 * 4).reshape((2, 3, 4))
+        dndarray = ht.arange(2 * 3 * 4).reshape((2, 3, 4))
         comparison = (
             "DNDarray([[[ 0,  1,  2,  3],\n"
             "           [ 4,  5,  6,  7],\n"
@@ -108,13 +108,13 @@ class TestPrinting(TestCase):
             "           [16, 17, 18, 19],\n"
             "           [20, 21, 22, 23]]], dtype=ht.int32, device=cpu:0, split=None)"
         )
-        __repr = repr(tensor)
+        __str = str(dndarray)
 
-        if tensor.comm.rank == 0:
-            self.assertEqual(comparison, __repr)
+        if dndarray.comm.rank == 0:
+            self.assertEqual(comparison, __str)
 
     def test_unsplit_above_threshold(self):
-        tensor = ht.arange(12 * 13 * 14).reshape((12, 13, 14))
+        dndarray = ht.arange(12 * 13 * 14).reshape((12, 13, 14))
         comparison = (
             "DNDarray([[[   0,    1,    2,  ...,   11,   12,   13],\n"
             "           [  14,   15,   16,  ...,   25,   26,   27],\n"
@@ -166,14 +166,14 @@ class TestPrinting(TestCase):
             "           [2156, 2157, 2158,  ..., 2167, 2168, 2169],\n"
             "           [2170, 2171, 2172,  ..., 2181, 2182, 2183]]], dtype=ht.int32, device=cpu:0, split=None)"
         )
-        __repr = repr(tensor)
+        __str = str(dndarray)
 
-        if tensor.comm.rank == 0:
-            self.assertEqual(comparison, __repr)
+        if dndarray.comm.rank == 0:
+            self.assertEqual(comparison, __str)
 
     def test_split_0_below_threshold(self):
         ht.set_printoptions(precision=2)
-        tensor = ht.arange(0.5, 2 * 3 * 4 + 0.5, split=0).reshape((2, 3, 4))
+        dndarray = ht.arange(0.5, 2 * 3 * 4 + 0.5, split=0).reshape((2, 3, 4))
         comparison = (
             "DNDarray([[[ 0.50,  1.50,  2.50,  3.50],\n"
             "           [ 4.50,  5.50,  6.50,  7.50],\n"
@@ -183,14 +183,14 @@ class TestPrinting(TestCase):
             "           [16.50, 17.50, 18.50, 19.50],\n"
             "           [20.50, 21.50, 22.50, 23.50]]], dtype=ht.float32, device=cpu:0, split=0)"
         )
-        __repr = repr(tensor)
+        __str = str(dndarray)
 
-        if tensor.comm.rank == 0:
-            self.assertEqual(comparison, __repr)
+        if dndarray.comm.rank == 0:
+            self.assertEqual(comparison, __str)
 
     def test_split_0_above_threshold(self):
         ht.set_printoptions(precision=1)
-        tensor = ht.arange(0.2, 10 * 11 * 12 + 0.2, split=0).reshape((10, 11, 12))
+        dndarray = ht.arange(0.2, 10 * 11 * 12 + 0.2, split=0).reshape((10, 11, 12))
         comparison = (
             "DNDarray([[[2.0e-01, 1.2e+00, 2.2e+00,  ..., 9.2e+00, 1.0e+01, 1.1e+01],\n"
             "           [1.2e+01, 1.3e+01, 1.4e+01,  ..., 2.1e+01, 2.2e+01, 2.3e+01],\n"
@@ -242,14 +242,15 @@ class TestPrinting(TestCase):
             "           [1.3e+03, 1.3e+03, 1.3e+03,  ..., 1.3e+03, 1.3e+03, 1.3e+03],\n"
             "           [1.3e+03, 1.3e+03, 1.3e+03,  ..., 1.3e+03, 1.3e+03, 1.3e+03]]], dtype=ht.float32, device=cpu:0, split=0)"
         )
-        __repr = repr(tensor)
 
-        if tensor.comm.rank == 0:
-            self.assertEqual(comparison, __repr)
+        __str = str(dndarray)
+
+        if dndarray.comm.rank == 0:
+            self.assertEqual(comparison, __str)
 
     def test_split_1_below_threshold(self):
         ht.set_printoptions(sci_mode=True)
-        tensor = ht.arange(0.5, 4 * 5 * 6 + 0.5, dtype=ht.float64).reshape((4, 5, 6)).resplit_(1)
+        dndarray = ht.arange(0.5, 4 * 5 * 6 + 0.5, dtype=ht.float64).reshape((4, 5, 6)).resplit_(1)
         comparison = (
             "DNDarray([[[5.0000e-01, 1.5000e+00, 2.5000e+00, 3.5000e+00, 4.5000e+00, 5.5000e+00],\n"
             "           [6.5000e+00, 7.5000e+00, 8.5000e+00, 9.5000e+00, 1.0500e+01, 1.1500e+01],\n"
@@ -275,14 +276,14 @@ class TestPrinting(TestCase):
             "           [1.0850e+02, 1.0950e+02, 1.1050e+02, 1.1150e+02, 1.1250e+02, 1.1350e+02],\n"
             "           [1.1450e+02, 1.1550e+02, 1.1650e+02, 1.1750e+02, 1.1850e+02, 1.1950e+02]]], dtype=ht.float64, device=cpu:0, split=1)"
         )
-        __repr = repr(tensor)
+        __str = str(dndarray)
 
-        if tensor.comm.rank == 0:
-            self.assertEqual(comparison, __repr)
+        if dndarray.comm.rank == 0:
+            self.assertEqual(comparison, __str)
 
     def test_split_1_above_threshold(self):
         ht.set_printoptions(edgeitems=2)
-        tensor = ht.arange(10 * 11 * 12).reshape((10, 11, 12)).resplit_(1)
+        dndarray = ht.arange(10 * 11 * 12).reshape((10, 11, 12)).resplit_(1)
         comparison = (
             "DNDarray([[[   0,    1,  ...,   10,   11],\n"
             "           [  12,   13,  ...,   22,   23],\n"
@@ -310,13 +311,13 @@ class TestPrinting(TestCase):
             "           [1296, 1297,  ..., 1306, 1307],\n"
             "           [1308, 1309,  ..., 1318, 1319]]], dtype=ht.int32, device=cpu:0, split=1)"
         )
-        __repr = repr(tensor)
+        __str = str(dndarray)
 
-        if tensor.comm.rank == 0:
-            self.assertEqual(comparison, __repr)
+        if dndarray.comm.rank == 0:
+            self.assertEqual(comparison, __str)
 
     def test_split_2_below_threshold(self):
-        tensor = ht.arange(4 * 5 * 6, dtype=ht.uint8).reshape((4, 5, 6)).resplit_(2)
+        dndarray = ht.arange(4 * 5 * 6, dtype=ht.uint8).reshape((4, 5, 6)).resplit_(2)
         comparison = (
             "DNDarray([[[  0,   1,   2,   3,   4,   5],\n"
             "           [  6,   7,   8,   9,  10,  11],\n"
@@ -342,14 +343,14 @@ class TestPrinting(TestCase):
             "           [108, 109, 110, 111, 112, 113],\n"
             "           [114, 115, 116, 117, 118, 119]]], dtype=ht.uint8, device=cpu:0, split=2)"
         )
-        __repr = repr(tensor)
+        __str = str(dndarray)
 
-        if tensor.comm.rank == 0:
-            self.assertEqual(comparison, __repr)
+        if dndarray.comm.rank == 0:
+            self.assertEqual(comparison, __str)
 
     def test_split_2_above_threshold(self):
         ht.set_printoptions(threshold=1)
-        tensor = ht.arange(3 * 10 * 12).reshape((3, 10, 12)).resplit_(2)
+        dndarray = ht.arange(3 * 10 * 12).reshape((3, 10, 12)).resplit_(2)
         comparison = (
             "DNDarray([[[  0,   1,   2,  ...,   9,  10,  11],\n"
             "           [ 12,  13,  14,  ...,  21,  22,  23],\n"
@@ -375,7 +376,7 @@ class TestPrinting(TestCase):
             "           [336, 337, 338,  ..., 345, 346, 347],\n"
             "           [348, 349, 350,  ..., 357, 358, 359]]], dtype=ht.int32, device=cpu:0, split=2)"
         )
-        __repr = repr(tensor)
+        __str = str(dndarray)
 
-        if tensor.comm.rank == 0:
-            self.assertEqual(comparison, __repr)
+        if dndarray.comm.rank == 0:
+            self.assertEqual(comparison, __str)

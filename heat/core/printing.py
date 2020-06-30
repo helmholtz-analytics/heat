@@ -62,7 +62,7 @@ __PREFIX = "DNDarray"
 __INDENT = len(__PREFIX)
 
 
-def __repr__(dndarray) -> str:
+def __str__(dndarray) -> str:
     """
     Computes a printable representation of the passed DNDarray.
 

@@ -2396,7 +2396,7 @@ class DNDarray:
         """
         Computes a printable representation of the passed DNDarray.
         """
-        return printing.__repr__(self)
+        return printing.__str__(self)
 
     def redistribute_(self, lshape_map=None, target_map=None):
         """
@@ -3350,12 +3350,11 @@ class DNDarray:
         """
         return statistics.std(self, axis, ddof=ddof, **kwargs)
 
-    #
-    # def __str__(self) -> str:
-    #     """
-    #     Computes a string representation of the passed DNDarray.
-    #     """
-    #     return printing._tensor_str(self, indent=0)
+    def __str__(self) -> str:
+        """
+        Computes a string representation of the passed DNDarray.
+        """
+        return printing.__str__(self)
 
     def __sub__(self, other):
         """
