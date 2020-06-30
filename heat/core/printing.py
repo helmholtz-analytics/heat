@@ -26,7 +26,7 @@ def set_printoptions(
     linewidth: int = None,
     profile: int = None,
     sci_mode: int = None,
-):
+) -> None:
     """
     Configures the printing options. List of items shamelessly taken from NumPy and PyTorch (thanks guys!).
 
