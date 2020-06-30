@@ -190,7 +190,8 @@ class TestPrinting(TestCase):
 
     def test_split_0_above_threshold(self):
         ht.set_printoptions(precision=1)
-        dndarray = ht.arange(0.2, 10 * 11 * 12 + 0.2, split=0).reshape((10, 11, 12))
+        dndarray = ht.arange(0.2, 10 * 11 * 12 + 0.2).reshape((10, 11, 12)).resplit_(0)
+        self.maxDiff = None
         comparison = (
             "DNDarray([[[2.0e-01, 1.2e+00, 2.2e+00,  ..., 9.2e+00, 1.0e+01, 1.1e+01],\n"
             "           [1.2e+01, 1.3e+01, 1.4e+01,  ..., 2.1e+01, 2.2e+01, 2.3e+01],\n"

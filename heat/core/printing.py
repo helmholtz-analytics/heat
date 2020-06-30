@@ -120,13 +120,13 @@ def _torch_data(dndarray, summarize: bool) -> torch.Tensor:
             elif i == dndarray.split and dndarray.gshape[i] > double_items:
                 offset, _, _ = dndarray.comm.chunk(dndarray.gshape, i)
 
-                if offset < edgeitems:
-                    data = torch.index_select(data, i, torch.arange(edgeitems + 1 - offset))
-                elif dndarray.gshape[i] - edgeitems < offset:
-                    edge_start = dndarray.gshape[i] - edgeitems
-                    local_end = offset + dndarray.lshape[i]
+                if offset < edgeitems + 1:
+                    end = min(dndarray.lshape[i], edgeitems + 1 - offset)
+                    data = torch.index_select(data, i, torch.arange(end))
+                elif dndarray.gshape[i] - edgeitems < offset - dndarray.lshape[i]:
+                    global_start = dndarray.gshape[i] - edgeitems
                     data = torch.index_select(
-                        data, i, torch.arange(local_end - edge_start, data.shape[i])
+                        data, i, torch.arange(max(0, global_start - offset), dndarray.lshape[i])
                     )
 
         # marshall data into buffer
