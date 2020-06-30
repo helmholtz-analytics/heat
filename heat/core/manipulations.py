@@ -967,12 +967,15 @@ def rot90(m, k=1, axes=(0, 1)):
     Raises
     ------
     TypeError
-        If first parameter is not a :class:DNDarray
-        If parameter ``k`` is not castable to integer
+        If first parameter is not a :class:DNDarray.
+    TypeError
+        If parameter ``k`` is not castable to integer.
     ValueError
-        If ``len(axis)!=2``
-        If the axes are the same
-        If axes are out of range
+        If ``len(axis)!=2``.
+    ValueError
+        If the axes are the same.
+    ValueError
+        If axes are out of range.
 
     Examples
     --------
