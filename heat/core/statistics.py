@@ -500,7 +500,6 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
         rtot[x.comm.rank, 4, :] = float(x.lshape[x.split])
         x.comm.Allreduce(MPI.IN_PLACE, rtot, MPI.SUM)
 
-        # print(rtot[x.comm.rank, 0, :])
         for i in range(1, x.comm.size):
             rtot[0] = __merge_moments(
                 (rtot[0, 0, :], rtot[0, 1, :], rtot[0, 2, :], rtot[0, 3, :], rtot[0, 4, :]),
@@ -915,16 +914,11 @@ def __merge_moments(m1, m2, unbiased=True):
         return var_m, mu, n
 
     sk1, sk2 = m1[-4], m2[-4]
-    # print(sk1)
-    # print(sk2)
     dn = delta / n
-    # todo: fix this condition
     if all(var_m != 0):  # Skewness does not exist if var is 0
         s1 = sk1 + sk2
         s2 = dn * (n1 * var2 - n2 * var1) / 6.0
-        # print('n', dn / 6)
         s3 = (dn ** 3) * n1 * n2 * (n1 ** 2 - n2 ** 2)
-        # print(s1, s2)
         skew_m = s1 + s2 + s3
     else:
         skew_m = None
@@ -1221,7 +1215,6 @@ def skew(x, axis=None, unbiased=True):
         rtot[x.comm.rank, 3, :] = float(x.lshape[x.split])
         x.comm.Allreduce(MPI.IN_PLACE, rtot, MPI.SUM)
 
-        # print(rtot[x.comm.rank, 0, :])
         for i in range(1, x.comm.size):
             rtot[0] = __merge_moments(
                 (rtot[0, 0, :], rtot[0, 1, :], rtot[0, 2, :], rtot[0, 3, :]),
@@ -1234,8 +1227,6 @@ def skew(x, axis=None, unbiased=True):
     if axis is None:  # no axis given
         # todo: determine if this is a valid (and fast implementation)
         mu = mean(x)
-        # diff = x
-        # diff._DNDarray__array -= float(mu.item())
         diff = x - mu
         n = x.numel
 
