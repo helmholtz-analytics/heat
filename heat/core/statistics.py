@@ -461,7 +461,7 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
     unbiased : Bool
         if True (default) the calculations are corrected for bias
     Fischer : bool
-        Wheather use Fischer's definition or not, if true 3. is subtracted from the result
+        Whether use Fischer's definition or not, if true 3. is subtracted from the result
 
     """
 
