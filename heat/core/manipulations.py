@@ -1443,9 +1443,50 @@ def stack(arrays, axis=0, out=None):
         If the ``DNDarray``s are of different shapes, or if they are split along different axes (``split`` attribute).
     RuntimeError
         If the ``DNDarrays`` reside of different devices, or if they are unevenly distributed across ranks (method ``is_balanced()`` returns ``False``)
+
     Returns
     -------
     DNDarray
+
+    Examples
+    --------
+    >>> a = ht.arange(20).reshape(4, 5)
+    >>> b = ht.arange(20, 40).reshape(4, 5)
+    >>> ht.stack((a,b), axis=0)
+    tensor([[[ 0,  1,  2,  3,  4],
+             [ 5,  6,  7,  8,  9],
+             [10, 11, 12, 13, 14],
+             [15, 16, 17, 18, 19]],
+
+            [[20, 21, 22, 23, 24],
+             [25, 26, 27, 28, 29],
+             [30, 31, 32, 33, 34],
+             [35, 36, 37, 38, 39]]])
+    # distributed DNDarrays, 3 processes, stack along last dimension
+    >>> a = ht.arange(20, split=0).reshape(4, 5)
+    >>> b = ht.arange(20, 40, split=0).reshape(4, 5)
+    >>> ht.stack((a,b), axis=-1)
+    [0/2] tensor([[[ 0, 20],
+    [0/2]          [ 1, 21],
+    [0/2]          [ 2, 22],
+    [0/2]          [ 3, 23],
+    [0/2]          [ 4, 24]],
+    [0/2]
+    [0/2]         [[ 5, 25],
+    [0/2]          [ 6, 26],
+    [0/2]          [ 7, 27],
+    [0/2]          [ 8, 28],
+    [0/2]          [ 9, 29]]])
+    [1/2] tensor([[[10, 30],
+    [1/2]          [11, 31],
+    [1/2]          [12, 32],
+    [1/2]          [13, 33],
+    [1/2]          [14, 34]]])
+    [2/2] tensor([[[15, 35],
+    [2/2]          [16, 36],
+    [2/2]          [17, 37],
+    [2/2]          [18, 38],
+    [2/2]          [19, 39]]])
     """
 
     # sanitation
