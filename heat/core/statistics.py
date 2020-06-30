@@ -512,28 +512,14 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
         return res
 
     # ----------------------------------------------------------------------------------------------
-    if axis is None:  # no axis given
+    if axis is None or (isinstance(axis, int) and x.split == axis):  # no axis given
         # todo: determine if this is a valid (and fast implementation)
-        mu = mean(x)
+        mu = mean(x, axis=axis)
+        if axis is not None and axis > 0:
+            mu = mu.expand_dims(axis)
         diff = x - mu
-        n = x.numel
+        n = float(x.shape[axis]) if axis is not None else x.numel
 
-        m4 = arithmetics.sum(arithmetics.pow(diff, 4.0)) / n
-        m2 = arithmetics.sum(arithmetics.pow(diff, 2.0)) / n
-        res = m4 / arithmetics.pow(m2, 2.0)
-        if unbiased:
-            res = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * res - 3 * (n - 1.0)) + 3.0
-        if Fischer:
-            res -= 3.0
-        return res.item()
-
-    elif isinstance(axis, int) and x.split == axis:  # axis is given
-        if axis > 0:
-            diff = x - mean(x, axis=axis).expand_dims(axis)
-        else:
-            diff = x - mean(x, axis=axis)
-        n = float(x.shape[axis])
-        # possible speedup to be had here:
         m4 = arithmetics.sum(arithmetics.pow(diff, 4.0), axis) / n
         m2 = arithmetics.sum(arithmetics.pow(diff, 2.0), axis) / n
         res = m4 / arithmetics.pow(m2, 2.0)
@@ -541,7 +527,7 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
             res = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * res - 3 * (n - 1.0)) + 3.0
         if Fischer:
             res -= 3.0
-        return res
+        return res.item() if res.numel == 1 else res
     else:
         return __moment_w_axis(
             __torch_kurtosis, x, axis, __reduce_kurts_elementwise, unbiased, Fischer
@@ -1224,32 +1210,21 @@ def skew(x, axis=None, unbiased=True):
         return rtot[0, 0, :][0] if rtot[0, 0, :].size == 1 else rtot[0, 0, :]
 
     # ----------------------------------------------------------------------------------------------
-    if axis is None:  # no axis given
+    if axis is None or (isinstance(axis, int) and x.split == axis):  # no axis given
         # todo: determine if this is a valid (and fast implementation)
-        mu = mean(x)
+        mu = mean(x, axis=axis)
+        if axis is not None and axis > 0:
+            mu = mu.expand_dims(axis)
         diff = x - mu
-        n = x.numel
 
-        m3 = arithmetics.sum(arithmetics.pow(diff, 3)) / n
-        m2 = arithmetics.sum(arithmetics.pow(diff, 2)) / n
-        res = m3 / arithmetics.pow(m2, 1.5)
-        if unbiased:
-            res *= ((n * (n - 1)) ** 0.5) / (n - 2.0)
-        return res.item()
+        n = float(x.shape[axis]) if axis is not None else x.numel
 
-    elif isinstance(axis, int) and x.split == axis:  # axis is given
-        if axis > 0:
-            diff = x - mean(x, axis=axis).expand_dims(axis)
-        else:
-            diff = x - mean(x, axis=axis)
-        n = float(x.shape[axis])
-        # possible speedup to be had here:
         m3 = arithmetics.sum(arithmetics.pow(diff, 3.0), axis) / n
         m2 = arithmetics.sum(arithmetics.pow(diff, 2.0), axis) / n
         res = m3 / arithmetics.pow(m2, 1.5)
         if unbiased:
             res *= ((n * (n - 1.0)) ** 0.5) / (n - 2.0)
-        return res
+        return res.item() if res.numel == 1 else res
     else:
         return __moment_w_axis(__torch_skew, x, axis, __reduce_skews_elementwise, unbiased)
 
