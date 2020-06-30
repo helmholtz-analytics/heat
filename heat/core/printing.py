@@ -1,4 +1,5 @@
 import copy
+import io
 import torch
 
 from typing import Dict
@@ -19,7 +20,12 @@ def get_printoptions() -> Dict:
 
 
 def set_printoptions(
-    precision=None, threshold=None, edgeitems=None, linewidth=None, profile=None, sci_mode=None
+    precision: int = None,
+    threshold: int = None,
+    edgeitems: int = None,
+    linewidth: int = None,
+    profile: int = None,
+    sci_mode: int = None,
 ):
     """
     Configures the printing options. List of items shamelessly taken from NumPy and PyTorch (thanks guys!).
@@ -65,16 +71,16 @@ def __repr__(dndarray) -> str:
     dndarray: DNDarray
         The array for which to obtain the corresponding string
     """
+    tensor_string = _tensor_str(dndarray, __INDENT + 1)
+    if dndarray.comm.rank != 0:
+        return ""
+
     return "{}({}, dtype=ht.{}, device={}, split={})".format(
-        __PREFIX,
-        _tensor_str(dndarray, __INDENT + 1),
-        dndarray.dtype.__name__,
-        dndarray.device,
-        dndarray.split,
+        __PREFIX, tensor_string, dndarray.dtype.__name__, dndarray.device, dndarray.split
     )
 
 
-def _torch_data(dndarray, summarize) -> torch.Tensor:
+def _torch_data(dndarray, summarize: bool) -> torch.Tensor:
     """
     Extracts the data to be printed from the DNDarray in form of a torch tensor and returns it.
 
@@ -105,25 +111,47 @@ def _torch_data(dndarray, summarize) -> torch.Tensor:
 
             # non-split dimension, can slice locally
             if i != dndarray.split:
-                data = torch.stack([data[: edgeitems + 1], data[-edgeitems:]], dim=i)
+                start_tensor = torch.index_select(data, i, torch.arange(edgeitems + 1))
+                end_tensor = torch.index_select(
+                    data, i, torch.arange(dndarray.lshape[i] - edgeitems, dndarray.lshape[i])
+                )
+                data = torch.cat([start_tensor, end_tensor], dim=i)
             # split-dimension , need to respect the global offset
             elif i == dndarray.split and dndarray.gshape[i] > double_items:
                 offset, _, _ = dndarray.comm.chunk(dndarray.gshape, i)
 
                 if offset < edgeitems:
-                    data = data[: edgeitems + 1 - offset]
+                    data = torch.index_select(data, i, torch.arange(edgeitems + 1 - offset))
                 elif dndarray.gshape[i] - edgeitems < offset:
                     edge_start = dndarray.gshape[i] - edgeitems
                     local_end = offset + dndarray.lshape[i]
-                    data = data[local_end - edge_start :]
+                    data = torch.index_select(
+                        data, i, torch.arange(local_end - edge_start, data.shape[i])
+                    )
 
-        # TODO: combine the slice parts globally alltoallv
-        data = dndarray.comm.alltoallv()
+        # marshall data into buffer
+        buffer = io.BytesIO()
+        torch.save(data, buffer)
+        buffer.seek(0)
+
+        # exchange data
+        received = dndarray.comm.gather(buffer.read())
+
+        if dndarray.comm.rank == 0:
+            # deserialize the buffers
+            for i, ele in enumerate(received):
+                buffer.seek(0)
+                buffer.write(ele)
+                buffer.seek(0)
+                received[i] = torch.load(buffer)
+
+            # stack them along the split axis
+            data = torch.cat(received, dim=dndarray.split)
 
     return data
 
 
-def _tensor_str(dndarray, indent) -> str:
+def _tensor_str(dndarray, indent: int) -> str:
     """
     Computes a string representation of the passed DNDarray.
 

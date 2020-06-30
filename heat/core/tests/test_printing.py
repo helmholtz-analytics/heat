@@ -83,16 +83,23 @@ class TestPrinting(TestCase):
 
     def test_empty(self):
         tensor = ht.array([], dtype=ht.int64)
-        __repr = "DNDarray([], dtype=ht.int64, device=cpu:0, split=None)"
+        comparison = "DNDarray([], dtype=ht.int64, device=cpu:0, split=None)"
+        __repr = repr(tensor)
 
-        self.assertEqual(repr(tensor), __repr)
+        if tensor.comm.rank == 0:
+            self.assertEqual(comparison, __repr)
 
     def test_scalar(self):
-        self.assertTrue(False)
+        tensor = ht.array(42)
+        comparison = "DNDarray(42, dtype=ht.int64, device=cpu:0, split=None)"
+        __repr = repr(tensor)
+
+        if tensor.comm.rank == 0:
+            self.assertEqual(comparison, __repr)
 
     def test_unsplit_below_threshold(self):
         tensor = ht.arange(2 * 3 * 4).reshape((2, 3, 4))
-        __repr = (
+        comparison = (
             "DNDarray([[[ 0,  1,  2,  3],\n"
             "           [ 4,  5,  6,  7],\n"
             "           [ 8,  9, 10, 11]],\n"
@@ -101,12 +108,14 @@ class TestPrinting(TestCase):
             "           [16, 17, 18, 19],\n"
             "           [20, 21, 22, 23]]], dtype=ht.int32, device=cpu:0, split=None)"
         )
+        __repr = repr(tensor)
 
-        self.assertEqual(repr(tensor), __repr)
+        if tensor.comm.rank == 0:
+            self.assertEqual(comparison, __repr)
 
     def test_unsplit_above_threshold(self):
         tensor = ht.arange(12 * 13 * 14).reshape((12, 13, 14))
-        __repr = (
+        comparison = (
             "DNDarray([[[   0,    1,    2,  ...,   11,   12,   13],\n"
             "           [  14,   15,   16,  ...,   25,   26,   27],\n"
             "           [  28,   29,   30,  ...,   39,   40,   41],\n"
@@ -157,13 +166,15 @@ class TestPrinting(TestCase):
             "           [2156, 2157, 2158,  ..., 2167, 2168, 2169],\n"
             "           [2170, 2171, 2172,  ..., 2181, 2182, 2183]]], dtype=ht.int32, device=cpu:0, split=None)"
         )
+        __repr = repr(tensor)
 
-        self.assertEqual(repr(tensor), __repr)
+        if tensor.comm.rank == 0:
+            self.assertEqual(comparison, __repr)
 
     def test_split_0_below_threshold(self):
         ht.set_printoptions(precision=2)
         tensor = ht.arange(0.5, 2 * 3 * 4 + 0.5, split=0).reshape((2, 3, 4))
-        string = (
+        comparison = (
             "DNDarray([[[ 0.50,  1.50,  2.50,  3.50],\n"
             "           [ 4.50,  5.50,  6.50,  7.50],\n"
             "           [ 8.50,  9.50, 10.50, 11.50]],\n"
@@ -172,16 +183,74 @@ class TestPrinting(TestCase):
             "           [16.50, 17.50, 18.50, 19.50],\n"
             "           [20.50, 21.50, 22.50, 23.50]]], dtype=ht.float32, device=cpu:0, split=0)"
         )
+        __repr = repr(tensor)
 
-        self.assertEqual(repr(tensor), string)
+        if tensor.comm.rank == 0:
+            self.assertEqual(comparison, __repr)
 
     def test_split_0_above_threshold(self):
-        self.assertTrue(False)
+        ht.set_printoptions(precision=1)
+        tensor = ht.arange(0.2, 10 * 11 * 12 + 0.2, split=0).reshape((10, 11, 12))
+        comparison = (
+            "DNDarray([[[2.0e-01, 1.2e+00, 2.2e+00,  ..., 9.2e+00, 1.0e+01, 1.1e+01],\n"
+            "           [1.2e+01, 1.3e+01, 1.4e+01,  ..., 2.1e+01, 2.2e+01, 2.3e+01],\n"
+            "           [2.4e+01, 2.5e+01, 2.6e+01,  ..., 3.3e+01, 3.4e+01, 3.5e+01],\n"
+            "           ...,\n"
+            "           [9.6e+01, 9.7e+01, 9.8e+01,  ..., 1.1e+02, 1.1e+02, 1.1e+02],\n"
+            "           [1.1e+02, 1.1e+02, 1.1e+02,  ..., 1.2e+02, 1.2e+02, 1.2e+02],\n"
+            "           [1.2e+02, 1.2e+02, 1.2e+02,  ..., 1.3e+02, 1.3e+02, 1.3e+02]],\n"
+            "\n"
+            "          [[1.3e+02, 1.3e+02, 1.3e+02,  ..., 1.4e+02, 1.4e+02, 1.4e+02],\n"
+            "           [1.4e+02, 1.5e+02, 1.5e+02,  ..., 1.5e+02, 1.5e+02, 1.6e+02],\n"
+            "           [1.6e+02, 1.6e+02, 1.6e+02,  ..., 1.7e+02, 1.7e+02, 1.7e+02],\n"
+            "           ...,\n"
+            "           [2.3e+02, 2.3e+02, 2.3e+02,  ..., 2.4e+02, 2.4e+02, 2.4e+02],\n"
+            "           [2.4e+02, 2.4e+02, 2.4e+02,  ..., 2.5e+02, 2.5e+02, 2.5e+02],\n"
+            "           [2.5e+02, 2.5e+02, 2.5e+02,  ..., 2.6e+02, 2.6e+02, 2.6e+02]],\n"
+            "\n"
+            "          [[2.6e+02, 2.7e+02, 2.7e+02,  ..., 2.7e+02, 2.7e+02, 2.8e+02],\n"
+            "           [2.8e+02, 2.8e+02, 2.8e+02,  ..., 2.9e+02, 2.9e+02, 2.9e+02],\n"
+            "           [2.9e+02, 2.9e+02, 2.9e+02,  ..., 3.0e+02, 3.0e+02, 3.0e+02],\n"
+            "           ...,\n"
+            "           [3.6e+02, 3.6e+02, 3.6e+02,  ..., 3.7e+02, 3.7e+02, 3.7e+02],\n"
+            "           [3.7e+02, 3.7e+02, 3.7e+02,  ..., 3.8e+02, 3.8e+02, 3.8e+02],\n"
+            "           [3.8e+02, 3.9e+02, 3.9e+02,  ..., 3.9e+02, 3.9e+02, 4.0e+02]],\n"
+            "\n"
+            "          ...,\n"
+            "\n"
+            "          [[9.2e+02, 9.3e+02, 9.3e+02,  ..., 9.3e+02, 9.3e+02, 9.4e+02],\n"
+            "           [9.4e+02, 9.4e+02, 9.4e+02,  ..., 9.5e+02, 9.5e+02, 9.5e+02],\n"
+            "           [9.5e+02, 9.5e+02, 9.5e+02,  ..., 9.6e+02, 9.6e+02, 9.6e+02],\n"
+            "           ...,\n"
+            "           [1.0e+03, 1.0e+03, 1.0e+03,  ..., 1.0e+03, 1.0e+03, 1.0e+03],\n"
+            "           [1.0e+03, 1.0e+03, 1.0e+03,  ..., 1.0e+03, 1.0e+03, 1.0e+03],\n"
+            "           [1.0e+03, 1.0e+03, 1.0e+03,  ..., 1.1e+03, 1.1e+03, 1.1e+03]],\n"
+            "\n"
+            "          [[1.1e+03, 1.1e+03, 1.1e+03,  ..., 1.1e+03, 1.1e+03, 1.1e+03],\n"
+            "           [1.1e+03, 1.1e+03, 1.1e+03,  ..., 1.1e+03, 1.1e+03, 1.1e+03],\n"
+            "           [1.1e+03, 1.1e+03, 1.1e+03,  ..., 1.1e+03, 1.1e+03, 1.1e+03],\n"
+            "           ...,\n"
+            "           [1.2e+03, 1.2e+03, 1.2e+03,  ..., 1.2e+03, 1.2e+03, 1.2e+03],\n"
+            "           [1.2e+03, 1.2e+03, 1.2e+03,  ..., 1.2e+03, 1.2e+03, 1.2e+03],\n"
+            "           [1.2e+03, 1.2e+03, 1.2e+03,  ..., 1.2e+03, 1.2e+03, 1.2e+03]],\n"
+            "\n"
+            "          [[1.2e+03, 1.2e+03, 1.2e+03,  ..., 1.2e+03, 1.2e+03, 1.2e+03],\n"
+            "           [1.2e+03, 1.2e+03, 1.2e+03,  ..., 1.2e+03, 1.2e+03, 1.2e+03],\n"
+            "           [1.2e+03, 1.2e+03, 1.2e+03,  ..., 1.2e+03, 1.2e+03, 1.2e+03],\n"
+            "           ...,\n"
+            "           [1.3e+03, 1.3e+03, 1.3e+03,  ..., 1.3e+03, 1.3e+03, 1.3e+03],\n"
+            "           [1.3e+03, 1.3e+03, 1.3e+03,  ..., 1.3e+03, 1.3e+03, 1.3e+03],\n"
+            "           [1.3e+03, 1.3e+03, 1.3e+03,  ..., 1.3e+03, 1.3e+03, 1.3e+03]]], dtype=ht.float32, device=cpu:0, split=0)"
+        )
+        __repr = repr(tensor)
+
+        if tensor.comm.rank == 0:
+            self.assertEqual(comparison, __repr)
 
     def test_split_1_below_threshold(self):
         ht.set_printoptions(sci_mode=True)
         tensor = ht.arange(0.5, 4 * 5 * 6 + 0.5, dtype=ht.float64).reshape((4, 5, 6)).resplit_(1)
-        string = (
+        comparison = (
             "DNDarray([[[5.0000e-01, 1.5000e+00, 2.5000e+00, 3.5000e+00, 4.5000e+00, 5.5000e+00],\n"
             "           [6.5000e+00, 7.5000e+00, 8.5000e+00, 9.5000e+00, 1.0500e+01, 1.1500e+01],\n"
             "           [1.2500e+01, 1.3500e+01, 1.4500e+01, 1.5500e+01, 1.6500e+01, 1.7500e+01],\n"
@@ -206,15 +275,49 @@ class TestPrinting(TestCase):
             "           [1.0850e+02, 1.0950e+02, 1.1050e+02, 1.1150e+02, 1.1250e+02, 1.1350e+02],\n"
             "           [1.1450e+02, 1.1550e+02, 1.1650e+02, 1.1750e+02, 1.1850e+02, 1.1950e+02]]], dtype=ht.float64, device=cpu:0, split=1)"
         )
+        __repr = repr(tensor)
 
-        self.assertEqual(repr(tensor), string)
+        if tensor.comm.rank == 0:
+            self.assertEqual(comparison, __repr)
 
     def test_split_1_above_threshold(self):
-        self.assertTrue(False)
+        ht.set_printoptions(edgeitems=2)
+        tensor = ht.arange(10 * 11 * 12).reshape((10, 11, 12)).resplit_(1)
+        comparison = (
+            "DNDarray([[[   0,    1,  ...,   10,   11],\n"
+            "           [  12,   13,  ...,   22,   23],\n"
+            "           ...,\n"
+            "           [ 108,  109,  ...,  118,  119],\n"
+            "           [ 120,  121,  ...,  130,  131]],\n"
+            "\n"
+            "          [[ 132,  133,  ...,  142,  143],\n"
+            "           [ 144,  145,  ...,  154,  155],\n"
+            "           ...,\n"
+            "           [ 240,  241,  ...,  250,  251],\n"
+            "           [ 252,  253,  ...,  262,  263]],\n"
+            "\n"
+            "          ...,\n"
+            "\n"
+            "          [[1056, 1057,  ..., 1066, 1067],\n"
+            "           [1068, 1069,  ..., 1078, 1079],\n"
+            "           ...,\n"
+            "           [1164, 1165,  ..., 1174, 1175],\n"
+            "           [1176, 1177,  ..., 1186, 1187]],\n"
+            "\n"
+            "          [[1188, 1189,  ..., 1198, 1199],\n"
+            "           [1200, 1201,  ..., 1210, 1211],\n"
+            "           ...,\n"
+            "           [1296, 1297,  ..., 1306, 1307],\n"
+            "           [1308, 1309,  ..., 1318, 1319]]], dtype=ht.int32, device=cpu:0, split=1)"
+        )
+        __repr = repr(tensor)
+
+        if tensor.comm.rank == 0:
+            self.assertEqual(comparison, __repr)
 
     def test_split_2_below_threshold(self):
         tensor = ht.arange(4 * 5 * 6, dtype=ht.uint8).reshape((4, 5, 6)).resplit_(2)
-        string = (
+        comparison = (
             "DNDarray([[[  0,   1,   2,   3,   4,   5],\n"
             "           [  6,   7,   8,   9,  10,  11],\n"
             "           [ 12,  13,  14,  15,  16,  17],\n"
@@ -239,8 +342,40 @@ class TestPrinting(TestCase):
             "           [108, 109, 110, 111, 112, 113],\n"
             "           [114, 115, 116, 117, 118, 119]]], dtype=ht.uint8, device=cpu:0, split=2)"
         )
+        __repr = repr(tensor)
 
-        self.assertEqual(repr(tensor), string)
+        if tensor.comm.rank == 0:
+            self.assertEqual(comparison, __repr)
 
     def test_split_2_above_threshold(self):
-        self.assertTrue(False)
+        ht.set_printoptions(threshold=1)
+        tensor = ht.arange(3 * 10 * 12).reshape((3, 10, 12)).resplit_(2)
+        comparison = (
+            "DNDarray([[[  0,   1,   2,  ...,   9,  10,  11],\n"
+            "           [ 12,  13,  14,  ...,  21,  22,  23],\n"
+            "           [ 24,  25,  26,  ...,  33,  34,  35],\n"
+            "           ...,\n"
+            "           [ 84,  85,  86,  ...,  93,  94,  95],\n"
+            "           [ 96,  97,  98,  ..., 105, 106, 107],\n"
+            "           [108, 109, 110,  ..., 117, 118, 119]],\n"
+            "\n"
+            "          [[120, 121, 122,  ..., 129, 130, 131],\n"
+            "           [132, 133, 134,  ..., 141, 142, 143],\n"
+            "           [144, 145, 146,  ..., 153, 154, 155],\n"
+            "           ...,\n"
+            "           [204, 205, 206,  ..., 213, 214, 215],\n"
+            "           [216, 217, 218,  ..., 225, 226, 227],\n"
+            "           [228, 229, 230,  ..., 237, 238, 239]],\n"
+            "\n"
+            "          [[240, 241, 242,  ..., 249, 250, 251],\n"
+            "           [252, 253, 254,  ..., 261, 262, 263],\n"
+            "           [264, 265, 266,  ..., 273, 274, 275],\n"
+            "           ...,\n"
+            "           [324, 325, 326,  ..., 333, 334, 335],\n"
+            "           [336, 337, 338,  ..., 345, 346, 347],\n"
+            "           [348, 349, 350,  ..., 357, 358, 359]]], dtype=ht.int32, device=cpu:0, split=2)"
+        )
+        __repr = repr(tensor)
+
+        if tensor.comm.rank == 0:
+            self.assertEqual(comparison, __repr)
