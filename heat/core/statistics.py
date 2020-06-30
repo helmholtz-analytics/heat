@@ -21,6 +21,7 @@ __all__ = [
     "argmin",
     "average",
     "cov",
+    "kurtosis",
     "max",
     "maximum",
     "mean",
@@ -439,6 +440,104 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     c = linalg.dot(x, x.T)
     c /= norm
     return c
+
+
+def kurtosis(x, axis=None, unbiased=True, Fischer=True):
+    """
+    Compute the kurtosis (Fisher or Pearson) of a dataset.
+
+    Kurtosis is the fourth central moment divided by the square of the variance.
+    If Fisher’s definition is used, then 3.0 is subtracted from the result to give 0.0 for a normal distribution.
+
+    If unbiased is True (defualt) then the kurtosis is calculated using k statistics to
+    eliminate bias coming from biased moment estimators
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        Input array
+    axis : NoneType or Int or iterable
+        Axis along which skewness is calculated, Default is to compute over the whole array `x`
+    unbiased : Bool
+        if True (default) the calculations are corrected for bias
+    Fischer : bool
+        Wheather use Fischer's definition or not, if true 3. is subtracted from the result
+
+    """
+
+    def __reduce_kurts_elementwise(output_shape_i):
+        """
+        Function to combine the calculated skews together. This does an element-wise update of the
+        calculated vars to merge them together using the merge_vars function. This function operates
+        using x from the var function parameters.
+
+        Parameters
+        ----------
+        output_shape_i : iterable
+            Iterable with the dimensions of the output of the var function.
+        """
+
+        if x.lshape[x.split] != 0:
+            mu = torch.mean(x._DNDarray__array, dim=axis)
+            var = torch.var(x._DNDarray__array, dim=axis, unbiased=unbiased)
+            skl = __torch_skew(x._DNDarray__array, dim=axis, unbiased=unbiased)
+            kurtl = __torch_kurtosis(x._DNDarray__array, dim=axis, Fischer=Fischer)
+        else:
+            mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+            var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+            skl = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+            kurtl = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+
+        sk_shape = list(skl.shape) if list(skl.shape) else [1]
+
+        rtot = factories.zeros(([x.comm.size, 4] + sk_shape), dtype=x.dtype, device=x.device)
+        rtot[x.comm.rank, 0, :] = kurtl
+        rtot[x.comm.rank, 1, :] = skl
+        rtot[x.comm.rank, 2, :] = var
+        rtot[x.comm.rank, 3, :] = mu
+        rtot[x.comm.rank, 4, :] = float(x.lshape[x.split])
+        x.comm.Allreduce(MPI.IN_PLACE, rtot, MPI.SUM)
+
+        # print(rtot[x.comm.rank, 0, :])
+        for i in range(1, x.comm.size):
+            rtot[0, 0, :], rtot[0, 1, :], rtot[0, 2, :], rtot[0, 3, :], rtot[
+                0, 4, :
+            ] = __merge_moments(
+                (rtot[0, 0, :], rtot[0, 1, :], rtot[0, 2, :], rtot[0, 3, :], rtot[0, 4, :]),
+                (rtot[i, 0, :], rtot[i, 1, :], rtot[i, 2, :], rtot[i, 3, :], rtot[i, 4, :]),
+                unbiased=unbiased,
+            )
+        return rtot[0, 0, :][0] if rtot[0, 0, :].size == 1 else rtot[0, 0, :]
+
+    # ----------------------------------------------------------------------------------------------
+    if axis is None:  # no axis given
+        # todo: determine if this is a valid (and fast implementation)
+        mu = mean(x)
+        diff = x - mu
+        n = x.numel
+
+        m4 = arithmetics.sum(arithmetics.pow(diff, 4.0)) / n
+        m2 = arithmetics.sum(arithmetics.pow(diff, 2.0)) / n
+        res = m4 / arithmetics.pow(m2, 2.0)
+        if Fischer:
+            res -= 3.0
+        return res.item()
+
+    elif isinstance(axis, int) and x.split == axis:  # axis is given
+        if axis > 0:
+            diff = x - mean(x, axis=axis).expand_dims(axis)
+        else:
+            diff = x - mean(x, axis=axis)
+        n = float(x.shape[axis])
+        # possible speedup to be had here:
+        m4 = arithmetics.sum(arithmetics.pow(diff, 4.0), axis) / n
+        m2 = arithmetics.sum(arithmetics.pow(diff, 2.0), axis) / n
+        res = m4 / arithmetics.pow(m2, 2.0)
+        if Fischer:
+            res -= 3.0
+        return res
+    else:
+        return __moment_w_axis(__torch_kurtosis, x, axis, __reduce_kurts_elementwise, Fischer)
 
 
 def max(x, axis=None, out=None, keepdim=None):
@@ -1137,46 +1236,6 @@ def skew(x, axis=None, unbiased=True):
         if unbiased:
             res *= ((n * (n - 1)) ** 0.5) / (n - 2.0)
         return res.item()
-        # if not x.is_distributed():  # not distributed (full tensor on one node)
-        #     print('here')
-        #     ret = __torch_skew(x._DNDarray__array.float(), unbiased=unbiased)
-        #     return factories.array(ret)
-        #
-        # else:  # case for full matrix calculation (axis is None)
-        #     # todo: time this to see if its faster to do this than merging
-        #
-        #     m2 = torch.true_divide(torch.sum(torch.pow(diff, 2)), n)
-        #     work_arr = x._DNDarray__array.float()
-        #     mu_in = torch.mean(work_arr)
-        #     # work_arr -= mu_in
-        #     var_in = torch.var(work_arr, unbiased=unbiased)
-        #     skew_in = __torch_skew(work_arr, unbiased=unbiased)
-        #     # Nan is returned when local tensor is empty
-        #     if torch.isnan(skew_in):
-        #         skew_in = 0.0
-        #     if torch.isnan(var_in):
-        #         var_in = 0.0
-        #     if torch.isnan(mu_in):
-        #         mu_in = 0.0
-        #
-        #     n = x.lnumel
-        #     tot = factories.zeros(
-        #         (x.comm.size, 4), dtype=types.promote_types(x.dtype, types.float), device=x.device
-        #     )
-        #     skew_proc = factories.zeros(
-        #         (x.comm.size, 4), dtype=types.promote_types(x.dtype, types.float), device=x.device
-        #     )
-        #     skew_proc[x.comm.rank] = skew_in, var_in, mu_in, n
-        #     x.comm.Allreduce(skew_proc, tot, MPI.SUM)
-        #     print(skew_proc[x.comm.rank])
-        #
-        #     for i in range(1, x.comm.size):
-        #         tot[0, 0], tot[0, 1], tot[0, 2], tot[0, 3] = __merge_moments(
-        #             (tot[0, 0], tot[0, 1], tot[0, 2], tot[0, 3]),
-        #             (tot[i, 0], tot[i, 1], tot[i, 2], tot[0, 3]),
-        #             unbiased=unbiased,
-        #         )
-        #     return tot[0][0]
 
     elif isinstance(axis, int) and x.split == axis:  # axis is given
         if axis > 0:
@@ -1184,7 +1243,7 @@ def skew(x, axis=None, unbiased=True):
         else:
             diff = x - mean(x, axis=axis)
         n = float(x.shape[axis])
-
+        # possible speedup to be had here:
         m3 = arithmetics.sum(arithmetics.pow(diff, 3.0), axis) / n
         m2 = arithmetics.sum(arithmetics.pow(diff, 2.0), axis) / n
         res = m3 / arithmetics.pow(m2, 1.5)
@@ -1327,7 +1386,7 @@ def __torch_skew(torch_tensor, dim=None, unbiased=False):
     return coeff * torch.true_divide(m3, torch.pow(m2, 1.5))
 
 
-def __torch_kurtosis(torch_tensor, dim=None, excess=True):
+def __torch_kurtosis(torch_tensor, dim=None, Fischer=True):
     # calculate the sample kurtosis of a torch tensor, Pearson's definition
     # returns the excess Kurtosis if excess is True
     # there is not unbiased estimator for Kurtosis
@@ -1342,7 +1401,7 @@ def __torch_kurtosis(torch_tensor, dim=None, excess=True):
         m4 = torch.true_divide(torch.pow(diff, 4), n)
         m2 = torch.true_divide(torch.pow(diff, 2), n)
     k = torch.true_divide(m4, torch.pow(m2, 2))
-    if excess:
+    if Fischer:
         k -= 3.0
     return k
 
