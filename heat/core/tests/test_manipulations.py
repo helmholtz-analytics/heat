@@ -1,7 +1,7 @@
 import numpy as np
 import torch
+
 import heat as ht
-import os
 from .test_suites.basic_test import TestCase
 
 
