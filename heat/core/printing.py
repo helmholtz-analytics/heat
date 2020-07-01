@@ -145,7 +145,7 @@ def _torch_data(dndarray, summarize: bool) -> torch.Tensor:
                 buffer.seek(0)
                 received[i] = torch.load(buffer)
 
-            # stack them along the split axis
+            # concatenate them along the split axis
             data = torch.cat(received, dim=dndarray.split)
 
     return data
