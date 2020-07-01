@@ -342,6 +342,28 @@ class TestStatistics(TestCase):
         data = np.loadtxt("heat/datasets/data/iris.csv", delimiter=";")
         np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False)
 
+        # split = None tests
+        htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=None)
+        ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
+        comp = ht.array(np_cov, dtype=ht.float)
+        self.assertTrue(ht.allclose(comp - ht_cov, 0, atol=1e-4))
+
+        np_cov = np.cov(data, rowvar=False)
+        ht_cov = ht.cov(htdata, rowvar=False)
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+
+        np_cov = np.cov(data, rowvar=False, ddof=1)
+        ht_cov = ht.cov(htdata, rowvar=False, ddof=1)
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+
+        np_cov = np.cov(data, rowvar=False, bias=True)
+        ht_cov = ht.cov(htdata, rowvar=False, bias=True)
+        self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
+
+        # split = 0 tests
+        data = np.loadtxt("heat/datasets/data/iris.csv", delimiter=";")
+        np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False)
+
         htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
         ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
         comp = ht.array(np_cov, dtype=ht.float)
@@ -360,6 +382,7 @@ class TestStatistics(TestCase):
         self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
 
         if 1 < x.comm.size < 5:
+            # split 1 tests
             htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=1)
             np_cov = np.cov(data, rowvar=False)
             ht_cov = ht.cov(htdata, rowvar=False)
