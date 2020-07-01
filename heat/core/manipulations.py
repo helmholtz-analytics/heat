@@ -1500,6 +1500,9 @@ def stack(arrays, axis=0, out=None):
     """
 
     # sanitation
+    if not isinstance(arrays, (tuple, list)):
+        raise TypeError("arrays must be a list or a tuple")
+
     if len(arrays) < 2:
         raise ValueError("stack expects a sequence of at least 2 DNDarrays")
 

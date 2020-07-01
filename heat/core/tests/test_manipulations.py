@@ -1580,6 +1580,10 @@ class TestManipulations(TestCase):
         # test exceptions
         with self.assertRaises(TypeError):
             ht.stack((ht_a, b, ht_c))
+        with self.assertRaises(TypeError):
+            ht.stack((ht_a))
+        with self.assertRaises(ValueError):
+            ht.stack((ht_a,))
         ht_c_wrong_shape = ht.array(c.reshape(2, 10))
         with self.assertRaises(ValueError):
             ht.stack((ht_a, ht_b, ht_c_wrong_shape))
