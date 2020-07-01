@@ -1500,8 +1500,7 @@ def stack(arrays, axis=0, out=None):
             )
 
     arrays_metadata = list(
-        [array.gshape, array.split, array.dtype, array.device, array.is_balanced()]
-        for array in arrays
+        [array.gshape, array.split, array.device, array.is_balanced()] for array in arrays
     )
     num_arrays = len(arrays)
     # metadata must be identical for all arrays
@@ -1517,15 +1516,12 @@ def stack(arrays, axis=0, out=None):
                 "All DNDarrays in sequence must have the same split axis, got splits {}"
                 "Check out the heat.resplit() documentation.".format(splits)
             )
-        dtypes = list(array.dtype for array in arrays)
-        if dtypes.count(dtypes[0]) != num_arrays:
-            raise TypeError(
-                "Same dtype expected for all DNDarrays in sequence, got dtypes {}".format(dtypes)
-            )
         devices = list(array.device for array in arrays)
         if devices.count(devices[0]) != num_arrays:
             raise RuntimeError(
-                "DNDarrays in sequence reside on different devices, got devices {}".format(devices)
+                "DNDarrays in sequence must reside on the same device, got devices {}".format(
+                    devices
+                )
             )
         balance = list(array.is_balanced() for array in arrays)
         if balance.count(balance[0]) != num_arrays:
@@ -1534,7 +1530,21 @@ def stack(arrays, axis=0, out=None):
                 "You can balance a DNDarray with the balance_() method.".format(balance)
             )
     else:
-        array_shape, array_split, array_dtype, array_device = arrays_metadata[0][:4]
+        array_shape, array_split, array_device = arrays_metadata[0][:3]
+        # extract torch tensors
+        t_arrays = list(array._DNDarray__array for array in arrays)
+        # output dtype
+        t_dtypes = list(t_array.dtype for t_array in t_arrays)
+        t_array_dtype = t_dtypes[0]
+        if t_dtypes.count(t_dtypes[0]) != num_arrays:
+            for d in range(1, len(t_dtypes)):
+                t_array_dtype = (
+                    t_array_dtype
+                    if t_array_dtype is t_dtypes[d]
+                    else torch.promote_types(t_array_dtype, t_dtypes[d])
+                )
+            t_arrays = list(t_array.type(t_array_dtype) for t_array in t_arrays)
+        array_dtype = types.canonical_heat_type(t_array_dtype)
 
     # sanitate axis
     axis = stride_tricks.sanitize_axis(array_shape + (num_arrays,), axis)
@@ -1550,6 +1560,8 @@ def stack(arrays, axis=0, out=None):
     if out is not None:
         if not isinstance(out, dndarray.DNDarray):
             raise TypeError("expected out to be None or ht.DNDarray, but was {}".format(type(out)))
+        if out.dtype is not array_dtype:
+            raise TypeError("expected out to be {}, but was {}".format(array_dtype, out.dtype))
         if out.gshape != stacked_shape:
             raise ValueError(
                 "expected out.shape to be {}, got {}".format(out.gshape, stacked_shape)
@@ -1558,8 +1570,7 @@ def stack(arrays, axis=0, out=None):
             raise ValueError("expected out.split to be {}, got {}".format(out.split, stacked_split))
     # end of sanitation
 
-    # extract torch tensors, stack locally
-    t_arrays = tuple(array._DNDarray__array for array in arrays)
+    # stack locally
     t_stacked = torch.stack(t_arrays, dim=axis)
 
     # return stacked DNDarrays
