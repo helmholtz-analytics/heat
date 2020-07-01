@@ -1,7 +1,5 @@
 import numpy as np
-import unittest
 import torch
-import os
 import heat as ht
 
 from .test_suites.basic_test import TestCase
