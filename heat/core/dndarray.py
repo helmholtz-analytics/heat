@@ -16,6 +16,7 @@ from . import linalg
 from . import logical
 from . import manipulations
 from . import memory
+from . import printing
 from . import relational
 from . import rounding
 from . import statistics
@@ -2417,10 +2418,11 @@ class DNDarray:
             self, tiles_per_proc=tiles_per_proc, calc_q=calc_q, overwrite_a=overwrite_a
         )
 
-    def __repr__(self, *args):
-        # TODO: document me
-        # TODO: generate none-PyTorch repr
-        return self.__array.__repr__(*args)
+    def __repr__(self) -> str:
+        """
+        Computes a printable representation of the passed DNDarray.
+        """
+        return printing.__str__(self)
 
     def redistribute_(self, lshape_map=None, target_map=None):
         """
@@ -3394,10 +3396,11 @@ class DNDarray:
         """
         return statistics.std(self, axis, ddof=ddof, **kwargs)
 
-    def __str__(self, *args):
-        # TODO: document me
-        # TODO: generate none-PyTorch str
-        return self.__array.__str__(*args)
+    def __str__(self) -> str:
+        """
+        Computes a string representation of the passed DNDarray.
+        """
+        return printing.__str__(self)
 
     def __sub__(self, other):
         """

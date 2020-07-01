@@ -14,6 +14,7 @@
 - [#596](https://github.com/helmholtz-analytics/heat/pull/596) New feature: `outer()`
 - [#600](https://github.com/helmholtz-analytics/heat/pull/600) New feature: `shape()`
 - [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `skew()`
+- [#614](https://github.com/helmholtz-analytics/heat/pull/614) New feature: printing of DNDarrays and ``__repr__`` and ``__str__`` functions
 - [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `kurtosis()`
 
 # v0.4.0
