@@ -1,11 +1,8 @@
 import operator
 
-import torch
-import unittest
-import os
-
 import heat as ht
 import numpy as np
+import torch
 
 from .test_suites.basic_test import TestCase
 

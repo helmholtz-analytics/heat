@@ -13,7 +13,8 @@
 - [#594](https://github.com/helmholtz-analytics/heat/pull/594) Bugfix: getitem and setitem memory consumption heavily reduced
 - [#596](https://github.com/helmholtz-analytics/heat/pull/596) New feature: outer()
 - [#600](https://github.com/helmholtz-analytics/heat/pull/600) New feature: shape()
-- [#608](https://github.com/helmholtz-analytics/heat/pull/608) New features: stack(), column_stack(), row_stack()
+- [#608](https://github.com/helmholtz-analytics/heat/pull/608) New features: ``stack()``, ``column_stack()``, ``row_stack()``
+- [#614](https://github.com/helmholtz-analytics/heat/pull/614) New feature: printing of DNDarrays and ``__repr__`` and ``__str__`` functions
 
 # v0.4.0
 
