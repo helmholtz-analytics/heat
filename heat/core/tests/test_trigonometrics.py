@@ -31,7 +31,7 @@ class TestTrigonometrics(TestCase):
         int32_tensor = ht.arange(elements, dtype=ht.int32)
         int32_arctan = ht.arctan(int32_tensor)
         self.assertIsInstance(int32_arctan, ht.DNDarray)
-        self.assertEqual(int32_arctan.dtype, ht.float64)
+        self.assertEqual(int32_arctan.dtype, ht.float32)
         self.assertTrue(torch.allclose(float32_arctan._DNDarray__array.double(), comparison))
 
         # arctan of longs, automatic conversion to intermediate floats
@@ -240,7 +240,7 @@ class TestTrigonometrics(TestCase):
         int32_tensor = ht.arange(elements, dtype=ht.int32)
         int32_cos = ht.cos(int32_tensor)
         self.assertIsInstance(int32_cos, ht.DNDarray)
-        self.assertEqual(int32_cos.dtype, ht.float64)
+        self.assertEqual(int32_cos.dtype, ht.float32)
         self.assertTrue(torch.allclose(float32_cos._DNDarray__array.double(), comparison))
 
         # cosine of longs, automatic conversion to intermediate floats
@@ -281,7 +281,7 @@ class TestTrigonometrics(TestCase):
         int32_tensor = ht.arange(elements, dtype=ht.int32)
         int32_cosh = ht.cosh(int32_tensor)
         self.assertIsInstance(int32_cosh, ht.DNDarray)
-        self.assertEqual(int32_cosh.dtype, ht.float64)
+        self.assertEqual(int32_cosh.dtype, ht.float32)
         self.assertTrue(torch.allclose(float32_cosh._DNDarray__array.double(), comparison))
 
         # hyperbolic cosine of longs, automatic conversion to intermediate floats
@@ -380,7 +380,7 @@ class TestTrigonometrics(TestCase):
         int32_tensor = ht.arange(elements, dtype=ht.int32)
         int32_sin = ht.sin(int32_tensor)
         self.assertIsInstance(int32_sin, ht.DNDarray)
-        self.assertEqual(int32_sin.dtype, ht.float64)
+        self.assertEqual(int32_sin.dtype, ht.float32)
         self.assertTrue(torch.allclose(int32_sin._DNDarray__array.double(), comparison))
 
         # sine of longs, automatic conversion to intermediate floats
@@ -421,7 +421,7 @@ class TestTrigonometrics(TestCase):
         int32_tensor = ht.arange(elements, dtype=ht.int32)
         int32_sinh = ht.sinh(int32_tensor)
         self.assertIsInstance(int32_sinh, ht.DNDarray)
-        self.assertEqual(int32_sinh.dtype, ht.float64)
+        self.assertEqual(int32_sinh.dtype, ht.float32)
         self.assertTrue(torch.allclose(int32_sinh._DNDarray__array.double(), comparison))
 
         # hyperbolic sine of longs, automatic conversion to intermediate floats
@@ -462,7 +462,7 @@ class TestTrigonometrics(TestCase):
         int32_tensor = ht.arange(elements, dtype=ht.int32)
         int32_tan = ht.tan(int32_tensor)
         self.assertIsInstance(int32_tan, ht.DNDarray)
-        self.assertEqual(int32_tan.dtype, ht.float64)
+        self.assertEqual(int32_tan.dtype, ht.float32)
         self.assertTrue(torch.allclose(int32_tan._DNDarray__array.double(), comparison))
 
         # tangent of longs, automatic conversion to intermediate floats
@@ -503,7 +503,7 @@ class TestTrigonometrics(TestCase):
         int32_tensor = ht.arange(elements, dtype=ht.int32)
         int32_tanh = ht.tanh(int32_tensor)
         self.assertIsInstance(int32_tanh, ht.DNDarray)
-        self.assertEqual(int32_tanh.dtype, ht.float64)
+        self.assertEqual(int32_tanh.dtype, ht.float32)
         self.assertTrue(torch.allclose(int32_tanh._DNDarray__array.double(), comparison))
 
         # hyperbolic tangent of longs, automatic conversion to intermediate floats
