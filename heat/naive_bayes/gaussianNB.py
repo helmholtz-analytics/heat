@@ -335,7 +335,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                     (classes._DNDarray__array, y_i._DNDarray__array.unsqueeze(0))
                 )
                 i = torch.argsort(classes_ext)[-1].item()
-            where_y_i = ht.where(y == y_i)._DNDarray__array.tolist()
+            where_y_i = ht.where(y == y_i)
             X_i = X[where_y_i, :]
 
             if sample_weight is not None:
@@ -348,11 +348,9 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             else:
                 sw_i = None
                 N_i = X_i.shape[0]
-
             new_theta, new_sigma = self.__update_mean_variance(
                 self.class_count_[i], self.theta_[i, :], self.sigma_[i, :], X_i, sw_i
             )
-
             self.theta_[i, :] = new_theta
             self.sigma_[i, :] = new_sigma
             self.class_count_[i] += N_i
@@ -381,7 +379,6 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             n_ij = -0.5 * ht.sum(ht.log(2.0 * ht.pi * self.sigma_[i, :]))
             n_ij -= 0.5 * ht.sum(((X - self.theta_[i, :]) ** 2) / (self.sigma_[i, :]), 1)
             joint_log_likelihood[:, i] = jointi + n_ij
-
         return joint_log_likelihood
 
     def logsumexp(self, a, axis=None, b=None, keepdim=False, return_sign=False) -> DNDarray:

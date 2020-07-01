@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import math
 import torch
 import warnings
 from typing import List, Dict, Any, TypeVar, Union, Tuple
@@ -18,6 +19,7 @@ from . import memory
 from . import relational
 from . import rounding
 from . import statistics
+from . import stride_tricks
 from . import tiling
 from . import trigonometrics
 
@@ -1168,222 +1170,187 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-
         l_dtype = self.dtype.torch_type()
-        if isinstance(key, DNDarray) and key.gshape[-1] != len(self.gshape):
-            key = tuple(x.item() for x in key)
+        kgshape_flag = False
+        if isinstance(key, DNDarray) and key.ndim == self.ndim:
+            """ if the key is a DNDarray and it has as many dimensions as self, then each of the entries in the 0th
+                dim refer to a single element. To handle this, the key is split into the torch tensors for each dimension.
+                This signals that advanced indexing is to be used. """
+            lkey = [slice(None, None, None)] * self.ndim
+            kgshape_flag = True
+            kgshape = [0] * len(self.gshape)
+            if key.ndim > 1:
+                for i in range(key.ndim):
+                    kgshape[i] = key.gshape[i]
+                    lkey[i] = key._DNDarray__array[..., i]
+            else:
+                kgshape[0] = key.gshape[0]
+                lkey[0] = key._DNDarray__array
+            key = tuple(lkey)
+        elif not isinstance(key, tuple):
+            """ this loop handles all other cases. DNDarrays which make it to here refer to advanced indexing slices,
+                as do the torch tensors. Both DNDaarrys and torch.Tensors are cast into lists here by PyTorch.
+                lists mean advanced indexing will be used"""
+            h = [slice(None, None, None)] * self.ndim
+            if isinstance(key, DNDarray):
+                h[0] = key._DNDarray__array.tolist()
+            elif isinstance(key, torch.Tensor):
+                h[0] = key.tolist()
+            else:
+                h[0] = key
+            key = tuple(h)
 
+        gout_full = [None] * len(self.gshape)
+        # below generates the expected shape of the output.
+        #   If lists or torch.Tensors remain in the key, some change may be made later
+        key = list(key)
+        for c, k in enumerate(key):
+            if isinstance(k, slice):
+                new_slice = stride_tricks.sanitize_slice(k, self.gshape[c])
+                gout_full[c] = math.ceil((new_slice.stop - new_slice.start) / new_slice.step)
+            elif isinstance(k, list):
+                gout_full[c] = len(k)
+            elif isinstance(k, (DNDarray, torch.Tensor)):
+                gout_full[c] = k.shape[0] if not kgshape_flag else kgshape[c]
+            if isinstance(k, DNDarray):
+                key[c] = k._DNDarray__array
+        if all(g == 1 for g in gout_full):
+            gout_full = [1]
+        else:
+            # delete the dimensions from gout_full if they are not touched (they will be removed)
+            for i in range(len(gout_full) - 1, -1, -1):
+                if gout_full[i] is None:
+                    del gout_full[i]
+
+        key = tuple(key)
         if not self.is_distributed():
             if not self.comm.size == 1:
-                if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
-                    # this will return a 1D array as the shape cannot be determined automatically
-                    arr = self.__array[key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]]
-                    return DNDarray(
-                        arr, tuple(arr.shape), self.dtype, self.split, self.device, self.comm
-                    )
-                else:
-                    return DNDarray(
-                        self.__array[key],
-                        tuple(self.__array[key].shape),
-                        self.dtype,
-                        self.split,
-                        self.device,
-                        self.comm,
-                    )
+                return factories.array(
+                    self.__array[key],
+                    dtype=self.dtype,
+                    split=self.split,
+                    device=self.device,
+                    comm=self.comm,
+                )
             else:
-                if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
-                    # this will return a 1D array as the shape cannot be determined automatically
-                    arr = self.__array[key._DNDarray__array[..., 0], key._DNDarray__array[..., 1]]
-                    return DNDarray(arr, tuple(arr.shape), self.dtype, 0, self.device, self.comm)
-
+                gout = tuple(self.__array[key].shape)
+                if self.split is not None and self.split >= len(gout):
+                    new_split = len(gout) - 1 if len(gout) - 1 >= 0 else None
                 else:
-                    gout = tuple(self.__array[key].shape)
-                    if self.split is not None and self.split >= len(gout):
-                        new_split = len(gout) - 1 if len(gout) - 1 >= 0 else None
-                    else:
-                        new_split = self.split
+                    new_split = self.split
 
-                    return DNDarray(
-                        self.__array[key], gout, self.dtype, new_split, self.device, self.comm
-                    )
+                return DNDarray(
+                    self.__array[key], gout, self.dtype, new_split, self.device, self.comm
+                )
 
         else:
-            _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
-            chunk_start = chunk_slice[self.split].start
-            chunk_end = chunk_slice[self.split].stop
-            chunk_set = set(range(chunk_start, chunk_end))
-
+            rank = self.comm.rank
+            ends = []
+            for pr in range(self.comm.size):
+                _, _, e = self.comm.chunk(self.shape, self.split, rank=pr)
+                ends.append(e[self.split].stop - e[self.split].start)
+            ends = torch.tensor(ends, device=self.device.torch_device)
+            chunk_ends = ends.cumsum(dim=0)
+            chunk_starts = torch.tensor([0] + chunk_ends.tolist(), device=self.device.torch_device)
+            chunk_start = chunk_starts[rank]
+            chunk_end = chunk_ends[rank]
             arr = torch.Tensor()
-
-            # if a singular index is given and the tensor is split
-            if isinstance(key, int):
-                gout = [0] * (len(self.gshape) - 1)
-                if key < 0:
-                    key += self.ndim
-                # handle the reduction of the split to accommodate for the reduced dimension
-                if self.split >= len(gout):
-                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
-                elif self.split > 0:
-                    new_split = self.split - 1
-                else:
-                    new_split = self.split
-
-                # only need to adjust the key if split==0
-                if key in range(chunk_start, chunk_end) and self.split == 0:
-                    gout = list(self.__array[key - chunk_start].shape)
-                    arr = self.__array[key - chunk_start]
-                elif self.split != 0:
-                    _, _, chunk_slice2 = self.comm.chunk(self.shape, self.split)
-                    # need to test if the given axis is on the node and then get the shape
-                    if key in range(chunk_slice2[0].start, chunk_slice2[0].stop):
-                        arr = self.__array[key]
-                        gout = list(arr.shape)
-                else:  # arr is empty and gout is zeros
-                    warnings.warn(
-                        "This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
-                            self.comm.rank
-                        ),
-                        ResourceWarning,
-                    )
-
-            # multi-argument gets are passed as tuples by python
-            elif isinstance(key, (tuple, list)):
-                gout = [0] * len(self.gshape)
-                # handle the dimensional reduction for integers
-                ints = sum([isinstance(it, int) for it in key])
-                gout = gout[: len(gout) - ints]
-                if self.split >= len(gout):
-                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
-                else:
-                    new_split = self.split
-
-                # handle empty list
-                if len(key) == 0:
-                    arr = self.__array[key]
-                    gout = list(arr.shape)
-                # if a slice is given in the split direction
-                # below allows for the split given to contain Nones
-                elif isinstance(key[self.split], slice):
-                    key_stop = key[self.split].stop
-                    if key_stop is not None and key_stop < 0:
-                        key_stop = self.gshape[self.split] + key[self.split].stop
-                    key_set = set(
-                        range(
-                            key[self.split].start if key[self.split].start is not None else 0,
-                            key_stop if key_stop is not None else self.gshape[self.split],
-                            key[self.split].step if key[self.split].step else 1,
-                        )
-                    )
-                    key = list(key)
-                    overlap = list(key_set & chunk_set)
-                    if overlap:  # if the slice is requesting data on the nodes
-                        overlap.sort()
-                        hold = [x - chunk_start for x in overlap]
-                        key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
-                        arr = self.__array[tuple(key)]
-                        gout = list(arr.shape)
-                else:
-                    # if the given axes are not splits (must be ints OR LISTS for python)
-                    # this means the whole slice is on one node
-                    if isinstance(key, list):
-                        indices = key
-                    else:
-                        indices = key[self.split]
-                    key = list(key)
-                    if isinstance(indices, list):
-                        if len(indices) == 0:
-                            arr = self.__array[key]
-                            gout = list(arr.shape)
-                        else:
-                            indices = [
-                                index + self.gshape[self.split] if index < 0 else index
-                                for index in indices
-                            ]
-                            sorted_key_along_split = sorted(indices)
-                            if sorted_key_along_split[0] in range(
-                                chunk_start, chunk_end
-                            ) and sorted_key_along_split[-1] in range(chunk_start, chunk_end):
-                                indices = [index - chunk_start for index in indices]
-                                arr = self.__array[indices]
-                                gout = list(arr.shape)
-
-                    elif isinstance(key[self.split], int):
-                        key[self.split] = (
-                            key[self.split] + self.gshape[self.split]
-                            if key[self.split] < 0
-                            else key[self.split]
-                        )
-                        if key[self.split] in range(chunk_start, chunk_end):
-                            key[self.split] = key[self.split] - chunk_start
-                            arr = self.__array[tuple(key)]
-                            gout = list(arr.shape)
-                    if 0 in arr.shape:
-                        # arr is empty
-                        # gout is all 0s and is the proper shape
-                        warnings.warn(
-                            "This process (rank: {}) is without data after slicing, running the .balance_() function is recommended".format(
-                                self.comm.rank
-                            ),
-                            ResourceWarning,
-                        )
-
-            # if the given axes are only a slice
-            elif isinstance(key, slice) and self.split == 0:
-                gout = [0] * len(self.gshape)
-                # reduce the dims if the slices are only one element in length
-                start = key.start if key.start is not None else 0
-                stop = key.stop if key.stop is not None else self.gshape[0]
-                step = key.step if key.step is not None else 1
-
-                if self.split >= len(gout):
-                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
-                else:
-                    new_split = self.split
-                key_set = set(range(start, stop, step))
-                overlap = list(key_set & chunk_set)
-                if overlap:
-                    overlap.sort()
-                    hold = [x - chunk_start for x in overlap]
-                    key = slice(min(hold), max(hold) + 1, step)
-                    arr = self.__array[key]
-                    gout = list(arr.shape)
-                else:
-                    warnings.warn(
-                        "This process (rank: {}) is without data after slicing, "
-                        "running the .balance_() function is recommended".format(self.comm.rank),
-                        ResourceWarning,
-                    )
-                    # arr is empty
-                    # gout is all 0s and is the proper shape
-
-            elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
-                # this is for a list of values
-                # it will return a 1D DNDarray of the elements on each node which are in the key (will be split in the 0th dimension
-                key.lloc[..., self.split] -= chunk_start
-                key_new = [key._DNDarray__array[..., i] for i in range(len(self.gshape))]
-                arr = self.__array[tuple(key_new)]
-                gout = list(arr.shape)
-                new_split = 0
-
-            else:  # handle other cases not accounted for (one is a slice is given and the split != 0)
-                gout = [0] * len(self.gshape)
-
-                if self.split >= len(gout):
-                    new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
-                else:
-                    new_split = self.split
-
-                gout = list(self.__array[key].shape)
+            # all keys should be tuples here
+            gout = [0] * len(self.gshape)
+            # handle the dimensional reduction for integers
+            ints = sum(isinstance(it, int) for it in key)
+            gout = gout[: len(gout) - ints]
+            if self.split >= len(gout):
+                new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
+            else:
+                new_split = self.split
+            if len(key) == 0:  # handle empty list
+                # this will return an array of shape (0, ...)
                 arr = self.__array[key]
+                gout_full = list(arr.shape)
 
-            for e, _ in enumerate(gout):
-                if e == new_split:
-                    gout[e] = self.comm.allreduce(gout[e], MPI.SUM)
-                else:
-                    gout[e] = self.comm.allreduce(gout[e], MPI.MAX)
+            """ At the end of the following if/elif/elif block the output array will be set.
+                each block handles the case where the element of the key along the split axis is a different type
+                and converts the key from global indices to local indices.
+            """
+            if isinstance(key[self.split], (list, torch.Tensor, DNDarray)):
+                # advanced indexing, elements in the split dimension are adjusted to the local indices
+                lkey = list(key)
+                if isinstance(key[self.split], DNDarray):
+                    lkey[self.split] = key[self.split]._DNDarray__array
+                inds = (
+                    torch.tensor(
+                        lkey[self.split], dtype=torch.long, device=self.device.torch_device
+                    )
+                    if not isinstance(lkey[self.split], torch.Tensor)
+                    else lkey[self.split]
+                )
+
+                loc_inds = torch.where((inds >= chunk_start) & (inds < chunk_end))
+                if len(loc_inds[0]) != 0:
+                    # if there are no local indices on a process, then `arr` is empty
+                    inds = inds[loc_inds] - chunk_start
+                    lkey[self.split] = inds
+                    arr = self.__array[tuple(lkey)]
+            elif isinstance(key[self.split], slice):
+                # standard slicing along the split axis,
+                #   adjust the slice start, stop, and step, then run it on the processes which have the requested data
+                key = list(key)
+                key_start = key[self.split].start if key[self.split].start is not None else 0
+                key_stop = (
+                    key[self.split].stop
+                    if key[self.split].stop is not None
+                    else self.gshape[self.split]
+                )
+                if key_stop < 0:
+                    key_stop = self.gshape[self.split] + key[self.split].stop
+                key_step = key[self.split].step
+                og_key_start = key_start
+                st_pr = torch.where(key_start < chunk_ends)[0]
+                st_pr = st_pr[0] if len(st_pr) > 0 else self.comm.size
+                sp_pr = torch.where(key_stop >= chunk_starts)[0]
+                sp_pr = sp_pr[-1] if len(sp_pr) > 0 else 0
+                actives = list(range(st_pr, sp_pr + 1))
+                if rank in actives:
+                    key_start = 0 if rank != actives[0] else key_start - chunk_starts[rank]
+                    key_stop = ends[rank] if rank != actives[-1] else key_stop - chunk_starts[rank]
+                    if key_step is not None and rank > actives[0]:
+                        offset = (chunk_ends[rank - 1] - og_key_start) % key_step
+                        if key_step > 2 and offset > 0:
+                            key_start += key_step - offset
+                        elif key_step == 2 and offset > 0:
+                            key_start += (chunk_ends[rank - 1] - og_key_start) % key_step
+                    if isinstance(key_start, torch.Tensor):
+                        key_start = key_start.item()
+                    if isinstance(key_stop, torch.Tensor):
+                        key_stop = key_stop.item()
+                    key[self.split] = slice(key_start, key_stop, key_step)
+                    arr = self.__array[tuple(key)]
+
+            elif isinstance(key[self.split], int):
+                # if there is an integer in the key along the split axis, adjust it and then get `arr`
+                key = list(key)
+                key[self.split] = (
+                    key[self.split] + self.gshape[self.split]
+                    if key[self.split] < 0
+                    else key[self.split]
+                )
+                if key[self.split] in range(chunk_start, chunk_end):
+                    key[self.split] = key[self.split] - chunk_start
+                    arr = self.__array[tuple(key)]
+
+            if 0 in arr.shape:
+                # arr is empty
+                # gout is all 0s as is the shape
+                warnings.warn(
+                    "This process (rank: {}) is without data after slicing, "
+                    "running the .balance_() function is recommended".format(self.comm.rank),
+                    ResourceWarning,
+                )
+
             return DNDarray(
                 arr.type(l_dtype),
-                gout if isinstance(gout, tuple) else tuple(gout),
+                gout_full if isinstance(gout_full, tuple) else tuple(gout_full),
                 self.dtype,
                 new_split,
                 self.device,
@@ -2102,9 +2069,12 @@ class DNDarray:
                 (self.comm.size, len(self.gshape)), dtype=int, device=self.device.torch_device
             )
             _, _, chk = self.comm.chunk(self.shape, self.split)
-            for i in range(len(self.gshape)):
-                target_map[self.comm.rank, i] = chk[i].stop - chk[i].start
-            self.comm.Allreduce(MPI.IN_PLACE, target_map, MPI.SUM)
+            target_map = lshape_map.clone()
+            target_map[..., self.split] = 0
+            for pr in range(self.comm.size):
+                target_map[pr, self.split] = self.comm.chunk(self.shape, self.split, rank=pr)[1][
+                    self.split
+                ]
         else:
             if not isinstance(target_map, torch.Tensor):
                 raise TypeError(
@@ -2632,63 +2602,88 @@ class DNDarray:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
-        if isinstance(key, DNDarray) and key.gshape[-1] != len(self.gshape):
-            key = tuple(x.item() for x in key)
+        if isinstance(key, DNDarray) and key.ndim == self.ndim:
+            # this splits the key into torch.Tensors in each dimension for advanced indexing
+            lkey = [slice(None, None, None)] * self.ndim
+            for i in range(key.ndim):
+                lkey[i] = key._DNDarray__array[..., i]
+            key = tuple(lkey)
+        elif not isinstance(key, tuple):
+            h = [slice(None, None, None)] * self.ndim
+            h[0] = key
+            key = tuple(h)
+
         if not self.is_distributed():
-            if isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
-                # this is for a list of values
-                for i in range(key.gshape[0]):
-                    self.__setter((key[i, 0].item(), key[i, 1].item()), value)
-            else:
-                self.__setter(key, value)
+            self.__setter(key, value)
         else:
             # raise RuntimeError("split axis of array and the target value are not equal") removed
             # this will occur if the local shapes do not match
+            rank = self.comm.rank
+            ends = []
+            for pr in range(self.comm.size):
+                _, _, e = self.comm.chunk(self.shape, self.split, rank=pr)
+                ends.append(e[self.split].stop - e[self.split].start)
+            ends = torch.tensor(ends, device=self.device.torch_device)
+            chunk_ends = ends.cumsum(dim=0)
+            chunk_starts = torch.tensor([0] + chunk_ends.tolist(), device=self.device.torch_device)
             _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
             chunk_start = chunk_slice[self.split].start
             chunk_end = chunk_slice[self.split].stop
 
-            if isinstance(key, int):
-                if key < 0:
-                    key += self.ndim
-                if self.split == 0:
-                    if key in range(chunk_start, chunk_end):
-                        self.__setter(key - chunk_start, value)
-                if self.split > 0:
-                    if (
-                        self[key].split is not None
-                        and isinstance(value, DNDarray)
-                        and value.split is None
-                    ):
-                        value = factories.array(value, split=self[key].split)
-                    self.__setter(key, value)
-            elif isinstance(key, (tuple, torch.Tensor)):
+            if isinstance(key, tuple):
                 if isinstance(key[self.split], slice):
                     key = list(key)
-                    overlap = list(
-                        set(
-                            range(
-                                key[self.split].start if key[self.split].start is not None else 0,
-                                key[self.split].stop
-                                if key[self.split].stop is not None
-                                else self.gshape[self.split],
-                                key[self.split].step if key[self.split].step is not None else 1,
-                            )
-                        )
-                        & set(range(chunk_start, chunk_end))
+                    key_start = key[self.split].start if key[self.split].start is not None else 0
+                    key_stop = (
+                        key[self.split].stop
+                        if key[self.split].stop is not None
+                        else self.gshape[self.split]
                     )
-                    if overlap:
-                        overlap.sort()
-                        hold = [x - chunk_start for x in overlap]
-                        key[self.split] = slice(min(hold), max(hold) + 1, key[self.split].step)
-                        try:
-                            self.__setter(tuple(key), value[overlap])
-                        except TypeError as te:
-                            if str(te) != "'int' object is not subscriptable":
-                                raise TypeError(te)
+                    if key_stop < 0:
+                        key_stop = self.gshape[self.split] + key[self.split].stop
+                    key_step = key[self.split].step
+                    og_key_start = key_start
+                    st_pr = torch.where(key_start < chunk_ends)[0]
+                    st_pr = st_pr[0] if len(st_pr) > 0 else self.comm.size
+                    sp_pr = torch.where(key_stop >= chunk_starts)[0]
+                    sp_pr = sp_pr[-1] if len(sp_pr) > 0 else 0
+                    actives = list(range(st_pr, sp_pr + 1))
+                    if rank in actives:
+                        key_start = 0 if rank != actives[0] else key_start - chunk_starts[rank]
+                        key_stop = (
+                            ends[rank] if rank != actives[-1] else key_stop - chunk_starts[rank]
+                        )
+                        if key_step is not None and rank > actives[0]:
+                            offset = (chunk_ends[rank - 1] - og_key_start) % key_step
+                            if key_step > 2 and offset > 0:
+                                key_start += key_step - offset
+                            elif key_step == 2 and offset > 0:
+                                key_start += (chunk_ends[rank - 1] - og_key_start) % key_step
+                        if isinstance(key_start, torch.Tensor):
+                            key_start = key_start.item()
+                        if isinstance(key_stop, torch.Tensor):
+                            key_stop = key_stop.item()
+                        key[self.split] = slice(key_start, key_stop, key_step)
+                        # todo: need to slice the values to be the right size...
+                        if isinstance(value, (torch.Tensor, type(self))):
+                            value_slice = [slice(None, None, None)] * value.ndim
+                            step2 = key_step if key_step is not None else 1
+                            key_start = chunk_starts[rank] - og_key_start
+                            key_stop = key_start + key_stop
+                            slice_loc = (
+                                value.ndim - 1 if self.split > value.ndim - 1 else self.split
+                            )
+                            value_slice[slice_loc] = slice(
+                                key_start.item(), math.ceil(torch.true_divide(key_stop, step2)), 1
+                            )
+                            self.__setter(tuple(key), value[tuple(value_slice)])
+                        else:
                             self.__setter(tuple(key), value)
-                        except IndexError:
-                            self.__setter(tuple(key), value)
+
+                elif isinstance(key[self.split], torch.Tensor):
+                    key = list(key)
+                    key[self.split] -= chunk_start
+                    self.__setter(tuple(key), value)
 
                 elif key[self.split] in range(chunk_start, chunk_end):
                     key = list(key)
@@ -2698,23 +2693,8 @@ class DNDarray:
                 elif key[self.split] < 0:
                     key = list(key)
                     if self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
-                        key[self.split] = key[self.split] + chunk_end - chunk_start
+                        key[self.split] = key[self.split] + self.shape[self.split] - chunk_start
                         self.__setter(tuple(key), value)
-
-            elif isinstance(key, slice) and self.split == 0:
-                overlap = list(set(range(key.start, key.stop)) & set(range(chunk_start, chunk_end)))
-                if overlap:
-                    overlap.sort()
-                    hold = [x - chunk_start for x in overlap]
-                    key = slice(min(hold), max(hold) + 1, key.step)
-                    self.__setter(key, value)
-
-            elif isinstance(key, DNDarray) and key.gshape[-1] == len(self.gshape):
-                # this is the case with a list of indices to set
-                key = key.copy()
-                key.lloc[..., self.split] -= chunk_start
-                key_new = [key._DNDarray__array[..., i] for i in range(len(self.gshape))]
-                self.__setter(tuple(key_new), value)
             else:
                 self.__setter(key, value)
 
@@ -2973,7 +2953,37 @@ class DNDarray:
         """
         return trigonometrics.tanh(self, out)
 
-    def transpose(self, axes=None) -> DNDarray:
+    def tolist(self, keepsplit=False) -> List:
+        """
+        Return a copy of the local array data as a (nested) Python list. For scalars, a standard Python number is returned.
+
+        Parameters
+        ----------
+        keepsplit: bool
+            Whether the list should be returned locally or globally.
+
+        Examples
+        --------
+        >>> a = ht.array([[0,1],[2,3]])
+        >>> a.tolist()
+        [[0, 1], [2, 3]]
+
+        >>> a = ht.array([[0,1],[2,3]], split=0)
+        >>> a.tolist()
+        [[0, 1], [2, 3]]
+
+        >>> a = ht.array([[0,1],[2,3]], split=1)
+        >>> a.tolist(keepsplit=True)
+        (1/2) [[0], [2]]
+        (2/2) [[1], [3]]
+        """
+
+        if not keepsplit:
+            return manipulations.resplit(self, axis=None).__array.tolist()
+
+        return self.__array.tolist()
+
+    def transpose(self, axes=None):
         """
         Permute the dimensions of an array.
 

@@ -314,9 +314,11 @@ def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple
             )
             wgt_slice = [slice(None) if dim == axis else 0 for dim in list(range(x.ndim))]
             wgt_split = None if weights.split is None else axis
-            wgt = factories.empty(wgt_lshape, dtype=weights.dtype, device=x.device)
-            wgt._DNDarray__array[wgt_slice] = weights._DNDarray__array
-            wgt = factories.array(wgt._DNDarray__array, is_split=wgt_split)
+            wgt = torch.empty(
+                wgt_lshape, dtype=weights.dtype.torch_type(), device=x.device.torch_device
+            )
+            wgt[wgt_slice] = weights._DNDarray__array
+            wgt = factories.array(wgt, is_split=wgt_split)
         else:
             if x.comm.is_distributed():
                 if x.split is not None and weights.split != x.split and weights.ndim != 1:
@@ -328,7 +330,6 @@ def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple
             wgt._DNDarray__array = weights._DNDarray__array
 
         cumwgt = wgt.sum(axis=axis)
-
         if logical.any(cumwgt == 0.0):
             raise ZeroDivisionError("Weights sum to zero, can't be normalized")
 
@@ -384,9 +385,11 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None) -> DNDarray:
 
     if ddof is None:
         if bias == 0:
-            ddof = 1
+            ddof = 1.0
         else:
-            ddof = 0
+            ddof = 0.0
+    elif isinstance(ddof, int):
+        ddof = float(ddof)
 
     if y is not None:
         if not isinstance(y, DNDarray):

@@ -49,7 +49,7 @@ def __binary_op(operation, t1, t2) -> DNDarray:
             output_device = None
             output_comm = MPI_WORLD
         elif isinstance(t2, DNDarray):
-            t1.gpu() if t2.device.device_type == "gpu" else t1.cpu()
+            t1 = t1.gpu() if t2.device.device_type == "gpu" else t1.cpu()
 
             output_shape = t2.shape
             output_split = t2.split
@@ -120,10 +120,6 @@ def __binary_op(operation, t1, t2) -> DNDarray:
             raise TypeError(
                 "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
             )
-
-        if t2.dtype != t1.dtype:
-            t2 = t2.astype(t1.dtype)
-
     else:
         raise NotImplementedError("Not implemented for non scalar")
 
@@ -366,8 +362,14 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs) -> DNDarray
     if 0 in x.lshape and (axis is None or (x.split in axis)):
         if neutral is None:
             neutral = float("nan")
-        neutral_shape = x.lshape[:split] + (1,) + x.lshape[split + 1 :]
-        partial = torch.full(neutral_shape, fill_value=neutral, dtype=x._DNDarray__array.dtype)
+        neutral_shape = x.gshape[:split] + (1,) + x.gshape[split + 1 :]
+        partial = torch.full(
+            neutral_shape,
+            fill_value=neutral,
+            dtype=x.dtype.torch_type(),
+            device=x.device.torch_device,
+        )
+
     else:
         partial = x._DNDarray__array
 
@@ -389,7 +391,8 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs) -> DNDarray
                 lshape_losedim = (partial.shape[0],) + lshape_losedim
             if 0 not in axis and partial.shape[0] != x.lshape[0]:
                 lshape_losedim = (partial.shape[0],) + lshape_losedim[1:]
-            partial = partial.reshape(lshape_losedim)
+            if len(lshape_losedim) > 0:
+                partial = partial.reshape(lshape_losedim)
 
     # Check shape of output buffer, if any
     if out is not None and out.shape != output_shape:

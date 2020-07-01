@@ -452,6 +452,19 @@ __safe_cast = [
     [False, False, False, False, False, False, False, True],  # float64
 ]
 
+# intuitive cast table
+__intuitive_cast = [
+    # bool  uint8  int8   int16  int32  int64  float32 float64
+    [True, True, True, True, True, True, True, True],  # bool
+    [False, True, False, True, True, True, True, True],  # uint8
+    [False, False, True, True, True, True, True, True],  # int8
+    [False, False, False, True, True, True, True, True],  # int16
+    [False, False, False, False, True, True, True, True],  # int32
+    [False, False, False, False, False, True, False, True],  # int64
+    [False, False, False, False, False, False, True, True],  # float32
+    [False, False, False, False, False, False, False, True],  # float64
+]
+
 
 # same kind table
 __same_kind = [
@@ -468,7 +481,7 @@ __same_kind = [
 
 
 # static list of possible casting methods
-__cast_kinds = ["no", "safe", "same_kind", "unsafe"]
+__cast_kinds = ["no", "safe", "same_kind", "unsafe", "intuitive"]
 
 
 def can_cast(from_, to, casting="safe") -> bool:
@@ -547,6 +560,9 @@ def can_cast(from_, to, casting="safe") -> bool:
     can_safe_cast = __safe_cast[typecode_from][typecode_to]
     if casting == "safe":
         return can_safe_cast
+    can_intuitive_cast = __intuitive_cast[typecode_from][typecode_to]
+    if casting == "intuitive":
+        return can_intuitive_cast
     return can_safe_cast or __same_kind[typecode_from][typecode_to]
 
 

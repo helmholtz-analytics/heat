@@ -71,6 +71,9 @@ def nonzero(a) -> DNDarray:
 
     if a.ndim == 1:
         lcl_nonzero = lcl_nonzero.squeeze(dim=1)
+    for g in range(len(gout) - 1, -1, -1):
+        if gout[g] == 1:
+            del gout[g]
 
     return DNDarray(
         lcl_nonzero,
@@ -126,8 +129,11 @@ def where(cond, x=None, y=None) -> DNDarray:
             if len(y.shape) >= 1 and y.shape[0] > 1:
                 raise NotImplementedError("binary op not implemented for different split axes")
     if isinstance(x, (DNDarray, int, float)) and isinstance(y, (DNDarray, int, float)):
-        cond = types.float(cond, device=cond.device)
-        return types.float(cond == 0, device=cond.device) * y + cond * x
+        if isinstance(y, int):
+            y = float(y)
+        if isinstance(x, int):
+            x = float(x)
+        return cond.dtype((cond == 0)) * y + cond * x
     elif x is None and y is None:
         return nonzero(cond)
     else:

@@ -4,12 +4,15 @@ import torch
 from .dndarray import DNDarray
 from .constants import pi
 from .operations import __local_op as local_op
+from .operations import __binary_op as binary_op
+from . import types
 
 
 __all__ = [
     "arccos",
     "arcsin",
     "arctan",
+    "arctan2",
     "cos",
     "cosh",
     "deg2rad",
@@ -89,19 +92,53 @@ def arctan(x, out=None) -> DNDarray:
     return local_op(torch.atan, x, out)
 
 
-def cos(x, out=None) -> DNDarray:
+def arctan2(x1, x2):
     """
-    Compute the trigonometric cosine, element-wise.
-    Result is a ``DNDarray`` of the same shape as ``x``.
-    Negative input elements are returned as ``NaN``. If ``out`` was provided, ``cos`` is a reference to it.
+    Element-wise arc tangent of ``x1/x2`` choosing the quadrant correctly.
+    Returns a new ``DNDarray`` with the signed angles in radians between vector (``x2``,``x1``) and vector (1,0)
 
     Parameters
     ----------
-    x : DNDarray
-        The array for which to compute the trigonometric cosine.
-    out : DNDarray, optional
+    x1 : DNDarray
+         y-coordinates
+    x2 : DNDarray
+         x-coordinates. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape (which becomes the shape of the output).
+
+    Returns
+    -------
+    DNDarray
+
+    Examples
+    --------
+    >>> x = ht.array([-1, +1, +1, -1])
+    >>> y = ht.array([-1, -1, +1, +1])
+    >>> ht.arctan2(y, x) * 180 / ht.pi
+    tensor([-135.0000,  -45.0000,   45.0000,  135.0000], dtype=torch.float64)
+    """
+    # Cast integer to float because torch.atan2() only supports integer types on PyTorch 1.5.0.
+    x1 = x1.astype(types.promote_types(x1.dtype, types.float))
+    x2 = x2.astype(types.promote_types(x2.dtype, types.float))
+
+    return binary_op(torch.atan2, x1, x2)
+
+
+def cos(x, out=None):
+    """
+    Return the trigonometric cosine, element-wise.
+
+    Parameters
+    ----------
+    x : ht.DNDarray
+        The value for which to compute the trigonometric cosine.
+    out : ht.DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh array is allocated.
+        or set to None, a fresh tensor is allocated.
+
+    Returns
+    -------
+    cosine : ht.DNDarray
+        A tensor of the same shape as x, containing the trigonometric cosine of each element in this tensor.
+        Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
     Examples
     --------
