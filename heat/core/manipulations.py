@@ -47,6 +47,11 @@ def column_stack(arrays):
     ----------
     arrays : Sequence[DNDarrays,...]
 
+    Raises
+    ------
+    ValueError
+        If arrays have more than 2 dimensions
+
     Returns
     -------
     DNDarray
@@ -1904,6 +1909,11 @@ def row_stack(arrays):
     Parameters
     ----------
     arrays : Sequence[DNDarrays,...]
+
+    Raises
+    ------
+    ValueError
+        If arrays have more than 2 dimensions
 
     Returns
     -------
