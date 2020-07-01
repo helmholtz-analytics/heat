@@ -6,6 +6,49 @@ from .test_suites.basic_test import TestCase
 
 
 class TestManipulations(TestCase):
+    def test_column_stack(self):
+        # test local column_stack, 2-D arrays
+        a = np.arange(10, dtype=np.float32).reshape(5, 2)
+        b = np.arange(15, dtype=np.float32).reshape(5, 3)
+        np_cstack = np.column_stack((a, b))
+        ht_a = ht.array(a)
+        ht_b = ht.array(b)
+        ht_cstack = ht.column_stack((ht_a, ht_b))
+        self.assertTrue((np_cstack == ht_cstack.numpy()).all())
+
+        # 2-D and 1-D arrays
+        c = np.arange(5, dtype=np.float32)
+        np_cstack = np.column_stack((a, b, c))
+        ht_c = ht.array(c)
+        ht_cstack = ht.column_stack((ht_a, ht_b, ht_c))
+        self.assertTrue((np_cstack == ht_cstack.numpy()).all())
+
+        # 2-D and 1-D arrays, distributed
+        c = np.arange(5, dtype=np.float32)
+        np_cstack = np.column_stack((a, b, c))
+        ht_a = ht.array(a, split=1)
+        ht_b = ht.array(b, split=1)
+        ht_c = ht.array(c, split=0)
+        ht_cstack = ht.column_stack((ht_a, ht_b, ht_c))
+        self.assertTrue((ht_cstack.numpy() == np_cstack).all())
+        self.assertTrue(ht_cstack.split == 1)
+
+        # 1-D arrays, distributed, different dtypes
+        d = np.arange(10).astype(np.float32)
+        e = np.arange(10)
+        np_cstack = np.column_stack((d, e))
+        ht_d = ht.array(d, split=0)
+        ht_e = ht.array(e, split=0)
+        ht_cstack = ht.column_stack((ht_d, ht_e))
+        self.assertTrue((ht_cstack.numpy() == np_cstack).all())
+        self.assertTrue(ht_cstack.dtype == ht.float32)
+        self.assertTrue(ht_cstack.split == 0)
+
+        # test exceptions
+        f = ht.random.randn(5, 4, 2, split=1)
+        with self.assertRaises(ValueError):
+            ht.column_stack((a, b, f))
+
     def test_concatenate(self):
         # cases to test:
         # Matrices / Vectors
@@ -1473,16 +1516,23 @@ class TestManipulations(TestCase):
         self.assertTrue(ht_d_split.split == split + 1)
         self.assertTrue((d == ht_d_split.numpy()).all())
 
+        # different dtypes
         axis = -1
         split = 0
         d = np.stack((a, b, c), axis=axis)
-        ht_a_split = ht.array(a, split=split)
+        ht_a_split = ht.array(a, dtype=ht.int32, split=split)
         ht_b_split = ht.array(b, split=split)
         ht_c_split = ht.array(c, split=split)
         ht_d_split = ht.stack((ht_a_split, ht_b_split, ht_c_split), axis=axis)
         self.assertTrue(ht_d_split.shape == (5, 4, 3))
+        self.assertTrue(ht_d_split.dtype == ht.float32)
         self.assertTrue(ht_d_split.split == split)
         self.assertTrue((d == ht_d_split.numpy()).all())
+
+        # test out buffer
+        out = ht.empty((5, 4, 3), dtype=ht.float32, split=0)
+        ht.stack((ht_a_split, ht_b_split, ht_c_split), axis=axis, out=out)
+        self.assertTrue((out == ht_d_split).all())
 
         # test exceptions
         with self.assertRaises(TypeError):
@@ -1495,9 +1545,6 @@ class TestManipulations(TestCase):
             ht.stack((ht_a_split, ht_b_wrong_split, ht_c_split))
         with self.assertRaises(ValueError):
             ht.stack((ht_a_split, ht_b, ht_c_split))
-        ht_a_wrong_dtype = ht.array(a, dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            ht.stack((ht_a_wrong_dtype, ht_b, ht_c))
         out_wrong_split = ht.empty((3, 5, 4), dtype=ht.float32, split=0)
         with self.assertRaises(ValueError):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_split)
