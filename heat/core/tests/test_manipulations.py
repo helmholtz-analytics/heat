@@ -1112,6 +1112,49 @@ class TestManipulations(TestCase):
         with self.assertRaises(TypeError):
             ht.reshape(ht.zeros((4, 3)), "(5, 7)")
 
+    def test_row_stack(self):
+        # test local row_stack, 2-D arrays
+        a = np.arange(10, dtype=np.float32).reshape(2, 5)
+        b = np.arange(15, dtype=np.float32).reshape(3, 5)
+        np_rstack = np.row_stack((a, b))
+        ht_a = ht.array(a)
+        ht_b = ht.array(b)
+        ht_rstack = ht.row_stack((ht_a, ht_b))
+        self.assertTrue((np_rstack == ht_rstack.numpy()).all())
+
+        # 2-D and 1-D arrays
+        c = np.arange(5, dtype=np.float32)
+        np_rstack = np.row_stack((a, b, c))
+        ht_c = ht.array(c)
+        ht_rstack = ht.row_stack((ht_a, ht_b, ht_c))
+        self.assertTrue((np_rstack == ht_rstack.numpy()).all())
+
+        # 2-D and 1-D arrays, distributed
+        c = np.arange(5, dtype=np.float32)
+        np_rstack = np.row_stack((a, b, c))
+        ht_a = ht.array(a, split=0)
+        ht_b = ht.array(b, split=0)
+        ht_c = ht.array(c, split=0)
+        ht_rstack = ht.row_stack((ht_a, ht_b, ht_c))
+        self.assertTrue((ht_rstack.numpy() == np_rstack).all())
+        self.assertTrue(ht_rstack.split == 0)
+
+        # 1-D arrays, distributed, different dtypes
+        d = np.arange(10).astype(np.float32)
+        e = np.arange(10)
+        np_rstack = np.row_stack((d, e))
+        ht_d = ht.array(d, split=0)
+        ht_e = ht.array(e, split=0)
+        ht_rstack = ht.row_stack((ht_d, ht_e))
+        self.assertTrue((ht_rstack.numpy() == np_rstack).all())
+        self.assertTrue(ht_rstack.dtype == ht.float32)
+        self.assertTrue(ht_rstack.split == 1)
+
+        # test exceptions
+        f = ht.random.randn(4, 5, 2, split=1)
+        with self.assertRaises(ValueError):
+            ht.row_stack((a, b, f))
+
     def test_shape(self):
         x = ht.random.randn(3, 4, 5, split=2)
         self.assertEqual(ht.shape(x), (3, 4, 5))
