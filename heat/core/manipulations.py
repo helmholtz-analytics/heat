@@ -1448,6 +1448,8 @@ def stack(arrays, axis=0, out=None):
     TypeError
         If arrays in sequence are not ``DNDarray``s, or if their ``dtype`` attribute does not match.
     ValueError
+        If ``arrays`` contains less than 2 ``DNDarray``s.
+    ValueError
         If the ``DNDarray``s are of different shapes, or if they are split along different axes (``split`` attribute).
     RuntimeError
         If the ``DNDarrays`` reside of different devices, or if they are unevenly distributed across ranks (method ``is_balanced()`` returns ``False``)
@@ -1498,6 +1500,9 @@ def stack(arrays, axis=0, out=None):
     """
 
     # sanitation
+    if len(arrays) < 2:
+        raise ValueError("stack expects a sequence of at least 2 DNDarrays")
+
     for i, array in enumerate(arrays):
         if not isinstance(array, dndarray.DNDarray):
             raise TypeError(
