@@ -2,8 +2,6 @@ import copy
 import io
 import torch
 
-from typing import Dict
-
 __all__ = ["get_printoptions", "set_printoptions"]
 
 
@@ -12,7 +10,7 @@ _DEFAULT_LINEWIDTH = 120
 torch.set_printoptions(profile="default", linewidth=_DEFAULT_LINEWIDTH)
 
 
-def get_printoptions() -> Dict[str, int]:
+def get_printoptions():
     """
     Returns the currently configured printing options.
     """
@@ -20,13 +18,8 @@ def get_printoptions() -> Dict[str, int]:
 
 
 def set_printoptions(
-    precision: int = None,
-    threshold: int = None,
-    edgeitems: int = None,
-    linewidth: int = None,
-    profile: int = None,
-    sci_mode: int = None,
-) -> None:
+    precision=None, threshold=None, edgeitems=None, linewidth=None, profile=None, sci_mode=None
+):
     """
     Configures the printing options. List of items shamelessly taken from NumPy and PyTorch (thanks guys!).
 
@@ -62,7 +55,7 @@ __PREFIX = "DNDarray"
 __INDENT = len(__PREFIX)
 
 
-def __str__(dndarray) -> str:
+def __str__(dndarray):
     """
     Computes a printable representation of the passed DNDarray.
 
@@ -80,7 +73,7 @@ def __str__(dndarray) -> str:
     )
 
 
-def _torch_data(dndarray, summarize: bool) -> torch.Tensor:
+def _torch_data(dndarray, summarize):
     """
     Extracts the data to be printed from the DNDarray in form of a torch tensor and returns it.
 
@@ -151,7 +144,7 @@ def _torch_data(dndarray, summarize: bool) -> torch.Tensor:
     return data
 
 
-def _tensor_str(dndarray, indent: int) -> str:
+def _tensor_str(dndarray, indent):
     """
     Computes a string representation of the passed DNDarray.
 
