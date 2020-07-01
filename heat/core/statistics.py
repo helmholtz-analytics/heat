@@ -1391,7 +1391,7 @@ def var(x, axis=None, ddof=0, **kwargs):
     if not isinstance(ddof, int):
         raise TypeError(f"ddof must be integer, is {type(ddof)}")
     elif ddof > 1:
-        raise NotImplementedError(f"Not implemented for ddof > 1.")
+        raise NotImplementedError("Not implemented for ddof > 1.")
     elif ddof < 0:
         raise ValueError(f"Expected ddof=0 or ddof=1, got {ddof}")
     else:
