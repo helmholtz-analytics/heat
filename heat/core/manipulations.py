@@ -1039,7 +1039,7 @@ def rot90(m, k=1, axes=(0, 1)):
         # k == 3
         return flip(linalg.transpose(m, axes_list), axes[1])
 
-      
+
 def shape(a):
     """
     Returns the shape of a DNDarray `a`.
