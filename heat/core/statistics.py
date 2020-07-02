@@ -823,31 +823,25 @@ def mean(x, axis=None):
 def median(x, axis=None, keepdim=False):
     """
     Compute the median of the data along the specified axis.
-    Returns the median of the tensor elements.
+    Returns the median of the ``DNDarray`` elements.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
+    a : DNDarray
+        Input tensor
 
-    a : ht.DNDarray
-    Input tensor
-
-    axis : int, or None, optional #TODO tuple of ints
-    Axis along which the median is computed. Default is None, i.e.,
-    the median is computed along a flattened version of the tensor.
-
-    #TODO: out, optional. Output buffer.
+    axis : int, or None, optional
+        Axis along which the median is computed. Default is ``None``, i.e.,
+        the median is computed along a flattened version of the ``DNDarray``.
 
     keepdim : bool, optional
     If True, the axes which are reduced are left in the result as dimensions with size one.
-    With this option, the result can broadcast correctly against the original array a.
+    With this option, the result can broadcast correctly against the original array ``a``.
 
-    Returns:
-    --------
-
-    median : process-local ht.DNDarray
-
+    Returns
+    -------
+    DNDarray
     """
-
     return percentile(x, q=50, axis=axis, keepdim=keepdim)
 
 
@@ -1140,53 +1134,51 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
     Compute the q-th percentile of the data along the specified axis.
     Returns the q-th percentile(s) of the tensor elements.
 
-    Parameters:
-    -----------
-
+    Parameters
+    ----------
     x : DNDarray
         Input tensor
 
     q : DNDarray, scalar, or list of scalars
         Percentile or sequence of percentiles to compute. Must belong to the interval [0, 100].
 
-    axis : int, or None, optional #TODO tuple of ints
+    axis : int, or None, optional
         Axis along which the percentiles are computed. Default is None.
 
-    out : optional. Output buffer.
+    out : DNDarray, optional.
+        Output buffer.
 
-    interpolation : {‘linear’, ‘lower’, ‘higher’, ‘midpoint’, ‘nearest’}, optional
-        Interpolation method to use when the desired percentile lies between two data points i < j:
-
-        ‘linear’: i + (j - i) * fraction, where fraction is the fractional part of the index surrounded by i and j.
+    interpolation : str, optional
+        Interpolation method to use when the desired percentile lies between two data points :math: `i < j`.
+        Can be one of:
+        ‘linear’: :math: `i + (j - i) \\cdot fraction`, where fraction is the fractional part of the index surrounded by i and j.
         ‘lower’: i.
         ‘higher’: j.
         ‘nearest’: i or j, whichever is nearest.
-        ‘midpoint’: (i + j) / 2.
+        ‘midpoint’: :math: `(i + j) / 2`.
 
     keepdim : bool, optional
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array x.
 
-    Returns:
-    --------
-
-    percentile : process-local DNDarray
-
+    Returns
+    -------
+    DNDarray
     """
 
     def local_percentile(data, axis, indices):
         """
         Process-local percentile calculation.
 
-        Input:
-        ------
+        Input
+        -----
         data : torch.tensor
-        axis : int or TODO tuple of ints
+        axis : int
         indices : torch.tensor
 
-        Returns:
-        --------
-        percentile, torch.tensor, process-local
+        Returns
+        -------
+        torch.tensor
         """
 
         axis_slice = data.ndim * (slice(None, None, None),)
@@ -1195,7 +1187,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
             axis_slice = axis_slice[:axis] + (indices.tolist(),) + axis_slice[axis + 1 :]
             percentile = data[axis_slice]
         else:
-            floor_indices = torch.floor(indices).type(torch.long)
+            floor_indices = torch.floor(indices).type(torch.int)
             axis_slice = axis_slice[:axis] + (floor_indices.tolist(),) + axis_slice[axis + 1 :]
             lows = data[axis_slice]
             ceil_indices = floor_indices + 1.0
@@ -1231,7 +1223,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
     # SANITATION
     # sanitize input
     if not isinstance(x, dndarray.DNDarray):
-        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+        raise TypeError("expected x to be a DNDarray, but was {}".format(type(x)))
     if isinstance(axis, list) or isinstance(axis, tuple):
         raise NotImplementedError("ht.percentile(), tuple axis not implemented yet")
 
@@ -1258,7 +1250,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
         t_q = q._DNDarray__array
         t_perc_dtype = torch.promote_types(t_q.dtype, t_x.dtype)
     else:
-        raise TypeError("ht.DNDarray, list or tuple supported, but q was {}".format(type(q)))
+        raise TypeError("DNDarray, list or tuple supported, but q was {}".format(type(q)))
 
     nperc = t_q.numel()
     perc_dtype = types.canonical_heat_type(t_perc_dtype)
@@ -1276,7 +1268,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
     # sanitize out
     if out is not None:
         if not isinstance(out, dndarray.DNDarray):
-            raise TypeError("out must be of type ht.DNDarray, was {}".format(type(out)))
+            raise TypeError("out must be DNDarray, was {}".format(type(out)))
         if out.dtype is not perc_dtype:
             raise TypeError(
                 "Wrong datatype for out: expected {}, got {}".format(perc_dtype, out.dtype)
@@ -1299,17 +1291,17 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
     # compute indices
     length = gshape[axis]
     t_indices = t_q / 100 * (length - 1)
-    if interpolation == "lower":
-        t_indices = t_indices.floor().type(torch.long)
+    if interpolation == "linear":
+        # leave fractional indices, interpolate linearly
+        pass
+    elif interpolation == "lower":
+        t_indices = t_indices.floor().type(torch.int)
     elif interpolation == "higher":
-        t_indices = t_indices.ceil().type(torch.long)
+        t_indices = t_indices.ceil().type(torch.int)
     elif interpolation == "midpoint":
         t_indices = 0.5 * (t_indices.floor() + t_indices.ceil())
     elif interpolation == "nearest":
-        t_indices = t_indices.round().type(torch.long)
-    elif interpolation == "linear":
-        # leave fractional indices, interpolate linearly
-        pass
+        t_indices = t_indices.round().type(torch.int)
     else:
         raise ValueError(
             "Invalid interpolation method. Interpolation can be 'lower', 'higher', 'midpoint', 'nearest', or 'linear'."
