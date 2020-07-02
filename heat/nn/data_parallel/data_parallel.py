@@ -96,19 +96,13 @@ class DataParallel(tnn.Module):
         # counterbalance local gradient averaging
         grad_loc_cpy *= self.local_batch_size
 
-        # wrap local gradient into heat tensor
-        grad_ht = ht.array(grad_loc_cpy, copy=False)
-
         # perform MPI Allreduce to compute global gradient
-        grad_ht.comm.Allreduce(ht.MPI.IN_PLACE, grad_ht, ht.MPI.SUM)
-
-        # unwrap global gradient from heat tensor
-        grad_glo = grad_ht._DNDarray__array
+        self.comm.Allreduce(ht.MPI.IN_PLACE, grad_loc_cpy, ht.MPI.SUM)
 
         # global gradient averaging
-        grad_glo /= self.global_batch_size
+        grad_loc_cpy /= self.global_batch_size
 
-        return grad_glo
+        return grad_loc_cpy
 
     # hook function for blocking gradient data exchange
     def nonblocking_hook(self, layer_name):
@@ -122,14 +116,11 @@ class DataParallel(tnn.Module):
             # counterbalance local gradient averaging
             grad_loc_cpy *= self.local_batch_size
 
-            # wrap local gradient into heat tensor
-            grad_ht = ht.array(grad_loc_cpy, copy=False)
-
             # perform MPI IAllreduce to compute global gradient, returns wait handle
-            wait_handle = grad_ht.comm.Iallreduce(ht.MPI.IN_PLACE, grad_ht, ht.MPI.SUM)
+            wait_handle = self.comm.Iallreduce(ht.MPI.IN_PLACE, grad_loc_cpy, ht.MPI.SUM)
 
             # get size of flattened tensor
-            size1D = functools.reduce(operator.mul, grad_loc_cpy.shape, 1)
+            size1D = functools.reduce(operator.mul, grad_loc.shape, 1)
 
             # assign wait handle to its layer, layer-internal sorting by size
             bisect.insort(self.wait_handles[layer_name], (size1D, wait_handle))
