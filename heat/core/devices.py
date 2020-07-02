@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from .communication import MPI_WORLD
+from . import communication
 
 
 __all__ = ["Device", "cpu", "get_device", "sanitize_device", "use_device"]
@@ -66,7 +66,7 @@ __device_mapping = {cpu.device_type: cpu}
 # add gpu support if available
 if torch.cuda.device_count() > 0:
     # GPUs are assigned round-robin to the MPI processes
-    gpu_id = MPI_WORLD.rank % torch.cuda.device_count()
+    gpu_id = communication.MPI_WORLD.rank % torch.cuda.device_count()
     # create a new GPU device
     gpu = Device("gpu", gpu_id, "cuda:{}".format(gpu_id))
     # add a GPU device string
