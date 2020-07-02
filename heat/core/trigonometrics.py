@@ -148,6 +148,10 @@ def cos(x, out=None):
     return local_op(torch.cos, x, out)
 
 
+DNDarray.cos = lambda self, out: cos(self, out)
+DNDarray.cos.__doc__ = cos.__doc__
+
+
 def cosh(x, out=None) -> DNDarray:
     """
     Compute the hyperbolic cosine, element-wise.
@@ -168,6 +172,10 @@ def cosh(x, out=None) -> DNDarray:
     tensor([201.7156,  27.3082,   3.7622,   1.0000,   3.7622,  27.3082, 201.7156])
     """
     return local_op(torch.cosh, x, out)
+
+
+DNDarray.cosh = lambda self, out: cosh(self, out)
+DNDarray.cosh.__doc__ = cosh.__doc__
 
 
 def deg2rad(x, out=None) -> DNDarray:
@@ -286,6 +294,10 @@ def sin(x, out=None) -> DNDarray:
     return local_op(torch.sin, x, out)
 
 
+DNDarray.sin = lambda self, out: sin(self, out)
+DNDarray.sin.__doc__ = sin.__doc__
+
+
 def sinh(x, out=None) -> DNDarray:
     """
     Compute the hyperbolic sine, element-wise.
@@ -306,6 +318,10 @@ def sinh(x, out=None) -> DNDarray:
     tensor([[-201.7132,  -27.2899,   -3.6269,    0.0000,    3.6269,   27.2899,  201.7132])
     """
     return local_op(torch.sinh, x, out)
+
+
+DNDarray.sinh = lambda self, out: sinh(self, out)
+DNDarray.sinh.__doc__ = sinh.__doc__
 
 
 def tan(x, out=None) -> DNDarray:
@@ -331,6 +347,10 @@ def tan(x, out=None) -> DNDarray:
     return local_op(torch.tan, x, out)
 
 
+DNDarray.tan = lambda self, out: tan(self, out)
+DNDarray.tan.__doc__ = tan.__doc__
+
+
 def tanh(x, out=None):
     """
     Compute the hyperbolic tangent, element-wise.
@@ -351,3 +371,7 @@ def tanh(x, out=None):
     tensor([-1.0000, -0.9993, -0.9640,  0.0000,  0.9640,  0.9993,  1.0000])
     """
     return local_op(torch.tanh, x, out)
+
+
+DNDarray.tanh = lambda self, out: tanh(self, out)
+DNDarray.tanh.__doc__ = tanh.__doc__

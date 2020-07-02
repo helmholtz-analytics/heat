@@ -14,7 +14,6 @@ from . import manipulations
 from . import memory
 from . import stride_tricks
 from . import tiling
-from . import trigonometrics
 
 from .devices import Device
 from .types import datatype, canonical_heat_type
@@ -445,42 +444,6 @@ class DNDarray:
         Return an array copy of the given object.
         """
         return memory.copy(self)
-
-    def cos(self, out=None) -> DNDarray:
-        """
-        Return the trigonometric cosine, element-wise. Negative input elements are returned as nan.
-        If out was provided, square_roots is a reference to it.
-
-        Parameters
-        ----------
-        out : DNDarray or None, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.arange(-6, 7, 2).cos()
-        tensor([ 0.9602, -0.6536, -0.4161,  1.0000, -0.4161, -0.6536,  0.9602])
-        """
-        return trigonometrics.cos(self, out)
-
-    def cosh(self, out=None) -> DNDarray:
-        """
-        Return the hyperbolic cosine, element-wise. Negative input elements are returned as ``NaN``.
-        If ``out`` was provided, ``cosh`` is a reference to it.
-
-        Parameters
-        ----------
-        out : DNDarray or None, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.cosh(ht.arange(-6, 7, 2))
-        tensor([201.7156,  27.3082,   3.7622,   1.0000,   3.7622,  27.3082, 201.7156])
-        """
-        return trigonometrics.cosh(self, out)
 
     def cpu(self) -> DNDarray:
         """
@@ -1491,87 +1454,12 @@ class DNDarray:
         else:
             raise NotImplementedError("Not implemented for {}".format(value.__class__.__name__))
 
-    def sin(self, out=None) -> DNDarray:
-        """
-        Trigonometric sine, element-wise.
-        Returns array of the same shape as ``self``, containing the trigonometric sine of each element in this array.
-        Negative input elements are returned as ``NaN``.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.arange(-6, 7, 2).sin()
-        tensor([ 0.2794,  0.7568, -0.9093,  0.0000,  0.9093, -0.7568, -0.2794])
-        """
-        return trigonometrics.sin(self, out)
-
-    def sinh(self, out=None) -> DNDarray:
-        """
-        Hyperbolic sine, element-wise.
-        Returns an array of the same shape as ``self``, containing the trigonometric sine of each element in this array.
-        Negative input elements are returned as ``NaN``.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.sinh(ht.arange(-6, 7, 2))
-        tensor([[-201.7132,  -27.2899,   -3.6269,    0.0000,    3.6269,   27.2899,  201.7132])
-        """
-        return trigonometrics.sinh(self, out)
-
     def __str__(self, *args):
         """
         String representation of the array
         """
         # TODO: generate none-PyTorch str
         return self.__array.__str__(*args)
-
-    def tan(self, out=None) -> DNDarray:
-        """
-        Compute tangent element-wise.
-        Equivalent to :func:`~heat.core.trigonometrics.sin` / func:`~heat.core.trigonometrics.cos` element-wise.
-        Result is an array of the same shape as ``self``, containing the trigonometric tangent of each element in this array.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.arange(-6, 7, 2).tan()
-        tensor([ 0.29100619, -1.15782128,  2.18503986,  0., -2.18503986, 1.15782128, -0.29100619])
-        """
-        return trigonometrics.tan(self, out)
-
-    def tanh(self, out=None) -> DNDarray:
-        """
-        Return the hyperbolic tangent, element-wise.
-        Result is an array of the same shape as ``self``, containing the hyperbolic tangent of each element in this array.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, a the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.tanh(ht.arange(-6, 7, 2))
-        tensor([-1.0000, -0.9993, -0.9640,  0.0000,  0.9640,  0.9993,  1.0000])
-        """
-        return trigonometrics.tanh(self, out)
 
     def tolist(self, keepsplit=False) -> List:
         """
