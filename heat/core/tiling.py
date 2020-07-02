@@ -774,6 +774,7 @@ class SquareDiagTiles:
             sp0 = row_inds[key[0] + 1] - row_start
         elif isinstance(key[0], slice):
             start = row_inds[key[0].start] if key[0].start is not None else 0
+            # print(key, row_inds, self.tile_rows_per_process)
             stop = row_inds[key[0].stop] if key[0].stop is not None else row_inds[-1]
             st0, sp0 = start - row_start, stop - row_start
         else:
@@ -967,6 +968,7 @@ class SquareDiagTiles:
         if arr.split == 0:
             # need to adjust key[0] to be only on the local tensor
             prev_rows = sum(self.__row_per_proc_list[:rank])
+            # print(prev_rows, self.__row_per_proc_list)
             loc_rows = self.__row_per_proc_list[rank]
             if isinstance(key[0], int):
                 key[0] += prev_rows
@@ -988,6 +990,7 @@ class SquareDiagTiles:
                 stop = key[1].stop + prev_cols if key[1].stop is not None else prev_cols + loc_cols
                 stop = stop if stop - start < loc_cols else start + loc_cols
                 key[1] = slice(start, stop)
+        # print(key)
         return tuple(key)
 
     def match_tiles(self, tiles_to_match):
@@ -1033,7 +1036,15 @@ class SquareDiagTiles:
             # for mostly square matrices the diagonal is stretched to the last process
 
         elif mat_shape_type == "square":
-            return
+            print("here")
+            self.__row_inds = tiles_to_match.__row_inds.copy()
+            self.__col_inds = tiles_to_match.__col_inds.copy()
+            if self.arr.split != tiles_to_match.arr.split:
+                self.__row_per_proc_list = tiles_to_match.__col_per_proc_list.copy()
+                self.__col_per_proc_list = tiles_to_match.__row_per_proc_list.copy()
+            else:
+                self.__row_per_proc_list = tiles_to_match.__row_per_proc_list.copy()
+                self.__col_per_proc_list = tiles_to_match.__col_per_proc_list.copy()
 
         elif mat_shape_type == "TS":
             if match_dnd.split == 0:
@@ -1139,8 +1150,8 @@ class SquareDiagTiles:
         ldp = other_tiles.__last_diag_pr
         if ldp < self.arr.comm.size - 1 and other_tiles.arr.split == 1:
             # this loop is to adjust the the tile sizes on the last diagonal process
-            #   since the target diagonal is shifted one tile row down the logic is different
-            #   thus the last diagonal tile for other_tiles is not the last diagonal tile for self
+            #   since the target diagonal is shifted one tile row down the logic is different.
+            #   thus the last diagonal tile for other_tiles is not the last diagonal tile for self.
             #   to make it work correctly, the current last diag tile must equal the normal tile size
             #   and the remainder is shifted to the next process
             row_diff = torch.tensor(
@@ -1156,32 +1167,131 @@ class SquareDiagTiles:
                 ind = row_diff_where[0] + sum(rows_per[:ldp]) + 1
                 diff = row_diff[row_diff_where[0]] - row_inds[1]
                 row_inds[ind] -= diff.item()
-        if (
-            self.arr.gshape[0] > self.arr.gshape[1] + 2
-            and self.arr.shape[0] > row_inds[1] + row_inds[-1]
-        ):
-            # add a row before the last element that is equal
-            row_inds.append(row_inds[1] + row_inds[-1])
+        # if (
+        #     self.arr.gshape[0] > self.arr.gshape[1] + 2
+        #     and self.arr.shape[0] > row_inds[1] + row_inds[-1]
+        # ):
+        #     # add a row before the last element that is equal
+        #     row_inds.append(row_inds[1] + row_inds[-1])
+        #     if self.arr.split == 1:
+        #         rows_per = [r + 1 for r in rows_per]
+        #     else:
+        #         rows_per[-1] += 1
+        # elif (
+        #     self.arr.gshape[1] > self.arr.gshape[0] + 2
+        #     and self.arr.shape[1] > col_inds[1] + col_inds[-1]
+        # ):
+        #     # add a row before the last element that is equal
+        #     col_inds.append(col_inds[1] + col_inds[-1])
+        #     if self.arr.split == 0:
+        #         cols_per = [r + 1 for r in cols_per]
+        #     else:
+        #         cols_per[-1] += 1
+
+        # todo: if the last row/col is larger than the ones before (>1) need to add more rows
+        last_diff = min(self.arr.gshape) - row_inds[-1]
+        if last_diff > row_inds[1] + 1:
+            # print('here')
+            # if len(col_inds) > len(row_inds):
+            #     row_inds = col_inds.copy()
+            # elif len(row_inds) > len(col_inds):
+            #     col_inds = row_inds.copy()
+            tiles_to_add = last_diff // row_inds[1]
+            # print(last_diff, tiles_to_add)
+            split_per = rows_per if other_tiles.arr.split == 1 else cols_per
+            # print("\nstart", split_per, col_inds)
+            for i in range(tiles_to_add):
+                if (
+                    row_inds[-1] + row_inds[1] >= min(self.arr.gshape) - 1
+                    or col_inds[-1] + col_inds[1] >= min(self.arr.gshape) - 1
+                ):
+                    # print('here2', row_inds[-1] + row_inds[1])
+                    tiles_to_add -= 1
+                    break
+                row_inds.append(row_inds[-1] + row_inds[1])
+                col_inds.append(col_inds[-1] + col_inds[1])
+                split_per[-1] += 1
+            # print("end", col_inds, row_inds, split_per, '\n')
+            ttl_tiles = sum(split_per)
             if self.arr.split == 1:
-                rows_per = [r + 1 for r in rows_per]
+                rows_per = [ttl_tiles for _ in rows_per]
+                cols_per = split_per
+                # rows_per = [r + tiles_to_add for r in rows_per]
+                # cols_per[-1] += tiles_to_add
             else:
-                rows_per[-1] += 1
-        elif (
-            self.arr.gshape[1] > self.arr.gshape[0] + 2
-            and self.arr.shape[1] > col_inds[1] + col_inds[-1]
-        ):
-            # add a row before the last element that is equal
-            col_inds.append(col_inds[1] + col_inds[-1])
-            if self.arr.split == 0:
-                cols_per = [r + 1 for r in cols_per]
-            else:
-                cols_per[-1] += 1
+                cols_per = [ttl_tiles for _ in rows_per]
+                rows_per = split_per
+                # cols_per = [r + tiles_to_add for r in cols_per]
+                # rows_per[-1] += tiles_to_add
+
+            # todo: add a diagonal end column/row if the difference is right
+            # gshape_diff = self.arr.gshape[0] - self.arr.gshape[1]
+            # print(self.arr.gshape[0], self.arr.gshape[1], gshape_diff)
+            # todo: this doesnt work because the it means that the last block can be 3x2,
+            #       which is a problem, need a fix for this...
+            # if gshape_diff >= 2:  # rows larger than columns
+            #     row_inds.append(self.arr.gshape[1])
+            #     # row_inds.append(row_inds[-1] + row_inds[1])
+            #     if self.arr.split == 0:
+            #         rows_per[-1] += 1
+            #     else:
+            #         rows_per = [r + 1 for r in rows_per]
+            # elif gshape_diff <= -2:  # cols larger than rows
+            #     col_inds.append(self.arr.gshape[0])
+            #     # col_inds.append(col_inds[-1] + col_inds[1])
+            #     if self.arr.split == 1:
+            #         cols_per[-1] += 1
+            #     else:
+            #         cols_per = [c + 1 for c in cols_per]
+
+            # print('\t', col_inds)
+            # update the other_tiles elements and make the new tile map for it
+            other_tiles.__col_inds = row_inds
+            other_tiles.__row_inds = col_inds.copy()
+            other_tiles.__col_per_proc_list = rows_per
+            other_tiles.__row_per_proc_list = cols_per
+            other_tiles.__tile_map = self.__create_tile_map(
+                col_inds, row_inds, cols_per, rows_per, other_tiles.arr
+            )
+            # need to adjust the
+            # col_inds = [r - row_inds[1] for r in row_inds][1:len(col_inds) + 1]
+
+            # print(cols_per, col_inds)
         self.__col_inds = col_inds
         self.__col_per_proc_list = cols_per
         self.__last_diag_pr = ldp
         self.__row_inds = row_inds
         self.__row_per_proc_list = rows_per
         self.__tile_map = self.__create_tile_map(row_inds, col_inds, rows_per, cols_per, self.arr)
+
+    def change_row_and_column_index(self, row, column, position_from_end):
+        """
+        Add a row to the tiles
+
+        Parameters
+        ----------
+        index : int
+            row index to add
+
+        Returns
+        -------
+
+        """
+        if position_from_end == 0:
+            self.__row_inds.append(row)
+            self.__col_inds.append(column)
+        else:
+            self.__row_inds[position_from_end] = row
+            self.__col_inds[position_from_end] = column
+        self.__tile_map = self.__create_tile_map(
+            self.__row_inds,
+            self.__col_inds,
+            self.__row_per_proc_list,
+            self.__col_per_proc_list,
+            self.arr,
+        )
+
+    # def add_column_to_end(self, index):
 
     def set_arr(self, arr):
         """

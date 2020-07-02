@@ -88,14 +88,24 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
     # 4. match tiles to arr
     arr_t_tiles.match_tiles_qr_lq(arr_tiles)
     arr_t_tiles.set_arr(arr.T)
+    # print(arr_tiles.row_indices, arr_tiles.col_indices)
+    print("arr_t", arr_t_tiles.row_indices, arr_t_tiles.col_indices)
+    print("arr_t", arr_t_tiles.tile_rows_per_process, arr_t_tiles.tile_columns_per_process)
 
     q0 = factories.eye(
         (arr.gshape[0], arr.gshape[0]), split=0, dtype=arr.dtype, comm=arr.comm, device=arr.device
     )
     q0_tiles = tiling.SquareDiagTiles(q0, tiles_per_proc)
     q0_tiles.match_tiles(arr_tiles)
+    # print("q0", q0_tiles.row_indices, q0_tiles.col_indices)
     q1_tiles = tiling.SquareDiagTiles(q1, tiles_per_proc)
     q1_tiles.match_tiles(arr_t_tiles)
+    print(
+        q1_tiles.row_indices,
+        q1_tiles.col_indices,
+        q1_tiles.tile_rows_per_process,
+        q1_tiles.tile_columns_per_process,
+    )
 
     if arr.split == 0:
         return __block_diagonalize_sp0(
@@ -134,6 +144,7 @@ def __block_diagonalize_sp0(
         active_procs_t = active_procs_t[active_procs_t != e]
 
     proc_tile_start = torch.cumsum(torch.tensor(tile_rows_per_pr_trmd, device=torch_device), dim=0)
+    print("arr tile start", proc_tile_start)
 
     # looping over number of tile columns - 1 (col)
     # 1. do QR on arr for column=col (standard QR as written)
@@ -179,8 +190,9 @@ def __block_diagonalize_sp0(
     # do the last column now
     col = tile_columns - 1
     not_completed_processes = torch.nonzero(input=col < proc_tile_start, as_tuple=False).flatten()
-    diag_process = not_completed_processes[0].item()
+    print(not_completed_processes, proc_tile_start, col)
     if rank in not_completed_processes and rank in active_procs:
+        diag_process = not_completed_processes[0].item()
         __split0_r_calc(
             r_tiles=arr_tiles,
             q_dict=q0_dict,
@@ -201,6 +213,9 @@ def __block_diagonalize_sp0(
 
     diag_diff = arr_t_tiles.row_indices[1]
     if arr_tiles.arr.gshape[0] < arr_tiles.arr.gshape[1] - diag_diff:
+        # todo: modify the last column/row of the tiles for arr_t to get the remaining elements
+        #       target is new row starting at 16 (min gshape) and column at 14 (from 0)
+        #           this is row -> min gshape, col -> (min gshape - band width) (row_inds[1])
         __split1_qr_loop(
             dim1=col,
             r_tiles=arr_t_tiles,

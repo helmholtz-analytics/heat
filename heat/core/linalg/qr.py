@@ -660,11 +660,15 @@ def __split0_q_loop(
     if dim0 is None:
         dim0 = dim1
     tile_columns = r_tiles.tile_columns
-    diag_process = (
-        torch.nonzero(input=proc_tile_start > dim0, as_tuple=False)[0]
-        if dim1 != tile_columns
-        else proc_tile_start[-1]
-    )
+    if dim1 != tile_columns:
+        diag_process = torch.nonzero(input=proc_tile_start > dim0, as_tuple=False)
+        if diag_process.numel() == 0:
+            return
+        else:
+            diag_process = diag_process[0]
+        # print(diag_process)
+    else:
+        diag_process = proc_tile_start[-1]
 
     comm = r_tiles.arr.comm
     rank = r_tiles.arr.comm.rank
@@ -821,7 +825,7 @@ def __split0_q_loop(
         del q_dict[dim1]
 
 
-def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None):
+def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None, start_stop=None):
     """
     Helper function to do the QR factorization of the column 'dcol'. This function assumes that the
     target tile is at (dcol, dcol). This is the standard case at it assumes that the diagonal tile
@@ -968,6 +972,7 @@ def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None):
                 qloop_col_left_sz, dtype=q0_tiles.arr.dtype.torch_type(), device=q0_torch_device
             )
             # top left starts at 0 and goes until diag_sz[1]
+            # print(dim0, dim1, row)
             qloop_col_left[: diag_sz[0]] = top_left
             # bottom left starts at ? and goes until ? (only care about 0th dim)
             st, sp, _, _ = r_tiles.get_start_stop(key=(row, 0))
@@ -977,6 +982,7 @@ def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None):
             # right tiles --------------------------------------------------------------------
             # create r columns tensor of the size of the tile column of index 'row'
             st_sp = q0_tiles.get_start_stop(key=(row, slice(dim0, None)))
+            # print(st_sp, row, dim0, q0_tiles.col_indices)
             sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
             qloop_col_right = torch.zeros(
                 (sz[1], sz[0]), dtype=q0_tiles.arr.dtype.torch_type(), device=q0_torch_device
