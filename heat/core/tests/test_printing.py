@@ -97,6 +97,18 @@ class TestPrinting(TestCase):
         if tensor.comm.rank == 0:
             self.assertEqual(comparison, __str)
 
+    def test_unbalanced(self):
+        dndarray = ht.arange(2 * 3 * 4, split=0).reshape((2, 3, 4))
+        if dndarray.comm.size == 2:
+            comparison = (
+                "DNDarray([[ 0,  1,  2,  3],\n"
+                "          [ 4,  5,  6,  7],\n"
+                "          [ 8,  9, 10, 11]], dtype=ht.int32, device=cpu:0, split=0)"
+            )
+            __str = str(dndarray[0])
+            if dndarray.comm.rank == 0:
+                self.assertEqual(comparison, __str)
+
     def test_unsplit_below_threshold(self):
         dndarray = ht.arange(2 * 3 * 4).reshape((2, 3, 4))
         comparison = (
