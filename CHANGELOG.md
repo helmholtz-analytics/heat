@@ -7,11 +7,13 @@
 - [#577](https://github.com/helmholtz-analytics/heat/pull/577) Add ndim property in dndarray
 - [#578](https://github.com/helmholtz-analytics/heat/pull/578) Bugfix: Bad variable in reshape
 - [#580](https://github.com/helmholtz-analytics/heat/pull/580) New feature: fliplr()
-- [#581](https://github.com/helmholtz-analytics/heat/pull/581) New feature: DNDarray.tolist()
-- [#593](https://github.com/helmholtz-analytics/heat/pull/593) New feature: arctan2()
+- [#581](https://github.com/helmholtz-analytics/heat/pull/581) New Feature: DNDarray.tolist()
+- [#583](https://github.com/helmholtz-analytics/heat/pull/583) New feature: rot90()
+- [#593](https://github.com/helmholtz-analytics/heat/pull/593) New feature arctan2()
 - [#594](https://github.com/helmholtz-analytics/heat/pull/594) New feature: Advanced indexing
 - [#594](https://github.com/helmholtz-analytics/heat/pull/594) Bugfix: getitem and setitem memory consumption heavily reduced
 - [#596](https://github.com/helmholtz-analytics/heat/pull/596) New feature: outer()
+- [#598](https://github.com/helmholtz-analytics/heat/pull/598) Type casting changed to PyTorch style casting (i.e. intuitive casting) instead of safe casting
 - [#600](https://github.com/helmholtz-analytics/heat/pull/600) New feature: shape()
 - [#614](https://github.com/helmholtz-analytics/heat/pull/614) New feature: printing of DNDarrays and ``__repr__`` and ``__str__`` functions
 

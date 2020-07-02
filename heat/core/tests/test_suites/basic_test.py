@@ -104,11 +104,6 @@ class TestCase(unittest.TestCase):
             # self.assertEqual(expected_array.device, torch.device(heat_array.device.torch_device))
             expected_array = expected_array.cpu().numpy()
 
-        # Determine with what kind of numbers we are working
-        compare_func = (
-            np.array_equal if np.issubdtype(expected_array.dtype, np.integer) else np.allclose
-        )
-
         self.assertIsInstance(
             heat_array,
             dndarray.DNDarray,
@@ -130,8 +125,7 @@ class TestCase(unittest.TestCase):
         )
 
         if not heat_array.is_balanced():
-            # Array is distributed correctly
-            # print("Heat array is unbalanced, balancing now")
+            # Array is not distributed correctly
             heat_array.balance_()
 
         split = heat_array.split
@@ -142,29 +136,8 @@ class TestCase(unittest.TestCase):
             "Local shapes do not match. "
             "Got {} expected {}".format(heat_array.lshape, expected_array[slices].shape),
         )
-        local_numpy = heat_array._DNDarray__array.cpu().numpy()
-
-        equal_res = np.array(compare_func(local_numpy, expected_array[slices]))
-
-        self.comm.Allreduce(MPI.IN_PLACE, equal_res, MPI.LAND)
-        self.assertTrue(
-            equal_res,
-            "Local tensors do not match the corresponding numpy slices. "
-            "dtype was {}, split was {}".format(heat_array.dtype, heat_array.split),
-        )
-
-        self.assertEqual(
-            local_numpy.dtype,
-            expected_array.dtype,
-            "Resulting types do not match heat: {} numpy: {}.".format(
-                heat_array.dtype, expected_array.dtype
-            ),
-        )
-
-        # Combined array is correct
-        self.assertTrue(
-            compare_func(heat_array.numpy(), expected_array), "Combined tensors do not match."
-        )
+        local_heat_numpy = heat_array.numpy()
+        self.assertTrue(np.allclose(local_heat_numpy, expected_array))
 
     def assert_func_equal(
         self,
@@ -313,11 +286,11 @@ class TestCase(unittest.TestCase):
                 + "numpy.ndarray, torch.tensor] but is {}".format(type(tensor))
             )
 
+        dtype = types.canonical_heat_type(torch_tensor.dtype)
         np_res = numpy_func(np_array, **numpy_args)
         if not isinstance(np_res, np.ndarray):
             np_res = np.array([np_res])
 
-        dtype = types.canonical_heat_type(torch_tensor.dtype)
         for i in range(len(tensor.shape)):
             ht_array = factories.array(
                 torch_tensor, split=i, dtype=dtype, device=self.device, comm=self.comm
@@ -349,7 +322,7 @@ class TestCase(unittest.TestCase):
         else:
             raise ValueError("expected order to be 'C' or 'F', but was {}".format(order))
 
-    def __create_random_np_array(self, shape, dtype=np.float64, low=-10000, high=10000):
+    def __create_random_np_array(self, shape, dtype=np.float32, low=-10000, high=10000):
         """
         Creates a random array based on the input parameters.
         The used seed will be printed to stdout for debugging purposes.
