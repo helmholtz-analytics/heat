@@ -8,8 +8,6 @@ from typing import List, Dict, Any, TypeVar, Union, Tuple
 
 from . import devices
 from . import factories
-from . import io
-from . import manipulations
 from . import stride_tricks
 from . import tiling
 
@@ -781,7 +779,7 @@ class DNDarray:
         T1 = ht.random.randn((10,8))
         T1.numpy()
         """
-        dist = manipulations.resplit(self, axis=None)
+        dist = self.resplit_(axis=None)
         return dist._DNDarray__array.cpu().numpy()
 
     def __repr__(self, *args):
@@ -1111,92 +1109,6 @@ class DNDarray:
         self.__split = axis
         return self
 
-    def save(self, path, *args, **kwargs):
-        """
-        Save the array's data to disk. Attempts to auto-detect the file format by determining the extension.
-
-        Parameters
-        ----------
-        self : DNDarray
-            The array holding the data to be stored
-        path : str
-            Path to the file to be stored.
-        args/kwargs : list/dict
-            Additional options passed to the particular functions.
-
-        Raises
-        -------
-        ValueError
-            If the file extension is not understood or known.
-
-        Examples
-        --------
-        >>> a = ht.arange(100, split=0)
-        >>> a.save('data.h5', 'DATA', mode='a')
-        >>> a.save('data.nc', 'DATA', mode='w')
-        """
-        return io.save(self, path, *args, **kwargs)
-
-    if io.supports_hdf5():
-
-        def save_hdf5(self, path, dataset, mode="w", **kwargs):
-            """
-            Saves data to an HDF5 file. Attempts to utilize parallel I/O if possible.
-
-            Parameters
-            ----------
-            path : str
-                Path to the HDF5 file to be written.
-            dataset : str
-                Name of the dataset the data is saved to.
-            mode : str,
-                File access mode, one of ``'w', 'a', 'r+'``
-            kwargs : dict
-                Additional arguments passed to the created dataset.
-
-            Raises
-            -------
-            TypeError
-                If any of the input parameters are not of correct type.
-            ValueError
-                If the access mode is not understood.
-
-            Examples
-            --------
-            >>> ht.arange(100, split=0).save_hdf5('data.h5', dataset='DATA')
-            """
-            return io.save_hdf5(self, path, dataset, mode, **kwargs)
-
-    if io.supports_netcdf():
-
-        def save_netcdf(self, path, variable, mode="w", **kwargs):
-            """
-            Saves data to a netCDF4 file. Attempts to utilize parallel I/O if possible.
-
-            Parameters
-            ----------
-            path : str
-                Path to the netCDF4 file to be written.
-            variable : str
-                Name of the variable the data is saved to.
-            mode : str
-                File access mode, one of ``'w', 'a', 'r+'``
-            kwargs : dict
-                Additional arguments passed to the created dataset.
-
-            Raises
-            -------
-            TypeError
-                If any of the input parameters are not of correct type.
-            ValueError
-                If the access mode is not understood.
-
-            Examples
-            --------
-            >>> ht.arange(100, split=0).save_netcdf('data.nc', dataset='DATA')
-            """
-            return io.save_netcdf(self, path, variable, mode, **kwargs)
-
     def __setitem__(self, key, value):
         """
         Global item setter
@@ -1371,6 +1283,6 @@ class DNDarray:
         """
 
         if not keepsplit:
-            return manipulations.resplit(self, axis=None).__array.tolist()
+            return self.resplit(axis=None).__array.tolist()
 
         return self.__array.tolist()

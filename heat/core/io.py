@@ -202,7 +202,10 @@ else:
             next_rank = (data.comm.rank + 1) % data.comm.size
             data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
 
-
+    DNDarray.save_hdf5 = lambda self, path, dataset, mode, **kwargs: save_hdf5(
+        self, path, dataset, mode, **kwargs
+    )
+    DNDarray.save_hdf5.__doc__ = save_hdf5.__doc__
 try:
     import netCDF4 as nc
 except ImportError:
@@ -396,6 +399,11 @@ else:
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
             next_rank = (data.comm.rank + 1) % data.comm.size
             data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
+
+    DNDarray.save_netcdf = lambda self, path, variable, mode, **kwargs: save_netcdf(
+        self, path, variable, mode, **kwargs
+    )
+    DNDarray.save_netcdf.__doc__ = save_netcdf.__doc__
 
 
 def load(path, *args, **kwargs) -> DNDarray:
@@ -681,6 +689,10 @@ def save(data, path, *args, **kwargs):
         save_netcdf(data, path, *args, **kwargs)
     else:
         raise ValueError("Unsupported file extension {}".format(extension))
+
+
+DNDarray.save = lambda self, path, *args, **kwargs: save(self, path, *args, **kwargs)
+DNDarray.save.__doc__ = save.__doc__
 
 
 # tensor is imported at the very end to break circular dependency
