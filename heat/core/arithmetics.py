@@ -74,6 +74,7 @@ def add(t1, t2) -> DNDarray:
 
 
 DNDarray.__add__ = lambda self, other: add(self, other)
+DNDarray.__add__.__doc__ = add.__doc__
 
 
 def bitwise_and(t1, t2) -> DNDarray:
