@@ -1267,7 +1267,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
         """
 
         axis_slice = data.ndim * (slice(None, None, None),)
-        if indices.dtype == torch.long or indices.dtype == torch.int:
+        if indices.dtype is torch.long or indices.dtype is torch.int:
             # interpolation 'lower', 'higher', or 'nearest'
             axis_slice = axis_slice[:axis] + (indices.tolist(),) + axis_slice[axis + 1 :]
             percentile = data[axis_slice]
