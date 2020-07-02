@@ -75,6 +75,8 @@ def add(t1, t2) -> DNDarray:
 
 DNDarray.__add__ = lambda self, other: add(self, other)
 DNDarray.__add__.__doc__ = add.__doc__
+DNDarray.__radd__ = lambda self, other: add(self, other)
+DNDarray.__radd__.__doc__ = add.__doc__
 
 
 def bitwise_and(t1, t2) -> DNDarray:
@@ -112,6 +114,10 @@ def bitwise_and(t1, t2) -> DNDarray:
             raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__and__, t1, t2)
+
+
+DNDarray.__and__ = lambda self, other: bitwise_and(self, other)
+DNDarray.__and__.__doc__ = bitwise_and.__doc__
 
 
 def bitwise_or(t1, t2) -> DNDarray:
@@ -154,6 +160,10 @@ def bitwise_or(t1, t2) -> DNDarray:
     return operations.__binary_op(torch.Tensor.__or__, t1, t2)
 
 
+DNDarray.__or__ = lambda self, other: bitwise_or(self, other)
+DNDarray.__or__.__doc__ = bitwise_or.__doc__
+
+
 def bitwise_xor(t1, t2) -> DNDarray:
     """
     Compute the bit-wise XOR of two arrays element-wise ``t1`` and ``t2``.
@@ -187,6 +197,10 @@ def bitwise_xor(t1, t2) -> DNDarray:
             raise TypeError("Operation is not supported for float types")
 
     return operations.__binary_op(torch.Tensor.__xor__, t1, t2)
+
+
+DNDarray.__xor__ = lambda self, other: bitwise_xor(self, other)
+DNDarray.__xor__.__doc__ = bitwise_xor.__doc__
 
 
 def cumprod(a, axis, dtype=None, out=None) -> DNDarray:
@@ -372,6 +386,11 @@ def div(t1, t2) -> DNDarray:
     return operations.__binary_op(torch.true_divide, t1, t2)
 
 
+DNDarray.__truediv__ = lambda self, other: div(self, other)
+DNDarray.__truediv__.__doc__ = div.__doc__
+DNDarray.__rtruediv__ = lambda self, other: div(other, self)
+DNDarray.__rtruediv__.__doc__ = div.__doc__
+
 # Alias in compliance with numpy API
 divide = div
 
@@ -430,6 +449,11 @@ def floordiv(t1, t2) -> DNDarray:
     return operations.__binary_op(torch.floor_divide, t1, t2)
 
 
+DNDarray.__floordiv__ = lambda self, other: floordiv(self, other)
+DNDarray.__floordiv__.__doc__ = floordiv.__doc__
+DNDarray.__rfloordiv__ = lambda self, other: floordiv(other, self)
+DNDarray.__rfloordiv__.__doc__ = floordiv.__doc__
+
 # Alias in compliance with numpy API
 floor_divide = floordiv
 
@@ -453,6 +477,9 @@ def invert(t, out=None) -> DNDarray:
 
     return operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
 
+
+DNDarray.__invert__ = lambda self: invert(self)
+DNDarray.__invert__.__doc__ = invert.__doc__
 
 # alias for invert
 bitwise_not = invert
@@ -483,6 +510,10 @@ def left_shift(t1, t2) -> DNDarray:
     return operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
 
 
+DNDarray.__lshift__ = lambda self, other: left_shift(self, other)
+DNDarray.__lshift__.__doc__ = left_shift.__doc__
+
+
 def mod(t1, t2) -> DNDarray:
     """
     Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. ``t1%t2``).
@@ -511,6 +542,12 @@ def mod(t1, t2) -> DNDarray:
             [2, 2]], dtype=torch.int32)
     """
     return remainder(t1, t2)
+
+
+DNDarray.__mod__ = lambda self, other: mod(self, other)
+DNDarray.__mod__.__doc__ = mod.__doc__
+DNDarray.__rmod__ = lambda self, other: mod(other, self)
+DNDarray.__rmod__.__doc__ = mod.__doc__
 
 
 def mul(t1, t2) -> DNDarray:
@@ -548,6 +585,11 @@ def mul(t1, t2) -> DNDarray:
     return operations.__binary_op(torch.mul, t1, t2)
 
 
+DNDarray.__mul__ = lambda self, other: mul(self, other)
+DNDarray.__mul__.__doc__ = mul.__doc__
+DNDarray.__rmul__ = lambda self, other: mul(self, other)
+DNDarray.__rmul__.__doc__ = mul.__doc__
+
 # Alias in compliance with numpy API
 multiply = mul
 
@@ -579,6 +621,12 @@ def pow(t1, t2) -> DNDarray:
             [27., 64.]])
     """
     return operations.__binary_op(torch.pow, t1, t2)
+
+
+DNDarray.__pow__ = lambda self, other: pow(self, other)
+DNDarray.__pow__.__doc__ = pow.__doc__
+DNDarray.__rpow__ = lambda self, other: pow(other, self)
+DNDarray.__rpow__.__doc__ = pow.__doc__
 
 
 # Alias in compliance with numpy API
@@ -639,6 +687,10 @@ def right_shift(t1, t2) -> DNDarray:
     return operations.__binary_op(torch.Tensor.__rshift__, t1, t2)
 
 
+DNDarray.__rshift__ = lambda self, other: right_shift(self, other)
+DNDarray.__rshift__.__doc__ = right_shift.__doc__
+
+
 def prod(x, axis=None, out=None, keepdim=None) -> DNDarray:
     """
     Return the product of array elements over a given axis in form of an array shaped as a but with the specified axis removed.
@@ -679,6 +731,10 @@ def prod(x, axis=None, out=None, keepdim=None) -> DNDarray:
     )
 
 
+DNDarray.prod = lambda self, axis, out, keepdim: prod(self, axis, out, keepdim)
+DNDarray.prod.__doc__ = prod.__doc__
+
+
 def sub(t1, t2) -> DNDarray:
     """
     Element-wise subtraction of values of operand ``t2`` from values of operands ``t1`` (i.e ``t1-t2``)
@@ -706,6 +762,12 @@ def sub(t1, t2) -> DNDarray:
             [-1., -2.]])
     """
     return operations.__binary_op(torch.sub, t1, t2)
+
+
+DNDarray.__sub__ = lambda self, other: sub(self, other)
+DNDarray.__sub__.__doc__ = sub.__doc__
+DNDarray.__rsub__ = lambda self, other: sub(other, self)
+DNDarray.__rsub__.__doc__ = sub.__doc__
 
 
 # Alias in compliance with numpy API
@@ -748,3 +810,8 @@ def sum(x, axis=None, out=None, keepdim=None) -> DNDarray:
     return operations.__reduce_op(
         x, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
     )
+
+
+DNDarray.sum = lambda self, axis=None, out=None, keepdim=None: sum(
+    self, axis=None, out=None, keepdim=None
+)

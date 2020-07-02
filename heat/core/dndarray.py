@@ -377,30 +377,6 @@ class DNDarray:
         """
         return self.abs(out, dtype)
 
-    # def __add__(self, other) -> DNDarray:
-    #     """
-    #     Element-wise addition of another tensor or a scalar to the tensor.
-    #     Takes the second operand (scalar or tensor) whose elements are to be added as argument.
-    #
-    #     Parameters
-    #     ----------
-    #     other: DNDarray or scalar
-    #         The value(s) to be added element-wise to the tensor
-    #
-    #     Examples
-    #     ---------
-    #     >>> import heat as ht
-    #     >>> T1 = ht.float32([[1, 2], [3, 4]])
-    #     >>> T1.__add__(2.0)
-    #     tensor([[3., 4.],
-    #            [5., 6.]])
-    #     >>> T2 = ht.float32([[2, 2], [2, 2]])
-    #     >>> T1.__add__(T2)
-    #     tensor([[3., 4.],
-    #             [5., 6.]])
-    #     """
-    #     return arithmetics.add(self, other)
-
     def all(self, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
         """
         Test whether all array elements along a given axis evaluate to ``True``.
@@ -474,34 +450,6 @@ class DNDarray:
         True
         """
         return logical.allclose(self, other, rtol, atol, equal_nan)
-
-    def __and__(self, other) -> DNDarray:
-        """
-        Compute the bit-wise AND of self and other arrays element-wise.
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-            Only integer and boolean types are handled. If self.shape != other.shape, they must be broadcastable to a
-            common shape (which becomes the shape of the output).
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> ht.array([13]) & 17
-        tensor([1])
-        >>> ht.array([14]) & ht.array([13])
-        tensor([12])
-        >>> ht.array([14,3]) & 13
-        tensor([12,  1])
-        >>> ht.array([11,7]) & ht.array([4,25])
-        tensor([0, 1])
-        >>> ht.array([2,5,255]) & ht.array([3,14,16])
-        tensor([ 2,  4, 16])
-        >>> ht.array([True, True]) & ht.array([False, True])
-        tensor([False,  True])
-        """
-        return arithmetics.bitwise_and(self, other)
 
     def any(self, axis=None, out=None, keepdim=False) -> DNDarray:
         """
@@ -1036,30 +984,6 @@ class DNDarray:
         """
         return rounding.floor(self, out)
 
-    def __floordiv__(self, other) -> DNDarray:
-        """
-        Element-wise floor division (i.e. result is rounded int (floor)).
-        Takes the first tensor by which it divides the second not-heat-typed-parameter.
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-            The second operand by whose values is divided
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
-        >>> T1 // 1
-        tensor([[1., 2.],
-                [1., 4.]])
-        >>> T2 = ht.float32([1.5, 2.5])
-        >>> T1 // T2
-        tensor([[1., 0.],
-                [1., 1.]])
-        """
-        return arithmetics.floordiv(self, other)
-
     def fabs(self, out=None) -> DNDarray:
         """
         Calculate the absolute value element-wise and return floating-point array.
@@ -1402,12 +1326,6 @@ class DNDarray:
         """
         return self.__cast(int)
 
-    def __invert__(self) -> DNDarray:
-        """
-        Bit-wise inversion, or bit-wise NOT, element-wise.
-        """
-        return arithmetics.invert(self)
-
     def is_balanced(self) -> bool:
         """
         Determine if ``self`` is balanced evenly (or as evenly as possible) across all nodes
@@ -1545,22 +1463,6 @@ class DNDarray:
         array([0., 0.69314718, 1.09861229, 1.38629436, 1.60943791])
         """
         return exponential.log1p(self, out)
-
-    def __lshift__(self, other) -> DNDarray:
-        """
-        Shift the bits of an integer to the left.
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-           number of zero bits to add
-
-        Examples
-        ---------
-        >>> ht.array([1, 2, 4]) << 1
-        tensor([2, 4, 8])
-        """
-        return arithmetics.left_shift(self, other)
 
     def __lt__(self, other) -> DNDarray:
         """
@@ -1727,32 +1629,6 @@ class DNDarray:
         """
         return statistics.min(self, axis=axis, out=out, keepdim=keepdim)
 
-    def __mod__(self, other) -> DNDarray:
-        """
-        Element-wise division remainder of values of self by values of operand other (i.e. self % other), not commutative.
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-            The second operand by whose values ``self`` is to be divided.
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> ht.mod(2, 2)
-        tensor([0])
-        >>> T1 = ht.int32([[1, 2], [3, 4]])
-        >>> T2 = ht.int32([[2, 2], [2, 2]])
-        >>> T1 % T2
-        tensor([[1, 0],
-                [1, 0]], dtype=torch.int32)
-        >>> s = ht.int32([2])
-        >>> s % T1
-        tensor([[0, 0]
-                [2, 2]], dtype=torch.int32)
-        """
-        return arithmetics.mod(self, other)
-
     def modf(self, out=None) -> Tuple[DNDarray, DNDarray]:
         """
         Return the fractional and integral parts of an array, element-wise.
@@ -1766,30 +1642,6 @@ class DNDarray:
         """
 
         return rounding.modf(self, out)
-
-    def __mul__(self, other) -> DNDarray:
-        """
-        Element-wise multiplication (not matrix multiplication) with values from second operand (scalar or tensor)
-        Takes the second operand (scalar or tensor) whose values to multiply to the first tensor as argument.
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-           The value(s) to multiply to the tensor (element-wise)
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> T1 = ht.float32([[1, 2], [3, 4]])
-        >>> T1.__mul__(3.0)
-        tensor([[3., 6.],
-            [9., 12.]])
-        >>> T2 = ht.float32([[2, 2], [2, 2]])
-        >>> T1.__mul__(T2)
-        tensor([[2., 4.],
-            [6., 8.]])
-        """
-        return arithmetics.mul(self, other)
 
     def __ne__(self, other) -> DNDarray:
         """
@@ -1869,97 +1721,6 @@ class DNDarray:
         """
         dist = manipulations.resplit(self, axis=None)
         return dist._DNDarray__array.cpu().numpy()
-
-    def __or__(self, other) -> DNDarray:
-        """
-        Compute the bit-wise OR of two arrays element-wise.
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-            Only integer and boolean types are handled. If ``self.shape!=other.shape``, they must be broadcastable to a
-            common shape (which becomes the shape of the output).
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> ht.array([13]) | 16
-        tensor([29])
-        >>> ht.array([32]) | ht.array([2])
-        tensor([34])
-        >>> ht.array([33, 4]) | 1
-        tensor([33,  5])
-        >>> ht.array([33, 4]) | ht.array([1, 2])
-        tensor([33,  6])
-        >>> ht.array([2, 5, 255]) | ht.array([4, 4, 4])
-        tensor([  6,   5, 255])
-        >>> ht.array([2, 5, 255, 2147483647], dtype=ht.int32) | ht.array([4, 4, 4, 2147483647], dtype=ht.int32)
-        tensor([         6,          5,        255, 2147483647])
-        >>> ht.array([True, True]) | ht.array([False, True])
-        tensor([ True,  True])
-        """
-        return arithmetics.bitwise_or(self, other)
-
-    def __pow__(self, other) -> DNDarray:
-        """
-        Element-wise exponential function with values from second operand (scalar or tensor)
-        Takes the second operand (scalar or tensor) whose values are the exponent to be applied to the first
-        tensor as argument.
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-           The value(s) in the exponent (element-wise)
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> T1 = ht.float32([[1, 2], [3, 4]])
-        >>> T1.__pow__(3.0)
-        tensor([[1., 8.],
-                [27., 64.]])
-        >>> T2 = ht.float32([[3, 3], [2, 2]])
-        >>> T1.__pow__(T2)
-        tensor([[1., 8.],
-                [9., 16.]])
-        """
-        return arithmetics.pow(self, other)
-
-    def prod(self, axis=None, out=None, keepdim=None) -> DNDarray:
-        """
-        Return the product of array elements over a given axis.
-
-        Parameters
-        ----------
-        axis : None or int or tuple of ints, optional
-            Axis or axes along which a product is performed. The default, ``axis=None``, will calculate the product of all
-            the elements in the input array. If axis is negative it counts from the last to the first axis.
-            If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple instead of a
-            single axis or all the axes as before.
-        out : DNDarray, optional
-            Alternative output array in which to place the result. It must have the same shape as the expected output,
-            but the type of the output values will be cast if necessary.
-        keepdims : bool, optional
-            If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With
-            this option, the result will broadcast correctly against the input array.
-
-        Examples
-        --------
-        >>> import heat as ht
-        >>> ht.array([1.,2.]).prod()
-        ht.tensor([2.0])
-        >>> ht.tensor([
-            [1.,2.],
-            [3.,4.]
-        ]).prod()
-        ht.tensor([24.0])
-        >>> ht.array([
-            [1.,2.],
-            [3.,4.]
-        ]).prod(axis=1)
-        ht.tensor([  2.,  12.])
-        """
-        return arithmetics.prod(self, axis, out, keepdim)
 
     def qr(self, tiles_per_proc=1, calc_q=True, overwrite_a=False) -> Tuple[DNDarray, DNDarray]:
         """
@@ -2352,47 +2113,6 @@ class DNDarray:
         self.__split = axis
         return self
 
-    def __rfloordiv__(self, other) -> DNDarray:
-        """
-        Element-wise floor division (i.e. result is rounded int (floor))
-        Takes the first operand (scalar or ``DNDarray``) by which to divide as argument.
-
-        Parameters
-        ----------
-        other: scalar
-            This will be divided by the self-tensor
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> T = ht.float32([[1.7, 2.0], [1.9, 4.2]])
-        >>> 5 // T
-        tensor([[2., 2.],
-                [2., 1.]])
-        """
-        return arithmetics.floordiv(other, self)
-
-    def __rmod__(self, other) -> DNDarray:
-        """
-        Element-wise division remainder of values of other by values of operand self (i.e. other % self),
-        not commutative.
-        Takes the two operands (scalar or tensor) whose elements are to be divided (operand 2 by operand 1)
-        as arguments.
-
-        Parameters
-        ----------
-        other: scalar
-            The second operand which values will be divided by self.
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> T = ht.int32([1, 3])
-        >>> 2 % T
-        tensor([0, 2], dtype=torch.int32)
-        """
-        return arithmetics.mod(other, self)
-
     def round(self, decimals=0, out=None, dtype=None) -> DNDarray:
         """
         Calculate the rounded value element-wise.
@@ -2410,82 +2130,6 @@ class DNDarray:
             If decimals is negative, it specifies the number of positions to the left of the decimal point.
         """
         return rounding.round(self, decimals, out, dtype)
-
-    def __rpow__(self, other) -> DNDarray:
-        """
-        Element-wise exponential function of second operand (not-heat-typed) with values from first operand (tensor).
-        Takes the first operand (tensor) whose values are the exponent to be applied to the second
-        scalar or unknown data-type as argument.
-
-        Parameters
-        ----------
-        other: scalar
-           The value(s) in the base (element-wise)
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> T = ht.float32([[1, 2], [3, 4]])
-        >>> 3 ** T
-        tensor([[ 3., 9.],
-                [27., 81.]])
-        """
-        return arithmetics.pow(other, self)
-
-    def __rshift__(self, other) -> DNDarray:
-        """
-        Shift the bits of an integer to the right.
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-           Number of bits to remove
-
-        Examples
-        ---------
-        >>> ht.array([1, 2, 4]) >> 1
-        tensor([0, 1, 2])
-        """
-        return arithmetics.right_shift(self, other)
-
-    def __rsub__(self, other) -> DNDarray:
-        """
-        Element-wise subtraction of the array from another array or a scalar .
-        Subtracts the elements in ``self`` from ``other`` (scalar or unknown data-type).
-
-        Parameters
-        ----------
-        other: scalar
-            The value(s) from which the self-tensor will be element wise subtracted.
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> T = ht.float32([[1, 2], [3, 4]])
-        >>> 5 - T
-        tensor([[4., 3.],
-                [2., 1.]])
-        """
-        return arithmetics.sub(other, self)
-
-    def __rtruediv__(self, other) -> DNDarray:
-        """
-        Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
-        Divides the not-heat-typed-parameter ``other`` by the elements in ``self``.
-
-        Parameters
-        ----------
-        other: scalar
-            This will be divided by the self-array
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> T = ht.float32([2,3])
-        >>> 2 / T
-        tensor([1.0000, 0.6667])
-        """
-        return arithmetics.div(other, self)
 
     def save(self, path, *args, **kwargs):
         """
@@ -2864,58 +2508,6 @@ class DNDarray:
         # TODO: generate none-PyTorch str
         return self.__array.__str__(*args)
 
-    def __sub__(self, other) -> DNDarray:
-        """
-        Element-wise subtraction of another tensor or a scalar from the array.
-        Takes ``other`` (scalar or :class:`DNDarray`) whose elements are to be subtracted as argument.
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-            The value(s) to be subtracted element-wise from the array
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> T1 = ht.float32([[1, 2], [3, 4]])
-        >>> T1.__sub__(2.0)
-        tensor([[ 1.,  0.],
-                [-1., -2.]])
-        >>> T2 = ht.float32([[2, 2], [2, 2]])
-        >>> T1.__sub__(T2)
-        tensor([[-1., 0.],
-                [1., 2.]])
-        """
-        return arithmetics.sub(self, other)
-
-    def sum(self, axis=None, out=None, keepdim=None) -> DNDarray:
-        """
-        Sum of array elements over a given axis.
-        Returns an array with the same shape as ``self.__array`` except for the specified axis which
-        becomes one, e.g. for ``a.shape = (1,2,3)`` the result yields ``ht.ones((1,2,3)).sum(axis=1).shape = (1,1,3)``
-
-        Parameters
-        ----------
-        axis : None or int or tuple of ints, optional
-            Axis along which a sum is performed.
-            The default, ``axis=None``, will sum all of the elements of the input array. If axis is negative it counts
-            from the last to the first axis. If ``axis`` is a tuple of ints, a sum is performed on all of the axes specified
-            in the tuple instead of a single axis or all the axes as before.
-
-        Examples
-        --------
-        >>> ht.ones(2).sum()
-        tensor([2.])
-        >>> ht.ones((3,3)).sum()
-        tensor([9.])
-        >>> ht.ones((3,3)).astype(ht.int).sum()
-        tensor([9])
-        >>> ht.ones((3,2,1)).sum(axis=-3)
-        tensor([[[3.],
-                 [3.]]])
-        """
-        return arithmetics.sum(self, axis=axis, out=out, keepdim=keepdim)
-
     def tan(self, out=None) -> DNDarray:
         """
         Compute tangent element-wise.
@@ -3043,34 +2635,6 @@ class DNDarray:
         """
         return linalg.triu(self, k)
 
-    def __truediv__(self, other) -> DNDarray:
-        """
-        Element-wise true division (i.e. result is floating point value rather than rounded int (floor))
-        of the array by another array or scalar. Takes the second operand (scalar or DNDarray) by which to divide
-        as argument.
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-           The value(s) by which to divide the array (element-wise)
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> ht.div(2.0, 2.0)
-        tensor([1.])
-        >>> T1 = ht.float32([[1, 2],[3, 4]])
-        >>> T2 = ht.float32([[2, 2], [2, 2]])
-        >>> T1 / T2
-        tensor([[0.5000, 1.0000],
-                [1.5000, 2.0000]])
-        >>> s = 2.0
-        >>> ht.div(T1, s)
-        tensor([[0.5000, 1.0000],
-                [1.5, 2.0000]])
-        """
-        return arithmetics.div(self, other)
-
     def trunc(self, out=None) -> DNDarray:
         """
         Return the trunc of the input, element-wise.
@@ -3172,45 +2736,3 @@ class DNDarray:
         tensor([1.0218, 2.4422, 0.1085, 0.9032])
         """
         return statistics.var(self, axis, ddof=ddof, **kwargs)
-
-    def __xor__(self, other) -> DNDarray:
-        """
-        Compute the bit-wise XOR of two arrays element-wise.
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-        Only integer and boolean types are handled. If ``self.shape!=other.shape``, they must be broadcastable to a
-        common shape (which becomes the shape of the output).
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> ht.array([13]) ^ 17
-        tensor([28])
-        >>> ht.array([31]) ^ ht.array([5])
-        tensor([26])
-        >>> ht.array[31,3] ^ 5
-        tensor([26,  6])
-        >>> ht.array([31,3]) ^ ht.array([5,6])
-        tensor([26,  5])
-        >>> ht.array([True, True]) ^ ht.array([False, True])
-        tensor([ True, False])
-        """
-        return arithmetics.bitwise_xor(self, other)
-
-    """
-    This ensures that commutative arithmetic operations work no matter on which side the heat-tensor is placed.
-
-    Examples
-    --------
-    >>> import heat as ht
-    >>> T = ht.float32([[1., 2.], [3., 4.,]])
-    >>> T + 1
-    tensor([[2., 3.],
-            [4., 5.]])
-    >>> 1 + T
-    tensor([[2., 3.],
-        [4., 5.]])
-    """
-    __rmul__ = __mul__
