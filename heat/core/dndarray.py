@@ -730,53 +730,6 @@ class DNDarray:
         """
         return relational.eq(self, other)
 
-    def expand_dims(self, axis) -> DNDarray:
-        """
-        Expand the shape of an array.
-        Insert a new axis that will appear at the axis position in the expanded array shape. The number of dimensions
-        of the output array is one greater than that of the input array.
-
-        Parameters
-        ----------
-        axis : int
-            Position in the expanded axes where the new axis is placed.
-
-        Raises
-        ------
-        ValueError
-            If the axis is not in range of the axes.
-
-        Examples
-        --------
-        >>> x = ht.array([1,2])
-        >>> x.shape
-        (2,)
-        >>> y = ht.expand_dims(x, axis=0)
-        >>> y
-        array([[1, 2]])
-        >>> y.shape
-        (1, 2)
-        >>>y = ht.expand_dims(x, axis=1)
-        >>> y
-        array([[1],
-               [2]])
-        >>> y.shape
-        (2, 1)
-        """
-        return manipulations.expand_dims(self, axis)
-
-    def flatten(self) -> DNDarray:
-        """
-        Return a flat array (1D).
-
-        Examples
-        --------
-        >>> x = ht.array([[1,2],[3,4]])
-        >>> x.flatten()
-        tensor([1,2,3,4])
-        """
-        return manipulations.flatten(self)
-
     def __float__(self) -> float:
         """
         Float scalar casting.
@@ -1669,33 +1622,6 @@ class DNDarray:
             if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
                 self.__array = torch.cat((self.__array, data), dim=self.split)
 
-    def reshape(self, shape, axis=None) -> DNDarray:
-        """
-        Rearranges ``self`` to a specified shape.
-
-        Parameters
-        ----------
-        shape : Tuple[int,...] or List[int,...]
-            The new shape of the array
-        axis : int, optional
-            The new split axis. ``None`` denotes same axis
-
-        Raises
-        ------
-        ValueError
-            If the number of elements changes in the new shape.
-
-        Examples
-        --------
-        >>> a = ht.arange(16, split=0)
-        >>> a.reshape((4,4))
-        (1/2) tensor([[0, 1, 2, 3],
-                    [4, 5, 6, 7]], dtype=torch.int32)
-        (2/2) tensor([[ 8,  9, 10, 11],
-                    [12, 13, 14, 15]], dtype=torch.int32)
-        """
-        return manipulations.reshape(self, shape, axis)
-
     def resplit_(self, axis=None):
         """
         In-place option for resplitting a :class:`DNDarray`.
@@ -2100,47 +2026,6 @@ class DNDarray:
         """
         return trigonometrics.sinh(self, out)
 
-    def squeeze(self, axis=None) -> DNDarray:
-        """
-        Remove single-dimensional entries from the shape of the array.
-
-        Parameters
-        -----------
-        axis : None or int or tuple of ints, optional
-               Selects a subset of the single-dimensional entries in the shape.
-               If ``None``, all single-dimensional entries will be removed from the shape.
-               If an axis is selected with shape entry greater than one, a ``ValueError`` is raised.
-
-        Examples
-        -----------
-        >>> import heat as ht
-        >>> import torch
-        >>> torch.manual_seed(1)
-        <torch._C.Generator object at 0x115704ad0>
-        >>> a = ht.random.randn(1,3,1,5)
-        >>> a
-        tensor([[[[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232]],
-                [[ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255]],
-                [[-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]]]])
-        >>> a.shape
-        (1, 3, 1, 5)
-        >>> a.squeeze().shape
-        (3, 5)
-        >>> a.squeeze
-        tensor([[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232],
-                [ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255],
-                [-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]])
-        >>> a.squeeze(axis=0).shape
-        (3, 1, 5)
-        >>> a.squeeze(axis=-2).shape
-        (1, 3, 5)
-        >>> a.squeeze(axis=1).shape
-        Traceback (most recent call last):
-        ...
-        ValueError: Dimension along axis 1 is not 1 for shape (1, 3, 1, 5)
-        """
-        return manipulations.squeeze(self, axis)
-
     def std(self, axis=None, ddof=0, **kwargs) -> DNDarray:
         """
         Calculates and returns the standard deviation of the array with the bessel correction.
@@ -2337,40 +2222,6 @@ class DNDarray:
         tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
         """
         return rounding.trunc(self, out)
-
-    def unique(
-        self, sorted=False, return_inverse=False, axis=None
-    ) -> Tuple[DNDarray, torch.Tensor]:
-        """
-        Finds and returns the unique elements of the array.
-        If ``return_inverse`` is ``True``, a ``torch.Tensor`` will be returned as well whcih holds the list of inverse indices.
-        Works most effective if ``axis!=self.split``s.
-
-
-        Parameters
-        ----------
-        sorted : bool
-            Whether the found elements should be sorted before returning as output.
-        return_inverse: bool
-            Whether to also return the indices for where elements in the original input ended up in the returned
-            unique list.
-        axis : int
-            Axis along which unique elements should be found. Defaults to ``None``, which will return a one dimensional list of
-            unique values.
-
-        Examples
-        --------
-        >>> x = ht.array([[3, 2], [1, 3]])
-        >>> x.unique(x, sorted=True)
-        array([1, 2, 3])
-        >>> x.unique(x, sorted=True, axis=0)
-        array([[1, 3],
-               [2, 3]])
-        >>> x.unique(x, sorted=True, axis=1)
-        array([[2, 3],
-               [3, 1]])
-        """
-        return manipulations.unique(self, sorted, return_inverse, axis)
 
     def var(self, axis=None, ddof=0, **kwargs) -> DNDarray:
         """

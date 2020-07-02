@@ -574,6 +574,10 @@ def expand_dims(a, axis) -> DNDarray:
     )
 
 
+DNDarray.expand_dims = lambda self, axis: expand_dims(self, axis)
+DNDarray.expand_dims.__doc__ = expand_dims.__doc__
+
+
 def flatten(a) -> DNDarray:
     """
     Flattens an array into one dimension.
@@ -615,6 +619,10 @@ def flatten(a) -> DNDarray:
     a.balance_()
 
     return a
+
+
+DNDarray.flatten = lambda self: flatten(self)
+DNDarray.flatten.__doc__ = flatten.__doc__
 
 
 def flip(a, axis=None) -> DNDarray:
@@ -879,6 +887,10 @@ def reshape(a, shape, axis=None) -> DNDarray:
     data = data.reshape(local_shape)
 
     return factories.array(data, dtype=a.dtype, is_split=axis, device=a.device, comm=a.comm)
+
+
+DNDarray.reshape = lambda self, shape, axis: reshape(self, shape, axis)
+DNDarray.reshape.__doc__ = reshape.__doc__
 
 
 def shape(a) -> Tuple[int, ...]:
@@ -1249,6 +1261,10 @@ def squeeze(x, axis=None) -> DNDarray:
     return DNDarray(x_lsqueezed, out_gshape, x.dtype, split=split, device=x.device, comm=x.comm)
 
 
+DNDarray.squeeze = lambda self, axis: squeeze(self, axis)
+DNDarray.squeeze.__doc__ = squeeze.__doc__
+
+
 def unique(a, sorted=False, return_inverse=False, axis=None) -> Tuple[DNDarray, torch.tensor]:
     """
     Finds and returns the unique elements of a ``DNDarray``.
@@ -1447,6 +1463,10 @@ def unique(a, sorted=False, return_inverse=False, axis=None) -> Tuple[DNDarray, 
         return_value = [return_value, inverse_indices.to(a.device.torch_device)]
 
     return return_value
+
+
+DNDarray.unique = lambda self, sorted, return_inverse: unique(self, sorted, return_inverse)
+DNDarray.unique.__doc__ = unique.__doc__
 
 
 def resplit(arr, axis=None) -> DNDarray:
