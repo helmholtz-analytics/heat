@@ -126,6 +126,10 @@ def argmax(x, axis=None, out=None, **kwargs) -> DNDarray:
     return reduced_result
 
 
+DNDarray.argmax = lambda self, axis, out, **kwargs: argmax(self, axis, out, **kwargs)
+DNDarray.argmax.__doc__ = argmax.__doc__
+
+
 def argmin(x, axis=None, out=None, **kwargs) -> DNDarray:
     """
     Returns an array of the indices of the minimum values along an axis. It has the same shape as ``x.shape`` with the
@@ -222,6 +226,10 @@ def argmin(x, axis=None, out=None, **kwargs) -> DNDarray:
         return out
 
     return reduced_result
+
+
+DNDarray.argmin = lambda self, axis, out, **kwargs: argmin(self, axis, out, **kwargs)
+DNDarray.argmin.__doc__ = argmin.__doc__
 
 
 def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple[DNDarray, ...]]:
@@ -347,6 +355,10 @@ def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple
     return result
 
 
+DNDarray.average = lambda self, axis, weights, returned: average(self, axis, weights, returned)
+DNDarray.average.__doc__ = average.__doc__
+
+
 def cov(m, y=None, rowvar=True, bias=False, ddof=None) -> DNDarray:
     """
     Estimate the covariance matrix of some data, m. For more imformation on the algorithm please see the numpy function of the same name
@@ -465,6 +477,10 @@ def max(x, axis=None, out=None, keepdim=None) -> DNDarray:
     return operations.__reduce_op(
         x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdim=keepdim
     )
+
+
+DNDarray.max = lambda self, axis, out, keepdim: max(self, axis, out, keepdim)
+DNDarray.max.__doc__ = max.__doc__
 
 
 def maximum(x1, x2, out=None) -> DNDarray:
@@ -775,6 +791,10 @@ def mean(x, axis=None) -> DNDarray:
     )
 
 
+DNDarray.mean = lambda self, axis: mean(self, axis)
+DNDarray.mean.__doc__ = mean.__doc__
+
+
 def __merge_moments(m1, m2, bessel=True) -> Tuple:
     """
     Merge two statistical moments.
@@ -872,6 +892,10 @@ def min(x, axis=None, out=None, keepdim=None) -> DNDarray:
     return operations.__reduce_op(
         x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdim=keepdim
     )
+
+
+DNDarray.min = lambda self, axis, out, keepdim: min(self, axis, out, keepdim)
+DNDarray.min.__doc__ = min.__doc__
 
 
 def minimum(x1, x2, out=None) -> DNDarray:
@@ -1085,6 +1109,10 @@ def std(x, axis=None, ddof=0, **kwargs) -> DNDarray:
         return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
+DNDarray.std = lambda self, axis, ddof, **kwargs: std(self, axis, ddof, **kwargs)
+DNDarray.std.__doc__ = std.__doc__
+
+
 def var(x, axis=None, ddof=0, **kwargs) -> DNDarray:
     """
     Calculates and returns the variance of a ``DNDarray``. If an axis is given, the variance will be
@@ -1288,3 +1316,7 @@ def var(x, axis=None, ddof=0, **kwargs) -> DNDarray:
                 )
         else:
             raise TypeError("axis (axis) must be an int, tuple, list, etc.; currently it is {}. ")
+
+
+DNDarray.var = lambda self, axis, ddof, **kwargs: var(self, axis, ddof, **kwargs)
+DNDarray.bar.__doc__ = var.__doc__

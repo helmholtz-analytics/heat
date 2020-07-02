@@ -12,8 +12,6 @@ from . import io
 from . import linalg
 from . import manipulations
 from . import memory
-from . import rounding
-from . import statistics
 from . import stride_tricks
 from . import tiling
 from . import trigonometrics
@@ -339,72 +337,6 @@ class DNDarray:
             self.split,
         )
 
-    def argmax(self, axis=None, out=None, **kwargs) -> DNDarray:
-        """
-        Returns the indices of the maximum values along an axis.
-
-        Parameters
-        ----------
-        axis : int, optional
-            By default, the index is into the flattened array, otherwise along the specified axis.
-        out : DNDarray, optional
-            If provided, the result will be inserted into this array. It should be of the appropriate shape and datatype.
-
-        Examples
-        --------
-        >>> import heat as ht
-        >>> import torch
-        >>> torch.manual_seed(1)
-        >>> a = ht.random.randn(3,3)
-        >>> a
-        tensor([[-0.5631, -0.8923, -0.0583],
-        [-0.1955, -0.9656,  0.4224],
-        [ 0.2673, -0.4212, -0.5107]])
-        >>> a.argmax()
-        tensor([5])
-        >>> a.argmax(axis=0)
-        tensor([[2, 2, 1]])
-        >>> a.argmax(axis=1)
-        tensor([[2],
-        [2],
-        [0]])
-        """
-        return statistics.argmax(self, axis=axis, out=out, **kwargs)
-
-    def argmin(self, axis=None, out=None, **kwargs) -> DNDarray:
-        """
-        Returns the indices of the minimum values along an axis.
-
-        Parameters
-        ----------
-        x : DNDarray
-            Input array.
-        axis : int, optional
-            By default, the index is into the flattened array, otherwise along the specified axis.
-        out : DNDarray, optional
-            If provided, the result will be inserted into this array. It should be of the appropriate shape and datatype.
-
-        Examples
-        --------
-        >>> import heat as ht
-        >>> import torch
-        >>> torch.manual_seed(1)
-        >>> a = ht.random.randn(3,3)
-        >>> a
-        tensor([[-0.5631, -0.8923, -0.0583],
-        [-0.1955, -0.9656,  0.4224],
-        [ 0.2673, -0.4212, -0.5107]])
-        >>> a.argmin()
-        tensor([4])
-        >>> a.argmin(axis=0)
-        tensor([[0, 1, 2]])
-        >>> a.argmin(axis=1)
-        tensor([[1],
-                [1],
-                [2]])
-        """
-        return statistics.argmin(self, axis=axis, out=out, **kwargs)
-
     def astype(self, dtype, copy=True) -> DNDarray:
         """
         Returns a casted version of this array.
@@ -429,67 +361,6 @@ class DNDarray:
         self.__dtype = dtype
 
         return self
-
-    def average(self, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple[DNDarray]]:
-        """
-        Compute the weighted average along the specified axis.
-        Return the average along the specified axis. When ``returned=True``,
-        return a tuple with the average as the first element and the sum
-        of the weights as the second element. ``sum_of_weights`` is of the
-        same type as ``average``.
-
-        Parameters
-        ----------
-        axis : None or int or Tuple[ints,...], optional
-            Axis or axes along which to average x.  The default,
-            ``axis=None``, will average over all of the elements of the input array.
-            If axis is negative it counts from the last to the first axis.
-            #TODO Issue #351: If axis is a tuple of ints, averaging is performed on all of the axes
-            specified in the tuple instead of a single axis or all the axes as
-            before.
-        weights : DNDarray, optional
-            An array of weights associated with the values in ``self``. Each value in
-            ``self`` contributes to the average according to its associated weight.
-            The weights array can either be 1D (in which case its length must be
-            the size of ``self`` along the given axis) or of the same shape as ``self``.
-            If ``weights=None``, then all data in ``self`` are assumed to have a
-            weight equal to one, the result is equivalent to :func:`~heat.core.statistics.mean`.
-        returned : bool, optional
-            If ``True``, the tuple (``average``, ``sum_of_weights``)
-            is returned, otherwise only the average is returned.
-            If ``weights=None``, ``sum_of_weights`` is equivalent to the number of
-            elements over which the average is taken.
-
-        Raises
-        ------
-        ZeroDivisionError
-            When all weights along axis are zero.
-
-        TypeError
-            When the length of 1D weights is not the same as the shape of ``x``
-            along axis.
-
-        Examples
-        --------
-        >>> data = ht.arange(1,5, dtype=float)
-        >>> data
-        tensor([1., 2., 3., 4.])
-        >>> data.average()
-        tensor(2.5000)
-        >>> ht.arange(1,11, dtype=float).average(weights=ht.arange(10,0,-1))
-        tensor([4.])
-        >>> data = ht.array([[0, 1],
-                             [2, 3],
-                            [4, 5]], dtype=float, split=1)
-        >>> weights = ht.array([1./4, 3./4])
-        >>> data.average(axis=1, weights=weights)
-        tensor([0.7500, 2.7500, 4.7500])
-        >>> data.average(weights=weights)
-        Traceback (most recent call last):
-        ...
-        TypeError: Axis must be specified when shapes of x and weights differ.
-        """
-        return statistics.average(self, axis=axis, weights=weights, returned=returned)
 
     def balance_(self):
         """
@@ -1014,81 +885,6 @@ class DNDarray:
                       [12., 13., 14.]])
         """
         return linalg.matmul(self, other)
-
-    def max(self, axis=None, out=None, keepdim=None) -> DNDarray:
-        """
-        Return the maximum of an array or maximum along an axis.
-
-        Parameters
-        ----------
-        self : DNDarray
-            Input array.
-        axis : None or int
-            Axis or axes along which to operate. By default, flattened input is used.
-        #TODO: out : DNDarray, optional
-            Alternative output array in which to place the result. Must be of the same shape and buffer length as the
-            expected output.
-        #TODO: initial : scalar, optional
-            The minimum value of an output element. Must be present to allow computation on empty slice.
-        """
-        return statistics.max(self, axis=axis, out=out, keepdim=keepdim)
-
-    def mean(self, axis=None) -> DNDarray:
-        """
-        Calculates and returns the mean of ``self``.
-        If an axis is given, the mean will be taken in that direction.
-
-        Parameters
-        ----------
-        self : DNDarray
-            Values for which the mean is calculated.
-        axis : int or Iterable, optional
-            Axis which the mean is taken in.
-            Default ``None`` yields mean of all data.
-
-        Examples
-        --------
-        >>> a = ht.random.randn(1,3)
-        >>> a
-        tensor([[-1.2435,  1.1813,  0.3509]])
-        >>> ht.mean(a)
-        tensor(0.0962)
-        >>> a = ht.random.randn(4,4)
-        >>> a
-        tensor([[ 0.0518,  0.9550,  0.3755,  0.3564],
-                [ 0.8182,  1.2425,  1.0549, -0.1926],
-                [-0.4997, -1.1940, -0.2812,  0.4060],
-                [-1.5043,  1.4069,  0.7493, -0.9384]])
-        >>> ht.mean(a, 1)
-        tensor([ 0.4347,  0.7307, -0.3922, -0.0716])
-        >>> ht.mean(a, 0)
-        tensor([-0.2835,  0.6026,  0.4746, -0.0921])
-        >>> a = ht.random.randn(4,4)
-        >>> a
-        tensor([[ 2.5893,  1.5934, -0.2870, -0.6637],
-                [-0.0344,  0.6412, -0.3619,  0.6516],
-                [ 0.2801,  0.6798,  0.3004,  0.3018],
-                [ 2.0528, -0.1121, -0.8847,  0.8214]])
-        >>> ht.mean(a, (0,1))
-        tensor(0.4730)
-        """
-        return statistics.mean(self, axis)
-
-    def min(self, axis=None, out=None, keepdim=None):
-        """
-        Return the minimum of an array or minimum along an axis.
-
-        Parameters
-        ----------
-        axis : None or int
-            Axis or axes along which to operate. By default, flattened input is used.
-        #TODO: out : DNDarray, optional
-            Alternative output array in which to place the result. Must be of the same shape and buffer length as the
-            expected output.
-        #TODO: initial : scalar, optional
-            The maximum value of an output element. Must be present to allow computation on empty slice.
-        """
-        return statistics.min(self, axis=axis, out=out, keepdim=keepdim)
 
     def numpy(self) -> np.array:
         """
@@ -1733,49 +1529,6 @@ class DNDarray:
         """
         return trigonometrics.sinh(self, out)
 
-    def std(self, axis=None, ddof=0, **kwargs) -> DNDarray:
-        """
-        Calculates and returns the standard deviation of the array with the bessel correction.
-        If an axis is given, the variance will be taken in that direction.
-
-        Parameters
-        ----------
-        axis : int, optional
-            axis which the mean is taken in.
-            If ``None`` the standarddeviation of all data is calculated
-        ddof : int, optional
-            Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
-            represents the number of elements. If ``ddof=1``, the Bessel correction will be applied.
-            Setting ``ddof>1`` raises a NotImplementedError.
-
-        Notes
-        --------
-        If multidemensional ``var`` is implemented in pytorch, this can be an iterable.
-        Only thing which muse be changed is the raise
-
-        Examples
-        --------
-        >>> a = ht.random.randn(1,3)
-        >>> a
-        tensor([[ 0.3421,  0.5736, -2.2377]])
-        >>> a.std()
-        tensor(1.2742)
-        >>> a = ht.random.randn(4,4)
-        >>> a
-        tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
-                [ 0.2732, -0.0965, -0.1087, -1.3805],
-                [ 0.2647,  0.5998, -0.1635, -0.0848],
-                [ 0.0343,  0.1618, -0.8064, -0.1031]])
-        >>> ht.std(a, 0, ddof=1)
-        tensor([0.6157, 0.2918, 0.8324, 1.1996])
-        >>> ht.std(a, 1, ddof=1)
-        tensor([1.1405, 0.7236, 0.3506, 0.4324])
-        >>> ht.std(a, 1)
-        tensor([0.9877, 0.6267, 0.3037, 0.3745])
-
-        """
-        return statistics.std(self, axis, ddof=ddof, **kwargs)
-
     def __str__(self, *args):
         """
         String representation of the array
@@ -1909,51 +1662,3 @@ class DNDarray:
             Diagonal above which to zero elements. ``k=0`` (default) is the main diagonal, ``k<0`` is below and ``k>0`` is above.
         """
         return linalg.triu(self, k)
-
-    def var(self, axis=None, ddof=0, **kwargs) -> DNDarray:
-        """
-        Calculates and returns the variance of a :class:`DNDarray`.
-        If an axis is given, the variance will be taken in that direction.
-
-        Parameters
-        ----------
-        axis : int
-            axis which the variance is taken in.
-            If ``None``, the variance of all elements is calculated.
-        ddof : int, optional
-            Delta Degrees of Freedom: the denominator implicitely used in the calculation is N-ddof, where N
-            represents the number of elements. If ``ddof=1``, the Bessel correction will be applied.
-            Setting ``ddof>1`` raises a ``NotImplementedError``.
-
-        Notes
-        --------
-        - If multidemensional ``var`` is implemented in pytorch, this can be an iterable. Only thing which muse be changed is the raise
-
-        - The variance is the average of the squared deviations from the mean, i.e., ``var=mean(abs(x-x.mean())**2)``.
-
-        - The mean is normally calculated as ``x.sum()/N``, where ``N=len(x)``. If, however, ``ddof`` is specified, the divisor
-        ``N-ddof`` is used instead. In standard statistical practice, ``ddof=1`` provides an unbiased estimator of the
-        variance of a hypothetical infinite population. ``ddof=0`` provides a maximum likelihood estimate of the variance
-        for normally distributed variables.
-
-        Examples
-        --------
-        >>> a = ht.random.randn(1,3)
-        >>> a
-        tensor([[-1.9755,  0.3522,  0.4751]])
-        >>> a.var()
-        tensor(1.2710)
-        >>> a = ht.random.randn(4,4)
-        >>> a
-        tensor([[-0.8665, -2.6848, -0.0215, -1.7363],
-                [ 0.5886,  0.5712,  0.4582,  0.5323],
-                [ 1.9754,  1.2958,  0.5957,  0.0418],
-                [ 0.8196, -1.2911, -0.2026,  0.6212]])
-        >>> ht.var(a, 1, ddof=1)
-        tensor([1.3092, 0.0034, 0.7061, 0.9217])
-        >>> ht.var(a, 0, ddof=1)
-        tensor([1.3624, 3.2563, 0.1447, 1.2042])
-        >>> ht.var(a, 0)
-        tensor([1.0218, 2.4422, 0.1085, 0.9032])
-        """
-        return statistics.var(self, axis, ddof=ddof, **kwargs)
