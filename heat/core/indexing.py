@@ -85,6 +85,10 @@ def nonzero(a) -> DNDarray:
     )
 
 
+DNDarray.nonzero = lambda self: nonzero(self)
+DNDarray.nonzero.__doc__ = nonzero.__doc__
+
+
 def where(cond, x=None, y=None) -> DNDarray:
     """
     Return elements chosen from ``x`` or ``y`` depending on condition.

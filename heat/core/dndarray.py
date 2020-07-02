@@ -6,11 +6,8 @@ import torch
 import warnings
 from typing import List, Dict, Any, TypeVar, Union, Tuple
 
-from . import arithmetics
 from . import devices
-from . import exponential
 from . import factories
-from . import indexing
 from . import io
 from . import linalg
 from . import logical
@@ -1542,46 +1539,6 @@ class DNDarray:
                 [1, 1]])
         """
         return relational.ne(self, other)
-
-    def nonzero(self) -> DNDarray:
-        """
-        Return the indices of the elements that are non-zero. (using ``torch.nonzero``)
-        Result is 1D :class`DNDarray`, one entry for each dimension of self, containing the indices of the non-zero elements in that dimension.
-        The values in a are always tested and returned in row-major, C-style order. The corresponding non-zero values can be obtained with: ``a[nonzero(a)]``.
-        If self is split then the result is split in the 0th dimension. However, this ``DNDarray`` can be UNBALANCED
-        as it contains the indices of the non-zero elements on each node.
-
-        Examples
-        --------
-        >>> x = ht.array([[3, 0, 0], [0, 4, 1], [0, 6, 0]], split=0)
-        [0/2] tensor([[3, 0, 0]])
-        [1/2] tensor([[0, 4, 1]])
-        [2/2] tensor([[0, 6, 0]])
-        >>> ht.nonzero(x)
-        [0/2] tensor([[0, 0]])
-        [1/2] tensor([[1, 1],
-        [1/2]         [1, 2]])
-        [2/2] tensor([[2, 1]])
-        >>> a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=0)
-        [0/1] tensor([[1, 2, 3],
-        [0/1]         [4, 5, 6]])
-        [1/1] tensor([[7, 8, 9]])
-        >>> a > 3
-        [0/1] tensor([[0, 0, 0],
-        [0/1]         [1, 1, 1]], dtype=torch.uint8)
-        [1/1] tensor([[1, 1, 1]], dtype=torch.uint8)
-        >>> ht.nonzero(a > 3)
-        [0/1] tensor([[1, 0],
-        [0/1]         [1, 1],
-        [0/1]         [1, 2]])
-        [1/1] tensor([[2, 0],
-        [1/1]         [2, 1],
-        [1/1]         [2, 2]])
-        >>> a[ht.nonzero(a > 3)]
-        [0/1] tensor([[4, 5, 6]])
-        [1/1] tensor([[7, 8, 9]])
-        """
-        return indexing.nonzero(self)
 
     def numpy(self) -> np.array:
         """
