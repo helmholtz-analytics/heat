@@ -52,6 +52,7 @@ class DataParallel(tnn.Module):
     def blocking_grad_update(self, learning_rate):
         # need to send the self.parameters() to the other processes after the backwards loss step
         # then can use optimizer.step
+        # print(list(self.parameters()))
         for f in self.parameters():
             c = torch.true_divide(f.grad.data, self.comm.size)
             self.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)

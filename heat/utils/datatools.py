@@ -2,6 +2,9 @@ import h5py
 import numpy as np
 import base64
 import os
+import torch
+from torch.utils import data as torch_data
+from ..core import dndarray
 
 __all__ = ["merge_files_imagenet_tfrecord"]
 
@@ -237,3 +240,78 @@ def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
     train_lcl_file["file_info"].attrs["column_names"] = [feature_list[l] for l in file_list]
     val_lcl_file["metadata"].attrs["column_names"] = [feature_list[l] for l in img_list]
     val_lcl_file["file_info"].attrs["column_names"] = [feature_list[l] for l in file_list]
+
+
+class DataLoader(object):
+    # TODO: RETURN A TORCH.DATALOADER!!
+    # torch defaults:
+    #           dataset, batch_size=1, shuffle=False, sampler=None,
+    #           batch_sampler=None, num_workers=0, collate_fn=None, pin_memory=False, drop_last=False,
+    #           timeout=0, worker_init_fn=None, multiprocessing_context=None
+
+    # init params: torch.utils.data.Dataset, batch_size=1, lcl_sampler=None, batch_sampler=None, lcl_workers=0,
+    #                  collate_fn=None, pin_memory=False, drop_last=False, timeout=0, worker_init_fn=None
+    # todo: make a dataset
+    # notes: ignoring iterable datasets for now
+    #   this means that all datasets are self._dataset_kind = _DatasetKind.Map
+
+    # what has to happen to turn a ht.DNDarray into a torch DataLoader:
+    def __init__(
+        self,
+        data,
+        batch_size=1,
+        lcl_workers=0,
+        collate_fn=None,
+        pin_memory=False,
+        drop_last=False,
+        timeout=0,
+        worker_init_fn=None,
+        shuffle=True,
+    ):
+        if not isinstance(data, dndarray.DNDarray):
+            raise TypeError(f"data must be a DNDarray, currently: {type(data)}")
+        self.full_data = data
+        self.comm = data.comm
+        # create dataset
+        lcl_dataset = Dataset(data)
+        #   global shuffler,
+        # need to implement the following -> iterable dataset, other samplers?
+        # torch_sampler = torch_data.sampler.RandomSampler(lcl_dataset)
+        self.lcl_DataLoader = torch_data.DataLoader(
+            lcl_dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            sampler=None,
+            batch_sampler=None,
+            num_workers=lcl_workers,
+            collate_fn=collate_fn,
+            pin_memory=pin_memory,
+            drop_last=drop_last,
+            timeout=timeout,
+            worker_init_fn=worker_init_fn,
+        )
+
+
+# todo: create new sampler class to shuffle data at the end of the iteration
+class GlobalShuffler(torch_data.Sampler):
+    def __init__(self, torch_sampler):
+        pass
+
+
+class Dataset(torch_data.Dataset):
+    # todo: implement iterable-style datasets
+    # only map still datasets here
+    # assumes that the items to train on are in the 0th axis
+    def __init__(self, array):
+        # slice the data at the smallest number of elements
+        min_data_split = array.gshape[array.split] // array.comm.size
+        arb_slice = [slice(None)] * array.ndim
+        arb_slice[array.split] = slice(min_data_split)
+        self.cut_slice = tuple(arb_slice)
+        self.data = array._DNDarray__array
+
+    def __getitem__(self, index):
+        return self.data[self.cut_slice][index]
+
+    def __len__(self):
+        return self.data.shape[0]
