@@ -164,6 +164,11 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False) -> Tuple[DNDarray, D
     return ret
 
 
+DNDarray.qr = lambda self, tiles_per_proc, calc_q, overwrite_a: qr(
+    self, tiles_per_proc, calc_q, overwrite_a
+)
+
+
 def __split0_global_q_dict_set(q_dict_col, col, r_tiles, q_tiles, global_merge_dict=None) -> None:
     """
     The function takes the original Q tensors from the global QR calculation and sets them to

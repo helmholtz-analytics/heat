@@ -1139,6 +1139,8 @@ def transpose(a, axes=None) -> DNDarray:
 DNDarray.transpose = lambda self, axes: transpose(self, axes)
 DNDarray.transpose.__doc__ = transpose.__doc__
 
+DNDarray.T = lambda self, axes: transpose(self, axes)
+DNDarray.T.__doc__ = transpose.__doc__
 
 # statically allocated index slices for non-iterable dimensions in triangular operations
 __index_base = (slice(None), slice(None))

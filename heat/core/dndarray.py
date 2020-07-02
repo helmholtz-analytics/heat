@@ -9,9 +9,7 @@ from typing import List, Dict, Any, TypeVar, Union, Tuple
 from . import devices
 from . import factories
 from . import io
-from . import linalg
 from . import manipulations
-from . import memory
 from . import stride_tricks
 from . import tiling
 
@@ -234,13 +232,6 @@ class DNDarray:
         itemsize = self._DNDarray__array.storage().element_size()
         strides = tuple(step * itemsize for step in steps)
         return strides
-
-    @property
-    def T(self):
-        """
-        Transpose the ``DNDarray``
-        """
-        return linalg.transpose(self, axes=None)
 
     @property
     def array_with_halos(self):
@@ -792,43 +783,6 @@ class DNDarray:
         """
         dist = manipulations.resplit(self, axis=None)
         return dist._DNDarray__array.cpu().numpy()
-
-    def qr(self, tiles_per_proc=1, calc_q=True, overwrite_a=False) -> Tuple[DNDarray, DNDarray]:
-        """
-        Calculates the QR decomposition of a 2D :class:`DNDarray`.
-        Returns a Tuple of Q and R
-        The algorithms are based on the CAQR and TSQR algorithms. For more information see the references.
-
-        Parameters
-        ----------
-        a : DNDarray
-            DNDarray which will be decomposed
-        tiles_per_proc : int or torch.Tensor, optional
-            Number of tiles per process to operate on
-        calc_q : bool, optional
-            whether or not to calculate Q.
-            If ``True``, function returns ``(Q, R)``.
-            If ``False``, function returns ``(None, R)``.
-        overwrite_a : bool, optional
-            If ``True``, function overwrites the DNDarray a, with R.
-            If ``False``, a new array will be created for R
-
-        References
-        ----------
-        [0] W. Zheng, F. Song, L. Lin, and Z. Chen, “Scaling Up Parallel Computation of Tiled QR
-        Factorizations by a Distributed Scheduling Runtime System and Analytical Modeling,”
-        Parallel Processing Letters, vol. 28, no. 01, p. 1850004, 2018.
-
-        [1] Bilel Hadri, Hatem Ltaief, Emmanuel Agullo, Jack Dongarra. Tile QR Factorization with
-        Parallel Panel Processing for Multicore Architectures. 24th IEEE International Parallel
-        and DistributedProcessing Symposium (IPDPS 2010), Apr 2010, Atlanta, United States.
-        inria-00548899
-
-        [2] Gene H. Golub and Charles F. Van Loan. 1996. Matrix Computations (3rd Ed.).
-        """
-        return linalg.qr(
-            self, tiles_per_proc=tiles_per_proc, calc_q=calc_q, overwrite_a=overwrite_a
-        )
 
     def __repr__(self, *args):
         # TODO: document me
