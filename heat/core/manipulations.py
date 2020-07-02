@@ -67,14 +67,14 @@ def column_stack(arrays):
 
     Examples
     --------
-    # 1-D tensors
+    >>> # 1-D tensors
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([2, 3, 4])
     >>> ht.column_stack((a, b))
     tensor([[1, 2],
         [2, 3],
         [3, 4]])
-    # 1-D and 2-D tensors
+    >>> # 1-D and 2-D tensors
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([[2, 5], [3, 6], [4, 7]])
     >>> c = ht.array([[7, 10], [8, 11], [9, 12]])
@@ -82,7 +82,7 @@ def column_stack(arrays):
     tensor([[ 1,  2,  5,  7, 10],
             [ 2,  3,  6,  8, 11],
             [ 3,  4,  7,  9, 12]])
-    # distributed DNDarrays, 3 processes
+    >>> # distributed DNDarrays, 3 processes
     >>> a = ht.arange(10, split=0).reshape((5, 2))
     >>> b = ht.arange(5, 20, split=0).reshape((5, 3))
     >>> c = ht.arange(20, 40, split=0).reshape((5, 4))
@@ -92,7 +92,7 @@ def column_stack(arrays):
     [1,1] tensor([[ 4,  5, 11, 12, 13, 28, 29, 30, 31],
     [1,1]         [ 6,  7, 14, 15, 16, 32, 33, 34, 35]], dtype=torch.int32)
     [1,2] tensor([[ 8,  9, 17, 18, 19, 36, 37, 38, 39]], dtype=torch.int32)
-    # distributed 1-D and 2-D DNDarrays, 3 processes
+    >>> # distributed 1-D and 2-D DNDarrays, 3 processes
     >>> a = ht.arange(5, split=0)
     >>> b = ht.arange(5, 20, split=1).reshape((5, 3))
     >>> ht_column_stack((a, b))
@@ -112,7 +112,6 @@ def column_stack(arrays):
     [2/2]         [16],
     [2/2]         [19]], dtype=torch.int32)
     """
-
     arr_dims = list(array.ndim for array in arrays)
     # sanitation, arrays can be 1-d or 2-d, see sanitation module #468
     over_dims = [i for i, j in enumerate(arr_dims) if j > 2]
@@ -1572,7 +1571,7 @@ def stack(arrays, axis=0, out=None):
              [25, 26, 27, 28, 29],
              [30, 31, 32, 33, 34],
              [35, 36, 37, 38, 39]]])
-    # distributed DNDarrays, 3 processes, stack along last dimension
+    >>> # distributed DNDarrays, 3 processes, stack along last dimension
     >>> a = ht.arange(20, split=0).reshape(4, 5)
     >>> b = ht.arange(20, 40, split=0).reshape(4, 5)
     >>> ht.stack((a,b), axis=-1)
@@ -2034,13 +2033,13 @@ def row_stack(arrays):
 
     Examples
     --------
-    # 1-D tensors
+    >>> # 1-D tensors
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([2, 3, 4])
     >>> ht.row_stack((a, b))
     tensor([[1, 2, 3],
             [2, 3, 4]])
-    # 1-D and 2-D tensors
+    >>> # 1-D and 2-D tensors
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([[2, 3, 4], [5, 6, 7]])
     >>> c = ht.array([[7, 8, 9], [10, 11, 12]])
@@ -2050,7 +2049,7 @@ def row_stack(arrays):
             [ 5,  6,  7],
             [ 7,  8,  9],
             [10, 11, 12]])
-    # distributed DNDarrays, 3 processes
+    >>> # distributed DNDarrays, 3 processes
     >>> a = ht.arange(10, split=0).reshape((2, 5))
     >>> b = ht.arange(5, 20, split=0).reshape((3, 5))
     >>> c = ht.arange(20, 40, split=0).reshape((4, 5))
@@ -2064,7 +2063,7 @@ def row_stack(arrays):
     [2/2] tensor([[25, 26, 27, 28, 29],
     [2/2]         [30, 31, 32, 33, 34],
     [2/2]         [35, 36, 37, 38, 39]], dtype=torch.int32)
-    # distributed 1-D and 2-D DNDarrays, 3 processes
+    >>> # distributed 1-D and 2-D DNDarrays, 3 processes
     >>> a = ht.arange(5, split=0)
     >>> b = ht.arange(5, 20, split=0).reshape((3, 5))
     >>> ht.row_stack((a, b))
@@ -2073,7 +2072,6 @@ def row_stack(arrays):
     [1/2] tensor([[10, 11, 12, 13, 14]])
     [2/2] tensor([[15, 16, 17, 18, 19]])
     """
-
     arr_dims = list(array.ndim for array in arrays)
     # sanitation, arrays can be 1-d or 2-d, see sanitation module #468
     over_dims = [i for i, j in enumerate(arr_dims) if j > 2]
