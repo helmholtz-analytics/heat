@@ -29,9 +29,7 @@ class DataParallel(tnn.Module):
 
         # registering hooks for all model parameter tensors
         for name, param in module.named_parameters():
-            # todo: insert layers in computation order, not in definition order
             layer_name = name.split(sep=".", maxsplit=1)[0]
-            self.wait_handles[layer_name] = list()
 
             if nonblocking:
                 param.register_hook(self.nonblocking_hook(layer_name))
@@ -56,6 +54,10 @@ class DataParallel(tnn.Module):
             self.global_batch_size = lcl_data.size()[0]
             self.local_batch_size = self.global_batch_size
         ret = self.module(lcl_data, *inputs[1:], **kwargs)
+
+        # clear dictionary after all wait handles are used up
+        self.wait_handles.clear()
+
         return ret
 
     def set_comm(self, comm):
@@ -118,6 +120,11 @@ class DataParallel(tnn.Module):
 
             # perform MPI IAllreduce to compute global gradient, returns wait handle
             wait_handle = self.comm.Iallreduce(ht.MPI.IN_PLACE, grad_loc_cpy, ht.MPI.SUM)
+
+            # if wait handle dictionary does not contain the layer yet, add it -> automatically tracks reversed layer
+            # order
+            if layer_name not in self.wait_handles:
+                self.wait_handles[layer_name] = list()
 
             # get size of flattened tensor
             size1D = functools.reduce(operator.mul, grad_loc.shape, 1)
