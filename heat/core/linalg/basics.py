@@ -758,6 +758,10 @@ def matmul(a, b, allow_resplit=False) -> DNDarray:
         return c
 
 
+DNDarray.__matmul__ = lambda self, other: matmul(self, other)
+DNDarray.__matmul__.__doc__ = matmul.__doc__
+
+
 def norm(a) -> float:
     """
     Returns the vector norm (Frobenius norm) of vector ``a``
@@ -777,6 +781,10 @@ def norm(a) -> float:
         d = arithmetics.sum(d, axis=i)
 
     return exponential.sqrt(d).item()
+
+
+DNDarray.norm = lambda self: norm(self)
+DNDarray.norm.__doc__ = norm.__doc__
 
 
 def outer(a, b, out=None, split=None) -> DNDarray:
@@ -1128,6 +1136,10 @@ def transpose(a, axes=None) -> DNDarray:
         raise ValueError(str(exception))
 
 
+DNDarray.transpose = lambda self, axes: transpose(self, axes)
+DNDarray.transpose.__doc__ = transpose.__doc__
+
+
 # statically allocated index slices for non-iterable dimensions in triangular operations
 __index_base = (slice(None), slice(None))
 
@@ -1223,6 +1235,10 @@ def tril(m, k=0) -> DNDarray:
     return __tri_op(m, k, torch.tril)
 
 
+DNDarray.tril = lambda self, k: tril(self, k)
+DNDarray.tril.__doc__ = tril.__doc__
+
+
 def triu(m, k=0) -> DNDarray:
     """
     Returns the upper triangular part of the ``DNDarray``.
@@ -1240,3 +1256,7 @@ def triu(m, k=0) -> DNDarray:
 
     """
     return __tri_op(m, k, torch.triu)
+
+
+DNDarray.triu = lambda self, k: triu(self, k)
+DNDarray.triu.__doc__ = triu.__doc__
