@@ -339,39 +339,6 @@ class DNDarray:
             self.split,
         )
 
-    def abs(self, out=None, dtype=None) -> DNDarray:
-        """
-        Calculate the absolute value element-wise. Returns tensor containing the absolute value of each element in ``self``.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-            If not provided or ``None``, the array is modified inplace
-        dtype : datatype, optional
-            Determines the data type of the output array. The values are cast to this type with potential loss of
-            precision.
-
-        """
-        return rounding.abs(self, out, dtype)
-
-    def absolute(self, out=None, dtype=None) -> DNDarray:
-        """
-        Calculate the absolute value element-wise.
-        :func:`abs` is a shorthand for this function.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-            If not provided or ``None``, ``self`` is modified in-place.
-        dtype : datatype, optional
-            Determines the data type of the output array. The values are cast to this type with potential loss of
-            precision.
-
-        """
-        return self.abs(out, dtype)
-
     def argmax(self, axis=None, out=None, **kwargs) -> DNDarray:
         """
         Returns the indices of the maximum values along an axis.
@@ -596,44 +563,6 @@ class DNDarray:
 
         raise TypeError("only size-1 arrays can be converted to Python scalars")
 
-    def ceil(self, out=None) -> DNDarray:
-        """
-        Return the ceil of the input, element-wise.
-        The ceil of the scalar ``x`` is the smallest integer i, such that ``i>=x``. It is often denoted as :math:`\\lceil x \\rceil`.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.arange(-2.0, 2.0, 0.4).ceil()
-        tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
-        """
-        return rounding.ceil(self, out)
-
-    def clip(self, a_min, a_max, out=None) -> DNDarray:
-        """
-        Returns a :class:`DNDarray` with the elements of ``self``, but where values ``<a_min`` are replaced with ``a_min``,
-        and those ``>a_max`` with ``a_max``.
-
-        Parameters
-        ----------
-        a_min : scalar or None
-            Minimum value. If ``None``, clipping is not performed on lower interval edge. Not more than one of ``a_min`` and
-            ``a_max`` may be ``None``.
-        a_max : scalar or None
-            Maximum value. If ``None``, clipping is not performed on upper interval edge. Not more than one of ``a_min`` and
-            ``a_max`` may be ``None``.
-        out : DNDarray, optional
-            The results will be placed in this array. It may be the input array for in-place clipping. ``out`` must be of
-            the right shape to hold the output. Its type is preserved.
-
-        """
-        return rounding.clip(self, a_min, a_max, out)
-
     def __complex__(self):
         """
         Complex scalar casting.
@@ -708,38 +637,6 @@ class DNDarray:
         Float scalar casting.
         """
         return self.__cast(float)
-
-    def floor(self, out=None) -> DNDarray:
-        """
-        Return the floor of the input, element-wise.
-        The floor of the scalar ``x`` is the largest integer i, such that ``i<=x``. It is often denoted as :math:`\\lfloor x
-        \\rfloor`.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.floor(ht.arange(-2.0, 2.0, 0.4))
-        tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
-        """
-        return rounding.floor(self, out)
-
-    def fabs(self, out=None) -> DNDarray:
-        """
-        Calculate the absolute value element-wise and return floating-point array.
-        This function exists besides ``abs==absolute`` since it will be needed in case complex numbers will be introduced in the future.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-            If not provided or ``None``, the array is modified in-place.
-        """
-        return rounding.fabs(self, out)
 
     def fill_diagonal(self, value) -> DNDarray:
         """
@@ -1193,20 +1090,6 @@ class DNDarray:
         """
         return statistics.min(self, axis=axis, out=out, keepdim=keepdim)
 
-    def modf(self, out=None) -> Tuple[DNDarray, DNDarray]:
-        """
-        Return the fractional and integral parts of an array, element-wise.
-        The fractional and integral parts are negative if the given number is negative.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-            If not provided or ``None``, the array is modified in-place.
-        """
-
-        return rounding.modf(self, out)
-
     def numpy(self) -> np.array:
         """
         Convert :class:`DNDarray` to numpy array. If the tensor is distributed it will be merged beforehand. If the array
@@ -1584,24 +1467,6 @@ class DNDarray:
         self.__array = arrays
         self.__split = axis
         return self
-
-    def round(self, decimals=0, out=None, dtype=None) -> DNDarray:
-        """
-        Calculate the rounded value element-wise.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-            If not provided or ``None``, the array is modified in-place.
-        dtype : datatype, optional
-            Determines the data type of the output array. The values are cast to this type with potential loss of
-            precision.
-        decimals: int, optional
-            Number of decimal places to round to.
-            If decimals is negative, it specifies the number of positions to the left of the decimal point.
-        """
-        return rounding.round(self, decimals, out, dtype)
 
     def save(self, path, *args, **kwargs):
         """
@@ -2044,26 +1909,6 @@ class DNDarray:
             Diagonal above which to zero elements. ``k=0`` (default) is the main diagonal, ``k<0`` is below and ``k>0`` is above.
         """
         return linalg.triu(self, k)
-
-    def trunc(self, out=None) -> DNDarray:
-        """
-        Return the trunc of the input, element-wise.
-        The truncated value of the scalar x is the nearest integer i which is closer to zero than x is. In short, the
-        fractional part of the signed number x is discarded. Result is an array of the same shape as ``self``, containing the
-        trunced valued of each element in this array. If ``out`` was provided, trunced is a reference to it.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, a fresh tensor is allocated.
-
-        Examples
-        --------
-        >>> ht.trunc(ht.arange(-2.0, 2.0, 0.4))
-        tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
-        """
-        return rounding.trunc(self, out)
 
     def var(self, axis=None, ddof=0, **kwargs) -> DNDarray:
         """

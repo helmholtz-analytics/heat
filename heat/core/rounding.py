@@ -33,6 +33,10 @@ def abs(x, out=None, dtype=None) -> DNDarray:
     return absolute_values
 
 
+DNDarray.abs = lambda self, out, dtype: abs(self, out, dtype)
+DNDarray.abs.__doc__ = abs.__doc__
+
+
 def absolute(x, out=None, dtype=None) -> DNDarray:
     """
     Calculate the absolute value element-wise.
@@ -50,6 +54,10 @@ def absolute(x, out=None, dtype=None) -> DNDarray:
         precision.
     """
     return abs(x, out, dtype)
+
+
+DNDarray.absolute = lambda self, out, dtype: absolute(self, out, dtype)
+DNDarray.absolute.__doc__ = absolute.__doc__
 
 
 def ceil(x, out=None) -> DNDarray:
@@ -71,6 +79,10 @@ def ceil(x, out=None) -> DNDarray:
     tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
     """
     return operations.__local_op(torch.ceil, x, out)
+
+
+DNDarray.ceil = lambda self, out: ceil(self, out)
+DNDarray.ceil.__doc__ = ceil.__doc__
 
 
 def clip(a, a_min, a_max, out=None) -> DNDarray:
@@ -107,6 +119,10 @@ def clip(a, a_min, a_max, out=None) -> DNDarray:
     return a._DNDarray__array.clamp(a_min, a_max, out=out._DNDarray__array) and out
 
 
+DNDarray.clip = lambda self, a_min, a_max, out: clip(self, a_min, a_max, out)
+DNDarray.clip.__doc__ = clip.__doc__
+
+
 def fabs(x, out=None) -> DNDarray:
     """
     Calculate the absolute value element-wise and return floating-point ``DNDarray``.
@@ -122,6 +138,10 @@ def fabs(x, out=None) -> DNDarray:
     """
 
     return abs(x, out, dtype=None)
+
+
+DNDarray.fabs = lambda self, out: fabs(self, out)
+DNDarray.fabs.__doc__ = fabs.__doc__
 
 
 def floor(x, out=None) -> DNDarray:
@@ -144,6 +164,10 @@ def floor(x, out=None) -> DNDarray:
     tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
     """
     return operations.__local_op(torch.floor, x, out)
+
+
+DNDarray.floor = lambda self, out: floor(self, out)
+DNDarray.floor.__doc__ = floor.__doc__
 
 
 def modf(x, out=None) -> Tuple[DNDarray, DNDarray]:
@@ -193,6 +217,10 @@ def modf(x, out=None) -> Tuple[DNDarray, DNDarray]:
     return (fractionalParts, integralParts)
 
 
+DNDarray.modf = lambda self, out: modf(self, out)
+DNDarray.modf.__doc__ = modf.__doc__
+
+
 def round(x, decimals=0, out=None, dtype=None) -> DNDarray:
     """
     Calculate the rounded value element-wise.
@@ -235,6 +263,10 @@ def round(x, decimals=0, out=None, dtype=None) -> DNDarray:
     return rounded_values
 
 
+DNDarray.round = lambda self, decimals, out, dtype: round(self, decimals, out, dtype)
+DNDarray.round.__doc__ = round.__doc__
+
+
 def trunc(x, out=None) -> DNDarray:
     """
     Return the trunc of the input, element-wise.
@@ -255,3 +287,7 @@ def trunc(x, out=None) -> DNDarray:
     tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
     """
     return operations.__local_op(torch.trunc, x, out)
+
+
+DNDarray.trunc = lambda self, out: trunc(self, out)
+DNDarray.trunc.__doc__ = trunc.__doc__
