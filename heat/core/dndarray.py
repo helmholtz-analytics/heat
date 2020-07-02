@@ -439,12 +439,6 @@ class DNDarray:
         """
         return self.__cast(complex)
 
-    def copy(self) -> DNDarray:
-        """
-        Return an array copy of the given object.
-        """
-        return memory.copy(self)
-
     def cpu(self) -> DNDarray:
         """
         Returns a copy of this object in main memory. If this object is already in main memory, then no copy is

@@ -11,13 +11,17 @@ def copy(a) -> DNDarray:
 
     Parameters
     ----------
-    a : ht.DNDarray
+    a : DNDarray
         Input data to be copied.
 
     """
     if not isinstance(a, DNDarray):
         raise TypeError("input needs to be a tensor")
     return DNDarray(a._DNDarray__array.clone(), a.shape, a.dtype, a.split, a.device, a.comm)
+
+
+DNDarray.copy = lambda self: copy(self)
+DNDarray.copy.__doc__ = copy.__doc__
 
 
 def sanitize_memory_layout(x, order="C"):
