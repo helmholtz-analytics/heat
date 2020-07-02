@@ -1009,22 +1009,22 @@ class TestDNDarray(TestCase):
         a[0] = ht.array([6, 6, 6, 6, 6])
         self.assertTrue((a[ht.array((0,))] == 6).all())
 
-    def test_size_numel(self):
+    def test_size_gnumel(self):
         a = ht.zeros((10, 10, 10), split=None)
         self.assertEqual(a.size, 10 * 10 * 10)
-        self.assertEqual(a.numel, 10 * 10 * 10)
+        self.assertEqual(a.gnumel, 10 * 10 * 10)
 
         a = ht.zeros((10, 10, 10), split=0)
         self.assertEqual(a.size, 10 * 10 * 10)
-        self.assertEqual(a.numel, 10 * 10 * 10)
+        self.assertEqual(a.gnumel, 10 * 10 * 10)
 
         a = ht.zeros((10, 10, 10), split=1)
         self.assertEqual(a.size, 10 * 10 * 10)
-        self.assertEqual(a.numel, 10 * 10 * 10)
+        self.assertEqual(a.gnumel, 10 * 10 * 10)
 
         a = ht.zeros((10, 10, 10), split=2)
         self.assertEqual(a.size, 10 * 10 * 10)
-        self.assertEqual(a.numel, 10 * 10 * 10)
+        self.assertEqual(a.gnumel, 10 * 10 * 10)
 
         self.assertEqual(ht.array(0).size, 1)
 

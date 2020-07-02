@@ -150,7 +150,7 @@ class DNDarray:
         return torch.prod(torch.tensor(self.gshape, device=self.device.torch_device)).item()
 
     @property
-    def numel(self):
+    def gnumel(self):
         """
 
         Returns

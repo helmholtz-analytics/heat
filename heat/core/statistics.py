@@ -314,7 +314,7 @@ def average(x, axis=None, weights=None, returned=False):
 
     if weights is None:
         result = mean(x, axis)
-        num_elements = x.numel / result.numel
+        num_elements = x.gnumel / result.gnumel
         cumwgt = factories.empty(1, dtype=result.dtype)
         cumwgt._DNDarray__array = num_elements
     else:
@@ -435,7 +435,7 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     norm = x.shape[1] - ddof
     # find normalization:
     if norm <= 0:
-        raise ValueError(f"ddof >= number of elements in m, {ddof} {m.numel}")
+        raise ValueError(f"ddof >= number of elements in m, {ddof} {m.gnumel}")
     x -= avg.expand_dims(1)
     c = linalg.dot(x, x.T)
     c /= norm
@@ -476,7 +476,7 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
         if axis is not None and axis > 0:
             mu = mu.expand_dims(axis)
         diff = x - mu
-        n = float(x.shape[axis]) if axis is not None else x.numel
+        n = float(x.shape[axis]) if axis is not None else x.gnumel
 
         m4 = arithmetics.sum(arithmetics.pow(diff, 4.0), axis) / n
         m2 = arithmetics.sum(arithmetics.pow(diff, 2.0), axis) / n
@@ -485,7 +485,7 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
             res = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * res - 3 * (n - 1.0)) + 3.0
         if Fischer:
             res -= 3.0
-        return res.item() if res.numel == 1 else res
+        return res.item() if res.gnumel == 1 else res
     elif isinstance(axis, (list, tuple)):
         raise TypeError("axis cannot be a list or a tuple, currently {}".format(type(axis)))
     else:
@@ -1216,14 +1216,14 @@ def skew(x, axis=None, unbiased=True):
             mu = mu.expand_dims(axis)
         diff = x - mu
 
-        n = float(x.shape[axis]) if axis is not None else x.numel
+        n = float(x.shape[axis]) if axis is not None else x.gnumel
 
         m3 = arithmetics.sum(arithmetics.pow(diff, 3.0), axis) / n
         m2 = arithmetics.sum(arithmetics.pow(diff, 2.0), axis) / n
         res = m3 / arithmetics.pow(m2, 1.5)
         if unbiased:
             res *= ((n * (n - 1.0)) ** 0.5) / (n - 2.0)
-        return res.item() if res.numel == 1 else res
+        return res.item() if res.gnumel == 1 else res
     elif isinstance(axis, (list, tuple)):
         raise TypeError(f"axis cannot be a list or a tuple, currently {type(axis)}")
     else:
@@ -1290,7 +1290,7 @@ def __torch_skew(torch_tensor, dim=None, unbiased=False):
         m3 = torch.true_divide(torch.sum(torch.pow(diff, 3), dim=dim), n)
         m2 = torch.true_divide(torch.sum(torch.pow(diff, 2), dim=dim), n)
     else:
-        n = torch_tensor.numel()
+        n = torch_tensor.gnumel()
         diff = torch_tensor - torch.mean(torch_tensor)
         m3 = torch.true_divide(torch.sum(torch.pow(diff, 3)), n)
         m2 = torch.true_divide(torch.sum(torch.pow(diff, 2)), n)
@@ -1312,7 +1312,7 @@ def __torch_kurtosis(torch_tensor, dim=None, Fischer=True, unbiased=False):
         m4 = torch.true_divide(torch.sum(torch.pow(diff, 4.0), dim=dim), n)
         m2 = torch.true_divide(torch.sum(torch.pow(diff, 2.0), dim=dim), n)
     else:
-        n = torch_tensor.numel()
+        n = torch_tensor.gnumel()
         diff = torch_tensor - torch.mean(torch_tensor)
         m4 = torch.true_divide(torch.pow(diff, 4.0), n)
         m2 = torch.true_divide(torch.pow(diff, 2.0), n)
