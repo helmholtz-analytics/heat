@@ -10,7 +10,6 @@ from . import devices
 from . import factories
 from . import io
 from . import linalg
-from . import logical
 from . import manipulations
 from . import memory
 from . import relational
@@ -374,114 +373,6 @@ class DNDarray:
         """
         return self.abs(out, dtype)
 
-    def all(self, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
-        """
-        Test whether all array elements along a given axis evaluate to ``True``.
-
-        Parameters
-        -----------
-        axis: None or int or Tuple[int], optional
-            Axis or axes along which a logical AND reduction is performed. The default (``axis=None``) is to perform a
-            logical AND over all the dimensions of the input array. ``axis`` may be negative, in which case it counts
-            from the last to the first axis.
-        out: DNDarray, optional
-            Alternate output array in which to place the result. It must have the same shape as the expected output
-            and its type is preserved.
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> a = ht.random.randn(4,5)
-        >>> a
-        tensor([[ 0.5370, -0.4117, -3.1062,  0.4897, -0.3231],
-                [-0.5005, -1.7746,  0.8515, -0.9494, -0.2238],
-                [-0.0444,  0.3388,  0.6805, -1.3856,  0.5422],
-                [ 0.3184,  0.0185,  0.5256, -1.1653, -0.1665]])
-        >>> x = a < 0.5
-        >>> x
-        tensor([[0, 1, 1, 1, 1],
-                [1, 1, 0, 1, 1],
-                [1, 1, 0, 1, 0],
-                [1,1, 0, 1, 1]], dtype=torch.uint8)
-        >>> x.all()
-        tensor([0], dtype=torch.uint8)
-        >>> x.all(axis=0)
-        tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
-        >>> x.all(axis=1)
-        tensor([[0],
-                [0],
-                [0],
-                [0]], dtype=torch.uint8)
-        >>> out = ht.zeros((1,5))
-        >>> x.all(axis=0, out=out)
-        >>> out
-        tensor([[0, 1, 0, 1, 0]], dtype=torch.uint8)
-        """
-        return logical.all(self, axis=axis, out=out, keepdim=keepdim)
-
-    def allclose(self, other, rtol=1e-05, atol=1e-08, equal_nan=False) -> bool:
-        """
-        Test whether self and other are element-wise equal within a tolerance. Returns ``True`` if
-        ``|self-other|<=atol+rtol*|other|`` for all elements, ``False`` otherwise.
-
-        Parameters
-        -----------
-        other : DNDarray
-            Input array to compare to
-        atol: float, optional
-            Absolute tolerance.
-        rtol: float, optional
-            Relative tolerance.
-        equal_nan: bool, optional
-            Whether to compare NaN’s as equal. If ``True``, NaN’s in a will be considered equal to NaN’s in ``other`` in the output array.
-
-        Examples
-        ---------
-        >>> a = ht.float32([[2, 2], [2, 2]])
-        >>> a.allclose(a)
-        True
-        >>> b = ht.float32([[2.00005,2.00005],[2.00005,2.00005]])
-        >>> a.allclose(b)
-        False
-        >>> a.allclose(b, atol=1e-04)
-        True
-        """
-        return logical.allclose(self, other, rtol, atol, equal_nan)
-
-    def any(self, axis=None, out=None, keepdim=False) -> DNDarray:
-        """
-        Test whether any array element along a given axis evaluates to ``True``.
-        Returns an array of booleans that are 1, if any non-zero values exist on this axis, 0 otherwise.
-        The returning array is one dimensional unless axis is not ``None``.
-
-        Parameters
-        -----------
-        axis : int, optional
-            Axis along which a logic OR reduction is performed. With ``axis=None``, the logical OR is performed over all
-            dimensions of the array.
-        out : DNDarray, optional
-            Alternative output array in which to place the result. It must have the same shape as the expected output.
-            The output is a tensor with ``datatype=bool``.
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> t = ht.float32([[0.3, 0, 0.5]])
-        >>> t.any()
-        tensor([1], dtype=torch.uint8)
-        >>> t.any(axis=0)
-        tensor([[1, 0, 1]], dtype=torch.uint8)
-        >>> t.any(axis=1)
-        tensor([[1]], dtype=torch.uint8)
-        >>> t = ht.int32([[0, 0, 1], [0, 0, 0]])
-        >>> res = ht.zeros((1, 3), dtype=ht.bool)
-        >>> t.any(axis=0, out=res)
-        tensor([[0, 0, 1]], dtype=torch.uint8)
-        >>> res
-        tensor([[0, 0, 1]], dtype=torch.uint8)
-        """
-        return logical.any(self, axis=axis, out=out, keepdim=keepdim)
-
     def argmax(self, axis=None, out=None, **kwargs) -> DNDarray:
         """
         Returns the indices of the maximum values along an axis.
@@ -838,25 +729,6 @@ class DNDarray:
                 [0, 0]])
         """
         return relational.eq(self, other)
-
-    def isclose(self, other, rtol=1e-05, atol=1e-08, equal_nan=False) -> DNDarray:
-        """
-        Returns a boolean :class:`DNDarray` of whether elements of other are equal to the original ``DNDarray`` within the given
-        tolerance.
-
-        Parameters
-        -----------
-        other: DNDarray
-            Input DNDarray to compare.
-        rtol : float
-            The relative tolerance parameter.
-        atol : float
-            The absolute tolerance parameter.
-        equal_nan : bool
-            Whether to compare NaN’s as equal. If ``True``, NaN’s in x will be considered equal to NaN’s in y in the output array.
-
-        """
-        return logical.isclose(self, other, rtol, atol, equal_nan)
 
     def expand_dims(self, axis) -> DNDarray:
         """

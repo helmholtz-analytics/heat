@@ -77,6 +77,10 @@ def all(x, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
     )
 
 
+DNDarray.all = lambda self, axis, out, keepdim: all(self, axis, out, keepdim)
+DNDarray.all.__doc__ = all.__doc__
+
+
 def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> bool:
     """
     Test whether two tensors are element-wise equal within a tolerance. Returns ``True`` if ``|x-y|<=atol+rtol*|y|``
@@ -122,6 +126,12 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> bool:
     return bool(_local_allclose.item())
 
 
+DNDarray.allclose = lambda self, other, rtol, atol, equal_nan: allclose(
+    self, other, rtol, atol, equal_nan
+)
+DNDarray.allclose.__doc__ = all.__doc__
+
+
 def any(x, axis=None, out=None, keepdim=False) -> DNDarray:
     """
     Test whether any array element along a given axis evaluates to ``True``.
@@ -165,6 +175,10 @@ def any(x, axis=None, out=None, keepdim=False) -> DNDarray:
     )
 
 
+DNDarray.any = lambda self, axis, out, keepdim: allclose(self, axis, out, keepdim)
+DNDarray.any.__doc__ = any.__doc__
+
+
 def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> DNDarray:
     """
     Returns a boolean :class:`~heat.core.dndarray.DNDarray`, with elements ``True`` where ``a`` and ``b`` are equal
@@ -202,6 +216,12 @@ def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> DNDarray:
             result = factories.array(_local_isclose, dtype=types.bool, device=t1.device)
 
     return result
+
+
+DNDarray.isclose = lambda self, other, rtol, atol, equal_nan: isclose(
+    self, other, rtol, atol, equal_nan
+)
+DNDarray.isclose.__doc__ = isclose.__doc__
 
 
 def logical_and(t1, t2) -> DNDarray:
