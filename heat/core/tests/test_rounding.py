@@ -1,8 +1,7 @@
-import torch
-import unittest
 import numpy as np
+import torch
+
 import heat as ht
-import os
 from .test_suites.basic_test import TestCase
 
 
@@ -61,7 +60,7 @@ class TestRounding(TestCase):
         # for fabs
         self.assertEqual(int8_absolute_values_fabs.dtype, ht.float32)
         self.assertEqual(int16_absolute_values_fabs.dtype, ht.float32)
-        self.assertEqual(int32_absolute_values_fabs.dtype, ht.float64)
+        self.assertEqual(int32_absolute_values_fabs.dtype, ht.float32)
         self.assertEqual(int64_absolute_values_fabs.dtype, ht.float64)
         self.assertEqual(float32_absolute_values_fabs.dtype, ht.float32)
         self.assertEqual(float64_absolute_values_fabs.dtype, ht.float64)

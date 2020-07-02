@@ -1,8 +1,7 @@
-import os
-import heat as ht
 import numpy as np
 import torch
 
+import heat as ht
 from .basic_test import TestCase
 
 
@@ -37,9 +36,9 @@ class TestBasicTest(TestCase):
         # Testing with random values
         shape = (5, 3, 2, 9)
 
-        self.assert_func_equal(shape, heat_func=ht.exp, numpy_func=np.exp, low=-100, high=100)
+        self.assert_func_equal(shape, heat_func=ht.exp, numpy_func=np.exp, low=-10, high=10)
 
-        self.assert_func_equal(shape, heat_func=ht.exp2, numpy_func=np.exp2, low=-100, high=100)
+        self.assert_func_equal(shape, heat_func=ht.exp2, numpy_func=np.exp2, low=-10, high=10)
 
         # np.random.randn eventually creates values < 0 which will result in math.nan.
         # Because math.nan != math.nan this would always produce an exception.
@@ -48,7 +47,7 @@ class TestBasicTest(TestCase):
         )
 
         with self.assertRaises(AssertionError):
-            self.assert_func_equal(shape, heat_func=ht.exp, numpy_func=np.exp2, low=-100, high=100)
+            self.assert_func_equal(shape, heat_func=ht.exp, numpy_func=np.exp2, low=-10, high=10)
 
         with self.assertRaises(ValueError):
             self.assert_func_equal(np.ones(shape), heat_func=np.exp, numpy_func=np.exp)
