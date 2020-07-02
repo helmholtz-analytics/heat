@@ -73,6 +73,9 @@ def add(t1, t2) -> DNDarray:
     return operations.__binary_op(torch.add, t1, t2)
 
 
+DNDarray.__add__ = lambda self, other: add(self, other)
+
+
 def bitwise_and(t1, t2) -> DNDarray:
     """
     Compute the bit-wise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` element-wise.

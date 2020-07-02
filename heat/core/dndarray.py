@@ -377,29 +377,29 @@ class DNDarray:
         """
         return self.abs(out, dtype)
 
-    def __add__(self, other) -> DNDarray:
-        """
-        Element-wise addition of another tensor or a scalar to the tensor.
-        Takes the second operand (scalar or tensor) whose elements are to be added as argument.
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-            The value(s) to be added element-wise to the tensor
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> T1 = ht.float32([[1, 2], [3, 4]])
-        >>> T1.__add__(2.0)
-        tensor([[3., 4.],
-               [5., 6.]])
-        >>> T2 = ht.float32([[2, 2], [2, 2]])
-        >>> T1.__add__(T2)
-        tensor([[3., 4.],
-                [5., 6.]])
-        """
-        return arithmetics.add(self, other)
+    # def __add__(self, other) -> DNDarray:
+    #     """
+    #     Element-wise addition of another tensor or a scalar to the tensor.
+    #     Takes the second operand (scalar or tensor) whose elements are to be added as argument.
+    #
+    #     Parameters
+    #     ----------
+    #     other: DNDarray or scalar
+    #         The value(s) to be added element-wise to the tensor
+    #
+    #     Examples
+    #     ---------
+    #     >>> import heat as ht
+    #     >>> T1 = ht.float32([[1, 2], [3, 4]])
+    #     >>> T1.__add__(2.0)
+    #     tensor([[3., 4.],
+    #            [5., 6.]])
+    #     >>> T2 = ht.float32([[2, 2], [2, 2]])
+    #     >>> T1.__add__(T2)
+    #     tensor([[3., 4.],
+    #             [5., 6.]])
+    #     """
+    #     return arithmetics.add(self, other)
 
     def all(self, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
         """
@@ -3213,5 +3213,4 @@ class DNDarray:
     tensor([[2., 3.],
         [4., 5.]])
     """
-    __radd__ = __add__
     __rmul__ = __mul__
