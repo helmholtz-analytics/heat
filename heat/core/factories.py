@@ -5,7 +5,7 @@ from typing import Union, Tuple, List, Sequence, TypeVar
 from .communication import MPI, sanitize_comm, Communication
 from .stride_tricks import sanitize_axis, sanitize_shape
 from . import devices
-from . import memory
+from .memory import sanitize_memory_layout
 from . import types
 from .dndarray import DNDarray
 from .types import datatype
@@ -315,10 +315,10 @@ def array(
     if split is not None:
         _, _, slices = comm.chunk(obj.shape, split)
         obj = obj[slices].clone()
-        obj = memory.sanitize_memory_layout(obj, order=order)
+        obj = sanitize_memory_layout(obj, order=order)
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
-        obj = memory.sanitize_memory_layout(obj, order=order)
+        obj = sanitize_memory_layout(obj, order=order)
         if comm.rank < comm.size - 1:
             comm.Isend(lshape, dest=comm.rank + 1)
         if comm.rank != 0:
@@ -352,7 +352,7 @@ def array(
         gshape[is_split] = ttl_shape[is_split]
         split = is_split
     elif split is None and is_split is None:
-        obj = memory.sanitize_memory_layout(obj, order=order)
+        obj = sanitize_memory_layout(obj, order=order)
 
     return DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
 
@@ -488,7 +488,7 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
             break
         data[pos_x][pos_y] = 1
 
-    data = memory.sanitize_memory_layout(data, order=order)
+    data = sanitize_memory_layout(data, order=order)
     return DNDarray(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
 
 
@@ -523,7 +523,7 @@ def __factory(shape, dtype, split, local_factory, device, comm, order) -> DNDarr
     _, local_shape, _ = comm.chunk(shape, split)
     # create the torch data using the factory function
     data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
-    data = memory.sanitize_memory_layout(data, order=order)
+    data = sanitize_memory_layout(data, order=order)
     return DNDarray(data, shape, dtype, split, device, comm)
 
 

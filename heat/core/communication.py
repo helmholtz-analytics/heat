@@ -8,7 +8,6 @@ import subprocess
 import torch
 from typing import List, Tuple
 
-from .stride_tricks import sanitize_axis
 
 CUDA_AWARE_MPI = False
 # check whether OpenMPI support CUDA-aware MPI
@@ -46,6 +45,10 @@ class Communication:
 
         """
         return NotImplemented
+
+
+from .dndarray import DNDarray
+from .stride_tricks import sanitize_axis
 
 
 class MPICommunication(Communication):
@@ -1157,4 +1160,3 @@ def use_comm(comm=None):
 
 
 # tensor is imported at the very end to break circular dependency
-from .dndarray import DNDarray
