@@ -68,8 +68,9 @@ def __str__(dndarray):
     if dndarray.comm.rank != 0:
         return ""
 
-    return "{}({}, dtype=ht.{}, device={}, split={})".format(
-        __PREFIX, tensor_string, dndarray.dtype.__name__, dndarray.device, dndarray.split
+    return (
+        f"{__PREFIX}({tensor_string}, dtype=ht.{dndarray.dtype.__name__}, "
+        f"device={dndarray.device}, split={dndarray.split})"
     )
 
 
@@ -84,6 +85,8 @@ def _torch_data(dndarray, summarize):
     summarize: bool
         Flag indicating whether to print the full data or summarized, i.e. ellipsed, version of the data.
     """
+    if not dndarray.is_balanced():
+        dndarray.balance_()
     # data is not split, we can use it as is
     if dndarray.split is None or dndarray.comm.size == 1:
         data = dndarray._DNDarray__array
