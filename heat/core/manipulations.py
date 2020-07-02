@@ -4,11 +4,14 @@ import warnings
 
 from .communication import MPI
 
+from . import constants
 from . import dndarray
 from . import factories
+from . import linalg
 from . import stride_tricks
 from . import tiling
 from . import types
+from . import operations
 
 
 __all__ = [
@@ -18,12 +21,16 @@ __all__ = [
     "expand_dims",
     "flatten",
     "flip",
+    "fliplr",
     "flipud",
     "hstack",
     "reshape",
     "resplit",
+    "rot90",
+    "shape",
     "sort",
     "squeeze",
+    "topk",
     "unique",
     "vstack",
 ]
@@ -127,7 +134,7 @@ def concatenate(arrays, axis=0):
         raise TypeError("axis must be an integer, currently: {}".format(type(axis)))
     axis = stride_tricks.sanitize_axis(arr0.gshape, axis)
 
-    if arr0.numdims != arr1.numdims:
+    if arr0.ndim != arr1.ndim:
         raise ValueError("DNDarrays must have the same number of dimensions")
 
     if not all([arr0.gshape[i] == arr1.gshape[i] for i in range(len(arr0.gshape)) if i != axis]):
@@ -200,7 +207,7 @@ def concatenate(arrays, axis=0):
             arr0 = arr0.copy()
             arr1 = arr1.copy()
             # maps are created for where the data is and the output shape is calculated
-            lshape_map = factories.zeros((2, arr0.comm.size, len(arr0.gshape)), dtype=int)
+            lshape_map = torch.zeros((2, arr0.comm.size, len(arr0.gshape)), dtype=torch.int)
             lshape_map[0, arr0.comm.rank, :] = torch.Tensor(arr0.lshape)
             lshape_map[1, arr0.comm.rank, :] = torch.Tensor(arr1.lshape)
             lshape_map_comm = arr0.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
@@ -210,7 +217,7 @@ def concatenate(arrays, axis=0):
             out_shape = tuple(arr0_shape)
 
             # the chunk map is used for determine how much data should be on each process
-            chunk_map = factories.zeros((arr0.comm.size, len(arr0.gshape)), dtype=int)
+            chunk_map = torch.zeros((arr0.comm.size, len(arr0.gshape)), dtype=torch.int)
             _, _, chk = arr0.comm.chunk(out_shape, s0 if s0 is not None else s1)
             for i in range(len(out_shape)):
                 chunk_map[arr0.comm.rank, i] = chk[i].stop - chk[i].start
@@ -220,8 +227,8 @@ def concatenate(arrays, axis=0):
             chunk_map_comm.wait()
 
             if s0 is not None:
-                send_slice = [slice(None)] * arr0.numdims
-                keep_slice = [slice(None)] * arr0.numdims
+                send_slice = [slice(None)] * arr0.ndim
+                keep_slice = [slice(None)] * arr0.ndim
                 # data is first front-loaded onto the first size/2 processes
                 for spr in range(1, arr0.comm.size):
                     if arr0.comm.rank == spr:
@@ -263,8 +270,8 @@ def concatenate(arrays, axis=0):
                         lshape_map[0, spr, arr0.split] -= snt
 
             if s1 is not None:
-                send_slice = [slice(None)] * arr0.numdims
-                keep_slice = [slice(None)] * arr0.numdims
+                send_slice = [slice(None)] * arr0.ndim
+                keep_slice = [slice(None)] * arr0.ndim
                 # push the data backwards (arr1), making the data the proper size for arr1 on the last nodes
                 # the data is "compressed" on np/2 processes. data is sent from
                 for spr in range(arr0.comm.size - 1, -1, -1):
@@ -320,14 +327,14 @@ def concatenate(arrays, axis=0):
 
                 # after adjusting arr1 need to now select the target data in arr0 on each node with a local slice
                 if arr0.comm.rank == 0:
-                    lcl_slice = [slice(None)] * arr0.numdims
+                    lcl_slice = [slice(None)] * arr0.ndim
                     lcl_slice[axis] = slice(chunk_map[0, axis].item())
                     arr0._DNDarray__array = arr0._DNDarray__array[lcl_slice].clone().squeeze()
                 ttl = chunk_map[0, axis].item()
                 for en in range(1, arr0.comm.size):
                     sz = chunk_map[en, axis]
                     if arr0.comm.rank == en:
-                        lcl_slice = [slice(None)] * arr0.numdims
+                        lcl_slice = [slice(None)] * arr0.ndim
                         lcl_slice[axis] = slice(ttl, sz.item() + ttl, 1)
                         arr0._DNDarray__array = arr0._DNDarray__array[lcl_slice].clone().squeeze()
                     ttl += sz.item()
@@ -343,7 +350,7 @@ def concatenate(arrays, axis=0):
 
                 # get the desired data in arr1 on each node with a local slice
                 if arr1.comm.rank == arr1.comm.size - 1:
-                    lcl_slice = [slice(None)] * arr1.numdims
+                    lcl_slice = [slice(None)] * arr1.ndim
                     lcl_slice[axis] = slice(
                         arr1.lshape[axis] - chunk_map[-1, axis].item(), arr1.lshape[axis], 1
                     )
@@ -352,7 +359,7 @@ def concatenate(arrays, axis=0):
                 for en in range(arr1.comm.size - 2, -1, -1):
                     sz = chunk_map[en, axis]
                     if arr1.comm.rank == en:
-                        lcl_slice = [slice(None)] * arr1.numdims
+                        lcl_slice = [slice(None)] * arr1.ndim
                         lcl_slice[axis] = slice(
                             arr1.lshape[axis] - (sz.item() + ttl), arr1.lshape[axis] - ttl, 1
                         )
@@ -672,7 +679,7 @@ def flip(a, axis=None):
     """
     # flip all dimensions
     if axis is None:
-        axis = tuple(range(a.numdims))
+        axis = tuple(range(a.ndim))
 
     # torch.flip only accepts tuples
     if isinstance(axis, int):
@@ -700,6 +707,35 @@ def flip(a, axis=None):
     res.balance_()  # after swapping, first processes may be empty
     req.Wait()
     return res
+
+
+def fliplr(a):
+    """
+        Flip array in the left/right direction. If a.ndim > 2, flip along dimension 1.
+
+        Parameters
+        ----------
+        a: ht.DNDarray
+            Input array to be flipped, must be at least 2-D
+
+        Returns
+        -------
+        res: ht.DNDarray
+            The flipped array.
+
+        Examples
+        --------
+        >>> a = ht.array([[0,1],[2,3]])
+        >>> ht.fliplr(a)
+        tensor([[1, 0],
+                [3, 2]])
+
+        >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
+        >>> ht.fliplr(b)
+        (1/2) tensor([[2, 1, 0]])
+        (2/2) tensor([[5, 4, 3]])
+    """
+    return flip(a, 1)
 
 
 def flipud(a):
@@ -860,7 +896,7 @@ def reshape(a, shape, axis=None):
         displs = torch.zeros_like(counts)
         argsort = torch.empty_like(mask, dtype=torch.long)
         plz = 0
-        for i in range(len(new_displs) - 1):
+        for i in range(len(displs2) - 1):
             mat = torch.where((mask >= displs2[i]) & (mask < displs2[i + 1]))[0]
             counts[i] = mat.numel()
             argsort[plz : counts[i] + plz] = mat
@@ -904,6 +940,123 @@ def reshape(a, shape, axis=None):
     data = data.reshape(local_shape)
 
     return factories.array(data, dtype=a.dtype, is_split=axis, device=a.device, comm=a.comm)
+
+
+def rot90(m, k=1, axes=(0, 1)):
+    """
+    Rotate an array by 90 degrees in the plane specified by axes.
+    Rotation direction is from the first towards the second axis.
+
+    Parameters
+    ----------
+    m : DNDarray
+        Array of two or more dimensions.
+    k : integer
+        Number of times the array is rotated by 90 degrees.
+    axes: (2,) int list or tuple
+        The array is rotated in the plane defined by the axes.
+        Axes must be different.
+
+    Returns
+    -------
+    DNDarray
+
+    Notes
+    -----
+    rot90(m, k=1, axes=(1,0)) is the reverse of rot90(m, k=1, axes=(0,1))
+    rot90(m, k=1, axes=(1,0)) is equivalent to rot90(m, k=-1, axes=(0,1))
+
+    May change the split axis on distributed tensors
+
+    Raises
+    ------
+    TypeError
+        If first parameter is not a :class:DNDarray.
+    TypeError
+        If parameter ``k`` is not castable to integer.
+    ValueError
+        If ``len(axis)!=2``.
+    ValueError
+        If the axes are the same.
+    ValueError
+        If axes are out of range.
+
+    Examples
+    --------
+    >>> m = ht.array([[1,2],[3,4]], dtype=ht.int)
+    >>> m
+    tensor([[1, 2],
+            [3, 4]], dtype=torch.int32)
+    >>> ht.rot90(m)
+    tensor([[2, 4],
+            [1, 3]], dtype=torch.int32)
+    >>> ht.rot90(m, 2)
+    tensor([[4, 3],
+            [2, 1]], dtype=torch.int32)
+    >>> m = ht.arange(8).reshape((2,2,2))
+    >>> ht.rot90(m, 1, (1,2))
+    tensor([[[1, 3],
+             [0, 2]],
+            [[5, 7],
+             [4, 6]]], dtype=torch.int32)
+    """
+    axes = tuple(axes)
+    if len(axes) != 2:
+        raise ValueError("len(axes) must be 2.")
+
+    if not isinstance(m, dndarray.DNDarray):
+        raise TypeError("expected m to be a ht.DNDarray, but was {}".format(type(m)))
+
+    if axes[0] == axes[1] or np.absolute(axes[0] - axes[1]) == m.ndim:
+        raise ValueError("Axes must be different.")
+
+    if axes[0] >= m.ndim or axes[0] < -m.ndim or axes[1] >= m.ndim or axes[1] < -m.ndim:
+        raise ValueError("Axes={} out of range for array of ndim={}.".format(axes, m.ndim))
+
+    if m.split is None:
+        return factories.array(
+            torch.rot90(m._DNDarray__array, k, axes), dtype=m.dtype, device=m.device, comm=m.comm
+        )
+
+    try:
+        k = int(k)
+    except (TypeError, ValueError):
+        raise TypeError("Unknown type, must be castable to integer")
+
+    k %= 4
+
+    if k == 0:
+        return m.copy()
+    if k == 2:
+        return flip(flip(m, axes[0]), axes[1])
+
+    axes_list = np.arange(0, m.ndim).tolist()
+    (axes_list[axes[0]], axes_list[axes[1]]) = (axes_list[axes[1]], axes_list[axes[0]])
+
+    if k == 1:
+        return linalg.transpose(flip(m, axes[1]), axes_list)
+    else:
+        # k == 3
+        return flip(linalg.transpose(m, axes_list), axes[1])
+
+
+def shape(a):
+    """
+    Returns the shape of a DNDarray `a`.
+
+    Parameters
+    ----------
+    a : DNDarray
+
+    Returns
+    -------
+    tuple of ints
+    """
+    # sanitize input
+    if not isinstance(a, dndarray.DNDarray):
+        raise TypeError("Expected a to be a DNDarray but was {}".format(type(a)))
+
+    return a.gshape
 
 
 def sort(a, axis=None, descending=False, out=None):
@@ -1263,8 +1416,8 @@ def squeeze(x, axis=None):
         # split dimension is about to disappear, set split to None
         x.resplit_(axis=None)
 
-    out_lshape = tuple(x.lshape[dim] for dim in range(x.numdims) if dim not in axis)
-    out_gshape = tuple(x.gshape[dim] for dim in range(x.numdims) if dim not in axis)
+    out_lshape = tuple(x.lshape[dim] for dim in range(x.ndim) if dim not in axis)
+    out_gshape = tuple(x.gshape[dim] for dim in range(x.ndim) if dim not in axis)
     x_lsqueezed = x._DNDarray__array.reshape(out_lshape)
 
     # Calculate new split axis according to squeezed shape
@@ -1562,7 +1715,7 @@ def resplit(arr, axis=None):
         # need to get where the tiles are on the new one first
         # rpr is the destination
         new_locs = torch.where(new_tiles.tile_locations == rpr)
-        new_locs = torch.stack([new_locs[i] for i in range(arr.numdims)], dim=1)
+        new_locs = torch.stack([new_locs[i] for i in range(arr.ndim)], dim=1)
 
         for i in range(new_locs.shape[0]):
             key = tuple(new_locs[i].tolist())
@@ -1637,3 +1790,188 @@ def vstack(tup):
             tup[cn] = arr.expand_dims(0).resplit_(arr.split)
 
     return concatenate(tup, axis=0)
+
+
+def topk(a, k, dim=None, largest=True, sorted=True, out=None):
+    """
+    Returns the k highest entries in the array.
+    (Not Stable for split arrays)
+
+    Parameters:
+    -------
+    a: DNDarray
+        Array to take items from
+    k: int
+        Number of items to take
+    dim: int
+        Dimension along which to take, per default the last dimension
+    largest: bool
+        Return either the k largest or smallest items
+    sorted: bool
+        Whether to sort the output (descending if largest=True, else ascending)
+    out: tuple of ht.DNDarrays
+        (items, indices) to put the result in
+
+    Returns
+    -------
+    items: ht.DNDarray of shape (k,)
+        The selected items
+    indices: ht.DNDarray of shape (k,)
+        The respective indices
+
+    Examples
+    --------
+    >>> a = ht.array([1, 2, 3])
+    >>> ht.topk(a,2)
+    (tensor([3, 2]), tensor([2, 1]))
+    >>> a = ht.array([[1,2,3],[1,2,3]])
+    >>> ht.topk(a,2,dim=1)
+   (tensor([[3, 2],
+        [3, 2]]),
+    tensor([[2, 1],
+        [2, 1]]))
+    >>> a = ht.array([[1,2,3],[1,2,3]], split=1)
+    >>> ht.topk(a,2,dim=1)
+   (tensor([[3],
+        [3]]), tensor([[1],
+        [1]]))
+    (tensor([[2],
+        [2]]), tensor([[1],
+        [1]]))
+    """
+
+    if dim is None:
+        dim = len(a.shape) - 1
+
+    if largest:
+        neutral_value = -constants.sanitize_infinity(a._DNDarray__array.dtype)
+    else:
+        neutral_value = constants.sanitize_infinity(a._DNDarray__array.dtype)
+
+    def local_topk(*args, **kwargs):
+        shape = a.lshape
+
+        if shape[dim] < k:
+            result, indices = torch.topk(args[0], shape[dim], largest=largest, sorted=sorted)
+            if dim == a.split:
+                # Pad the result with neutral values to fill the buffer
+                size = list(result.shape)
+                padding_sizes = [
+                    k - size[dim] if index == dim else 0
+                    for index, item in enumerate(list(result.shape))
+                ]
+                padding = torch.nn.ConstantPad1d(padding_sizes, neutral_value)
+                result = padding(result)
+                # Different value for indices padding to prevent type casting issues
+                padding = torch.nn.ConstantPad1d(padding_sizes, 0)
+                indices = padding(indices)
+        else:
+            result, indices = torch.topk(args[0], k=k, dim=dim, largest=largest, sorted=sorted)
+
+        # add offset of data chunks if reduction is computed across split axis
+        if dim == a.split:
+            offset, _, _ = a.comm.chunk(shape, a.split)
+            indices = indices.clone()
+            indices += torch.tensor(offset * a.comm.rank, dtype=indices.dtype)
+
+        local_shape = list(result.shape)
+        local_shape_len = len(shape)
+
+        metadata = torch.tensor([k, dim, largest, sorted, local_shape_len, *local_shape])
+        send_buffer = torch.cat(
+            (metadata.double(), result.double().flatten(), indices.flatten().double())
+        )
+
+        return send_buffer
+
+    gres = operations.__reduce_op(
+        a,
+        local_topk,
+        MPI_TOPK,
+        axis=dim,
+        neutral=neutral_value,
+        dim=dim,
+        sorted=sorted,
+        largest=largest,
+    )
+
+    # Split data again to return a tuple
+    local_result = gres._DNDarray__array
+    shape_len = int(local_result[4])
+
+    gres, gindices = local_result[5 + shape_len :].chunk(2)
+    gres = gres.reshape(*local_result[5 : 5 + shape_len].int())
+    gindices = gindices.reshape(*local_result[5 : 5 + shape_len].int())
+
+    # Create output with correct split
+    if dim == a.split:
+        is_split = None
+        split = a.split
+    else:
+        is_split = a.split
+        split = None
+
+    final_array = factories.array(
+        gres, dtype=a.dtype, device=a.device, split=split, is_split=is_split
+    )
+    final_indices = factories.array(
+        gindices, dtype=torch.int64, device=a.device, split=split, is_split=is_split
+    )
+
+    if out is not None:
+        if out[0].shape != final_array.shape or out[1].shape != final_indices.shape:
+            raise ValueError(
+                "Expecting output buffer tuple of shape ({}, {}), got ({}, {})".format(
+                    gres.shape, gindices.shape, out[0].shape, out[1].shape
+                )
+            )
+        out[0]._DNDarray__array.storage().copy_(final_array._DNDarray__array.storage())
+        out[1]._DNDarray__array.storage().copy_(final_indices._DNDarray__array.storage())
+
+        out[0]._DNDarray__dtype = a.dtype
+        out[1]._DNDarray__dtype = types.int64
+
+    return final_array, final_indices
+
+
+def mpi_topk(a, b, mpi_type):
+    # Parse Buffer
+    a_parsed = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
+    b_parsed = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
+
+    # Collect metadata from Buffer
+    k = int(a_parsed[0].item())
+    dim = int(a_parsed[1].item())
+    largest = bool(a_parsed[2].item())
+    sorted = bool(a_parsed[3].item())
+
+    # Offset is the length of the shape on the buffer
+    len_shape_a = int(a_parsed[4])
+    shape_a = a_parsed[5 : 5 + len_shape_a].int().tolist()
+    len_shape_b = int(b_parsed[4])
+    shape_b = b_parsed[5 : 5 + len_shape_b].int().tolist()
+
+    # separate the data into values, indices
+    a_values, a_indices = a_parsed[len_shape_a + 5 :].chunk(2)
+    b_values, b_indices = b_parsed[len_shape_b + 5 :].chunk(2)
+
+    # reconstruct the flatened data by shape
+    a_values = a_values.reshape(shape_a)
+    a_indices = a_indices.reshape(shape_a)
+    b_values = b_values.reshape(shape_b)
+    b_indices = b_indices.reshape(shape_b)
+
+    # stack the data to actually run topk on
+    values = torch.cat((a_values, b_values), dim=dim)
+    indices = torch.cat((a_indices, b_indices), dim=dim)
+
+    result, k_indices = torch.topk(values, k, dim=dim, largest=largest, sorted=sorted)
+    indices = torch.gather(indices, dim, k_indices)
+
+    metadata = a_parsed[0 : len_shape_a + 5]
+    final_result = torch.cat((metadata, result.double().flatten(), indices.double().flatten()))
+
+    b_parsed.copy_(final_result)
+
+
+MPI_TOPK = MPI.Op.Create(mpi_topk, commute=True)

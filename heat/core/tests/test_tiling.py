@@ -1,31 +1,16 @@
-import os
 import torch
-import unittest
 
 import heat as ht
+from .test_suites.basic_test import TestCase
 
 
-if os.environ.get("DEVICE") == "gpu" and torch.cuda.is_available():
-    ht.use_device("gpu")
-    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
-else:
-    ht.use_device("cpu")
-
-device = ht.get_device().torch_device
-ht_device = None
-if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
-    device = ht.gpu.torch_device
-    ht_device = ht.gpu
-    torch.cuda.set_device(device)
-
-
-class TestSplitTiles(unittest.TestCase):
+class TestSplitTiles(TestCase):
     # most of the cases are covered by the resplit tests
     def test_raises(self):
-        length = torch.tensor([i + 20 for i in range(2)], device=device)
-        test = torch.arange(torch.prod(length), dtype=torch.float64, device=device).reshape(
-            [i + 20 for i in range(2)]
-        )
+        length = torch.tensor([i + 20 for i in range(2)], device=self.device.torch_device)
+        test = torch.arange(
+            torch.prod(length), dtype=torch.float64, device=self.device.torch_device
+        ).reshape([i + 20 for i in range(2)])
         a = ht.array(test, split=1)
         tiles = ht.tiling.SplitTiles(a)
         with self.assertRaises(TypeError):
@@ -36,10 +21,10 @@ class TestSplitTiles(unittest.TestCase):
             tiles["p"] = "p"
 
     def test_misc_coverage(self):
-        length = torch.tensor([i + 5 for i in range(3)], device=device)
-        test = torch.arange(torch.prod(length), dtype=torch.float64, device=device).reshape(
-            [i + 5 for i in range(3)]
-        )
+        length = torch.tensor([i + 5 for i in range(3)], device=self.device.torch_device)
+        test = torch.arange(
+            torch.prod(length), dtype=torch.float64, device=self.device.torch_device
+        ).reshape([i + 5 for i in range(3)])
         a = ht.array(test, split=None)
         tiles = ht.tiling.SplitTiles(a)
         self.assertTrue(torch.all(tiles.tile_locations == a.comm.rank))
@@ -49,7 +34,7 @@ class TestSplitTiles(unittest.TestCase):
             # definition of adjusting tests is he same logic as the code itself,
             #   therefore, fixed tests are issued for one process confic
             tile_dims = torch.tensor(
-                [[2.0, 2.0, 1.0], [2.0, 2.0, 2.0], [3.0, 2.0, 2.0]], device=device
+                [[2.0, 2.0, 1.0], [2.0, 2.0, 2.0], [3.0, 2.0, 2.0]], device=self.device.torch_device
             )
             res = tiles.tile_dimensions
             self.assertTrue(torch.equal(tile_dims, res))
@@ -77,7 +62,7 @@ class TestSplitTiles(unittest.TestCase):
                 self.assertTrue(sl is None)
 
 
-class TestSquareDiagTiles(unittest.TestCase):
+class TestSquareDiagTiles(TestCase):
     # arrs = (m_eq_n_s0, m_eq_n_s1, m_gr_n_s0, m_gr_n_s1, m_ls_n_s0, m_ls_n_s1)
     if 1 < ht.MPI_WORLD.size < 5:
 

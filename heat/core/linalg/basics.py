@@ -10,7 +10,7 @@ from .. import factories
 from .. import manipulations
 from .. import types
 
-__all__ = ["dot", "matmul", "norm", "projection", "transpose", "tril", "triu"]
+__all__ = ["dot", "matmul", "norm", "outer", "projection", "transpose", "tril", "triu"]
 
 
 def dot(a, b, out=None):
@@ -32,19 +32,13 @@ def dot(a, b, out=None):
         Returns the dot product of a and b. If a and b are both scalars or both 1-D arrays then a
         scalar is returned; otherwise an array is returned. If out is given, then it is returned.
     """
-    if (
-        isinstance(a, (float, int))
-        or isinstance(b, (float, int))
-        or a.numdims == 0
-        or b.numdims == 0
-    ):
-        # 3. If either a or b is 0-D (scalar), it is equivalent to multiply and using
-        # numpy.multiply(a, b) or a * b is preferred.
+    if isinstance(a, (float, int)) or isinstance(b, (float, int)) or a.ndim == 0 or b.ndim == 0:
+        # 3. If either a or b is 0-D (scalar), it is equivalent to multiply and using numpy.multiply(a, b) or a * b is preferred.
         if out is not None:
             out = a * b
             return out
         return a * b
-    elif a.numdims == 1 and b.numdims == 1:
+    elif a.ndim == 1 and b.ndim == 1:
         # 1. If both a and b are 1-D arrays, it is inner product of vectors.
         if a.split is None and b.split is None:
             sl = slice(None)
@@ -58,9 +52,8 @@ def dot(a, b, out=None):
             out = ret.item()
             return out
         return ret.item()
-    elif a.numdims == 2 and b.numdims == 2:
-        # 2. If both a and b are 2-D arrays, it is matrix multiplication,
-        # but using matmul or a @ b is preferred.
+    elif a.ndim == 2 and b.ndim == 2:
+        # 2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or a @ b is preferred.
         ret = matmul(a, b)
         if out is not None:
             if out is not None:
@@ -177,16 +170,19 @@ def matmul(a, b, allow_resplit=False):
             return c
     # if they are vectors they need to be expanded to be the proper dimensions
     vector_flag = False  # flag to run squeeze at the end of the function
-    both_vec = 0
-    if len(a.gshape) < 2:
+    if len(a.gshape) < 2 and len(b.gshape) < 2:
+        # make both split 0, do a local mm then a sum
+        a.resplit_(0)
+        b.resplit_(0)
+        res = a._DNDarray__array @ b._DNDarray__array
+        a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
+        return factories.array(res, split=None, device=a.device)
+    elif len(a.gshape) < 2:
         a = manipulations.expand_dims(a, axis=0)
         vector_flag = True
-        both_vec += 1
-    if len(b.gshape) < 2:
+    elif len(b.gshape) < 2:
         b = manipulations.expand_dims(b, axis=1)
         vector_flag = True
-        both_vec += 1
-    both_vec = True if both_vec == 2 else False
 
     split_0_flag = False
     split_1_flag = False
@@ -746,67 +742,16 @@ def matmul(a, b, allow_resplit=False):
                 a._DNDarray__array[:mB, i * kB : i * kB + kB]
                 @ b._DNDarray__array[i * kB : i * kB + kB, :nB]
             )
-        if a.comm.rank in a_rem_locs1 and b.comm.rank in b_rem_locs0:
-            # these Nones are used to change the dims
+        if a.comm.rank in a_rem_locs1 and b.comm.rank in b_rem_locs0 and kB > 1:
+            # these Nones are used to change the dims if the full process is not covered
             res += a._DNDarray__array[:, -1, None] @ b._DNDarray__array[None, -1, :]
 
         a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
         split = a.split if b.gshape[1] > 1 else 0
         split = split if not vector_flag else 0
         res = res if not vector_flag else res.squeeze()
-        c = factories.array(res, split=split if not both_vec else None, device=a.device)
+        c = factories.array(res, split=split, device=a.device)
         return c
-
-
-def norm(a):
-    """
-    Frobenius norm of vector a
-
-    Parameters
-    ----------
-    a : ht.DNDarray
-
-    Returns
-    -------
-    float
-        Returns the vector norm (lenght) of a
-    """
-    if not isinstance(a, dndarray.DNDarray):
-        raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
-
-    d = a ** 2
-
-    for i in range(len(a.shape) - 1, -1, -1):
-        d = arithmetics.sum(d, axis=i)
-
-    return exponential.sqrt(d).item()
-
-
-def projection(a, b):
-    """
-    Projection of vector a onto vector b
-
-    Parameters
-    ----------
-    a : ht.DNDarray (1D)
-    b : ht.DNDarray (1D)
-
-    Returns
-    -------
-    ht.DNDarray
-        Returns the vector projection of b in the direction of a
-    """
-    if not isinstance(a, dndarray.DNDarray) or not isinstance(b, dndarray.DNDarray):
-        raise TypeError(
-            "a, b must be of type ht.DNDarray, but were {}, {}".format(type(a), type(b))
-        )
-
-    if len(a.shape) != 1 or len(b.shape) != 1:
-        raise RuntimeError(
-            "a, b must be vectors of length 1, but were {}, {}".format(len(a.shape), len(b.shape))
-        )
-
-    return (dot(a, b) / dot(b, b)) * b
 
 
 @torch.jit.script
@@ -819,6 +764,7 @@ def __mm_c_block_setter(
     shp_a = a_block_map.shape
     offset_b = a_proc * shp_a[2] if a_proc != 0 else 0
     # offsets are the number of blocks in the multiplication direction on previous nodes
+    # print(a_block_map[a_proc].shape[0])
     for bl_1_a in (
         torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long, device=c.device)
         if b_split == 0
@@ -850,6 +796,292 @@ def __mm_c_block_setter(
                     c_start0 = a_start0
                     c_start1 = b_start1
                     c[c_start0 : c_start0 + mB, c_start1 : c_start1 + nB] += a_block @ b_block
+
+
+def norm(a):
+    """
+    Frobenius norm of vector a
+
+    Parameters
+    ----------
+    a : ht.DNDarray
+
+    Returns
+    -------
+    float
+        Returns the vector norm (lenght) of a
+    """
+    if not isinstance(a, dndarray.DNDarray):
+        raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
+
+    d = a ** 2
+
+    for i in range(len(a.shape) - 1, -1, -1):
+        d = arithmetics.sum(d, axis=i)
+
+    return exponential.sqrt(d).item()
+
+
+def outer(a, b, out=None, split=None):
+    """
+    Compute the outer product of two 1-D DNDarrays.
+
+    Given two vectors, :math:`a = (a_0, a_1, ..., a_N)` and :math:`b = (b_0, b_1, ..., b_M)`, the outer product is:
+
+    .. math::
+        :nowrap:
+
+        \\begin{pmatrix}
+           a_0 \\cdot b_0  & a_0 \\cdot b_1 & . & . &  a_0 \\cdot b_M \\
+           a_1 \\cdot b_0 & a_1 \\cdot b_1 & . & . & a_1 \\cdot b_M \\
+           . & . & . & . & .   \\
+           a_N \\cdot b_0 & a_N \\cdot b_1 & . & . & a_N \\cdot b_M
+        \\end{pmatrix}
+
+    Parameters
+    ----------
+
+    a : DNDarray
+        1-dimensional: :math: `N`
+        Will be flattened by default if more than 1-D.
+
+    b : DNDarray
+        1-dimensional: :math: `M`
+        Will be flattened by default if more than 1-D.
+
+    out : DNDarray, optional
+          2-dimensional: :math: `N \\times M`
+          A location where the result is stored
+
+    split : int, optional
+            Split dimension of the resulting DNDarray. Can be 0, 1, or None.
+            This is only relevant if the calculations are memory-distributed,
+            in which case default is ``split=0`` (see Note).
+
+    Note: parallel implementation of outer product, arrays are dense.
+        In the classical (dense) case, one DNDarray stays put, the other one is passed around the ranks in
+        ring communication. The slice-by-slice outer product is calculated locally (here via torch.einsum()).
+        N.B.: if ``b`` is sent around, the resulting outer product is split along the rows dimension (``split = 0``).
+              if ``a`` is sent around, the resulting outer product is split along the columns (``split = 1``).
+        So if ``split`` is not None, ``split`` defines which DNDarray stays put and which one is passed around. No
+        communication is needed beyond ring communication of one of the DNDarrays.
+        If ``split`` is None or unspecified, the result will be distributed along axis 0, i.e. by default ``b`` is
+        passed around, ``a`` stays put.
+
+    Returns
+    -------
+
+    out(n, m): DNDarray
+
+        out[i, j] = a[i] * b[j]
+
+    Examples
+    --------
+    >>> a = ht.arange(4)
+    >>> b = ht.arange(3)
+    >>> ht.outer(a, b)
+    (3 processes)
+    (0/3)   tensor([[0, 0, 0],
+                    [0, 1, 2],
+                    [0, 2, 4],
+                    [0, 3, 6]], dtype=torch.int32)
+    (1/3)   tensor([[0, 0, 0],
+                    [0, 1, 2],
+                    [0, 2, 4],
+                    [0, 3, 6]], dtype=torch.int32)
+    (2/3)   tensor([[0, 0, 0],
+                    [0, 1, 2],
+                    [0, 2, 4],
+                    [0, 3, 6]], dtype=torch.int32)
+    >>> a = ht.arange(4, split=0)
+    >>> b = ht.arange(3, split=0)
+    >>> ht.outer(a, b)
+    (0/3)   tensor([[0, 0, 0],
+                    [0, 1, 2]], dtype=torch.int32)
+    (1/3)   tensor([[0, 2, 4]], dtype=torch.int32)
+    (2/3)   tensor([[0, 3, 6]], dtype=torch.int32)
+    >>> ht.outer(a, b, split=1)
+    (0/3)   tensor([[0],
+                    [0],
+                    [0],
+                    [0]], dtype=torch.int32)
+    (1/3)   tensor([[0],
+                    [1],
+                    [2],
+                    [3]], dtype=torch.int32)
+    (2/3)   tensor([[0],
+                    [2],
+                    [4],
+                    [6]], dtype=torch.int32)
+    >>> a = ht.arange(5, dtype=ht.float32, split=0)
+    >>> b = ht.arange(4, dtype=ht.float64, split=0)
+    >>> out = ht.empty((5,4), dtype=ht.float64, split=1)
+    >>> ht.outer(a, b, split=1, out=out)
+    >>> out
+    (0/3)   tensor([[0., 0.],
+                    [0., 1.],
+                    [0., 2.],
+                    [0., 3.],
+                    [0., 4.]], dtype=torch.float64)
+    (1/3)   tensor([[0.],
+                    [2.],
+                    [4.],
+                    [6.],
+                    [8.]], dtype=torch.float64)
+    (2/3)   tensor([[ 0.],
+                    [ 3.],
+                    [ 6.],
+                    [ 9.],
+                    [12.]], dtype=torch.float64)
+    """
+    # sanitize input
+    if not isinstance(a, dndarray.DNDarray) or not isinstance(b, dndarray.DNDarray):
+        raise TypeError(
+            "a, b must be of type ht.DNDarray, but were {}, {}".format(type(a), type(b))
+        )
+
+    # sanitize dimensions
+    # TODO move to sanitation module #468
+    if a.ndim > 1:
+        a = manipulations.flatten(a)
+    if b.ndim > 1:
+        b = manipulations.flatten(b)
+    if a.ndim == 0 or b.ndim == 0:
+        raise RuntimeError(
+            "a, b must be 1-D DNDarrays, but were {}-D and {}-D".format(a.ndim, b.ndim)
+        )
+
+    outer_gshape = (a.gshape[0], b.gshape[0])
+    t_a = a._DNDarray__array
+    t_b = b._DNDarray__array
+    t_outer_dtype = torch.promote_types(t_a.dtype, t_b.dtype)
+    t_a, t_b = t_a.type(t_outer_dtype), t_b.type(t_outer_dtype)
+    outer_dtype = types.canonical_heat_type(t_outer_dtype)
+
+    if out is not None:
+        if not isinstance(out, dndarray.DNDarray):
+            raise TypeError("out must be of type ht.DNDarray, was {}".format(type(out)))
+        if out.dtype is not outer_dtype:
+            raise TypeError(
+                "Wrong datatype for out: expected {}, got {}".format(outer_dtype, out.dtype)
+            )
+        if out.gshape != outer_gshape:
+            raise ValueError("out must have shape {}, got {}".format(outer_gshape, out.gshape))
+        if out.split is not split:
+            raise ValueError(
+                "Split dimension mismatch for out: expected {}, got {}".format(split, out.split)
+            )
+
+    # distributed outer product, dense arrays (TODO: sparse, #384)
+    if a.comm.is_distributed() and split is not None or a.split is not None or b.split is not None:
+        # MPI coordinates
+        rank = a.comm.rank
+        size = a.comm.size
+        t_outer_slice = 2 * [slice(None, None, None)]
+
+        if a.split is None:
+            a.resplit_(axis=0)
+            t_a = a._DNDarray__array.type(t_outer_dtype)
+        if b.split is None:
+            b.resplit_(axis=0)
+            t_b = b._DNDarray__array.type(t_outer_dtype)
+        if split is None:
+            # Split semantics: default out.split = a.split
+            split = a.split
+            if out is not None and out.split is None:
+                out.resplit_(axis=split)
+
+        # calculate local slice of outer product
+        if split == 0:
+            lshape_map = b.create_lshape_map()
+            t_outer_shape = (a.lshape[0], b.gshape[0])
+            _, _, local_slice = b.comm.chunk(b.gshape, b.split)
+            t_outer_slice[1] = local_slice[0]
+        elif split == 1:
+            lshape_map = a.create_lshape_map()
+            t_outer_shape = (a.gshape[0], b.lshape[0])
+            _, _, local_slice = a.comm.chunk(a.gshape, a.split)
+            t_outer_slice[0] = local_slice[0]
+        t_outer = torch.zeros(t_outer_shape, dtype=t_outer_dtype, device=t_a.device)
+        if lshape_map[rank] != 0:
+            t_outer[t_outer_slice] = torch.einsum("i,j->ij", t_a, t_b)
+
+        # Ring: fill in missing slices of outer product
+        # allocate memory for traveling data
+        if split == 0:
+            t_b_run = torch.empty(lshape_map[0], dtype=t_outer_dtype, device=t_a.device)
+        elif split == 1:
+            t_a_run = torch.empty(lshape_map[0], dtype=t_outer_dtype, device=t_b.device)
+
+        for p in range(size - 1):
+            # prepare for sending
+            dest_rank = rank + 1 if rank != size - 1 else 0
+            # prepare for receiving
+            origin_rank = rank - 1 if rank != 0 else size - 1
+            actual_origin = origin_rank - p
+            if origin_rank < p:
+                actual_origin += size
+            # blocking send and recv
+            if split == 0:
+                b.comm.Send(t_b, dest_rank)
+                b.comm.Recv(t_b_run, origin_rank)
+                # buffer from actual_origin could be smaller than allocated buffer
+                t_b = t_b_run[: lshape_map[actual_origin]]
+                _, _, remote_slice = b.comm.chunk(
+                    b.gshape, b.split, rank=actual_origin, w_size=size
+                )
+                t_outer_slice[1] = remote_slice[0]
+            elif split == 1:
+                a.comm.Send(t_a, dest_rank)
+                a.comm.Recv(t_a_run, origin_rank)
+                # buffer from actual_origin could be smaller than allocated buffer
+                t_a = t_a_run[: lshape_map[actual_origin]]
+                _, _, remote_slice = a.comm.chunk(
+                    a.gshape, a.split, rank=actual_origin, w_size=size
+                )
+                t_outer_slice[0] = remote_slice[0]
+            t_outer[t_outer_slice] = torch.einsum("i,j->ij", t_a, t_b)
+    else:
+        # outer product, all local
+        t_outer = torch.einsum("i,j->ij", t_a, t_b)
+        split = None
+
+    outer = dndarray.DNDarray(
+        t_outer, gshape=outer_gshape, dtype=outer_dtype, split=split, device=a.device, comm=a.comm
+    )
+
+    if out is not None:
+        out._DNDarray__array = outer._DNDarray__array
+        return out
+
+    return outer
+
+
+def projection(a, b):
+    """
+    Projection of vector a onto vector b
+
+    Parameters
+    ----------
+    a : ht.DNDarray (1D)
+    b : ht.DNDarray (1D)
+
+    Returns
+    -------
+    ht.DNDarray
+        Returns the vector projection of b in the direction of a
+    """
+    if not isinstance(a, dndarray.DNDarray) or not isinstance(b, dndarray.DNDarray):
+        raise TypeError(
+            "a, b must be of type ht.DNDarray, but were {}, {}".format(type(a), type(b))
+        )
+
+    if len(a.shape) != 1 or len(b.shape) != 1:
+        raise RuntimeError(
+            "a, b must be vectors of length 1, but were {}, {}".format(len(a.shape), len(b.shape))
+        )
+
+    return (dot(a, b) / dot(b, b)) * b
 
 
 def transpose(a, axes=None):
