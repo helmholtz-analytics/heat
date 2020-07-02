@@ -27,6 +27,10 @@ def exp(x, out=None) -> DNDarray:
     return operations.__local_op(torch.exp, x, out)
 
 
+DNDarray.exp = lambda self, out: exp(self, out)
+DNDarray.exp.__doc__ = exp.__doc__
+
+
 def expm1(x, out=None) -> DNDarray:
     """
     Calculate :math:`exp(x)-1` for all elements in the array.
@@ -46,6 +50,10 @@ def expm1(x, out=None) -> DNDarray:
     tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
     """
     return operations.__local_op(torch.expm1, x, out)
+
+
+DNDarray.expm1 = lambda self, out: expm1(self, out)
+DNDarray.expm1.__doc__ = expm1.__doc__
 
 
 def exp2(x, out=None) -> DNDarray:
@@ -73,6 +81,10 @@ def exp2(x, out=None) -> DNDarray:
     return operations.__local_op(local_exp2, x, out)
 
 
+DNDarray.exp2 = lambda self, out: exp2(self, out)
+DNDarray.exp2.__doc__ = exp2.__doc__
+
+
 def log(x, out=None) -> DNDarray:
     """
     Natural logarithm, element-wise.
@@ -94,6 +106,10 @@ def log(x, out=None) -> DNDarray:
     tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
     """
     return operations.__local_op(torch.log, x, out)
+
+
+DNDarray.log = lambda self, out: log(self, out)
+DNDarray.log.__doc__ = log.__doc__
 
 
 def log2(x, out=None) -> DNDarray:
@@ -118,6 +134,10 @@ def log2(x, out=None) -> DNDarray:
     return operations.__local_op(torch.log2, x, out)
 
 
+DNDarray.log2 = lambda self, out: log2(self, out)
+DNDarray.log2.__doc__ = log2.__doc__
+
+
 def log10(x, out=None) -> DNDarray:
     """
     log base 10, element-wise.
@@ -138,6 +158,10 @@ def log10(x, out=None) -> DNDarray:
     tensor([  -inf, 0.0000, 0.3010, 0.4771, 0.6021])
     """
     return operations.__local_op(torch.log10, x, out)
+
+
+DNDarray.log10 = lambda self, out: log10(self, out)
+DNDarray.log10.__doc__ = log10.__doc__
 
 
 def log1p(x, out=None) -> DNDarray:
@@ -162,6 +186,10 @@ def log1p(x, out=None) -> DNDarray:
     return operations.__local_op(torch.log1p, x, out)
 
 
+DNDarray.log1p = lambda self, out: log1p(self, out)
+DNDarray.log1p.__doc__ = log1p.__doc__
+
+
 def sqrt(x, out=None) -> DNDarray:
     """
     Return the non-negative square-root of a tensor element-wise.
@@ -184,3 +212,7 @@ def sqrt(x, out=None) -> DNDarray:
     tensor([nan, nan, nan, nan, nan])
     """
     return operations.__local_op(torch.sqrt, x, out)
+
+
+DNDarray.sqrt = lambda self, out: sqrt(self, out)
+DNDarray.sqrt.__doc__ = sqrt.__doc__

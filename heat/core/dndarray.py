@@ -861,57 +861,6 @@ class DNDarray:
         """
         return logical.isclose(self, other, rtol, atol, equal_nan)
 
-    def exp(self, out=None) -> DNDarray:
-        """
-        Calculate the exponential of all elements in ``self``.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.arange(5).exp()
-        tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
-        """
-        return exponential.exp(self, out)
-
-    def expm1(self, out=None) -> DNDarray:
-        """
-        Calculate ``exp(x)-1`` for all elements in the array.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.arange(5).exp() + 1.
-        tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
-        """
-        return exponential.expm1(self, out)
-
-    def exp2(self, out=None) -> DNDarray:
-        """
-        Calculate the exponential of all elements in ``self``.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.exp2(ht.arange(5))
-        tensor([ 1.,  2.,  4.,  8., 16.], dtype=torch.float64)
-        """
-        return exponential.exp2(self, out)
-
     def expand_dims(self, axis) -> DNDarray:
         """
         Expand the shape of an array.
@@ -1389,80 +1338,6 @@ class DNDarray:
         The length of the DNDarray, i.e. the number of items in the first dimension.
         """
         return self.shape[0]
-
-    def log(self, out=None) -> DNDarray:
-        """
-        Natural logarithm, element-wise.
-        The natural logarithm log is the inverse of the exponential function, so that ``log(exp(x))=x``. The natural
-        logarithm is logarithm in base e. Negative input elements are returned as ``NaN``.
-        If ``out`` was provided, logarithms is a reference to it.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.arange(5).log()
-        tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
-        """
-        return exponential.log(self, out)
-
-    def log2(self, out=None) -> DNDarray:
-        """
-        Log base 2, element-wise.
-        Negative input elements are returned as ``NaN``. If ``out`` was provided, logarithms is a reference to it.
-
-        Parameters
-        ----------
-        out : DNDarray or None, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.log2(ht.arange(5))
-        tensor([  -inf, 0.0000, 1.0000, 1.5850, 2.0000])
-        """
-        return exponential.log2(self, out)
-
-    def log10(self, out=None) -> DNDarray:
-        """
-        Log base 10, element-wise.
-        Negative input elements are returned as ``NaN``. If ``out`` was provided, logarithms is a reference to it.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.log10(ht.arange(5))
-        tensor([-inf, 0.0000, 1.0000, 1.5850, 2.0000])
-        """
-        return exponential.log10(self, out)
-
-    def log1p(self, out=None) -> DNDarray:
-        """
-        Return the natural logarithm of one plus ``self``, element-wise.
-        Negative input elements are returned as nan. If ``out`` was provided, logarithms is a reference to it.
-
-        Parameters
-        ----------
-        out : DNDarray or None, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.log1p(ht.arange(5))
-        array([0., 0.69314718, 1.09861229, 1.38629436, 1.60943791])
-        """
-        return exponential.log1p(self, out)
 
     def __lt__(self, other) -> DNDarray:
         """
@@ -2395,27 +2270,6 @@ class DNDarray:
         tensor([[-201.7132,  -27.2899,   -3.6269,    0.0000,    3.6269,   27.2899,  201.7132])
         """
         return trigonometrics.sinh(self, out)
-
-    def sqrt(self, out=None) -> DNDarray:
-        """
-        Non-negative square-root of the array element-wise.
-        Result is an array of the same shape as ``self``, containing the positive square-root of each element in this array.
-        Negative input elements are returned as ``NaN``.
-
-        Parameters
-        ----------
-        out : DNDarray, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to ``None``, the array is modified in-place.
-
-        Examples
-        --------
-        >>> ht.arange(5).sqrt()
-        tensor([0.0000, 1.0000, 1.4142, 1.7321, 2.0000])
-        >>> ht.arange(-5, 0).sqrt()
-        tensor([nan, nan, nan, nan, nan])
-        """
-        return exponential.sqrt(self, out)
 
     def squeeze(self, axis=None) -> DNDarray:
         """
