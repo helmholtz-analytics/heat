@@ -12,7 +12,6 @@ from . import io
 from . import linalg
 from . import manipulations
 from . import memory
-from . import relational
 from . import rounding
 from . import statistics
 from . import stride_tricks
@@ -704,32 +703,6 @@ class DNDarray:
         self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
         return lshape_map
 
-    def __eq__(self, other) -> DNDarray:
-        """
-        Element-wise rich comparison of equality with values from second operand (scalar or tensor)
-
-        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument. Returns a DNDarray
-        holding 1 for all elements in which values of self are equal to values of other, 0 for all other elements
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-            The value(s) to which to compare equality
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> T1 = ht.float32([[1, 2],[3, 4]])
-        >>> T1.__eq__(3.0)
-        tensor([[0, 0],
-                [1, 0]])
-        >>> T2 = ht.float32([[2, 2], [2, 2]])
-        >>> T1.__eq__(T2)
-        tensor([[0, 1],
-                [0, 0]])
-        """
-        return relational.eq(self, other)
-
     def __float__(self) -> float:
         """
         Float scalar casting.
@@ -807,33 +780,6 @@ class DNDarray:
             self._DNDarray__array = self._DNDarray__array.fill_diagonal_(value)
 
         return self
-
-    def __ge__(self, other) -> DNDarray:
-        """
-        Element-wise rich comparison of relation "greater than or equal" with values from second operand (scalar or
-        tensor).
-        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument. Returns a DNDarray
-        holding 1 for all elements in which values in self are greater than or equal to values of other
-        (x1 >= x2), 0 for all other elements
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-            The value(s) to which to compare elements from tensor
-
-        Examples
-        -------
-        >>> import heat as ht
-        >>> T1 = ht.float32([[1, 2],[3, 4]])
-        >>> T1.__ge__(3.0)
-        tensor([[0, 0],
-                [1, 1]], dtype=torch.uint8)
-        >>> T2 = ht.float32([[2, 2], [2, 2]])
-        >>> T1.__ge__(T2)
-        tensor([[0, 1],
-                [1, 1]], dtype=torch.uint8)
-        """
-        return relational.ge(self, other)
 
     def __getitem__(self, key) -> DNDarray:
         """
@@ -1064,33 +1010,6 @@ class DNDarray:
             self.__device = devices.gpu
             return self
 
-    def __gt__(self, other) -> DNDarray:
-        """
-        Element-wise rich comparison of relation "greater than" with values from second operand (scalar or tensor)
-        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
-        Returns aDNDarray holding 1 for all elements in which values in self are greater than values of other (x1 > x2),
-        0 for all other elements
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-            The value(s) to which to compare elements from ``self``
-
-         Examples
-         -------
-         >>> import heat as ht
-         >>> T1 = ht.float32([[1, 2],[3, 4]])
-         >>> T1.__gt__(3.0)
-         tensor([[0, 0],
-                 [0, 1]], dtype=torch.uint8)
-         >>> T2 = ht.float32([[2, 2], [2, 2]])
-         >>> T1.__gt__(T2)
-         tensor([[0, 0],
-                 [1, 1]], dtype=torch.uint8)
-
-        """
-        return relational.gt(self, other)
-
     def __int__(self) -> int:
         """
         Integer scalar casting.
@@ -1129,63 +1048,11 @@ class DNDarray:
         """
         return self.__array.item()
 
-    def __le__(self, other) -> DNDarray:
-        """
-        Element-wise rich comparison of relation "less than or equal" with values from second operand (scalar or tensor)
-        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
-        Returns a ``DNDarray`` holding 1 for all elements in which values in self are less than or equal to values of other (``x1 <= x2``),
-        0 for all other elements
-
-        Parameters
-        ----------
-        other: tensor or scalar
-            The value(s) to which to compare elements from tensor
-
-        Examples
-        -------
-        >>> import heat as ht
-        >>> T1 = ht.float32([[1, 2],[3, 4]])
-        >>> T1.__le__(3.0)
-        tensor([[1, 1],
-                [1, 0]], dtype=torch.uint8)
-        >>> T2 = ht.float32([[2, 2], [2, 2]])
-        >>> T1.__le__(T2)
-        tensor([[1, 1],
-                [0, 0]], dtype=torch.uint8)
-        """
-        return relational.le(self, other)
-
     def __len__(self) -> int:
         """
         The length of the DNDarray, i.e. the number of items in the first dimension.
         """
         return self.shape[0]
-
-    def __lt__(self, other) -> DNDarray:
-        """
-        Element-wise rich comparison of relation "less than" with values from second operand (scalar or tensor)
-        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
-        Result is ``DNDarray`` holding 1 for all elements in which values in self are less than values of other (x1 < x2),
-        0 for all other elements
-
-        Parameters
-        ----------
-        other: DNDarray or scalar
-            The value(s) to which to compare elements from tensor
-
-        Examples
-        -------
-        >>> import heat as ht
-        >>> T1 = ht.float32([[1, 2],[3, 4]])
-        >>> T1.__lt__(3.0)
-        tensor([[1, 1],
-               [0, 0]], dtype=torch.uint8)
-        >>> T2 = ht.float32([[2, 2], [2, 2]])
-        >>> T1.__lt__(T2)
-        tensor([[1, 0],
-               [0, 0]], dtype=torch.uint8)
-        """
-        return relational.lt(self, other)
 
     def __matmul__(self, other) -> DNDarray:
         """
@@ -1339,31 +1206,6 @@ class DNDarray:
         """
 
         return rounding.modf(self, out)
-
-    def __ne__(self, other) -> DNDarray:
-        """
-        Element-wise rich comparison of non-equality with values from second operand (scalar or DNDarray)
-        Takes the second operand (scalar or tensor) to which to compare the first tensor as argument.
-        Result is a DNDarray holding 1 for all elements in which values of self are equal to values of other,
-        0 for all other elements
-        Parameters
-        ----------
-        other: DNDarray or scalar
-            The value(s) to which to compare equality
-
-        Examples
-        ---------
-        >>> import heat as ht
-        >>> T1 = ht.float32([[1, 2],[3, 4]])
-        >>> T1.__ne__(3.0)
-        tensor([[1, 1],
-                [0, 1]])
-        >>> T2 = ht.float32([[2, 2], [2, 2]])
-        >>> T1.__ne__(T2)
-        tensor([[1, 0],
-                [1, 1]])
-        """
-        return relational.ne(self, other)
 
     def numpy(self) -> np.array:
         """

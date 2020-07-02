@@ -36,6 +36,10 @@ def eq(t1, t2) -> DNDarray:
     return operations.__binary_op(torch.eq, t1, t2)
 
 
+DNDarray.__eq__ = lambda self, other: eq(self, other)
+DNDarray.__eq__.__doc__ = eq.__doc__
+
+
 def equal(t1, t2) -> bool:
     """
     Overall comparison of equality between two ``DNDarrays``. Returns ``True`` if two arrays have the same size and elements,
@@ -98,6 +102,10 @@ def ge(t1, t2) -> DNDarray:
     return operations.__binary_op(torch.ge, t1, t2)
 
 
+DNDarray.__ge__ = lambda self, other: ge(self, other)
+DNDarray.__ge__.__doc__ = ge.__doc__
+
+
 def gt(t1, t2) -> DNDarray:
     """
     Element-wise rich greater than comparison between values from operand ``t1`` with respect to values of
@@ -124,6 +132,10 @@ def gt(t1, t2) -> DNDarray:
             [1, 1]], dtype=torch.uint8)
     """
     return operations.__binary_op(torch.gt, t1, t2)
+
+
+DNDarray.__gt__ = lambda self, other: gt(self, other)
+DNDarray.__gt__.__doc__ = gt.__doc__
 
 
 def le(t1, t2) -> DNDarray:
@@ -154,6 +166,10 @@ def le(t1, t2) -> DNDarray:
     return operations.__binary_op(torch.le, t1, t2)
 
 
+DNDarray.__le__ = lambda self, other: le(self, other)
+DNDarray.__le__.__doc__ = le.__doc__
+
+
 def lt(t1, t2) -> DNDarray:
     """
     Element-wise rich less than comparison between values from operand t1 with respect to values of
@@ -182,6 +198,10 @@ def lt(t1, t2) -> DNDarray:
     return operations.__binary_op(torch.lt, t1, t2)
 
 
+DNDarray.__lt__ = lambda self, other: lt(self, other)
+DNDarray.__lt__.__doc__ = lt.__doc__
+
+
 def ne(t1, t2) -> DNDarray:
     """
     Element-wise rich comparison of non-equality between values from two operands, commutative.
@@ -207,3 +227,7 @@ def ne(t1, t2) -> DNDarray:
             [1, 1]])
     """
     return operations.__binary_op(torch.ne, t1, t2)
+
+
+DNDarray.__ne__ = lambda self, other: ne(self, other)
+DNDarray.__ne__.__doc__ = ne.__doc__
