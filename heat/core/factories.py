@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from typing import Union, Tuple, List, Sequence, TypeVar
 
-from .communication import MPI, sanitize_comm
+from .communication import MPI, sanitize_comm, Communication
 from .stride_tricks import sanitize_axis, sanitize_shape
 from . import devices
 from . import memory

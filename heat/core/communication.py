@@ -8,7 +8,6 @@ import subprocess
 import torch
 from typing import List, Tuple
 
-from .dndarray import DNDarray
 from .stride_tricks import sanitize_axis
 
 CUDA_AWARE_MPI = False
@@ -338,7 +337,7 @@ class MPICommunication(Communication):
         return self.as_mpi_memory(obj), (recvcount, recvdispls), recvtypes
 
     def Irecv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG):
-        if isinstance(buf, dndarray.DNDarray):
+        if isinstance(buf, DNDarray):
             buf = buf._DNDarray__array
         if not isinstance(buf, torch.Tensor):
             return MPIRequest(self.handle.Irecv(buf, source, tag))
@@ -349,7 +348,7 @@ class MPICommunication(Communication):
     Irecv.__doc__ = MPI.Comm.Irecv.__doc__
 
     def Recv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=None):
-        if isinstance(buf, dndarray.DNDarray):
+        if isinstance(buf, DNDarray):
             buf = buf._DNDarray__array
         if not isinstance(buf, torch.Tensor):
             return self.handle.Recv(buf, source, tag, status)
@@ -364,7 +363,7 @@ class MPICommunication(Communication):
     Recv.__doc__ = MPI.Comm.Recv.__doc__
 
     def __send_like(self, func, buf, dest, tag):
-        if isinstance(buf, dndarray.DNDarray):
+        if isinstance(buf, DNDarray):
             buf = buf._DNDarray__array
         if not isinstance(buf, torch.Tensor):
             return func(buf, dest, tag), None
@@ -415,7 +414,7 @@ class MPICommunication(Communication):
 
     def __broadcast_like(self, func, buf, root):
         # unpack the buffer if it is a HeAT tensor
-        if isinstance(buf, dndarray.DNDarray):
+        if isinstance(buf, DNDarray):
             buf = buf._DNDarray__array
         # convert torch tensors to MPI memory buffers
         if not isinstance(buf, torch.Tensor):
@@ -443,10 +442,10 @@ class MPICommunication(Communication):
         rbuf = None
         buf = None
         # unpack the send buffer if it is a HeAT tensor
-        if isinstance(sendbuf, dndarray.DNDarray):
+        if isinstance(sendbuf, DNDarray):
             sendbuf = sendbuf._DNDarray__array
         # unpack the receive buffer if it is a HeAT tensor
-        if isinstance(recvbuf, dndarray.DNDarray):
+        if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf._DNDarray__array
 
         # harmonize the input and output buffers
@@ -551,7 +550,7 @@ class MPICommunication(Communication):
         # unpack the send buffer
         if isinstance(sendbuf, tuple):
             sendbuf, send_counts, send_displs = sendbuf
-        if isinstance(sendbuf, dndarray.DNDarray):
+        if isinstance(sendbuf, DNDarray):
             sendbuf = sendbuf._DNDarray__array
         if not isinstance(sendbuf, torch.Tensor):
             if axis != 0:
@@ -564,7 +563,7 @@ class MPICommunication(Communication):
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
-        if isinstance(recvbuf, dndarray.DNDarray):
+        if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf._DNDarray__array
         if not isinstance(recvbuf, torch.Tensor):
             if axis != 0:
@@ -725,7 +724,7 @@ class MPICommunication(Communication):
         # unpack the send buffer
         if isinstance(sendbuf, tuple):
             sendbuf, send_counts, send_displs = sendbuf
-        if isinstance(sendbuf, dndarray.DNDarray):
+        if isinstance(sendbuf, DNDarray):
             sendbuf = sendbuf._DNDarray__array
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
@@ -735,7 +734,7 @@ class MPICommunication(Communication):
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
-        if isinstance(recvbuf, dndarray.DNDarray):
+        if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf._DNDarray__array
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
@@ -880,7 +879,7 @@ class MPICommunication(Communication):
         # unpack the send buffer
         if isinstance(sendbuf, tuple):
             sendbuf, send_counts, send_displs = sendbuf
-        if isinstance(sendbuf, dndarray.DNDarray):
+        if isinstance(sendbuf, DNDarray):
             sendbuf = sendbuf._DNDarray__array
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
@@ -890,7 +889,7 @@ class MPICommunication(Communication):
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
-        if isinstance(recvbuf, dndarray.DNDarray):
+        if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf._DNDarray__array
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
@@ -1158,4 +1157,4 @@ def use_comm(comm=None):
 
 
 # tensor is imported at the very end to break circular dependency
-from . import dndarray
+from .dndarray import DNDarray
