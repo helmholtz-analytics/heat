@@ -113,25 +113,6 @@ under the Helmholtz AI platform grant.*
 
 ---
 
-<div style="padding-top: 10px; text-align: center">
-    <div style="width: 24%; padding: 10px; display: inline-block">
-        <a href="https://www.dlr.de/EN/Home/home_node.html">
-            <img src="doc/images/dlr_logo.svg" style="height: 40px">
-        </a>
-    </div>
-    <div style="width: 24%; padding: 10px; display: inline-block">
-        <a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html">
-            <img src="doc/images/fzj_logo.svg" style="height: 40px">
-        </a>
-    </div>
-    <div style="width: 24%; padding: 10px; display: inline-block">
-        <a href="http://www.kit.edu/english/index.php">
-            <img src="doc/images/kit_logo.svg" style="height: 40px">
-        </a>
-    </div>
-    <div style="width: 24%; padding: 10px; display: inline-block">
-        <a href="https://www.helmholtz.de/en/">
-            <img src="doc/images/helmholtz_logo.svg" style="height: 40px">
-        </a>
-    </div>
+<div align="center">
+  <a href="https://www.dlr.de/EN/Home/home_node.html"><img src="doc/images/dlr_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html"><img src="doc/images/fzj_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="http://www.kit.edu/english/index.php"><img src="doc/images/kit_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.helmholtz.de/en/"><img src="doc/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="20px"></a>
 </div>
