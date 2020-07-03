@@ -463,6 +463,13 @@ def invert(t, out=None) -> DNDarray:
     Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray`. The input array must be of integral
     or Boolean types. For boolean arrays, it computes the logical NOT. Bitwise_not is an alias for invert.
 
+    Parameters
+    ---------
+    t: DNDarray
+        The input array to invert. Must be of integral or Boolean types
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must have the same shape as the expected output.
+
     Example
     ---------
     >>> ht.invert(ht.array([13], dtype=ht.uint8))
