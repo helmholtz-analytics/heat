@@ -5,10 +5,8 @@ from PIL import Image
 
 from ...core import factories
 
-# from torch.MNIST dataloader
 
-
-class MNISTDataset:  #(torchvision.datasets.vision.VisionDataset):
+class MNISTDataset:  # (torchvision.datasets.vision.VisionDataset):
     # todo: implement iterable-style datasets
     # only map still datasets here
     # assumes that the items to train on are in the 0th axis
@@ -25,7 +23,7 @@ class MNISTDataset:  #(torchvision.datasets.vision.VisionDataset):
         self.data.append(data_array._DNDarray__array[slice(min_data)])
         min_data_t = train_array.gshape[0] // train_array.comm.size
         self.data.append(data_array._DNDarray__array[slice(min_data_t)])
-        self.transform = lcl_MNIST_Dataset.transform
+        self.lcl_MNIST_Dataset = lcl_MNIST_Dataset
 
     def __getitem__(self, index):
         """
@@ -35,17 +33,17 @@ class MNISTDataset:  #(torchvision.datasets.vision.VisionDataset):
         Returns:
             tuple: (image, target) where target is index of the target class.
         """
-        img, target = self.data[0][index], int(self.targets[1][index])
+        img, target = self.data[0][index], int(self.data[1][index])
 
         # doing this so that it is consistent with all other datasets
         # to return a PIL Image
-        img = Image.fromarray(img.numpy(), mode='L')
+        img = Image.fromarray(img.numpy(), mode="L")
 
-        if self.transform is not None:
-            img = self.transform(img)
+        if self.lcl_MNIST_Dataset.transform is not None:
+            img = self.lcl_MNIST_Dataset.transform(img)
 
-        if self.target_transform is not None:
-            target = self.target_transform(target)
+        if self.lcl_MNIST_Dataset.target_transform is not None:
+            target = self.lcl_MNIST_Dataset.target_transform(target)
 
         return img, target
 
@@ -66,4 +64,3 @@ class MNISTDataset:  #(torchvision.datasets.vision.VisionDataset):
             src = comm.rank - 1 if comm.rank != 0 else comm.size - 1
             comm.Recv(new_data, source=src)
             self.data[d][: self.lcl_half] = new_data
-
