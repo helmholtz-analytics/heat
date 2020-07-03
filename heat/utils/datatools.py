@@ -287,10 +287,16 @@ class DataLoader:  # (object):
             worker_init_fn=worker_init_fn,
             multiprocessing_context=None,
         )
+        self.first_iter = True
 
     def __iter__(self):
         # need an iterator for the number of epochs
-        return self.lcl_DataLoader.__iter__()
+        if self.first_iter:
+            self.first_iter = False
+            return self.lcl_DataLoader.__iter__()
+        else:
+            self.shuffle()
+            return self.lcl_DataLoader.__iter__()
 
     def __len__(self):
         # todo: add 1 to this?
@@ -322,10 +328,10 @@ class Dataset(torch_data.Dataset):
         arb_slice = [slice(None)] * array.ndim
         arb_slice[array.split] = slice(min_data_split)
         self.cut_slice = tuple(arb_slice)
-        self.data = array._DNDarray__array
+        self.data = array._DNDarray__array[self.cut_slice]
 
     def __getitem__(self, index):
-        return self.data[self.cut_slice][index]
+        return self.data[index]
 
     def __len__(self):
         return self.data.shape[0]
