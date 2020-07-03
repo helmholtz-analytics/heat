@@ -4,7 +4,8 @@ import base64
 import os
 import torch
 from torch.utils import data as torch_data
-from ..core import dndarray
+
+from ..core import dndarray, factories
 
 __all__ = ["merge_files_imagenet_tfrecord"]
 
@@ -243,7 +244,6 @@ def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
 
 
 class DataLoader:  # (object):
-    # TODO: RETURN A TORCH.DATALOADER!!
     # notes: ignoring iterable datasets for now
     #   this means that all datasets are self._dataset_kind = _DatasetKind.Map
     def __init__(
@@ -256,55 +256,100 @@ class DataLoader:  # (object):
         drop_last=False,
         timeout=0,
         worker_init_fn=None,
+        lcl_dataset=None,
     ):
         # shuffle=True, by default, if wanted, can change that later
-        if not isinstance(data, dndarray.DNDarray):
+
+        if isinstance(data, dndarray.DNDarray):
+            self.full_data = data
+            self.lcldata = data._DNDarray__array
+            self.comm = data.comm
+            self.num_workers = lcl_workers
+
+            self.lcl_dataset = Dataset(data)
+            # cut_slice = self.lcl_dataset._cut_slice
+            # self.lcl_half = cut_slice[0].stop // 2
+
+            rand_sampler = torch_data.RandomSampler(self.lcl_dataset)
+            self.lcl_sampler = torch_data.BatchSampler(rand_sampler, batch_size, drop_last)
+            # need to implement the following -> iterable dataset, other samplers?
+            # torch_sampler = torch_data.sampler.RandomSampler(lcl_dataset)
+            self.lcl_DataLoader = torch_data.DataLoader(
+                dataset=self.lcl_dataset,
+                batch_size=1,
+                shuffle=False,
+                sampler=None,
+                batch_sampler=self.lcl_sampler,
+                num_workers=lcl_workers,
+                collate_fn=collate_fn,
+                pin_memory=pin_memory,
+                drop_last=drop_last,
+                timeout=timeout,
+                worker_init_fn=worker_init_fn,
+                multiprocessing_context=None,
+            )
+        elif lcl_dataset:
+            # todo: lcl_DataLoader, lcldata, shuffle (rewrite), comm, lcl_half
+            pass
+        else:
             raise TypeError(f"data must be a DNDarray, currently: {type(data)}")
-        self.full_data = data
-        self.lcldata = data._DNDarray__array
-        self.comm = data.comm
-        self.num_workers = lcl_workers
 
-        lcl_dataset = Dataset(data)
-        cut_slice = lcl_dataset.cut_slice
-        self.lcl_half = cut_slice[0].stop // 2
-
-        rand_sampler = torch_data.RandomSampler(lcl_dataset)
-        self.lcl_sampler = torch_data.BatchSampler(rand_sampler, batch_size, drop_last)
-        # need to implement the following -> iterable dataset, other samplers?
-        # torch_sampler = torch_data.sampler.RandomSampler(lcl_dataset)
-        self.lcl_DataLoader = torch_data.DataLoader(
-            dataset=lcl_dataset,
-            batch_size=1,
-            shuffle=False,
-            sampler=None,
-            batch_sampler=self.lcl_sampler,
-            num_workers=lcl_workers,
-            collate_fn=collate_fn,
-            pin_memory=pin_memory,
-            drop_last=drop_last,
-            timeout=timeout,
-            worker_init_fn=worker_init_fn,
-            multiprocessing_context=None,
-        )
-        self.first_iter = True
+        self._first_iter = True
 
     def __iter__(self):
         # need an iterator for the number of epochs
-        if self.first_iter:
-            self.first_iter = False
-            return self.lcl_DataLoader.__iter__()
+        if self._first_iter:
+            self._first_iter = False
         else:
             self.shuffle()
-            return self.lcl_DataLoader.__iter__()
+        return self.lcl_DataLoader.__iter__()
 
     def __len__(self):
         # todo: add 1 to this?
-        return len(self.lcl_sampler) + 1
+        return len(self.lcl_DataLoader)
 
     def shuffle(self):
-        print("shuffling!")
-        shuffled = self.lcldata[torch.randperm(self.lcldata.shape[0])]
+        self.lcl_dataset.shuffle()
+        # print("shuffling!")
+        # shuffled = self.lcldata[torch.randperm(self.lcldata.shape[0])]
+        # snd = shuffled[: self.lcl_half].clone()
+        # snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device
+        # comm = self.comm
+        # dest = comm.rank + 1 if comm.rank + 1 != comm.size else 0
+        # # send the top half of the data to the next process
+        # comm.Send(snd, dest=dest)
+        # del snd
+        # new_data = torch.empty(snd_shape, dtype=snd_dtype, device=snd_dev)
+        # src = comm.rank - 1 if comm.rank != 0 else comm.size - 1
+        # comm.Recv(new_data, source=src)
+        # self.lcldata[: self.lcl_half] = new_data
+
+
+class Dataset(torch_data.Dataset):
+    # todo: implement iterable-style datasets
+    # only map still datasets here
+    # assumes that the items to train on are in the 0th axis
+    def __init__(self, array, transform=None):
+        # slice the data at the smallest number of elements
+        min_data_split = array.gshape[array.split] // array.comm.size
+        arb_slice = [slice(None)] * array.ndim
+        arb_slice[array.split] = slice(min_data_split)
+        self._cut_slice = tuple(arb_slice)
+        self.comm = array.comm
+        self.lcl_half = min_data_split // 2
+        self.data = array._DNDarray__array[self._cut_slice]
+        self.transform = transform
+
+    def __getitem__(self, index):
+        if self.transform:
+            return self.transform(self.data[index])
+        return self.data[index]
+
+    def __len__(self):
+        return self.data.shape[0]
+
+    def shuffle(self):
+        shuffled = self.data[torch.randperm(self.data.shape[0])]
         snd = shuffled[: self.lcl_half].clone()
         snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device
         comm = self.comm
@@ -315,23 +360,4 @@ class DataLoader:  # (object):
         new_data = torch.empty(snd_shape, dtype=snd_dtype, device=snd_dev)
         src = comm.rank - 1 if comm.rank != 0 else comm.size - 1
         comm.Recv(new_data, source=src)
-        self.lcldata[: self.lcl_half] = new_data
-
-
-class Dataset(torch_data.Dataset):
-    # todo: implement iterable-style datasets
-    # only map still datasets here
-    # assumes that the items to train on are in the 0th axis
-    def __init__(self, array):
-        # slice the data at the smallest number of elements
-        min_data_split = array.gshape[array.split] // array.comm.size
-        arb_slice = [slice(None)] * array.ndim
-        arb_slice[array.split] = slice(min_data_split)
-        self.cut_slice = tuple(arb_slice)
-        self.data = array._DNDarray__array[self.cut_slice]
-
-    def __getitem__(self, index):
-        return self.data[index]
-
-    def __len__(self):
-        return self.data.shape[0]
+        self.data[: self.lcl_half] = new_data

@@ -147,11 +147,6 @@ class DataParallel(tnn.Module):
             return len(self.data)
 
     def init_data_loader_from_heat(self, ht_data, batch_size=None, DatasetClass=None):
-        # create a torch.DataLoader
-        # todo: drop_last = True
-        # todo: active data is equal to the smallest local split value
-        if batch_size is None:  # default for DataLoader
-            batch_size = 1
         if DatasetClass is None:  # allow for other Dataset classes
             DatasetClass = self.__LocalDataset
 
