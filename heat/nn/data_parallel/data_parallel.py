@@ -98,13 +98,11 @@ class DataParallel(tnn.Module):
 
         # counterbalance local gradient averaging
         # todo: should this be the number of processes? and should it be a division before the send
-        grad_loc_cpy *= self.local_batch_size
+        # global gradient averaging
+        grad_loc_cpy *= self.local_batch_size / self.global_batch_size
 
         # perform MPI Allreduce to compute global gradient
         self.comm.Allreduce(ht.MPI.IN_PLACE, grad_loc_cpy, ht.MPI.SUM)
-
-        # global gradient averaging
-        grad_loc_cpy /= self.global_batch_size
 
         return grad_loc_cpy
 

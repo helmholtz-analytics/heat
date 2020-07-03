@@ -244,18 +244,8 @@ def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
 
 class DataLoader:  # (object):
     # TODO: RETURN A TORCH.DATALOADER!!
-    # torch defaults:
-    #           dataset, batch_size=1, shuffle=False, sampler=None,
-    #           batch_sampler=None, num_workers=0, collate_fn=None, pin_memory=False, drop_last=False,
-    #           timeout=0, worker_init_fn=None, multiprocessing_context=None
-
-    # init params: torch.utils.data.Dataset, batch_size=1, lcl_sampler=None, batch_sampler=None, lcl_workers=0,
-    #                  collate_fn=None, pin_memory=False, drop_last=False, timeout=0, worker_init_fn=None
-    # todo: make a dataset
     # notes: ignoring iterable datasets for now
     #   this means that all datasets are self._dataset_kind = _DatasetKind.Map
-
-    # what has to happen to turn a ht.DNDarray into a torch DataLoader:
     def __init__(
         self,
         data,
@@ -266,24 +256,21 @@ class DataLoader:  # (object):
         drop_last=False,
         timeout=0,
         worker_init_fn=None,
-        # shuffle=True,
     ):
+        # shuffle=True, by default, if wanted, can change that later
         if not isinstance(data, dndarray.DNDarray):
             raise TypeError(f"data must be a DNDarray, currently: {type(data)}")
         self.full_data = data
         self.lcldata = data._DNDarray__array
         self.comm = data.comm
         self.num_workers = lcl_workers
-        # create dataset
+
         lcl_dataset = Dataset(data)
         cut_slice = lcl_dataset.cut_slice
         self.lcl_half = cut_slice[0].stop // 2
-        #   global shuffler,
+
         rand_sampler = torch_data.RandomSampler(lcl_dataset)
-        self.lcl_sampler = torch_data.BatchSampler(
-            rand_sampler, batch_size=batch_size, drop_last=drop_last
-        )
-        # gbl_sampler = GlobalSampler(lcl_sampler, data)
+        self.lcl_sampler = torch_data.BatchSampler(rand_sampler, batch_size, drop_last)
         # need to implement the following -> iterable dataset, other samplers?
         # torch_sampler = torch_data.sampler.RandomSampler(lcl_dataset)
         self.lcl_DataLoader = torch_data.DataLoader(
