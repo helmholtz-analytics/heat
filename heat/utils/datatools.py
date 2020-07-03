@@ -242,7 +242,7 @@ def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
     val_lcl_file["file_info"].attrs["column_names"] = [feature_list[l] for l in file_list]
 
 
-class DataLoader(object):
+class DataLoader:  # (object):
     # TODO: RETURN A TORCH.DATALOADER!!
     # torch defaults:
     #           dataset, batch_size=1, shuffle=False, sampler=None,
@@ -271,23 +271,27 @@ class DataLoader(object):
         if not isinstance(data, dndarray.DNDarray):
             raise TypeError(f"data must be a DNDarray, currently: {type(data)}")
         self.full_data = data
+        self.lcldata = data._DNDarray__array
         self.comm = data.comm
+        self.num_workers = lcl_workers
         # create dataset
         lcl_dataset = Dataset(data)
+        cut_slice = lcl_dataset.cut_slice
+        self.lcl_half = cut_slice[0].stop // 2
         #   global shuffler,
         rand_sampler = torch_data.RandomSampler(lcl_dataset)
-        lcl_sampler = torch_data.BatchSampler(
+        self.lcl_sampler = torch_data.BatchSampler(
             rand_sampler, batch_size=batch_size, drop_last=drop_last
         )
-        gbl_sampler = GlobalSampler(lcl_sampler, data)
+        # gbl_sampler = GlobalSampler(lcl_sampler, data)
         # need to implement the following -> iterable dataset, other samplers?
         # torch_sampler = torch_data.sampler.RandomSampler(lcl_dataset)
         self.lcl_DataLoader = torch_data.DataLoader(
             dataset=lcl_dataset,
             batch_size=1,
             shuffle=False,
-            sampler=rand_sampler,
-            batch_sampler=gbl_sampler,
+            sampler=None,
+            batch_sampler=self.lcl_sampler,
             num_workers=lcl_workers,
             collate_fn=collate_fn,
             pin_memory=pin_memory,
@@ -297,44 +301,28 @@ class DataLoader(object):
             multiprocessing_context=None,
         )
 
-
-# todo: create new sampler class to shuffle data at the end of the iteration
-class GlobalSampler:  # torch_data.BatchSampler):
-    def __init__(self, batch_sampler, htdata):
-        # lcl_sampler = torch_data.RandomSampler(dataset)
-        # batch_sampler = torch_data.BatchSampler(lcl_sampler, batch_size, drop_last)
-        # super(GlobalShuffler, self).__init__(lcl_sampler, batch_size, drop_last)
-        self.batch_sampler = batch_sampler
-        self.htdata = htdata
-        self.lcldata = htdata._DNDarray__array
-        cut_slice = batch_sampler.sampler.data_source.cut_slice
-        self.lcl_half = cut_slice.stop // 2
-
     def __iter__(self):
-        return self.batch_sampler.__iter__()
-
-    def __next__(self):
-        try:
-            return self.batch_sampler.__next__()
-        except StopIteration:
-            # shuffle the data3
-            print("shuffling!")
-            shuffled = self.lcldata[torch.randperm(self.lcldata.shape()[0])]
-            snd = shuffled[: self.lcl_half].clone()
-            snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device
-            comm = self.htdata.comm
-            dest = comm.rank + 1 if comm.rank - 1 != comm.size else 0
-            # send the top half of the data to the next process
-            comm.Send(snd, dest=dest)
-            del snd
-            new_data = torch.empty(snd_shape, dtype=snd_dtype, device=snd_dev)
-            src = comm.rank - 1 if comm.rank != 0 else comm.size
-            comm.Recv(new_data, source=src)
-            self.lcldata[: self.lcl_half] = src
+        # need an iterator for the number of epochs
+        return self.lcl_DataLoader.__iter__()
 
     def __len__(self):
         # todo: add 1 to this?
-        return len(self.batch_sampler) + 1
+        return len(self.lcl_sampler) + 1
+
+    def shuffle(self):
+        print("shuffling!")
+        shuffled = self.lcldata[torch.randperm(self.lcldata.shape[0])]
+        snd = shuffled[: self.lcl_half].clone()
+        snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device
+        comm = self.comm
+        dest = comm.rank + 1 if comm.rank + 1 != comm.size else 0
+        # send the top half of the data to the next process
+        comm.Send(snd, dest=dest)
+        del snd
+        new_data = torch.empty(snd_shape, dtype=snd_dtype, device=snd_dev)
+        src = comm.rank - 1 if comm.rank != 0 else comm.size - 1
+        comm.Recv(new_data, source=src)
+        self.lcldata[: self.lcl_half] = new_data
 
 
 class Dataset(torch_data.Dataset):
