@@ -6859,7 +6859,7 @@ footer span.commit .rst-content tt,
 
 .rst-content .section ol p,
 .rst-content .section ul p {
-	margin-bottom: 12px
+	margin-bottom: 2px
 }
 
 .rst-content .section ol p:last-child,
@@ -7110,7 +7110,8 @@ footer span.commit .rst-content tt,
 .rst-content tt.literal,
 .rst-content tt.literal,
 .rst-content code.literal {
-	color: #E74C3C
+	font-weight: bold;
+	color: #000000
 }
 
 .rst-content tt.xref,
@@ -7122,7 +7123,18 @@ a .rst-content code {
 	font-weight: bold;
 	color: #404040
 }
-
+.orangemarker {
+    color:white;
+    background:var(--horange);
+}
+.greymarker {
+    color:white;
+    background:var(--hgrey);
+}
+.bluemarker {
+    color:white;
+    background:var(--hblue);
+}
 .rst-content pre,
 .rst-content kbd,
 .rst-content samp {
