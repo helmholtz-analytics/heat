@@ -1,6 +1,7 @@
 import torch
-import torchvision
-from torch.utils import data as torch_data
+
+# import torchvision
+# from torch.utils import data as torch_data
 from PIL import Image
 
 from ...core import factories
