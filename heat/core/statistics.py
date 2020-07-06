@@ -4,6 +4,7 @@ from typing import Any, Callable, Union, Tuple, List
 
 from .communication import MPI
 from .dndarray import DNDarray
+
 from . import arithmetics
 from . import exponential
 from . import factories
@@ -431,7 +432,7 @@ def cov(
     norm = x.shape[1] - ddof
     # find normalization:
     if norm <= 0:
-        raise ValueError("ddof >= number of elements in m, {} {}".format(ddof, m.gnumel))
+        raise ValueError(f"ddof >= number of elements in m, {ddof} {m.gnumel}")
     x -= avg.expand_dims(1)
     c = linalg.dot(x, x.T)
     c /= norm
@@ -767,8 +768,8 @@ def mean(x: DNDarray, axis: Union[int, List[int, ...], Tuple[int, ...]] = None) 
                 (mu_tot[0, :], n_tot[0]), (mu_tot[i, :], n_tot[i])
             )
         return mu_tot[0][0] if mu_tot[0].size == 1 else mu_tot[0]
-        # ----------------------------------------------------------------------------------------------
 
+    # ----------------------------------------------------------------------------------------------
     if axis is None:
         # full matrix calculation
         if not x.is_distributed():
@@ -799,7 +800,7 @@ DNDarray.mean.__doc__ = mean.__doc__
 
 
 def __merge_moments(
-    m1: torch.Tensor, m2: torch.Tensor, bessel: bool = True
+    m1: torch.Tensor, m2: torch.Tensor, unbiased: bool = True
 ) -> Tuple[torch.Tensor, ...]:
     """
     Merge two statistical moments.
@@ -815,8 +816,8 @@ def __merge_moments(
     m2 : Tuple
         Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
         sorted in descending order of moments
-    bessel : bool
-        Flag for the use of the bessel correction for the calculation of the variance
+    unbiased : bool
+        Flag for the use of unbiased estimators (when available)
 
 
     References
@@ -838,7 +839,7 @@ def __merge_moments(
         return mu, n
 
     var1, var2 = m1[-3], m2[-3]
-    if bessel:
+    if unbiased:
         var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1)
     else:
         var_m = (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n

@@ -4,7 +4,7 @@ import numpy as np
 import math
 import torch
 import warnings
-from typing import List, Dict, Any, TypeVar, Union, Tuple
+from typing import List, Union, Tuple
 
 from . import devices
 from . import factories
@@ -141,10 +141,7 @@ class DNDarray:
         """
         Number of total elements of the ``DNDarray``
         """
-        try:
-            return np.prod(self.__gshape)
-        except TypeError:
-            return 1
+        return torch.prod(torch.tensor(self.gshape, device=self.device.torch_device)).item()
 
     @property
     def gnumel(self) -> int:
