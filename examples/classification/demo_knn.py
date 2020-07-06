@@ -2,8 +2,8 @@ import sys
 import os
 
 # Fix python Path if run from terminal
-curdir = os.path.dirname(os.path.abspath(__file__)) 
-sys.path.insert(0, os.path.abspath(os.path.join(curdir, '../../'))) 
+curdir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(curdir, "../../")))
 
 import heat as ht
 from heat.classification.knn import KNN
@@ -19,7 +19,7 @@ for i in range(50, 100):
     keys.append(1)
 for i in range(100, 150):
     keys.append(2)
-Y = ht.array(keys, split=0)
+Y = ht.array(keys)
 
 
 def calculate_accuracy(new_y, verification_y):
@@ -76,11 +76,11 @@ def create_fold(dataset_x, dataset_y, size, seed=None):
     data_length = len(dataset_x)
     if seed:
         ht.random.seed(seed)
-    indices = ht.random.randint(low=0, high=data_length - 1, size=(size,), split=0)
+    indices = ht.random.randint(low=0, high=data_length - 1, size=(size,))
     indices = ht.unique(indices, sorted=True)
     while len(indices) < size:
         diff = size - len(indices)
-        additional = ht.random.randint(low=0, high=data_length, size=(diff,), split=0)
+        additional = ht.random.randint(low=0, high=data_length, size=(diff,))
         indices = ht.concatenate((indices, additional))
         indices = ht.unique(indices, sorted=True)
     indices = indices.tolist()
@@ -128,5 +128,5 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
         accuracies.append(calculate_accuracy(result_y, verification_y))
     return accuracies
 
-print(verify_algorithm(X, Y, 5, 30, 5))
 
+print(verify_algorithm(X, Y, 5, 30, 5))
