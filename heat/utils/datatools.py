@@ -250,7 +250,7 @@ class DataLoader:  # (object):
         self,
         data,
         batch_size=1,
-        lcl_workers=0,
+        num_workers=0,
         collate_fn=None,
         pin_memory=False,
         drop_last=False,
@@ -260,39 +260,38 @@ class DataLoader:  # (object):
     ):
         # shuffle=True, by default, if wanted, can change that later
 
-        if isinstance(data, dndarray.DNDarray):
+        if isinstance(data, dndarray.DNDarray) and lcl_dataset is not None:
             self.full_data = data
             self.lcldata = data._DNDarray__array
             self.comm = data.comm
-            self.num_workers = lcl_workers
-
-            self.lcl_dataset = Dataset(data)
-            # cut_slice = self.lcl_dataset._cut_slice
-            # self.lcl_half = cut_slice[0].stop // 2
-
-            rand_sampler = torch_data.RandomSampler(self.lcl_dataset)
-            self.lcl_sampler = torch_data.BatchSampler(rand_sampler, batch_size, drop_last)
-            # need to implement the following -> iterable dataset, other samplers?
-            # torch_sampler = torch_data.sampler.RandomSampler(lcl_dataset)
-            self.lcl_DataLoader = torch_data.DataLoader(
-                dataset=self.lcl_dataset,
-                batch_size=1,
-                shuffle=False,
-                sampler=None,
-                batch_sampler=self.lcl_sampler,
-                num_workers=lcl_workers,
-                collate_fn=collate_fn,
-                pin_memory=pin_memory,
-                drop_last=drop_last,
-                timeout=timeout,
-                worker_init_fn=worker_init_fn,
-                multiprocessing_context=None,
-            )
-        elif lcl_dataset:
-            # todo: lcl_DataLoader, lcldata, shuffle (rewrite), comm, lcl_half
-            pass
+        elif lcl_dataset is not None:
+            # todo: lcl_DataLoader, lcldata, shuffle (rewrite)
+            self.full_data = lcl_dataset.htdata
+            self.lcldata = lcl_dataset.data
+            self.lcl_dataset = lcl_dataset
+            self.comm = lcl_dataset.comm
         else:
-            raise TypeError(f"data must be a DNDarray, currently: {type(data)}")
+            raise TypeError(
+                f"data must be a DNDarray or lcl_dataset must be given, data is currently: {type(data)}"
+            )
+        rand_sampler = torch_data.RandomSampler(self.lcl_dataset)
+        self.lcl_sampler = torch_data.BatchSampler(rand_sampler, batch_size, drop_last)
+        # need to implement the following -> iterable dataset, other samplers?
+        # torch_sampler = torch_data.sampler.RandomSampler(lcl_dataset)
+        self.lcl_DataLoader = torch_data.DataLoader(
+            dataset=self.lcl_dataset,
+            batch_size=1,
+            shuffle=False,
+            sampler=None,
+            batch_sampler=self.lcl_sampler,
+            num_workers=num_workers,
+            collate_fn=collate_fn,
+            pin_memory=pin_memory,
+            drop_last=drop_last,
+            timeout=timeout,
+            worker_init_fn=worker_init_fn,
+            multiprocessing_context=None,
+        )
 
         self._first_iter = True
 

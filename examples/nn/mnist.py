@@ -151,8 +151,8 @@ def main():
         "../../heat/datasets/data", train=True, download=True, transform=transform
     )
     dataset2 = MNISTDataset("../../heat/datasets/data", train=False, transform=transform)
-    train_loader = ht.utils.datatools.DataLoader(dataset1, **kwargs)
-    test_loader = ht.utils.datatools.DataLoader(dataset2, **kwargs)
+    train_loader = ht.utils.datatools.DataLoader(dataset1.data, lcl_dataset=dataset1, **kwargs)
+    test_loader = ht.utils.datatools.DataLoader(dataset2.data, lcl_dataset=dataset2, **kwargs)
 
     model = ht.nn.DataParallel(Net(), comm=dataset1.comm)
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
