@@ -257,6 +257,7 @@ class DataLoader:  # (object):
         timeout=0,
         worker_init_fn=None,
         lcl_dataset=None,
+        transform=None,
     ):
         # shuffle=True, by default, if wanted, can change that later
 
@@ -264,22 +265,35 @@ class DataLoader:  # (object):
             self.full_data = data
             self.lcldata = data._DNDarray__array
             self.comm = data.comm
+            self.dataset = Dataset(array=data, transform=transform)
         elif lcl_dataset is not None:
             # todo: lcl_DataLoader, lcldata, shuffle (rewrite)
-            self.full_data = lcl_dataset.htdata
+            self.full_data = lcl_dataset.htarray
             self.lcldata = lcl_dataset.data
-            self.lcl_dataset = lcl_dataset
+            self.dataset = lcl_dataset
             self.comm = lcl_dataset.comm
         else:
             raise TypeError(
                 f"data must be a DNDarray or lcl_dataset must be given, data is currently: {type(data)}"
             )
-        rand_sampler = torch_data.RandomSampler(self.lcl_dataset)
+        rand_sampler = torch_data.RandomSampler(self.dataset)
         self.lcl_sampler = torch_data.BatchSampler(rand_sampler, batch_size, drop_last)
         # need to implement the following -> iterable dataset, other samplers?
         # torch_sampler = torch_data.sampler.RandomSampler(lcl_dataset)
+        # super(DataLoader, self).__init__(dataset=self.lcl_dataset,
+        #     batch_size=1,
+        #     shuffle=False,
+        #     sampler=None,
+        #     batch_sampler=self.lcl_sampler,
+        #     num_workers=num_workers,
+        #     collate_fn=collate_fn,
+        #     pin_memory=pin_memory,
+        #     drop_last=drop_last,
+        #     timeout=timeout,
+        #     worker_init_fn=worker_init_fn,
+        #     multiprocessing_context=None,)
         self.lcl_DataLoader = torch_data.DataLoader(
-            dataset=self.lcl_dataset,
+            dataset=self.dataset,
             batch_size=1,
             shuffle=False,
             sampler=None,

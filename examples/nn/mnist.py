@@ -7,9 +7,9 @@ import torch.optim as optim
 # from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 
+import heat as ht
 from heat.utils import transforms
 from heat.datasets.mnist import MNISTDataset
-import heat as ht
 
 
 class Net(ht.nn.Module):
@@ -100,11 +100,7 @@ def main():
         help="input batch size for testing (default: 1000)",
     )
     parser.add_argument(
-        "--epochs",
-        type=int,
-        default=14,
-        metavar="N",
-        help="number of epochs to train (default: 14)",
+        "--epochs", type=int, default=2, metavar="N", help="number of epochs to train (default: 14)"
     )
     parser.add_argument(
         "--lr", type=float, default=1.0, metavar="LR", help="learning rate (default: 1.0)"
