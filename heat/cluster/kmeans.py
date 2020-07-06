@@ -1,5 +1,10 @@
+from typing import Optional, Union, TypeVar
+
 import heat as ht
 from heat.core.dndarray import DNDarray
+
+
+self = TypeVar("self")
 
 
 class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
@@ -43,7 +48,14 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
     Philadelphia, PA, USA. pp. 1027–1035, 2007.
     """
 
-    def __init__(self, n_clusters=8, init="random", max_iter=300, tol=1e-4, random_state=None):
+    def __init__(
+        self,
+        n_clusters: int = 8,
+        init: Union[str, DNDarray] = "random",
+        max_iter: int = 300,
+        tol: float = 1e-4,
+        random_state: Optional[int] = None,
+    ):
         self.init = init
         self.max_iter = max_iter
         self.n_clusters = n_clusters
@@ -86,13 +98,13 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
         """
         return self._n_iter
 
-    def _initialize_cluster_centers(self, X):
+    def _initialize_cluster_centers(self, x: DNDarray):
         """
         Initializes the K-Means centroids.
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             The data to initialize the clusters for. Shape = (n_samples, n_features)
         """
         # always initialize the random state
@@ -102,26 +114,26 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
         # initialize the centroids by randomly picking some of the points
         if self.init == "random":
             # Samples will be equally distributed drawn from all involved processes
-            _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
+            _, displ, _ = x.comm.counts_displs_shape(shape=x.shape, axis=0)
             centroids = ht.empty(
-                (self.n_clusters, X.shape[1]), split=None, device=X.device, comm=X.comm
+                (self.n_clusters, x.shape[1]), split=None, device=x.device, comm=x.comm
             )
-            if X.split is None or X.split == 0:
+            if x.split is None or x.split == 0:
                 for i in range(self.n_clusters):
                     samplerange = (
-                        X.gshape[0] // self.n_clusters * i,
-                        X.gshape[0] // self.n_clusters * (i + 1),
+                        x.gshape[0] // self.n_clusters * i,
+                        x.gshape[0] // self.n_clusters * (i + 1),
                     )
                     sample = ht.random.randint(samplerange[0], samplerange[1]).item()
                     proc = 0
-                    for p in range(X.comm.size):
+                    for p in range(x.comm.size):
                         if displ[p] > sample:
                             break
                         proc = p
-                    xi = ht.zeros(X.shape[1], dtype=X.dtype)
-                    if X.comm.rank == proc:
+                    xi = ht.zeros(x.shape[1], dtype=x.dtype)
+                    if x.comm.rank == proc:
                         idx = sample - displ[proc]
-                        xi = ht.array(X.lloc[idx, :], device=X.device, comm=X.comm)
+                        xi = ht.array(x.lloc[idx, :], device=x.device, comm=x.comm)
                     xi.comm.Bcast(xi, root=proc)
                     centroids[i, :] = xi
 
@@ -136,31 +148,31 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
                 raise ValueError(
                     "passed centroids need to be two-dimensional, but are {}".format(len(self.init))
                 )
-            if self.init.shape[0] != self.n_clusters or self.init.shape[1] != X.shape[1]:
+            if self.init.shape[0] != self.n_clusters or self.init.shape[1] != x.shape[1]:
                 raise ValueError("passed centroids do not match cluster count or data shape")
             self._cluster_centers = self.init.resplit(None)
 
         # kmeans++, smart centroid guessing
         elif self.init == "kmeans++":
-            if X.split is None or X.split == 0:
+            if x.split is None or x.split == 0:
                 centroids = ht.zeros(
-                    (self.n_clusters, X.shape[1]), split=None, device=X.device, comm=X.comm
+                    (self.n_clusters, x.shape[1]), split=None, device=x.device, comm=x.comm
                 )
-                sample = ht.random.randint(0, X.shape[0] - 1).item()
-                _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
+                sample = ht.random.randint(0, x.shape[0] - 1).item()
+                _, displ, _ = x.comm.counts_displs_shape(shape=x.shape, axis=0)
                 proc = 0
-                for p in range(X.comm.size):
+                for p in range(x.comm.size):
                     if displ[p] > sample:
                         break
                     proc = p
-                x0 = ht.zeros(X.shape[1], dtype=X.dtype, device=X.device, comm=X.comm)
-                if X.comm.rank == proc:
+                x0 = ht.zeros(x.shape[1], dtype=x.dtype, device=x.device, comm=x.comm)
+                if x.comm.rank == proc:
                     idx = sample - displ[proc]
-                    x0 = ht.array(X.lloc[idx, :], device=X.device, comm=X.comm)
+                    x0 = ht.array(x.lloc[idx, :], device=x.device, comm=x.comm)
                 x0.comm.Bcast(x0, root=proc)
                 centroids[0, :] = x0
                 for i in range(1, self.n_clusters):
-                    distances = ht.spatial.distance.cdist(X, centroids, quadratic_expansion=True)
+                    distances = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
                     D2 = distances.min(axis=1)
                     D2.resplit_(axis=None)
                     prob = D2 / D2.sum()
@@ -173,14 +185,14 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
                         sum += prob[j].item()
                         sample = j
                     proc = 0
-                    for p in range(X.comm.size):
+                    for p in range(x.comm.size):
                         if displ[p] > sample:
                             break
                         proc = p
-                    xi = ht.zeros(X.shape[1], dtype=X.dtype)
-                    if X.comm.rank == proc:
+                    xi = ht.zeros(x.shape[1], dtype=x.dtype)
+                    if x.comm.rank == proc:
                         idx = sample - displ[proc]
-                        xi = ht.array(X.lloc[idx, :], device=X.device, comm=X.comm)
+                        xi = ht.array(x.lloc[idx, :], device=x.device, comm=x.comm)
                     xi.comm.Bcast(xi, root=proc)
                     centroids[i, :] = xi
 
@@ -196,40 +208,40 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
                 )
             )
 
-    def _fit_to_cluster(self, X):
+    def _fit_to_cluster(self, x: DNDarray) -> DNDarray:
         """
         Assigns the passed data points to
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
 
        """
         # calculate the distance matrix and determine the closest centroid
-        distances = ht.spatial.distance.cdist(X, self._cluster_centers, quadratic_expansion=True)
+        distances = ht.spatial.distance.cdist(x, self._cluster_centers, quadratic_expansion=True)
         matching_centroids = distances.argmin(axis=1, keepdim=True)
 
         return matching_centroids
 
-    def fit(self, X):
+    def fit(self, x: DNDarray) -> self:
         """
         Computes the centroid of a k-means clustering.
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
 
         """
         # input sanitation
-        if not isinstance(X, DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
+        if not isinstance(x, DNDarray):
+            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
 
         # initialize the clustering
-        self._initialize_cluster_centers(X)
+        self._initialize_cluster_centers(x)
         self._n_iter = 0
-        matching_centroids = ht.zeros((X.shape[0]), split=X.split, device=X.device, comm=X.comm)
+        matching_centroids = ht.zeros((x.shape[0]), split=x.split, device=x.device, comm=x.comm)
 
         new_cluster_centers = self._cluster_centers.copy()
 
@@ -238,7 +250,7 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
             # increment the iteration count
             self._n_iter += 1
             # determine the centroids
-            matching_centroids = self._fit_to_cluster(X)
+            matching_centroids = self._fit_to_cluster(x)
 
             # update the centroids
             for i in range(self.n_clusters):
@@ -246,7 +258,7 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
                 selection = (matching_centroids == i).astype(ht.int64)
 
                 # accumulate points and total number of points in cluster
-                assigned_points = (X * selection).sum(axis=0, keepdim=True)
+                assigned_points = (x * selection).sum(axis=0, keepdim=True)
                 points_in_cluster = selection.sum(axis=0, keepdim=True).clip(
                     1.0, ht.iinfo(ht.int64).max
                 )
@@ -264,7 +276,7 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
         return self
 
-    def predict(self, X) -> DNDarray:
+    def predict(self, x: DNDarray) -> DNDarray:
         """
         Returns the index of the closest cluster each sample in X belongs to.
 
@@ -273,13 +285,13 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             New data to predict. Shape = (n_samples, n_features)
 
         """
         # input sanitation
-        if not isinstance(X, DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
+        if not isinstance(x, DNDarray):
+            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
 
         # determine the centroids
-        return self._fit_to_cluster(X)
+        return self._fit_to_cluster(x)

@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import inspect
 import json
-from typing import List, Dict, Any, TypeVar
+
+from typing import Dict, List, TypeVar
 from .dndarray import DNDarray
 
 self = TypeVar("self")
 
 
 class BaseEstimator:
-    # ToDo Document Me
+    """
+    Abstract base class for all estimators, i.e. parametrized analysis algorithms, in Heat. Can be used as mixin.
+    """
+
     @classmethod
     def _parameter_names(cls) -> List[str]:
         """
@@ -29,7 +33,7 @@ class BaseEstimator:
             if p.name != "self" and p.kind == p.POSITIONAL_OR_KEYWORD
         ]
 
-    def get_params(self, deep=True) -> Dict[str, Any]:
+    def get_params(self, deep: bool = True) -> Dict[str, object]:
         """
         Get parameters for this estimator.
 
@@ -52,7 +56,7 @@ class BaseEstimator:
     def __repr__(self, indent=1):
         return "{}({})".format(self.__class__.__name__, json.dumps(self.get_params(), indent=4))
 
-    def set_params(self, **params) -> self:
+    def set_params(self, **params: Dict[str, object]) -> self:
         """
         Set the parameters of this estimator. The method works on simple estimators as well as on nested objects
         (such as pipelines). The latter have to be nested dictionaries.
@@ -87,43 +91,43 @@ class ClassificationMixin:
     Mixin for all classifiers in Heat.
     """
 
-    def fit(self, X, Y):
+    def fit(self, x: DNDarray, y: DNDarray):
         """
         Fits the classification model.
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             Training instances to train on. Shape = (n_samples, n_features)
 
-        Y : DNDarray
+        y : DNDarray
             Class values to fit. Shape = (n_samples, )
 
         """
         raise NotImplementedError()
 
-    def fit_predict(self, X, Y) -> DNDarray:
+    def fit_predict(self, x: DNDarray, y: DNDarray) -> DNDarray:
         """
         Fits model and returns classes for each input sample
         Convenience method; equivalent to calling :func:`fit(X)` followed by :func:`predict(X)`.
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             Input data to be predicted. Shape = (n_samples, n_features)
-        Y : DNDarray
+        y : DNDarray
             Class values to fit. Shape = (n_samples, )
         """
-        self.fit(X, Y)
-        return self.predict(X)
+        self.fit(x, y)
+        return self.predict(x)
 
-    def predict(self, X):
+    def predict(self, x: DNDarray):
         """
         Predicts the class labels for each sample.
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             Values to predict the classes for. Shape = (n_samples, n_features)
 
         """
@@ -135,19 +139,19 @@ class ClusteringMixin:
     Clustering mixin for all clusterers in HeAT.
     """
 
-    def fit(self, X):
+    def fit(self, x: DNDarray):
         """
         Computes the clustering.
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
 
         """
         raise NotImplementedError()
 
-    def fit_predict(self, X) -> DNDarray:
+    def fit_predict(self, x: DNDarray) -> DNDarray:
         """
         Compute clusters and returns the predicted cluster assignment for each sample.
         Returns index of the cluster each sample belongs to.
@@ -155,12 +159,12 @@ class ClusteringMixin:
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             Input data to be clustered. Shape = (n_samples, n_features)
 
         """
-        self.fit(X)
-        return self.predict(X)
+        self.fit(x)
+        return self.predict(x)
 
 
 class RegressionMixin:
@@ -168,49 +172,49 @@ class RegressionMixin:
     Mixin for all regression estimators in Heat.
     """
 
-    def fit(self, X, Y):
+    def fit(self, x: DNDarray, y: DNDarray):
         """
         Fits the regression model.
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             Training instances to train on. Shape = (n_samples, n_features)
-        Y : DNDarray
+        y : DNDarray
             Continuous values to fit. Shape = (n_samples,)
 
         """
         raise NotImplementedError()
 
-    def fit_predict(self, X, Y) -> DNDarray:
+    def fit_predict(self, x: DNDarray, y: DNDarray) -> DNDarray:
         """
         Fits model and returns regression predictions for each input sample
         Convenience method; equivalent to calling :func:`fit(X)` followed by :func:`predict(X)`.
 
         Parameters
         ----------
-        X : DNDarray,
+        x : DNDarray,
             Input data to be predicted. Shape = (n_samples, n_features)
-        Y : DNDarray
+        y : DNDarray
             Continuous values to fit. Shape = (n_samples,)
 
         """
-        self.fit(X, Y)
-        return self.predict(X)
+        self.fit(x, y)
+        return self.predict(x)
 
-    def predict(self, X):
+    def predict(self, x: DNDarray):
         """
         Predicts the continuous labels for each sample.
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             Values to let the model predict. Shape = (n_samples, n_features)
         """
         raise NotImplementedError()
 
 
-def is_classifier(estimator) -> bool:
+def is_classifier(estimator: object) -> bool:
     """
     Return ``True`` if the given estimator is a classifier, ``False`` otherwise.
 
@@ -222,7 +226,7 @@ def is_classifier(estimator) -> bool:
     return isinstance(estimator, ClassificationMixin)
 
 
-def is_estimator(estimator) -> bool:
+def is_estimator(estimator: object) -> bool:
     """
     Return ``True`` if the given estimator is an estimator, ``False`` otherwise.
 
@@ -234,7 +238,7 @@ def is_estimator(estimator) -> bool:
     return isinstance(estimator, BaseEstimator)
 
 
-def is_clusterer(estimator) -> bool:
+def is_clusterer(estimator: object) -> bool:
     """
     Return ``True`` if the given estimator is a clusterer, ``False`` otherwise.
 
@@ -247,7 +251,7 @@ def is_clusterer(estimator) -> bool:
     return isinstance(estimator, ClusteringMixin)
 
 
-def is_regressor(estimator) -> bool:
+def is_regressor(estimator: object) -> bool:
     """
     Return ``True`` if the given estimator is a regressor, ``False`` otherwise.
 

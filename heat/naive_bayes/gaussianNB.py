@@ -65,13 +65,13 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         self.priors = priors
         self.var_smoothing = var_smoothing
 
-    def fit(self, X, y, sample_weight=None):
+    def fit(self, x, y, sample_weight=None):
         """
         Fit Gaussian Naive Bayes according to ``X`` and ``y``
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             Training set, where n_samples is the number of samples
             and n_features is the number of features.  Shape = (n_samples, n_features)
         y : DNDarray
@@ -80,8 +80,8 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             Weights applied to individual samples (1. for unweighted). Shape = (n_samples, )
         """
         # sanitize input - to be moved to sanitation module, cf. #468
-        if not isinstance(X, ht.DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
+        if not isinstance(x, ht.DNDarray):
+            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
         if not isinstance(y, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(y)))
         if y.ndim != 1:
@@ -97,7 +97,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         if classes.split is not None:
             classes = ht.resplit(classes, axis=None)
 
-        return self.__partial_fit(X, y, classes, _refit=True, sample_weight=sample_weight)
+        return self.__partial_fit(x, y, classes, _refit=True, sample_weight=sample_weight)
 
     def __check_partial_fit_first_call(self, classes=None):
         """
@@ -449,21 +449,21 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # else:
         return out
 
-    def predict(self, X) -> DNDarray:
+    def predict(self, x) -> DNDarray:
         """
         Adapted to HeAT from scikit-learn.
         Perform classification on a tensor of test data ``X``.
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             Shape = (n_samples, n_features)
         """
         # sanitize input
         # TODO: sanitation/validation module, cf. #468
-        if not isinstance(X, ht.DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
-        jll = self.__joint_log_likelihood(X)
+        if not isinstance(x, ht.DNDarray):
+            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
+        jll = self.__joint_log_likelihood(x)
         return self.classes_[ht.argmax(jll, axis=1).numpy()]
 
     def predict_log_proba(self, X) -> DNDarray:

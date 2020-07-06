@@ -116,7 +116,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
 
         return eigenvalues, eigenvectors
 
-    def fit(self, X):
+    def fit(self, x):
         """
         Clusters dataset X via spectral embedding
         Computes the low-dim representation by calculation of eigenspectrum (eigenvalues and eigenvectors) of the graph
@@ -128,16 +128,16 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
         """
         # 1. input sanitation
-        if not isinstance(X, DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
-        if X.split is not None and X.split != 0:
+        if not isinstance(x, DNDarray):
+            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
+        if x.split is not None and x.split != 0:
             raise NotImplementedError("Not implemented for other splitting-axes")
         # 2. Embed Dataset into lower-dimensional Eigenvector space
-        eigenvalues, eigenvectors = self._spectral_embedding(X)
+        eigenvalues, eigenvectors = self._spectral_embedding(x)
 
         # 3. Find the spectral gap, if number of clusters is not defined from the outside
         if self.n_clusters is None:

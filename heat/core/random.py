@@ -3,15 +3,15 @@ from __future__ import annotations
 import numpy as np
 import time
 import torch
-from typing import Tuple
+from typing import List, Optional, Tuple
 
 from . import communication
 from .communication import Communication
+from . import devices
+from .dndarray import DNDarray
 from . import stride_tricks
 from . import types
-from . import devices
 
-from .dndarray import DNDarray
 from .types import datatype
 
 
@@ -27,10 +27,9 @@ __KUNDU_INVERSE = 1.0 / 0.3807
 
 
 def __counter_sequence(
-    shape, dtype, split, device, comm
+    shape: Tuple[int, ...], dtype: datatype, split: int, comm: Communication
 ) -> Tuple[torch.tensor, torch.tensor, Tuple[int, ...], slice]:
     """
-    #ToDo check Documentation: Correct assignment of torch.Tensor vs DNDarray?
     Generates a sequence of numbers to be used as the "clear text" for the threefry encryption, i.e. the pseudo random
     number generator. Due to the fact that threefry always requires pairs of inputs, the input sequence may not just be
     a simple range including the global offset, but rather needs to be to independent vectors, one containing the range
@@ -53,11 +52,13 @@ def __counter_sequence(
     """
     # get the global random state into the function, might want to factor this out into a class later
     global __counter
+
     # Share this initial local state to update it correctly later
     tmp_counter = __counter
     rank = comm.Get_rank()
     size = comm.Get_size()
     max_count = 0xFFFFFFFF if dtype == torch.int32 else 0xFFFFFFFFFFFFFFFF
+
     # extract the counter state of the random number generator
     if dtype is torch.int32:
         c_0 = (__counter & (max_count << 32)) >> 32
@@ -91,18 +92,18 @@ def __counter_sequence(
         elements = local_elements[rank] / 2
         lslice = slice(None)
         if even_start:
-            # No overlap with previous processes
+            # no overlap with previous processes
             if elements == int(elements):
-                # Even number of elements
+                # even number of elements
                 end = int(elements)
             else:
-                # Odd number of elements
+                # odd number of elements
                 end = int(elements) + 1
                 lslice = slice(None, -1)
         else:
-            # Overlap with previous processes
+            # overlap with previous processes
             if elements == int(elements):
-                # Even number of elements
+                # even number of elements
                 end = int(elements) + 1
                 lslice = slice(1, -1)
             else:
@@ -112,7 +113,7 @@ def __counter_sequence(
         start = int(start)
         end += start
 
-    # Check x_1 for overflow
+    # check x_1 for overflow
     lrange = [start, end]
     signed_mask = 0x7FFFFFFF if dtype == torch.int32 else 0x7FFFFFFFFFFFFFFF
     diff = 0 if lrange[1] <= signed_mask else lrange[1] - signed_mask
@@ -139,7 +140,7 @@ def __counter_sequence(
     else:
         x_0.fill_(c_0)
 
-    # Detect if x_0 needs to be increased for current values
+    # detect if x_0 needs to be increased for current values
     if end > max_count:
         if start > max_count:
             # x_0 changed in previous process, increase all values
@@ -148,11 +149,11 @@ def __counter_sequence(
             # x_0 changes after reaching the overflow in this process
             x_0[-(end - max_count - 1) :] += 1
 
-    # Correctly increase the counter variable
+    # correctly increase the counter variable
     used_values = int(np.ceil(total_elements / 2))
-    # Increase counter but not over 128 bit
+    # increase counter but not over 128 bit
     tmp_counter += used_values
-    __counter = tmp_counter & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  # 128bit mask
+    __counter = tmp_counter & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  # 128-bit mask
 
     return x_0, x_1, lshape, lslice
 
@@ -175,7 +176,7 @@ def get_state() -> Tuple[str, int, int, int, float]:
     return "Threefry", __seed, __counter, 0, 0.0
 
 
-def __int32_to_float32(values) -> torch.Tensor:
+def __int32_to_float32(values: torch.Tensor) -> torch.Tensor:
     """
     Converts a tensor of 32-bit (random) numbers to matching single-precision floating point numbers (equally 32-bit) in
     the bounded interval [0.0, 1.0). Extracts the 23 least-significant bits of the integers (0x7fffff) and sets them to
@@ -189,7 +190,7 @@ def __int32_to_float32(values) -> torch.Tensor:
     return (values & 0x7FFFFF).type(torch.float32) * __INT32_TO_FLOAT32
 
 
-def __int64_to_float64(values) -> torch.Tensor:
+def __int64_to_float64(values: torch.Tensor) -> torch.Tensor:
     """
     Converts a tensor of 64-bit (random) numbers to matching double-precision floating point numbers (equally 64-bit) in
     the bounded interval [0.0, 1.0). Extracts the 53 least-significant bits of the integers (0x1fffffffffffff) and sets
@@ -203,7 +204,7 @@ def __int64_to_float64(values) -> torch.Tensor:
     return (values & 0x1FFFFFFFFFFFFF).type(torch.float64) * __INT64_TO_FLOAT64
 
 
-def __kundu_transform(values) -> torch.Tensor:
+def __kundu_transform(values: torch.Tensor) -> torch.Tensor:
     """
     Transforms uniformly distributed floating point random values in the interval [0.0, 1.0) into normal distributed
     floating point random values with mean 0.0 and standard deviation 1.0. The algorithm makes use of the generalized
@@ -221,7 +222,13 @@ def __kundu_transform(values) -> torch.Tensor:
     return (torch.log(-torch.log(1 - values ** 0.0775)) - 1.0821) * __KUNDU_INVERSE
 
 
-def rand(*args, dtype=types.float32, split=None, device=None, comm=None) -> DNDarray:
+def rand(
+    *args: List[int],
+    dtype: datatype = types.float32,
+    split: Optional[int] = None,
+    device: Optional[str] = None,
+    comm: Optional[Communication] = None
+) -> DNDarray:
     """
     Random values in a given shape.
     Create a :class:`~heat.core.dndarray.DNDarray`  of the given shape and populate it with random samples from a
@@ -229,7 +236,7 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None) -> DNDa
 
     Parameters
     ----------
-    d0, d1, …, dn : Tuple[int,...], optional
+    d0, d1, …, dn : List[int,...]
         The dimensions of the returned array, should all be positive. If no argument is given a single random samples is
         generated.
     dtype: datatype, optional
@@ -260,7 +267,7 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None) -> DNDa
 
     # generate the random sequence
     if dtype == types.float32:
-        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int32, split, device, comm)
+        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int32, split, comm)
         x_0, x_1 = __threefry32(x_0, x_1)
 
         # combine the values into one tensor and convert them to floats
@@ -268,7 +275,7 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None) -> DNDa
             lshape
         )
     elif dtype == types.float64:
-        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int64, split, device, comm)
+        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int64, split, comm)
         x_0, x_1 = __threefry64(x_0, x_1)
 
         # combine the values into one tensor and convert them to floats
@@ -282,7 +289,15 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None) -> DNDa
     return DNDarray(values, shape, dtype, split, device, comm)
 
 
-def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm=None) -> DNDarray:
+def randint(
+    low: int,
+    high: Optional[int] = None,
+    size: Optional[Tuple[int]] = None,
+    dtype: Optional[datatype] = None,
+    split: Optional[int] = None,
+    device: Optional[str] = None,
+    comm: Optional[Communication] = None,
+) -> DNDarray:
     """
     Random values in a given shape.
     Create a tensor of the given shape and populate it with random integer samples from a uniform distribution over
@@ -351,13 +366,19 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     return DNDarray(values, shape, dtype, split, device, comm)
 
 
-def randn(*args, dtype=types.float32, split=None, device=None, comm=None) -> DNDarray:
+def randn(
+    *args: List[int],
+    dtype: datatype = types.float32,
+    split: Optional[int] = None,
+    device: Optional[str] = None,
+    comm: Optional[Communication] = None
+) -> DNDarray:
     """
     Returns a tensor filled with random numbers from a standard normal distribution with zero mean and variance of one.
 
     Parameters
     ----------
-    d0, d1, …, dn : Tuple[int,...], optional
+    d0, d1, …, dn : List[int,...]
         The dimensions of the returned array, should be all positive.
     dtype: datatype, optional
         The datatype of the returned values. Has to be one of [:class:`~heat.core.types.float32, :class:`~heat.core.types.float64`].
@@ -394,7 +415,7 @@ def randn(*args, dtype=types.float32, split=None, device=None, comm=None) -> DND
     return normal_tensor
 
 
-def seed(seed=None):
+def seed(seed: Optional[int] = None):
     """
     Seed the generator.
 
@@ -412,7 +433,7 @@ def seed(seed=None):
     torch.manual_seed(seed)
 
 
-def set_state(state):
+def set_state(state: Tuple[str, int, int, int, float]):
     """
     Set the internal state of the generator from a tuple.
     The tuple has the following items:
@@ -449,16 +470,16 @@ def set_state(state):
     __counter = int(state[2])
 
 
-def __threefry32(X_0, X_1) -> Tuple[torch.tensor, torch.tensor]:
+def __threefry32(x_0: torch.Tensor, x_1: torch.Tensor) -> Tuple[torch.tensor, torch.tensor]:
     """
     Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. Returns
     Two vectors with num_samples / 2 (rounded-up) pseudo random numbers. This is the 32-bit version.
 
     Parameters
     ----------
-    X_0 : torch.Tensor
+    x_0 : torch.Tensor
         Upper bits of the to be encoded random sequence
-    X_1 : torch.Tensor
+    x_1 : torch.Tensor
         Lower bits of the to be encoded random sequence
 
     References
@@ -467,7 +488,7 @@ def __threefry32(X_0, X_1) -> Tuple[torch.tensor, torch.tensor]:
     Proceedings of 2011 International Conference for High Performance Computing, Networking, Storage and Analysis,
     p. 16, 2011
     """
-    samples = len(X_0)
+    samples = len(x_0)
 
     # Seed is > 32 bit
     seed_32 = __seed & 0x7FFFFFFF
@@ -480,47 +501,47 @@ def __threefry32(X_0, X_1) -> Tuple[torch.tensor, torch.tensor]:
     ks_2 ^= ks_0
 
     # initialize output using the key
-    X_0 += ks_0
-    X_1 += ks_1
+    x_0 += ks_0
+    x_1 += ks_1
 
     # perform rounds
     # round 1
-    X_0 += X_1
-    X_1 = (X_1 << 13) | (X_1 >> 19)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 13) | (x_1 >> 19)
+    x_1 ^= x_0
     # round 2
-    X_0 += X_1
-    X_1 = (X_1 << 15) | (X_1 >> 17)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 15) | (x_1 >> 17)
+    x_1 ^= x_0
     # round 3
-    X_0 += X_1
-    X_1 = (X_1 << 26) | (X_1 >> 6)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 26) | (x_1 >> 6)
+    x_1 ^= x_0
     # round 4
-    X_0 += X_1
-    X_1 = (X_1 << 6) | (X_1 >> 26)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 6) | (x_1 >> 26)
+    x_1 ^= x_0
 
     # inject key
-    X_0 += ks_1
-    X_1 += ks_2 + 1
+    x_0 += ks_1
+    x_1 += ks_2 + 1
 
     # round 5
-    X_0 += X_1
-    X_1 = (X_1 << 17) | (X_1 >> 15)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 17) | (x_1 >> 15)
+    x_1 ^= x_0
     # round 6
-    X_0 += X_1
-    X_1 = (X_1 << 29) | (X_1 >> 3)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 29) | (x_1 >> 3)
+    x_1 ^= x_0
     # round 7
-    X_0 += X_1
-    X_1 = (X_1 << 16) | (X_1 >> 16)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 16) | (x_1 >> 16)
+    x_1 ^= x_0
     # round 8
-    X_0 += X_1
-    X_1 = (X_1 << 24) | (X_1 >> 8)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 24) | (x_1 >> 8)
+    x_1 ^= x_0
 
     # inject key
     # X_0 += ks_2; X_1 += (ks_0 + 2)
@@ -531,22 +552,22 @@ def __threefry32(X_0, X_1) -> Tuple[torch.tensor, torch.tensor]:
     # X_0 += X_1; X_1 = (X_1 <<  6) | (X_1 >> 26); X_1 ^= X_0  # round 12
 
     # inject key
-    X_0 += ks_0
-    X_1 += ks_1 + 3
+    x_0 += ks_0
+    x_1 += ks_1 + 3
 
-    return X_0, X_1
+    return x_0, x_1
 
 
-def __threefry64(X_0, X_1) -> Tuple[torch.tensor, torch.tensor]:
+def __threefry64(x_0: torch.Tensor, x_1: torch.Tensor) -> Tuple[torch.tensor, torch.tensor]:
     """
     Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1].
     Returns two vectors with num_samples / 2 (rounded-up) pseudo random numbers. This is the 64-bit version.
 
     Parameters
     ----------
-    X_0 : torch.Tensor
+    x_0 : torch.Tensor
         Upper bits of the to be encoded random sequence
-    X_1 : torch.Tensor
+    x_1 : torch.Tensor
         Lower bits of the to be encoded random sequence
 
     References
@@ -555,7 +576,7 @@ def __threefry64(X_0, X_1) -> Tuple[torch.tensor, torch.tensor]:
     Proceedings of 2011 International Conference for High Performance Computing, Networking, Storage and Analysis,
     p. 16, 2011
     """
-    samples = len(X_0)
+    samples = len(x_0)
 
     # set up key buffer
     ks_0 = torch.full((samples,), __seed, dtype=torch.int64)
@@ -565,47 +586,47 @@ def __threefry64(X_0, X_1) -> Tuple[torch.tensor, torch.tensor]:
     ks_2 ^= ks_0
 
     # initialize output using the key
-    X_0 += ks_0
-    X_1 += ks_1
+    x_0 += ks_0
+    x_1 += ks_1
 
     # perform rounds
     # round 1
-    X_0 += X_1
-    X_1 = (X_1 << 16) | (X_1 >> 48)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 16) | (x_1 >> 48)
+    x_1 ^= x_0
     # round 2
-    X_0 += X_1
-    X_1 = (X_1 << 42) | (X_1 >> 22)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 42) | (x_1 >> 22)
+    x_1 ^= x_0
     # round 3
-    X_0 += X_1
-    X_1 = (X_1 << 12) | (X_1 >> 52)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 12) | (x_1 >> 52)
+    x_1 ^= x_0
     # round 4
-    X_0 += X_1
-    X_1 = (X_1 << 31) | (X_1 >> 33)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 31) | (x_1 >> 33)
+    x_1 ^= x_0
 
     # inject key
-    X_0 += ks_1
-    X_1 += ks_2 + 1
+    x_0 += ks_1
+    x_1 += ks_2 + 1
 
     # round 5
-    X_0 += X_1
-    X_1 = (X_1 << 16) | (X_1 >> 48)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 16) | (x_1 >> 48)
+    x_1 ^= x_0
     # round 6
-    X_0 += X_1
-    X_1 = (X_1 << 32) | (X_1 >> 32)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 32) | (x_1 >> 32)
+    x_1 ^= x_0
     # round 7
-    X_0 += X_1
-    X_1 = (X_1 << 24) | (X_1 >> 40)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 24) | (x_1 >> 40)
+    x_1 ^= x_0
     # round 8
-    X_0 += X_1
-    X_1 = (X_1 << 21) | (X_1 >> 43)
-    X_1 ^= X_0
+    x_0 += x_1
+    x_1 = (x_1 << 21) | (x_1 >> 43)
+    x_1 ^= x_0
 
     # inject key
     # X_0 += ks_2; X_1 += (ks_0 + 2)
@@ -616,10 +637,10 @@ def __threefry64(X_0, X_1) -> Tuple[torch.tensor, torch.tensor]:
     # X_0 += X_1; X_1 = (X_1 << 31) | (X_1 >> 33); X_1 ^= X_0  # round 12
 
     # inject key
-    X_0 += ks_0
-    X_1 += ks_1 + 3
+    x_0 += ks_0
+    x_1 += ks_1 + 3
 
-    return X_0, X_1
+    return x_0, x_1
 
 
 # roll a global time-based seed

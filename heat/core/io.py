@@ -1,10 +1,12 @@
 import os.path
-
 import torch
 import warnings
 
+from typing import Dict, List, Optional
+
+
 from heat.core import factories
-from .communication import MPI, MPI_WORLD, sanitize_comm, Communication
+from .communication import Communication, MPI, MPI_WORLD, sanitize_comm
 from . import devices
 from .stride_tricks import sanitize_axis
 from . import types
@@ -24,7 +26,10 @@ try:
     import h5py
 except ImportError:
     # HDF5 support is optional
-    def supports_hdf5():
+    def supports_hdf5() -> bool:
+        """
+        Returns whether HeAT supports reading from and writing to HDF5 files.
+        """
         return False
 
 
@@ -38,11 +43,19 @@ else:
     # add functions to exports
     __all__.extend(["load_hdf5", "save_hdf5"])
 
-    def supports_hdf5():
+    def supports_hdf5() -> bool:
+        """
+        Returns whether HeAT supports reading from and writing to HDF5 files.
+        """
         return True
 
     def load_hdf5(
-        path, dataset, dtype=types.float32, split=None, device=None, comm=None
+        path: str,
+        dataset: str,
+        dtype: datatype = types.float32,
+        split: Optional[int] = None,
+        device: Optional[str] = None,
+        comm: Optional[Communication] = None,
     ) -> DNDarray:
         """
         Loads data from an HDF5 file. The data may be distributed among multiple processing nodes via the split flag.
@@ -123,7 +136,9 @@ else:
 
             return dndarray.DNDarray(data, gshape, dtype, split, device, comm)
 
-    def save_hdf5(data, path, dataset, mode="w", **kwargs):
+    def save_hdf5(
+        data: DNDarray, path: str, dataset: str, mode: str = "w", **kwargs: Dict[str, object]
+    ):
         """
         Saves ``data`` to an HDF5 file. Attempts to utilize parallel I/O if possible.
 
@@ -206,11 +221,16 @@ else:
         self, path, dataset, mode, **kwargs
     )
     DNDarray.save_hdf5.__doc__ = save_hdf5.__doc__
+
+
 try:
     import netCDF4 as nc
 except ImportError:
 
-    def supports_netcdf():
+    def supports_netcdf() -> bool:
+        """
+        Returns whether HeAT supports reading from and writing to netCDF4 files.
+        """
         return False
 
 
@@ -231,11 +251,19 @@ else:
     # add functions to visible exports
     __all__.extend(["load_netcdf", "save_netcdf"])
 
-    def supports_netcdf():
+    def supports_netcdf() -> bool:
+        """
+        Returns whether HeAT supports reading from and writing to netCDF4 files.
+        """
         return True
 
     def load_netcdf(
-        path, variable, dtype=types.float32, split=None, device=None, comm=None
+        path: str,
+        variable: str,
+        dtype: datatype = types.float32,
+        split: Optional[int] = None,
+        device: Optional[str] = None,
+        comm: Optional[Communication] = None,
     ) -> DNDarray:
         """
         Loads data from a NetCDF4 file. The data may be distributed among multiple processing nodes via the split flag.
@@ -307,7 +335,9 @@ else:
 
             return dndarray.DNDarray(data, gshape, dtype, split, device, comm)
 
-    def save_netcdf(data, path, variable, mode="w", **kwargs):
+    def save_netcdf(
+        data: DNDarray, path: str, variable: str, mode: str = "w", **kwargs: Dict[str, object]
+    ):
         """
         Saves data to a netCDF4 file. Attempts to utilize parallel I/O if possible.
 
@@ -406,7 +436,7 @@ else:
     DNDarray.save_netcdf.__doc__ = save_netcdf.__doc__
 
 
-def load(path, *args, **kwargs) -> DNDarray:
+def load(path: str, *args: List[object], **kwargs: Dict[str, object]) -> DNDarray:
     """
     Attempts to load data from a file stored on disk. Attempts to auto-detect the file format by determining the
     extension.
@@ -445,14 +475,14 @@ def load(path, *args, **kwargs) -> DNDarray:
 
 
 def load_csv(
-    path,
-    header_lines=0,
-    sep=",",
-    dtype=types.float32,
-    encoding="UTF-8",
-    split=None,
-    device=None,
-    comm=MPI_WORLD,
+    path: str,
+    header_lines: int = 0,
+    sep: str = ",",
+    dtype: datatype = types.float32,
+    encoding: str = "UTF-8",
+    split: Optional[int] = None,
+    device: Optional[str] = None,
+    comm: Optional[Communication] = MPI_WORLD,
 ) -> DNDarray:
     """
     Loads data from an CSV file. The data will be distributed along the 0 axis.
@@ -654,7 +684,7 @@ def load_csv(
     return resulting_tensor
 
 
-def save(data, path, *args, **kwargs):
+def save(data: DNDarray, path: str, *args: List[object], **kwargs: Dict[str, object]):
     """
     Attempts to save data from a :class:`~heat.core.dndarray.DNDarray`  to disk.
     Attempts to auto-detect the file format by determining the extension.
