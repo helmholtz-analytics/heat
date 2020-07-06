@@ -1,6 +1,6 @@
 from __future__ import annotations
 import torch
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from .dndarray import DNDarray
 
@@ -16,6 +16,19 @@ class SplitTiles:
     ----------
     arr : DNDarray
         Base array for which to create the tiles
+
+    Attributes
+    ----------
+    __DNDarray : DNDarray
+        the ``DNDarray`` associated with the tiles
+    __lshape_map : torch.Tensor
+        map of the shapes of the local torch tensors of arr
+    __tile_locations : torch.Tensor
+        locations of the tiles of ``arr``
+    __tile_ends_g : torch.Tensor
+        the global indices of the ends of the tiles
+    __tile_dims : torch.Tensor
+        the dimensions of all of the tiles
 
     Examples
     --------
@@ -59,7 +72,7 @@ class SplitTiles:
     [2]         [0, 1, 2]], dtype=torch.int32)
     """
 
-    def __init__(self, arr):
+    def __init__(self, arr: DNDarray) -> None:
         #  1. get the lshape map
         #  2. get the split axis numbers for the other axes
         #  3. build tile map
@@ -88,7 +101,7 @@ class SplitTiles:
         self.__tile_dims = tile_dims
 
     @staticmethod
-    def set_tile_locations(split, tile_dims, arr) -> torch.tensor:
+    def set_tile_locations(split: int, tile_dims: torch.Tensor, arr: DNDarray) -> torch.tensor:
         """
         Create a ``torch.Tensor`` which contains the locations of the tiles of ``arr`` for the given split
 
@@ -118,15 +131,21 @@ class SplitTiles:
         return tile_locations
 
     @property
-    def arr(self):
+    def arr(self) -> DNDarray:
+        """
+        Get the DNDarray associated with the tiling object
+        """
         return self.__DNDarray
 
     @property
-    def lshape_map(self):
+    def lshape_map(self) -> torch.Tensor:
+        """
+        Return the shape of all of the local torch.Tensors
+        """
         return self.__lshape_map
 
     @property
-    def tile_locations(self):
+    def tile_locations(self) -> torch.Tensor:
         """
         Get the ``torch.Tensor`` with the locations of the tiles for SplitTiles
 
@@ -139,7 +158,7 @@ class SplitTiles:
     @property
     def tile_ends_g(self) -> torch.tensor:
         """
-        Returns a ``torch.Tensor`` wih the global indces with the end points of the tiles in every dimension
+        Returns a ``torch.Tensor`` with the global indices with the end points of the tiles in every dimension
 
         Examples
         --------
@@ -148,10 +167,13 @@ class SplitTiles:
         return self.__tile_ends_g
 
     @property
-    def tile_dimensions(self):
+    def tile_dimensions(self) -> torch.Tensor:
+        """
+        Returns a ``torch.Tensor`` with the sizes of the tiles
+        """
         return self.__tile_dims
 
-    def __getitem__(self, key) -> torch.Tensor:
+    def __getitem__(self, key: Union[int, slice, Tuple[int, slice, ...]]) -> torch.Tensor:
         """
         Getitem function for getting tiles. Returns the tile which is specified is returned, but only on the process which it resides
 
@@ -198,14 +220,17 @@ class SplitTiles:
         # tile_ends_g has the end points, need to get the start and stop
         if arr.comm.rank not in self.tile_locations[key]:
             return None
-        arb_slices = self.get_tile_slices(key)
+        arb_slices = self.__get_tile_slices(key)
         return arr._DNDarray__array[tuple(arb_slices)]
 
-    def get_tile_slices(self, key):
-        # ToDo Document me
+    def __get_tile_slices(
+        self, key: Union[int, slice, Tuple[int, slice, ...]]
+    ) -> Tuple[slice, ...]:
+        """
+        Create and return slices to convert a key from the tile indices to the normal indices
+        """
         arr = self.__DNDarray
         arb_slices = [None] * arr.ndim
-        # print(self.tile_locations[key])
         end_rank = (
             max(self.tile_locations[key].unique())
             if self.tile_locations[key].unique().numel() > 1
@@ -251,14 +276,24 @@ class SplitTiles:
             arb_slices[d] = slice(start, stop)
         return arb_slices
 
-    def get_tile_size(self, key):
-        arb_slices = self.get_tile_slices(key)
+    def get_tile_size(self, key: Union[int, slice, Tuple[int, slice, ...]]) -> Tuple[int, ...]:
+        """
+        Get the size of a tile or tiles indicated by the given key
+
+        Parameters
+        ----------
+        key : Union[int, slice, Tuple[int, slice, ...]]
+            which tiles to get
+        """
+        arb_slices = self.__get_tile_slices(key)
         inds = []
         for sl in arb_slices:
             inds.append(sl.stop - sl.start)
         return tuple(inds)
 
-    def __setitem__(self, key, value):
+    def __setitem__(
+        self, key: Union[int, slice, Tuple[int, slice, ...]], value: Union[int, float, torch.Tensor]
+    ) -> None:
         """
         Set the values of a tile
 
@@ -330,7 +365,7 @@ class SquareDiagTiles:
 
     """
 
-    def __init__(self, arr, tiles_per_proc=2):
+    def __init__(self, arr: DNDarray, tiles_per_proc: int = 2) -> None:
         # lshape_map -> rank (int), lshape (tuple of the local lshape, self.lshape)
         if not isinstance(arr, DNDarray):
             raise TypeError("arr must be a DNDarray, is currently a {}".format(type(self)))
@@ -474,9 +509,15 @@ class SquareDiagTiles:
         self.__col_inds = list(col_inds)
 
     @staticmethod
-    def __adjust_cols_sp1_m_ls_n(arr, col_per_proc_list, last_diag_pr, col_inds, lshape_map):
+    def __adjust_cols_sp1_m_ls_n(
+        arr: DNDarray,
+        col_per_proc_list: List[int, ...],
+        last_diag_pr: int,
+        col_inds: List[int, ...],
+        lshape_map: torch.Tensor,
+    ) -> None:
         """
-        Add more columns after the diagonal ends if `m<n` and ``arr.split==1``
+        Add more columns after the diagonal ends if ``m<n`` and ``arr.split==1``
         """
         # need to add to col inds with the rest of the columns
         tile_columns = sum(col_per_proc_list)
@@ -502,8 +543,13 @@ class SquareDiagTiles:
 
     @staticmethod
     def __adjust_last_row_sp0_m_ge_n(
-        arr, lshape_map, last_diag_pr, row_inds, row_per_proc_list, tile_columns
-    ):
+        arr: DNDarray,
+        lshape_map: torch.Tensor,
+        last_diag_pr: int,
+        row_inds: List[int, ...],
+        row_per_proc_list: List[int, ...],
+        tile_columns: int,
+    ) -> None:
         """
         Need to adjust the size of last row if ``arr.split==0`` and the diagonal ends before the
         last tile. This should only be run if ``arr,split==0`` and ``last_diag_pr<arr.comm.size-1``.
@@ -522,7 +568,9 @@ class SquareDiagTiles:
             row_inds[tile_columns - 1] += diff
 
     @staticmethod
-    def __adjust_lshape_sp0_1tile(arr, col_inds, lshape_map, tiles_per_proc):
+    def __adjust_lshape_sp0_1tile(
+        arr: DNDarray, col_inds: List[int, ...], lshape_map: torch.Tensor, tiles_per_proc: int
+    ) -> None:
         """
         If the split is 0 and the number of tiles per proc is 1 then the local data may need to be
         redistributed to fit the full diagonal on as many processes as possible. If there is a
@@ -553,7 +601,7 @@ class SquareDiagTiles:
 
     @staticmethod
     def __create_cols(
-        arr, lshape_map, tiles_per_proc
+        arr: DNDarray, lshape_map: torch.Tensor, tiles_per_proc: int
     ) -> Tuple[torch.tensor, List[int, ...], List[int, ...], torch.tensor]:
         """
         Calculates the last diagonal process, then creates a list of the number of tile columns per
@@ -616,7 +664,13 @@ class SquareDiagTiles:
         return last_dia_pr, col_per_proc_list, col_inds, tile_columns
 
     @staticmethod
-    def __def_end_row_inds_sp0_m_ge_n(arr, row_inds, last_diag_pr, tiles_per_proc, lshape_map):
+    def __def_end_row_inds_sp0_m_ge_n(
+        arr: DNDarray,
+        row_inds: List[int, ...],
+        last_diag_pr: int,
+        tiles_per_proc: int,
+        lshape_map: torch.Tensor,
+    ) -> None:
         """
         Adjust the rows on the processes which are greater than the last diagonal processs to have
         rows which are chunked evenly into ``tiles_per_proc`` rows.
@@ -636,7 +690,7 @@ class SquareDiagTiles:
                 nz = nz[1:]
 
     @staticmethod
-    def __last_tile_row_adjust_sp1(arr, row_inds):
+    def __last_tile_row_adjust_sp1(arr: DNDarray, row_inds: List[int, ...]) -> None:
         """
         Add extra row/s if there is space below the diagonal (``split=1``)
         """
@@ -754,7 +808,9 @@ class SquareDiagTiles:
         """
         return self.__row_per_proc_list
 
-    def get_start_stop(self, key) -> Tuple[torch.tensor, torch.tensor, torch.tensor, torch.tensor]:
+    def get_start_stop(
+        self, key: Union[int, slice, Tuple[int, slice, ...]]
+    ) -> Tuple[torch.tensor, torch.tensor, torch.tensor, torch.tensor]:
         """
         Returns the start and stop indices in form of ``(dim0 start, dim0 stop, dim1 start, dim1 stop)``
         which correspond to the tile/s which corresponds to the given key. The key MUST use global indices.
@@ -818,7 +874,7 @@ class SquareDiagTiles:
 
         return st0, sp0, st1, sp1
 
-    def __getitem__(self, key) -> torch.tensor:
+    def __getitem__(self, key: Union[int, slice, Tuple[int, slice, ...]]) -> torch.tensor:
         """
         Returns a local selection of the DNDarray corresponding to the tile/s desired
         Standard getitem function for the tiles. The returned item is a view of the original
@@ -827,7 +883,7 @@ class SquareDiagTiles:
 
         Parameters
         ----------
-        key : int, slice, tuple, list
+        key : int, slice, tuple
             indices of the tile/s desired
 
         Examples
@@ -867,7 +923,7 @@ class SquareDiagTiles:
         else:
             return None
 
-    def local_get(self, key) -> torch.tensor:
+    def local_get(self, key: Union[int, slice, Tuple[int, slice, ...]]) -> torch.tensor:
         """
         Returns the local tile/s corresponding to the key given
         Getitem routing using local indices, converts to global indices then uses getitem
@@ -887,7 +943,9 @@ class SquareDiagTiles:
         key = self.local_to_global(key=key, rank=rank)
         return self.__getitem__(key)
 
-    def local_set(self, key, value):
+    def local_set(
+        self, key: Union[int, slice, Tuple[int, slice, ...]], value: Union[int, float, torch.Tensor]
+    ):
         """
         Setitem routing to set data to a local tile (using local indices)
 
@@ -948,7 +1006,9 @@ class SquareDiagTiles:
         key = self.local_to_global(key=key, rank=rank)
         self.__getitem__(tuple(key)).__setitem__(slice(0, None), value)
 
-    def local_to_global(self, key, rank) -> Tuple[int, ...]:
+    def local_to_global(
+        self, key: Union[int, slice, Tuple[int, slice, ...]], rank: int
+    ) -> Tuple[int, slice, ...]:
         """
         Convert local indices to global indices
 
@@ -1008,7 +1068,7 @@ class SquareDiagTiles:
                 key[1] = slice(start, stop)
         return tuple(key)
 
-    def match_tiles(self, tiles_to_match):
+    def match_tiles(self, tiles_to_match: SquareDiagTiles) -> None:
         """
         Function to match the tile sizes of another tile map
 
@@ -1133,7 +1193,9 @@ class SquareDiagTiles:
             self.__col_per_proc_list = [self.tile_columns] * base_dnd.comm.size
             self.__last_diag_pr = base_dnd.comm.size - 1
 
-    def __setitem__(self, key, value):
+    def __setitem__(
+        self, key: Union[int, slice, Tuple[int, slice, ...]], value: Union[int, float, torch.Tensor]
+    ) -> None:
         """
         Item setter,
         uses the torch item setter and the getitem routines to set the values of the original array

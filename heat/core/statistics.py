@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from typing import Union, Tuple
+from typing import Any, Union, Tuple, List
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -30,7 +30,7 @@ __all__ = [
 ]
 
 
-def argmax(x, axis=None, out=None, **kwargs) -> DNDarray:
+def argmax(x: DNDarray, axis: int = None, out: DNDarray = None, **kwargs: object) -> DNDarray:
     """
     Returns an array of the indices of the maximum values along an axis. It has the same shape as ``x.shape`` with the
     dimension along axis removed.
@@ -130,7 +130,7 @@ DNDarray.argmax = lambda self, axis, out, **kwargs: argmax(self, axis, out, **kw
 DNDarray.argmax.__doc__ = argmax.__doc__
 
 
-def argmin(x, axis=None, out=None, **kwargs) -> DNDarray:
+def argmin(x: DNDarray, axis: int = None, out: DNDarray = None, **kwargs: object) -> DNDarray:
     """
     Returns an array of the indices of the minimum values along an axis. It has the same shape as ``x.shape`` with the
     dimension along axis removed.
@@ -232,7 +232,12 @@ DNDarray.argmin = lambda self, axis, out, **kwargs: argmin(self, axis, out, **kw
 DNDarray.argmin.__doc__ = argmin.__doc__
 
 
-def average(x, axis=None, weights=None, returned=False) -> Union[DNDarray, Tuple[DNDarray, ...]]:
+def average(
+    x: DNDarray,
+    axis: Union[int, Tuple[int, ...]] = None,
+    weights: DNDarray = None,
+    returned: bool = False,
+) -> Union[DNDarray, Tuple[DNDarray, ...]]:
     """
     Compute the weighted average along the specified axis.
 
@@ -359,7 +364,9 @@ DNDarray.average = lambda self, axis, weights, returned: average(self, axis, wei
 DNDarray.average.__doc__ = average.__doc__
 
 
-def cov(m, y=None, rowvar=True, bias=False, ddof=None) -> DNDarray:
+def cov(
+    m: DNDarray, y: DNDarray = None, rowvar: bool = True, bias: bool = False, ddof: int = None
+) -> DNDarray:
     """
     Estimate the covariance matrix of some data, m. For more imformation on the algorithm please see the numpy function of the same name
 
@@ -428,7 +435,12 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None) -> DNDarray:
     return c
 
 
-def max(x, axis=None, out=None, keepdim=None) -> DNDarray:
+def max(
+    x: DNDarray,
+    axis: Union[int, Tuple[int, ...]] = None,
+    out: DNDarray = None,
+    keepdim: bool = None,
+) -> DNDarray:
     # TODO: initial : scalar, optional Issue #101
     """
     Return the maximum along a given axis.
@@ -483,7 +495,7 @@ DNDarray.max = lambda self, axis, out, keepdim: max(self, axis, out, keepdim)
 DNDarray.max.__doc__ = max.__doc__
 
 
-def maximum(x1, x2, out=None) -> DNDarray:
+def maximum(x1: DNDarray, x2: DNDarray, out: DNDarray = None) -> DNDarray:
     """
     Compares two ``DNDarrays`` and returns a new :class:`~heat.core.dndarray.DNDarray` containing the element-wise maxima.
     The ``DNDarrays`` must have the same shape, or shapes that can be broadcast to a single shape.
@@ -617,7 +629,7 @@ def maximum(x1, x2, out=None) -> DNDarray:
     return lresult
 
 
-def mean(x, axis=None) -> DNDarray:
+def mean(x: DNDarray, axis: Union[int, List[int, ...], Tuple[int, ...]] = None) -> DNDarray:
     """
     Calculates and returns the mean of a ``DNDarray``.
     If an axis is given, the mean will be taken in that direction.
@@ -795,7 +807,9 @@ DNDarray.mean = lambda self, axis: mean(self, axis)
 DNDarray.mean.__doc__ = mean.__doc__
 
 
-def __merge_moments(m1, m2, bessel=True) -> Tuple:
+def __merge_moments(
+    m1: torch.Tensor, m2: torch.Tensor, bessel: bool = True
+) -> Tuple[torch.Tensor, ...]:
     """
     Merge two statistical moments.
     If the length of ``m1`` and ``m2`` (must be equal) is ``==3`` then the second moment (variance)
@@ -842,7 +856,12 @@ def __merge_moments(m1, m2, bessel=True) -> Tuple:
         return var_m, mu, n
 
 
-def min(x, axis=None, out=None, keepdim=None) -> DNDarray:
+def min(
+    x: DNDarray,
+    axis: Union[int, Tuple[int, ...]] = None,
+    out: DNDarray = None,
+    keepdim: bool = None,
+) -> DNDarray:
     # TODO: initial : scalar, optional Issue #101
     """
     Return the minimum along a given axis.
@@ -898,7 +917,7 @@ DNDarray.min = lambda self, axis, out, keepdim: min(self, axis, out, keepdim)
 DNDarray.min.__doc__ = min.__doc__
 
 
-def minimum(x1, x2, out=None) -> DNDarray:
+def minimum(x1: DNDarray, x2: DNDarray, out: DNDarray = None) -> DNDarray:
     """
     Compares two ``DNDarrays`` and returns a new :class:`~heat.core.dndarray.DNDarray`  containing the element-wise minima.
     If one of the elements being compared is ``NaN``, then that element is returned. They must have the same shape,
@@ -1031,7 +1050,19 @@ def minimum(x1, x2, out=None) -> DNDarray:
     return lresult
 
 
-def mpi_argmax(a, b, _):
+def _mpi_argmax(a: str, b: str, _: Any):
+    """
+    Create the MPI function for doing argmax, for more info see :func:`argmax <argmax>`
+
+    Parameters
+    ----------
+    a : str
+        left hand side buffer
+    b : str
+        right hand side buffer
+    _ : Any
+        placeholder
+    """
     lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
     rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
 
@@ -1046,10 +1077,22 @@ def mpi_argmax(a, b, _):
     rhs.copy_(result)
 
 
-MPI_ARGMAX = MPI.Op.Create(mpi_argmax, commute=True)
+MPI_ARGMAX = MPI.Op.Create(_mpi_argmax, commute=True)
 
 
-def mpi_argmin(a, b, _):
+def _mpi_argmin(a: str, b: str, _: Any):
+    """
+    Create the MPI function for doing argmin, for more info see :func:`argmin <argmin>`
+
+    Parameters
+    ----------
+    a : str
+        left hand side
+    b : str
+        right hand side
+    _ : Any
+        placeholder
+    """
     lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
     rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
     # extract the values and minimal indices from the buffers (first half are values, second are indices)
@@ -1063,10 +1106,15 @@ def mpi_argmin(a, b, _):
     rhs.copy_(result)
 
 
-MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
+MPI_ARGMIN = MPI.Op.Create(_mpi_argmin, commute=True)
 
 
-def std(x, axis=None, ddof=0, **kwargs) -> DNDarray:
+def std(
+    x: DNDarray,
+    axis: Union[int, Tuple[int, ...], List[int, ...]] = None,
+    ddof: int = 0,
+    **kwargs: object
+) -> DNDarray:
     """
     Calculates the standard deviation of a ``DNDarray`` with the bessel correction.
     If an axis is given, the variance will be taken in that direction.
@@ -1113,7 +1161,12 @@ DNDarray.std = lambda self, axis, ddof, **kwargs: std(self, axis, ddof, **kwargs
 DNDarray.std.__doc__ = std.__doc__
 
 
-def var(x, axis=None, ddof=0, **kwargs) -> DNDarray:
+def var(
+    x: DNDarray,
+    axis: Union[int, Tuple[int, ...], List[int, ...]] = None,
+    ddof: int = 0,
+    **kwargs: object
+) -> DNDarray:
     """
     Calculates and returns the variance of a ``DNDarray``. If an axis is given, the variance will be
     taken in that direction.

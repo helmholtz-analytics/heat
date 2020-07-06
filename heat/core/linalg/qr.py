@@ -2,14 +2,22 @@ import collections
 import torch
 from typing import List, Dict, Any, TypeVar, Union, Tuple
 
-from ..tiling import SquareDiagTiles, Tiles
+from ..communication import MPICommunication
+from ..types import datatype
+from ..tiling import SquareDiagTiles
 from ..dndarray import DNDarray
+from ..devices import Device
 from .. import factories
 
 __all__ = ["qr"]
 
 
-def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False) -> Tuple[DNDarray, DNDarray]:
+def qr(
+    a: DNDarray,
+    tiles_per_proc: Union[int, torch.Tensor] = 1,
+    calc_q: bool = True,
+    overwrite_a: bool = False,
+) -> Tuple[DNDarray, DNDarray]:
     """
     Calculates the QR decomposition of a 2D ``DNDarray``.
     Factor the matrix ``a`` as *QR*, where ``Q`` is orthonormal and ``R`` is upper-triangular.
@@ -169,7 +177,13 @@ DNDarray.qr = lambda self, tiles_per_proc, calc_q, overwrite_a: qr(
 )
 
 
-def __split0_global_q_dict_set(q_dict_col, col, r_tiles, q_tiles, global_merge_dict=None) -> None:
+def __split0_global_q_dict_set(
+    q_dict_col: Dict,
+    col: Union[int, torch.Tensor],
+    r_tiles: SquareDiagTiles,
+    q_tiles: SquareDiagTiles,
+    global_merge_dict: Dict = None,
+) -> None:
     """
     The function takes the original Q tensors from the global QR calculation and sets them to
     the keys which corresponds with their tile coordinates in Q. this returns a separate dictionary,
@@ -293,7 +307,14 @@ def __split0_global_q_dict_set(q_dict_col, col, r_tiles, q_tiles, global_merge_d
     return global_merge_dict
 
 
-def __split0_r_calc(r_tiles, q_dict, q_dict_waits, col_num, diag_pr, not_completed_prs) -> None:
+def __split0_r_calc(
+    r_tiles: SquareDiagTiles,
+    q_dict: Dict,
+    q_dict_waits: Dict,
+    col_num: int,
+    diag_pr: int,
+    not_completed_prs: torch.Tensor,
+) -> None:
     """
     Function to do the QR calculations to calculate the global R of the array ``a``.
     This function uses a binary merge structure in the globabl R merge.
@@ -449,7 +470,16 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, col_num, diag_pr, not_complet
         completed = True if procs_remaining == 1 and rem1 is None and rem2 is None else False
 
 
-def __split0_merge_tile_rows(pr0, pr1, column, rank, r_tiles, diag_process, key, q_dict) -> None:
+def __split0_merge_tile_rows(
+    pr0: int,
+    pr1: int,
+    column: int,
+    rank: int,
+    r_tiles: SquareDiagTiles,
+    diag_process: int,
+    key: str,
+    q_dict: Dict,
+) -> None:
     """
     Sets the value of ``q_dict[column][key]`` with ``[Q, upper.shape, lower.shape]``
     Merge two tile rows, take their QR, and apply it to the trailing process
@@ -553,8 +583,17 @@ def __split0_merge_tile_rows(pr0, pr1, column, rank, r_tiles, diag_process, key,
 
 
 def __split0_send_q_to_diag_pr(
-    col, pr0, pr1, diag_process, comm, q_dict, key, q_dict_waits, q_dtype, q_device
-):
+    col: int,
+    pr0: int,
+    pr1: int,
+    diag_process: int,
+    comm: MPICommunication,
+    q_dict: Dict,
+    key: str,
+    q_dict_waits: Dict,
+    q_dtype: datatype,
+    q_device: Device,
+) -> None:
     """
     Sets the values of ``q_dict_waits`` with the with *waits* for the values of Q, ``upper.shape``,
     and ``lower.shape``
@@ -609,7 +648,15 @@ def __split0_send_q_to_diag_pr(
         q_dict_waits[col][k].append(key[0])
 
 
-def __split0_q_loop(col, r_tiles, proc_tile_start, active_procs, q0_tiles, q_dict, q_dict_waits):
+def __split0_q_loop(
+    col: int,
+    r_tiles: SquareDiagTiles,
+    proc_tile_start: torch.Tensor,
+    active_procs: torch.Tensor,
+    q0_tiles: torch.Tensor,
+    q_dict: Dict,
+    q_dict_waits: Dict,
+) -> None:
     """
     Function for Calculating Q for ``split=0`` for QR. col is the index of the tile column.
     The assumption here is that the diagonal tile is ``(col, col)``.
@@ -618,17 +665,17 @@ def __split0_q_loop(col, r_tiles, proc_tile_start, active_procs, q0_tiles, q_dic
     ----------
     col : int
         Current column for which to calculate Q
-    t_tiles : SquareDiagTiles
+    r_tiles : SquareDiagTiles
     proc_tile_start : torch.Tensor
         Tensor containing the row tile start indices for each process
     active_procs : torch.Tensor
         Tensor containing the ranks of processes with have data
     q0_tiles : SquareDiagTiles
-    q_dict : Dictionary
+    q_dict : Dict
         Dictionary created in the ``split=0`` R calculation containing all of the Q matrices found
         transforming the matrix to upper triangular for each column. The keys of this dictionary are
         the column indices
-    q_dict_waits : Dictionary
+    q_dict_waits : Dict
         Dictionary created while sending the Q matrices to the diagonal process
 
     """
@@ -791,7 +838,9 @@ def __split0_q_loop(col, r_tiles, proc_tile_start, active_procs, q0_tiles, q_dic
         del q_dict[col]
 
 
-def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
+def __split1_qr_loop(
+    dcol: int, r_tiles: SquareDiagTiles, q0_tiles: SquareDiagTiles, calc_q: bool
+) -> None:
     """
     Helper function to do the QR factorization of the column ``dcol``.
     This function assumes that the target tile is at ``(dcol, dcol)``. This is the standard case at it assumes that

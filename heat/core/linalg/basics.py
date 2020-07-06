@@ -1,6 +1,6 @@
 import itertools
 import torch
-from typing import List, Dict, Any, TypeVar, Union
+from typing import List, Callable, Any, TypeVar, Union
 
 from ..communication import MPI
 from .. import arithmetics
@@ -13,7 +13,7 @@ from .. import types
 __all__ = ["dot", "matmul", "norm", "outer", "projection", "transpose", "tril", "triu"]
 
 
-def dot(a, b, out=None) -> Union[DNDarray, float]:
+def dot(a: DNDarray, b: DNDarray, out: DNDarray = None) -> Union[DNDarray, float]:
     """
     Returns the dot product of two ``DNDarrays``.
     Specifically,
@@ -66,7 +66,7 @@ def dot(a, b, out=None) -> Union[DNDarray, float]:
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
 
-def matmul(a, b, allow_resplit=False) -> DNDarray:
+def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     """
     Matrix multiplication of two ``DNDarrays``: ``a@b=c`` or ``A@B=c``.
     Returns a tensor with the result of ``a@b``. The split dimension of the returned array is
@@ -762,7 +762,7 @@ DNDarray.__matmul__ = lambda self, other: matmul(self, other)
 DNDarray.__matmul__.__doc__ = matmul.__doc__
 
 
-def norm(a) -> float:
+def norm(a: DNDarray) -> float:
     """
     Returns the vector norm (Frobenius norm) of vector ``a``
 
@@ -787,7 +787,7 @@ DNDarray.norm = lambda self: norm(self)
 DNDarray.norm.__doc__ = norm.__doc__
 
 
-def outer(a, b, out=None, split=None) -> DNDarray:
+def outer(a: DNDarray, b: DNDarray, out: DNDarray = None, split: int = None) -> DNDarray:
     """
     Compute the outer product of two 1-D DNDarrays: out[i, j] = a[i] * b[j].
     Given two vectors, :math:`a = (a_0, a_1, ..., a_N)` and :math:`b = (b_0, b_1, ..., b_M)`, the outer product is:
@@ -1013,7 +1013,7 @@ def outer(a, b, out=None, split=None) -> DNDarray:
     return outer
 
 
-def projection(a, b) -> DNDarray:
+def projection(a: DNDarray, b: DNDarray) -> DNDarray:
     """
     Projection of vector ``a`` onto vector ``b``
 
@@ -1039,9 +1039,51 @@ def projection(a, b) -> DNDarray:
 
 @torch.jit.script
 def __mm_c_block_setter(
-    b_proc, a_proc, a_data, b_data, b_block_map, a_block_map, b_split, a_split, mB, kB, nB, c
-):
-    # type: (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor) -> None
+    b_proc: int,
+    a_proc: int,
+    a_data: torch.Tensor,
+    b_data: torch.Tensor,
+    b_block_map: torch.Tensor,
+    a_block_map: torch.Tensor,
+    b_split: int,
+    a_split: int,
+    mB: int,
+    kB: int,
+    nB: int,
+    c: torch.Tensor,
+) -> None:
+    """
+    Helper function for multiplying elements of A and B (see :func:'matmul <matmul>') and putting the results into the
+    correct place in C.
+
+    Parameters
+    ----------
+    b_proc : int
+        process with the data for the data for element b
+    a_proc : int
+        process with the data for the data for element a
+    a_data : torch.Tensor
+        data from A
+    b_data : torch.Tensor
+        data from B
+    b_block_map : torch.Tensor
+        block map for B
+    a_block_map : torch.Tensor
+        block map for A
+    b_split : int
+        split of B
+    a_split : int
+        split of A
+    mB : int
+        block size of m
+    kB : int
+        block size of K
+    nB : int
+        block size of n
+    c : torch.Tensor
+        the local data for C
+    """
+    # # (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor) -> None
     shp_b = b_block_map.shape
     offset_a = b_proc * shp_b[1] if b_proc != 0 else 0
     shp_a = a_block_map.shape
@@ -1081,7 +1123,7 @@ def __mm_c_block_setter(
                     c[c_start0 : c_start0 + mB, c_start1 : c_start1 + nB] += a_block @ b_block
 
 
-def transpose(a, axes=None) -> DNDarray:
+def transpose(a: DNDarray, axes: List[int, ...] = None) -> DNDarray:
     """
     Permute the dimensions of an array.
 
@@ -1146,7 +1188,7 @@ DNDarray.T.__doc__ = transpose.__doc__
 __index_base = (slice(None), slice(None))
 
 
-def __tri_op(m, k, op) -> DNDarray:
+def __tri_op(m: DNDarray, k: int, op: Callable) -> DNDarray:
     """
     Generic implementation of triangle operations on a ``DNDarray``. It takes care of input sanitation and non-standard
     broadcast behavior of the 2D triangle-operators.
@@ -1216,7 +1258,7 @@ def __tri_op(m, k, op) -> DNDarray:
     return DNDarray(output, m.shape, m.dtype, m.split, m.device, m.comm)
 
 
-def tril(m, k=0) -> DNDarray:
+def tril(m: DNDarray, k: int = 0) -> DNDarray:
     """
     Returns the lower triangular part of the ``DNDarray``.
     The lower triangular part of the array is defined as the elements on and below the diagonal, the other elements of
@@ -1241,7 +1283,7 @@ DNDarray.tril = lambda self, k: tril(self, k)
 DNDarray.tril.__doc__ = tril.__doc__
 
 
-def triu(m, k=0) -> DNDarray:
+def triu(m: DNDarray, k: int = 0) -> DNDarray:
     """
     Returns the upper triangular part of the ``DNDarray``.
     The upper triangular part of the array is defined as the elements on and below the diagonal, the other elements of the result array are set to 0.
