@@ -50,32 +50,38 @@ class MNISTDataset(datasets.MNIST):
         return len(self.data)
 
     def shuffle(self):
-        # shuffled = self.data[torch.randperm(self.data.shape[0])]
-        # snd = shuffled[: self.lcl_half].clone()
-        # snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device
-        # comm = self.comm
-        # dest = comm.rank + 1 if comm.rank + 1 != comm.size else 0
-        # # send the top half of the data to the next process
-        # comm.Send(snd, dest=dest)
-        # del snd
-        # new_data = torch.empty(snd_shape, dtype=snd_dtype, device=snd_dev)
-        # src = comm.rank - 1 if comm.rank != 0 else comm.size - 1
-        # comm.Recv(new_data, source=src)
-        # self.data[: self.lcl_half] = new_data
-        print("shuffle")
         comm = self.comm
         rd_perm = torch.randperm(self.data.shape[0])
-        for dat in [self.data, self.targets]:
-            shuffled = dat[rd_perm]
-            snd = shuffled[: self.lcl_half].clone()
-            snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device
-            dest = comm.rank + 1 if comm.rank + 1 != comm.size else 0
-            # send the top half of the data to the next process
-            send_wait = comm.Isend(snd, dest=dest)
-            del snd
-            new_data = torch.empty(snd_shape, dtype=snd_dtype, device=snd_dev)
-            src = comm.rank - 1 if comm.rank != 0 else comm.size - 1
-            rcv_w = comm.Irecv(new_data, source=src)
-            send_wait.wait()
-            rcv_w.wait()
-            dat[: self.lcl_half] = new_data
+        rd_permout = torch.randperm(self.data.shape[0])
+        # for dat in [self.data, self.targets]:
+        shuffled = self.data[rd_perm]
+        snd = shuffled[: self.lcl_half].clone()
+        snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device
+        dest = comm.rank + 1 if comm.rank + 1 != comm.size else 0
+        # send the top half of the data to the next process
+        send_wait = comm.Isend(snd, dest=dest)
+        del snd
+        new_data = torch.empty(snd_shape, dtype=snd_dtype, device=snd_dev)
+        src = comm.rank - 1 if comm.rank != 0 else comm.size - 1
+        rcv_w = comm.Irecv(new_data, source=src)
+        send_wait.wait()
+        rcv_w.wait()
+        self.data[: self.lcl_half] = new_data
+        self.data = self.data[rd_permout]
+        del new_data
+
+        shuffled = self.targets[rd_perm]
+        snd = shuffled[: self.lcl_half].clone()
+        snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device
+        dest = comm.rank + 1 if comm.rank + 1 != comm.size else 0
+        # send the top half of the data to the next process
+        send_wait = comm.Isend(snd, dest=dest)
+        del snd
+        new_data = torch.empty(snd_shape, dtype=snd_dtype, device=snd_dev)
+        src = comm.rank - 1 if comm.rank != 0 else comm.size - 1
+        rcv_w = comm.Irecv(new_data, source=src)
+        send_wait.wait()
+        rcv_w.wait()
+        self.targets[: self.lcl_half] = new_data
+        self.targets = self.targets[rd_permout]
+        del new_data

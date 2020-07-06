@@ -368,9 +368,11 @@ class Dataset(torch_data.Dataset):
         comm = self.comm
         dest = comm.rank + 1 if comm.rank + 1 != comm.size else 0
         # send the top half of the data to the next process
-        comm.Send(snd, dest=dest)
+        sw = comm.Isend(snd, dest=dest)
         del snd
         new_data = torch.empty(snd_shape, dtype=snd_dtype, device=snd_dev)
         src = comm.rank - 1 if comm.rank != 0 else comm.size - 1
-        comm.Recv(new_data, source=src)
+        rw = comm.Irecv(new_data, source=src)
+        sw.wait()
+        rw.wait()
         self.data[: self.lcl_half] = new_data
