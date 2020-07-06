@@ -29,6 +29,7 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         initial_radius,
         target_radius,
         max_epoch,
+        batch_size=1,
     ):
         self.height = height
         self.width = width
@@ -40,7 +41,8 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         self.radius = initial_radius
         self.target_radius = target_radius
         self.max_epoch = max_epoch
-        self.network = ht.random.randn(height * width, data_dim)
+        self.network = ht.random.randn(height * width, data_dim, dtype=ht.float64)
+        self.batch_size = batch_size
 
         self.network_indices = ht.array(
             [(j, i) for i in range(0, self.width) for j in range(0, self.height)]
@@ -49,20 +51,23 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
 
     def fit(self, X):
         self.learning_rate = self.initial_learning_rate
-        for epoch in range(1, self.max_epoch + 1):
-            distances = ht.spatial.cdist(X, self.network)
-            _, winner_indices = ht.topk(distances, 1, largest=False, dim=1)
-            for ind in winner_indices:
-                distances, indices = self.find_neighbours(ind)
-                self.update_weights(distances, indices)
 
-            self.update_learning_rate(epoch)
-            self.update_neighbourhood_radius(epoch)
+        batch_count = int(X.shape[0] / self.batch_size)
+        for epoch in range(1, self.max_epoch + 1):
+            offset = 0
+            for count in range(1, batch_count + 1):
+                batch = ht.array(X[offset : count * self.batch_size], is_split=X.split)
+                distances = ht.spatial.cdist(batch, self.network)
+                _, winner_indices = ht.topk(distances, 1, largest=False, dim=1)
+                self.update_weights(winner_indices, batch)
+                offset = count * self.batch_size
+                self.update_learning_rate(epoch)
+                self.update_neighbourhood_radius(epoch)
 
     def predict(self, X):
         distances = ht.spatial.cdist(X, self.network)
         _, winner_ind = ht.topk(distances, 1, largest=False, dim=1)
-        translated_winner_ind = self.indices[winner_ind.tolist()]
+        translated_winner_ind = self.network_indices[winner_ind.tolist()]
 
         return translated_winner_ind
 
@@ -76,17 +81,20 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
             (self.target_radius / self.initial_radius), t / self.max_epoch
         )
 
-    def find_neighbours(self, ind):
-        neighbour_indices = ht.nonzero(self.distances[ind.tolist()] < self.radius)
-        elements = self.network[neighbour_indices.tolist()]
-        return elements, neighbour_indices
+    def distance_weight(self, winner_ind):
+        return ht.where(
+            self.distances[winner_ind].flatten() < self.radius,
+            ht.ones((self.height * self.width,)),
+            ht.zeros((self.height * self.width,)),
+        )
 
     def precompute_distances(self,):
         return ht.spatial.cdist(self.network_indices, self.network_indices)
 
-    def update_weights(self, distances, indices):
-        print(distances)
-        print(indices)
-        self.network[indices.tolist()] = self.network[indices.tolist()] + (
-            self.learning_rate * ht.exp([-ht.pow(dist, 2) / 2 * self.radius for dist in distances])
-        )
+    def update_weights(self, indices, batch):
+        for winner_ind, weight in zip(indices, batch):
+            scalar = self.learning_rate * self.distance_weight(winner_ind)
+            weights = self.network - weight
+            print(weights.shape, scalar.shape)
+            print(weights * scalar)
+            self.network = self.network + scalar * weights

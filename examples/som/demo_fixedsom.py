@@ -23,13 +23,15 @@ Y = ht.array(keys)
 
 
 som = FixedSOM(
-    2,
-    2,
+    10,
+    10,
     4,
     initial_learning_rate=1,
     target_learning_rate=0,
     initial_radius=5,
     target_radius=1,
-    max_epoch=200,
+    max_epoch=2,
+    batch_size=150,
 )
 som.fit(X)
+# print(som.network)
