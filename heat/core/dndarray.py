@@ -8,6 +8,7 @@ from typing import List, Dict, Any, TypeVar, Union, Tuple
 
 from . import devices
 from . import factories
+from . import printing
 from . import stride_tricks
 from . import tiling
 
@@ -1250,12 +1251,11 @@ class DNDarray:
         else:
             raise NotImplementedError("Not implemented for {}".format(value.__class__.__name__))
 
-    def __str__(self, *args):
+    def __str__(self) -> str:
         """
-        String representation of the array
+        Computes a string representation of the passed DNDarray.
         """
-        # TODO: generate none-PyTorch str
-        return self.__array.__str__(*args)
+        return printing.__str__(self)
 
     def tolist(self, keepsplit=False) -> List:
         """
