@@ -7,7 +7,7 @@ from torch.utils import data as torch_data
 
 from ..core import dndarray, factories
 
-__all__ = ["merge_files_imagenet_tfrecord"]
+__all__ = ["merge_files_imagenet_tfrecord", "DataLoader", "Dataset"]
 
 
 def merge_files_imagenet_tfrecord(folder_name, output_folder=None):

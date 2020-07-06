@@ -3,9 +3,12 @@ import argparse
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
-from torchvision import datasets, transforms
+
+# from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 
+from heat.utils import transforms
+from heat.datasets.mnist import MNISTDataset
 import heat as ht
 
 
@@ -141,17 +144,17 @@ def main():
     if use_cuda:
         kwargs.update({"num_workers": 1, "pin_memory": True, "shuffle": True})
 
-    transform = transforms.Compose(
+    transform = ht.utils.transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
     )
-    dataset1 = datasets.MNIST("../data", train=True, download=True, transform=transform)
-    # print(dataset1.)
-    dataset2 = datasets.MNIST("../data", train=False, transform=transform)
-    train_loader = torch.utils.data.DataLoader(dataset1, **kwargs)
-    test_loader = torch.utils.data.DataLoader(dataset2, **kwargs)
+    dataset1 = MNISTDataset(
+        "../../heat/datasets/data", train=True, download=True, transform=transform
+    )
+    dataset2 = MNISTDataset("../../heat/datasets/data", train=False, transform=transform)
+    train_loader = ht.utils.datatools.DataLoader(dataset1, **kwargs)
+    test_loader = ht.utils.datatools.DataLoader(dataset2, **kwargs)
 
-    model = Net()
-    # ht_model = ht.nn.DataParallel(model)
+    model = ht.nn.DataParallel(Net(), comm=dataset1.comm)
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
@@ -159,6 +162,8 @@ def main():
         train(args, model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader)
         scheduler.step()
+        dataset1.shuffle()
+        dataset2.shuffle()
 
     if args.save_model:
         torch.save(model.state_dict(), "mnist_cnn.pt")

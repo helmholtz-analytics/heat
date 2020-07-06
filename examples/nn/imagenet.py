@@ -226,7 +226,7 @@ def main():
         criterion = nn.CrossEntropyLoss().cuda(args.gpu)
     else:
         criterion = nn.CrossEntropyLoss()
-    ht_model = ht.nn.DataParallel(model, comm=None)  # todo: comm
+    # ht_model = ht.nn.DataParallel(model, comm=None)  # todo: comm
     # define loss function (criterion) and optimizer
     # todo: does criterion need to be a ht_model function? the inputs should both be torch tensors...
 
@@ -262,10 +262,7 @@ def main():
     # Data loading code
     traindir = os.path.join(args.data, "train")
     valdir = os.path.join(args.data, "val")
-    # todo: add normalize transform
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    # todo: add random resized crop transform
-    # todo: add random horizontal flip transform
     train_dataset = datasets.ImageFolder(
         traindir,
         transforms.Compose(
@@ -330,6 +327,7 @@ def main():
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
         best_acc1 = max(acc1, best_acc1)
+        ngpus_per_node = 0
 
         if not args.multiprocessing_distributed or (
             args.multiprocessing_distributed and args.rank % ngpus_per_node == 0
