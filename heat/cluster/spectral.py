@@ -104,7 +104,13 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         """
         L = self._laplacian.construct(X)
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
-        v0 = ht.ones((L.shape[0],), dtype=L.dtype, split=0, device=L.device) / math.sqrt(L.shape[0])
+        v0 = ht.full(
+            (L.shape[0],),
+            fill_value=1.0 / math.sqrt(L.shape[0]),
+            dtype=L.dtype,
+            split=0,
+            device=L.device,
+        )
         V, T = ht.lanczos(L, self.n_lanczos, v0)
 
         # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
