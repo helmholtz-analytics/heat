@@ -322,7 +322,7 @@ class DataLoader:  # (object):
         return len(self.lcl_DataLoader)
 
     def shuffle(self):
-        self.lcl_dataset.shuffle()
+        self.dataset.shuffle()
         # print("shuffling!")
         # shuffled = self.lcldata[torch.randperm(self.lcldata.shape[0])]
         # snd = shuffled[: self.lcl_half].clone()
