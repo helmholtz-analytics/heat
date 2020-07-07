@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from mpi4py import MPI
 
 from ..core import factories
@@ -68,8 +69,7 @@ def _quadratic_expand(x, y):
     y_norm = (y ** 2).sum(1).view(1, -1)
 
     dist = x_norm + y_norm - 2.0 * torch.mm(x, y_t)
-    info = torch.finfo(dist.dtype)
-    return torch.clamp(dist, 0.0, info.max)
+    return torch.clamp(dist, 0.0, np.inf)
 
 
 def _gaussian(x, y, sigma=1.0):
@@ -121,6 +121,48 @@ def _gaussian_fast(x, y, sigma=1.0):
     return result
 
 
+def _manhattan(x, y):
+    """
+    Helper function to calculate manhattan distance between torch.tensors x and y: sum(|x-y|)
+    Based on torch.cdist
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
+    return torch.cdist(x, y, p=1)
+
+
+def _manhattan_fast(x, y):
+    """
+    Helper function to calculate Manhattan distance between torch.tensors x and y: |x-y|
+    Uses dimension expansion
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
+
+    d = torch.sum(x.unsqueeze(0) - y.unsqueeze(1), dim=2)
+    return d
+
+
 def cdist(X, Y=None, quadratic_expansion=False):
     if quadratic_expansion:
         return _dist(X, Y, _euclidian_fast)
@@ -133,6 +175,13 @@ def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False):
         return _dist(X, Y, lambda x, y: _gaussian_fast(x, y, sigma))
     else:
         return _dist(X, Y, lambda x, y: _gaussian(x, y, sigma))
+
+
+def manhattan(X, Y=None, expand=False):
+    if expand:
+        return _dist(X, Y, lambda x, y: _manhattan_fast(x, y))
+    else:
+        return _dist(X, Y, lambda x, y: _manhattan(x, y))
 
 
 def _dist(X, Y=None, metric=_euclidian):
