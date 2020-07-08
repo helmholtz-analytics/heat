@@ -159,7 +159,7 @@ def _manhattan_fast(x, y):
         2D tensor of size m x n
     """
 
-    d = torch.sum(x.unsqueeze(0) - y.unsqueeze(1), dim=2)
+    d = torch.sum(torch.abs(x.unsqueeze(1) - y.unsqueeze(0)), dim=2)
     return d
 
 
