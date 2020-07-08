@@ -14,7 +14,7 @@ A clear and concise description of the bug and the associated functionality.
 Steps to reproduce the behavior:
 1. Which module/class/function is affected?
 2. What are the circumstances under which the bug appears?
-3. What is the exact error-message/errorous behavious?
+3. What is the exact error message / erroneous behavior?
 
 
 **Expected behavior**
