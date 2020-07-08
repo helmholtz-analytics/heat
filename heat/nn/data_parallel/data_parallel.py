@@ -140,12 +140,12 @@ class DataParallel(tnn.Module):
         ----------
         - (cf. https://pytorch.org/docs/stable/tensors.html#torch.Tensor.register_hook).
         """
-        grad_loc_cpy = grad_loc.clone()
+        # grad_loc_cpy = grad_loc
         # average local gradients
-        grad_loc_cpy *= 1 / float(self.comm.size)
+        grad_loc *= 1 / float(self.comm.size)
         # perform MPI Allreduce to compute global gradient
-        self.comm.Allreduce(ht.MPI.IN_PLACE, grad_loc_cpy, ht.MPI.SUM)
-        return grad_loc_cpy
+        self.comm.Allreduce(ht.MPI.IN_PLACE, grad_loc, ht.MPI.SUM)
+        return grad_loc
 
     def blocking_grad_update(self, learning_rate: float):
         """
@@ -178,11 +178,10 @@ class DataParallel(tnn.Module):
             # Pytorch Doc says, :attr:`grad` may not be modified itself, so it has to be cloned
             # (cf. https://pytorch.org/docs/stable/tensors.html#torch.Tensor.register_hook).
             # Seems to be true, since otherwise a Runtime Error is thrown when working on it
-            grad_loc_cpy = grad_loc.clone()
             # counterbalance local gradient averaging
-            grad_loc_cpy *= 1 / float(self.comm.size)
+            grad_loc *= 1 / float(self.comm.size)
             # perform MPI IAllreduce to compute global gradient, returns wait handle
-            wait_handle = self.comm.Iallreduce(ht.MPI.IN_PLACE, grad_loc_cpy, ht.MPI.SUM)
+            wait_handle = self.comm.Iallreduce(ht.MPI.IN_PLACE, grad_loc, ht.MPI.SUM)
             # if wait handle dict does not contain the layer, add it -> automatically tracks reversed layer order
             if layer_name not in self.wait_handles:
                 self.wait_handles[layer_name] = list()
