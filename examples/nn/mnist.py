@@ -7,8 +7,17 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 
 import heat as ht
-from heat.utils import transforms
-from heat.datasets.mnist import MNISTDataset
+from heat.utils import vision_transforms
+from heat.utils.data.mnist import MNISTDataset
+
+"""
+This file is an example script for how to use the HeAT DataParallel class to train a network on the MNIST dataset
+to run this file execute:
+
+mpirun -np N python main.py
+
+where N is the number of processes
+"""
 
 
 class Net(ht.nn.Module):
@@ -143,15 +152,15 @@ def main():
     if use_cuda:
         kwargs.update({"num_workers": 1, "pin_memory": True, "shuffle": True})
 
-    transform = ht.utils.transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+    transform = ht.utils.vision_transforms.Compose(
+        [vision_transforms.ToTensor(), vision_transforms.Normalize((0.1307,), (0.3081,))]
     )
-    dataset1 = MNISTDataset(
-        "../../heat/datasets/data", train=True, download=True, transform=transform
+    dataset1 = MNISTDataset("../../heat/datasets/data", train=True, transform=transform)
+    dataset2 = MNISTDataset(
+        "../../heat/datasets/data", train=False, transform=transform, split=None
     )
-    dataset2 = MNISTDataset("../../heat/datasets/data", train=False, transform=transform)
-    train_loader = ht.utils.datatools.DataLoader(dataset1.data, lcl_dataset=dataset1, **kwargs)
-    test_loader = ht.utils.datatools.DataLoader(dataset2.data, lcl_dataset=dataset2, **kwargs)
+    train_loader = ht.utils.data.datatools.DataLoader(dataset1.data, lcl_dataset=dataset1, **kwargs)
+    test_loader = ht.utils.data.datatools.DataLoader(dataset2.data, lcl_dataset=dataset2, **kwargs)
 
     model = ht.nn.DataParallel(Net(), comm=dataset1.comm)
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
@@ -161,8 +170,6 @@ def main():
         train(args, model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader)
         scheduler.step()
-        dataset1.shuffle()
-        dataset2.shuffle()
 
     if args.save_model:
         torch.save(model.state_dict(), "mnist_cnn.pt")
