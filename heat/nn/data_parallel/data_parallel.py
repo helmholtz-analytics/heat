@@ -52,19 +52,50 @@ class DataParallel(tnn.Module):
         if true, use non-blocking communications, else blocking communications will be used for the parameter updates
     """
 
-    def __init__(self, module: torch.nn.Module, comm: ht.MPICommunication, nonblocking=False):
+    def __init__(self, module: torch.nn.Module, comm: ht.MPICommunication, optimizer=None):
         super(DataParallel, self).__init__()
         self.module = module
         self.comm = comm
-        # todo: adapt for torch.nn.DistributedDataParallel
+        self.optimizer = optimizer
+
         self.wait_handles = OrderedDict()
-        # registering hooks for all model parameter tensors
-        for name, param in module.named_parameters():
+        self.fwd_hook_handles = list()
+        # slices of parameters belonging to one and the same layer
+        self.param_slices = dict()
+        # pytorch internal parameter indexing
+        self.param_indices = dict()
+        # reference of optimizer's params
+        self.params_ref = None
+
+        # check if non-blocking
+        if optimizer is not None:
+            # check if optimizer matches module
+            if list(module.parameters()) != optimizer.param_groups[0]["params"]:
+                raise ValueError("given module and optimizer don't share same parameters.")
+            else:
+                # take reference of optimizer's params
+                self.params_ref = optimizer.param_groups[0]["params"]
+                optimizer.param_groups[0]["params"] = []
+
+        # get parameter indexing and slices
+        start_idx = 0
+        layer_name_prev = None
+        for idx, (name, param) in enumerate(module.named_parameters()):
+            self.param_indices[name] = idx
             layer_name = name.split(sep=".", maxsplit=1)[0]
-            if nonblocking:
-                param.register_hook(self.nonblocking_hook(layer_name))
+            if layer_name_prev is None:
+                layer_name_prev = layer_name
+            if layer_name_prev != layer_name:
+                self.param_slices[layer_name_prev] = slice(start_idx, idx)
+                layer_name_prev = layer_name
+                start_idx = idx
+
+            # register backward hooks for all model parameter tensors
+            if optimizer is not None:
+                param.register_hook(self.nonblocking_hook(layer_name, name))
             else:
                 param.register_hook(self.blocking_hook)
+        self.param_slices[layer_name_prev] = slice(start_idx, len(self.param_indices))
 
     def forward(self, *inputs, **kwargs):
         data = inputs[0]
@@ -76,9 +107,24 @@ class DataParallel(tnn.Module):
         else:
             lcl_data = torch.tensor(data)
 
+        # check if non-blocking
+        if self.optimizer is not None and self.module.training:
+            # reset gradients before forward pass
+            self.optimizer.zero_grad()
+            # register forward hooks for all layers
+            for name, submodule in self.module.named_modules():
+                if name == "":
+                    continue
+                if name in self.wait_handles:
+                    hook_handle = submodule.register_forward_pre_hook(self.forward_hook(name))
+                    self.fwd_hook_handles.append(hook_handle)
+        # perform forward pass
         ret = self.module(lcl_data, *inputs[1:], **kwargs)
-        # clear dictionary after all wait handles are used up
+        # clear dictionary after all wait handles are used up (dynamic computation graph)
         self.wait_handles.clear()
+        # remove forward hooks (dynamic computation graph)
+        for hook_handle in self.fwd_hook_handles:
+            hook_handle.remove()
         return ret
 
     def blocking_hook(self, grad_loc: torch.Tensor) -> torch.Tensor:
