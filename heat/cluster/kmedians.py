@@ -44,8 +44,26 @@ class KMedians(_KCluster):
             # Remove 0-element lines to avoid spoiling of median
             assigned_points = X * selection
             assigned_points = assigned_points[(assigned_points.abs()).sum(axis=1) != 0]
-            median = ht.median(assigned_points, axis=0, keepdim=True)
-            new_cluster_centers[i : i + 1, :] = median
+            if assigned_points.shape[0] != 0:
+                median = ht.median(assigned_points, axis=0, keepdim=True)
+                new_cluster_centers[i : i + 1, :] = median
+
+            # failsafe in case no point is assigned to this cluster
+            # draw a random datapoint to continue/restart
+            else:
+                _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
+                sample = ht.random.randint(0, X.shape[0]).item()
+                proc = 0
+                for p in range(X.comm.size):
+                    if displ[p] > sample:
+                        break
+                    proc = p
+                xi = ht.zeros(X.shape[1], dtype=X.dtype)
+                if X.comm.rank == proc:
+                    idx = sample - displ[proc]
+                    xi = ht.array(X.lloc[idx, :], device=X.device, comm=X.comm)
+                xi.comm.Bcast(xi, root=proc)
+                new_cluster_centers[i : i + 1, :] = xi
 
         return new_cluster_centers
 
