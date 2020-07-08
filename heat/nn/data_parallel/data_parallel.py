@@ -96,6 +96,7 @@ class DataParallel(tnn.Module):
         # remove forward hooks (dynamic computation graph)
         for hook_handle in self.fwd_hook_handles:
             hook_handle.remove()
+        self.fwd_hook_handles.clear()
 
         return ret
 
@@ -122,6 +123,7 @@ class DataParallel(tnn.Module):
                     raise ValueError("Shapes must be equal.")
                 # set parameter's global gradient
                 self.params_ref[param_idx].grad.data = wait_handle.tensor
+
         # perform actual parameter update
         self.optimizer.step()
 
@@ -207,7 +209,6 @@ class DataParallel(tnn.Module):
             # update parameters of given layer
             param_slice = self.param_slices[layer_name]
             self.async_update(param_slice, [layer_name])
-
             return input_
 
         return hook
