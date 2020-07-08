@@ -24,7 +24,7 @@ class KMedoids(KCluster):
             Determines random number generation for centroid initialization.
 
         """
-        if init == "k-medians++":
+        if init == "kmedians++":
             init = "probability_based"
 
         super().__init__(

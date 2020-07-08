@@ -41,7 +41,7 @@ class KMeans(KCluster):
             Annual ACM-SIAM Symposium on Discrete Algorithms, Society for Industrial and Applied Mathematics
             Philadelphia, PA, USA. pp. 1027–1035, 2007.
         """
-        if init == "k-means++":
+        if init == "kmeans++":
             init = "probability_based"
 
         super().__init__(
