@@ -51,8 +51,8 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
 
     def fit(self, X):
         self.learning_rate = self.initial_learning_rate
-
         batch_count = int(X.shape[0] / self.batch_size)
+        # print(self.network)
         for epoch in range(1, self.max_epoch + 1):
             offset = 0
             for count in range(1, batch_count + 1):
@@ -63,6 +63,7 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
                 offset = count * self.batch_size
                 self.update_learning_rate(epoch)
                 self.update_neighbourhood_radius(epoch)
+            # print(epoch, self.network)
 
     def predict(self, X):
         distances = ht.spatial.cdist(X, self.network)
@@ -92,9 +93,12 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         return ht.spatial.cdist(self.network_indices, self.network_indices)
 
     def update_weights(self, indices, batch):
-        for winner_ind, weight in zip(indices, batch):
+        for i, (winner_ind, weight) in enumerate(zip(indices, batch)):
             scalar = self.learning_rate * self.distance_weight(winner_ind)
-            weights = self.network - weight
-            print(weights.shape, scalar.shape)
-            print(weights * scalar)
-            self.network = self.network + scalar * weights
+            scalar = ht.expand_dims(scalar, axis=1)
+            weight = ht.expand_dims(weight, axis=0)
+            if i == 0:
+                print(self.network.dtype, weight.dtype, scalar.dtype)
+                print("prod", scalar * self.network - weight)
+                print("sum", self.network + scalar * self.network - weight)
+            self.network = self.network + scalar * self.network - weight

@@ -9,7 +9,7 @@ import heat as ht
 from heat.som.som import FixedSOM
 
 # Load Dataset from hdf5 file
-X = ht.load_hdf5("../../heat/datasets/data/iris.h5", dataset="data", split=0)
+X = ht.load_hdf5("../../heat/datasets/data/iris.h5", dataset="data")
 
 # Generate Keys for the iris.h5 dataset
 keys = []
@@ -30,8 +30,8 @@ som = FixedSOM(
     target_learning_rate=0,
     initial_radius=5,
     target_radius=1,
-    max_epoch=2,
+    max_epoch=1,
     batch_size=150,
 )
 som.fit(X)
-# print(som.network)
+print(som.network)
