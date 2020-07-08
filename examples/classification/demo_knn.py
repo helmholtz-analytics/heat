@@ -1,17 +1,17 @@
 import sys
 import os
 
-# Fix python Path if run from terminal
+# Fix python path if run from terminal
 curdir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(curdir, "../../")))
 
 import heat as ht
 from heat.classification.knn import KNN
 
-# Load Dataset from hdf5 file
+# Load dataset from hdf5 file
 X = ht.load_hdf5("../../heat/datasets/data/iris.h5", dataset="data", split=0)
 
-# Generate Keys for the iris.h5 dataset
+# Generate keys for the iris.h5 dataset
 keys = []
 for i in range(50):
     keys.append(0)
@@ -27,17 +27,25 @@ def calculate_accuracy(new_y, verification_y):
     Calculates the accuracy of classification/clustering-Algorithms.
     Note this only works with integer/discrete classes. For Algorithms that give Approximations an error function is
     required.
+
+    Parameters
     ----------
     new_y : ht.tensor of shape (n_samples,), required
         The new labels that are generated
     verification_y : ht.tensor of shape (n_samples,), required
         Known labels
+
     Returns
     ----------
     float
         the accuracy, number of properly labeled samples divided by amount of labels.
     """
-    assert len(new_y) == len(verification_y)
+
+    if len(new_y) != len(verification_y):
+        raise ValueError(
+            "Expecting results of same length, got {}, {}".format(len(new_y), len(verification_y))
+        )
+
     length = len(new_y)
     count = 0
     for index in range(length):
@@ -49,6 +57,7 @@ def calculate_accuracy(new_y, verification_y):
 def create_fold(dataset_x, dataset_y, size, seed=None):
     """
     Randomly splits the dataset into two parts for cross-validation.
+
     Parameters
     ----------
     dataset_x : ht.DNDarray
@@ -59,6 +68,7 @@ def create_fold(dataset_x, dataset_y, size, seed=None):
         the size of the split to create
     seed: int, optional
         seed for the random generator, allows deterministic testing
+
     Returns
     ----------
     fold_x : ht.DNDarray
