@@ -74,7 +74,7 @@ class DataParallel(tnn.Module):
             lcl_data = torch.tensor(data)
 
         # check if non-blocking
-        if self.optimizer is not None:
+        if self.optimizer is not None and self.module.training:
             # reset gradients before forward pass
             self.optimizer.zero_grad()
 
