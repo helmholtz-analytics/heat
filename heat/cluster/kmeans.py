@@ -1,8 +1,8 @@
 import heat as ht
-from heat.cluster import KCluster
+from heat.cluster._kcluster import _KCluster
 
 
-class KMeans(KCluster):
+class KMeans(_KCluster):
     def __init__(self, n_clusters=8, init="random", max_iter=300, tol=1e-4, random_state=None):
         """
         K-Means clustering algorithm. An implementation of Lloyd's algorithm [1].

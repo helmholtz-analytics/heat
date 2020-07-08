@@ -1,7 +1,7 @@
 import torch
 from .constants import pi
-from .operations import __local_op as local_op
-from .operations import __binary_op as binary_op
+from ._operations import __local_op as local_op
+from ._operations import __binary_op as binary_op
 from . import types
 
 

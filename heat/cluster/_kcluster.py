@@ -1,7 +1,7 @@
 import heat as ht
 
 
-class KCluster(ht.ClusteringMixin, ht.BaseEstimator):
+class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
     """
     Base class for k-statistics clustering algorithms (kmeans, kmedians, kmedoids)
     """

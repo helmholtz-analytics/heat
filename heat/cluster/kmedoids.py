@@ -1,8 +1,8 @@
 import heat as ht
-from heat.cluster import KCluster
+from heat.cluster._kcluster import _KCluster
 
 
-class KMedoids(KCluster):
+class KMedoids(_KCluster):
     def __init__(self, n_clusters=8, init="random", max_iter=300, random_state=None):
         """
         This is not the original implementation of k-medoids using PAM as originally proposed by ...

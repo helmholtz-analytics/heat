@@ -1,8 +1,8 @@
 import heat as ht
-from heat.cluster import KCluster
+from heat.cluster._kcluster import _KCluster
 
 
-class KMedians(KCluster):
+class KMedians(_KCluster):
     def __init__(self, n_clusters=8, init="random", max_iter=300, tol=1e-4, random_state=None):
         """
         K-Medians clustering algorithm.
