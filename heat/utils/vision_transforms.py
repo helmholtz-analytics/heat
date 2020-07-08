@@ -1,4 +1,3 @@
-import torch
 import torchvision.transforms
 
 torch_all = torchvision.transforms.transforms.__all__

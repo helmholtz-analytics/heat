@@ -1,4 +1,4 @@
-from .. import core
+from heat import core
 
 __all__ = ["parter"]
 
