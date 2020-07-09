@@ -1,11 +1,12 @@
 import bisect
 import functools
-import operator
-from collections import OrderedDict
-
 import heat as ht
+import operator
 import torch
 import torch.nn as tnn
+
+from collections import OrderedDict
+from typing import Any, Callable, List
 
 from heat.core.communication import MPI
 
@@ -38,9 +39,7 @@ class DataParallel(tnn.Module):
     default communications scheme for this is blocking. The blocking scheme will average the model parameters during
     the backwards step, synchronizing them before the next model iteration.
 
-    A non-blocking communications scheme is currently being worked towards (issue #). This will be triggered by
-    setting the ``nonblocking`` flag to True and providing an optimizer. Details on the implementation of this will
-    be provided when it is available.
+    To use the non-blocking communications for parameter updates, provide a torch optimizer as the optimizer flag.
 
     Attributes
     ----------
@@ -97,7 +96,7 @@ class DataParallel(tnn.Module):
                 param.register_hook(self.blocking_hook)
         self.param_slices[layer_name_prev] = slice(start_idx, len(self.param_indices))
 
-    def forward(self, *inputs, **kwargs):
+    def forward(self, *inputs: tuple, **kwargs: dict) -> torch.Tensor:
         data = inputs[0]
 
         if isinstance(data, ht.DNDarray):
@@ -126,9 +125,10 @@ class DataParallel(tnn.Module):
         for hook_handle in self.fwd_hook_handles:
             hook_handle.remove()
         self.fwd_hook_handles.clear()
+
         return ret
 
-    def async_update(self, param_slice=None, layer_names=None):
+    def async_update(self, param_slice: slice = None, layer_names: List[str] = None):
         """
         Update parameters asynchronously via wait handles.
 
@@ -198,11 +198,11 @@ class DataParallel(tnn.Module):
         # need to send the self.parameters() to the other processes after the backwards loss step
         for f in self.parameters():
             c = torch.true_divide(f.grad.data, self.comm.size)
-            self.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
+            self.comm.Allreduce(self.comm.MPI.IN_PLACE, c, MPI.SUM)
             f.grad.data = c
             f.data.sub_(f.grad.data * learning_rate)
 
-    def nonblocking_hook(self, layer_name: str, param_name: str):
+    def nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
         """
         Add a nonblocking hook to send and receive the averaged parameters after the backwards step
 
@@ -214,7 +214,7 @@ class DataParallel(tnn.Module):
             name of the parameter
         """
         # hook function for blocking gradient data exchange
-        def _hook(grad_loc):
+        def _hook(grad_loc: torch.Tensor) -> torch.Tensor:
             # counterbalance local gradient averaging
             grad_loc *= 1 / float(self.comm.size)
             # perform MPI IAllreduce to compute global gradient, returns wait handle
@@ -230,9 +230,10 @@ class DataParallel(tnn.Module):
 
         return _hook
 
-    def forward_hook(self, layer_name: str):
+    def forward_hook(self, layer_name: str) -> Callable:
         """
-        Add a forward hook to update parameters during the forward step
+        Add a forward hook to update parameters during the forward step. This will return a hook with can be added
+        using the ``submodule.register_forward_pre_hook`` command.
 
         Parameters
         ----------

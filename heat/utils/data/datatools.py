@@ -4,6 +4,7 @@ import base64
 import os
 import torch
 from torch.utils import data as torch_data
+from typing import Callable, Iterator, Union
 
 from heat.core import dndarray
 
@@ -291,20 +292,22 @@ class DataLoader:
     _first_iter : bool
         flag indicating if the iterator created is the first one. If it is not, then the data will be shuffled before
         the iterator is created
+
+    TODO: add data annotation
     """
 
     def __init__(
         self,
         data=None,
-        batch_size=1,
-        num_workers=0,
-        collate_fn=None,
-        pin_memory=False,
-        drop_last=False,
-        timeout=0,
-        worker_init_fn=None,
-        lcl_dataset=None,
-        transform=None,
+        batch_size: int = 1,
+        num_workers: int = 0,
+        collate_fn: Callable = None,
+        pin_memory: bool = False,
+        drop_last: bool = False,
+        timeout: Union[int, float] = 0,
+        worker_init_fn: Callable = None,
+        lcl_dataset: torch_data.Dataset = None,
+        transform: Callable = None,
     ):
         if isinstance(data, dndarray.DNDarray) and lcl_dataset is not None:
             self.dataset = Dataset(array=data, transform=transform)
@@ -332,7 +335,7 @@ class DataLoader:
         )
         self._first_iter = True
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator:
         # need a new iterator for each epoch
         if self._first_iter:
             self._first_iter = False
@@ -341,7 +344,7 @@ class DataLoader:
             self.shuffle()
         return self.DataLoader.__iter__()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.DataLoader)
 
     def shuffle(self):
@@ -393,9 +396,11 @@ class Dataset(torch_data.Dataset):
         the local data to be used in training
     transform : Callable
         transform to be called during the getitem function
+
+    TODO: type annotation for array
     """
 
-    def __init__(self, array, transform=None):
+    def __init__(self, array, transform: Callable = None):
         self.htdata = array
         self.comm = array.comm
         # create a slice to create a uniform amount of data on each process
@@ -407,12 +412,12 @@ class Dataset(torch_data.Dataset):
         self.data = array._DNDarray__array[self._cut_slice]
         self.transform = transform
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: Union[int, slice, tuple, list, torch.Tensor]) -> torch.Tensor:
         if self.transform:
             return self.transform(self.data[index])
         return self.data[index]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.data.shape[0]
 
     def shuffle(self):

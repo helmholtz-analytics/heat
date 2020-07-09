@@ -1,7 +1,9 @@
 import torch
-from torchvision import datasets
+
 from PIL import Image
 from heat.core import factories
+from torchvision import datasets
+from typing import Callable, Union
 
 __all__ = ["MNISTDataset"]
 
@@ -48,7 +50,13 @@ class MNISTDataset(datasets.MNIST):
     """
 
     def __init__(
-        self, root, train=True, transform=None, target_transform=None, download=True, split=0
+        self,
+        root: str,
+        train: bool = True,
+        transform: Callable = None,
+        target_transform: Callable = None,
+        download: bool = True,
+        split: int = 0,
     ):
         super().__init__(
             root,
@@ -79,7 +87,7 @@ class MNISTDataset(datasets.MNIST):
             self.targets = targets._DNDarray__array
 
     # getitem and len can be taken care of torch MNIST but its faster to have them here
-    def __getitem__(self, index):
+    def __getitem__(self, index: Union[int, slice, tuple, torch.Tensor]) -> torch.Tensor:
         img, target = self.data[index], int(self.targets[index])
 
         # doing this so that it is consistent with all other datasets
@@ -94,7 +102,7 @@ class MNISTDataset(datasets.MNIST):
 
         return img, target
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.data)
 
     def shuffle(self):
