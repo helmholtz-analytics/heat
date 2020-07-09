@@ -87,6 +87,7 @@ class KMeans(_KCluster):
 
         # initialize the clustering
         self._initialize_cluster_centers(X)
+        # print("################# INITIAL CLUSTER CENTERS##############  ", self._cluster_centers)
         self._n_iter = 0
         matching_centroids = ht.zeros((X.shape[0]), split=X.split, device=X.device, comm=X.comm)
 
