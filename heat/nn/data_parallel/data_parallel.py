@@ -30,16 +30,16 @@ class DataParallel(tnn.Module):
             def forward(self, x):
                 return self.net2(self.relu(self.net1(x)))
 
-        ht_model = ht.nn.DataParallel(TestingModel(), comm)
+        ht_model = ht.nn.DataParallel(TestingModel(), comm, optimizer)
 
-    and a requirement of giving a HeAT communicator (``comm``). For the given model both the ``__init__()`` and
-    ``forward()`` functions must be defined in the class defining the network.
+    and a requirement of giving a HeAT communicator (``comm``) as well as a Torch optimizer (``optimizer``). For the
+    given model both the ``__init__()`` and ``forward()`` functions must be defined in the class defining the network.
 
     It is highly recommended that a HeAT DataLoader is used, see :func:`..utils.data.datatools.DataLoader`. The
     default communications scheme for this is blocking. The blocking scheme will average the model parameters during
     the backwards step, synchronizing them before the next model iteration.
 
-    To use the non-blocking communications for parameter updates, provide a torch optimizer as the optimizer flag.
+    To use the non-blocking communications for parameter updates, negate the optional flag ``blocking``.
 
     Attributes
     ----------
@@ -47,15 +47,24 @@ class DataParallel(tnn.Module):
         the local module
     comm : heat.MPICommunicator
         HeAT communicator to use
-    optimizer : torch.optim.Optimizer (optional)
-        Optimizer used for parameter updates. If given, synchronization is non-blocking, else blocking.
+    optimizer : torch.optim.Optimizer
+        Optimizer used for parameter updates.
+    blocking : bool (optional)
+        Flag for blocking synchronization. If not given, synchronization is blocking by default.
     """
 
-    def __init__(self, module: torch.nn.Module, comm: ht.MPICommunication, optimizer=None):
+    def __init__(
+        self,
+        module: torch.nn.Module,
+        comm: ht.MPICommunication,
+        optimizer: torch.optim.Optimizer,
+        blocking=True,
+    ):
         super(DataParallel, self).__init__()
         self.module = module
         self.comm = comm
         self.optimizer = optimizer
+        self.blocking = blocking
 
         self.wait_handles = OrderedDict()
         self.fwd_hook_handles = list()
@@ -65,16 +74,15 @@ class DataParallel(tnn.Module):
         self.param_indices = dict()
         # reference of optimizer's params
         self.params_ref = None
+        # flag indicating if optimizer should take (a) step(s) during next iteration (only relevant for non-blocking)
+        self.update_next = False
 
-        # check if non-blocking
-        if optimizer is not None:
-            # check if optimizer matches module
-            if list(module.parameters()) != optimizer.param_groups[0]["params"]:
-                raise ValueError("given module and optimizer don't share same parameters.")
-            else:
-                # take reference of optimizer's params
-                self.params_ref = optimizer.param_groups[0]["params"]
-                optimizer.param_groups[0]["params"] = []
+        # check if optimizer matches module
+        if list(module.parameters()) != optimizer.param_groups[0]["params"]:
+            raise ValueError("given module and optimizer don't share same parameters.")
+        else:
+            # take reference of optimizer's params
+            self.params_ref = optimizer.param_groups[0]["params"]
 
         # get parameter indexing and slices
         start_idx = 0
@@ -90,11 +98,17 @@ class DataParallel(tnn.Module):
                 start_idx = idx
 
             # register backward hooks for all model parameter tensors
-            if optimizer is not None:
-                param.register_hook(self.nonblocking_hook(layer_name, name))
-            else:
+            if blocking:
                 param.register_hook(self.blocking_hook)
+            else:
+                param.register_hook(self.nonblocking_hook(layer_name, name))
         self.param_slices[layer_name_prev] = slice(start_idx, len(self.param_indices))
+
+    def __setattr__(self, name, value):
+        # auto-detect end of epoch's training phase and finalize wait handles (only relevant for non-blocking)
+        if name == "training" and not value and not self.blocking:
+            self.async_update()
+        super(DataParallel, self).__setattr__(name, value)
 
     def forward(self, *inputs: tuple, **kwargs: dict) -> torch.Tensor:
         data = inputs[0]
@@ -106,8 +120,8 @@ class DataParallel(tnn.Module):
         else:
             lcl_data = torch.tensor(data)
 
-        # check if non-blocking
-        if self.optimizer is not None and self.module.training:
+        # check if non-blocking and training
+        if not self.blocking and self.module.training:
             # reset gradients before forward pass
             self.optimizer.zero_grad()
             # register forward hooks for all layers
@@ -119,6 +133,10 @@ class DataParallel(tnn.Module):
                     self.fwd_hook_handles.append(hook_handle)
         # perform forward pass
         ret = self.module(lcl_data, *inputs[1:], **kwargs)
+
+        # TODO: finalize potentially remaining wait handles and (if desired) update corresponding params (if
+        #       computation graph has changed between previous backward and this forward)
+
         # clear dictionary after all wait handles are used up (dynamic computation graph)
         self.wait_handles.clear()
         # remove forward hooks (dynamic computation graph)
@@ -127,6 +145,17 @@ class DataParallel(tnn.Module):
         self.fwd_hook_handles.clear()
 
         return ret
+
+    def update(self):
+        """
+        Force optimizer to update model parameters. For blocking, optimizer immediately updates parameters. For
+        non-blocking, optimizer will update parameters during next forward.
+        """
+
+        if self.blocking:
+            self.optimizer.step()
+        else:
+            self.update_next = True
 
     def async_update(self, param_slice: slice = None, layer_names: List[str] = None):
         """
@@ -162,8 +191,10 @@ class DataParallel(tnn.Module):
                     raise ValueError("Shapes must be equal.")
                 # set parameter's global gradient
                 self.params_ref[param_idx].grad.data = wait_handle.tensor
-        # perform actual parameter update
-        self.optimizer.step()
+        # if desired, perform actual parameter update
+        if self.update_next:
+            self.optimizer.step()
+            self.update_next = False
 
     def blocking_hook(self, grad_loc: torch.Tensor) -> torch.Tensor:
         """
@@ -178,7 +209,6 @@ class DataParallel(tnn.Module):
         ----------
         - (cf. https://pytorch.org/docs/stable/tensors.html#torch.Tensor.register_hook).
         """
-        # grad_loc_cpy = grad_loc
         # average local gradients
         grad_loc *= 1 / float(self.comm.size)
         # perform MPI Allreduce to compute global gradient
