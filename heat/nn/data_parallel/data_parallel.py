@@ -262,9 +262,9 @@ class DataParallel(tnn.Module):
             # add layer to set of active layers
             self.active_layers.add(layer_name)
             # get size of flattened tensor
-            size1D = functools.reduce(operator.mul, grad_loc.shape, 1)
+            size_1d = functools.reduce(operator.mul, grad_loc.shape, 1)
             # assign wait handle to its layer, layer-internal sorting by size
-            bisect.insort(self.layer_wait_handles[layer_name], (size1D, param_name, wait_handle))
+            bisect.insort(self.layer_wait_handles[layer_name], (size_1d, param_name, wait_handle))
             return grad_loc
 
         return _hook
