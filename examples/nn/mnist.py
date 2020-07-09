@@ -159,9 +159,7 @@ def main():
         [vision_transforms.ToTensor(), vision_transforms.Normalize((0.1307,), (0.3081,))]
     )
     dataset1 = MNISTDataset("../../heat/datasets/data", train=True, transform=transform)
-    dataset2 = MNISTDataset(
-        "../../heat/datasets/data", train=False, transform=transform, split=None
-    )
+    dataset2 = MNISTDataset("../../heat/datasets/data", train=False, transform=transform)
     train_loader = ht.utils.data.datatools.DataLoader(dataset1.data, lcl_dataset=dataset1, **kwargs)
     test_loader = ht.utils.data.datatools.DataLoader(dataset2.data, lcl_dataset=dataset2, **kwargs)
 
