@@ -122,8 +122,6 @@ class DataParallel(tnn.Module):
 
         # check if non-blocking and training
         if not self.blocking and self.module.training:
-            # reset gradients before forward pass
-            self.optimizer.zero_grad()
             # register forward hooks for all layers
             for name, submodule in self.module.named_modules():
                 if name == "":
