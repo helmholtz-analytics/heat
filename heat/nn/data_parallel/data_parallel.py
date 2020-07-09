@@ -137,6 +137,8 @@ class DataParallel(tnn.Module):
         # TODO: finalize potentially remaining wait handles and (if desired) update corresponding params (if
         #       computation graph has changed between previous backward and this forward)
 
+        # reset optimizer flag
+        self.update_next = False
         # clear dictionary after all wait handles are used up (dynamic computation graph)
         self.wait_handles.clear()
         # remove forward hooks (dynamic computation graph)
@@ -194,7 +196,6 @@ class DataParallel(tnn.Module):
         # if desired, perform actual parameter update
         if self.update_next:
             self.optimizer.step()
-            self.update_next = False
 
     def blocking_hook(self, grad_loc: torch.Tensor) -> torch.Tensor:
         """
