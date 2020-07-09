@@ -14,12 +14,12 @@ from heat.utils import vision_transforms
 from heat.utils.data.mnist import MNISTDataset
 
 """
-This file is an example script for how to use the HeAT DataParallel class to train a network on the MNIST dataset
-to run this file execute:
+This file is an example script for how to use the HeAT DataParallel class to train a network on the MNIST dataset.
+To run this file execute:
 
-mpirun -np N python main.py
+mpirun -np N python mnist.py
 
-where N is the number of processes
+where N is the number of processes, in the examples/nn/ directory
 """
 
 
@@ -158,8 +158,10 @@ def main():
     transform = ht.utils.vision_transforms.Compose(
         [vision_transforms.ToTensor(), vision_transforms.Normalize((0.1307,), (0.3081,))]
     )
-    dataset1 = MNISTDataset("heat/datasets/data", train=True, transform=transform)
-    dataset2 = MNISTDataset("heat/datasets/data", train=False, transform=transform, split=None)
+    dataset1 = MNISTDataset("../../heat/datasets/data", train=True, transform=transform)
+    dataset2 = MNISTDataset(
+        "../../heat/datasets/data", train=False, transform=transform, split=None
+    )
     train_loader = ht.utils.data.datatools.DataLoader(dataset1.data, lcl_dataset=dataset1, **kwargs)
     test_loader = ht.utils.data.datatools.DataLoader(dataset2.data, lcl_dataset=dataset2, **kwargs)
 
