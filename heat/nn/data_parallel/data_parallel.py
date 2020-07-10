@@ -66,50 +66,50 @@ class DataParallel(tnn.Module):
         self.optimizer = optimizer
         self.blocking = blocking
 
-        self.layer_wait_handles = OrderedDict()
-        self.fwd_hook_handles = list()
+        self._layer_wait_handles = OrderedDict()
+        self._fwd_hook_handles = list()
         # set of layers' names with active wait handles (only relevant for non-blocking)
-        self.active_layers = set()
+        self._active_layers = set()
         # slices of parameters belonging to one and the same layer
-        self.param_slices = dict()
+        self._param_slices = dict()
         # pytorch internal parameter indexing
-        self.param_indices = dict()
+        self._param_indices = dict()
         # reference of optimizer's params
-        self.params_ref = None
+        self._params_ref = None
         # flag indicating if optimizer should take a step during next iteration (only relevant for non-blocking)
-        self.update_next = False
+        self._update_next = False
 
         # check if optimizer matches module
         if list(module.parameters()) != optimizer.param_groups[0]["params"]:
             raise ValueError("given module and optimizer don't share same parameters.")
         else:
             # take reference of optimizer's params
-            self.params_ref = optimizer.param_groups[0]["params"]
+            self._params_ref = optimizer.param_groups[0]["params"]
 
         # get parameter indexing and slices
         start_idx = 0
         layer_name_prev = None
         for idx, (name, param) in enumerate(module.named_parameters()):
-            self.param_indices[name] = idx
+            self._param_indices[name] = idx
             layer_name = name.split(sep=".", maxsplit=1)[0]
             if layer_name_prev is None:
                 layer_name_prev = layer_name
             if layer_name_prev != layer_name:
-                self.param_slices[layer_name_prev] = slice(start_idx, idx)
+                self._param_slices[layer_name_prev] = slice(start_idx, idx)
                 layer_name_prev = layer_name
                 start_idx = idx
 
             # register backward hooks for all model parameter tensors
             if blocking:
-                param.register_hook(self.blocking_hook)
+                param.register_hook(self._blocking_hook)
             else:
                 param.register_hook(self.nonblocking_hook(layer_name, name))
-        self.param_slices[layer_name_prev] = slice(start_idx, len(self.param_indices))
+        self._param_slices[layer_name_prev] = slice(start_idx, len(self._param_indices))
 
     def __setattr__(self, name, value):
         # auto-detect end of epoch's training phase and finalize wait handles (only relevant for non-blocking)
         if name == "training" and not value and not self.blocking:
-            self.async_update()
+            self._async_update()
         super(DataParallel, self).__setattr__(name, value)
 
     def forward(self, *inputs: tuple, **kwargs: dict) -> torch.Tensor:
@@ -128,9 +128,9 @@ class DataParallel(tnn.Module):
             for name, submodule in self.module.named_modules():
                 if name == "":
                     continue
-                if name in self.layer_wait_handles:
+                if name in self._layer_wait_handles:
                     hook_handle = submodule.register_forward_pre_hook(self.forward_hook(name))
-                    self.fwd_hook_handles.append(hook_handle)
+                    self._fwd_hook_handles.append(hook_handle)
         # perform forward pass
         ret = self.module(lcl_data, *inputs[1:], **kwargs)
 
@@ -138,17 +138,17 @@ class DataParallel(tnn.Module):
         # computation graph has changed between previous backward and this forward)
         if not self.blocking:
             # set has to be copied in order to be manipulated during iteration
-            active_layers_cpy = self.active_layers.copy()
+            active_layers_cpy = self._active_layers.copy()
             for layer_name in active_layers_cpy:
                 self.forward_hook(layer_name)(None, None)
         # reset optimizer flag
-        self.update_next = False
+        self._update_next = False
         # clear dictionary after all wait handles are used up (dynamic computation graph)
-        self.layer_wait_handles.clear()
+        self._layer_wait_handles.clear()
         # remove forward hooks (dynamic computation graph)
-        for hook_handle in self.fwd_hook_handles:
+        for hook_handle in self._fwd_hook_handles:
             hook_handle.remove()
-        self.fwd_hook_handles.clear()
+        self._fwd_hook_handles.clear()
 
         return ret
 
@@ -161,9 +161,9 @@ class DataParallel(tnn.Module):
         if self.blocking:
             self.optimizer.step()
         else:
-            self.update_next = True
+            self._update_next = True
 
-    def async_update(self, param_slice: slice = None, layer_names: List[str] = None):
+    def _async_update(self, param_slice: slice = None, layer_names: List[str] = None):
         """
         Update parameters asynchronously via wait handles.
 
@@ -177,36 +177,36 @@ class DataParallel(tnn.Module):
         """
         # perform update on the whole model
         if param_slice is None:
-            param_slice = slice(len(self.params_ref))
+            param_slice = slice(len(self._params_ref))
         if layer_names is None:
-            layer_names = list(self.layer_wait_handles.keys())
+            layer_names = list(self._layer_wait_handles.keys())
 
         # update params that are visible for the optimizer
-        self.optimizer.param_groups[0]["params"] = self.params_ref[param_slice]
+        self.optimizer.param_groups[0]["params"] = self._params_ref[param_slice]
 
         # iterate over layers
         for layer_name in layer_names:
             # only perform update, if all given layers hold unfinalized wait handles (important for layer reuse)
-            if layer_name not in self.active_layers:
+            if layer_name not in self._active_layers:
                 return
             # iterate over layer's parameters/associated wait handles
-            for (_, param_name, wait_handle) in self.layer_wait_handles[layer_name]:
+            for (_, param_name, wait_handle) in self._layer_wait_handles[layer_name]:
                 # get internal index of selected parameter
-                param_idx = self.param_indices[param_name]
+                param_idx = self._param_indices[param_name]
                 # synchronize, get parameter's global gradient
                 wait_handle.wait()
                 # check if shapes are matching
-                if self.params_ref[param_idx].grad.data.shape != wait_handle.tensor.shape:
+                if self._params_ref[param_idx].grad.data.shape != wait_handle.tensor.shape:
                     raise ValueError("Shapes must be equal.")
                 # set parameter's global gradient
-                self.params_ref[param_idx].grad.data = wait_handle.tensor
+                self._params_ref[param_idx].grad.data = wait_handle.tensor
                 # remove layer from set of active layers, if present
-                self.active_layers.discard(layer_name)
+                self._active_layers.discard(layer_name)
         # if desired, perform actual parameter update
-        if self.update_next:
+        if self._update_next:
             self.optimizer.step()
 
-    def blocking_hook(self, grad_loc: torch.Tensor) -> torch.Tensor:
+    def _blocking_hook(self, grad_loc: torch.Tensor) -> torch.Tensor:
         """
         Add a blocking hook to the PyTorch DAG for all of the backwards calls.
 
@@ -242,7 +242,7 @@ class DataParallel(tnn.Module):
             f.grad.data = c
             f.data.sub_(f.grad.data * learning_rate)
 
-    def nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
+    def _nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
         """
         Add a nonblocking hook to send and receive the averaged parameters after the backwards step
 
@@ -260,19 +260,19 @@ class DataParallel(tnn.Module):
             # perform MPI IAllreduce to compute global gradient, returns wait handle
             wait_handle = self.comm.Iallreduce(ht.MPI.IN_PLACE, grad_loc, ht.MPI.SUM)
             # if layer wait handle dict does not contain the layer, add it -> automatically tracks reversed layer order
-            if layer_name not in self.layer_wait_handles:
-                self.layer_wait_handles[layer_name] = list()
+            if layer_name not in self._layer_wait_handles:
+                self._layer_wait_handles[layer_name] = list()
             # add layer to set of active layers
-            self.active_layers.add(layer_name)
+            self._active_layers.add(layer_name)
             # get size of flattened tensor
             size_1d = functools.reduce(operator.mul, grad_loc.shape, 1)
             # assign wait handle to its layer, layer-internal sorting by size
-            bisect.insort(self.layer_wait_handles[layer_name], (size_1d, param_name, wait_handle))
+            bisect.insort(self._layer_wait_handles[layer_name], (size_1d, param_name, wait_handle))
             return grad_loc
 
         return _hook
 
-    def forward_hook(self, layer_name: str) -> Callable:
+    def _forward_hook(self, layer_name: str) -> Callable:
         """
         Add a forward hook to update parameters during the forward step. This will return a hook with can be added
         using the ``submodule.register_forward_pre_hook`` command.
@@ -285,8 +285,8 @@ class DataParallel(tnn.Module):
         # hook function for non-blocking parameter update
         def _hook(_, input_):
             # update parameters of given layer
-            param_slice = self.param_slices[layer_name]
-            self.async_update(param_slice, [layer_name])
+            param_slice = self._param_slices[layer_name]
+            self._async_update(param_slice, [layer_name])
 
             return input_
 
