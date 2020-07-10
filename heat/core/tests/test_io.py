@@ -11,16 +11,16 @@ class TestIO(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestIO, cls).setUpClass()
-        cls.HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.h5")
+        cls.HDF5_PATH = os.path.join(os.getcwd(), "heat/utils/data/datasets/iris.h5")
         cls.HDF5_OUT_PATH = os.path.join(tempfile.gettempdir(), "test.h5")
         cls.HDF5_DATASET = "data"
 
-        cls.NETCDF_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.nc")
+        cls.NETCDF_PATH = os.path.join(os.getcwd(), "heat/utils/data/datasets/iris.nc")
         cls.NETCDF_OUT_PATH = os.path.join(tempfile.gettempdir(), "test.nc")
         cls.NETCDF_VARIABLE = "data"
 
         # load comparison data from csv
-        cls.CSV_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.csv")
+        cls.CSV_PATH = os.path.join(os.getcwd(), "heat/utils/data/datasets/iris.csv")
         cls.IRIS = (
             torch.from_numpy(np.loadtxt(cls.CSV_PATH, delimiter=";"))
             .float()
@@ -157,7 +157,7 @@ class TestIO(TestCase):
 
         # unknown file extension
         with self.assertRaises(ValueError):
-            ht.load(os.path.join(os.getcwd(), "heat/datasets/data/iris.json"), "data")
+            ht.load(os.path.join(os.getcwd(), "heat/utils/data/datasets/iris.json"), "data")
         with self.assertRaises(ValueError):
             ht.load("iris", "data")
 

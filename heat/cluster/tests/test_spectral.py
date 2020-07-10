@@ -36,7 +36,7 @@ class TestSpectral(TestCase):
 
     def test_fit_iris(self):
         # get some test data
-        iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
+        iris = ht.load("heat/utils/data/datasets/iris.csv", sep=";", split=0)
         m = 10
 
         # fit the clusters
@@ -74,7 +74,7 @@ class TestSpectral(TestCase):
         with self.assertRaises(NotImplementedError):
             spectral = ht.cluster.Spectral(metric="ahalanobis", n_lanczos=m)
 
-        iris_split = ht.load("heat/datasets/data/iris.csv", sep=";", split=1)
+        iris_split = ht.load("heat/utils/data/datasets/iris.csv", sep=";", split=1)
         spectral = ht.cluster.Spectral(n_lanczos=20)
         with self.assertRaises(NotImplementedError):
             spectral.fit(iris_split)

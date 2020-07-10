@@ -158,13 +158,14 @@ def main():
     transform = ht.utils.vision_transforms.Compose(
         [vision_transforms.ToTensor(), vision_transforms.Normalize((0.1307,), (0.3081,))]
     )
-    dataset1 = MNISTDataset("../../heat/datasets/data", train=True, transform=transform)
-    dataset2 = MNISTDataset("../../heat/datasets/data", train=False, transform=transform)
+    dataset1 = MNISTDataset("../../heat/utils/data/datasets", train=True, transform=transform)
+    dataset2 = MNISTDataset("../../heat/utils/data/datasets", train=False, transform=transform)
     train_loader = ht.utils.data.datatools.DataLoader(dataset1.data, lcl_dataset=dataset1, **kwargs)
     test_loader = ht.utils.data.datatools.DataLoader(dataset2.data, lcl_dataset=dataset2, **kwargs)
 
-    model = ht.nn.DataParallel(Net(), comm=dataset1.comm)
-    optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
+    tmodel = Net().to(device)
+    optimizer = optim.Adadelta(tmodel.parameters(), lr=args.lr)
+    model = ht.nn.DataParallel(tmodel, comm=dataset1.comm, optimizer=optimizer)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     for epoch in range(1, args.epochs + 1):

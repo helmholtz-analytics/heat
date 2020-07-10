@@ -6,7 +6,7 @@ import torch
 import torch.nn as tnn
 
 from collections import OrderedDict
-from typing import Any, Callable, List
+from typing import Callable, List
 
 from heat.core.communication import MPI
 
@@ -58,7 +58,7 @@ class DataParallel(tnn.Module):
         module: torch.nn.Module,
         comm: ht.MPICommunication,
         optimizer: torch.optim.Optimizer,
-        blocking=True,
+        blocking: bool = True,
     ):
         super(DataParallel, self).__init__()
         self.module = module
@@ -242,7 +242,7 @@ class DataParallel(tnn.Module):
             f.grad.data = c
             f.data.sub_(f.grad.data * learning_rate)
 
-    def _nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
+    def nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
         """
         Add a nonblocking hook to send and receive the averaged parameters after the backwards step
 
