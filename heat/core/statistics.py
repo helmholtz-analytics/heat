@@ -1380,13 +1380,13 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
         # leave fractional indices, interpolate linearly
         pass
     elif interpolation == "lower":
-        t_indices = t_indices.floor().type(t_perc_dtype)
+        t_indices = t_indices.floor().type(torch.int)
     elif interpolation == "higher":
-        t_indices = t_indices.ceil().type(t_perc_dtype)
+        t_indices = t_indices.ceil().type(torch.int)
     elif interpolation == "midpoint":
         t_indices = 0.5 * (t_indices.floor() + t_indices.ceil())
     elif interpolation == "nearest":
-        t_indices = t_indices.round().type(t_perc_dtype)
+        t_indices = t_indices.round().type(torch.int)
     else:
         raise ValueError(
             "Invalid interpolation method. Interpolation can be 'lower', 'higher', 'midpoint', 'nearest', or 'linear'."
