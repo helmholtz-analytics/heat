@@ -20,6 +20,7 @@
 - [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `skew()`
 - [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `kurtosis()`
 - [#618](https://github.com/helmholtz-analytics/heat/pull/618) Printing of unbalanced DNDarrays added
+- [#620](https://github.com/helmholtz-analytics/heat/pull/620) New feature: KNN
 - [#624](https://github.com/helmholtz-analytics/heat/pull/624) Bugfix: distributed median() indexing and casting
 
 # v0.4.0
