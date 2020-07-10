@@ -22,7 +22,8 @@ class TestDataParallel(unittest.TestCase):
 
             def forward(self, x):
                 # Max pooling over a (2, 2) window
-                x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
+                x = self.conv1(x)
+                x = F.max_pool2d(F.relu(x), (2, 2))
                 # If the size is a square you can only specify a single number
                 x = F.max_pool2d(F.relu(self.conv2(x)), 2)
                 x = x.view(-1, self.num_flat_features(x))
@@ -31,22 +32,30 @@ class TestDataParallel(unittest.TestCase):
                 x = self.fc3(x)
                 return x
 
+            def num_flat_features(self, x):
+                size = x.size()[1:]  # all dimensions except the batch dimension
+                num_features = 1
+                for s in size:
+                    num_features *= s
+                return num_features
+
         # create model and move it to GPU with id rank
         model = TestModel()
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
         # ddp_model = DDP(model, device_ids=[rank])
-        data = ht.random.rand(2 * ht.MPI_WORLD.size, 2 * ht.MPI_WORLD.size, split=0)
-        # need dataset + dataloader
+        ht.random.seed(1)
+        torch.random.manual_seed(1)
+        labels = torch.randn(10, device=ht.get_device().torch_device)
+        data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
         dataset = ht.utils.data.datatools.Dataset(data)
         dataloader = ht.utils.data.datatools.DataLoader(lcl_dataset=dataset, batch_size=2)
-        ht_model = ht.nn.DataParallel(model, data.comm)
+        ht_model = ht.nn.DataParallel(model, data.comm, optimizer)
 
         loss_fn = torch.nn.MSELoss()
-        optimizer = torch.optim.SGD(ht_model.parameters(), lr=0.001)
 
         for data in dataloader:
             self.assertEqual(data.shape[0], 2)
             optimizer.zero_grad()
             outputs = ht_model(data)
-            labels = ht.random.randn(2 * ht.MPI_WORLD.size, 5, split=0)
             loss_fn(outputs, labels).backward()
             optimizer.step()

@@ -446,9 +446,6 @@ class TestDNDarray(TestCase):
         a = ht.empty([2, 3, 3, 2])
         self.assertEqual(a.ndim, 4)
 
-        # with self.assertWarns(Warning):
-        #     a.numdims
-
     def test_numpy(self):
         # ToDo: numpy does not work for distributed tensors du to issue#
         # Add additional tests if the issue is solved
