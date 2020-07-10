@@ -18,7 +18,7 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
     y : ht.DNDarray
         Array of shape (n_samples,), required
         Labels for the training set
-    num_neighbours: int, required
+    num_neighbours: int
         Number of neighbours to consider when choosing label
 
     References
