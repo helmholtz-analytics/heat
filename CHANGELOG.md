@@ -21,6 +21,7 @@
 - [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `kurtosis()`
 - [#618](https://github.com/helmholtz-analytics/heat/pull/618) Printing of unbalanced DNDarrays added
 - [#624](https://github.com/helmholtz-analytics/heat/pull/624) Bugfix: distributed median() indexing and casting
+- [#629](https://github.com/helmholtz-analytics/heat/pull/629) New features: `asin`, `acos`, `atan`, `atan2`
 
 # v0.4.0
 
