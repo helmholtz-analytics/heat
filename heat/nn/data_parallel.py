@@ -6,7 +6,7 @@ import torch
 import torch.nn as tnn
 
 from collections import OrderedDict
-from typing import Any, Callable, List
+from typing import Callable, List
 
 from heat.core.communication import MPI
 

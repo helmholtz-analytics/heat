@@ -112,6 +112,8 @@ class MNISTDataset(datasets.MNIST):
         comm = self.comm
         rd_perm = torch.randperm(self.htdata.lshape[0])
 
+        # for x in [["data", "htdata"]]:
+        #     self.__getattribute__(x)
         ld = self.htdata._DNDarray__array
         snd = ld[: self.lcl_half].clone()
         snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device

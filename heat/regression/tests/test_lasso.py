@@ -33,10 +33,14 @@ class TestLasso(TestCase):
             # ToDo: add additional tests
             # get some test data
             X = ht.load_hdf5(
-                os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="x", split=0
+                os.path.join(os.getcwd(), "heat/utils/data/datasets/diabetes.h5"),
+                dataset="x",
+                split=0,
             )
             y = ht.load_hdf5(
-                os.path.join(os.getcwd(), "heat/datasets/data/diabetes.h5"), dataset="y", split=0
+                os.path.join(os.getcwd(), "heat/utils/data/datasets/diabetes.h5"),
+                dataset="y",
+                split=0,
             )
 
             # normalize dataset

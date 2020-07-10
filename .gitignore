@@ -304,4 +304,4 @@ tags
 MANIFEST
 travis_wait_*.log
 testing.py
-heat/datasets/data/MNISTDataset
+heat/utils/data/datasets/MNISTDataset
