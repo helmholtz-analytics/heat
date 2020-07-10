@@ -1407,14 +1407,14 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
 
         if split == axis:
             # map percentile location: which q on what rank
-            t_indices_map = torch.ones((size, nperc), dtype=t_perc_dtype, device=t_q.device) * -1
-            t_local_indices = torch.ones((1, nperc), dtype=t_perc_dtype, device=t_q.device) * -1
+            t_indices_map = torch.ones((size, nperc), dtype=t_indices.dtype, device=t_q.device) * -1
+            t_local_indices = torch.ones((1, nperc), dtype=t_indices.dtype, device=t_q.device) * -1
             offset, _, chunk = x.comm.chunk(gshape, split)
             chunk_start = chunk[split].start
             chunk_stop = chunk[split].stop
             t_ind_on_rank = t_indices[(t_indices < chunk_stop) & (t_indices >= chunk_start)]
             for el_id, el in enumerate(t_ind_on_rank):
-                t_which_q = torch.where(t_indices == el)[0]
+                t_which_q = torch.where(t_indices == el)
                 t_local_indices[:, t_which_q] = el - offset
             x.comm.Allgather(t_local_indices, t_indices_map)
 
