@@ -49,6 +49,8 @@ class DataParallel(tnn.Module):
         HeAT communicator to use
     optimizer : torch.optim.Optimizer
         Optimizer used for parameter updates.
+    scheduler : torch.optim.lr_scheduler (optional)
+        Scheduler used for parameter updates.
     blocking : bool (optional)
         Flag for blocking synchronization. If not given, synchronization is blocking by default.
     """
@@ -58,13 +60,17 @@ class DataParallel(tnn.Module):
         module: torch.nn.Module,
         comm: ht.MPICommunication,
         optimizer: torch.optim.Optimizer,
+        scheduler: torch.optim.lr_scheduler = None,
         blocking: bool = True,
     ):
         super(DataParallel, self).__init__()
         self.module = module
         self.comm = comm
+        self.scheduler = scheduler if scheduler is not None else None
         self.optimizer = optimizer
         self.blocking = blocking
+        if not self.blocking and scheduler is not None:
+            raise NotImplementedError("Nonblocking scheduler updates are not implemented yet.")
 
         self._layer_wait_handles = OrderedDict()
         self._fwd_hook_handles = list()
@@ -158,8 +164,10 @@ class DataParallel(tnn.Module):
         non-blocking, optimizer will update parameters during next forward.
         """
 
-        if self.blocking:
+        if self.blocking and self.scheduler is None:
             self.optimizer.step()
+        elif self.blocking:
+            self.scheduler.step()
         else:
             self._update_next = True
 
@@ -204,7 +212,11 @@ class DataParallel(tnn.Module):
                 self._active_layers.discard(layer_name)
         # if desired, perform actual parameter update
         if self._update_next:
-            self.optimizer.step()
+            if self.scheduler is None:
+                self.optimizer.step()
+            else:
+                self.scheduler._step_count = self._sch_step_count
+                self.scheduler.step()
 
     def _blocking_hook(self, grad_loc: torch.Tensor) -> torch.Tensor:
         """
