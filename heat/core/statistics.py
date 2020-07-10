@@ -1323,17 +1323,17 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
 
     # sanitize q
     if isinstance(q, list) or isinstance(q, tuple):
-        t_perc_dtype = torch.promote_types(type(q[0]), t_x.dtype)
+        t_perc_dtype = torch.promote_types(type(q[0]), torch.float32)
         t_q = torch.tensor(q, dtype=t_perc_dtype, device=t_x.device)
     elif np.isscalar(q):
-        t_perc_dtype = torch.promote_types(type(q), t_x.dtype)
+        t_perc_dtype = torch.promote_types(type(q), torch.float32)
         t_q = torch.tensor([q], dtype=t_perc_dtype, device=t_x.device)
     elif isinstance(q, dndarray.DNDarray):
         if x.comm.is_distributed() and q.split is not None:
             # q needs to be local
             q.resplit_(axis=None)
         t_q = q._DNDarray__array
-        t_perc_dtype = torch.promote_types(t_q.dtype, t_x.dtype)
+        t_perc_dtype = torch.promote_types(t_q.dtype, torch.float32)
     else:
         raise TypeError("DNDarray, list or tuple supported, but q was {}".format(type(q)))
 
@@ -1380,13 +1380,13 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
         # leave fractional indices, interpolate linearly
         pass
     elif interpolation == "lower":
-        t_indices = t_indices.floor().type(torch.int)
+        t_indices = t_indices.floor().type(t_perc_dtype)
     elif interpolation == "higher":
-        t_indices = t_indices.ceil().type(torch.int)
+        t_indices = t_indices.ceil().type(t_perc_dtype)
     elif interpolation == "midpoint":
         t_indices = 0.5 * (t_indices.floor() + t_indices.ceil())
     elif interpolation == "nearest":
-        t_indices = t_indices.round().type(torch.int)
+        t_indices = t_indices.round().type(t_perc_dtype)
     else:
         raise ValueError(
             "Invalid interpolation method. Interpolation can be 'lower', 'higher', 'midpoint', 'nearest', or 'linear'."
@@ -1407,14 +1407,14 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
 
         if split == axis:
             # map percentile location: which q on what rank
-            t_indices_map = torch.ones((size, nperc), dtype=t_q.dtype, device=t_q.device) * -1.0
-            t_local_indices = torch.ones((1, nperc), dtype=t_q.dtype, device=t_q.device) * -1.0
+            t_indices_map = torch.ones((size, nperc), dtype=t_perc_dtype, device=t_q.device) * -1
+            t_local_indices = torch.ones((1, nperc), dtype=t_perc_dtype, device=t_q.device) * -1
             offset, _, chunk = x.comm.chunk(gshape, split)
             chunk_start = chunk[split].start
             chunk_stop = chunk[split].stop
             t_ind_on_rank = t_indices[(t_indices < chunk_stop) & (t_indices >= chunk_start)]
             for el_id, el in enumerate(t_ind_on_rank):
-                t_which_q = torch.where(t_indices == el)
+                t_which_q = torch.where(t_indices == el)[0]
                 t_local_indices[:, t_which_q] = el - offset
             x.comm.Allgather(t_local_indices, t_indices_map)
 
@@ -1429,15 +1429,19 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
         data.get_halo(1)
         t_data = data.array_with_halos
         # fill out percentile
+        t_ind_on_rank -= offset
         t_map_sum = t_indices_map.sum(axis=1)
         perc_ranks = torch.where(t_map_sum > -1 * nperc)[0].tolist()
-        for r in perc_ranks:
+        for r_id, r in enumerate(perc_ranks):
             # chunk of the global percentile that will be populated by rank r
-            _, _, perc_chunk = x.comm.chunk(output_shape, join, rank=r, w_size=len(perc_ranks))
+            _, _, perc_chunk = x.comm.chunk(output_shape, join, rank=r_id, w_size=len(perc_ranks))
             perc_slice = perc_slice[:join] + (perc_chunk[join],) + perc_slice[join + 1 :]
             local_p = factories.zeros(percentile[perc_slice].shape, dtype=perc_dtype, comm=x.comm)
             if rank == r:
-                local_p = factories.array(local_percentile(t_data, axis, t_ind_on_rank - offset))
+                if rank > 0:
+                    # correct indices for halo
+                    t_ind_on_rank += 1
+                local_p = factories.array(local_percentile(t_data, axis, t_ind_on_rank))
             x.comm.Bcast(local_p, root=r)
             percentile[perc_slice] = local_p
     else:
