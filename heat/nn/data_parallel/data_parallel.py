@@ -195,8 +195,8 @@ class DataParallel(tnn.Module):
                 # check if shapes are matching
                 if self.params_ref[param_idx].grad.data.shape != wait_handle.tensor.shape:
                     raise ValueError("Shapes must be equal.")
-                # set parameter's global gradient
-                self.params_ref[param_idx].grad.data = wait_handle.tensor
+                # accumulate parameter's global gradient
+                self.params_ref[param_idx].grad.data += wait_handle.tensor
                 # remove layer from set of active layers, if present
                 self.active_layers.discard(layer_name)
         # if desired, perform actual parameter update
