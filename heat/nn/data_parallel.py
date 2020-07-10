@@ -186,6 +186,9 @@ class DataParallel(tnn.Module):
 
         # iterate over layers
         for layer_name in layer_names:
+            # only perform update, if all given layers hold unfinalized wait handles (important for layer reuse)
+            if layer_name not in self.active_layers:
+                return
             # iterate over layer's parameters/associated wait handles
             for (_, param_name, wait_handle) in self.layer_wait_handles[layer_name]:
                 # get internal index of selected parameter
