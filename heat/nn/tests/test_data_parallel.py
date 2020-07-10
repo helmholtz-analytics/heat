@@ -66,3 +66,30 @@ class TestDataParallel(unittest.TestCase):
                 hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
                 for i in range(1, len(hld_list)):
                     self.assertTrue(torch.all(hld_list[0] == hld_list[i]))
+
+        model = TestModel()
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
+
+        ht.random.seed(1)
+        torch.random.manual_seed(1)
+
+        labels = torch.randn(10, device=ht.get_device().torch_device)
+        data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
+        dataset = ht.utils.data.datatools.Dataset(data)
+        dataloader = ht.utils.data.datatools.DataLoader(lcl_dataset=dataset, batch_size=2)
+        ht_model = ht.nn.DataParallel(model, data.comm, optimizer, blocking=False)
+
+        loss_fn = torch.nn.MSELoss()
+        for _ in range(2):
+            for data in dataloader:
+                self.assertEqual(data.shape[0], 2)
+                optimizer.zero_grad()
+                ht_outputs = ht_model(data)
+                loss_fn(ht_outputs, labels).backward()
+                ht_model.update()
+            for p in ht_model.parameters():
+                p0dim = p.shape[0]
+                hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array
+                hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
+                for i in range(1, len(hld_list)):
+                    self.assertTrue(torch.all(hld_list[0] == hld_list[i]))
