@@ -42,9 +42,11 @@ class TestDataParallel(unittest.TestCase):
         # create model and move it to GPU with id rank
         model = TestModel()
         optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
-        # ddp_model = DDP(model, device_ids=[rank])
+        optimizer2 = torch.optim.SGD(model.parameters(), lr=0.001)
+
         ht.random.seed(1)
         torch.random.manual_seed(1)
+
         labels = torch.randn(10, device=ht.get_device().torch_device)
         data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
         dataset = ht.utils.data.datatools.Dataset(data)
@@ -52,10 +54,13 @@ class TestDataParallel(unittest.TestCase):
         ht_model = ht.nn.DataParallel(model, data.comm, optimizer)
 
         loss_fn = torch.nn.MSELoss()
-
         for data in dataloader:
             self.assertEqual(data.shape[0], 2)
             optimizer.zero_grad()
-            outputs = ht_model(data)
+            outputs = model(data)
+            ht_outputs = ht_model(data)
             loss_fn(outputs, labels).backward()
+            loss_fn(ht_outputs, labels).backward()
             optimizer.step()
+            optimizer2.step()
+            self.assertTrue(torch.all(outputs == ht_outputs))
