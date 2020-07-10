@@ -19,7 +19,8 @@
 - [#614](https://github.com/helmholtz-analytics/heat/pull/614) New feature: printing of DNDarrays and ``__repr__`` and ``__str__`` functions
 - [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `skew()`
 - [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `kurtosis()`
-- [#618](https://github.com/helmholtz-analytics/heat/pull/618) Printing of unbalnced DNDarrays added
+- [#618](https://github.com/helmholtz-analytics/heat/pull/618) Printing of unbalanced DNDarrays added
+- [#624](https://github.com/helmholtz-analytics/heat/pull/624) Bugfix: distributed median() indexing and casting
 
 # v0.4.0
 
