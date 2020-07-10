@@ -971,7 +971,13 @@ class TestStatistics(TestCase):
         q = 100
         p_np = np.percentile(x_np, q, axis=0)
         p_ht = ht.percentile(x_ht, q, axis=0)
-        self.assertAlmostEqual(p_ht.numpy().all(), p_np.all())
+        self.assertTrue((p_ht.numpy() == p_np).all())
+
+        # test median (q = 50)
+        q = 50
+        p_np = np.percentile(x_np, q, axis=0)
+        p_ht = ht.median(x_ht_split0, axis=0)
+        self.assertTrue((p_ht.numpy() == p_np).all())
 
         # test list q and writing to output buffer
         q = [0.1, 2.3, 15.9, 50.0, 84.1, 97.7, 99.9]
