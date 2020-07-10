@@ -32,7 +32,10 @@
 - [#614](https://github.com/helmholtz-analytics/heat/pull/614) New feature: printing of DNDarrays and ``__repr__`` and ``__str__`` functions
 - [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `skew()`
 - [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `kurtosis()`
-- [#618](https://github.com/helmholtz-analytics/heat/pull/618) Printing of unbalnced DNDarrays added
+- [#618](https://github.com/helmholtz-analytics/heat/pull/618) Printing of unbalanced DNDarrays added
+- [#620](https://github.com/helmholtz-analytics/heat/pull/620) New feature: KNN
+- [#624](https://github.com/helmholtz-analytics/heat/pull/624) Bugfix: distributed median() indexing and casting
+- [#629](https://github.com/helmholtz-analytics/heat/pull/629) New features: `asin`, `acos`, `atan`, `atan2`
 
 # v0.4.0
 
