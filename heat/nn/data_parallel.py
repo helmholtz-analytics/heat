@@ -222,23 +222,6 @@ class DataParallel(tnn.Module):
         self.comm.Allreduce(ht.MPI.IN_PLACE, grad_loc, ht.MPI.SUM)
         return grad_loc
 
-    def blocking_grad_update(self, learning_rate: float):
-        """
-        Do a blocking gradient update for a SGD optimizer. This is an example only to be used to make sure that
-        the model updates are being done correctly.
-
-        Parameters
-        ----------
-        learning_rate : float
-            the learning rate of the model
-        """
-        # need to send the self.parameters() to the other processes after the backwards loss step
-        for f in self.parameters():
-            c = torch.true_divide(f.grad.data, self.comm.size)
-            self.comm.Allreduce(self.comm.MPI.IN_PLACE, c, MPI.SUM)
-            f.grad.data = c
-            f.data.sub_(f.grad.data * learning_rate)
-
     def nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
         """
         Add a nonblocking hook to send and receive the averaged parameters after the backwards step
