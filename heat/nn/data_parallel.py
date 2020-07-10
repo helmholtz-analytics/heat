@@ -103,7 +103,7 @@ class DataParallel(tnn.Module):
             if blocking:
                 param.register_hook(self._blocking_hook)
             else:
-                param.register_hook(self.nonblocking_hook(layer_name, name))
+                param.register_hook(self._nonblocking_hook(layer_name, name))
         self._param_slices[layer_name_prev] = slice(start_idx, len(self._param_indices))
 
     def __setattr__(self, name, value):
@@ -129,7 +129,7 @@ class DataParallel(tnn.Module):
                 if name == "":
                     continue
                 if name in self._layer_wait_handles:
-                    hook_handle = submodule.register_forward_pre_hook(self.forward_hook(name))
+                    hook_handle = submodule.register_forward_pre_hook(self._forward_hook(name))
                     self._fwd_hook_handles.append(hook_handle)
         # perform forward pass
         ret = self.module(lcl_data, *inputs[1:], **kwargs)
@@ -140,7 +140,7 @@ class DataParallel(tnn.Module):
             # set has to be copied in order to be manipulated during iteration
             active_layers_cpy = self._active_layers.copy()
             for layer_name in active_layers_cpy:
-                self.forward_hook(layer_name)(None, None)
+                self._forward_hook(layer_name)(None, None)
         # reset optimizer flag
         self._update_next = False
         # clear dictionary after all wait handles are used up (dynamic computation graph)
@@ -225,24 +225,7 @@ class DataParallel(tnn.Module):
         self.comm.Allreduce(ht.MPI.IN_PLACE, grad_loc, ht.MPI.SUM)
         return grad_loc
 
-    def blocking_grad_update(self, learning_rate: float):
-        """
-        Do a blocking gradient update for a SGD optimizer. This is an example only to be used to make sure that
-        the model updates are being done correctly.
-
-        Parameters
-        ----------
-        learning_rate : float
-            the learning rate of the model
-        """
-        # need to send the self.parameters() to the other processes after the backwards loss step
-        for f in self.parameters():
-            c = torch.true_divide(f.grad.data, self.comm.size)
-            self.comm.Allreduce(self.comm.MPI.IN_PLACE, c, MPI.SUM)
-            f.grad.data = c
-            f.data.sub_(f.grad.data * learning_rate)
-
-    def nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
+    def _nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
         """
         Add a nonblocking hook to send and receive the averaged parameters after the backwards step
 
