@@ -20,6 +20,11 @@
 - [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `skew()`
 - [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `kurtosis()`
 - [#618](https://github.com/helmholtz-analytics/heat/pull/618) Printing of unbalnced DNDarrays added
+- [#625](https://github.com/helmholtz-analytics/heat/pull/625) New submodule: `nn.DataParallel` for creating and training data parallel neural networks
+- [#625](https://github.com/helmholtz-analytics/heat/pull/625) New feature: Synchronous and Asynchronous gradient updates availble for `ht.nn.DataParallel`
+- [#625](https://github.com/helmholtz-analytics/heat/pull/625) New feature: `utils.data.datatools.DataLoader` for created a local `torch.utils.data.Dataloader` for use with `ht.nn.DataParallel`
+- [#625](https://github.com/helmholtz-analytics/heat/pull/625) New feature: `utils.data.datatools.Dataset` for created a local `torch.utils.data.Dataset` for use with `ht.nn.DataParallel`
+- [#625](https://github.com/helmholtz-analytics/heat/pull/625) Added MNIST example to `example/nn` to show the use of `ht.nn.DataParallel`. The `MNISTDataset` can be found in `ht.utils.data.mnist.py`
 
 # v0.4.0
 
