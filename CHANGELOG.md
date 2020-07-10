@@ -25,6 +25,8 @@
 - [#625](https://github.com/helmholtz-analytics/heat/pull/625) New feature: `utils.data.datatools.DataLoader` for created a local `torch.utils.data.Dataloader` for use with `ht.nn.DataParallel`
 - [#625](https://github.com/helmholtz-analytics/heat/pull/625) New feature: `utils.data.datatools.Dataset` for created a local `torch.utils.data.Dataset` for use with `ht.nn.DataParallel`
 - [#625](https://github.com/helmholtz-analytics/heat/pull/625) Added MNIST example to `example/nn` to show the use of `ht.nn.DataParallel`. The `MNISTDataset` can be found in `ht.utils.data.mnist.py`
+- [#618](https://github.com/helmholtz-analytics/heat/pull/618) Printing of unbalanced DNDarrays added
+- [#624](https://github.com/helmholtz-analytics/heat/pull/624) Bugfix: distributed median() indexing and casting
 
 # v0.4.0
 
