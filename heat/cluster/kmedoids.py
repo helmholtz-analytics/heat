@@ -24,7 +24,7 @@ class KMedoids(_KCluster):
             Determines random number generation for centroid initialization.
 
         """
-        if init == "kmedians++":
+        if init == "kmedoids++":
             init = "probability_based"
 
         super().__init__(
@@ -41,21 +41,15 @@ class KMedoids(_KCluster):
         for i in range(self.n_clusters):
             # points in current cluster
             selection = (matching_centroids == i).astype(ht.int64)
-
             # Remove 0-element lines to avoid spoiling of median
             assigned_points = X * selection
-            assigned_points = assigned_points[(assigned_points.abs()).sum(axis=1) != 0]
-            if assigned_points.shape[0] != 0:
-                median = ht.median(assigned_points, axis=0, keepdim=True)
-
-                # snap Median value to nearest data point
-                dist = self._metric(X, median)
-                closest_point = X[dist.argmin(axis=0, keepdim=False), :]
-
-                new_cluster_centers[i : i + 1, :] = closest_point
+            rows = (assigned_points.abs()).sum(axis=1) != 0
+            local = assigned_points._DNDarray__array[rows._DNDarray__array]
+            clean = ht.array(local, is_split=X.split)
+            clean.balance_()
             # failsafe in case no point is assigned to this cluster
             # draw a random datapoint to continue/restart
-            else:
+            if clean.shape[0] == 0:
                 _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
                 sample = ht.random.randint(0, X.shape[0]).item()
                 proc = 0
@@ -68,7 +62,27 @@ class KMedoids(_KCluster):
                     idx = sample - displ[proc]
                     xi = ht.array(X.lloc[idx, :], device=X.device, comm=X.comm)
                 xi.comm.Bcast(xi, root=proc)
-                new_cluster_centers[i : i + 1, :] = xi
+                new_cluster_centers[i, :] = xi
+
+            else:
+                if clean.shape[0] <= ht.MPI_WORLD.size:
+                    clean.resplit_(axis=None)
+                median = ht.median(clean, axis=0, keepdim=True)
+
+                dist = self._metric(X, median)
+                _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
+                idx = dist.argmin(axis=0, keepdim=False).item()
+                proc = 0
+                for p in range(X.comm.size):
+                    if displ[p] > idx:
+                        break
+                    proc = p
+                closest_point = ht.zeros(X.shape[1], dtype=X.dtype)
+                if X.comm.rank == proc:
+                    lidx = idx - displ[proc]
+                    closest_point = ht.array(X.lloc[lidx, :], device=X.device, comm=X.comm)
+                closest_point.comm.Bcast(closest_point, root=proc)
+                new_cluster_centers[i, :] = median
 
         return new_cluster_centers
 

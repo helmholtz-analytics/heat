@@ -47,13 +47,9 @@ class KMedians(_KCluster):
             local = assigned_points._DNDarray__array[rows._DNDarray__array]
             clean = ht.array(local, is_split=X.split)
             clean.balance_()
-            if clean.shape[0] != 0:
-                median = ht.median(clean, axis=0, keepdim=True)
-                new_cluster_centers[i : i + 1, :] = median
-
             # failsafe in case no point is assigned to this cluster
             # draw a random datapoint to continue/restart
-            else:
+            if clean.shape[0] == 0:
                 _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
                 sample = ht.random.randint(0, X.shape[0]).item()
                 proc = 0
@@ -66,7 +62,12 @@ class KMedians(_KCluster):
                     idx = sample - displ[proc]
                     xi = ht.array(X.lloc[idx, :], device=X.device, comm=X.comm)
                 xi.comm.Bcast(xi, root=proc)
-                new_cluster_centers[i : i + 1, :] = xi
+                new_cluster_centers[i, :] = xi
+            else:
+                if clean.shape[0] <= ht.MPI_WORLD.size:
+                    clean.resplit_(axis=None)
+                median = ht.median(clean, axis=0, keepdim=True)
+                new_cluster_centers[i : i + 1, :] = median
 
         return new_cluster_centers
 
