@@ -1,23 +1,11 @@
 import numpy as np
 import torch
-import unittest
-import os
+
 import heat as ht
-
-if os.environ.get("DEVICE") == "gpu" and torch.cuda.is_available():
-    ht.use_device("gpu")
-    torch.cuda.set_device(torch.device(ht.get_device().torch_device))
-else:
-    ht.use_device("cpu")
-device = ht.get_device().torch_device
-ht_device = None
-if os.environ.get("DEVICE") == "lgpu" and torch.cuda.is_available():
-    device = ht.gpu.torch_device
-    ht_device = ht.gpu
-    torch.cuda.set_device(device)
+from .test_suites.basic_test import TestCase
 
 
-class TestTypes(unittest.TestCase):
+class TestTypes(TestCase):
     def assert_is_heat_type(self, heat_type):
         self.assertIsInstance(heat_type, type)
         self.assertTrue(issubclass(heat_type, ht.generic))
@@ -32,7 +20,7 @@ class TestTypes(unittest.TestCase):
         self.assert_is_heat_type(heat_type)
 
         # check a type constructor without any value
-        no_value = heat_type(device=ht_device)
+        no_value = heat_type()
         self.assertIsInstance(no_value, ht.DNDarray)
         self.assertEqual(no_value.shape, (1,))
         self.assertEqual((no_value._DNDarray__array == 0).all().item(), 1)
@@ -40,13 +28,13 @@ class TestTypes(unittest.TestCase):
 
         # check a type constructor with a complex value
         ground_truth = [[3, 2, 1], [4, 5, 6]]
-        elaborate_value = heat_type(ground_truth, device=ht_device)
+        elaborate_value = heat_type(ground_truth)
         self.assertIsInstance(elaborate_value, ht.DNDarray)
         self.assertEqual(elaborate_value.shape, (2, 3))
         self.assertEqual(
             (
                 elaborate_value._DNDarray__array
-                == torch.tensor(ground_truth, dtype=torch_type, device=device)
+                == torch.tensor(ground_truth, dtype=torch_type, device=self.device.torch_device)
             )
             .all()
             .item(),
@@ -113,7 +101,7 @@ class TestTypes(unittest.TestCase):
         self.assert_non_instantiable_heat_type(ht.flexible)
 
 
-class TestTypeConversion(unittest.TestCase):
+class TestTypeConversion(TestCase):
     def test_can_cast(self):
         zeros_array = np.zeros((3,), dtype=np.int16)
 
@@ -177,7 +165,7 @@ class TestTypeConversion(unittest.TestCase):
             ht.core.types.canonical_heat_type("i7")
 
     def test_heat_type_of(self):
-        ht_tensor = ht.zeros((1,), dtype=ht.bool, device=ht_device)
+        ht_tensor = ht.zeros((1,), dtype=ht.bool)
         self.assertEqual(ht.core.types.heat_type_of(ht_tensor), ht.bool)
 
         np_array = np.ones((3,), dtype=np.int32)
@@ -197,7 +185,7 @@ class TestTypeConversion(unittest.TestCase):
     def test_type_promotions(self):
         self.assertEqual(ht.promote_types(ht.uint8, ht.uint8), ht.uint8)
         self.assertEqual(ht.promote_types(ht.int8, ht.uint8), ht.int16)
-        self.assertEqual(ht.promote_types(ht.int32, ht.float32), ht.float64)
+        self.assertEqual(ht.promote_types(ht.int32, ht.float32), ht.float32)
         self.assertEqual(ht.promote_types("f4", ht.float), ht.float32)
         self.assertEqual(ht.promote_types(ht.bool_, "?"), ht.bool)
 

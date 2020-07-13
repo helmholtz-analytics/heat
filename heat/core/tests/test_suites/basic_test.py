@@ -1,4 +1,5 @@
-from unittest import TestCase
+import unittest
+import os
 
 from heat.core import dndarray, MPICommunication, MPI, types, factories
 import heat as ht
@@ -8,18 +9,55 @@ import torch
 
 
 # TODO adapt for GPU once this is working properly
-class BasicTest(TestCase):
+class TestCase(unittest.TestCase):
 
     __comm = MPICommunication()
     __device = None
 
     @property
     def comm(self):
-        return BasicTest.__comm
+        return TestCase.__comm
 
     @property
     def device(self):
-        return BasicTest.__device
+        return TestCase.__device
+
+    @classmethod
+    def setUpClass(cls):
+        """
+        Read the environment variable 'HEAT_TEST_USE_DEVICE' and return the requested devices.
+        Supported values
+            - cpu: Use CPU only (default)
+            - gpu: Use GPU only
+
+        Raises
+        ------
+        RuntimeError if value of 'HEAT_TEST_USE_DEVICE' is not recognized
+
+        """
+
+        envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
+
+        if envar == "cpu":
+            ht.use_device("cpu")
+            ht_device = ht.cpu
+            other_device = ht.cpu
+            if torch.cuda.is_available():
+                torch.cuda.set_device(torch.device(ht.gpu.torch_device))
+                other_device = ht.gpu
+        elif envar == "gpu" and torch.cuda.is_available():
+            ht.use_device("gpu")
+            torch.cuda.set_device(torch.device(ht.gpu.torch_device))
+            ht_device = ht.gpu
+            other_device = ht.cpu
+        else:
+            raise RuntimeError(
+                "Value '{}' of environment variable 'HEAT_TEST_USE_DEVICE' is unsupported".format(
+                    envar
+                )
+            )
+
+        cls.device, cls.other_device, cls.envar = ht_device, other_device, envar
 
     def get_rank(self):
         return self.comm.rank
@@ -66,11 +104,6 @@ class BasicTest(TestCase):
             # self.assertEqual(expected_array.device, torch.device(heat_array.device.torch_device))
             expected_array = expected_array.cpu().numpy()
 
-        # Determine with what kind of numbers we are working
-        compare_func = (
-            np.array_equal if np.issubdtype(expected_array.dtype, np.integer) else np.allclose
-        )
-
         self.assertIsInstance(
             heat_array,
             dndarray.DNDarray,
@@ -92,8 +125,7 @@ class BasicTest(TestCase):
         )
 
         if not heat_array.is_balanced():
-            # Array is distributed correctly
-            # print("Heat array is unbalanced, balancing now")
+            # Array is not distributed correctly
             heat_array.balance_()
 
         split = heat_array.split
@@ -104,29 +136,8 @@ class BasicTest(TestCase):
             "Local shapes do not match. "
             "Got {} expected {}".format(heat_array.lshape, expected_array[slices].shape),
         )
-        local_numpy = heat_array._DNDarray__array.cpu().numpy()
-
-        equal_res = np.array(compare_func(local_numpy, expected_array[slices]))
-
-        self.comm.Allreduce(MPI.IN_PLACE, equal_res, MPI.LAND)
-        self.assertTrue(
-            equal_res,
-            "Local tensors do not match the corresponding numpy slices. "
-            "dtype was {}, split was {}".format(heat_array.dtype, heat_array.split),
-        )
-
-        self.assertEqual(
-            local_numpy.dtype,
-            expected_array.dtype,
-            "Resulting types do not match heat: {} numpy: {}.".format(
-                heat_array.dtype, expected_array.dtype
-            ),
-        )
-
-        # Combined array is correct
-        self.assertTrue(
-            compare_func(heat_array.numpy(), expected_array), "Combined tensors do not match."
-        )
+        local_heat_numpy = heat_array.numpy()
+        self.assertTrue(np.allclose(local_heat_numpy, expected_array))
 
     def assert_func_equal(
         self,
@@ -275,11 +286,11 @@ class BasicTest(TestCase):
                 + "numpy.ndarray, torch.tensor] but is {}".format(type(tensor))
             )
 
+        dtype = types.canonical_heat_type(torch_tensor.dtype)
         np_res = numpy_func(np_array, **numpy_args)
         if not isinstance(np_res, np.ndarray):
             np_res = np.array([np_res])
 
-        dtype = types.canonical_heat_type(torch_tensor.dtype)
         for i in range(len(tensor.shape)):
             ht_array = factories.array(
                 torch_tensor, split=i, dtype=dtype, device=self.device, comm=self.comm
@@ -311,7 +322,7 @@ class BasicTest(TestCase):
         else:
             raise ValueError("expected order to be 'C' or 'F', but was {}".format(order))
 
-    def __create_random_np_array(self, shape, dtype=np.float64, low=-10000, high=10000):
+    def __create_random_np_array(self, shape, dtype=np.float32, low=-10000, high=10000):
         """
         Creates a random array based on the input parameters.
         The used seed will be printed to stdout for debugging purposes.

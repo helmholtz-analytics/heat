@@ -319,7 +319,7 @@ def diff(a, n=1, axis=-1):
             axis_slice[axis] = slice(1, None, None)
             axis_slice_end = [slice(None)] * len(ret.shape)
             axis_slice_end[axis] = slice(None, -1, None)
-            ret = ret[axis_slice] - ret[axis_slice_end]
+            ret = ret[tuple(axis_slice)] - ret[tuple(axis_slice_end)]
         return ret
 
     size = a.comm.size
@@ -364,9 +364,9 @@ def diff(a, n=1, axis=-1):
                 recv_data.reshape(ret.lloc[axis_slice_end].shape) - ret.lloc[axis_slice_end]
             )
 
-    axis_slice_end = [slice(None)] * len(a.shape)
+    axis_slice_end = [slice(None, None, None)] * len(a.shape)
     axis_slice_end[axis] = slice(None, -1 * n, None)
-    ret = ret[axis_slice_end]  # slice of the last element on the array (nonsense data)
+    ret = ret[tuple(axis_slice_end)]  # slice off the last element on the array (nonsense data)
     ret.balance_()  # balance the array before returning
     return ret
 

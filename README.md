@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/logo.png">
+  <img src="doc/images/logo.png">
 </div>
 
 ---
@@ -104,5 +104,15 @@ Acknowledgements
 ----------------
 
 *This work is supported by the [Helmholtz Association Initiative and
-Networking](https://www.helmholtz.de/en/about_us/the_association/initiating_and_networking/)
-Fund under project number ZT-I-0003.*
+Networking Fund](https://www.helmholtz.de/en/about_us/the_association/initiating_and_networking/)
+under project number ZT-I-0003.*
+
+*This work is supported by the [Helmholtz Association Initiative and
+Networking Fund](https://www.helmholtz.de/en/about_us/the_association/initiating_and_networking/)
+under the Helmholtz AI platform grant.*
+
+---
+
+<div align="center">
+  <a href="https://www.dlr.de/EN/Home/home_node.html"><img src="doc/images/dlr_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html"><img src="doc/images/fzj_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="http://www.kit.edu/english/index.php"><img src="doc/images/kit_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.helmholtz.de/en/"><img src="doc/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="20px"></a>
+</div>

@@ -409,6 +409,19 @@ __safe_cast = [
     [False, False, False, False, False, False, False, True],  # float64
 ]
 
+# intuitive cast table
+__intuitive_cast = [
+    # bool  uint8  int8   int16  int32  int64  float32 float64
+    [True, True, True, True, True, True, True, True],  # bool
+    [False, True, False, True, True, True, True, True],  # uint8
+    [False, False, True, True, True, True, True, True],  # int8
+    [False, False, False, True, True, True, True, True],  # int16
+    [False, False, False, False, True, True, True, True],  # int32
+    [False, False, False, False, False, True, False, True],  # int64
+    [False, False, False, False, False, False, True, True],  # float32
+    [False, False, False, False, False, False, False, True],  # float64
+]
+
 
 # same kind table
 __same_kind = [
@@ -425,10 +438,10 @@ __same_kind = [
 
 
 # static list of possible casting methods
-__cast_kinds = ["no", "safe", "same_kind", "unsafe"]
+__cast_kinds = ["no", "safe", "same_kind", "unsafe", "intuitive"]
 
 
-def can_cast(from_, to, casting="safe"):
+def can_cast(from_, to, casting="intuitive"):
     """
     Returns True if cast between data types can occur according to the casting rule. If from is a scalar or array
     scalar, also returns True if the scalar value can be cast without overflow or truncation to an integer.
@@ -439,12 +452,13 @@ def can_cast(from_, to, casting="safe"):
         Scalar, data type or type specifier to cast from.
     to : type, str, ht.dtype
         Target type to cast to.
-    casting: str {'no', 'safe', 'same_kind', 'unsafe'}, optional
+    casting: str {"no", "safe", "same_kind", "unsafe", "intuitive"}, optional
         Controls the way the cast is evaluated
-            * 'no' the types may not be cast, i.e. they need to be identical
-            * 'safe' allows only casts that can preserve values with complete precision
-            * 'same_kind' safe casts are possible and down_casts within the same type family, e.g. int32 -> int8
-            * 'unsafe' means any conversion can be performed, i.e. this casting is always possible
+            * "no" the types may not be cast, i.e. they need to be identical
+            * "safe" allows only casts that can preserve values with complete precision
+            * "same_kind" safe casts are possible and down_casts within the same type family, e.g. int32 -> int8
+            * "unsafe" means any conversion can be performed, i.e. this casting is always possible
+            * "intuitive" allows all of the casts of safe plus casting from int32 to float32
 
     Returns
     -------
@@ -472,17 +486,17 @@ def can_cast(from_, to, casting="safe"):
     The usage of scalars is also possible
     >>> ht.can_cast(1, ht.float64)
     True
-    >>> ht.can_cast(2.0e200, 'u1')
+    >>> ht.can_cast(2.0e200, "u1")
     False
 
     can_cast supports different casting rules
-    >>> ht.can_cast('i8', 'i4', 'no')
+    >>> ht.can_cast("i8", "i4", "no")
     False
-    >>> ht.can_cast('i8', 'i4', 'safe')
+    >>> ht.can_cast("i8", "i4", "safe")
     False
-    >>> ht.can_cast('i8', 'i4', 'same_kind')
+    >>> ht.can_cast("i8", "i4", "same_kind")
     True
-    >>> ht.can_cast('i8', 'i4', 'unsafe')
+    >>> ht.can_cast("i8", "i4", "unsafe")
     True
     """
     if not isinstance(casting, str):
@@ -509,6 +523,9 @@ def can_cast(from_, to, casting="safe"):
     can_safe_cast = __safe_cast[typecode_from][typecode_to]
     if casting == "safe":
         return can_safe_cast
+    can_intuitive_cast = __intuitive_cast[typecode_from][typecode_to]
+    if casting == "intuitive":
+        return can_intuitive_cast
     return can_safe_cast or __same_kind[typecode_from][typecode_to]
 
 
@@ -524,8 +541,9 @@ for i, operand_a in enumerate(__type_codes.keys()):
 
 def promote_types(type1, type2):
     """
-    Returns the data type with the smallest size and smallest scalar kind to which both type1 and type2 may be safely
-    cast. This function is symmetric.
+    Returns the data type with the smallest size and smallest scalar kind to which both type1 and type2 may be
+    intuitively cast to, where intuitive casting refers to maintaining the same bit length if possible. This
+    function is symmetric.
 
     Parameters
     ----------
@@ -543,9 +561,11 @@ def promote_types(type1, type2):
     --------
     >>> ht.promote_types(ht.uint8, ht.uint8)
     ht.uint8
+    >>> ht.promote_types(ht.int32, ht.float32)
+    ht.float32
     >>> ht.promote_types(ht.int8, ht.uint8)
     ht.int16
-    >>> ht.promote_types('i8', 'f4')
+    >>> ht.promote_types("i8", "f4")
     ht.float64
     """
     typecode_type1 = __type_codes[canonical_heat_type(type1)]
