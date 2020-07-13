@@ -9,6 +9,10 @@ from . import types
 
 
 __all__ = [
+    "acos",
+    "asin",
+    "atan",
+    "atan2",
     "arccos",
     "arcsin",
     "arctan",
@@ -48,6 +52,10 @@ def arccos(x, out=None) -> DNDarray:
     return local_op(torch.acos, x, out)
 
 
+acos = arccos
+acos.__doc__ = arccos.__doc__
+
+
 def arcsin(x, out=None) -> DNDarray:
     """
     Result is a ``DNDarray`` of the same shape as ``x``.
@@ -67,6 +75,10 @@ def arcsin(x, out=None) -> DNDarray:
     tensor([-1.5708,  0.0000,  0.9791])
     """
     return local_op(torch.asin, x, out)
+
+
+asin = arcsin
+asin.__doc__ = arcsin.__doc__
 
 
 def arctan(x, out=None) -> DNDarray:
@@ -90,6 +102,10 @@ def arctan(x, out=None) -> DNDarray:
     dtype=torch.float64)
     """
     return local_op(torch.atan, x, out)
+
+
+atan = arctan
+atan.__doc__ = arctan.__doc__
 
 
 def arctan2(x1, x2):
@@ -120,6 +136,10 @@ def arctan2(x1, x2):
     x2 = x2.astype(types.promote_types(x2.dtype, types.float))
 
     return binary_op(torch.atan2, x1, x2)
+
+
+atan2 = arctan2
+atan2.__doc__ = arctan2.__doc__
 
 
 def cos(x, out=None):

@@ -1,6 +1,7 @@
 # Pending Additions
 
 - [#488](https://github.com/helmholtz-analytics/heat/pull/488) Enhancement: Rework of the test device selection.
+- [#569](https://github.com/helmholtz-analytics/heat/pull/569) New feature: percentile() and median()
 - [#573](https://github.com/helmholtz-analytics/heat/pull/573) Bugfix: matmul fixes: early out for 2 vectors, remainders not added if inner block is 1 for split 10 case
 - [#575](https://github.com/helmholtz-analytics/heat/pull/558) Bugfix: Binary operations use proper type casting
 - [#575](https://github.com/helmholtz-analytics/heat/pull/558) Bugfix: `where` and `cov` convert ints to floats when given as parameters
@@ -18,7 +19,10 @@
 - [#614](https://github.com/helmholtz-analytics/heat/pull/614) New feature: printing of DNDarrays and ``__repr__`` and ``__str__`` functions
 - [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `skew()`
 - [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `kurtosis()`
-- [#618](https://github.com/helmholtz-analytics/heat/pull/618) Printing of unbalnced DNDarrays added
+- [#618](https://github.com/helmholtz-analytics/heat/pull/618) Printing of unbalanced DNDarrays added
+- [#620](https://github.com/helmholtz-analytics/heat/pull/620) New feature: KNN
+- [#624](https://github.com/helmholtz-analytics/heat/pull/624) Bugfix: distributed median() indexing and casting
+- [#629](https://github.com/helmholtz-analytics/heat/pull/629) New features: `asin`, `acos`, `atan`, `atan2`
 
 # v0.4.0
 

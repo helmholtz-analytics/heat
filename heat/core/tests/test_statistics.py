@@ -948,6 +948,91 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.minimum(random_volume_1, random_volume_2, out=output)
 
+    def test_percentile(self):
+        # test local, distributed, split/axis combination, TODO no data on process, Issue #568
+        x_np = np.arange(10 * 10 * 10).reshape(10, 10, 10)
+        x_ht = ht.array(x_np)
+        x_ht_split0 = ht.array(x_np, split=0)
+        x_ht_split1 = ht.array(x_np, split=1)
+        x_ht_split2 = ht.array(x_np, split=2)
+        q = 15.9
+        for dim in range(x_ht.ndim):
+            p_np = np.percentile(x_np, q, axis=dim)
+            p_ht = ht.percentile(x_ht, q, axis=dim)
+            p_ht_split0 = ht.percentile(x_ht_split0, q, axis=dim)
+            p_ht_split1 = ht.percentile(x_ht_split1, q, axis=dim)
+            p_ht_split2 = ht.percentile(x_ht_split2, q, axis=dim)
+            self.assert_array_equal(p_ht, p_np)
+            self.assert_array_equal(p_ht_split0, p_np)
+            self.assert_array_equal(p_ht_split1, p_np)
+            self.assert_array_equal(p_ht_split2, p_np)
+
+        # test x, q dtypes combination plus edge-case 100th percentile
+        q = 100
+        p_np = np.percentile(x_np, q, axis=0)
+        p_ht = ht.percentile(x_ht, q, axis=0)
+        self.assertTrue((p_ht.numpy() == p_np).all())
+
+        # test median (q = 50)
+        q = 50
+        p_np = np.percentile(x_np, q, axis=0)
+        p_ht = ht.median(x_ht_split0, axis=0)
+        self.assertTrue((p_ht.numpy() == p_np).all())
+
+        # test list q and writing to output buffer
+        q = [0.1, 2.3, 15.9, 50.0, 84.1, 97.7, 99.9]
+        axis = 2
+        p_np = np.percentile(x_np, q, axis=axis, interpolation="lower", keepdims=True)
+        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower", keepdim=True)
+        out = ht.empty(p_np.shape, dtype=ht.float64, split=None, device=x_ht.device)
+        ht.percentile(x_ht, q, axis=axis, out=out, interpolation="lower", keepdim=True)
+        self.assertEqual(p_ht.numpy()[5].all(), p_np[5].all())
+        self.assertEqual(out.numpy()[2].all(), p_np[2].all())
+        self.assertTrue(p_ht.shape == p_np.shape)
+        axis = None
+        p_np = np.percentile(x_np, q, axis=axis, interpolation="higher")
+        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="higher")
+        self.assertEqual(p_ht.numpy()[6], p_np[6])
+        self.assertTrue(p_ht.shape == p_np.shape)
+        p_np = np.percentile(x_np, q, axis=axis, interpolation="nearest")
+        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="nearest")
+        self.assertEqual(p_ht.numpy()[2], p_np[2])
+
+        # test split q
+        q_ht = ht.array(q, split=0, comm=x_ht.comm)
+        p_np = np.percentile(x_np, q, axis=axis, interpolation="midpoint")
+        p_ht = ht.percentile(x_ht, q_ht, axis=axis, interpolation="midpoint")
+        self.assertEqual(p_ht.numpy()[4], p_np[4])
+
+        # test scalar x
+        x_sc = ht.array(4.5)
+        p_ht = ht.percentile(x_sc, q=q)
+        p_np = np.percentile(4.5, q=q)
+        self.assertEqual(p_ht.numpy().all(), p_np.all())
+
+        # test exceptions
+        with self.assertRaises(TypeError):
+            ht.percentile(x_np, q)
+        with self.assertRaises(ValueError):
+            ht.percentile(x_ht, q, interpolation="Homer!")
+        with self.assertRaises(NotImplementedError):
+            ht.percentile(x_ht, q, axis=(0, 1))
+        q_np = np.array(q)
+        with self.assertRaises(TypeError):
+            ht.percentile(x_ht, q_np)
+        t_out = torch.empty((len(q),), dtype=torch.float64)
+        with self.assertRaises(TypeError):
+            ht.percentile(x_ht, q, out=t_out)
+        out_wrong_dtype = ht.empty((len(q),), dtype=ht.float32)
+        with self.assertRaises(TypeError):
+            ht.percentile(x_ht, q, out=out_wrong_dtype)
+        out_wrong_shape = ht.empty((len(q) + 1,), dtype=ht.float64)
+        with self.assertRaises(ValueError):
+            ht.percentile(x_ht, q, out=out_wrong_shape)
+        out_wrong_split = ht.empty((len(q),), dtype=ht.float64, split=0)
+        with self.assertRaises(ValueError):
+            ht.percentile(x_ht, q, out=out_wrong_split)
+
     def test_skew(self):
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(ValueError):
