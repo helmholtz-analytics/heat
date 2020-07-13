@@ -4,11 +4,12 @@ import base64
 import os
 import torch
 from torch.utils import data as torch_data
-from typing import Callable, Iterator, Union
+from typing import Callable, List, Iterator, Union
 
-from heat.core import dndarray
+from ...core import dndarray
+from ...core.communication import MPICommunication
 
-__all__ = ["DataLoader", "Dataset"]
+__all__ = ["DataLoader", "Dataset", "dataset_shuffle"]
 
 
 class DataLoader:
@@ -84,6 +85,7 @@ class DataLoader:
             raise TypeError(
                 f"data must be a DNDarray or lcl_dataset must be given, data is currently: {type(data)}"
             )
+        self.ishuffle = self.dataset.ishuffle
         # this is effectively setting ``shuffle`` to True
         # rand_sampler = torch_data.RandomSampler(self.dataset)
         # sampler = torch_data.BatchSampler(rand_sampler, batch_size, drop_last)
@@ -101,25 +103,29 @@ class DataLoader:
             worker_init_fn=worker_init_fn,
         )
         self._first_iter = True
+        self.last_epoch = False
 
     def __iter__(self) -> Iterator:
         # need a new iterator for each epoch
-        if self._first_iter:
-            self._first_iter = False
+        if not self.ishuffle:
+            if self._first_iter:
+                self._first_iter = False
+            else:
+                # shuffle after the first epoch but before the iterator is generated
+                self.dataset.Shuffle()
         else:
-            # shuffle after the first epoch but before the iterator is generated
-            self.shuffle()
+            # start the shuffling for the next iteration
+            if not self.last_epoch:
+                self.dataset.Ishuffle()
+
+            if self._first_iter:
+                self._first_iter = False
+            else:
+                dataset_irecv(self.dataset)
         return self.DataLoader.__iter__()
 
     def __len__(self) -> int:
         return len(self.DataLoader)
-
-    def shuffle(self):
-        """
-        Shuffle the data. This is a direct call to the shuffle function of the dataset.
-        This function is blocking.
-        """
-        self.dataset.shuffle()
 
 
 class Dataset(torch_data.Dataset):
@@ -131,8 +137,11 @@ class Dataset(torch_data.Dataset):
 
         - ``__getitem__`` : how an item is given to the network
         - ``__len__`` : the number of data elements to be given to the network in total
-        - ``shuffle`` : how the data should be shuffled between the processes. The function shown below is for a dataset
-            composed of only data and without targets
+        - ``Shuffle()`` : how the data should be shuffled between the processes. The function shown below is for a dataset
+            composed of only data and without targets. The function :func:`dataset_shuffle` abstracts this. For this function
+            only the dataset and a list of attributes to shuffle are given.
+        - (optional) ``Ishuffle()`` : A non-blocking version of ``Shuffle()``, this is handled in the abstract function
+            :func:`dataset_ishuffle`. It works similarly to :func:`dataset_shuffle`.
 
     As the amount of data across processes can be non-uniform, the dataset class will slice off the remaining elements
     on whichever processes have more data than the others. This should only be 1 element.
@@ -146,6 +155,10 @@ class Dataset(torch_data.Dataset):
         DNDarray for which to great the dataset
     transform : Callable
         transformation to call before a data item is returned
+    ishuffle : bool (optional)
+        flag indicating whether to use non-blocking communications for shuffling the data between epochs
+        Note: if True, the ``Ishuffle()`` function must be defined within the class
+        Default: False
 
     Attributes
     ----------
@@ -163,11 +176,13 @@ class Dataset(torch_data.Dataset):
         the local data to be used in training
     transform : Callable
         transform to be called during the getitem function
+    ishuffle : bool
+        flag indicating if non-blocking communications are used for shuffling the data between epochs
 
     TODO: type annotation for array
     """
 
-    def __init__(self, array, transform: Callable = None):
+    def __init__(self, array, transform: Callable = None, ishuffle: bool = False):
         self.htdata = array
         self.comm = array.comm
         # create a slice to create a uniform amount of data on each process
@@ -178,6 +193,7 @@ class Dataset(torch_data.Dataset):
         self._cut_slice = tuple(arb_slice)
         self.data = array._DNDarray__array[self._cut_slice]
         self.transform = transform
+        self.ishuffle = ishuffle
 
     def __getitem__(self, index: Union[int, slice, tuple, list, torch.Tensor]) -> torch.Tensor:
         if self.transform:
@@ -187,25 +203,106 @@ class Dataset(torch_data.Dataset):
     def __len__(self) -> int:
         return self.data.shape[0]
 
-    def shuffle(self):
+    def Shuffle(self):
         """
         Send half of the local data to the process ``self.comm.rank + 1`` if available, else wrap around. After
         receiving the new data, shuffle the local tensor.
         """
-        lc = self.htdata._DNDarray__array
-        prm = torch.randperm(lc.shape[0])
-        snd = lc[: self.lcl_half].clone()
+        dataset_shuffle(dataset=self, attrs=[["htdata", "data"]])
+
+    def Ishuffle(self):
+        """
+        Send half of the local data to the process ``self.comm.rank + 1`` if available, else wrap around. After
+        receiving the new data, shuffle the local tensor.
+        """
+        dataset_ishuffle(dataset=self, attrs=[["htdata", "data"]])
+
+
+def dataset_shuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[list]):
+    """
+    Shuffle the given attributes of a dataset across multiple processes. This will send half of the data to rank + 1.
+    Once the new data is received, it will be shuffled into the existing data on the process
+
+    Parameters
+    ----------
+    dataset : Dataset
+    attrs : List[List[str, str], ... ]
+        List of lists each of which contains 2 strings. The strings are the handles corresponding to the Dataset
+        attributes corresponding to the global data DNDarray and the local data of that array, i.e. [["htdata, "data"],]
+        would shuffle the htdata around and set the correct amount of data for the ``dataset.data`` attribute. For
+        multiple parameters multiple lists are required. I.e. [["htdata", "data"], ["httargets", "targets"]]
+    """
+    # attrs should have the form [[heat array, sliced array], [...], ...]
+    #       i.e. [['htdata', 'data]]
+    # assume that all of the attrs have the same dim0 shape as the local data
+    prm = torch.randperm(dataset.htdata._DNDarray__array.shape[0])
+    comm = dataset.comm
+    for att in attrs:
+        ld = getattr(dataset, att[0])._DNDarray__array
+        snd = ld[: dataset.lcl_half].clone()
         snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device
-        comm = self.comm
         dest = comm.rank + 1 if comm.rank + 1 != comm.size else 0
         # send the top half of the data to the next process
-        sw = comm.Isend(snd, dest=dest)
+        send_wait = comm.Isend(snd, dest=dest)
         del snd
         new_data = torch.empty(snd_shape, dtype=snd_dtype, device=snd_dev)
         src = comm.rank - 1 if comm.rank != 0 else comm.size - 1
-        rw = comm.Irecv(new_data, source=src)
-        sw.wait()
-        rw.wait()
-        self.htdata._DNDarray__array[: self.lcl_half] = new_data
-        self.htdata._DNDarray__array = self.htdata._DNDarray__array[prm]
-        self.data = self.htdata._DNDarray__array[self._cut_slice]
+        rcv_w = comm.Irecv(new_data, source=src)
+        send_wait.wait()
+        rcv_w.wait()
+        getattr(dataset, att[0])._DNDarray__array[: dataset.lcl_half] = new_data
+        getattr(dataset, att[0])._DNDarray__array = getattr(dataset, att[0])._DNDarray__array[prm]
+        setattr(dataset, att[1], getattr(dataset, att[0])._DNDarray__array[dataset._cut_slice])
+
+
+def dataset_ishuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[list]):
+    """
+        Shuffle the given attributes of a dataset across multiple processes. This will send half of the data to rank + 1.
+        Once the new data is received, it will be shuffled into the existing data on the process
+
+        Parameters
+        ----------
+        dataset : Dataset
+        attrs : List[List[str, str], ... ]
+            List of lists each of which contains 2 strings. The strings are the handles corresponding to the Dataset
+            attributes corresponding to the global data DNDarray and the local data of that array, i.e. [["htdata, "data"],]
+            would shuffle the htdata around and set the correct amount of data for the ``dataset.data`` attribute. For
+            multiple parameters multiple lists are required. I.e. [["htdata", "data"], ["httargets", "targets"]]
+        """
+    # attrs should have the form [[heat array, sliced array], [...], ...]
+    #       i.e. [['htdata', 'data]]
+    # assume that all of the attrs have the same dim0 shape as the local data
+    comm = dataset.comm
+    setattr(dataset, "shuffle_prm", torch.randperm(dataset.htdata._DNDarray__array.shape[0]))
+    ret_list = []
+    for att in attrs:
+        ld = getattr(dataset, att[0])._DNDarray__array
+        snd = ld[: dataset.lcl_half].clone()
+        snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device
+        dest = comm.rank + 1 if comm.rank + 1 != comm.size else 0
+        # send the top half of the data to the next process
+        send_wait = comm.Isend(snd, dest=dest, tag=99999)
+        new_data = torch.empty(snd_shape, dtype=snd_dtype, device=snd_dev)
+        src = comm.rank - 1 if comm.rank != 0 else comm.size - 1
+        wait = comm.Irecv(new_data, source=src, tag=99999)
+        ret_list.append([att, wait, new_data])
+        send_wait.wait()
+        del snd
+    setattr(dataset, "rcv_list", ret_list)
+
+
+def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
+    try:
+        rcv_list = getattr(dataset, "rcv_list")
+        prm = getattr(dataset, "shuffle_prm")
+        for rcv in rcv_list:
+            rcv[1].wait()
+            getattr(dataset, rcv[0][0])._DNDarray__array[: dataset.lcl_half] = rcv[2]
+            getattr(dataset, rcv[0][0])._DNDarray__array = getattr(
+                dataset, rcv[0][0]
+            )._DNDarray__array[prm]
+            setattr(
+                dataset, rcv[0][1], getattr(dataset, rcv[0][0])._DNDarray__array[dataset._cut_slice]
+            )
+    except AttributeError:
+        raise AttributeError("no rcv list, was ishuffle called?")

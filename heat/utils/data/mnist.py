@@ -1,9 +1,11 @@
 import torch
 
 from PIL import Image
-from heat.core import factories
 from torchvision import datasets
 from typing import Callable, Union
+
+from ...core import factories
+from . import datatools
 
 __all__ = ["MNISTDataset"]
 
@@ -28,6 +30,10 @@ class MNISTDataset(datasets.MNIST):
         if the data does not exist in the directory, download it if True (default)
     split : int, optional
         on which access to split the data when it is loaded into a DNDarray
+    ishuffle : bool (optional)
+        flag indicating whether to use non-blocking communications for shuffling the data between epochs
+        Note: if True, the ``Ishuffle()`` function must be defined within the class
+        Default: False
 
     Attributes
     ----------
@@ -45,6 +51,8 @@ class MNISTDataset(datasets.MNIST):
         the local data on a process
     targets : torch.Tensor
         the local targets on a process
+    ishuffle : bool
+        flag indicating if non-blocking communications are used for shuffling the data between epochs
 
     For other attributes see :class:`torchvision.datasets.MNIST`.
     """
@@ -57,6 +65,7 @@ class MNISTDataset(datasets.MNIST):
         target_transform: Callable = None,
         download: bool = True,
         split: int = 0,
+        ishuffle: bool = False,
     ):
         super().__init__(
             root,
@@ -72,6 +81,7 @@ class MNISTDataset(datasets.MNIST):
         self.comm = array.comm
         self.htdata = array
         self.httargets = targets
+        self.ishuffle = ishuffle
         if split is not None:
             min_data_split = array.gshape[0] // array.comm.size
             arb_slice = slice(min_data_split)
@@ -105,44 +115,15 @@ class MNISTDataset(datasets.MNIST):
     def __len__(self) -> int:
         return len(self.data)
 
-    def shuffle(self):
+    def Shuffle(self):
         """
         Blocking shuffle to send half of the local data to the next process in a ring (``self.comm.rank + 1`` or ``0``)
         """
-        comm = self.comm
-        rd_perm = torch.randperm(self.htdata.lshape[0])
+        datatools.dataset_shuffle(
+            dataset=self, attrs=[["htdata", "data"], ["httargets", "targets"]]
+        )
 
-        # for x in [["data", "htdata"]]:
-        #     self.__getattribute__(x)
-        ld = self.htdata._DNDarray__array
-        snd = ld[: self.lcl_half].clone()
-        snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device
-        dest = comm.rank + 1 if comm.rank + 1 != comm.size else 0
-        # send the top half of the data to the next process
-        send_wait = comm.Isend(snd, dest=dest)
-        del snd
-        new_data = torch.empty(snd_shape, dtype=snd_dtype, device=snd_dev)
-        src = comm.rank - 1 if comm.rank != 0 else comm.size - 1
-        rcv_w = comm.Irecv(new_data, source=src)
-        send_wait.wait()
-        rcv_w.wait()
-        self.htdata._DNDarray__array[: self.lcl_half] = new_data
-        self.htdata._DNDarray__array = self.htdata._DNDarray__array[rd_perm]
-        self.data = self.htdata._DNDarray__array[self._cut_slice]
-
-        # shuffled = self.targets[rd_perm]
-        ld2 = self.httargets._DNDarray__array
-        snd = ld2[: self.lcl_half].clone()
-        snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device
-        dest = comm.rank + 1 if comm.rank + 1 != comm.size else 0
-        # send the top half of the data to the next process
-        send_wait = comm.Isend(snd, dest=dest)
-        del snd
-        new_data2 = torch.empty(snd_shape, dtype=snd_dtype, device=snd_dev)
-        src = comm.rank - 1 if comm.rank != 0 else comm.size - 1
-        rcv_w = comm.Irecv(new_data2, source=src)
-        send_wait.wait()
-        rcv_w.wait()
-        self.httargets._DNDarray__array[: self.lcl_half] = new_data2
-        self.httargets._DNDarray__array = self.httargets._DNDarray__array[rd_perm]
-        self.targets = self.httargets._DNDarray__array[self._cut_slice]
+    def Ishuffle(self):
+        datatools.dataset_ishuffle(
+            dataset=self, attrs=[["htdata", "data"], ["httargets", "targets"]]
+        )
