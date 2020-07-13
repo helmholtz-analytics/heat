@@ -78,8 +78,14 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         if self.init == "random":
             # Samples will be equally distributed drawn from all involved processes
             _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
+            # At least float32 precision, if X has higher precision datatype, use that
+            datatype = ht.promote_types(X.dtype, ht.float32)
             centroids = ht.empty(
-                (self.n_clusters, X.shape[1]), split=None, device=X.device, comm=X.comm
+                (self.n_clusters, X.shape[1]),
+                split=None,
+                dtype=datatype,
+                device=X.device,
+                comm=X.comm,
             )
             if X.split is None or X.split == 0:
                 for i in range(self.n_clusters):
@@ -117,9 +123,14 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
         # Smart centroid guessing, random sampling with probability weight proportional to distance to existing centroids
         elif self.init == "probability_based":
+            datatype = ht.promote_types(X.dtype, ht.float32)
             if X.split is None or X.split == 0:
                 centroids = ht.zeros(
-                    (self.n_clusters, X.shape[1]), split=None, device=X.device, comm=X.comm
+                    (self.n_clusters, X.shape[1]),
+                    split=None,
+                    dtype=datatype,
+                    device=X.device,
+                    comm=X.comm,
                 )
                 sample = ht.random.randint(0, X.shape[0] - 1).item()
                 _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
