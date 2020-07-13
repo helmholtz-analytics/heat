@@ -66,7 +66,6 @@ class DataParallel(tnn.Module):
         super(DataParallel, self).__init__()
         self.module = module
         self.comm = comm
-        self.scheduler = scheduler if scheduler is not None else None
         self.optimizer = optimizer
         self.blocking = blocking
         if not self.blocking and scheduler is not None:
@@ -164,10 +163,8 @@ class DataParallel(tnn.Module):
         non-blocking, optimizer will update parameters during next forward.
         """
 
-        if self.blocking and self.scheduler is None:
+        if self.blocking:
             self.optimizer.step()
-        elif self.blocking:
-            self.scheduler.step()
         else:
             self._update_next = True
 
@@ -212,11 +209,7 @@ class DataParallel(tnn.Module):
                 self._active_layers.discard(layer_name)
         # if desired, perform actual parameter update
         if self._update_next:
-            if self.scheduler is None:
-                self.optimizer.step()
-            else:
-                self.scheduler._step_count = self._sch_step_count
-                self.scheduler.step()
+            self.optimizer.step()
 
     def _blocking_hook(self, grad_loc: torch.Tensor) -> torch.Tensor:
         """
