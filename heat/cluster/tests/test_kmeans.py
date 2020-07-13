@@ -163,5 +163,4 @@ class TestKMeans(TestCase):
         kmeans = ht.cluster.KMeans(n_clusters=4, init="kmeans++", random_state=seed)
         kmeans.fit(data)
         result, _ = ht.sort(kmeans.cluster_centers_, axis=0)
-        print("Result: {}, reference {}".format(result, reference))
         self.assertTrue(ht.allclose(result, reference, atol=5.0))
