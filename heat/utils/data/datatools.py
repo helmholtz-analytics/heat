@@ -221,7 +221,9 @@ class Dataset(torch_data.Dataset):
 def dataset_shuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[list]):
     """
     Shuffle the given attributes of a dataset across multiple processes. This will send half of the data to rank + 1.
-    Once the new data is received, it will be shuffled into the existing data on the process
+    Once the new data is received, it will be shuffled into the existing data on the process.
+
+    This function will be called by the DataLoader automatically if ``dataset.ishuffle = False``.
 
     Parameters
     ----------
@@ -231,6 +233,10 @@ def dataset_shuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[lis
         attributes corresponding to the global data DNDarray and the local data of that array, i.e. [["htdata, "data"],]
         would shuffle the htdata around and set the correct amount of data for the ``dataset.data`` attribute. For
         multiple parameters multiple lists are required. I.e. [["htdata", "data"], ["httargets", "targets"]]
+
+    Notes
+    -----
+    ``dataset.comm`` must be defined for this function to work.
     """
     # attrs should have the form [[heat array, sliced array], [...], ...]
     #       i.e. [['htdata', 'data]]
@@ -257,23 +263,29 @@ def dataset_shuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[lis
 
 def dataset_ishuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[list]):
     """
-        Shuffle the given attributes of a dataset across multiple processes. This will send half of the data to rank + 1.
-        Once the new data is received, it will be shuffled into the existing data on the process
+    Shuffle the given attributes of a dataset across multiple processes, using non-blocking communications.
+    This will send half of the data to rank + 1. The data must be received by the :func:`dataset_irecv` function.
 
-        Parameters
-        ----------
-        dataset : Dataset
-        attrs : List[List[str, str], ... ]
-            List of lists each of which contains 2 strings. The strings are the handles corresponding to the Dataset
-            attributes corresponding to the global data DNDarray and the local data of that array, i.e. [["htdata, "data"],]
-            would shuffle the htdata around and set the correct amount of data for the ``dataset.data`` attribute. For
-            multiple parameters multiple lists are required. I.e. [["htdata", "data"], ["httargets", "targets"]]
-        """
+    This function will be called by the DataLoader automatically if ``dataset.ishuffle = True``. This is set either
+    during the definition of the class of its initialization by a given paramete.
+
+    Parameters
+    ----------
+    dataset : Dataset
+    attrs : List[List[str, str], ... ]
+        List of lists each of which contains 2 strings. The strings are the handles corresponding to the Dataset
+        attributes corresponding to the global data DNDarray and the local data of that array, i.e. [["htdata, "data"],]
+        would shuffle the htdata around and set the correct amount of data for the ``dataset.data`` attribute. For
+        multiple parameters multiple lists are required. I.e. [["htdata", "data"], ["httargets", "targets"]]
+
+    Notes
+    -----
+    ``dataset.comm`` must be defined for this function to work.
+    """
     # attrs should have the form [[heat array, sliced array], [...], ...]
     #       i.e. [['htdata', 'data]]
     # assume that all of the attrs have the same dim0 shape as the local data
     comm = dataset.comm
-    setattr(dataset, "shuffle_prm", torch.randperm(dataset.htdata._DNDarray__array.shape[0]))
     ret_list = []
     for att in attrs:
         ld = getattr(dataset, att[0])._DNDarray__array
@@ -292,17 +304,30 @@ def dataset_ishuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[li
 
 
 def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
-    try:
-        rcv_list = getattr(dataset, "rcv_list")
-        prm = getattr(dataset, "shuffle_prm")
-        for rcv in rcv_list:
-            rcv[1].wait()
-            getattr(dataset, rcv[0][0])._DNDarray__array[: dataset.lcl_half] = rcv[2]
-            getattr(dataset, rcv[0][0])._DNDarray__array = getattr(
-                dataset, rcv[0][0]
-            )._DNDarray__array[prm]
-            setattr(
-                dataset, rcv[0][1], getattr(dataset, rcv[0][0])._DNDarray__array[dataset._cut_slice]
-            )
-    except AttributeError:
-        raise AttributeError("no rcv list, was ishuffle called?")
+    """
+    Receive the data sent by the :func:`dataset_ishuffle` function. This will wait for the data and then shuffle the
+    data into the existing data on the process
+
+    This function will be called by the DataLoader automatically if ``dataset.ishuffle = True``. This is set either
+    during the definition of the class of its initialization by a given paramete.
+
+    Parameters
+    ----------
+    dataset : Dataset
+
+    Notes
+    -----
+    ``dataset.comm`` must be defined for this function to work.
+    """
+    setattr(dataset, "shuffle_prm", torch.randperm(dataset.htdata._DNDarray__array.shape[0]))
+    rcv_list = getattr(dataset, "rcv_list")
+    prm = getattr(dataset, "shuffle_prm")
+    for rcv in rcv_list:
+        rcv[1].wait()
+        getattr(dataset, rcv[0][0])._DNDarray__array[: dataset.lcl_half] = rcv[2]
+        getattr(dataset, rcv[0][0])._DNDarray__array = getattr(dataset, rcv[0][0])._DNDarray__array[
+            prm
+        ]
+        setattr(
+            dataset, rcv[0][1], getattr(dataset, rcv[0][0])._DNDarray__array[dataset._cut_slice]
+        )
