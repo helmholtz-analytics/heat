@@ -6,6 +6,8 @@ class KMeans(_KCluster):
     def __init__(self, n_clusters=8, init="random", max_iter=300, tol=1e-4, random_state=None):
         """
         K-Means clustering algorithm. An implementation of Lloyd's algorithm [1].
+        Uses the Euclidean (:math:`L_2`) metric for distance calculations
+
 
         Parameters
         ----------
@@ -13,7 +15,7 @@ class KMeans(_KCluster):
             The number of clusters to form as well as the number of centroids to generate.
         init : {‘random’ or an ndarray}
             Method for initialization, defaults to ‘random’:
-            ‘k-means++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
+            ‘k-means++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence.
             ‘random’: choose k observations (rows) at random from data for the initial centroids.
             If an ht.DNDarray is passed, it should be of shape (n_clusters, n_features) and gives the initial centers.
         max_iter : int, default: 300
@@ -54,6 +56,16 @@ class KMeans(_KCluster):
         )
 
     def _update_centroids(self, X, matching_centroids):
+        """
+        Compute coordinates of new centroid ``ci`` as mean of the data points in ``X`` that are assigned to  ``ci``
+        Parameters
+        ----------
+        X :  DNDarray
+            Input data
+        matching_centroids : DNDarray
+            Array filled with indeces ``i`` indicating to which cluster ``ci`` each sample point in X is assigned
+
+        """
         new_cluster_centers = self._cluster_centers.copy()
         for i in range(self.n_clusters):
             # points in current cluster

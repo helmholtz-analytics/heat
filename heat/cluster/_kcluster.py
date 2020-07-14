@@ -3,7 +3,28 @@ import heat as ht
 
 class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
     """
-    Base class for k-statistics clustering algorithms (kmeans, kmedians, kmedoids)
+    Base class for k-statistics clustering algorithms (kmeans, kmedians, kmedoids).
+    The clusters are represented by centroids ci (we use the term from kmeans for simplicity)
+
+    Parameters
+    ----------
+    metric : function
+        One of the distance metrics in ht.spatial.distance. Needs to be passed as lambda function to take only two arrays as input
+    n_clusters : int
+        The number of clusters to form as well as the number of centroids to generate.
+    init : str or DNDarray
+        Method for initialization, defaults to ‘random’:
+            - ‘probability_based’ : selects initial cluster centers for the clustering in a smart way to speed up convergence (k-means++) \n
+            - ‘random’: choose k observations (rows) at random from data for the initial centroids. \n
+            - ``DNDarray``: gives the initial centers, should be of Shape = (n_clusters, n_features)
+    max_iter : int
+        Maximum number of iterations for a single run.
+    tol : float, default: 1e-4
+        Relative tolerance with regards to inertia to declare convergence.
+    random_state : int
+        Determines random number generation for centroid initialization.
+
+
     """
 
     def __init__(self, metric, n_clusters, init, max_iter, tol, random_state):
@@ -23,41 +44,28 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
     @property
     def cluster_centers_(self):
         """
-        Returns
-        -------
-        ht.DNDarray, shape =  [n_clusters, n_features]:
-            Coordinates of cluster centers. If the algorithm stops before fully converging (see tol and max_iter),
-            these will not be consistent with labels_.
+        Returns the coordinates of cluster centers.
         """
         return self._cluster_centers
 
     @property
     def labels_(self):
         """
-        Returns
-        -------
-        ht.DNDarray, shape = [n_points]:
-            Labels of each point.
+        Returns the labels of each point.
         """
         return self._labels
 
     @property
     def inertia_(self):
         """
-        Returns
-        -------
-        float:
-            Sum of squared distances of samples to their closest cluster center.
+        Returns sum of squared distances of samples to their closest cluster center.
         """
         return self._inertia
 
     @property
     def n_iter_(self):
         """
-        Returns
-        -------
-        int:
-            Number of iterations run.
+        Returns the number of iterations run.
         """
         return self._n_iter
 
@@ -67,8 +75,8 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.DNDarray, shape = [n_point, n_features]:
-            The data to initialize the clusters for.
+        X : DNDarray,
+            The data to initialize the clusters for. Shape = (n_point, n_features)
         """
         # always initialize the random state
         if self.random_state is not None:
@@ -184,12 +192,12 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
     def _assign_to_cluster(self, X):
         """
-        Assigns the passed data points to the centroids
+        Assigns the passed data points to the centroids based on the respective metric
 
         Parameters
         ----------
-        X : ht.DNDarray, shape = [n_samples, n_features]:
-            Data points
+        X : DNDarray
+            Data points, Shape = (n_samples, n_features)
         """
         # calculate the distance matrix and determine the closest centroid
         distances = self._metric(X, self._cluster_centers)
@@ -211,7 +219,16 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         """
         return NotImplementedError()
 
-    def fit(self, X, Y):
+    def fit(self, X):
+        """
+       Computes the centroid of the clustering algorithm to fit the data X. The full pipeline is algorithm specific.
+
+        Parameters
+        ----------
+        X : DNDarray
+            Training instances to cluster. Shape = (n_samples, n_features)
+
+        """
         return NotImplementedError()
 
     def predict(self, X):
@@ -223,14 +240,9 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : ht.DNDarray, shape = [n_samples, n_features]:
-            New data to predict.
-
-        Returns
-        -------
-        labels : ht.DNDarray, shape = [n_samples,]
-            Index of the cluster each sample belongs to.
-        """
+        X : DNDarray
+            New data to predict. Shape = (n_samples, n_features)
+       """
         # input sanitation
         if not isinstance(X, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
