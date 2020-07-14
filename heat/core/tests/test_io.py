@@ -2,10 +2,8 @@ import numpy as np
 import os
 import tempfile
 import torch
-import unittest
 
 import heat as ht
-
 from .test_suites.basic_test import TestCase
 
 

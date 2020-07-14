@@ -4,7 +4,7 @@ import numpy as np
 import math
 import torch
 import warnings
-from typing import List
+from typing import List, Union
 
 from . import arithmetics
 from . import devices
@@ -16,6 +16,7 @@ from . import linalg
 from . import logical
 from . import manipulations
 from . import memory
+from . import printing
 from . import relational
 from . import rounding
 from . import statistics
@@ -146,10 +147,7 @@ class DNDarray:
         size : int
             number of total elements of the tensor
         """
-        try:
-            return np.prod(self.__gshape)
-        except TypeError:
-            return 1
+        return torch.prod(torch.tensor(self.gshape, device=self.device.torch_device)).item()
 
     @property
     def gnumel(self):
@@ -1702,6 +1700,35 @@ class DNDarray:
         """
         return self.__array.item()
 
+    def kurtosis(self, axis=None, unbiased=True, Fischer=True):
+        """
+        Compute the kurtosis (Fisher or Pearson) of a dataset.
+        TODO: add return type annotation (DNDarray) and x annotation (DNDarray)
+
+        Kurtosis is the fourth central moment divided by the square of the variance.
+        If Fisher’s definition is used, then 3.0 is subtracted from the result to give 0.0 for a normal distribution.
+
+        If unbiased is True (defualt) then the kurtosis is calculated using k statistics to
+        eliminate bias coming from biased moment estimators
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            Input array
+        axis : NoneType or Int
+            Axis along which skewness is calculated, Default is to compute over the whole array `x`
+        unbiased : Bool
+            if True (default) the calculations are corrected for bias
+        Fischer : bool
+            Whether use Fischer's definition or not. If true 3. is subtracted from the result.
+
+        Warnings
+        --------
+        UserWarning: Dependent on the axis given and the split configuration a UserWarning may be thrown during this
+            function as data is transferred between processes
+        """
+        return statistics.kurtosis(self, axis, unbiased, Fischer)
+
     def __le__(self, other):
         """
         Element-wise rich comparison of relation "less than or equal" with values from second operand (scalar or tensor)
@@ -2391,10 +2418,11 @@ class DNDarray:
             self, tiles_per_proc=tiles_per_proc, calc_q=calc_q, overwrite_a=overwrite_a
         )
 
-    def __repr__(self, *args):
-        # TODO: document me
-        # TODO: generate none-PyTorch repr
-        return self.__array.__repr__(*args)
+    def __repr__(self) -> str:
+        """
+        Computes a printable representation of the passed DNDarray.
+        """
+        return printing.__str__(self)
 
     def redistribute_(self, lshape_map=None, target_map=None):
         """
@@ -3225,6 +3253,26 @@ class DNDarray:
         """
         return trigonometrics.sinh(self, out)
 
+    def skew(self, axis=None, unbiased=True):
+        """
+        Compute the sample skewness of a data set.
+
+        Parameters
+        ----------
+        x : ht.DNDarray
+            Input array
+        axis : NoneType or Int
+            Axis along which skewness is calculated, Default is to compute over the whole array `x`
+        unbiased : Bool
+            if True (default) the calculations are corrected for bias
+
+        Warnings
+        --------
+        UserWarning: Dependent on the axis given and the split configuration a UserWarning may be thrown during this
+            function as data is transferred between processes
+        """
+        return statistics.skew(self, axis, unbiased)
+
     def sqrt(self, out=None):
         """
         Return the non-negative square-root of the tensor element-wise.
@@ -3348,10 +3396,11 @@ class DNDarray:
         """
         return statistics.std(self, axis, ddof=ddof, **kwargs)
 
-    def __str__(self, *args):
-        # TODO: document me
-        # TODO: generate none-PyTorch str
-        return self.__array.__str__(*args)
+    def __str__(self) -> str:
+        """
+        Computes a string representation of the passed DNDarray.
+        """
+        return printing.__str__(self)
 
     def __sub__(self, other):
         """
