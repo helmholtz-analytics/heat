@@ -45,8 +45,6 @@ def __counter_sequence(
         The data type of the elements to be generated. Needs to be either ``torch.int32`` or ``torch.int64``.
     split : int or None
         The split axis along which the random number tensor is split
-    device : 'str'
-        Specifies the device the tensor shall be allocated on.
     comm: Communication
         Handle to the nodes holding distributed parts or copies of this tensor.
     """
@@ -352,7 +350,7 @@ def randint(
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
     # generate the random sequence
-    x_0, x_1, lshape, lslice = __counter_sequence(shape, dtype.torch_type(), split, device, comm)
+    x_0, x_1, lshape, lslice = __counter_sequence(shape, dtype.torch_type(), split, comm)
     if torch_dtype is torch.int32:
         x_0, x_1 = __threefry32(x_0, x_1)
     else:  # torch.int64

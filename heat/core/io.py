@@ -217,7 +217,7 @@ else:
             next_rank = (data.comm.rank + 1) % data.comm.size
             data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
 
-    DNDarray.save_hdf5 = lambda self, path, dataset, mode, **kwargs: save_hdf5(
+    DNDarray.save_hdf5 = lambda self, path, dataset, mode="w", **kwargs: save_hdf5(
         self, path, dataset, mode, **kwargs
     )
     DNDarray.save_hdf5.__doc__ = save_hdf5.__doc__
@@ -430,7 +430,7 @@ else:
             next_rank = (data.comm.rank + 1) % data.comm.size
             data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
 
-    DNDarray.save_netcdf = lambda self, path, variable, mode, **kwargs: save_netcdf(
+    DNDarray.save_netcdf = lambda self, path, variable, mode="w", **kwargs: save_netcdf(
         self, path, variable, mode, **kwargs
     )
     DNDarray.save_netcdf.__doc__ = save_netcdf.__doc__
