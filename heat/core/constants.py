@@ -1,13 +1,29 @@
-# Definition of HeAT Constants
 import torch
+
+from typing import Union
 
 __all__ = ["e", "Euler", "inf", "Inf", "Infty", "Infinity", "nan", "NaN", "pi", "sanitize_infinity"]
 
 INF = float("inf")
+"""
+:math:`\\infty`, infinity
+"""
 NAN = float("nan")
+"""
+Not a number
+"""
 NINF = -float("inf")
+"""
+:math:`-\\infty` Negative infinity
+"""
 PI = 3.141592653589793
+"""
+:math:`\\pi`, Archimedes' constant
+"""
 E = 2.718281828459045
+"""
+:math:`e`, Euler's number
+"""
 
 # aliases
 inf = Inf = Infty = Infinity = INF
@@ -16,7 +32,7 @@ pi = PI
 e = Euler = E
 
 
-def sanitize_infinity(dtype):
+def sanitize_infinity(dtype: torch.dtype) -> Union[int, float]:
     """
     Returns largest possible value for the specified datatype.
 

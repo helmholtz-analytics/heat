@@ -1,14 +1,16 @@
 import numpy as np
 import torch
-from typing import Tuple, Union
 
-from .communication import MPI
+from typing import Callable, Optional, Tuple, Union
+
 from . import factories
 from . import manipulations
 from . import operations
-from .dndarray import DNDarray
 from . import stride_tricks
 from . import types
+
+from .communication import MPI
+from .dndarray import DNDarray
 
 __all__ = [
     "all",
@@ -22,10 +24,16 @@ __all__ = [
 ]
 
 
-def all(x, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
+def all(
+    x: DNDarray,
+    axis: Union[int, Tuple[int], None] = None,
+    out: Optional[DNDarray] = None,
+    keepdim: bool = False,
+) -> Union[DNDarray, bool]:
     """
     Test whether all array elements along a given axis evaluate to ``True``.
-    A new boolean or :class:`~heat.core.dndarray.DNDarray` is returned unless out is specified, in which case a reference to ``out`` is returned.
+    A new boolean or :class:`~heat.core.dndarray.DNDarray` is returned unless out is specified, in which case a
+    reference to ``out`` is returned.
 
     Parameters
     -----------
@@ -38,6 +46,9 @@ def all(x, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
     out : DNDarray, optional
         Alternate output array in which to place the result. It must have the same shape as the expected output
         and its type is preserved.
+    keepdim : bool, optional
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
+        With this option, the result will broadcast correctly against the original array.
 
     Examples
     ---------
@@ -77,11 +88,15 @@ def all(x, axis=None, out=None, keepdim=None) -> Union[DNDarray, bool]:
     )
 
 
-DNDarray.all = lambda self, axis, out, keepdim: all(self, axis, out, keepdim)
+DNDarray.all: Callable[
+    [Union[int, Tuple[int], None], Optional[DNDarray], bool], Union[DNDarray, bool]
+] = lambda self, axis=None, out=None, keepdim=False: all(self, axis, out, keepdim)
 DNDarray.all.__doc__ = all.__doc__
 
 
-def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> bool:
+def allclose(
+    x: DNDarray, y: DNDarray, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False
+) -> bool:
     """
     Test whether two tensors are element-wise equal within a tolerance. Returns ``True`` if ``|x-y|<=atol+rtol*|y|``
     for all elements of ``x`` and ``y``, ``False`` otherwise
@@ -126,13 +141,17 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> bool:
     return bool(_local_allclose.item())
 
 
-DNDarray.allclose = lambda self, other, rtol, atol, equal_nan: allclose(
+DNDarray.allclose: Callable[
+    [DNDarray, DNDarray, float, float, bool], bool
+] = lambda self, other, rtol=1e-05, atol=1e-08, equal_nan=False: allclose(
     self, other, rtol, atol, equal_nan
 )
 DNDarray.allclose.__doc__ = all.__doc__
 
 
-def any(x, axis=None, out=None, keepdim=False) -> DNDarray:
+def any(
+    x, axis: Optional[int] = None, out: Optional[DNDarray] = None, keepdim: bool = False
+) -> DNDarray:
     """
     Test whether any array element along a given axis evaluates to ``True``.
     The returning array is one dimensional unless axis is not ``None``.
@@ -147,6 +166,9 @@ def any(x, axis=None, out=None, keepdim=False) -> DNDarray:
     out : DNDarray, optional
         Alternative output tensor in which to place the result. It must have the same shape as the expected output.
         The output is a array with ``datatype=bool``.
+    keepdim : bool, optional
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
+        With this option, the result will broadcast correctly against the original array.
 
     Examples
     ---------
@@ -175,11 +197,15 @@ def any(x, axis=None, out=None, keepdim=False) -> DNDarray:
     )
 
 
-DNDarray.any = lambda self, axis, out, keepdim: allclose(self, axis, out, keepdim)
+DNDarray.any: Callable[
+    [DNDarray, Optional[int], Optional[DNDarray], bool], DNDarray
+] = lambda self, axis=None, out=None, keepdim=False: allclose(self, axis, out, keepdim)
 DNDarray.any.__doc__ = any.__doc__
 
 
-def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> DNDarray:
+def isclose(
+    x: DNDarray, y: DNDarray, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False
+) -> DNDarray:
     """
     Returns a boolean :class:`~heat.core.dndarray.DNDarray`, with elements ``True`` where ``a`` and ``b`` are equal
     within the given tolerance. If both ``x`` and ``y`` are scalars, returns a single boolean value.
@@ -218,13 +244,15 @@ def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False) -> DNDarray:
     return result
 
 
-DNDarray.isclose = lambda self, other, rtol, atol, equal_nan: isclose(
+DNDarray.isclose: Callable[
+    [DNDarray, DNDarray, float, float, bool], DNDarray
+] = lambda self, other, rtol=1e-05, atol=1e-08, equal_nan=False: isclose(
     self, other, rtol, atol, equal_nan
 )
 DNDarray.isclose.__doc__ = isclose.__doc__
 
 
-def logical_and(t1, t2) -> DNDarray:
+def logical_and(t1: DNDarray, t2: DNDarray) -> DNDarray:
     """
     Compute the truth value of ``t1`` AND ``t2`` element-wise.
 
@@ -245,13 +273,13 @@ def logical_and(t1, t2) -> DNDarray:
     )
 
 
-def logical_not(t, out=None) -> DNDarray:
+def logical_not(t: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Computes the element-wise logical NOT of the given input :class:`~heat.core.dndarray.DNDarray` .
 
     Parameters
     -----------
-    t1: DNDarray
+    t: DNDarray
         Input array
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the expected output.
@@ -265,7 +293,7 @@ def logical_not(t, out=None) -> DNDarray:
     return operations.__local_op(torch.logical_not, t, out)
 
 
-def logical_or(t1, t2) -> DNDarray:
+def logical_or(t1: DNDarray, t2: DNDarray) -> DNDarray:
     """
     Compute the truth value of ``t1`` OR ``t2`` element-wise.
 
@@ -286,7 +314,7 @@ def logical_or(t1, t2) -> DNDarray:
     )
 
 
-def logical_xor(t1, t2) -> DNDarray:
+def logical_xor(t1: DNDarray, t2: DNDarray) -> DNDarray:
     """
     Computes the element-wise logical XOR of the given input :class:`~heat.core.dndarray.DNDarray` .
 
@@ -305,33 +333,50 @@ def logical_xor(t1, t2) -> DNDarray:
     return operations.__binary_op(torch.logical_xor, t1, t2)
 
 
-def __sanitize_close_input(x, y):
+def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray]:
     """
     Makes sure that both ``x`` and ``y`` are :class:`~heat.core.dndarray.DNDarray`.
     Provides copies of ``x`` and ``y`` distributed along the same split axis (if original split axes do not match).
+
+    Parameters
+    -----------
+    x : DNDarray
+        The left-hand side operand.
+    y : DNDarray
+        The right-hand side operand.
+
+    Raises
+    ------
+    TypeError
+        If ``x`` is neither.
     """
 
-    def sanitize_input_type(x, y):
+    def sanitize_input_type(
+        x: Union[int, float, DNDarray], y: Union[int, float, DNDarray]
+    ) -> DNDarray:
         """
-        Verifies that ``x`` is either a scalar, or a :class:`~heat.core.dndarray.DNDarray`.
-        If a scalar, ``x`` gets wrapped in a :class:`~heat.core.dndarray.DNDarray`.
-        Raises TypeError if ``x`` is neither.
+        Verifies that ``x`` and ``y`` are either scalar, or a :class:`~heat.core.dndarray.DNDarray`.
+        In the former case, the scalar is wrapped in a :class:`~heat.core.dndarray.DNDarray`.
+
+        Raises
+        ------
+        TypeError
+            If ``x`` or ``y`` are not
         """
         if not isinstance(x, DNDarray):
-            if np.ndim(x) == 0:
-                dtype = getattr(x, "dtype", float)
-                device = getattr(y, "device", None)
-                x = factories.array(x, dtype=dtype, device=device)
-            else:
+            if np.ndim(x) != 0:
                 raise TypeError("Expected DNDarray or numeric scalar, input was {}".format(type(x)))
+
+            dtype = getattr(x, "dtype", float)
+            device = getattr(y, "device", None)
+            x = factories.array(x, dtype=dtype, device=device)
 
         return x
 
     x = sanitize_input_type(x, y)
     y = sanitize_input_type(y, x)
 
-    # Do redistribution out-of-place
-    # If only one of the tensors is distributed, unsplit/gather it
+    # if one of the tensors is distributed, unsplit/gather it
     if x.split is not None and y.split is None:
         t1 = manipulations.resplit(x, axis=None)
         return t1, y
