@@ -2,7 +2,6 @@ import heat as ht
 import torch
 import unittest
 
-from heat.core.tests.test_suites.basic_test import TestCase
 import heat.nn.functional as F
 
 
@@ -41,7 +40,7 @@ class TestDataParallel(unittest.TestCase):
 
         # create model and move it to GPU with id rank
         model = TestModel()
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
+        optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
 
         ht.random.seed(1)
         torch.random.manual_seed(1)
@@ -68,7 +67,7 @@ class TestDataParallel(unittest.TestCase):
                     self.assertTrue(torch.all(hld_list[0] == hld_list[i]))
 
         model = TestModel()
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
+        optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
 
         ht.random.seed(1)
         torch.random.manual_seed(1)
