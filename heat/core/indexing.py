@@ -1,4 +1,5 @@
 import torch
+from typing import List, Dict, Any, TypeVar, Union, Tuple, Sequence
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -8,7 +9,7 @@ from . import types
 __all__ = ["nonzero", "where"]
 
 
-def nonzero(a) -> DNDarray:
+def nonzero(a: DNDarray) -> DNDarray:
     """
     Return the indices of the elements that are non-zero. (using ``torch.nonzero``)
     If ``a`` is split then the result is split in the 0th dimension. However, this :class:`~heat.core.dndarray.DNDarray`
@@ -89,7 +90,11 @@ DNDarray.nonzero = lambda self: nonzero(self)
 DNDarray.nonzero.__doc__ = nonzero.__doc__
 
 
-def where(cond, x=None, y=None) -> DNDarray:
+def where(
+    cond: DNDarray,
+    x: Union[None, int, float, DNDarray] = None,
+    y: Union[None, int, float, DNDarray] = None,
+) -> DNDarray:
     """
     Return elements chosen from ``x`` or ``y`` depending on condition.
     Result is a :class:`~heat.core.dndarray.DNDarray` with elements from ``x`` where cond is ``True``,
@@ -99,9 +104,9 @@ def where(cond, x=None, y=None) -> DNDarray:
     ----------
     cond : DNDarray
         Condition of interest, where true yield ``x`` otherwise yield ``y``
-    x : DNDarray or int or float
+    x : DNDarray or int or float, optional
         Values from which to choose. ``x``, ``y`` and condition need to be broadcastable to some shape.
-    y : DNDarray or int or float
+    y : DNDarray or int or float, optional
         Values from which to choose. ``x``, ``y`` and condition need to be broadcastable to some shape.
 
     Notes
