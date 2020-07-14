@@ -3,11 +3,18 @@ from ..core.dndarray import DNDarray
 from ..core.communication import Communication
 from ..core.devices import Device
 from ..core.types import datatype
+from typing import Union
 
 __all__ = ["parter"]
 
 
-def parter(n, split=None, device=None, comm=None, dtype=core.float32) -> DNDarray:
+def parter(
+    n: int,
+    split: Union[None, int] = None,
+    device: Union[None, str, Device] = None,
+    comm: Union[None, Communication] = None,
+    dtype: datatype = core.float32,
+) -> DNDarray:
     """
     Generates the Parter matrix, a Toeplitz matrix that has the interesting property of having its singular values cluster at
     pi. The matrix has been named so by Cleve Moler in recognition of Seymour Parter's proof of this fact.
@@ -18,9 +25,9 @@ def parter(n, split=None, device=None, comm=None, dtype=core.float32) -> DNDarra
         size of the resulting square matrix
     split: None or int, optional
         The axis along which the array content is split and distributed in memory.
-    device: str or Device, optional
+    device: None or str or Device, optional
         Specifies the device the tensor shall be allocated on, defaults globally set default device.
-    comm: Communication, optional
+    comm: None or Communication, optional
         Handle to the nodes holding distributed tensor chunks.
     dtype: datatype, optional
         The desired data-type for the array, defaults to ht.float64.
