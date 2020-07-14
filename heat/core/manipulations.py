@@ -70,7 +70,7 @@ def column_stack(arrays):
     >>> # 1-D tensors
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([2, 3, 4])
-    >>> ht.column_stack((a, b))
+    >>> ht.column_stack((a, b))._DNDarray__array
     tensor([[1, 2],
         [2, 3],
         [3, 4]])
@@ -78,7 +78,7 @@ def column_stack(arrays):
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([[2, 5], [3, 6], [4, 7]])
     >>> c = ht.array([[7, 10], [8, 11], [9, 12]])
-    >>> ht.column_stack((a, b, c))
+    >>> ht.column_stack((a, b, c))._DNDarray__array
     tensor([[ 1,  2,  5,  7, 10],
             [ 2,  3,  6,  8, 11],
             [ 3,  4,  7,  9, 12]])
@@ -86,16 +86,16 @@ def column_stack(arrays):
     >>> a = ht.arange(10, split=0).reshape((5, 2))
     >>> b = ht.arange(5, 20, split=0).reshape((5, 3))
     >>> c = ht.arange(20, 40, split=0).reshape((5, 4))
-    >>> ht_column_stack((a, b, c))
-    [1,0] tensor([[ 0,  1,  5,  6,  7, 20, 21, 22, 23],
-    [1,0]         [ 2,  3,  8,  9, 10, 24, 25, 26, 27]], dtype=torch.int32)
-    [1,1] tensor([[ 4,  5, 11, 12, 13, 28, 29, 30, 31],
-    [1,1]         [ 6,  7, 14, 15, 16, 32, 33, 34, 35]], dtype=torch.int32)
-    [1,2] tensor([[ 8,  9, 17, 18, 19, 36, 37, 38, 39]], dtype=torch.int32)
+    >>> ht_column_stack((a, b, c))._DNDarray__array
+    [0/2] tensor([[ 0,  1,  5,  6,  7, 20, 21, 22, 23],
+    [0/2]         [ 2,  3,  8,  9, 10, 24, 25, 26, 27]], dtype=torch.int32)
+    [1/2] tensor([[ 4,  5, 11, 12, 13, 28, 29, 30, 31],
+    [1/2]         [ 6,  7, 14, 15, 16, 32, 33, 34, 35]], dtype=torch.int32)
+    [2/2] tensor([[ 8,  9, 17, 18, 19, 36, 37, 38, 39]], dtype=torch.int32)
     >>> # distributed 1-D and 2-D DNDarrays, 3 processes
     >>> a = ht.arange(5, split=0)
     >>> b = ht.arange(5, 20, split=1).reshape((5, 3))
-    >>> ht_column_stack((a, b))
+    >>> ht_column_stack((a, b))._DNDarray__array
     [0/2] tensor([[ 0,  5],
     [0/2]         [ 1,  8],
     [0/2]         [ 2, 11],
@@ -882,20 +882,20 @@ def hstack(tup):
     --------
     >>> a = ht.array((1,2,3))
     >>> b = ht.array((2,3,4))
-    >>> ht.hstack((a,b))
-    [0] tensor([1, 2, 3, 2, 3, 4])
-    [1] tensor([1, 2, 3, 2, 3, 4])
+    >>> ht.hstack((a,b))._DNDarray__array
+    [0/1] tensor([1, 2, 3, 2, 3, 4])
+    [1/1] tensor([1, 2, 3, 2, 3, 4])
     >>> a = ht.array((1,2,3), split=0)
     >>> b = ht.array((2,3,4), split=0)
-    >>> ht.hstack((a,b))
-    [0] tensor([1, 2, 3])
-    [1] tensor([2, 3, 4])
+    >>> ht.hstack((a,b))._DNDarray__array
+    [0/1] tensor([1, 2, 3])
+    [1/1] tensor([2, 3, 4])
     >>> a = ht.array([[1],[2],[3]], split=0)
     >>> b = ht.array([[2],[3],[4]], split=0)
-    >>> ht.hstack((a,b))
-    [0] tensor([[1, 2],
-    [0]         [2, 3]])
-    [1] tensor([[3, 4]])
+    >>> ht.hstack((a,b))._DNDarray__array
+    [0/1] tensor([[1, 2],
+    [0/1]         [2, 3]])
+    [1/1] tensor([[3, 4]])
     """
     tup = list(tup)
     axis = 1
@@ -1572,7 +1572,7 @@ def stack(arrays, axis=0, out=None):
     --------
     >>> a = ht.arange(20).reshape(4, 5)
     >>> b = ht.arange(20, 40).reshape(4, 5)
-    >>> ht.stack((a,b), axis=0)
+    >>> ht.stack((a,b), axis=0)._DNDarray__array
     tensor([[[ 0,  1,  2,  3,  4],
              [ 5,  6,  7,  8,  9],
              [10, 11, 12, 13, 14],
@@ -1585,7 +1585,7 @@ def stack(arrays, axis=0, out=None):
     >>> # distributed DNDarrays, 3 processes, stack along last dimension
     >>> a = ht.arange(20, split=0).reshape(4, 5)
     >>> b = ht.arange(20, 40, split=0).reshape(4, 5)
-    >>> ht.stack((a,b), axis=-1)
+    >>> ht.stack((a,b), axis=-1)._DNDarray__array
     [0/2] tensor([[[ 0, 20],
     [0/2]          [ 1, 21],
     [0/2]          [ 2, 22],
@@ -2047,14 +2047,14 @@ def row_stack(arrays):
     >>> # 1-D tensors
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([2, 3, 4])
-    >>> ht.row_stack((a, b))
+    >>> ht.row_stack((a, b))._DNDarray__array
     tensor([[1, 2, 3],
             [2, 3, 4]])
     >>> # 1-D and 2-D tensors
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([[2, 3, 4], [5, 6, 7]])
     >>> c = ht.array([[7, 8, 9], [10, 11, 12]])
-    >>> ht.row_stack((a, b, c))
+    >>> ht.row_stack((a, b, c))._DNDarray__array
     tensor([[ 1,  2,  3],
             [ 2,  3,  4],
             [ 5,  6,  7],
@@ -2064,7 +2064,7 @@ def row_stack(arrays):
     >>> a = ht.arange(10, split=0).reshape((2, 5))
     >>> b = ht.arange(5, 20, split=0).reshape((3, 5))
     >>> c = ht.arange(20, 40, split=0).reshape((4, 5))
-    >>> ht.row_stack((a, b, c))
+    >>> ht.row_stack((a, b, c))._DNDarray__array
     [0/2] tensor([[0, 1, 2, 3, 4],
     [0/2]         [5, 6, 7, 8, 9],
     [0/2]         [5, 6, 7, 8, 9]], dtype=torch.int32)
@@ -2077,7 +2077,7 @@ def row_stack(arrays):
     >>> # distributed 1-D and 2-D DNDarrays, 3 processes
     >>> a = ht.arange(5, split=0)
     >>> b = ht.arange(5, 20, split=0).reshape((3, 5))
-    >>> ht.row_stack((a, b))
+    >>> ht.row_stack((a, b))._DNDarray__array
     [0/2] tensor([[0, 1, 2, 3, 4],
     [0/2]         [5, 6, 7, 8, 9]])
     [1/2] tensor([[10, 11, 12, 13, 14]])
@@ -2125,28 +2125,27 @@ def vstack(tup):
     --------
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([2, 3, 4])
-    >>> ht.vstack((a,b))
-    [0] tensor([[1, 2, 3],
-    [0]         [2, 3, 4]])
-    [1] tensor([[1, 2, 3],
-    [1]         [2, 3, 4]])
+    >>> ht.vstack((a,b))._DNDarray__array
+    [0/1] tensor([[1, 2, 3],
+    [0/1]         [2, 3, 4]])
+    [1/1] tensor([[1, 2, 3],
+    [1/1]         [2, 3, 4]])
     >>> a = ht.array([1, 2, 3], split=0)
     >>> b = ht.array([2, 3, 4], split=0)
-    >>> ht.vstack((a,b))
-    [0] tensor([[1, 2],
-    [0]         [2, 3]])
-    [1] tensor([[3],
-    [1]         [4]])
+    >>> ht.vstack((a,b))._DNDarray__array
+    [0/1] tensor([[1, 2],
+    [0/1]         [2, 3]])
+    [1/1] tensor([[3],
+    [1/1]         [4]])
     >>> a = ht.array([[1], [2], [3]], split=0)
     >>> b = ht.array([[2], [3], [4]], split=0)
-    >>> ht.vstack((a,b))
-    [0] tensor([[1],
-    [0]         [2],
-    [0]         [3]])
-    [1] tensor([[2],
-    [1]         [3],
-    [1]         [4]])
-
+    >>> ht.vstack((a,b))._DNDarray__array
+    [0/1] tensor([[1],
+    [0/1]         [2],
+    [0/1]         [3]])
+    [1/1] tensor([[2],
+    [1/1]         [3],
+    [1/1]         [4]])
     """
     tup = list(tup)
     for cn, arr in enumerate(tup):
