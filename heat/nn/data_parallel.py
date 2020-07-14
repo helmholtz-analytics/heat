@@ -49,8 +49,6 @@ class DataParallel(tnn.Module):
         HeAT communicator to use
     optimizer : torch.optim.Optimizer
         Optimizer used for parameter updates.
-    scheduler : torch.optim.lr_scheduler (optional)
-        Scheduler used for parameter updates.
     blocking : bool (optional)
         Flag for blocking synchronization. If not given, synchronization is blocking by default.
     """
@@ -60,7 +58,6 @@ class DataParallel(tnn.Module):
         module: torch.nn.Module,
         comm: ht.MPICommunication,
         optimizer: torch.optim.Optimizer,
-        scheduler: torch.optim.lr_scheduler = None,
         blocking: bool = True,
     ):
         super(DataParallel, self).__init__()
@@ -68,8 +65,6 @@ class DataParallel(tnn.Module):
         self.comm = comm
         self.optimizer = optimizer
         self.blocking = blocking
-        if not self.blocking and scheduler is not None:
-            raise NotImplementedError("Nonblocking scheduler updates are not implemented yet.")
 
         self._layer_wait_handles = OrderedDict()
         self._fwd_hook_handles = list()
@@ -162,7 +157,6 @@ class DataParallel(tnn.Module):
         Force optimizer to update model parameters. For blocking, optimizer immediately updates parameters. For
         non-blocking, optimizer will update parameters during next forward.
         """
-
         if self.blocking:
             self.optimizer.step()
         else:
