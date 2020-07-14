@@ -1,9 +1,10 @@
+from .lr_scheduler import *
 import torch
 
 
-def func_getattr(name):
+def __getattr__(name):
     try:
-        return torch.nn.functional.__getattribute__(name)
+        return torch.optim.__getattribute__(name)
     except AttributeError:
         if name is not None:
             raise NotImplementedError("module not implemented in Torch Functional")
