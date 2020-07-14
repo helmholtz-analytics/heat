@@ -1123,7 +1123,7 @@ def __mm_c_block_setter(
                     c[c_start0 : c_start0 + mB, c_start1 : c_start1 + nB] += a_block @ b_block
 
 
-def transpose(a: DNDarray, axes: List[int, ...] = None) -> DNDarray:
+def transpose(a: DNDarray, axes: List[int] = None) -> DNDarray:
     """
     Permute the dimensions of an array.
 

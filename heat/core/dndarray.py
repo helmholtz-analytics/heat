@@ -6,17 +6,7 @@ import torch
 import warnings
 from typing import List, Union, Tuple
 
-from . import devices
-from . import factories
-from . import printing
-from . import stride_tricks
-from . import tiling
-
-from .devices import Device
-from .types import datatype, canonical_heat_type
-
-from .communication import MPI, Communication
-from .stride_tricks import sanitize_axis
+# NOTE: heat module imports need to be placed at the very end of the file to avoid cyclic dependencies
 
 warnings.simplefilter("always", ResourceWarning)
 
@@ -1283,3 +1273,17 @@ class DNDarray:
             return self.resplit(axis=None).__array.tolist()
 
         return self.__array.tolist()
+
+
+# HeAT imports at the end to break cyclic dependencies
+from . import devices
+from . import factories
+from . import printing
+from . import stride_tricks
+from . import tiling
+
+from .devices import Device
+from .types import datatype, canonical_heat_type
+
+from .communication import MPI, Communication
+from .stride_tricks import sanitize_axis

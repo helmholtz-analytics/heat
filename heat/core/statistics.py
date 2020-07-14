@@ -489,7 +489,7 @@ def kurtosis(
 
 
 DNDarray.kurtosis = lambda self, axis, unbiased, Fischer: kurtosis(self, axis, unbiased, Fischer)
-DNDarray.kustosis.__doc__ = average.__doc__
+DNDarray.kurtosis.__doc__ = average.__doc__
 
 
 def max(
@@ -686,7 +686,7 @@ def maximum(x1: DNDarray, x2: DNDarray, out: DNDarray = None) -> DNDarray:
     return lresult
 
 
-def mean(x: DNDarray, axis: Union[int, List[int, ...], Tuple[int, ...]] = None) -> DNDarray:
+def mean(x: DNDarray, axis: Union[int, List[int], Tuple[int]] = None) -> DNDarray:
     """
     Calculates and returns the mean of a ``DNDarray``.
     If an axis is given, the mean will be taken in that direction.
@@ -1542,10 +1542,7 @@ DNDarray.skew.__doc__ = skew.__doc__
 
 
 def std(
-    x: DNDarray,
-    axis: Union[int, Tuple[int, ...], List[int, ...]] = None,
-    ddof: int = 0,
-    **kwargs: object,
+    x: DNDarray, axis: Union[int, Tuple[int], List[int]] = None, ddof: int = 0, **kwargs: object
 ) -> DNDarray:
     """
     Calculates the standard deviation of a ``DNDarray`` with the bessel correction.
@@ -1664,10 +1661,7 @@ def __torch_kurtosis(
 
 
 def var(
-    x: DNDarray,
-    axis: Union[int, Tuple[int, ...], List[int, ...]] = None,
-    ddof: int = 0,
-    **kwargs: object,
+    x: DNDarray, axis: Union[int, Tuple[int], List[int]] = None, ddof: int = 0, **kwargs: object
 ) -> DNDarray:
     """
     Calculates and returns the variance of a ``DNDarray``. If an axis is given, the variance will be
@@ -1806,4 +1800,4 @@ def var(
 
 
 DNDarray.var = lambda self, axis, ddof, **kwargs: var(self, axis, ddof, **kwargs)
-DNDarray.bar.__doc__ = var.__doc__
+DNDarray.var.__doc__ = var.__doc__
