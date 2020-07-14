@@ -1531,7 +1531,7 @@ def stack(arrays, axis=0, out=None):
 
     The ``axis`` parameter specifies the index of the new axis in the dimensions of the result.
     For example, if ``axis=0``, the arrays will be stacked along the first dimension; if ``axis=-1``,
-    they will be stacked along the last dimension.
+    they will be stacked along the last dimension. See Notes below for split semantics.
 
     Parameters
     ----------
