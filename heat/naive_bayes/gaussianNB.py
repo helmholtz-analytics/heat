@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Tuple
+from typing import Tuple, Union
 import heat as ht
 from heat.core.dndarray import DNDarray
 import torch
@@ -65,7 +65,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         self.priors = priors
         self.var_smoothing = var_smoothing
 
-    def fit(self, x, y, sample_weight=None):
+    def fit(self, x: DNDarray, y: DNDarray, sample_weight: Union[None, DNDarray] = None):
         """
         Fit Gaussian Naive Bayes according to ``X`` and ``y``
 
