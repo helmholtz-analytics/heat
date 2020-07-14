@@ -1,4 +1,5 @@
 import torch
+from typing import List, Dict, Any, TypeVar, Union, Tuple, Sequence
 
 from . import operations
 from .dndarray import DNDarray
@@ -6,7 +7,7 @@ from .dndarray import DNDarray
 __all__ = ["exp", "expm1", "exp2", "log", "log2", "log10", "log1p", "sqrt"]
 
 
-def exp(x, out=None) -> DNDarray:
+def exp(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     """
     Calculate the exponential of all elements in the input array.
     Result is a :class:`DNDarray` of the same shape as ``x``.
@@ -31,7 +32,7 @@ DNDarray.exp = lambda self, out: exp(self, out)
 DNDarray.exp.__doc__ = exp.__doc__
 
 
-def expm1(x, out=None) -> DNDarray:
+def expm1(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     """
     Calculate :math:`exp(x)-1` for all elements in the array.
     Result is a :class:`DNDarray` of the same shape as ``x``.
@@ -56,7 +57,7 @@ DNDarray.expm1 = lambda self, out: expm1(self, out)
 DNDarray.expm1.__doc__ = expm1.__doc__
 
 
-def exp2(x, out=None) -> DNDarray:
+def exp2(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     """
     Calculate the exponential of two of all elements in the input array (``2**x``) .
     Result is a :class:`DNDarray` of the same shape as ``x``.
@@ -85,7 +86,7 @@ DNDarray.exp2 = lambda self, out: exp2(self, out)
 DNDarray.exp2.__doc__ = exp2.__doc__
 
 
-def log(x, out=None) -> DNDarray:
+def log(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     """
     Natural logarithm, element-wise.
     The natural logarithm is the inverse of the exponential function, so that ``log(exp(x))=x``. The natural
@@ -112,7 +113,7 @@ DNDarray.log = lambda self, out: log(self, out)
 DNDarray.log.__doc__ = log.__doc__
 
 
-def log2(x, out=None) -> DNDarray:
+def log2(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     """
     log base 2, element-wise.
     Result is a :class:`DNDarray` of the same shape as ``x``.
@@ -138,7 +139,7 @@ DNDarray.log2 = lambda self, out: log2(self, out)
 DNDarray.log2.__doc__ = log2.__doc__
 
 
-def log10(x, out=None) -> DNDarray:
+def log10(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     """
     log base 10, element-wise.
     Result is a :class:`DNDarray` of the same shape as ``x``.
@@ -164,7 +165,7 @@ DNDarray.log10 = lambda self, out: log10(self, out)
 DNDarray.log10.__doc__ = log10.__doc__
 
 
-def log1p(x, out=None) -> DNDarray:
+def log1p(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     """
     Return the natural logarithm of one plus the input array, element-wise.
     Result is a :class:`DNDarray` of the same shape as ``x``.
@@ -190,7 +191,7 @@ DNDarray.log1p = lambda self, out: log1p(self, out)
 DNDarray.log1p.__doc__ = log1p.__doc__
 
 
-def sqrt(x, out=None) -> DNDarray:
+def sqrt(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     """
     Return the non-negative square-root of a tensor element-wise.
     Result is a :class:`DNDarray` of the same shape as ``x``.
