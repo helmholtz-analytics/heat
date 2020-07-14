@@ -2,3 +2,4 @@ ignore:
   - "heat/core/regression/lasso/demo.py"
   - "heat/core/regression/lasso/plotfkt.py"
   - "heat/examples/*"
+  - "heat/utils/data/mnist.py"
