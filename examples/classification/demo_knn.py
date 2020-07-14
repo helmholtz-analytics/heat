@@ -101,6 +101,13 @@ def create_fold(dataset_x, dataset_y, size, seed=None):
     fold_y = ht.array(dataset_y[indices], is_split=0)
     verification_y = ht.array(dataset_y[verification_indices], is_split=0)
     verification_x = ht.array(dataset_x[verification_indices], is_split=0)
+
+    # Balance arrays
+    fold_x.balance_()
+    fold_y.balance_()
+    verification_y.balance_()
+    verification_x.balance_()
+
     return fold_x, fold_y, verification_x, verification_y
 
 
