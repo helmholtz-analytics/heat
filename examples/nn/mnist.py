@@ -1,24 +1,23 @@
 from __future__ import print_function
 import argparse
 import torch
-import torch.nn.functional as F
-import torch.optim as optim
 import sys
 
-from torch.optim.lr_scheduler import StepLR
-
 sys.path.append("../../")
-
 import heat as ht
+import heat.nn.functional as F
+import heat.optim as optim
+from heat.optim.lr_scheduler import StepLR
 from heat.utils import vision_transforms
 from heat.utils.data.mnist import MNISTDataset
 
+import time
+
 """
+
 This file is an example script for how to use the HeAT DataParallel class to train a network on the MNIST dataset.
 To run this file execute:
-
 mpirun -np N python mnist.py
-
 where N is the number of processes, in the examples/nn/ directory
 """
 
@@ -59,15 +58,15 @@ def train(args, model, device, train_loader, optimizer, epoch):
         loss.backward()
         model.update()
         if batch_idx % args.log_interval == 0:
-            print(
-                "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
-                    epoch,
-                    batch_idx * len(data),
-                    len(train_loader.dataset),
-                    100.0 * batch_idx / len(train_loader),
-                    loss.item(),
-                )
-            )
+            # print(
+            #     "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
+            #         epoch,
+            #         batch_idx * len(data),
+            #         len(train_loader.dataset),
+            #         100.0 * batch_idx / len(train_loader),
+            #         loss.item(),
+            #     )
+            # )
             if args.dry_run:
                 break
 
@@ -83,9 +82,7 @@ def test(model, device, test_loader):
             test_loss += F.nll_loss(output, target, reduction="sum").item()  # sum up batch loss
             pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
-
     test_loss /= len(test_loader.dataset)
-
     print(
         "\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n".format(
             test_loss, correct, len(test_loader.dataset), 100.0 * correct / len(test_loader.dataset)
@@ -146,30 +143,26 @@ def main():
     )
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
-
     torch.manual_seed(args.seed)
-
     device = torch.device("cuda" if use_cuda else "cpu")
-
     kwargs = {"batch_size": args.batch_size}
     if use_cuda:
         kwargs.update({"num_workers": 1, "pin_memory": True, "shuffle": True})
-
     transform = ht.utils.vision_transforms.Compose(
         [vision_transforms.ToTensor(), vision_transforms.Normalize((0.1307,), (0.3081,))]
     )
-    dataset1 = MNISTDataset("../../heat/utils/data/datasets", train=True, transform=transform)
-    dataset2 = MNISTDataset("../../heat/utils/data/datasets", train=False, transform=transform)
+    dataset1 = MNISTDataset(
+        "../../heat/utils/data/datasets", train=True, transform=transform, ishuffle=True
+    )
+    dataset2 = MNISTDataset(
+        "../../heat/utils/data/datasets", train=False, transform=transform, ishuffle=True
+    )
     train_loader = ht.utils.data.datatools.DataLoader(dataset1.data, lcl_dataset=dataset1, **kwargs)
     test_loader = ht.utils.data.datatools.DataLoader(dataset2.data, lcl_dataset=dataset2, **kwargs)
-
     tmodel = Net().to(device)
     optimizer = optim.Adadelta(tmodel.parameters(), lr=args.lr)
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
-    model = ht.nn.DataParallel(
-        tmodel, comm=dataset1.comm, optimizer=optimizer, scheduler=scheduler, blocking=True
-    )
-
+    model = ht.nn.DataParallel(tmodel, comm=dataset1.comm, optimizer=optimizer, blocking=False)
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader)
@@ -183,4 +176,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    out = []
+    for _ in range(5):
+        t = time.perf_counter()
+        main()
+        out.append(time.perf_counter() - t)
+    print(out, sum(out) / 5.0)

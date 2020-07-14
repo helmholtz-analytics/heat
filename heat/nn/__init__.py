@@ -16,5 +16,4 @@ def __getattr__(name):
         try:
             unittest.__getattribute__(name)
         except AttributeError:
-            print("here", name)
-            raise NotImplementedError("module not implemented in Torch or Heat")
+            raise AttributeError(f"module {name} not implemented in Torch or Heat")

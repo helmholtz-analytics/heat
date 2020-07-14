@@ -157,7 +157,6 @@ class DataParallel(tnn.Module):
         Force optimizer to update model parameters. For blocking, optimizer immediately updates parameters. For
         non-blocking, optimizer will update parameters during next forward.
         """
-
         if self.blocking:
             self.optimizer.step()
         else:

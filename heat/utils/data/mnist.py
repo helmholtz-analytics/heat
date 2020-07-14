@@ -13,8 +13,8 @@ __all__ = ["MNISTDataset"]
 class MNISTDataset(datasets.MNIST):
     """
     Dataset wrapper for :class:`torchvision.datasets.MNIST`. This implements all of the required functions mentioned in
-    :class:`heat.utils.data.Dataset`. It also re-implements the ``__getitem__`` and ``__len__`` functions which can be
-    inherited from :class:`torchvision.datasets.MNIST`, however it is more efficient to have the here.
+    :class:`heat.utils.data.Dataset`. The ``__getitem__`` and ``__len__`` functions are inherited from
+    :class:`torchvision.datasets.MNIST`.
 
     Parameters
     ----------
@@ -95,25 +95,6 @@ class MNISTDataset(datasets.MNIST):
             self.data = array._DNDarray__array
 
             self.targets = targets._DNDarray__array
-
-    # getitem and len can be taken care of torch MNIST but its faster to have them here
-    def __getitem__(self, index: Union[int, slice, tuple, torch.Tensor]) -> torch.Tensor:
-        img, target = self.data[index], int(self.targets[index])
-
-        # doing this so that it is consistent with all other datasets
-        # to return a PIL Image
-        img = Image.fromarray(img.numpy(), mode="L")
-
-        if self.transform is not None:
-            img = self.transform(img)
-
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-
-        return img, target
-
-    def __len__(self) -> int:
-        return len(self.data)
 
     def Shuffle(self):
         """

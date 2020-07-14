@@ -6,6 +6,74 @@ from .test_suites.basic_test import TestCase
 
 
 class TestTrigonometrics(TestCase):
+    def test_arccos(self):
+        # base elements
+        elements = [-1.0, -0.83, -0.12, 0.0, 0.24, 0.67, 1.0]
+        comparison = torch.tensor(
+            elements, dtype=torch.float64, device=self.device.torch_device
+        ).acos()
+
+        # arccos of float32
+        float32_tensor = ht.array(elements, dtype=ht.float32)
+        float32_arccos = ht.acos(float32_tensor)
+        self.assertIsInstance(float32_arccos, ht.DNDarray)
+        self.assertEqual(float32_arccos.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_arccos._DNDarray__array.double(), comparison))
+
+        # arccos of float64
+        float64_tensor = ht.array(elements, dtype=ht.float64)
+        float64_arccos = ht.arccos(float64_tensor)
+        self.assertIsInstance(float64_arccos, ht.DNDarray)
+        self.assertEqual(float64_arccos.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_arccos._DNDarray__array.double(), comparison))
+
+        # arccos of value out of domain
+        nan_tensor = ht.array([1.2])
+        nan_arccos = ht.arccos(nan_tensor)
+        self.assertIsInstance(float64_arccos, ht.DNDarray)
+        self.assertEqual(nan_arccos.dtype, ht.float32)
+        self.assertTrue(math.isnan(nan_arccos._DNDarray__array.item()))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.arccos([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.arccos("hello world")
+
+    def test_arcsin(self):
+        # base elements
+        elements = [-1.0, -0.83, -0.12, 0.0, 0.24, 0.67, 1.0]
+        comparison = torch.tensor(
+            elements, dtype=torch.float64, device=self.device.torch_device
+        ).asin()
+
+        # arcsin of float32
+        float32_tensor = ht.array(elements, dtype=ht.float32)
+        float32_arcsin = ht.asin(float32_tensor)
+        self.assertIsInstance(float32_arcsin, ht.DNDarray)
+        self.assertEqual(float32_arcsin.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_arcsin._DNDarray__array.double(), comparison))
+
+        # arcsin of float64
+        float64_tensor = ht.array(elements, dtype=ht.float64)
+        float64_arcsin = ht.arcsin(float64_tensor)
+        self.assertIsInstance(float64_arcsin, ht.DNDarray)
+        self.assertEqual(float64_arcsin.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_arcsin._DNDarray__array.double(), comparison))
+
+        # arcsin of value out of domain
+        nan_tensor = ht.array([1.2])
+        nan_arcsin = ht.arcsin(nan_tensor)
+        self.assertIsInstance(float64_arcsin, ht.DNDarray)
+        self.assertEqual(nan_arcsin.dtype, ht.float32)
+        self.assertTrue(math.isnan(nan_arcsin._DNDarray__array.item()))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.arcsin([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.arcsin("hello world")
+
     def test_arctan(self):
         # base elements
         elements = 30
@@ -36,7 +104,7 @@ class TestTrigonometrics(TestCase):
 
         # arctan of longs, automatic conversion to intermediate floats
         int64_tensor = ht.arange(elements, dtype=ht.int64)
-        int64_arctan = ht.arctan(int64_tensor)
+        int64_arctan = ht.atan(int64_tensor)
         self.assertIsInstance(int64_arctan, ht.DNDarray)
         self.assertEqual(int64_arctan.dtype, ht.float64)
         self.assertTrue(torch.allclose(int64_arctan._DNDarray__array.double(), comparison))
@@ -62,7 +130,7 @@ class TestTrigonometrics(TestCase):
         float64_x = torch.randn(30, dtype=torch.float64, device=self.device.torch_device)
 
         float64_comparison = torch.atan2(float64_y, float64_x)
-        float64_arctan2 = ht.arctan2(ht.array(float64_y), ht.array(float64_x))
+        float64_arctan2 = ht.atan2(ht.array(float64_y), ht.array(float64_x))
 
         self.assertIsInstance(float64_arctan2, ht.DNDarray)
         self.assertEqual(float64_arctan2.dtype, ht.float64)
@@ -88,74 +156,6 @@ class TestTrigonometrics(TestCase):
         self.assertIsInstance(int16_arctan2, ht.DNDarray)
         self.assertEqual(int16_arctan2.dtype, ht.float32)
         self.assertTrue(ht.allclose(int16_arctan2, int16_comparison))
-
-    def test_arcsin(self):
-        # base elements
-        elements = [-1.0, -0.83, -0.12, 0.0, 0.24, 0.67, 1.0]
-        comparison = torch.tensor(
-            elements, dtype=torch.float64, device=self.device.torch_device
-        ).asin()
-
-        # arcsin of float32
-        float32_tensor = ht.array(elements, dtype=ht.float32)
-        float32_arcsin = ht.arcsin(float32_tensor)
-        self.assertIsInstance(float32_arcsin, ht.DNDarray)
-        self.assertEqual(float32_arcsin.dtype, ht.float32)
-        self.assertTrue(torch.allclose(float32_arcsin._DNDarray__array.double(), comparison))
-
-        # arcsin of float64
-        float64_tensor = ht.array(elements, dtype=ht.float64)
-        float64_arcsin = ht.arcsin(float64_tensor)
-        self.assertIsInstance(float64_arcsin, ht.DNDarray)
-        self.assertEqual(float64_arcsin.dtype, ht.float64)
-        self.assertTrue(torch.allclose(float64_arcsin._DNDarray__array.double(), comparison))
-
-        # arcsin of value out of domain
-        nan_tensor = ht.array([1.2])
-        nan_arcsin = ht.arcsin(nan_tensor)
-        self.assertIsInstance(float64_arcsin, ht.DNDarray)
-        self.assertEqual(nan_arcsin.dtype, ht.float32)
-        self.assertTrue(math.isnan(nan_arcsin._DNDarray__array.item()))
-
-        # check exceptions
-        with self.assertRaises(TypeError):
-            ht.arcsin([1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.arcsin("hello world")
-
-    def test_arccos(self):
-        # base elements
-        elements = [-1.0, -0.83, -0.12, 0.0, 0.24, 0.67, 1.0]
-        comparison = torch.tensor(
-            elements, dtype=torch.float64, device=self.device.torch_device
-        ).acos()
-
-        # arccos of float32
-        float32_tensor = ht.array(elements, dtype=ht.float32)
-        float32_arccos = ht.arccos(float32_tensor)
-        self.assertIsInstance(float32_arccos, ht.DNDarray)
-        self.assertEqual(float32_arccos.dtype, ht.float32)
-        self.assertTrue(torch.allclose(float32_arccos._DNDarray__array.double(), comparison))
-
-        # arccos of float64
-        float64_tensor = ht.array(elements, dtype=ht.float64)
-        float64_arccos = ht.arccos(float64_tensor)
-        self.assertIsInstance(float64_arccos, ht.DNDarray)
-        self.assertEqual(float64_arccos.dtype, ht.float64)
-        self.assertTrue(torch.allclose(float64_arccos._DNDarray__array.double(), comparison))
-
-        # arccos of value out of domain
-        nan_tensor = ht.array([1.2])
-        nan_arccos = ht.arccos(nan_tensor)
-        self.assertIsInstance(float64_arccos, ht.DNDarray)
-        self.assertEqual(nan_arccos.dtype, ht.float32)
-        self.assertTrue(math.isnan(nan_arccos._DNDarray__array.item()))
-
-        # check exceptions
-        with self.assertRaises(TypeError):
-            ht.arccos([1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.arccos("hello world")
 
     def test_degrees(self):
         # base elements
