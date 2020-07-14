@@ -7,6 +7,9 @@ import heat.nn.functional as F
 
 class TestDataParallel(unittest.TestCase):
     def test_data_parallel(self):
+        with self.assertRaises(TypeError):
+            ht.utils.data.datatools.DataLoader("asdf")
+
         class TestModel(ht.nn.Module):
             def __init__(self):
                 super(TestModel, self).__init__()
