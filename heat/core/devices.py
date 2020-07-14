@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import torch
 
+from typing import Optional, Union
+
 from . import communication
 
 
@@ -31,27 +33,27 @@ class Device:
     device(cpu:0)
     """
 
-    def __init__(self, device_type, device_id, torch_device):
+    def __init__(self, device_type: str, device_id: int, torch_device: str):
         self.__device_type = device_type
         self.__device_id = device_id
         self.__torch_device = torch_device
 
     @property
-    def device_type(self):
+    def device_type(self) -> str:
         return self.__device_type
 
     @property
-    def device_id(self):
+    def device_id(self) -> int:
         return self.__device_id
 
     @property
-    def torch_device(self):
+    def torch_device(self) -> str:
         return self.__torch_device
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "device({})".format(self.__str__())
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "{}:{}".format(self.device_type, self.device_id)
 
 
@@ -82,7 +84,7 @@ def get_device() -> Device:
     return __default_device
 
 
-def sanitize_device(device) -> Device:
+def sanitize_device(device: Union[str, Device]) -> Device:
     """
     Sanitizes a device or device identifier, i.e. checks whether it is already an instance of :class:`Device` or a string with
     known device identifier and maps it to a proper ``Device``.
@@ -111,7 +113,7 @@ def sanitize_device(device) -> Device:
         )
 
 
-def use_device(device=None):
+def use_device(device: Optional[Union[str, Device]] = None) -> None:
     """
     Sets the globally used default device.
 

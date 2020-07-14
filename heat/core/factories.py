@@ -1,15 +1,17 @@
 import numpy as np
 import torch
-from typing import Union, Tuple, List, Sequence, TypeVar
+
+from typing import Callable, Iterable, List, Optional, Sequence, Tuple, Union
 
 from .communication import MPI, sanitize_comm, Communication
-from .stride_tricks import sanitize_axis, sanitize_shape
-from . import devices
-from .memory import sanitize_memory_layout
-from . import types
-from .dndarray import DNDarray
-from .types import datatype
 from .devices import Device
+from .dndarray import DNDarray
+from .memory import sanitize_memory_layout
+from .stride_tricks import sanitize_axis, sanitize_shape
+from .types import datatype
+
+from . import devices
+from . import types
 
 __all__ = [
     "arange",
@@ -29,7 +31,13 @@ __all__ = [
 heat_type = datatype
 
 
-def arange(*args, dtype=None, split=None, device=None, comm=None) -> DNDarray:
+def arange(
+    *args: List[Union[int, float]],
+    dtype: Optional[datatype] = None,
+    split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None
+) -> DNDarray:
     """
     Return evenly spaced values within a given interval.
     Values are generated within the half-open interval ``[start, stop)`` (in other words, the interval including `start`
@@ -130,15 +138,15 @@ def arange(*args, dtype=None, split=None, device=None, comm=None) -> DNDarray:
 
 
 def array(
-    obj,
-    dtype=None,
-    copy=True,
-    ndmin=0,
-    order="C",
-    split=None,
-    is_split=None,
-    device=None,
-    comm=None,
+    obj: Iterable,
+    dtype: Optional[datatype] = None,
+    copy: bool = True,
+    ndmin: int = 0,
+    order: str = "C",
+    split: Optional[int] = None,
+    is_split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
     Create a :class:`~heat.core.dndarray.DNDarray`.
@@ -163,7 +171,6 @@ def array(
         Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
         If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
         Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
-        #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     split : int or None, optional
         The axis along which the passed array content ``obj`` is split and distributed in memory. Mutually exclusive with
         ``is_split``.
@@ -208,7 +215,7 @@ def array(
             [3, 4, 5]])
     >>> b.strides
     (24, 8)
-    >>> b._DNDarray__array.storage() #TODO: implement ht.view()
+    >>> b._DNDarray__array.storage()
     0
     1
     2
@@ -222,7 +229,7 @@ def array(
             [3, 4, 5]])
     >>> c.strides
     (8, 16)
-    >>> c._DNDarray__array.storage() #TODO: implement ht.view()
+    >>> c._DNDarray__array.storage()
     0
     3
     1
@@ -242,7 +249,7 @@ def array(
     >>> b.strides
     (0/2) (8, 16)
     (1/2) (8, 16)
-    >>> b._DNDarray__array.storage() #TODO: implement ht.view()
+    >>> b._DNDarray__array.storage()
     (0/2) 0
           3
           1
@@ -258,6 +265,8 @@ def array(
           11
         [torch.LongStorage of size 6]
     """
+    # TODO: implement ht.view()
+    # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     # extract the internal tensor in case of a heat tensor
     if isinstance(obj, DNDarray):
         obj = obj._DNDarray__array
@@ -357,7 +366,14 @@ def array(
     return DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
 
 
-def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order="C") -> DNDarray:
+def empty(
+    shape: Union[int, Sequence[int]],
+    dtype: datatype = types.float32,
+    split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
+    order: str = "C",
+) -> DNDarray:
     """
     Returns a new uninitialized :class:`~heat.core.dndarray.DNDarray` of given shape and data type.
     May be allocated split up across multiple nodes along the specified axis.
@@ -379,7 +395,6 @@ def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order=
         Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
         If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
         Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
-        #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Examples
     --------
@@ -391,10 +406,18 @@ def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order=
     tensor([[ 0.0000e+00, -2.0000e+00,  3.3113e+35],
             [ 3.6902e+19,  1.2096e+04,  7.1846e+22]])
     """
+    # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     return __factory(shape, dtype, split, torch.empty, device, comm, order)
 
 
-def empty_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> DNDarray:
+def empty_like(
+    a: DNDarray,
+    dtype: Optional[datatype] = None,
+    split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
+    order: str = "C",
+) -> DNDarray:
     """
     Returns a new uninitialized :class:`~heat.core.dndarray.DNDarray` with the same type,
     shape and data distribution of given object. Data type and data distribution strategy can be explicitly overriden.
@@ -413,6 +436,11 @@ def empty_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> 
         defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
+    order: str, optional
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array.
+        Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
+        If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
 
     Examples
     --------
@@ -427,7 +455,14 @@ def empty_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> 
     return __factory_like(a, dtype, split, empty, device, comm, order=order)
 
 
-def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C") -> DNDarray:
+def eye(
+    shape: Union[int, Sequence[int]],
+    dtype: datatype = types.float32,
+    split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
+    order: str = "C",
+) -> DNDarray:
     """
 
     Returns a new 2-D :class:`~heat.core.dndarray.DNDarray` with ones on the diagonal and zeroes elsewhere
@@ -451,7 +486,6 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
         Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
         If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
         Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
-        #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Examples
     --------
@@ -463,6 +497,7 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
     tensor([[1, 0, 0],
             [0, 1, 0]], dtype=torch.int32)
     """
+    # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     # Determine the actual size of the resulting data
     gshape = shape
     if isinstance(gshape, int):
@@ -492,7 +527,15 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
     return DNDarray(data, gshape, types.canonical_heat_type(data.dtype), split, device, comm)
 
 
-def __factory(shape, dtype, split, local_factory, device, comm, order) -> DNDarray:
+def __factory(
+    shape: Union[int, Sequence[int]],
+    dtype: datatype,
+    split: Optional[int],
+    local_factory: Callable,
+    device: Device,
+    comm: Communication,
+    order: str,
+) -> DNDarray:
     """
     Abstracted factory function for HeAT :class:`~heat.core.dndarray.DNDarray` initialization.
 
@@ -506,11 +549,15 @@ def __factory(shape, dtype, split, local_factory, device, comm, order) -> DNDarr
         The axis along which the array is split and distributed.
     local_factory : function
         Function that creates the local PyTorch tensor for the DNDarray.
-    device : str
+    device : Device
         Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
     comm: Communication
         Handle to the nodes holding distributed parts or copies of this array.
-
+    order: str, optional
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array.
+        Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
+        If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
     """
     # clean the user input
     shape = sanitize_shape(shape)
@@ -524,10 +571,20 @@ def __factory(shape, dtype, split, local_factory, device, comm, order) -> DNDarr
     # create the torch data using the factory function
     data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
     data = sanitize_memory_layout(data, order=order)
+
     return DNDarray(data, shape, dtype, split, device, comm)
 
 
-def __factory_like(a, dtype, split, factory, device, comm, order="C", **kwargs) -> DNDarray:
+def __factory_like(
+    a: DNDarray,
+    dtype: datatype,
+    split: Optional[int],
+    factory: Callable,
+    device: Device,
+    comm: Communication,
+    order: str = "C",
+    **kwargs
+) -> DNDarray:
     """
     Abstracted '...-like' factory function for HeAT :class:`~heat.core.dndarray.DNDarray` initialization
 
@@ -550,8 +607,8 @@ def __factory_like(a, dtype, split, factory, device, comm, order="C", **kwargs) 
         Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
         If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
         Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
-        #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     """
+    # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     # determine the global shape of the object to create
     # attempt in this order: shape property, length of object or default shape (1,)
     try:
@@ -584,7 +641,13 @@ def __factory_like(a, dtype, split, factory, device, comm, order="C", **kwargs) 
 
 
 def full(
-    shape, fill_value, dtype=types.float32, split=None, device=None, comm=None, order="C"
+    shape: Union[int, Sequence[int]],
+    fill_value: Union[int, float],
+    dtype: datatype = types.float32,
+    split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
+    order: str = "C",
 ) -> DNDarray:
     """
     Return a new :class:`~heat.core.dndarray.DNDarray` of given shape and type, filled with ``fill_value``.
@@ -603,6 +666,11 @@ def full(
         Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
+    order: str, optional
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array.
+        Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
+        If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
 
     Examples
     --------
@@ -621,7 +689,13 @@ def full(
 
 
 def full_like(
-    a, fill_value, dtype=types.float32, split=None, device=None, comm=None, order="C"
+    a: DNDarray,
+    fill_value: Union[int, float],
+    dtype: datatype = types.float32,
+    split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
+    order: str = "C",
 ) -> DNDarray:
     """
     Return a full :class:`~heat.core.dndarray.DNDarray` with the same shape and type as a given array.
@@ -640,6 +714,11 @@ def full_like(
         Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
+    order: str, optional
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array.
+        Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
+        If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
 
     Examples
     --------
@@ -655,15 +734,15 @@ def full_like(
 
 
 def linspace(
-    start,
-    stop,
-    num=50,
-    endpoint=True,
-    retstep=False,
-    dtype=None,
-    split=None,
-    device=None,
-    comm=None,
+    start: Union[int, float],
+    stop: Union[int, float],
+    num: int = 50,
+    endpoint: bool = True,
+    retstep: bool = False,
+    dtype: Optional[datatype] = None,
+    split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
 ) -> Tuple[DNDarray, float]:
     """
     Returns num evenly spaced samples, calculated over the interval ``[start, stop]``. The endpoint of the interval can
@@ -737,7 +816,15 @@ def linspace(
 
 
 def logspace(
-    start, stop, num=50, endpoint=True, base=10.0, dtype=None, split=None, device=None, comm=None
+    start: Union[int, float],
+    stop: Union[int, float],
+    num: int = 50,
+    endpoint: bool = True,
+    base: float = 10.0,
+    dtype: Optional[datatype] = None,
+    split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
     Return numbers spaced evenly on a log scale.
@@ -792,7 +879,14 @@ def logspace(
     return pow(base, y).astype(dtype, copy=False)
 
 
-def ones(shape, dtype=types.float32, split=None, device=None, comm=None, order="C") -> DNDarray:
+def ones(
+    shape: Union[int, Sequence[int]],
+    dtype: datatype = types.float32,
+    split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
+    order: str = "C",
+) -> DNDarray:
     """
     Returns a new :class:`~heat.core.dndarray.DNDarray` of given shape and data type filled with one.
     May be allocated split up across multiple nodes along the specified axis.
@@ -813,7 +907,6 @@ def ones(shape, dtype=types.float32, split=None, device=None, comm=None, order="
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``, meaning the array
         will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
         Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
-        #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Examples
     --------
@@ -825,10 +918,18 @@ def ones(shape, dtype=types.float32, split=None, device=None, comm=None, order="
     tensor([[1., 1., 1.],
             [1., 1., 1.]])
     """
+    # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     return __factory(shape, dtype, split, torch.ones, device, comm, order)
 
 
-def ones_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> DNDarray:
+def ones_like(
+    a: DNDarray,
+    dtype: Optional[datatype] = None,
+    split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
+    order: str = "C",
+) -> DNDarray:
     """
     Returns a new :class:`~heat.core.dndarray.DNDarray` filled with ones with the same type,
     shape and data distribution of given object. Data type and data distribution strategy can be explicitly overriden.
@@ -845,6 +946,10 @@ def ones_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> D
         Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
+    order: str, optional
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``, meaning the array
+        will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
+        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
 
     Examples
     --------
@@ -859,7 +964,14 @@ def ones_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> D
     return __factory_like(a, dtype, split, ones, device, comm, order=order)
 
 
-def zeros(shape, dtype=types.float32, split=None, device=None, comm=None, order="C") -> DNDarray:
+def zeros(
+    shape: Union[int, Sequence[int]],
+    dtype: datatype = types.float32,
+    split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
+    order: str = "C",
+) -> DNDarray:
     """
     Returns a new :class:`~heat.core.dndarray.DNDarray` of given shape and data type filled with zero values.
     May be allocated split up across multiple nodes along the specified axis.
@@ -880,7 +992,6 @@ def zeros(shape, dtype=types.float32, split=None, device=None, comm=None, order=
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``, meaning the array
         will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
         Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
-        #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Examples
     --------
@@ -892,10 +1003,18 @@ def zeros(shape, dtype=types.float32, split=None, device=None, comm=None, order=
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
     """
+    # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     return __factory(shape, dtype, split, torch.zeros, device, comm, order=order)
 
 
-def zeros_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> DNDarray:
+def zeros_like(
+    a: DNDarray,
+    dtype: Optional[datatype] = None,
+    split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
+    order: str = "C",
+) -> DNDarray:
     """
     Returns a new :class:`~heat.core.dndarray.DNDarray` filled with zeros with the same type, shape and data
     distribution of given object. Data type and data distribution strategy can be explicitly overriden.
@@ -916,7 +1035,6 @@ def zeros_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> 
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``, meaning the array
         will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
         Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
-        #TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
 
     Examples
     --------
@@ -928,4 +1046,5 @@ def zeros_like(a, dtype=None, split=None, device=None, comm=None, order="C") -> 
     tensor([[0., 0., 0.],
             [0., 0., 0.]])
     """
+    # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     return __factory_like(a, dtype, split, zeros, device, comm, order=order)
