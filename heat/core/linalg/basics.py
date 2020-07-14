@@ -1,6 +1,6 @@
 import itertools
 import torch
-from typing import List, Callable, Any, TypeVar, Union
+from typing import List, Callable, Union, Optional
 
 from ..communication import MPI
 from .. import arithmetics
@@ -13,7 +13,7 @@ from .. import types
 __all__ = ["dot", "matmul", "norm", "outer", "projection", "transpose", "tril", "triu"]
 
 
-def dot(a: DNDarray, b: DNDarray, out: DNDarray = None) -> Union[DNDarray, float]:
+def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDarray, float]:
     """
     Returns the dot product of two ``DNDarrays``.
     Specifically,
@@ -28,7 +28,8 @@ def dot(a: DNDarray, b: DNDarray, out: DNDarray = None) -> Union[DNDarray, float
     ----------
     a : DNDarray
     b : DNDarray
-
+    out : DNDarray, optional
+        place to put the result
     """
     if isinstance(a, (float, int)) or isinstance(b, (float, int)) or a.ndim == 0 or b.ndim == 0:
         # 3. If either a or b is 0-D (scalar), it is equivalent to multiply and using numpy.multiply(a, b) or a * b is preferred.
@@ -66,7 +67,7 @@ def dot(a: DNDarray, b: DNDarray, out: DNDarray = None) -> Union[DNDarray, float
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
 
-def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
+def matmul(a: DNDarray, b: DNDarray, allow_resplit: Optional[bool] = False) -> DNDarray:
     """
     Matrix multiplication of two ``DNDarrays``: ``a@b=c`` or ``A@B=c``.
     Returns a tensor with the result of ``a@b``. The split dimension of the returned array is
@@ -107,31 +108,31 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     -------
     >>> a = ht.ones((n, m), split=1)
     >>> a[0] = ht.arange(1, m + 1)
-    >>> a[:, -1] = ht.arange(1, n + 1)
-    (0/1) tensor([[1., 2.],
+    >>> a[:, -1] = ht.arange(1, n + 1)._DNDarray__array
+    [0/1] tensor([[1., 2.],
                   [1., 1.],
                   [1., 1.],
                   [1., 1.],
                   [1., 1.]])
-    (1/1) tensor([[3., 1.],
+    [1/1] tensor([[3., 1.],
                   [1., 2.],
                   [1., 3.],
                   [1., 4.],
                   [1., 5.]])
     >>> b = ht.ones((j, k), split=0)
     >>> b[0] = ht.arange(1, k + 1)
-    >>> b[:, 0] = ht.arange(1, j + 1)
-    (0/1) tensor([[1., 2., 3., 4., 5., 6., 7.],
+    >>> b[:, 0] = ht.arange(1, j + 1)._DNDarray__array
+    [0/1] tensor([[1., 2., 3., 4., 5., 6., 7.],
                   [2., 1., 1., 1., 1., 1., 1.]])
-    (1/1) tensor([[3., 1., 1., 1., 1., 1., 1.],
+    [1/1] tensor([[3., 1., 1., 1., 1., 1., 1.],
                   [4., 1., 1., 1., 1., 1., 1.]])
-    >>> linalg.matmul(a, b)
-    (0/1) tensor([[18.,  8.,  9., 10.],
+    >>> linalg.matmul(a, b)._DNDarray__array
+    [0/1] tensor([[18.,  8.,  9., 10.],
                   [14.,  6.,  7.,  8.],
                   [18.,  7.,  8.,  9.],
                   [22.,  8.,  9., 10.],
                   [26.,  9., 10., 11.]])
-    (1/1) tensor([[11., 12., 13.],
+    [1/1] tensor([[11., 12., 13.],
                   [ 9., 10., 11.],
                   [10., 11., 12.],
                   [11., 12., 13.],
@@ -758,7 +759,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         return c
 
 
-DNDarray.__matmul__ = lambda self, other: matmul(self, other)
+DNDarray.__matmul__: Callable[
+    [DNDarray, DNDarray, Optional[bool]], DNDarray
+] = lambda self, other=False: matmul(self, other)
 DNDarray.__matmul__.__doc__ = matmul.__doc__
 
 
@@ -770,7 +773,6 @@ def norm(a: DNDarray) -> float:
     ----------
     a : DNDarray
         Input vector
-
     """
     if not isinstance(a, DNDarray):
         raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
@@ -783,11 +785,13 @@ def norm(a: DNDarray) -> float:
     return exponential.sqrt(d).item()
 
 
-DNDarray.norm = lambda self: norm(self)
+DNDarray.norm: Callable[[DNDarray], float] = lambda self: norm(self)
 DNDarray.norm.__doc__ = norm.__doc__
 
 
-def outer(a: DNDarray, b: DNDarray, out: DNDarray = None, split: int = None) -> DNDarray:
+def outer(
+    a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None, split: Optional[int] = None
+) -> DNDarray:
     """
     Compute the outer product of two 1-D DNDarrays: out[i, j] = a[i] * b[j].
     Given two vectors, :math:`a = (a_0, a_1, ..., a_N)` and :math:`b = (b_0, b_1, ..., b_M)`, the outer product is:
@@ -835,37 +839,37 @@ def outer(a: DNDarray, b: DNDarray, out: DNDarray = None, split: int = None) -> 
     --------
     >>> a = ht.arange(4)
     >>> b = ht.arange(3)
-    >>> ht.outer(a, b)
+    >>> ht.outer(a, b)._DNDarray__array
     (3 processes)
-    (0/3)   tensor([[0, 0, 0],
+    [0/2]   tensor([[0, 0, 0],
                     [0, 1, 2],
                     [0, 2, 4],
                     [0, 3, 6]], dtype=torch.int32)
-    (1/3)   tensor([[0, 0, 0],
+    [1/2]   tensor([[0, 0, 0],
                     [0, 1, 2],
                     [0, 2, 4],
                     [0, 3, 6]], dtype=torch.int32)
-    (2/3)   tensor([[0, 0, 0],
+    [2/2]   tensor([[0, 0, 0],
                     [0, 1, 2],
                     [0, 2, 4],
                     [0, 3, 6]], dtype=torch.int32)
     >>> a = ht.arange(4, split=0)
     >>> b = ht.arange(3, split=0)
-    >>> ht.outer(a, b)
-    (0/3)   tensor([[0, 0, 0],
+    >>> ht.outer(a, b)._DNDarray__array
+    [0/2]   tensor([[0, 0, 0],
                     [0, 1, 2]], dtype=torch.int32)
-    (1/3)   tensor([[0, 2, 4]], dtype=torch.int32)
-    (2/3)   tensor([[0, 3, 6]], dtype=torch.int32)
-    >>> ht.outer(a, b, split=1)
-    (0/3)   tensor([[0],
+    [1/2]   tensor([[0, 2, 4]], dtype=torch.int32)
+    [2/2]   tensor([[0, 3, 6]], dtype=torch.int32)
+    >>> ht.outer(a, b, split=1)._DNDarray__array
+    [0/2]   tensor([[0],
                     [0],
                     [0],
                     [0]], dtype=torch.int32)
-    (1/3)   tensor([[0],
+    [1/2]   tensor([[0],
                     [1],
                     [2],
                     [3]], dtype=torch.int32)
-    (2/3)   tensor([[0],
+    [2/2]   tensor([[0],
                     [2],
                     [4],
                     [6]], dtype=torch.int32)
@@ -873,18 +877,18 @@ def outer(a: DNDarray, b: DNDarray, out: DNDarray = None, split: int = None) -> 
     >>> b = ht.arange(4, dtype=ht.float64, split=0)
     >>> out = ht.empty((5,4), dtype=ht.float64, split=1)
     >>> ht.outer(a, b, split=1, out=out)
-    >>> out
-    (0/3)   tensor([[0., 0.],
+    >>> out._DNDarray__array
+    [0/2]   tensor([[0., 0.],
                     [0., 1.],
                     [0., 2.],
                     [0., 3.],
                     [0., 4.]], dtype=torch.float64)
-    (1/3)   tensor([[0.],
+    [1/2]   tensor([[0.],
                     [2.],
                     [4.],
                     [6.],
                     [8.]], dtype=torch.float64)
-    (2/3)   tensor([[ 0.],
+    [2/2]   tensor([[ 0.],
                     [ 3.],
                     [ 6.],
                     [ 9.],
@@ -1123,7 +1127,7 @@ def __mm_c_block_setter(
                     c[c_start0 : c_start0 + mB, c_start1 : c_start1 + nB] += a_block @ b_block
 
 
-def transpose(a: DNDarray, axes: List[int] = None) -> DNDarray:
+def transpose(a: DNDarray, axes: Optional[List[int]] = None) -> DNDarray:
     """
     Permute the dimensions of an array.
 
@@ -1133,7 +1137,6 @@ def transpose(a: DNDarray, axes: List[int] = None) -> DNDarray:
         Input array.
     axes : None or List[int,...], optional
         By default, reverse the dimensions, otherwise permute the axes according to the values given.
-
     """
     # type check the input tensor
     if not isinstance(a, DNDarray):
@@ -1178,11 +1181,12 @@ def transpose(a: DNDarray, axes: List[int] = None) -> DNDarray:
         raise ValueError(str(exception))
 
 
-DNDarray.transpose = lambda self, axes: transpose(self, axes)
+DNDarray.transpose: Callable[
+    [DNDarray, Optional[List[int]]], DNDarray
+] = lambda self, axes=None: transpose(self, axes)
 DNDarray.transpose.__doc__ = transpose.__doc__
 
-DNDarray.T = lambda self, axes: transpose(self, axes)
-DNDarray.T.__doc__ = transpose.__doc__
+DNDarray.T = property(transpose)
 
 # statically allocated index slices for non-iterable dimensions in triangular operations
 __index_base = (slice(None), slice(None))
@@ -1258,7 +1262,7 @@ def __tri_op(m: DNDarray, k: int, op: Callable) -> DNDarray:
     return DNDarray(output, m.shape, m.dtype, m.split, m.device, m.comm)
 
 
-def tril(m: DNDarray, k: int = 0) -> DNDarray:
+def tril(m: DNDarray, k: Optional[int] = 0) -> DNDarray:
     """
     Returns the lower triangular part of the ``DNDarray``.
     The lower triangular part of the array is defined as the elements on and below the diagonal, the other elements of
@@ -1269,21 +1273,19 @@ def tril(m: DNDarray, k: int = 0) -> DNDarray:
 
     Parameters
     ----------
-
     m : DNDarray
         Input array for which to compute the lower triangle.
     k : int, optional
         Diagonal above which to zero elements. ``k=0`` (default) is the main diagonal, ``k<0`` is below and ``k>0`` is above.
-
     """
     return __tri_op(m, k, torch.tril)
 
 
-DNDarray.tril = lambda self, k: tril(self, k)
+DNDarray.tril: Callable[[DNDarray, Optional[int]], DNDarray] = lambda self, k=0: tril(self, k)
 DNDarray.tril.__doc__ = tril.__doc__
 
 
-def triu(m: DNDarray, k: int = 0) -> DNDarray:
+def triu(m: DNDarray, k: Optional[int] = 0) -> DNDarray:
     """
     Returns the upper triangular part of the ``DNDarray``.
     The upper triangular part of the array is defined as the elements on and below the diagonal, the other elements of the result array are set to 0.
@@ -1297,10 +1299,9 @@ def triu(m: DNDarray, k: int = 0) -> DNDarray:
         Input array for which to compute the upper triangle.
     k : int, optional
         Diagonal above which to zero elements. ``k=0`` (default) is the main diagonal, ``k<0`` is below and ``k>0`` is above.
-
     """
     return __tri_op(m, k, torch.triu)
 
 
-DNDarray.triu = lambda self, k: triu(self, k)
+DNDarray.triu: Callable[[DNDarray, Optional[int]], DNDarray] = lambda self, k=0: triu(self, k)
 DNDarray.triu.__doc__ = triu.__doc__

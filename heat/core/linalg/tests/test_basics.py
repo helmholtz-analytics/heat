@@ -496,30 +496,30 @@ class TestLinalgBasics(TestCase):
 
         # a and b split 0, outer split 1
         ht_outer_split = ht.outer(a_split, b_split, split=1)
-        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 1)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
 
         # a and b distributed, outer split unspecified
         ht_outer_split = ht.outer(a_split, b_split, split=None)
-        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 0)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
 
         # a not distributed, outer.split = 1
         ht_outer_split = ht.outer(a, b_split, split=1)
-        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 1)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
 
         # b not distributed, outer.split = 0
         ht_outer_split = ht.outer(a_split, b, split=0)
-        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 0)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
 
         # a_split.ndim > 1 and a.split != 0
         a_split_3d = ht.random.randn(3, 3, 3, dtype=ht.float64, split=2)
         ht_outer_split = ht.outer(a_split_3d, b_split)
         np_outer_3d = np.outer(a_split_3d.numpy(), b_split.numpy())
-        self.assertTrue((ht_outer_split.numpy() == np_outer_3d).all())
         self.assertTrue(ht_outer_split.split == 0)
+        self.assertTrue((ht_outer_split.numpy() == np_outer_3d).all())
 
         # write to out buffer
         ht_out = ht.empty((a.gshape[0], b.gshape[0]), dtype=ht.float32)

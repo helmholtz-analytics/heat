@@ -220,6 +220,14 @@ class DNDarray:
         return strides
 
     @property
+    def T(self):
+        """
+        Reverse the dimensions of a DNDarray.
+        """
+        # specialty docs for this version of transpose. The transpose function is in heat/core/linalg/basics
+        pass
+
+    @property
     def array_with_halos(self):
         """
         Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next``/``self.halo_prev``
@@ -767,7 +775,7 @@ class DNDarray:
         T1 = ht.random.randn((10,8))
         T1.numpy()
         """
-        dist = self.resplit_(axis=None)
+        dist = self.copy().resplit_(axis=None)
         return dist._DNDarray__array.cpu().numpy()
 
     def __repr__(self, *args):
