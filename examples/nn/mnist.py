@@ -1,15 +1,15 @@
 from __future__ import print_function
 import argparse
 import torch
-import torch.optim as optim
 import sys
-from torch.optim.lr_scheduler import StepLR
 
 sys.path.append("../../")
 import heat as ht
+import heat.nn.functional as F
+import heat.optim as optim
+from heat.optim.lr_scheduler import StepLR
 from heat.utils import vision_transforms
 from heat.utils.data.mnist import MNISTDataset
-import heat.nn.functional as F
 
 """
 

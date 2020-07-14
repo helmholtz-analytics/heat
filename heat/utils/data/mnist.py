@@ -93,8 +93,6 @@ class MNISTDataset(datasets.MNIST):
         comm = self.comm
         rd_perm = torch.randperm(self.htdata.lshape[0])
 
-        # for x in [["data", "htdata"]]:
-        #     self.__getattribute__(x)
         ld = self.htdata._DNDarray__array
         snd = ld[: self.lcl_half].clone()
         snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device
@@ -111,7 +109,6 @@ class MNISTDataset(datasets.MNIST):
         self.htdata._DNDarray__array = self.htdata._DNDarray__array[rd_perm]
         self.data = self.htdata._DNDarray__array[self._cut_slice]
 
-        # shuffled = self.targets[rd_perm]
         ld2 = self.httargets._DNDarray__array
         snd = ld2[: self.lcl_half].clone()
         snd_shape, snd_dtype, snd_dev = snd.shape, snd.dtype, snd.device
