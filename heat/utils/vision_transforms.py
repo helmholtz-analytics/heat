@@ -7,4 +7,4 @@ def __getattr__(name):
     if name in torch_all:
         return torchvision.transforms.__getattribute__(name)
     else:
-        raise NotImplementedError("module not implemented in Torch or Heat")
+        raise AttributeError(f"module {name} not implemented in Torch or Heat")

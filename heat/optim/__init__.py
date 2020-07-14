@@ -11,4 +11,4 @@ def __getattr__(name):
             unittest.__getattribute__(name)
         except AttributeError:
             if name is not None:
-                raise NotImplementedError("module not implemented in Torch Functional")
+                raise AttributeError(f"module {name} not implemented in torch.optim")
