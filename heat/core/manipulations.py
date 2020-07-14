@@ -1540,7 +1540,8 @@ def stack(arrays, axis=0, out=None):
     axis : int, optional
         The axis in the result array along which the input arrays are stacked.
     out : DNDarray, optional
-        If provided, the destination to place the result. The shape must be correct, matching that of what stack would have returned if no out argument were specified.
+        If provided, the destination to place the result. The shape and split axis must be correct, matching
+        that of what stack would have returned if no out argument were specified (see Notes below).
 
     Raises
     ------
@@ -1556,6 +1557,16 @@ def stack(arrays, axis=0, out=None):
     Returns
     -------
     DNDarray
+
+    Notes
+    -----
+    Split semantics: :func:`stack` requires that all arrays in the sequence be split along the same dimension.
+    After stacking, the data are still distributed along the original dimension, however a new dimension has been added at `axis`,
+    therefore:
+
+    - if :math:`axis <= split`, output will be distributed along :math:`split+1`
+
+    - if :math:`axis > split`, output will be distributed along `split`
 
     Examples
     --------
