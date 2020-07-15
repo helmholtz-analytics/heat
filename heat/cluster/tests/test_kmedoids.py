@@ -134,11 +134,12 @@ class TestKMeans(TestCase):
 
     def test_spherical_clusters(self):
         seed = 1
+        n = 20 * ht.MPI_WORLD.size
         data = self.create_spherical_dataset(
-            num_samples_cluster=100, radius=1.0, offset=4.0, dtype=ht.float32, random_state=seed
+            num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float32, random_state=seed
         )
         reference = ht.array([[-8, -8, -8], [-4, -4, -4], [4, 4, 4], [8, 8, 8]], dtype=ht.float32)
-        kmedoid = ht.cluster.KMedoids(n_clusters=4, init="kmedoids++")
+        kmedoid = ht.cluster.KMedoids(n_clusters=4, init="kmedoids++", random_state=seed)
         idx = 0
         for i in range(10):
             kmedoid.fit(data)
@@ -149,8 +150,9 @@ class TestKMeans(TestCase):
         self.assertTrue(idx > 0)
 
         # More Samples
+        n = 100 * ht.MPI_WORLD.size
         data = self.create_spherical_dataset(
-            num_samples_cluster=500, radius=1.0, offset=4.0, dtype=ht.float32, random_state=seed
+            num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float32, random_state=seed
         )
         reference = ht.array([[-8, -8, -8], [-4, -4, -4], [4, 4, 4], [8, 8, 8]], dtype=ht.float32)
         kmedoid = ht.cluster.KMedoids(n_clusters=4, init="kmedoids++")
@@ -163,8 +165,9 @@ class TestKMeans(TestCase):
         self.assertTrue(idx > 0)
 
         # different datatype
+        n = 20 * ht.MPI_WORLD.size
         data = self.create_spherical_dataset(
-            num_samples_cluster=500, radius=1.0, offset=4.0, dtype=ht.float64, random_state=seed
+            num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float64, random_state=seed
         )
         reference = ht.array([[-8, -8, -8], [-4, -4, -4], [4, 4, 4], [8, 8, 8]], dtype=ht.float64)
         kmedoid = ht.cluster.KMedoids(n_clusters=4, init="kmedoids++")
@@ -177,8 +180,9 @@ class TestKMeans(TestCase):
         self.assertTrue(idx > 0)
 
         # on Ints (different radius, offset and datatype
+        n = 20 * ht.MPI_WORLD.size
         data = self.create_spherical_dataset(
-            num_samples_cluster=100, radius=10.0, offset=40.0, dtype=ht.int32, random_state=seed
+            num_samples_cluster=n, radius=10.0, offset=40.0, dtype=ht.int32, random_state=seed
         )
         reference = ht.array(
             [[-80, -80, -80], [-40, -40, -40], [40, 40, 40], [80, 80, 80]], dtype=ht.float32
