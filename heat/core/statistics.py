@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from typing import Any, Callable, Union, Tuple, List, Optional
+from typing import Any, Callable, Union, Tuple, List
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -35,12 +35,7 @@ __all__ = [
 ]
 
 
-def argmax(
-    x: DNDarray,
-    axis: Optional[int] = None,
-    out: Optional[DNDarray] = None,
-    **kwargs: Optional[object],
-) -> DNDarray:
+def argmax(x: DNDarray, axis: int = None, out: DNDarray = None, **kwargs: object) -> DNDarray:
     """
     Returns an array of the indices of the maximum values along an axis. It has the same shape as ``x.shape`` with the
     dimension along axis removed.
@@ -137,17 +132,12 @@ def argmax(
 
 
 DNDarray.argmax: Callable[
-    [DNDarray, Optional[int], Optional[DNDarray], Optional[object]], DNDarray
-] = lambda self, axis, out, **kwargs: argmax(self, axis=None, out=None, **kwargs)
+    [DNDarray, int, DNDarray, object], DNDarray
+] = lambda self, axis=None, out=None, **kwargs: argmax(self, axis, out, **kwargs)
 DNDarray.argmax.__doc__ = argmax.__doc__
 
 
-def argmin(
-    x: DNDarray,
-    axis: Optional[int] = None,
-    out: Optional[DNDarray] = None,
-    **kwargs: Optional[object],
-) -> DNDarray:
+def argmin(x: DNDarray, axis: int = None, out: DNDarray = None, **kwargs: object) -> DNDarray:
     """
     Returns an array of the indices of the minimum values along an axis. It has the same shape as ``x.shape`` with the
     dimension along axis removed.
@@ -246,16 +236,16 @@ def argmin(
 
 
 DNDarray.argmin: Callable[
-    [DNDarray, Optional[int], Optional[DNDarray], Optional[object]], DNDarray
-] = lambda self, axis, out, **kwargs: argmin(self, axis=None, out=None, **kwargs)
+    [DNDarray, int, DNDarray, object], DNDarray
+] = lambda self, axis=None, out=None, **kwargs: argmin(self, axis, out, **kwargs)
 DNDarray.argmin.__doc__ = argmin.__doc__
 
 
 def average(
     x: DNDarray,
-    axis: Optional[Union[int, Tuple[int, ...]]] = None,
-    weights: Optional[DNDarray] = None,
-    returned: Optional[bool] = False,
+    axis: Union[int, Tuple[int, ...]] = None,
+    weights: DNDarray = None,
+    returned: bool = False,
 ) -> Union[DNDarray, Tuple[DNDarray, ...]]:
     """
     Compute the weighted average along the specified axis.
@@ -380,18 +370,13 @@ def average(
 
 
 DNDarray.average: Callable[
-    [DNDarray, Optional[Union[int, Tuple[int, ...]]], Optional[DNDarray], Optional[bool]],
-    Union[DNDarray, Tuple[DNDarray, ...]],
-] = lambda self, axis, weights, returned: average(self, axis=None, weights=None, returned=False)
+    [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], Union[DNDarray, Tuple[DNDarray, ...]]
+] = lambda self, axis=None, weights=None, returned=False: average(self, axis, weights, returned)
 DNDarray.average.__doc__ = average.__doc__
 
 
 def cov(
-    m: DNDarray,
-    y: Optional[DNDarray] = None,
-    rowvar: Optional[bool] = True,
-    bias: Optional[bool] = False,
-    ddof: Optional[int] = None,
+    m: DNDarray, y: DNDarray = None, rowvar: bool = True, bias: bool = False, ddof: int = None
 ) -> DNDarray:
     """
     Estimate the covariance matrix of some data, m. For more imformation on the algorithm please see the numpy function of the same name
@@ -462,10 +447,7 @@ def cov(
 
 
 def kurtosis(
-    x: DNDarray,
-    axis: Optional[Union[None, int]] = None,
-    unbiased: Optional[bool] = True,
-    Fischer: Optional[bool] = True,
+    x: DNDarray, axis: int = None, unbiased: bool = True, Fischer: bool = True
 ) -> DNDarray:
     """
     Compute the kurtosis (Fisher or Pearson) of a dataset.
@@ -513,16 +495,16 @@ def kurtosis(
 
 
 DNDarray.kurtosis: Callable[
-    [DNDarray, Optional[Union[None, int]], Optional[bool], Optional[bool]], DNDarray
-] = lambda self, axis, unbiased, Fischer: kurtosis(self, axis=None, unbiased=True, Fischer=True)
+    [DNDarray, int, bool, bool], DNDarray
+] = lambda x, axis=None, unbiased=True, Fischer=True: kurtosis(x, axis, unbiased, Fischer)
 DNDarray.kurtosis.__doc__ = average.__doc__
 
 
 def max(
     x: DNDarray,
-    axis: Optional[Union[int, Tuple[int, ...]]] = None,
-    out: Optional[DNDarray] = None,
-    keepdim: Optional[bool] = None,
+    axis: Union[int, Tuple[int, ...]] = None,
+    out: DNDarray = None,
+    keepdim: bool = None,
 ) -> DNDarray:
     # TODO: initial : scalar, optional Issue #101
     """
@@ -575,12 +557,12 @@ def max(
 
 
 DNDarray.max: Callable[
-    [DNDarray, Optional[Union[int, Tuple[int, ...]]], Optional[DNDarray], Optional[bool]], DNDarray
-] = lambda self, axis, out, keepdim: max(self, axis=None, out=None, keepdim=None)
+    [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray
+] = lambda x, axis=None, out=None, keepdim=None: max(x, axis, out, keepdim)
 DNDarray.max.__doc__ = max.__doc__
 
 
-def maximum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+def maximum(x1: DNDarray, x2: DNDarray, out: DNDarray = None) -> DNDarray:
     """
     Compares two ``DNDarrays`` and returns a new :class:`~heat.core.dndarray.DNDarray` containing the element-wise maxima.
     The ``DNDarrays`` must have the same shape, or shapes that can be broadcast to a single shape.
@@ -712,7 +694,7 @@ def maximum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDar
     return lresult
 
 
-def mean(x: DNDarray, axis: Optional[Union[int, List[int], Tuple[int]]] = None) -> DNDarray:
+def mean(x: DNDarray, axis: Union[int, List, Tuple] = None) -> DNDarray:
     """
     Calculates and returns the mean of a ``DNDarray``.
     If an axis is given, the mean will be taken in that direction.
@@ -822,20 +804,20 @@ def mean(x: DNDarray, axis: Optional[Union[int, List[int], Tuple[int]]] = None) 
     return __moment_w_axis(torch.mean, x, axis, __reduce_means_elementwise)
 
 
-DNDarray.mean: Callable[
-    [DNDarray, Optional[Union[int, List[int], Tuple[int]]]], DNDarray
-] = lambda self, axis: mean(self, axis=None)
+DNDarray.mean: Callable[[DNDarray, Union[int, List, Tuple]], DNDarray] = lambda x, axis=None: mean(
+    x, axis
+)
 DNDarray.mean.__doc__ = mean.__doc__
 
 
-def median(x: DNDarray, axis: Optional[int] = None, keepdim: Optional[bool] = False) -> DNDarray:
+def median(x: DNDarray, axis: int = None, keepdim: bool = False) -> DNDarray:
     """
     Compute the median of the data along the specified axis.
     Returns the median of the ``DNDarray`` elements.
 
     Parameters
     ----------
-    a : DNDarray
+    x : DNDarray
         Input tensor
     axis : int, or None, optional
         Axis along which the median is computed. Default is ``None``, i.e.,
@@ -848,13 +830,13 @@ def median(x: DNDarray, axis: Optional[int] = None, keepdim: Optional[bool] = Fa
 
 
 DNDarray.median: Callable[
-    [DNDarray, Optional[int], Optional[bool]], DNDarray
-] = lambda self, axis: median(self, axis=None, keepdim=False)
+    [DNDarray, int, bool], DNDarray
+] = lambda x, axis=None, keepdim=False: median(x, axis, keepdim)
 DNDarray.mean.__doc__ = mean.__doc__
 
 
 def __merge_moments(
-    m1: torch.Tensor, m2: torch.Tensor, unbiased: Optional[bool] = True
+    m1: torch.Tensor, m2: torch.Tensor, unbiased: bool = True
 ) -> Tuple[torch.Tensor, ...]:
     """
     Merge two statistical moments.
@@ -926,9 +908,9 @@ def __merge_moments(
 
 def min(
     x: DNDarray,
-    axis: Optional[Union[int, Tuple[int, ...]]] = None,
-    out: Optional[DNDarray] = None,
-    keepdim: Optional[bool] = None,
+    axis: Union[int, Tuple[int, ...]] = None,
+    out: DNDarray = None,
+    keepdim: bool = None,
 ) -> DNDarray:
     # TODO: initial : scalar, optional Issue #101
     """
@@ -982,12 +964,12 @@ def min(
 
 
 DNDarray.min: Callable[
-    [DNDarray, Optional[Union[int, Tuple[int, ...]]], Optional[DNDarray], Optional[bool]], DNDarray
-] = lambda self, axis, out, keepdim: min(self, axis=None, out=None, keepdim=None)
+    [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray
+] = lambda self, axis=None, out=None, keepdim=None: min(self, axis, out, keepdim)
 DNDarray.min.__doc__ = min.__doc__
 
 
-def minimum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+def minimum(x1: DNDarray, x2: DNDarray, out: DNDarray = None) -> DNDarray:
     """
     Compares two ``DNDarrays`` and returns a new :class:`~heat.core.dndarray.DNDarray`  containing the element-wise minima.
     If one of the elements being compared is ``NaN``, then that element is returned. They must have the same shape,
@@ -1125,8 +1107,8 @@ def __moment_w_axis(
     x: DNDarray,
     axis: Union[None, int, list, tuple],
     elementwise_function: Callable,
-    unbiased: Optional[bool] = None,
-    Fischer: Optional[bool] = None,
+    unbiased: bool = None,
+    Fischer: bool = None,
 ) -> DNDarray:
     """
     Helper function for calculating a statistical moment along a given axis.
@@ -1277,10 +1259,10 @@ MPI_ARGMIN = MPI.Op.Create(_mpi_argmin, commute=True)
 def percentile(
     x,
     q,
-    axis: Optional[int] = None,
-    out: Optional[DNDarray] = None,
-    interpolation: Optional[str] = "linear",
-    keepdim: Optional[bool] = False,
+    axis: int = None,
+    out: DNDarray = None,
+    interpolation: str = "linear",
+    keepdim: bool = False,
 ) -> DNDarray:
     """
     Compute the q-th percentile of the data along the specified axis.
@@ -1511,9 +1493,7 @@ def percentile(
     return percentile
 
 
-def skew(
-    x: DNDarray, axis: Optional[Union[None, int]] = None, unbiased: Optional[bool] = True
-) -> DNDarray:
+def skew(x: DNDarray, axis: int = None, unbiased: bool = True) -> DNDarray:
     """
     Compute the sample skewness of a data set.
 
@@ -1554,16 +1534,13 @@ def skew(
 
 
 DNDarray.skew: Callable[
-    [DNDarray, Optional[Union[None, int]], Optional[bool]], DNDarray
-] = lambda self, axis, unbiased: skew(self, axis, unbiased)
+    [DNDarray, int, bool], DNDarray
+] = lambda self, axis=None, unbiased=True: skew(self, axis, unbiased)
 DNDarray.skew.__doc__ = skew.__doc__
 
 
 def std(
-    x: DNDarray,
-    axis: Union[int, Tuple[int], List[int]] = None,
-    ddof: Optional[int] = 0,
-    **kwargs: Optional[object],
+    x: DNDarray, axis: Union[int, Tuple[int], List[int]] = None, ddof: int = 0, **kwargs: object
 ) -> DNDarray:
     """
     Calculates the standard deviation of a ``DNDarray`` with the bessel correction.
@@ -1608,13 +1585,13 @@ def std(
 
 
 DNDarray.std: Callable[
-    [DNDarray, Union[int, Tuple[int], List[int]], Optional[int], Optional[object]], DNDarray
-] = lambda self, axis, ddof, **kwargs: std(self, axis, ddof, **kwargs)
+    [DNDarray, Union[int, Tuple[int], List[int]], int, object], DNDarray
+] = lambda self, axis=None, ddof=0, **kwargs: std(self, axis, ddof, **kwargs)
 DNDarray.std.__doc__ = std.__doc__
 
 
 def __torch_skew(
-    torch_tensor: torch.Tensor, dim: Optional[int] = None, unbiased: Optional[bool] = False
+    torch_tensor: torch.Tensor, dim: int = None, unbiased: bool = False
 ) -> torch.Tensor:
     """
     calculate the sample skewness of a torch tensor
@@ -1647,10 +1624,7 @@ def __torch_skew(
 
 
 def __torch_kurtosis(
-    torch_tensor: torch.Tensor,
-    dim: Optional[int] = None,
-    Fischer: Optional[bool] = True,
-    unbiased: Optional[bool] = False,
+    torch_tensor: torch.Tensor, dim: int = None, Fischer: bool = True, unbiased: bool = False
 ) -> torch.Tensor:
     """
     calculate the sample kurtosis of a dataset
@@ -1687,10 +1661,7 @@ def __torch_kurtosis(
 
 
 def var(
-    x: DNDarray,
-    axis: Optional[Union[int, Tuple[int], List[int]]] = None,
-    ddof: Optional[int] = 0,
-    **kwargs: Optional[object],
+    x: DNDarray, axis: Union[int, Tuple[int], List[int]] = None, ddof: int = 0, **kwargs: object
 ) -> DNDarray:
     """
     Calculates and returns the variance of a ``DNDarray``. If an axis is given, the variance will be
@@ -1829,6 +1800,6 @@ def var(
 
 
 DNDarray.var: Callable[
-    [DNDarray, Union[int, Tuple[int], List[int]], Optional[int], Optional[object]], DNDarray
-] = lambda self, axis, ddof, **kwargs: var(self, axis, ddof, **kwargs)
+    [DNDarray, Union[int, Tuple[int], List[int]], int, object], DNDarray
+] = lambda self, axis=None, ddof=0, **kwargs: var(self, axis, ddof, **kwargs)
 DNDarray.var.__doc__ = var.__doc__
