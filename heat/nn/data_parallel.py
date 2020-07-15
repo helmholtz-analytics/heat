@@ -57,14 +57,13 @@ class DataParallel(tnn.Module):
         module: torch.nn.Module,
         comm: MPICommunication,
         optimizer: optim.DataParallelOptimizer,
-        blocking: bool = True,
     ):
         super(DataParallel, self).__init__()
         self.module = module
         self.comm = comm
         if not isinstance(optimizer, optim.DataParallelOptimizer):
             raise TypeError("Optimizer must be heat.optim.DataParallelOptimizer")
-        self.optimizer = optimizer.torch_optimizer
+        self.dp_optimizer = optimizer
         self.blocking = optimizer.blocking
 
         self._layer_wait_handles = OrderedDict()
@@ -77,15 +76,13 @@ class DataParallel(tnn.Module):
         self._param_indices = dict()
         # reference of optimizer's params
         self._params_ref = None
-        # flag indicating if optimizer should take a step during next iteration (only relevant for non-blocking)
-        self._update_next = False
 
         # check if optimizer matches module
-        if list(module.parameters()) != self.optimizer.param_groups[0]["params"]:
+        if list(module.parameters()) != self.dp_optimizer.torch_optimizer.param_groups[0]["params"]:
             raise ValueError("given module and optimizer don't share same parameters.")
         else:
             # take reference of optimizer's params
-            self._params_ref = self.optimizer.param_groups[0]["params"]
+            self._params_ref = self.dp_optimizer.torch_optimizer.param_groups[0]["params"]
 
         # get parameter indexing and slices
         start_idx = 0
@@ -101,7 +98,7 @@ class DataParallel(tnn.Module):
                 start_idx = idx
 
             # register backward hooks for all model parameter tensors
-            if blocking:
+            if self.blocking:
                 param.register_hook(self._blocking_hook)
             else:
                 param.register_hook(self._nonblocking_hook(layer_name, name))
@@ -143,7 +140,7 @@ class DataParallel(tnn.Module):
             for layer_name in active_layers_cpy:
                 self._forward_hook(layer_name)(None, None)
         # reset optimizer flag
-        self._update_next = False
+        self.dp_optimizer.update_next = False
         # clear dictionary after all wait handles are used up (dynamic computation graph)
         self._layer_wait_handles.clear()
         # remove forward hooks (dynamic computation graph)
@@ -152,16 +149,6 @@ class DataParallel(tnn.Module):
         self._fwd_hook_handles.clear()
 
         return ret
-
-    def update(self):
-        """
-        Force optimizer to update model parameters. For blocking, optimizer immediately updates parameters. For
-        non-blocking, optimizer will update parameters during next forward.
-        """
-        if self.blocking:
-            self.optimizer.step()
-        else:
-            self._update_next = True
 
     def _iparam_update(self, param_slice: slice = None, layer_names: List[str] = None):
         """
@@ -182,7 +169,7 @@ class DataParallel(tnn.Module):
             layer_names = list(self._layer_wait_handles.keys())
 
         # update params that are visible for the optimizer
-        self.optimizer.param_groups[0]["params"] = self._params_ref[param_slice]
+        self.dp_optimizer.torch_optimizer.param_groups[0]["params"] = self._params_ref[param_slice]
 
         # iterate over layers
         for layer_name in layer_names:
@@ -203,8 +190,8 @@ class DataParallel(tnn.Module):
                 # remove layer from set of active layers, if present
                 self._active_layers.discard(layer_name)
         # if desired, perform actual parameter update
-        if self._update_next:
-            self.optimizer.step()
+        if self.dp_optimizer.update_next:
+            self.dp_optimizer.torch_optimizer.step()
 
     def _blocking_hook(self, grad_loc: torch.Tensor) -> torch.Tensor:
         """
