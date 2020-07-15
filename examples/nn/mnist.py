@@ -157,12 +157,14 @@ def main():
     dataset2 = MNISTDataset(
         "../../heat/utils/data/datasets", train=False, transform=transform, ishuffle=False
     )
+
     train_loader = ht.utils.data.datatools.DataLoader(dataset1.data, lcl_dataset=dataset1, **kwargs)
     test_loader = ht.utils.data.datatools.DataLoader(dataset2.data, lcl_dataset=dataset2, **kwargs)
     tmodel = Net().to(device)
     optimizer = optim.Adadelta(tmodel.parameters(), lr=args.lr)
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     model = ht.nn.DataParallel(tmodel, comm=dataset1.comm, optimizer=optimizer, blocking=False)
+
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader)
@@ -176,9 +178,4 @@ def main():
 
 
 if __name__ == "__main__":
-    out = []
-    for _ in range(5):
-        t = time.perf_counter()
-        main()
-        out.append(time.perf_counter() - t)
-    print(out, sum(out) / 5.0)
+    main()
