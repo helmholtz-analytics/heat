@@ -1,9 +1,10 @@
 import itertools
 import numpy as np
+
 from typing import Tuple, Union
 
 
-def broadcast_shape(shape_a, shape_b) -> Tuple[int, ...]:
+def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple[int, ...]:
     """
     Infers, if possible, the broadcast output shape of two operands a and b. Inspired by stackoverflow post:
     https://stackoverflow.com/questions/24743753/test-if-an-array-is-broadcastable-to-a-shape
@@ -31,7 +32,6 @@ def broadcast_shape(shape_a, shape_b) -> Tuple[int, ...]:
     >>> broadcast_shape((2,1),(8,4,3))
     ValueError
     """
-
     it = itertools.zip_longest(shape_a[::-1], shape_b[::-1], fillvalue=1)
     resulting_shape = max(len(shape_a), len(shape_b)) * [None]
     for i, (a, b) in enumerate(it):
@@ -45,16 +45,18 @@ def broadcast_shape(shape_a, shape_b) -> Tuple[int, ...]:
     return tuple(resulting_shape[::-1])
 
 
-def sanitize_axis(shape, axis) -> Union[int, Tuple[int, ...]]:
+def sanitize_axis(
+    shape: Tuple[int, ...], axis: Union[int, Tuple[int, ...]]
+) -> Union[int, Tuple[int, ...]]:
     """
     Checks conformity of an axis with respect to a given shape. The axis will be converted to its positive equivalent
     and is checked to be within bounds
 
     Parameters
     ----------
-    shape : Tuple[int,...]
+    shape : Tuple[int, ...]
         Shape of an array
-    axis : ints or Tuple[int,...]
+    axis : ints or Tuple[int, ...]
         The axis to be sanitized
 
     Raises
@@ -100,7 +102,7 @@ def sanitize_axis(shape, axis) -> Union[int, Tuple[int, ...]]:
     return axis
 
 
-def sanitize_shape(shape) -> Tuple[int, ...]:
+def sanitize_shape(shape: Union[int, Tuple[int, ...]]) -> Tuple[int, ...]:
     """
     Verifies and normalizes the given shape.
 
@@ -138,7 +140,7 @@ def sanitize_shape(shape) -> Tuple[int, ...]:
     return shape
 
 
-def sanitize_slice(sl, max_dim) -> slice:
+def sanitize_slice(sl: slice, max_dim: int) -> slice:
     """
     Remove None-types from a slice
 
@@ -167,4 +169,5 @@ def sanitize_slice(sl, max_dim) -> slice:
         new_sl[1] += max_dim
 
     new_sl[2] = 1 if sl.step is None else sl.step
+
     return slice(new_sl[0], new_sl[1], new_sl[2])

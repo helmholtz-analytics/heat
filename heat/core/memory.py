@@ -1,11 +1,13 @@
-import numpy as np
 import torch
+
+from typing import Callable
+
 from .dndarray import DNDarray
 
 __all__ = ["copy", "sanitize_memory_layout"]
 
 
-def copy(a) -> DNDarray:
+def copy(a: DNDarray) -> DNDarray:
     """
     Return an array copy of the given object.
 
@@ -17,14 +19,15 @@ def copy(a) -> DNDarray:
     """
     if not isinstance(a, DNDarray):
         raise TypeError("input needs to be a tensor")
+
     return DNDarray(a._DNDarray__array.clone(), a.shape, a.dtype, a.split, a.device, a.comm)
 
 
-DNDarray.copy = lambda self: copy(self)
+DNDarray.copy: Callable[[DNDarray], DNDarray] = lambda self: copy(self)
 DNDarray.copy.__doc__ = copy.__doc__
 
 
-def sanitize_memory_layout(x, order="C"):
+def sanitize_memory_layout(x: torch.Tensor, order: str = "C") -> torch.Tensor:
     """
     Return the given object with memory layout as defined below. The default memory distribution is assumed.
 

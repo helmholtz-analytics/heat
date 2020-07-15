@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import torch
-from .dndarray import DNDarray
+
+from typing import Callable, Optional
+
 from .constants import pi
+from .dndarray import DNDarray
 from .operations import __local_op as local_op
 from .operations import __binary_op as binary_op
+
 from . import types
 
 
@@ -30,7 +34,7 @@ __all__ = [
 ]
 
 
-def arccos(x, out=None) -> DNDarray:
+def arccos(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Compute the trigonometric arccos, element-wise.
     Result is a ``DNDarray`` of the same shape as ``x``.
@@ -55,8 +59,13 @@ def arccos(x, out=None) -> DNDarray:
 acos = arccos
 acos.__doc__ = arccos.__doc__
 
+DNDarray.acos: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: acos(
+    self, out
+)
+DNDarray.acos.__doc__ = acos.__doc__
 
-def arcsin(x, out=None) -> DNDarray:
+
+def arcsin(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Result is a ``DNDarray`` of the same shape as ``x``.
     Input elements outside [-1., 1.] are returned as ``NaN``. If ``out`` was provided, ``arcsin`` is a reference to it.
@@ -80,8 +89,13 @@ def arcsin(x, out=None) -> DNDarray:
 asin = arcsin
 asin.__doc__ = arcsin.__doc__
 
+DNDarray.asin: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: asin(
+    self, out
+)
+DNDarray.asin.__doc__ = asin.__doc__
 
-def arctan(x, out=None) -> DNDarray:
+
+def arctan(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Compute the trigonometric arctan, element-wise.
     Result is a ``DNDarray`` of the same shape as ``x``.
@@ -107,8 +121,13 @@ def arctan(x, out=None) -> DNDarray:
 atan = arctan
 atan.__doc__ = arctan.__doc__
 
+DNDarray.atan: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: atan(
+    self, out
+)
+DNDarray.atan.__doc__ = atan.__doc__
 
-def arctan2(x1, x2):
+
+def arctan2(x1: DNDarray, x2: DNDarray) -> DNDarray:
     """
     Element-wise arc tangent of ``x1/x2`` choosing the quadrant correctly.
     Returns a new ``DNDarray`` with the signed angles in radians between vector (``x2``,``x1``) and vector (1,0)
@@ -141,8 +160,11 @@ def arctan2(x1, x2):
 atan2 = arctan2
 atan2.__doc__ = arctan2.__doc__
 
+DNDarray.atan2: Callable[[DNDarray, DNDarray], DNDarray] = lambda self, x2: atan2(self, x2)
+DNDarray.atan2.__doc__ = atan2.__doc__
 
-def cos(x, out=None):
+
+def cos(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Return the trigonometric cosine, element-wise.
 
@@ -168,11 +190,13 @@ def cos(x, out=None):
     return local_op(torch.cos, x, out)
 
 
-DNDarray.cos = lambda self, out: cos(self, out)
+DNDarray.cos: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: cos(
+    self, out
+)
 DNDarray.cos.__doc__ = cos.__doc__
 
 
-def cosh(x, out=None) -> DNDarray:
+def cosh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Compute the hyperbolic cosine, element-wise.
     Result is a ``DNDarray`` of the same shape as ``x``.
@@ -194,11 +218,13 @@ def cosh(x, out=None) -> DNDarray:
     return local_op(torch.cosh, x, out)
 
 
-DNDarray.cosh = lambda self, out: cosh(self, out)
+DNDarray.cosh: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: cosh(
+    self, out
+)
 DNDarray.cosh.__doc__ = cosh.__doc__
 
 
-def deg2rad(x, out=None) -> DNDarray:
+def deg2rad(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Convert angles from degrees to radians.
 
@@ -224,7 +250,7 @@ def deg2rad(x, out=None) -> DNDarray:
     return local_op(torch_deg2rad, x, out)
 
 
-def degrees(x, out=None) -> DNDarray:
+def degrees(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Convert angles from radians to degrees.
 
@@ -244,7 +270,7 @@ def degrees(x, out=None) -> DNDarray:
     return rad2deg(x, out=out)
 
 
-def rad2deg(x, out=None) -> DNDarray:
+def rad2deg(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Convert angles from radians to degrees.
 
@@ -271,7 +297,7 @@ def rad2deg(x, out=None) -> DNDarray:
     return local_op(torch_rad2deg, x, out=out)
 
 
-def radians(x, out=None) -> DNDarray:
+def radians(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Convert angles from degrees to radians.
 
@@ -288,11 +314,10 @@ def radians(x, out=None) -> DNDarray:
     >>> ht.radians(ht.array([0., 20., 45., 78., 94., 120., 180., 270., 311.]))
     tensor([0.0000, 0.3491, 0.7854, 1.3614, 1.6406, 2.0944, 3.1416, 4.7124, 5.4280])
     """
+    return deg2rad(x, out)
 
-    return deg2rad(x, out=None)
 
-
-def sin(x, out=None) -> DNDarray:
+def sin(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Compute the trigonometric sine, element-wise.
     Result is a ``DNDarray`` of the same shape as ``x``.
@@ -314,11 +339,13 @@ def sin(x, out=None) -> DNDarray:
     return local_op(torch.sin, x, out)
 
 
-DNDarray.sin = lambda self, out: sin(self, out)
+DNDarray.sin: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: sin(
+    self, out
+)
 DNDarray.sin.__doc__ = sin.__doc__
 
 
-def sinh(x, out=None) -> DNDarray:
+def sinh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Compute the hyperbolic sine, element-wise.
     Result is a ``DNDarray`` of the same shape as ``x``.
@@ -340,11 +367,13 @@ def sinh(x, out=None) -> DNDarray:
     return local_op(torch.sinh, x, out)
 
 
-DNDarray.sinh = lambda self, out: sinh(self, out)
+DNDarray.sinh: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: sinh(
+    self, out
+)
 DNDarray.sinh.__doc__ = sinh.__doc__
 
 
-def tan(x, out=None) -> DNDarray:
+def tan(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Compute tangent element-wise.
     Result is a ``DNDarray`` of the same shape as ``x``.
@@ -367,11 +396,13 @@ def tan(x, out=None) -> DNDarray:
     return local_op(torch.tan, x, out)
 
 
-DNDarray.tan = lambda self, out: tan(self, out)
+DNDarray.tan: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: tan(
+    self, out
+)
 DNDarray.tan.__doc__ = tan.__doc__
 
 
-def tanh(x, out=None):
+def tanh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Compute the hyperbolic tangent, element-wise.
     Result is a ``DNDarray`` of the same shape as ``x``.
@@ -393,5 +424,7 @@ def tanh(x, out=None):
     return local_op(torch.tanh, x, out)
 
 
-DNDarray.tanh = lambda self, out: tanh(self, out)
+DNDarray.tanh: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: tanh(
+    self, out
+)
 DNDarray.tanh.__doc__ = tanh.__doc__
