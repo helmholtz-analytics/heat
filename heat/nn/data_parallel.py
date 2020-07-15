@@ -1,14 +1,15 @@
 import bisect
 import functools
-import heat as ht
 import operator
 import torch
 import torch.nn as tnn
 
 from collections import OrderedDict
 from typing import Callable, List
-
-from heat.core.communication import MPI
+from ..core.communication import MPICommunication
+from ..core.communication import MPI
+from ..core import dndarray
+from .. import optim
 
 __all__ = ["DataParallel"]
 
@@ -47,24 +48,24 @@ class DataParallel(tnn.Module):
         the local module
     comm : heat.MPICommunicator
         HeAT communicator to use
-    optimizer : torch.optim.Optimizer
+    optimizer : optim.DataParallelOptimizer
         Optimizer used for parameter updates.
-    blocking : bool (optional)
-        Flag for blocking synchronization. If not given, synchronization is blocking by default.
     """
 
     def __init__(
         self,
         module: torch.nn.Module,
-        comm: ht.MPICommunication,
-        optimizer: torch.optim.Optimizer,
+        comm: MPICommunication,
+        optimizer: optim.DataParallelOptimizer,
         blocking: bool = True,
     ):
         super(DataParallel, self).__init__()
         self.module = module
         self.comm = comm
-        self.optimizer = optimizer
-        self.blocking = blocking
+        if not isinstance(optimizer, optim.DataParallelOptimizer):
+            raise TypeError("Optimizer must be heat.optim.DataParallelOptimizer")
+        self.optimizer = optimizer.torch_optimizer
+        self.blocking = optimizer.blocking
 
         self._layer_wait_handles = OrderedDict()
         self._fwd_hook_handles = list()
@@ -109,13 +110,13 @@ class DataParallel(tnn.Module):
     def __setattr__(self, name, value):
         # auto-detect end of epoch's training phase and finalize wait handles (only relevant for non-blocking)
         if name == "training" and not value and not self.blocking:
-            self._async_update()
+            self._iparam_update()
         super(DataParallel, self).__setattr__(name, value)
 
     def forward(self, *inputs: tuple, **kwargs: dict) -> torch.Tensor:
         data = inputs[0]
 
-        if isinstance(data, ht.DNDarray):
+        if isinstance(data, dndarray.DNDarray):
             lcl_data = data._DNDarray__array
         elif isinstance(data, torch.Tensor):
             lcl_data = data
@@ -162,7 +163,7 @@ class DataParallel(tnn.Module):
         else:
             self._update_next = True
 
-    def _async_update(self, param_slice: slice = None, layer_names: List[str] = None):
+    def _iparam_update(self, param_slice: slice = None, layer_names: List[str] = None):
         """
         Update parameters asynchronously via wait handles.
 
@@ -221,7 +222,7 @@ class DataParallel(tnn.Module):
         # average local gradients
         grad_loc *= 1 / float(self.comm.size)
         # perform MPI Allreduce to compute global gradient
-        self.comm.Allreduce(ht.MPI.IN_PLACE, grad_loc, ht.MPI.SUM)
+        self.comm.Allreduce(MPI.IN_PLACE, grad_loc, MPI.SUM)
         return grad_loc
 
     def _nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
@@ -240,7 +241,7 @@ class DataParallel(tnn.Module):
             # counterbalance local gradient averaging
             grad_loc *= 1 / float(self.comm.size)
             # perform MPI IAllreduce to compute global gradient, returns wait handle
-            wait_handle = self.comm.Iallreduce(ht.MPI.IN_PLACE, grad_loc, ht.MPI.SUM)
+            wait_handle = self.comm.Iallreduce(MPI.IN_PLACE, grad_loc, MPI.SUM)
             # if layer wait handle dict does not contain the layer, add it -> automatically tracks reversed layer order
             if layer_name not in self._layer_wait_handles:
                 self._layer_wait_handles[layer_name] = list()
@@ -268,7 +269,7 @@ class DataParallel(tnn.Module):
         def _hook(_, input_):
             # update parameters of given layer
             param_slice = self._param_slices[layer_name]
-            self._async_update(param_slice, [layer_name])
+            self._iparam_update(param_slice, [layer_name])
             return input_
 
         return _hook

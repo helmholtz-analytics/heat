@@ -1,14 +1,18 @@
 from .lr_scheduler import *
+from . import dp_optimizer
 import torch
 import unittest
 
 
 def __getattr__(name):
-    try:
-        return torch.optim.__getattribute__(name)
-    except AttributeError:
+    if name not in dp_optimizer.__all__:
         try:
-            unittest.__getattribute__(name)
+            return torch.optim.__getattribute__(name)
         except AttributeError:
-            if name is not None:
-                raise AttributeError(f"module {name} not implemented in torch.optim")
+            try:
+                unittest.__getattribute__(name)
+            except AttributeError:
+                if name is not None:
+                    raise AttributeError(f"module {name} not implemented in torch.optim")
+    else:
+        object.__getattribute__(name)
