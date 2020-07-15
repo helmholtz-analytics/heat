@@ -91,7 +91,7 @@ class DataParallel(tnn.Module):
         layer_name_prev = None
         for idx, (name, param) in enumerate(module.named_parameters()):
             self._param_indices[name] = idx
-            layer_name = name.split(sep=".", maxsplit=1)[0]
+            layer_name = name.rsplit(sep=".", maxsplit=1)[0]
             if layer_name_prev is None:
                 layer_name_prev = layer_name
             if layer_name_prev != layer_name:
