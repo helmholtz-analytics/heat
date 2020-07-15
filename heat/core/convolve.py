@@ -4,11 +4,7 @@ from .communication import MPI
 from . import dndarray
 import torch.nn.functional as fc
 
-__all__ = ["convolve", "convolve1D"]
-
-
-def convolve(a, v, mode="full"):
-    return
+__all__ = ["convolve1D"]
 
 
 def convolve1D(a, v, mode="full"):
@@ -29,7 +25,8 @@ def convolve1D(a, v, mode="full"):
           completely, and boundary effects may be seen.
         'same':
           Mode 'same' returns output  of length 'N'. Boundary
-          effects are still visible.
+          effects are still visible. This mode is not supported for
+          even sized filter weights
         'valid':
           Mode 'valid' returns output of length 'N-M+1'. The
           convolution product is only given for points where the signals
@@ -45,8 +42,6 @@ def convolve1D(a, v, mode="full"):
         The inputs are not swapped if v is larger than a. The reason is that v needs to be
         non-splitted. This should not influence performance. If the filter weight is larger
         than fitting into memory, using the FFT for convolution is recommended.
-        Secondly, only float types are allowed in contrast to numpy where also integer types
-        can be utilized.
 
     Examples
     --------
@@ -54,18 +49,18 @@ def convolve1D(a, v, mode="full"):
     before "sliding" the two across one another:
     >>> a = ht.ones(10)
     >>> v = ht.arange(3).astype(ht.float)
-    >>> ht.convolve(a, v, mode='full')
+    >>> ht.convolve1D(a, v, mode='full')
     tensor([0., 1., 3., 3., 3., 3., 2.])
 
     Only return the middle values of the convolution.
     Contains boundary effects, where zeros are taken
     into account:
-    >>> ht.convolve(a, v, mode='same')
+    >>> ht.convolve1D(a, v, mode='same')
     tensor([1., 3., 3., 3., 3.])
 
-    Compute only positions where signal and filter weight
+    Compute only positions where signal and filter weights
     completely overlap:
-    >>> ht.convolve(a, v, mode='valid')
+    >>> ht.convolve1D(a, v, mode='valid')
     tensor([3., 3., 3.])
     """
     if not isinstance(a, dndarray.DNDarray) or not isinstance(v, dndarray.DNDarray):
@@ -76,10 +71,10 @@ def convolve1D(a, v, mode="full"):
         raise ValueError("Only 1 dimensional input tensors are allowed")
     if a.shape[0] <= v.shape[0]:
         raise ValueError("Filter size must not be larger than signal size")
-    # if not a.dtype.isfloat() or not v.dtype.isfloat():
-    #    raise TypeError('Only float type tensors are supported')
     if a.dtype is not v.dtype:
         raise TypeError("Signal and filter weight must be of same type")
+    if mode == "same" and v.shape[0] % 2 == 0:
+        raise ValueError("Mode 'same' cannot be use with even sized kernal")
 
     # compute halo size
     halo_size = v.shape[0] // 2 if v.shape[0] % 2 == 0 else (v.shape[0] - 1) // 2
@@ -106,7 +101,7 @@ def convolve1D(a, v, mode="full"):
 
     if mode == "full":
         pad_prev = pad_next = None
-        
+
         if not a.is_distributed():
             pad_prev = pad_next = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type())
 
@@ -131,7 +126,7 @@ def convolve1D(a, v, mode="full"):
         pad_prev = pad_next = None
         if a.comm.rank == 0:
             pad_prev = torch.zeros(halo_size, dtype=a.dtype.torch_type())
-        elif a.comm.rank == a.comm.size - 1:
+        if a.comm.rank == a.comm.size - 1:
             pad_next = torch.zeros(halo_size, dtype=a.dtype.torch_type())
 
         gshape = a.shape[0]
@@ -164,22 +159,8 @@ def convolve1D(a, v, mode="full"):
     signal_filtered = signal_filtered[0, 0, :]
 
     # if kernel shape along split axis is even we need to get rid of duplicated values
-    if v.shape[0] % 2 == 0:
-        s = slice(None, None)
-        if mode == "full" or mode == "valid":
-            # if not first rank cut first element
-            if a.comm.rank != 0:
-                s = slice(1, None)
-
-        if mode == "same":
-            # if not first or last rank cut first element
-            if a.comm.rank != 0 and a.comm.rank != a.comm.size - 1:
-                s = slice(1, None)
-            # if last rank cut last element
-            elif a.comm.rank == a.comm.size - 1:
-                s = slice(1, -1)
-
-        signal_filtered = signal_filtered[s]
+    if a.comm.rank != 0 and v.shape[0] % 2 == 0:
+        signal_filtered = signal_filtered[1:]
 
     return dndarray.DNDarray(
         signal_filtered.contiguous(), (gshape,), signal_filtered.dtype, a.split, a.device, a.comm
