@@ -1,6 +1,13 @@
 ## Contributing to HeAT
 
-*These contribution guidelines are inspired by NumPy's contribution guidelines of the SciPy community.*
+Thanks for your interest in contributing to HeAT!
+ * If you want to report a bug, or propose a new feature, you can file an [Issue](https://github.com/helmholtz-analytics/heat/issues/new/choose).
+ * You can also get in touch with us on [Mattermost](https://mattermost-haf.fz-juelich.de/signup_email). You will need to register. Once you log in, you can introduce yourself on the `Town Square` channel, or get straight to the point in the `heat-discuss` channel.
+ * To set up your environment for HeAT development, follow these [instructions](README.md#Hacking).
+ * To submit your implementation of a bug fix or new feature, please follow the instructions below. We strongly recommend getting in touch with the core developers, either here on GitHub (by filing and/or commenting on an Issue) or on Mattermost (see above) before starting to work on a contribution. We are a small team and it's good to know who is currently working on what.
+
+
+*The following contribution guidelines are inspired by NumPy's contribution guidelines of the SciPy community.*
 
 #### Getting the Source Code
 
@@ -43,7 +50,8 @@ git pull upstream master
 git checkout -b features/123-boolean-operators
 ```
 
-* Commit locally as you progress (`git add` and `git commit`) Use a properly formatted commit message, write tests that fail before your change and pass afterward, run all the tests locally and in parallel for different process counts (`mpirun -np <PROCESSES>`). Be sure to document any changed behavior in docstrings, keeping to HeAT's docstring standard (explained below).
+* Commit locally as you progress (`git add` and `git commit`) Use a properly formatted commit message, write tests that fail before your change and pass afterward, run all the tests locally and in parallel for different process counts (`mpirun -np <PROCESSES>`). Be sure to document any changed behavior in docstrings, keeping to HeAT's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/504-docstring-formatting/doc/source/documentation_howto.rst).
+
 
 #### Publishing your Contributions
 
@@ -55,9 +63,9 @@ git push origin features/123-boolean-operators
 
 * Enter your GitHub username and password (advanced users can remove this step by connecting to GitHub with SSH.
 
-* Go to GitHub. The new branch will show up with a green Pull Request button. Make sure the title and message are clear, concise, and self- explanatory. Then click the button to submit it.
+* Go to GitHub. The new branch will show up with a green Pull Request button. Make sure the title and message are clear, concise, and self-explanatory. Then click the button to submit it.
 
-* If your commit introduces a new feature or changes functionality, please explain your changes. For bug fixes, documentation updates, etc., this is generally not necessary, though if you do not get any reaction, do feel free to ask for review.
+* If your commit introduces a new feature or changes functionality, **please explain your changes and the thinking behind them**. This greatly simplifies the review process. For bug fixes, documentation updates, etc., this is generally not necessary, though if you do not get any reaction, do feel free to ask for review.
 
 #### Review Process
 
