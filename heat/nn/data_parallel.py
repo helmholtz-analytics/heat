@@ -109,7 +109,7 @@ class DataParallel(tnn.Module):
     def __setattr__(self, name, value):
         # auto-detect end of epoch's training phase and finalize wait handles (only relevant for non-blocking)
         if name == "training" and not value and not self.blocking:
-            self._async_update()
+            self._iparam_update()
         super(DataParallel, self).__setattr__(name, value)
 
     def forward(self, *inputs: tuple, **kwargs: dict) -> torch.Tensor:
@@ -162,7 +162,7 @@ class DataParallel(tnn.Module):
         else:
             self._update_next = True
 
-    def _async_update(self, param_slice: slice = None, layer_names: List[str] = None):
+    def _iparam_update(self, param_slice: slice = None, layer_names: List[str] = None):
         """
         Update parameters asynchronously via wait handles.
 
@@ -268,7 +268,7 @@ class DataParallel(tnn.Module):
         def _hook(_, input_):
             # update parameters of given layer
             param_slice = self._param_slices[layer_name]
-            self._async_update(param_slice, [layer_name])
+            self._iparam_update(param_slice, [layer_name])
 
             return input_
 
