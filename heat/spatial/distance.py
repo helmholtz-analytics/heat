@@ -1,5 +1,6 @@
 import torch
 from mpi4py import MPI
+from typing import Callable
 
 from ..core import factories
 from ..core import types
@@ -8,7 +9,7 @@ from ..core.dndarray import DNDarray
 __all__ = ["cdist", "rbf"]
 
 
-def _euclidian(x, y) -> torch.tensor:
+def _euclidian(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     """
     Helper function to calculate euclidian distance between torch.tensors x and y: :math:`\\sqrt(|x-y|^2)`
     Based on torch.cdist. Returns 2D tensor of size m x n
@@ -23,7 +24,7 @@ def _euclidian(x, y) -> torch.tensor:
     return torch.cdist(x, y)
 
 
-def _euclidian_fast(x, y) -> torch.tensor:
+def _euclidian_fast(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     """
     Helper function to calculate euclidian distance between torch.tensors x and y: :math:`\\sqrt(|x-y|^2)`
     Uses quadratic expansion to calculate :math:`(x-y)^2`. Returns 2D tensor of size m x n
@@ -38,7 +39,7 @@ def _euclidian_fast(x, y) -> torch.tensor:
     return torch.sqrt(_quadratic_expand(x, y))
 
 
-def _quadratic_expand(x, y) -> torch.tensor:
+def _quadratic_expand(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     """
     Helper function to calculate quadratic expansion :math:`|x-y|^2=|x|^2 + |y|^2 - 2xy`
     Returns 2D tensor of size m x n
@@ -59,7 +60,7 @@ def _quadratic_expand(x, y) -> torch.tensor:
     return torch.clamp(dist, 0.0, info.max)
 
 
-def _gaussian(x, y, sigma=1.0) -> torch.tensor:
+def _gaussian(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torch.tensor:
     """
     Helper function to calculate gaussian distance between torch.tensors x and y: :math:`exp(-(|x-y|^2/2\\sigma^2)`
     Based on torch.cdist. Returns a 2D tensor of size m x n
@@ -79,7 +80,7 @@ def _gaussian(x, y, sigma=1.0) -> torch.tensor:
     return result
 
 
-def _gaussian_fast(x, y, sigma=1.0) -> torch.tensor:
+def _gaussian_fast(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torch.tensor:
     """
     Helper function to calculate gaussian distance between torch.tensors x and y: :math:`exp(-(|x-y|^2/2\\sigma^2)
     Uses quadratic expansion to calculate :math:`(x-y)^2`. Returns a 2D tensor of size m x n
@@ -99,7 +100,7 @@ def _gaussian_fast(x, y, sigma=1.0) -> torch.tensor:
     return result
 
 
-def cdist(X, Y=None, quadratic_expansion=False) -> DNDarray:
+def cdist(X: DNDarray, Y: DNDarray = None, quadratic_expansion: bool = False) -> DNDarray:
     """
     Calculate euclidian distance between torch.tensors x and y:
 
@@ -122,7 +123,9 @@ def cdist(X, Y=None, quadratic_expansion=False) -> DNDarray:
         return _dist(X, Y, _euclidian)
 
 
-def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False) -> DNDarray:
+def rbf(
+    X: DNDarray, Y: DNDarray = None, sigma: float = 1.0, quadratic_expansion: bool = False
+) -> DNDarray:
     """
     Calculate gaussian distance between torch.tensors x and y:
 
@@ -147,14 +150,12 @@ def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False) -> DNDarray:
         return _dist(X, Y, lambda x, y: _gaussian(x, y, sigma))
 
 
-def _dist(X, Y=None, metric=_euclidian) -> DNDarray:
+def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DNDarray:
     """
     Pairwise distance calculation between all elements along axis 0 of ``X`` and ``Y`` Returns 2D array of size :math: `m \\times n`
     ``X.split`` and ``Y.split`` can be distributed among axis 0.
-        - if neither ``X`` nor ``Y`` is split, result will also be ``split = None``
-
-        - if ``X.split == 0``, result will be ``split = 0`` regardless of ``Y.split``
-
+        - if neither ``X`` nor ``Y`` is split, result will also be ``split = None \n
+        - if ``X.split == 0``, result will be ``split = 0`` regardless of ``Y.split`` \n
     The distance matrix is calculated tile-wise with ring communication between the processes
     holding each a piece of ``X`` and/or ``Y``.
 
@@ -165,13 +166,13 @@ def _dist(X, Y=None, metric=_euclidian) -> DNDarray:
     Y : DNDarray, optional
         2D array of size `n \\times f``.
         If `Y in None, the distances will be calculated between all elements of ``X``
-    metric: function
+    metric: Callable
         The distance to be calculated between ``X`` and ``Y``
         If metric requires additional arguments, it must be handed over as a lambda function: ``lambda x, y: metric(x, y, **args)``
 
     Notes
     -------
-    If X.split=None and Y.split=0, result will be split=1
+    If ``X.split=None`` and ``Y.split=0``, result will be ``split=1``
 
     """
 

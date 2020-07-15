@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Callable
 import torch
 import heat as ht
 from heat.core.dndarray import DNDarray
@@ -11,23 +12,19 @@ class Laplacian:
 
     Parameters
     ----------
-    similarity : function
+    similarity : Callable
         Metric function that defines similarity between vertices. Should accept a data matrix :math:`n \\times f` as input and
         return an :math:`n\\times n` similarity matrix. Additional required parameters can be passed via a lambda function.
     definition : str
         Type of Laplacian
-
-        - ``'simple'``: Laplacian matrix for simple graphs :math:`L = D - A`
-
-        - ``'norm_sym'``: Symmetric normalized Laplacian :math:`L^{sym} = D^{-1/2} L D^{-1/2} = I - D^{-1/2} A D^{-1/2}`
-
-        - ``'norm_rw'``: Random walk normalized Laplacian :math:`L^{rw} = D^{-1} L = I - D^{-1}`
+            - ``'simple'``: Laplacian matrix for simple graphs :math:`L = D - A` \n
+            - ``'norm_sym'``: Symmetric normalized Laplacian :math:`L^{sym} = D^{-1/2} L D^{-1/2} = I - D^{-1/2} A D^{-1/2}` \n
+            - ``'norm_rw'``: Random walk normalized Laplacian :math:`L^{rw} = D^{-1} L = I - D^{-1}` \n
     mode : str
         How to calculate adjacency from the similarity matrix
-
-        - ``'fully_connected'`` is fully-connected, so :math:`A = S`
-
-        - ``'eNeighbour'`` is the epsilon neighbourhood, with :math:`A_{ji} = 0` if :math:`S_{ij} > upper` or :math:`S_{ij} < lower`; for eNeighbour an upper or lower boundary needs to be set
+            - ``'fully_connected'`` is fully-connected, so :math:`A = S` \n
+            - ``'eNeighbour'`` is the epsilon neighbourhood, with :math:`A_{ji} = 0` if :math:`S_{ij} > upper` or
+                :math:`S_{ij} < lower`; for eNeighbour an upper or lower boundary needs to be set \n
     threshold_key : str
         ``'upper'`` or ``'lower'``, defining the type of threshold for the epsilon-neighborhood
     threshold_value : float
@@ -38,13 +35,13 @@ class Laplacian:
 
     def __init__(
         self,
-        similarity,
-        weighted=True,
-        definition="norm_sym",
-        mode="fully_connected",
-        threshold_key="upper",
-        threshold_value=1.0,
-        neighbours=10,
+        similarity: Callable,
+        weighted: bool = True,
+        definition: str = "norm_sym",
+        mode: str = "fully_connected",
+        threshold_key: str = "upper",
+        threshold_value: float = 1.0,
+        neighbours: int = 10,
     ) -> DNDarray:
         self.similarity_metric = similarity
         self.weighted = weighted
@@ -70,7 +67,7 @@ class Laplacian:
 
         self.neighbours = neighbours
 
-    def _normalized_symmetric_L(self, A) -> DNDarray:
+    def _normalized_symmetric_L(self, A: DNDarray) -> DNDarray:
         """
         Helper function to calculate the normalized symmetric Laplacian
 
@@ -96,7 +93,7 @@ class Laplacian:
         L.fill_diagonal(1.0)
         return L
 
-    def _simple_L(self, A):
+    def _simple_L(self, A: DNDarray):
         """
         Helper function to calculate the simple graph Laplacian
 
@@ -111,13 +108,13 @@ class Laplacian:
         L = ht.diag(degree) - A
         return L
 
-    def construct(self, X) -> DNDarray:
+    def construct(self, X: DNDarray) -> DNDarray:
         """
         Callable to get the Laplacian matrix from the dataset ``X`` according to the specified Laplacian
 
         Parameters
         ----------
-        C : DNDarray
+        X : DNDarray
             The data matrix, Shape = (n_samples, n_features)
        """
         S = self.similarity_metric(X)
