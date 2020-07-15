@@ -627,7 +627,7 @@ DNDarray.flatten = lambda self: flatten(self)
 DNDarray.flatten.__doc__ = flatten.__doc__
 
 
-def flip(a: DNDarray, axis: Union[None, int, Tuple[int, ...]] = None) -> DNDarray:
+def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     """
     Reverse the order of elements in an array along the given axis.
     The shape of the array is preserved, but the elements are reordered.
@@ -780,7 +780,7 @@ def hstack(tup: Sequence[DNDarray, ...]) -> DNDarray:
     return concatenate(tup, axis=axis)
 
 
-def reshape(a: DNDarray, shape: Tuple[int, ...], axis: Union[None, int] = None) -> DNDarray:
+def reshape(a: DNDarray, shape: Tuple[int, ...], axis: int = None) -> DNDarray:
     """
     Returns an array with the same data and number of elements as ``a``, but with the specified shape.
 
@@ -1271,7 +1271,7 @@ def sort(a: DNDarray, axis: int = None, descending: bool = False, out: DNDarray 
         return tensor, return_indices
 
 
-def squeeze(x: DNDarray, axis: Union[None, int, Tuple[int, ...]] = None) -> DNDarray:
+def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     """
     Remove single-element entries from the shape of a ``DNDarray``.
     Returns the input array, but with all or a subset (indicated by ``axis``) of the dimensions of length 1 removed.
@@ -1372,7 +1372,7 @@ DNDarray.squeeze.__doc__ = squeeze.__doc__
 
 
 def unique(
-    a: DNDarray, sorted: bool = False, return_inverse: bool = False, axis: Union[None, int] = None
+    a: DNDarray, sorted: bool = False, return_inverse: bool = False, axis: int = None
 ) -> Tuple[DNDarray, torch.tensor]:
     """
     Finds and returns the unique elements of a ``DNDarray``.
@@ -1577,7 +1577,7 @@ DNDarray.unique = lambda self, sorted, return_inverse: unique(self, sorted, retu
 DNDarray.unique.__doc__ = unique.__doc__
 
 
-def resplit(arr: DNDarray, axis: Union[None, int] = None) -> DNDarray:
+def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
     """
     Out-of-place redistribution of the content of the ``DNDarray``. Allows to "unsplit" (i.e. gather) all values from all
     nodes,  as well as to define a new axis along which the array is split without changes to the values.
@@ -1733,10 +1733,10 @@ def vstack(tup: Sequence[DNDarray, ...]) -> DNDarray:
 def topk(
     a: DNDarray,
     k: int,
-    dim: Union[None, int] = None,
+    dim: int = None,
     largest: bool = True,
     sorted: bool = True,
-    out=Union[None, Tuple[DNDarray, DNDarray]],
+    out=Tuple[DNDarray, DNDarray],
 ) -> Tuple[DNDarray, DNDarray]:
     """
     Returns the :math:`k` highest entries in the array.

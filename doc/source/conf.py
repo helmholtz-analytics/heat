@@ -41,7 +41,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.inheritance_diagram",
     "sphinx_rtd_theme",
-    "sphinxcontrib.napoleon",
+    "sphinx.ext.napoleon",
 ]
 
 
