@@ -162,8 +162,9 @@ def main():
     test_loader = ht.utils.data.datatools.DataLoader(dataset2.data, lcl_dataset=dataset2, **kwargs)
     tmodel = Net().to(device)
     optimizer = optim.Adadelta(tmodel.parameters(), lr=args.lr)
+    dp_optim = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking=True)
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
-    model = ht.nn.DataParallel(tmodel, comm=dataset1.comm, optimizer=optimizer, blocking=False)
+    model = ht.nn.DataParallel(tmodel, comm=dataset1.comm, optimizer=dp_optim)
 
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)

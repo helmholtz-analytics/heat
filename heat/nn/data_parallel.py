@@ -81,11 +81,11 @@ class DataParallel(tnn.Module):
         self._update_next = False
 
         # check if optimizer matches module
-        if list(module.parameters()) != optimizer.param_groups[0]["params"]:
+        if list(module.parameters()) != self.optimizer.param_groups[0]["params"]:
             raise ValueError("given module and optimizer don't share same parameters.")
         else:
             # take reference of optimizer's params
-            self._params_ref = optimizer.param_groups[0]["params"]
+            self._params_ref = self.optimizer.param_groups[0]["params"]
 
         # get parameter indexing and slices
         start_idx = 0
