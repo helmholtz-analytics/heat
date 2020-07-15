@@ -10,9 +10,12 @@ class DataParallelOptimizer:
         Flag for blocking synchronization. If not given, synchronization is blocking by default.
     """
 
-    def __init__(self, torch_optimizer, blocking=True):
+    def __init__(self, torch_optimizer):
         self.torch_optimizer = torch_optimizer
-        self.blocking = blocking
+
+        # flag indicating if communication during parameter updates is blocking. Set by the DataParallel entity this is
+        # assigned to
+        self.blocking_parameter_updates = None
 
         # flag indicating if optimizer should take a step during next iteration (only relevant for non-blocking)
         self.update_next = False
@@ -23,7 +26,14 @@ class DataParallelOptimizer:
         non-blocking, optimizer will update parameters during next forward.
         """
 
-        if self.blocking:
+        # abort, if this is not assigned to a DataParallel entity and therefore has no blocking flag set
+        if self.blocking_parameter_updates is None:
+            raise TypeError(
+                "Attribute 'blocking_parameter_updates' must be set. Assign this to a valid entity of "
+                "ht.nn.DataParallel to do so."
+            )
+
+        if self.blocking_parameter_updates:
             self.torch_optimizer.step()
         else:
             self.update_next = True
