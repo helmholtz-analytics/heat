@@ -1,11 +1,7 @@
-import unittest
-import os
-
+import numpy as np
 import torch
 
 import heat as ht
-import numpy as np
-
 from .test_suites.basic_test import TestCase
 
 

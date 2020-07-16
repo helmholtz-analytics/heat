@@ -4,15 +4,18 @@ import warnings
 
 from .communication import MPI
 
+from . import constants
 from . import dndarray
 from . import factories
-from . import logical
+from . import linalg
 from . import stride_tricks
 from . import tiling
 from . import types
+from . import operations
 
 
 __all__ = [
+    "column_stack",
     "concatenate",
     "diag",
     "diagonal",
@@ -25,23 +28,118 @@ __all__ = [
     "pad",
     "reshape",
     "resplit",
+    "rot90",
+    "row_stack",
     "shape",
     "sort",
     "squeeze",
+    "stack",
+    "topk",
     "unique",
     "vstack",
 ]
 
 
-def concatenate(arrays, axis=0):
+def column_stack(arrays):
     """
-    Join 2 arrays along an existing axis.
+    Stack 1-D or 2-D ``DNDarray``s as columns into a 2-D ``DNDarray``.
+    If the input arrays are 1-D, they will be stacked as columns. If they are 2-D,
+    they will be concatenated along the second axis.
 
     Parameters
     ----------
-    arrays: tuple of 2 DNDarrays
+    arrays : Sequence[DNDarrays,...]
+
+    Raises
+    ------
+    ValueError
+        If arrays have more than 2 dimensions
+
+    Returns
+    -------
+    DNDarray
+
+    Note
+    ----
+    All ``DNDarray``s in the sequence must have the same number of rows.
+    All ``DNDarray``s must be split along the same axis! Note that distributed
+    1-D arrays (``split = 0``) by default will be transposed into distributed
+    column arrays with ``split == 1``.
+
+    Examples
+    --------
+    >>> # 1-D tensors
+    >>> a = ht.array([1, 2, 3])
+    >>> b = ht.array([2, 3, 4])
+    >>> ht.column_stack((a, b))._DNDarray__array
+    tensor([[1, 2],
+        [2, 3],
+        [3, 4]])
+    >>> # 1-D and 2-D tensors
+    >>> a = ht.array([1, 2, 3])
+    >>> b = ht.array([[2, 5], [3, 6], [4, 7]])
+    >>> c = ht.array([[7, 10], [8, 11], [9, 12]])
+    >>> ht.column_stack((a, b, c))._DNDarray__array
+    tensor([[ 1,  2,  5,  7, 10],
+            [ 2,  3,  6,  8, 11],
+            [ 3,  4,  7,  9, 12]])
+    >>> # distributed DNDarrays, 3 processes
+    >>> a = ht.arange(10, split=0).reshape((5, 2))
+    >>> b = ht.arange(5, 20, split=0).reshape((5, 3))
+    >>> c = ht.arange(20, 40, split=0).reshape((5, 4))
+    >>> ht_column_stack((a, b, c))._DNDarray__array
+    [0/2] tensor([[ 0,  1,  5,  6,  7, 20, 21, 22, 23],
+    [0/2]         [ 2,  3,  8,  9, 10, 24, 25, 26, 27]], dtype=torch.int32)
+    [1/2] tensor([[ 4,  5, 11, 12, 13, 28, 29, 30, 31],
+    [1/2]         [ 6,  7, 14, 15, 16, 32, 33, 34, 35]], dtype=torch.int32)
+    [2/2] tensor([[ 8,  9, 17, 18, 19, 36, 37, 38, 39]], dtype=torch.int32)
+    >>> # distributed 1-D and 2-D DNDarrays, 3 processes
+    >>> a = ht.arange(5, split=0)
+    >>> b = ht.arange(5, 20, split=1).reshape((5, 3))
+    >>> ht_column_stack((a, b))._DNDarray__array
+    [0/2] tensor([[ 0,  5],
+    [0/2]         [ 1,  8],
+    [0/2]         [ 2, 11],
+    [0/2]         [ 3, 14],
+    [0/2]         [ 4, 17]], dtype=torch.int32)
+    [1/2] tensor([[ 6],
+    [1/2]         [ 9],
+    [1/2]         [12],
+    [1/2]         [15],
+    [1/2]         [18]], dtype=torch.int32)
+    [2/2] tensor([[ 7],
+    [2/2]         [10],
+    [2/2]         [13],
+    [2/2]         [16],
+    [2/2]         [19]], dtype=torch.int32)
+    """
+    arr_dims = list(array.ndim for array in arrays)
+    # sanitation, arrays can be 1-d or 2-d, see sanitation module #468
+    over_dims = [i for i, j in enumerate(arr_dims) if j > 2]
+    if len(over_dims) > 0:
+        raise ValueError("Arrays must be 1-D or 2-D")
+    if arr_dims.count(1) == len(arr_dims):
+        # all arrays are 1-D, stack
+        return stack(arrays, axis=1)
+    else:
+        if arr_dims.count(1) > 0:
+            arr_1d = [i for i, j in enumerate(arr_dims) if j == 1]
+            # 1-D arrays must be columns
+            arrays = list(arrays)
+            for ind in arr_1d:
+                arrays[ind] = arrays[ind].reshape((1, arrays[ind].size)).T
+        return concatenate(arrays, axis=1)
+
+
+def concatenate(arrays, axis=0):
+    """
+    Join a sequence of arrays along an existing axis.
+
+    Parameters
+    ----------
+    arrays : Sequence[DNDarrays,...]
         The arrays must have the same shape, except in the dimension corresponding to axis (the first, by default).
-    axis: int, optional
+    axis : int, optional
         The axis along which the arrays will be joined. Default is 0.
 
     Returns
@@ -785,20 +883,20 @@ def hstack(tup):
     --------
     >>> a = ht.array((1,2,3))
     >>> b = ht.array((2,3,4))
-    >>> ht.hstack((a,b))
-    [0] tensor([1, 2, 3, 2, 3, 4])
-    [1] tensor([1, 2, 3, 2, 3, 4])
+    >>> ht.hstack((a,b))._DNDarray__array
+    [0/1] tensor([1, 2, 3, 2, 3, 4])
+    [1/1] tensor([1, 2, 3, 2, 3, 4])
     >>> a = ht.array((1,2,3), split=0)
     >>> b = ht.array((2,3,4), split=0)
-    >>> ht.hstack((a,b))
-    [0] tensor([1, 2, 3])
-    [1] tensor([2, 3, 4])
+    >>> ht.hstack((a,b))._DNDarray__array
+    [0/1] tensor([1, 2, 3])
+    [1/1] tensor([2, 3, 4])
     >>> a = ht.array([[1],[2],[3]], split=0)
     >>> b = ht.array([[2],[3],[4]], split=0)
-    >>> ht.hstack((a,b))
-    [0] tensor([[1, 2],
-    [0]         [2, 3]])
-    [1] tensor([[3, 4]])
+    >>> ht.hstack((a,b))._DNDarray__array
+    [0/1] tensor([[1, 2],
+    [0/1]         [2, 3]])
+    [1/1] tensor([[3, 4]])
     """
     tup = list(tup)
     axis = 1
@@ -822,9 +920,9 @@ def pad(array, pad_width, mode="constant", values=0):
 
     Parameters
     ----------
-    array : ht.DNDarray
-        tensor which is to be padded
-    pad_width: sequence of 2-element-sequences (sequence = tuple or list)
+    array : DNDarray
+        array to be padded
+    pad_width: Union[int, Sequence[Sequence[int, int], ...]]
         Number of values padded to the edges of each axis. ((before_1, after_1),...(before_N, after_N)) unique pad widths for each axis.
         Shortcuts:
             - ((before, after),)  or (before, after)
@@ -847,11 +945,12 @@ def pad(array, pad_width, mode="constant", values=0):
                                         (paddling_left, padding_right),
                                     )
         - ... (same pattern)
-    mode : string, optional
+    mode : str, optional
         - 'constant' (default): Pads the input tensor boundaries with a constant value.
             --> available for arbitrary dimensions
 
-    values: number or tuple of 2-element-sequences (containing numbers), optional (default=0) (sequence = tuple or list)
+    values: Union[int, float, Sequence[Sequence[int,int], ...], Sequence[Sequence[float,float], ...]]
+        Number or tuple of 2-element-sequences (containing numbers), optional (default=0)
         The fill values for each axis (1 tuple per axis).
         ((before_1, after_1), ... (before_N, after_N)) unique pad values for each axis.
 
@@ -861,13 +960,13 @@ def pad(array, pad_width, mode="constant", values=0):
             - (value,) or int
                 --> before = after = padding value for all axes.
 
-        Hint: This function follows the principle of tensor datatype integrity.
-        Therefore, a tensor can only be padded with values of the same datatype.
-        All values that violate this rule are implicitly cast to the tensor datatype.
+        Hint: This function follows the principle of datatype integrity.
+        Therefore, an array can only be padded with values of the same datatype.
+        All values that violate this rule are implicitly cast to the datatype of the ``DNDarray``.
 
     Returns
     -------
-    padded_tensor : ht.DNDarray
+    padded_tensor : DNDarray
         The padded tensor
 
     Examples
@@ -1282,6 +1381,104 @@ def reshape(a, shape, axis=None):
     return factories.array(data, dtype=a.dtype, is_split=axis, device=a.device, comm=a.comm)
 
 
+def rot90(m, k=1, axes=(0, 1)):
+    """
+    Rotate an array by 90 degrees in the plane specified by axes.
+    Rotation direction is from the first towards the second axis.
+
+    Parameters
+    ----------
+    m : DNDarray
+        Array of two or more dimensions.
+    k : integer
+        Number of times the array is rotated by 90 degrees.
+    axes: (2,) int list or tuple
+        The array is rotated in the plane defined by the axes.
+        Axes must be different.
+
+    Returns
+    -------
+    DNDarray
+
+    Notes
+    -----
+    rot90(m, k=1, axes=(1,0)) is the reverse of rot90(m, k=1, axes=(0,1))
+    rot90(m, k=1, axes=(1,0)) is equivalent to rot90(m, k=-1, axes=(0,1))
+
+    May change the split axis on distributed tensors
+
+    Raises
+    ------
+    TypeError
+        If first parameter is not a :class:DNDarray.
+    TypeError
+        If parameter ``k`` is not castable to integer.
+    ValueError
+        If ``len(axis)!=2``.
+    ValueError
+        If the axes are the same.
+    ValueError
+        If axes are out of range.
+
+    Examples
+    --------
+    >>> m = ht.array([[1,2],[3,4]], dtype=ht.int)
+    >>> m
+    tensor([[1, 2],
+            [3, 4]], dtype=torch.int32)
+    >>> ht.rot90(m)
+    tensor([[2, 4],
+            [1, 3]], dtype=torch.int32)
+    >>> ht.rot90(m, 2)
+    tensor([[4, 3],
+            [2, 1]], dtype=torch.int32)
+    >>> m = ht.arange(8).reshape((2,2,2))
+    >>> ht.rot90(m, 1, (1,2))
+    tensor([[[1, 3],
+             [0, 2]],
+            [[5, 7],
+             [4, 6]]], dtype=torch.int32)
+    """
+    axes = tuple(axes)
+    if len(axes) != 2:
+        raise ValueError("len(axes) must be 2.")
+
+    if not isinstance(m, dndarray.DNDarray):
+        raise TypeError("expected m to be a ht.DNDarray, but was {}".format(type(m)))
+
+    if axes[0] == axes[1] or np.absolute(axes[0] - axes[1]) == m.ndim:
+        raise ValueError("Axes must be different.")
+
+    if axes[0] >= m.ndim or axes[0] < -m.ndim or axes[1] >= m.ndim or axes[1] < -m.ndim:
+        raise ValueError("Axes={} out of range for array of ndim={}.".format(axes, m.ndim))
+
+    if m.split is None:
+        return factories.array(
+            torch.rot90(m._DNDarray__array, k, axes), dtype=m.dtype, device=m.device, comm=m.comm
+        )
+
+    try:
+        k = int(k)
+    except (TypeError, ValueError):
+        raise TypeError("Unknown type, must be castable to integer")
+
+    k %= 4
+
+    if k == 0:
+        return m.copy()
+    if k == 2:
+        return flip(flip(m, axes[0]), axes[1])
+
+    axes_list = np.arange(0, m.ndim).tolist()
+    (axes_list[axes[0]], axes_list[axes[1]]) = (axes_list[axes[1]], axes_list[axes[0]])
+
+    if k == 1:
+        return linalg.transpose(flip(m, axes[1]), axes_list)
+    else:
+        # k == 3
+        return flip(linalg.transpose(m, axes_list), axes[1])
+
+
 def shape(a):
     """
     Returns the shape of a DNDarray `a`.
@@ -1673,6 +1870,193 @@ def squeeze(x, axis=None):
     )
 
 
+def stack(arrays, axis=0, out=None):
+    """
+    Join a sequence of ``DNDarray``s along a new axis.
+
+    The ``axis`` parameter specifies the index of the new axis in the dimensions of the result.
+    For example, if ``axis=0``, the arrays will be stacked along the first dimension; if ``axis=-1``,
+    they will be stacked along the last dimension. See Notes below for split semantics.
+
+    Parameters
+    ----------
+    arrays : Sequence[DNDarrays,...]
+        Each DNDarray must have the same shape, must be split along the same axis, and must be balanced.
+    axis : int, optional
+        The axis in the result array along which the input arrays are stacked.
+    out : DNDarray, optional
+        If provided, the destination to place the result. The shape and split axis must be correct, matching
+        that of what stack would have returned if no out argument were specified (see Notes below).
+
+    Raises
+    ------
+    TypeError
+        If arrays in sequence are not ``DNDarray``s, or if their ``dtype`` attribute does not match.
+    ValueError
+        If ``arrays`` contains less than 2 ``DNDarray``s.
+    ValueError
+        If the ``DNDarray``s are of different shapes, or if they are split along different axes (``split`` attribute).
+    RuntimeError
+        If the ``DNDarrays`` reside of different devices, or if they are unevenly distributed across ranks (method ``is_balanced()`` returns ``False``)
+
+    Returns
+    -------
+    DNDarray
+
+    Notes
+    -----
+    Split semantics: :func:`stack` requires that all arrays in the sequence be split along the same dimension.
+    After stacking, the data are still distributed along the original dimension, however a new dimension has been added at `axis`,
+    therefore:
+
+    - if :math:`axis <= split`, output will be distributed along :math:`split+1`
+
+    - if :math:`axis > split`, output will be distributed along `split`
+
+    Examples
+    --------
+    >>> a = ht.arange(20).reshape(4, 5)
+    >>> b = ht.arange(20, 40).reshape(4, 5)
+    >>> ht.stack((a,b), axis=0)._DNDarray__array
+    tensor([[[ 0,  1,  2,  3,  4],
+             [ 5,  6,  7,  8,  9],
+             [10, 11, 12, 13, 14],
+             [15, 16, 17, 18, 19]],
+
+            [[20, 21, 22, 23, 24],
+             [25, 26, 27, 28, 29],
+             [30, 31, 32, 33, 34],
+             [35, 36, 37, 38, 39]]])
+    >>> # distributed DNDarrays, 3 processes, stack along last dimension
+    >>> a = ht.arange(20, split=0).reshape(4, 5)
+    >>> b = ht.arange(20, 40, split=0).reshape(4, 5)
+    >>> ht.stack((a,b), axis=-1)._DNDarray__array
+    [0/2] tensor([[[ 0, 20],
+    [0/2]          [ 1, 21],
+    [0/2]          [ 2, 22],
+    [0/2]          [ 3, 23],
+    [0/2]          [ 4, 24]],
+    [0/2]
+    [0/2]         [[ 5, 25],
+    [0/2]          [ 6, 26],
+    [0/2]          [ 7, 27],
+    [0/2]          [ 8, 28],
+    [0/2]          [ 9, 29]]])
+    [1/2] tensor([[[10, 30],
+    [1/2]          [11, 31],
+    [1/2]          [12, 32],
+    [1/2]          [13, 33],
+    [1/2]          [14, 34]]])
+    [2/2] tensor([[[15, 35],
+    [2/2]          [16, 36],
+    [2/2]          [17, 37],
+    [2/2]          [18, 38],
+    [2/2]          [19, 39]]])
+    """
+
+    # sanitation
+    if not isinstance(arrays, (tuple, list)):
+        raise TypeError("arrays must be a list or a tuple")
+
+    if len(arrays) < 2:
+        raise ValueError("stack expects a sequence of at least 2 DNDarrays")
+
+    for i, array in enumerate(arrays):
+        if not isinstance(array, dndarray.DNDarray):
+            raise TypeError(
+                "all arrays in sequence must be DNDarrays, array {} was {}".format(i, type(array))
+            )
+
+    arrays_metadata = list(
+        [array.gshape, array.split, array.device, array.is_balanced()] for array in arrays
+    )
+    num_arrays = len(arrays)
+    # metadata must be identical for all arrays
+    if arrays_metadata.count(arrays_metadata[0]) != num_arrays:
+        shapes = list(array.gshape for array in arrays)
+        if shapes.count(shapes[0]) != num_arrays:
+            raise ValueError(
+                "All DNDarrays in sequence must have the same shape, got shapes {}".format(shapes)
+            )
+        splits = list(array.split for array in arrays)
+        if splits.count(splits[0]) != num_arrays:
+            raise ValueError(
+                "All DNDarrays in sequence must have the same split axis, got splits {}"
+                "Check out the heat.resplit() documentation.".format(splits)
+            )
+        devices = list(array.device for array in arrays)
+        if devices.count(devices[0]) != num_arrays:
+            raise RuntimeError(
+                "DNDarrays in sequence must reside on the same device, got devices {}".format(
+                    devices
+                )
+            )
+        balance = list(array.is_balanced() for array in arrays)
+        if balance.count(balance[0]) != num_arrays:
+            raise RuntimeError(
+                "DNDarrays distribution must be balanced across ranks, is_balanced() returns {}"
+                "You can balance a DNDarray with the balance_() method.".format(balance)
+            )
+    else:
+        array_shape, array_split, array_device = arrays_metadata[0][:3]
+        # extract torch tensors
+        t_arrays = list(array._DNDarray__array for array in arrays)
+        # output dtype
+        t_dtypes = list(t_array.dtype for t_array in t_arrays)
+        t_array_dtype = t_dtypes[0]
+        if t_dtypes.count(t_dtypes[0]) != num_arrays:
+            for d in range(1, len(t_dtypes)):
+                t_array_dtype = (
+                    t_array_dtype
+                    if t_array_dtype is t_dtypes[d]
+                    else torch.promote_types(t_array_dtype, t_dtypes[d])
+                )
+            t_arrays = list(t_array.type(t_array_dtype) for t_array in t_arrays)
+        array_dtype = types.canonical_heat_type(t_array_dtype)
+
+    # sanitate axis
+    axis = stride_tricks.sanitize_axis(array_shape + (num_arrays,), axis)
+
+    # output shape and split
+    stacked_shape = array_shape[:axis] + (num_arrays,) + array_shape[axis:]
+    if array_split is not None:
+        stacked_split = array_split + 1 if axis <= array_split else array_split
+    else:
+        stacked_split = None
+
+    # sanitate output
+    if out is not None:
+        if not isinstance(out, dndarray.DNDarray):
+            raise TypeError("expected out to be None or ht.DNDarray, but was {}".format(type(out)))
+        if out.dtype is not array_dtype:
+            raise TypeError("expected out to be {}, but was {}".format(array_dtype, out.dtype))
+        if out.gshape != stacked_shape:
+            raise ValueError(
+                "expected out.shape to be {}, got {}".format(out.gshape, stacked_shape)
+            )
+        if out.split is not stacked_split:
+            raise ValueError("expected out.split to be {}, got {}".format(out.split, stacked_split))
+    # end of sanitation
+
+    # stack locally
+    t_stacked = torch.stack(t_arrays, dim=axis)
+
+    # return stacked DNDarrays
+    if out is not None:
+        out._DNDarray__array = t_stacked
+        return out
+
+    stacked = dndarray.DNDarray(
+        t_stacked,
+        gshape=stacked_shape,
+        dtype=array_dtype,
+        split=stacked_split,
+        device=array_device,
+        comm=arrays[0].comm,
+    )
+    return stacked
+
+
 def unique(a, sorted=False, return_inverse=False, axis=None):
     """
     Finds and returns the unique elements of an array.
@@ -1979,6 +2363,89 @@ def resplit(arr, axis=None):
     return new_arr
 
 
+def row_stack(arrays):
+    """
+    Stack 1-D or 2-D ``DNDarray``s as rows into a 2-D ``DNDarray``.
+    If the input arrays are 1-D, they will be stacked as rows. If they are 2-D,
+    they will be concatenated along the first axis.
+
+    Parameters
+    ----------
+    arrays : Sequence[DNDarrays,...]
+
+    Raises
+    ------
+    ValueError
+        If arrays have more than 2 dimensions
+
+    Returns
+    -------
+    DNDarray
+
+    Note
+    ----
+    All ``DNDarray``s in the sequence must have the same number of columns.
+    All ``DNDarray``s must be split along the same axis!
+
+    Examples
+    --------
+    >>> # 1-D tensors
+    >>> a = ht.array([1, 2, 3])
+    >>> b = ht.array([2, 3, 4])
+    >>> ht.row_stack((a, b))._DNDarray__array
+    tensor([[1, 2, 3],
+            [2, 3, 4]])
+    >>> # 1-D and 2-D tensors
+    >>> a = ht.array([1, 2, 3])
+    >>> b = ht.array([[2, 3, 4], [5, 6, 7]])
+    >>> c = ht.array([[7, 8, 9], [10, 11, 12]])
+    >>> ht.row_stack((a, b, c))._DNDarray__array
+    tensor([[ 1,  2,  3],
+            [ 2,  3,  4],
+            [ 5,  6,  7],
+            [ 7,  8,  9],
+            [10, 11, 12]])
+    >>> # distributed DNDarrays, 3 processes
+    >>> a = ht.arange(10, split=0).reshape((2, 5))
+    >>> b = ht.arange(5, 20, split=0).reshape((3, 5))
+    >>> c = ht.arange(20, 40, split=0).reshape((4, 5))
+    >>> ht.row_stack((a, b, c))._DNDarray__array
+    [0/2] tensor([[0, 1, 2, 3, 4],
+    [0/2]         [5, 6, 7, 8, 9],
+    [0/2]         [5, 6, 7, 8, 9]], dtype=torch.int32)
+    [1/2] tensor([[10, 11, 12, 13, 14],
+    [1/2]         [15, 16, 17, 18, 19],
+    [1/2]         [20, 21, 22, 23, 24]], dtype=torch.int32)
+    [2/2] tensor([[25, 26, 27, 28, 29],
+    [2/2]         [30, 31, 32, 33, 34],
+    [2/2]         [35, 36, 37, 38, 39]], dtype=torch.int32)
+    >>> # distributed 1-D and 2-D DNDarrays, 3 processes
+    >>> a = ht.arange(5, split=0)
+    >>> b = ht.arange(5, 20, split=0).reshape((3, 5))
+    >>> ht.row_stack((a, b))._DNDarray__array
+    [0/2] tensor([[0, 1, 2, 3, 4],
+    [0/2]         [5, 6, 7, 8, 9]])
+    [1/2] tensor([[10, 11, 12, 13, 14]])
+    [2/2] tensor([[15, 16, 17, 18, 19]])
+    """
+    arr_dims = list(array.ndim for array in arrays)
+    # sanitation, arrays can be 1-d or 2-d, see sanitation module #468
+    over_dims = [i for i, j in enumerate(arr_dims) if j > 2]
+    if len(over_dims) > 0:
+        raise ValueError("Arrays must be 1-D or 2-D")
+    if arr_dims.count(1) == len(arr_dims):
+        # all arrays are 1-D, stack
+        return stack(arrays, axis=0)
+    else:
+        if arr_dims.count(1) > 0:
+            arr_1d = [i for i, j in enumerate(arr_dims) if j == 1]
+            # 1-D arrays must be row arrays
+            arrays = list(arrays)
+            for ind in arr_1d:
+                arrays[ind] = arrays[ind].reshape((1, arrays[ind].size))
+        return concatenate(arrays, axis=0)
+
+
 def vstack(tup):
     """
     Stack arrays in sequence vertically (row wise).
@@ -2003,28 +2470,27 @@ def vstack(tup):
     --------
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([2, 3, 4])
-    >>> ht.vstack((a,b))
-    [0] tensor([[1, 2, 3],
-    [0]         [2, 3, 4]])
-    [1] tensor([[1, 2, 3],
-    [1]         [2, 3, 4]])
+    >>> ht.vstack((a,b))._DNDarray__array
+    [0/1] tensor([[1, 2, 3],
+    [0/1]         [2, 3, 4]])
+    [1/1] tensor([[1, 2, 3],
+    [1/1]         [2, 3, 4]])
     >>> a = ht.array([1, 2, 3], split=0)
     >>> b = ht.array([2, 3, 4], split=0)
-    >>> ht.vstack((a,b))
-    [0] tensor([[1, 2],
-    [0]         [2, 3]])
-    [1] tensor([[3],
-    [1]         [4]])
+    >>> ht.vstack((a,b))._DNDarray__array
+    [0/1] tensor([[1, 2],
+    [0/1]         [2, 3]])
+    [1/1] tensor([[3],
+    [1/1]         [4]])
     >>> a = ht.array([[1], [2], [3]], split=0)
     >>> b = ht.array([[2], [3], [4]], split=0)
-    >>> ht.vstack((a,b))
-    [0] tensor([[1],
-    [0]         [2],
-    [0]         [3]])
-    [1] tensor([[2],
-    [1]         [3],
-    [1]         [4]])
-
+    >>> ht.vstack((a,b))._DNDarray__array
+    [0/1] tensor([[1],
+    [0/1]         [2],
+    [0/1]         [3]])
+    [1/1] tensor([[2],
+    [1/1]         [3],
+    [1/1]         [4]])
     """
     tup = list(tup)
     for cn, arr in enumerate(tup):
@@ -2032,3 +2498,188 @@ def vstack(tup):
             tup[cn] = arr.expand_dims(0).resplit_(arr.split)
 
     return concatenate(tup, axis=0)
+
+
+def topk(a, k, dim=None, largest=True, sorted=True, out=None):
+    """
+    Returns the k highest entries in the array.
+    (Not Stable for split arrays)
+
+    Parameters:
+    -------
+    a: DNDarray
+        Array to take items from
+    k: int
+        Number of items to take
+    dim: int
+        Dimension along which to take, per default the last dimension
+    largest: bool
+        Return either the k largest or smallest items
+    sorted: bool
+        Whether to sort the output (descending if largest=True, else ascending)
+    out: tuple of ht.DNDarrays
+        (items, indices) to put the result in
+
+    Returns
+    -------
+    items: ht.DNDarray of shape (k,)
+        The selected items
+    indices: ht.DNDarray of shape (k,)
+        The respective indices
+
+    Examples
+    --------
+    >>> a = ht.array([1, 2, 3])
+    >>> ht.topk(a,2)
+    (tensor([3, 2]), tensor([2, 1]))
+    >>> a = ht.array([[1,2,3],[1,2,3]])
+    >>> ht.topk(a,2,dim=1)
+   (tensor([[3, 2],
+        [3, 2]]),
+    tensor([[2, 1],
+        [2, 1]]))
+    >>> a = ht.array([[1,2,3],[1,2,3]], split=1)
+    >>> ht.topk(a,2,dim=1)
+   (tensor([[3],
+        [3]]), tensor([[1],
+        [1]]))
+    (tensor([[2],
+        [2]]), tensor([[1],
+        [1]]))
+    """
+
+    if dim is None:
+        dim = len(a.shape) - 1
+
+    if largest:
+        neutral_value = -constants.sanitize_infinity(a._DNDarray__array.dtype)
+    else:
+        neutral_value = constants.sanitize_infinity(a._DNDarray__array.dtype)
+
+    def local_topk(*args, **kwargs):
+        shape = a.lshape
+
+        if shape[dim] < k:
+            result, indices = torch.topk(args[0], shape[dim], largest=largest, sorted=sorted)
+            if dim == a.split:
+                # Pad the result with neutral values to fill the buffer
+                size = list(result.shape)
+                padding_sizes = [
+                    k - size[dim] if index == dim else 0
+                    for index, item in enumerate(list(result.shape))
+                ]
+                padding = torch.nn.ConstantPad1d(padding_sizes, neutral_value)
+                result = padding(result)
+                # Different value for indices padding to prevent type casting issues
+                padding = torch.nn.ConstantPad1d(padding_sizes, 0)
+                indices = padding(indices)
+        else:
+            result, indices = torch.topk(args[0], k=k, dim=dim, largest=largest, sorted=sorted)
+
+        # add offset of data chunks if reduction is computed across split axis
+        if dim == a.split:
+            offset, _, _ = a.comm.chunk(shape, a.split)
+            indices = indices.clone()
+            indices += torch.tensor(offset * a.comm.rank, dtype=indices.dtype)
+
+        local_shape = list(result.shape)
+        local_shape_len = len(shape)
+
+        metadata = torch.tensor([k, dim, largest, sorted, local_shape_len, *local_shape])
+        send_buffer = torch.cat(
+            (metadata.double(), result.double().flatten(), indices.flatten().double())
+        )
+
+        return send_buffer
+
+    gres = operations.__reduce_op(
+        a,
+        local_topk,
+        MPI_TOPK,
+        axis=dim,
+        neutral=neutral_value,
+        dim=dim,
+        sorted=sorted,
+        largest=largest,
+    )
+
+    # Split data again to return a tuple
+    local_result = gres._DNDarray__array
+    shape_len = int(local_result[4])
+
+    gres, gindices = local_result[5 + shape_len :].chunk(2)
+    gres = gres.reshape(*local_result[5 : 5 + shape_len].int())
+    gindices = gindices.reshape(*local_result[5 : 5 + shape_len].int())
+
+    # Create output with correct split
+    if dim == a.split:
+        is_split = None
+        split = a.split
+    else:
+        is_split = a.split
+        split = None
+
+    final_array = factories.array(
+        gres, dtype=a.dtype, device=a.device, split=split, is_split=is_split
+    )
+    final_indices = factories.array(
+        gindices, dtype=torch.int64, device=a.device, split=split, is_split=is_split
+    )
+
+    if out is not None:
+        if out[0].shape != final_array.shape or out[1].shape != final_indices.shape:
+            raise ValueError(
+                "Expecting output buffer tuple of shape ({}, {}), got ({}, {})".format(
+                    gres.shape, gindices.shape, out[0].shape, out[1].shape
+                )
+            )
+        out[0]._DNDarray__array.storage().copy_(final_array._DNDarray__array.storage())
+        out[1]._DNDarray__array.storage().copy_(final_indices._DNDarray__array.storage())
+
+        out[0]._DNDarray__dtype = a.dtype
+        out[1]._DNDarray__dtype = types.int64
+
+    return final_array, final_indices
+
+
+def mpi_topk(a, b, mpi_type):
+    # Parse Buffer
+    a_parsed = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
+    b_parsed = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
+
+    # Collect metadata from Buffer
+    k = int(a_parsed[0].item())
+    dim = int(a_parsed[1].item())
+    largest = bool(a_parsed[2].item())
+    sorted = bool(a_parsed[3].item())
+
+    # Offset is the length of the shape on the buffer
+    len_shape_a = int(a_parsed[4])
+    shape_a = a_parsed[5 : 5 + len_shape_a].int().tolist()
+    len_shape_b = int(b_parsed[4])
+    shape_b = b_parsed[5 : 5 + len_shape_b].int().tolist()
+
+    # separate the data into values, indices
+    a_values, a_indices = a_parsed[len_shape_a + 5 :].chunk(2)
+    b_values, b_indices = b_parsed[len_shape_b + 5 :].chunk(2)
+
+    # reconstruct the flatened data by shape
+    a_values = a_values.reshape(shape_a)
+    a_indices = a_indices.reshape(shape_a)
+    b_values = b_values.reshape(shape_b)
+    b_indices = b_indices.reshape(shape_b)
+
+    # stack the data to actually run topk on
+    values = torch.cat((a_values, b_values), dim=dim)
+    indices = torch.cat((a_indices, b_indices), dim=dim)
+
+    result, k_indices = torch.topk(values, k, dim=dim, largest=largest, sorted=sorted)
+    indices = torch.gather(indices, dim, k_indices)
+
+    metadata = a_parsed[0 : len_shape_a + 5]
+    final_result = torch.cat((metadata, result.double().flatten(), indices.double().flatten()))
+
+    b_parsed.copy_(final_result)
+
+
+MPI_TOPK = MPI.Op.Create(mpi_topk, commute=True)
