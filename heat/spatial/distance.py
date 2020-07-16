@@ -5,7 +5,7 @@ from mpi4py import MPI
 from ..core import factories
 from ..core import types
 
-__all__ = ["cdist", "rbf"]
+__all__ = ["cdist", "manhattan", "rbf"]
 
 
 def _euclidian(x, y):
