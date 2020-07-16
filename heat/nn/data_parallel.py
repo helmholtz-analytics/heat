@@ -33,16 +33,23 @@ class DataParallel(tnn.Module):
             def forward(self, x):
                 return self.net2(self.relu(self.net1(x)))
 
-        ht_model = ht.nn.DataParallel(TestingModel(), comm, optimizer)
+        t_model = TestingModel()
+        t_optimizer = torch.optim.SGD(t_model.parameters(), lr=0.01)
+        ht_optimizer = ht.optim.DataParallelOptimizer(t_optimizer)
+        ht_model = ht.nn.DataParallel(t_model, comm, ht_optimizer)
 
-    and a requirement of giving a HeAT communicator (``comm``) as well as a Torch optimizer (``optimizer``). For the
-    given model both the ``__init__()`` and ``forward()`` functions must be defined in the class defining the network.
+    and a requirement of giving a HeAT communicator (``comm``) as well as at least one DataParallelOptimizer
+    (``dp_optimizers``). It's possible to pass more than one optimizer, but communication during parameter updates is
+    limited to blocking then. The same limitation takes effect when passing an optimizer that does not deal exactly with
+    the set of model's parameters . For the given model both the ``__init__()`` and ``forward()`` functions must be
+    defined in the class defining the network.
 
     It is highly recommended that a HeAT DataLoader is used, see :func:`..utils.data.datatools.DataLoader`. The
     default communications scheme for this is blocking. The blocking scheme will average the model parameters during
     the backwards step, synchronizing them before the next model iteration.
 
-    To use the non-blocking communications for parameter updates, negate the optional flag ``blocking``.
+    To use the non-blocking communications for parameter updates, negate the optional flag
+    ``blocking_parameter_updates`.
 
     Attributes
     ----------
