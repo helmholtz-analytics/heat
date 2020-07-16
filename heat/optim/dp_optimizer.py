@@ -53,6 +53,6 @@ class DataParallelOptimizer:
         """
 
         # reset view onto params in order to reset all gradients
-        self.torch_optimizer.param_groups[0]["params"] = self.params_ref[0 : len(self.params_ref)]
+        self.torch_optimizer.param_groups[0]["params"] = self.params_ref[:]
 
         self.torch_optimizer.zero_grad()
