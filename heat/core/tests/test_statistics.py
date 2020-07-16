@@ -949,8 +949,8 @@ class TestStatistics(TestCase):
             ht.minimum(random_volume_1, random_volume_2, out=output)
 
     def test_percentile(self):
-        # test local, distributed, split/axis combination, TODO no data on process, Issue #568
-        x_np = np.arange(10 * 10 * 10).reshape(10, 10, 10)
+        # test local, distributed, split/axis combination, no data on process
+        x_np = np.arange(3 * 10 * 10).reshape(3, 10, 10)
         x_ht = ht.array(x_np)
         x_ht_split0 = ht.array(x_np, split=0)
         x_ht_split1 = ht.array(x_np, split=1)
