@@ -50,6 +50,8 @@ class DataParallel(tnn.Module):
         HeAT communicator to use
     optimizer : optim.DataParallelOptimizer
         Optimizer used for parameter updates.
+    blocking_parameter_updates : bool (optional)
+        flag indicating if communication during parameter updates is blocking
     """
 
     def __init__(
@@ -57,14 +59,16 @@ class DataParallel(tnn.Module):
         module: torch.nn.Module,
         comm: MPICommunication,
         optimizer: optim.DataParallelOptimizer,
+        blocking_parameter_updates: bool = True,
     ):
         super(DataParallel, self).__init__()
         self.module = module
         self.comm = comm
         if not isinstance(optimizer, optim.DataParallelOptimizer):
             raise TypeError("Optimizer must be heat.optim.DataParallelOptimizer")
+        optimizer.blocking_parameter_updates = blocking_parameter_updates
         self.dp_optimizer = optimizer
-        self.blocking = optimizer.blocking
+        self.blocking_parameter_updates = blocking_parameter_updates
 
         self._layer_wait_handles = OrderedDict()
         self._fwd_hook_handles = list()
@@ -98,7 +102,7 @@ class DataParallel(tnn.Module):
                 start_idx = idx
 
             # register backward hooks for all model parameter tensors
-            if self.blocking:
+            if self.blocking_parameter_updates:
                 param.register_hook(self._blocking_hook)
             else:
                 param.register_hook(self._nonblocking_hook(layer_name, name))
@@ -106,7 +110,7 @@ class DataParallel(tnn.Module):
 
     def __setattr__(self, name, value):
         # auto-detect end of epoch's training phase and finalize wait handles (only relevant for non-blocking)
-        if name == "training" and not value and not self.blocking:
+        if name == "training" and not value and not self.blocking_parameter_updates:
             self._iparam_update()
         super(DataParallel, self).__setattr__(name, value)
 
@@ -121,7 +125,7 @@ class DataParallel(tnn.Module):
             lcl_data = torch.tensor(data)
 
         # check if non-blocking and training
-        if not self.blocking and self.module.training:
+        if not self.blocking_parameter_updates and self.module.training:
             # register forward hooks for all layers with wait handles
             for name, submodule in self.module.named_modules():
                 if name == "":
@@ -134,7 +138,7 @@ class DataParallel(tnn.Module):
 
         # finalize potentially remaining wait handles and update corresponding params (if
         # computation graph has changed between previous backward and this forward)
-        if not self.blocking:
+        if not self.blocking_parameter_updates:
             # set has to be copied in order to be manipulated during iteration
             active_layers_cpy = self._active_layers.copy()
             for layer_name in active_layers_cpy:
