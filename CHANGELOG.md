@@ -36,6 +36,7 @@
 - [#620](https://github.com/helmholtz-analytics/heat/pull/620) New feature: KNN
 - [#624](https://github.com/helmholtz-analytics/heat/pull/624) Bugfix: distributed median() indexing and casting
 - [#629](https://github.com/helmholtz-analytics/heat/pull/629) New features: `asin`, `acos`, `atan`, `atan2`
+- [#634](https://github.com/helmholtz-analytics/heat/pull/634) New features: `kmedians`, `kmedoids`, `mahnattan`
 
 # v0.4.0
 
