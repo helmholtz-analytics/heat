@@ -1,6 +1,8 @@
 import bisect
 import functools
 import operator
+import warnings
+
 import torch
 import torch.nn as tnn
 
@@ -48,8 +50,9 @@ class DataParallel(tnn.Module):
         the local module
     comm : heat.MPICommunicator
         HeAT communicator to use
-    optimizer : optim.DataParallelOptimizer
-        Optimizer used for parameter updates.
+    dp_optimizers : tuple
+        sequence of DataParallelOptimizers to be used. Usage of more than one optimizer causes MPI communication
+        to be blocking during parameter updates, regardless of ``blocking_parameter_updates`` flag
     blocking_parameter_updates : bool (optional)
         flag indicating if communication during parameter updates is blocking
     """
@@ -58,18 +61,15 @@ class DataParallel(tnn.Module):
         self,
         module: torch.nn.Module,
         comm: MPICommunication,
-        optimizer: optim.DataParallelOptimizer,
+        *dp_optimizers: optim.DataParallelOptimizer,
         blocking_parameter_updates: bool = True,
     ):
         super(DataParallel, self).__init__()
         self.module = module
         self.comm = comm
-        if not isinstance(optimizer, optim.DataParallelOptimizer):
-            raise TypeError("Optimizer must be heat.optim.DataParallelOptimizer")
-        optimizer.blocking_parameter_updates = blocking_parameter_updates
-        self.dp_optimizer = optimizer
         self.blocking_parameter_updates = blocking_parameter_updates
 
+        self._dp_optimizers = list()
         self._layer_wait_handles = OrderedDict()
         self._fwd_hook_handles = list()
         # set of layers' names with active wait handles (only relevant for non-blocking)
@@ -78,15 +78,38 @@ class DataParallel(tnn.Module):
         self._param_slices = dict()
         # pytorch internal parameter indexing
         self._param_indices = dict()
-        # reference of optimizer's params
-        self._params_ref = None
 
-        # check if optimizer matches module
-        if list(module.parameters()) != self.dp_optimizer.torch_optimizer.param_groups[0]["params"]:
-            raise ValueError("given module and optimizer don't share same parameters.")
-        else:
-            # take reference of optimizer's params
-            self._params_ref = self.dp_optimizer.torch_optimizer.param_groups[0]["params"]
+        # raise error if no DP optimizer is given
+        if len(dp_optimizers) == 0:
+            raise ValueError("You have to pass at least one DataParallelOptimizer.")
+
+        # current implementation of non-blocking communication during parameter updates has some limitations that cause
+        # fallback onto blocking in case of overstepping them
+        if not self.blocking_parameter_updates:
+            # usage of multiple optimizers isn't supported
+            if len(dp_optimizers) > 1:
+                self.blocking_parameter_updates = True
+                warnings.warn(
+                    "Usage of more than one DataParallelOptimizer causes fallback on blocking MPI "
+                    "communication during parameter updates.",
+                    stacklevel=2,
+                )
+            # usage of optimizer with parameters being unequal to model's parameters isn't supported
+            elif (
+                list(module.parameters())
+                != dp_optimizers[0].torch_optimizer.param_groups[0]["params"]
+            ):
+                self.blocking_parameter_updates = True
+                warnings.warn(
+                    "Usage of optimizer whose parameters differ from module's parameters causes fallback on blocking "
+                    "MPI communication during parameter updates.",
+                    stacklevel=2,
+                )
+
+        # assign given optimizers to this model
+        for dp_optimizer in dp_optimizers:
+            self._dp_optimizers.append(dp_optimizer)
+            dp_optimizer.blocking_parameter_updates = self.blocking_parameter_updates
 
         # get parameter indexing and slices
         start_idx = 0
@@ -133,18 +156,21 @@ class DataParallel(tnn.Module):
                 if name in self._layer_wait_handles:
                     hook_handle = submodule.register_forward_pre_hook(self._forward_hook(name))
                     self._fwd_hook_handles.append(hook_handle)
+
         # perform forward pass
         ret = self.module(lcl_data, *inputs[1:], **kwargs)
 
         # finalize potentially remaining wait handles and update corresponding params (if
         # computation graph has changed between previous backward and this forward)
-        if not self.blocking_parameter_updates:
+        if not self.blocking_parameter_updates and self.module.training:
             # set has to be copied in order to be manipulated during iteration
             active_layers_cpy = self._active_layers.copy()
             for layer_name in active_layers_cpy:
                 self._forward_hook(layer_name)(None, None)
+
         # reset optimizer flag
-        self.dp_optimizer.update_next = False
+        for dp_optimizer in self._dp_optimizers:
+            dp_optimizer.update_next = False
         # clear dictionary after all wait handles are used up (dynamic computation graph)
         self._layer_wait_handles.clear()
         # remove forward hooks (dynamic computation graph)
@@ -154,7 +180,7 @@ class DataParallel(tnn.Module):
 
         return ret
 
-    def _iparam_update(self, param_slice: slice = None, layer_names: List[str] = None):
+    def _iparam_update(self, param_slice: slice = None, layer_names: List[str] = None) -> None:
         """
         Update parameters asynchronously via wait handles.
 
@@ -166,15 +192,20 @@ class DataParallel(tnn.Module):
             List of layer names, whose parameters are to be updated. Has to match param_slice. If None, all layers are
             taken.
         """
+
+        # for non-blocking, only one dp optimizer is allowed
+        dp_optimizer = self._dp_optimizers[0]
+
         # perform update on the whole model
         if param_slice is None:
-            param_slice = slice(len(self._params_ref))
+            param_slice = slice(len(dp_optimizer.params_ref))
         if layer_names is None:
             layer_names = list(self._layer_wait_handles.keys())
 
         # update params that are visible for the optimizer
-        self.dp_optimizer.torch_optimizer.param_groups[0]["params"] = self._params_ref[param_slice]
-
+        dp_optimizer.torch_optimizer.param_groups[0]["params"] = dp_optimizer.params_ref[
+            param_slice
+        ]
         # iterate over layers
         for layer_name in layer_names:
             # only perform update, if all given layers hold unfinalized wait handles (important for layer reuse)
@@ -187,15 +218,15 @@ class DataParallel(tnn.Module):
                 # synchronize, get parameter's global gradient
                 wait_handle.wait()
                 # check if shapes are matching
-                if self._params_ref[param_idx].grad.data.shape != wait_handle.tensor.shape:
+                if dp_optimizer.params_ref[param_idx].grad.data.shape != wait_handle.tensor.shape:
                     raise ValueError("Shapes must be equal.")
                 # set parameter's global gradient
-                self._params_ref[param_idx].grad.data = wait_handle.tensor
+                dp_optimizer.params_ref[param_idx].grad.data = wait_handle.tensor
                 # remove layer from set of active layers, if present
                 self._active_layers.discard(layer_name)
         # if desired, perform actual parameter update
-        if self.dp_optimizer.update_next:
-            self.dp_optimizer.torch_optimizer.step()
+        if dp_optimizer.update_next:
+            dp_optimizer.torch_optimizer.step()
 
     def _blocking_hook(self, grad_loc: torch.Tensor) -> torch.Tensor:
         """
@@ -214,6 +245,7 @@ class DataParallel(tnn.Module):
         grad_loc *= 1 / float(self.comm.size)
         # perform MPI Allreduce to compute global gradient
         self.comm.Allreduce(MPI.IN_PLACE, grad_loc, MPI.SUM)
+
         return grad_loc
 
     def _nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
