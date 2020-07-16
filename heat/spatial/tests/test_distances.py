@@ -43,7 +43,7 @@ class TestDistances(TestCase):
         self.assertTrue(ht.equal(d, res_XX_manhattan))
         self.assertEqual(d.split, None)
 
-        d = ht.spatial.cdist(X, expand=True)
+        d = ht.spatial.manhattan(X, expand=True)
         self.assertTrue(ht.equal(d, res_XX_manhattan))
         self.assertEqual(d.split, None)
 
