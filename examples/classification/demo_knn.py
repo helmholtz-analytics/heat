@@ -19,7 +19,7 @@ for i in range(50, 100):
     keys.append(1)
 for i in range(100, 150):
     keys.append(2)
-Y = ht.array(keys)
+Y = ht.array(keys, split=0)
 
 
 def calculate_accuracy(new_y, verification_y):
@@ -96,7 +96,6 @@ def create_fold(dataset_x, dataset_y, size, seed=None):
     indices = indices.tolist()
     all_indices = [index for index in range(data_length)]
     verification_indices = [index for index in all_indices if index not in indices]
-
     fold_x = ht.array(dataset_x[indices], is_split=0)
     fold_y = ht.array(dataset_y[indices], is_split=0)
     verification_y = ht.array(dataset_y[verification_indices], is_split=0)
