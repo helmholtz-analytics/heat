@@ -7,9 +7,9 @@ Thank you for your interest in contributing to HeAT, we really appreciate your t
  * We strongly recommend getting in touch with the core developers, either here on GitHub (by filing and/or commenting on an Issue) or on [Mattermost](https://mattermost-haf.fz-juelich.de/signup_email), before starting to work on a contribution. We are a small team and it's good to know who is currently working on what.
  * Our git workflow is described in a lot of detail [below](#developing-contributions).
  * **TL;DR for experts:**
-    1. `git add`, `pre-commit run --all-files` and `git commit` as needed;
-    2. `git rebase -i master` to rebase and tidy up your commits;
-    3. `git push` to publish to the remote repository.
+ 1. `git add`, `pre-commit run --all-files` and `git commit` as needed;
+ 2. `git rebase -i master` to rebase and tidy up your commits;
+ 3. `git push` to publish to the remote repository.
 
 
 
