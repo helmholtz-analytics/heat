@@ -1178,9 +1178,7 @@ def pad(array, pad_width, mode="constant", constant_values=0):
                     padded_torch_tensor = torch.nn.functional.pad(
                         padded_torch_tensor, pad_tuple, mode, value_tuple[i]
                     )
-
         else:
-
             # ------------------------------------------------------------------------------------------------------------------
             # CASE 2: padding in split dimension and function runs on more than 1 process
             #
@@ -1196,7 +1194,6 @@ def pad(array, pad_width, mode="constant", constant_values=0):
             pad_middle_list = list(pad)
 
             # calculate the corresponding pad tuples
-
             first_idx_set_zero = 2 * (rank_array - array.split - 1)
 
             pad_end_list[first_idx_set_zero] = 0
@@ -1246,11 +1243,10 @@ def pad(array, pad_width, mode="constant", constant_values=0):
                         padded_torch_tensor, pad_tuple, mode, value_tuple[i]
                     )
 
-    padded_tensor = dndarray.DNDarray(
-        array=padded_torch_tensor,
-        gshape=output_shape,
+    padded_tensor = factories.array(
+        padded_torch_tensor,
         dtype=array.dtype,
-        split=array.split,
+        is_split=array.split,
         device=array.device,
         comm=array.comm,
     )
