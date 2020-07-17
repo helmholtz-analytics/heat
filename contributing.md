@@ -6,9 +6,9 @@ Thank you for your interest in contributing to HeAT, we really appreciate your t
  * To set up your environment for HeAT development, follow these [instructions](README.md#Hacking).
  * We strongly recommend getting in touch with the core developers, either here on GitHub (by filing and/or commenting on an Issue) or on [Mattermost](https://mattermost-haf.fz-juelich.de/signup_email), before starting to work on a contribution. We are a small team and it's good to know who is currently working on what.
  * Our git workflow is described in a lot of detail [below](#developing-contributions).
- * **TL;DR:**
-    1. `git add` and `git commit` as needed;
-    2. `git rebase -i master` to tidy up your commits;
+ * **TL;DR for experts:**
+    1. `git add`, `pre-commit run --all-files` and `git commit` as needed;
+    2. `git rebase -i master` to rebase and tidy up your commits;
     3. `git push` to publish to the remote repository.
 
 
@@ -51,13 +51,35 @@ git checkout master
 git pull upstream master
 ```
 
+* Install heat from the checked out sources with:
+
+```
+pip install .[hdf5, netcdf, dev]
+```
+
+* The extra `dev` dependency pulls in additional tools to support the enforcement
+of coding conventions ([Black](https://github.com/psf/black)) and to support a
+pre-commit hook to do the same. In order to fully use this framework, please
+also install the pre-commit hook with
+
+```
+pre-commit install
+````
+
 * Create a branch for the feature you want to work on. Since the branch name will appear in the merge message, use a sensible name. The naming scheme is as follows `<KIND-OF-CONTRIBUTION/<ISSUE-NR>-<NAME>`, where the kind of the contribution should be *features* for an entirely new feature, *bug* for, well, a bug and *enhancement* for things like performance optimizations for example. Please make sure that *NAME* very briefly summarizes the content of your contribution.
 
 ```
 git checkout -b features/123-boolean-operators
 ```
 
-* Commit locally as you progress (`git add` and `git commit`). Use a properly formatted commit message, write tests that fail before your change and pass afterward, run all the tests locally and in parallel for different process counts (`mpirun -np <PROCESSES>`). Be sure to document any changed behavior in docstrings, keeping to HeAT's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/504-docstring-formatting/doc/source/documentation_howto.rst).
+* Commit locally as you progress:
+
+```
+git add
+pre-commit run --all-files
+git commit
+```
+Use a properly formatted commit message, write tests that fail before your change and pass afterward, run all the tests locally and in parallel for different process counts (`mpirun -np <PROCESSES>`). Be sure to document any changed behavior in docstrings, keeping to HeAT's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/504-docstring-formatting/doc/source/documentation_howto.rst).
 
 
 #### Publishing your Contributions
