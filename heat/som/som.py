@@ -29,6 +29,7 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         initial_radius,
         target_radius,
         max_epoch,
+        seed,
         batch_size=1,
     ):
         self.height = height
@@ -41,7 +42,11 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         self.radius = initial_radius
         self.target_radius = target_radius
         self.max_epoch = max_epoch
+
+        ht.core.random.seed(seed)
+
         self.network = ht.random.randn(height * width, data_dim, dtype=ht.float64)
+
         self.batch_size = batch_size
 
         self.network_indices = ht.array(
@@ -52,7 +57,6 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
     def fit(self, X):
         self.learning_rate = self.initial_learning_rate
         batch_count = int(X.shape[0] / self.batch_size)
-        # print(self.network)
         for epoch in range(1, self.max_epoch + 1):
             offset = 0
             for count in range(1, batch_count + 1):
@@ -63,7 +67,6 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
                 offset = count * self.batch_size
                 self.update_learning_rate(epoch)
                 self.update_neighbourhood_radius(epoch)
-            # print(epoch, self.network)
 
     def predict(self, X):
         distances = ht.spatial.cdist(X, self.network)
@@ -96,9 +99,7 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         for i, (winner_ind, weight) in enumerate(zip(indices, batch)):
             scalar = self.learning_rate * self.distance_weight(winner_ind)
             scalar = ht.expand_dims(scalar, axis=1)
-            weight = ht.expand_dims(weight, axis=0)
-            if i == 0:
-                print(self.network.dtype, weight.dtype, scalar.dtype)
-                print("prod", scalar * self.network - weight)
-                print("sum", self.network + scalar * self.network - weight)
-            self.network = self.network + scalar * self.network - weight
+            weight = ht.float64(ht.expand_dims(weight, axis=0))
+
+            print(weight, self.network - weight)
+            # self.network = self.network + (scalar * (self.network - weight))

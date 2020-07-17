@@ -32,6 +32,8 @@ som = FixedSOM(
     target_radius=1,
     max_epoch=1,
     batch_size=150,
+    seed=1,
 )
 som.fit(X)
-print(som.network)
+
+# print(som.network)
