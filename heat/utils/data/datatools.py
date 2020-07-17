@@ -1,13 +1,14 @@
 import h5py
 import numpy as np
 import base64
-import os
+import itertools
 import torch
 from torch.utils import data as torch_data
 from typing import Callable, List, Iterator, Union
 
 from ...core import dndarray
 from ...core.communication import MPICommunication
+from . import parallel_datatools
 
 __all__ = ["DataLoader", "Dataset", "dataset_shuffle"]
 
@@ -74,7 +75,7 @@ class DataLoader:
         drop_last: bool = False,
         timeout: Union[int, float] = 0,
         worker_init_fn: Callable = None,
-        lcl_dataset: torch_data.Dataset = None,
+        lcl_dataset: Union[torch_data.Dataset, parallel_datatools.PartialDataset] = None,
         transform: Callable = None,
     ):
         if isinstance(data, dndarray.DNDarray) and lcl_dataset is not None:
@@ -87,18 +88,14 @@ class DataLoader:
             )
         self.ishuffle = self.dataset.ishuffle
         # this is effectively setting ``shuffle`` to True
-        # rand_sampler = torch_data.RandomSampler(self.dataset)
-        # sampler = torch_data.BatchSampler(rand_sampler, batch_size, drop_last)
+        rand_sampler = torch_data.RandomSampler(self.dataset)
+        sampler = parallel_datatools.LoadingBatchSampler(rand_sampler, batch_size, drop_last)
         self.DataLoader = torch_data.DataLoader(
             dataset=self.dataset,
-            batch_size=batch_size,
-            shuffle=True,
-            sampler=None,
-            batch_sampler=None,
+            batch_sampler=sampler,
             num_workers=num_workers,
             collate_fn=collate_fn,
             pin_memory=pin_memory,
-            drop_last=drop_last,
             timeout=timeout,
             worker_init_fn=worker_init_fn,
         )
@@ -107,6 +104,21 @@ class DataLoader:
 
     def __iter__(self) -> Iterator:
         # need a new iterator for each epoch
+        if not self.dataset.partial_dataset:
+            print("here1")
+            self._full_dataset_shuffle_iter()
+            return self.DataLoader.__iter__()
+        # todo: do the loading of the next groups here
+        self.dataset.loads_remaining = self.dataset.loads_required
+        # need to start the first loader
+        self.dataset.load_next_group()
+        iters = [self.DataLoader.__iter__() for _ in range(self.dataset.loads_required)]
+        return itertools.chain.from_iterable(iters)
+
+    def __len__(self) -> int:
+        return len(self.DataLoader)
+
+    def _full_dataset_shuffle_iter(self):
         if not self.ishuffle:
             if self._first_iter:
                 self._first_iter = False
@@ -122,10 +134,6 @@ class DataLoader:
                 self._first_iter = False
             else:
                 dataset_irecv(self.dataset)
-        return self.DataLoader.__iter__()
-
-    def __len__(self) -> int:
-        return len(self.DataLoader)
 
 
 class Dataset(torch_data.Dataset):
@@ -183,6 +191,7 @@ class Dataset(torch_data.Dataset):
     """
 
     def __init__(self, array, transform: Callable = None, ishuffle: bool = False):
+        self.partial_dataset = False
         self.htdata = array
         self.comm = array.comm
         # create a slice to create a uniform amount of data on each process

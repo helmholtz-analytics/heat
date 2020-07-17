@@ -78,6 +78,7 @@ class MNISTDataset(datasets.MNIST):
             raise ValueError("split must be 0 or None")
         array = factories.array(self.data, split=split)
         targets = factories.array(self.targets, split=split)
+        self.partial_dataset = False
         self.comm = array.comm
         self.htdata = array
         self.httargets = targets
@@ -95,6 +96,29 @@ class MNISTDataset(datasets.MNIST):
             self.data = array._DNDarray__array
 
             self.targets = targets._DNDarray__array
+
+    # def __getitem__(self, index):
+    #     """
+    #     Args:
+    #         index (int): Index
+    #
+    #     Returns:
+    #         tuple: (image, target) where target is index of the target class.
+    #     """
+    #     print(index)
+    #     img, target = self.data[index], int(self.targets[index])
+    #
+    #     # doing this so that it is consistent with all other datasets
+    #     # to return a PIL Image
+    #     img = Image.fromarray(img.numpy(), mode='L')
+    #
+    #     if self.transform is not None:
+    #         img = self.transform(img)
+    #
+    #     if self.target_transform is not None:
+    #         target = self.target_transform(target)
+    #
+    #     return img, target
 
     def Shuffle(self):
         """
