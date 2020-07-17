@@ -1041,7 +1041,7 @@ class TestManipulations(TestCase):
             data_ht,
             pad_width=((2, 1), (1, 0), (1, 2)),
             mode="constant",
-            values=((0, 3), (1, 4), (2, 5)),
+            constant_values=((0, 3), (1, 4), (2, 5)),
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
@@ -1050,26 +1050,32 @@ class TestManipulations(TestCase):
             data_np, pad_width=((2, 1),), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=((2, 1),), mode="constant", values=((0, 3), (1, 4), (2, 5))
+            data_ht, pad_width=((2, 1),), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
             data_np, pad_width=(2, 1), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
         )
-        pad_ht = ht.pad(data_ht, pad_width=(2, 1), mode="constant", values=((0, 3), (1, 4), (2, 5)))
+        pad_ht = ht.pad(
+            data_ht, pad_width=(2, 1), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+        )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
             data_np, pad_width=(2,), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
         )
-        pad_ht = ht.pad(data_ht, pad_width=(2,), mode="constant", values=((0, 3), (1, 4), (2, 5)))
+        pad_ht = ht.pad(
+            data_ht, pad_width=(2,), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+        )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
             data_np, pad_width=2, mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
         )
-        pad_ht = ht.pad(data_ht, pad_width=2, mode="constant", values=((0, 3), (1, 4), (2, 5)))
+        pad_ht = ht.pad(
+            data_ht, pad_width=2, mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+        )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         # pad_width datatype list===================================
@@ -1090,7 +1096,7 @@ class TestManipulations(TestCase):
             data_ht,
             pad_width=[(2, 1), (1, 0), (1, 2)],
             mode="constant",
-            values=((0, 3), (1, 4), (2, 5)),
+            constant_values=((0, 3), (1, 4), (2, 5)),
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
@@ -1100,45 +1106,57 @@ class TestManipulations(TestCase):
             data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=((0, 3),)
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", values=((0, 3),)
+            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=((0, 3),)
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
             data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(0, 3)
         )
-        pad_ht = ht.pad(data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", values=(0, 3))
+        pad_ht = ht.pad(
+            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(0, 3)
+        )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
             data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(3,)
         )
-        pad_ht = ht.pad(data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", values=(3,))
+        pad_ht = ht.pad(
+            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(3,)
+        )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
             data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=4
         )
-        pad_ht = ht.pad(data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", values=4)
+        pad_ht = ht.pad(
+            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=4
+        )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         # values datatype list/int/float===================================
         pad_numpy = np.pad(
             data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=2
         )
-        pad_ht = ht.pad(data_ht, pad_width=[(2, 1), (1, 0), (1, 2)], mode="constant", values=2)
+        pad_ht = ht.pad(
+            data_ht, pad_width=[(2, 1), (1, 0), (1, 2)], mode="constant", constant_values=2
+        )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
             data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=1.2
         )
-        pad_ht = ht.pad(data_ht, pad_width=[(2, 1), (1, 0), (1, 2)], mode="constant", values=1.2)
+        pad_ht = ht.pad(
+            data_ht, pad_width=[(2, 1), (1, 0), (1, 2)], mode="constant", constant_values=1.2
+        )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
             data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(2,)
         )
-        pad_ht = ht.pad(data_ht, pad_width=[(2, 1), (1, 0), (1, 2)], mode="constant", values=(2,))
+        pad_ht = ht.pad(
+            data_ht, pad_width=[(2, 1), (1, 0), (1, 2)], mode="constant", constant_values=(2,)
+        )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
@@ -1151,7 +1169,7 @@ class TestManipulations(TestCase):
             data_ht,
             pad_width=((2, 1), (1, 0), (1, 2)),
             mode="constant",
-            values=([0, 3], [1, 4], (2, 5)),
+            constant_values=([0, 3], [1, 4], (2, 5)),
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
@@ -1165,7 +1183,7 @@ class TestManipulations(TestCase):
             data_ht,
             pad_width=((2, 1), (1, 0), (1, 2)),
             mode="constant",
-            values=[(0, 3), (1, 4), (2, 5)],
+            constant_values=[(0, 3), (1, 4), (2, 5)],
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
@@ -1181,7 +1199,10 @@ class TestManipulations(TestCase):
             data_np, pad_width=(2, 1), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
         )
         pad_ht_split = ht.pad(
-            data_ht_split, pad_width=(2, 1), mode="constant", values=((0, 3), (1, 4), (2, 5))
+            data_ht_split,
+            pad_width=(2, 1),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
         )
 
         # padding in edge case (empty local tensor)
@@ -1199,7 +1220,10 @@ class TestManipulations(TestCase):
             constant_values=((-1, 1), (0, 3), (1, 4)),
         )
         pad_ht_split = ht.pad(
-            data_ht_split, pad_width=((2, 1), (1, 0)), mode="constant", values=((0, 3), (1, 4))
+            data_ht_split,
+            pad_width=((2, 1), (1, 0)),
+            mode="constant",
+            constant_values=((0, 3), (1, 4)),
         )
 
         self.assert_array_equal(pad_ht_split, pad_np_split)
@@ -1221,7 +1245,7 @@ class TestManipulations(TestCase):
                 data_ht,
                 ((2, 1), (1, 0), (1, 2)),
                 mode="constant",
-                values=((0, 3), "(1, 4)", (2, 5)),
+                constant_values=((0, 3), "(1, 4)", (2, 5)),
             )
         with self.assertRaises(ValueError):
             ht.pad(data_ht, ((1, 2, 3),))
@@ -1234,7 +1258,7 @@ class TestManipulations(TestCase):
                 data_ht,
                 ((1, 2), (3, 4), (0, 1)),
                 mode="constant",
-                values=((0, 3), (1, 4), (2, 5, 1)),
+                constant_values=((0, 3), (1, 4), (2, 5, 1)),
             )
 
     def test_reshape(self):

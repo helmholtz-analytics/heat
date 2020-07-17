@@ -2,8 +2,8 @@
 
 
 - [#488](https://github.com/helmholtz-analytics/heat/pull/488) Enhancement: Rework of the test device selection.
-- [#572](https://github.com/helmholtz-analytics/heat/pull/572) New feature: pad
 - [#569](https://github.com/helmholtz-analytics/heat/pull/569) New feature: percentile() and median()
+- [#572](https://github.com/helmholtz-analytics/heat/pull/572) New feature: pad
 - [#573](https://github.com/helmholtz-analytics/heat/pull/573) Bugfix: matmul fixes: early out for 2 vectors, remainders not added if inner block is 1 for split 10 case
 - [#575](https://github.com/helmholtz-analytics/heat/pull/558) Bugfix: Binary operations use proper type casting
 - [#575](https://github.com/helmholtz-analytics/heat/pull/558) Bugfix: ``where()`` and ``cov()`` convert ints to floats when given as parameters

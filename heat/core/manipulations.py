@@ -912,7 +912,7 @@ def hstack(tup):
     return concatenate(tup, axis=axis)
 
 
-def pad(array, pad_width, mode="constant", values=0):
+def pad(array, pad_width, mode="constant", constant_values=0):
     """
     Pads tensor with a specific value (default=0).
     (Not all dimensions supported)
@@ -949,7 +949,7 @@ def pad(array, pad_width, mode="constant", values=0):
         - 'constant' (default): Pads the input tensor boundaries with a constant value.
             --> available for arbitrary dimensions
 
-    values: Union[int, float, Sequence[Sequence[int,int], ...], Sequence[Sequence[float,float], ...]]
+    constant_values: Union[int, float, Sequence[Sequence[int,int], ...], Sequence[Sequence[float,float], ...]]
         Number or tuple of 2-element-sequences (containing numbers), optional (default=0)
         The fill values for each axis (1 tuple per axis).
         ((before_1, after_1), ... (before_N, after_N)) unique pad values for each axis.
@@ -976,7 +976,7 @@ def pad(array, pad_width, mode="constant", values=0):
 
 
     Pad last dimension
-    >>> c = ht.pad(b, (2,1), value=1)
+    >>> c = ht.pad(b, (2,1), constant_values=1)
     tensor([[[ 1,  1,  0,  1,  2,  3,  1],
          [ 1,  1,  4,  5,  6,  7,  1],
          [ 1,  1,  8,  9, 10, 11,  1]],
@@ -1098,15 +1098,15 @@ def pad(array, pad_width, mode="constant", values=0):
             )
 
     # value_tuple = all padding values stored in 1 tuple
-    if isinstance(values, tuple) or isinstance(values, list):
+    if isinstance(constant_values, tuple) or isinstance(constant_values, list):
         value_tuple = tuple()
         # sequences for each dimension defined within one sequence
-        if isinstance(values[0], tuple) or isinstance(values[0], list):
+        if isinstance(constant_values[0], tuple) or isinstance(constant_values[0], list):
             # one sequence for all dimensions - values = ((before, after),)
-            if len(values) == 1:
-                value_tuple = values[0] * (len(pad) // 2)
+            if len(constant_values) == 1:
+                value_tuple = constant_values[0] * (len(pad) // 2)
             else:
-                for value_pair in values:
+                for value_pair in constant_values:
                     if isinstance(value_pair, tuple):
                         pass
                     elif isinstance(value_pair, list):
@@ -1124,8 +1124,8 @@ def pad(array, pad_width, mode="constant", values=0):
                 )
 
         # One sequence for all dimensions - values = (before, after)
-        elif len(values) == 2:
-            value_tuple = values * (len(pad) // 2)
+        elif len(constant_values) == 2:
+            value_tuple = constant_values * (len(pad) // 2)
 
     rank_array = len(array.shape)
     amount_pad_dim = len(pad) // 2
@@ -1154,17 +1154,21 @@ def pad(array, pad_width, mode="constant", values=0):
             0 if i == array.split else output_shape[i] for i in range(len(output_shape))
         ]
         adapted_lshape = tuple(adapted_lshape_list)
-        padded_torch_tensor = torch.tensor([], dtype=array._DNDarray__array.dtype).reshape(
-            adapted_lshape
-        )
+        padded_torch_tensor = torch.empty(adapted_lshape, dtype=array._DNDarray__array.dtype)
     else:
         if array.split is None or array.split not in pad_dim or amount_of_processes == 1:
             # values = scalar
-            if isinstance(values, int) or isinstance(values, float):
-                padded_torch_tensor = torch.nn.functional.pad(array_torch, pad, mode, values)
+            if isinstance(constant_values, int) or isinstance(constant_values, float):
+                padded_torch_tensor = torch.nn.functional.pad(
+                    array_torch, pad, mode, constant_values
+                )
             # values = sequence with one value for all dimensions
-            elif len(values) == 1 and (isinstance(values[0], int) or isinstance(values[0], float)):
-                padded_torch_tensor = torch.nn.functional.pad(array_torch, pad, mode, values[0])
+            elif len(constant_values) == 1 and (
+                isinstance(constant_values[0], int) or isinstance(constant_values[0], float)
+            ):
+                padded_torch_tensor = torch.nn.functional.pad(
+                    array_torch, pad, mode, constant_values[0]
+                )
             else:
                 padded_torch_tensor = array_torch
                 for i in range(len(value_tuple) - 1, -1, -1):
@@ -1222,14 +1226,14 @@ def pad(array, pad_width, mode="constant", values=0):
             else:
                 pad_tuple_curr_rank = pad_middle
 
-            if isinstance(values, (int, float)):
+            if isinstance(constant_values, (int, float)):
                 padded_torch_tensor = torch.nn.functional.pad(
-                    array_torch, pad_tuple_curr_rank, mode, values
+                    array_torch, pad_tuple_curr_rank, mode, constant_values
                 )
 
-            elif len(values) == 1 and isinstance(values[0], (int, float)):
+            elif len(constant_values) == 1 and isinstance(constant_values[0], (int, float)):
                 padded_torch_tensor = torch.nn.functional.pad(
-                    array_torch, pad_tuple_curr_rank, mode, values[0]
+                    array_torch, pad_tuple_curr_rank, mode, constant_values[0]
                 )
 
             else:
