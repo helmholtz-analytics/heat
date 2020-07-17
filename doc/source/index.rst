@@ -12,10 +12,10 @@ HeAT is a distributed tensor framework for high performance data analytics.
 
 .. toctree::
    :caption: Table of Contents
-   :maxdepth: 2
+   :maxdepth: 3
 
    introduction
-   installation
+   getting_started
    documentation_howto
 
 Indices and tables

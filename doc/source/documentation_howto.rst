@@ -30,7 +30,7 @@ Apart from that, formatting happens via restructured Text (reST). For a full ref
 .sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_
 
 Standard docstring format
-"""""""""""""""""""""""""""
+"""""""""""""""""""""""""
 * Write clear on concise docstrings, especially in the function and parameter descriptions
 * Use Type Hints for :
 
