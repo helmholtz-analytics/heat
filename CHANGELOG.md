@@ -36,6 +36,7 @@
 - [#620](https://github.com/helmholtz-analytics/heat/pull/620) New feature: KNN
 - [#624](https://github.com/helmholtz-analytics/heat/pull/624) Bugfix: distributed median() indexing and casting
 - [#629](https://github.com/helmholtz-analytics/heat/pull/629) New features: `asin`, `acos`, `atan`, `atan2`
+- [#635](https://github.com/helmholtz-analytics/heat/pull/635) `DNDarray.__getitem__` balances and resplits the given key to None if the key is a DNDarray
 
 # v0.4.0
 
