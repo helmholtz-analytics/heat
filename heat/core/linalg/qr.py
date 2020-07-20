@@ -1,6 +1,6 @@
 import collections
 import torch
-from typing import Callable, Optional, Dict, Any, TypeVar, Union, Tuple
+from typing import Callable, Dict, Any, TypeVar, Union, Tuple
 
 from ..communication import MPICommunication
 from ..types import datatype
@@ -15,8 +15,8 @@ __all__ = ["qr"]
 def qr(
     a: DNDarray,
     tiles_per_proc: Union[int, torch.Tensor] = 1,
-    calc_q: Optional[bool] = True,
-    overwrite_a: Optional[bool] = False,
+    calc_q: bool = True,
+    overwrite_a: bool = False,
 ) -> Tuple[DNDarray, DNDarray]:
     """
     Calculates the QR decomposition of a 2D ``DNDarray``.
@@ -173,7 +173,7 @@ def qr(
 
 
 DNDarray.qr: Callable[
-    [DNDarray, Union[int, torch.Tensor], Optional[bool], Optional[bool]], Tuple[DNDarray, DNDarray]
+    [DNDarray, Union[int, torch.Tensor], bool, bool], Tuple[DNDarray, DNDarray]
 ] = lambda self, tiles_per_proc, calc_q, overwrite_a: qr(self, tiles_per_proc, calc_q, overwrite_a)
 DNDarray.qr.__doc__ = qr.__doc__
 

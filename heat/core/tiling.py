@@ -1,6 +1,6 @@
 from __future__ import annotations
 import torch
-from typing import List, Tuple, Union, Optional
+from typing import List, Tuple, Union
 
 from .dndarray import DNDarray
 
@@ -367,7 +367,7 @@ class SquareDiagTiles:
     This tiling scheme is intended for use with the :func:`~heat.core.linalg.qr.qr` function.
     """
 
-    def __init__(self, arr: DNDarray, tiles_per_proc: Optional[int] = 2) -> None:
+    def __init__(self, arr: DNDarray, tiles_per_proc: int = 2) -> None:
         # lshape_map -> rank (int), lshape (tuple of the local lshape, self.lshape)
         if not isinstance(arr, DNDarray):
             raise TypeError("arr must be a DNDarray, is currently a {}".format(type(self)))
