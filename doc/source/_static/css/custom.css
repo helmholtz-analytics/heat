@@ -7370,3 +7370,28 @@ span[id*='MathJax-Span'] {
 	src: url("../fonts/RobotoSlab/roboto-slab-v7-bold.eot");
 	src: url("../fonts/RobotoSlab/roboto-slab-v7-bold.eot?#iefix") format("embedded-opentype"), url("../fonts/RobotoSlab/roboto-slab-v7-bold.woff2") format("woff2"), url("../fonts/RobotoSlab/roboto-slab-v7-bold.woff") format("woff"), url("../fonts/RobotoSlab/roboto-slab-v7-bold.ttf") format("truetype")
 }
+
+div.tutorial {
+	background-color: var(--hgrey-light);
+	overflow: hidden;
+	margin-top: 20px;
+	margin-bottom: 20px;
+}
+
+div.tutorial:hover {
+	background-color: var(--horange);
+}
+
+div.tutorial-image {
+	background-color: white;
+	margin: 20px;
+	padding: 20px;
+	width: 25%;
+	float: left;
+}
+
+div.tutorial-text {
+	padding: 20px;
+	float: left;
+	width: 65%;
+}

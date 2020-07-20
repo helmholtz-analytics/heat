@@ -11,15 +11,16 @@ Release: |release|
 HeAT is a distributed tensor framework for high performance data analytics.
 
 .. toctree::
-   :caption: Table of Contents
-   :maxdepth: 3
+    :caption: Table of Contents
+    :maxdepth: 1
 
-   introduction
-   getting_started
-   documentation_howto
+    introduction
+    getting_started
+    tutorials
+    documentation_howto
 
-Indices and tables
-==================
+Indices
+=======
 
 * :ref:`genindex`
 * :ref:`modindex`
