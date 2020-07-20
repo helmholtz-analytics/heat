@@ -112,6 +112,7 @@ class DataLoader:
         self.dataset.loads_remaining = self.dataset.loads_required
         # need to start the first loader
         self.dataset.load_next_group()
+        # print(self.dataset.loads_required)
         iters = [self.DataLoader.__iter__() for _ in range(self.dataset.loads_required)]
         return itertools.chain.from_iterable(iters)
 

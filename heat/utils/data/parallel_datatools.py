@@ -38,13 +38,14 @@ class PartialDataset(torch_data.Dataset):
         self.file = file
         self.transform = transform
         # doing the file stuff first, folder to come later?
-        file_size = os.path.getsize(file)
-        file_size_per_pr = file_size / float(comm.size)
+        # file_size = os.path.getsize(file)
+        # file_size_per_pr = file_size / float(comm.size)
 
         # note: this is for a linux system!
         if available_memory is None:
             available_memory = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
 
+        # todo: add this back in for the datasets which can be loaded into memory
         # if file_size_per_pr < available_memory * 0.75:  # todo: what value should this be?
         #     self.partial_dataset = False
         #     self.ishuffle = ishuffle
@@ -83,14 +84,14 @@ class PartialDataset(torch_data.Dataset):
         self.lcl_full_sz = sz // comm.size  # how many indices will go onto each process (len)
         # load data that is half of of the available memory
         self.local_data_start = comm.rank * self.lcl_full_sz
-        local_data_end = int(
-            (((0.50 * available_memory) / file_size_per_pr) * self.lcl_full_sz)
-            + self.local_data_start
-        )
-        self.load_len = ((0.10 * available_memory) / file_size_per_pr) * self.lcl_full_sz
+        # local_data_end = int(
+        #     (((0.50 * available_memory) / file_size_per_pr) * self.lcl_full_sz)
+        #     + self.local_data_start
+        # )
+        # self.load_len = ((0.10 * available_memory) / file_size_per_pr) * self.lcl_full_sz
         # temp values for small scale testing
-        # local_data_end = self.local_data_start + 20000
-        # self.load_len = 10000
+        local_data_end = self.local_data_start + 20000
+        self.load_len = 10000
         self.local_length = local_data_end - self.local_data_start
 
         self.next_start = local_data_end
@@ -139,11 +140,14 @@ class PartialDataset(torch_data.Dataset):
     def _thread_loading_from_file(self, f, wrap, next_end, rem):
         for d in self.dataset_names:
             nxt = torch.tensor(f[d][self.next_start : next_end])
+            # print('loading', self.next_start, next_end, rem)
             if wrap:
+                # print("wraping")
                 nxt2 = torch.tensor(f[d][0:rem])  # rem + 1?
                 nxt = torch.cat((nxt, nxt2), dim=0)
             self.__setattr__("next_" + d, nxt)
         self.next_group_ready = True
+        self.next_start = next_end
 
     def _thread_insert_group(self, entries, nxt_inds):
         if entries > self.load_len:
@@ -153,13 +157,13 @@ class PartialDataset(torch_data.Dataset):
         nxt_inds = nxt_inds[:entries]
         for d in self.dataset_names:
             hld = self.__getattribute__(d)
-            print(len(nxt_inds), entries, hld.shape, self.loads_remaining)
+            # print(len(nxt_inds), entries, hld.shape, self.loads_remaining)
             hld[nxt_inds] = self.__getattribute__("next_" + d)[: len(nxt_inds)]
             self.__setattr__(d, hld)
 
     def insert_group(self, entries, next_inds):
         # todo: block the main thread here?
-        print("e", entries, self.loads_remaining)
+        # print("e", entries, self.loads_remaining)
         if self.loads_remaining == 0:
             return
         # insert the new data into the target dataset/s with
@@ -252,3 +256,5 @@ class LoadingBatchSampler(torch_data.BatchSampler):
             self.sampler.data_source.insert_group(
                 self.sampler.data_source.getitem_num, self.sampler.data_source.next_indices
             )
+            # todo: add the next load if it isnt the end...
+            # self.dataset.load_next_group()
