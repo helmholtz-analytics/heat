@@ -26,7 +26,7 @@ Docstring guidelines
 ------------
 Dostrings are written using the NumPy Documentation style (see sphinx-contributions `napoleon
 <https://sphinxcontrib-napoleon.readthedocs.io>`_ ).
-Apart from that, formatting happens via restructured Text (reST). For a full reference on reST see `here <https://www
+Apart from that, formatting happens via reStructuredText (reST). For a full reference on reST see `here <https://www
 .sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_
 
 Standard docstring format
