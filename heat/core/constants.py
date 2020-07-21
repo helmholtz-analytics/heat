@@ -4,41 +4,47 @@ from typing import Union
 
 __all__ = ["e", "Euler", "inf", "Inf", "Infty", "Infinity", "nan", "NaN", "pi", "sanitize_infinity"]
 
+# infinity
 INF = float("inf")
-"""
-:math:`\\infty`, infinity
-"""
+# Not a number
 NAN = float("nan")
-"""
-Not a number
-"""
+# Negative infinity
 NINF = -float("inf")
-"""
-:math:`-\\infty` Negative infinity
-"""
+# Archimedes' constant
 PI = 3.141592653589793
-"""
-:math:`\\pi`, Archimedes' constant
-"""
+# Euler's number
 E = 2.718281828459045
-"""
-:math:`e`, Euler's number
-"""
+
 
 # aliases
-inf = Inf = Infty = Infinity = INF
-nan = NaN = NAN
+inf = INF
+""":math:`\\infty`, infinity"""
+Inf = INF
+""":math:`\\infty`, infinity"""
+Infty = INF
+""":math:`\\infty`, infinity"""
+Infinity = INF
+""":math:`\\infty`, infinity"""
+nan = NAN
+"""Not a number"""
+NaN = NAN
+"""Not a number"""
 pi = PI
-e = Euler = E
+""":math:`\\pi`, Archimedes' constant"""
+e = E
+""":math:`e`, Euler's number"""
+Euler = E
+""":math:`e`, Euler's number"""
 
 
 def sanitize_infinity(dtype: torch.dtype) -> Union[int, float]:
     """
-    Returns largest possible value for the specified datatype.
+    Return largest possible value for the specified datatype.
 
-    Parameters:
+    Parameters
     -----------
     dtype: torch.dtype
+        The specified datatype
     """
     if dtype is torch.int8:
         large_enough = (1 << 7) - 1
