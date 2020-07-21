@@ -28,6 +28,14 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
     """
 
     def __init__(self, x, y, num_neighbours):
+
+        if x.shape[0] != y.shape[0]:
+            raise ValueError(
+                "Number of samples and labels needs to be the same, got {}, {}".format(
+                    x.shape[0], y.shape[0]
+                )
+            )
+
         self.x = x
         self.y = y
         self.num_neighbours = num_neighbours
