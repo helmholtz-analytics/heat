@@ -118,6 +118,12 @@ class DataParallel(tnn.Module):
             self._dp_optimizers.append(dp_optimizer)
             dp_optimizer.blocking_parameter_updates = self.blocking_parameter_updates
 
+        # unify parameters across nodes by unifying the random seed and resetting parameters
+        seed = torch.tensor([torch.random.seed() >> 1])
+        comm.Bcast(seed)
+        torch.random.manual_seed(seed.item())
+        self.module.apply(self._reset_parameters)
+
         # get parameter indexing and slices
         start_idx = 0
         layer_name_prev = None
@@ -303,3 +309,18 @@ class DataParallel(tnn.Module):
             return input_
 
         return _hook
+
+    @staticmethod
+    def _reset_parameters(module: tnn.Module) -> None:
+        """
+        Reset parameters of given torch submodule. Only works for basic module types containing ``reset_parameters``
+        function.
+
+        Parameters
+        ----------
+        module: torch.nn.Module
+            submodule whose parameters are to be reset
+        """
+
+        if callable(getattr(module, "reset_parameters", None)):
+            module.reset_parameters()
