@@ -63,7 +63,10 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         distances = ht.spatial.cdist(X, self.x)
         _, indices = ht.topk(distances, self.num_neighbours, largest=False)
 
-        labels = self.y[indices._DNDarray__array]
+        labels = self.y[indices.flatten()]
+        labels.balance_()
+        labels = ht.reshape(labels, indices.gshape)
+
         uniques = ht.unique(labels, sorted=True)
         uniques = ht.resplit(ht.expand_dims(uniques, axis=0), axis=0)
         labels = ht.expand_dims(labels, axis=2)

@@ -41,17 +41,16 @@ def calculate_accuracy(new_y, verification_y):
         the accuracy, number of properly labeled samples divided by amount of labels.
     """
 
-    if len(new_y) != len(verification_y):
+    if new_y.gshape != verification_y.gshape:
         raise ValueError(
-            "Expecting results of same length, got {}, {}".format(len(new_y), len(verification_y))
+            "Expecting results of same length, got {}, {}".format(
+                new_y.gshape, verification_y.gshape
+            )
         )
 
-    length = len(new_y)
-    count = 0
-    for index in range(length):
-        if new_y[index] == verification_y[index].item():
-            count += 1
-    return count / length
+    count = ht.sum(ht.eq(new_y, verification_y))
+
+    return count / new_y.gshape[0]
 
 
 def create_fold(dataset_x, dataset_y, size, seed=None):
@@ -141,7 +140,7 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
         fold_x, fold_y, verification_x, verification_y = create_fold(x, y, split_size, seed)
         classifier = KNN(fold_x, fold_y, k)
         result_y = classifier.predict(verification_x)
-        accuracies.append(calculate_accuracy(result_y, verification_y))
+        accuracies.append(calculate_accuracy(result_y, verification_y).item())
     return accuracies
 
 
