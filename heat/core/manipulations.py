@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 import warnings
-from typing import List, Dict, Any, TypeVar, Union, Tuple, Sequence
+from typing import List, Dict, Any, TypeVar, Union, Tuple, Sequence, Optional
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -451,7 +451,9 @@ def diag(a: DNDarray, offset: int = 0) -> DNDarray:
     return factories.array(local, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
 
 
-def diagonal(a: DNDarray, offset: int = 0, dim1: int = 0, dim2: int = 1) -> DNDarray:
+def diagonal(
+    a: DNDarray, offset: Optional[int] = 0, dim1: Optional[int] = 0, dim2: Optional[int] = 1
+) -> DNDarray:
     """
     Extract a diagonal of an n-dimensional array with n > 1.
     The returned array will be of dimension n-1.

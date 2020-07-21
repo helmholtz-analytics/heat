@@ -49,24 +49,23 @@ __api__ = []
 
 class datatype:
     """
-    types: Defines the basic heat data types in the hierarchy as shown below. Design inspired by the Python package numpy.
-
-    As part of the type-hierarchy: xx -- is bit-width
-    generic
-     +-> bool, bool_                                (kind=?)
-     +-> number
-     |   +-> integer
-     |   |   +-> signedinteger         (intxx)      (kind=b, i)
-     |   |   |     int8, byte
-     |   |   |     int16, short
-     |   |   |     int32, int
-     |   |   |     int64, long
-     |   |   \\-> unsignedinteger      (uintxx)     (kind=B, u)
-     |   |         uint8, ubyte
-     |   \\-> floating                 (floatxx)    (kind=f)
-     |         float32, float, float_
-     |         float64, double         (double)
-     \\-> flexible (currently unused, placeholder for characters)
+    Defines the basic heat data types in the hierarchy as shown below. Design inspired by the Python package numpy.
+    As part of the type-hierarchy: xx -- is bit-width \n
+        - generic \n
+            - bool, bool_ (kind=?) \n
+            - number \n
+                - integer \n
+                    - signedinteger (intxx)(kind=b, i) \n
+                        - int8, byte \n
+                        - int16, short \n
+                        - int32, int \n
+                        - int64, long
+                    - unsignedinteger (uintxx)(kind=B, u) \n
+                        - uint8, ubyte
+                - floating (floatxx) (kind=f) \n
+                    - float32, float, float_ \n
+                    - float64, double (double)
+            - flexible (currently unused, placeholder for characters) \n
     """
 
     def __new__(cls, *value, device=None, comm=None):

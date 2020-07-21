@@ -7158,10 +7158,29 @@ a .rst-content code {
 }
 
 .rst-content dl p,
-.rst-content dl table,
-.rst-content dl ul,
-.rst-content dl ol {
+.rst-content dl table{
 	margin-bottom: 12px !important
+}
+
+.rst-content dl ul,
+.rst-content dl ol,
+ .rst-content dl li {
+	margin-top: 3px !important;
+	margin-bottom: 3px !important
+}
+.rst-content dl ul p,
+.rst-content dl ol p,
+ .rst-content dl li p {
+	margin-top: 3px !important;
+	margin-bottom: 3px !important
+}
+
+.rst-content dl ul blockquote,
+.rst-content dl ol blockquote,
+ .rst-content dl li blockquote {
+	margin-bottom: 3px !important;
+	margin-left: 12px !important
+
 }
 
 .rst-content dl dd {

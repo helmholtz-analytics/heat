@@ -58,7 +58,6 @@ class MPICommunication(Communication):
     """
 
     # static mapping of torch types to the respective MPI type handle
-    # ToDo Document me!
     __mpi_type_mappings = {
         torch.bool: MPI.BOOL,
         torch.uint8: MPI.UNSIGNED_CHAR,
@@ -233,7 +232,7 @@ class MPICommunication(Communication):
     @classmethod
     def as_buffer(
         cls, obj: torch.Tensor, counts: Tuple[int] = None, displs: Tuple[int] = None
-    ) -> List[MPI.memory, Tuple[int, ...], MPI.Datatype]:
+    ) -> List[MPI.memory, Tuple[int, int], MPI.Datatype]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
 
@@ -252,7 +251,7 @@ class MPICommunication(Communication):
 
     def alltoall_sendbuffer(
         self, obj: torch.Tensor
-    ) -> List[MPI.memory, Tuple[int, ...], MPI.Datatype]:
+    ) -> List[MPI.memory, Tuple[int, int], MPI.Datatype]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
         XXX: might not work for all MPI stacks. Might require multiple type commits or so
@@ -317,7 +316,7 @@ class MPICommunication(Communication):
 
     def alltoall_recvbuffer(
         self, obj: torch.Tensor
-    ) -> List[MPI.memory, Tuple[int, ...], MPI.Datatype]:
+    ) -> List[MPI.memory, Tuple[int, int], MPI.Datatype]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
         XXX: might not work for all MPI stacks. Might require multiple type commits or so
@@ -388,7 +387,7 @@ class MPICommunication(Communication):
         source: int = MPI.ANY_SOURCE,
         tag: int = MPI.ANY_TAG,
         status: MPI.Status = None,
-    ):
+    ) -> None:
         """
         Blocking receive
 
@@ -419,7 +418,7 @@ class MPICommunication(Communication):
 
     def __send_like(
         self, func: Callable, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int
-    ):
+    ) -> Tuple[None, Union[DNDarray, torch.Tensor, None]]:
         """
         Generic function for sending a message to process with rank "dest"
 
@@ -443,7 +442,7 @@ class MPICommunication(Communication):
         sbuf = buf if CUDA_AWARE_MPI else buf.cpu()
         return func(self.as_buffer(sbuf), dest, tag), sbuf
 
-    def Bsend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
+    def Bsend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0) -> None:
         """
         Blocking buffered send
 
@@ -461,7 +460,9 @@ class MPICommunication(Communication):
 
     Bsend.__doc__ = MPI.Comm.Bsend.__doc__
 
-    def Ibsend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
+    def Ibsend(
+        self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0
+    ) -> MPIRequest:
         """
         Nonblocking buffered send
 
@@ -478,7 +479,9 @@ class MPICommunication(Communication):
 
     Ibsend.__doc__ = MPI.Comm.Ibsend.__doc__
 
-    def Irsend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
+    def Irsend(
+        self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0
+    ) -> MPIRequest:
         """
         Nonblocking ready send
 
@@ -495,7 +498,7 @@ class MPICommunication(Communication):
 
     Irsend.__doc__ = MPI.Comm.Irsend.__doc__
 
-    def Isend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
+    def Isend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking send
 
@@ -507,12 +510,14 @@ class MPICommunication(Communication):
             Rank of the destination process, that receives the message
         tag: int, optional
             A Tag to identify the message
-        return MPIRequest(*self.__send_like(self.handle.Isend, buf, dest, tag))
         """
+        return MPIRequest(*self.__send_like(self.handle.Isend, buf, dest, tag))
 
     Isend.__doc__ = MPI.Comm.Isend.__doc__
 
-    def Issend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
+    def Issend(
+        self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0
+    ) -> MPIRequest:
         """
         Nonblocking synchronous send
 
@@ -524,14 +529,13 @@ class MPICommunication(Communication):
             Rank of the destination process, that receives the message
         tag: int, optional
             A Tag to identify the message
-        return MPIRequest(*self.__send_like(self.handle.Isend, buf, dest, tag))
         """
 
         return MPIRequest(*self.__send_like(self.handle.Issend, buf, dest, tag))
 
     Issend.__doc__ = MPI.Comm.Issend.__doc__
 
-    def Rsend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
+    def Rsend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0) -> None:
         """
         Blocking ready send
 
@@ -548,7 +552,7 @@ class MPICommunication(Communication):
 
     Rsend.__doc__ = MPI.Comm.Rsend.__doc__
 
-    def Ssend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
+    def Ssend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0) -> None:
         """
         Blocking synchronous send
 
@@ -565,7 +569,7 @@ class MPICommunication(Communication):
 
     Ssend.__doc__ = MPI.Comm.Ssend.__doc__
 
-    def Send(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
+    def Send(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0) -> None:
         """
         Blocking send
 
@@ -582,7 +586,14 @@ class MPICommunication(Communication):
 
     Send.__doc__ = MPI.Comm.Send.__doc__
 
-    def __broadcast_like(self, func: Callable, buf: Union[DNDarray, torch.Tensor, Any], root: int):
+    def __broadcast_like(
+        self, func: Callable, buf: Union[DNDarray, torch.Tensor, Any], root: int
+    ) -> Tuple[
+        None,
+        Union[DNDarray, torch.Tensor, None],
+        Union[DNDarray, torch.Tensor, None],
+        Union[DNDarray, torch.Tensor, None],
+    ]:
         """
         Generic function for broadcasting a message from the process with rank "root" to all other processes of the
         communicator
@@ -607,7 +618,7 @@ class MPICommunication(Communication):
 
         return func(self.as_buffer(srbuf), root), srbuf, srbuf, buf
 
-    def Bcast(self, buf: Union[DNDarray, torch.Tensor, Any], root: int = 0):
+    def Bcast(self, buf: Union[DNDarray, torch.Tensor, Any], root: int = 0) -> None:
         """
         Blocking Broadcast
 
@@ -625,7 +636,7 @@ class MPICommunication(Communication):
 
     Bcast.__doc__ = MPI.Comm.Bcast.__doc__
 
-    def Ibcast(self, buf: Union[DNDarray, torch.Tensor, Any], root: int = 0):
+    def Ibcast(self, buf: Union[DNDarray, torch.Tensor, Any], root: int = 0) -> MPIRequest:
         """
         Nonblocking Broadcast
 
@@ -647,7 +658,12 @@ class MPICommunication(Communication):
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         *args,
         **kwargs
-    ):
+    ) -> Tuple[
+        None,
+        Union[DNDarray, torch.Tensor, None],
+        Union[DNDarray, torch.Tensor, None],
+        Union[DNDarray, torch.Tensor, None],
+    ]:
         """
         Generic function for reduction operations.
 
@@ -704,7 +720,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
-    ):
+    ) -> None:
         """
         Combines values from all processes and distributes the result back to all processes
 
@@ -729,7 +745,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
-    ):
+    ) -> None:
         """
         Computes the exclusive scan (partial reductions) of data on a collection of processes
 
@@ -754,7 +770,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
-    ):
+    ) -> MPIRequest:
         """
         Nonblocking allreduce reducing values on all processes to a single value
 
@@ -776,7 +792,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
-    ):
+    ) -> MPIRequest:
         """
         Nonblocking Exscan
 
@@ -798,7 +814,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
-    ):
+    ) -> MPIRequest:
         """
         Nonblocking Scan
 
@@ -821,7 +837,7 @@ class MPICommunication(Communication):
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
         root: int = 0,
-    ):
+    ) -> MPIRequest:
         """
         Nonblocking reduction operation
 
@@ -846,7 +862,7 @@ class MPICommunication(Communication):
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
         root: int = 0,
-    ):
+    ) -> None:
         """
         Reduce values from all processes to a single value on process "root"
 
@@ -873,7 +889,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
-    ):
+    ) -> None:
         """
         Computes the scan (partial reductions) of data on a collection of processes in a nonblocking way
 
@@ -1047,7 +1063,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         recv_axis: int = 0,
-    ):
+    ) -> MPIRequest:
         """
         Nonblocking Allgather.
 
@@ -1309,7 +1325,7 @@ class MPICommunication(Communication):
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         send_axis: int = 0,
         recv_axis: int = None,
-    ):
+    ) -> MPIRequest:
         """
         Nonblocking Alltoall
 
@@ -1338,7 +1354,7 @@ class MPICommunication(Communication):
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         send_axis: int = 0,
         recv_axis: int = None,
-    ):
+    ) -> MPIRequest:
         """
         Nonblocking v-call of Alltoall: All processes send different amount of data to, and receive different amount of
         data from, all processes
@@ -1540,7 +1556,7 @@ class MPICommunication(Communication):
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
-    ):
+    ) -> MPIRequest:
         """
         Non-blocking Gather
 
@@ -1578,7 +1594,7 @@ class MPICommunication(Communication):
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
-    ):
+    ) -> MPIRequest:
         """
         Non-blocking v-call for Gather: All processes send different amount of data
 
@@ -1616,7 +1632,7 @@ class MPICommunication(Communication):
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
-    ):
+    ) -> MPIRequest:
         """
         Non-blocking Scatter
 
@@ -1654,7 +1670,7 @@ class MPICommunication(Communication):
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
-    ):
+    ) -> MPIRequest:
         """
         Non-blocking v-call for Scatter: Sends different amounts of data to different processes
 
