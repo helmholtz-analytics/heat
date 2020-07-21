@@ -3,6 +3,7 @@ import torch
 from .communication import MPI
 from . import dndarray
 from . import factories
+from . import manipulations
 from . import _operations
 from . import stride_tricks
 from . import types
@@ -282,7 +283,7 @@ def cumsum(a, axis, dtype=None, out=None):
     return _operations.__cum_op(a, torch.cumsum, MPI.SUM, torch.add, 0, axis, dtype, out)
 
 
-def diff(a, n=1, axis=-1):
+def diff(a, n=1, axis=-1, prepend=None, append=None):
     """
     Calculate the n-th discrete difference along the given axis.
     The first difference is given by out[i] = a[i+1] - a[i] along the given axis, higher differences are calculated by using diff recursively.
@@ -295,13 +296,18 @@ def diff(a, n=1, axis=-1):
         n=2 is equivalent to ht.diff(ht.diff(a))
     axis : int, optional
         The axis along which the difference is taken, default is the last axis.
+    prepend, append : Optional[int, float, DNDarray]
+        Values to prepend or append along axis prior to performing the difference.
+        Scalar values are expanded to arrays with length 1 in the direction of axis and
+        the shape of the input array in along all other axes. Otherwise the dimension and
+        shape must match a except along axis.
 
     Returns
     -------
     diff : DNDarray
         The n-th differences. The shape of the output is the same as a except along axis where the dimension is smaller by n.
         The type of the output is the same as the type of the difference between any two elements of a.
-        The split does not change. The outpot array is balanced.
+        The split does not change. The output array is balanced.
     """
     if n == 0:
         return a
@@ -311,6 +317,36 @@ def diff(a, n=1, axis=-1):
         raise TypeError("'a' must be a DNDarray")
 
     axis = stride_tricks.sanitize_axis(a.gshape, axis)
+
+    if prepend is not None or append is not None:
+        pend_shape = a.gshape[:axis] + (1,) + a.gshape[axis + 1 :]
+        pend = [prepend, append]
+
+    for p, p_el in enumerate(pend):
+        if p_el is not None:
+            if isinstance(p_el, (int, float)):
+                # TODO: implement broadcast_to
+                p_el = factories.full(
+                    pend_shape, p_el, dtype=a.dtype, split=a.split, device=a.device, comm=a.comm
+                )
+            elif isinstance(p_el, dndarray.DNDarray) and p_el.gshape == pend_shape:
+                pass
+            elif not isinstance(p_el, dndarray.DNDarray):
+                raise TypeError(
+                    "prepend/append should be a scalar or a DNDarray, was {}".format(type(p_el))
+                )
+            elif p_el.gshape != pend_shape:
+                raise ValueError(
+                    "shape mismatch: expected prepend/append to be {}, got {}".format(
+                        pend_shape, p_el.gshape
+                    )
+                )
+            if p == 0:
+                # prepend
+                a = manipulations.concatenate((p_el, a), axis=axis)
+            else:
+                # append
+                a = manipulations.concatenate((a, p_el), axis=axis)
 
     if not a.is_distributed():
         ret = a.copy()
