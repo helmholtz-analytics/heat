@@ -14,25 +14,25 @@ X = ht.load_hdf5("../../heat/datasets/data/iris.h5", dataset="data", split=0)
 # Generate keys for the iris.h5 dataset
 keys = []
 for i in range(50):
-    keys.append(0)
+    keys.append([1, 0, 0])
 for i in range(50, 100):
-    keys.append(1)
+    keys.append([0, 1, 0])
 for i in range(100, 150):
-    keys.append(2)
+    keys.append([0, 0, 1])
 Y = ht.array(keys, split=0)
 
 
 def calculate_accuracy(new_y, verification_y):
     """
-    Calculates the accuracy of classification/clustering-Algorithms.
-    Note this only works with integer/discrete classes. For Algorithms that give Approximations an error function is
+    Calculates the accuracy of classification/clustering-algorithms.
+    Note this only works with integer/discrete classes. For algorithms that give approximations an error function is
     required.
 
     Parameters
     ----------
-    new_y : ht.tensor of shape (n_samples,), required
-        The new labels that are generated
-    verification_y : ht.tensor of shape (n_samples,), required
+    new_y : ht.tensor of shape (n_samples, n_features), required
+        The new labels that where generated
+    verification_y : ht.tensor of shape (n_samples, n_features), required
         Known labels
 
     Returns
@@ -48,7 +48,9 @@ def calculate_accuracy(new_y, verification_y):
             )
         )
 
-    count = ht.sum(ht.eq(new_y, verification_y))
+    count = ht.sum(
+        ht.where(ht.sum(ht.eq(new_y, verification_y), axis=1) == verification_y.gshape[1], 1, 0)
+    )
 
     return count / new_y.gshape[0]
 
@@ -144,4 +146,4 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
     return accuracies
 
 
-print(verify_algorithm(X, Y, 5, 30, 5))
+print(verify_algorithm(X, Y, 5, 50, 5))

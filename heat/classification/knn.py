@@ -16,8 +16,8 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         Array of shape (n_samples, sample_length,), required
         The training vectors
     y : ht.DNDarray
-        Array of shape (n_samples,), required
-        Labels for the training set
+        Array of shape (n_samples, n_features), required
+        Labels for the training set, bool value for each class in n_features
     num_neighbours: int
         Number of neighbours to consider when choosing label
 
@@ -39,7 +39,7 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         X : ht.DNDarray
             Data vectors used for prediction
         Y : ht.DNDarray
-            Labels for the data
+            Labels for the data, shape (n_samples, n_features)
         """
 
         if X.shape[0] != Y.shape[0]:
@@ -65,10 +65,9 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
 
         labels = self.y[indices.flatten()]
         labels.balance_()
-        labels = ht.reshape(labels, indices.gshape)
+        labels = ht.reshape(labels, (indices.gshape + (self.y.gshape[1],)))
 
-        uniques = ht.unique(labels, sorted=True)
-        uniques = ht.resplit(ht.expand_dims(uniques, axis=0), axis=0)
-        labels = ht.expand_dims(labels, axis=2)
+        labels = ht.sum(labels, axis=1)
+        maximums = ht.max(labels, axis=1, keepdim=True)
 
-        return ht.argmax(ht.sum(labels == uniques, axis=1), axis=1)
+        return ht.where(labels == maximums, 1, 0)
