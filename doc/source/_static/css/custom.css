@@ -30,6 +30,7 @@
   --hgrey-light: #e1e4e5;
   --hred: #D23264;
   --horange: #f0781e;
+  --horange-light: #fbe4d2;
   --breakpoint-xs: 0;
   --breakpoint-sm: 576px;
   --breakpoint-md: 768px;
@@ -7110,7 +7111,7 @@ footer span.commit .rst-content tt,
 .rst-content tt.literal,
 .rst-content tt.literal,
 .rst-content code.literal {
-	font-weight: bold;
+	font-weight: normal;
 	color: #000000
 }
 
@@ -7390,18 +7391,18 @@ span[id*='MathJax-Span'] {
 	src: url("../fonts/RobotoSlab/roboto-slab-v7-bold.eot?#iefix") format("embedded-opentype"), url("../fonts/RobotoSlab/roboto-slab-v7-bold.woff2") format("woff2"), url("../fonts/RobotoSlab/roboto-slab-v7-bold.woff") format("woff"), url("../fonts/RobotoSlab/roboto-slab-v7-bold.ttf") format("truetype")
 }
 
-div.tutorial {
+.tutorial {
 	background-color: var(--hgrey-light);
 	overflow: hidden;
 	margin-top: 20px;
 	margin-bottom: 20px;
 }
 
-div.tutorial:hover {
+.tutorial:hover {
 	background-color: var(--horange);
 }
 
-div.tutorial-image {
+.tutorial-image {
 	background-color: white;
 	margin: 20px;
 	padding: 20px;
@@ -7409,8 +7410,12 @@ div.tutorial-image {
 	float: left;
 }
 
-div.tutorial-text {
+.tutorial-text {
 	padding: 20px;
 	float: left;
 	width: 65%;
+}
+
+.highlight-output>.highlight {
+	background-color: var(--horange-light) !important;
 }
