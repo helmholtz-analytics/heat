@@ -78,11 +78,11 @@ def arange(
     >>> ht.arange(3)
     DNDarray([0, 1, 2], dtype=ht.int32, device=cpu:0, split=None)
     >>> ht.arange(3.0)
-    tensor([ 0.,  1.,  2.])
+    DNDarray([0., 1., 2.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.arange(3, 7)
-    tensor([3, 4, 5, 6])
+    DNDarray([3, 4, 5, 6], dtype=ht.int32, device=cpu:0, split=None)
     >>> ht.arange(3, 7, 2)
-    tensor([3, 5])
+    DNDarray([3, 5], dtype=ht.int32, device=cpu:0, split=None)
     """
     num_of_param = len(args)
 
@@ -187,16 +187,18 @@ def array(
     Examples
     --------
     >>> ht.array([1, 2, 3])
-    tensor([1, 2, 3])
+    DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.array([1, 2, 3.0])
-    tensor([ 1.,  2.,  3.])
+    DNDarray([1., 2., 3.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.array([[1, 2], [3, 4]])
-    tensor([[1, 2],
-            [3, 4]])
+    DNDarray([[1, 2],
+              [3, 4]], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.array([1, 2, 3], ndmin=2)
-    tensor([[1, 2, 3]])
+    DNDarray([[1],
+              [2],
+              [3]], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.array([1, 2, 3], dtype=float)
-    tensor([ 1.0, 2.0, 3.0])
+    DNDarray([1., 2., 3.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.array([1, 2, 3, 4], split=0)
     (0/2) tensor([1, 2])
     (1/2) tensor([3, 4])
