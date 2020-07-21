@@ -4,6 +4,8 @@ import math
 import queue
 import threading
 import torch
+import itertools
+import time
 from torch.utils import data as torch_data
 from typing import Callable, List, Iterator, Union
 
@@ -14,7 +16,7 @@ from ...core.communication import MPI_WORLD
 from . import datatools
 
 
-def io_thread(q: queue.Queue):
+def queue_thread(q: queue.Queue):
     while True:
         items = q.get()
         func = items[0]
@@ -28,12 +30,15 @@ class PartialDataset(torch_data.Dataset):
     def __init__(
         self,
         file: str,
+        single_data_element_shape: Union[int, tuple],
         comm: MPICommunication = MPI_WORLD,
         dataset_names: Union[str, List[str]] = "data",
         available_memory: int = None,
         transform: Callable = None,
         target_transform: Callable = None,
-        ishuffle: bool = True
+        ishuffle: bool = True,
+        np_buffer: bool = True,
+        np_buffer_dataset_names: Union[str, List[str]] = "data",
         # folder=None,
     ):
         super(PartialDataset, self).__init__()
@@ -49,81 +54,133 @@ class PartialDataset(torch_data.Dataset):
             available_memory = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
 
         # todo: add this back in for the datasets which can be loaded into memory
-        if file_size_per_pr < available_memory * 0.75:  # todo: what value should this be?
-            self.partial_dataset = False
-            self.ishuffle = ishuffle
-            # need to fall back on the normal dataset stuff
-            self.shuffle_list = [["ht" + dataset_names[0], dataset_names[0]]]
-            data = io.load_hdf5(file, dataset_names[0], comm=comm, split=0)
-            sz = len(data)
-            self.__setattr__("ht" + dataset_names[0], data)
-            min_data_split = data.gshape[data.split] // data.comm.size
-            self.lcl_half = min_data_split // 2
-            arb_slice = slice(min_data_split)
-            self._cut_slice = arb_slice
-            self.__setattr__(dataset_names[0], data._DNDarray__array[arb_slice])
-            self.length = sz
-            if len(dataset_names) > 1:
-                for d in dataset_names[1:]:
-                    data = io.load_hdf5(file, d, comm=comm, split=0)
-                    self.__setattr__("ht" + d, data)
-                    self.__setattr__(d, data._DNDarray__array)
-                    self.shuffle_list.append(["ht" + d, d])
+        # if file_size_per_pr < available_memory * 0.75:  # todo: what value should this be?
+        #     self.partial_dataset = False
+        #     self.ishuffle = ishuffle
+        #     # need to fall back on the normal dataset stuff
+        #     self.shuffle_list = [["ht" + dataset_names[0], dataset_names[0]]]
+        #     data = io.load_hdf5(file, dataset_names[0], comm=comm.handle, split=0)
+        #     sz = len(data)
+        #     self.__setattr__("ht" + dataset_names[0], data)
+        #     min_data_split = data.gshape[data.split] // data.comm.size
+        #     self.lcl_half = min_data_split // 2
+        #     arb_slice = slice(min_data_split)
+        #     self._cut_slice = arb_slice
+        #     self.__setattr__(dataset_names[0], data._DNDarray__array[arb_slice])
+        #     self.length = sz
+        #     if len(dataset_names) > 1:
+        #         for d in dataset_names[1:]:
+        #             data = io.load_hdf5(file, d, comm=comm, split=0)
+        #             self.__setattr__("ht" + d, data)
+        #             self.__setattr__(d, data._DNDarray__array)
+        #             self.shuffle_list.append(["ht" + d, d])
+        # else:
+        if isinstance(single_data_element_shape, (tuple, list)):
+            self.single_shape = list(single_data_element_shape)
         else:
-            self.ishuffle = None
-            self.partial_dataset = True
-            f = h5py.File(file, "r", driver="mpio", comm=comm)
-            # too much data for the process
-            # datasize_to_load = available_memory // 2.  # only load data equal to half the memory size
-            # todo: only supporting h5 for now...
-            fkeys = list(f.keys())
+            self.single_shape = [single_data_element_shape, single_data_element_shape]
+        self.ishuffle = None
+        self.partial_dataset = True
+        f = h5py.File(file, "r", driver="mpio", comm=comm)
+        # too much data for the process
+        # datasize_to_load = available_memory // 2.  # only load data equal to half the memory size
+        # todo: only supporting h5 for now...
+        fkeys = list(f.keys())
 
-            sz = f[fkeys[0]].len()
-            for k in fkeys[1:]:
-                # ensure that all of the datasets are the same length
-                if f[k].len() != sz:
-                    raise ValueError(f"all datasets in {file} must be the same length")
-            self.length = sz
-            self.lcl_full_sz = sz // comm.size  # how many indices will go onto each process (len)
-            # load data that is half of of the available memory
-            self.local_data_start = comm.rank * self.lcl_full_sz
-            # local_data_end = int(
-            #     (((0.50 * available_memory) / file_size_per_pr) * self.lcl_full_sz)
-            #     + self.local_data_start
-            # )
-            # self.load_len = ((0.10 * available_memory) / file_size_per_pr) * self.lcl_full_sz
-            # temp values for small scale testing
-            local_data_end = self.local_data_start + 20000
-            self.load_len = 10000
-            self.local_length = local_data_end - self.local_data_start
+        sz = f[fkeys[0]].len()
+        for k in fkeys[1:]:
+            # ensure that all of the datasets are the same length
+            if f[k].len() != sz:
+                raise ValueError(f"all datasets in {file} must be the same length")
+        self.length = sz
+        self.lcl_full_sz = sz // comm.size  # how many indices will go onto each process (len)
+        # load data that is half of of the available memory
+        self.local_data_start = comm.rank * self.lcl_full_sz
+        local_data_end = int(
+            (((0.25 * available_memory) / file_size_per_pr) * self.lcl_full_sz)
+            + self.local_data_start
+        )
+        self.load_len = ((0.10 * available_memory) / file_size_per_pr) * self.lcl_full_sz
+        # temp values for small scale testing
+        # local_data_end = self.local_data_start + 20000
+        # self.load_len = 10000
+        self.local_length = local_data_end - self.local_data_start
 
-            self.next_start = local_data_end
-            self.pr_data_end = self.local_data_start + self.lcl_full_sz
+        self.next_start = local_data_end
+        self.pr_data_end = self.local_data_start + self.lcl_full_sz
 
-            # data being loaded from dataset_names parameter
-            if isinstance(dataset_names, str):
-                dataset_names = [dataset_names]
-            self.dataset_names = dataset_names
-            for d in dataset_names:
-                # this should set the dataset attributes like data, by getting the data from the file
-                #   up to the local data length
+        # data being loaded from dataset_names parameter
+        if isinstance(dataset_names, str):
+            dataset_names = [dataset_names]
+        self.dataset_names = dataset_names
+        self.np_buffer = np_buffer
+        self.np_datasets = (
+            np_buffer_dataset_names
+            if isinstance(np_buffer_dataset_names, list)
+            else [np_buffer_dataset_names]
+        )
+        for d in dataset_names:
+            # this should set the dataset attributes like data, by getting the data from the file
+            #   up to the local data length
+            if not np_buffer or d not in np_buffer_dataset_names:
                 self.__setattr__(d, torch.tensor(f[d][self.local_data_start : local_data_end]))
-                self.__setattr__("next_" + d, None)
-                # todo: set proper device
-            f.close()
-            self.load_thread = None
-            self.epoch_end = False
-            self.next_group_ready = False
-            # need the number of loads required for an epoch
-            self.loads_required = math.ceil(
-                (self.lcl_full_sz - (local_data_end - self.local_data_start)) / self.load_len
-            )
-            self.loads_remaining = self.loads_required
-            self.next_indices = set()
-            self.next_indices_overflow = set()
-            self.getitem_num = 0
-            self.io_queue = queue.Queue()
-            threading.Thread(target=io_thread, args=[self.io_queue], daemon=True).start()
+            else:
+                self.__setattr__(
+                    d, torch.empty([local_data_end - self.local_data_start] + self.single_shape)
+                )
+                # todo: how much data should be loaded here???
+                self.__setattr__("np" + d, f[d][self.local_data_start : local_data_end])
+            self.__setattr__("next_" + d, None)
+        f.close()
+        self.load_thread = None
+        self.epoch_end = False
+        self.next_group_ready = False
+        # need the number of loads required for an epoch
+        self.loads_required = math.ceil(
+            (self.lcl_full_sz - (local_data_end - self.local_data_start)) / self.load_len
+        )
+        self.loads_remaining = self.loads_required
+        self.next_indices = set()
+        self.next_indices_overflow = set()
+        self.getitem_num = 0
+        self.io_queue = queue.Queue()
+        threading.Thread(target=queue_thread, args=[self.io_queue], daemon=True).start()
+        self.convert_queue = queue.Queue()
+        threading.Thread(target=queue_thread, args=[self.convert_queue], daemon=True).start()
+        self.last_converted_batch = 0 if not self.np_buffer else None
+        self.batch_loading_condition = threading.Condition()
+
+    def load_item_transform(self, item):
+        # need to either do a standard load here if not overwritten
+        # this should be overwritten in the case that there is a requirement to load the data with numpy first
+        # if not self.np_buffer:
+        #     return item
+        return item
+
+    # def convert_items(self, items, dataset, target=False):
+    # self.convert_queue.put((self._thread_insert_group, items, dataset, target))
+
+    def thread_convert_items(self, items, target=False):
+        # todo: target transform as well?
+        # todo: items must be a list!
+        #   get the numpy dataset,
+        #   convert the item to a torch tensor (should be done in ``load_item_transform``)
+        for dataset_lp in self.np_datasets:
+            np_data = self.__getattribute__("np" + dataset_lp)[items]
+            t_data = torch.zeros([len(np_data)] + self.single_shape)
+            for i in items:
+                hold = self.load_item_transform(np_data[i])
+                # hold should already be a tensor here
+                # -> do the transform/s
+                if target:
+                    t_data[i] = self.target_transform(hold)
+                else:
+                    t_data[i] = self.transform(hold)
+            #   write to the torch set in the items
+            dat = self.__getattribute__(dataset_lp)
+            dat[items] = t_data
+        self.last_converted_batch += 1
+        # todo: can transforms be applied to multiple items at once??
 
     def load_next_group(self):
         # nonblocking calls to start the loading of the next dataset
@@ -161,10 +218,14 @@ class PartialDataset(torch_data.Dataset):
         # self.next_indices = torch.empty_like(nxt_inds)
         nxt_inds = nxt_inds[:entries]
         for d in self.dataset_names:
+            if d in self.np_datasets:
+                d = "np" + d
             hld = self.__getattribute__(d)
             # print(len(nxt_inds), entries, hld.shape, self.loads_remaining)
             hld[nxt_inds] = self.__getattribute__("next_" + d)[: len(nxt_inds)]
-            self.__setattr__(d, hld)
+
+            self.__setattr__(d, hld)  # todo: is the required?
+            # todo: the insertion from np + d to d
 
     def insert_group(self, entries, next_inds):
         # todo: block the main thread here?
@@ -242,34 +303,70 @@ class PartialDataset(torch_data.Dataset):
         return self.local_length
 
 
-# class LoadingBatchSampler(torch_data.BatchSampler):
-#     def __init__(self, sampler, batch_size, drop_last):
-#         super(LoadingBatchSampler, self).__init__(sampler, batch_size, drop_last)
-#         if self.sampler.replacement:
-#             raise TypeError("Replacement drawing not implemented for loading sampler")
-#         # self.old_next = self.__next__
-#         self.cnt = 0
+class LoadingBatchSampler(torch_data.BatchSampler):
+    def __init__(self, sampler, batch_size, drop_last):
+        super(LoadingBatchSampler, self).__init__(sampler, batch_size, drop_last)
+        if self.sampler.replacement:
+            raise TypeError("Replacement drawing not implemented for loading sampler")
+        # self.old_next = self.__next__
+        self.cnt = 0
 
-# def __iter__(self):
-#     batch = []
-#     # print('start iter', self.sampler.data_source.local_data_start)
-#     # self.sampler.data_source.getitem_num = 0
-#     for idx in self.sampler:
-#         batch.append(idx)
-#         if len(batch) == self.batch_size:
-#             # if self.sampler.data_source.partial_dataset:
-#             #     self.sampler.data_source.getitem_index_helper(batch)
-#             yield batch
-#             batch = []
-#     if len(batch) > 0 and not self.drop_last:
-#         yield batch
-#     # if self.sampler.data_source.partial_dataset and len(batch) > 0:
-#     #     self.sampler.data_source.getitem_index_helper(batch)
-#     #     self.sampler.data_source.insert_group(
-#     #         self.sampler.data_source.getitem_num, self.sampler.data_source.next_indices
-#     #     )
-#         # todo: add the next load if it isnt the end...
-#         # self.dataset.load_next_group()
-#     # print('end iter', self.sampler.data_source.next_start)
+    def __iter__(self):
+        dset = self.sampler.data_source
+        batch = []
+        samp_iter = self.sampler.__iter__()
+        print("iter generate")
 
-# def __next__(self):
+        if not dset.np_buffer and not dset.partial_dataset:
+            for idx in samp_iter:
+                batch.append(idx)
+                if len(batch) == self.batch_size:
+                    yield batch
+                    batch = []
+            if len(batch) > 0 and not self.drop_last:
+                yield batch
+
+        else:  # either np buffer or partial dataset
+            iter_clones1, iter_clones2 = itertools.tee(samp_iter)
+            if dset.np_buffer:
+                next_inds = [0] * self.batch_size
+                for idx in range(self.batch_size):
+                    next_inds[idx] = next(iter_clones2)
+                    # todo: send next_inds to data placement loader
+                dset.convert_queue.put((dset.thread_insert_group, next_inds.copy(), False))
+                next_inds = [0] * self.batch_size
+                for idx in range(self.batch_size):
+                    next_inds[idx] = next(iter_clones2)
+                    # todo: send next_inds to data placement loader
+                dset.convert_queue.put((dset.thread_insert_group, next_inds.copy(), False))
+            next_inds = []
+            for idx in iter_clones1:
+                batch.append(idx)
+                try:
+                    next_inds.append(next(iter_clones2))
+                except StopIteration:
+                    pass
+                if len(batch) == self.batch_size:
+                    if dset.partial_dataset:
+                        dset.getitem_index_helper(batch)
+                        # todo: wait for the setting to be done
+                    print("sampler batch finished ")
+                    # todo: send next_inds to the data placement loader
+                    self.cnt += 1
+                    if dset.np_buffer:
+                        if len(next_inds) > 0:
+                            dset.convert_queue.put(
+                                (dset.thread_insert_group, next_inds.copy(), False)
+                            )
+                            next_inds = []
+                        # wait for this batch to be done from the other thread
+                        while dset.last_converted_batch < self.cnt:
+                            time.sleep(0.001)
+                    yield batch
+                    batch = []
+            if len(batch) > 0 and not self.drop_last:
+                # dont need to worry about the next inds here, that iterator is exhausted
+                yield batch
+            print("sampler end loop")
+            if dset.partial_dataset and len(batch) > 0:
+                dset.getitem_index_helper(batch)

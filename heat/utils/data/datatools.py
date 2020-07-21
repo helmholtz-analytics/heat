@@ -88,13 +88,13 @@ class DataLoader:
             )
         self.ishuffle = self.dataset.ishuffle
         # this is effectively setting ``shuffle`` to True
-        # rand_sampler = torch_data.RandomSampler(self.dataset)
-        # sampler = parallel_datatools.LoadingBatchSampler(rand_sampler, batch_size, drop_last)
+        rand_sampler = torch_data.RandomSampler(self.dataset)
+        sampler = parallel_datatools.LoadingBatchSampler(rand_sampler, batch_size, drop_last)
         self.DataLoader = torch_data.DataLoader(
             dataset=self.dataset,
-            batch_size=batch_size,
-            shuffle=True,
-            batch_sampler=None,
+            # batch_size=batch_size,
+            # shuffle=True,
+            batch_sampler=sampler,
             num_workers=num_workers,
             collate_fn=collate_fn,
             pin_memory=pin_memory,

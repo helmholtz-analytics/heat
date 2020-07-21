@@ -7,6 +7,7 @@ import sys
 import time
 import warnings
 
+import numpy as np
 import torch
 
 # import torch.nn as nn
@@ -40,7 +41,7 @@ model_names = sorted(
 )
 
 parser = argparse.ArgumentParser(description="PyTorch ImageNet Training")
-parser.add_argument("data", metavar="DIR", help="path to dataset")
+# parser.add_argument("data", metavar="DIR", help="path to dataset")
 parser.add_argument(
     "-a",
     "--arch",
@@ -182,7 +183,7 @@ def main():
 
 
 class ImagenetDataset(ht.utils.data.parallel_datatools.PartialDataset):
-    def __init__(self, file, transform=None, target_transform=None):
+    def __init__(self, file, single_data_element_shape, transform=None, target_transform=None):
         names = ["images", "metadata"]
         """
         file notes
@@ -207,22 +208,27 @@ class ImagenetDataset(ht.utils.data.parallel_datatools.PartialDataset):
                     3. "image/class/text"
         """
         super(ImagenetDataset, self).__init__(
-            file, dataset_names=names, transform=transform, target_transform=target_transform
+            file,
+            single_data_element_shape,
+            dataset_names=names,
+            transform=transform,
+            target_transform=target_transform,
+            np_buffer=True,
+            np_buffer_dataset_names=names[0],
         )
 
-    def __getitem__(self, item):
-        img = bytearray(base64.binascii.a2b_base64(self.images[item].encode("ascii")))
+    def load_item_transform(self, item):
         shape = (self.metadata["image/height"], self.metadata["image/width"], 3)
-        img = torch.as_tensor(img, dtype=torch.uint8).reshape(shape)
+        img = np.frombuffer(base64.binascii.a2b_base64(self.images[item].encode("ascii"))).reshape(
+            shape
+        )
+        return img
+
+    def __getitem__(self, item):
+        # todo: move this to the loading function?
+        img = self.images[item]
         target = torch.as_tensor(self.metadata["image/class/label"], dtype=torch.int)
 
-        if self.transform is not None:
-            img = self.transform(img)
-
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-
-        self.getitem_index_helper(item)
         return img, target
 
 
@@ -279,8 +285,9 @@ def main_worker(gpu, ngpus_per_node, args):
     elif args.gpu is not None:
         torch.cuda.set_device(args.gpu)
         model = model.cuda(args.gpu)
-    else:
-        raise NotImplementedError("wtf is happening here?")
+    # else:
+    #     # only CPU!
+    #     raise NotImplementedError("wtf is happening here?")
     #     # todo: this case it to be avoided!
     #     # DataParallel will divide and allocate batch_size to all available GPUs
     #     if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
@@ -295,7 +302,7 @@ def main_worker(gpu, ngpus_per_node, args):
     optimizer = torch.optim.SGD(
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
-    dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer)
+    dp_optimizer = ht.optim.DataParallelOptimizer(optimizer)
 
     # optionally resume from a checkpoint
     # if args.resume:
@@ -331,8 +338,10 @@ def main_worker(gpu, ngpus_per_node, args):
     # todo: point to the correct file, add transform for data
     train_dataset = ImagenetDataset(
         train_file,
+        single_data_element_shape=224,
         transform=vision_transforms.Compse(
             [
+                vision_transforms.ToPILImage(),
                 vision_transforms.RandomResizedCrop(224),
                 vision_transforms.RandomHorizontalFlip(),
                 vision_transforms.ToTensor(),
@@ -363,8 +372,10 @@ def main_worker(gpu, ngpus_per_node, args):
 
     val_dataset = ImagenetDataset(
         val_file,
+        single_data_element_shape=224,
         transform=vision_transforms.Compose(
             [
+                vision_transforms.ToPILImage(),
                 vision_transforms.Resize(256),
                 vision_transforms.CenterCrop(224),
                 vision_transforms.ToTensor(),
