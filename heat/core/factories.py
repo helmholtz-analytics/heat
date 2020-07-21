@@ -200,12 +200,13 @@ def array(
     >>> ht.array([1, 2, 3], dtype=float)
     DNDarray([1., 2., 3.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.array([1, 2, 3, 4], split=0)
-    (0/2) tensor([1, 2])
-    (1/2) tensor([3, 4])
-    >>> ht.array([1, 2], is_split=0)
-    >>> ht.array([3, 4], is_split=0)
-    (0/2) tensor([1, 2, 3, 4])
-    (1/2) tensor([1, 2, 3, 4])
+    DNDarray([1, 2, 3, 4], dtype=ht.int64, device=cpu:0, split=0)
+    >>> if ht.MPI_WORLD.rank == 0
+    >>>     a = ht.array([1, 2], is_split=0)
+    >>> else:
+    >>>     a = ht.array([3, 4], is_split=0)
+    >>> a
+    DNDarray([1, 2, 3, 4], dtype=ht.int64, device=cpu:0, split=0)
     >>> a = np.arange(2 * 3).reshape(2, 3)
     >>> a
     array([[ 0,  1,  2],
@@ -214,44 +215,44 @@ def array(
     (24, 8)
     >>> b = ht.array(a)
     >>> b
-    tensor([[0, 1, 2],
-            [3, 4, 5]])
+    DNDarray([[0, 1, 2],
+              [3, 4, 5]], dtype=ht.int64, device=cpu:0, split=None)
     >>> b.strides
     (24, 8)
     >>> b._DNDarray__array.storage()
-    0
-    1
-    2
-    3
-    4
-    5
+     0
+     1
+     2
+     3
+     4
+     5
     [torch.LongStorage of size 6]
     >>> c = ht.array(a, order='F')
     >>> c
-    tensor([[0, 1, 2],
-            [3, 4, 5]])
+    DNDarray([[0, 1, 2],
+              [3, 4, 5]], dtype=ht.int64, device=cpu:0, split=None)
     >>> c.strides
     (8, 16)
     >>> c._DNDarray__array.storage()
-    0
-    3
-    1
-    4
-    2
-    5
+     0
+     3
+     1
+     4
+     2
+     5
     [torch.LongStorage of size 6]
     >>> a = np.arange(4 * 3).reshape(4, 3)
     >>> a.strides
     (24, 8)
-    >>> b = ht.array(a, order='F')
+    >>> b = ht.array(a, order='F', split=0)
     >>> b
-    (0/2) tensor([[0, 1, 2],
-                  [3, 4, 5]])
-    (1/2) tensor([[ 6,  7,  8],
-                  [ 9, 10, 11]])
+    DNDarray([[ 0,  1,  2],
+              [ 3,  4,  5],
+              [ 6,  7,  8],
+              [ 9, 10, 11]], dtype=ht.int64, device=cpu:0, split=0)
     >>> b.strides
-    (0/2) (8, 16)
-    (1/2) (8, 16)
+    [0/2] (8, 16)
+    [1/2] (8, 16)
     >>> b._DNDarray__array.storage()
     (0/2) 0
           3
