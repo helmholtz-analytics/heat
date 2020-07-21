@@ -40,6 +40,7 @@ def arange(
 ) -> DNDarray:
     """
     Return evenly spaced values within a given interval.
+
     Values are generated within the half-open interval ``[start, stop)`` (in other words, the interval including `start`
     but excluding `stop`). For integer arguments the function is equivalent to the Python built-in `range
     <http://docs.python.org/lib/built-in-funcs.html>`_ function, but returns a array rather than a list.
@@ -75,7 +76,7 @@ def arange(
     Examples
     --------
     >>> ht.arange(3)
-    tensor([0, 1, 2])
+    DNDarray([0, 1, 2], dtype=ht.int32, device=cpu:0, split=None)
     >>> ht.arange(3.0)
     tensor([ 0.,  1.,  2.])
     >>> ht.arange(3, 7)
