@@ -25,7 +25,7 @@ and shifting them by :math:`+2` for cluster ``c1`` and :math:`-2` for cluster ``
     # Create default spherical point cloud
     # Sample radius between 0 and 1, and phi between 0 and 2pi
     r = ht.random.rand(num_ele, split=0) * radius
-    phi = ht.random.rand(num_ele, split=0) * 2 * 3.1415
+    phi = ht.random.rand(num_ele, split=0) * 2 * ht.constants.PI
 
     # Transform spherical coordinates to cartesian coordinates
     x = r * ht.cos(phi)
