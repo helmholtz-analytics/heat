@@ -15,7 +15,7 @@ class KMedoids(_KCluster):
             The number of clusters to form as well as the number of centroids to generate.
         init : str or DNDarray
             Method for initialization, defaults to ‘random’:
-                - ‘k-medoids++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
+                - ‘k-medoids++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2]. \n
                 - ‘random’: choose k observations (rows) at random from data for the initial centroids. \n
                 - ``DNDarray``: gives the initial centers, should be of Shape = (n_clusters, n_features)
         max_iter : int, default: 300
@@ -50,7 +50,6 @@ class KMedoids(_KCluster):
             Input data
         matching_centroids : DNDarray
             Array filled with indeces ``i`` indicating to which cluster ``ci`` each sample point in X is assigned
-
         """
 
         new_cluster_centers = self._cluster_centers.copy()

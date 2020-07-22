@@ -77,7 +77,6 @@ class KMeans(_KCluster):
             )
 
             # compute the new centroids
-            # ATTENTION: ERST TEILEN; DANN SUMIEREN!!!
             new_cluster_centers[i : i + 1, :] = (assigned_points / points_in_cluster).sum(
                 axis=0, keepdim=True
             )

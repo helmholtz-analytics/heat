@@ -23,8 +23,6 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         Relative tolerance with regards to inertia to declare convergence.
     random_state : int
         Determines random number generation for centroid initialization.
-
-
     """
 
     def __init__(self, metric, n_clusters, init, max_iter, tol, random_state):
@@ -217,7 +215,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
             Index array of assigned centroids
 
         """
-        return NotImplementedError()
+        raise NotImplementedError()
 
     def fit(self, X):
         """
@@ -229,7 +227,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
             Training instances to cluster. Shape = (n_samples, n_features)
 
         """
-        return NotImplementedError()
+        raise NotImplementedError()
 
     def predict(self, X):
         """

@@ -21,17 +21,14 @@ def create_spherical_dataset(
     random_state: int
         seed of the torch random number generator
     """
-    # contains num_samples
-    p = ht.MPI_WORLD.size
     # create k sperical clusters with each n elements per cluster. Each process creates k * n/p elements
-    num_ele = num_samples_cluster // p
     ht.random.seed(random_state)
     # radius between 0 and 1
-    r = ht.random.rand(num_ele, split=0) * radius
+    r = ht.random.rand(num_samples_cluster, split=0) * radius
     # theta between 0 and pi
-    theta = ht.random.rand(num_ele, split=0) * 3.1415
+    theta = ht.random.rand(num_samples_cluster, split=0) * ht.PI
     # phi between 0 and 2pi
-    phi = ht.random.rand(num_ele, split=0) * 2 * 3.1415
+    phi = ht.random.rand(num_samples_cluster, split=0) * 2 * ht.PI
     # Cartesian coordinates
     x = r * ht.sin(theta) * ht.cos(phi)
     x.astype(dtype, copy=False)
@@ -46,7 +43,6 @@ def create_spherical_dataset(
     cluster4 = ht.stack((x - 2 * offset, y - 2 * offset, z - 2 * offset), axis=1)
 
     data = ht.concatenate((cluster1, cluster2, cluster3, cluster4), axis=0)
-    # Note: enhance when shuffel is available
     return data
 
 
@@ -59,32 +55,29 @@ def main():
     )
     reference = ht.array([[-8, -8, -8], [-4, -4, -4], [4, 4, 4], [8, 8, 8]], dtype=ht.float32)
 
-    print("4 Spherical clusters with radius 1.0, each {} samples (dtype = ht.float32) ".format(n))
+    print(f"4 Spherical clusters with radius 1.0, each {n} samples (dtype = ht.float32)")
     kmeans = ht.cluster.KMeans(n_clusters=4, init="kmeans++")
     kmeans.fit(data)
-    result, _ = ht.sort(kmeans.cluster_centers_, axis=0)
     print(
-        "### Fitting with kmeans ### \nOriginal sphere centers = {} \nFitted cluster centers = {} ".format(
-            reference, result
-        )
+        f"### Fitting with kmeans ### \n"
+        f"Original sphere centers = {reference} \n"
+        f"Fitted cluster centers = {kmeans.cluster_centers_} "
     )
 
     kmedian = ht.cluster.KMedians(n_clusters=4, init="kmedians++", random_state=seed)
     kmedian.fit(data)
-    result, _ = ht.sort(kmedian.cluster_centers_, axis=0)
     print(
-        "### Fitting with kmedian ### \nOriginal sphere centers = {} \nFitted cluster centers = {} ".format(
-            reference, result
-        )
+        f"### Fitting with kmedian ### \n"
+        f"Original sphere centers = {reference} \n"
+        f"Fitted cluster centers = {kmedian.cluster_centers_} "
     )
 
     kmedoid = ht.cluster.KMedoids(n_clusters=4, init="kmedoids++", random_state=seed)
     kmedoid.fit(data)
-    result, _ = ht.sort(kmedoid.cluster_centers_, axis=0)
     print(
-        "### Fitting with kmedoid ### \nOriginal sphere centers = {} \nFitted cluster centers = {} ".format(
-            reference, result
-        )
+        f"### Fitting with kmedoids ### \n"
+        f"Original sphere centers = {reference} \n"
+        f"Fitted cluster centers = {kmedoid.cluster_centers_} "
     )
 
     # More Samples
@@ -95,32 +88,29 @@ def main():
     print("4 Spherical  with radius 1.0, each {} samples (dtype = ht.float32) ".format(n))
     kmeans = ht.cluster.KMeans(n_clusters=4, init="kmeans++")
     kmeans.fit(data)
-    result, _ = ht.sort(kmeans.cluster_centers_, axis=0)
     print(
-        "### Fitting with kmeans ### \nOriginal sphere centers = {} \nFitted cluster centers = {} ".format(
-            reference, result
-        )
+        f"### Fitting with kmeans ### \n"
+        f"Original sphere centers = {reference} \n"
+        f"Fitted cluster centers = {kmeans.cluster_centers_} "
     )
 
     kmedian = ht.cluster.KMedians(n_clusters=4, init="kmedians++", random_state=seed)
     kmedian.fit(data)
-    result, _ = ht.sort(kmedian.cluster_centers_, axis=0)
     print(
-        "### Fitting with kmedian ### \nOriginal sphere centers = {} \nFitted cluster centers = {} ".format(
-            reference, result
-        )
+        f"### Fitting with kmedian ### \n"
+        f"Original sphere centers = {reference} \n"
+        f"Fitted cluster centers = {kmedian.cluster_centers_} "
     )
 
     kmedoid = ht.cluster.KMedoids(n_clusters=4, init="kmedoids++", random_state=seed)
     kmedoid.fit(data)
-    result, _ = ht.sort(kmedoid.cluster_centers_, axis=0)
     print(
-        "### Fitting with kmedoid ### \nOriginal sphere centers = {} \nFitted cluster centers = {} ".format(
-            reference, result
-        )
+        f"### Fitting with kmedoids ### \n"
+        f"Original sphere centers = {reference} \n"
+        f"Fitted cluster centers = {kmedoid.cluster_centers_} "
     )
 
-    # on Ints (different radius, offset and datatype
+    # On integers (different radius, offset and datatype)
     n = 20 * ht.MPI_WORLD.size
     data = create_spherical_dataset(
         num_samples_cluster=n, radius=10.0, offset=40.0, dtype=ht.int32, random_state=seed
@@ -131,29 +121,26 @@ def main():
     print("4 Spherical clusters with radius 10, each {} samples (dtype = ht.int32) ".format(n))
     kmeans = ht.cluster.KMeans(n_clusters=4, init="kmeans++")
     kmeans.fit(data)
-    result, _ = ht.sort(kmeans.cluster_centers_, axis=0)
     print(
-        "### Fitting with kmeans ### \nOriginal sphere centers = {} \nFitted cluster centers = {} ".format(
-            reference, result
-        )
+        f"### Fitting with kmeans ### \n"
+        f"Original sphere centers = {reference} \n"
+        f"Fitted cluster centers = {kmeans.cluster_centers_} "
     )
 
     kmedian = ht.cluster.KMedians(n_clusters=4, init="kmedians++", random_state=seed)
     kmedian.fit(data)
-    result, _ = ht.sort(kmedian.cluster_centers_, axis=0)
     print(
-        "### Fitting with kmedian ### \nOriginal sphere centers = {} \nFitted cluster centers = {} ".format(
-            reference, result
-        )
+        f"### Fitting with kmedian ### \n"
+        f"Original sphere centers = {reference} \n"
+        f"Fitted cluster centers = {kmedian.cluster_centers_} "
     )
 
     kmedoid = ht.cluster.KMedoids(n_clusters=4, init="kmedoids++", random_state=seed)
     kmedoid.fit(data)
-    result, _ = ht.sort(kmedoid.cluster_centers_, axis=0)
     print(
-        "### Fitting with kmedoid ### \nOriginal sphere centers = {} \nFitted cluster centers = {} ".format(
-            reference, result
-        )
+        f"### Fitting with kmedoids ### \n"
+        f"Original sphere centers = {reference} \n"
+        f"Fitted cluster centers = {kmedoid.cluster_centers_} "
     )
 
 
