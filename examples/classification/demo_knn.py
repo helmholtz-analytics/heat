@@ -14,11 +14,11 @@ X = ht.load_hdf5("../../heat/datasets/data/iris.h5", dataset="data", split=0)
 # Generate keys for the iris.h5 dataset
 keys = []
 for i in range(50):
-    keys.append([1, 0, 0])
+    keys.append(0)
 for i in range(50, 100):
-    keys.append([0, 1, 0])
+    keys.append(1)
 for i in range(100, 150):
-    keys.append([0, 0, 1])
+    keys.append(2)
 Y = ht.array(keys, split=0)
 
 
@@ -48,9 +48,7 @@ def calculate_accuracy(new_y, verification_y):
             )
         )
 
-    count = ht.sum(
-        ht.where(ht.sum(ht.eq(new_y, verification_y), axis=1) == verification_y.gshape[1], 1, 0)
-    )
+    count = ht.sum(ht.where(new_y == verification_y, 1, 0))
 
     return count / new_y.gshape[0]
 

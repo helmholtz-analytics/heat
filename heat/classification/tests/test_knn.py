@@ -9,39 +9,25 @@ from heat.classification.knn import KNN
 
 
 class TestKNN(TestCase):
-    def test_classifier(self):
-        X = ht.load_hdf5("heat/datasets/data/iris.h5", dataset="data", split=0)
-
-        # Generate keys for the iris.h5 dataset
-        keys = []
-        for i in range(50):
-            keys.append([1, 0, 0])
-        for i in range(50, 100):
-            keys.append([0, 1, 0])
-        for i in range(100, 150):
-            keys.append([0, 0, 1])
-        Y = ht.array(keys, split=0)
-        knn = KNN(X, Y, 5)
-        self.assertTrue(ht.is_estimator(knn))
-        self.assertTrue(ht.is_classifier(knn))
-
     def test_split_none(self):
         X = ht.load_hdf5("heat/datasets/data/iris.h5", dataset="data")
 
         # Generate keys for the iris.h5 dataset
         keys = []
         for i in range(50):
-            keys.append([1, 0, 0])
+            keys.append(0)
         for i in range(50, 100):
-            keys.append([0, 1, 0])
+            keys.append(1)
         for i in range(100, 150):
-            keys.append([0, 0, 1])
+            keys.append(2)
         Y = ht.array(keys)
 
         knn = KNN(X, Y, 5)
 
         result = knn.predict(X)
 
+        self.assertTrue(ht.is_estimator(knn))
+        self.assertTrue(ht.is_classifier(knn))
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, Y.shape)
 
@@ -51,11 +37,11 @@ class TestKNN(TestCase):
         # Generate keys for the iris.h5 dataset
         keys = []
         for i in range(50):
-            keys.append([1, 0, 0])
+            keys.append(0)
         for i in range(50, 100):
-            keys.append([0, 1, 0])
+            keys.append(1)
         for i in range(100, 150):
-            keys.append([0, 0, 1])
+            keys.append(2)
         Y = ht.array(keys, split=0)
 
         knn = KNN(X, Y, 5)

@@ -16,7 +16,7 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         Array of shape (n_samples, sample_length,), required
         The training vectors
     y : ht.DNDarray
-        Array of shape (n_samples, n_features), required
+        Array of shape (n_samples, ), required
         Labels for the training set, bool value for each class in n_features
     num_neighbours: int
         Number of neighbours to consider when choosing label
@@ -37,7 +37,7 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
             )
 
         self.x = x
-        self.y = y
+        self.y = self.label_to_one_hot(y)
         self.num_neighbours = num_neighbours
 
     def fit(self, X, Y):
@@ -47,7 +47,7 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         X : ht.DNDarray
             Data vectors used for prediction
         Y : ht.DNDarray
-            Labels for the data, shape (n_samples, n_features)
+            Labels for the data, shape (n_samples,)
         """
 
         if X.shape[0] != Y.shape[0]:
@@ -58,7 +58,7 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
             )
 
         self.x = X
-        self.y = Y
+        self.y = self.label_to_one_hot(Y)
 
     def predict(self, X) -> ht.dndarray:
         """
@@ -76,6 +76,20 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         labels = ht.reshape(labels, (indices.gshape + (self.y.gshape[1],)))
 
         labels = ht.sum(labels, axis=1)
-        maximums = ht.max(labels, axis=1, keepdim=True)
+        maximums = ht.argmax(labels, axis=1)
 
-        return ht.where(labels == maximums, 1, 0)
+        return maximums
+
+    @staticmethod
+    def label_to_one_hot(a):
+        max_label = ht.max(a)
+        a = a.expand_dims(1)
+
+        items = ht.arange(0, max_label.item() + 1)
+        one_hot = ht.stack([items for i in range(a.shape[0])], axis=0)
+        one_hot = ht.where(one_hot == a, 1, 0)
+        return one_hot
+
+    @staticmethod
+    def one_hot_to_label(a):
+        return ht.argmax(a, axis=1)
