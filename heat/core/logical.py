@@ -316,7 +316,7 @@ def logical_or(t1: DNDarray, t2: DNDarray) -> DNDarray:
 
 def logical_xor(t1: DNDarray, t2: DNDarray) -> DNDarray:
     """
-    Computes the element-wise logical XOR of the given input :class:`~heat.core.dndarray.DNDarray` .
+    Computes the element-wise logical XOR of the given input :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
     -----------
