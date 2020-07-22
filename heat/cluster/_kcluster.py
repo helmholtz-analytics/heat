@@ -127,7 +127,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 raise ValueError("passed centroids do not match cluster count or data shape")
             self._cluster_centers = self.init.resplit(None)
 
-        # Smart centroid guessing, random sampling with probability weight proportional to distance to existing centroids
+        # smart centroid guessing, random sampling with probability weight proportional to distance to existing centroids
         elif self.init == "probability_based":
             datatype = ht.promote_types(X.dtype, ht.float32)
             if X.split is None or X.split == 0:
