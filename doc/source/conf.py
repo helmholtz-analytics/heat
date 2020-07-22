@@ -50,13 +50,13 @@ autoapi_type = "python"
 autoapi_dirs = ["../../heat/"]
 autoapi_ignore = ["*/operations.py", "*/tests/*"]
 autoapi_template_dir = "_templates/autoapi"
-# autoapi_options = [
-#    "members",
-#    "inherited-members",
-#    "show-inheritance",
-#    "show-module-summary",
-#    "imported-members",
-# ]
+autoapi_options = [
+    "members",
+    "inherited-members",
+    "show-inheritance",
+    "show-module-summary",
+    "imported-members",
+]
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 napoleon_numpy_docstring = True
