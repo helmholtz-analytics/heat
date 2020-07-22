@@ -100,7 +100,7 @@ class PartialDataset(torch_data.Dataset):
             (((0.25 * available_memory) / file_size_per_pr) * self.lcl_full_sz)
             + self.local_data_start
         )
-        self.load_len = ((0.10 * available_memory) / file_size_per_pr) * self.lcl_full_sz
+        self.load_len = int(((0.10 * available_memory) / file_size_per_pr) * self.lcl_full_sz)
         # temp values for small scale testing
         # local_data_end = self.local_data_start + 20000
         # self.load_len = 10000
@@ -147,7 +147,7 @@ class PartialDataset(torch_data.Dataset):
         threading.Thread(target=queue_thread, args=[self.io_queue], daemon=True).start()
         self.convert_queue = queue.Queue()
         threading.Thread(target=queue_thread, args=[self.convert_queue], daemon=True).start()
-        self.last_converted_batch = 0 if not self.np_buffer else None
+        self.last_converted_batch = 0 if self.np_buffer else None
         self.batch_loading_condition = threading.Condition()
 
     def load_item_transform(self, item):
