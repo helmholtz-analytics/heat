@@ -68,7 +68,7 @@ class DataParallel(tnn.Module):
         self,
         module: torch.nn.Module,
         comm: MPICommunication,
-        *dp_optimizers: optim.DataParallelOptimizer,
+        *dp_optimizers,
         blocking_parameter_updates: bool = True,
     ):
         super(DataParallel, self).__init__()

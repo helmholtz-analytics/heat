@@ -19,8 +19,9 @@ import torch.multiprocessing as mp
 
 # import torch.utils.data
 # import torch.utils.data.distributed
-# import torchvision.transforms as transforms
+import torchvision.transforms as transforms
 import torchvision.datasets as datasets
+import torchvision.models as models
 
 # import torchvision.models as models
 
@@ -29,15 +30,15 @@ import heat as ht
 import heat.nn as nn
 import heat.nn.functional as F
 import heat.optim as optim
-from heat.optim.lr_scheduler import StepLR
+#from heat.optim.lr_scheduler import StepLR
 from heat.utils import vision_transforms
-from heat.utils.data.mnist import MNISTDataset
+#from heat.utils.data.mnist import MNISTDataset
 
 # todo: needed here?
 model_names = sorted(
     name
-    for name in nn.models.__dict__
-    if name.islower() and not name.startswith("__") and callable(nn.models.__dict__[name])
+    for name in models.__dict__
+    if name.islower() and not name.startswith("__") and callable(models.__dict__[name])
 )
 
 parser = argparse.ArgumentParser(description="PyTorch ImageNet Training")
@@ -217,17 +218,19 @@ class ImagenetDataset(ht.utils.data.parallel_datatools.PartialDataset):
             np_buffer_dataset_names=names[0],
         )
 
-    def load_item_transform(self, item):
-        shape = (self.metadata["image/height"], self.metadata["image/width"], 3)
-        img = np.frombuffer(base64.binascii.a2b_base64(self.images[item].encode("ascii"))).reshape(
-            shape
-        )
+    def load_item_transform(self, item, image):
+        #print(item)
+        #print('meta', self.metadata)
+        shape = (int(self.metadata[item][0].item()), int(self.metadata[item][1].item()), 3)
+        #print(item, shape)
+        str_repr = base64.binascii.a2b_base64(image)
+        img = np.frombuffer(str_repr, dtype=np.uint8).reshape(shape)
         return img
 
     def __getitem__(self, item):
         # todo: move this to the loading function?
         img = self.images[item]
-        target = torch.as_tensor(self.metadata["image/class/label"], dtype=torch.int)
+        target = torch.as_tensor(self.metadata[item][3], dtype=torch.long)
 
         return img, target
 
@@ -255,10 +258,10 @@ def main_worker(gpu, ngpus_per_node, args):
     # todo: use pretrained?
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
-        model = nn.models.__dict__[args.arch](pretrained=True)
+        model = models.__dict__[args.arch](pretrained=True)
     else:
         print("=> creating model '{}'".format(args.arch))
-        model = nn.models.__dict__[args.arch]()
+        model = models.__dict__[args.arch]()
 
     if not torch.cuda.is_available():
         print("using CPU, this will be slow")
@@ -285,6 +288,7 @@ def main_worker(gpu, ngpus_per_node, args):
     elif args.gpu is not None:
         torch.cuda.set_device(args.gpu)
         model = model.cuda(args.gpu)
+    model.blocking_parameter_updates = True
     # else:
     #     # only CPU!
     #     raise NotImplementedError("wtf is happening here?")
@@ -297,12 +301,13 @@ def main_worker(gpu, ngpus_per_node, args):
     #         model = torch.nn.DataParallel(model).cuda()
 
     # define loss function (criterion) and optimizer
-    criterion = nn.CrossEntropyLoss().cuda(args.gpu)
+    criterion = torch.nn.CrossEntropyLoss().cuda(args.gpu)
 
     optimizer = torch.optim.SGD(
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
-    dp_optimizer = ht.optim.DataParallelOptimizer(optimizer)
+    dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer)
+    dp_optimizer.blocking_parameter_updates = True
 
     # optionally resume from a checkpoint
     # if args.resume:
@@ -331,20 +336,20 @@ def main_worker(gpu, ngpus_per_node, args):
     # Data loading code
     # traindir = os.path.join(args.data, 'train')
     # valdir = os.path.join(args.data, 'val')
-    train_file = "training file location"
-    val_file = "validation file location"
-    normalize = vision_transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    train_file = "/p/project/haf/data/imagenet_merged.h5"
+    val_file = "/p/project/haf/data/imagenet_merged_validation.h5"
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
     # todo: point to the correct file, add transform for data
     train_dataset = ImagenetDataset(
         train_file,
-        single_data_element_shape=224,
-        transform=vision_transforms.Compse(
+        single_data_element_shape=(3, 224, 224),
+        transform=transforms.Compose(
             [
-                vision_transforms.ToPILImage(),
-                vision_transforms.RandomResizedCrop(224),
-                vision_transforms.RandomHorizontalFlip(),
-                vision_transforms.ToTensor(),
+                transforms.ToPILImage(),
+                transforms.RandomResizedCrop(224),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
                 normalize,
             ]
         ),
@@ -367,24 +372,24 @@ def main_worker(gpu, ngpus_per_node, args):
     #     train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
     #     num_workers=args.workers, pin_memory=True, sampler=train_sampler)
     train_loader = ht.utils.data.datatools.DataLoader(
-        train_dataset, batch_size=args.batch_size, pin_memory=True
+        lcl_dataset=train_dataset, batch_size=args.batch_size, pin_memory=True
     )
 
     val_dataset = ImagenetDataset(
         val_file,
-        single_data_element_shape=224,
-        transform=vision_transforms.Compose(
+        single_data_element_shape=(3, 224, 224),
+        transform=transforms.Compose(
             [
-                vision_transforms.ToPILImage(),
-                vision_transforms.Resize(256),
-                vision_transforms.CenterCrop(224),
-                vision_transforms.ToTensor(),
+                transforms.ToPILImage(),
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
                 normalize,
             ]
         ),
     )
     val_loader = ht.utils.data.datatools.DataLoader(
-        val_dataset, batch_size=args.batch_size, pin_memory=True
+        lcl_dataset=val_dataset, batch_size=args.batch_size, pin_memory=True
     )
     # val_loader = torch.utils.data.DataLoader(
     #     datasets.ImageFolder(valdir, vision_transforms.Compose([
@@ -448,8 +453,9 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
 
     end = time.time()
     for i, (images, target) in enumerate(train_loader):
+        print("train loop", images.shape)
         # measure data loading time
-        data_time.update(time.time() - end)
+        #data_time.update(time.time() - end)
 
         # todo: GPUs
         # if args.gpu is not None:
@@ -459,6 +465,7 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
 
         # compute output
         output = model(images)
+        print(min(target), max(target))
         loss = criterion(output, target)
 
         # measure accuracy and record loss
@@ -476,8 +483,8 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
         batch_time.update(time.time() - end)
         end = time.time()
 
-        if i % args.print_freq == 0:
-            progress.display(i)
+        #if i % args.print_freq == 0:
+        #    progress.display(i)
 
 
 def validate(val_loader, model, criterion, args):
@@ -493,10 +500,11 @@ def validate(val_loader, model, criterion, args):
     with torch.no_grad():
         end = time.time()
         for i, (images, target) in enumerate(val_loader):
-            if args.gpu is not None:
-                images = images.cuda(args.gpu, non_blocking=True)
-            if torch.cuda.is_available():
-                target = target.cuda(args.gpu, non_blocking=True)
+            print("val loop", images.shape)
+            #if args.gpu is not None:
+            #    images = images.cuda(args.gpu, non_blocking=True)
+            #if torch.cuda.is_available():
+            #    target = target.cuda(args.gpu, non_blocking=True)
 
             # compute output
             output = model(images)
@@ -512,11 +520,11 @@ def validate(val_loader, model, criterion, args):
             batch_time.update(time.time() - end)
             end = time.time()
 
-            if i % args.print_freq == 0:
-                progress.display(i)
+            #if i % args.print_freq == 0:
+            #    progress.display(i)
 
         # TODO: this should also be done with the ProgressMeter
-        print(" * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}".format(top1=top1, top5=top5))
+        #print(" * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}".format(top1=top1, top5=top5))
 
     return top1.avg
 
