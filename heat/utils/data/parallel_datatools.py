@@ -1,6 +1,7 @@
 import os
 import h5py
 import math
+import numpy as np
 import queue
 import threading
 import torch
@@ -81,7 +82,7 @@ class PartialDataset(torch_data.Dataset):
             self.single_shape = [single_data_element_shape, single_data_element_shape]
         self.ishuffle = None
         self.partial_dataset = True
-        f = h5py.File(file, "r", driver="mpio", comm=comm)
+        f = h5py.File(file, "r", driver="mpio", comm=comm.handle)
         # too much data for the process
         # datasize_to_load = available_memory // 2.  # only load data equal to half the memory size
         # todo: only supporting h5 for now...
@@ -93,17 +94,20 @@ class PartialDataset(torch_data.Dataset):
             if f[k].len() != sz:
                 raise ValueError(f"all datasets in {file} must be the same length")
         self.length = sz
-        self.lcl_full_sz = sz // comm.size  # how many indices will go onto each process (len)
+        print("lcl_full_sz original", sz //comm.size)
+        #self.lcl_full_sz = sz // comm.size  # how many indices will go onto each process (len)
+        self.lcl_full_sz = 100000
         # load data that is half of of the available memory
         self.local_data_start = comm.rank * self.lcl_full_sz
-        local_data_end = int(
-            (((0.25 * available_memory) / file_size_per_pr) * self.lcl_full_sz)
-            + self.local_data_start
-        )
-        self.load_len = ((0.10 * available_memory) / file_size_per_pr) * self.lcl_full_sz
+        #local_data_end = int(
+        #    (((0.25 * available_memory) / file_size_per_pr) * self.lcl_full_sz)
+        #    + self.local_data_start
+        #)
+        #self.load_len = ((0.10 * available_memory) / file_size_per_pr) * self.lcl_full_sz
+        #print(self.local_data_start, local_data_end, self.load_len)
         # temp values for small scale testing
-        # local_data_end = self.local_data_start + 20000
-        # self.load_len = 10000
+        local_data_end = self.local_data_start + 20000
+        self.load_len = 10000
         self.local_length = local_data_end - self.local_data_start
 
         self.next_start = local_data_end
@@ -147,7 +151,7 @@ class PartialDataset(torch_data.Dataset):
         threading.Thread(target=queue_thread, args=[self.io_queue], daemon=True).start()
         self.convert_queue = queue.Queue()
         threading.Thread(target=queue_thread, args=[self.convert_queue], daemon=True).start()
-        self.last_converted_batch = 0 if not self.np_buffer else None
+        self.last_converted_batch = 0 if self.np_buffer else None
         self.batch_loading_condition = threading.Condition()
 
     def load_item_transform(self, item):
@@ -168,17 +172,28 @@ class PartialDataset(torch_data.Dataset):
         for dataset_lp in self.np_datasets:
             np_data = self.__getattribute__("np" + dataset_lp)[items]
             t_data = torch.zeros([len(np_data)] + self.single_shape)
-            for i in items:
-                hold = self.load_item_transform(np_data[i])
-                # hold should already be a tensor here
-                # -> do the transform/s
-                if target:
-                    t_data[i] = self.target_transform(hold)
-                else:
-                    t_data[i] = self.transform(hold)
+            rem_list = []
+            for i in range(len(items)):
+                try:
+                    hold = self.load_item_transform(item=items[i], image=np_data[i])
+                    # hold should already be a tensor here
+                    # -> do the transform/s
+                    if target:
+                        t_data[i] = self.target_transform(hold)
+                    else:
+                        hld1 = self.transform(hold)
+                        #print('sizes...', self.single_shape, hld1.shape, t_data[i].shape)
+                        t_data[i] = hld1
+                except ValueError:
+                    rem_list.append(i)
             #   write to the torch set in the items
             dat = self.__getattribute__(dataset_lp)
-            dat[items] = t_data
+            keep_list = list(range(len(items)))
+            if len(rem_list) > 0:
+                for ridx in reversed(rem_list):
+                    del keep_list[ridx]
+                    del items[ridx]
+            dat[items] = t_data[keep_list]
         self.last_converted_batch += 1
         # todo: can transforms be applied to multiple items at once??
 
@@ -202,12 +217,20 @@ class PartialDataset(torch_data.Dataset):
 
     def _thread_loading_from_file(self, f, wrap, next_start, next_end, rem):
         for d in self.dataset_names:
-            nxt = torch.tensor(f[d][next_start:next_end])
+            nxt = f[d][next_start:next_end]
+            if not self.np_buffer or d not in self.np_datasets:
+                nxt = torch.tensor(nxt)
             # print('loading', self.next_start, next_end, rem, self.getitem_num)
             if wrap:
+                nxt2 = f[d][0:rem]  # rem + 1?
+                if not self.np_buffer or d not in self.np_datasets:
+                    nxt2 = torch.tensor(nxt2)
+                    nxt = torch.cat((nxt, nxt2), dim=0)
+                else:
+                    nxt = np.concatenate((nxt, nxt2), axis=0)
                 print("wraping")
-                nxt2 = torch.tensor(f[d][0:rem])  # rem + 1?
-                nxt = torch.cat((nxt, nxt2), dim=0)
+                #nxt2 = torch.tensor(f[d][0:rem])  # rem + 1?
+                #nxt = torch.cat((nxt, nxt2), dim=0)
             self.__setattr__("next_" + d, nxt)
         self.next_group_ready = True
 
@@ -219,12 +242,16 @@ class PartialDataset(torch_data.Dataset):
         nxt_inds = nxt_inds[:entries]
         for d in self.dataset_names:
             if d in self.np_datasets:
-                d = "np" + d
-            hld = self.__getattribute__(d)
+                hld = self.__getattribute__("np" + d)
+            else:
+                hld = self.__getattribute__(d)
             # print(len(nxt_inds), entries, hld.shape, self.loads_remaining)
             hld[nxt_inds] = self.__getattribute__("next_" + d)[: len(nxt_inds)]
-
-            self.__setattr__(d, hld)  # todo: is the required?
+            
+            if d in self.np_datasets:
+                self.__setattr__("np" + d, hld)  # todo: is the required?
+            else:
+                hld = self.__getattribute__(d)
             # todo: the insertion from np + d to d
 
     def insert_group(self, entries, next_inds):
@@ -333,12 +360,12 @@ class LoadingBatchSampler(torch_data.BatchSampler):
                 for idx in range(self.batch_size):
                     next_inds[idx] = next(iter_clones2)
                     # todo: send next_inds to data placement loader
-                dset.convert_queue.put((dset.thread_insert_group, next_inds.copy(), False))
+                dset.convert_queue.put((dset.thread_convert_items, next_inds.copy(), False))
                 next_inds = [0] * self.batch_size
                 for idx in range(self.batch_size):
                     next_inds[idx] = next(iter_clones2)
                     # todo: send next_inds to data placement loader
-                dset.convert_queue.put((dset.thread_insert_group, next_inds.copy(), False))
+                dset.convert_queue.put((dset.thread_convert_items, next_inds.copy(), False))
             next_inds = []
             for idx in iter_clones1:
                 batch.append(idx)
@@ -356,12 +383,15 @@ class LoadingBatchSampler(torch_data.BatchSampler):
                     if dset.np_buffer:
                         if len(next_inds) > 0:
                             dset.convert_queue.put(
-                                (dset.thread_insert_group, next_inds.copy(), False)
+                                (dset.thread_convert_items, next_inds.copy(), False)
                             )
                             next_inds = []
                         # wait for this batch to be done from the other thread
+                        xx = 0
                         while dset.last_converted_batch < self.cnt:
-                            time.sleep(0.001)
+                            time.sleep(0.01)
+                            xx += 1
+                        print(f"waited for {xx} loops")
                     yield batch
                     batch = []
             if len(batch) > 0 and not self.drop_last:
