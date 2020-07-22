@@ -15,7 +15,7 @@ For a simple demonstration of the clustering process and the differences between
 artificial dataset, consisting of two circularly shaped clusters positioned at :math:`(x_1=2, y_1=2)` and :math:`(x_2=-2, y_2=-2)` in 2D space.
 For each cluster we will sample 100 arbitrary points from a circle with radius of :math:`r = 1.0` by drawing random numbers
 for the spherical coordinates :math:`( r\in [0,1], \phi \in [0,2\pi])`, translating these to cartesian coordinates
-and shifting them by :math:`+2 for cluster ``c1`` and :math:`-2` for cluster ``c2``. The resulting concatenated dataset ``data`` has shape
+and shifting them by :math:`+2` for cluster ``c1`` and :math:`-2` for cluster ``c2``. The resulting concatenated dataset ``data`` has shape
 :math:`(200, 2)` and is distributed among the ``p`` processes along axis 0 (sample axis) ::
 
     num_ele = 100
@@ -43,6 +43,9 @@ all processes) and transform it into a numpy array. Plotting can only be done on
     if ht.MPI_WORLD.rank == 0:
         plt.plot(data_np[:,0], data_np[:,1], 'bo')
 
+This will render something like
+.. image:: ../images/Data.png
+
 Now we perform the clustering analysis with kmeans. We chose 'kmeans++' as an intelligent way of sampling the
 initial centroids ::
 
@@ -69,6 +72,9 @@ Let's plot the assigned clusters and the respective centroids: ::
         plt.plot(c2_np[:,0], c2_np[:,1], 'x', color='#5a696e')
         plt.plot(centroids[0,0],centroids[0,1], '^', markersize=10, markeredgecolor='black', color='#f0781e' )
         plt.plot(centroids[1,0],centroids[1,1], '^', markersize=10, markeredgecolor='black',color='#5a696e')
+
+.. image:: ../images/Clustering.png
+
 We can also cluster the data with kmedians. The respective advanced initial centroid sampling is called 'kmedians++' ::
 
     kmedians = ht.cluster.KMedians(n_clusters=2, init="kmedians++")
