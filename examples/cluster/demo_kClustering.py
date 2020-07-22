@@ -64,9 +64,11 @@ def main():
     print(f"4 Spherical clusters with radius 1.0, each {n} samples (dtype = ht.float32)")
     for name, c in clusterer.items():
         c.fit(data)
-        print(f"### Fitting with {name} ### ")
-        f"Original sphere centers = {reference}"
-        f"Fitted cluster centers = {c.cluster_centers_}"
+        print(
+            f"### Fitting with {name} ### \n"
+            f"Original sphere centers = {reference}\n"
+            f"Fitted cluster centers = {c.cluster_centers_}"
+        )
 
     # More Samples
     n = 100 * ht.MPI_WORLD.size
@@ -76,9 +78,11 @@ def main():
     print("4 Spherical  with radius 1.0, each {} samples (dtype = ht.float32) ".format(n))
     for name, c in clusterer.items():
         c.fit(data)
-        f"### Fitting with {name} ###"
-        f"Original sphere centers = {reference}"
-        f"Fitted cluster centers = {c.cluster_centers_}"
+        print(
+            f"### Fitting with {name} ### \n"
+            f"Original sphere centers = {reference}\n"
+            f"Fitted cluster centers = {c.cluster_centers_}"
+        )
 
     # On integers (different radius, offset and datatype)
     n = 20 * ht.MPI_WORLD.size
@@ -91,9 +95,11 @@ def main():
     print("4 Spherical clusters with radius 10, each {} samples (dtype = ht.int32) ".format(n))
     for name, c in clusterer.items():
         c.fit(data)
-        f"### Fitting with {name} ###"
-        f"Original sphere centers = {reference}"
-        f"Fitted cluster centers = {c.cluster_centers_}"
+        print(
+            f"### Fitting with {name} ### \n"
+            f"Original sphere centers = {reference}\n"
+            f"Fitted cluster centers = {c.cluster_centers_}"
+        )
 
 
 if __name__ == "__main__":
