@@ -40,6 +40,7 @@ def arange(
 ) -> DNDarray:
     """
     Return evenly spaced values within a given interval.
+
     Values are generated within the half-open interval ``[start, stop)`` (in other words, the interval including `start`
     but excluding `stop`). For integer arguments the function is equivalent to the Python built-in `range
     <http://docs.python.org/lib/built-in-funcs.html>`_ function, but returns a array rather than a list.
@@ -75,13 +76,13 @@ def arange(
     Examples
     --------
     >>> ht.arange(3)
-    tensor([0, 1, 2])
+    DNDarray([0, 1, 2], dtype=ht.int32, device=cpu:0, split=None)
     >>> ht.arange(3.0)
-    tensor([ 0.,  1.,  2.])
+    DNDarray([0., 1., 2.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.arange(3, 7)
-    tensor([3, 4, 5, 6])
+    DNDarray([3, 4, 5, 6], dtype=ht.int32, device=cpu:0, split=None)
     >>> ht.arange(3, 7, 2)
-    tensor([3, 5])
+    DNDarray([3, 5], dtype=ht.int32, device=cpu:0, split=None)
     """
     num_of_param = len(args)
 
@@ -186,23 +187,26 @@ def array(
     Examples
     --------
     >>> ht.array([1, 2, 3])
-    tensor([1, 2, 3])
+    DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.array([1, 2, 3.0])
-    tensor([ 1.,  2.,  3.])
+    DNDarray([1., 2., 3.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.array([[1, 2], [3, 4]])
-    tensor([[1, 2],
-            [3, 4]])
+    DNDarray([[1, 2],
+              [3, 4]], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.array([1, 2, 3], ndmin=2)
-    tensor([[1, 2, 3]])
+    DNDarray([[1],
+              [2],
+              [3]], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.array([1, 2, 3], dtype=float)
-    tensor([ 1.0, 2.0, 3.0])
+    DNDarray([1., 2., 3.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.array([1, 2, 3, 4], split=0)
-    (0/2) tensor([1, 2])
-    (1/2) tensor([3, 4])
-    >>> ht.array([1, 2], is_split=0)
-    >>> ht.array([3, 4], is_split=0)
-    (0/2) tensor([1, 2, 3, 4])
-    (1/2) tensor([1, 2, 3, 4])
+    DNDarray([1, 2, 3, 4], dtype=ht.int64, device=cpu:0, split=0)
+    >>> if ht.MPI_WORLD.rank == 0
+    >>>     a = ht.array([1, 2], is_split=0)
+    >>> else:
+    >>>     a = ht.array([3, 4], is_split=0)
+    >>> a
+    DNDarray([1, 2, 3, 4], dtype=ht.int64, device=cpu:0, split=0)
     >>> a = np.arange(2 * 3).reshape(2, 3)
     >>> a
     array([[ 0,  1,  2],
@@ -211,59 +215,59 @@ def array(
     (24, 8)
     >>> b = ht.array(a)
     >>> b
-    tensor([[0, 1, 2],
-            [3, 4, 5]])
+    DNDarray([[0, 1, 2],
+              [3, 4, 5]], dtype=ht.int64, device=cpu:0, split=None)
     >>> b.strides
     (24, 8)
     >>> b._DNDarray__array.storage()
-    0
-    1
-    2
-    3
-    4
-    5
+     0
+     1
+     2
+     3
+     4
+     5
     [torch.LongStorage of size 6]
     >>> c = ht.array(a, order='F')
     >>> c
-    tensor([[0, 1, 2],
-            [3, 4, 5]])
+    DNDarray([[0, 1, 2],
+              [3, 4, 5]], dtype=ht.int64, device=cpu:0, split=None)
     >>> c.strides
     (8, 16)
     >>> c._DNDarray__array.storage()
-    0
-    3
-    1
-    4
-    2
-    5
+     0
+     3
+     1
+     4
+     2
+     5
     [torch.LongStorage of size 6]
     >>> a = np.arange(4 * 3).reshape(4, 3)
     >>> a.strides
     (24, 8)
-    >>> b = ht.array(a, order='F')
+    >>> b = ht.array(a, order='F', split=0)
     >>> b
-    (0/2) tensor([[0, 1, 2],
-                  [3, 4, 5]])
-    (1/2) tensor([[ 6,  7,  8],
-                  [ 9, 10, 11]])
+    DNDarray([[ 0,  1,  2],
+              [ 3,  4,  5],
+              [ 6,  7,  8],
+              [ 9, 10, 11]], dtype=ht.int64, device=cpu:0, split=0)
     >>> b.strides
-    (0/2) (8, 16)
-    (1/2) (8, 16)
+    [0/2] (8, 16)
+    [1/2] (8, 16)
     >>> b._DNDarray__array.storage()
-    (0/2) 0
+    [0/2] 0
           3
           1
           4
           2
           5
-        [torch.LongStorage of size 6]
-    (1/2) 6
+         [torch.LongStorage of size 6]
+    [1/2] 6
           9
           7
           10
           8
           11
-        [torch.LongStorage of size 6]
+         [torch.LongStorage of size 6]
     """
     # TODO: implement ht.view()
     # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
@@ -399,12 +403,12 @@ def empty(
     Examples
     --------
     >>> ht.empty(3)
-    tensor([ 0.0000e+00, -2.0000e+00,  3.3113e+35])
+    DNDarray([0., 0., 0.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.empty(3, dtype=ht.int)
-    tensor([ 0.0000e+00, -2.0000e+00,  3.3113e+35])
+    DNDarray([59140784,        0, 59136816], dtype=ht.int32, device=cpu:0, split=None)
     >>> ht.empty((2, 3,))
-    tensor([[ 0.0000e+00, -2.0000e+00,  3.3113e+35],
-            [ 3.6902e+19,  1.2096e+04,  7.1846e+22]])
+    DNDarray([[-1.7206e-10,  4.5905e-41, -1.7206e-10],
+              [ 4.5905e-41,  4.4842e-44,  0.0000e+00]], dtype=ht.float32, device=cpu:0, split=None)
     """
     # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     return __factory(shape, dtype, split, torch.empty, device, comm, order)
@@ -446,11 +450,11 @@ def empty_like(
     --------
     >>> x = ht.ones((2, 3,))
     >>> x
-    tensor([[1., 1., 1.],
-            [1., 1., 1.]])
+    DNDarray([[1., 1., 1.],
+              [1., 1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.empty_like(x)
-    tensor([[ 0.0000e+00, -2.0000e+00,  3.3113e+35],
-            [ 3.6902e+19,  1.2096e+04,  7.1846e+22]])
+    DNDarray([[-1.7205e-10,  4.5905e-41,  7.9442e-37],
+              [ 0.0000e+00,  4.4842e-44,  0.0000e+00]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return __factory_like(a, dtype, split, empty, device, comm, order=order)
 
@@ -464,7 +468,6 @@ def eye(
     order: str = "C",
 ) -> DNDarray:
     """
-
     Returns a new 2-D :class:`~heat.core.dndarray.DNDarray` with ones on the diagonal and zeroes elsewhere
     (i.e. an identity matrix).
 
@@ -489,13 +492,13 @@ def eye(
 
     Examples
     --------
-    >>> import heat as ht
     >>> ht.eye(2)
-    tensor([[1., 0.],
-            [0., 1.]])
+    DNDarray([[1., 0.],
+              [0., 1.]], dtype=ht.float32, device=cpu:0, split=None)
+
     >>> ht.eye((2, 3), dtype=ht.int32)
-    tensor([[1, 0, 0],
-            [0, 1, 0]], dtype=torch.int32)
+    DNDarray([[1, 0, 0],
+              [0, 1, 0]], dtype=ht.int32, device=cpu:0, split=None)
     """
     # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     # Determine the actual size of the resulting data
@@ -674,12 +677,12 @@ def full(
 
     Examples
     --------
-    >>> ht.full((2, 2), np.inf)
-    tensor([[ inf,  inf],
-            [ inf,  inf]])
+    >>> ht.full((2, 2), ht.inf)
+    DNDarray([[inf, inf],
+          [inf, inf]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.full((2, 2), 10)
-    tensor([[10, 10],
-            [10, 10]])
+    DNDarray([[10., 10.],
+          [10., 10.]], dtype=ht.float32, device=cpu:0, split=None)
     """
 
     def local_factory(*args, **kwargs):
@@ -724,11 +727,11 @@ def full_like(
     --------
     >>> x = ht.zeros((2, 3,))
     >>> x
-    tensor([[0., 0., 0.],
-            [0., 0., 0.]])
-    >>> ht.full_like(a, 1.0)
-    tensor([[1., 1., 1.],
-            [1., 1., 1.]])
+    DNDarray([[0., 0., 0.],
+              [0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.full_like(x, 1.0)
+    DNDarray([[1., 1., 1.],
+              [1., 1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return __factory_like(a, dtype, split, full, device, comm, fill_value=fill_value, order=order)
 
@@ -775,11 +778,11 @@ def linspace(
     Examples
     --------
     >>> ht.linspace(2.0, 3.0, num=5)
-    tensor([ 2.  ,  2.25,  2.5 ,  2.75,  3.  ])
+    DNDarray([2.0000, 2.2500, 2.5000, 2.7500, 3.0000], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.linspace(2.0, 3.0, num=5, endpoint=False)
-    tensor([ 2. ,  2.2,  2.4,  2.6,  2.8])
+    DNDarray([2.0000, 2.2000, 2.4000, 2.6000, 2.8000], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.linspace(2.0, 3.0, num=5, retstep=True)
-    (array([ 2.  ,  2.25,  2.5 ,  2.75,  3.  ]), 0.25)
+    (DNDarray([2.0000, 2.2500, 2.5000, 2.7500, 3.0000], dtype=ht.float32, device=cpu:0, split=None), 0.25)
     """
     # sanitize input parameters
     start = float(start)
@@ -867,11 +870,11 @@ def logspace(
     Examples
     --------
     >>> ht.logspace(2.0, 3.0, num=4)
-    tensor([ 100.0000,  215.4434,  464.1590, 1000.0000])
+    DNDarray([ 100.0000,  215.4434,  464.1590, 1000.0000], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.logspace(2.0, 3.0, num=4, endpoint=False)
-    tensor([100.0000, 177.8279, 316.2278, 562.3413])
+    DNDarray([100.0000, 177.8279, 316.2278, 562.3413], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.logspace(2.0, 3.0, num=4, base=2.0)
-    tensor([4.0000, 5.0397, 6.3496, 8.0000])
+    DNDarray([4.0000, 5.0397, 6.3496, 8.0000], dtype=ht.float32, device=cpu:0, split=None)
     """
     y = linspace(start, stop, num=num, endpoint=endpoint, split=split, device=device, comm=comm)
     if dtype is None:
@@ -911,12 +914,12 @@ def ones(
     Examples
     --------
     >>> ht.ones(3)
-    tensor([1., 1., 1.])
+    DNDarray([1., 1., 1.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.ones(3, dtype=ht.int)
-    tensor([1, 1, 1])
+    DNDarray([1, 1, 1], dtype=ht.int32, device=cpu:0, split=None)
     >>> ht.ones((2, 3,))
-    tensor([[1., 1., 1.],
-            [1., 1., 1.]])
+    DNDarray([[1., 1., 1.],
+          [1., 1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     return __factory(shape, dtype, split, torch.ones, device, comm, order)
@@ -955,11 +958,11 @@ def ones_like(
     --------
     >>> x = ht.zeros((2, 3,))
     >>> x
-    tensor([[0., 0., 0.],
-            [0., 0., 0.]])
-    >>> ht.ones_like(a)
-    tensor([[1., 1., 1.],
-            [1., 1., 1.]])
+    DNDarray([[0., 0., 0.],
+              [0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.ones_like(x)
+    DNDarray([[1., 1., 1.],
+              [1., 1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return __factory_like(a, dtype, split, ones, device, comm, order=order)
 
@@ -996,12 +999,12 @@ def zeros(
     Examples
     --------
     >>> ht.zeros(3)
-    tensor([0., 0., 0.])
+    DNDarray([0., 0., 0.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.zeros(3, dtype=ht.int)
-    tensor([0, 0, 0])
+    DNDarray([0, 0, 0], dtype=ht.int32, device=cpu:0, split=None)
     >>> ht.zeros((2, 3,))
-    tensor([[0., 0., 0.],
-            [0., 0., 0.]])
+    DNDarray([[0., 0., 0.],
+              [0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     return __factory(shape, dtype, split, torch.zeros, device, comm, order=order)
@@ -1040,11 +1043,11 @@ def zeros_like(
     --------
     >>> x = ht.ones((2, 3,))
     >>> x
-    tensor([[1., 1., 1.],
-            [1., 1., 1.]])
+    DNDarray([[1., 1., 1.],
+              [1., 1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.zeros_like(x)
-    tensor([[0., 0., 0.],
-            [0., 0., 0.]])
+    DNDarray([[0., 0., 0.],
+              [0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     return __factory_like(a, dtype, split, zeros, device, comm, order=order)

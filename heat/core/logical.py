@@ -52,32 +52,28 @@ def all(
 
     Examples
     ---------
-    >>> import heat as ht
     >>> a = ht.random.randn(4, 5)
     >>> a
-    tensor([[ 0.5370, -0.4117, -3.1062,  0.4897, -0.3231],
-            [-0.5005, -1.7746,  0.8515, -0.9494, -0.2238],
-            [-0.0444,  0.3388,  0.6805, -1.3856,  0.5422],
-            [ 0.3184,  0.0185,  0.5256, -1.1653, -0.1665]])
+    DNDarray([[-0.3735, -1.0913, -1.8098,  0.1353, -1.7212],
+              [-1.1526, -0.5509, -1.2472, -1.5906,  0.2859],
+              [ 0.7492, -0.2673, -0.9219, -0.7930,  0.0224],
+              [ 1.7923,  0.3515,  0.5694, -0.2456, -0.6438]], dtype=ht.float32, device=cpu:0, split=None)
     >>> x = a < 0.5
     >>> x
-    tensor([[0, 1, 1, 1, 1],
-            [1, 1, 0, 1, 1],
-            [1, 1, 0, 1, 0],
-            [1, 1, 0, 1, 1]], dtype=ht.uint8)
+    DNDarray([[ True,  True,  True,  True,  True],
+              [ True,  True,  True,  True,  True],
+              [False,  True,  True,  True,  True],
+              [False,  True, False,  True,  True]], dtype=ht.bool, device=cpu:0, split=None))
     >>> ht.all(x)
-    tensor([0], dtype=ht.uint8)
+    DNDarray([False], dtype=ht.bool, device=cpu:0, split=None)
     >>> ht.all(x, axis=0)
-    tensor([[0, 1, 0, 1, 0]], dtype=ht.uint8)
+    DNDarray([False,  True, False,  True,  True], dtype=ht.bool, device=cpu:0, split=None)
     >>> ht.all(x, axis=1)
-    tensor([[0],
-            [0],
-            [0],
-            [0]], dtype=ht.uint8)
-    >>> out = ht.zeros((1, 5))
+    DNDarray([ True,  True, False, False], dtype=ht.bool, device=cpu:0, split=None)
+    >>> out = ht.zeros(5)
     >>> ht.all(x, axis=0, out=out)
     >>> out
-    tensor([[0, 1, 0, 1, 0]], dtype=ht.uint8)
+    DNDarray([False,  True, False,  True,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
     # TODO: make me more numpy API complete. Issue #101
     def local_all(t, *args, **kwargs):
@@ -172,21 +168,19 @@ def any(
 
     Examples
     ---------
-    >>> import heat as ht
     >>> t = ht.float32([[0.3, 0, 0.5]])
     >>> t.any()
-    tensor([1], dtype=torch.uint8)
+    DNDarray([True], dtype=ht.bool, device=cpu:0, split=None)
     >>> t.any(axis=0)
-    tensor([[1, 0, 1]], dtype=torch.uint8)
+    DNDarray([ True, False,  True], dtype=ht.bool, device=cpu:0, split=None)
     >>> t.any(axis=1)
-    tensor([[1]], dtype=torch.uint8)
-
+    DNDarray([True], dtype=ht.bool, device=cpu:0, split=None)
     >>> t = ht.int32([[0, 0, 1], [0, 0, 0]])
-    >>> res = ht.zeros((1, 3), dtype=ht.bool)
+    >>> res = ht.zeros(3, dtype=ht.bool)
     >>> t.any(axis=0, out=res)
-    tensor([[0, 0, 1]], dtype=torch.uint8)
+    DNDarray([False, False,  True], dtype=ht.bool, device=cpu:0, split=None)
     >>> res
-    tensor([[0, 0, 1]], dtype=torch.uint8)
+    DNDarray([False, False,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
 
     def local_any(t, *args, **kwargs):
@@ -266,7 +260,7 @@ def logical_and(t1: DNDarray, t2: DNDarray) -> DNDarray:
     Examples
     ---------
     >>> ht.logical_and(ht.array([True, False]), ht.array([False, False]))
-    tensor([ False, False])
+    DNDarray([False, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return operations.__binary_op(
         torch.Tensor.__and__, types.bool(t1, device=t1.device), types.bool(t2, device=t2.device)
@@ -288,7 +282,7 @@ def logical_not(t: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Examples
     ---------
     >>> ht.logical_not(ht.array([True, False]))
-    tensor([ False,  True])
+    DNDarray([False,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
     return operations.__local_op(torch.logical_not, t, out)
 
@@ -307,7 +301,7 @@ def logical_or(t1: DNDarray, t2: DNDarray) -> DNDarray:
     Examples
     ---------
     >>> ht.logical_or(ht.array([True, False]), ht.array([False, False]))
-    tensor([True, False])
+    DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return operations.__binary_op(
         torch.Tensor.__or__, types.bool(t1, device=t1.device), types.bool(t2, device=t2.device)
@@ -316,7 +310,7 @@ def logical_or(t1: DNDarray, t2: DNDarray) -> DNDarray:
 
 def logical_xor(t1: DNDarray, t2: DNDarray) -> DNDarray:
     """
-    Computes the element-wise logical XOR of the given input :class:`~heat.core.dndarray.DNDarray` .
+    Computes the element-wise logical XOR of the given input :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
     -----------
@@ -328,7 +322,7 @@ def logical_xor(t1: DNDarray, t2: DNDarray) -> DNDarray:
     Examples
     ---------
     >>> ht.logical_xor(ht.array([True, False, True]), ht.array([True, False, False]))
-    tensor([ False, False,  True])
+    DNDarray([False, False,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
     return operations.__binary_op(torch.logical_xor, t1, t2)
 

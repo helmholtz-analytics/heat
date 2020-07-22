@@ -26,11 +26,10 @@ class Device:
 
     Examples
     --------
-    >>> # array on cpu
-    >>> cpu_array = ht.ones((2, 3), device=ht.cpu)
-    >>> # array on gpu
-    >>> gpu_array = ht.ones((2, 3), device=ht.gpu)
+    >>> ht.Device("cpu", 0, "cpu:0")
     device(cpu:0)
+    >>> ht.Device("gpu", 0, "cuda:0")
+    device(gpu:0)
     """
 
     def __init__(self, device_type: str, device_id: int, torch_device: str):
@@ -40,25 +39,51 @@ class Device:
 
     @property
     def device_type(self) -> str:
+        """
+        Return the type of :class:`~heat.core.device.Device` as a string.
+        """
         return self.__device_type
 
     @property
     def device_id(self) -> int:
+        """
+        Return the identification number of :class:`~heat.core.device.Device`.
+        """
         return self.__device_id
 
     @property
     def torch_device(self) -> str:
+        """
+        Return the type and id of :class:`~heat.core.device.Device`as a PyTorch device string object.
+        """
         return self.__torch_device
 
     def __repr__(self) -> str:
+        """
+        Return the unambiguous information of :class:`~heat.core.device.Device`.
+        """
         return "device({})".format(self.__str__())
 
     def __str__(self) -> str:
+        """
+        Return the descriptive information of :class:`~heat.core.device.Device`.
+        """
         return "{}:{}".format(self.device_type, self.device_id)
 
 
 # create a CPU device singleton
 cpu = Device("cpu", 0, "cpu:0")
+"""
+The standard CPU Device
+
+Examples
+--------
+>>> ht.cpu
+device(cpu:0)
+>>> ht.ones((2, 3), device=ht.cpu)
+DNDarray([[1., 1., 1.],
+          [1., 1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
+"""
 
 # define the default device to be the CPU
 __default_device = cpu
@@ -71,6 +96,17 @@ if torch.cuda.device_count() > 0:
     gpu_id = communication.MPI_WORLD.rank % torch.cuda.device_count()
     # create a new GPU device
     gpu = Device("gpu", gpu_id, "cuda:{}".format(gpu_id))
+    """
+    The standard GPU Device
+
+    Examples
+    --------
+    >>> ht.cpu
+    device(cpu:0)
+    >>> ht.ones((2, 3), device=ht.gpu)
+    DNDarray([[1., 1., 1.],
+          [1., 1., 1.]], dtype=ht.float32, device=gpu:0, split=None)
+    """
     # add a GPU device string
     __device_mapping[gpu.device_type] = gpu
     # the GPU device should be exported as global symbol
@@ -79,15 +115,15 @@ if torch.cuda.device_count() > 0:
 
 def get_device() -> Device:
     """
-    Retrieves the currently globally set default device.
+    Retrieves the currently globally set default :class:`~heat.core.device.Device`.
     """
     return __default_device
 
 
 def sanitize_device(device: Union[str, Device]) -> Device:
     """
-    Sanitizes a device or device identifier, i.e. checks whether it is already an instance of :class:`Device` or a string with
-    known device identifier and maps it to a proper ``Device``.
+    Sanitizes a device or device identifier, i.e. checks whether it is already an instance of :class:`~heat.core.device.Device` or a string with
+    known device identifier and maps it to a proper :class:`~heat.core.device.Device`.
 
     Parameters
     ----------
@@ -115,7 +151,7 @@ def sanitize_device(device: Union[str, Device]) -> Device:
 
 def use_device(device: Optional[Union[str, Device]] = None) -> None:
     """
-    Sets the globally used default device.
+    Sets the globally used default :class:`~heat.core.device.Device`.
 
     Parameters
     ----------

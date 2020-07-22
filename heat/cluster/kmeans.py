@@ -176,11 +176,11 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
                     D2 = distances.min(axis=1)
                     D2.resplit_(axis=None)
                     prob = D2 / D2.sum()
-                    x = ht.random.rand().item()
+                    random_position = ht.random.rand().item()
                     sample = 0
                     sum = 0
                     for j in range(len(prob)):
-                        if sum > x:
+                        if sum > random_position:
                             break
                         sum += prob[j].item()
                         sample = j
@@ -198,7 +198,6 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
             else:
                 raise NotImplementedError("Not implemented for other splitting-axes")
-
             self._cluster_centers = centroids
 
         else:
@@ -253,18 +252,20 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
             matching_centroids = self._fit_to_cluster(x)
 
             # update the centroids
+            # compute the new centroids
             for i in range(self.n_clusters):
                 # points in current cluster
                 selection = (matching_centroids == i).astype(ht.int64)
-
                 # accumulate points and total number of points in cluster
-                assigned_points = (x * selection).sum(axis=0, keepdim=True)
+                assigned_points = x * selection
                 points_in_cluster = selection.sum(axis=0, keepdim=True).clip(
                     1.0, ht.iinfo(ht.int64).max
                 )
 
                 # compute the new centroids
-                new_cluster_centers[i : i + 1, :] = assigned_points / points_in_cluster
+                new_cluster_centers[i : i + 1, :] = (assigned_points / points_in_cluster).sum(
+                    axis=0, keepdim=True
+                )
 
             # check whether centroid movement has converged
             self._inertia = ((self._cluster_centers - new_cluster_centers) ** 2).sum()
