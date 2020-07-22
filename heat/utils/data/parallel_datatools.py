@@ -94,9 +94,9 @@ class PartialDataset(torch_data.Dataset):
             if f[k].len() != sz:
                 raise ValueError(f"all datasets in {file} must be the same length")
         self.length = sz
-        print("lcl_full_sz original", sz //comm.size)
-        #self.lcl_full_sz = sz // comm.size  # how many indices will go onto each process (len)
-        self.lcl_full_sz = 100000
+        #print("lcl_full_sz original", sz //comm.size)
+        self.lcl_full_sz = sz // comm.size  # how many indices will go onto each process (len)
+        #self.lcl_full_sz = 100000
         # load data that is half of of the available memory
         self.local_data_start = comm.rank * self.lcl_full_sz
         #local_data_end = int(
@@ -106,8 +106,8 @@ class PartialDataset(torch_data.Dataset):
         #self.load_len = ((0.10 * available_memory) / file_size_per_pr) * self.lcl_full_sz
         #print(self.local_data_start, local_data_end, self.load_len)
         # temp values for small scale testing
-        local_data_end = self.local_data_start + 20000
-        self.load_len = 10000
+        local_data_end = self.local_data_start + 10000
+        self.load_len = 1000
         self.local_length = local_data_end - self.local_data_start
 
         self.next_start = local_data_end
@@ -342,7 +342,7 @@ class LoadingBatchSampler(torch_data.BatchSampler):
         dset = self.sampler.data_source
         batch = []
         samp_iter = self.sampler.__iter__()
-        print("iter generate")
+        #print("iter generate")
 
         if not dset.np_buffer and not dset.partial_dataset:
             for idx in samp_iter:
@@ -356,16 +356,17 @@ class LoadingBatchSampler(torch_data.BatchSampler):
         else:  # either np buffer or partial dataset
             iter_clones1, iter_clones2 = itertools.tee(samp_iter)
             if dset.np_buffer:
-                next_inds = [0] * self.batch_size
-                for idx in range(self.batch_size):
-                    next_inds[idx] = next(iter_clones2)
-                    # todo: send next_inds to data placement loader
-                dset.convert_queue.put((dset.thread_convert_items, next_inds.copy(), False))
-                next_inds = [0] * self.batch_size
-                for idx in range(self.batch_size):
-                    next_inds[idx] = next(iter_clones2)
-                    # todo: send next_inds to data placement loader
-                dset.convert_queue.put((dset.thread_convert_items, next_inds.copy(), False))
+                for xi in range(3):
+                    next_inds = [0] * self.batch_size
+                    for idx in range(self.batch_size):
+                        next_inds[idx] = next(iter_clones2)
+                        # todo: send next_inds to data placement loader
+                    dset.convert_queue.put((dset.thread_convert_items, next_inds.copy(), False))
+                    #next_inds = [0] * self.batch_size
+                    #for idx in range(self.batch_size):
+                    #    next_inds[idx] = next(iter_clones2)
+                    #    # todo: send next_inds to data placement loader
+                    #dset.convert_queue.put((dset.thread_convert_items, next_inds.copy(), False))
             next_inds = []
             for idx in iter_clones1:
                 batch.append(idx)
@@ -377,7 +378,7 @@ class LoadingBatchSampler(torch_data.BatchSampler):
                     if dset.partial_dataset:
                         dset.getitem_index_helper(batch)
                         # todo: wait for the setting to be done
-                    print("sampler batch finished ")
+                    #print("sampler batch finished ")
                     # todo: send next_inds to the data placement loader
                     self.cnt += 1
                     if dset.np_buffer:
@@ -397,6 +398,6 @@ class LoadingBatchSampler(torch_data.BatchSampler):
             if len(batch) > 0 and not self.drop_last:
                 # dont need to worry about the next inds here, that iterator is exhausted
                 yield batch
-            print("sampler end loop")
+            #print("sampler end loop")
             if dset.partial_dataset and len(batch) > 0:
                 dset.getitem_index_helper(batch)
