@@ -33,7 +33,7 @@ def abs(x, out=None, dtype=None) -> DNDarray:
     return absolute_values
 
 
-DNDarray.abs = lambda self, out, dtype: abs(self, out, dtype)
+DNDarray.abs = lambda self, out=None, dtype=None: abs(self, out, dtype)
 DNDarray.abs.__doc__ = abs.__doc__
 
 
@@ -56,7 +56,7 @@ def absolute(x, out=None, dtype=None) -> DNDarray:
     return abs(x, out, dtype)
 
 
-DNDarray.absolute = lambda self, out, dtype: absolute(self, out, dtype)
+DNDarray.absolute = lambda self, out=None, dtype=None: absolute(self, out, dtype)
 DNDarray.absolute.__doc__ = absolute.__doc__
 
 
@@ -81,45 +81,38 @@ def ceil(x, out=None) -> DNDarray:
     return operations.__local_op(torch.ceil, x, out)
 
 
-DNDarray.ceil = lambda self, out: ceil(self, out)
+DNDarray.ceil = lambda self, out=None: ceil(self, out)
 DNDarray.ceil.__doc__ = ceil.__doc__
 
 
-def clip(a, a_min, a_max, out=None) -> DNDarray:
+def clip(x, min, max, out=None) -> DNDarray:
     """
     Returns a :class:`~heat.core.dndarray.DNDarray` with the elements of this array, but where values ``<a_min`` are replaced with ``a_min``, and those
     ``>a_max`` with ``a_max``.
 
     Parameters
     ----------
-    a : DNDarray
+    x : DNDarray
         Array containing elements to clip.
-    a_min : scalar or None
+    min : scalar or None
         Minimum value. If ``None``, clipping is not performed on lower interval edge. Not more than one of ``a_min`` and
         ``a_max`` may be ``None``.
-    a_max : scalar or None
+    max : scalar or None
         Maximum value. If ``None``, clipping is not performed on upper interval edge. Not more than one of ``a_min`` and
         ``a_max`` may be None.
     out : DNDarray, optional
         The results will be placed in this array. It may be the input array for in-place clipping. ``out`` must be of
         the right shape to hold the output. Its type is preserved.
     """
-    if not isinstance(a, DNDarray):
-        raise TypeError("a must be a tensor")
-    if a_min is None and a_max is None:
-        raise ValueError("either a_min or a_max must be set")
+    if not isinstance(x, DNDarray):
+        raise TypeError("a must be a DNDarray")
+    if min is None and max is None:
+        raise ValueError("either min or max must be set")
 
-    if out is None:
-        return DNDarray(
-            a._DNDarray__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, a.device, a.comm
-        )
-    if not isinstance(out, DNDarray):
-        raise TypeError("out must be a tensor")
-
-    return a._DNDarray__array.clamp(a_min, a_max, out=out._DNDarray__array) and out
+    return operations.__local_op(torch.clamp, x, out, min=min, max=max)
 
 
-DNDarray.clip = lambda self, a_min, a_max, out: clip(self, a_min, a_max, out)
+DNDarray.clip = lambda self, a_min, a_max, out=None: clip(self, a_min, a_max, out)
 DNDarray.clip.__doc__ = clip.__doc__
 
 
@@ -140,7 +133,7 @@ def fabs(x, out=None) -> DNDarray:
     return abs(x, out, dtype=None)
 
 
-DNDarray.fabs = lambda self, out: fabs(self, out)
+DNDarray.fabs = lambda self, out=None: fabs(self, out)
 DNDarray.fabs.__doc__ = fabs.__doc__
 
 
@@ -166,7 +159,7 @@ def floor(x, out=None) -> DNDarray:
     return operations.__local_op(torch.floor, x, out)
 
 
-DNDarray.floor = lambda self, out: floor(self, out)
+DNDarray.floor = lambda self, out=None: floor(self, out)
 DNDarray.floor.__doc__ = floor.__doc__
 
 
@@ -217,7 +210,7 @@ def modf(x, out=None) -> Tuple[DNDarray, DNDarray]:
     return (fractionalParts, integralParts)
 
 
-DNDarray.modf = lambda self, out: modf(self, out)
+DNDarray.modf = lambda self, out=None: modf(self, out)
 DNDarray.modf.__doc__ = modf.__doc__
 
 
@@ -263,7 +256,7 @@ def round(x, decimals=0, out=None, dtype=None) -> DNDarray:
     return rounded_values
 
 
-DNDarray.round = lambda self, decimals, out, dtype: round(self, decimals, out, dtype)
+DNDarray.round = lambda self, decimals=0, out=None, dtype=None: round(self, decimals, out, dtype)
 DNDarray.round.__doc__ = round.__doc__
 
 
@@ -289,5 +282,5 @@ def trunc(x, out=None) -> DNDarray:
     return operations.__local_op(torch.trunc, x, out)
 
 
-DNDarray.trunc = lambda self, out: trunc(self, out)
+DNDarray.trunc = lambda self, out=None: trunc(self, out)
 DNDarray.trunc.__doc__ = trunc.__doc__

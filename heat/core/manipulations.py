@@ -995,7 +995,7 @@ def reshape(a: DNDarray, shape: Tuple[int, ...], axis: int = None) -> DNDarray:
     return factories.array(data, dtype=a.dtype, is_split=axis, device=a.device, comm=a.comm)
 
 
-DNDarray.reshape = lambda self, shape, axis: reshape(self, shape, axis)
+DNDarray.reshape = lambda self, shape, axis=None: reshape(self, shape, axis)
 DNDarray.reshape.__doc__ = reshape.__doc__
 
 
@@ -1089,7 +1089,7 @@ def rot90(m: DNDarray, k: int = 1, axes: Sequence[int, int] = (0, 1)) -> DNDarra
         return flip(linalg.transpose(m, axes_list), axes[1])
 
 
-DNDarray.rot90 = lambda self, k, axis: rot90(self, k, axis)
+DNDarray.rot90 = lambda self, k=1, axis=(0, 1): rot90(self, k, axis)
 DNDarray.rot90.__doc__ = rot90.__doc__
 
 
@@ -1464,7 +1464,7 @@ def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     return DNDarray(x_lsqueezed, out_gshape, x.dtype, split=split, device=x.device, comm=x.comm)
 
 
-DNDarray.squeeze = lambda self, axis: squeeze(self, axis)
+DNDarray.squeeze = lambda self, axis=None: squeeze(self, axis)
 DNDarray.squeeze.__doc__ = squeeze.__doc__
 
 
@@ -1857,7 +1857,9 @@ def unique(
     return return_value
 
 
-DNDarray.unique = lambda self, sorted, return_inverse: unique(self, sorted, return_inverse)
+DNDarray.unique = lambda self, sorted=False, return_inverse=False, axis=None: unique(
+    self, sorted, return_inverse, axis
+)
 DNDarray.unique.__doc__ = unique.__doc__
 
 

@@ -28,7 +28,7 @@ def exp(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     return operations.__local_op(torch.exp, x, out)
 
 
-DNDarray.exp = lambda self, out: exp(self, out)
+DNDarray.exp = lambda self, out=None: exp(self, out)
 DNDarray.exp.__doc__ = exp.__doc__
 
 
@@ -53,7 +53,7 @@ def expm1(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     return operations.__local_op(torch.expm1, x, out)
 
 
-DNDarray.expm1 = lambda self, out: expm1(self, out)
+DNDarray.expm1 = lambda self, out=None: expm1(self, out)
 DNDarray.expm1.__doc__ = expm1.__doc__
 
 
@@ -82,7 +82,7 @@ def exp2(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     return operations.__local_op(local_exp2, x, out)
 
 
-DNDarray.exp2 = lambda self, out: exp2(self, out)
+DNDarray.exp2 = lambda self, out=None: exp2(self, out)
 DNDarray.exp2.__doc__ = exp2.__doc__
 
 
@@ -109,7 +109,7 @@ def log(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     return operations.__local_op(torch.log, x, out)
 
 
-DNDarray.log = lambda self, out: log(self, out)
+DNDarray.log = lambda self, out=None: log(self, out)
 DNDarray.log.__doc__ = log.__doc__
 
 
@@ -135,7 +135,7 @@ def log2(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     return operations.__local_op(torch.log2, x, out)
 
 
-DNDarray.log2 = lambda self, out: log2(self, out)
+DNDarray.log2 = lambda self, out=None: log2(self, out)
 DNDarray.log2.__doc__ = log2.__doc__
 
 
@@ -161,7 +161,7 @@ def log10(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     return operations.__local_op(torch.log10, x, out)
 
 
-DNDarray.log10 = lambda self, out: log10(self, out)
+DNDarray.log10 = lambda self, out=None: log10(self, out)
 DNDarray.log10.__doc__ = log10.__doc__
 
 
@@ -187,7 +187,7 @@ def log1p(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     return operations.__local_op(torch.log1p, x, out)
 
 
-DNDarray.log1p = lambda self, out: log1p(self, out)
+DNDarray.log1p = lambda self, out=None: log1p(self, out)
 DNDarray.log1p.__doc__ = log1p.__doc__
 
 
@@ -215,5 +215,5 @@ def sqrt(x: DNDarray, out: Union[None, DNDarray] = None) -> DNDarray:
     return operations.__local_op(torch.sqrt, x, out)
 
 
-DNDarray.sqrt = lambda self, out: sqrt(self, out)
+DNDarray.sqrt = lambda self, out=None: sqrt(self, out)
 DNDarray.sqrt.__doc__ = sqrt.__doc__

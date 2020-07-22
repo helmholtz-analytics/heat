@@ -485,7 +485,7 @@ def invert(t, out=None) -> DNDarray:
     return operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
 
 
-DNDarray.__invert__ = lambda self: invert(self)
+DNDarray.__invert__ = lambda self, out=None: invert(self, out)
 DNDarray.__invert__.__doc__ = invert.__doc__
 
 # alias for invert
@@ -738,7 +738,7 @@ def prod(x, axis=None, out=None, keepdim=None) -> DNDarray:
     )
 
 
-DNDarray.prod = lambda self, axis, out, keepdim: prod(self, axis, out, keepdim)
+DNDarray.prod = lambda self, axis=None, out=None, keepdim=None: prod(self, axis, out, keepdim)
 DNDarray.prod.__doc__ = prod.__doc__
 
 
@@ -819,6 +819,4 @@ def sum(x, axis=None, out=None, keepdim=None) -> DNDarray:
     )
 
 
-DNDarray.sum = lambda self, axis=None, out=None, keepdim=None: sum(
-    self, axis=None, out=None, keepdim=None
-)
+DNDarray.sum = lambda self, axis=None, out=None, keepdim=None: sum(self, axis, out, keepdim)
