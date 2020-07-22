@@ -16,7 +16,9 @@ artificial dataset, consisting of two circularly shaped clusters positioned at :
 For each cluster we will sample 100 arbitrary points from a circle with radius of :math:`r = 1.0` by drawing random numbers
 for the spherical coordinates :math:`( r\in [0,1], \phi \in [0,2\pi])`, translating these to cartesian coordinates
 and shifting them by :math:`+2` for cluster ``c1`` and :math:`-2` for cluster ``c2``. The resulting concatenated dataset ``data`` has shape
-:math:`(200, 2)` and is distributed among the ``p`` processes along axis 0 (sample axis) ::
+:math:`(200, 2)` and is distributed among the ``p`` processes along axis 0 (sample axis)
+
+.. code:: python
 
     num_ele = 100
 
@@ -37,7 +39,9 @@ and shifting them by :math:`+2` for cluster ``c1`` and :math:`-2` for cluster ``
     data = ht.concatenate((cluster1, cluster2), axis=0)
 
 Let's plot the data for illustration. In order to do so with matplotlib, we need to unsplit the data (gather it from
-all processes) and transform it into a numpy array. Plotting can only be done on rank 0 ::
+all processes) and transform it into a numpy array. Plotting can only be done on rank 0.
+
+.. code:: python
 
     data_np = ht.resplit(data, axis=None).numpy()
     if ht.MPI_WORLD.rank == 0:
@@ -47,7 +51,9 @@ This will render something like
 .. image:: ../images/Data.png
 
 Now we perform the clustering analysis with kmeans. We chose 'kmeans++' as an intelligent way of sampling the
-initial centroids ::
+initial centroids.
+
+.. code:: python
 
     kmeans = ht.cluster.KMeans(n_clusters=2, init="kmeans++")
     labels = kmeans.fit_predict(data).squeeze()
@@ -61,8 +67,19 @@ initial centroids ::
     c2.balance_()
 
     print("Number of points assigned to c1: {} \n
-           Number of points assigned to c2: {}".format(c1.shape[0], c2.shape[0]))
-Let's plot the assigned clusters and the respective centroids: ::
+           Number of points assigned to c2: {} \n
+           Centroids = {}".format(c1.shape[0], c2.shape[0], centroids))
+
+.. code:: output
+
+    Number of points assigned to c1: 100
+    Number of points assigned to c2: 100
+    Centroids =  DNDarray([[ 2.0169,  2.0713],
+                           [-1.9831, -1.9287]], dtype=ht.float32, device=cpu:0, split=None)
+
+Let's plot the assigned clusters and the respective centroids:
+
+.. code:: python
 
     c1_np = c1.numpy()
     c2_np = c2.numpy()
@@ -75,7 +92,9 @@ Let's plot the assigned clusters and the respective centroids: ::
 
 .. image:: ../images/Clustering.png
 
-We can also cluster the data with kmedians. The respective advanced initial centroid sampling is called 'kmedians++' ::
+We can also cluster the data with kmedians. The respective advanced initial centroid sampling is called 'kmedians++'
+
+.. code:: python
 
     kmedians = ht.cluster.KMedians(n_clusters=2, init="kmedians++")
     labels = kmedians.fit_predict(data).squeeze()
@@ -90,7 +109,9 @@ We can also cluster the data with kmedians. The respective advanced initial cent
 
     print("Number of points assigned to c1: {} \n
            Number of points assigned to c2: {}".format(c1.shape[0], c2.shape[0]))
-Plotting the assigned clusters and the respective centroids: ::
+Plotting the assigned clusters and the respective centroids:
+
+.. code:: python
 
     c1_np = c1.numpy()
     c2_np = c2.numpy()
@@ -105,16 +126,22 @@ The Iris Dataset
 The _iris_ dataset is a well known example for clustering analysis. It contains 4 measured features for samples from
 three different types of iris flowers. A subset of 150 samples is included in formats h5, csv and netcdf in heat,
 located under 'heat/heat/datasets/data/iris.h5', and can be loaded in a distributed manner with heat's parallel
-dataloader ::
+dataloader
+
+.. code:: python
 
     iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
-Fitting the dataset with kmeans: ::
+Fitting the dataset with kmeans:
+
+.. code:: python
 
     k = 3
     kmeans = ht.cluster.KMeans(n_clusters=k, init="kmeans++")
     kmeans.fit(iris)
 
-Let's see what the results are. In theory, there are 50 samples of each of the 3 iris types ::
+Let's see what the results are. In theory, there are 50 samples of each of the 3 iris types
+
+.. code:: python
 
     labels = kmeans.predict(iris).squeeze()
 

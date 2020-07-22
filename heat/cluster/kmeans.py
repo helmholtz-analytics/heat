@@ -198,7 +198,6 @@ class KMeans(ht.ClusteringMixin, ht.BaseEstimator):
 
             else:
                 raise NotImplementedError("Not implemented for other splitting-axes")
-            print("Initial Centroids = ", centroids)
             self._cluster_centers = centroids
 
         else:
