@@ -1,4 +1,7 @@
+import warnings
+
 import heat as ht
+import numpy as np
 
 
 class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
@@ -31,6 +34,7 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         max_epoch,
         seed,
         batch_size=1,
+        data_split=None,
     ):
         self.height = height
         self.width = width
@@ -45,61 +49,71 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
 
         ht.core.random.seed(seed)
 
-        self.network = ht.random.randn(height * width, data_dim, dtype=ht.float64)
-
+        self.network = ht.random.rand(height * width, data_dim, dtype=ht.float64, split=data_split)
+        print(ht.min(self.network))
         self.batch_size = batch_size
 
         self.network_indices = ht.array(
-            [(j, i) for i in range(0, self.width) for j in range(0, self.height)]
+            [(j, i) for i in range(0, self.width) for j in range(0, self.height)], split=0
         )
         self.distances = self.precompute_distances()
 
     def fit(self, X):
         self.learning_rate = self.initial_learning_rate
-        batch_count = int(X.shape[0] / self.batch_size)
-        for epoch in range(1, self.max_epoch + 1):
+        batch_count = int(X.gshape[0] / self.batch_size)
+        for epoch in range(1, self.max_epoch):
             offset = 0
             for count in range(1, batch_count + 1):
-                batch = ht.array(X[offset : count * self.batch_size], is_split=X.split)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", ResourceWarning)
+                    batch = X[offset : count * self.batch_size]
+                batch.balance_()
+
                 distances = ht.spatial.cdist(batch, self.network)
-                _, winner_indices = ht.topk(distances, 1, largest=False, dim=1)
+                winner_indices = ht.argmin(distances, axis=1)
+
                 self.update_weights(winner_indices, batch)
                 offset = count * self.batch_size
+
                 self.update_learning_rate(epoch)
                 self.update_neighbourhood_radius(epoch)
 
     def predict(self, X):
         distances = ht.spatial.cdist(X, self.network)
-        _, winner_ind = ht.topk(distances, 1, largest=False, dim=1)
+        winner_ind = ht.argmin(distances, 1, axis=1)
         translated_winner_ind = self.network_indices[winner_ind.tolist()]
-
+        translated_winner_ind.balance_()
         return translated_winner_ind
 
-    def update_learning_rate(self, t):
+    def update_learning_rate(self, epoch):
         self.learning_rate = self.initial_learning_rate + (
             self.target_learning_rate - self.initial_learning_rate
-        ) * (t / self.max_epoch)
+        ) * (epoch / self.max_epoch)
 
-    def update_neighbourhood_radius(self, t):
-        self.radius = self.initial_radius * ht.pow(
-            (self.target_radius / self.initial_radius), t / self.max_epoch
+    def update_neighbourhood_radius(self, epoch):
+        self.radius = self.target_radius + (self.initial_radius - self.target_radius) * np.exp(
+            -epoch * (1 / self.max_epoch) * np.e ** 2
         )
 
-    def distance_weight(self, winner_ind):
-        return ht.where(
-            self.distances[winner_ind].flatten() < self.radius,
-            ht.ones((self.height * self.width,)),
-            ht.zeros((self.height * self.width,)),
-        )
+    def in_radius(self, indices):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ResourceWarning)
+            dist = self.distances[indices]
+        dist.balance_()
+        dist = ht.reshape(dist, (dist.shape[1], dist.shape[0]))
+        dist = ht.exp((ht.pow(dist, 2) * -1) / self.radius)
+        return dist
 
     def precompute_distances(self,):
         return ht.spatial.cdist(self.network_indices, self.network_indices)
 
-    def update_weights(self, indices, batch):
-        for i, (winner_ind, weight) in enumerate(zip(indices, batch)):
-            scalar = self.learning_rate * self.distance_weight(winner_ind)
-            scalar = ht.expand_dims(scalar, axis=1)
-            weight = ht.float64(ht.expand_dims(weight, axis=0))
-
-            print(weight, self.network - weight)
-            # self.network = self.network + (scalar * (self.network - weight))
+    def update_weights(self, indices, weights):
+        scalars = self.learning_rate * self.in_radius(indices)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ResourceWarning)
+            network = self.network[indices]
+        network.balance_()
+        distances = weights - network
+        scaled_distances = ht.matmul(scalars, distances)
+        print(ht.min(scaled_distances, axis=1))
+        self.network = self.network + scaled_distances
