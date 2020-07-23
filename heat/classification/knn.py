@@ -60,6 +60,26 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         self.x = X
         self.y = self.label_to_one_hot(Y)
 
+    def fit_one_hot(self, X, Y):
+        """
+        Parameters
+        ----------
+        X : ht.DNDarray
+            Data vectors used for prediction
+        Y : ht.DNDarray
+            Labels for the data in one-hot-encoding, shape (n_samples, n_classes)
+        """
+
+        if X.shape[0] != Y.shape[0]:
+            raise ValueError(
+                "Number of samples and labels needs to be the same, got {}, {}".format(
+                    X.shape[0], Y.shape[0]
+                )
+            )
+
+        self.x = X
+        self.y = Y
+
     def predict(self, X) -> ht.dndarray:
         """
         Parameters
