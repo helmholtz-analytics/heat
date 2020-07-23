@@ -48,6 +48,7 @@ all processes) and transform it into a numpy array. Plotting can only be done on
         plt.plot(data_np[:,0], data_np[:,1], 'bo')
 
 This will render something like
+
 .. image:: ../images/Data.png
 
 Now we perform the clustering analysis with kmeans. We chose 'kmeans++' as an intelligent way of sampling the
