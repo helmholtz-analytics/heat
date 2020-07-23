@@ -60,3 +60,13 @@ class TestKNN(TestCase):
         knn = KNN(a, c, 1)
         with self.assertRaises(ValueError):
             knn.fit(a, b)
+
+    def test_utility(self,):
+        a = ht.array([1, 2, 3, 4])
+        b = ht.array([[0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 1]])
+
+        one_hot = KNN.label_to_one_hot(a)
+        label = KNN.one_hot_to_label(b)
+
+        self.assertTrue((one_hot == b).all())
+        self.assertTrue((label == a).all())
