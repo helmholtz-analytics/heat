@@ -5,7 +5,9 @@ from typing import Callable, Optional, Tuple, Union
 
 from . import factories
 from . import manipulations
-from . import operations
+
+from . import _operations
+from . import dndarray
 from . import stride_tricks
 from . import types
 
@@ -79,7 +81,7 @@ def all(
     def local_all(t, *args, **kwargs):
         return torch.all(t != 0, *args, **kwargs)
 
-    return operations.__reduce_op(
+    return _operations.__reduce_op(
         x, local_all, MPI.LAND, axis=axis, out=out, neutral=1, keepdim=keepdim
     )
 
@@ -186,7 +188,7 @@ def any(
     def local_any(t, *args, **kwargs):
         return torch.any(t != 0, *args, **kwargs)
 
-    return operations.__reduce_op(
+    return _operations.__reduce_op(
         x, local_any, MPI.LOR, axis=axis, out=out, neutral=0, keepdim=keepdim
     )
 
@@ -262,7 +264,7 @@ def logical_and(t1: DNDarray, t2: DNDarray) -> DNDarray:
     >>> ht.logical_and(ht.array([True, False]), ht.array([False, False]))
     DNDarray([False, False], dtype=ht.bool, device=cpu:0, split=None)
     """
-    return operations.__binary_op(
+    return _operations.__binary_op(
         torch.Tensor.__and__, types.bool(t1, device=t1.device), types.bool(t2, device=t2.device)
     )
 
@@ -284,7 +286,7 @@ def logical_not(t: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     >>> ht.logical_not(ht.array([True, False]))
     DNDarray([False,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
-    return operations.__local_op(torch.logical_not, t, out)
+    return _operations.__local_op(torch.logical_not, t, out)
 
 
 def logical_or(t1: DNDarray, t2: DNDarray) -> DNDarray:
@@ -303,7 +305,7 @@ def logical_or(t1: DNDarray, t2: DNDarray) -> DNDarray:
     >>> ht.logical_or(ht.array([True, False]), ht.array([False, False]))
     DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
-    return operations.__binary_op(
+    return _operations.__binary_op(
         torch.Tensor.__or__, types.bool(t1, device=t1.device), types.bool(t2, device=t2.device)
     )
 
@@ -324,7 +326,7 @@ def logical_xor(t1: DNDarray, t2: DNDarray) -> DNDarray:
     >>> ht.logical_xor(ht.array([True, False, True]), ht.array([True, False, False]))
     DNDarray([False, False,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
-    return operations.__binary_op(torch.logical_xor, t1, t2)
+    return _operations.__binary_op(torch.logical_xor, t1, t2)
 
 
 def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray]:

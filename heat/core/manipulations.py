@@ -15,7 +15,7 @@ from . import linalg
 from . import stride_tricks
 from . import tiling
 from . import types
-from . import operations
+from . import _operations
 
 
 __all__ = [
@@ -2198,7 +2198,7 @@ def topk(
 
         return send_buffer
 
-    gres = operations.__reduce_op(
+    gres = _operations.__reduce_op(
         a,
         local_topk,
         MPI_TOPK,

@@ -6,9 +6,8 @@ from typing import Callable, Optional
 
 from .constants import pi
 from .dndarray import DNDarray
-from .operations import __local_op as local_op
-from .operations import __binary_op as binary_op
-
+from ._operations import __local_op as local_op
+from ._operations import __binary_op as binary_op
 from . import types
 
 

@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from mpi4py import MPI
 from typing import Callable
 
@@ -6,7 +7,7 @@ from ..core import factories
 from ..core import types
 from ..core.dndarray import DNDarray
 
-__all__ = ["cdist", "rbf"]
+__all__ = ["cdist", "manhattan", "rbf"]
 
 
 def _euclidian(x: torch.tensor, y: torch.tensor) -> torch.tensor:
@@ -56,8 +57,7 @@ def _quadratic_expand(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     y_norm = (y ** 2).sum(1).view(1, -1)
 
     dist = x_norm + y_norm - 2.0 * torch.mm(x, y_t)
-    info = torch.finfo(dist.dtype)
-    return torch.clamp(dist, 0.0, info.max)
+    return torch.clamp(dist, 0.0, np.inf)
 
 
 def _gaussian(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torch.tensor:
@@ -100,20 +100,62 @@ def _gaussian_fast(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torc
     return result
 
 
+def _manhattan(x: torch.tensor, y: torch.tensor) -> torch.tensor:
+    """
+    Helper function to calculate manhattan distance between torch.tensors x and y: sum(|x-y|)
+    Based on torch.cdist
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
+    return torch.cdist(x, y, p=1)
+
+
+def _manhattan_fast(x: torch.tensor, y: torch.tensor) -> torch.tensor:
+    """
+    Helper function to calculate Manhattan distance between torch.tensors x and y: |x-y|
+    Uses dimension expansion
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
+
+    d = torch.sum(torch.abs(x.unsqueeze(1) - y.unsqueeze(0)), dim=2)
+    return d
+
+
 def cdist(X: DNDarray, Y: DNDarray = None, quadratic_expansion: bool = False) -> DNDarray:
     """
-    Calculate euclidian distance between torch.tensors x and y:
+    Calculate euclidian distance between two DNDarrays:
 
     .. math:: d(x,y) = \\sqrt{(|x-y|^2)}
 
-    Returns 2D tensor of size :math: `m \\times n`
+    Returns 2D array of size :math: `m \\times n`
 
     Parameters
     ----------
     x : DNDarray
-        2D tensor of size :math: `m \\times f`
+        2D array of size :math: `m \\times f`
     y : DNDarray
-        2D tensor of size :math: `n \\times f`
+        2D array of size :math: `n \\times f`
     quadratic_expansion : bool
         Whether to use quadratic expansion for :math:`\\sqrt{(|x-y|^2)}` (Might yield speed-up)
     """
@@ -127,18 +169,18 @@ def rbf(
     X: DNDarray, Y: DNDarray = None, sigma: float = 1.0, quadratic_expansion: bool = False
 ) -> DNDarray:
     """
-    Calculate gaussian distance between torch.tensors x and y:
+    Calculate gaussian distance between two DNDarrays:
 
     .. math:: d(x,y) = exp(-(|x-y|^2/2\\sigma^2)
 
-    Returns 2D tensor of size :math: `m \\times n`
+    Returns 2D array of size :math: `m \\times n`
 
     Parameters
     ----------
     x : DNDarray
-        2D tensor of size :math: `m \\times f`
+        2D array of size :math: `m \\times f`
     y : DNDarray
-        2D tensor of size `n \\times f`
+        2D array of size `n \\times f`
     sigma: float
         Scaling factor for gaussian kernel
     quadratic_expansion : bool
@@ -148,6 +190,29 @@ def rbf(
         return _dist(X, Y, lambda x, y: _gaussian_fast(x, y, sigma))
     else:
         return _dist(X, Y, lambda x, y: _gaussian(x, y, sigma))
+
+
+def manhattan(X: DNDarray, Y: DNDarray = None, expand: bool = False):
+    """
+    Calculate manhattan distance between two DNDarrays:
+
+    .. math:: d(x,y) = \\sum{|x_i-y_i|}
+
+    Returns 2D array of size :math: `m \\times n`
+
+    Parameters
+    ----------
+    x : DNDarray
+        2D array of size :math: `m \\times f`
+    y : DNDarray
+        2D array of size :math: `n \\times f`
+    expand : bool
+        Whether to use dimension expansion (Might yield speed-up)
+    """
+    if expand:
+        return _dist(X, Y, lambda x, y: _manhattan_fast(x, y))
+    else:
+        return _dist(X, Y, lambda x, y: _manhattan(x, y))
 
 
 def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DNDarray:

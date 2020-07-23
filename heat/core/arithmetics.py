@@ -5,7 +5,7 @@ import torch
 from .communication import MPI
 from .dndarray import DNDarray
 from . import factories
-from . import operations
+from . import _operations
 from . import stride_tricks
 from .types import datatype, heat_type_of, heat_type_is_inexact, heat_type_is_exact
 
@@ -70,7 +70,7 @@ def add(t1, t2) -> DNDarray:
             [5., 6.]])
 
     """
-    return operations.__binary_op(torch.add, t1, t2)
+    return _operations.__binary_op(torch.add, t1, t2)
 
 
 DNDarray.__add__ = lambda self, other: add(self, other)
@@ -113,7 +113,7 @@ def bitwise_and(t1, t2) -> DNDarray:
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
-    return operations.__binary_op(torch.Tensor.__and__, t1, t2)
+    return _operations.__binary_op(torch.Tensor.__and__, t1, t2)
 
 
 DNDarray.__and__ = lambda self, other: bitwise_and(self, other)
@@ -157,7 +157,7 @@ def bitwise_or(t1, t2) -> DNDarray:
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
-    return operations.__binary_op(torch.Tensor.__or__, t1, t2)
+    return _operations.__binary_op(torch.Tensor.__or__, t1, t2)
 
 
 DNDarray.__or__ = lambda self, other: bitwise_or(self, other)
@@ -196,7 +196,7 @@ def bitwise_xor(t1, t2) -> DNDarray:
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
-    return operations.__binary_op(torch.Tensor.__xor__, t1, t2)
+    return _operations.__binary_op(torch.Tensor.__xor__, t1, t2)
 
 
 DNDarray.__xor__ = lambda self, other: bitwise_xor(self, other)
@@ -232,7 +232,7 @@ def cumprod(a, axis, dtype=None, out=None) -> DNDarray:
             [4., 4., 4.],
             [8., 8., 8.])
     """
-    return operations.__cum_op(a, torch.cumprod, MPI.PROD, torch.mul, 1, axis, dtype, out)
+    return _operations.__cum_op(a, torch.cumprod, MPI.PROD, torch.mul, 1, axis, dtype, out)
 
 
 # Alias support
@@ -268,7 +268,7 @@ def cumsum(a, axis, dtype=None, out=None) -> DNDarray:
             [2., 2., 2.],
             [3., 3., 3.])
     """
-    return operations.__cum_op(a, torch.cumsum, MPI.SUM, torch.add, 0, axis, dtype, out)
+    return _operations.__cum_op(a, torch.cumsum, MPI.SUM, torch.add, 0, axis, dtype, out)
 
 
 def diff(a, n=1, axis=-1) -> DNDarray:
@@ -383,7 +383,7 @@ def div(t1, t2) -> DNDarray:
     tensor([[2.0000, 1.0000],
             [0.6667, 0.5000]])
     """
-    return operations.__binary_op(torch.true_divide, t1, t2)
+    return _operations.__binary_op(torch.true_divide, t1, t2)
 
 
 DNDarray.__truediv__ = lambda self, other: div(self, other)
@@ -421,7 +421,7 @@ def fmod(t1, t2) -> DNDarray:
     tensor([[0., 0.]
             [2., 2.]])
     """
-    return operations.__binary_op(torch.fmod, t1, t2)
+    return _operations.__binary_op(torch.fmod, t1, t2)
 
 
 def floordiv(t1, t2) -> DNDarray:
@@ -446,7 +446,7 @@ def floordiv(t1, t2) -> DNDarray:
     tensor([[1., 0.],
             [1., 1.]])
     """
-    return operations.__binary_op(torch.floor_divide, t1, t2)
+    return _operations.__binary_op(torch.floor_divide, t1, t2)
 
 
 DNDarray.__floordiv__ = lambda self, other: floordiv(self, other)
@@ -482,7 +482,7 @@ def invert(t, out=None) -> DNDarray:
     if heat_type_is_inexact(dt):
         raise TypeError("Operation is not supported for float types")
 
-    return operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
+    return _operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
 
 
 DNDarray.__invert__ = lambda self, out=None: invert(self, out)
@@ -514,7 +514,7 @@ def left_shift(t1, t2) -> DNDarray:
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
-    return operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
+    return _operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
 
 
 DNDarray.__lshift__ = lambda self, other: left_shift(self, other)
@@ -589,7 +589,7 @@ def mul(t1, t2) -> DNDarray:
     tensor([[2., 4.],
             [6., 8.]])
     """
-    return operations.__binary_op(torch.mul, t1, t2)
+    return _operations.__binary_op(torch.mul, t1, t2)
 
 
 DNDarray.__mul__ = lambda self, other: mul(self, other)
@@ -627,7 +627,7 @@ def pow(t1, t2) -> DNDarray:
     tensor([[1., 8.],
             [27., 64.]])
     """
-    return operations.__binary_op(torch.pow, t1, t2)
+    return _operations.__binary_op(torch.pow, t1, t2)
 
 
 DNDarray.__pow__ = lambda self, other: pow(self, other)
@@ -666,7 +666,7 @@ def remainder(t1, t2) -> DNDarray:
     tensor([[0, 0]
             [2, 2]], dtype=torch.int32)
     """
-    return operations.__binary_op(torch.remainder, t1, t2)
+    return _operations.__binary_op(torch.remainder, t1, t2)
 
 
 def right_shift(t1, t2) -> DNDarray:
@@ -691,7 +691,7 @@ def right_shift(t1, t2) -> DNDarray:
         if not heat_type_is_exact(dt):
             raise TypeError("Operation is supported for integer types only")
 
-    return operations.__binary_op(torch.Tensor.__rshift__, t1, t2)
+    return _operations.__binary_op(torch.Tensor.__rshift__, t1, t2)
 
 
 DNDarray.__rshift__ = lambda self, other: right_shift(self, other)
@@ -733,7 +733,7 @@ def prod(x, axis=None, out=None, keepdim=None) -> DNDarray:
     ], axis=1)
     ht.tensor([  2.,  12.])
     """
-    return operations.__reduce_op(
+    return _operations.__reduce_op(
         x, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
     )
 
@@ -768,7 +768,7 @@ def sub(t1, t2) -> DNDarray:
     tensor([[ 1.,  0.],
             [-1., -2.]])
     """
-    return operations.__binary_op(torch.sub, t1, t2)
+    return _operations.__binary_op(torch.sub, t1, t2)
 
 
 DNDarray.__sub__ = lambda self, other: sub(self, other)
@@ -814,7 +814,7 @@ def sum(x, axis=None, out=None, keepdim=None) -> DNDarray:
              [3.]]])
     """
     # TODO: make me more numpy API complete Issue #101
-    return operations.__reduce_op(
+    return _operations.__reduce_op(
         x, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
     )
 

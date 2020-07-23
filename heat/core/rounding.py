@@ -1,8 +1,11 @@
 import torch
 from typing import Tuple
-from . import operations
 from .dndarray import DNDarray
 from .types import datatype
+
+from . import _operations
+from . import dndarray
+from . import types
 
 __all__ = ["abs", "absolute", "ceil", "clip", "fabs", "floor", "modf", "round", "trunc"]
 
@@ -25,7 +28,7 @@ def abs(x, out=None, dtype=None) -> DNDarray:
     if dtype is not None and not issubclass(dtype, dtype):
         raise TypeError("dtype must be a heat data type")
 
-    absolute_values = operations.__local_op(torch.abs, x, out)
+    absolute_values = _operations.__local_op(torch.abs, x, out)
     if dtype is not None:
         absolute_values._DNDarray__array = absolute_values._DNDarray__array.type(dtype.torch_type())
         absolute_values._DNDarray__dtype = dtype
@@ -78,7 +81,7 @@ def ceil(x, out=None) -> DNDarray:
     >>> ht.ceil(ht.arange(-2.0, 2.0, 0.4))
     tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
     """
-    return operations.__local_op(torch.ceil, x, out)
+    return _operations.__local_op(torch.ceil, x, out)
 
 
 DNDarray.ceil = lambda self, out=None: ceil(self, out)
@@ -109,7 +112,7 @@ def clip(x, min, max, out=None) -> DNDarray:
     if min is None and max is None:
         raise ValueError("either min or max must be set")
 
-    return operations.__local_op(torch.clamp, x, out, min=min, max=max)
+    return _operations.__local_op(torch.clamp, x, out, min=min, max=max)
 
 
 DNDarray.clip = lambda self, a_min, a_max, out=None: clip(self, a_min, a_max, out)
@@ -156,7 +159,7 @@ def floor(x, out=None) -> DNDarray:
     >>> ht.floor(ht.arange(-2.0, 2.0, 0.4))
     tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
     """
-    return operations.__local_op(torch.floor, x, out)
+    return _operations.__local_op(torch.floor, x, out)
 
 
 DNDarray.floor = lambda self, out=None: floor(self, out)
@@ -244,7 +247,7 @@ def round(x, decimals=0, out=None, dtype=None) -> DNDarray:
     if decimals != 0:
         x *= 10 ** decimals
 
-    rounded_values = operations.__local_op(torch.round, x, out)
+    rounded_values = _operations.__local_op(torch.round, x, out)
 
     if decimals != 0:
         rounded_values /= 10 ** decimals
@@ -279,7 +282,7 @@ def trunc(x, out=None) -> DNDarray:
     >>> ht.trunc(ht.arange(-2.0, 2.0, 0.4))
     tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
     """
-    return operations.__local_op(torch.trunc, x, out)
+    return _operations.__local_op(torch.trunc, x, out)
 
 
 DNDarray.trunc = lambda self, out=None: trunc(self, out)

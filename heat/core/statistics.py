@@ -10,7 +10,7 @@ from . import exponential
 from . import factories
 from . import linalg
 from . import manipulations
-from . import operations
+from . import _operations
 from . import types
 from . import stride_tricks
 from . import logical
@@ -98,7 +98,7 @@ def argmax(x: DNDarray, axis: int = None, out: DNDarray = None, **kwargs: object
 
     # perform the global reduction
     smallest_value = -constants.sanitize_infinity(x._DNDarray__array.dtype)
-    reduced_result = operations.__reduce_op(
+    reduced_result = _operations.__reduce_op(
         x, local_argmax, MPI_ARGMAX, axis=axis, out=None, neutral=smallest_value, **kwargs
     )
 
@@ -202,7 +202,7 @@ def argmin(x: DNDarray, axis: int = None, out: DNDarray = None, **kwargs: object
 
     # perform the global reduction
     largest_value = constants.sanitize_infinity(x._DNDarray__array.dtype)
-    reduced_result = operations.__reduce_op(
+    reduced_result = _operations.__reduce_op(
         x, local_argmin, MPI_ARGMIN, axis=axis, out=None, neutral=largest_value, **kwargs
     )
 
@@ -551,7 +551,7 @@ def max(
         return result
 
     smallest_value = -constants.sanitize_infinity(x._DNDarray__array.dtype)
-    return operations.__reduce_op(
+    return _operations.__reduce_op(
         x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdim=keepdim
     )
 
@@ -958,7 +958,7 @@ def min(
         return result
 
     largest_value = constants.sanitize_infinity(x._DNDarray__array.dtype)
-    return operations.__reduce_op(
+    return _operations.__reduce_op(
         x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdim=keepdim
     )
 
