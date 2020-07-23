@@ -132,7 +132,7 @@ class PartialDataset(torch_data.Dataset):
             if not np_buffer or d not in np_buffer_dataset_names:
                 hld = torch.tensor(f[d][self.local_data_start : local_data_end])
             else:
-                hld = torch.empty([local_data_end - self.local_data_start] + self.single_shape)
+                hld = torch.zeros([local_data_end - self.local_data_start] + self.single_shape)
                 # todo: how much data should be loaded here???
                 self.__setattr__("np" + d, f[d][self.local_data_start : local_data_end])
 
@@ -194,9 +194,8 @@ class PartialDataset(torch_data.Dataset):
                     del keep_list[ridx]
                     del items[ridx]
             # if GPU is there, put t_data on the GPUs
-            t_data.to(self.torch_device)
-
-            dat[items] = t_data[keep_list]
+            t_data = t_data[keep_list].to(self.torch_device)
+            dat[items] = t_data
             # todo: required?
             self.__setattr__(dataset_lp, dat)
         self.last_converted_batch += 1
@@ -266,7 +265,7 @@ class PartialDataset(torch_data.Dataset):
                 self.__setattr__("np" + d, hld)
             else:
                 # gpu insert
-                hld.to(self.torch_device)
+                hld = hld.to(self.torch_device)
                 self.__setattr__(d, hld)
 
     def insert_group(self, entries, next_inds):

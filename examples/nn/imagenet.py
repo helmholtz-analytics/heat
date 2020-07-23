@@ -30,9 +30,11 @@ import heat as ht
 import heat.nn as nn
 import heat.nn.functional as F
 import heat.optim as optim
-#from heat.optim.lr_scheduler import StepLR
+
+# from heat.optim.lr_scheduler import StepLR
 from heat.utils import vision_transforms
-#from heat.utils.data.mnist import MNISTDataset
+
+# from heat.utils.data.mnist import MNISTDataset
 
 # todo: needed here?
 model_names = sorted(
@@ -219,10 +221,7 @@ class ImagenetDataset(ht.utils.data.parallel_datatools.PartialDataset):
         )
 
     def load_item_transform(self, item, image):
-        #print(item)
-        #print('meta', self.metadata)
         shape = (int(self.metadata[item][0].item()), int(self.metadata[item][1].item()), 3)
-        #print(item, shape)
         str_repr = base64.binascii.a2b_base64(image)
         img = np.frombuffer(str_repr, dtype=np.uint8).reshape(shape)
         return img
@@ -230,7 +229,7 @@ class ImagenetDataset(ht.utils.data.parallel_datatools.PartialDataset):
     def __getitem__(self, item):
         # todo: move this to the loading function?
         img = self.images[item]
-        target = torch.as_tensor(self.metadata[item][3], dtype=torch.long)
+        target = torch.as_tensor(self.metadata[item][3], dtype=torch.long).to(self.torch_device)
 
         return img, target
 
@@ -401,6 +400,9 @@ def main_worker(gpu, ngpus_per_node, args):
     #     batch_size=args.batch_size, shuffle=False,
     #     num_workers=args.workers, pin_memory=True)
 
+    if torch.cuda.is_available():
+        model.cuda()
+
     if args.evaluate:
         validate(val_loader, model, criterion, args)
         return
@@ -438,15 +440,15 @@ def main_worker(gpu, ngpus_per_node, args):
 
 def train(train_loader, model, criterion, dp_optimizer, epoch, args):
     batch_time = AverageMeter("Time", ":6.3f")
-    data_time = AverageMeter("Data", ":6.3f")
+    # data_time = AverageMeter("Data", ":6.3f")
     losses = AverageMeter("Loss", ":.4e")
     top1 = AverageMeter("Acc@1", ":6.2f")
     top5 = AverageMeter("Acc@5", ":6.2f")
-    progress = ProgressMeter(
-        len(train_loader),
-        [batch_time, data_time, losses, top1, top5],
-        prefix="Epoch: [{}]".format(epoch),
-    )
+    # progress = ProgressMeter(
+    #     len(train_loader),
+    #     [batch_time, data_time, losses, top1, top5],
+    #     prefix="Epoch: [{}]".format(epoch),
+    # )
 
     # switch to train mode
     model.train()
@@ -455,7 +457,7 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
     for i, (images, target) in enumerate(train_loader):
         print("train loop", images.shape)
         # measure data loading time
-        #data_time.update(time.time() - end)
+        # data_time.update(time.time() - end)
 
         # todo: GPUs
         # if args.gpu is not None:
@@ -483,7 +485,7 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
         batch_time.update(time.time() - end)
         end = time.time()
 
-        #if i % args.print_freq == 0:
+        # if i % args.print_freq == 0:
         #    progress.display(i)
 
 
@@ -492,7 +494,7 @@ def validate(val_loader, model, criterion, args):
     losses = AverageMeter("Loss", ":.4e")
     top1 = AverageMeter("Acc@1", ":6.2f")
     top5 = AverageMeter("Acc@5", ":6.2f")
-    progress = ProgressMeter(len(val_loader), [batch_time, losses, top1, top5], prefix="Test: ")
+    # progress = ProgressMeter(len(val_loader), [batch_time, losses, top1, top5], prefix="Test: ")
 
     # switch to evaluate mode
     model.eval()
@@ -501,9 +503,9 @@ def validate(val_loader, model, criterion, args):
         end = time.time()
         for i, (images, target) in enumerate(val_loader):
             print("val loop", images.shape)
-            #if args.gpu is not None:
+            # if args.gpu is not None:
             #    images = images.cuda(args.gpu, non_blocking=True)
-            #if torch.cuda.is_available():
+            # if torch.cuda.is_available():
             #    target = target.cuda(args.gpu, non_blocking=True)
 
             # compute output
@@ -520,11 +522,11 @@ def validate(val_loader, model, criterion, args):
             batch_time.update(time.time() - end)
             end = time.time()
 
-            #if i % args.print_freq == 0:
+            # if i % args.print_freq == 0:
             #    progress.display(i)
 
         # TODO: this should also be done with the ProgressMeter
-        #print(" * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}".format(top1=top1, top5=top5))
+        # print(" * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}".format(top1=top1, top5=top5))
 
     return top1.avg
 
