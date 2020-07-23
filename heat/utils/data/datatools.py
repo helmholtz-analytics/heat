@@ -97,7 +97,7 @@ class DataLoader:
             batch_sampler=sampler,
             num_workers=num_workers,
             collate_fn=collate_fn,
-            pin_memory=pin_memory,
+            pin_memory=False,
             timeout=timeout,
             worker_init_fn=worker_init_fn,
         )

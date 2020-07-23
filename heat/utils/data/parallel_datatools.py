@@ -54,8 +54,9 @@ class PartialDataset(torch_data.Dataset):
         # file_size_per_pr = file_size / float(comm.size)
 
         # note: this is for a linux system!
-        # if available_memory is None:
-        #     available_memory = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+        #if available_memory is None:
+        #    available_memory = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+        #print(available_memory)
 
         # todo: add this back in for the datasets which can be loaded into memory
         # if file_size_per_pr < available_memory * 0.75:  # todo: what value should this be?
@@ -109,8 +110,8 @@ class PartialDataset(torch_data.Dataset):
         # self.load_len = ((0.10 * available_memory) / file_size_per_pr) * self.lcl_full_sz
         # print(self.local_data_start, local_data_end, self.load_len)
         # temp values for small scale testing
-        local_data_end = self.local_data_start + 10000
-        self.load_len = 1000
+        local_data_end = self.local_data_start + 1000
+        self.load_len = 512  # int(local_data_end / 3)
         self.local_length = local_data_end - self.local_data_start
 
         self.next_start = local_data_end
@@ -253,9 +254,8 @@ class PartialDataset(torch_data.Dataset):
                 hld = self.__getattribute__(d)
             # print(len(nxt_inds), entries, hld.shape, self.loads_remaining)
             if d not in self.np_datasets:
-                nxt_tens = torch.tensor(self.__getattribute__("next_" + d)[: len(nxt_inds)]).to(
-                    self.torch_device
-                )
+                nxt_tens = self.__getattribute__("next_" + d)
+                nxt_tens = nxt_tens[: len(nxt_inds)].to(self.torch_device)
             else:
                 nxt_tens = self.__getattribute__("next_" + d)[: len(nxt_inds)]
             hld[nxt_inds] = nxt_tens
