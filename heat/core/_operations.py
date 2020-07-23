@@ -5,6 +5,7 @@ import warnings
 
 from .communication import MPI, MPI_WORLD
 from . import factories
+from . import manipulations
 from . import stride_tricks
 from . import dndarray
 from . import types
@@ -205,7 +206,9 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
         raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
     if axis is None:
-        raise NotImplementedError("axis = None is not supported")
+        x = manipulations.flatten(x)
+        axis = 0
+    #        raise NotImplementedError("axis = None is not supported")
     axis = stride_tricks.sanitize_axis(x.shape, axis)
 
     if dtype is not None:
