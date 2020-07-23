@@ -3,6 +3,7 @@ import torch
 from .communication import MPI
 from . import dndarray
 from . import factories
+from . import manipulations
 from . import operations
 from . import stride_tricks
 from . import types
@@ -317,11 +318,35 @@ def diff(a, n=1, axis=-1, prepend=None, append=None):
 
     axis = stride_tricks.sanitize_axis(a.gshape, axis)
 
-    # def __expand_scalar(a, metadata):
-    #     if not isinstance(a, (int, float)):
-    #         raise TypeError("'a' must be a scalar, was {}".format(type(a)))
-    #     shape, dtype, split, device, comm, order = metadata
-    #     return factories.full(shape=shape, a, dtype=dtype, split=split, device=device, comm=comm, order=order)
+    if prepend is not None or append is not None:
+        pend_shape = a.gshape[:axis] + (1,) + a.gshape[axis + 1 :]
+        pend = [prepend, append]
+
+    for p, p_el in enumerate(pend):
+        if p_el is not None:
+            if isinstance(p_el, (int, float)):
+                # TODO: implement broadcast_to
+                p_el = factories.full(
+                    pend_shape, p_el, dtype=a.dtype, split=a.split, device=a.device, comm=a.comm
+                )
+            elif isinstance(p_el, dndarray.DNDarray) and p_el.gshape == pend_shape:
+                pass
+            elif not isinstance(p_el, dndarray.DNDarray):
+                raise TypeError(
+                    "prepend/append should be a scalar or a DNDarray, was {}".format(type(p_el))
+                )
+            elif p_el.gshape != pend_shape:
+                raise ValueError(
+                    "shape mismatch: expected prepend/append to be {}, got {}".format(
+                        pend_shape, p_el.gshape
+                    )
+                )
+            if p == 0:
+                # prepend
+                a = manipulations.concatenate((p_el, a), axis=axis)
+            else:
+                # append
+                a = manipulations.concatenate((a, p_el), axis=axis)
 
     if not a.is_distributed():
         ret = a.copy()
