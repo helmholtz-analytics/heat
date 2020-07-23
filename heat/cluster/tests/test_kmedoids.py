@@ -78,10 +78,10 @@ class TestKMeans(TestCase):
         split = 0
         # get some test data
         iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=split)
-
+        ht.random.seed(1)
         # fit the clusters
         k = 3
-        kmedoid = ht.cluster.KMedoids(n_clusters=k)
+        kmedoid = ht.cluster.KMedoids(n_clusters=k, random_state=1)
         kmedoid.fit(iris)
 
         # check whether the results are correct
@@ -97,7 +97,6 @@ class TestKMeans(TestCase):
 
         # check whether result is actually a datapoint
         for i in range(kmedoid.cluster_centers_.shape[0]):
-            print()
             self.assertTrue(
                 ht.any(ht.sum(ht.abs(kmedoid.cluster_centers_[i, :] - iris), axis=1) == 0)
             )
@@ -128,6 +127,10 @@ class TestKMeans(TestCase):
         kmedoid.fit(data)
         self.assertIsInstance(kmedoid.cluster_centers_, ht.DNDarray)
         self.assertEqual(kmedoid.cluster_centers_.shape, (4, 3))
+        for i in range(kmedoid.cluster_centers_.shape[0]):
+            self.assertTrue(
+                ht.any(ht.sum(ht.abs(kmedoid.cluster_centers_[i, :] - data), axis=1) == 0)
+            )
 
         # More Samples
         n = 100 * ht.MPI_WORLD.size
@@ -140,7 +143,6 @@ class TestKMeans(TestCase):
         self.assertEqual(kmedoid.cluster_centers_.shape, (4, 3))
         # check whether result is actually a datapoint
         for i in range(kmedoid.cluster_centers_.shape[0]):
-            print()
             self.assertTrue(
                 ht.any(ht.sum(ht.abs(kmedoid.cluster_centers_[i, :] - data), axis=1) == 0)
             )
@@ -155,9 +157,11 @@ class TestKMeans(TestCase):
         self.assertIsInstance(kmedoid.cluster_centers_, ht.DNDarray)
         self.assertEqual(kmedoid.cluster_centers_.shape, (4, 3))
         for i in range(kmedoid.cluster_centers_.shape[0]):
-            print()
             self.assertTrue(
-                ht.any(ht.sum(ht.abs(kmedoid.cluster_centers_[i, :] - data), axis=1) == 0)
+                ht.any(
+                    ht.sum(ht.abs(kmedoid.cluster_centers_[i, :] - data.astype(ht.float32)), axis=1)
+                    == 0
+                )
             )
 
         # on Ints (different radius, offset and datatype
@@ -169,7 +173,6 @@ class TestKMeans(TestCase):
         self.assertIsInstance(kmedoid.cluster_centers_, ht.DNDarray)
         self.assertEqual(kmedoid.cluster_centers_.shape, (4, 3))
         for i in range(kmedoid.cluster_centers_.shape[0]):
-            print()
             self.assertTrue(
                 ht.any(ht.sum(ht.abs(kmedoid.cluster_centers_[i, :] - data), axis=1) == 0)
             )
