@@ -264,6 +264,16 @@ class TestArithmetics(TestCase):
                         self.assertEqual(ht_diff.split, sp)
                         self.assertEqual(ht_diff.dtype, lp_array.dtype)
 
+                        # test prepend/append. Note heat's intuitive casting vs. numpy's safe casting
+                        ht_diff_pend = ht.diff(lp_array, n=nl, axis=ax, prepend=0, append=1.0)
+                        np_diff_pend = ht.array(
+                            np.diff(np_array, n=nl, axis=ax, prepend=0, append=1.0),
+                            dtype=ht_diff_pend.dtype,
+                        )
+                        self.assertTrue(ht.equal(ht_diff_pend, np_diff_pend))
+                        self.assertEqual(ht_diff_pend.split, sp)
+                        self.assertEqual(ht_diff_pend.dtype, lp_array.dtype)
+
         np_array = ht_array.numpy()
         ht_diff = ht.diff(ht_array, n=2)
         np_diff = ht.array(np.diff(np_array, n=2))
