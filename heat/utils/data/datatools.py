@@ -268,6 +268,7 @@ def dataset_shuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[lis
         rcv_w = comm.Irecv(new_data, source=src)
         send_wait.wait()
         rcv_w.wait()
+        # todo: put the rcv'ed stuff on GPU if available
         getattr(dataset, att[0])._DNDarray__array[: dataset.lcl_half] = new_data
         getattr(dataset, att[0])._DNDarray__array = getattr(dataset, att[0])._DNDarray__array[prm]
         setattr(dataset, att[1], getattr(dataset, att[0])._DNDarray__array[dataset._cut_slice])
@@ -336,6 +337,7 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
     prm = getattr(dataset, "shuffle_prm")
     for rcv in rcv_list:
         rcv[1].wait()
+        # todo: put the rcv'ed stuff on GPU if available
         getattr(dataset, rcv[0][0])._DNDarray__array[: dataset.lcl_half] = rcv[2]
         getattr(dataset, rcv[0][0])._DNDarray__array = getattr(dataset, rcv[0][0])._DNDarray__array[
             prm
@@ -483,19 +485,19 @@ def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
                     parsed.features.feature["image/channels"].int64_list.value[0], tf.float32
                 ).numpy()
             )
-            img_meta[3].append(parsed.features.feature["image/class/label"].int64_list.value[0])
+            img_meta[3].append(parsed.features.feature["image/class/label"].int64_list.value[0] - 1)
             try:
                 bbxmin = parsed.features.feature["image/object/bbox/xmin"].float_list.value[0]
                 bbxmax = parsed.features.feature["image/object/bbox/xmax"].float_list.value[0]
                 bbymin = parsed.features.feature["image/object/bbox/ymin"].float_list.value[0]
                 bbymax = parsed.features.feature["image/object/bbox/ymax"].float_list.value[0]
-                bblabel = parsed.features.feature["image/object/bbox/label"].int64_list.value[0]
+                bblabel = parsed.features.feature["image/object/bbox/label"].int64_list.value[0] - 1
             except IndexError:
                 bbxmin = 0.0
                 bbxmax = img_meta[1][-1]
                 bbymin = 0.0
                 bbymax = img_meta[0][-1]
-                bblabel = -1
+                bblabel = -2
 
             img_meta[4].append(np.float(bbxmin))
             img_meta[5].append(np.float(bbxmax))
