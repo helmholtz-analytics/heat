@@ -54,9 +54,9 @@ class PartialDataset(torch_data.Dataset):
         # file_size_per_pr = file_size / float(comm.size)
 
         # note: this is for a linux system!
-        #if available_memory is None:
+        # if available_memory is None:
         #    available_memory = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
-        #print(available_memory)
+        # print(available_memory)
 
         # todo: add this back in for the datasets which can be loaded into memory
         # if file_size_per_pr < available_memory * 0.75:  # todo: what value should this be?
@@ -357,6 +357,7 @@ class LoadingBatchSampler(torch_data.BatchSampler):
         samp_iter = self.sampler.__iter__()
 
         if not dset.np_buffer and not dset.partial_dataset:
+            # normal iterator from torch
             for idx in samp_iter:
                 batch.append(idx)
                 if len(batch) == self.batch_size:
@@ -366,57 +367,73 @@ class LoadingBatchSampler(torch_data.BatchSampler):
                 yield batch
 
         else:  # either np buffer or partial dataset
-            iter_clones1, iter_clones2 = itertools.tee(samp_iter)
+            # iter_clones1, iter_clones2 = itertools.tee(samp_iter)
+            inds = []
+            batch_offset = 3
             if dset.np_buffer:
-                for xi in range(3):
-                    next_inds = [0] * self.batch_size
+                for xi in range(batch_offset):
+                    batch = []
+                    # next_inds = [0] * self.batch_size
                     for idx in range(self.batch_size):
-                        next_inds[idx] = next(iter_clones2)
+                        batch.append(next(samp_iter))
                         # todo: send next_inds to data placement loader
-                    dset.convert_queue.put((dset.thread_convert_items, next_inds.copy(), False))
-            next_inds = []
-            prev_batch_inds = []
-            for idx in iter_clones1:
+                    dset.convert_queue.put((dset.thread_convert_items, batch.copy(), False))
+                    inds.append(batch)
+            prev_batch = None
+            for idx in samp_iter:
                 batch.append(idx)
-                try:
-                    next_inds.append(next(iter_clones2))
-                except StopIteration:
-                    pass
-                # todo: send the previous batch to the threads
+                # send the previous batch to the threads
                 if len(batch) == self.batch_size:
                     self.cnt += 1
                     # do the conversion on the current batch
-                    if dset.partial_dataset and len(next_inds) > 0:
-                        # todo: wait for the setting to be done
-                        next_inds = self._conversion_helper(dset, next_inds)
+                    # now, there will always be some to convert while there is the sampler
+                    if dset.partial_dataset:
+                        # convert this batch (batch to nn is inds[0])
+                        dset.convert_queue.put((dset.thread_convert_items, batch.copy(), False))
+                        # self._conversion_helper(dset, batch)
 
-                    # todo: do the getitem on the previous batch
-                    if len(prev_batch_inds) == 0:
-                        # if there is no previous batch:
-                        #   yield the batch, and save the batch to the previous batch inds
-                        yield batch
-                    if dset.partial_dataset and len(prev_batch_inds) > 0:
-                        # there is a previous batch:
-                        #   do the getitem helper on the previous batch to only overwrite that
-                        dset.getitem_index_helper(batch)
+                        # todo: wait for the setting to be done
+                        xx = 0
+                        while dset.last_converted_batch < self.cnt:
+                            time.sleep(0.01)
+                            xx += 1
+                        print(f"waited for {xx} loops")
+                        # todo: do the getitem on the previous batch
+                        # if prev_batch is None:
+                        #     # if there is no previous batch:
+                        #     # this is only in the first iteration of the for loop
+                        #     #   yield the first batch,
+                        #     inds.append(batch)
+                        #     prev_batch = inds[0].copy()
+                        #     del inds[0]
+                        #     yield prev_batch
+                        if prev_batch is not None:
+                            # there is a previous batch:
+                            #   do the getitem helper on the previous batch to only overwrite that
+                            dset.getitem_index_helper(prev_batch)
                     # todo: send next_inds to the data placement loader
-                    prev_batch_inds = batch.copy()
-                    yield batch
+                    inds.append(batch)
+                    prev_batch = inds[0].copy()
+                    del inds[0]
+                    yield prev_batch
                     batch = []
             if len(batch) > 0 and not self.drop_last:
                 # dont need to worry about the next inds here, that iterator is exhausted
-                yield batch
-            if dset.partial_dataset and len(batch) > 0:
-                dset.getitem_index_helper(batch)
+                inds.append(batch)
+                # yield batch
+            for _ in inds:
+                self.cnt += 1
+                # all batches should be converted already, only need getitem helper
+                if dset.partial_dataset:
+                    dset.getitem_index_helper(prev_batch)
+                prev_batch = inds[0].copy()
+                del inds[0]
+                yield prev_batch
 
-    def _conversion_helper(self, dset, next_inds):
-        if len(next_inds) > 0:
-            dset.convert_queue.put((dset.thread_convert_items, next_inds.copy(), False))
-        next_inds = []
-        # wait for this batch to be done from the other thread
-        xx = 0
-        while dset.last_converted_batch < self.cnt:
-            time.sleep(0.01)
-            xx += 1
-        print(f"waited for {xx} loops")
-        return next_inds
+            if dset.partial_dataset and len(prev_batch) > 0:
+                dset.getitem_index_helper(prev_batch)
+
+    # def _conversion_helper(self, dset, batch):
+    # if len(batch) > 0:
+
+    # wait for this batch to be done from the other thread
