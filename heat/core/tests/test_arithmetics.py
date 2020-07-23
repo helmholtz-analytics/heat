@@ -177,6 +177,11 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(cumprod, out))
         self.assertTrue(ht.equal(cumprod, result))
 
+        np_a = a.numpy()
+        result = ht.array(np.cumprod(np_a), split=0)
+        cumprod = ht.cumprod(a)
+        self.assertTrue(ht.equal(cumprod, result))
+
         a = ht.full((2, 2, 2), 2, dtype=ht.int32, split=1)
         result = ht.array([[[2, 2], [4, 4]], [[2, 2], [4, 4]]], dtype=ht.float32, split=1)
 
@@ -189,8 +194,6 @@ class TestArithmetics(TestCase):
         cumprod = ht.cumprod(a, 2)
         self.assertTrue(ht.equal(cumprod, result))
 
-        with self.assertRaises(NotImplementedError):
-            ht.cumprod(ht.ones((2, 2)), axis=None)
         with self.assertRaises(TypeError):
             ht.cumprod(ht.ones((2, 2)), axis="1")
         with self.assertRaises(RuntimeError):
@@ -222,6 +225,11 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(cumsum, out))
         self.assertTrue(ht.equal(cumsum, result))
 
+        np_a = a.numpy()
+        result = ht.array(np.cumsum(np_a), split=0)
+        cumsum = ht.cumsum(a)
+        self.assertTrue(ht.equal(cumsum, result))
+
         a = ht.ones((2, 2, 2), dtype=ht.int32, split=1)
         result = ht.array([[[1, 1], [2, 2]], [[1, 1], [2, 2]]], dtype=ht.float32, split=1)
 
@@ -234,8 +242,6 @@ class TestArithmetics(TestCase):
         cumsum = ht.cumsum(a, 2)
         self.assertTrue(ht.equal(cumsum, result))
 
-        with self.assertRaises(NotImplementedError):
-            ht.cumsum(ht.ones((2, 2)), axis=None)
         with self.assertRaises(TypeError):
             ht.cumsum(ht.ones((2, 2)), axis="1")
         with self.assertRaises(RuntimeError):

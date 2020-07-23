@@ -202,7 +202,7 @@ def bitwise_xor(t1, t2):
     return _operations.__binary_op(torch.Tensor.__xor__, t1, t2)
 
 
-def cumprod(a, axis, dtype=None, out=None):
+def cumprod(a, axis=None, dtype=None, out=None):
     """
     Return the cumulative product of elements along a given axis.
 
@@ -210,8 +210,9 @@ def cumprod(a, axis, dtype=None, out=None):
     ----------
     a : DNDarray
         Input array.
-    axis : int
-        Axis along which the cumulative product is computed.
+    axis : Optional[int]
+        Axis along which the cumulative product is computed. The default (None)
+        is to compute `cumprod` over the flattened array.
     dtype : dtype, optional
         Type of the returned array, as well as of the accumulator in which
         the elements are multiplied.  If *dtype* is not specified, it
@@ -244,7 +245,7 @@ def cumprod(a, axis, dtype=None, out=None):
 cumproduct = cumprod
 
 
-def cumsum(a, axis, dtype=None, out=None):
+def cumsum(a, axis=None, dtype=None, out=None):
     """
     Return the cumulative sum of the elements along a given axis.
 
@@ -252,8 +253,9 @@ def cumsum(a, axis, dtype=None, out=None):
     ----------
     a : DNDarray
         Input array.
-    axis : int
-        Axis along which the cumulative sum is computed.
+    axis : Optional[int]
+        Axis along which the cumulative sum is computed. The default (None)
+        is to compute `cumsum` over the flattened array.
     dtype : dtype, optional
         Type of the returned array and of the accumulator in which the
         elements are summed.  If `dtype` is not specified, it defaults
