@@ -7392,13 +7392,21 @@ span[id*='MathJax-Span'] {
 }
 
 .tutorial {
-	background-color: var(--hgrey-light);
 	overflow: hidden;
+	border-radius: 10px;
 	margin-top: 20px;
 	margin-bottom: 20px;
+	box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+	border: 1px solid var(--hgrey-light);
 }
 
 .tutorial:hover {
+	color: white !important;
+	background-color: var(--horange);
+}
+
+.tutorial:visited {
+	color: white !important;
 	background-color: var(--horange);
 }
 
@@ -7408,6 +7416,7 @@ span[id*='MathJax-Span'] {
 	padding: 20px;
 	width: 25%;
 	float: left;
+	border-radius: 7px;
 }
 
 .tutorial-text {
@@ -7418,4 +7427,47 @@ span[id*='MathJax-Span'] {
 
 .highlight-output>.highlight {
 	background-color: var(--horange-light) !important;
+}
+
+.case {
+	width: 40%;
+	float: left;
+	overflow: hidden;
+	border-radius: 10px;
+	margin: 20px;
+	border: 1px solid var(--hgrey-light);
+	box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+}
+
+.case:hover {
+	color: white !important;
+	background-color: var(--horange);
+}
+
+.case-image {
+	background-color: white;
+    position: relative;
+	height: 200px;
+	overflow: hidden;
+}
+
+.case-image:hover {
+	background-color: white;
+}
+
+.case-image>img {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+	left: 0;
+	right: 0;
+    margin: auto;
+	max-height: 170px;
+	padding: 15px;
+}
+
+.case-text {
+	height: 200px;
+	padding: 20px;
+	border-top: 1px solid var(--hgrey-light);
 }
