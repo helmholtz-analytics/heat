@@ -49,7 +49,7 @@ parser.add_argument(
     "-a",
     "--arch",
     metavar="ARCH",
-    default="resnet18",
+    default="resnet50",
     choices=model_names,
     help="model architecture: " + " | ".join(model_names) + " (default: resnet18)",
 )
@@ -306,7 +306,7 @@ def main_worker(gpu, ngpus_per_node, args):
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
     dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer)
-    dp_optimizer.blocking_parameter_updates = True
+    dp_optimizer.blocking_parameter_updates = False
 
     # optionally resume from a checkpoint
     # if args.resume:
