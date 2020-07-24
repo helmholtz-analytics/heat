@@ -2,22 +2,21 @@ import heat as ht
 from heat.cluster._kcluster import _KCluster
 
 
-class KMeans(_KCluster):
+class KMedians(_KCluster):
     def __init__(self, n_clusters=8, init="random", max_iter=300, tol=1e-4, random_state=None):
         """
-        K-Means clustering algorithm. An implementation of Lloyd's algorithm [1].
-        Uses the Euclidean (:math:`L_2`) metric for distance calculations
-
+        K-Medians clustering algorithm [1].
+        Uses the Manhattan (City-block, :math:`L_1`) metric for distance calculations
 
         Parameters
         ----------
         n_clusters : int, optional, default: 8
             The number of clusters to form as well as the number of centroids to generate.
-        init : {‘random’ or an ndarray}
+        init : str or DNDarray
             Method for initialization, defaults to ‘random’:
-            ‘k-means++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence.
-            ‘random’: choose k observations (rows) at random from data for the initial centroids.
-            If an ht.DNDarray is passed, it should be of shape (n_clusters, n_features) and gives the initial centers.
+                - ‘k-medians++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
+                - ‘random’: choose k observations (rows) at random from data for the initial centroids. \n
+                - ``DNDarray``: gives the initial centers, should be of Shape = (n_clusters, n_features)
         max_iter : int, default: 300
             Maximum number of iterations of the k-means algorithm for a single run.
         tol : float, default: 1e-4
@@ -25,29 +24,15 @@ class KMeans(_KCluster):
         random_state : int
             Determines random number generation for centroid initialization.
 
-        Notes
-        -----
-        The average complexity is given by O(k*n*T), were n is the number of samples and T is the number of iterations.
-
-        In practice, the k-means algorithm is very fast, but it may fall into local minima. That is why it can be useful
-        to restart it several times. If the algorithm stops before fully converging (because of tol or max_iter),
-        labels_ and cluster_centers_ will not be consistent, i.e. the cluster_centers_ will not be the means of the
-        points in each cluster. Also, the estimator will reassign labels_ after the last iteration to make labels_
-        consistent with predict on the training set.
-
         References
-        ----------
-        [1] Lloyd, Stuart P., "Least squares quantization in PCM", IEEE Transactions on Information Theory, 28 (2), pp.
-            129–137, 1982.
-        [2] Arthur, D., Vassilvitskii, S., "k-means++: The Advantages of Careful Seeding", Proceedings of the Eighteenth
-            Annual ACM-SIAM Symposium on Discrete Algorithms, Society for Industrial and Applied Mathematics
-            Philadelphia, PA, USA. pp. 1027–1035, 2007.
+        -------------
+        [1] Hakimi, S., and O. Kariv. "An algorithmic approach to network location problems II: The p-medians." SIAM Journal on Applied Mathematics 37.3 (1979): 539-560.
         """
-        if init == "kmeans++":
+        if init == "kmedians++":
             init = "probability_based"
 
         super().__init__(
-            metric=lambda x, y: ht.spatial.distance.cdist(x, y, quadratic_expansion=True),
+            metric=lambda x, y: ht.spatial.distance.manhattan(x, y, expand=True),
             n_clusters=n_clusters,
             init=init,
             max_iter=max_iter,
@@ -57,7 +42,7 @@ class KMeans(_KCluster):
 
     def _update_centroids(self, X, matching_centroids):
         """
-        Compute coordinates of new centroid ``ci`` as mean of the data points in ``X`` that are assigned to  ``ci``
+        Compute coordinates of new centroid ``ci`` as median of the data points in ``X`` that are assigned to  ``ci``
         Parameters
         ----------
         X :  DNDarray
@@ -70,27 +55,44 @@ class KMeans(_KCluster):
         for i in range(self.n_clusters):
             # points in current cluster
             selection = (matching_centroids == i).astype(ht.int64)
-            # accumulate points and total number of points in cluster
+            # Remove 0-element lines to avoid spoiling of median
             assigned_points = X * selection
-            points_in_cluster = selection.sum(axis=0, keepdim=True).clip(
-                1.0, ht.iinfo(ht.int64).max
-            )
-
-            # compute the new centroids
-            new_cluster_centers[i : i + 1, :] = (assigned_points / points_in_cluster).sum(
-                axis=0, keepdim=True
-            )
+            rows = (assigned_points.abs()).sum(axis=1) != 0
+            local = assigned_points._DNDarray__array[rows._DNDarray__array]
+            clean = ht.array(local, is_split=X.split)
+            clean.balance_()
+            # failsafe in case no point is assigned to this cluster
+            # draw a random datapoint to continue/restart
+            if clean.shape[0] == 0:
+                _, displ, _ = X.comm.counts_displs_shape(shape=X.shape, axis=0)
+                sample = ht.random.randint(0, X.shape[0]).item()
+                proc = 0
+                for p in range(X.comm.size):
+                    if displ[p] > sample:
+                        break
+                    proc = p
+                xi = ht.zeros(X.shape[1], dtype=X.dtype)
+                if X.comm.rank == proc:
+                    idx = sample - displ[proc]
+                    xi = ht.array(X.lloc[idx, :], device=X.device, comm=X.comm)
+                xi.comm.Bcast(xi, root=proc)
+                new_cluster_centers[i, :] = xi
+            else:
+                if clean.shape[0] <= ht.MPI_WORLD.size:
+                    clean.resplit_(axis=None)
+                median = ht.median(clean, axis=0, keepdim=True)
+                new_cluster_centers[i : i + 1, :] = median
 
         return new_cluster_centers
 
     def fit(self, X):
         """
-        Computes the centroid of a k-means clustering.
+        Computes the centroid of a k-medians clustering.
 
         Parameters
         ----------
-        X : ht.DNDarray, shape = [n_samples, n_features]:
-            Training instances to cluster.
+        X : ht.DNDarray
+            Training instances to cluster. Shape = (n_samples, n_features)
         """
         # input sanitation
         if not isinstance(X, ht.DNDarray):
@@ -100,7 +102,6 @@ class KMeans(_KCluster):
         self._initialize_cluster_centers(X)
         self._n_iter = 0
         matching_centroids = ht.zeros((X.shape[0]), split=X.split, device=X.device, comm=X.comm)
-
         # iteratively fit the points to the centroids
         for epoch in range(self.max_iter):
             # increment the iteration count

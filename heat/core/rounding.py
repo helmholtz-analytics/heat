@@ -1,6 +1,6 @@
 import torch
 
-from . import operations
+from . import _operations
 from . import dndarray
 from . import types
 
@@ -30,7 +30,7 @@ def abs(x, out=None, dtype=None):
     if dtype is not None and not issubclass(dtype, types.generic):
         raise TypeError("dtype must be a heat data type")
 
-    absolute_values = operations.__local_op(torch.abs, x, out)
+    absolute_values = _operations.__local_op(torch.abs, x, out)
     if dtype is not None:
         absolute_values._DNDarray__array = absolute_values._DNDarray__array.type(dtype.torch_type())
         absolute_values._DNDarray__dtype = dtype
@@ -88,7 +88,7 @@ def ceil(x, out=None):
     >>> ht.ceil(ht.arange(-2.0, 2.0, 0.4))
     tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
     """
-    return operations.__local_op(torch.ceil, x, out)
+    return _operations.__local_op(torch.ceil, x, out)
 
 
 def clip(a, a_min, a_max, out=None):
@@ -175,7 +175,7 @@ def floor(x, out=None):
     >>> ht.floor(ht.arange(-2.0, 2.0, 0.4))
     tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
     """
-    return operations.__local_op(torch.floor, x, out)
+    return _operations.__local_op(torch.floor, x, out)
 
 
 def modf(x, out=None):
@@ -273,7 +273,7 @@ def round(x, decimals=0, out=None, dtype=None):
     if decimals != 0:
         x *= 10 ** decimals
 
-    rounded_values = operations.__local_op(torch.round, x, out)
+    rounded_values = _operations.__local_op(torch.round, x, out)
 
     if decimals != 0:
         rounded_values /= 10 ** decimals
@@ -311,4 +311,4 @@ def trunc(x, out=None):
     >>> ht.trunc(ht.arange(-2.0, 2.0, 0.4))
     tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
     """
-    return operations.__local_op(torch.trunc, x, out)
+    return _operations.__local_op(torch.trunc, x, out)
