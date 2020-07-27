@@ -441,7 +441,7 @@ class PartialDataset(torch_data.Dataset):
 
 
 class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIter):
-    def __init__(self, loader: datatools.DataLoader, pre_load_batches: int = 3):
+    def __init__(self, loader, pre_load_batches: int = 3):
         # this is the HeAT DataLoader not torch!
         #       the torch DataLoader is at load.DataLoader
         # super(LoadingDataLoaderIter, self).__init__(loader=loader.DataLoader)
@@ -505,7 +505,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
 
         self._dataset_fetcher = torch_data.dataloader._DatasetKind.create_fetcher(
             self._dataset_kind,
-            loader.DataLoader._dataset,
+            loader.DataLoader.dataset,
             self._auto_collation,
             self._collate_fn,
             self._drop_last,
@@ -519,6 +519,11 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             raise NotImplementedError(
                 "this shouldnt be reached! function is only for partial datasets"
             )
+        w = 0.0
+        while target_batch not in dataset.converted_batches.keys():
+            time.sleep(0.01)
+            w += 0.01
+        print("batch:", target_batch, "transform wait:", w)
         batch = dataset.converted_batches[target_batch]
         # batch is a list of tensors here
         for b in range(len(batch)):
@@ -576,9 +581,12 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             )
             self.batches_sent_to_transform += 1
         # check if the data is there
+        w1 = 0.0
         while num_to_ret not in self.dataset.transformed_batches.keys():
             # todo: locking / waiting
             time.sleep(0.01)
+            w1 += 0.01
+        print("next data:", num_to_ret, "wait:", w1)
         return self.dataset.transformed_batches[num_to_ret]
 
         # if it is not one of the last three batches
