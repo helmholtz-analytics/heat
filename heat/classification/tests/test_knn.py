@@ -70,3 +70,38 @@ class TestKNN(TestCase):
 
         self.assertTrue((one_hot == b).all())
         self.assertTrue((label == a).all())
+
+    def test_fit_one_hot(self,):
+        X = ht.load_hdf5("heat/datasets/data/iris.h5", dataset="data")
+
+        # Keys as label array
+        keys = []
+        for i in range(50):
+            keys.append(0)
+        for i in range(50, 100):
+            keys.append(1)
+        for i in range(100, 150):
+            keys.append(2)
+        labels = ht.array(keys, split=0)
+
+        # Keys as one_hot
+        keys = []
+        for i in range(50):
+            keys.append([1, 0, 0])
+        for i in range(50, 100):
+            keys.append([0, 1, 0])
+        for i in range(100, 150):
+            keys.append([0, 0, 1])
+
+        Y = ht.array(keys)
+
+        knn = KNN(X, Y, 5, is_one_hot=True)
+
+        knn.fit_one_hot(X, Y)
+
+        result = knn.predict(X)
+
+        self.assertTrue(ht.is_estimator(knn))
+        self.assertTrue(ht.is_classifier(knn))
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, labels.shape)
