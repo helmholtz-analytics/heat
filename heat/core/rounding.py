@@ -1,5 +1,5 @@
 import torch
-from typing import Tuple
+from typing import Tuple, Optional, Callable
 from .dndarray import DNDarray
 from .types import datatype
 
@@ -10,7 +10,7 @@ from . import types
 __all__ = ["abs", "absolute", "ceil", "clip", "fabs", "floor", "modf", "round", "trunc"]
 
 
-def abs(x, out=None, dtype=None) -> DNDarray:
+def abs(x: DNDarray, out: Optional[DNDarray] = None, dtype: Optional[datatype] = None) -> DNDarray:
     """
     Calculate the absolute value element-wise.
 
@@ -36,11 +36,15 @@ def abs(x, out=None, dtype=None) -> DNDarray:
     return absolute_values
 
 
-DNDarray.abs = lambda self, out=None, dtype=None: abs(self, out, dtype)
+DNDarray.abs: Callable[
+    [DNDarray, Optional[DNDarray], Optional[datatype]], DNDarray
+] = lambda self, out=None, dtype=None: abs(self, out, dtype)
 DNDarray.abs.__doc__ = abs.__doc__
 
 
-def absolute(x, out=None, dtype=None) -> DNDarray:
+def absolute(
+    x: DNDarray, out: Optional[DNDarray] = None, dtype: Optional[datatype] = None
+) -> DNDarray:
     """
     Calculate the absolute value element-wise.
     :func:`abs` is a shorthand for this function.
@@ -59,11 +63,13 @@ def absolute(x, out=None, dtype=None) -> DNDarray:
     return abs(x, out, dtype)
 
 
-DNDarray.absolute = lambda self, out=None, dtype=None: absolute(self, out, dtype)
+DNDarray.absolute: Callable[
+    [DNDarray, Optional[DNDarray], Optional[datatype]], DNDarray
+] = lambda self, out=None, dtype=None: absolute(self, out, dtype)
 DNDarray.absolute.__doc__ = absolute.__doc__
 
 
-def ceil(x, out=None) -> DNDarray:
+def ceil(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Return the ceil of the input, element-wise. Result is a ``DNDarray`` of the same shape as ``x``.
     The ceil of the scalar ``x`` is the smallest integer i, such that ``i>=x``. It is often denoted as :math:`\\lceil x \\rceil`.
@@ -84,11 +90,13 @@ def ceil(x, out=None) -> DNDarray:
     return _operations.__local_op(torch.ceil, x, out)
 
 
-DNDarray.ceil = lambda self, out=None: ceil(self, out)
+DNDarray.ceil: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: ceil(
+    self, out
+)
 DNDarray.ceil.__doc__ = ceil.__doc__
 
 
-def clip(x, min, max, out=None) -> DNDarray:
+def clip(x: DNDarray, min, max, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Returns a :class:`~heat.core.dndarray.DNDarray` with the elements of this array, but where values ``<a_min`` are replaced with ``a_min``, and those
     ``>a_max`` with ``a_max``.
@@ -119,7 +127,7 @@ DNDarray.clip = lambda self, a_min, a_max, out=None: clip(self, a_min, a_max, ou
 DNDarray.clip.__doc__ = clip.__doc__
 
 
-def fabs(x, out=None) -> DNDarray:
+def fabs(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Calculate the absolute value element-wise and return floating-point ``DNDarray``.
     This function exists besides ``abs==absolute`` since it will be needed in case complex numbers will be introduced in the future.
@@ -136,11 +144,13 @@ def fabs(x, out=None) -> DNDarray:
     return abs(x, out, dtype=None)
 
 
-DNDarray.fabs = lambda self, out=None: fabs(self, out)
+DNDarray.fabs: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: fabs(
+    self, out
+)
 DNDarray.fabs.__doc__ = fabs.__doc__
 
 
-def floor(x, out=None) -> DNDarray:
+def floor(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Return the floor of the input, element-wise.
     The floor of the scalar ``x`` is the largest integer i, such that ``i<=x``.
@@ -162,11 +172,13 @@ def floor(x, out=None) -> DNDarray:
     return _operations.__local_op(torch.floor, x, out)
 
 
-DNDarray.floor = lambda self, out=None: floor(self, out)
+DNDarray.floor: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: floor(
+    self, out
+)
 DNDarray.floor.__doc__ = floor.__doc__
 
 
-def modf(x, out=None) -> Tuple[DNDarray, DNDarray]:
+def modf(x: DNDarray, out: Optional[Tuple[DNDarray, DNDarray]] = None) -> Tuple[DNDarray, DNDarray]:
     """
     Return the fractional and integral parts of a ``DNDarray``, element-wise.
     The fractional and integral parts are negative if the given number is negative.
@@ -213,11 +225,15 @@ def modf(x, out=None) -> Tuple[DNDarray, DNDarray]:
     return (fractionalParts, integralParts)
 
 
-DNDarray.modf = lambda self, out=None: modf(self, out)
+DNDarray.modf: Callable[
+    [DNDarray, Optional[Tuple[DNDarray, DNDarray]]], Tuple[DNDarray, DNDarray]
+] = lambda self, out=None: modf(self, out)
 DNDarray.modf.__doc__ = modf.__doc__
 
 
-def round(x, decimals=0, out=None, dtype=None) -> DNDarray:
+def round(
+    x: DNDarray, decimals: int = 0, out: Optional[DNDarray] = None, dtype: Optional[datatype] = None
+) -> DNDarray:
     """
     Calculate the rounded value element-wise.
 
@@ -259,11 +275,13 @@ def round(x, decimals=0, out=None, dtype=None) -> DNDarray:
     return rounded_values
 
 
-DNDarray.round = lambda self, decimals=0, out=None, dtype=None: round(self, decimals, out, dtype)
+DNDarray.round: Callable[
+    [DNDarray, int, Optional[DNDarray], Optional[datatype]], DNDarray
+] = lambda self, decimals=0, out=None, dtype=None: round(self, decimals, out, dtype)
 DNDarray.round.__doc__ = round.__doc__
 
 
-def trunc(x, out=None) -> DNDarray:
+def trunc(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Return the trunc of the input, element-wise.
     The truncated value of the scalar ``x`` is the nearest integer ``i`` which is closer to zero than ``x`` is. In short, the
@@ -285,5 +303,7 @@ def trunc(x, out=None) -> DNDarray:
     return _operations.__local_op(torch.trunc, x, out)
 
 
-DNDarray.trunc = lambda self, out=None: trunc(self, out)
+DNDarray.trunc: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: trunc(
+    self, out
+)
 DNDarray.trunc.__doc__ = trunc.__doc__
