@@ -9,6 +9,7 @@ from . import communication
 from . import devices
 from . import factories
 
+from typing import Union, Tuple, Any, Iterable, Optional
 
 __all__ = [
     "datatype",
@@ -68,7 +69,12 @@ class datatype:
             - flexible (currently unused, placeholder for characters) \n
     """
 
-    def __new__(cls, *value, device=None, comm=None):
+    def __new__(
+        cls,
+        *value,
+        device: Optional[Union[str, devices.Device]] = None,
+        comm: Optional[communication.Communication] = None
+    ):
         torch_type = cls.torch_type()
         if torch_type is NotImplemented:
             raise TypeError("cannot create '{}' instances".format(cls))
@@ -334,13 +340,13 @@ __type_mappings = {
 }
 
 
-def canonical_heat_type(a_type) -> datatype:
+def canonical_heat_type(a_type: Union[str, datatype, Any]) -> datatype:
     """
     Canonicalize the builtin Python type, type string or HeAT type into a canonical HeAT type.
 
     Parameters
     ----------
-    a_type : type, str, ht.dtype
+    a_type : type, str, datatype
         A description for the type. It may be a a Python builtin type, string or an HeAT type already.
         In the three former cases the according mapped type is looked up, in the latter the type is simply returned.
 
@@ -363,7 +369,7 @@ def canonical_heat_type(a_type) -> datatype:
         raise TypeError("data type {} is not understood".format(a_type))
 
 
-def heat_type_is_exact(ht_dtype) -> bool:
+def heat_type_is_exact(ht_dtype: datatype) -> bool:
     """
     Check if HeAT type is an exact type, i.e an integer type. True if ht_dtype is an integer, False otherwise
 
@@ -375,7 +381,7 @@ def heat_type_is_exact(ht_dtype) -> bool:
     return ht_dtype in _exact
 
 
-def heat_type_is_inexact(ht_dtype) -> bool:
+def heat_type_is_inexact(ht_dtype: datatype) -> bool:
     """
     Check if HeAT type is an inexact type, i.e floating point type. True if ht_dtype is a float, False otherwise
 
@@ -387,7 +393,7 @@ def heat_type_is_inexact(ht_dtype) -> bool:
     return ht_dtype in _inexact
 
 
-def heat_type_of(obj) -> datatype:
+def heat_type_of(obj: Union[str, datatype, Any, Iterable[str, datatype, Any]]) -> datatype:
     """
     Returns the corresponding HeAT data type of given object, i.e. scalar, array or iterable. Attempts to determine the
     canonical data type based on the following priority list:
@@ -483,7 +489,9 @@ __same_kind = [
 __cast_kinds = ["no", "safe", "same_kind", "unsafe", "intuitive"]
 
 
-def can_cast(from_, to, casting="intuitive") -> bool:
+def can_cast(
+    from_: Union[str, datatype, Any], to: Union[str, datatype, Any], casting: str = "intuitive"
+) -> bool:
     """
     Returns True if cast between data types can occur according to the casting rule. If from is a scalar or array
     scalar, also returns True if the scalar value can be cast without overflow or truncation to an integer.
@@ -572,7 +580,7 @@ for i, operand_a in enumerate(__type_codes.keys()):
                 break
 
 
-def promote_types(type1, type2) -> datatype:
+def promote_types(type1: Union[str, datatype, Any], type2: Union[str, datatype, Any]) -> datatype:
     """
     Returns the data type with the smallest size and smallest scalar kind to which both ``type1`` and ``type2`` may be
     intuitively cast to, where intuitive casting refers to maintaining the same bit length if possible. This function
@@ -637,7 +645,7 @@ class finfo:
     1.1920928955078125e-07
     """
 
-    def __new__(cls, dtype):
+    def __new__(cls, dtype: datatype):
         try:
             dtype = heat_type_of(dtype)
         except (KeyError, IndexError, TypeError):
@@ -649,7 +657,7 @@ class finfo:
 
         return super(finfo, cls).__new__(cls)._init(dtype)
 
-    def _init(self, dtype):
+    def _init(self, dtype: datatype):
         _torch_finfo = torch.finfo(dtype.torch_type())
         for word in ["bits", "eps", "max", "tiny"]:
             setattr(self, word, getattr(_torch_finfo, word))
@@ -680,12 +688,12 @@ class iinfo:
     Examples
     ---------
     >>> import heat as ht
-    >>> info = ht.types.finfo(ht.int32)
+    >>> info = ht.types.iinfo(ht.int32)
     >>> info.bits
     32
     """
 
-    def __new__(cls, dtype):
+    def __new__(cls, dtype: datatype):
         try:
             dtype = heat_type_of(dtype)
         except (KeyError, IndexError, TypeError):
@@ -697,7 +705,7 @@ class iinfo:
 
         return super(iinfo, cls).__new__(cls)._init(dtype)
 
-    def _init(self, dtype):
+    def _init(self, dtype: datatype):
         _torch_iinfo = torch.iinfo(dtype.torch_type())
         for word in ["bits", "max"]:
             setattr(self, word, getattr(_torch_iinfo, word))
