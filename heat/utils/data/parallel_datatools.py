@@ -484,12 +484,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                 batch = self.rand_samp_list[xi * self.batch_size : (xi + 1) * self.batch_size]
                 # todo: send next_inds to data placement loader, still todo????
                 self.dataset.io_queue.put(
-                    (
-                        self.dataset.thread_convert_items_to_batches,
-                        batch.copy(),
-                        self.batch_size,
-                        False,
-                    )
+                    (self.dataset.thread_convert_items_to_batches, batch.copy(), self.batch_size)
                 )
                 self.inds.append(batch)
                 # load the first batch to device here
@@ -557,13 +552,24 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
         num_to_ret = self.batch_num_to_return
         num_to_delete = num_to_ret - 1 if num_to_ret > 0 else None
         num_to_transform = num_to_ret + 1  # todo: more than 1 in front?
-        prev_batch_inds = (
-            None
-            if num_to_ret == 0
-            else self.rand_samp_list[num_to_delete * self.batch_size : num_to_ret * self.batch_size]
-        )
+        num_to_convert = num_to_ret + self.pre_loaded_batches
+
+        if num_to_convert < self.num_batches:
+            # load the items from the numpy array to a torch tensor
+            self.dataset.io_queue.put(
+                (
+                    self.dataset.thread_convert_items_to_batches,
+                    self.rand_samp_list[
+                        num_to_convert * self.batch_size : (num_to_convert + 1) * self.batch_size
+                    ],
+                    self.batch_size,
+                )
+            )
 
         if num_to_delete is not None:
+            prev_batch_inds = self.rand_samp_list[
+                num_to_delete * self.batch_size : num_to_ret * self.batch_size
+            ]
             # getitem helper for the previous batch indexes
             self.dataset.getitem_index_helper(prev_batch_inds)
             # delete the previous batch
