@@ -20,14 +20,15 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         Labels for the training set, bool value for each class in n_features
     num_neighbours: int
         Number of neighbours to consider when choosing label
-
+    is_one_hot: bool
+        Whether y is a label array or in one-hot-encoding
     References
     --------
     [1] T. Cover and P. Hart, "Nearest neighbor pattern classification," in IEEE Transactions on Information Theory,
         vol. 13, no. 1, pp. 21-27, January 1967, doi: 10.1109/TIT.1967.1053964.
     """
 
-    def __init__(self, x, y, num_neighbours):
+    def __init__(self, x, y, num_neighbours, is_one_hot=False):
 
         if x.shape[0] != y.shape[0]:
             raise ValueError(
@@ -37,7 +38,10 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
             )
 
         self.x = x
-        self.y = self.label_to_one_hot(y)
+        if is_one_hot:
+            self.y = y
+        else:
+            self.y = self.label_to_one_hot(y)
         self.num_neighbours = num_neighbours
 
     def fit(self, X, Y):
