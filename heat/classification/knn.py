@@ -16,8 +16,8 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         Array of shape (n_samples, sample_length,), required
         The training vectors
     y : ht.DNDarray
-        Array of shape (n_samples, ), required
-        Labels for the training set, bool value for each class in n_features
+            Labels for the data. Can be either of shape (n_samples,) as label array, or in one-hot-encoding with shape
+            (n_samples, n_classes).
     num_neighbours: int
         Number of neighbours to consider when choosing label
     is_one_hot: bool
@@ -38,10 +38,16 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
             )
 
         self.x = x
-        if is_one_hot:
+        if len(y.shape) == 1:
+            self.y = self.label_to_one_hot(y)
+        elif len(y.shape) == 2:
             self.y = y
         else:
-            self.y = self.label_to_one_hot(y)
+            raise ValueError(
+                "Expected labels of shape (n_samples,) or (n_samples, n_classes) but got {}".format(
+                    y.shape
+                )
+            )
         self.num_neighbours = num_neighbours
 
     def fit(self, X, Y):
@@ -51,7 +57,8 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         X : ht.DNDarray
             Data vectors used for prediction
         Y : ht.DNDarray
-            Labels for the data, shape (n_samples,)
+            Labels for the data. Can be either of shape (n_samples,) as label array, or in one-hot-encoding with shape
+            (n_samples, n_classes).
         """
 
         if X.shape[0] != Y.shape[0]:
@@ -62,27 +69,16 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
             )
 
         self.x = X
-        self.y = self.label_to_one_hot(Y)
-
-    def fit_one_hot(self, X, Y):
-        """
-        Parameters
-        ----------
-        X : ht.DNDarray
-            Data vectors used for prediction
-        Y : ht.DNDarray
-            Labels for the data in one-hot-encoding, shape (n_samples, n_classes)
-        """
-
-        if X.shape[0] != Y.shape[0]:
+        if len(Y.shape) == 1:
+            self.y = self.label_to_one_hot(Y)
+        elif len(Y.shape) == 2:
+            self.y = Y
+        else:
             raise ValueError(
-                "Number of samples and labels needs to be the same, got {}, {}".format(
-                    X.shape[0], Y.shape[0]
+                "Expected labels of shape (n_samples,) or (n_samples, n_classes) but got {}".format(
+                    Y.shape
                 )
             )
-
-        self.x = X
-        self.y = Y
 
     def predict(self, X) -> ht.dndarray:
         """
@@ -98,7 +94,6 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         labels = self.y[indices.flatten()]
         labels.balance_()
         labels = ht.reshape(labels, (indices.gshape + (self.y.gshape[1],)))
-
         labels = ht.sum(labels, axis=1)
         maximums = ht.argmax(labels, axis=1)
 
@@ -112,8 +107,5 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         items = ht.arange(0, max_label.item() + 1)
         one_hot = ht.stack([items for i in range(a.shape[0])], axis=0)
         one_hot = ht.where(one_hot == a, 1, 0)
-        return one_hot
 
-    @staticmethod
-    def one_hot_to_label(a):
-        return ht.argmax(a, axis=1)
+        return one_hot

@@ -1,5 +1,6 @@
 import sys
 import os
+import random
 
 # Fix python path if run from terminal
 curdir = os.path.dirname(os.path.abspath(__file__))
@@ -83,20 +84,17 @@ def create_fold(dataset_x, dataset_y, size, seed=None):
     assert size < len(dataset_x)
 
     data_length = len(dataset_x)
+
     if seed:
-        ht.random.seed(seed)
-    indices = ht.random.randint(low=0, high=data_length - 1, size=(size,))
-    indices = ht.unique(indices, sorted=True)
-    while len(indices) < size:
-        diff = size - len(indices)
-        additional = ht.random.randint(low=0, high=data_length, size=(diff,))
-        indices = ht.concatenate((indices, additional))
-        indices = ht.unique(indices, sorted=True)
-    indices = indices.tolist()
-    all_indices = [index for index in range(data_length)]
-    verification_indices = [index for index in all_indices if index not in indices]
-    fold_x = ht.array(dataset_x[indices], is_split=0)
-    fold_y = ht.array(dataset_y[indices], is_split=0)
+        random.seed(seed)
+    indices = [i for i in range(data_length)]
+    random.shuffle(indices)
+
+    data_indices = ht.array(indices[0:size], split=0)
+    verification_indices = ht.array(indices[size:], split=0)
+
+    fold_x = ht.array(dataset_x[data_indices], is_split=0)
+    fold_y = ht.array(dataset_y[data_indices], is_split=0)
     verification_y = ht.array(dataset_y[verification_indices], is_split=0)
     verification_x = ht.array(dataset_x[verification_indices], is_split=0)
 
@@ -144,4 +142,4 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
     return accuracies
 
 
-print(verify_algorithm(X, Y, 5, 50, 5))
+print(verify_algorithm(X, Y, 1, 30, 5, 1))
