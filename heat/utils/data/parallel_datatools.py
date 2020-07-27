@@ -7,6 +7,7 @@ import threading
 import torch
 import itertools
 import time
+import warnings
 from torch.utils import data as torch_data
 from typing import Callable, List, Iterator, Union
 
@@ -127,17 +128,18 @@ class PartialDataset(torch_data.Dataset):
             if isinstance(np_buffer_dataset_names, list)
             else [np_buffer_dataset_names]
         )
+        self.dataset_order = []
         for d in dataset_names:
             # this should set the dataset attributes like data, by getting the data from the file
             #   up to the local data length
             if not np_buffer or d not in np_buffer_dataset_names:
                 hld = torch.tensor(f[d][self.local_data_start : local_data_end])
+                self.__setattr__(d, hld)
             else:
-                hld = torch.zeros([local_data_end - self.local_data_start] + self.single_shape)
+                # hld = torch.zeros([local_data_end - self.local_data_start] + self.single_shape)
                 # todo: how much data should be loaded here???
-                self.__setattr__("np" + d, f[d][self.local_data_start : local_data_end])
-
-            self.__setattr__(d, hld.to(self.torch_device))
+                self.__setattr__(d, f[d][self.local_data_start : local_data_end])
+                self.__setattr__("conv" + d, [])
             self.__setattr__("next_" + d, None)
         f.close()
         self.load_thread = None
@@ -155,57 +157,148 @@ class PartialDataset(torch_data.Dataset):
         threading.Thread(target=queue_thread, args=[self.io_queue], daemon=True).start()
         self.convert_queue = queue.Queue()
         threading.Thread(target=queue_thread, args=[self.convert_queue], daemon=True).start()
-        self.last_converted_batch = 0 if self.np_buffer else None
         self.batch_loading_condition = threading.Condition()
-        self.num_converted = 0 if self.np_buffer else None
+        self.getitem_conversion = [None] * len(self.dataset_names)
+        # todo: needs to be overwritten by user from the getitem script
+        self.transform_list = [transform, None]
+        if self.np_buffer:
+            self.last_converted_batch = 0
+            self.num_bch_conv = 0
+            self.num_file_loads = 0
+            self.converted_items_list = []
+            self.converted_batches = {}
+            self.transformed_batches = {}
+        else:
+            self.last_converted_batch = None
+            self.num_bch_conv = None
+            self.num_file_loads = None
+            self.converted_batches = None
+            self.converted_items_list = None
+            self.transformed_batches = None
 
-    def load_item_transform(self, item):
-        # need to either do a standard load here if not overwritten
-        # this should be overwritten in the case that there is a requirement to load the data with numpy first
-        # if not self.np_buffer:
-        #     return item
-        return item
+    # def load_item_transform(self, index):
+    #     # need to either do a standard load here if not overwritten
+    #     # this should be overwritten in the case that there is a requirement to load the data with numpy first
+    #     # if not self.np_buffer:
+    #     #     return item
+    #     return NotImplementedError
 
     # def convert_items(self, items, dataset, target=False):
     # self.convert_queue.put((self._thread_insert_group, items, dataset, target))
 
-    def thread_convert_items(self, items, target=False):
+    def thread_convert_items_to_batches(self, items, batch_size=None):
         if isinstance(items, int):
             items = [items]
-        # items must be a list or a torch tensor
-        for dataset_lp in self.np_datasets:
-            # get the numpy dataset
-            np_data = self.__getattribute__("np" + dataset_lp)[items]
-            t_data = torch.zeros([len(np_data)] + self.single_shape)
-            rem_list = []
-            for i in range(len(items)):
-                try:
-                    # convert the item to a torch tensor:
-                    hold = self.load_item_transform(item=items[i], image=np_data[i])
-                    if target:
-                        t_data[i] = self.target_transform(hold)
-                    else:
-                        hld1 = self.transform(hold)
-                        t_data[i] = hld1
-                except ValueError:
-                    # todo: investigate further when and how often this happens
-                    rem_list.append(i)
-            #   write to the torch set in the items
-            dat = self.__getattribute__(dataset_lp)
-            keep_list = list(range(len(items)))
-            if len(rem_list) > 0:
-                for ridx in reversed(rem_list):
-                    del keep_list[ridx]
-                    del items[ridx]
-            # if GPU is there, put t_data on the GPUs
-            t_data = t_data[keep_list].to(self.torch_device)
-            dat[items] = t_data
-            # todo: required?
-            self.__setattr__(dataset_lp, dat)
-        num_converted = len(items)
-        self.num_converted += num_converted
-        # del t_data
-        #self.last_converted_batch += 1
+
+        # todo: do the getitem for the dataset
+        converted_items = []
+        for i in items:
+            single_item = self[i]
+            # have the item, need to convert from numpy to torch
+            for ii in range(len(single_item)):
+                if self.getitem_conversion[ii] is not None:
+                    # note: self.getitem_conversion should have the function to convert
+                    #   the np array for the proper element
+                    single_item[ii] = self.getitem_conversion[ii](i)
+                # have all torch stuff here
+                # need to do the transform now
+            converted_items.append(single_item)
+        self.converted_items_list.append(converted_items)
+        if batch_size is not None:
+            # add the batches to the converted batches dictionary
+            if len(self.converted_items_list) % batch_size == 0:
+                bs = len(self.converted_items_list) // batch_size
+                for b in range(bs):
+                    self.num_bch_conv += 1
+                    self.converted_batches[self.num_bch_conv] = self.converted_items_list[
+                        :batch_size
+                    ]
+                    self.converted_items_list = self.converted_items_list[batch_size:]
+            # elif :
+            #     self.num_bch_conv += 1
+            #     self.converted_batches[self.num_bch_conv] = self.converted_items_list[: batch_size]
+            #     self.converted_items_list = self.converted_items_list[batch_size :]
+
+            # elif len(items) >= batch_size:
+            #     # todo: test
+            #     batchs = len(items) // batch_size
+            #     for b in reversed(range(batchs)):
+            #         for dlp in self.np_datasets:
+            #             hold5 = self.__getattribute__("conv" + dlp)
+            #             self.converted_batches[self.batches_converted + b] = hold5[-1 * batch_size:]
+            #
+            #             self.__setattr__("conv" + dlp, hold5[: -1 * batch_size])
+            #     self.batches_converted += batchs
+        # # items must be a list or a torch tensor
+        # # where should this be?
+        # for i in range(len(items)):
+        #     hold = self.__getitem__(i)
+        #     for conv in self.getitem_conversion:
+        #         if conv is not None:
+        #             np_data = self.__getattribute__(dataset_lp)[items]
+        # for dataset_lp in self.np_datasets:
+        #     # get the numpy dataset
+        #     np_data = self.__getattribute__(dataset_lp)[items]
+        #     # t_data = torch.zeros([len(np_data)] + self.single_shape)
+        #     hld = []
+        #
+        #     # todo: generalize this function to work for any given dataset
+        #     for i in range(len(items)):
+        #         try:
+        #             # convert the item to a torch tensor:
+        #             # hold = self.load_item_transform(index=items[i], image=np_data[i])
+        #             item =
+        #             hld.extend(self.load_item_transform(index=items[i], item=np_data[i]))
+        #             # if target:
+        #             #     hld.extend(self.target_transform(hold))
+        #             # else:
+        #             #     hld.extend(self.transform(hold))
+        #         except ValueError:
+        #             # todo: investigate further when and how often this happens
+        #             pass
+        #         # signal collate function here to do the transform, collect the batch, and put it into the dictonary
+        #
+        #     #   write to the torch set in the items
+        #     # dat = self.__getattribute__(dataset_lp)
+        #     # keep_list = list(range(len(items)))
+        #     # if len(rem_list) > 0:
+        #     #     for ridx in reversed(rem_list):
+        #     #         del keep_list[ridx]
+        #     #         del items[ridx]
+        #     self.__getattribute__("conv" + dataset_lp).extend(hld)
+        #     # if GPU is there, put t_data on the GPUs
+        #     # t_data = t_data[keep_list].to(self.torch_device)
+        #     # dat[items] = t_data
+        #     # todo: required?
+        #     # self.__setattr__(dataset_lp, dat)
+        #
+        # # todo: this is going to be changed to build something which can be given to collate
+        # num_converted = len(items)
+        # self.num_converted += num_converted
+        # if batch_size is not None:
+        #     if self.num_converted % batch_size == 0:
+        #         self.batches_converted += 1
+        #         for dlp in self.np_datasets:
+        #             hold5 = self.__getattribute__("conv" + dlp)
+        #             self.ready_batches[self.batches_converted] = hold5[-1 * batch_size:]
+        #
+        #             self.__setattr__("conv" + dlp, hold5[: -1 * batch_size])
+        #     elif len(items) >= batch_size:
+        #         # todo: test
+        #         batchs = len(items) // batch_size
+        #         for b in reversed(range(batchs)):
+        #             for dlp in self.np_datasets:
+        #                 hold5 = self.__getattribute__("conv" + dlp)
+        #                 self.ready_batches[self.batches_converted + b] = hold5[-1 * batch_size:]
+        #
+        #                 self.__setattr__("conv" + dlp, hold5[: -1 * batch_size])
+        #         self.batches_converted += batchs
+        # # del t_data
+
+    def thread_write_next_batch(self, batch, batch_size):
+        # todo: need to have a holding array
+        # for dataset_lp in self.np_datasets:
+        pass
 
     def load_next_group(self):
         # nonblocking calls to start the loading of the next dataset
@@ -223,13 +316,14 @@ class PartialDataset(torch_data.Dataset):
         print("loading", self.next_start, next_end, rem, self.getitem_num)
         nxt_start = self.next_start
         self.io_queue.put((self._thread_loading_from_file, f, wrap, nxt_start, next_end, rem))
+        self.num_file_loads += 1
         self.next_start = next_end if next_end < self.length else rem
 
     def _thread_loading_from_file(self, f, wrap, next_start, next_end, rem):
         for d in self.dataset_names:
             nxt = f[d][next_start:next_end]
-            if not self.np_buffer or d not in self.np_datasets:
-                nxt = torch.tensor(nxt)
+            if d not in self.np_datasets:
+                nxt = torch.tensor(nxt)  # todo: device?? -> CPU
             # print('loading', self.next_start, next_end, rem, self.getitem_num)
             if wrap:
                 nxt2 = f[d][0:rem]  # rem + 1?
@@ -255,26 +349,20 @@ class PartialDataset(torch_data.Dataset):
         # self.next_indices = torch.empty_like(nxt_inds)
         nxt_inds = nxt_inds[:entries]
         for d in self.dataset_names:
-            if d in self.np_datasets:
-                hld = self.__getattribute__("np" + d)
-            else:
-                # todo: get from gpu??
-                hld = self.__getattribute__(d)
+            # if d in self.np_datasets:
+            #     hld = self.__getattribute__("np" + d)
+            # else:
+            #     # todo: get from gpu??
+            hld = self.__getattribute__(d)
             # print(len(nxt_inds), entries, hld.shape, self.loads_remaining)
-            if d not in self.np_datasets:
-                nxt_tens = self.__getattribute__("next_" + d)
-                nxt_tens = nxt_tens[: len(nxt_inds)].to(self.torch_device)
-            else:
-                nxt_tens = self.__getattribute__("next_" + d)[: len(nxt_inds)]
+            # if d not in self.np_datasets:
+            #     nxt_tens = self.__getattribute__("next_" + d)
+            #     nxt_tens = nxt_tens[: len(nxt_inds)]
+            # else:
+            nxt_tens = self.__getattribute__("next_" + d)[: len(nxt_inds)]
             hld[nxt_inds] = nxt_tens
 
-            # todo: is the required?
-            if d in self.np_datasets:
-                self.__setattr__("np" + d, hld)
-            else:
-                # gpu insert
-                hld = hld.to(self.torch_device)
-                self.__setattr__(d, hld)
+            self.__setattr__(d, hld)
 
     def insert_group(self, entries, next_inds):
         # todo: block the main thread here?
@@ -328,6 +416,7 @@ class PartialDataset(torch_data.Dataset):
             self.load_next_group()
             # reset getitem_num
             self.getitem_num = rem
+
             self.next_indices = self.next_indices_overflow.copy()
             self.next_indices_overflow = set()
             # self.next_indices[:rem] = self.next_indices_overflow[:rem]
@@ -351,112 +440,277 @@ class PartialDataset(torch_data.Dataset):
         return self.local_length
 
 
-class LoadingBatchSampler(torch_data.BatchSampler):
-    def __init__(self, sampler, batch_size, drop_last):
-        super(LoadingBatchSampler, self).__init__(sampler, batch_size, drop_last)
-        if self.sampler.replacement:
-            raise TypeError("Replacement drawing not implemented for loading sampler")
-        # self.old_next = self.__next__
-        self.cnt = 0
+class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIter):
+    def __init__(self, loader: datatools.DataLoader, pre_load_batches: int = 3):
+        # this is the HeAT DataLoader not torch!
+        #       the torch DataLoader is at load.DataLoader
+        # super(LoadingDataLoaderIter, self).__init__(loader=loader.DataLoader)
+        self.dataset = loader.dataset
+        self._dataset_kind = loader.DataLoader._dataset_kind
+        self._IterableDataset_len_called = loader.DataLoader._IterableDataset_len_called
+        self._auto_collation = loader.DataLoader._auto_collation
+        self._drop_last = loader.DataLoader.drop_last
+        self._index_sampler = loader.DataLoader._index_sampler
+        self._num_workers = loader.DataLoader.num_workers
+        self._pin_memory = loader.DataLoader.pin_memory and torch.cuda.is_available()
+        self._timeout = loader.DataLoader.timeout
+        self._collate_fn = loader.DataLoader.collate_fn
+        self._sampler_iter = iter(self._index_sampler)
+        self._base_seed = torch.empty((), dtype=torch.int64).random_().item()
+        self._num_yielded = 0
+        self.batch_size = loader.DataLoader.batch_size
+
+        # todo: support other samplers: for now its only random!!!
+        if isinstance(self.dataset, PartialDataset) and self.dataset.partial_dataset:
+            n = self.dataset.local_length
+            wait_point = n // self.batch_size
+            rem = n % self.batch_size
+            if rem and self._drop_last:
+                wait_point += 1
+            self.wait_points = [wait_point]
+            # slice the dataset so that it is only full batches
+            self.rand_samp_list = torch.randperm(n)[:wait_point].tolist()
+            for i in range(self.dataset.loads_required - 1):
+                self.wait_points.append(wait_point * (i + 1))
+                self.rand_samp_list.extend(torch.randperm(n)[:wait_point].tolist())
+            self.num_batches = sum(self.wait_points)
+            self.inds = []
+
+            # if the number of batches to be loaded equates to more data than is loaded then make it smaller
+            if pre_load_batches * self.batch_size > self.dataset.local_length:
+                pre_load_batches = self.dataset.local_length // self.batch_size
+            self.pre_loaded_batches = pre_load_batches
+            for xi in range(pre_load_batches):
+                batch = self.rand_samp_list[xi * self.batch_size : (xi + 1) * self.batch_size]
+                # todo: send next_inds to data placement loader, still todo????
+                self.dataset.io_queue.put(
+                    (
+                        self.dataset.thread_convert_items_to_batches,
+                        batch.copy(),
+                        self.batch_size,
+                        False,
+                    )
+                )
+                self.inds.append(batch)
+                # load the first batch to device here
+                self.dataset.convert_queue.put(
+                    (self.thread_transform_dict_device, self.dataset, xi, self._collate_fn)
+                )
+            self.batches_sent_to_transform = pre_load_batches
+            self.iter_loaded_batches = (
+                pre_load_batches
+            )  # these batches are only SENT to the thread to convert them
+        else:
+            self.rand_samp_list = torch.randperm(len(self.dataset)).tolist()
+
+        self._dataset_fetcher = torch_data.dataloader._DatasetKind.create_fetcher(
+            self._dataset_kind,
+            loader.DataLoader._dataset,
+            self._auto_collation,
+            self._collate_fn,
+            self._drop_last,
+        )
+
+        self.batch_num_to_return = 0
+
+    @staticmethod
+    def thread_transform_dict_device(dataset, target_batch, collate_func):
+        if dataset.np_buffer is None:
+            raise NotImplementedError(
+                "this shouldnt be reached! function is only for partial datasets"
+            )
+        batch = dataset.converted_batches[target_batch]
+        # batch is a list of tensors here
+        for b in range(len(batch)):
+            if isinstance(batch[b], (tuple, list)):
+                b = list(batch[b])
+                for bi in range(len(b)):
+                    if dataset.transform_list[bi] is not None:
+                        batch[b][bi] = dataset.transform_list[bi](b[bi])
+            elif isinstance(batch[b], torch.Tensor):
+                if len(dataset.transform_list) == 1:
+                    batch[b] = dataset.transform_list[0](batch[b])
+            else:
+                raise TypeError(
+                    f"batches should be either torch tensors or a list/tuple of tensors, "
+                    f"currently {type(batch)}"
+                )
+        # collate fn and put it on the target device
+        dataset.transformed_batches[target_batch] = collate_func(batch).to(dataset.torch_device)
+
+    def _next_data(self):
+        if not self.dataset.np_buffer:
+            # shamelessly stolen from torch: torch_data.utils._SingleProcessDataLoaderIter
+            index = next(self._sampler_iter)  # may raise StopIteration
+            data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+            if self._pin_memory:
+                # todo: where is this function??
+                data = torch_data._utils.pin_memory.pin_memory(data)
+                # torch.utils.data._utils.pin_memory.pin_memory(data)
+            return data
+        # ===================================== partial datasets ===========================================
+        num_to_ret = self.batch_num_to_return
+        num_to_delete = num_to_ret - 1 if num_to_ret > 0 else None
+        num_to_transform = num_to_ret + 1  # todo: more than 1 in front?
+        prev_batch_inds = (
+            None
+            if num_to_ret == 0
+            else self.rand_samp_list[num_to_delete * self.batch_size : num_to_ret * self.batch_size]
+        )
+
+        if num_to_delete is not None:
+            # getitem helper for the previous batch indexes
+            self.dataset.getitem_index_helper(prev_batch_inds)
+            # delete the previous batch
+            del self.dataset.transformed_batches[num_to_delete]
+
+        # check if the next batch needs transforming, if its less then the number of batches
+        if num_to_transform <= self.num_batches:
+            self.dataset.convert_queue.put(
+                (
+                    self.thread_transform_dict_device,
+                    self.dataset,
+                    num_to_transform,
+                    self._collate_fn,
+                )
+            )
+            self.batches_sent_to_transform += 1
+        # check if the data is there
+        while num_to_ret not in self.dataset.transformed_batches.keys():
+            # todo: locking / waiting
+            time.sleep(0.01)
+        return self.dataset.transformed_batches[num_to_ret]
+
+        # if it is not one of the last three batches
+
+        # wait = 0.
+        # bn = self.iter_loaded_batches  # batch number
+        # batch = self.rand_samp_list[bn * self.batch_size : (bn + 1) * self.batch_size]
+        # prev_batch_inds = None if bn == 0 else self.rand_samp_list[(bn - 1) * self.batch_size : bn * self.batch_size]
+        # if len(batch) < self.batch_size:  # and not drop last?
+        #     # all batches should be converted already, only need getitem helper
+        #     if prev_batch_inds is None:
+        #         # need to get the previous
+        #         # check if self.dataset.transformed_batches
+        #         while self.batch_num_to_return not in self.dataset.transformed_batches.keys():
+        #             # todo: locking / waiting
+        #             time.sleep(0.01)
+        #         ret = self.dataset.transformed_batches[self.batch_num_to_return]
+        #         if self.batch_num_to_return > 0:
+        #             # remove the previously used batch from memory
+        #             del self.dataset.transformed_batches[self.batch_num_to_return - 1]
+        #         # need to send the previously returned batch indices to the getitem_index_helper
+        #         self.dataset.getitem_index_helper(prev_batch_inds)
+        #         self.dataset.convert_queue.put((self.thread_transform_dict_device, self.dataset, 0, self._collate_fn))
+        #         return ret
+
+        # if there is nothing left in batch the finish with the indices
+
+        # # todo: wait for the data to be loaded if at a load point
+        # # convert this batch (batch to nn is self.inds[0])
+        # self.dataset.io_queue.put(
+        #     (self.dataset.thread_convert_items_to_batches, batch.copy(), self.batch_size, False)
+        # )
+        # send the previous batch to the threads
+        # do the conversion on the current batch
+
+        # # now, there will always be some to convert while there is the sampler
+        # # todo: move to _next_(next?)_data : wait for the setting to be done
+        # xx = 0
+        # while self.dataset.num_converted % self.batch_size < self.cnt:
+        #     time.sleep(0.01)
+        #     xx += 1
+        # wait += xx * 0.01
+        # # print(f"waited for {xx} loops")
+        #
+        # # do the data loading on the previous batch
+        # if self.prev_batch is None:
+        #     # if there is no previous batch:
+        #     # this is only in the first iteration of the for loop
+        #     #   yield the first batch,
+        #     self.inds.append(batch)
+        #     self.prev_batch = self.inds[0].copy()
+        #     del self.inds[0]
+        #     self.converted_batches += 1
+        #     return self.prev_batch
+        # if self.prev_batch is not None:
+        #     # there is a previous batch:
+        #     #   do the getitem helper on the previous batch to only overwrite that
+        #     self.dataset.getitem_index_helper(self.prev_batch)
+        # # todo: send next_inds to the data placement loader
+        # self.inds.append(batch)
+        # self.prev_batch = self.inds[0].copy()
+        # # todo: load data to torch array from previous batch placeholder
+        # # del inds[0]
+        # del self.inds[0]
+        # self.converted_batches += 1
+        # return self.prev_batch
+
+    def __next__(self):
+        # shamelessly stolen from torch
+        data = self._next_data()
+        # todo: add the last batch to the getitem_index_helper after the last data is used...??
+        # if self.batch_num_to_return == self.num_batches:
+        #     self.dataset.getitem_index_helper(self.rand_samp_list[self.batch_num_to_return * self.batch_size :])
+        self.batch_num_to_return += 1  # for next time this is called!
+
+        self._num_yielded += 1
+        if (
+            self._dataset_kind == torch_data.dataloader._DatasetKind.Iterable
+            and self._IterableDataset_len_called is not None
+            and self._num_yielded > self._IterableDataset_len_called
+        ):
+            warn_msg = (
+                "Length of IterableDataset {} was reported to be {} (when accessing len(dataloader)), but {} "
+                "samples have been fetched. "
+            ).format(self._dataset, self._IterableDataset_len_called, self._num_yielded)
+            if self._num_workers > 0:
+                warn_msg += (
+                    "For multiprocessing data-loading, this could be caused by not properly configuring the "
+                    "IterableDataset replica at each worker. Please see "
+                    "https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples."
+                )
+            warnings.warn(warn_msg)
+        return data
 
     def __iter__(self):
-        dset = self.sampler.data_source
-        batch = []
-        samp_iter = self.sampler.__iter__()
+        return self
+        # batch = []
+        # samp_iter = self._sampler_iter
+        # dset = self.dataset
 
-        if not dset.np_buffer and not dset.partial_dataset:
-            # normal iterator from torch
-            for idx in samp_iter:
-                batch.append(idx)
-                if len(batch) == self.batch_size:
-                    yield batch
-                    batch = []
-            if len(batch) > 0 and not self.drop_last:
-                yield batch
+        # iter_clones1, iter_clones2 = itertools.tee(samp_iter)
 
-        else:  # either np buffer or partial dataset
-            # iter_clones1, iter_clones2 = itertools.tee(samp_iter)
-            inds = []
-            batch_offset = 2
-            if dset.np_buffer:
-                for xi in range(batch_offset):
-                    batch = []
-                    # next_inds = [0] * self.batch_size
-                    for idx in range(self.batch_size):
-                        batch.append(next(samp_iter))
-                        # todo: send next_inds to data placement loader
-                        dset.convert_queue.put((dset.thread_convert_items, batch.copy(), False))
-                    inds.append(batch)
-            prev_batch = None
-            batch = []
-            wait = 0.
-            for idx in samp_iter:
-                # print(self.cnt, idx)
-                batch.append(idx)
-                if dset.partial_dataset:
-                    # convert this batch (batch to nn is inds[0])
-                    dset.convert_queue.put((dset.thread_convert_items, batch.copy(), False))
-                # send the previous batch to the threads
-                if len(batch) == self.batch_size:
-                    self.cnt += 1
-                    # do the conversion on the current batch
-                    # now, there will always be some to convert while there is the sampler
-                    if dset.partial_dataset:
-                        # convert this batch (batch to nn is inds[0])
-                        #dset.convert_queue.put((dset.thread_convert_items, batch.copy(), False))
-                        # self._conversion_helper(dset, batch)
+        # batch_offset = 2
+        # if dset.np_buffer:
+        #     for xi in range(batch_offset):
+        #         batch = []
+        #         # next_inds = [0] * self.batch_size
+        #         for idx in range(self._batch_size):
+        #             batch.append(next(samp_iter))
+        #             # todo: send next_inds to data placement loader
+        #             dset.convert_queue.put((dset.thread_convert_items, batch.copy(), self.batch_size, False))
+        #         self.inds.append(batch)
 
-                        # todo: wait for the setting to be done
-                        xx = 0
-                        while dset.num_converted % self.batch_size < self.cnt:
-                            time.sleep(0.01)
-                            xx += 1
-                        wait += xx * 0.01
-                        # print(f"waited for {xx} loops")
-                        # todo: do the getitem on the previous batch
-                        # if prev_batch is None:
-                        #     # if there is no previous batch:
-                        #     # this is only in the first iteration of the for loop
-                        #     #   yield the first batch,
-                        #     inds.append(batch)
-                        #     prev_batch = inds[0].copy()
-                        #     del inds[0]
-                        #     yield prev_batch
-                        if prev_batch is not None:
-                            # there is a previous batch:
-                            #   do the getitem helper on the previous batch to only overwrite that
-                            dset.getitem_index_helper(prev_batch)
-                    # todo: send next_inds to the data placement loader
-                    inds.append(batch)
-                    prev_batch = inds[0].copy()
-                    #del inds[0]
-                    yield prev_batch
-                    del inds[0]
-                    batch = []
-            # print("batch length", len(batch))
-                    
-            if len(batch) > 0 and not self.drop_last:
-                # dont need to worry about the next inds here, that iterator is exhausted
-                inds.append(batch)
-                # yield batch
-            for _ in inds:
-                self.cnt += 1
-                # all batches should be converted already, only need getitem helper
-                if prev_batch is None:
-                    prev_batch = inds[0].copy()
-                    del inds[0]
-                if dset.partial_dataset:
-                    dset.getitem_index_helper(prev_batch)
-                prev_batch = inds[0].copy()
-                #del inds[0]
-                yield prev_batch
-                del inds[0]
-            print("batch waited total:", wait)
+        # # print("batch length", len(batch))
+        #
+        # if len(batch) > 0 and not self.drop_last:
+        #     # dont need to worry about the next inds here, that iterator is exhausted
+        #     self.inds.append(batch)
+        #     # yield batch
+        # for _ in range(len(self.inds)):
+        #     self.cnt += 1
+        #     # all batches should be converted already, only need getitem helper
+        #     if prev_batch is None:
+        #         prev_batch = self.inds[0].copy()
+        #         del self.inds[0]
+        #     if dset.partial_dataset:
+        #         dset.getitem_index_helper(prev_batch)
+        #     prev_batch = self.inds[0].copy()
+        #     #del self.inds[0]
+        #     yield prev_batch
+        #     del self.inds[0]
+        # print("batch waited total:", wait)
 
-            #if dset.partial_dataset and len(prev_batch) > 0:
-            #    dset.getitem_index_helper(prev_batch)
-
-    # def _conversion_helper(self, dset, batch):
-    # if len(batch) > 0:
-
-    # wait for this batch to be done from the other thread
+        # if dset.partial_dataset and len(prev_batch) > 0:
+        #    dset.getitem_index_helper(prev_batch)

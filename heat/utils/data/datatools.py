@@ -115,7 +115,10 @@ class DataLoader:
         # need to start the first loader
         self.dataset.load_next_group()
         # print(self.dataset.loads_required)
-        iters = [self.DataLoader.__iter__() for _ in range(self.dataset.loads_required)]
+        iters = [
+            parallel_datatools.LoadingDataLoaderIter(self).__iter__()
+            for _ in range(self.dataset.loads_required)
+        ]
         return itertools.chain.from_iterable(iters)
 
     def __len__(self) -> int:

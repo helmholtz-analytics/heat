@@ -219,17 +219,19 @@ class ImagenetDataset(ht.utils.data.parallel_datatools.PartialDataset):
             np_buffer=True,
             np_buffer_dataset_names=names[0],
         )
+        self.getitem_conversion = [self.load_item_transform, None]
+        self.transform_list = [transform, None]
 
-    def load_item_transform(self, item, image):
-        shape = (int(self.metadata[item][0].item()), int(self.metadata[item][1].item()), 3)
-        str_repr = base64.binascii.a2b_base64(image)
+    def load_item_transform(self, index):
+        shape = (int(self.metadata[index][0].item()), int(self.metadata[index][1].item()), 3)
+        str_repr = base64.binascii.a2b_base64(self.images[index])
         img = np.frombuffer(str_repr, dtype=np.uint8).reshape(shape)
         return img
 
-    def __getitem__(self, item):
+    def __getitem__(self, index):
         # todo: move this to the loading function?
-        img = self.images[item]
-        target = torch.as_tensor(self.metadata[item][3], dtype=torch.long).to(self.torch_device)
+        img = self.images[index]
+        target = torch.as_tensor(self.metadata[index][3], dtype=torch.long).to(self.torch_device)
 
         return img, target
 
@@ -455,7 +457,7 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
 
     end = time.time()
     for i, (images, target) in enumerate(train_loader):
-        #print("train loop", i)
+        # print("train loop", i)
         # measure data loading time
         # data_time.update(time.time() - end)
 
