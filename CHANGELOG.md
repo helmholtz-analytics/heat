@@ -39,7 +39,8 @@
 - [#634](https://github.com/helmholtz-analytics/heat/pull/634) New features: `kmedians`, `kmedoids`, `manhattan`
 - [#633](https://github.com/helmholtz-analytics/heat/pull/633) Documentation: updated contributing.md
 - [#635](https://github.com/helmholtz-analytics/heat/pull/635) `DNDarray.__getitem__` balances and resplits the given key to None if the key is a DNDarray
-- [#638](https://github.com/helmholtz-analytics/heat/pull/639) Bufix: balanced array in demo_knn, changed behaviour of knn
+- [#638](https://github.com/helmholtz-analytics/heat/pull/638) Fix: arange returns float32 with single input of type float & update skipped device tests
+- [#639](https://github.com/helmholtz-analytics/heat/pull/639) Bufix: balanced array in demo_knn, changed behaviour of knn
 
 # v0.4.0
 
