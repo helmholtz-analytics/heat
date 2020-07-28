@@ -87,6 +87,8 @@ class DataLoader:
                 f"data must be a DNDarray or lcl_dataset must be given, data is currently: {type(data)}"
             )
         self.ishuffle = self.dataset.ishuffle
+        if isinstance(self.dataset, parallel_datatools.PartialDataset):
+            drop_last = True
         # this is effectively setting ``shuffle`` to True
         # rand_sampler = torch_data.RandomSampler(self.dataset)
         # sampler = parallel_datatools.LoadingBatchSampler(rand_sampler, batch_size, drop_last)
@@ -97,6 +99,7 @@ class DataLoader:
             batch_sampler=None,
             num_workers=num_workers,
             collate_fn=collate_fn,
+            drop_last=drop_last,
             pin_memory=False,
             timeout=timeout,
             worker_init_fn=worker_init_fn,
@@ -111,14 +114,14 @@ class DataLoader:
             self._full_dataset_shuffle_iter()
             return self.DataLoader.__iter__()
         # todo: do the loading of the next groups here
-        #self.dataset.loads_remaining = self.dataset.loads_required
+        # self.dataset.loads_remaining = self.dataset.loads_required
         # need to start the first loader
         self.dataset.load_next_group()
         # print(self.dataset.loads_required)
-        #iters = [
+        # iters = [
         #    parallel_datatools.LoadingDataLoaderIter(self).__iter__()
         #    for _ in range(self.dataset.loads_required)
-        #]
+        # ]
         return parallel_datatools.LoadingDataLoaderIter(self)
 
     def __len__(self) -> int:
