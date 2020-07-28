@@ -46,8 +46,8 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
 
 
 def sanitize_axis(
-    shape: Tuple[int, ...], axis: Union[int, Tuple[int, ...]]
-) -> Union[int, Tuple[int, ...]]:
+    shape: Tuple[int, ...], axis: Union[int, None, Tuple[int, ...]]
+) -> Union[int, None, Tuple[int, ...]]:
     """
     Checks conformity of an axis with respect to a given shape. The axis will be converted to its positive equivalent
     and is checked to be within bounds
@@ -56,7 +56,7 @@ def sanitize_axis(
     ----------
     shape : Tuple[int, ...]
         Shape of an array
-    axis : ints or Tuple[int, ...]
+    axis : ints or Tuple[int, ...] or None
         The axis to be sanitized
 
     Raises
