@@ -2,7 +2,7 @@ import os.path
 import torch
 import warnings
 
-from typing import Dict, List, Optional
+from typing import Type, Dict, List, Optional
 
 
 from heat.core import factories
@@ -52,7 +52,7 @@ else:
     def load_hdf5(
         path: str,
         dataset: str,
-        dtype: datatype = types.float32,
+        dtype: Type[datatype] = types.float32,
         split: Optional[int] = None,
         device: Optional[str] = None,
         comm: Optional[Communication] = None,
@@ -260,7 +260,7 @@ else:
     def load_netcdf(
         path: str,
         variable: str,
-        dtype: datatype = types.float32,
+        dtype: Type[datatype] = types.float32,
         split: Optional[int] = None,
         device: Optional[str] = None,
         comm: Optional[Communication] = None,
@@ -478,7 +478,7 @@ def load_csv(
     path: str,
     header_lines: int = 0,
     sep: str = ",",
-    dtype: datatype = types.float32,
+    dtype: Type[datatype] = types.float32,
     encoding: str = "UTF-8",
     split: Optional[int] = None,
     device: Optional[str] = None,

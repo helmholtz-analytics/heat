@@ -9,7 +9,7 @@ from . import communication
 from . import devices
 from . import factories
 
-from typing import Union, Tuple, Any, Iterable, Optional
+from typing import Type, Union, Tuple, Any, Iterable, Optional
 
 __all__ = [
     "datatype",
@@ -340,7 +340,7 @@ __type_mappings = {
 }
 
 
-def canonical_heat_type(a_type: Union[str, datatype, Any]) -> datatype:
+def canonical_heat_type(a_type: Union[str, Type[datatype], Any]) -> Type[datatype]:
     """
     Canonicalize the builtin Python type, type string or HeAT type into a canonical HeAT type.
 
@@ -369,31 +369,31 @@ def canonical_heat_type(a_type: Union[str, datatype, Any]) -> datatype:
         raise TypeError("data type {} is not understood".format(a_type))
 
 
-def heat_type_is_exact(ht_dtype: datatype) -> bool:
+def heat_type_is_exact(ht_dtype: Type[datatype]) -> bool:
     """
     Check if HeAT type is an exact type, i.e an integer type. True if ht_dtype is an integer, False otherwise
 
     Parameters
     ----------
-    ht_dtype: datatype
+    ht_dtype: Type[datatype]
         HeAT type to check
     """
     return ht_dtype in _exact
 
 
-def heat_type_is_inexact(ht_dtype: datatype) -> bool:
+def heat_type_is_inexact(ht_dtype: Type[datatype]) -> bool:
     """
     Check if HeAT type is an inexact type, i.e floating point type. True if ht_dtype is a float, False otherwise
 
     Parameters
     ----------
-    ht_dtype: datatype
+    ht_dtype: Type[datatype]
         HeAT type to check
     """
     return ht_dtype in _inexact
 
 
-def heat_type_of(obj: Union[str, datatype, Any, Iterable[str, datatype, Any]]) -> datatype:
+def heat_type_of(obj: Union[str, Type[datatype], Any, Iterable[str, Type[datatype], Any]]) -> Type[datatype]:
     """
     Returns the corresponding HeAT data type of given object, i.e. scalar, array or iterable. Attempts to determine the
     canonical data type based on the following priority list:
@@ -490,7 +490,7 @@ __cast_kinds = ["no", "safe", "same_kind", "unsafe", "intuitive"]
 
 
 def can_cast(
-    from_: Union[str, datatype, Any], to: Union[str, datatype, Any], casting: str = "intuitive"
+    from_: Union[str, Type[datatype], Any], to: Union[str, Type[datatype], Any], casting: str = "intuitive"
 ) -> bool:
     """
     Returns True if cast between data types can occur according to the casting rule. If from is a scalar or array
@@ -580,7 +580,7 @@ for i, operand_a in enumerate(__type_codes.keys()):
                 break
 
 
-def promote_types(type1: Union[str, datatype, Any], type2: Union[str, datatype, Any]) -> datatype:
+def promote_types(type1: Union[str, Type[datatype], Any], type2: Union[str, Type[datatype], Any]) -> Type[datatype]:
     """
     Returns the data type with the smallest size and smallest scalar kind to which both ``type1`` and ``type2`` may be
     intuitively cast to, where intuitive casting refers to maintaining the same bit length if possible. This function
@@ -645,7 +645,7 @@ class finfo:
     1.1920928955078125e-07
     """
 
-    def __new__(cls, dtype: datatype):
+    def __new__(cls, dtype: Type[datatype]):
         try:
             dtype = heat_type_of(dtype)
         except (KeyError, IndexError, TypeError):
@@ -657,7 +657,7 @@ class finfo:
 
         return super(finfo, cls).__new__(cls)._init(dtype)
 
-    def _init(self, dtype: datatype):
+    def _init(self, dtype: Type[datatype]):
         _torch_finfo = torch.finfo(dtype.torch_type())
         for word in ["bits", "eps", "max", "tiny"]:
             setattr(self, word, getattr(_torch_finfo, word))
@@ -693,7 +693,7 @@ class iinfo:
     32
     """
 
-    def __new__(cls, dtype: datatype):
+    def __new__(cls, dtype: Type[datatype]):
         try:
             dtype = heat_type_of(dtype)
         except (KeyError, IndexError, TypeError):
@@ -705,7 +705,7 @@ class iinfo:
 
         return super(iinfo, cls).__new__(cls)._init(dtype)
 
-    def _init(self, dtype: datatype):
+    def _init(self, dtype: Type[datatype]):
         _torch_iinfo = torch.iinfo(dtype.torch_type())
         for word in ["bits", "max"]:
             setattr(self, word, getattr(_torch_iinfo, word))

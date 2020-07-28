@@ -1,5 +1,5 @@
 import torch
-from typing import Tuple, Optional, Callable
+from typing import Type, Tuple, Optional, Callable
 from .dndarray import DNDarray
 from .types import datatype
 
@@ -10,7 +10,7 @@ from . import types
 __all__ = ["abs", "absolute", "ceil", "clip", "fabs", "floor", "modf", "round", "trunc"]
 
 
-def abs(x: DNDarray, out: Optional[DNDarray] = None, dtype: Optional[datatype] = None) -> DNDarray:
+def abs(x: DNDarray, out: Optional[DNDarray] = None, dtype: Optional[Type[datatype]] = None) -> DNDarray:
     """
     Calculate the absolute value element-wise.
 
@@ -43,7 +43,7 @@ DNDarray.abs.__doc__ = abs.__doc__
 
 
 def absolute(
-    x: DNDarray, out: Optional[DNDarray] = None, dtype: Optional[datatype] = None
+    x: DNDarray, out: Optional[DNDarray] = None, dtype: Optional[Type[datatype]] = None
 ) -> DNDarray:
     """
     Calculate the absolute value element-wise.
@@ -232,7 +232,7 @@ DNDarray.modf.__doc__ = modf.__doc__
 
 
 def round(
-    x: DNDarray, decimals: int = 0, out: Optional[DNDarray] = None, dtype: Optional[datatype] = None
+    x: DNDarray, decimals: int = 0, out: Optional[DNDarray] = None, dtype: Optional[Type[datatype]] = None
 ) -> DNDarray:
     """
     Calculate the rounded value element-wise.

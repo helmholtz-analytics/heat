@@ -3,7 +3,7 @@ from ..core.dndarray import DNDarray
 from ..core.communication import Communication
 from ..core.devices import Device
 from ..core.types import datatype
-from typing import Union
+from typing import Type, Union
 
 __all__ = ["parter"]
 
@@ -13,7 +13,7 @@ def parter(
     split: Union[None, int] = None,
     device: Union[None, str, Device] = None,
     comm: Union[None, Communication] = None,
-    dtype: datatype = core.float32,
+    dtype: Type[datatype] = core.float32,
 ) -> DNDarray:
     """
     Generates the Parter matrix, a Toeplitz matrix that has the interesting property of having its singular values cluster at
@@ -29,7 +29,7 @@ def parter(
         Specifies the device the tensor shall be allocated on, defaults globally set default device.
     comm: None or Communication, optional
         Handle to the nodes holding distributed tensor chunks.
-    dtype: datatype, optional
+    dtype: Type[datatype], optional
         The desired data-type for the array, defaults to ht.float64.
 
     References

@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from typing import Callable, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Type, Callable, Iterable, List, Optional, Sequence, Tuple, Union
 
 from .communication import MPI, sanitize_comm, Communication
 from .devices import Device
@@ -33,7 +33,7 @@ heat_type = datatype
 
 def arange(
     *args: List[Union[int, float]],
-    dtype: Optional[datatype] = None,
+    dtype: Optional[Type[datatype]] = None,
     split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None
@@ -140,7 +140,7 @@ def arange(
 
 def array(
     obj: Iterable,
-    dtype: Optional[datatype] = None,
+    dtype: Optional[Type[datatype]] = None,
     copy: bool = True,
     ndmin: int = 0,
     order: str = "C",
@@ -372,7 +372,7 @@ def array(
 
 def empty(
     shape: Union[int, Sequence[int]],
-    dtype: datatype = types.float32,
+    dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
@@ -416,7 +416,7 @@ def empty(
 
 def empty_like(
     a: DNDarray,
-    dtype: Optional[datatype] = None,
+    dtype: Optional[Type[datatype]] = None,
     split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
@@ -461,7 +461,7 @@ def empty_like(
 
 def eye(
     shape: Union[int, Sequence[int]],
-    dtype: datatype = types.float32,
+    dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
@@ -532,7 +532,7 @@ def eye(
 
 def __factory(
     shape: Union[int, Sequence[int]],
-    dtype: datatype,
+    dtype: Type[datatype],
     split: Optional[int],
     local_factory: Callable,
     device: Device,
@@ -580,7 +580,7 @@ def __factory(
 
 def __factory_like(
     a: DNDarray,
-    dtype: datatype,
+    dtype: Type[datatype],
     split: Optional[int],
     factory: Callable,
     device: Device,
@@ -646,7 +646,7 @@ def __factory_like(
 def full(
     shape: Union[int, Sequence[int]],
     fill_value: Union[int, float],
-    dtype: datatype = types.float32,
+    dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
@@ -694,7 +694,7 @@ def full(
 def full_like(
     a: DNDarray,
     fill_value: Union[int, float],
-    dtype: datatype = types.float32,
+    dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
@@ -742,7 +742,7 @@ def linspace(
     num: int = 50,
     endpoint: bool = True,
     retstep: bool = False,
-    dtype: Optional[datatype] = None,
+    dtype: Optional[Type[datatype]] = None,
     split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
@@ -824,7 +824,7 @@ def logspace(
     num: int = 50,
     endpoint: bool = True,
     base: float = 10.0,
-    dtype: Optional[datatype] = None,
+    dtype: Optional[Type[datatype]] = None,
     split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
@@ -884,7 +884,7 @@ def logspace(
 
 def ones(
     shape: Union[int, Sequence[int]],
-    dtype: datatype = types.float32,
+    dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
@@ -927,7 +927,7 @@ def ones(
 
 def ones_like(
     a: DNDarray,
-    dtype: Optional[datatype] = None,
+    dtype: Optional[Type[datatype]] = None,
     split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
@@ -969,7 +969,7 @@ def ones_like(
 
 def zeros(
     shape: Union[int, Sequence[int]],
-    dtype: datatype = types.float32,
+    dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
@@ -1012,7 +1012,7 @@ def zeros(
 
 def zeros_like(
     a: DNDarray,
-    dtype: Optional[datatype] = None,
+    dtype: Optional[Type[datatype]] = None,
     split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,

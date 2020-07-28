@@ -1,6 +1,6 @@
 import collections
 import torch
-from typing import Callable, Dict, Any, TypeVar, Union, Tuple
+from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple
 
 from ..communication import MPICommunication
 from ..types import datatype
@@ -592,7 +592,7 @@ def __split0_send_q_to_diag_pr(
     q_dict: Dict,
     key: str,
     q_dict_waits: Dict,
-    q_dtype: datatype,
+    q_dtype: Type[datatype],
     q_device: Device,
 ) -> None:
     """

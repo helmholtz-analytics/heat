@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import warnings
 
-from typing import List, Dict, Any, TypeVar, Union, Tuple, Sequence, Optional
+from typing import Type, List, Dict, Any, TypeVar, Union, Tuple, Sequence, Optional
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -2229,7 +2229,7 @@ def topk(
         gres, dtype=a.dtype, device=a.device, split=split, is_split=is_split
     )
     final_indices = factories.array(
-        gindices, dtype=torch.int64, device=a.device, split=split, is_split=is_split
+        gindices, dtype=types.int64, device=a.device, split=split, is_split=is_split
     )
 
     if out is not None:

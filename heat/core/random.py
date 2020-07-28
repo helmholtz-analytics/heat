@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import time
 import torch
-from typing import List, Optional, Tuple
+from typing import Type, List, Optional, Tuple
 
 from . import communication
 from .communication import Communication
@@ -27,7 +27,7 @@ __KUNDU_INVERSE = 1.0 / 0.3807
 
 
 def __counter_sequence(
-    shape: Tuple[int, ...], dtype: datatype, split: int, comm: Communication
+    shape: Tuple[int, ...], dtype: Type[datatype], split: int, comm: Communication
 ) -> Tuple[torch.tensor, torch.tensor, Tuple[int, ...], slice]:
     """
     Generates a sequence of numbers to be used as the "clear text" for the threefry encryption, i.e. the pseudo random
@@ -222,7 +222,7 @@ def __kundu_transform(values: torch.Tensor) -> torch.Tensor:
 
 def rand(
     *args: List[int],
-    dtype: datatype = types.float32,
+    dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[str] = None,
     comm: Optional[Communication] = None
@@ -237,7 +237,7 @@ def rand(
     d0, d1, …, dn : List[int,...]
         The dimensions of the returned array, should all be positive. If no argument is given a single random samples is
         generated.
-    dtype: datatype, optional
+    dtype: Type[datatype], optional
         The datatype of the returned values. Has to be one of
         [:class:`~heat.core.types.float32, :class:`~heat.core.types.float64`].
     split: int, optional
@@ -291,7 +291,7 @@ def randint(
     low: int,
     high: Optional[int] = None,
     size: Optional[Tuple[int]] = None,
-    dtype: Optional[datatype] = None,
+    dtype: Optional[Type[datatype]] = None,
     split: Optional[int] = None,
     device: Optional[str] = None,
     comm: Optional[Communication] = None,
@@ -366,7 +366,7 @@ def randint(
 
 def randn(
     *args: List[int],
-    dtype: datatype = types.float32,
+    dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[str] = None,
     comm: Optional[Communication] = None
@@ -378,7 +378,7 @@ def randn(
     ----------
     d0, d1, …, dn : List[int,...]
         The dimensions of the returned array, should be all positive.
-    dtype: datatype, optional
+    dtype: Type[datatype], optional
         The datatype of the returned values. Has to be one of [:class:`~heat.core.types.float32, :class:`~heat.core.types.float64`].
     split: int, optional
         The axis along which the array is split and distributed, defaults to no distribution.
