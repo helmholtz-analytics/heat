@@ -3,7 +3,7 @@
 Getting Started
 ===============
 
-HeAT is a Python package for accelerated and distributed tensor computations. Internally, it is based on `PyTorch <https://pytorch.org/>`_. Consequently, all operating systems that support Python and PyTorch also support a HeAT installation. Currently, this list contains at least Linux, MacOS and Windows. However, most of our development is done under Linux and interoperability should therefore be optimal.
+Heat is a Python package for accelerated and distributed tensor computations. Internally, it is based on `PyTorch <https://pytorch.org/>`_. Consequently, all operating systems that support Python and PyTorch also support a Heat installation. Currently, this list contains at least Linux, MacOS and Windows. However, most of our development is done under Linux and interoperability should therefore be optimal.
 
 Prerequisites
 -------------
@@ -11,7 +11,7 @@ Prerequisites
 Python
 ^^^^^^
 
-HeAT requires Python 3.6 or greater, which is pre-installed by default on most Linux distributions. You can check your Python by running:
+Heat requires Python 3.6 or greater, which is pre-installed by default on most Linux distributions. You can check your Python by running:
 
 .. code:: bash
 
@@ -36,7 +36,7 @@ If you have new administrator privileges on your system, because you are working
 Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^
 
-You can accelerate computations with HeAT in different ways. For GPU acceleration ensure that you have a `CUDA <https://developer.nvidia.com/cuda-zone>`_ installation on your system. Distributed computations require an MPI stack on you computer. We recommend `MVAPICH <https://mvapich.cse.ohio-state.edu/>`_ or `OpenMPI <https://www.open-mpi.org/>`_. Finally, for parallel data I/O, HeAT offers interface to `HDF5 <https://www.hdfgroup.org/solutions/hdf5/>`_ and `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`_. You can obtain these packages using your operating system's package manager.
+You can accelerate computations with Heat in different ways. For GPU acceleration ensure that you have a `CUDA <https://developer.nvidia.com/cuda-zone>`_ installation on your system. Distributed computations require an MPI stack on you computer. We recommend `MVAPICH <https://mvapich.cse.ohio-state.edu/>`_ or `OpenMPI <https://www.open-mpi.org/>`_. Finally, for parallel data I/O, Heat offers interface to `HDF5 <https://www.hdfgroup.org/solutions/hdf5/>`_ and `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`_. You can obtain these packages using your operating system's package manager.
 
 Installation
 ------------
@@ -62,7 +62,7 @@ You can deactivate a virtual environment by executing:
 pip
 ^^^
 
-Official HeAT releases are made available on the `Python Package Index (PyPI) <https://pypi.org/>`_. You obtain the latest version by running:
+Official Heat releases are made available on the `Python Package Index (PyPI) <https://pypi.org/>`_. You obtain the latest version by running:
 
 .. code:: bash
 
@@ -77,7 +77,7 @@ Optionally, you can enable and install HDF5 and/or NetCDF support by adding the 
 Verification
 ^^^^^^^^^^^^
 
-To ensure that HeAT was installed correctly, you can run this tiny code snippet that creates a vector with 42 entries.
+To ensure that Heat was installed correctly, you can run this tiny code snippet that creates a vector with 42 entries.
 
 .. code:: bash
 
@@ -92,7 +92,7 @@ You should see the following output
 Building From Source
 --------------------
 
-For most users a HeAT installation from pip will be the most simple. However, if you want to test out the latest features or even want to contribute to HeAT, you will need to build from source. At first, clone our repository by running:
+For most users a Heat installation from pip will be the most simple. However, if you want to test out the latest features or even want to contribute to Heat, you will need to build from source. At first, clone our repository by running:
 
 .. code:: bash
 

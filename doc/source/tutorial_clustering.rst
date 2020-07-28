@@ -49,7 +49,7 @@ all processes) and transform it into a numpy array. Plotting can only be done on
 
 This will render something like
 
-.. image:: ../images/Data.png
+.. image:: ../images/data.png
 
 Now we perform the clustering analysis with kmeans. We chose 'kmeans++' as an intelligent way of sampling the
 initial centroids.
@@ -91,7 +91,7 @@ Let's plot the assigned clusters and the respective centroids:
         plt.plot(centroids[0,0],centroids[0,1], '^', markersize=10, markeredgecolor='black', color='#f0781e' )
         plt.plot(centroids[1,0],centroids[1,1], '^', markersize=10, markeredgecolor='black',color='#5a696e')
 
-.. image:: ../images/Clustering.png
+.. image:: ../images/clustering.png
 
 We can also cluster the data with kmedians. The respective advanced initial centroid sampling is called 'kmedians++'
 

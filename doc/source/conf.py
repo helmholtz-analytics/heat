@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# HeAT documentation build configuration file, created by
+# Heat documentation build configuration file, created by
 # sphinx-quickstart on Wed Aug 29 09:02:49 2018.
 #
 # This file is execfile()d with the current directory set to its
@@ -74,7 +74,7 @@ master_doc = "index"
 # General information about the project.
 from datetime import datetime
 
-project = "HeAT"
+project = "Heat"
 copyright = "{}, Helmholtz Analytics Framework Consortium".format(datetime.now().year)
 author = "Helmholtz Analytics Framework Consortium"
 
@@ -167,7 +167,7 @@ html_theme_options = {"logo_only": True, "style_nav_header_background": "white"}
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
 #
-# html_title = 'HeAT v0.0.1'
+# html_title = 'Heat v0.0.1'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #
@@ -268,7 +268,7 @@ html_css_files = ["css/custom.css"]
 # html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = "HeATdoc"
+htmlhelp_basename = "Heatdoc"
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -293,8 +293,8 @@ latex_elements = {
 latex_documents = [
     (
         master_doc,
-        "HeAT.tex",
-        "HeAT Documentation",
+        "Heat.tex",
+        "Heat Documentation",
         "Helmholtz Analytics Framework Consortium",
         "manual",
     )
@@ -337,7 +337,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "heat", "HeAT Documentation", [author], 1)]
+man_pages = [(master_doc, "heat", "Heat Documentation", [author], 1)]
 
 # If true, show URL addresses after external links.
 #
@@ -352,10 +352,10 @@ man_pages = [(master_doc, "heat", "HeAT Documentation", [author], 1)]
 texinfo_documents = [
     (
         master_doc,
-        "HeAT",
-        "HeAT Documentation",
+        "Heat",
+        "Heat Documentation",
         author,
-        "HeAT",
+        "Heat",
         "One line description of project.",
         "Miscellaneous",
     )

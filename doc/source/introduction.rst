@@ -4,7 +4,7 @@ Introduction
 Goal
 ----
 
-The goal of HeAT is to fill the gap between machine learning libraries that have
+The goal of Heat is to fill the gap between machine learning libraries that have
 a strong focus on exploiting GPUs for performance, and traditional, distributed
 high-performance computing (HPC). The basic idea is to provide a dtype,
 distributed tensor library with machine learning methods based on it.

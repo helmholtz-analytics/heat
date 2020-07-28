@@ -12,9 +12,9 @@ HeAT Tutorials
 
         <a class="reference external" href="tutorial_30_minutes.html">
             <div class="tutorial-text">
-                <strong>Feel the HeAT — A 30 Minutes Welcome</strong>
+                <strong>Feel the Heat — A 30 Minutes Welcome</strong>
                 <p/>
-                <p>Understand the fundamentals of the HeAT framework and vectorized array computing.</p>
+                <p>Understand the fundamentals of the Heat framework and vectorized array computing.</p>
                 <em>Excellent for beginners.</em>
             </div>
         </a>
@@ -33,7 +33,7 @@ HeAT Tutorials
             <div class="tutorial-text">
                 <strong>Parallel Computing</strong>
                 <p/>
-                <p>Speed up HeAT even further with GPUs acceleration or distributed MPI computation.</p>
+                <p>Speed up Heat even further with GPUs acceleration or distributed MPI computation.</p>
                 <em>Well-suited for beginners.</em>
             </div>
         </a>

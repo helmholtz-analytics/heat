@@ -11,7 +11,7 @@ Case Studies
 
         **TerrSysMP**
 
-        The IBG-3 at Research Centre Juelich uses HeAT to postprocess TerrSysMP hydrological flow simulations.
+        The IBG-3 at Research Centre Juelich uses Heat to postprocess TerrSysMP hydrological flow simulations.
 
 .. container:: case
 
@@ -23,7 +23,7 @@ Case Studies
 
         **Rocket Science**
 
-        The German Aerospace Center (DLR) uses HeAT to analyze combustion phases of rockets in high-speed camera videos.
+        The German Aerospace Center (DLR) uses Heat to analyze combustion phases of rockets in high-speed camera videos.
 
 .. container:: case
 
@@ -35,4 +35,4 @@ Case Studies
 
         **Protein Simulations**
 
-        At Karlsruhe Institute of Technology researchers identifies protein folding states in MD-simulations with HeAT.
+        At Karlsruhe Institute of Technology researchers identifies protein folding states in MD-simulations with Heat.

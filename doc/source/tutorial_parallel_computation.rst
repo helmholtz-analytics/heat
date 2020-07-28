@@ -36,7 +36,7 @@ Output:
 
     DNDarray([0, 1, 2, 3, 4], dtype=ht.int32, device=cpu:0, split=None)
 
-Manually, allocating or moving all ``DNDarrays`` between CPU and GPU can quickly become tedious. Hence, HeAT allows you to set a default device for all computations.
+Manually, allocating or moving all ``DNDarrays`` between CPU and GPU can quickly become tedious. Hence, Heat allows you to set a default device for all computations.
 
 .. code:: python
 
@@ -72,20 +72,20 @@ Distributed Computing
 .. warning::
     For the following code examples, make sure to you have `MPI <https://computing.llnl.gov/tutorials/mpi/>`_ installed.
 
-With HeAT you can even compute in distributed memory environments with multiple computation nodes, like modern high-performance cluster systems. For this, HeAT makes use of the fact that operations performed on multi-dimensional arrays tend to be identical for all data items. Hence, they can be processed in data-parallel manner. HeAT partitions the total number of data items equally among all processing nodes. A ``DNDarray`` assumes the role of a virtual overlay over these node-local data portions and manages them for you while offering the same interface. Consequently, operations can now be executed in parallel. Each processing node applies them locally to their own data chunk. If necessary, partial results are communicated and automatically combined behind the scenes for correct global results.
+With Heat you can even compute in distributed memory environments with multiple computation nodes, like modern high-performance cluster systems. For this, Heat makes use of the fact that operations performed on multi-dimensional arrays tend to be identical for all data items. Hence, they can be processed in data-parallel manner. Heat partitions the total number of data items equally among all processing nodes. A ``DNDarray`` assumes the role of a virtual overlay over these node-local data portions and manages them for you while offering the same interface. Consequently, operations can now be executed in parallel. Each processing node applies them locally to their own data chunk. If necessary, partial results are communicated and automatically combined behind the scenes for correct global results.
 
 .. image:: ../images/split_array.svg
     :align: center
     :width: 80%
 
-Data chunking in HeAT is always done along a singular axis, i.e. a one-dimensional domain decomposition. You can specify this axis by using the ``split`` parameter in operations and ``DNDarray`` creation functions. The picture above shows the result of setting different ``split`` axis on a three-dimensional volume and three processing nodes called :math:`p_0, p_1` and :math:`p_2`. A HeAT ``DNDarray`` without any split, i.e. ``split=None`` (default), results in redundant copy on each computation node.
+Data chunking in Heat is always done along a singular axis, i.e. a one-dimensional domain decomposition. You can specify this axis by using the ``split`` parameter in operations and ``DNDarray`` creation functions. The picture above shows the result of setting different ``split`` axis on a three-dimensional volume and three processing nodes called :math:`p_0, p_1` and :math:`p_2`. A Heat ``DNDarray`` without any split, i.e. ``split=None`` (default), results in redundant copy on each computation node.
 
 .. note::
     In the following example we assume three execution nodes. We distinguish between them in the output by showing them as ``[node/total nodes]``.
 
 .. note::
 
-    If your running the following examples in a distributed computation environment, please modify your program invocation from ``python ./my_script.py`` to ``mpirun -p <number_of_processors> python ./my_script.py``. By the way, invoking a HeAT program like this on your laptop or workstation also works.
+    If your running the following examples in a distributed computation environment, please modify your program invocation from ``python ./my_script.py`` to ``mpirun -p <number_of_processors> python ./my_script.py``. By the way, invoking a Heat program like this on your laptop or workstation also works.
 
 .. code:: python
 
@@ -143,7 +143,7 @@ Output:
     [1/3] DNDarray([0, 1, 2, 3, 4], dtype=ht.int32, device=cpu:0, split=None)
     [2/3] DNDarray([0, 1, 2, 3, 4], dtype=ht.int32, device=cpu:0, split=None)
 
-You may also modify the data partitioning of a HeAT array by using the ``resplit()`` function. This allows you to repartition the data as you so choose. Please note, that this should be used sparingly and for small data amounts only, as it entails data communication over network.
+You may also modify the data partitioning of a Heat array by using the ``resplit()`` function. This allows you to repartition the data as you so choose. Please note, that this should be used sparingly and for small data amounts only, as it entails data communication over network.
 
 .. code:: python
 
@@ -160,7 +160,7 @@ Output:
     [1/3] DNDarray([2, 3], dtype=ht.int32, device=cpu:0, split=0)
     [2/3] DNDarray([4], dtype=ht.int32, device=cpu:0, split=0)
 
-The result of an operation on a HeAT tensor will in most cases preserve the split of the respective operands. However, in some cases the split axis might change. For example, a transpose of a HeAT ``DNDarray`` will equally transpose the split axis. Furthermore, a reduction operations, e.g. `sum()` that is performed across the split axis, might remove data partitions entirely.
+The result of an operation on a Heat tensor will in most cases preserve the split of the respective operands. However, in some cases the split axis might change. For example, a transpose of a Heat ``DNDarray`` will equally transpose the split axis. Furthermore, a reduction operations, e.g. `sum()` that is performed across the split axis, might remove data partitions entirely.
 
 .. code:: python
 
@@ -197,7 +197,7 @@ Output:
 Technical Details
 ^^^^^^^^^^^^^^^^^
 
-On a technical level, HeAT is inspired by the so-called `Bulk Synchronous Parallel (BSP) <https://en.wikipedia.org/wiki/Bulk_synchronous_parallel>`_ processing model. Computations proceed in a series of hierarchical supersteps, each consisting of a number of node-local computations and subsequent communications. In contrast to the classical BSP model, communicated data is available immediately, rather than after the next global synchronization. In HeAT, global synchronizations only occurs for collective MPI calls as well as at the program start and termination.
+On a technical level, Heat is inspired by the so-called `Bulk Synchronous Parallel (BSP) <https://en.wikipedia.org/wiki/Bulk_synchronous_parallel>`_ processing model. Computations proceed in a series of hierarchical supersteps, each consisting of a number of node-local computations and subsequent communications. In contrast to the classical BSP model, communicated data is available immediately, rather than after the next global synchronization. In Heat, global synchronizations only occurs for collective MPI calls as well as at the program start and termination.
 
 .. image:: ../images/bsp.svg
     :align: center
@@ -206,7 +206,7 @@ On a technical level, HeAT is inspired by the so-called `Bulk Synchronous Parall
 Distributed Interactive Interpreter
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-HeAT ships with a distributed interactive Python interpreter that allows you to prototype and debug distributed applications. It can be found in the HeAT sources in the path `scripts/interactive.py` or you just grab it directly
+Heat ships with a distributed interactive Python interpreter that allows you to prototype and debug distributed applications. It can be found in the Heat sources in the path `scripts/interactive.py` or you just grab it directly
 
 .. code:: bash
 
@@ -226,12 +226,12 @@ You can start the distributed interactive interpreter by invoking the following 
 Parallel Performance
 --------------------
 
-When working with parallel and distributed computation in HeAT there are some best practices for you may to know about. The following list covers the major ones.
+When working with parallel and distributed computation in Heat there are some best practices for you may to know about. The following list covers the major ones.
 
 Dos
 ^^^
 
-* Use the high-level HeAT API
+* Use the high-level Heat API
     * computational kernels are optimized
     * Python constructs (e.g. loops) may be slow
 * Split large data amounts

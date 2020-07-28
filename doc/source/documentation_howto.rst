@@ -2,11 +2,11 @@
 .. role:: greymarker
 .. role:: bluemarker
 
-Writing HeAT Documentation
+Writing Heat Documentation
 ==========================
 
-In order to maintain proper, uniform and understandable API documentation of HeAT, a few style guidelines are
-enforced. The following sections summarize the key features of HeATs API documentation.
+In order to maintain proper, uniform and understandable API documentation of Heat, a few style guidelines are
+enforced. The following sections summarize the key features of Heats API documentation.
 
 Prerequisites
 -------------
@@ -40,7 +40,7 @@ Docstring Content
   * Parameters
   * Return types
 
-* Cross-referencing of major HeAT classes (``DNDarray``, ``Communication``, ``Device``, ``data_type``)
+* Cross-referencing of major Heat classes (``DNDarray``, ``Communication``, ``Device``, ``data_type``)
 
   * Import major classes directly (e.g.  ``from .dndarray import DNDarray``, ``from .devices import Device``)
   * In descriptions, use cross references when useful (full module path with tilde):  ``:class:`~heat.core.dndarray.DNDarray```

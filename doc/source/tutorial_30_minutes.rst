@@ -3,10 +3,7 @@ Feel the HeAT - A 30 Minutes Welcome
 
 HeAT is a flexible and seamless open-source software for high performance data analytics and machine learning in Python.
 
-Our main audience are
-
-
-
+Our main audience are scientists, engineers and AI enthusiats with computational and numerical problems exceeding the boundaries of a laptop or workstation.
 
 Getting Started
 ---------------
@@ -87,7 +84,7 @@ Output:
 Operations
 ----------
 
-HeAT supports several mathematical operations, ranging from simple element-wise functions, binary arithmetic operations, and linear algebra, to more powerful reductions. In the following example we add a two matrices of same size.
+Heat supports several mathematical operations, ranging from simple element-wise functions, binary arithmetic operations, and linear algebra, to more powerful reductions. In the following example we add two matrices of same size.
 
 .. code:: python
 
@@ -128,7 +125,7 @@ Output:
 
     DNDarray([ 0.0000,  0.8415,  0.9093,  0.1411, -0.7568], dtype=ht.float32, device=cpu:0, split=None)
 
-Just like other numerical computation libraries, HeAT supports broadcasting. It describes how two ``DNDarrays`` with different dimensions (also called shape) can still be combined in arithmetic operations given certain constraints. For example, we can add a scalar to a matrix.
+Just like other numerical computation libraries, Heat supports broadcasting. It describes how two ``DNDarrays`` with different dimensions (also called shape) can still be combined in arithmetic operations given certain constraints. For example, we can add a scalar to a matrix.
 
 .. code:: python
 
@@ -157,7 +154,7 @@ Output:
               [0., 1., 2., 3.],
               [0., 1., 2., 3.]], dtype=ht.float32, device=cpu:0, split=None)
 
-The vector has been repeated for every row of the left-hand side matrix. A full description of broadcasting rules can be found in `NumPy's manual <https://numpy.org/devdocs/user/theory.broadcasting.html>`_. While talking about it, HeAT is designed as seamless drop-in replacement for NumPy. There still might be cases, e.g. working with native Python code, when you want to convert a ``DNDarray`` to an ``ndarray`` instead.
+The vector has been repeated for every row of the left-hand side matrix. A full description of broadcasting rules can be found in `NumPy's manual <https://numpy.org/devdocs/user/theory.broadcasting.html>`_. While talking about it, Heat is designed as seamless drop-in replacement for NumPy. There still might be cases, e.g. working with native Python code, when you want to convert a ``DNDarray`` to an ``ndarray`` instead.
 
 
 .. code:: python
