@@ -111,8 +111,8 @@ class PartialDataset(torch_data.Dataset):
         # self.load_len = ((0.10 * available_memory) / file_size_per_pr) * self.lcl_full_sz
         # print(self.local_data_start, local_data_end, self.load_len)
         # temp values for small scale testing
-        local_data_end = self.local_data_start + 400
-        self.load_len = 200  # int(local_data_end / 3)
+        local_data_end = self.local_data_start + 2000
+        self.load_len = 1000  # int(local_data_end / 3)
         self.local_length = local_data_end - self.local_data_start
 
         self.next_start = local_data_end
@@ -191,9 +191,10 @@ class PartialDataset(torch_data.Dataset):
             items = [items]
 
         # todo: do the getitem for the dataset
+        #print(f"converting {len(items)}")
         converted_items = []
         for i in items:
-            single_item = self[i]
+            single_item = list(self[i])
             # have the item, need to convert from numpy to torch
             for ii in range(len(single_item)):
                 if self.getitem_conversion[ii] is not None:
@@ -203,17 +204,21 @@ class PartialDataset(torch_data.Dataset):
                 # have all torch stuff here
                 # need to do the transform now
             converted_items.append(single_item)
-        self.converted_items_list.append(converted_items)
+        self.converted_items_list.extend(converted_items)
+        # print(batch_size, len(self.converted_items_list))
         if batch_size is not None:
+            #print(batch_size, len(self.converted_items_list))
             # add the batches to the converted batches dictionary
-            if len(self.converted_items_list) % batch_size == 0:
+            if len(self.converted_items_list) // batch_size >= 1:
+                # if len(self.converted_items_list) % batch_size == 0:
                 bs = len(self.converted_items_list) // batch_size
                 for b in range(bs):
-                    self.num_bch_conv += 1
                     self.converted_batches[self.num_bch_conv] = self.converted_items_list[
                         :batch_size
                     ]
+                    self.num_bch_conv += 1
                     self.converted_items_list = self.converted_items_list[batch_size:]
+            #print('here', self.converted_batches.keys())
             # elif :
             #     self.num_bch_conv += 1
             #     self.converted_batches[self.num_bch_conv] = self.converted_items_list[: batch_size]
@@ -339,6 +344,7 @@ class PartialDataset(torch_data.Dataset):
             self.__setattr__("next_" + d, nxt)
             del nxt
         self.next_group_ready = True
+        print("finished thread loading", next_start, next_end)
 
     def _thread_insert_group(self, entries, nxt_inds):
         # insert into numpy dataset if its there
@@ -514,31 +520,41 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             raise NotImplementedError(
                 "this shouldnt be reached! function is only for partial datasets"
             )
+        if target_batch in dataset.transformed_batches.keys():
+            return
         w = 0.0
+        #print(dataset.converted_batches.keys())
         while target_batch not in dataset.converted_batches.keys():
+            # print(dataset.converted_batches.keys())
             time.sleep(0.01)
             w += 0.01
-        print("batch:", target_batch, "transform wait:", w)
-        batch = dataset.converted_batches[target_batch]
+        # print("batch:", target_batch, "transform wait:", w)
+        batch = dataset.converted_batches[target_batch].copy()
+        #del dataset.converted_batches[target_batch]
         # batch is a list of tensors here
         for b in range(len(batch)):
             if isinstance(batch[b], (tuple, list)):
-                b = list(batch[b])
-                for bi in range(len(b)):
+                batch[b] = list(batch[b])
+                for bi in range(len(batch[b])):
                     if dataset.transform_list[bi] is not None:
-                        batch[b][bi] = dataset.transform_list[bi](b[bi])
+                        # print(bi, batch[b]
+                        batch[b][bi] = dataset.transform_list[bi](batch[b][bi]).clone()
+                    batch[b][bi] = batch[b][bi].to(dataset.torch_device)
             elif isinstance(batch[b], torch.Tensor):
                 if len(dataset.transform_list) == 1:
                     batch[b] = dataset.transform_list[0](batch[b])
+                batch[b] = batch[b].to(dataset.torch_device)
             else:
                 raise TypeError(
                     f"batches should be either torch tensors or a list/tuple of tensors, "
                     f"currently {type(batch)}"
                 )
         # collate fn and put it on the target device
-        dataset.transformed_batches[target_batch] = collate_func(batch).to(dataset.torch_device)
+        dataset.transformed_batches[target_batch] = collate_func(batch)
+        print("created", target_batch, " in transformed batches")
 
     def _next_data(self):
+        #print("in next data", torch.cuda.memory_stats())
         if not self.dataset.np_buffer:
             # shamelessly stolen from torch: torch_data.utils._SingleProcessDataLoaderIter
             index = next(self._sampler_iter)  # may raise StopIteration
@@ -551,7 +567,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
         # ===================================== partial datasets ===========================================
         num_to_ret = self.batch_num_to_return
         num_to_delete = num_to_ret - 1 if num_to_ret > 0 else None
-        num_to_transform = num_to_ret + 1  # todo: more than 1 in front?
+        num_to_transform = num_to_ret + self.pre_loaded_batches  # todo: more than 1 in front?
         num_to_convert = num_to_ret + self.pre_loaded_batches
 
         if num_to_convert < self.num_batches:
@@ -577,6 +593,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
 
         # check if the next batch needs transforming, if its less then the number of batches
         if num_to_transform <= self.num_batches:
+            
             self.dataset.convert_queue.put(
                 (
                     self.thread_transform_dict_device,
@@ -588,6 +605,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             self.batches_sent_to_transform += 1
         # check if the data is there
         w1 = 0.0
+        print("waiting for", num_to_ret)
         while num_to_ret not in self.dataset.transformed_batches.keys():
             # todo: locking / waiting
             time.sleep(0.01)
