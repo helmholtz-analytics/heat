@@ -32,10 +32,10 @@ heat_type = datatype
 
 
 def arange(
-    *args: List[Union[int, float]],
+    *args: Union[int, float],
     dtype: Optional[Type[datatype]] = None,
     split: Optional[int] = None,
-    device: Optional[Device] = None,
+    device: Optional[Union[str,Device]] = None,
     comm: Optional[Communication] = None
 ) -> DNDarray:
     """
