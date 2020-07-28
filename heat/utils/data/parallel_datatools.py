@@ -100,7 +100,9 @@ class PartialDataset(torch_data.Dataset):
                 raise ValueError(f"all datasets in {file} must be the same length")
         self.length = sz
         # print("lcl_full_sz original", sz //comm.size)
-        self.lcl_full_sz = 3000 #sz // comm.size  # how many indices will go onto each process (len)
+        self.lcl_full_sz = (
+            3000
+        )  # sz // comm.size  # how many indices will go onto each process (len)
         # self.lcl_full_sz = 100000
         # load data that is half of of the available memory
         self.local_data_start = comm.rank * self.lcl_full_sz
@@ -206,9 +208,9 @@ class PartialDataset(torch_data.Dataset):
                     self.num_bch_conv += 1
                     self.converted_items_list = self.converted_items_list[batch_size:]
             else:
-                 if self.num_bch_conv not in self.converted_batches.keys():
-                     self.converted_batches[self.num_bch_conv] = []
-                 self.converted_batches[self.num_bch_conv].extend(self.converted_items_list)
+                if self.num_bch_conv not in self.converted_batches.keys():
+                    self.converted_batches[self.num_bch_conv] = []
+                self.converted_batches[self.num_bch_conv].extend(self.converted_items_list)
             self.converted_items_list = []
 
     def load_next_group(self):
@@ -235,7 +237,7 @@ class PartialDataset(torch_data.Dataset):
             nxt = f[d][next_start:next_end]
             if d not in self.np_datasets:
                 nxt = torch.tensor(nxt)  # todo: device?? -> CPU
-            print('loading', self.next_start, next_end, rem, self.getitem_num)
+            print("loading", self.next_start, next_end, rem, self.getitem_num)
             if wrap:
                 nxt2 = f[d][0:rem]  # rem + 1?
                 if not self.np_buffer or d not in self.np_datasets:
@@ -387,18 +389,6 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             if pre_load_batches * self.batch_size > self.dataset.local_length:
                 pre_load_batches = self.dataset.local_length // self.batch_size
             self.pre_loaded_batches = pre_load_batches
-            for xi in range(pre_load_batches):
-                print(xi)
-                batch = self.rand_samp_list[xi * self.batch_size : (xi + 1) * self.batch_size]
-                # todo: send next_inds to data placement loader, still todo????
-                self.dataset.io_queue.put(
-                    (self.dataset.thread_convert_items_to_batches, batch.copy(), self.batch_size)
-                )
-                self.inds.append(batch)
-                # load the first batch to device here
-                self.dataset.convert_queue.put(
-                    (self.thread_transform_dict_device, self.dataset, xi, self._collate_fn)
-                )
 
             self.batches_sent_to_transform = pre_load_batches
             self.iter_loaded_batches = pre_load_batches
@@ -457,7 +447,9 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                 )
         # collate fn and put it on the target device
         dataset.transformed_batches[target_batch] = collate_func(batch)
-        print("created", target_batch, " in transformed batches", dataset.transformed_batches.keys())
+        print(
+            "created", target_batch, " in transformed batches", dataset.transformed_batches.keys()
+        )
         del dataset.converted_batches[target_batch]
 
     def _next_data(self):
@@ -478,7 +470,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
         num_to_transform = num_to_ret + self.pre_loaded_batches - 1  # todo: more than 1 in front?
         num_to_convert = num_to_ret + self.pre_loaded_batches
 
-        print('\tnext data', num_to_delete, num_to_ret, num_to_transform, num_to_convert)
+        print("\tnext data", num_to_delete, num_to_ret, num_to_transform, num_to_convert)
         self.num_batches = 5
         if num_to_ret == self.num_batches:
             raise StopIteration
@@ -506,7 +498,10 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             del self.dataset.transformed_batches[num_to_delete]
 
         # check if the next batch needs transforming, if its less then the number of batches
-        if num_to_transform < self.num_batches and num_to_transform <= self.batches_sent_to_transform:
+        if (
+            num_to_transform < self.num_batches
+            and num_to_transform <= self.batches_sent_to_transform
+        ):
             print(num_to_transform, self.batches_sent_to_transform)
             self.dataset.convert_queue.put(
                 (
@@ -526,7 +521,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             w1 += 0.01
         print("next data:", num_to_ret, "time:", time.perf_counter() - t0, "\n")
         return self.dataset.transformed_batches[num_to_ret]
-        #return [None, None]
+        # return [None, None]
 
     def __next__(self):
         # shamelessly stolen from torch
@@ -556,4 +551,17 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
         return data
 
     def __iter__(self):
+        if self.dataset.partial_dataset:
+            # do the first few loads before next is called
+            for xi in range(self.pre_loaded_batches):
+                batch = self.rand_samp_list[xi * self.batch_size : (xi + 1) * self.batch_size]
+                # todo: send next_inds to data placement loader, still todo????
+                self.dataset.io_queue.put(
+                    (self.dataset.thread_convert_items_to_batches, batch.copy(), self.batch_size)
+                )
+                self.inds.append(batch)
+                # load the first batch to device here
+                self.dataset.convert_queue.put(
+                    (self.thread_transform_dict_device, self.dataset, xi, self._collate_fn)
+                )
         return self
