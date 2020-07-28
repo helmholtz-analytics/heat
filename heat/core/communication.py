@@ -6,7 +6,7 @@ import numpy as np
 import os
 import subprocess
 import torch
-from typing import List, Tuple, Union, Any, Callable
+from typing import List, Tuple, Union, Any, Callable, Optional
 
 from .stride_tricks import sanitize_axis
 
@@ -1855,7 +1855,7 @@ def get_comm() -> Communication:
     return __default_comm
 
 
-def sanitize_comm(comm: Communication) -> Communication:
+def sanitize_comm(comm: Optional[Communication]) -> Communication:
     """
     Sanitizes a device or device identifier, i.e. checks whether it is already an instance of :class:`heat.core.devices.Device`
     or a string with known device identifier and maps it to a proper ``Device``.
