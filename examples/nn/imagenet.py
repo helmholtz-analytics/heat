@@ -2,6 +2,7 @@ import argparse
 import base64
 import os
 import random
+import gc
 import shutil
 import sys
 import time
@@ -403,6 +404,7 @@ def main_worker(gpu, ngpus_per_node, args):
     #     num_workers=args.workers, pin_memory=True)
 
     if torch.cuda.is_available():
+        torch.cuda.empty_cache()
         model.cuda()
 
     if args.evaluate:
@@ -457,7 +459,7 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
 
     end = time.time()
     for i, (images, target) in enumerate(train_loader):
-        # print("train loop", i)
+        print("train loop", i)
         # measure data loading time
         # data_time.update(time.time() - end)
 
@@ -487,6 +489,7 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
         batch_time.update(time.time() - end)
         print(time.time() - end)
         end = time.time()
+        gc.collect()
 
         # if i % args.print_freq == 0:
         #    progress.display(i)
