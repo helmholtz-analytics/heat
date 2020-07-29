@@ -83,6 +83,7 @@ class TestKNN(TestCase):
         self.assertTrue((one_hot == b).all())
 
     def test_fit_one_hot(self,):
+        print("do re mi fa so la si")
         X = ht.load_hdf5("heat/datasets/data/iris.h5", dataset="data")
 
         # Keys as label array
