@@ -178,9 +178,18 @@ class PartialDataset(torch_data.Dataset):
             self.converted_items_list = None
             self.transformed_batches = None
 
-    def thread_convert_items_to_batches(self, items, batch_size=None):
+    def thread_convert_items_to_batches(self, items, batch_size=None, reset_batch_number=False):
         if isinstance(items, int):
             items = [items]
+
+        if reset_batch_number:
+            print("reseting batch number")
+            self.last_converted_batch = 0
+            self.num_bch_conv = 0
+            self.num_file_loads = 0
+            self.converted_items_list = []
+            self.converted_batches = {}
+            self.transformed_batches = {}
 
         converted_items = []
         for i in items:
@@ -197,6 +206,7 @@ class PartialDataset(torch_data.Dataset):
         self.converted_items_list.extend(converted_items)
         # print(len(converted_items))
         if batch_size is not None:
+            print('\nbatch number addition', self.num_bch_conv)
             # add the batches to the converted batches dictionary
             if len(self.converted_items_list) // batch_size >= 1:
                 # if len(self.converted_items_list) % batch_size == 0:
@@ -389,6 +399,21 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             if pre_load_batches * self.batch_size > self.dataset.local_length:
                 pre_load_batches = self.dataset.local_length // self.batch_size
             self.pre_loaded_batches = pre_load_batches
+            reset = True
+            for xi in range(self.pre_loaded_batches):
+                batch = self.rand_samp_list[xi * self.batch_size : (xi + 1) * self.batch_size]
+                # todo: send next_inds to data placement loader, still todo????
+                self.dataset.io_queue.put(
+                    (self.dataset.thread_convert_items_to_batches, batch.copy(), self.batch_size, reset)
+                )
+                reset = False
+                self.inds.append(batch)
+                # load the first batch to device here
+                self.dataset.convert_queue.put(
+                    (self.thread_transform_dict_device, self.dataset, xi, self._collate_fn)
+                )
+            print("finished init for iter")
+
 
             self.batches_sent_to_transform = pre_load_batches
             self.iter_loaded_batches = pre_load_batches
@@ -552,16 +577,38 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
 
     def __iter__(self):
         if self.dataset.partial_dataset:
+            #self.dataset.io_queue.join()
+            #threading.Thread(target=queue_thread, args=[self.dataset.io_queue], daemon=True).start()
+            n = self.dataset.local_length
+
+            rem = n % self.batch_size
+            #self.dataset.last_converted_batch = 0
+            #self.dataset.num_bch_conv = 0
+            #self.dataset.num_file_loads = 0
+            #self.dataset.converted_items_list = []
+            #self.dataset.converted_batches = {}
+            #self.dataset.transformed_batches = {}
+            rng_sampl_lists = range(1, self.dataset.lcl_full_sz // n)
+            self.rand_samp_list = torch.randperm(n)[: rem * -1].tolist()
+            # self.wait_points = [wait_point]
+            # # slice the dataset so that it is only full batches
+            # self.rand_samp_list = torch.randperm(n)[:wait_point].tolist()
+            for _ in rng_sampl_lists:
+                # self.wait_points.append(wait_point * (i + 1))
+                self.rand_samp_list.extend(torch.randperm(n)[: rem * -1].tolist())
             # do the first few loads before next is called
-            for xi in range(self.pre_loaded_batches):
-                batch = self.rand_samp_list[xi * self.batch_size : (xi + 1) * self.batch_size]
-                # todo: send next_inds to data placement loader, still todo????
-                self.dataset.io_queue.put(
-                    (self.dataset.thread_convert_items_to_batches, batch.copy(), self.batch_size)
-                )
-                self.inds.append(batch)
-                # load the first batch to device here
-                self.dataset.convert_queue.put(
-                    (self.thread_transform_dict_device, self.dataset, xi, self._collate_fn)
-                )
+            #reset = True
+            #for xi in range(self.pre_loaded_batches):
+            #    batch = self.rand_samp_list[xi * self.batch_size : (xi + 1) * self.batch_size]
+            #    # todo: send next_inds to data placement loader, still todo????
+            #    self.dataset.io_queue.put(
+            #        (self.dataset.thread_convert_items_to_batches, batch.copy(), self.batch_size, reset)
+            #    )
+            #    reset = False
+            #    self.inds.append(batch)
+            #    # load the first batch to device here
+            #    self.dataset.convert_queue.put(
+            #        (self.thread_transform_dict_device, self.dataset, xi, self._collate_fn)
+            #    )
+            print("created new iter for iter")
         return self
