@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from typing import Callable, Union, Tuple
+from typing import Callable, Union, Tuple, Optional
 
 from .communication import MPI
 from . import arithmetics
@@ -1557,7 +1557,10 @@ def std(x, axis=None, ddof=0, **kwargs):
         return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
-def __torch_skew(torch_tensor, dim=None, unbiased=False):
+@torch.jit.script
+def __torch_skew(
+    torch_tensor: torch.Tensor, dim: Optional[int] = None, unbiased: bool = False
+) -> torch.Tensor:
     # TODO: type annotations:
     #   def __torch_skew(torch_tensor : torch.Tensor, dim : int = None, unbiased : bool = False) -> torch.Tensor:
     # calculate the sample skewness of a torch tensor
@@ -1568,7 +1571,7 @@ def __torch_skew(torch_tensor, dim=None, unbiased=False):
         m3 = torch.true_divide(torch.sum(torch.pow(diff, 3), dim=dim), n)
         m2 = torch.true_divide(torch.sum(torch.pow(diff, 2), dim=dim), n)
     else:
-        n = torch_tensor.gnumel()
+        n = torch_tensor.numel()
         diff = torch_tensor - torch.mean(torch_tensor)
         m3 = torch.true_divide(torch.sum(torch.pow(diff, 3)), n)
         m2 = torch.true_divide(torch.sum(torch.pow(diff, 2)), n)
@@ -1578,7 +1581,13 @@ def __torch_skew(torch_tensor, dim=None, unbiased=False):
     return coeff * torch.true_divide(m3, torch.pow(m2, 1.5))
 
 
-def __torch_kurtosis(torch_tensor, dim=None, Fischer=True, unbiased=False):
+@torch.jit.script
+def __torch_kurtosis(
+    torch_tensor: torch.Tensor,
+    dim: Optional[int] = None,
+    Fischer: bool = True,
+    unbiased: bool = False,
+) -> torch.Tensor:
     # TODO: type annotations:
     #   def __torch_kurtosis(torch_tensor : torch.Tensor, dim : int = None, Fischer : bool = True, unbiased : bool = False) -> torch.Tensor:
     # calculate the sample kurtosis of a torch tensor, Pearson's definition
@@ -1590,7 +1599,7 @@ def __torch_kurtosis(torch_tensor, dim=None, Fischer=True, unbiased=False):
         m4 = torch.true_divide(torch.sum(torch.pow(diff, 4.0), dim=dim), n)
         m2 = torch.true_divide(torch.sum(torch.pow(diff, 2.0), dim=dim), n)
     else:
-        n = torch_tensor.gnumel()
+        n = torch_tensor.numel()
         diff = torch_tensor - torch.mean(torch_tensor)
         m4 = torch.true_divide(torch.pow(diff, 4.0), n)
         m2 = torch.true_divide(torch.pow(diff, 2.0), n)
