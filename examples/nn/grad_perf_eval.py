@@ -89,7 +89,7 @@ def main():
         type=int,
         default=1,
         metavar="N",
-        help="Network Architecture: 1 - AlexNet, 2 - VGG_11, 3 - VGG_19 (default: 1)",
+        help="Network Architecture: 1 - AlexNet, 2 - ResNet-101, 3 - VGG_16 (default: 1)",
     )
     parser.add_argument(
         "--lr", type=float, default=1.0, metavar="LR", help="learning rate (default: 1.0)"
@@ -113,11 +113,11 @@ def main():
     print("Random data has been generated.")
 
     if nn_id == 1:
-        tmodel = models.alexnet()
+        tmodel = models.AlexNet()
     elif nn_id == 2:
-        tmodel = models.vgg11()
+        tmodel = models.resnet101()
     elif nn_id == 3:
-        tmodel = models.vgg19()
+        tmodel = models.vgg16()
     else:
         print("Invalid NN id.")
         return
@@ -128,12 +128,15 @@ def main():
 
     train_loader = ht.utils.data.datatools.DataLoader(dataset.data, lcl_dataset=dataset, **kwargs)
 
+    t1 = time.time()
     for epoch in range(1, args.epochs + 1):
         continue_training = train(args, model, device, train_loader, optimizer)
         if not continue_training:
             break
+    t2 = time.time()
 
     print("Training has been finished.")
+    print("Time:", t2 - t1)
 
 
 if __name__ == "__main__":
