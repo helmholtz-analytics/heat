@@ -154,7 +154,7 @@ class DNDarray:
         """
         number of elements in the DNDarray
         """
-        return self.size
+        return int(self.size)
 
     @property
     def gnumel(self):

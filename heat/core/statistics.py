@@ -864,7 +864,7 @@ def median(x, axis=None, keepdim=False):
     return percentile(x, q=50, axis=axis, keepdim=keepdim)
 
 
-# @torch.jit.script
+@torch.jit.script
 def _merge_means(mu1: torch.Tensor, n1: torch.Tensor, mu2: torch.Tensor, n2: torch.Tensor):
     n = n1 + n2
     delta = mu2 - mu1
@@ -1764,12 +1764,18 @@ def var(x, axis=None, ddof=0, **kwargs):
             mu = torch.mean(x._DNDarray__array, dim=axis)
             var = torch.var(x._DNDarray__array, dim=axis, unbiased=unbiased)
         else:
-            mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
-            var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
+            mu = torch.zeros(
+                output_shape_i, dtype=x.dtype.torch_type(), device=x.device.torch_device
+            )
+            var = torch.zeros(
+                output_shape_i, dtype=x.dtype.torch_type(), device=x.device.torch_device
+            )
 
         var_shape = list(var.shape) if list(var.shape) else [1]
 
-        var_tot = factories.zeros(([x.comm.size, 3] + var_shape), dtype=x.dtype, device=x.device)
+        var_tot = torch.zeros(
+            ([x.comm.size, 3] + var_shape), dtype=x.dtype.torch_type(), device=x.device.torch_device
+        )
         var_tot[x.comm.rank, 0, :] = var
         var_tot[x.comm.rank, 1, :] = mu
         var_tot[x.comm.rank, 2, :] = float(x.lshape[x.split])
@@ -1787,7 +1793,21 @@ def var(x, axis=None, ddof=0, **kwargs):
                 var_tot[i, 2, :],
                 unbiased=unbiased,
             )
-        return var_tot[0, 0, :][0] if var_tot[0, 0, :].size == 1 else var_tot[0, 0, :]
+        r = var_tot[0, 0, :]
+        if var_tot[0, 0, :].size == 1:
+            ret = dndarray.DNDarray(
+                r[0],
+                gshape=(1,),
+                split=None,
+                comm=x.comm,
+                device=x.device,
+                dtype=types.canonical_heat_type(r[0].dtype),
+            )
+        else:
+            ret = factories.array(r, is_split=None)
+        # print("elementwise", ret.gshape)
+
+        return ret
 
     # ----------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
@@ -1795,32 +1815,58 @@ def var(x, axis=None, ddof=0, **kwargs):
             ret = torch.var(x._DNDarray__array.float(), unbiased=unbiased)
             return factories.array(ret)
 
-        else:  # case for full matrix calculation (axis is None)
-            mu_in = torch.mean(x._DNDarray__array)
-            var_in = torch.var(x._DNDarray__array, unbiased=unbiased)
-            # Nan is returned when local tensor is empty
-            if torch.isnan(var_in):
-                var_in = 0.0
-            if torch.isnan(mu_in):
-                mu_in = 0.0
+        # else:  # case for full matrix calculation (axis is None)
+        mu_in = torch.mean(x._DNDarray__array)
+        var_in = torch.var(x._DNDarray__array, unbiased=unbiased)
+        # Nan is returned when local tensor is empty
+        if torch.isnan(var_in):
+            var_in = 0.0
+        if torch.isnan(mu_in):
+            mu_in = 0.0
 
-            n = x.lnumel
-            var_tot = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
-            var_proc = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
-            var_proc[x.comm.rank] = var_in, mu_in, float(n)
-            x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
+        n = x.lnumel
+        var_tot = torch.zeros(
+            (x.comm.size, 3), dtype=x.dtype.torch_type(), device=x.device.torch_device
+        )
+        var_proc = torch.zeros(
+            (x.comm.size, 3), dtype=x.dtype.torch_type(), device=x.device.torch_device
+        )
+        var_proc[x.comm.rank][0] = var_in
+        var_proc[x.comm.rank][1] = mu_in
+        var_proc[x.comm.rank][2] = float(n)
+        x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
 
-            for i in range(1, x.comm.size):
-                var_tot[0, 0], var_tot[0, 1], var_tot[0, 2] = _merge_vars(
-                    var_tot[0, 0],
-                    var_tot[0, 1],
-                    var_tot[0, 2],
-                    var_tot[i, 0],
-                    var_tot[i, 1],
-                    var_tot[i, 2],
-                    unbiased=unbiased,
-                )
-            return var_tot[0][0]
+        for i in range(1, x.comm.size):
+            var_tot[0, 0], var_tot[0, 1], var_tot[0, 2] = _merge_vars(
+                var_tot[0, 0],
+                var_tot[0, 1],
+                var_tot[0, 2],
+                var_tot[i, 0],
+                var_tot[i, 1],
+                var_tot[i, 2],
+                unbiased=unbiased,
+            )
+        ret = dndarray.DNDarray(
+            var_tot[0][0],
+            gshape=(1,),
+            split=None,
+            comm=x.comm,
+            device=x.device,
+            dtype=types.canonical_heat_type(var_tot[0][0].dtype),
+        )
+        # print("no axis", ret.gshape)
+        return ret
 
-    else:  # axis is given
-        return __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, unbiased)
+    ret = __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, unbiased)
+    # print(ret)
+    if ret.numel == 1:
+        ret = dndarray.DNDarray(
+            ret._DNDarray__array,
+            gshape=(int(ret.numel),),
+            split=None,
+            comm=x.comm,
+            device=x.device,
+            dtype=ret.dtype,
+        )
+    # print("moment w axis", ret.gshape)
+    return ret

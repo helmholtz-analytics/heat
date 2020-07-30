@@ -726,7 +726,7 @@ class TestStatistics(TestCase):
                         total_dims_list[q] for q in range(len(total_dims_list)) if q != it
                     ]
                     if not target_dims:
-                        target_dims = ()
+                        target_dims = (1,)
                     self.assertEqual(res.gshape, tuple(target_dims))
                     if z.split is None:
                         sp = None
@@ -1182,7 +1182,7 @@ class TestStatistics(TestCase):
                         total_dims_list[q] for q in range(len(total_dims_list)) if q != it
                     ]
                     if not target_dims:
-                        target_dims = ()
+                        target_dims = (1,)
                     self.assertEqual(res.gshape, tuple(target_dims))
                     if z.split is None:
                         sp = None
