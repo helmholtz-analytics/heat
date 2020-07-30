@@ -48,7 +48,10 @@ class PartialDataset(torch_data.Dataset):
         self.transform = transform
         self.target_transform = target_transform
         self.gpu = True if torch.cuda.device_count() > 0 else False
-        self.torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.torch_device = "cpu"
+        if torch.cuda.is_available():
+            self.torch_device = torch.device("cuda")
+            torch.cuda.set_device(MPI_WORLD.rank % torch.cuda.device_count())
 
         # doing the file stuff first, folder to come later?
         # file_size = os.path.getsize(file)
