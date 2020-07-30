@@ -15,7 +15,8 @@ from heat.utils.data.datatools import Dataset
 import timeit
 
 
-class ExtDataset(Dataset):
+# extension of the Dataset class to provide labeled data
+class LabeledDataset(Dataset):
     def __init__(self, data, targets):
         super().__init__(data)
         self.targets = targets
@@ -26,6 +27,7 @@ class ExtDataset(Dataset):
         return img, target
 
 
+# wrapper function to pass parameterized function to timeit
 def timeit_wrapper(func, *args, **kwargs):
     def wrapped():
         return func(*args, **kwargs)
@@ -33,9 +35,9 @@ def timeit_wrapper(func, *args, **kwargs):
     return wrapped
 
 
+# creates synthetic dataset with len(mu) classes
+# dataset has shape sample_cnt x 3 x img_size x img_size
 def generate_synthetic_data(mu, sample_cnt, img_size):
-    # creates synthetic dataset with len(mu) classes
-    # dataset has shape sample_cnt x 3 x img_size x img_size
     data = ht.zeros((len(mu) * sample_cnt, 3, img_size, img_size), dtype=ht.float32)
     target = ht.zeros((len(mu) * sample_cnt, 1), dtype=ht.float64)
     for i in range(len(mu)):
@@ -146,7 +148,7 @@ def main():
 
     mu = np.arange(args.classes) * 25.5
     data, targets = generate_synthetic_data(mu, args.batch_size * node_cnt, args.img_size)
-    dataset = ExtDataset(data, targets)
+    dataset = LabeledDataset(data, targets)
 
     if rank == 0:
         print("Synthetic data has been generated.")
