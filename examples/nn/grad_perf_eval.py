@@ -12,7 +12,7 @@ import heat.nn.functional as F
 import heat.optim as optim
 from heat.utils.data.datatools import Dataset
 
-import time
+import timeit
 
 
 class ExtDataset(Dataset):
@@ -26,7 +26,14 @@ class ExtDataset(Dataset):
         return img, target
 
 
-def generateSyntheticData(mu, sample_cnt, img_size):
+def timeit_wrapper(func, *args, **kwargs):
+    def wrapped():
+        return func(*args, **kwargs)
+
+    return wrapped
+
+
+def generate_synthetic_data(mu, sample_cnt, img_size):
     # creates synthetic dataset with len(mu) classes
     # dataset has shape sample_cnt x 3 x img_size x img_size
     data = ht.zeros((len(mu) * sample_cnt, 3, img_size, img_size), dtype=ht.float32)
@@ -40,7 +47,7 @@ def generateSyntheticData(mu, sample_cnt, img_size):
     return ht.array(data[permutation], ndmin=4, split=0), ht.array(target[permutation])
 
 
-def train(args, model, device, train_loader, optimizer):
+def train_epoch(args, model, device, train_loader, optimizer):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         data = data.to(device)
@@ -53,6 +60,17 @@ def train(args, model, device, train_loader, optimizer):
         if args.dry_run:
             return False
     return True
+
+
+def train(args, model, device, train_loader, optimizer):
+    for epoch in range(1, args.epochs + 1):
+        continue_training = train_epoch(args, model, device, train_loader, optimizer)
+        print("Epoch ", epoch, " of ", args.epochs, " finished.")
+        if not continue_training:
+            break
+
+    # call needed to finalize wait handles in case of non-blocking
+    model.eval()
 
 
 def main():
@@ -81,9 +99,9 @@ def main():
     parser.add_argument(
         "--epochs",
         type=int,
-        default=10000,
+        default=20,
         metavar="N",
-        help="number of epochs to train (default: 10000)",
+        help="number of epochs to train (default: 50)",
     )
     parser.add_argument(
         "--img-size",
@@ -97,7 +115,14 @@ def main():
         type=int,
         default=1,
         metavar="N",
-        help="Network Architecture: 1 - AlexNet, 2 - ResNet-101, 3 - VGG_16 (default: 1)",
+        help="network architecture: 1 - AlexNet, 2 - ResNet-101, 3 - VGG_16 (default: 1)",
+    )
+    parser.add_argument(
+        "--repetitions",
+        type=int,
+        default=10,
+        metavar="N",
+        help="number of execution repetitions for training (default: 10)",
     )
     parser.add_argument(
         "--lr", type=float, default=1.0, metavar="LR", help="learning rate (default: 1.0)"
@@ -118,11 +143,13 @@ def main():
     nn_id = args.nn_id
     device = torch.device("cuda" if use_cuda else "cpu")
     kwargs = {"batch_size": args.batch_size}
-    mu = np.arange(50) * 25.5
-    data, targets = generateSyntheticData(mu, args.batch_size * node_cnt, args.img_size)
+
+    mu = np.arange(args.classes) * 25.5
+    data, targets = generate_synthetic_data(mu, args.batch_size * node_cnt, args.img_size)
     dataset = ExtDataset(data, targets)
 
-    print("Node ", rank, ": Synthetic data has been generated.")
+    if rank == 0:
+        print("Synthetic data has been generated.")
 
     if nn_id == 1:
         tmodel = models.AlexNet()
@@ -141,17 +168,25 @@ def main():
     )
 
     train_loader = ht.utils.data.datatools.DataLoader(dataset.data, lcl_dataset=dataset, **kwargs)
+    timed_training = timeit_wrapper(train, args, model, device, train_loader, optimizer)
 
-    t1 = time.time()
-    for epoch in range(1, args.epochs + 1):
-        continue_training = train(args, model, device, train_loader, optimizer)
-        print("Node ", rank, ": Epoch ", epoch, " of ", args.epochs, " has been finished.")
-        if not continue_training:
-            break
-    t2 = time.time()
+    # drop first run from measure
+    timed_training()
 
-    print("Node ", rank, ": Training has been finished.")
-    print("Node ", rank, ": Time:", t2 - t1)
+    # measure total local runtime
+    loc_duration = timeit.timeit(timed_training, number=args.repetitions)
+
+    # average local runtime
+    loc_duration /= args.repetitions
+
+    # get maximum time across nodes
+    buf = ht.array([loc_duration])
+    buf.comm.Allreduce(MPI.IN_PLACE, buf, MPI.MAX)
+    glo_duration = buf.item()
+
+    if rank == 0:
+        print("Benchmark has been finished.")
+        print("Time: ", glo_duration)
 
 
 if __name__ == "__main__":
