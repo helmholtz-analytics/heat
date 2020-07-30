@@ -4,6 +4,7 @@ from typing import Callable, Union, Tuple, Optional
 
 from .communication import MPI
 from . import arithmetics
+from . import devices
 from . import exponential
 from . import factories
 from . import linalg
@@ -766,22 +767,31 @@ def mean(x, axis=None):
         if x.lshape[x.split] != 0:
             mu = torch.mean(x._DNDarray__array, dim=axis)
         else:
-            mu = factories.zeros(output_shape_i, device=x.device)
+            mu = torch.zeros(output_shape_i, device=x.device)
 
         mu_shape = list(mu.shape) if list(mu.shape) else [1]
 
-        mu_tot = factories.zeros(([x.comm.size] + mu_shape), device=x.device)
-        n_tot = factories.zeros(x.comm.size, device=x.device)
+        mu_tot = torch.zeros(tuple([x.comm.size] + mu_shape), device=x.device.torch_device)
+        n_tot = torch.zeros(x.comm.size, device=x.device.torch_device)
         n_tot[x.comm.rank] = float(x.lshape[x.split])
         mu_tot[x.comm.rank, :] = mu
         x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
         x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)
 
         for i in range(1, x.comm.size):
-            mu_tot[0, :], n_tot[0] = __merge_moments(
-                (mu_tot[0, :], n_tot[0]), (mu_tot[i, :], n_tot[i])
+            mu_tot[0, :], n_tot[0] = _merge_means(mu_tot[0, :], n_tot[0], mu_tot[i, :], n_tot[i])
+        if mu_tot[0].size == 1:
+            ret = dndarray.DNDarray(
+                mu_tot[0][0],
+                gshape=(1,),
+                split=None,
+                comm=x.comm,
+                device=x.device,
+                dtype=types.canonical_heat_type(mu_tot[0][0].dtype),
             )
-        return mu_tot[0][0] if mu_tot[0].size == 1 else mu_tot[0]
+        else:
+            ret = factories.array(mu_tot[0], is_split=None)
+        return ret
 
     # ----------------------------------------------------------------------------------------------
     if axis is None:
@@ -796,17 +806,37 @@ def mean(x, axis=None):
             if torch.isnan(mu_in):
                 mu_in = 0.0
             n = x.lnumel
-            mu_tot = factories.zeros((x.comm.size, 2), device=x.device)
-            mu_proc = factories.zeros((x.comm.size, 2), device=x.device)
-            mu_proc[x.comm.rank] = mu_in, float(n)
+            mu_tot = torch.zeros((x.comm.size, 2), device=x.device.torch_device)
+            mu_proc = torch.zeros((x.comm.size, 2), device=x.device.torch_device)
+            mu_proc[x.comm.rank, 0] = mu_in  # , float(n)
+            mu_proc[x.comm.rank, 1] = float(n)
             x.comm.Allreduce(mu_proc, mu_tot, MPI.SUM)
 
             for i in range(1, x.comm.size):
-                mu_tot[0, 0], mu_tot[0, 1] = __merge_moments(
-                    (mu_tot[0, 0], mu_tot[0, 1]), (mu_tot[i, 0], mu_tot[i, 1])
+                mu_tot[0, 0], mu_tot[0, 1] = _merge_means(
+                    mu_tot[0, 0], mu_tot[0, 1], mu_tot[i, 0], mu_tot[i, 1]
                 )
-            return mu_tot[0][0]
-    return __moment_w_axis(torch.mean, x, axis, reduce_means_elementwise)
+            # this is only one element now -> axis is None
+            ret = dndarray.DNDarray(
+                mu_tot[0][0],
+                gshape=(1,),
+                split=None,
+                comm=x.comm,
+                device=x.device,
+                dtype=types.canonical_heat_type(mu_tot[0][0].dtype),
+            )
+            return ret
+    ret = __moment_w_axis(torch.mean, x, axis, reduce_means_elementwise)
+    if ret.numel == 1:
+        ret = dndarray.DNDarray(
+            ret._DNDarray__array,
+            gshape=(1,),
+            split=None,
+            comm=x.comm,
+            device=x.device,
+            dtype=ret.dtype,
+        )
+    return ret
 
 
 def median(x, axis=None, keepdim=False):
@@ -834,80 +864,110 @@ def median(x, axis=None, keepdim=False):
     return percentile(x, q=50, axis=axis, keepdim=keepdim)
 
 
-def __merge_moments(m1, m2, unbiased=True):
-    """
-    Merge two statistical moments. If the length of m1/m2 (must be equal) is == 3 then the second moment (variance)
-    is merged. This function can be expanded to merge other moments according to Reference 1 as well.
-    Note: all tensors/arrays must be either the same size or individual values
-    TODO: Type annotation:
-        def __merge_moments(m1 : Tuple, m2 : Tuple, unbiased : bool=True) -> Tuple:
-
-    Parameters
-    ----------
-    m1 : tuple
-        Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
-        sorted in descending order of moments
-        Can be
-    m2 : tuple
-        Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
-        sorted in descending order of moments
-    unbiased : bool
-        Flag for the use of unbiased estimators (when available)
-
-    Returns
-    -------
-    merged_moments : tuple
-        a tuple of the merged moments
-
-    References
-    ----------
-    [1] J. Bennett, R. Grout, P. Pebay, D. Roe, D. Thompson, Numerically stable, single-pass, parallel statistics
-        algorithms, IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA,
-        USA.
-    """
-    if len(m1) != len(m2):
-        raise ValueError(
-            "m1 and m2 must be same length, currently {} and {}".format(len(m1), len(m2))
-        )
-    n1, n2 = m1[-1], m2[-1]
-    mu1, mu2 = m1[-2], m2[-2]
+# @torch.jit.script
+def _merge_means(mu1: torch.Tensor, n1: torch.Tensor, mu2: torch.Tensor, n2: torch.Tensor):
     n = n1 + n2
     delta = mu2 - mu1
     mu = mu1 + n2 * (delta / n)
-    if len(m1) == 2:  # merge means
-        return mu, n
+    return mu, n
 
-    var1, var2 = m1[-3], m2[-3]
+
+@torch.jit.script
+def _merge_vars(
+    var1: torch.Tensor,
+    mu1: torch.Tensor,
+    n1: torch.Tensor,
+    var2: torch.Tensor,
+    mu2: torch.Tensor,
+    n2: torch.Tensor,
+    unbiased: bool = True,
+):
+    n = n1 + n2
+    delta = mu2 - mu1
+    mu = mu1 + n2 * (delta / n)
     if unbiased:
         var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1)
     else:
         var_m = (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n
 
-    if len(m1) == 3:  # merge vars
-        return var_m, mu, n
+    return var_m, mu, n
 
-    # TODO: This code block can be added if skew or kurtosis support multiple axes:
-    # sk1, sk2 = m1[-4], m2[-4]
-    # dn = delta / n
-    # if all(var_m != 0):  # Skewness does not exist if var is 0
-    #     s1 = sk1 + sk2
-    #     s2 = dn * (n1 * var2 - n2 * var1) / 6.0
-    #     s3 = (dn ** 3) * n1 * n2 * (n1 ** 2 - n2 ** 2)
-    #     skew_m = s1 + s2 + s3
-    # else:
-    #     skew_m = None
-    # if len(m1) == 4:
-    #     return skew_m, var_m, mu, n
-    #
-    # k1, k2 = m1[-5], m2[-5]
-    # if skew_m is None:
-    #     return None, skew_m, var_m, mu, n
-    # s1 = (1 / 24.0) * dn * (n1 * sk2 - n2 * sk1)
-    # s2 = (1 / 12.0) * (dn ** 2) * ((n1 ** 2) * var2 + (n2 ** 2) * var1)
-    # s3 = (dn ** 4) * n1 * n2 * ((n1 ** 3) + (n2 ** 3))
-    # k = k1 + k2 + s1 + s2 + s3
-    # if len(m1) == 5:
-    #     return k, skew_m, var_m, mu, n
+
+# @torch.jit.script
+# def __merge_moments(m1 : Tuple[torch.Tensor, int], m2 : Tuple[torch.Tensor, int], unbiased : bool=True) -> Tuple:
+#     """
+#     Merge two statistical moments. If the length of m1/m2 (must be equal) is == 3 then the second moment (variance)
+#     is merged. This function can be expanded to merge other moments according to Reference 1 as well.
+#     Note: all tensors/arrays must be either the same size or individual values
+#     TODO: Type annotation:
+#         def __merge_moments(m1 : Tuple, m2 : Tuple, unbiased : bool=True) -> Tuple:
+#
+#     Parameters
+#     ----------
+#     m1 : tuple
+#         Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
+#         sorted in descending order of moments
+#         Can be
+#     m2 : tuple
+#         Tuple of the moments to merge together, the 0th element is the moment to be merged. The tuple must be
+#         sorted in descending order of moments
+#     unbiased : bool
+#         Flag for the use of unbiased estimators (when available)
+#
+#     Returns
+#     -------
+#     merged_moments : tuple
+#         a tuple of the merged moments
+#
+#     References
+#     ----------
+#     [1] J. Bennett, R. Grout, P. Pebay, D. Roe, D. Thompson, Numerically stable, single-pass, parallel statistics
+#         algorithms, IEEE International Conference on Cluster Computing and Workshops, 2009, Oct 2009, New Orleans, LA,
+#         USA.
+#     """
+#     if len(m1) != len(m2):
+#         raise ValueError(
+#             "m1 and m2 must be same length, currently {} and {}".format(len(m1), len(m2))
+#         )
+#     n1, n2 = m1[-1], m2[-1]
+#     mu1, mu2 = m1[-2], m2[-2]
+#     n = n1 + n2
+#     delta = mu2 - mu1
+#     mu = mu1 + n2 * (delta / n)
+#     if len(m1) == 2:  # merge means
+#         return mu, n
+#
+#     var1, var2 = m1[-3], m2[-3]
+#     if unbiased:
+#         var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1)
+#     else:
+#         var_m = (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n
+#
+#     if len(m1) == 3:  # merge vars
+#         return var_m, mu, n
+#
+#     # TODO: This code block can be added if skew or kurtosis support multiple axes:
+#     # sk1, sk2 = m1[-4], m2[-4]
+#     # dn = delta / n
+#     # if all(var_m != 0):  # Skewness does not exist if var is 0
+#     #     s1 = sk1 + sk2
+#     #     s2 = dn * (n1 * var2 - n2 * var1) / 6.0
+#     #     s3 = (dn ** 3) * n1 * n2 * (n1 ** 2 - n2 ** 2)
+#     #     skew_m = s1 + s2 + s3
+#     # else:
+#     #     skew_m = None
+#     # if len(m1) == 4:
+#     #     return skew_m, var_m, mu, n
+#     #
+#     # k1, k2 = m1[-5], m2[-5]
+#     # if skew_m is None:
+#     #     return None, skew_m, var_m, mu, n
+#     # s1 = (1 / 24.0) * dn * (n1 * sk2 - n2 * sk1)
+#     # s2 = (1 / 12.0) * (dn ** 2) * ((n1 ** 2) * var2 + (n2 ** 2) * var1)
+#     # s3 = (dn ** 4) * n1 * n2 * ((n1 ** 3) + (n2 ** 3))
+#     # k = k1 + k2 + s1 + s2 + s3
+#     # if len(m1) == 5:
+#     #     return k, skew_m, var_m, mu, n
 
 
 def min(x, axis=None, out=None, keepdim=None):
@@ -1552,7 +1612,7 @@ def std(x, axis=None, ddof=0, **kwargs):
     tensor([0.9877, 0.6267, 0.3037, 0.3745])
     """
     if not axis:
-        return np.sqrt(var(x, axis, ddof, **kwargs))
+        return exponential.sqrt(var(x, axis, ddof, **kwargs))
     else:
         return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
@@ -1561,8 +1621,6 @@ def std(x, axis=None, ddof=0, **kwargs):
 def __torch_skew(
     torch_tensor: torch.Tensor, dim: Optional[int] = None, unbiased: bool = False
 ) -> torch.Tensor:
-    # TODO: type annotations:
-    #   def __torch_skew(torch_tensor : torch.Tensor, dim : int = None, unbiased : bool = False) -> torch.Tensor:
     # calculate the sample skewness of a torch tensor
     # return the bias corrected Fischer-Pearson standardized moment coefficient by default
     if dim is not None:
@@ -1588,8 +1646,6 @@ def __torch_kurtosis(
     Fischer: bool = True,
     unbiased: bool = False,
 ) -> torch.Tensor:
-    # TODO: type annotations:
-    #   def __torch_kurtosis(torch_tensor : torch.Tensor, dim : int = None, Fischer : bool = True, unbiased : bool = False) -> torch.Tensor:
     # calculate the sample kurtosis of a torch tensor, Pearson's definition
     # returns the excess Kurtosis if excess is True
     # there is not unbiased estimator for Kurtosis
@@ -1719,10 +1775,16 @@ def var(x, axis=None, ddof=0, **kwargs):
         var_tot[x.comm.rank, 2, :] = float(x.lshape[x.split])
         x.comm.Allreduce(MPI.IN_PLACE, var_tot, MPI.SUM)
 
+        # todo: binary merge
+
         for i in range(1, x.comm.size):
-            var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :] = __merge_moments(
-                (var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :]),
-                (var_tot[i, 0, :], var_tot[i, 1, :], var_tot[i, 2, :]),
+            var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :] = _merge_vars(
+                var_tot[0, 0, :],
+                var_tot[0, 1, :],
+                var_tot[0, 2, :],
+                var_tot[i, 0, :],
+                var_tot[i, 1, :],
+                var_tot[i, 2, :],
                 unbiased=unbiased,
             )
         return var_tot[0, 0, :][0] if var_tot[0, 0, :].size == 1 else var_tot[0, 0, :]
@@ -1749,9 +1811,13 @@ def var(x, axis=None, ddof=0, **kwargs):
             x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
 
             for i in range(1, x.comm.size):
-                var_tot[0, 0], var_tot[0, 1], var_tot[0, 2] = __merge_moments(
-                    (var_tot[0, 0], var_tot[0, 1], var_tot[0, 2]),
-                    (var_tot[i, 0], var_tot[i, 1], var_tot[i, 2]),
+                var_tot[0, 0], var_tot[0, 1], var_tot[0, 2] = _merge_vars(
+                    var_tot[0, 0],
+                    var_tot[0, 1],
+                    var_tot[0, 2],
+                    var_tot[i, 0],
+                    var_tot[i, 1],
+                    var_tot[i, 2],
                     unbiased=unbiased,
                 )
             return var_tot[0][0]

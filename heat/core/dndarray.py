@@ -150,6 +150,13 @@ class DNDarray:
         return torch.prod(torch.tensor(self.gshape, device=self.device.torch_device)).item()
 
     @property
+    def numel(self):
+        """
+        number of elements in the DNDarray
+        """
+        return self.size
+
+    @property
     def gnumel(self):
         """
 
