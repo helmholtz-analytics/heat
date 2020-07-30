@@ -10,7 +10,6 @@ sys.path.append("../../")
 import heat as ht
 import heat.nn.functional as F
 import heat.optim as optim
-from heat.utils import vision_transforms
 from heat.utils.data.datatools import Dataset
 
 import time
@@ -27,8 +26,9 @@ class ExtDataset(Dataset):
         return img, target
 
 
-def generateRandomData(mu, sample_cnt, img_size):
-    # creates fake dataset with len(mu) classes
+def generateSyntheticData(mu, sample_cnt, img_size):
+    # creates synthetic dataset with len(mu) classes
+    # dataset has shape sample_cnt x 3 x img_size x img_size
     data = ht.zeros((len(mu) * sample_cnt, 3, img_size, img_size), dtype=ht.float32)
     target = ht.zeros((len(mu) * sample_cnt, 1), dtype=ht.float64)
     for i in range(len(mu)):
@@ -58,6 +58,7 @@ def train(args, model, device, train_loader, optimizer):
 def main():
     comm = MPI.COMM_WORLD
     node_cnt = comm.Get_size()
+    rank = comm.Get_rank()
 
     # Training settings
     parser = argparse.ArgumentParser(
@@ -69,6 +70,13 @@ def main():
         default=128,
         metavar="N",
         help="input batch size for training (default: 128)",
+    )
+    parser.add_argument(
+        "--classes",
+        type=int,
+        default=50,
+        metavar="N",
+        help="number of different classes for synthetic data (default: 50)",
     )
     parser.add_argument(
         "--epochs",
@@ -95,22 +103,26 @@ def main():
         "--lr", type=float, default=1.0, metavar="LR", help="learning rate (default: 1.0)"
     )
     parser.add_argument(
-        "--no-cuda", action="store_true", default=True, help="disables CUDA training"
+        "--blocking",
+        action="store_true",
+        default=False,
+        help="enables blocking gradient communication",
     )
+    parser.add_argument("--cuda", action="store_true", default=False, help="enables CUDA training")
     parser.add_argument(
         "--dry-run", action="store_true", default=False, help="quickly check a single pass"
     )
 
     args = parser.parse_args()
-    use_cuda = not args.no_cuda and torch.cuda.is_available()
+    use_cuda = not args.cuda and torch.cuda.is_available()
     nn_id = args.nn_id
     device = torch.device("cuda" if use_cuda else "cpu")
     kwargs = {"batch_size": args.batch_size}
     mu = np.arange(50) * 25.5
-    data, targets = generateRandomData(mu, args.batch_size * node_cnt, args.img_size)
+    data, targets = generateSyntheticData(mu, args.batch_size * node_cnt, args.img_size)
     dataset = ExtDataset(data, targets)
 
-    print("Random data has been generated.")
+    print("Node ", rank, ": Synthetic data has been generated.")
 
     if nn_id == 1:
         tmodel = models.AlexNet()
@@ -124,19 +136,22 @@ def main():
 
     optimizer = optim.Adadelta(tmodel.parameters(), lr=args.lr)
     dp_optim = ht.optim.DataParallelOptimizer(optimizer)
-    model = ht.nn.DataParallel(tmodel, data.comm, dp_optim)
+    model = ht.nn.DataParallel(
+        tmodel, data.comm, dp_optim, blocking_parameter_updates=args.blocking
+    )
 
     train_loader = ht.utils.data.datatools.DataLoader(dataset.data, lcl_dataset=dataset, **kwargs)
 
     t1 = time.time()
     for epoch in range(1, args.epochs + 1):
         continue_training = train(args, model, device, train_loader, optimizer)
+        print("Node ", rank, ": Epoch ", epoch, " of ", args.epochs, " has been finished.")
         if not continue_training:
             break
     t2 = time.time()
 
-    print("Training has been finished.")
-    print("Time:", t2 - t1)
+    print("Node ", rank, ": Training has been finished.")
+    print("Node ", rank, ": Time:", t2 - t1)
 
 
 if __name__ == "__main__":
