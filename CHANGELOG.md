@@ -1,4 +1,4 @@
-# Pending Additionseghargh
+# Pending Additionsegharghg
 
 - [#488](https://github.com/helmholtz-analytics/heat/pull/488) Enhancement: Rework of the test device selection.
 - [#569](https://github.com/helmholtz-analytics/heat/pull/569) New feature: percentile() and median()
