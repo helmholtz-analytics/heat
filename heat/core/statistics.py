@@ -479,11 +479,11 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True, ignore_split_semantics=T
     """
     resplit_flag = False
     og_split = x.split
-    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0:
+    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0 == axis:
         og_split = 0
         x = manipulations.resplit(x, 1)
         resplit_flag = True
-    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1:
+    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1 == axis:
         og_split = 1
         x = manipulations.resplit(x, 0)
         resplit_flag = True
@@ -1623,11 +1623,11 @@ def skew(x, axis=None, unbiased=True, ignore_split_semantics=True):
     """
     resplit_flag = False
     og_split = x.split
-    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0:
+    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0 == axis:
         og_split = 0
         x = manipulations.resplit(x, 1)
         resplit_flag = True
-    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1:
+    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1 == axis:
         og_split = 1
         x = manipulations.resplit(x, 0)
         resplit_flag = True
