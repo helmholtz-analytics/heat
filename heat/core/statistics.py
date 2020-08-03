@@ -477,7 +477,20 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True, ignore_split_semantics=T
     UserWarning: Dependent on the axis given and the split configuration a UserWarning may be thrown during this
         function as data is transferred between processes
     """
-    if axis is None:  # no axis given
+    resplit_flag = False
+    og_split = x.split
+    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0:
+        og_split = 0
+        x = manipulations.resplit(x, 1)
+        resplit_flag = True
+    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1:
+        og_split = 1
+        x = manipulations.resplit(x, 0)
+        resplit_flag = True
+
+    if axis is None or (
+        isinstance(axis, int) and x.split == axis and not resplit_flag
+    ):  # no axis given
         # TODO: determine if this is a valid (and fast implementation)
         mu = mean(x, axis=axis)
         if axis is not None and axis > 0:
@@ -496,17 +509,6 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True, ignore_split_semantics=T
     elif isinstance(axis, (list, tuple)):
         raise TypeError("axis cannot be a list or a tuple, currently {}".format(type(axis)))
     # else:
-
-    resplit_flag = False
-    og_split = x.split
-    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0:
-        og_split = 0
-        x = manipulations.resplit(x, 1)
-        resplit_flag = True
-    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1:
-        og_split = 1
-        x = manipulations.resplit(x, 0)
-        resplit_flag = True
 
     ret = __moment_w_axis(__torch_kurtosis, x, axis, None, unbiased, Fischer)
     if ret.numel == 1:
@@ -1619,7 +1621,20 @@ def skew(x, axis=None, unbiased=True, ignore_split_semantics=True):
     UserWarning: Dependent on the axis given and the split configuration a UserWarning may be thrown during this
         function as data is transferred between processes
     """
-    if axis is None:  # no axis given
+    resplit_flag = False
+    og_split = x.split
+    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0:
+        og_split = 0
+        x = manipulations.resplit(x, 1)
+        resplit_flag = True
+    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1:
+        og_split = 1
+        x = manipulations.resplit(x, 0)
+        resplit_flag = True
+
+    if axis is None or (
+        isinstance(axis, int) and x.split == axis and not resplit_flag
+    ):  # no axis given
         # TODO: determine if this is a valid (and fast implementation)
         mu = mean(x, axis=axis)
         if axis is not None and axis > 0:
@@ -1637,17 +1652,6 @@ def skew(x, axis=None, unbiased=True, ignore_split_semantics=True):
     elif isinstance(axis, (list, tuple)):
         # if multiple axes are required, need to add a reduce_skews_elementwise function
         raise TypeError(f"axis cannot be a list or a tuple, currently {type(axis)}")
-
-    resplit_flag = False
-    og_split = x.split
-    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0:
-        og_split = 0
-        x = manipulations.resplit(x, 1)
-        resplit_flag = True
-    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1:
-        og_split = 1
-        x = manipulations.resplit(x, 0)
-        resplit_flag = True
 
     ret = __moment_w_axis(__torch_skew, x, axis, None, unbiased)
 
