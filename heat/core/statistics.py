@@ -488,19 +488,18 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True, ignore_split_semantics=T
         x = manipulations.resplit(x, 0)
         resplit_flag = True
 
-    if axis is None or (
-        isinstance(axis, int) and x.split == axis and not resplit_flag
-    ):  # no axis given
+    if axis is None or (isinstance(axis, int) and x.split == axis and not resplit_flag):
         # TODO: determine if this is a valid (and fast implementation)
         mu = mean(x, axis=axis)
         if axis is not None and axis > 0:
             mu = mu.expand_dims(axis)
         diff = x - mu
         n = float(x.shape[axis]) if axis is not None else x.gnumel
+        diff2 = arithmetics.pow(diff, 2.0)
 
-        m4 = arithmetics.sum(arithmetics.pow(diff, 4.0), axis) / n
-        m2 = arithmetics.sum(arithmetics.pow(diff, 2.0), axis) / n
-        res = m4 / arithmetics.pow(m2, 2.0)
+        m4 = arithmetics.sum(arithmetics.pow(diff2, 2.0), axis)
+        m2 = arithmetics.sum(diff2, axis)
+        res = m4 / (arithmetics.pow(m2, 2.0) / n)
         if unbiased:
             res = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * res - 3 * (n - 1.0)) + 3.0
         if Fischer:
@@ -508,9 +507,11 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True, ignore_split_semantics=T
         return res.item() if res.gnumel == 1 else res
     elif isinstance(axis, (list, tuple)):
         raise TypeError("axis cannot be a list or a tuple, currently {}".format(type(axis)))
-    # else:
 
     ret = __moment_w_axis(__torch_kurtosis, x, axis, None, unbiased, Fischer)
+    if unbiased:
+        n = ret.numel
+        ret = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * ret - 3.0 * (n - 1.0)) + 3.0
     if ret.numel == 1:
         ret = dndarray.DNDarray(
             ret._DNDarray__array,
@@ -875,11 +876,11 @@ def mean(x, axis=None, ignore_split_semantics=True):
 
     resplit_flag = False
     og_split = x.split
-    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0:
+    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0 == axis:
         og_split = 0
         x = manipulations.resplit(x, 1)
         resplit_flag = True
-    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1:
+    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1 == axis:
         og_split = 1
         x = manipulations.resplit(x, 0)
         resplit_flag = True
@@ -1730,20 +1731,22 @@ def __torch_skew(
     if dim is not None:
         n = torch_tensor.shape[dim]
         diff = torch_tensor - torch.mean(torch_tensor, dim=dim, keepdim=True)
-        m3 = torch.true_divide(torch.sum(torch.pow(diff, 3), dim=dim), n)
-        m2 = torch.true_divide(torch.sum(torch.pow(diff, 2), dim=dim), n)
+        diff2 = torch.pow(diff, 2)
+        m3 = torch.sum(torch.pow(diff2, 1.5), dim=dim)
+        m2 = torch.sum(diff2, dim=dim)
     else:
         n = torch_tensor.numel()
         diff = torch_tensor - torch.mean(torch_tensor)
-        m3 = torch.true_divide(torch.sum(torch.pow(diff, 3)), n)
-        m2 = torch.true_divide(torch.sum(torch.pow(diff, 2)), n)
+        diff2 = torch.pow(diff, 2)
+        m3 = torch.sum(torch.pow(diff2, 1.5))
+        m2 = torch.sum(diff2)
     if not unbiased:
-        return torch.true_divide(m3, torch.pow(m2, 1.5))
+        return torch.true_divide(m3, torch.pow(m2, 1.5) / torch.pow(n, 0.5))
     coeff = ((n * (n - 1)) ** 0.5) / (n - 2.0)
     return coeff * torch.true_divide(m3, torch.pow(m2, 1.5))
 
 
-@torch.jit.script
+# @torch.jit.script
 def __torch_kurtosis(
     torch_tensor: torch.Tensor,
     dim: Optional[int] = None,
@@ -1756,16 +1759,22 @@ def __torch_kurtosis(
     if dim is not None:
         n = torch_tensor.shape[dim]
         diff = torch_tensor - torch.mean(torch_tensor, dim=dim, keepdim=True)
-        m4 = torch.true_divide(torch.sum(torch.pow(diff, 4.0), dim=dim), n)
-        m2 = torch.true_divide(torch.sum(torch.pow(diff, 2.0), dim=dim), n)
+        diff2 = torch.pow(diff, 2.0)
+        diff4 = torch.pow(diff2, 2.0)
+        sdiff4 = torch.sum(diff4, dim=dim)
+        sdiff2 = torch.sum(diff2, dim=dim)
     else:
+        # todo: sum needed here?
         n = torch_tensor.numel()
         diff = torch_tensor - torch.mean(torch_tensor)
-        m4 = torch.true_divide(torch.pow(diff, 4.0), n)
-        m2 = torch.true_divide(torch.pow(diff, 2.0), n)
-    res = torch.true_divide(m4, torch.pow(m2, 2.0))
-    if unbiased:
-        res = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * res - 3.0 * (n - 1.0)) + 3.0
+        diff2 = torch.pow(diff, 2.0)
+        diff4 = torch.pow(diff2, 2.0)
+        sdiff4 = torch.sum(diff4)
+        sdiff2 = torch.sum(diff2)
+    res = torch.true_divide(sdiff4, torch.pow(sdiff2, 2.0) / n)
+    # res = torch.true_divide(m4, torch.pow(m2, 2.0))
+    # if unbiased:
+    #     res = ((n - 1.0) / ((n - 2.0) * (n - 3.0))) * ((n + 1.0) * res - 3.0 * (n - 1.0)) + 3.0
     if Fischer:
         res -= 3.0
     return res
@@ -1968,11 +1977,11 @@ def var(x, axis=None, ddof=0, ignore_split_semantics=True, **kwargs):
 
     resplit_flag = False
     og_split = x.split
-    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0:
+    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0 == axis:
         og_split = 0
         x = manipulations.resplit(x, 1)
         resplit_flag = True
-    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1:
+    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1 == axis:
         og_split = 1
         x = manipulations.resplit(x, 0)
         resplit_flag = True
