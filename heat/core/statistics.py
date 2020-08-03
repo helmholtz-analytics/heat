@@ -1541,6 +1541,11 @@ def skew(x, axis=None, unbiased=True):
         Axis along which skewness is calculated, Default is to compute over the whole array `x`
     unbiased : Bool
         if True (default) the calculations are corrected for bias
+    ignore_split_semantics : bool
+        allow for the returned DNDarray to break the split semantics shown in Notes.
+        For example, if ``x`` is a 2D extremely tall and skinny, as well as split 1 and the given axis is
+        equal to the split axis, then the returned result will be split 0 if this flag is True. If all of
+        those conditions are not met, then this flag will have no effect.
 
     Warnings
     --------
@@ -1585,6 +1590,11 @@ def std(x, axis=None, ddof=0, **kwargs):
         Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
         represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
         Setting ddof > 1 raises a NotImplementedError.
+    ignore_split_semantics : bool
+        allow for the returned DNDarray to break the split semantics shown in Notes.
+        For example, if ``x`` is a 2D extremely tall and skinny, as well as split 1 and the given axis is
+        equal to the split axis, then the returned result will be split 0 if this flag is True. If all of
+        those conditions are not met, then this flag will have no effect.
 
     Returns
     -------
@@ -1667,7 +1677,7 @@ def __torch_kurtosis(
     return res
 
 
-def var(x, axis=None, ddof=0, **kwargs):
+def var(x, axis=None, ddof=0, ignore_split_semantics=True, **kwargs):
     """
     Calculates and returns the variance of a tensor. The default estimator is biased.
     If an axis is given, the variance will be taken in that direction.
@@ -1683,6 +1693,11 @@ def var(x, axis=None, ddof=0, **kwargs):
         Delta Degrees of Freedom: the denominator implicitely used in the calculation is N - ddof, where N
         represents the number of elements. Default: ddof=0. If ddof=1, the Bessel correction will be applied.
         Setting ddof > 1 raises a NotImplementedError.
+    ignore_split_semantics : bool
+        allow for the returned DNDarray to break the split semantics shown in Notes.
+        For example, if ``x`` is a 2D extremely tall and skinny, as well as split 1 and the given axis is
+        equal to the split axis, then the returned result will be split 0 if this flag is True. If all of
+        those conditions are not met, then this flag will have no effect.
 
     Returns
     -------
@@ -1759,7 +1774,6 @@ def var(x, axis=None, ddof=0, **kwargs):
         variances : ht.DNDarray
             The calculated variances.
         """
-
         if x.lshape[x.split] != 0:
             mu = torch.mean(x._DNDarray__array, dim=axis)
             var = torch.var(x._DNDarray__array, dim=axis, unbiased=unbiased)
@@ -1779,11 +1793,13 @@ def var(x, axis=None, ddof=0, **kwargs):
         var_tot[x.comm.rank, 0, :] = var
         var_tot[x.comm.rank, 1, :] = mu
         var_tot[x.comm.rank, 2, :] = float(x.lshape[x.split])
+        # print('here')
         x.comm.Allreduce(MPI.IN_PLACE, var_tot, MPI.SUM)
 
         # todo: binary merge
 
         for i in range(1, x.comm.size):
+            # vtloc = var_tot._DNDarray__array
             var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :] = _merge_vars(
                 var_tot[0, 0, :],
                 var_tot[0, 1, :],
@@ -1805,7 +1821,6 @@ def var(x, axis=None, ddof=0, **kwargs):
             )
         else:
             ret = factories.array(r, is_split=None)
-        # print("elementwise", ret.gshape)
 
         return ret
 
@@ -1857,6 +1872,16 @@ def var(x, axis=None, ddof=0, **kwargs):
         # print("no axis", ret.gshape)
         return ret
 
+    resplit_flag = False
+    og_split = x.split
+    if x.gshape[0] * 1000 < x.gshape[1] and x.split == 0:
+        og_split = 0
+        x = manipulations.resplit(x, 1)
+        resplit_flag = True
+    elif x.gshape[0] > x.gshape[1] * 1000 and x.split == 1:
+        og_split = 1
+        x = manipulations.resplit(x, 0)
+        resplit_flag = True
     ret = __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, unbiased)
     # print(ret)
     if ret.numel == 1:
@@ -1868,5 +1893,15 @@ def var(x, axis=None, ddof=0, **kwargs):
             device=x.device,
             dtype=ret.dtype,
         )
+    if not ignore_split_semantics and resplit_flag:
+        # need the expected split
+        if x.split is None:
+            sp = None
+        else:
+            sp = x.split if axis > x.split else x.split - 1
+            if axis == og_split:
+                sp = None
+        if sp != ret.split:
+            ret = manipulations.resplit(ret, sp)
     # print("moment w axis", ret.gshape)
     return ret
