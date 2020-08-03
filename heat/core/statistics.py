@@ -444,7 +444,7 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     return c
 
 
-def kurtosis(x, axis=None, unbiased=True, Fischer=True):
+def kurtosis(x, axis=None, unbiased=True, Fischer=True, ignore_split_semantics=True):
     """
     Compute the kurtosis (Fisher or Pearson) of a dataset.
     TODO: type annotations:
@@ -466,6 +466,11 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
         if True (default) the calculations are corrected for bias
     Fischer : bool
         Whether use Fischer's definition or not. If true 3. is subtracted from the result.
+    ignore_split_semantics : bool
+        allow for the returned DNDarray to break the split semantics shown in Notes.
+        For example, if ``x`` is a 2D extremely tall and skinny, as well as split 1 and the given axis is
+        equal to the split axis, then the returned result will be split 0 if this flag is True. If all of
+        those conditions are not met, then this flag will have no effect.
 
     Warnings
     --------
@@ -490,8 +495,42 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True):
         return res.item() if res.gnumel == 1 else res
     elif isinstance(axis, (list, tuple)):
         raise TypeError("axis cannot be a list or a tuple, currently {}".format(type(axis)))
-    else:
-        return __moment_w_axis(__torch_kurtosis, x, axis, None, unbiased, Fischer)
+    # else:
+
+    resplit_flag = False
+    og_split = x.split
+    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0:
+        og_split = 0
+        x = manipulations.resplit(x, 1)
+        resplit_flag = True
+    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1:
+        og_split = 1
+        x = manipulations.resplit(x, 0)
+        resplit_flag = True
+
+    ret = __moment_w_axis(__torch_kurtosis, x, axis, None, unbiased, Fischer)
+    if ret.numel == 1:
+        ret = dndarray.DNDarray(
+            ret._DNDarray__array,
+            gshape=(1,),
+            split=None,
+            comm=x.comm,
+            device=x.device,
+            dtype=ret.dtype,
+        )
+
+    if not ignore_split_semantics and resplit_flag:
+        # need the expected split
+        if x.split is None:
+            sp = None
+        else:
+            sp = x.split if axis > x.split else x.split - 1
+            if axis == og_split:
+                sp = None
+        if sp != ret.split:
+            ret = manipulations.resplit(ret, sp)
+
+    return ret
 
 
 def max(x, axis=None, out=None, keepdim=None):
@@ -693,7 +732,7 @@ def maximum(x1, x2, out=None):
     return lresult
 
 
-def mean(x, axis=None):
+def mean(x, axis=None, ignore_split_semantics=True):
     """
     Calculates and returns the mean of a tensor.
     If a axis is given, the mean will be taken in that direction.
@@ -705,6 +744,11 @@ def mean(x, axis=None):
         The dtype of x must be a float
     axis : None, Int, iterable, defaults to None
         Axis which the mean is taken in. Default None calculates mean of all data items.
+    ignore_split_semantics : bool
+        allow for the returned DNDarray to break the split semantics shown in Notes.
+        For example, if ``x`` is a 2D extremely tall and skinny, as well as split 1 and the given axis is
+        equal to the split axis, then the returned result will be split 0 if this flag is True. If all of
+        those conditions are not met, then this flag will have no effect.
 
     Returns
     -------
@@ -826,6 +870,18 @@ def mean(x, axis=None):
                 dtype=types.canonical_heat_type(mu_tot[0][0].dtype),
             )
             return ret
+
+    resplit_flag = False
+    og_split = x.split
+    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0:
+        og_split = 0
+        x = manipulations.resplit(x, 1)
+        resplit_flag = True
+    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1:
+        og_split = 1
+        x = manipulations.resplit(x, 0)
+        resplit_flag = True
+
     ret = __moment_w_axis(torch.mean, x, axis, reduce_means_elementwise)
     if ret.numel == 1:
         ret = dndarray.DNDarray(
@@ -836,6 +892,18 @@ def mean(x, axis=None):
             device=x.device,
             dtype=ret.dtype,
         )
+
+    if not ignore_split_semantics and resplit_flag:
+        # need the expected split
+        if x.split is None:
+            sp = None
+        else:
+            sp = x.split if axis > x.split else x.split - 1
+            if axis == og_split:
+                sp = None
+        if sp != ret.split:
+            ret = manipulations.resplit(ret, sp)
+
     return ret
 
 
@@ -1526,12 +1594,11 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
     return percentile
 
 
-def skew(x, axis=None, unbiased=True):
+def skew(x, axis=None, unbiased=True, ignore_split_semantics=True):
     """
     Compute the sample skewness of a data set.
     TODO: type annotations
         def skew(x : DNDarray, axis : Union[None, int] = None, unbiased : bool = True) -> DNDarray:
-
 
     Parameters
     ----------
@@ -1568,13 +1635,36 @@ def skew(x, axis=None, unbiased=True):
             res *= ((n * (n - 1.0)) ** 0.5) / (n - 2.0)
         return res.item() if res.gnumel == 1 else res
     elif isinstance(axis, (list, tuple)):
-        raise TypeError(f"axis cannot be a list or a tuple, currently {type(axis)}")
-    else:
         # if multiple axes are required, need to add a reduce_skews_elementwise function
-        return __moment_w_axis(__torch_skew, x, axis, None, unbiased)
+        raise TypeError(f"axis cannot be a list or a tuple, currently {type(axis)}")
+
+    resplit_flag = False
+    og_split = x.split
+    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0:
+        og_split = 0
+        x = manipulations.resplit(x, 1)
+        resplit_flag = True
+    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1:
+        og_split = 1
+        x = manipulations.resplit(x, 0)
+        resplit_flag = True
+
+    ret = __moment_w_axis(__torch_skew, x, axis, None, unbiased)
+
+    if not ignore_split_semantics and resplit_flag:
+        # need the expected split
+        if x.split is None:
+            sp = None
+        else:
+            sp = x.split if axis > x.split else x.split - 1
+            if axis == og_split:
+                sp = None
+        if sp != ret.split:
+            ret = manipulations.resplit(ret, sp)
+    return ret
 
 
-def std(x, axis=None, ddof=0, **kwargs):
+def std(x, axis=None, ddof=0, ignore_split_semantics=True, **kwargs):
     """
     Calculates and returns the standard deviation of a tensor. The default estimator is biased.
     If a axis is given, the variance will be taken in that direction.
@@ -1621,10 +1711,10 @@ def std(x, axis=None, ddof=0, **kwargs):
     >>> ht.std(a, 1)
     tensor([0.9877, 0.6267, 0.3037, 0.3745])
     """
-    if not axis:
-        return exponential.sqrt(var(x, axis, ddof, **kwargs))
-    else:
-        return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
+    # if not axis:
+    #     return exponential.sqrt(var(x, axis, ddof, ignore_split_semantics, **kwargs))
+    # else:
+    return exponential.sqrt(var(x, axis, ddof, ignore_split_semantics, **kwargs), out=None)
 
 
 @torch.jit.script
@@ -1874,14 +1964,15 @@ def var(x, axis=None, ddof=0, ignore_split_semantics=True, **kwargs):
 
     resplit_flag = False
     og_split = x.split
-    if x.gshape[0] * 1000 < x.gshape[1] and x.split == 0:
+    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0:
         og_split = 0
         x = manipulations.resplit(x, 1)
         resplit_flag = True
-    elif x.gshape[0] > x.gshape[1] * 1000 and x.split == 1:
+    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1:
         og_split = 1
         x = manipulations.resplit(x, 0)
         resplit_flag = True
+
     ret = __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, unbiased)
     # print(ret)
     if ret.numel == 1:
@@ -1893,6 +1984,7 @@ def var(x, axis=None, ddof=0, ignore_split_semantics=True, **kwargs):
             device=x.device,
             dtype=ret.dtype,
         )
+
     if not ignore_split_semantics and resplit_flag:
         # need the expected split
         if x.split is None:
@@ -1903,5 +1995,4 @@ def var(x, axis=None, ddof=0, ignore_split_semantics=True, **kwargs):
                 sp = None
         if sp != ret.split:
             ret = manipulations.resplit(ret, sp)
-    # print("moment w axis", ret.gshape)
     return ret
