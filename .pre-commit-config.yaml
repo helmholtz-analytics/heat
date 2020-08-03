@@ -13,3 +13,7 @@ repos:
     rev: 19.3b0
     hooks:
     -   id: black
+-   repo: https://github.com/pycqa/pydocstyle
+    rev: 5.0.1  # pick a git hash / tag to point to
+    hooks:
+    -   id: pydocstyle
