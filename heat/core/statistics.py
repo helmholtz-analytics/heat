@@ -477,7 +477,7 @@ def kurtosis(x, axis=None, unbiased=True, Fischer=True, ignore_split_semantics=T
     UserWarning: Dependent on the axis given and the split configuration a UserWarning may be thrown during this
         function as data is transferred between processes
     """
-    if axis is None or (isinstance(axis, int) and x.split == axis):  # no axis given
+    if axis is None:  # no axis given
         # TODO: determine if this is a valid (and fast implementation)
         mu = mean(x, axis=axis)
         if axis is not None and axis > 0:
@@ -1619,7 +1619,7 @@ def skew(x, axis=None, unbiased=True, ignore_split_semantics=True):
     UserWarning: Dependent on the axis given and the split configuration a UserWarning may be thrown during this
         function as data is transferred between processes
     """
-    if axis is None or (isinstance(axis, int) and x.split == axis):  # no axis given
+    if axis is None:  # no axis given
         # TODO: determine if this is a valid (and fast implementation)
         mu = mean(x, axis=axis)
         if axis is not None and axis > 0:
