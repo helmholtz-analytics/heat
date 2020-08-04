@@ -168,4 +168,11 @@ def _tensor_str(dndarray, indent):
     torch_data = _torch_data(dndarray, summarize)
     formatter = torch._tensor_str._Formatter(torch_data)
 
-    return torch._tensor_str._tensor_str_with_formatter(torch_data, indent, formatter, summarize)
+    if int(torch.__version__[2]) <= 5:
+        return torch._tensor_str._tensor_str_with_formatter(
+            torch_data, indent, formatter, summarize
+        )
+    else:
+        return torch._tensor_str._tensor_str_with_formatter(
+            torch_data, indent, summarize, formatter
+        )
