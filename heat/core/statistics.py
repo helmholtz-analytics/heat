@@ -1746,7 +1746,7 @@ def __torch_skew(
     return coeff * torch.true_divide(m3, torch.pow(m2, 1.5))
 
 
-# @torch.jit.script
+@torch.jit.script
 def __torch_kurtosis(
     torch_tensor: torch.Tensor,
     dim: Optional[int] = None,
