@@ -99,6 +99,25 @@ def argmax(x, axis=None, out=None, **kwargs):
     if axis is not None and not isinstance(axis, int):
         raise TypeError("axis must be None or int, but was {}".format(type(axis)))
 
+    if not x.is_distributed():
+        keep_dim = kwargs.get("keepdim")
+        if keep_dim is None:
+            keep_dim = False
+        axis = stride_tricks.sanitize_axis(x.shape, axis)
+        ret = factories.array(torch.argmax(x._DNDarray__array, axis, keepdim=keep_dim))
+        if ret.gnumel == 1:
+            ret = manipulations.expand_dims(ret, 0)
+        if out is not None:
+            if out.shape != ret.shape:
+                raise ValueError(
+                    "Expecting output buffer of shape {}, got {}".format(ret.shape, out.shape)
+                )
+            out._DNDarray__array.storage().copy_(ret._DNDarray__array.storage())
+            out._DNDarray__array = out._DNDarray__array.type(torch.int64)
+            out._DNDarray__dtype = types.int64
+            return out
+        return ret
+
     # perform the global reduction
     smallest_value = -constants.sanitize_infinity(x._DNDarray__array.dtype)
     reduced_result = _operations.__reduce_op(
@@ -199,6 +218,25 @@ def argmin(x, axis=None, out=None, **kwargs):
     # axis sanitation
     if axis is not None and not isinstance(axis, int):
         raise TypeError("axis must be None or int, but was {}".format(type(axis)))
+
+    if not x.is_distributed():
+        keep_dim = kwargs.get("keepdim")
+        if keep_dim is None:
+            keep_dim = False
+        axis = stride_tricks.sanitize_axis(x.shape, axis)
+        ret = factories.array(torch.argmin(x._DNDarray__array, axis, keepdim=keep_dim))
+        if ret.gnumel == 1:
+            ret = manipulations.expand_dims(ret, 0)
+        if out is not None:
+            if out.shape != ret.shape:
+                raise ValueError(
+                    "Expecting output buffer of shape {}, got {}".format(ret.shape, out.shape)
+                )
+            out._DNDarray__array.storage().copy_(ret._DNDarray__array.storage())
+            out._DNDarray__array = out._DNDarray__array.type(torch.int64)
+            out._DNDarray__dtype = types.int64
+            return out
+        return ret
 
     # perform the global reduction
     largest_value = constants.sanitize_infinity(x._DNDarray__array.dtype)

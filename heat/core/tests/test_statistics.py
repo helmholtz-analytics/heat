@@ -57,7 +57,7 @@ class TestStatistics(TestCase):
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
         self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
         self.assertEqual(result.lshape, (4,))
-        self.assertEqual(result.split, 0)
+        self.assertEqual(result.split, 0 if ht.MPI_WORLD.size > 1 else None)
         self.assertTrue((result._DNDarray__array == expected).all())
 
         # 2D split tensor, across the axis
@@ -147,7 +147,7 @@ class TestStatistics(TestCase):
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
         self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
         self.assertEqual(result.lshape, (4,))
-        self.assertEqual(result.split, 0)
+        self.assertEqual(result.split, 0 if ht.MPI_WORLD.size > 1 else None)
         self.assertTrue((result._DNDarray__array == expected).all())
 
         # 2D split tensor, across the axis
