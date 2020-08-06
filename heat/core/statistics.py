@@ -822,6 +822,7 @@ def mean(x, axis=None, ignore_split_semantics=True):
         n_tot = torch.zeros(x.comm.size, device=x.device.torch_device)
         n_tot[x.comm.rank] = float(x.lshape[x.split])
         mu_tot[x.comm.rank, :] = mu
+
         x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
         x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)
 
@@ -943,7 +944,7 @@ def _merge_means(mu1: torch.Tensor, n1: torch.Tensor, mu2: torch.Tensor, n2: tor
     return mu, n
 
 
-@torch.jit.script
+# @torch.jit.script
 def _merge_vars(
     var1: torch.Tensor,
     mu1: torch.Tensor,
@@ -960,6 +961,17 @@ def _merge_vars(
         var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1)
     else:
         var_m = (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n
+
+    # inds = var_m != var_m
+    # print(inds)
+    var_m[torch.isnan(var_m)] = 0.0
+    var_m[torch.isinf(var_m)] = 0.0
+    # print(torch.finfo(var_m.dtype).max)
+    var_m[
+        (var_m > torch.finfo(var_m.dtype).max - 100)
+        | (var_m < torch.finfo(var_m.dtype).min + 1e-40)
+    ] = 0.0
+    # print('v', var_m)
 
     return var_m, mu, n
 
@@ -1451,7 +1463,6 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
     gshape = x.gshape
     split = x.split
     t_x = x._DNDarray__array
-
     # sanitize q
     if isinstance(q, list) or isinstance(q, tuple):
         t_perc_dtype = torch.promote_types(type(q[0]), torch.float32)
@@ -1716,9 +1727,23 @@ def std(x, axis=None, ddof=0, ignore_split_semantics=True, **kwargs):
     >>> ht.std(a, 1)
     tensor([0.9877, 0.6267, 0.3037, 0.3745])
     """
-    # if not axis:
-    #     return exponential.sqrt(var(x, axis, ddof, ignore_split_semantics, **kwargs))
-    # else:
+    if not isinstance(ddof, int):
+        raise TypeError(f"ddof must be integer, is {type(ddof)}")
+    elif ddof > 1:
+        raise NotImplementedError("Not implemented for ddof > 1.")
+    elif ddof < 0:
+        raise ValueError(f"Expected ddof=0 or ddof=1, got {ddof}")
+    else:
+        if kwargs.get("bessel"):
+            unbiased = kwargs.get("bessel")
+        else:
+            unbiased = bool(ddof)
+        ddof = 1 if unbiased else ddof
+    if not x.is_distributed() and str(x.device)[:3] == "cpu":
+        loc = np.std(x._DNDarray__array.numpy(), axis=axis, ddof=ddof)
+        if loc.size == 1:
+            return loc.item()
+        return factories.array(loc)
     return exponential.sqrt(var(x, axis, ddof, ignore_split_semantics, **kwargs), out=None)
 
 
@@ -1780,7 +1805,7 @@ def __torch_kurtosis(
     return res
 
 
-def var(x, axis=None, ddof=0, ignore_split_semantics=True, **kwargs):
+def var(x, axis: Union[int, Tuple, None] = None, ddof=0, ignore_split_semantics=True, **kwargs):
     """
     Calculates and returns the variance of a tensor. The default estimator is biased.
     If an axis is given, the variance will be taken in that direction.
@@ -1848,7 +1873,6 @@ def var(x, axis=None, ddof=0, ignore_split_semantics=True, **kwargs):
     >>> ht.var(a, 0, ddof=0)
     tensor([1.0218, 2.4422, 0.1085, 0.9032])
     """
-
     if not isinstance(ddof, int):
         raise TypeError(f"ddof must be integer, is {type(ddof)}")
     elif ddof > 1:
@@ -1860,6 +1884,34 @@ def var(x, axis=None, ddof=0, ignore_split_semantics=True, **kwargs):
             unbiased = kwargs.get("bessel")
         else:
             unbiased = bool(ddof)
+        ddof = 1 if unbiased else ddof
+
+    if isinstance(axis, list):
+        axis = tuple(axis)
+
+    stride_tricks.sanitize_axis(x.shape, axis)
+    out_type = types.promote_types(x.dtype, types.float32)
+
+    def _local_var():
+        if str(x.device)[:3] == "cpu":
+            cst = np.float32 if out_type is types.float32 else np.float64
+            loc_np = x._DNDarray__array.numpy().astype(cst)
+            loc_np = np.var(loc_np, axis=axis, ddof=ddof)
+            loc_np = np.where(
+                (np.isinf(loc_np)) | (np.isneginf(loc_np)) | (np.isnan(loc_np)), 0, loc_np
+            )
+            ret = torch.tensor(loc_np, dtype=out_type.torch_type(), device=x.device.torch_device)
+            print("np", ret)
+            return ret
+        else:
+            if axis is not None:
+                return torch.var(x._DNDarray__array, dim=axis, unbiased=unbiased)
+            else:
+                return torch.var(x._DNDarray__array, unbiased=unbiased)
+
+    if not x.is_distributed():
+        loc = _local_var()
+        return factories.array(loc, dtype=out_type)
 
     def reduce_vars_elementwise(output_shape_i):
         """
@@ -1879,7 +1931,8 @@ def var(x, axis=None, ddof=0, ignore_split_semantics=True, **kwargs):
         """
         if x.lshape[x.split] != 0:
             mu = torch.mean(x._DNDarray__array, dim=axis)
-            var = torch.var(x._DNDarray__array, dim=axis, unbiased=unbiased)
+            var = _local_var()
+            # var = torch.var(x._DNDarray__array, dim=axis, unbiased=unbiased)
         else:
             mu = torch.zeros(
                 output_shape_i, dtype=x.dtype.torch_type(), device=x.device.torch_device
@@ -1893,11 +1946,14 @@ def var(x, axis=None, ddof=0, ignore_split_semantics=True, **kwargs):
         var_tot = torch.zeros(
             ([x.comm.size, 3] + var_shape), dtype=x.dtype.torch_type(), device=x.device.torch_device
         )
-        var_tot[x.comm.rank, 0, :] = var
-        var_tot[x.comm.rank, 1, :] = mu
-        var_tot[x.comm.rank, 2, :] = float(x.lshape[x.split])
+        var_cpy = torch.empty_like(var_tot)
+        var_cpy[x.comm.rank, 0, :] = var
+        var_cpy[x.comm.rank, 1, :] = mu
+        var_cpy[x.comm.rank, 2, :] = float(x.lshape[x.split])
         # print('here')
-        x.comm.Allreduce(MPI.IN_PLACE, var_tot, MPI.SUM)
+        x.comm.Allreduce(var_cpy, var_tot, MPI.SUM)
+        del var_cpy
+        # x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
 
         # todo: binary merge
 
@@ -1929,13 +1985,19 @@ def var(x, axis=None, ddof=0, ignore_split_semantics=True, **kwargs):
 
     # ----------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
-        if not x.is_distributed():  # not distributed (full tensor on one node)
-            ret = torch.var(x._DNDarray__array.float(), unbiased=unbiased)
-            return factories.array(ret)
+        # if not x.is_distributed():  # not distributed (full tensor on one node)
+        #     ret = torch.var(x._DNDarray__array.float(), unbiased=unbiased)
+        #     return factories.array(ret)
 
         # else:  # case for full matrix calculation (axis is None)
         mu_in = torch.mean(x._DNDarray__array)
-        var_in = torch.var(x._DNDarray__array, unbiased=unbiased)
+        var_in = _local_var()
+        print("axis", var_in)
+        # if devices.get_device() == "gpu":
+        #     var_in = torch.var(x._DNDarray__array, unbiased=unbiased)
+        # else:
+        #     var_in = torch.tensor(np.var(x._DNDarray__array.numpy(), ddof=ddof),
+        #                           device=x.device.torch_device)
         # Nan is returned when local tensor is empty
         if torch.isnan(var_in):
             var_in = 0.0
@@ -1977,14 +2039,15 @@ def var(x, axis=None, ddof=0, ignore_split_semantics=True, **kwargs):
 
     resplit_flag = False
     og_split = x.split
-    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0 == axis:
-        og_split = 0
-        x = manipulations.resplit(x, 1)
-        resplit_flag = True
-    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1 == axis:
-        og_split = 1
-        x = manipulations.resplit(x, 0)
-        resplit_flag = True
+    if len(x.gshape) > 1:
+        if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0 == axis:
+            og_split = 0
+            x = manipulations.resplit(x, 1)
+            resplit_flag = True
+        elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1 == axis:
+            og_split = 1
+            x = manipulations.resplit(x, 0)
+            resplit_flag = True
 
     ret = __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, unbiased)
     # print(ret)
