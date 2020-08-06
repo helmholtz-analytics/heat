@@ -944,7 +944,7 @@ def _merge_means(mu1: torch.Tensor, n1: torch.Tensor, mu2: torch.Tensor, n2: tor
     return mu, n
 
 
-# @torch.jit.script
+@torch.jit.script
 def _merge_vars(
     var1: torch.Tensor,
     mu1: torch.Tensor,
@@ -961,17 +961,6 @@ def _merge_vars(
         var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1)
     else:
         var_m = (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n
-
-    # inds = var_m != var_m
-    # print(inds)
-    var_m[torch.isnan(var_m)] = 0.0
-    var_m[torch.isinf(var_m)] = 0.0
-    # print(torch.finfo(var_m.dtype).max)
-    var_m[
-        (var_m > torch.finfo(var_m.dtype).max - 100)
-        | (var_m < torch.finfo(var_m.dtype).min + 1e-40)
-    ] = 0.0
-    # print('v', var_m)
 
     return var_m, mu, n
 
@@ -1968,6 +1957,12 @@ def var(x, axis: Union[int, Tuple, None] = None, ddof=0, ignore_split_semantics=
                 var_tot[i, 2, :],
                 unbiased=unbiased,
             )
+        var_tot[torch.isnan(var_tot)] = 0.0
+        var_tot[torch.isinf(var_tot)] = 0.0
+        var_tot[
+            (var_tot > torch.finfo(var_tot.dtype).max - 100)
+            | (var_tot < torch.finfo(var_tot.dtype).min + 1e-40)
+        ] = 0.0
         r = var_tot[0, 0, :]
         if var_tot[0, 0, :].size == 1:
             ret = dndarray.DNDarray(
@@ -2026,6 +2021,12 @@ def var(x, axis: Union[int, Tuple, None] = None, ddof=0, ignore_split_semantics=
                 var_tot[i, 2],
                 unbiased=unbiased,
             )
+        var_tot[torch.isnan(var_tot)] = 0.0
+        var_tot[torch.isinf(var_tot)] = 0.0
+        var_tot[
+            (var_tot > torch.finfo(var_tot.dtype).max - 100)
+            | (var_tot < torch.finfo(var_tot.dtype).min + 1e-40)
+        ] = 0.0
         ret = dndarray.DNDarray(
             var_tot[0][0],
             gshape=(1,),
