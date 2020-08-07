@@ -41,6 +41,7 @@
 - [#635](https://github.com/helmholtz-analytics/heat/pull/635) `DNDarray.__getitem__` balances and resplits the given key to None if the key is a DNDarray
 - [#638](https://github.com/helmholtz-analytics/heat/pull/638) Fix: arange returns float32 with single input of type float & update skipped device tests
 - [#639](https://github.com/helmholtz-analytics/heat/pull/639) Bufix: balanced array in demo_knn, changed behaviour of knn
+- [#652](https://github.com/helmholtz-analytics/heat/pull/652) Feature: benchmark scripts and jobscript generation
 
 # v0.4.0
 
