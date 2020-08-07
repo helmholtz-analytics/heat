@@ -842,49 +842,52 @@ def mean(x, axis=None, ignore_split_semantics=True):
         return ret
 
     # ----------------------------------------------------------------------------------------------
+    if not x.is_distributed():
+        # if x is not distributed do a torch.mean on x
+        if axis is None:
+            ret = torch.mean(x._DNDarray__array.float())
+        else:
+            ret = torch.mean(x._DNDarray__array.float(), dim=axis)
+        return factories.array(ret, is_split=None, device=x.device)
     if axis is None:
         # full matrix calculation
-        if not x.is_distributed():
-            # if x is not distributed do a torch.mean on x
-            ret = torch.mean(x._DNDarray__array.float())
-            return factories.array(ret, is_split=None, device=x.device)
-        else:
-            # if x is distributed and no axis is given: return mean of the whole set
-            mu_in = torch.mean(x._DNDarray__array)
-            if torch.isnan(mu_in):
-                mu_in = 0.0
-            n = x.lnumel
-            mu_tot = torch.zeros((x.comm.size, 2), device=x.device.torch_device)
-            mu_proc = torch.zeros((x.comm.size, 2), device=x.device.torch_device)
-            mu_proc[x.comm.rank, 0] = mu_in  # , float(n)
-            mu_proc[x.comm.rank, 1] = float(n)
-            x.comm.Allreduce(mu_proc, mu_tot, MPI.SUM)
+        # if x is distributed and no axis is given: return mean of the whole set
+        mu_in = torch.mean(x._DNDarray__array)
+        if torch.isnan(mu_in):
+            mu_in = 0.0
+        n = x.lnumel
+        mu_tot = torch.zeros((x.comm.size, 2), device=x.device.torch_device)
+        mu_proc = torch.zeros((x.comm.size, 2), device=x.device.torch_device)
+        mu_proc[x.comm.rank, 0] = mu_in  # , float(n)
+        mu_proc[x.comm.rank, 1] = float(n)
+        x.comm.Allreduce(mu_proc, mu_tot, MPI.SUM)
 
-            for i in range(1, x.comm.size):
-                mu_tot[0, 0], mu_tot[0, 1] = _merge_means(
-                    mu_tot[0, 0], mu_tot[0, 1], mu_tot[i, 0], mu_tot[i, 1]
-                )
-            # this is only one element now -> axis is None
-            ret = dndarray.DNDarray(
-                mu_tot[0][0],
-                gshape=(1,),
-                split=None,
-                comm=x.comm,
-                device=x.device,
-                dtype=types.canonical_heat_type(mu_tot[0][0].dtype),
+        for i in range(1, x.comm.size):
+            mu_tot[0, 0], mu_tot[0, 1] = _merge_means(
+                mu_tot[0, 0], mu_tot[0, 1], mu_tot[i, 0], mu_tot[i, 1]
             )
-            return ret
+        # this is only one element now -> axis is None
+        ret = dndarray.DNDarray(
+            mu_tot[0][0],
+            gshape=(1,),
+            split=None,
+            comm=x.comm,
+            device=x.device,
+            dtype=types.canonical_heat_type(mu_tot[0][0].dtype),
+        )
+        return ret
 
     resplit_flag = False
     og_split = x.split
-    if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0 == axis:
-        og_split = 0
-        x = manipulations.resplit(x, 1)
-        resplit_flag = True
-    elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1 == axis:
-        og_split = 1
-        x = manipulations.resplit(x, 0)
-        resplit_flag = True
+    if x.ndim > 1:
+        if x.gshape[0] * 2000 < x.gshape[1] and x.split == 0 == axis:
+            og_split = 0
+            x = manipulations.resplit(x, 1)
+            resplit_flag = True
+        elif x.gshape[0] > x.gshape[1] * 2000 and x.split == 1 == axis:
+            og_split = 1
+            x = manipulations.resplit(x, 0)
+            resplit_flag = True
 
     ret = __moment_w_axis(torch.mean, x, axis, reduce_means_elementwise)
     if ret.numel == 1:
