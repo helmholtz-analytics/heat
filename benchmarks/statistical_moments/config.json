@@ -1,0 +1,73 @@
+{
+  "file": "cityscapes-{size}.h5",
+  "dataset": "cityscapes-data",
+
+  "trials": 10,
+
+  "benchmarks": {
+    "dask-auto-cpu": {
+      "template": "dask",
+      "nodes": [2, 3, 5, 9, 15],
+      "tasks": [1, 1, 1, 1, 1],
+      "size": {
+        "strong": 300,
+        "weak": [300, 600, 1200, 2400, 4200]
+      }
+    },
+
+    "dask-chunks-cpu": {
+      "template": "dask",
+      "nodes": [2, 3, 5, 9, 15],
+      "tasks": [1, 1, 1, 1, 1],
+      "size": {
+        "strong": 300,
+        "weak": [300, 600, 1200, 2400, 4200]
+      }
+    },
+
+    "heat-cpu": {
+      "nodes": [1, 2, 4, 8, 15],
+      "tasks": [1, 1, 1, 1, 1],
+      "size": {
+        "strong": 300,
+        "weak": [300, 600, 1200, 2400, 4500]
+      }
+    },
+
+    "heat-gpu": {
+      "nodes": [1, 1, 1, 2, 4, 8, 15],
+      "tasks": [1, 2, 4, 4, 4, 4, 4],
+      "size": {
+        "strong": 300,
+        "weak": [75, 150, 300, 600, 1200, 2400, 4500]
+      }
+    },
+
+    "numpy-cpu": {
+      "nodes": [1],
+      "tasks": [1],
+      "size": {
+        "strong": 300,
+        "weak": [300]
+      }
+    },
+
+    "torch-cpu": {
+      "nodes": [1],
+      "tasks": [1],
+      "size": {
+        "strong": 300,
+        "weak": [300]
+      }
+    },
+
+    "torch-gpu": {
+      "nodes": [1],
+      "tasks": [1],
+      "size": {
+        "strong": 300,
+        "weak": [75]
+      }
+    }
+  }
+}
