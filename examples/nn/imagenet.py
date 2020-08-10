@@ -465,7 +465,7 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
 
     end = time.time()
     for i, (images, target) in enumerate(train_loader):
-        print("train loop", i)
+        print("train loop", i, images.device)
         # measure data loading time
         # data_time.update(time.time() - end)
 
