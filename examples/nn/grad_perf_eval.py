@@ -35,7 +35,18 @@ class LabeledDataset(Dataset):
 
 
 # writes measure results to csv file
-def save_results(nn_name, batch_size, img_size, epochs, blocking, repetitions, node_cnt, duration):
+def save_results(
+    nn_name,
+    batch_size,
+    node_cnt,
+    blocking,
+    strong_scaling,
+    repetitions,
+    img_size,
+    epochs,
+    min_duration,
+    raw_durations,
+):
     # create file if not exists
     with open(CSV_PATH, mode="a+") as csv_file:
         # go to beginning of the file
@@ -51,12 +62,14 @@ def save_results(nn_name, batch_size, img_size, epochs, blocking, repetitions, n
             "id",
             "nn_name",
             "batch_size",
+            "node_cnt",
+            "blocking",
+            "strong_scaling",
+            "repetitions",
             "img_size",
             "epochs",
-            "blocking",
-            "repetitions",
-            "node_cnt",
-            "duration",
+            "min_duration",
+            "raw_durations",
         ]
 
         # write field names row, if file has just been created
@@ -70,12 +83,14 @@ def save_results(nn_name, batch_size, img_size, epochs, blocking, repetitions, n
                 row_count,
                 nn_name,
                 batch_size,
+                node_cnt,
+                blocking,
+                strong_scaling,
+                repetitions,
                 img_size,
                 epochs,
-                blocking,
-                repetitions,
-                node_cnt,
-                duration,
+                min_duration,
+                raw_durations,
             ]
         )
 
@@ -89,8 +104,11 @@ def timeit_wrapper(func, *args, **kwargs):
 
 
 # creates synthetic dataset with len(mu) classes
-# dataset has shape sample_cnt x 3 x img_size x img_size
-def generate_synthetic_data(mu, sample_cnt, img_size):
+# dataset has shape len(mu)*sample_cnt x 3 x img_size x img_size
+def generate_synthetic_data(mu, sample_cnt, img_size, node_cnt, strong_scaling):
+    if not strong_scaling:
+        sample_cnt *= node_cnt
+
     data = ht.zeros((len(mu) * sample_cnt, 3, img_size, img_size), dtype=ht.float32)
     target = ht.zeros((len(mu) * sample_cnt, 1), dtype=ht.float32)
 
@@ -119,11 +137,9 @@ def train_epoch(args, model, device, train_loader, optimizer):
     return True
 
 
-def train(args, model, device, train_loader, optimizer, rank):
+def train(args, model, device, train_loader, optimizer):
     for epoch in range(1, args.epochs + 1):
         continue_training = train_epoch(args, model, device, train_loader, optimizer)
-        if rank == 0:
-            print("Epoch ", epoch, " of ", args.epochs, " finished.")
         if not continue_training:
             break
 
@@ -136,30 +152,27 @@ def main():
     node_cnt = comm.Get_size()
     rank = comm.Get_rank()
 
-    # Training settings
-    parser = argparse.ArgumentParser(
-        description="PyTorch Distributed Gradient Computation Benchmark"
-    )
+    if rank == 0:
+        print("HeAT Distributed Gradient Computation Benchmark")
+
+    # Benchmark settings
+    parser = argparse.ArgumentParser(description="HeAT Distributed Gradient Computation Benchmark")
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=128,
+        default=32,
         metavar="N",
-        help="input batch size for training (default: 128)",
+        help="input batch size for training (default: 32)",
     )
     parser.add_argument(
         "--classes",
         type=int,
-        default=50,
+        default=4,
         metavar="N",
-        help="number of different classes for synthetic data (default: 50)",
+        help="number of different classes for synthetic data, should be divisor of batch size (default: 4)",
     )
     parser.add_argument(
-        "--epochs",
-        type=int,
-        default=20,
-        metavar="N",
-        help="number of epochs to train (default: 50)",
+        "--epochs", type=int, default=1, metavar="N", help="number of epochs to train (default: 1)"
     )
     parser.add_argument(
         "--img-size",
@@ -183,6 +196,12 @@ def main():
         help="number of execution repetitions for training (default: 10)",
     )
     parser.add_argument(
+        "--strong-scaling",
+        action="store_true",
+        default=False,
+        help="enables strong scaling (constant global batch size)",
+    )
+    parser.add_argument(
         "--lr", type=float, default=1.0, metavar="LR", help="learning rate (default: 1.0)"
     )
     parser.add_argument(
@@ -201,12 +220,35 @@ def main():
     device = torch.device("cuda" if use_cuda else "cpu")
     kwargs = {"batch_size": args.batch_size}
 
+    if rank == 0:
+        print(
+            "Parameters:",
+            "NN =",
+            NN_ID_MAPPING[args.nn_id],
+            ", Batch_size =",
+            args.batch_size,
+            ", Node_count =",
+            node_cnt,
+            ", Blocking =",
+            args.blocking,
+            ", Strong_scaling =",
+            args.strong_scaling,
+            ", Repetitions =",
+            args.repetitions,
+            ", Image_size =",
+            args.img_size,
+            ", Epochs =",
+            args.epochs,
+        )
+
     # create synthetic data
     mu = np.arange(args.classes) * 25.5
-    data, targets = generate_synthetic_data(mu, args.batch_size * node_cnt, args.img_size)
+    data, targets = generate_synthetic_data(
+        mu, args.batch_size // len(mu), args.img_size, node_cnt, args.strong_scaling
+    )
     dataset = LabeledDataset(data, targets)
     if rank == 0:
-        print("Synthetic data has been generated.")
+        print("Synthetic data has been generated. Benchmark will begin in a few moments...")
 
     # setup local nn
     if args.nn_id == 1:
@@ -231,37 +273,37 @@ def main():
     # setup data loader
     train_loader = ht.utils.data.datatools.DataLoader(dataset.data, lcl_dataset=dataset, **kwargs)
 
-    #
-    timed_training = timeit_wrapper(train, args, model, device, train_loader, optimizer, rank)
+    # create wrapper function for timeit
+    timed_training = timeit_wrapper(train, args, model, device, train_loader, optimizer)
 
     # drop first run from measure
     timed_training()
 
     # measure total local runtime
-    loc_duration = timeit.timeit(timed_training, number=args.repetitions)
-
-    # average local runtime
-    loc_duration /= args.repetitions
+    loc_durations = timeit.repeat(timed_training, repeat=args.repetitions, number=1)
 
     # get maximum time across nodes
-    buf = ht.array([loc_duration])
+    buf = ht.array(loc_durations)
     buf.comm.Allreduce(MPI.IN_PLACE, buf, MPI.MAX)
-    glo_duration = buf.item()
+    glo_durations = buf.numpy()
+    min_glo_duration = min(glo_durations)
 
     if rank == 0:
         print("Benchmark has been finished.")
-        print("Time: ", glo_duration)
+        print("Time: ", min_glo_duration)
 
         # write result to csv
         save_results(
             NN_ID_MAPPING[args.nn_id],
             args.batch_size,
+            node_cnt,
+            int(args.blocking),
+            int(args.strong_scaling),
+            args.repetitions,
             args.img_size,
             args.epochs,
-            int(args.blocking),
-            args.repetitions,
-            node_cnt,
-            glo_duration,
+            min_glo_duration,
+            glo_durations,
         )
 
 
