@@ -485,11 +485,13 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                 for bi in range(len(batch[b])):
                     if dataset.transform_list[bi] is not None:
                         batch[b][bi] = dataset.transform_list[bi](batch[b][bi])
-                    batch[b][bi] = batch[b][bi].to(dataset.torch_device)
+                    if torch.cuda.is_available():
+                        batch[b][bi] = batch[b][bi].cuda(dataset.torch_device)
             elif isinstance(batch[b], torch.Tensor):
                 if len(dataset.transform_list) == 1:
                     batch[b] = dataset.transform_list[0](batch[b])
-                batch[b] = batch[b].to(dataset.torch_device)
+                if torch.cuda.is_available():
+                    batch[b] = batch[b].cuda(dataset.torch_device)
             else:
                 raise TypeError(
                     f"batches should be either torch tensors or a list/tuple of tensors, "
