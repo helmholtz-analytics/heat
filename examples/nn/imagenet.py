@@ -133,7 +133,7 @@ parser.add_argument(
 )
 parser.add_argument("--dist-backend", default="nccl", type=str, help="distributed backend")
 parser.add_argument("--seed", default=None, type=int, help="seed for initializing training. ")
-parser.add_argument("--gpu", default=None, type=int, help="GPU id to use.")
+parser.add_argument("--gpu", default=ht.MPI_WORLD.rank % torch.cuda.device_count(), type=int, help="GPU id to use.")
 parser.add_argument(
     "--multiprocessing-distributed",
     action="store_true",
@@ -161,17 +161,17 @@ def main():
             "from checkpoints."
         )
 
-    if args.gpu is not None:
-        warnings.warn(
-            "You have chosen a specific GPU. This will completely " "disable data parallelism."
-        )
+    #if args.gpu is not None:
+    #    warnings.warn(
+    #        "You have chosen a specific GPU. This will completely " "disable data parallelism."
+    #    )
 
     if args.dist_url == "env://" and args.world_size == -1:
         args.world_size = int(os.environ["WORLD_SIZE"])
 
-    # args.distributed = args.world_size > 1 or args.multiprocessing_distributed
+    args.distributed = None #args.world_size > 1 or args.multiprocessing_distributed
 
-    ngpus_per_node = torch.cuda.device_count()
+    ngpus_per_node = 1 #torch.cuda.device_count()
     # todo: multi GPU / pr --------------------------------------------------
     # if args.multiprocessing_distributed:
     #     # Since we have ngpus_per_node processes per node, the total world_size
@@ -246,6 +246,8 @@ def main_worker(gpu, ngpus_per_node, args):
     if torch.cuda.is_available():
         # self.torch_device = torch.device("cuda")
         torch.cuda.set_device(ht.MPI_WORLD.rank % torch.cuda.device_count())
+        gpu_num = ht.MPI_WORLD.rank % torch.cuda.device_count()
+    print("gpu numbers", gpu, gpu_num)
 
     # todo: multi GPU / pr --------------------------------------------------
     # if args.distributed:
@@ -407,9 +409,9 @@ def main_worker(gpu, ngpus_per_node, args):
     #     batch_size=args.batch_size, shuffle=False,
     #     num_workers=args.workers, pin_memory=True)
 
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-        model.cuda()
+    #if torch.cuda.is_available():
+    #    torch.cuda.empty_cache()
+    #    model.cuda()
 
     if args.evaluate:
         validate(val_loader, model, criterion, args)
