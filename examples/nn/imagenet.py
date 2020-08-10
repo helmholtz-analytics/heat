@@ -169,20 +169,20 @@ def main():
     if args.dist_url == "env://" and args.world_size == -1:
         args.world_size = int(os.environ["WORLD_SIZE"])
 
-    args.distributed = args.world_size > 1 or args.multiprocessing_distributed
+    # args.distributed = args.world_size > 1 or args.multiprocessing_distributed
 
     ngpus_per_node = torch.cuda.device_count()
     # todo: multi GPU / pr --------------------------------------------------
-    if args.multiprocessing_distributed:
-        # Since we have ngpus_per_node processes per node, the total world_size
-        # needs to be adjusted accordingly
-        args.world_size = ngpus_per_node * args.world_size
-        # Use torch.multiprocessing.spawn to launch distributed processes: the
-        # main_worker process function
-        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
-    else:
-        # Simply call main_worker function
-        main_worker(args.gpu, ngpus_per_node, args)
+    # if args.multiprocessing_distributed:
+    #     # Since we have ngpus_per_node processes per node, the total world_size
+    #     # needs to be adjusted accordingly
+    #     args.world_size = ngpus_per_node * args.world_size
+    #     # Use torch.multiprocessing.spawn to launch distributed processes: the
+    #     # main_worker process function
+    #     mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
+    # else:
+    #     # Simply call main_worker function
+    main_worker(args.gpu, ngpus_per_node, args)
     # todo: -----------------------------------------------------------------
 
 
@@ -241,8 +241,11 @@ def main_worker(gpu, ngpus_per_node, args):
     global best_acc1
     args.gpu = gpu
 
-    if args.gpu is not None:
-        print("Use GPU: {} for training".format(args.gpu))
+    # if args.gpu is not None:
+    #     print("Use GPU: {} for training".format(args.gpu))
+    if torch.cuda.is_available():
+        # self.torch_device = torch.device("cuda")
+        torch.cuda.set_device(ht.MPI_WORLD.rank % torch.cuda.device_count())
 
     # todo: multi GPU / pr --------------------------------------------------
     # if args.distributed:
@@ -272,23 +275,24 @@ def main_worker(gpu, ngpus_per_node, args):
         # should always set the single device scope, otherwise,
         # DistributedDataParallel will use all available devices.
         # todo: multi GPU --------------------------------------------------------------------
-        if args.gpu is not None:
-            torch.cuda.set_device(args.gpu)
-            model.cuda(args.gpu)
-            # When using a single GPU per process and per
-            # DistributedDataParallel, we need to divide the batch size
-            # ourselves based on the total number of GPUs we have
-            args.batch_size = int(args.batch_size / ngpus_per_node)
-            args.workers = int((args.workers + ngpus_per_node - 1) / ngpus_per_node)
-            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
-        else:
-            model.cuda()
-            # DistributedDataParallel will divide and allocate batch_size to all
-            # available GPUs if device_ids are not set
-            model = torch.nn.parallel.DistributedDataParallel(model)
+        print("hitting the distributed flag! need to disable")
+        # if args.gpu is not None:
+        #     torch.cuda.set_device(args.gpu)
+        #     model.cuda(args.gpu)
+        #     # When using a single GPU per process and per
+        #     # DistributedDataParallel, we need to divide the batch size
+        #     # ourselves based on the total number of GPUs we have
+        #     args.batch_size = int(args.batch_size / ngpus_per_node)
+        #     args.workers = int((args.workers + ngpus_per_node - 1) / ngpus_per_node)
+        #     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+        # else:
+        #     model.cuda()
+        #     # DistributedDataParallel will divide and allocate batch_size to all
+        #     # available GPUs if device_ids are not set
+        #     model = torch.nn.parallel.DistributedDataParallel(model)
         # todo: -------------------------------------------------------------------------------
     elif args.gpu is not None:
-        torch.cuda.set_device(args.gpu)
+        # torch.cuda.set_device(args.gpu)
         model = model.cuda(args.gpu)
     model.blocking_parameter_updates = True
     # else:
