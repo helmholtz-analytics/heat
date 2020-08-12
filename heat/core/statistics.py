@@ -1185,7 +1185,7 @@ def mpi_argmax(a, b, _):
 
     # extract the values and minimal indices from the buffers (first half are values, second are indices)
     idx_l, idx_r = lhs.chunk(2)[1], rhs.chunk(2)[1]
-    
+
     if idx_l[0] < idx_r[0]:
         values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0]), dim=1)
         indices = torch.stack((idx_l, idx_r), dim=1)
@@ -1208,7 +1208,7 @@ def mpi_argmin(a, b, _):
     rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
     # extract the values and minimal indices from the buffers (first half are values, second are indices)
     idx_l, idx_r = lhs.chunk(2)[1], rhs.chunk(2)[1]
-    
+
     if idx_l[0] < idx_r[0]:
         values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0]), dim=1)
         indices = torch.stack((idx_l, idx_r), dim=1)
