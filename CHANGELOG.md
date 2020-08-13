@@ -44,6 +44,7 @@
 - [#648](https://github.com/helmholtz-analytics/heat/pull/648) Bugfix: tensor printing with PyTorch 1.6.0
 - [#653](https://github.com/helmholtz-analytics/heat/pull/653) Update unittests argmax & argmin + force index order in mpi_argmax & mpi_argmin.
 - [#653](https://github.com/helmholtz-analytics/heat/pull/653) Printing above threshold gathers the data without a buffer now
+- [#653](https://github.com/helmholtz-analytics/heat/pull/653) Bugfixes: Update unittests argmax & argmin + force index order in mpi_argmax & mpi_argmin. Add device parameter for tensor creation in dndarray.get_halo().
 
 # v0.4.0
 
