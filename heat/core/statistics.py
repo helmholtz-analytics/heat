@@ -118,6 +118,9 @@ def argmax(x, axis=None, out=None, **kwargs):
             if not kwargs.get("keepdim"):
                 reduced_result = reduced_result.squeeze(axis=0)
 
+    if not reduced_result.is_distributed():
+        reduced_result._DNDarray__split = None
+
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
         if out.shape != reduced_result.shape:
@@ -126,6 +129,7 @@ def argmax(x, axis=None, out=None, **kwargs):
                     reduced_result.shape, out.shape
                 )
             )
+        out._DNDarray__split = reduced_result.split
         out._DNDarray__array.storage().copy_(reduced_result._DNDarray__array.storage())
         out._DNDarray__array = out._DNDarray__array.type(torch.int64)
         out._DNDarray__dtype = types.int64
@@ -219,6 +223,9 @@ def argmin(x, axis=None, out=None, **kwargs):
             if not kwargs.get("keepdim"):
                 reduced_result = reduced_result.squeeze(axis=0)
 
+    if not reduced_result.is_distributed():
+        reduced_result._DNDarray__split = None
+
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
         if out.shape != reduced_result.shape:
@@ -227,6 +234,7 @@ def argmin(x, axis=None, out=None, **kwargs):
                     reduced_result.shape, out.shape
                 )
             )
+        out._DNDarray__split = reduced_result.split
         out._DNDarray__array.storage().copy_(reduced_result._DNDarray__array.storage())
         out._DNDarray__array = out._DNDarray__array.type(torch.int64)
         out._DNDarray__dtype = types.int64
