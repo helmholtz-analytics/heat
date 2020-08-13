@@ -222,10 +222,9 @@ def argmin(x, axis=None, out=None, **kwargs):
             reduced_result._DNDarray__gshape = (1,) + reduced_result._DNDarray__gshape
             if not kwargs.get("keepdim"):
                 reduced_result = reduced_result.squeeze(axis=0)
-
+    # split correction for not distributed
     if not reduced_result.is_distributed():
         reduced_result._DNDarray__split = None
-
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
         if out.shape != reduced_result.shape:
