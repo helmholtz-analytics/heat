@@ -342,12 +342,16 @@ class DNDarray:
 
             if self.comm.rank != self.comm.size - 1:
                 self.comm.Isend(a_next, self.comm.rank + 1)
-                res_prev = torch.zeros(a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device)
+                res_prev = torch.zeros(
+                    a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device
+                )
                 req_list.append(self.comm.Irecv(res_prev, source=self.comm.rank + 1))
 
             if self.comm.rank != 0:
                 self.comm.Isend(a_prev, self.comm.rank - 1)
-                res_next = torch.zeros(a_next.size(), dtype=a_next.dtype, device=self.device.torch_device)
+                res_next = torch.zeros(
+                    a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
+                )
                 req_list.append(self.comm.Irecv(res_next, source=self.comm.rank - 1))
 
             for req in req_list:
