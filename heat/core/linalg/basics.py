@@ -446,8 +446,8 @@ def matmul(a, b, allow_resplit=False):
         # need to send b here and not a
         #   the rows on 'a' are complete, and the columns of 'b' are split
         # locations of the remainders in b
-        b_rem_locs0 = (rem_map[:, 1, 0] == 1).nonzero()
-        a_rem_locs0 = (rem_map[:, 0, 0] == 1).nonzero()
+        b_rem_locs0 = torch.nonzero(rem_map[:, 1, 0] == 1, as_tuple=False)
+        a_rem_locs0 = torch.nonzero(rem_map[:, 0, 0] == 1, as_tuple=False)
         # remainders for a in the
         a_node_rem_s0 = a._DNDarray__array[:mB, kB : (kB + 1) * b_rem_locs0.numel() : kB + 1]
         b_rem = torch.empty(
@@ -570,8 +570,8 @@ def matmul(a, b, allow_resplit=False):
         # for this case, a is sent to b
         #   this is because 'b' has complete columns and the rows of 'a' are split
         # locations of the remainders in b
-        b_rem_locs1 = (rem_map[:, 1, 1] == 1).nonzero()
-        a_rem_locs1 = (rem_map[:, 0, 1] == 1).nonzero()
+        b_rem_locs1 = torch.nonzero(rem_map[:, 1, 1] == 1, as_tuple=False)
+        a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
         b_node_rem_s1 = b._DNDarray__array[
             kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB
         ]  # remainders for a in the
@@ -736,9 +736,9 @@ def matmul(a, b, allow_resplit=False):
     elif split_10_flag:
         # todo: this may create the full matrix on evey process, issue #360
         # for this case, only a sum is needed at the end
-        a_rem_locs1 = (rem_map[:, 0, 1] == 1).nonzero()
+        a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
         # locations of the remainders in b
-        b_rem_locs0 = (rem_map[:, 1, 0] == 1).nonzero()
+        b_rem_locs0 = torch.nonzero(rem_map[:, 1, 0] == 1, as_tuple=False)
         res = torch.zeros(
             (a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=c.device.torch_device
         )
