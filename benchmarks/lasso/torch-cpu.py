@@ -5,9 +5,6 @@ import h5py
 import time
 import torch
 
-from pypapi import papi_high
-from pypapi import events as papi_events
-
 
 class Lasso:
     def __init__(self, lam=0.1, max_iter=100, tol=1e-6):
@@ -103,9 +100,7 @@ if __name__ == "__main__":
     for trial in range(args.trials):
         print("Trial {}...".format(trial), end="")
         lasso = Lasso(max_iter=args.iterations, tol=-1.0)
-        papi_high.start_counters([papi_events.PAPI_SP_OPS, papi_events.PAPI_TOT_INS])
         start = time.perf_counter()
         lasso.fit(data, labels)
         end = time.perf_counter()
-        result = papi_high.stop_counters()
-        print("\t{}s {} flops32 {} ops".format(end - start, result[0], result[1]))
+        print("\t{}s".format(end - start))

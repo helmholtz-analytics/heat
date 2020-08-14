@@ -5,8 +5,6 @@ import h5py
 import numpy as np
 import time
 
-from pypapi import papi_high
-from pypapi import events as papi_events
 from sklearn.metrics import pairwise_distances
 
 
@@ -79,9 +77,7 @@ if __name__ == "__main__":
     for trial in range(args.trials):
         print("Trial {}...".format(trial), end="")
         kmeans = KMeans(n_clusters=args.clusters, max_iter=args.iterations)
-        papi_high.start_counters([papi_events.PAPI_DP_OPS, papi_events.PAPI_TOT_INS])
         start = time.perf_counter()
         kmeans.fit(data)
         end = time.perf_counter()
-        result = papi_high.stop_counters()
-        print("\t{}s {} flops64 {} ops".format(end - start, result[0], result[1]))
+        print("\t{}s".format(end - start))

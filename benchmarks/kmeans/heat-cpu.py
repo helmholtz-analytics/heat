@@ -4,9 +4,6 @@ import argparse
 import heat as ht
 import time
 
-from pypapi import papi_high
-from pypapi import events as papi_events
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="HeAT kmeans cpu benchmark")
     parser.add_argument("--file", type=str, help="file to benchmark")
@@ -23,9 +20,7 @@ if __name__ == "__main__":
     for trial in range(args.trials):
         print("Trial {}...".format(trial), end="")
         kmeans = ht.cluster.KMeans(n_clusters=args.clusters, max_iter=args.iterations)
-        papi_high.start_counters([papi_events.PAPI_SP_OPS, papi_events.PAPI_TOT_INS])
         start = time.perf_counter()
         kmeans.fit(data)
         end = time.perf_counter()
-        result = papi_high.stop_counters()
-        print("\t{}s {} flops32 {} ops".format(end - start, result[0], result[1]))
+        print("\t{}s".format(end - start))

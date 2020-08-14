@@ -19,16 +19,16 @@ if __name__ == "__main__":
 
     print("quadratic_expansion=False")
     for trial in range(args.trials):
-        print("Trial {}...".format(trial), end="")
+        print(f"Trial {trial}...", end="")
         start = time.perf_counter()
         dist = ht.spatial.distance.cdist(data, data, quadratic_expansion=False)
         end = time.perf_counter()
-        print("\t{}s".format(end - start))
+        print(f"\t{end - start}s")
 
     print("quadratic_expansion=True")
     for trial in range(args.trials):
-        print("Trial {}...".format(trial), end="")
+        print(f"Trial {trial}...", end="")
         start = time.perf_counter()
         dist = ht.spatial.distance.cdist(data, data, quadratic_expansion=True)
         end = time.perf_counter()
-        print("\t{}s".format(end - start))
+        print(f"\t{end - start}s")
