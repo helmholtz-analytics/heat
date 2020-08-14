@@ -257,6 +257,7 @@ class TestSquareDiagTiles(TestCase):
             # --------------------- local ----------- s0 ----------------
             # (int), (int, int), (slice, int), (slice, slice), (int, slice)
             m_eq_n_s0 = ht.zeros((25, 25), split=0)
+            torch_dev = m_eq_n_s0.device.torch_device
             m_eq_n_s0_t2 = ht.core.tiling.SquareDiagTiles(m_eq_n_s0, tiles_per_proc=2)
             k = (slice(0, 10), slice(2, None))
             m_eq_n_s0_t2.local_set(key=k, value=1)
@@ -266,7 +267,7 @@ class TestSquareDiagTiles(TestCase):
             lcl_slice = m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
             lcl_shape = m_eq_n_s0_t2.local_get(key=(slice(None), slice(None))).shape
             self.assertEqual(lcl_shape, m_eq_n_s0.lshape)
-            self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+            self.assertTrue(torch.all(lcl_slice - torch.ones(sz, device=torch_dev) == 0))
             # reset base
             m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
 
@@ -276,7 +277,7 @@ class TestSquareDiagTiles(TestCase):
             st_sp = m_eq_n_s0_t2.get_start_stop(key=lcl_key)
             sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
             lcl_slice = m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
-            self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+            self.assertTrue(torch.all(lcl_slice - torch.ones(sz, device=torch_dev) == 0))
             # reset base
             m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
 
@@ -286,7 +287,7 @@ class TestSquareDiagTiles(TestCase):
             st_sp = m_eq_n_s0_t2.get_start_stop(key=lcl_key)
             sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
             lcl_slice = m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
-            self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+            self.assertTrue(torch.all(lcl_slice - torch.ones(sz, device=torch_dev) == 0))
             # reset base
             m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
 
@@ -301,7 +302,7 @@ class TestSquareDiagTiles(TestCase):
             lcl_slice = m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
             lcl_shape = m_eq_n_s1_t2.local_get(key=(slice(None), slice(None))).shape
             self.assertEqual(lcl_shape, m_eq_n_s1.lshape)
-            self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+            self.assertTrue(torch.all(lcl_slice - torch.ones(sz, device=torch_dev) == 0))
             # reset base
             m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
             if ht.MPI_WORLD.size > 2:
@@ -311,7 +312,7 @@ class TestSquareDiagTiles(TestCase):
                 st_sp = m_eq_n_s1_t2.get_start_stop(key=lcl_key)
                 sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
                 lcl_slice = m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
-                self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+                self.assertTrue(torch.all(lcl_slice - torch.ones(sz, device=torch_dev) == 0))
                 # reset base
                 m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
 
@@ -321,7 +322,7 @@ class TestSquareDiagTiles(TestCase):
             st_sp = m_eq_n_s1_t2.get_start_stop(key=lcl_key)
             sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
             lcl_slice = m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
-            self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+            self.assertTrue(torch.all(lcl_slice - torch.ones(sz, device=torch_dev) == 0))
             # reset base
             m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
 
@@ -334,7 +335,7 @@ class TestSquareDiagTiles(TestCase):
                 st_sp = m_eq_n_s0_t2.get_start_stop(key=k)
                 sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
                 lcl_slice = m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
-                self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+                self.assertTrue(torch.all(lcl_slice - torch.ones(sz, device=torch_dev) == 0))
                 # reset base
                 m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
             if ht.MPI_WORLD.size > 2:
@@ -344,7 +345,7 @@ class TestSquareDiagTiles(TestCase):
                     st_sp = m_eq_n_s0_t2.get_start_stop(key=k)
                     sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
                     lcl_slice = m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
-                    self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+                    self.assertTrue(torch.all(lcl_slice - torch.ones(sz, device=torch_dev) == 0))
                     # reset base
                     m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
 
@@ -354,7 +355,7 @@ class TestSquareDiagTiles(TestCase):
                     st_sp = m_eq_n_s0_t2.get_start_stop(key=k)
                     sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
                     lcl_slice = m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
-                    self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+                    self.assertTrue(torch.all(lcl_slice - torch.ones(sz, device=torch_dev) == 0))
                     # reset base
                     m_eq_n_s0._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
 
@@ -367,7 +368,7 @@ class TestSquareDiagTiles(TestCase):
                 st_sp = m_eq_n_s1_t2.get_start_stop(key=k)
                 sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
                 lcl_slice = m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
-                self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+                self.assertTrue(torch.all(lcl_slice - torch.ones(sz, device=torch_dev) == 0))
                 # reset base
                 m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
 
@@ -379,7 +380,7 @@ class TestSquareDiagTiles(TestCase):
                     st_sp = m_eq_n_s1_t2.get_start_stop(key=k)
                     sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
                     lcl_slice = m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
-                    self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+                    self.assertTrue(torch.all(lcl_slice - torch.ones(sz, device=torch_dev) == 0))
                     # reset base
                     m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
 
@@ -389,7 +390,7 @@ class TestSquareDiagTiles(TestCase):
                 st_sp = m_eq_n_s1_t2.get_start_stop(key=k)
                 sz = st_sp[1] - st_sp[0], st_sp[3] - st_sp[2]
                 lcl_slice = m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]]
-                self.assertTrue(torch.all(lcl_slice - torch.ones(sz) == 0))
+                self.assertTrue(torch.all(lcl_slice - torch.ones(sz, device=torch_dev) == 0))
                 # reset base
                 m_eq_n_s1._DNDarray__array[st_sp[0] : st_sp[1], st_sp[2] : st_sp[3]] = 0
             with self.assertRaises(ValueError):
