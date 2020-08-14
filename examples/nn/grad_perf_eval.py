@@ -5,14 +5,15 @@ from mpi4py import MPI
 import numpy as np
 import timeit
 import torch
+import torch.optim as optim
+import torch.nn.functional as F
 import torchvision.models as models
 import sys
 
-sys.path.append("../../")
 import heat as ht
-import heat.nn.functional as F
-import heat.optim as optim
-from heat.utils.data.datatools import Dataset
+from heat.utils.data.datatools import Dataset, DataLoader
+from heat.optim.dp_optimizer import DataParallelOptimizer
+from heat.nn.data_parallel import DataParallel
 
 
 # file path for results csv
@@ -48,7 +49,7 @@ def save_results(
     repetitions,
     img_size,
     epochs,
-    min_duration,
+    avg_duration,
     raw_durations,
 ):
     # create file if not exists
@@ -72,7 +73,7 @@ def save_results(
             "repetitions",
             "img_size",
             "epochs",
-            "min_duration",
+            "avg_duration",
             "raw_durations",
         ]
 
@@ -93,7 +94,7 @@ def save_results(
                 repetitions,
                 img_size,
                 epochs,
-                min_duration,
+                avg_duration,
                 raw_durations,
             ]
         )
@@ -130,6 +131,7 @@ def train_epoch(args, model, device, train_loader, optimizer):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         data = data.to(device)
+        target = target.to(device)
         optimizer.zero_grad()
         output = model(data)
         loss = F.cross_entropy(output, target)
@@ -256,7 +258,7 @@ def main():
 
     # setup local nn
     if args.nn_id in NN_ID_MAPPING:
-        tmodel = NN_ID_MAPPING[args.nn_id][1]()
+        tmodel = NN_ID_MAPPING[args.nn_id][1]().to(device)
     else:
         print("Invalid NN id.")
         return
@@ -265,13 +267,13 @@ def main():
     optimizer = optim.Adadelta(tmodel.parameters(), lr=args.lr)
 
     # setup dp_nn and dp_optimizer
-    dp_optim = ht.optim.DataParallelOptimizer(optimizer)
-    model = ht.nn.DataParallel(
+    dp_optim = DataParallelOptimizer(optimizer)
+    model = DataParallel(
         tmodel, data.comm, dp_optim, blocking_parameter_updates=args.blocking
     )
 
     # setup data loader
-    train_loader = ht.utils.data.datatools.DataLoader(dataset.data, lcl_dataset=dataset, **kwargs)
+    train_loader = DataLoader(dataset.data, lcl_dataset=dataset, **kwargs)
 
     # create wrapper function for timeit
     timed_training = timeit_wrapper(train, args, model, device, train_loader, optimizer)
@@ -286,11 +288,11 @@ def main():
     buf = ht.array(loc_durations)
     buf.comm.Allreduce(MPI.IN_PLACE, buf, MPI.MAX)
     glo_durations = buf.numpy()
-    min_glo_duration = min(glo_durations)
+    avg_glo_duration = sum(glo_durations) / len(glo_durations)
 
     if rank == 0:
         print("Benchmark has been finished.")
-        print("Time: ", min_glo_duration)
+        print("Time: ", avg_glo_duration)
 
         # write result to csv
         save_results(
@@ -302,7 +304,7 @@ def main():
             args.repetitions,
             args.img_size,
             args.epochs,
-            min_glo_duration,
+            avg_glo_duration,
             glo_durations,
         )
 
