@@ -97,7 +97,6 @@ class TestKMeans(TestCase):
 
         # check whether result is actually a datapoint
         for i in range(kmedoid.cluster_centers_.shape[0]):
-            print()
             self.assertTrue(
                 ht.any(ht.sum(ht.abs(kmedoid.cluster_centers_[i, :] - iris), axis=1) == 0)
             )
@@ -140,7 +139,6 @@ class TestKMeans(TestCase):
         self.assertEqual(kmedoid.cluster_centers_.shape, (4, 3))
         # check whether result is actually a datapoint
         for i in range(kmedoid.cluster_centers_.shape[0]):
-            print()
             self.assertTrue(
                 ht.any(ht.sum(ht.abs(kmedoid.cluster_centers_[i, :] - data), axis=1) == 0)
             )
@@ -155,7 +153,6 @@ class TestKMeans(TestCase):
         self.assertIsInstance(kmedoid.cluster_centers_, ht.DNDarray)
         self.assertEqual(kmedoid.cluster_centers_.shape, (4, 3))
         for i in range(kmedoid.cluster_centers_.shape[0]):
-            print()
             self.assertTrue(
                 ht.any(ht.sum(ht.abs(kmedoid.cluster_centers_[i, :] - data), axis=1) == 0)
             )
@@ -169,7 +166,6 @@ class TestKMeans(TestCase):
         self.assertIsInstance(kmedoid.cluster_centers_, ht.DNDarray)
         self.assertEqual(kmedoid.cluster_centers_.shape, (4, 3))
         for i in range(kmedoid.cluster_centers_.shape[0]):
-            print()
             self.assertTrue(
                 ht.any(ht.sum(ht.abs(kmedoid.cluster_centers_[i, :] - data), axis=1) == 0)
             )
