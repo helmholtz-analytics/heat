@@ -232,7 +232,7 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
     )
 
     if x.split is not None and axis == x.split:
-        indices = torch.tensor([cumop.shape[axis] - 1])
+        indices = torch.tensor([cumop.shape[axis] - 1], device=cumop.device)
         send = (
             torch.index_select(cumop, axis, indices)
             if indices[0] >= 0
@@ -240,12 +240,14 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
                 cumop.shape[:axis] + torch.Size([1]) + cumop.shape[axis + 1 :],
                 neutral,
                 dtype=cumop.dtype,
+                device=cumop.device,
             )
         )
         recv = torch.full(
             cumop.shape[:axis] + torch.Size([1]) + cumop.shape[axis + 1 :],
             neutral,
             dtype=cumop.dtype,
+            device=cumop.device,
         )
 
         x.comm.Exscan(send, recv, exscan_op)
