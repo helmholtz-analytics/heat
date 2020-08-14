@@ -124,24 +124,10 @@ def _torch_data(dndarray, summarize):
                     data = torch.index_select(
                         data, i, torch.arange(max(0, global_start - offset), dndarray.lshape[i])
                     )
-
-        # marshall data into buffer
-        buffer = io.BytesIO()
-        torch.save(data, buffer)
-        buffer.seek(0)
-
         # exchange data
-        received = dndarray.comm.gather(buffer.read())
-
+        received = dndarray.comm.gather(data)
         if dndarray.comm.rank == 0:
-            # deserialize the buffers
-            for i, ele in enumerate(received):
-                buffer.seek(0)
-                buffer.write(ele)
-                buffer.seek(0)
-                received[i] = torch.load(buffer)
-
-            # concatenate them along the split axis
+            # concatenate data along the split axis
             data = torch.cat(received, dim=dndarray.split)
 
     return data
@@ -168,4 +154,11 @@ def _tensor_str(dndarray, indent):
     torch_data = _torch_data(dndarray, summarize)
     formatter = torch._tensor_str._Formatter(torch_data)
 
-    return torch._tensor_str._tensor_str_with_formatter(torch_data, indent, formatter, summarize)
+    if int(torch.__version__[2]) <= 5 and int(torch.__version__[0]) == 0:
+        return torch._tensor_str._tensor_str_with_formatter(
+            torch_data, indent, formatter, summarize
+        )
+    else:
+        return torch._tensor_str._tensor_str_with_formatter(
+            torch_data, indent, summarize, formatter
+        )
