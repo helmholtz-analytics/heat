@@ -30,8 +30,8 @@ class TestDNDarray(TestCase):
 
         if data.comm.size == 2:
 
-            halo_next = torch.tensor(np.array([[4, 5], [10, 11]]))
-            halo_prev = torch.tensor(np.array([[2, 3], [8, 9]]))
+            halo_next = torch.tensor(np.array([[4, 5], [10, 11]]), device=data.device.torch_device)
+            halo_prev = torch.tensor(np.array([[2, 3], [8, 9]]), device=data.device.torch_device)
 
             data.get_halo(2)
 
@@ -59,8 +59,12 @@ class TestDNDarray(TestCase):
             data_np = np.array([[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]])
             data = ht.array(data_np, split=1)
 
-            halo_next = torch.tensor(np.array([[4.0, 5.0], [10.0, 11.0]]))
-            halo_prev = torch.tensor(np.array([[2.0, 3.0], [8.0, 9.0]]))
+            halo_next = torch.tensor(
+                np.array([[4.0, 5.0], [10.0, 11.0]]), device=data.device.torch_device
+            )
+            halo_prev = torch.tensor(
+                np.array([[2.0, 3.0], [8.0, 9.0]]), device=data.device.torch_device
+            )
 
             data.get_halo(2)
 
@@ -73,8 +77,12 @@ class TestDNDarray(TestCase):
 
             data = ht.ones((10, 2), split=0)
 
-            halo_next = torch.tensor(np.array([[1.0, 1.0], [1.0, 1.0]]))
-            halo_prev = torch.tensor(np.array([[1.0, 1.0], [1.0, 1.0]]))
+            halo_next = torch.tensor(
+                np.array([[1.0, 1.0], [1.0, 1.0]]), device=data.device.torch_device
+            )
+            halo_prev = torch.tensor(
+                np.array([[1.0, 1.0], [1.0, 1.0]]), device=data.device.torch_device
+            )
 
             data.get_halo(2)
 
@@ -87,10 +95,10 @@ class TestDNDarray(TestCase):
 
         if data.comm.size == 3:
 
-            halo_1 = torch.tensor(np.array([[2], [8]]))
-            halo_2 = torch.tensor(np.array([[3], [9]]))
-            halo_3 = torch.tensor(np.array([[4], [10]]))
-            halo_4 = torch.tensor(np.array([[5], [11]]))
+            halo_1 = torch.tensor(np.array([[2], [8]]), device=data.device.torch_device)
+            halo_2 = torch.tensor(np.array([[3], [9]]), device=data.device.torch_device)
+            halo_3 = torch.tensor(np.array([[4], [10]]), device=data.device.torch_device)
+            halo_4 = torch.tensor(np.array([[5], [11]]), device=data.device.torch_device)
 
             data.get_halo(1)
 
@@ -175,13 +183,13 @@ class TestDNDarray(TestCase):
         if ht.MPI_WORLD.size > 4:
             rank = ht.MPI_WORLD.rank
             if rank == 2:
-                arr = torch.tensor([0, 1])
+                arr = torch.tensor([0, 1], device=data.device.torch_device)
             elif rank == 3:
-                arr = torch.tensor([2, 3, 4, 5])
+                arr = torch.tensor([2, 3, 4, 5], device=data.device.torch_device)
             elif rank == 4:
-                arr = torch.tensor([6, 7, 8, 9])
+                arr = torch.tensor([6, 7, 8, 9], device=data.device.torch_device)
             else:
-                arr = torch.empty([0], dtype=torch.int64)
+                arr = torch.empty([0], dtype=torch.int64, device=data.device.torch_device)
             a = ht.array(arr, is_split=0)
             a.balance_()
             comp = ht.arange(10, split=0)
