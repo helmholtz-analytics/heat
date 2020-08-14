@@ -50,6 +50,7 @@ class TestSplitTiles(TestCase):
                     ]
                 ],
                 dtype=torch.float64,
+                device=self.device.torch_device,
             )
             if a.comm.rank == 2:
                 self.assertTrue(torch.equal(tiles[2], testing_tensor))
