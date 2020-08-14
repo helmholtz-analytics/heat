@@ -19,7 +19,11 @@ from heat.utils.data.datatools import Dataset
 CSV_PATH = "./grad_perf_eval.csv"
 
 # nn id mapping
-NN_ID_MAPPING = {1: "AlexNet", 2: "ResNet-101", 3: "VGG-16"}
+NN_ID_MAPPING = {
+    1: ("AlexNet", models.AlexNet),
+    2: ("ResNet-101", models.resnet101),
+    3: ("VGG-16", models.vgg16),
+}
 
 
 # extension of the Dataset class to provide labeled data
@@ -224,7 +228,7 @@ def main():
         print(
             "Parameters:",
             "NN =",
-            NN_ID_MAPPING[args.nn_id],
+            NN_ID_MAPPING[args.nn_id][0],
             ", Batch_size =",
             args.batch_size,
             ", Node_count =",
@@ -251,12 +255,8 @@ def main():
         print("Synthetic data has been generated. Benchmark will begin in a few moments...")
 
     # setup local nn
-    if args.nn_id == 1:
-        tmodel = models.AlexNet()
-    elif args.nn_id == 2:
-        tmodel = models.resnet101()
-    elif args.nn_id == 3:
-        tmodel = models.vgg16()
+    if args.nn_id in NN_ID_MAPPING:
+        tmodel = NN_ID_MAPPING[args.nn_id][1]()
     else:
         print("Invalid NN id.")
         return
@@ -294,7 +294,7 @@ def main():
 
         # write result to csv
         save_results(
-            NN_ID_MAPPING[args.nn_id],
+            NN_ID_MAPPING[args.nn_id][0],
             args.batch_size,
             node_cnt,
             int(args.blocking),

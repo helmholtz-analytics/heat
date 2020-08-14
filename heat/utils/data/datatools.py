@@ -110,8 +110,8 @@ class DataLoader:
     def __iter__(self) -> Iterator:
         # need a new iterator for each epoch
         if not self.dataset.partial_dataset:
-            print("here1")
-            self._full_dataset_shuffle_iter()
+            # print("here1")
+            # self._full_dataset_shuffle_iter()
             return self.DataLoader.__iter__()
         # todo: do the loading of the next groups here
         # self.dataset.loads_remaining = self.dataset.loads_required
@@ -581,7 +581,7 @@ def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
         "image/object/bbox/label",
     ]
 
-    train_lcl_file["metadata"].attrs["column_names"] = [feature_list[l] for l in img_list]
-    train_lcl_file["file_info"].attrs["column_names"] = [feature_list[l] for l in file_list]
-    val_lcl_file["metadata"].attrs["column_names"] = [feature_list[l] for l in img_list]
-    val_lcl_file["file_info"].attrs["column_names"] = [feature_list[l] for l in file_list]
+    train_lcl_file["metadata"].attrs["column_names"] = [feature_list[el] for el in img_list]
+    train_lcl_file["file_info"].attrs["column_names"] = [feature_list[el] for el in file_list]
+    val_lcl_file["metadata"].attrs["column_names"] = [feature_list[el] for el in img_list]
+    val_lcl_file["file_info"].attrs["column_names"] = [feature_list[el] for el in file_list]
