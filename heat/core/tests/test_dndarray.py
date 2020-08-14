@@ -183,13 +183,13 @@ class TestDNDarray(TestCase):
         if ht.MPI_WORLD.size > 4:
             rank = ht.MPI_WORLD.rank
             if rank == 2:
-                arr = torch.tensor([0, 1], device=data.device.torch_device)
+                arr = torch.tensor([0, 1], device=htdata.device.torch_device)
             elif rank == 3:
-                arr = torch.tensor([2, 3, 4, 5], device=data.device.torch_device)
+                arr = torch.tensor([2, 3, 4, 5], device=htdata.device.torch_device)
             elif rank == 4:
-                arr = torch.tensor([6, 7, 8, 9], device=data.device.torch_device)
+                arr = torch.tensor([6, 7, 8, 9], device=htdata.device.torch_device)
             else:
-                arr = torch.empty([0], dtype=torch.int64, device=data.device.torch_device)
+                arr = torch.empty([0], dtype=torch.int64, device=htdata.device.torch_device)
             a = ht.array(arr, is_split=0)
             a.balance_()
             comp = ht.arange(10, split=0)
