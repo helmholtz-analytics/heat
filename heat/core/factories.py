@@ -87,7 +87,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=None):
     if num_of_param == 1:
         if dtype is None:
             # use int32 as default instead of int64 used in numpy
-            dtype = types.int32
+            dtype = types.int32 if all_ints else types.float32
         start = 0
         stop = int(np.ceil(args[0]))
         step = 1

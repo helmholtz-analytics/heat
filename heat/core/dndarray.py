@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import numpy as np
 import math
 import torch
@@ -342,12 +340,16 @@ class DNDarray:
 
             if self.comm.rank != self.comm.size - 1:
                 self.comm.Isend(a_next, self.comm.rank + 1)
-                res_prev = torch.zeros(a_prev.size(), dtype=a_prev.dtype)
+                res_prev = torch.zeros(
+                    a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device
+                )
                 req_list.append(self.comm.Irecv(res_prev, source=self.comm.rank + 1))
 
             if self.comm.rank != 0:
                 self.comm.Isend(a_prev, self.comm.rank - 1)
-                res_next = torch.zeros(a_next.size(), dtype=a_next.dtype)
+                res_next = torch.zeros(
+                    a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
+                )
                 req_list.append(self.comm.Irecv(res_next, source=self.comm.rank - 1))
 
             for req in req_list:
@@ -1408,6 +1410,8 @@ class DNDarray:
             """ if the key is a DNDarray and it has as many dimensions as self, then each of the entries in the 0th
                 dim refer to a single element. To handle this, the key is split into the torch tensors for each dimension.
                 This signals that advanced indexing is to be used. """
+            key.balance_()
+            key = manipulations.resplit(key.copy())
             lkey = [slice(None, None, None)] * self.ndim
             kgshape_flag = True
             kgshape = [0] * len(self.gshape)
@@ -1425,6 +1429,8 @@ class DNDarray:
                 lists mean advanced indexing will be used"""
             h = [slice(None, None, None)] * self.ndim
             if isinstance(key, DNDarray):
+                key.balance_()
+                key = manipulations.resplit(key.copy())
                 h[0] = key._DNDarray__array.tolist()
             elif isinstance(key, torch.Tensor):
                 h[0] = key.tolist()
