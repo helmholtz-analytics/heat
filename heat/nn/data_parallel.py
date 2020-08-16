@@ -119,10 +119,10 @@ class DataParallel(tnn.Module):
             dp_optimizer.blocking_parameter_updates = self.blocking_parameter_updates
 
         # unify parameters across nodes by unifying the random seed and resetting parameters
-        seed = torch.tensor([torch.random.seed() >> 1], device=torch.device('cpu'))
-        comm.Bcast(seed)
-        torch.random.manual_seed(seed.item())
-        self.module.apply(self._reset_parameters)
+        #seed = torch.tensor([torch.random.seed() >> 33], device=torch.device('cpu'))
+        #comm.Bcast(seed)
+        #torch.random.manual_seed(seed.item())
+        #self.module.apply(self._reset_parameters)
 
         # get parameter indexing and slices
         start_idx = 0
