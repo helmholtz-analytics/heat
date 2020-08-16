@@ -114,17 +114,17 @@ def generate_synthetic_data(mu, sample_cnt, img_size, node_cnt, strong_scaling):
     if not strong_scaling:
         sample_cnt *= node_cnt
 
-    data = ht.zeros((len(mu) * sample_cnt, 3, img_size, img_size), dtype=ht.float32)
-    target = ht.zeros((len(mu) * sample_cnt, 1), dtype=ht.float32)
+    data = ht.zeros((len(mu) * sample_cnt, 3, img_size, img_size), dtype=ht.float32, device='cpu')
+    target = ht.zeros((len(mu) * sample_cnt, 1), dtype=ht.float32, device='cpu')
 
     for i in range(len(mu)):
         data[sample_cnt * i : sample_cnt * (i + 1), :] = (
-            ht.clip(ht.random.randn(sample_cnt, 3, img_size, img_size) + mu[i], 0, 255) / 255
+            ht.clip(ht.random.randn(sample_cnt, 3, img_size, img_size, device='cpu') + mu[i], 0, 255) / 255
         )
-        target[sample_cnt * i : sample_cnt * (i + 1), :] = ht.ones((sample_cnt, 1)) * i
+        target[sample_cnt * i : sample_cnt * (i + 1), :] = ht.ones((sample_cnt, 1), device='cpu') * i
 
     permutation = np.random.permutation(data.shape[0])
-    return ht.array(data[permutation], ndmin=4, split=0), ht.array(target[permutation])
+    return ht.array(data[permutation], ndmin=4, split=0, device='cpu'), ht.array(target[permutation], device='cpu')
 
 
 def train_epoch(args, model, device, train_loader, optimizer):
@@ -222,7 +222,7 @@ def main():
     )
 
     args = parser.parse_args()
-    use_cuda = not args.cuda and torch.cuda.is_available()
+    use_cuda = args.cuda and torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
     kwargs = {"batch_size": args.batch_size}
 
