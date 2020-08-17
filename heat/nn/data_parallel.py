@@ -1,6 +1,4 @@
 import bisect
-import functools
-import operator
 import warnings
 
 import torch
@@ -11,7 +9,6 @@ from typing import Callable, List
 from ..core.communication import MPICommunication
 from ..core.communication import MPI
 from ..core import dndarray
-from .. import optim
 
 __all__ = ["DataParallel"]
 
@@ -119,10 +116,10 @@ class DataParallel(tnn.Module):
             dp_optimizer.blocking_parameter_updates = self.blocking_parameter_updates
 
         # unify parameters across nodes by unifying the random seed and resetting parameters
-        #seed = torch.tensor([torch.random.seed() >> 33], device=torch.device('cpu'))
-        #comm.Bcast(seed)
-        #torch.random.manual_seed(seed.item())
-        #self.module.apply(self._reset_parameters)
+        # seed = torch.tensor([torch.random.seed() >> 33], device=torch.device('cpu'))
+        # comm.Bcast(seed)
+        # torch.random.manual_seed(seed.item())
+        # self.module.apply(self._reset_parameters)
 
         # get parameter indexing and slices
         start_idx = 0
@@ -225,7 +222,7 @@ class DataParallel(tnn.Module):
             if layer_name not in self._active_layers:
                 return
             # iterate over layer's parameters/associated wait handles
-            for (_, param_name, wait_handle) in self._layer_wait_handles[layer_name]:
+            for (_, param_name, wait_handle) in reversed(self._layer_wait_handles[layer_name]):
                 # get internal index of selected parameter
                 param_idx = self._param_indices[param_name]
                 # synchronize, get parameter's global gradient
@@ -284,7 +281,7 @@ class DataParallel(tnn.Module):
             # add layer to set of active layers
             self._active_layers.add(layer_name)
             # get size of flattened tensor
-            size_1d = functools.reduce(operator.mul, grad_loc.shape, 1)
+            size_1d = torch.numel(grad_loc)
             # assign wait handle to its layer, layer-internal sorting by size
             bisect.insort(self._layer_wait_handles[layer_name], (size_1d, param_name, wait_handle))
             return grad_loc
