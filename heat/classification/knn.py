@@ -89,12 +89,12 @@ class KNN(ht.ClassificationMixin, ht.BaseEstimator):
         """
 
         distances = ht.spatial.cdist(X, self.x)
-        _, indices = ht.topk(distances, self.num_neighbours, largest=False)
+        result, indices = ht.topk(distances, self.num_neighbours, largest=False)
 
-        labels = self.y[indices.flatten()]
-        labels.balance_()
-        labels = ht.reshape(labels, (indices.gshape + (self.y.gshape[1],)))
-        labels = ht.sum(labels, axis=1)
+        row_max = ht.max(result, axis=1, keepdim=True)
+        selecting_matrix = ht.where(distances <= row_max, 1, 0)
+        labels = ht.matmul(selecting_matrix, self.y)
+
         maximums = ht.argmax(labels, axis=1)
 
         return maximums
