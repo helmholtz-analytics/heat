@@ -2,17 +2,16 @@ import sys
 import os
 import random
 
-# Fix python path if run from terminal
+# Fix python Path if run from terminal
 curdir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(curdir, "../../")))
 
 import heat as ht
+from heat.som.som import FixedSOM
 from heat.classification.knn import KNN
 
-# Load dataset from hdf5 file
 X = ht.load_hdf5("../../heat/datasets/data/iris.h5", dataset="data", split=0)
 
-# Generate keys for the iris.h5 dataset
 keys = []
 for i in range(50):
     keys.append(0)
@@ -21,37 +20,6 @@ for i in range(50, 100):
 for i in range(100, 150):
     keys.append(2)
 Y = ht.array(keys, split=0)
-
-
-def calculate_accuracy(new_y, verification_y):
-    """
-    Calculates the accuracy of classification/clustering-algorithms.
-    Note this only works with integer/discrete classes. For algorithms that give approximations an error function is
-    required.
-
-    Parameters
-    ----------
-    new_y : ht.tensor of shape (n_samples, n_features), required
-        The new labels that where generated
-    verification_y : ht.tensor of shape (n_samples, n_features), required
-        Known labels
-
-    Returns
-    ----------
-    float
-        the accuracy, number of properly labeled samples divided by amount of labels.
-    """
-
-    if new_y.gshape != verification_y.gshape:
-        raise ValueError(
-            "Expecting results of same length, got {}, {}".format(
-                new_y.gshape, verification_y.gshape
-            )
-        )
-
-    count = ht.sum(ht.where(new_y == verification_y, 1, 0))
-
-    return count / new_y.gshape[0]
 
 
 def create_fold(dataset_x, dataset_y, size, seed=None):
@@ -106,39 +74,66 @@ def create_fold(dataset_x, dataset_y, size, seed=None):
     return fold_x, fold_y, verification_x, verification_y
 
 
-def verify_algorithm(x, y, split_number, split_size, k, seed=None):
-    """
-    Parameters
-    ----------
-    x : ht.DNDarray
-        array containing data vectors
-    y : ht.DNDarray
-        array containing the labels for x (must be in same order)
-    split_number: int
-        the number of test iterations
-    split_size : int
-        the number of vectors used by the KNN-Algorithm
-    k : int
-        The number of neighbours for KNN-Algorithm
-    seed : int
-        Seed for the random generator used in creating folds. Used for deterministic testing purposes.
-    Returns
-    -------
-    accuracies : ht.DNDarray
-        array of shape (split_number,) containing the accuracy per run
-    """
-    assert len(x) == len(y)
-    assert split_size < len(x)
-    assert k < len(x)
+def get_bmu(som, x):
+    distances = ht.spatial.cdist(x, som.network)
+    min_dist = ht.argmin(distances, axis=1)
 
+    new_x = som.network_indices[min_dist.flatten()]
+    new_x.balance_()
+
+    return new_x
+
+
+def test_net(som, x, y, split_number, split_size, seed=None):
     accuracies = []
-
-    for split_index in range(split_number):
+    for split in range(split_number):
         fold_x, fold_y, verification_x, verification_y = create_fold(x, y, split_size, seed)
-        classifier = KNN(fold_x, fold_y, k)
-        result_y = classifier.predict(verification_x)
-        accuracies.append(calculate_accuracy(result_y, verification_y).item())
+
+        new_x = get_bmu(som, fold_x)
+        verification_x = get_bmu(som, verification_x)
+
+        knn = KNN(new_x, fold_y, 5)
+        result = knn.predict(verification_x)
+        accuracies.append(
+            (ht.sum(ht.where(result == verification_y, 1, 0)) / verification_y.shape[0]).item()
+        )
     return accuracies
 
 
-print(verify_algorithm(X, Y, 10, 30, 5))
+som = FixedSOM(
+    10,
+    10,
+    4,
+    initial_learning_rate=0.1,
+    target_learning_rate=0.01,
+    initial_radius=8,
+    target_radius=1,
+    max_epoch=200,
+    batch_size=25,
+    seed=1,
+    data_split=0,
+)
+
+som.fit_batch(X, 1)
+
+random.seed(2)
+print(test_net(som, X, Y, 10, 30))
+
+som = FixedSOM(
+    10,
+    10,
+    4,
+    initial_learning_rate=0.1,
+    target_learning_rate=0.01,
+    initial_radius=8,
+    target_radius=1,
+    max_epoch=200,
+    batch_size=25,
+    seed=1,
+    data_split=0,
+)
+
+som.fit_iterative(X)
+
+random.seed(2)
+print(test_net(som, X, Y, 10, 30))

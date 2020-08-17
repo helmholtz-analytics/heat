@@ -2,6 +2,7 @@ import warnings
 
 import heat as ht
 import numpy as np
+import random
 
 
 class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
@@ -50,7 +51,6 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         ht.core.random.seed(seed)
 
         self.network = ht.random.rand(height * width, data_dim, dtype=ht.float64, split=data_split)
-        print(ht.min(self.network))
         self.batch_size = batch_size
 
         self.network_indices = ht.array(
@@ -58,25 +58,70 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         )
         self.distances = self.precompute_distances()
 
-    def fit(self, X):
+    def fit_iterative(self, X):
         self.learning_rate = self.initial_learning_rate
+        self.radius = self.initial_radius
+
         batch_count = int(X.gshape[0] / self.batch_size)
+        offset = 0
+        batches = []
+        indices = [i for i in range(X.shape[0])]
+
+        if self.batch_size < X.shape[0]:
+            random.shuffle(indices)
+            X = X[indices]
+            X.balance_()
+
+        for count in range(1, batch_count + 1):
+            batches.append(X[offset : count * self.batch_size])
+            batches[-1].balance_()
+            offset = count * self.batch_size
+
         for epoch in range(1, self.max_epoch):
-            offset = 0
-            for count in range(1, batch_count + 1):
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", ResourceWarning)
-                    batch = X[offset : count * self.batch_size]
-                batch.balance_()
-
+            for count in range(batch_count):
+                batch = batches[count]
                 distances = ht.spatial.cdist(batch, self.network)
-                winner_indices = ht.argmin(distances, axis=1)
+                row_min = ht.min(distances, axis=1, keepdim=True)
+                min_distances = ht.where(distances == row_min, 1, 0)
 
-                self.update_weights(winner_indices, batch)
-                offset = count * self.batch_size
+                self.update_weights(min_distances, batch)
 
                 self.update_learning_rate(epoch)
-                self.update_neighbourhood_radius(epoch)
+                self.update_radius(epoch)
+
+                random.shuffle(batch)
+
+    def fit_batch(self, X, c):
+
+        self.radius = self.initial_radius
+        self.learning_rate = self.initial_learning_rate
+
+        self.distances = ht.resplit(self.distances, axis=0)
+
+        for epoch in range(1, self.max_epoch + 1):
+            distances = ht.spatial.cdist(X, self.network)
+            row_min = ht.argmin(distances, axis=1)
+
+            scalars = self.in_radius()
+            scalars = scalars[row_min]
+            weights = ht.expand_dims(X, axis=1)
+            scalars = ht.expand_dims(scalars, axis=2)
+            scaled_weights = weights * scalars
+
+            weight_sum = ht.sum(scaled_weights, axis=0)
+            scalar_sum = ht.sum(scalars, axis=0)
+
+            new_network = weight_sum / scalar_sum
+
+            dist = ht.sum(ht.spatial.cdist(self.network, new_network))
+
+            self.network = new_network
+
+            self.update_learning_rate(epoch)
+            self.update_radius(epoch)
+
+            if dist <= c:
+                break
 
     def predict(self, X):
         distances = ht.spatial.cdist(X, self.network)
@@ -90,30 +135,46 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
             self.target_learning_rate - self.initial_learning_rate
         ) * (epoch / self.max_epoch)
 
-    def update_neighbourhood_radius(self, epoch):
-        self.radius = self.target_radius + (self.initial_radius - self.target_radius) * np.exp(
-            -epoch * (1 / self.max_epoch) * np.e ** 2
+    def update_radius(self, epoch):
+        self.radius = self.initial_radius * (
+            (self.target_radius / self.initial_radius) ** (epoch / self.max_epoch)
         )
 
-    def in_radius(self, indices):
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", ResourceWarning)
-            dist = self.distances[indices]
-        dist.balance_()
-        dist = ht.reshape(dist, (dist.shape[1], dist.shape[0]))
-        dist = ht.exp((ht.pow(dist, 2) * -1) / self.radius)
+    def in_radius(self,):
+        dist = ht.exp((ht.pow(self.distances, 2) * -1) / (2 * ht.pow(self.radius, 2)))
         return dist
 
     def precompute_distances(self,):
-        return ht.spatial.cdist(self.network_indices, self.network_indices)
+        return ht.resplit(ht.spatial.cdist(self.network_indices, self.network_indices), axis=1)
 
-    def update_weights(self, indices, weights):
-        scalars = self.learning_rate * self.in_radius(indices)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", ResourceWarning)
-            network = self.network[indices]
-        network.balance_()
-        distances = weights - network
-        scaled_distances = ht.matmul(scalars, distances)
-        print(ht.min(scaled_distances, axis=1))
+    def update_weights(self, winner_cells, weights):
+        scalars = self.learning_rate * self.in_radius()
+        scalars = ht.where(self.distances <= self.radius, scalars, 0)
+        scalars = ht.matmul(winner_cells, scalars)
+        weights = ht.expand_dims(weights, 1)
+        distances = ht.sub(weights, self.network)
+        scalars = ht.expand_dims(scalars, 2)
+        scaled_distances = scalars * distances
+        scaled_distances = ht.sum(scaled_distances, axis=0)
         self.network = self.network + scaled_distances
+
+    def umatrix(self,):
+        """
+        Returns a umatrix representation of the network. Each Cell contains the distance to the neighbouring weights.
+        Neighbours are cells in the moore neighbourhood 1.
+        """
+        network_distances = ht.spatial.cdist(self.network, self.network)
+        radius = ht.where(self.distances != 0, self.distances, 2)
+        radius = ht.resplit(radius, 0)
+        radius = ht.where(radius < 2, 1, 0)
+        selected_distances = network_distances * radius
+        sum_distances = ht.sum(selected_distances, axis=1)
+        distances = ht.reshape(sum_distances, (self.height, self.width))
+
+        return distances
+
+    def get_2d_network(self, array):
+        array = self.network_indices[array]
+        array.balance_()
+
+        return array
