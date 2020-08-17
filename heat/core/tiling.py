@@ -623,13 +623,12 @@ class SquareDiagTiles:
         diag_crossings[-1] = (
             diag_crossings[-1] if diag_crossings[-1] <= min(arr.gshape) else min(arr.gshape)
         )
-        diag_crossings = torch.cat(
-            (torch.tensor([0], device=arr._DNDarray__array.device), diag_crossings), dim=0
-        )
+        dev = arr._DNDarray__array.device
+        diag_crossings = torch.cat((torch.tensor([0], device=dev), diag_crossings), dim=0)
         # create the tile columns sizes, saved to list
         col_inds = []
         for col in range(tile_columns.item()):
-            off = torch.floor_divide(col, tiles_per_proc)
+            off = torch.floor_divide(col, tiles_per_proc).to(dev)
             _, lshape, _ = arr.comm.chunk(
                 [diag_crossings[off + 1] - diag_crossings[off]],
                 0,

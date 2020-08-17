@@ -23,10 +23,10 @@ CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("PSP_CUDA") == "1"
 class Communication:
     @staticmethod
     def is_distributed():
-        return NotImplemented
+        raise NotImplementedError()
 
     def __init__(self):
-        return NotImplemented
+        raise NotImplementedError()
 
     def chunk(self, shape, split):
         """
@@ -47,7 +47,7 @@ class Communication:
         slices : tuple of slices
             the chunk slices with respect to the given shape
         """
-        return NotImplemented
+        raise NotImplementedError()
 
 
 class MPICommunication(Communication):
