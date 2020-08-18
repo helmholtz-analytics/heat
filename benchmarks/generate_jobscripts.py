@@ -17,6 +17,7 @@ TEMPLATE = """#!/bin/bash -x
 #SBATCH --mail-user={mail}
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --output={output}
+#SBATCH --error={error}
 
 export OMP_NUM_THREADS={threads}
 cd {workdir}
@@ -33,6 +34,7 @@ DASK_TEMPLATE = """#!/bin/bash -x
 #SBATCH --mail-user={mail}
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --output={output}
+#SBATCH --error={error}
 
 export OMP_NUM_THREADS={threads}
 cd {workdir}
@@ -50,6 +52,7 @@ exit 0
 JOBSCRIPT_NAME = "{algorithm}-{benchmark}-{kind}-scale-{nodes}-nodes-{tasks}-tasks"
 JOBSCRIPT_PATH = os.path.join("{jobscripts}", JOBSCRIPT_NAME) + ".sh"
 OUTPUT_PATH = os.path.join("{output_path}", JOBSCRIPT_NAME) + ".out"
+ERROR_PATH = os.path.join("{output_path}", JOBSCRIPT_NAME) + ".err"
 
 SKIP = {"file", "benchmarks"}
 
@@ -92,6 +95,7 @@ def jobscripts_from(
                 arguments["nodes"] = nodes
                 arguments["tasks"] = benchmark["tasks"][i]
                 arguments["output"] = OUTPUT_PATH.format(**arguments)
+                arguments["error"] = ERROR_PATH.format(**arguments)
 
                 jobscript_path = JOBSCRIPT_PATH.format(**arguments)
                 jobscripts.append(jobscript_path)

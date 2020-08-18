@@ -20,8 +20,10 @@ if __name__ == "__main__":
     client = Client(scheduler_file=os.path.join(os.getcwd(), "scheduler.json"))
 
     print("Loading data... {}[{}]".format(args.file, args.dataset), end="")
+    workers = len(client.scheduler_info()["workers"])
     with h5py.File(args.file, "r") as handle:
-        data = da.from_array(handle[args.dataset], chunks=(7143, -1)).persist()
+        ch = handle[args.dataset].shape[0] // workers
+        data = da.from_array(handle[args.dataset], chunks=(ch, -1)).persist()
     print("\t[OK]")
 
     for trial in range(args.trials):

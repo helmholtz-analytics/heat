@@ -1,5 +1,5 @@
 {
-  "file": "SUSY-{size}.h5",
+  "file": "SUSY_{size}.h5",
   "dataset": "data",
 
   "trials": 10,
